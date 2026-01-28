@@ -13,6 +13,10 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        display: ['Cinzel', 'Times New Roman', 'serif'],
+        body: ['Inter', 'system-ui', 'sans-serif'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -47,6 +51,36 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Ability tree colors
+        hunter: {
+          DEFAULT: "hsl(var(--hunter))",
+          glow: "hsl(var(--hunter-glow))",
+          dim: "hsl(var(--hunter-dim))",
+          foreground: "hsl(var(--hunter-foreground))",
+        },
+        warrior: {
+          DEFAULT: "hsl(var(--warrior))",
+          glow: "hsl(var(--warrior-glow))",
+          dim: "hsl(var(--warrior-dim))",
+          foreground: "hsl(var(--warrior-foreground))",
+        },
+        assassin: {
+          DEFAULT: "hsl(var(--assassin))",
+          glow: "hsl(var(--assassin-glow))",
+          dim: "hsl(var(--assassin-dim))",
+          foreground: "hsl(var(--assassin-foreground))",
+        },
+        // Tier colors
+        tier: {
+          maxed: "hsl(var(--tier-maxed))",
+          "maxed-glow": "hsl(var(--tier-maxed-glow))",
+          active: "hsl(var(--tier-active))",
+          locked: "hsl(var(--tier-locked))",
+        },
+        parchment: {
+          DEFAULT: "hsl(var(--parchment))",
+          dark: "hsl(var(--parchment-dark))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -65,25 +99,28 @@ export default {
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+        "glow-pulse": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.6" },
+        },
+        "tier-unlock": {
+          "0%": { transform: "scale(0)", opacity: "0" },
+          "50%": { transform: "scale(1.3)" },
+          "100%": { transform: "scale(1)", opacity: "1" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "glow-pulse": "glow-pulse 2s ease-in-out infinite",
+        "tier-unlock": "tier-unlock 0.4s ease-out",
       },
     },
   },
