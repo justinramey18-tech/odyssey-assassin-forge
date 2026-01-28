@@ -34,6 +34,7 @@ export interface Character {
   name: string;
   level: number;
   abilities: CharacterAbility[];
+  equippedAbilities: string[]; // Array of ability IDs in loadout slots
 }
 
 // Calculate ability points by level
