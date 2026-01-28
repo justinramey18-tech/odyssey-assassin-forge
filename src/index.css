@@ -2,95 +2,109 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
+/* Odyssey Assassin - Dark Fantasy Design System
+   All colors MUST be HSL.
 */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Dark fantasy base - deep charcoal with warm undertones */
+    --background: 220 20% 8%;
+    --foreground: 40 15% 90%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    /* Card styling - slightly lighter than background */
+    --card: 220 18% 12%;
+    --card-foreground: 40 15% 90%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    /* Popover/modal styling */
+    --popover: 220 20% 10%;
+    --popover-foreground: 40 15% 90%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Primary - warm gold accent */
+    --primary: 45 80% 55%;
+    --primary-foreground: 220 20% 8%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Secondary - muted parchment */
+    --secondary: 35 20% 20%;
+    --secondary-foreground: 40 15% 85%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Muted - for less important text */
+    --muted: 220 15% 18%;
+    --muted-foreground: 40 10% 60%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Accent - bronze highlight */
+    --accent: 30 50% 30%;
+    --accent-foreground: 40 15% 90%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Destructive - blood red */
+    --destructive: 0 70% 45%;
+    --destructive-foreground: 40 15% 95%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Border - subtle dark line */
+    --border: 220 15% 20%;
+    --input: 220 15% 18%;
+    --ring: 45 80% 55%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
+    /* ═══════════════════════════════════════════════════
+       ABILITY TREE COLORS - The heart of the visual system
+       ═══════════════════════════════════════════════════ */
+    
+    /* 🏹 Hunter Tree - Forest green with ethereal glow */
+    --hunter: 140 60% 35%;
+    --hunter-glow: 140 70% 45%;
+    --hunter-dim: 140 30% 20%;
+    --hunter-foreground: 140 80% 90%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    /* ⚔️ Warrior Tree - Crimson/blood red */
+    --warrior: 0 65% 40%;
+    --warrior-glow: 0 75% 50%;
+    --warrior-dim: 0 40% 22%;
+    --warrior-foreground: 0 70% 92%;
 
-    --sidebar-primary: 240 5.9% 10%;
+    /* 🗡️ Assassin Tree - Deep purple/shadow */
+    --assassin: 270 50% 40%;
+    --assassin-glow: 270 65% 55%;
+    --assassin-dim: 270 35% 22%;
+    --assassin-foreground: 270 60% 92%;
 
-    --sidebar-primary-foreground: 0 0% 98%;
+    /* ═══════════════════════════════════════════════════
+       TIER INDICATOR COLORS
+       ═══════════════════════════════════════════════════ */
+    
+    /* Maxed abilities - golden glow */
+    --tier-maxed: 45 90% 55%;
+    --tier-maxed-glow: 45 100% 65%;
+    
+    /* Unlocked/active tiers */
+    --tier-active: 45 70% 50%;
+    
+    /* Locked/unavailable */
+    --tier-locked: 220 10% 35%;
 
-    --sidebar-accent: 240 4.8% 95.9%;
+    /* ═══════════════════════════════════════════════════
+       SPECIAL EFFECTS
+       ═══════════════════════════════════════════════════ */
+    
+    /* Parchment texture overlay color */
+    --parchment: 35 30% 85%;
+    --parchment-dark: 30 25% 15%;
 
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Sidebar - keeping for compatibility */
+    --sidebar-background: 220 20% 6%;
+    --sidebar-foreground: 40 15% 85%;
+    --sidebar-primary: 45 80% 55%;
+    --sidebar-primary-foreground: 220 20% 8%;
+    --sidebar-accent: 30 50% 25%;
+    --sidebar-accent-foreground: 40 15% 90%;
+    --sidebar-border: 220 15% 18%;
+    --sidebar-ring: 45 80% 55%;
   }
 
+  /* No light mode - this is a dark fantasy app */
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Same as root - always dark */
   }
 }
 
@@ -101,5 +115,84 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    font-family: 'Cinzel', 'Times New Roman', serif;
+  }
+
+  /* Custom scrollbar for dark theme */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted));
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--accent));
+  }
+}
+
+@layer utilities {
+  /* Glowing effects for ability trees */
+  .glow-hunter {
+    box-shadow: 0 0 20px hsl(var(--hunter-glow) / 0.4),
+                0 0 40px hsl(var(--hunter-glow) / 0.2);
+  }
+
+  .glow-warrior {
+    box-shadow: 0 0 20px hsl(var(--warrior-glow) / 0.4),
+                0 0 40px hsl(var(--warrior-glow) / 0.2);
+  }
+
+  .glow-assassin {
+    box-shadow: 0 0 20px hsl(var(--assassin-glow) / 0.4),
+                0 0 40px hsl(var(--assassin-glow) / 0.2);
+  }
+
+  .glow-gold {
+    box-shadow: 0 0 15px hsl(var(--tier-maxed-glow) / 0.5),
+                0 0 30px hsl(var(--tier-maxed-glow) / 0.3);
+  }
+
+  /* Tier dot indicators */
+  .tier-dot {
+    @apply w-2.5 h-2.5 rounded-full transition-all duration-300;
+  }
+
+  .tier-dot-active {
+    background: hsl(var(--tier-active));
+    box-shadow: 0 0 6px hsl(var(--tier-active) / 0.8);
+  }
+
+  .tier-dot-maxed {
+    background: hsl(var(--tier-maxed));
+    box-shadow: 0 0 8px hsl(var(--tier-maxed-glow) / 0.9);
+  }
+
+  .tier-dot-locked {
+    background: hsl(var(--tier-locked));
+  }
+
+  /* Parchment texture effect */
+  .parchment-bg {
+    background: 
+      linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--parchment-dark)) 100%);
+    position: relative;
+  }
+
+  .parchment-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.03;
+    pointer-events: none;
+    border-radius: inherit;
   }
 }
