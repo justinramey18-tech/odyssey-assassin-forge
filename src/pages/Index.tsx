@@ -4,6 +4,7 @@ import { allAbilities } from '@/lib/abilities';
 import { WizardStepOne } from '@/components/character/WizardStepOne';
 import { WizardStepTwo } from '@/components/character/WizardStepTwo';
 import { PointsSummary } from '@/components/character/PointsSummary';
+import { EquippedLoadout } from '@/components/character/EquippedLoadout';
 
 const Index = () => {
   const [step, setStep] = useState<1 | 2>(1);
@@ -11,6 +12,7 @@ const Index = () => {
     name: '',
     level: 1,
     abilities: allAbilities.map(a => ({ abilityId: a.id, currentTier: 0 as const })),
+    equippedAbilities: [],
   });
 
   const totalPoints = getAbilityPointsForLevel(character.level);
@@ -40,21 +42,47 @@ const Index = () => {
   };
 
   const handleDowngradeAbility = (abilityId: string) => {
-    setCharacter(prev => ({
-      ...prev,
-      abilities: prev.abilities.map(ca =>
-        ca.abilityId === abilityId && ca.currentTier > 0
-          ? { ...ca, currentTier: (ca.currentTier - 1) as 0 | 1 | 2 | 3 }
-          : ca
-      ),
-    }));
+    setCharacter(prev => {
+      // Remove from equipped if being fully removed
+      const currentTier = prev.abilities.find(ca => ca.abilityId === abilityId)?.currentTier ?? 0;
+      const newEquipped = currentTier === 1 
+        ? prev.equippedAbilities.filter(id => id !== abilityId)
+        : prev.equippedAbilities;
+      
+      return {
+        ...prev,
+        abilities: prev.abilities.map(ca =>
+          ca.abilityId === abilityId && ca.currentTier > 0
+            ? { ...ca, currentTier: (ca.currentTier - 1) as 0 | 1 | 2 | 3 }
+            : ca
+        ),
+        equippedAbilities: newEquipped,
+      };
+    });
   };
 
   const handleResetAbilities = () => {
     setCharacter(prev => ({
       ...prev,
       abilities: prev.abilities.map(ca => ({ ...ca, currentTier: 0 as const })),
+      equippedAbilities: [],
     }));
+  };
+
+  const handleEquipAbility = (slotIndex: number, abilityId: string) => {
+    setCharacter(prev => {
+      const newEquipped = [...prev.equippedAbilities];
+      newEquipped[slotIndex] = abilityId;
+      return { ...prev, equippedAbilities: newEquipped };
+    });
+  };
+
+  const handleUnequipAbility = (slotIndex: number) => {
+    setCharacter(prev => {
+      const newEquipped = [...prev.equippedAbilities];
+      newEquipped[slotIndex] = '';
+      return { ...prev, equippedAbilities: newEquipped.filter(Boolean) };
+    });
   };
 
   const handleExportJSON = () => {
@@ -82,6 +110,12 @@ const Index = () => {
             name: allAbilities.find(a => a.id === ca.abilityId)?.name,
             tier: ca.currentTier,
             tree: allAbilities.find(a => a.id === ca.abilityId)?.tree,
+          })),
+        equippedLoadout: character.equippedAbilities
+          .filter(Boolean)
+          .map(id => ({
+            id,
+            name: allAbilities.find(a => a.id === id)?.name,
           })),
       },
     };
@@ -118,6 +152,18 @@ const Index = () => {
             initialLevel={character.level}
             onComplete={handleBasicInfoComplete}
           />
+        )}
+
+        {step === 2 && (
+          <div className="container max-w-2xl mx-auto px-4 pb-4">
+            <div className="mb-6 p-4 rounded-lg border border-border/50 bg-card/30">
+              <EquippedLoadout
+                character={character}
+                onEquip={handleEquipAbility}
+                onUnequip={handleUnequipAbility}
+              />
+            </div>
+          </div>
         )}
 
         {step === 2 && (
