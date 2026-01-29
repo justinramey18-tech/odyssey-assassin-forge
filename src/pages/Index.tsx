@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Character, CharacterAbility, getAbilityPointsForLevel, getTotalPointsSpent, getActiveSlotsByLevel } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
 import { achievementCategories, Achievement } from '@/lib/achievements';
@@ -22,10 +22,11 @@ import { NarrativeForgeScreen } from '@/components/scribe/NarrativeForgeScreen';
 import { PromptDrawerProvider } from '@/components/drawers';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Swords, Backpack, Trophy, Sparkles, Home, BookOpen, ChevronUp, Crosshair, Lock } from 'lucide-react';
+import { Swords, Backpack, Trophy, Sparkles, Home, BookOpen, ChevronUp, Crosshair, Lock, Cloud } from 'lucide-react';
 import skillsBackgroundImage from '@/assets/skills-background-deadpool.jpg';
 import builderBackground from '@/assets/builder-background.jpg';
 import { SettingsModal } from '@/components/settings/SettingsModal';
+import { CloudSaveModal } from '@/components/settings/CloudSaveModal';
 import { AssassinHeader } from '@/components/navigation/AssassinHeader';
 import { CombatTabScreen } from '@/components/combat/CombatTabScreen';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
@@ -33,6 +34,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useGameMode } from '@/hooks/use-game-mode';
 import { usePrestige } from '@/hooks/use-prestige';
 import { useEquipmentStats } from '@/hooks/use-equipment-stats';
+import { useAutoSave, loadAutoSave, SaveData, serializeConsumables } from '@/hooks/use-auto-save';
+import { useConsumables } from '@/hooks/use-consumables';
 import { PrestigePointCounter, PrestigeLevelUpModal } from '@/components/prestige';
 import { 
   CharacterEquipment, 
@@ -41,10 +44,12 @@ import {
 } from '@/lib/inventory/index';
 
 
+
 const Index = () => {
   const [showWizard, setShowWizard] = useState(true);
   const [showHomeScreen, setShowHomeScreen] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showCloudSaveModal, setShowCloudSaveModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'skills' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat'>('skills');
   const [character, setCharacter] = useState<Character>({
     name: '',
@@ -85,8 +90,57 @@ const Index = () => {
     () => achievementCategories.map(a => ({ ...a }))
   );
   
+  // Consumables inventory
+  const { inventory: consumablesInventory } = useConsumables();
+  
   const { toast } = useToast();
   const { requiresOrganicLevelUp, requiresGearUnlocks, rerollsDisabled } = useGameMode();
+
+  // Data for auto-save
+  const saveData = useMemo(() => ({
+    character,
+    equipment,
+    achievements,
+    consumables: serializeConsumables(consumablesInventory),
+    xp: {
+      currentXP,
+      xpPreset,
+    },
+    prestige: {
+      prestigeXP: prestigeData.prestigeXP,
+      prestigeLevel: prestigeData.prestigeLevel,
+      totalPrestigePoints: prestigeData.totalPrestigePoints,
+      spentPrestigePoints: prestigeData.spentPrestigePoints,
+    },
+  }), [character, equipment, achievements, consumablesInventory, currentXP, xpPreset, prestigeData]);
+
+  // Auto-save (only when not in wizard)
+  useAutoSave(saveData, !showWizard);
+
+  // Load auto-save on mount
+  useEffect(() => {
+    const saved = loadAutoSave();
+    if (saved && saved.character.name) {
+      setCharacter(saved.character);
+      setEquipment(saved.equipment);
+      setAchievements(saved.achievements);
+      setCurrentXP(saved.xp.currentXP);
+      setXPPreset(saved.xp.xpPreset as XPPreset);
+      setShowWizard(false);
+      console.log('[AutoSave] Loaded character:', saved.character.name);
+    }
+  }, []);
+
+  // Handle loading cloud save
+  const handleLoadCloudSave = (data: SaveData) => {
+    setCharacter(data.character);
+    setEquipment(data.equipment);
+    setAchievements(data.achievements);
+    setCurrentXP(data.xp.currentXP);
+    setXPPreset(data.xp.xpPreset as XPPreset);
+    // Note: Prestige data is managed by usePrestige hook via localStorage
+    setShowWizard(false);
+  };
 
   // Calculate unlocked abilities map for drawer
   const unlockedAbilities = useMemo(() => {
@@ -469,6 +523,15 @@ const Index = () => {
         <AssassinHeader 
           onHomeClick={() => setShowHomeScreen(true)}
           onSettingsClick={() => setShowSettingsModal(true)}
+          onCloudSaveClick={() => setShowCloudSaveModal(true)}
+        />
+        
+        {/* Cloud Save Modal */}
+        <CloudSaveModal
+          open={showCloudSaveModal}
+          onOpenChange={setShowCloudSaveModal}
+          currentData={saveData}
+          onLoadSave={handleLoadCloudSave}
         />
         
         {/* Settings Modal - Controlled */}
