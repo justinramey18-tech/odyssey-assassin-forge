@@ -23,7 +23,7 @@ import { PromptDrawerProvider } from '@/components/drawers';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Swords, Backpack, Trophy, Sparkles, Home, BookOpen, ChevronUp, Crosshair, Lock } from 'lucide-react';
-import skillsBackgroundImage from '@/assets/skills-background-new.jpg';
+import skillsBackgroundImage from '@/assets/skills-background-deadpool.jpg';
 import builderBackground from '@/assets/builder-background.jpg';
 import { SettingsModal } from '@/components/settings/SettingsModal';
 import { AssassinHeader } from '@/components/navigation/AssassinHeader';
@@ -409,6 +409,7 @@ const Index = () => {
             overlayOpacity={65} 
             tintColor="purple" 
             tintOpacity={20}
+            backgroundSize="contain"
             className="min-h-[calc(100vh-10vh)]"
           >
           {/* Content */}
