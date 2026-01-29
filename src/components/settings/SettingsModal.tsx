@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { Settings, User, Layers, Dices } from 'lucide-react';
+import { Settings, User, Layers, Dices, Gamepad2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { FloatingOverlaySettings } from './FloatingOverlaySettings';
 import { DiceOddsWidget } from './DiceOddsWidget';
+import { GameModeSettings } from './GameModeSettings';
 import { DiceOddsMode, loadDiceOddsMode } from '@/lib/diceOdds';
+import { GameModeSettings as GameModeSettingsType, loadGameModeSettings, saveGameModeSettings } from '@/lib/gameModes';
 
 interface SettingsModalProps {
   characterName: string;
@@ -16,6 +18,12 @@ interface SettingsModalProps {
 export function SettingsModal({ characterName, onEditCharacter }: SettingsModalProps) {
   const [open, setOpen] = useState(false);
   const [diceOddsMode, setDiceOddsMode] = useState<DiceOddsMode>(() => loadDiceOddsMode());
+  const [gameModeSettings, setGameModeSettings] = useState<GameModeSettingsType>(() => loadGameModeSettings());
+
+  const handleGameModeChange = (settings: GameModeSettingsType) => {
+    setGameModeSettings(settings);
+    saveGameModeSettings(settings);
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -36,8 +44,12 @@ export function SettingsModal({ characterName, onEditCharacter }: SettingsModalP
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="app" className="flex-1">
+        <Tabs defaultValue="game" className="flex-1">
           <TabsList className="w-full justify-start gap-1 p-2 bg-muted/20 border-b border-border/30 rounded-none">
+            <TabsTrigger value="game" className="gap-1 text-xs">
+              <Gamepad2 className="w-3.5 h-3.5" />
+              Game Mode
+            </TabsTrigger>
             <TabsTrigger value="app" className="gap-1 text-xs">
               <Layers className="w-3.5 h-3.5" />
               App
@@ -54,6 +66,10 @@ export function SettingsModal({ characterName, onEditCharacter }: SettingsModalP
 
           <ScrollArea className="h-[60vh]">
             <div className="p-4">
+              <TabsContent value="game" className="mt-0 space-y-4">
+                <GameModeSettings settings={gameModeSettings} onChange={handleGameModeChange} />
+              </TabsContent>
+
               <TabsContent value="app" className="mt-0 space-y-4">
                 {/* Floating Overlay Settings */}
                 <FloatingOverlaySettings />
