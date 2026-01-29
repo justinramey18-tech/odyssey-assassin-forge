@@ -12,6 +12,7 @@ import { Character } from '@/lib/types';
 import { XPPreset } from '@/lib/xpSystem';
 import { CharacterEquipment } from '@/lib/inventory/types';
 import { useGameMode, shouldShowInfinityStones } from '@/hooks/use-game-mode';
+import { useEquipmentStats } from '@/hooks/use-equipment-stats';
 
 interface PromptDrawerContextValue {
   openCombatDrawer: () => void;
@@ -66,6 +67,10 @@ export function PromptDrawerProvider({
   // Game mode integration for Infinity Stones lock
   const { infinityStonesLocked } = useGameMode();
   const isInfinityLocked = !shouldShowInfinityStones(character.level, infinityStonesLocked);
+  
+  // Calculate equipment stats for real-time display
+  const defaultEquipment: CharacterEquipment = { slots: {} as any, inventory: [] };
+  const equipmentStats = useEquipmentStats(equipment || defaultEquipment);
   
   // Collapse state for edge triggers
   const [leftCollapsed, setLeftCollapsed] = useState(false);
@@ -257,6 +262,7 @@ export function PromptDrawerProvider({
             currentXP={currentXP}
             xpPreset={xpPreset}
             onAddXP={onAddXP}
+            equipmentStats={equipment ? equipmentStats : undefined}
           />
 
           <ScribeDrawer

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Heart, Sparkles, Plus, Minus, Shield, Zap } from 'lucide-react';
+import { Heart, Sparkles, Plus, Minus, Shield, Zap, Swords, Weight, Target, Eye, Save, Move, Gem } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { EdgeDrawer } from './EdgeDrawer';
@@ -15,6 +15,7 @@ import {
   XP_PRESETS,
   XPPreset,
 } from '@/lib/xpSystem';
+import { AggregatedStats } from '@/hooks/use-equipment-stats';
 
 interface StatsDrawerProps {
   open: boolean;
@@ -29,6 +30,8 @@ interface StatsDrawerProps {
   maxHP?: number;
   tempHP?: number;
   onHPChange?: (current: number, temp: number) => void;
+  // Equipment stats
+  equipmentStats?: AggregatedStats;
 }
 
 export function StatsDrawer({ 
@@ -43,6 +46,7 @@ export function StatsDrawer({
   maxHP: propMaxHP,
   tempHP: propTempHP,
   onHPChange,
+  equipmentStats,
 }: StatsDrawerProps) {
   // Local HP state (with default values based on level)
   const defaultMaxHP = 8 + (level - 1) * 5; // Simple formula: 8 + 5 per level
@@ -133,6 +137,26 @@ export function StatsDrawer({
   const hpPercentage = (currentHP / maxHP) * 100;
   const hpColor = hpPercentage > 50 ? '#22c55e' : hpPercentage > 25 ? '#eab308' : '#ef4444';
 
+  // Helper to render stat bonus
+  const renderStatBonus = (value: number, label: string, icon: React.ReactNode, color: string) => {
+    if (value === 0) return null;
+    return (
+      <div 
+        className="flex items-center gap-2 px-3 py-2 rounded-md border"
+        style={{ 
+          backgroundColor: `${color}15`,
+          borderColor: `${color}40`,
+        }}
+      >
+        <span style={{ color }}>{icon}</span>
+        <span className="text-xs text-muted-foreground">{label}</span>
+        <span className="ml-auto font-mono text-sm font-bold" style={{ color }}>
+          {value > 0 ? '+' : ''}{value}
+        </span>
+      </div>
+    );
+  };
+
   return (
     <EdgeDrawer
       side="left"
@@ -144,6 +168,113 @@ export function StatsDrawer({
     >
       <ScrollArea className="h-[calc(100vh-120px)]">
         <div className="space-y-6 pr-2">
+          {/* Equipment Stats Section */}
+          {equipmentStats && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <Shield className="w-4 h-4 text-blue-400" />
+                Equipment Stats
+              </h3>
+              
+              {/* Primary Combat Stats */}
+              <div className="grid grid-cols-3 gap-2">
+                {/* AC */}
+                <div className="p-3 rounded-lg border bg-blue-500/10 border-blue-500/40 text-center">
+                  <Shield className="w-5 h-5 mx-auto text-blue-400 mb-1" />
+                  <div className="text-2xl font-bold text-blue-400">{equipmentStats.totalAC}</div>
+                  <div className="text-[10px] text-muted-foreground uppercase">AC</div>
+                  {equipmentStats.acFromGear > 0 && (
+                    <div className="text-[9px] text-blue-400/70">+{equipmentStats.acFromGear} gear</div>
+                  )}
+                </div>
+                
+                {/* Attack Bonus */}
+                <div className="p-3 rounded-lg border bg-red-500/10 border-red-500/40 text-center">
+                  <Swords className="w-5 h-5 mx-auto text-red-400 mb-1" />
+                  <div className="text-2xl font-bold text-red-400">
+                    {equipmentStats.totalAttackBonus >= 0 ? '+' : ''}{equipmentStats.totalAttackBonus}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground uppercase">Attack</div>
+                </div>
+                
+                {/* Damage */}
+                <div className="p-3 rounded-lg border bg-amber-500/10 border-amber-500/40 text-center">
+                  <Target className="w-5 h-5 mx-auto text-amber-400 mb-1" />
+                  <div className="text-lg font-bold text-amber-400 font-mono">
+                    {equipmentStats.damage || '—'}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground uppercase">Damage</div>
+                </div>
+              </div>
+
+              {/* Weight */}
+              <div className="flex items-center justify-between px-3 py-2 rounded-md border bg-muted/20 border-muted/40">
+                <div className="flex items-center gap-2">
+                  <Weight className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Total Weight</span>
+                </div>
+                <span className="font-mono text-sm">{equipmentStats.totalWeight} lbs</span>
+              </div>
+
+              {/* Attribute Bonuses */}
+              {(equipmentStats.strength !== 0 || equipmentStats.dexterity !== 0 || 
+                equipmentStats.constitution !== 0 || equipmentStats.intelligence !== 0 ||
+                equipmentStats.wisdom !== 0 || equipmentStats.charisma !== 0) && (
+                <div className="space-y-2">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Attribute Bonuses
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {renderStatBonus(equipmentStats.strength, 'STR', <Swords className="w-3 h-3" />, '#ef4444')}
+                    {renderStatBonus(equipmentStats.dexterity, 'DEX', <Move className="w-3 h-3" />, '#22c55e')}
+                    {renderStatBonus(equipmentStats.constitution, 'CON', <Heart className="w-3 h-3" />, '#f97316')}
+                    {renderStatBonus(equipmentStats.intelligence, 'INT', <Sparkles className="w-3 h-3" />, '#3b82f6')}
+                    {renderStatBonus(equipmentStats.wisdom, 'WIS', <Eye className="w-3 h-3" />, '#a855f7')}
+                    {renderStatBonus(equipmentStats.charisma, 'CHA', <Gem className="w-3 h-3" />, '#ec4899')}
+                  </div>
+                </div>
+              )}
+
+              {/* Other Bonuses */}
+              {(equipmentStats.perception !== 0 || equipmentStats.saves !== 0 || equipmentStats.movement !== 0) && (
+                <div className="space-y-2">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Other Bonuses
+                  </div>
+                  <div className="space-y-1">
+                    {renderStatBonus(equipmentStats.perception, 'Perception', <Eye className="w-3 h-3" />, '#a855f7')}
+                    {renderStatBonus(equipmentStats.saves, 'Saving Throws', <Save className="w-3 h-3" />, '#22c55e')}
+                    {renderStatBonus(equipmentStats.movement, 'Movement', <Move className="w-3 h-3" />, '#3b82f6')}
+                  </div>
+                </div>
+              )}
+
+              {/* Set Bonuses */}
+              {equipmentStats.activeSetBonuses.length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-[10px] uppercase tracking-wider text-amber-400 flex items-center gap-1">
+                    <Gem className="w-3 h-3" />
+                    Active Set Bonuses
+                  </div>
+                  {equipmentStats.activeSetBonuses.map((set, idx) => (
+                    <div 
+                      key={idx}
+                      className="p-2 rounded-md border bg-amber-500/10 border-amber-500/40"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-amber-400">{set.setName}</span>
+                        <span className="text-[10px] text-amber-400/70">
+                          {set.piecesActive}/{set.piecesTotal} pieces
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-amber-300/80 mt-1">{set.bonus}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* HP Section */}
           <div className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
