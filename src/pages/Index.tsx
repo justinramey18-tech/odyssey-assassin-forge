@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Character, CharacterAbility, getAbilityPointsForLevel, getTotalPointsSpent } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
+import { achievementCategories, Achievement } from '@/lib/achievements';
 import { WizardStepOne } from '@/components/character/WizardStepOne';
 import { WizardStepTwo } from '@/components/character/WizardStepTwo';
 import { PointsSummary } from '@/components/character/PointsSummary';
@@ -9,8 +10,10 @@ import { ActionWheelButton } from '@/components/character/ActionWheelButton';
 import { InventoryScreen } from '@/components/inventory/InventoryScreen';
 import { AchievementsScreen } from '@/components/achievements/AchievementsScreen';
 import { ConstellationScreen } from '@/components/constellation/ConstellationScreen';
+import { HomeScreen } from '@/components/home/HomeScreen';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Swords, Backpack, Trophy, Sparkles } from 'lucide-react';
+import { Swords, Backpack, Trophy, Sparkles, Home } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import { 
   CharacterEquipment, 
   EquipmentItem,
@@ -19,7 +22,7 @@ import {
 
 const Index = () => {
   const [step, setStep] = useState<1 | 2>(1);
-  const [activeTab, setActiveTab] = useState<'abilities' | 'inventory' | 'achievements' | 'constellation'>('abilities');
+  const [activeTab, setActiveTab] = useState<'home' | 'abilities' | 'inventory' | 'achievements' | 'constellation'>('home');
   const [character, setCharacter] = useState<Character>({
     name: '',
     level: 1,
@@ -29,6 +32,13 @@ const Index = () => {
   
   // Shared equipment state for constellation view
   const [equipment, setEquipment] = useState<CharacterEquipment>(() => createInitialEquipment());
+  
+  // Shared achievements state
+  const [achievements, setAchievements] = useState<Achievement[]>(
+    () => achievementCategories.map(a => ({ ...a }))
+  );
+  
+  const { toast } = useToast();
 
   const totalPoints = getAbilityPointsForLevel(character.level);
   const spentPoints = getTotalPointsSpent(character.abilities);
@@ -144,10 +154,24 @@ const Index = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleShortRest = () => {
+    toast({
+      title: "Short Rest Complete",
+      description: "You've rested for 1 hour. Some abilities have been restored.",
+    });
+  };
+
+  const handleLongRest = () => {
+    toast({
+      title: "Long Rest Complete", 
+      description: "You've rested for 8 hours. All abilities and HP restored.",
+    });
+  };
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header with points summary - always visible in step 2 */}
-{step === 2 && (activeTab === 'abilities' || activeTab === 'achievements') && (
+      {/* Header with points summary - visible on abilities/achievements tabs */}
+      {step === 2 && (activeTab === 'abilities' || activeTab === 'achievements') && (
         <PointsSummary
           character={character}
           totalPoints={totalPoints}
@@ -158,7 +182,6 @@ const Index = () => {
           onExport={handleExportJSON}
         />
       )}
-
       {/* Main content */}
       <main className={step === 2 && (activeTab === 'abilities' || activeTab === 'achievements') ? 'pt-4' : ''}>
         {step === 1 && (
@@ -170,13 +193,13 @@ const Index = () => {
         )}
 
         {step === 2 && (
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'abilities' | 'inventory' | 'achievements' | 'constellation')} className="w-full">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'home' | 'abilities' | 'inventory' | 'achievements' | 'constellation')} className="w-full">
             {/* Tab Navigation - Fixed at top with Assassin's Creed / Deadpool theme */}
             <div className="sticky top-0 z-40 bg-gradient-to-b from-background via-background/98 to-background/90 backdrop-blur-md border-b border-red-900/30 px-4 py-3">
               {/* Decorative top line */}
               <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-red-500 to-transparent" />
               
-              <TabsList className="grid w-full grid-cols-4 max-w-xl mx-auto bg-black/40 border border-red-900/40 p-1 rounded-none relative overflow-hidden">
+              <TabsList className="grid w-full grid-cols-5 max-w-xl mx-auto bg-black/40 border border-red-900/40 p-1 rounded-none relative overflow-hidden">
                 {/* Corner accents */}
                 <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-red-500/70" />
                 <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-red-500/70" />
@@ -184,29 +207,36 @@ const Index = () => {
                 <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-red-500/70" />
                 
                 <TabsTrigger 
+                  value="home" 
+                  className="gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-red-600/30 data-[state=active]:to-red-900/20 data-[state=active]:text-red-400 data-[state=active]:border-b-2 data-[state=active]:border-red-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all"
+                >
+                  <Home className="w-3.5 h-3.5" />
+                  <span>Home</span>
+                </TabsTrigger>
+                <TabsTrigger 
                   value="abilities" 
-                  className="gap-1.5 data-[state=active]:bg-gradient-to-b data-[state=active]:from-red-600/30 data-[state=active]:to-red-900/20 data-[state=active]:text-red-400 data-[state=active]:border-b-2 data-[state=active]:border-red-500 rounded-none font-cinzel uppercase tracking-wider text-[10px] transition-all"
+                  className="gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-red-600/30 data-[state=active]:to-red-900/20 data-[state=active]:text-red-400 data-[state=active]:border-b-2 data-[state=active]:border-red-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all"
                 >
                   <Swords className="w-3.5 h-3.5" />
                   <span>Skills</span>
                 </TabsTrigger>
                 <TabsTrigger 
                   value="inventory" 
-                  className="gap-1.5 data-[state=active]:bg-gradient-to-b data-[state=active]:from-amber-600/30 data-[state=active]:to-amber-900/20 data-[state=active]:text-amber-400 data-[state=active]:border-b-2 data-[state=active]:border-amber-500 rounded-none font-cinzel uppercase tracking-wider text-[10px] transition-all"
+                  className="gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-amber-600/30 data-[state=active]:to-amber-900/20 data-[state=active]:text-amber-400 data-[state=active]:border-b-2 data-[state=active]:border-amber-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all"
                 >
                   <Backpack className="w-3.5 h-3.5" />
                   <span>Gear</span>
                 </TabsTrigger>
                 <TabsTrigger 
                   value="achievements" 
-                  className="gap-1.5 data-[state=active]:bg-gradient-to-b data-[state=active]:from-purple-600/30 data-[state=active]:to-purple-900/20 data-[state=active]:text-purple-400 data-[state=active]:border-b-2 data-[state=active]:border-purple-500 rounded-none font-cinzel uppercase tracking-wider text-[10px] transition-all"
+                  className="gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-purple-600/30 data-[state=active]:to-purple-900/20 data-[state=active]:text-purple-400 data-[state=active]:border-b-2 data-[state=active]:border-purple-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all"
                 >
                   <Trophy className="w-3.5 h-3.5" />
                   <span>Feats</span>
                 </TabsTrigger>
                 <TabsTrigger 
                   value="constellation" 
-                  className="gap-1.5 data-[state=active]:bg-gradient-to-b data-[state=active]:from-cyan-600/30 data-[state=active]:to-cyan-900/20 data-[state=active]:text-cyan-400 data-[state=active]:border-b-2 data-[state=active]:border-cyan-500 rounded-none font-cinzel uppercase tracking-wider text-[10px] transition-all"
+                  className="gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-cyan-600/30 data-[state=active]:to-cyan-900/20 data-[state=active]:text-cyan-400 data-[state=active]:border-b-2 data-[state=active]:border-cyan-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>Stars</span>
@@ -216,6 +246,19 @@ const Index = () => {
               {/* Decorative bottom accent */}
               <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-[2px] bg-gradient-to-r from-transparent via-red-500/50 to-transparent" />
             </div>
+
+            {/* Home Tab Content */}
+            <TabsContent value="home" className="mt-0">
+              <HomeScreen
+                character={character}
+                equipment={equipment}
+                achievements={achievements}
+                onBack={() => setStep(1)}
+                onNavigateToTab={setActiveTab}
+                onShortRest={handleShortRest}
+                onLongRest={handleLongRest}
+              />
+            </TabsContent>
 
             {/* Abilities Tab Content */}
             <TabsContent value="abilities" className="mt-0 pb-4">
@@ -242,7 +285,7 @@ const Index = () => {
               <InventoryScreen
                 characterName={character.name}
                 level={character.level}
-                onBack={() => setActiveTab('abilities')}
+                onBack={() => setActiveTab('home')}
                 equipment={equipment}
                 onEquipmentChange={setEquipment}
               />
@@ -252,7 +295,9 @@ const Index = () => {
             <TabsContent value="achievements" className="mt-0">
               <AchievementsScreen
                 characterName={character.name}
-                onBack={() => setActiveTab('abilities')}
+                achievements={achievements}
+                onAchievementsChange={setAchievements}
+                onBack={() => setActiveTab('home')}
               />
             </TabsContent>
 
@@ -261,7 +306,7 @@ const Index = () => {
               <ConstellationScreen
                 characterName={character.name}
                 equippedItems={Object.values(equipment.slots).filter(Boolean) as EquipmentItem[]}
-                onBack={() => setActiveTab('abilities')}
+                onBack={() => setActiveTab('home')}
               />
             </TabsContent>
           </Tabs>
