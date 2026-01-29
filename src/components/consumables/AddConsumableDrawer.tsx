@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { 
   Package,
-  Plus,
-  Check,
   ChevronDown,
+  ChevronRight,
   Skull,
   FlaskConical,
   ScrollText
@@ -33,6 +32,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { ConsumableDetailSheet } from './ConsumableDetailSheet';
 
 interface AddConsumableDrawerProps {
   onAddItem: (consumable: Consumable, quantity: number) => void;
@@ -41,22 +41,22 @@ interface AddConsumableDrawerProps {
 
 interface ConsumableItemProps {
   consumable: Consumable;
-  onAdd: (consumable: Consumable) => void;
+  onClick: (consumable: Consumable) => void;
   currentCount: number;
-  justAdded: boolean;
 }
 
-function ConsumableItem({ consumable, onAdd, currentCount, justAdded }: ConsumableItemProps) {
+function ConsumableItem({ consumable, onClick, currentCount }: ConsumableItemProps) {
   const rarity = rarityConfig[consumable.rarity];
   const ItemIcon = getIconByName(consumable.icon);
   
   return (
-    <div
+    <button
+      type="button"
+      onClick={() => onClick(consumable)}
       className={cn(
-        'flex items-center gap-3 p-3 rounded-lg border transition-all',
-        'bg-card hover:bg-card/80',
-        rarity.borderColor,
-        justAdded && 'bg-green-500/20 border-green-500/50'
+        'w-full flex items-center gap-3 p-3 rounded-lg border transition-all text-left',
+        'bg-card hover:bg-accent/50 active:scale-[0.98]',
+        rarity.borderColor
       )}
     >
       {/* Icon */}
@@ -85,34 +85,16 @@ function ConsumableItem({ consumable, onAdd, currentCount, justAdded }: Consumab
         </p>
       </div>
       
-      {/* Current Count & Add Button */}
+      {/* Current Count & Arrow */}
       <div className="flex items-center gap-2 shrink-0">
         {currentCount > 0 && (
           <Badge variant="secondary" className="text-xs">
             ×{currentCount}
           </Badge>
         )}
-        <Button
-          size="icon"
-          variant={justAdded ? 'default' : 'outline'}
-          className={cn(
-            'h-8 w-8',
-            justAdded && 'bg-green-500 hover:bg-green-600'
-          )}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onAdd(consumable);
-          }}
-        >
-          {justAdded ? (
-            <Check className="w-4 h-4" />
-          ) : (
-            <Plus className="w-4 h-4" />
-          )}
-        </Button>
+        <ChevronRight className="w-4 h-4 text-muted-foreground" />
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -121,9 +103,8 @@ interface CategoryDropdownProps {
   icon: React.ReactNode;
   items: Consumable[];
   colorClass: string;
-  onAddItem: (consumable: Consumable) => void;
+  onItemClick: (consumable: Consumable) => void;
   getItemCount: (id: string) => number;
-  recentlyAdded: Set<string>;
 }
 
 function CategoryDropdown({ 
@@ -131,9 +112,8 @@ function CategoryDropdown({
   icon, 
   items, 
   colorClass,
-  onAddItem, 
-  getItemCount, 
-  recentlyAdded 
+  onItemClick, 
+  getItemCount,
 }: CategoryDropdownProps) {
   const [open, setOpen] = useState(false);
   
@@ -172,9 +152,11 @@ function CategoryDropdown({
               <ConsumableItem
                 key={consumable.id}
                 consumable={consumable}
-                onAdd={onAddItem}
+                onClick={(c) => {
+                  onItemClick(c);
+                  setOpen(false);
+                }}
                 currentCount={getItemCount(consumable.id)}
-                justAdded={recentlyAdded.has(consumable.id)}
               />
             ))}
           </div>
@@ -186,89 +168,95 @@ function CategoryDropdown({
 
 export function AddConsumableDrawer({ onAddItem, getItemCount }: AddConsumableDrawerProps) {
   const [open, setOpen] = useState(false);
-  const [recentlyAdded, setRecentlyAdded] = useState<Set<string>>(new Set());
+  const [selectedConsumable, setSelectedConsumable] = useState<Consumable | null>(null);
+  const [detailSheetOpen, setDetailSheetOpen] = useState(false);
   
-  const handleAdd = (consumable: Consumable) => {
-    onAddItem(consumable, 1);
-    setRecentlyAdded(prev => new Set(prev).add(consumable.id));
-    toast.success(`Added ${consumable.name} to inventory`);
-    setTimeout(() => {
-      setRecentlyAdded(prev => {
-        const next = new Set(prev);
-        next.delete(consumable.id);
-        return next;
-      });
-    }, 1500);
+  const handleItemClick = (consumable: Consumable) => {
+    setSelectedConsumable(consumable);
+    setDetailSheetOpen(true);
+  };
+
+  const handleAddFromSheet = (consumable: Consumable, quantity: number) => {
+    onAddItem(consumable, quantity);
+    toast.success(`Added ${quantity}× ${consumable.name} to inventory`);
   };
 
   return (
-    <Drawer open={open} onOpenChange={setOpen}>
-      <DrawerTrigger asChild>
-        <Button size="sm" variant="outline" className="gap-1.5">
-          <Plus className="w-3.5 h-3.5" />
-          Add Items
-        </Button>
-      </DrawerTrigger>
-      
-      <DrawerContent className="h-[100dvh] max-h-[100dvh] flex flex-col">
-        <DrawerHeader className="border-b border-border/50 pb-4 shrink-0">
-          <DrawerTitle className="flex items-center gap-2 text-xl">
-            <Package className="w-6 h-6" />
-            Add Consumables
-          </DrawerTitle>
-          <p className="text-sm text-muted-foreground mt-1">
-            Select a category to browse items
-          </p>
-        </DrawerHeader>
-        
-        <div className="flex-1 overflow-auto p-4">
-          <div className="space-y-4 max-w-md mx-auto">
-            {/* Potions Dropdown */}
-            <CategoryDropdown
-              label="Potions"
-              icon={<FlaskConical className="w-6 h-6 text-blue-400" />}
-              items={potions}
-              colorClass="border-blue-500/50 hover:border-blue-500"
-              onAddItem={handleAdd}
-              getItemCount={getItemCount}
-              recentlyAdded={recentlyAdded}
-            />
-            
-            {/* Poisons Dropdown */}
-            <CategoryDropdown
-              label="Poisons"
-              icon={<Skull className="w-6 h-6 text-green-400" />}
-              items={poisons}
-              colorClass="border-green-500/50 hover:border-green-500"
-              onAddItem={handleAdd}
-              getItemCount={getItemCount}
-              recentlyAdded={recentlyAdded}
-            />
-            
-            {/* Scrolls Dropdown */}
-            <CategoryDropdown
-              label="Scrolls"
-              icon={<ScrollText className="w-6 h-6 text-amber-400" />}
-              items={scrolls}
-              colorClass="border-amber-500/50 hover:border-amber-500"
-              onAddItem={handleAdd}
-              getItemCount={getItemCount}
-              recentlyAdded={recentlyAdded}
-            />
-          </div>
-        </div>
-        
-        {/* Close button at bottom */}
-        <div className="shrink-0 p-4 border-t border-border/50">
-          <Button 
-            variant="secondary" 
-            className="w-full max-w-md mx-auto block"
-            onClick={() => setOpen(false)}
-          >
-            Done
+    <>
+      <Drawer open={open} onOpenChange={setOpen}>
+        <DrawerTrigger asChild>
+          <Button size="sm" variant="outline" className="gap-1.5">
+            <Package className="w-3.5 h-3.5" />
+            Add Items
           </Button>
-        </div>
-      </DrawerContent>
-    </Drawer>
+        </DrawerTrigger>
+        
+        <DrawerContent className="h-[100dvh] max-h-[100dvh] flex flex-col">
+          <DrawerHeader className="border-b border-border/50 pb-4 shrink-0">
+            <DrawerTitle className="flex items-center gap-2 text-xl">
+              <Package className="w-6 h-6" />
+              Add Consumables
+            </DrawerTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Select a category, then tap an item to add it
+            </p>
+          </DrawerHeader>
+          
+          <div className="flex-1 overflow-auto p-4">
+            <div className="space-y-4 max-w-md mx-auto">
+              {/* Potions Dropdown */}
+              <CategoryDropdown
+                label="Potions"
+                icon={<FlaskConical className="w-6 h-6 text-blue-400" />}
+                items={potions}
+                colorClass="border-blue-500/50 hover:border-blue-500"
+                onItemClick={handleItemClick}
+                getItemCount={getItemCount}
+              />
+              
+              {/* Poisons Dropdown */}
+              <CategoryDropdown
+                label="Poisons"
+                icon={<Skull className="w-6 h-6 text-green-400" />}
+                items={poisons}
+                colorClass="border-green-500/50 hover:border-green-500"
+                onItemClick={handleItemClick}
+                getItemCount={getItemCount}
+              />
+              
+              {/* Scrolls Dropdown */}
+              <CategoryDropdown
+                label="Scrolls"
+                icon={<ScrollText className="w-6 h-6 text-amber-400" />}
+                items={scrolls}
+                colorClass="border-amber-500/50 hover:border-amber-500"
+                onItemClick={handleItemClick}
+                getItemCount={getItemCount}
+              />
+            </div>
+          </div>
+          
+          {/* Close button at bottom */}
+          <div className="shrink-0 p-4 border-t border-border/50">
+            <Button 
+              variant="secondary" 
+              className="w-full max-w-md mx-auto block"
+              onClick={() => setOpen(false)}
+            >
+              Done
+            </Button>
+          </div>
+        </DrawerContent>
+      </Drawer>
+
+      {/* Detail Sheet for quantity selection */}
+      <ConsumableDetailSheet
+        consumable={selectedConsumable}
+        open={detailSheetOpen}
+        onOpenChange={setDetailSheetOpen}
+        onAdd={handleAddFromSheet}
+        currentCount={selectedConsumable ? getItemCount(selectedConsumable.id) : 0}
+      />
+    </>
   );
 }
