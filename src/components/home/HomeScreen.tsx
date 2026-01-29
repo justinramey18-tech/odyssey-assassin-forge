@@ -4,10 +4,10 @@ import { CharacterEquipment } from '@/lib/inventory';
 import { Achievement } from '@/lib/achievements';
 import { 
   User, Swords, Package, Trophy, 
-  Sparkles, Moon, Scroll, ArrowLeft
+  Sparkles, Moon, Scroll, ArrowLeft, Gem
 } from 'lucide-react';
 import { AssassinZone } from './AssassinZone';
-import { ActionWheelButton } from '../character/ActionWheelButton';
+import { InfinityGauntletScreen } from '../character/InfinityGauntletScreen';
 import { HomeDataModal } from './HomeDataModal';
 import {
   CharacterStatsContent,
@@ -108,6 +108,7 @@ export function HomeScreen({
   onLongRest
 }: HomeScreenProps) {
   const [activeModal, setActiveModal] = useState<string | null>(null);
+  const [showGauntletScreen, setShowGauntletScreen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Daily quote (changes based on date)
@@ -197,17 +198,18 @@ export function HomeScreen({
             );
           })}
 
-          {/* Action Wheel Button - positioned over the leaping Deadpool's pelvis */}
-          <div 
-            className="absolute z-20"
+          {/* Gauntlet Zone - positioned over the leaping Deadpool */}
+          <AssassinZone
+            label="Gauntlet"
+            icon={<Gem className="w-3.5 h-3.5" />}
+            onClick={() => setShowGauntletScreen(true)}
+            accentColor="#eab308"
             style={{
               left: '50%',
               top: '32%',
               transform: 'translate(-50%, -50%)',
             }}
-          >
-            <ActionWheelButton characterName={character.name} isEmbedded />
-          </div>
+          />
         </div>
       </div>
 
@@ -297,6 +299,13 @@ export function HomeScreen({
           onLongRest={() => { onLongRest(); closeModal(); }}
         />
       </HomeDataModal>
+
+      {/* Infinity Gauntlet Screen */}
+      <InfinityGauntletScreen
+        characterName={character.name}
+        open={showGauntletScreen}
+        onClose={() => setShowGauntletScreen(false)}
+      />
 
       <HomeDataModal
         open={activeModal === 'wisdom'}
