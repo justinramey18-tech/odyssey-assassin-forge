@@ -102,6 +102,7 @@ interface HomeScreenProps {
   onAddXP: (amount: number, source: string) => void;
   onXPPresetChange: (preset: XPPreset) => void;
   onManualLevelUp: () => void;
+  onReturnToBuilder: () => void;
 }
 
 export function HomeScreen({ 
@@ -117,6 +118,7 @@ export function HomeScreen({
   onAddXP,
   onXPPresetChange,
   onManualLevelUp,
+  onReturnToBuilder,
 }: HomeScreenProps) {
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [showGauntletScreen, setShowGauntletScreen] = useState(false);
@@ -148,7 +150,7 @@ export function HomeScreen({
       {/* Header */}
       <header className="relative flex items-center justify-between px-4 py-3 border-b border-red-900/30 bg-background/70 backdrop-blur-md z-20">
         <button 
-          onClick={onBack}
+          onClick={onReturnToBuilder}
           className="p-2 -ml-2 rounded-lg hover:bg-muted transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
