@@ -162,26 +162,47 @@ const [step, setStep] = useState<1 | 2>(1);
 
         {step === 2 && (
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'abilities' | 'inventory' | 'achievements')} className="w-full">
-            {/* Tab Navigation - Fixed at bottom on mobile */}
-            <div className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-sm border-t border-border/50 px-4 py-2 md:relative md:border-t-0 md:py-0 md:bg-transparent">
-              <TabsList className="grid w-full grid-cols-3 max-w-md mx-auto">
-                <TabsTrigger value="abilities" className="gap-2">
+            {/* Tab Navigation - Fixed at top with Assassin's Creed / Deadpool theme */}
+            <div className="sticky top-0 z-40 bg-gradient-to-b from-background via-background/98 to-background/90 backdrop-blur-md border-b border-red-900/30 px-4 py-3">
+              {/* Decorative top line */}
+              <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-red-500 to-transparent" />
+              
+              <TabsList className="grid w-full grid-cols-3 max-w-lg mx-auto bg-black/40 border border-red-900/40 p-1 rounded-none relative overflow-hidden">
+                {/* Corner accents */}
+                <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-red-500/70" />
+                <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-red-500/70" />
+                <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-red-500/70" />
+                <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-red-500/70" />
+                
+                <TabsTrigger 
+                  value="abilities" 
+                  className="gap-2 data-[state=active]:bg-gradient-to-b data-[state=active]:from-red-600/30 data-[state=active]:to-red-900/20 data-[state=active]:text-red-400 data-[state=active]:border-b-2 data-[state=active]:border-red-500 rounded-none font-cinzel uppercase tracking-wider text-xs transition-all"
+                >
                   <Swords className="w-4 h-4" />
-                  <span className="hidden sm:inline">Abilities</span>
+                  <span>Skills</span>
                 </TabsTrigger>
-                <TabsTrigger value="inventory" className="gap-2">
+                <TabsTrigger 
+                  value="inventory" 
+                  className="gap-2 data-[state=active]:bg-gradient-to-b data-[state=active]:from-amber-600/30 data-[state=active]:to-amber-900/20 data-[state=active]:text-amber-400 data-[state=active]:border-b-2 data-[state=active]:border-amber-500 rounded-none font-cinzel uppercase tracking-wider text-xs transition-all"
+                >
                   <Backpack className="w-4 h-4" />
-                  <span className="hidden sm:inline">Inventory</span>
+                  <span>Gear</span>
                 </TabsTrigger>
-                <TabsTrigger value="achievements" className="gap-2">
+                <TabsTrigger 
+                  value="achievements" 
+                  className="gap-2 data-[state=active]:bg-gradient-to-b data-[state=active]:from-purple-600/30 data-[state=active]:to-purple-900/20 data-[state=active]:text-purple-400 data-[state=active]:border-b-2 data-[state=active]:border-purple-500 rounded-none font-cinzel uppercase tracking-wider text-xs transition-all"
+                >
                   <Trophy className="w-4 h-4" />
-                  <span className="hidden sm:inline">Achieve</span>
+                  <span>Feats</span>
                 </TabsTrigger>
               </TabsList>
+              
+              {/* Decorative bottom accent */}
+              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-[2px] bg-gradient-to-r from-transparent via-red-500/50 to-transparent" />
             </div>
 
             {/* Abilities Tab Content */}
-            <TabsContent value="abilities" className="mt-0 pb-20 md:pb-4">
+            <TabsContent value="abilities" className="mt-0 pb-4">
               <div className="container max-w-2xl mx-auto px-4 pb-4">
                 <div className="mb-6 p-4 rounded-lg border border-border/50 bg-card/30">
                   <EquippedLoadout
