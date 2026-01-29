@@ -1,6 +1,5 @@
-import { useState } from 'react';
 import { ArrowLeft, Trophy, Star, Download, Upload } from 'lucide-react';
-import { Achievement, achievementCategories as defaultCategories, itemPrerequisites } from '@/lib/achievements';
+import { Achievement, itemPrerequisites } from '@/lib/achievements';
 import { AchievementCard } from './AchievementCard';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -8,18 +7,22 @@ import { useToast } from '@/hooks/use-toast';
 
 interface AchievementsScreenProps {
   characterName: string;
+  achievements: Achievement[];
+  onAchievementsChange: (achievements: Achievement[]) => void;
   onBack: () => void;
 }
 
-export function AchievementsScreen({ characterName, onBack }: AchievementsScreenProps) {
-  const [achievements, setAchievements] = useState<Achievement[]>(
-    () => defaultCategories.map(a => ({ ...a }))
-  );
+export function AchievementsScreen({ 
+  characterName, 
+  achievements, 
+  onAchievementsChange, 
+  onBack 
+}: AchievementsScreenProps) {
   const { toast } = useToast();
 
   const handleIncrement = (id: string) => {
-    setAchievements(prev => 
-      prev.map(a => 
+    onAchievementsChange(
+      achievements.map(a => 
         a.id === id && a.currentValue < a.maxValue
           ? { ...a, currentValue: a.currentValue + 1 }
           : a
@@ -28,8 +31,8 @@ export function AchievementsScreen({ characterName, onBack }: AchievementsScreen
   };
 
   const handleDecrement = (id: string) => {
-    setAchievements(prev => 
-      prev.map(a => 
+    onAchievementsChange(
+      achievements.map(a => 
         a.id === id && a.currentValue > 0
           ? { ...a, currentValue: a.currentValue - 1 }
           : a
@@ -85,8 +88,8 @@ export function AchievementsScreen({ characterName, onBack }: AchievementsScreen
         try {
           const data = JSON.parse(e.target?.result as string);
           if (data.achievements && Array.isArray(data.achievements)) {
-            setAchievements(prev => 
-              prev.map(a => {
+            onAchievementsChange(
+              achievements.map(a => {
                 const imported = data.achievements.find((i: { id: string }) => i.id === a.id);
                 return imported ? { ...a, currentValue: imported.currentValue } : a;
               })
