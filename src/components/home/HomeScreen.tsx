@@ -2,6 +2,7 @@ import { useState, useMemo, useRef } from 'react';
 import { Character } from '@/lib/types';
 import { CharacterEquipment } from '@/lib/inventory';
 import { Achievement } from '@/lib/achievements';
+import { XPPreset } from '@/lib/xpSystem';
 import { 
   User, Swords, Package, Trophy, 
   Sparkles, Moon, Scroll, ArrowLeft, Gem
@@ -92,20 +93,30 @@ interface HomeScreenProps {
   character: Character;
   equipment: CharacterEquipment;
   achievements: Achievement[];
+  currentXP: number;
+  xpPreset: XPPreset;
   onBack: () => void;
   onNavigateToTab: (tab: 'abilities' | 'inventory' | 'achievements' | 'constellation') => void;
   onShortRest: () => void;
   onLongRest: () => void;
+  onAddXP: (amount: number, source: string) => void;
+  onXPPresetChange: (preset: XPPreset) => void;
+  onManualLevelUp: () => void;
 }
 
 export function HomeScreen({ 
   character, 
   equipment, 
   achievements,
+  currentXP,
+  xpPreset,
   onBack,
   onNavigateToTab,
   onShortRest,
-  onLongRest
+  onLongRest,
+  onAddXP,
+  onXPPresetChange,
+  onManualLevelUp,
 }: HomeScreenProps) {
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [showGauntletScreen, setShowGauntletScreen] = useState(false);
