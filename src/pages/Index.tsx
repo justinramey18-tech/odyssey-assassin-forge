@@ -31,6 +31,8 @@ import { CombatTabScreen } from '@/components/combat/CombatTabScreen';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 import { useToast } from '@/hooks/use-toast';
 import { useGameMode } from '@/hooks/use-game-mode';
+import { usePrestige } from '@/hooks/use-prestige';
+import { PrestigePointCounter, PrestigeLevelUpModal } from '@/components/prestige';
 import { 
   CharacterEquipment, 
   EquipmentItem,
@@ -56,6 +58,18 @@ const Index = () => {
   const [pendingLevelUps, setPendingLevelUps] = useState(0);
   const [showLevelUpModal, setShowLevelUpModal] = useState(false);
   const [levelUpPointsToSpend, setLevelUpPointsToSpend] = useState(0);
+  
+  // Prestige System State
+  const { 
+    prestigeData, 
+    isMaxLevel, 
+    isPrestigeActive,
+    nextPrestigeXPRequired,
+    awardPrestigeXP,
+    spendPrestigePoint,
+  } = usePrestige(character.level);
+  const [showPrestigeLevelUp, setShowPrestigeLevelUp] = useState(false);
+  const [prestigeLevelUpData, setPrestigeLevelUpData] = useState<{ level: number; points: number } | null>(null);
   
   // Shared equipment state for constellation view
   const [equipment, setEquipment] = useState<CharacterEquipment>(() => createInitialEquipment());
@@ -104,6 +118,31 @@ const Index = () => {
         title: "Milestone Mode",
         description: "XP tracking disabled. Use manual level up.",
       });
+      return;
+    }
+    
+    // If at max level, route XP to prestige system
+    if (isMaxLevel) {
+      const result = awardPrestigeXP(amount);
+      
+      if (result.type === 'prestige_levelup') {
+        setPrestigeLevelUpData({ 
+          level: result.newLevel!, 
+          points: result.pointsAwarded! 
+        });
+        setShowPrestigeLevelUp(true);
+        
+        toast({
+          title: "★ PRESTIGE LEVEL UP!",
+          description: `You've reached Prestige ${result.newLevel}! +${result.pointsAwarded} ability point!`,
+          className: "border-amber-500 bg-amber-500/10",
+        });
+      } else {
+        toast({
+          title: `+${amount} Prestige XP`,
+          description: source,
+        });
+      }
       return;
     }
     
@@ -383,8 +422,25 @@ const Index = () => {
         onConfirmLevelUp={handleConfirmLevelUp}
       />
 
+      {/* Prestige Level Up Modal */}
+      {prestigeLevelUpData && (
+        <PrestigeLevelUpModal
+          open={showPrestigeLevelUp}
+          prestigeLevel={prestigeLevelUpData.level}
+          pointsAwarded={prestigeLevelUpData.points}
+          onClose={() => {
+            setShowPrestigeLevelUp(false);
+            setPrestigeLevelUpData(null);
+          }}
+        />
+      )}
+
       {/* Character Header - Always visible */}
-      <CharacterHeader character={character} currentXP={currentXP} />
+      <CharacterHeader 
+        character={character} 
+        currentXP={currentXP} 
+        prestigeData={prestigeData}
+      />
 
       {/* Tab Navigation */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'skills' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat')} className="w-full flex flex-col">
@@ -414,6 +470,16 @@ const Index = () => {
           >
           {/* Content */}
           <div className="container max-w-2xl mx-auto px-4 py-4 relative z-10">
+            {/* Prestige Point Counter - show at max level with prestige points */}
+            {isPrestigeActive && prestigeData.totalPrestigePoints > 0 && (
+              <PrestigePointCounter
+                available={prestigeData.availablePrestigePoints}
+                total={prestigeData.totalPrestigePoints}
+                spent={prestigeData.spentPrestigePoints}
+                className="mb-6"
+              />
+            )}
+
             {/* XP Tracker */}
             <div className="mb-6 p-4 rounded-lg border border-primary/30 bg-gradient-to-b from-primary/5 to-transparent">
               <XPTracker
@@ -421,6 +487,8 @@ const Index = () => {
                 currentXP={currentXP}
                 achievements={achievements}
                 onAddXP={handleAddXP}
+                prestigeData={prestigeData}
+                nextPrestigeXPRequired={nextPrestigeXPRequired}
               />
             </div>
 
