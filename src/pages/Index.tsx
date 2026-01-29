@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Character, CharacterAbility, getAbilityPointsForLevel, getTotalPointsSpent, getActiveSlotsByLevel } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
 import { achievementCategories, Achievement } from '@/lib/achievements';
@@ -19,6 +19,7 @@ import { AchievementsScreen } from '@/components/achievements/AchievementsScreen
 import { ConstellationScreen } from '@/components/constellation/ConstellationScreen';
 import { HomeScreen } from '@/components/home/HomeScreen';
 import { NarrativeForgeScreen } from '@/components/scribe/NarrativeForgeScreen';
+import { PromptDrawerProvider } from '@/components/drawers';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Swords, Backpack, Trophy, Sparkles, Home, BookOpen, ChevronUp, Settings, Crosshair } from 'lucide-react';
@@ -57,6 +58,17 @@ const Index = () => {
   );
   
   const { toast } = useToast();
+
+  // Calculate unlocked abilities map for drawer
+  const unlockedAbilities = useMemo(() => {
+    const map = new Map<string, number>();
+    character.abilities.forEach(ca => {
+      if (ca.currentTier > 0) {
+        map.set(ca.abilityId, ca.currentTier);
+      }
+    });
+    return map;
+  }, [character.abilities]);
 
   const totalPoints = getAbilityPointsForLevel(character.level);
   const spentPoints = getTotalPointsSpent(character.abilities);
@@ -333,7 +345,12 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <PromptDrawerProvider
+      character={character}
+      unlockedAbilities={unlockedAbilities}
+      enabled={!showLevelUpModal}
+    >
+      <div className="min-h-screen bg-background">
       {/* Level Up Modal */}
       <LevelUpModal
         open={showLevelUpModal}
@@ -530,7 +547,8 @@ const Index = () => {
       {(activeTab === 'skills' || activeTab === 'feats') && (
         <ActionWheelButton characterName={character.name} />
       )}
-    </div>
+      </div>
+    </PromptDrawerProvider>
   );
 };
 
