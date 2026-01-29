@@ -17,6 +17,7 @@ import {
   defaultProcessingOptions,
 } from '@/lib/narrativeProcessor';
 import { supabase } from '@/integrations/supabase/client';
+import scribeBackground from '@/assets/skills-background.jpg';
 
 interface NarrativeForgeScreenProps {
   characterName: string;
@@ -107,9 +108,15 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
   const removalPreview = inputText ? getRemovalPreview(inputText) : [];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      {/* Background Image */}
+      <div 
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat z-0"
+        style={{ backgroundImage: `url(${scribeBackground})` }}
+      />
+      <div className="fixed inset-0 bg-background/70 z-0" />
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-gradient-to-b from-background via-background/98 to-background/90 backdrop-blur-md border-b border-amber-900/30 px-4 py-3">
+      <header className="sticky top-0 z-40 bg-gradient-to-b from-background/90 via-background/80 to-transparent backdrop-blur-md border-b border-amber-900/30 px-4 py-3">
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-amber-500 to-transparent" />
         
         <div className="flex items-center justify-between max-w-4xl mx-auto">
@@ -133,7 +140,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-[2px] bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      <div className="relative z-10 max-w-4xl mx-auto px-4 py-6 space-y-6">
         {/* Mode Selection */}
         <Tabs value={processingMode} onValueChange={(v) => setProcessingMode(v as 'ai' | 'offline')}>
           <TabsList className="grid w-full grid-cols-2 bg-black/40 border border-amber-900/40">

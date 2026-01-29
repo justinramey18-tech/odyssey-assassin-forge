@@ -10,6 +10,7 @@ import { AchievementCard } from './AchievementCard';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import featsBackground from '@/assets/skills-background.jpg';
 
 interface AchievementsScreenProps {
   characterName: string;
@@ -169,8 +170,15 @@ export function AchievementsScreen({
 
   return (
     <div className="fixed inset-0 bg-background z-50 flex flex-col">
+      {/* Background Image */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
+        style={{ backgroundImage: `url(${featsBackground})` }}
+      />
+      <div className="absolute inset-0 bg-background/70 z-0" />
+      
       {/* Header */}
-      <header className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-background/95 backdrop-blur-sm">
+      <header className="relative z-10 flex items-center justify-between px-4 py-3 border-b border-purple-900/50 bg-background/80 backdrop-blur-sm">
         <button 
           onClick={onBack}
           className="p-2 -ml-2 rounded-lg hover:bg-muted transition-colors"
@@ -188,8 +196,8 @@ export function AchievementsScreen({
         </div>
       </header>
 
-      {/* Stats Summary */}
-      <div className="px-4 py-4 border-b border-border/50 bg-card/30">
+      {/* Stats Summary - relative z for content visibility */}
+      <div className="relative z-10 px-4 py-4 border-b border-purple-900/30 bg-background/60 backdrop-blur-sm">
         <div className="grid grid-cols-3 gap-4">
           <div className="text-center">
             <div className="flex items-center justify-center gap-1.5 text-amber-400 mb-1">
@@ -215,7 +223,7 @@ export function AchievementsScreen({
       </div>
 
       {/* Achievement List */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 relative z-10">
         <div className="p-4 grid gap-3 pb-20 md:pb-4">
           {achievements.map(achievement => (
             <AchievementCard
