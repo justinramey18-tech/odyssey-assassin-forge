@@ -9,7 +9,7 @@ import {
   getXPForLevel,
 } from '@/lib/xpSystem';
 import { WizardStepOne } from '@/components/character/WizardStepOne';
-import { PointsSummary } from '@/components/character/PointsSummary';
+import { CharacterHeader } from '@/components/character/CharacterHeader';
 import { EquippedLoadout } from '@/components/character/EquippedLoadout';
 import { ActionWheelButton } from '@/components/character/ActionWheelButton';
 import { XPTracker } from '@/components/character/XPTracker';
@@ -20,7 +20,8 @@ import { ConstellationScreen } from '@/components/constellation/ConstellationScr
 import { HomeScreen } from '@/components/home/HomeScreen';
 import { NarrativeForgeScreen } from '@/components/scribe/NarrativeForgeScreen';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Swords, Backpack, Trophy, Sparkles, Home, BookOpen, ChevronUp } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Swords, Backpack, Trophy, Sparkles, Home, BookOpen, ChevronUp, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
   CharacterEquipment, 
@@ -29,8 +30,9 @@ import {
 } from '@/lib/inventory/index';
 
 const Index = () => {
-  const [step, setStep] = useState<1 | 2>(1);
-  const [activeTab, setActiveTab] = useState<'home' | 'abilities' | 'inventory' | 'achievements' | 'constellation' | 'scribe'>('home');
+  const [showWizard, setShowWizard] = useState(true);
+  const [showHomeScreen, setShowHomeScreen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'skills' | 'gear' | 'feats' | 'stars' | 'scribe'>('skills');
   const [character, setCharacter] = useState<Character>({
     name: '',
     level: 1,
@@ -68,7 +70,7 @@ const Index = () => {
     // Set XP to match level
     const xpForLevel = getXPForLevel(level, XP_PRESETS[xpPreset].multiplier);
     setCurrentXP(xpForLevel);
-    setStep(2);
+    setShowWizard(false);
   };
 
   const handleAddXP = (amount: number, source: string) => {
@@ -289,6 +291,46 @@ const Index = () => {
     setShowLevelUpModal(true);
   };
 
+  // Show wizard on first load
+  if (showWizard) {
+    return (
+      <div className="min-h-screen bg-background">
+        <WizardStepOne
+          initialName={character.name}
+          initialLevel={character.level}
+          onComplete={handleBasicInfoComplete}
+        />
+      </div>
+    );
+  }
+
+  // Full-screen Home overlay
+  if (showHomeScreen) {
+    return (
+      <HomeScreen
+        character={character}
+        equipment={equipment}
+        achievements={achievements}
+        currentXP={currentXP}
+        xpPreset={xpPreset}
+        onBack={() => setShowWizard(true)}
+        onNavigateToTab={(tab) => {
+          setShowHomeScreen(false);
+          if (tab === 'abilities') setActiveTab('skills');
+          else if (tab === 'inventory') setActiveTab('gear');
+          else if (tab === 'achievements') setActiveTab('feats');
+          else if (tab === 'constellation') setActiveTab('stars');
+        }}
+        onShortRest={handleShortRest}
+        onLongRest={handleLongRest}
+        onAddXP={handleAddXP}
+        onXPPresetChange={setXPPreset}
+        onManualLevelUp={handleManualLevelUp}
+        onReturnToBuilder={() => setShowHomeScreen(false)}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Level Up Modal */}
@@ -303,200 +345,178 @@ const Index = () => {
         onConfirmLevelUp={handleConfirmLevelUp}
       />
 
-      {/* Header with points summary - visible on abilities/achievements tabs */}
-      {step === 2 && (activeTab === 'abilities' || activeTab === 'achievements') && (
-        <PointsSummary
-          character={character}
-          totalPoints={totalPoints}
-          spentPoints={spentPoints}
-          remainingPoints={remainingPoints}
-          onBack={() => setStep(1)}
-          onReset={handleResetAbilities}
-          onExport={handleExportJSON}
-        />
-      )}
-      {/* Main content */}
-      <main className={step === 2 && (activeTab === 'abilities' || activeTab === 'achievements') ? 'pt-4' : ''}>
-        {step === 1 && (
-          <WizardStepOne
-            initialName={character.name}
-            initialLevel={character.level}
-            onComplete={handleBasicInfoComplete}
-          />
-        )}
+      {/* Character Header - Always visible */}
+      <CharacterHeader character={character} currentXP={currentXP} />
 
-        {step === 2 && (
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'home' | 'abilities' | 'inventory' | 'achievements' | 'constellation' | 'scribe')} className="w-full">
-            {/* Tab Navigation - Fixed at top with Assassin's Creed / Deadpool theme */}
-            <div className="sticky top-0 z-40 bg-gradient-to-b from-background via-background/98 to-background/90 backdrop-blur-md border-b border-red-900/30 px-4 py-3">
-              {/* Decorative top line */}
-              <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-red-500 to-transparent" />
-              
-              <TabsList className="grid w-full grid-cols-6 max-w-2xl mx-auto bg-black/40 border border-red-900/40 p-1 rounded-none relative overflow-hidden">
-                {/* Corner accents */}
-                <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-red-500/70" />
-                <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-red-500/70" />
-                <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-red-500/70" />
-                <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-red-500/70" />
-                
-                <TabsTrigger 
-                  value="home" 
-                  className="gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-red-600/30 data-[state=active]:to-red-900/20 data-[state=active]:text-red-400 data-[state=active]:border-b-2 data-[state=active]:border-red-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all"
-                >
-                  <Home className="w-3.5 h-3.5" />
-                  <span>Home</span>
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="abilities" 
-                  className="gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-red-600/30 data-[state=active]:to-red-900/20 data-[state=active]:text-red-400 data-[state=active]:border-b-2 data-[state=active]:border-red-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all"
-                >
-                  <Swords className="w-3.5 h-3.5" />
-                  <span>Skills</span>
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="inventory" 
-                  className="gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-amber-600/30 data-[state=active]:to-amber-900/20 data-[state=active]:text-amber-400 data-[state=active]:border-b-2 data-[state=active]:border-amber-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all"
-                >
-                  <Backpack className="w-3.5 h-3.5" />
-                  <span>Gear</span>
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="achievements" 
-                  className="gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-purple-600/30 data-[state=active]:to-purple-900/20 data-[state=active]:text-purple-400 data-[state=active]:border-b-2 data-[state=active]:border-purple-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all"
-                >
-                  <Trophy className="w-3.5 h-3.5" />
-                  <span>Feats</span>
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="constellation" 
-                  className="gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-cyan-600/30 data-[state=active]:to-cyan-900/20 data-[state=active]:text-cyan-400 data-[state=active]:border-b-2 data-[state=active]:border-cyan-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Stars</span>
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="scribe" 
-                  className="gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-amber-600/30 data-[state=active]:to-amber-900/20 data-[state=active]:text-amber-400 data-[state=active]:border-b-2 data-[state=active]:border-amber-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all"
-                >
-                  <BookOpen className="w-3.5 h-3.5" />
-                  <span>Scribe</span>
-                </TabsTrigger>
-              </TabsList>
-              
-              {/* Decorative bottom accent */}
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-[2px] bg-gradient-to-r from-transparent via-red-500/50 to-transparent" />
-            </div>
+      {/* Tab Navigation */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'skills' | 'gear' | 'feats' | 'stars' | 'scribe')} className="w-full">
+        {/* Tab Navigation Bar */}
+        <div className="sticky top-0 z-40 bg-gradient-to-b from-background via-background/98 to-background/90 backdrop-blur-md border-b border-red-900/30 px-4 py-3">
+          {/* Decorative top line */}
+          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-red-500 to-transparent" />
+          
+          <div className="flex items-center gap-2 max-w-2xl mx-auto">
+            {/* Home Button - Opens full-screen overlay */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowHomeScreen(true)}
+              className="gap-1 border border-red-900/40 hover:bg-red-600/20 hover:text-red-400 font-cinzel uppercase tracking-wider text-[9px] px-3"
+            >
+              <Home className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Home</span>
+            </Button>
 
-            {/* Home Tab Content */}
-            <TabsContent value="home" className="mt-0">
-              <HomeScreen
-                character={character}
-                equipment={equipment}
-                achievements={achievements}
+            {/* Main Tabs */}
+            <TabsList className="flex-1 grid grid-cols-5 bg-black/40 border border-red-900/40 p-1 rounded-none relative overflow-hidden">
+              {/* Corner accents */}
+              <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-red-500/70" />
+              <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-red-500/70" />
+              <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-red-500/70" />
+              <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-red-500/70" />
+              
+              <TabsTrigger 
+                value="skills" 
+                className="gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-red-600/30 data-[state=active]:to-red-900/20 data-[state=active]:text-red-400 data-[state=active]:border-b-2 data-[state=active]:border-red-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all"
+              >
+                <Swords className="w-3.5 h-3.5" />
+                <span>Skills</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="gear" 
+                className="gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-amber-600/30 data-[state=active]:to-amber-900/20 data-[state=active]:text-amber-400 data-[state=active]:border-b-2 data-[state=active]:border-amber-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all"
+              >
+                <Backpack className="w-3.5 h-3.5" />
+                <span>Gear</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="feats" 
+                className="gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-purple-600/30 data-[state=active]:to-purple-900/20 data-[state=active]:text-purple-400 data-[state=active]:border-b-2 data-[state=active]:border-purple-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all"
+              >
+                <Trophy className="w-3.5 h-3.5" />
+                <span>Feats</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="stars" 
+                className="gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-cyan-600/30 data-[state=active]:to-cyan-900/20 data-[state=active]:text-cyan-400 data-[state=active]:border-b-2 data-[state=active]:border-cyan-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Stars</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="scribe" 
+                className="gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-amber-600/30 data-[state=active]:to-amber-900/20 data-[state=active]:text-amber-400 data-[state=active]:border-b-2 data-[state=active]:border-amber-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all"
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>Scribe</span>
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Settings Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowWizard(true)}
+              className="gap-1 border border-muted/40 hover:bg-muted/20 font-cinzel uppercase tracking-wider text-[9px] px-3"
+            >
+              <Settings className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+          
+          {/* Decorative bottom accent */}
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-[2px] bg-gradient-to-r from-transparent via-red-500/50 to-transparent" />
+        </div>
+
+        {/* Skills Tab Content */}
+        <TabsContent value="skills" className="mt-0 pb-4">
+          <div className="container max-w-2xl mx-auto px-4 py-4">
+            {/* XP Tracker */}
+            <div className="mb-6 p-4 rounded-lg border border-primary/30 bg-gradient-to-b from-primary/5 to-transparent">
+              <XPTracker
+                currentLevel={character.level}
                 currentXP={currentXP}
                 xpPreset={xpPreset}
-                onBack={() => setStep(1)}
-                onNavigateToTab={setActiveTab}
-                onShortRest={handleShortRest}
-                onLongRest={handleLongRest}
-                onAddXP={handleAddXP}
-                onXPPresetChange={setXPPreset}
-                onManualLevelUp={handleManualLevelUp}
-              />
-            </TabsContent>
-
-            {/* Abilities Tab Content - Now only shows Equipped Loadout */}
-            <TabsContent value="abilities" className="mt-0 pb-4">
-              <div className="container max-w-2xl mx-auto px-4 py-4">
-                {/* XP Tracker */}
-                <div className="mb-6 p-4 rounded-lg border border-primary/30 bg-gradient-to-b from-primary/5 to-transparent">
-                  <XPTracker
-                    currentLevel={character.level}
-                    currentXP={currentXP}
-                    xpPreset={xpPreset}
-                    achievements={achievements}
-                    onAddXP={handleAddXP}
-                    onPresetChange={setXPPreset}
-                  />
-                </div>
-
-                {/* Equipped Loadout */}
-                <div className="mb-6 p-4 rounded-lg border border-border/50 bg-card/30">
-                  <EquippedLoadout
-                    character={character}
-                    onEquip={handleEquipAbility}
-                    onUnequip={handleUnequipAbility}
-                  />
-                </div>
-
-                {/* Manual Level Up Button */}
-                {character.level < 20 && (
-                  <button
-                    onClick={handleManualLevelUp}
-                    className="w-full py-3 px-4 rounded-lg border-2 border-dashed border-primary/30 hover:border-primary/50 bg-primary/5 hover:bg-primary/10 transition-all flex items-center justify-center gap-2 group"
-                  >
-                    <ChevronUp className="w-5 h-5 text-primary group-hover:animate-bounce" />
-                    <span className="font-display text-sm text-primary">Trigger Level Up</span>
-                    <ChevronUp className="w-5 h-5 text-primary group-hover:animate-bounce" />
-                  </button>
-                )}
-
-                {/* Info about hidden ability trees */}
-                <div className="mt-6 p-4 rounded-lg bg-muted/20 border border-muted/30">
-                  <p className="text-xs text-muted-foreground text-center font-body">
-                    💡 Ability tree selection appears when you level up. 
-                    Add XP to trigger a level up, or use the button above for milestone progression.
-                  </p>
-                </div>
-              </div>
-            </TabsContent>
-
-            {/* Inventory Tab Content */}
-            <TabsContent value="inventory" className="mt-0">
-              <InventoryScreen
-                characterName={character.name}
-                level={character.level}
-                onBack={() => setActiveTab('home')}
-                equipment={equipment}
-                onEquipmentChange={setEquipment}
-              />
-            </TabsContent>
-
-            {/* Achievements Tab Content */}
-            <TabsContent value="achievements" className="mt-0">
-              <AchievementsScreen
-                characterName={character.name}
                 achievements={achievements}
-                onAchievementsChange={setAchievements}
-                onBack={() => setActiveTab('home')}
-                onAwardXP={handleAddXP}
+                onAddXP={handleAddXP}
+                onPresetChange={setXPPreset}
               />
-            </TabsContent>
+            </div>
 
-            {/* Constellation Tab Content */}
-            <TabsContent value="constellation" className="mt-0">
-              <ConstellationScreen
-                characterName={character.name}
-                equippedItems={Object.values(equipment.slots).filter(Boolean) as EquipmentItem[]}
-                onBack={() => setActiveTab('home')}
+            {/* Equipped Loadout */}
+            <div className="mb-6 p-4 rounded-lg border border-border/50 bg-card/30">
+              <EquippedLoadout
+                character={character}
+                onEquip={handleEquipAbility}
+                onUnequip={handleUnequipAbility}
               />
-            </TabsContent>
+            </div>
 
-            {/* Scribe Tab Content */}
-            <TabsContent value="scribe" className="mt-0">
-              <NarrativeForgeScreen
-                characterName={character.name}
-                onBack={() => setActiveTab('home')}
-              />
-            </TabsContent>
-          </Tabs>
-        )}
+            {/* Manual Level Up Button */}
+            {character.level < 20 && (
+              <button
+                onClick={handleManualLevelUp}
+                className="w-full py-3 px-4 rounded-lg border-2 border-dashed border-primary/30 hover:border-primary/50 bg-primary/5 hover:bg-primary/10 transition-all flex items-center justify-center gap-2 group"
+              >
+                <ChevronUp className="w-5 h-5 text-primary group-hover:animate-bounce" />
+                <span className="font-display text-sm text-primary">Trigger Level Up</span>
+                <ChevronUp className="w-5 h-5 text-primary group-hover:animate-bounce" />
+              </button>
+            )}
 
-        {/* Floating Action Wheel - only visible in step 2 abilities/achievements tab */}
-        {step === 2 && (activeTab === 'abilities' || activeTab === 'achievements') && (
-          <ActionWheelButton characterName={character.name} />
-        )}
-      </main>
+            {/* Info about hidden ability trees */}
+            <div className="mt-6 p-4 rounded-lg bg-muted/20 border border-muted/30">
+              <p className="text-xs text-muted-foreground text-center font-body">
+                💡 Ability tree selection appears when you level up. 
+                Add XP to trigger a level up, or use the button above for milestone progression.
+              </p>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Gear Tab Content */}
+        <TabsContent value="gear" className="mt-0">
+          <InventoryScreen
+            characterName={character.name}
+            level={character.level}
+            onBack={() => setActiveTab('skills')}
+            equipment={equipment}
+            onEquipmentChange={setEquipment}
+          />
+        </TabsContent>
+
+        {/* Feats Tab Content */}
+        <TabsContent value="feats" className="mt-0">
+          <AchievementsScreen
+            characterName={character.name}
+            achievements={achievements}
+            onAchievementsChange={setAchievements}
+            onBack={() => setActiveTab('skills')}
+            onAwardXP={handleAddXP}
+          />
+        </TabsContent>
+
+        {/* Stars Tab Content */}
+        <TabsContent value="stars" className="mt-0">
+          <ConstellationScreen
+            characterName={character.name}
+            equippedItems={Object.values(equipment.slots).filter(Boolean) as EquipmentItem[]}
+            onBack={() => setActiveTab('skills')}
+          />
+        </TabsContent>
+
+        {/* Scribe Tab Content */}
+        <TabsContent value="scribe" className="mt-0">
+          <NarrativeForgeScreen
+            characterName={character.name}
+            onBack={() => setActiveTab('skills')}
+          />
+        </TabsContent>
+      </Tabs>
+
+      {/* Floating Action Wheel - visible on skills/feats tabs */}
+      {(activeTab === 'skills' || activeTab === 'feats') && (
+        <ActionWheelButton characterName={character.name} />
+      )}
     </div>
   );
 };
