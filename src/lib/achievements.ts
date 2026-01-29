@@ -1,5 +1,17 @@
 // Achievement Categories and Tracking System
 
+// Milestone thresholds (percentages)
+export const ACHIEVEMENT_MILESTONES = [25, 50, 75, 100] as const;
+export type MilestonePercent = typeof ACHIEVEMENT_MILESTONES[number];
+
+// XP rewards for each milestone
+export const MILESTONE_XP_REWARDS: Record<MilestonePercent, number> = {
+  25: 25,
+  50: 50,
+  75: 75,
+  100: 150,
+};
+
 export interface Achievement {
   id: string;
   name: string;
@@ -7,11 +19,40 @@ export interface Achievement {
   icon: string;
   maxValue: number;
   currentValue: number;
+  claimedMilestones?: MilestonePercent[]; // Track which milestones have been claimed
 }
 
 export interface AchievementPrerequisite {
   achievementId: string;
   requiredValue: number;
+}
+
+// Check which milestones are reached but not yet claimed
+export function getUnclaimedMilestones(achievement: Achievement): MilestonePercent[] {
+  const currentPercent = (achievement.currentValue / achievement.maxValue) * 100;
+  const claimed = achievement.claimedMilestones || [];
+  
+  return ACHIEVEMENT_MILESTONES.filter(
+    milestone => currentPercent >= milestone && !claimed.includes(milestone)
+  );
+}
+
+// Get XP for unclaimed milestones
+export function calculateMilestoneXP(achievement: Achievement): { milestones: MilestonePercent[]; totalXP: number } {
+  const unclaimed = getUnclaimedMilestones(achievement);
+  const totalXP = unclaimed.reduce((sum, m) => sum + MILESTONE_XP_REWARDS[m], 0);
+  return { milestones: unclaimed, totalXP };
+}
+
+// Get next milestone for an achievement
+export function getNextMilestone(achievement: Achievement): { percent: MilestonePercent; valueNeeded: number } | null {
+  const currentPercent = (achievement.currentValue / achievement.maxValue) * 100;
+  const nextMilestone = ACHIEVEMENT_MILESTONES.find(m => m > currentPercent);
+  
+  if (!nextMilestone) return null;
+  
+  const valueNeeded = Math.ceil((nextMilestone / 100) * achievement.maxValue);
+  return { percent: nextMilestone, valueNeeded };
 }
 
 export const achievementCategories: Achievement[] = [
