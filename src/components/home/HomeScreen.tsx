@@ -35,57 +35,57 @@ const deadpoolQuotes = [
   "Pump the hate brakes, Thanos.",
 ];
 
-// Assassin zone configurations - positioned to match silhouettes in the generated image
-// These are approximate positions based on a group of 6 assassins
+// Assassin zone configurations - positioned at pelvis level of each assassin
+// Spread across the image with buttons at body center
 const assassinZones = [
   { 
     id: 'character', 
     label: 'Character', 
     color: '#ef4444', // red
-    position: { left: '8%', top: '25%' },
+    position: { left: '5%', top: '55%' },
     icon: User,
   },
   { 
     id: 'skills', 
     label: 'Skills', 
     color: '#22c55e', // green
-    position: { left: '25%', top: '18%' },
+    position: { left: '18%', top: '52%' },
     icon: Swords,
   },
   { 
     id: 'gear', 
     label: 'Gear', 
     color: '#f59e0b', // amber
-    position: { left: '42%', top: '22%' },
+    position: { left: '32%', top: '50%' },
     icon: Package,
+  },
+  { 
+    id: 'wisdom', 
+    label: 'Wisdom', 
+    color: '#dc2626', // red-600
+    position: { left: '50%', top: '48%', transform: 'translateX(-50%)' },
+    icon: Scroll,
   },
   { 
     id: 'feats', 
     label: 'Feats', 
     color: '#a855f7', // purple
-    position: { right: '42%', top: '22%' },
+    position: { right: '32%', top: '50%' },
     icon: Trophy,
   },
   { 
     id: 'stars', 
     label: 'Stars', 
     color: '#06b6d4', // cyan
-    position: { right: '25%', top: '18%' },
+    position: { right: '18%', top: '52%' },
     icon: Sparkles,
   },
   { 
     id: 'rest', 
     label: 'Rest', 
     color: '#3b82f6', // blue
-    position: { right: '8%', top: '25%' },
+    position: { right: '5%', top: '55%' },
     icon: Moon,
-  },
-  { 
-    id: 'wisdom', 
-    label: 'Wisdom', 
-    color: '#dc2626', // red-600
-    position: { left: '50%', top: '12%', transform: 'translateX(-50%)' },
-    icon: Scroll,
   },
 ];
 
@@ -129,14 +129,16 @@ export function HomeScreen({
 
   return (
     <div className="fixed inset-0 bg-background z-50 flex flex-col overflow-hidden">
-      {/* Static Background Image */}
+      {/* Static Background Image - Zoomed out to show full figures */}
       <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+        className="absolute inset-0 bg-contain bg-center bg-no-repeat pointer-events-none"
         style={{ backgroundImage: `url(${homeBackground})` }}
       >
+        {/* Dark fill behind the contained image */}
+        <div className="absolute inset-0 bg-black -z-10" />
         {/* Subtle vignette overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-transparent to-background/60" />
-        <div className="absolute inset-0 bg-gradient-to-r from-background/30 via-transparent to-background/30" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-transparent to-background/50" />
+        <div className="absolute inset-0 bg-gradient-to-r from-background/20 via-transparent to-background/20" />
       </div>
 
       {/* Header */}
