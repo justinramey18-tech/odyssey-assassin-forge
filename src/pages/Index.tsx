@@ -362,14 +362,14 @@ const Index = () => {
       onAddXP={handleAddXP}
       equipment={equipment}
     >
-      <div className="min-h-screen bg-background relative">
-      {/* Builder Background Image */}
+      <div className="min-h-screen relative">
+      {/* Builder Background Image - fixed behind everything */}
       <div 
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat z-0"
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat -z-10"
         style={{ backgroundImage: `url(${builderBackground})` }}
       />
-      {/* 60% transparent overlay */}
-      <div className="fixed inset-0 bg-background/60 z-0" />
+      {/* 60% transparent tint overlay - allows background to show through UI */}
+      <div className="fixed inset-0 bg-background/60 -z-10" />
       {/* Level Up Modal */}
       <LevelUpModal
         open={showLevelUpModal}
