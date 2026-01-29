@@ -128,11 +128,11 @@ export function EquipmentSlotCard({
       {/* Main Card */}
       <div
         className={cn(
-          "relative border rounded-lg transition-all duration-200 touch-pan-y backdrop-blur-sm",
+          "relative border rounded-lg transition-all duration-200 touch-pan-y",
           item 
-            ? "bg-card/80 border-l-4 " + (rarity?.borderClass || "border-l-border")
-            : "bg-muted/20 border-dashed border-muted-foreground/30",
-          isHighlighted && "ring-2 ring-primary ring-offset-2 ring-offset-background",
+            ? "bg-transparent border-l-4 " + (rarity?.borderClass || "border-l-border")
+            : "bg-transparent border-dashed border-muted-foreground/50",
+          isHighlighted && "ring-2 ring-primary ring-offset-2 ring-offset-background/50",
         )}
         style={{ transform: `translateX(${swipeOffset}px)` }}
         onTouchStart={handleTouchStart}
@@ -142,23 +142,23 @@ export function EquipmentSlotCard({
       >
         {/* Header Row */}
         <div className={cn(
-          "flex items-center justify-between border-b border-border/30",
+          "flex items-center justify-between border-b border-border/50",
           isCompact ? "px-2 py-1" : "px-3 py-2"
         )}>
           <div className={cn("flex items-center", isCompact ? "gap-1.5" : "gap-2")}>
-            <IconComponent className={cn("text-muted-foreground", isCompact ? "w-3 h-3" : "w-4 h-4")} />
-            <span className={cn("font-bold uppercase tracking-wide text-muted-foreground", isCompact ? "text-[10px]" : "text-xs")}>
+            <IconComponent className={cn("text-foreground/80 drop-shadow-md", isCompact ? "w-3 h-3" : "w-4 h-4")} />
+            <span className={cn("font-bold uppercase tracking-wide text-foreground/90 drop-shadow-md", isCompact ? "text-[10px]" : "text-xs")}>
               {label}
             </span>
           </div>
           <button
-            className={cn("rounded hover:bg-muted/50 transition-colors", isCompact ? "p-0.5" : "p-1")}
+            className={cn("rounded hover:bg-white/10 transition-colors", isCompact ? "p-0.5" : "p-1")}
             onClick={(e) => {
               e.stopPropagation();
               onInfoTap?.();
             }}
           >
-            <Info className={cn("text-muted-foreground", isCompact ? "w-3 h-3" : "w-4 h-4")} />
+            <Info className={cn("text-foreground/80 drop-shadow-md", isCompact ? "w-3 h-3" : "w-4 h-4")} />
           </button>
         </div>
 
@@ -168,29 +168,26 @@ export function EquipmentSlotCard({
             <div className={cn("flex items-start", isCompact ? "gap-2" : "gap-3")}>
               {/* Item Icon */}
               <div className={cn(
-                "rounded flex items-center justify-center border shrink-0",
+                "rounded flex items-center justify-center border-2 shrink-0 bg-black/30",
                 rarity?.borderClass?.replace('border-l-', 'border-') || "border-border",
-                item.rarity === 'legendary' && "bg-amber-400/10",
-                item.rarity === 'epic' && "bg-purple-400/10",
-                item.rarity === 'rare' && "bg-blue-400/10",
                 isCompact ? "w-10 h-10" : "w-14 h-14"
               )}>
-                {ItemIcon && <ItemIcon className={cn(rarity?.color, isCompact ? "w-5 h-5" : "w-8 h-8")} />}
+                {ItemIcon && <ItemIcon className={cn(rarity?.color, "drop-shadow-lg", isCompact ? "w-5 h-5" : "w-8 h-8")} />}
               </div>
 
               {/* Item Details */}
               <div className="flex-1 min-w-0">
-                <h4 className={cn("font-semibold truncate", rarity?.color, isCompact ? "text-xs" : "text-sm")}>
+                <h4 className={cn("font-bold truncate drop-shadow-lg", rarity?.color, isCompact ? "text-xs" : "text-sm")}>
                   {item.name}
                 </h4>
                 
-                {/* Set Badge - Shows which legendary set this item belongs to */}
+                {/* Set Badge */}
                 {item.setName && (
                   <span className={cn(
-                    "inline-flex items-center font-bold uppercase tracking-wide rounded-sm border mt-0.5",
-                    item.rarity === 'legendary' && "bg-amber-500/20 text-amber-400 border-amber-500/40",
-                    item.rarity === 'epic' && "bg-purple-500/20 text-purple-400 border-purple-500/40",
-                    item.rarity === 'rare' && "bg-blue-500/20 text-blue-400 border-blue-500/40",
+                    "inline-flex items-center font-bold uppercase tracking-wide rounded-sm border mt-0.5 bg-black/40",
+                    item.rarity === 'legendary' && "text-amber-400 border-amber-500/60",
+                    item.rarity === 'epic' && "text-purple-400 border-purple-500/60",
+                    item.rarity === 'rare' && "text-blue-400 border-blue-500/60",
                     isCompact ? "gap-0.5 px-1 py-0 text-[8px]" : "gap-1 px-2 py-0.5 text-[10px]"
                   )}>
                     <span className={cn("rounded-full bg-current animate-pulse", isCompact ? "w-1 h-1" : "w-1.5 h-1.5")} />
@@ -201,27 +198,27 @@ export function EquipmentSlotCard({
                 {/* Primary Stat & Rarity inline */}
                 <div className={cn("flex items-center flex-wrap", isCompact ? "gap-1.5 mt-0.5" : "gap-2 mt-1")}>
                   {item.stats.ac && (
-                    <span className={cn("text-muted-foreground", isCompact ? "text-[10px]" : "text-xs")}>
+                    <span className={cn("text-foreground font-semibold drop-shadow-md", isCompact ? "text-[10px]" : "text-xs")}>
                       🛡️{isCompact ? '' : ' '}+{item.stats.ac}{isCompact ? '' : ' AC'}
                     </span>
                   )}
                   {item.stats.damage && (
-                    <span className={cn("text-muted-foreground", isCompact ? "text-[10px]" : "text-xs")}>
+                    <span className={cn("text-foreground font-semibold drop-shadow-md", isCompact ? "text-[10px]" : "text-xs")}>
                       ⚔️{isCompact ? '' : ' '}{item.stats.damage}
                     </span>
                   )}
-                  <div className={cn("flex items-center gap-0.5", rarity?.color)}>
+                  <div className={cn("flex items-center gap-0.5 drop-shadow-lg", rarity?.color)}>
                     {rarity && renderStars(rarity.stars)}
-                    {!isCompact && <span className="text-xs ml-1">{rarity?.label}</span>}
+                    {!isCompact && <span className="text-xs ml-1 font-semibold">{rarity?.label}</span>}
                   </div>
                 </div>
               </div>
             </div>
           ) : (
             /* Empty Slot */
-            <div className={cn("flex items-center justify-center opacity-60 gap-2", isCompact ? "py-2" : "py-4 flex-col")}>
-              <IconComponent className={cn("text-muted-foreground/50", isCompact ? "w-6 h-6" : "w-10 h-10")} />
-              <span className={cn("text-muted-foreground", isCompact ? "text-[10px]" : "text-xs")}>Tap to equip</span>
+            <div className={cn("flex items-center justify-center gap-2", isCompact ? "py-2" : "py-4 flex-col")}>
+              <IconComponent className={cn("text-foreground/50 drop-shadow-md", isCompact ? "w-6 h-6" : "w-10 h-10")} />
+              <span className={cn("text-foreground/70 font-medium drop-shadow-md", isCompact ? "text-[10px]" : "text-xs")}>Tap to equip</span>
             </div>
           )}
         </div>
