@@ -12,24 +12,24 @@
     --background: 220 20% 8%;
     --foreground: 40 15% 90%;
 
-    /* Card styling - slightly lighter than background */
-    --card: 220 18% 12%;
+    /* Card styling - transparent for builder background visibility */
+    --card: 220 18% 12% / 0.7;
     --card-foreground: 40 15% 90%;
 
-    /* Popover/modal styling */
-    --popover: 220 20% 10%;
+    /* Popover/modal styling - semi-transparent */
+    --popover: 220 20% 10% / 0.85;
     --popover-foreground: 40 15% 90%;
 
     /* Primary - warm gold accent */
     --primary: 45 80% 55%;
     --primary-foreground: 220 20% 8%;
 
-    /* Secondary - muted parchment */
-    --secondary: 35 20% 20%;
+    /* Secondary - muted parchment - semi-transparent */
+    --secondary: 35 20% 20% / 0.7;
     --secondary-foreground: 40 15% 85%;
 
-    /* Muted - for less important text */
-    --muted: 220 15% 18%;
+    /* Muted - for less important text - semi-transparent */
+    --muted: 220 15% 18% / 0.7;
     --muted-foreground: 40 10% 60%;
 
     /* Accent - bronze highlight */
