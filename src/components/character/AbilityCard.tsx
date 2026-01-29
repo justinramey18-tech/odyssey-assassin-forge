@@ -3,8 +3,11 @@ import { Ability } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { Plus, Minus, Lock, Info, HelpCircle, Target, Crosshair, Eye, Sparkles, CloudRain, Award, Radar, Undo2, Flame, ShieldOff, Megaphone, Zap, Swords, Sword, Shield, Heart, Skull, Footprints, Droplets, EyeOff, Ghost, Moon, FlaskConical, Brain } from 'lucide-react';
+import { Plus, Minus, Lock, Info, HelpCircle, Target, Crosshair, Eye, Sparkles, CloudRain, Award, Radar, Undo2, Flame, ShieldOff, Megaphone, Zap, Swords, Sword, Shield, Heart, Skull, Footprints, Droplets, EyeOff, Ghost, Moon, FlaskConical, Brain, Dices } from 'lucide-react';
 import { AbilityDetailModal } from './AbilityDetailModal';
+import { DiceRollModal } from './DiceRollModal';
+import { rollDice, getAbilityDice, DiceRoll } from '@/lib/diceRoller';
+import { generateRPPrompt } from '@/lib/rpPromptGenerator';
 
 // Icon map for dynamic icon rendering
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -19,6 +22,7 @@ interface AbilityCardProps {
   currentTier: 0 | 1 | 2 | 3;
   canUpgrade: boolean;
   characterLevel: number;
+  characterName: string;
   onUpgrade: () => void;
   onDowngrade: () => void;
 }
@@ -35,10 +39,14 @@ export function AbilityCard({
   currentTier,
   canUpgrade,
   characterLevel,
+  characterName,
   onUpgrade,
   onDowngrade,
 }: AbilityCardProps) {
   const [showModal, setShowModal] = useState(false);
+  const [showDiceModal, setShowDiceModal] = useState(false);
+  const [currentRoll, setCurrentRoll] = useState<DiceRoll | null>(null);
+  const [currentRPPrompt, setCurrentRPPrompt] = useState('');
 
   const isLocked = currentTier === 0;
   const isMaxed = currentTier === 3;
@@ -76,6 +84,37 @@ export function AbilityCard({
 
   const styles = treeStyles[ability.tree];
 
+  const handleCardClick = () => {
+    // If unlocked and NOT passive, trigger dice roll
+    if (!isLocked && ability.type !== 'passive') {
+      performDiceRoll();
+    } else {
+      // Passive or locked abilities show detail modal
+      setShowModal(true);
+    }
+  };
+
+  const performDiceRoll = () => {
+    const tier = currentTier as 1 | 2 | 3;
+    const { die, count } = getAbilityDice(tier);
+    const roll = rollDice(die, count);
+    const prompt = generateRPPrompt(ability, tier, roll, characterName);
+    
+    setCurrentRoll(roll);
+    setCurrentRPPrompt(prompt);
+    setShowDiceModal(true);
+  };
+
+  const handleReroll = () => {
+    const tier = currentTier as 1 | 2 | 3;
+    const { die, count } = getAbilityDice(tier);
+    const roll = rollDice(die, count);
+    const prompt = generateRPPrompt(ability, tier, roll, characterName);
+    
+    setCurrentRoll(roll);
+    setCurrentRPPrompt(prompt);
+  };
+
   return (
     <>
       <div
@@ -85,7 +124,7 @@ export function AbilityCard({
           !isLocked && styles.bg,
           isMaxed && styles.glow
         )}
-        onClick={() => setShowModal(true)}
+        onClick={handleCardClick}
       >
         <div className="flex items-start gap-3">
           {/* Icon */}
@@ -200,6 +239,18 @@ export function AbilityCard({
         open={showModal}
         onOpenChange={setShowModal}
       />
+
+      {currentRoll && currentTier > 0 && (
+        <DiceRollModal
+          ability={ability}
+          tier={currentTier as 1 | 2 | 3}
+          roll={currentRoll}
+          rpPrompt={currentRPPrompt}
+          open={showDiceModal}
+          onOpenChange={setShowDiceModal}
+          onReroll={handleReroll}
+        />
+      )}
     </>
   );
 }

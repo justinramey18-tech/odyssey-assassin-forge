@@ -13,6 +13,7 @@ interface AbilityTreeAccordionProps {
   abilities: Ability[];
   pointsInTree: number;
   characterLevel: number;
+  characterName: string;
   getAbilityTier: (abilityId: string) => 0 | 1 | 2 | 3;
   canUpgrade: (abilityId: string) => boolean;
   onUpgrade: (abilityId: string) => void;
@@ -60,6 +61,7 @@ export function AbilityTreeAccordion({
   abilities,
   pointsInTree,
   characterLevel,
+  characterName,
   getAbilityTier,
   canUpgrade,
   onUpgrade,
@@ -128,6 +130,7 @@ export function AbilityTreeAccordion({
                 currentTier={getAbilityTier(ability.id)}
                 canUpgrade={canUpgrade(ability.id)}
                 characterLevel={characterLevel}
+                characterName={characterName}
                 onUpgrade={() => onUpgrade(ability.id)}
                 onDowngrade={() => onDowngrade(ability.id)}
               />
@@ -150,6 +153,7 @@ export function AbilityTreeAccordion({
                 currentTier={getAbilityTier(ability.id)}
                 canUpgrade={canUpgrade(ability.id)}
                 characterLevel={characterLevel}
+                characterName={characterName}
                 onUpgrade={() => onUpgrade(ability.id)}
                 onDowngrade={() => onDowngrade(ability.id)}
               />
