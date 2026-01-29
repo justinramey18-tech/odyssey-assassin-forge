@@ -1,14 +1,18 @@
-import { Character, getActiveSlotsByLevel } from '@/lib/types';
+import { useState } from 'react';
+import { Character, getActiveSlotsByLevel, Ability } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { X, Plus, HelpCircle, Target, Crosshair, Eye, Sparkles, CloudRain, Award, Radar, Undo2, Flame, ShieldOff, Megaphone, Zap, Swords, Sword, Shield, Heart, Skull, Footprints, Droplets, EyeOff, Ghost, Moon, FlaskConical, Brain } from 'lucide-react';
+import { X, Plus, HelpCircle, Target, Crosshair, Eye, Sparkles, CloudRain, Award, Radar, Undo2, Flame, ShieldOff, Megaphone, Zap, Swords, Sword, Shield, Heart, Skull, Footprints, Droplets, EyeOff, Ghost, Moon, FlaskConical, Brain, Dices } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { DiceRollModal } from './DiceRollModal';
+import { rollDice, getAbilityDice, DiceRoll } from '@/lib/diceRoller';
+import { generateRPPrompt } from '@/lib/rpPromptGenerator';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Target, Crosshair, Eye, Sparkles, CloudRain, Award, Radar, Undo2,
@@ -24,6 +28,12 @@ interface EquippedLoadoutProps {
 }
 
 export function EquippedLoadout({ character, onEquip, onUnequip }: EquippedLoadoutProps) {
+  const [showDiceModal, setShowDiceModal] = useState(false);
+  const [currentRoll, setCurrentRoll] = useState<DiceRoll | null>(null);
+  const [currentRPPrompt, setCurrentRPPrompt] = useState('');
+  const [activeAbility, setActiveAbility] = useState<Ability | null>(null);
+  const [activeTier, setActiveTier] = useState<1 | 2 | 3>(1);
+
   const totalSlots = getActiveSlotsByLevel(character.level);
   
   // Get available active abilities (unlocked, not passive, not already equipped)
@@ -44,93 +54,140 @@ export function EquippedLoadout({ character, onEquip, onUnequip }: EquippedLoado
     assassin: 'border-assassin/50 bg-assassin-dim/20 text-assassin-glow',
   };
 
+  const handleUseAbility = (ability: Ability) => {
+    // Get the current tier of this ability
+    const charAbility = character.abilities.find(ca => ca.abilityId === ability.id);
+    const tier = (charAbility?.currentTier || 1) as 1 | 2 | 3;
+    
+    const { die, count } = getAbilityDice(tier);
+    const roll = rollDice(die, count);
+    const prompt = generateRPPrompt(ability, tier, roll, character.name);
+    
+    setActiveAbility(ability);
+    setActiveTier(tier);
+    setCurrentRoll(roll);
+    setCurrentRPPrompt(prompt);
+    setShowDiceModal(true);
+  };
+
+  const handleReroll = () => {
+    if (!activeAbility) return;
+    
+    const { die, count } = getAbilityDice(activeTier);
+    const roll = rollDice(die, count);
+    const prompt = generateRPPrompt(activeAbility, activeTier, roll, character.name);
+    
+    setCurrentRoll(roll);
+    setCurrentRPPrompt(prompt);
+  };
+
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h4 className="font-display text-sm font-semibold text-foreground">
-          Equipped Abilities
-        </h4>
-        <span className="text-xs text-muted-foreground font-body">
-          {character.equippedAbilities.filter(Boolean).length} / {totalSlots} slots
-        </span>
-      </div>
-      
-      <div className="flex flex-wrap gap-2">
-        {Array.from({ length: totalSlots }).map((_, index) => {
-          const equippedId = character.equippedAbilities[index];
-          const equippedAbility = equippedId ? allAbilities.find(a => a.id === equippedId) : null;
-          const IconComponent = equippedAbility ? (iconMap[equippedAbility.icon] || HelpCircle) : Plus;
+    <>
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="font-display text-sm font-semibold text-foreground">
+            Equipped Abilities
+          </h4>
+          <span className="text-xs text-muted-foreground font-body">
+            {character.equippedAbilities.filter(Boolean).length} / {totalSlots} slots
+          </span>
+        </div>
+        
+        <div className="flex flex-wrap gap-2">
+          {Array.from({ length: totalSlots }).map((_, index) => {
+            const equippedId = character.equippedAbilities[index];
+            const equippedAbility = equippedId ? allAbilities.find(a => a.id === equippedId) : null;
+            const IconComponent = equippedAbility ? (iconMap[equippedAbility.icon] || HelpCircle) : Plus;
 
-          if (equippedAbility) {
-            return (
-              <div
-                key={index}
-                className={cn(
-                  'relative group flex items-center gap-2 px-3 py-2 rounded-lg border transition-all',
-                  treeStyles[equippedAbility.tree]
-                )}
-              >
-                <IconComponent className="w-4 h-4" />
-                <span className="text-xs font-body font-medium text-foreground">
-                  {equippedAbility.name}
-                </span>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-5 w-5 opacity-50 hover:opacity-100 hover:bg-destructive/20 hover:text-destructive"
-                  onClick={() => onUnequip(index)}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </div>
-            );
-          }
-
-          return (
-            <DropdownMenu key={index}>
-              <DropdownMenuTrigger asChild>
-                <button
+            if (equippedAbility) {
+              return (
+                <div
+                  key={index}
                   className={cn(
-                    'flex items-center justify-center w-10 h-10 rounded-lg border-2 border-dashed',
-                    'border-muted-foreground/30 text-muted-foreground/50',
-                    'hover:border-primary/50 hover:text-primary/70 hover:bg-primary/5',
-                    'transition-all cursor-pointer',
-                    availableAbilities.length === 0 && 'opacity-50 cursor-not-allowed'
+                    'relative group flex items-center gap-2 px-3 py-2 rounded-lg border transition-all cursor-pointer hover:scale-105',
+                    treeStyles[equippedAbility.tree]
                   )}
-                  disabled={availableAbilities.length === 0}
+                  onClick={() => handleUseAbility(equippedAbility)}
+                  title={`Click to use ${equippedAbility.name}`}
                 >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="max-h-60 overflow-y-auto">
-                {availableAbilities.length === 0 ? (
-                  <DropdownMenuItem disabled>
-                    <span className="text-muted-foreground text-xs">No active abilities unlocked</span>
-                  </DropdownMenuItem>
-                ) : (
-                  availableAbilities.map(ability => {
-                    const AbilityIcon = iconMap[ability.icon] || HelpCircle;
-                    return (
-                      <DropdownMenuItem
-                        key={ability.id}
-                        onClick={() => onEquip(index, ability.id)}
-                        className="flex items-center gap-2"
-                      >
-                        <AbilityIcon className={cn('w-4 h-4', treeStyles[ability.tree].split(' ')[2])} />
-                        <span>{ability.name}</span>
-                      </DropdownMenuItem>
-                    );
-                  })
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          );
-        })}
+                  <Dices className="w-3 h-3 opacity-50 absolute -top-1 -right-1" />
+                  <IconComponent className="w-4 h-4" />
+                  <span className="text-xs font-body font-medium text-foreground">
+                    {equippedAbility.name}
+                  </span>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-5 w-5 opacity-50 hover:opacity-100 hover:bg-destructive/20 hover:text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onUnequip(index);
+                    }}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              );
+            }
+
+            return (
+              <DropdownMenu key={index}>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className={cn(
+                      'flex items-center justify-center w-10 h-10 rounded-lg border-2 border-dashed',
+                      'border-muted-foreground/30 text-muted-foreground/50',
+                      'hover:border-primary/50 hover:text-primary/70 hover:bg-primary/5',
+                      'transition-all cursor-pointer',
+                      availableAbilities.length === 0 && 'opacity-50 cursor-not-allowed'
+                    )}
+                    disabled={availableAbilities.length === 0}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="max-h-60 overflow-y-auto">
+                  {availableAbilities.length === 0 ? (
+                    <DropdownMenuItem disabled>
+                      <span className="text-muted-foreground text-xs">No active abilities unlocked</span>
+                    </DropdownMenuItem>
+                  ) : (
+                    availableAbilities.map(ability => {
+                      const AbilityIcon = iconMap[ability.icon] || HelpCircle;
+                      return (
+                        <DropdownMenuItem
+                          key={ability.id}
+                          onClick={() => onEquip(index, ability.id)}
+                          className="flex items-center gap-2"
+                        >
+                          <AbilityIcon className={cn('w-4 h-4', treeStyles[ability.tree].split(' ')[2])} />
+                          <span>{ability.name}</span>
+                        </DropdownMenuItem>
+                      );
+                    })
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            );
+          })}
+        </div>
+        
+        <p className="text-[10px] text-muted-foreground font-body">
+          Tap an equipped ability to roll dice and generate an RP prompt. Slots increase at levels 5, 11, and 17.
+        </p>
       </div>
-      
-      <p className="text-[10px] text-muted-foreground font-body">
-        Equip unlocked active abilities to your loadout. Slots increase at levels 5, 11, and 17.
-      </p>
-    </div>
+
+      {currentRoll && activeAbility && (
+        <DiceRollModal
+          ability={activeAbility}
+          tier={activeTier}
+          roll={currentRoll}
+          rpPrompt={currentRPPrompt}
+          open={showDiceModal}
+          onOpenChange={setShowDiceModal}
+          onReroll={handleReroll}
+        />
+      )}
+    </>
   );
 }
