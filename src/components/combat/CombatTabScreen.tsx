@@ -2,12 +2,14 @@ import { useState, useCallback } from 'react';
 import { Character, Ability, getActiveSlotsByLevel } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { SituationPanel } from './SituationPanel';
 import { ActionEconomyTracker } from './ActionEconomyTracker';
 import { AbilityTabs } from './AbilityTabs';
 import { RollBuilderPanel } from './RollBuilderPanel';
 import { QuickReferenceSidebar } from './QuickReferenceSidebar';
 import { DiceRollModal } from '@/components/character/DiceRollModal';
+import { MobileCombatLayout } from './mobile/MobileCombatLayout';
 import { 
   ActionEconomy, 
   ActiveEffect,
@@ -18,6 +20,7 @@ import {
 import { DiceRoll } from '@/lib/diceRoller';
 import { Activity, Skull } from 'lucide-react';
 import './CombatHUDStyles.css';
+import './mobile/MobileCombatStyles.css';
 
 interface CombatTabScreenProps {
   character: Character;
@@ -84,6 +87,13 @@ function calculateModifiers(character: Character): CombatModifiers {
 }
 
 export function CombatTabScreen({ character }: CombatTabScreenProps) {
+  const isMobile = useIsMobile();
+  
+  // Use mobile layout for smaller screens
+  if (isMobile) {
+    return <MobileCombatLayout character={character} />;
+  }
+  
   // Situation state
   const [conditions, setConditions] = useState<string[]>([]);
   const [activeEffects, setActiveEffects] = useState<ActiveEffect[]>([]);

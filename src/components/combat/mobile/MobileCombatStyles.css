@@ -1,0 +1,276 @@
+/* Mobile Combat HUD Styles */
+
+/* Safe area insets for mobile */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Slide up animation for speed dial */
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Touch feedback */
+.touch-feedback {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Prevent text selection during interaction */
+.no-select {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Smooth scroll for content areas */
+.smooth-scroll {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Card hover states - subtle for touch */
+@media (hover: hover) {
+  .combat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* Active states for touch */
+.combat-card:active {
+  transform: scale(0.98);
+}
+
+/* Bottom sheet drag handle */
+.drag-handle {
+  width: 48px;
+  height: 4px;
+  background: hsl(var(--muted));
+  border-radius: 2px;
+  margin: 8px auto;
+}
+
+/* Gesture hint animation */
+@keyframes gesture-hint {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+.gesture-hint {
+  animation: gesture-hint 2s ease-in-out infinite;
+}
+
+/* Haptic feedback simulation via animation */
+@keyframes haptic-bump {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.97);
+  }
+}
+
+.haptic-feedback:active {
+  animation: haptic-bump 0.1s ease-out;
+}
+
+/* Status badge pulse */
+@keyframes status-pulse {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 currentColor;
+  }
+  50% {
+    opacity: 0.8;
+    box-shadow: 0 0 0 4px transparent;
+  }
+}
+
+.status-pulse {
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+/* Accordion expand animation */
+.accordion-expand {
+  animation: accordion-down 0.2s ease-out;
+}
+
+/* Bottom navigation active indicator */
+.nav-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 3px;
+  background: hsl(0 70% 50%);
+  border-radius: 2px;
+  transition: all 0.2s ease-out;
+}
+
+/* FAB shadow */
+.fab-shadow {
+  box-shadow: 
+    0 4px 12px rgba(239, 68, 68, 0.4),
+    0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* Condition toggle active state */
+.condition-active {
+  background: linear-gradient(135deg, 
+    hsl(142 70% 45% / 0.2), 
+    hsl(142 70% 45% / 0.1)
+  );
+  border-color: hsl(142 70% 45% / 0.5);
+}
+
+/* Card pressed state */
+.card-pressed {
+  background: linear-gradient(135deg,
+    hsl(0 70% 50% / 0.1),
+    transparent
+  );
+}
+
+/* Weapon card glow when expanded */
+.weapon-card-expanded {
+  box-shadow: 
+    0 0 0 1px hsl(0 70% 50% / 0.5),
+    0 4px 20px hsl(0 70% 50% / 0.2);
+}
+
+/* Assassinate button glow */
+.assassinate-glow {
+  box-shadow: 
+    0 0 20px hsl(0 70% 50% / 0.4),
+    0 0 40px hsl(0 70% 50% / 0.2),
+    inset 0 1px 0 hsl(0 70% 70% / 0.3);
+}
+
+/* Sneak attack eligible indicator */
+.sneak-eligible {
+  position: relative;
+  overflow: hidden;
+}
+
+.sneak-eligible::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    hsl(142 70% 45% / 0.1),
+    transparent
+  );
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* Turn summary action cards */
+.turn-action-card {
+  transition: all 0.2s ease-out;
+}
+
+.turn-action-card:hover {
+  transform: translateX(4px);
+}
+
+/* Copy button success state */
+.copy-success {
+  background: hsl(142 70% 45% / 0.2) !important;
+  border-color: hsl(142 70% 45% / 0.5) !important;
+  color: hsl(142 70% 65%) !important;
+}
+
+/* Landscape adjustments */
+@media (orientation: landscape) and (max-height: 500px) {
+  .combat-header {
+    height: 48px;
+  }
+  
+  .combat-footer {
+    height: 56px;
+  }
+  
+  .action-economy-bar {
+    height: 60px;
+  }
+}
+
+/* Tablet optimizations */
+@media (min-width: 768px) {
+  .combat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  
+  .weapon-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+
+/* Large tablet / small desktop */
+@media (min-width: 1024px) {
+  .combat-layout {
+    display: grid;
+    grid-template-columns: 300px 1fr 280px;
+    gap: 16px;
+  }
+  
+  .combat-sidebar-left {
+    position: sticky;
+    top: 64px;
+    height: calc(100vh - 64px);
+    overflow-y: auto;
+  }
+  
+  .combat-sidebar-right {
+    position: sticky;
+    top: 64px;
+    height: calc(100vh - 64px);
+    overflow-y: auto;
+  }
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
