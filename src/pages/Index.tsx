@@ -23,6 +23,7 @@ import { PromptDrawerProvider } from '@/components/drawers';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Swords, Backpack, Trophy, Sparkles, Home, BookOpen, ChevronUp, Crosshair, Lock } from 'lucide-react';
+import skillsBackgroundImage from '@/assets/skills-background.jpg';
 import { SettingsModal } from '@/components/settings/SettingsModal';
 import { AssassinHeader } from '@/components/navigation/AssassinHeader';
 import { CombatTabScreen } from '@/components/combat/CombatTabScreen';
@@ -393,8 +394,17 @@ const Index = () => {
         />
 
         {/* Skills Tab Content */}
-        <TabsContent value="skills" className="mt-0 pb-4">
-          <div className="container max-w-2xl mx-auto px-4 py-4">
+        <TabsContent value="skills" className="mt-0 pb-4 relative min-h-[calc(100vh-10vh)]">
+          {/* Background Image */}
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+            style={{ backgroundImage: `url(${skillsBackgroundImage})` }}
+          />
+          {/* Semi-transparent overlay for readability */}
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-[2px]" />
+          
+          {/* Content */}
+          <div className="container max-w-2xl mx-auto px-4 py-4 relative z-10">
             {/* XP Tracker */}
             <div className="mb-6 p-4 rounded-lg border border-primary/30 bg-gradient-to-b from-primary/5 to-transparent">
               <XPTracker
