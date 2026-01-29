@@ -10,6 +10,7 @@ import { RollBuilderPanel } from './RollBuilderPanel';
 import { QuickReferenceSidebar } from './QuickReferenceSidebar';
 import { DiceRollModal } from '@/components/character/DiceRollModal';
 import { MobileCombatLayout } from './mobile/MobileCombatLayout';
+import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 import { 
   ActionEconomy, 
   ActiveEffect,
@@ -249,16 +250,13 @@ export function CombatTabScreen({ character }: CombatTabScreenProps) {
     return <MobileCombatLayout character={character} />;
   }
   return (
-    <div className="combat-hud min-h-[calc(100vh-200px)] relative overflow-hidden">
-      {/* Background Image with Parallax */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat bg-fixed z-0"
-        style={{ backgroundImage: `url(${combatBackground})` }}
-      />
-      {/* Gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-background/85 via-background/60 to-background/90 z-0" />
-      <div className="absolute inset-0 bg-gradient-to-t from-red-900/30 via-transparent to-black/40 z-0" />
-      
+    <BackgroundWrapper 
+      imagePath={combatBackground} 
+      overlayOpacity={70} 
+      tintColor="red" 
+      tintOpacity={30}
+      className="combat-hud min-h-[calc(100vh-200px)]"
+    >
       {/* Scan lines overlay */}
       <div className="hud-scanlines" />
       
@@ -342,7 +340,7 @@ export function CombatTabScreen({ character }: CombatTabScreenProps) {
           rerollDisabled={rerollsDisabled}
         />
       )}
-    </div>
+    </BackgroundWrapper>
   );
 }
 
