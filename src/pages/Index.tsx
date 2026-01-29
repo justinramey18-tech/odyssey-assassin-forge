@@ -475,6 +475,11 @@ const Index = () => {
           onOpenChange={setShowSettingsModal}
           prestigeData={prestigeData}
           onPrestigeRespec={resetPrestigePoints}
+          character={character}
+          abilities={allAbilities}
+          unlockedAbilities={unlockedAbilities}
+          equippedGear={equipment.slots}
+          prestigeLevel={prestigeData.prestigeLevel > 0 ? prestigeData.prestigeLevel : undefined}
         />
 
         {/* Skills Tab Content */}
