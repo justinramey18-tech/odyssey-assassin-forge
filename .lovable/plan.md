@@ -1,154 +1,152 @@
 
-# Plan: Sync Gear Unlock Progress with Feats Tab Values
 
-## Problem
+# BackgroundWrapper Implementation Plan
 
-Currently, the gear unlock system (`useGearLock`, `EquipmentSlotCard`, `ConstellationMap`) uses the static `achievementCategories` array from `src/lib/achievements.ts` instead of the live `achievements` state managed in `Index.tsx`. This means:
-
-- Progress made in the Feats tab doesn't update the unlock progress bars in Gear/Stars tabs
-- Items don't automatically unlock when feat requirements are met
-- Star nodes in the constellation don't reflect current achievement progress
-
-## Solution
-
-Thread the live `achievements` state from `Index.tsx` through all components that need it:
-
-1. **InventoryScreen** - already receives `achievements` prop but needs to pass to child components
-2. **ConstellationScreen** - needs to receive `achievements` as a prop
-3. **ConstellationMap** - needs to use passed achievements instead of static array
-4. **useGearLock** - already accepts `achievements` param, just needs correct data
+## Overview
+Create a reusable `BackgroundWrapper` component and apply it consistently across all tabs (except Gear, which uses dynamic legendary set backgrounds). This will centralize background management while preserving each tab's unique overlay opacity settings.
 
 ---
 
-## Changes
+## Phase 1: Create BackgroundWrapper Component
 
-### 1. Update ConstellationScreen to Accept Achievements
-**File:** `src/components/constellation/ConstellationScreen.tsx`
+### File: `src/components/ui/BackgroundWrapper.tsx`
 
-- Add `achievements` prop to interface
-- Pass achievements to `ConstellationMap`
+A reusable wrapper component with the following props:
 
-### 2. Update ConstellationMap to Use Live Achievements
-**File:** `src/components/constellation/ConstellationMap.tsx`
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `imagePath` | `string` | required | Path to background image |
+| `overlayOpacity` | `number` | 60 | Opacity 0-100 for dark overlay |
+| `tintColor` | `string` | - | Optional accent tint (e.g., "red", "amber", "purple") |
+| `tintOpacity` | `number` | 20 | Opacity for accent tint layer |
+| `fixed` | `boolean` | true | Whether to use `bg-fixed` for parallax effect |
+| `children` | `ReactNode` | required | Content to render on top |
 
-- Add `achievements` prop to interface
-- Replace static `achievementCategories` lookups with the passed `achievements` array
-- This ensures progress bars and unlock states reflect real-time feat values
-
-### 3. Update Index.tsx to Pass Achievements to Stars Tab
-**File:** `src/pages/Index.tsx`
-
-- Pass `achievements` state to `ConstellationScreen`
-
-### 4. Ensure InventoryScreen Passes Achievements to useGearLock
-**File:** `src/components/inventory/InventoryScreen.tsx`
-
-- Already receives `achievements` prop and passes to `useGearLock` (confirmed working)
-- Verify the hook dependency array includes achievements for reactivity
-
----
-
-## Data Flow After Changes
+### Component Structure
 
 ```text
-Index.tsx (achievements state)
-     |
-     +---> AchievementsScreen (updates achievements)
-     |           |
-     |           v
-     |     [User increments feat progress]
-     |           |
-     |           v
-     +---> InventoryScreen(achievements)
-     |           |
-     |           +---> useGearLock(achievements)
-     |           |           |
-     |           |           v
-     |           |     [isItemLocked checks live progress]
-     |           |
-     |           +---> EquipmentSlotCard(lockInfo)
-     |                       |
-     |                       v
-     |                 [Progress bar shows current/required]
-     |
-     +---> ConstellationScreen(achievements)
-                 |
-                 +---> ConstellationMap(achievements)
-                             |
-                             v
-                       [Star nodes show live unlock status]
++--------------------------------------------+
+|  [Background Image Layer - fixed/absolute] |
+|  +----------------------------------------+|
+|  |     [Dark Overlay Layer]               ||
+|  |  +------------------------------------+||
+|  |  |   [Optional Tint Layer]            |||
+|  |  | +--------------------------------+ |||
+|  |  | |        Children (z-10)         | |||
+|  |  | +--------------------------------+ |||
+|  |  +------------------------------------+||
+|  +----------------------------------------+|
++--------------------------------------------+
 ```
 
 ---
 
-## Automatic Unlock Behavior
+## Phase 2: Apply to Each Tab
 
-When a user increments an achievement in the Feats tab:
-1. `setAchievements()` updates state in Index.tsx
-2. React re-renders child components with new `achievements` array
-3. `useGearLock` recalculates `isItemLocked` for all items
-4. `ConstellationMap` recalculates unlock status for all stars
-5. Items that now meet requirements:
-   - Show green "Unlocked" badge instead of amber "Locked"
-   - Become tappable/equippable in the Gear tab
-   - Star nodes illuminate in the Stars tab
+### Combat Tab
+- **File**: `src/components/combat/CombatTabScreen.tsx`
+- **Action**: Remove inline background code, wrap content with `BackgroundWrapper`
+- **Settings**: `overlayOpacity={70}`, `tintColor="red"`, `tintOpacity={30}`
+- **Note**: Preserve all existing HUD elements, scan lines, corner brackets
+
+### Skills Tab  
+- **File**: `src/pages/Index.tsx` (TabsContent for "skills")
+- **Action**: Replace inline background divs with `BackgroundWrapper`
+- **Settings**: `overlayOpacity={65}`, `tintColor="purple"`, `tintOpacity={20}`
+
+### Feats Tab
+- **File**: `src/components/achievements/AchievementsScreen.tsx`
+- **Action**: Remove inline background code, wrap with `BackgroundWrapper`
+- **Settings**: `overlayOpacity={60}`, `tintColor="purple"`, `tintOpacity={15}`
+
+### Stars Tab
+- **File**: `src/components/constellation/ConstellationScreen.tsx`
+- **Action**: Add new background layer (currently no static image)
+- **Settings**: `overlayOpacity={40}` (lighter to see stars)
+- **Requirement**: Need a `stars-background.jpg` image OR keep current animated starfield
+
+### Scribe Tab
+- **File**: `src/components/scribe/NarrativeForgeScreen.tsx`
+- **Action**: Replace inline background code with `BackgroundWrapper`
+- **Settings**: `overlayOpacity={75}`, `tintColor="amber"`, `tintOpacity={25}`
+
+### Home Dashboard
+- **File**: `src/components/home/HomeScreen.tsx`
+- **Action**: Keep existing panoramic panning system (unique behavior)
+- **Note**: HomeScreen uses a different interaction pattern with four-directional scrolling - a static `BackgroundWrapper` would break this functionality
 
 ---
 
+## Phase 3: Asset Path Configuration
+
+Since your assets are in `src/assets/` (imported as ES modules) rather than `public/backgrounds/`, the wrapper will use imported paths:
+
+| Tab | Import Path | Current Status |
+|-----|-------------|----------------|
+| Combat | `@/assets/combat-background.jpg` | Exists |
+| Skills | `@/assets/skills-background-new.jpg` | Exists |
+| Feats | `@/assets/feats-background.jpg` | Exists |
+| Scribe | `@/assets/scribe-background.jpg` | Exists |
+| Stars | `@/assets/stars-background.jpg` | **Missing - needs creation** |
+| Home | N/A (keeps existing panoramic) | Special case |
+
+---
+
+## Files to Create
+
+1. `src/components/ui/BackgroundWrapper.tsx` - New reusable component
+
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `src/components/constellation/ConstellationScreen.tsx` | Add `achievements` prop, pass to ConstellationMap |
-| `src/components/constellation/ConstellationMap.tsx` | Accept `achievements` prop, use instead of static array |
-| `src/pages/Index.tsx` | Pass `achievements` to ConstellationScreen |
+1. `src/components/combat/CombatTabScreen.tsx` - Wrap with BackgroundWrapper
+2. `src/pages/Index.tsx` - Replace Skills tab inline background
+3. `src/components/achievements/AchievementsScreen.tsx` - Wrap with BackgroundWrapper
+4. `src/components/scribe/NarrativeForgeScreen.tsx` - Wrap with BackgroundWrapper
+5. `src/components/constellation/ConstellationScreen.tsx` - Add optional background
+
+---
+
+## Decision Point: Stars Tab
+
+The Stars/Constellation tab currently uses an animated starfield effect with 50 random pulsing particles. Two options:
+
+**Option A - Keep Current Design (Recommended)**
+- The animated particles create a cosmic "looking into space" atmosphere
+- No static background needed
+- Skip BackgroundWrapper for this tab
+
+**Option B - Add Space Background**
+- Upload a dark nebula/starfield image as `src/assets/stars-background.jpg`
+- Apply BackgroundWrapper with 40% overlay
+- Keep animated particles on top for depth
 
 ---
 
 ## Technical Details
 
-### ConstellationMap Changes
+### BackgroundWrapper Implementation
 
-```typescript
-// Before
-const achievement = prerequisite 
-  ? achievementCategories.find(a => a.id === prerequisite.achievementId) 
-  : null;
-
-// After
-const achievement = prerequisite 
-  ? achievements.find(a => a.id === prerequisite.achievementId) 
-  : null;
-```
-
-### ConstellationScreen Interface Update
-
-```typescript
-interface ConstellationScreenProps {
-  characterName: string;
-  equippedItems: EquipmentItem[];
-  achievements: Achievement[];  // NEW
-  onBack?: () => void;
+```tsx
+interface BackgroundWrapperProps {
+  imagePath: string;
+  overlayOpacity?: number;
+  tintColor?: 'red' | 'amber' | 'purple' | 'cyan' | 'green';
+  tintOpacity?: number;
+  fixed?: boolean;
+  children: React.ReactNode;
+  className?: string;
 }
 ```
 
-### Index.tsx Stars Tab Update
+The component will:
+1. Render background image with `bg-cover bg-center` and optional `bg-fixed`
+2. Apply a gradient overlay: `from-background/${top} via-background/${mid} to-background/${bottom}`
+3. Apply optional colored tint layer with directional gradient
+4. Render children with `relative z-10` to ensure content visibility
 
-```typescript
-<ConstellationScreen
-  characterName={character.name}
-  equippedItems={Object.values(equipment.slots).filter(Boolean) as EquipmentItem[]}
-  achievements={achievements}  // NEW
-  onBack={() => setActiveTab('skills')}
-/>
-```
+### Gradient Formula
+Based on current implementations, the overlay uses a 3-stop vertical gradient:
+- Top: `overlayOpacity * 0.9` (darker at top)
+- Middle: `overlayOpacity * 0.6` (lighter in middle for visibility)
+- Bottom: `overlayOpacity * 0.95` (darkest at bottom)
 
----
-
-## User Experience
-
-After implementation:
-- **Feats Tab**: User increments "Surviving After 0 HP" from 9 to 10
-- **Gear Tab**: "Cuirass of Regenerative Nonsense" lock overlay disappears, item becomes equippable
-- **Stars Tab**: The chest star for "Merc with a Mouth" set shows green "Unlocked" badge with full progress bar
-- All updates happen instantly with no page refresh needed
