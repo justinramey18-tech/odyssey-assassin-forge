@@ -1,4 +1,4 @@
-import { X, Share2, Star, Sparkles, Shield, Sword, Scale, Coins, ChevronDown } from 'lucide-react';
+import { X, Share2, Star, Sparkles, Shield, Sword, Scale, Coins, ChevronDown, Lock, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EquipmentItem, rarityConfig, setDefinitions, EquipmentSlotType, CharacterEquipment } from '@/lib/inventory/index';
 import { getIconByName } from '@/lib/iconUtils';
@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useState } from 'react';
+import { itemPrerequisites, achievementCategories, getAchievementProgress } from '@/lib/achievements';
 
 interface ItemDetailSheetProps {
   item: EquipmentItem | null;
@@ -30,6 +31,7 @@ export function ItemDetailSheet({
 }: ItemDetailSheetProps) {
   const [enchantmentsOpen, setEnchantmentsOpen] = useState(true);
   const [setBonusOpen, setSetBonusOpen] = useState(true);
+  const [prerequisiteOpen, setPrerequisiteOpen] = useState(true);
 
   if (!item) return null;
 
@@ -44,6 +46,18 @@ export function ItemDetailSheet({
         .filter(i => i?.setId === item.setId)
         .length
     : 0;
+
+  // Get achievement prerequisite info for legendary items
+  const prerequisite = itemPrerequisites[item.id];
+  const prerequisiteAchievement = prerequisite 
+    ? achievementCategories.find(a => a.id === prerequisite.achievementId)
+    : null;
+  const prerequisiteProgress = prerequisiteAchievement 
+    ? Math.min(100, (prerequisiteAchievement.currentValue / prerequisite.requiredValue) * 100)
+    : 0;
+  const isUnlocked = prerequisiteAchievement 
+    ? prerequisiteAchievement.currentValue >= prerequisite.requiredValue
+    : true;
 
   const renderStars = (count: number) => {
     return Array.from({ length: count }).map((_, i) => (
@@ -200,6 +214,93 @@ export function ItemDetailSheet({
                       </div>
                     );
                   })}
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+
+            {/* Achievement Prerequisite for Legendary Items */}
+            {prerequisite && prerequisiteAchievement && (
+              <Collapsible open={prerequisiteOpen} onOpenChange={setPrerequisiteOpen} className="mb-4">
+                <CollapsibleTrigger className={cn(
+                  "flex items-center justify-between w-full p-3 rounded-lg border",
+                  isUnlocked 
+                    ? "bg-green-500/10 border-green-500/20" 
+                    : "bg-red-500/10 border-red-500/20"
+                )}>
+                  <div className="flex items-center gap-2">
+                    {isUnlocked ? (
+                      <Sparkles className="w-4 h-4 text-green-400" />
+                    ) : (
+                      <Lock className="w-4 h-4 text-red-400" />
+                    )}
+                    <span className={cn(
+                      "font-semibold text-sm",
+                      isUnlocked ? "text-green-400" : "text-red-400"
+                    )}>
+                      {isUnlocked ? "Unlocked" : "Unlock Requirement"}
+                    </span>
+                  </div>
+                  <ChevronDown className={cn(
+                    "w-4 h-4 transition-transform",
+                    isUnlocked ? "text-green-400" : "text-red-400",
+                    prerequisiteOpen && "rotate-180"
+                  )} />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-2">
+                  <div className={cn(
+                    "p-3 rounded-lg border",
+                    isUnlocked ? "bg-green-500/5 border-green-500/10" : "bg-muted/30 border-border/50"
+                  )}>
+                    <div className="flex items-start gap-3">
+                      <div className={cn(
+                        "w-10 h-10 rounded-lg flex items-center justify-center",
+                        isUnlocked ? "bg-green-500/20" : "bg-muted"
+                      )}>
+                        <TrendingUp className={cn(
+                          "w-5 h-5",
+                          isUnlocked ? "text-green-400" : "text-muted-foreground"
+                        )} />
+                      </div>
+                      <div className="flex-1">
+                        <p className={cn(
+                          "font-semibold text-sm",
+                          isUnlocked ? "text-green-400" : "text-foreground"
+                        )}>
+                          {prerequisiteAchievement.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {prerequisiteAchievement.description}
+                        </p>
+                        
+                        {/* Progress Bar */}
+                        <div className="mt-2">
+                          <div className="flex items-center justify-between text-[10px] mb-1">
+                            <span className="text-muted-foreground">Progress</span>
+                            <span className={isUnlocked ? "text-green-400" : "text-amber-400"}>
+                              {prerequisiteAchievement.currentValue}/{prerequisite.requiredValue}
+                            </span>
+                          </div>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div 
+                              className={cn(
+                                "h-full transition-all duration-500",
+                                isUnlocked 
+                                  ? "bg-gradient-to-r from-green-500 to-green-400" 
+                                  : "bg-gradient-to-r from-amber-600 to-amber-400"
+                              )}
+                              style={{ width: `${prerequisiteProgress}%` }}
+                            />
+                          </div>
+                        </div>
+                        
+                        {!isUnlocked && (
+                          <p className="text-[10px] text-muted-foreground mt-2 italic">
+                            Track in the Feats tab to unlock this item
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </CollapsibleContent>
               </Collapsible>
             )}
