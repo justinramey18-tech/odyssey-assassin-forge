@@ -7,9 +7,10 @@ import { PromptEditModal } from './PromptEditModal';
 
 interface ActionWheelButtonProps {
   characterName: string;
+  isEmbedded?: boolean; // When true, uses relative positioning instead of fixed
 }
 
-export function ActionWheelButton({ characterName }: ActionWheelButtonProps) {
+export function ActionWheelButton({ characterName, isEmbedded = false }: ActionWheelButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedPrompt, setSelectedPrompt] = useState<CharacterPrompt | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -20,6 +21,11 @@ export function ActionWheelButton({ characterName }: ActionWheelButtonProps) {
     setIsOpen(false);
   };
 
+  // Container class changes based on embedded mode
+  const containerClass = isEmbedded 
+    ? "relative z-50" 
+    : "fixed bottom-6 right-6 z-50";
+
   // Group prompts by category
   const groupedPrompts = promptCategories.map(cat => ({
     category: cat,
@@ -29,7 +35,7 @@ export function ActionWheelButton({ characterName }: ActionWheelButtonProps) {
   return (
     <>
       {/* Floating Action Button */}
-      <div className="fixed bottom-6 right-6 z-50">
+      <div className={containerClass}>
         {/* Expanded Wheel Menu */}
         {isOpen && (
           <div 

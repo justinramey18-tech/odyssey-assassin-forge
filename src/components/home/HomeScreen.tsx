@@ -7,6 +7,7 @@ import {
   Sparkles, Moon, Scroll, ArrowLeft
 } from 'lucide-react';
 import { AssassinZone } from './AssassinZone';
+import { ActionWheelButton } from '../character/ActionWheelButton';
 import { HomeDataModal } from './HomeDataModal';
 import {
   CharacterStatsContent,
@@ -193,6 +194,18 @@ export function HomeScreen({
               />
             );
           })}
+
+          {/* Action Wheel Button - positioned over the leaping Deadpool's pelvis */}
+          <div 
+            className="absolute z-20"
+            style={{
+              left: '50%',
+              top: '32%',
+              transform: 'translate(-50%, -50%)',
+            }}
+          >
+            <ActionWheelButton characterName={character.name} isEmbedded />
+          </div>
         </div>
       </div>
 
