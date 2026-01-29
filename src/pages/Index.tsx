@@ -403,44 +403,44 @@ const Index = () => {
               
               <TabsTrigger 
                 value="combat" 
-                className="gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-red-600/40 data-[state=active]:to-red-900/30 data-[state=active]:text-red-300 data-[state=active]:border-b-2 data-[state=active]:border-red-400 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all"
+                className="group gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-red-600/40 data-[state=active]:to-red-900/30 data-[state=active]:text-red-300 data-[state=active]:border-b-2 data-[state=active]:border-red-400 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all hover:bg-red-900/20"
               >
-                <Crosshair className="w-3.5 h-3.5" />
+                <Crosshair className="w-3.5 h-3.5 group-hover:animate-tab-crosshair group-data-[state=active]:animate-tab-crosshair" />
                 <span>Combat</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="skills" 
-                className="gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-red-600/30 data-[state=active]:to-red-900/20 data-[state=active]:text-red-400 data-[state=active]:border-b-2 data-[state=active]:border-red-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all"
+                className="group gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-red-600/30 data-[state=active]:to-red-900/20 data-[state=active]:text-red-400 data-[state=active]:border-b-2 data-[state=active]:border-red-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all hover:bg-red-900/20"
               >
-                <Swords className="w-3.5 h-3.5" />
+                <Swords className="w-3.5 h-3.5 group-hover:animate-tab-swords group-data-[state=active]:animate-tab-swords" />
                 <span>Skills</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="gear" 
-                className="gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-amber-600/30 data-[state=active]:to-amber-900/20 data-[state=active]:text-amber-400 data-[state=active]:border-b-2 data-[state=active]:border-amber-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all"
+                className="group gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-amber-600/30 data-[state=active]:to-amber-900/20 data-[state=active]:text-amber-400 data-[state=active]:border-b-2 data-[state=active]:border-amber-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all hover:bg-amber-900/20"
               >
-                <Backpack className="w-3.5 h-3.5" />
+                <Backpack className="w-3.5 h-3.5 group-hover:animate-tab-backpack group-data-[state=active]:animate-tab-backpack" />
                 <span>Gear</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="feats" 
-                className="gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-purple-600/30 data-[state=active]:to-purple-900/20 data-[state=active]:text-purple-400 data-[state=active]:border-b-2 data-[state=active]:border-purple-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all"
+                className="group gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-purple-600/30 data-[state=active]:to-purple-900/20 data-[state=active]:text-purple-400 data-[state=active]:border-b-2 data-[state=active]:border-purple-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all hover:bg-purple-900/20"
               >
-                <Trophy className="w-3.5 h-3.5" />
+                <Trophy className="w-3.5 h-3.5 group-hover:animate-tab-trophy group-data-[state=active]:animate-tab-trophy" />
                 <span>Feats</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="stars" 
-                className="gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-cyan-600/30 data-[state=active]:to-cyan-900/20 data-[state=active]:text-cyan-400 data-[state=active]:border-b-2 data-[state=active]:border-cyan-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all"
+                className="group gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-cyan-600/30 data-[state=active]:to-cyan-900/20 data-[state=active]:text-cyan-400 data-[state=active]:border-b-2 data-[state=active]:border-cyan-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all hover:bg-cyan-900/20"
               >
-                <Sparkles className="w-3.5 h-3.5" />
+                <Sparkles className="w-3.5 h-3.5 group-hover:animate-tab-sparkles group-data-[state=active]:animate-tab-sparkles" />
                 <span>Stars</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="scribe" 
-                className="gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-amber-600/30 data-[state=active]:to-amber-900/20 data-[state=active]:text-amber-400 data-[state=active]:border-b-2 data-[state=active]:border-amber-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all"
+                className="group gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-amber-600/30 data-[state=active]:to-amber-900/20 data-[state=active]:text-amber-400 data-[state=active]:border-b-2 data-[state=active]:border-amber-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all hover:bg-amber-900/20"
               >
-                <BookOpen className="w-3.5 h-3.5" />
+                <BookOpen className="w-3.5 h-3.5 group-hover:animate-tab-book group-data-[state=active]:animate-tab-book" />
                 <span>Scribe</span>
               </TabsTrigger>
             </TabsList>

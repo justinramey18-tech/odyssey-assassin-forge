@@ -115,12 +115,56 @@ export default {
           "50%": { transform: "scale(1.3)" },
           "100%": { transform: "scale(1)", opacity: "1" },
         },
+        // Tab icon animations
+        "tab-crosshair": {
+          "0%, 100%": { transform: "rotate(0deg) scale(1)" },
+          "25%": { transform: "rotate(15deg) scale(1.1)" },
+          "75%": { transform: "rotate(-15deg) scale(1.1)" },
+        },
+        "tab-swords": {
+          "0%, 100%": { transform: "translateX(0) rotate(0deg)" },
+          "25%": { transform: "translateX(2px) rotate(5deg)" },
+          "75%": { transform: "translateX(-2px) rotate(-5deg)" },
+        },
+        "tab-backpack": {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-2px)" },
+        },
+        "tab-trophy": {
+          "0%, 100%": { transform: "scale(1)" },
+          "50%": { transform: "scale(1.15)" },
+        },
+        "tab-sparkles": {
+          "0%, 100%": { transform: "scale(1) rotate(0deg)", opacity: "1" },
+          "50%": { transform: "scale(1.2) rotate(180deg)", opacity: "0.8" },
+        },
+        "tab-book": {
+          "0%, 100%": { transform: "rotateY(0deg)" },
+          "50%": { transform: "rotateY(20deg)" },
+        },
+        "tab-glow": {
+          "0%, 100%": { boxShadow: "0 0 0 0 currentColor" },
+          "50%": { boxShadow: "0 0 8px 2px currentColor" },
+        },
+        "tab-shimmer": {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "glow-pulse": "glow-pulse 2s ease-in-out infinite",
         "tier-unlock": "tier-unlock 0.4s ease-out",
+        // Tab animations
+        "tab-crosshair": "tab-crosshair 2s ease-in-out infinite",
+        "tab-swords": "tab-swords 1.5s ease-in-out infinite",
+        "tab-backpack": "tab-backpack 2s ease-in-out infinite",
+        "tab-trophy": "tab-trophy 1.8s ease-in-out infinite",
+        "tab-sparkles": "tab-sparkles 3s ease-in-out infinite",
+        "tab-book": "tab-book 2.5s ease-in-out infinite",
+        "tab-glow": "tab-glow 2s ease-in-out infinite",
+        "tab-shimmer": "tab-shimmer 3s linear infinite",
       },
     },
   },
