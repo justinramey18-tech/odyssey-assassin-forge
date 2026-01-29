@@ -1,5 +1,11 @@
-import { ArrowLeft, Trophy, Star, Download, Upload } from 'lucide-react';
-import { Achievement, itemPrerequisites } from '@/lib/achievements';
+import { ArrowLeft, Trophy, Star, Download, Upload, Zap } from 'lucide-react';
+import { 
+  Achievement, 
+  itemPrerequisites, 
+  getUnclaimedMilestones, 
+  MILESTONE_XP_REWARDS,
+  MilestonePercent,
+} from '@/lib/achievements';
 import { AchievementCard } from './AchievementCard';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -10,24 +16,73 @@ interface AchievementsScreenProps {
   achievements: Achievement[];
   onAchievementsChange: (achievements: Achievement[]) => void;
   onBack: () => void;
+  onAwardXP?: (amount: number, source: string) => void;
 }
 
 export function AchievementsScreen({ 
   characterName, 
   achievements, 
   onAchievementsChange, 
-  onBack 
+  onBack,
+  onAwardXP,
 }: AchievementsScreenProps) {
   const { toast } = useToast();
 
+  // Check and claim milestones after achievement changes
+  const checkAndClaimMilestones = (updatedAchievements: Achievement[]) => {
+    let totalXPAwarded = 0;
+    const milestonesReached: { name: string; percent: MilestonePercent }[] = [];
+    
+    const finalAchievements = updatedAchievements.map(achievement => {
+      const unclaimed = getUnclaimedMilestones(achievement);
+      
+      if (unclaimed.length > 0) {
+        // Calculate XP for this achievement's unclaimed milestones
+        const xpForThis = unclaimed.reduce((sum, m) => sum + MILESTONE_XP_REWARDS[m], 0);
+        totalXPAwarded += xpForThis;
+        
+        // Track which milestones were reached
+        unclaimed.forEach(m => {
+          milestonesReached.push({ name: achievement.name, percent: m });
+        });
+        
+        // Mark milestones as claimed
+        return {
+          ...achievement,
+          claimedMilestones: [...(achievement.claimedMilestones || []), ...unclaimed],
+        };
+      }
+      
+      return achievement;
+    });
+    
+    // Award XP if any milestones were reached
+    if (totalXPAwarded > 0 && onAwardXP) {
+      const milestoneNames = milestonesReached
+        .map(m => `${m.name} (${m.percent}%)`)
+        .join(', ');
+      onAwardXP(totalXPAwarded, `Feat Milestones: ${milestoneNames}`);
+      
+      toast({
+        title: `⚡ +${totalXPAwarded} XP`,
+        description: `Milestone${milestonesReached.length > 1 ? 's' : ''} reached!`,
+        className: "border-primary bg-primary/10",
+      });
+    }
+    
+    return finalAchievements;
+  };
+
   const handleIncrement = (id: string) => {
-    onAchievementsChange(
-      achievements.map(a => 
-        a.id === id && a.currentValue < a.maxValue
-          ? { ...a, currentValue: a.currentValue + 1 }
-          : a
-      )
+    const updated = achievements.map(a => 
+      a.id === id && a.currentValue < a.maxValue
+        ? { ...a, currentValue: a.currentValue + 1 }
+        : a
     );
+    
+    // Check for milestone rewards
+    const withMilestones = checkAndClaimMilestones(updated);
+    onAchievementsChange(withMilestones);
   };
 
   const handleDecrement = (id: string) => {

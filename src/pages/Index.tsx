@@ -469,6 +469,7 @@ const Index = () => {
                 achievements={achievements}
                 onAchievementsChange={setAchievements}
                 onBack={() => setActiveTab('home')}
+                onAwardXP={handleAddXP}
               />
             </TabsContent>
 
