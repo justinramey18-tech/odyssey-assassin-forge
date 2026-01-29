@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { ArrowLeft, Settings, Shield, Sword, Backpack } from 'lucide-react';
+import { ArrowLeft, Settings, Shield, Sword, Backpack, Wand2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { 
   CharacterEquipment, 
@@ -8,6 +8,8 @@ import {
   calculateTotalStats,
   createInitialEquipment,
   sampleEquipment,
+  legendarySetDefinitions,
+  allLegendaryItems,
 } from '@/lib/inventory/index';
 import { CharacterDisplay } from './CharacterDisplay';
 import { EquipmentList } from './EquipmentList';
@@ -16,6 +18,13 @@ import { ComparisonSheet } from './ComparisonSheet';
 import { SetBonusPanel } from './SetBonusPanel';
 import { InventoryDrawer } from './InventoryDrawer';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface InventoryScreenProps {
   characterName: string;
@@ -117,6 +126,44 @@ export function InventoryScreen({ characterName, level, onBack }: InventoryScree
     }
   }, [compareItem, selectedSlot, handleEquipFromInventory]);
 
+  // Quick equip a full legendary set for testing
+  const handleQuickEquipSet = useCallback((setId: string) => {
+    const setDef = legendarySetDefinitions.find(s => s.id === setId);
+    if (!setDef) return;
+
+    // Get all items for this set
+    const setItems = allLegendaryItems.filter(item => item.setId === setId);
+    
+    // Create new slots with set items equipped
+    const newSlots: Record<EquipmentSlotType, EquipmentItem | null> = {
+      head: null,
+      chest: null,
+      arms: null,
+      waist: null,
+      legs: null,
+      primary_weapon: null,
+      secondary_weapon: null,
+      ranged_weapon: null,
+      amulet: null,
+      ring1: null,
+      ring2: null,
+    };
+
+    // Equip each set piece to its slot
+    setItems.forEach(item => {
+      newSlots[item.slotType] = item;
+    });
+
+    // Collect all unequipped items for inventory
+    const equippedIds = setItems.map(i => i.id);
+    const newInventory = [...sampleEquipment, ...allLegendaryItems.filter(i => !equippedIds.includes(i.id))];
+
+    setEquipment({
+      slots: newSlots,
+      inventory: newInventory,
+    });
+  }, []);
+
   return (
     <div className="fixed inset-0 bg-background z-50 flex flex-col">
       {/* Top Status Bar */}
@@ -128,9 +175,28 @@ export function InventoryScreen({ characterName, level, onBack }: InventoryScree
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h1 className="font-bold">{characterName}</h1>
-        <button className="p-2 -mr-2 rounded-lg hover:bg-muted transition-colors">
-          <Settings className="w-5 h-5 text-muted-foreground" />
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="-mr-2">
+              <Wand2 className="w-5 h-5 text-amber-400" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64">
+            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+              Quick Equip Full Set
+            </div>
+            {legendarySetDefinitions.map(set => (
+              <DropdownMenuItem
+                key={set.id}
+                onClick={() => handleQuickEquipSet(set.id)}
+                className="cursor-pointer"
+              >
+                <span className="text-amber-400">★</span>
+                <span className="ml-2 truncate">{set.name}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </header>
 
       {/* Main Content - Split Screen */}

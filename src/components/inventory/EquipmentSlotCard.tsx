@@ -176,6 +176,21 @@ export function EquipmentSlotCard({
                   {item.name}
                 </h4>
                 
+                {/* Set Badge - Shows which legendary set this item belongs to */}
+                {item.setName && (
+                  <div className="mt-1">
+                    <span className={cn(
+                      "inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded-sm border",
+                      item.rarity === 'legendary' && "bg-amber-500/20 text-amber-400 border-amber-500/40",
+                      item.rarity === 'epic' && "bg-purple-500/20 text-purple-400 border-purple-500/40",
+                      item.rarity === 'rare' && "bg-blue-500/20 text-blue-400 border-blue-500/40",
+                    )}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                      {item.setName}
+                    </span>
+                  </div>
+                )}
+                
                 {/* Primary Stat */}
                 <div className="flex items-center gap-2 mt-1">
                   {item.stats.ac && (
