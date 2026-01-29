@@ -206,6 +206,7 @@ interface EdgeTriggerStackProps {
     icon: ReactNode;
     accentColor: string;
     onClick: () => void;
+    disabled?: boolean;
   }>;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
@@ -232,17 +233,21 @@ export function EdgeTriggerStack({
         <button
           key={trigger.id}
           onClick={trigger.onClick}
+          disabled={trigger.disabled}
           className={cn(
             'flex items-center gap-1 backdrop-blur-sm border',
-            'transition-all duration-300 hover:scale-105',
+            'transition-all duration-300',
             'touch-manipulation',
             side === 'left' ? 'rounded-l-none rounded-r-lg' : 'rounded-r-none rounded-l-lg',
             collapsed ? 'p-2' : 'py-2 px-1.5',
+            trigger.disabled 
+              ? 'opacity-50 cursor-not-allowed' 
+              : 'hover:scale-105',
           )}
           style={{
             backgroundColor: `${trigger.accentColor}20`,
             borderColor: `${trigger.accentColor}50`,
-            boxShadow: `0 0 10px ${trigger.accentColor}30`,
+            boxShadow: trigger.disabled ? undefined : `0 0 10px ${trigger.accentColor}30`,
             writingMode: collapsed ? undefined : 'vertical-rl',
             textOrientation: collapsed ? undefined : 'mixed',
           }}

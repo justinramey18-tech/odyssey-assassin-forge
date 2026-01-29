@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, createContext, useContext, ReactNode } from 'react';
-import { Swords, Gem, Zap, Heart, BookOpen, Sparkles } from 'lucide-react';
+import { Swords, Gem, Zap, Heart, BookOpen, Sparkles, Lock } from 'lucide-react';
+import { toast } from 'sonner';
 import { EdgeTriggerStack } from './EdgeDrawer';
 import { CombatDrawer } from './CombatDrawer';
 import { InfinityStoneDrawer } from './InfinityStoneDrawer';
@@ -10,6 +11,7 @@ import { ActiveSetBonusDrawer } from './ActiveSetBonusDrawer';
 import { Character } from '@/lib/types';
 import { XPPreset } from '@/lib/xpSystem';
 import { CharacterEquipment } from '@/lib/inventory/types';
+import { useGameMode, shouldShowInfinityStones } from '@/hooks/use-game-mode';
 
 interface PromptDrawerContextValue {
   openCombatDrawer: () => void;
@@ -61,6 +63,10 @@ export function PromptDrawerProvider({
   const [scribeOpen, setScribeOpen] = useState(false);
   const [setBonusOpen, setSetBonusOpen] = useState(false);
   
+  // Game mode integration for Infinity Stones lock
+  const { infinityStonesLocked } = useGameMode();
+  const isInfinityLocked = !shouldShowInfinityStones(character.level, infinityStonesLocked);
+  
   // Collapse state for edge triggers
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
@@ -102,10 +108,14 @@ export function PromptDrawerProvider({
         closeAllDrawers();
         setCombatOpen(true);
       }
-      // Right edge swipe left → open infinity/abilities
+      // Right edge swipe left → open infinity/abilities (check lock status)
       if (startX > window.innerWidth - EDGE_THRESHOLD && diffX < -SWIPE_THRESHOLD) {
         closeAllDrawers();
-        setInfinityOpen(true);
+        if (isInfinityLocked) {
+          toast.error(`RP Prompts locked until Level 20 (Current: ${character.level})`);
+        } else {
+          setInfinityOpen(true);
+        }
       }
     };
 
@@ -116,11 +126,21 @@ export function PromptDrawerProvider({
       document.removeEventListener('touchstart', handleTouchStart);
       document.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [enabled, closeAllDrawers]);
+  }, [enabled, closeAllDrawers, isInfinityLocked, character.level]);
+
+  // Handle opening infinity drawer with lock check
+  const handleOpenInfinityDrawer = useCallback(() => {
+    if (isInfinityLocked) {
+      toast.error(`RP Prompts locked until Level 20 (Current: ${character.level})`);
+      return;
+    }
+    closeAllDrawers();
+    setInfinityOpen(true);
+  }, [isInfinityLocked, character.level, closeAllDrawers]);
 
   const contextValue: PromptDrawerContextValue = {
     openCombatDrawer: useCallback(() => { closeAllDrawers(); setCombatOpen(true); }, [closeAllDrawers]),
-    openInfinityDrawer: useCallback(() => { closeAllDrawers(); setInfinityOpen(true); }, [closeAllDrawers]),
+    openInfinityDrawer: handleOpenInfinityDrawer,
     openAbilitiesDrawer: useCallback(() => { closeAllDrawers(); setAbilitiesOpen(true); }, [closeAllDrawers]),
     openStatsDrawer: useCallback(() => { closeAllDrawers(); setStatsOpen(true); }, [closeAllDrawers]),
     openScribeDrawer: useCallback(() => { closeAllDrawers(); setScribeOpen(true); }, [closeAllDrawers]),
@@ -160,10 +180,11 @@ export function PromptDrawerProvider({
   const rightTriggers = [
     {
       id: 'prompts',
-      label: 'Prompts',
-      icon: <Gem className="w-4 h-4" />,
-      accentColor: '#eab308',
-      onClick: () => { closeAllDrawers(); setInfinityOpen(true); },
+      label: isInfinityLocked ? 'Locked' : 'Prompts',
+      icon: isInfinityLocked ? <Lock className="w-4 h-4" /> : <Gem className="w-4 h-4" />,
+      accentColor: isInfinityLocked ? '#78716c' : '#eab308',
+      onClick: handleOpenInfinityDrawer,
+      disabled: isInfinityLocked,
     },
     {
       id: 'abilities',
