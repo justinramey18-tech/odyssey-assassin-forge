@@ -58,6 +58,7 @@ export function WizardStepTwo({
           abilities={getAbilitiesByTree('hunter')}
           pointsInTree={getPointsInTree('hunter')}
           characterLevel={character.level}
+          characterName={character.name}
           getAbilityTier={getCharacterAbilityTier}
           canUpgrade={canUpgrade}
           onUpgrade={onUpgrade}
@@ -69,6 +70,7 @@ export function WizardStepTwo({
           abilities={getAbilitiesByTree('warrior')}
           pointsInTree={getPointsInTree('warrior')}
           characterLevel={character.level}
+          characterName={character.name}
           getAbilityTier={getCharacterAbilityTier}
           canUpgrade={canUpgrade}
           onUpgrade={onUpgrade}
@@ -80,6 +82,7 @@ export function WizardStepTwo({
           abilities={getAbilitiesByTree('assassin')}
           pointsInTree={getPointsInTree('assassin')}
           characterLevel={character.level}
+          characterName={character.name}
           getAbilityTier={getCharacterAbilityTier}
           canUpgrade={canUpgrade}
           onUpgrade={onUpgrade}
