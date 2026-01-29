@@ -89,13 +89,28 @@ export function InventoryDrawer({
                   >
                     {/* Locked Overlay */}
                     {locked && (
-                      <div className="absolute inset-0 z-10 flex items-center justify-end pr-4 bg-background/40 rounded-lg">
-                        <div className="flex items-center gap-2 text-amber-500">
-                          <Lock className="w-4 h-4" />
-                          {lockInfo?.achievement && (
-                            <span className="text-xs">
-                              {lockInfo.currentValue}/{lockInfo.requiredValue}
+                      <div className="absolute inset-0 z-10 flex items-center justify-end pr-3 bg-background/50 rounded-lg">
+                        <div className="flex flex-col items-end gap-1 max-w-[140px]">
+                          <div className="flex items-center gap-1.5 text-amber-500">
+                            <Lock className="w-3.5 h-3.5" />
+                            <span className="text-[10px] font-medium truncate">
+                              {lockInfo?.achievement?.name || 'Locked'}
                             </span>
+                          </div>
+                          {lockInfo?.achievement && (
+                            <div className="flex items-center gap-1.5 w-full">
+                              <div className="flex-1 h-1 rounded-full bg-black/40 overflow-hidden">
+                                <div 
+                                  className="h-full rounded-full bg-gradient-to-r from-amber-600 to-amber-400 transition-all duration-300"
+                                  style={{ 
+                                    width: `${Math.min(100, ((lockInfo.currentValue || 0) / (lockInfo.requiredValue || 1)) * 100)}%` 
+                                  }}
+                                />
+                              </div>
+                              <span className="text-[10px] text-amber-400 font-medium tabular-nums">
+                                {lockInfo.currentValue}/{lockInfo.requiredValue}
+                              </span>
+                            </div>
                           )}
                         </div>
                       </div>

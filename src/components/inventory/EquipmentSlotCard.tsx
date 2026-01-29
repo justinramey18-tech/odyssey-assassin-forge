@@ -153,18 +153,32 @@ export function EquipmentSlotCard({
         {/* Locked Overlay - allows touch events to pass through for swipe */}
         {isLocked && item && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/60 rounded-lg backdrop-blur-[1px] pointer-events-none">
-            <div className="flex flex-col items-center gap-1 text-center px-2">
+            <div className="flex flex-col items-center gap-1.5 text-center px-3 max-w-full">
               <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center">
                 <Lock className="w-4 h-4 text-amber-500" />
               </div>
               {lockInfo?.achievement && (
-                <div className="text-[10px] text-muted-foreground max-w-[150px]">
-                  <span className="text-amber-500 font-medium">{lockInfo.currentValue}</span>
-                  <span className="text-muted-foreground">/{lockInfo.requiredValue}</span>
-                  <p className="truncate">{lockInfo.achievement.name}</p>
+                <div className="w-full max-w-[180px]">
+                  <p className="text-[10px] text-amber-400 font-medium truncate mb-1">
+                    {lockInfo.achievement.name}
+                  </p>
+                  {/* Mini Progress Bar */}
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-1.5 rounded-full bg-black/40 overflow-hidden">
+                      <div 
+                        className="h-full rounded-full bg-gradient-to-r from-amber-600 to-amber-400 transition-all duration-300"
+                        style={{ 
+                          width: `${Math.min(100, ((lockInfo.currentValue || 0) / (lockInfo.requiredValue || 1)) * 100)}%` 
+                        }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-amber-400 font-medium tabular-nums">
+                      {lockInfo.currentValue}/{lockInfo.requiredValue}
+                    </span>
+                  </div>
                 </div>
               )}
-              <p className="text-[9px] text-muted-foreground mt-1">Swipe left to unequip</p>
+              <p className="text-[9px] text-muted-foreground mt-0.5">Swipe left to unequip</p>
             </div>
           </div>
         )}

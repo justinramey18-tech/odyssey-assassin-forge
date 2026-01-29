@@ -2,9 +2,10 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { legendarySetDefinitions, allLegendaryItems, EquipmentItem, SetInfo } from '@/lib/inventory/index';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Star, ChevronLeft, ChevronRight, Lock, Sparkles } from 'lucide-react';
+import { Star, ChevronLeft, ChevronRight, Lock, Sparkles, Unlock, Trophy } from 'lucide-react';
 import { getIconByName } from '@/lib/iconUtils';
-
+import { itemPrerequisites, achievementCategories, Achievement } from '@/lib/achievements';
+import { Progress } from '@/components/ui/progress';
 interface ConstellationMapProps {
   equippedItems: EquipmentItem[];
 }
@@ -164,54 +165,105 @@ function SetConstellation({ setInfo, setItems, equippedSetItems, isActive }: Set
       })}
 
       {/* Selected Star Info Panel */}
-      {selectedStar && (
-        <div 
-          className="absolute bottom-16 left-4 right-4 p-3 rounded-lg border backdrop-blur-md"
-          style={{
-            background: `linear-gradient(135deg, ${bgGlowColor}, rgba(0,0,0,0.8))`,
-            borderColor: glowColor,
-          }}
-        >
-          <div className="flex items-start gap-3">
-            <div 
-              className="w-10 h-10 rounded-lg flex items-center justify-center border"
-              style={{ borderColor: glowColor, backgroundColor: bgGlowColor }}
-            >
-              {(() => {
-                const Icon = getIconByName(selectedStar.icon);
-                return <Icon className="w-5 h-5 text-amber-400" />;
-              })()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="font-semibold text-sm text-amber-400 truncate">{selectedStar.name}</h4>
-              <p className="text-[10px] text-muted-foreground capitalize">{selectedStar.slotType.replace('_', ' ')}</p>
-              {equippedIds.has(selectedStar.id) ? (
-                <div className="flex items-center gap-1 mt-1">
-                  <Sparkles className="w-3 h-3 text-green-400" />
-                  <span className="text-[10px] text-green-400 font-medium">EQUIPPED</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1 mt-1">
-                  <Lock className="w-3 h-3 text-muted-foreground" />
-                  <span className="text-[10px] text-muted-foreground">Equip in Gear tab</span>
-                </div>
-              )}
-            </div>
-          </div>
+      {selectedStar && (() => {
+        // Get unlock requirement info
+        const prerequisite = itemPrerequisites[selectedStar.id];
+        const achievement = prerequisite 
+          ? achievementCategories.find(a => a.id === prerequisite.achievementId) 
+          : null;
+        const isUnlocked = !prerequisite || (achievement && achievement.currentValue >= prerequisite.requiredValue);
+        const progressPercent = achievement && prerequisite 
+          ? Math.min(100, (achievement.currentValue / prerequisite.requiredValue) * 100) 
+          : 100;
 
-          {/* Enchantments preview */}
-          {selectedStar.enchantments && selectedStar.enchantments.length > 0 && (
-            <div className="mt-2 pt-2 border-t border-white/10">
-              <p className="text-[10px] text-purple-400 font-semibold uppercase tracking-wide mb-1">Perks</p>
-              {selectedStar.enchantments.slice(0, 2).map((ench, idx) => (
-                <p key={idx} className="text-[10px] text-muted-foreground truncate">
-                  • {ench.name}
-                </p>
-              ))}
+        return (
+          <div 
+            className="absolute bottom-16 left-4 right-4 p-3 rounded-lg border backdrop-blur-md"
+            style={{
+              background: `linear-gradient(135deg, ${bgGlowColor}, rgba(0,0,0,0.8))`,
+              borderColor: glowColor,
+            }}
+          >
+            <div className="flex items-start gap-3">
+              <div 
+                className="w-10 h-10 rounded-lg flex items-center justify-center border"
+                style={{ borderColor: glowColor, backgroundColor: bgGlowColor }}
+              >
+                {(() => {
+                  const Icon = getIconByName(selectedStar.icon);
+                  return <Icon className="w-5 h-5 text-amber-400" />;
+                })()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-semibold text-sm text-amber-400 truncate">{selectedStar.name}</h4>
+                <p className="text-[10px] text-muted-foreground capitalize">{selectedStar.slotType.replace('_', ' ')}</p>
+                {equippedIds.has(selectedStar.id) ? (
+                  <div className="flex items-center gap-1 mt-1">
+                    <Sparkles className="w-3 h-3 text-green-400" />
+                    <span className="text-[10px] text-green-400 font-medium">EQUIPPED</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 mt-1">
+                    <Lock className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-[10px] text-muted-foreground">Equip in Gear tab</span>
+                  </div>
+                )}
+              </div>
             </div>
-          )}
-        </div>
-      )}
+
+            {/* Unlock Requirement Section */}
+            {prerequisite && achievement && (
+              <div className="mt-3 pt-3 border-t border-white/10">
+                <div className="flex items-center gap-2 mb-2">
+                  {isUnlocked ? (
+                    <Unlock className="w-3.5 h-3.5 text-green-400" />
+                  ) : (
+                    <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                  )}
+                  <span className={cn(
+                    "text-[10px] font-semibold uppercase tracking-wide",
+                    isUnlocked ? "text-green-400" : "text-amber-500"
+                  )}>
+                    {isUnlocked ? 'Unlocked' : 'Unlock Requirement'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-foreground/90 mb-1.5">"{achievement.name}"</p>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-1.5 rounded-full bg-black/40 overflow-hidden">
+                    <div 
+                      className={cn(
+                        "h-full rounded-full transition-all duration-500",
+                        isUnlocked 
+                          ? "bg-gradient-to-r from-green-500 to-emerald-400" 
+                          : "bg-gradient-to-r from-amber-600 to-amber-400"
+                      )}
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                  <span className={cn(
+                    "text-[10px] font-medium tabular-nums",
+                    isUnlocked ? "text-green-400" : "text-amber-400"
+                  )}>
+                    {achievement.currentValue}/{prerequisite.requiredValue}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Enchantments preview */}
+            {selectedStar.enchantments && selectedStar.enchantments.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-white/10">
+                <p className="text-[10px] text-purple-400 font-semibold uppercase tracking-wide mb-1">Perks</p>
+                {selectedStar.enchantments.slice(0, 2).map((ench, idx) => (
+                  <p key={idx} className="text-[10px] text-muted-foreground truncate">
+                    • {ench.name}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Set Bonuses at bottom */}
       <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/90 to-transparent">
