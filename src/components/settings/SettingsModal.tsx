@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings, User, Layers, Dices, Gamepad2 } from 'lucide-react';
+import { Settings, User, Layers, Dices, Gamepad2, RotateCcw, Star, Lock } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -10,19 +10,37 @@ import { GameModeSettings } from './GameModeSettings';
 import { XPProgressionWidget, XPProgressionMode, loadXPProgressionMode } from './XPProgressionWidget';
 import { DiceOddsMode, loadDiceOddsMode } from '@/lib/diceOdds';
 import { GameModeSettings as GameModeSettingsType, loadGameModeSettings, saveGameModeSettings } from '@/lib/gameModes';
+import { useGameMode } from '@/hooks/use-game-mode';
+import { cn } from '@/lib/utils';
 
 interface SettingsModalProps {
   characterName: string;
   onEditCharacter: () => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  // Prestige respec props
+  prestigeData?: {
+    totalPrestigePoints: number;
+    spentPrestigePoints: number;
+    availablePrestigePoints: number;
+  };
+  onPrestigeRespec?: () => void;
 }
 
-export function SettingsModal({ characterName, onEditCharacter, open: controlledOpen, onOpenChange }: SettingsModalProps) {
+export function SettingsModal({ 
+  characterName, 
+  onEditCharacter, 
+  open: controlledOpen, 
+  onOpenChange,
+  prestigeData,
+  onPrestigeRespec,
+}: SettingsModalProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [diceOddsMode, setDiceOddsMode] = useState<DiceOddsMode>(() => loadDiceOddsMode());
   const [gameModeSettings, setGameModeSettings] = useState<GameModeSettingsType>(() => loadGameModeSettings());
   const [xpProgressionMode, setXPProgressionMode] = useState<XPProgressionMode>(() => loadXPProgressionMode());
+  
+  const { prestigeRespecDisabled } = useGameMode();
 
   // Support both controlled and uncontrolled modes
   const isControlled = controlledOpen !== undefined;
@@ -33,6 +51,10 @@ export function SettingsModal({ characterName, onEditCharacter, open: controlled
     setGameModeSettings(settings);
     saveGameModeSettings(settings);
   };
+
+  const hasPrestigePoints = prestigeData && prestigeData.totalPrestigePoints > 0;
+  const hasSpentPoints = prestigeData && prestigeData.spentPrestigePoints > 0;
+  const canRespec = hasSpentPoints && !prestigeRespecDisabled && onPrestigeRespec;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -104,6 +126,79 @@ export function SettingsModal({ characterName, onEditCharacter, open: controlled
                     </Button>
                   </div>
                 </div>
+
+                {/* Prestige Respec Section */}
+                {hasPrestigePoints && (
+                  <div className={cn(
+                    "p-4 rounded-lg border",
+                    prestigeRespecDisabled 
+                      ? "border-muted/50 bg-muted/20" 
+                      : "border-amber-500/50 bg-gradient-to-br from-amber-900/20 to-orange-900/20"
+                  )}>
+                    <div className="flex items-start gap-3">
+                      <div className={cn(
+                        "p-2 rounded-lg",
+                        prestigeRespecDisabled ? "bg-muted/30" : "bg-amber-500/20"
+                      )}>
+                        <Star className={cn(
+                          "w-5 h-5",
+                          prestigeRespecDisabled ? "text-muted-foreground" : "text-amber-400 fill-amber-400"
+                        )} />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className={cn(
+                            "font-display font-semibold",
+                            prestigeRespecDisabled ? "text-muted-foreground" : "text-amber-400"
+                          )}>
+                            Prestige Points
+                          </h4>
+                          {prestigeRespecDisabled && (
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 px-2 py-0.5 rounded">
+                              <Lock className="w-3 h-3" />
+                              Honest Mode
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {prestigeData.spentPrestigePoints} of {prestigeData.totalPrestigePoints} points spent
+                        </p>
+                        
+                        <div className="mt-3 flex items-center gap-3">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={!canRespec}
+                            onClick={onPrestigeRespec}
+                            className={cn(
+                              "gap-1.5",
+                              canRespec && "border-amber-500/50 hover:bg-amber-500/10 hover:text-amber-400"
+                            )}
+                          >
+                            {prestigeRespecDisabled ? (
+                              <Lock className="w-3.5 h-3.5" />
+                            ) : (
+                              <RotateCcw className="w-3.5 h-3.5" />
+                            )}
+                            Reset Prestige Points
+                          </Button>
+                          
+                          {!hasSpentPoints && !prestigeRespecDisabled && (
+                            <span className="text-xs text-muted-foreground">
+                              No points to reset
+                            </span>
+                          )}
+                        </div>
+                        
+                        {prestigeRespecDisabled && (
+                          <p className="text-xs text-muted-foreground mt-2 italic">
+                            Disable "No Prestige Respec" in Game Mode settings to enable respec.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="text-center text-xs text-muted-foreground pt-4 border-t border-border/30">
                   Character editing opens the setup wizard

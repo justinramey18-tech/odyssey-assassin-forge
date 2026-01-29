@@ -67,6 +67,7 @@ const Index = () => {
     nextPrestigeXPRequired,
     awardPrestigeXP,
     spendPrestigePoint,
+    resetPrestigePoints,
   } = usePrestige(character.level);
   const [showPrestigeLevelUp, setShowPrestigeLevelUp] = useState(false);
   const [prestigeLevelUpData, setPrestigeLevelUpData] = useState<{ level: number; points: number } | null>(null);
@@ -472,6 +473,8 @@ const Index = () => {
           onEditCharacter={() => setShowWizard(true)}
           open={showSettingsModal}
           onOpenChange={setShowSettingsModal}
+          prestigeData={prestigeData}
+          onPrestigeRespec={resetPrestigePoints}
         />
 
         {/* Skills Tab Content */}
