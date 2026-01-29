@@ -18,6 +18,7 @@ import { ItemDetailSheet } from './ItemDetailSheet';
 import { ComparisonSheet } from './ComparisonSheet';
 import { SetBonusPanel } from './SetBonusPanel';
 import { InventoryDrawer } from './InventoryDrawer';
+import { ActiveSetBonusDrawer } from '@/components/drawers/ActiveSetBonusDrawer';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Toggle } from '@/components/ui/toggle';
@@ -58,6 +59,7 @@ export function InventoryScreen({
   const [showComparison, setShowComparison] = useState(false);
   const [compareItem, setCompareItem] = useState<EquipmentItem | null>(null);
   const [showInventoryDrawer, setShowInventoryDrawer] = useState(false);
+  const [showSetBonusDrawer, setShowSetBonusDrawer] = useState(false);
 
   const isCompact = viewMode === 'compact';
 
@@ -252,6 +254,21 @@ export function InventoryScreen({
         </div>
         
         <div className="flex items-center gap-1">
+          {/* Active Set Bonuses Button - Only show when sets are active */}
+          {activeSetBonuses.length > 0 && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 relative"
+              onClick={() => setShowSetBonusDrawer(true)}
+            >
+              <Sparkles className="w-4 h-4 text-amber-400" />
+              <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-amber-500 rounded-full text-[9px] font-bold text-black flex items-center justify-center">
+                {activeSetBonuses.length}
+              </span>
+            </Button>
+          )}
+          
           {/* View Mode Toggle */}
           <Toggle
             pressed={isCompact}
@@ -374,6 +391,14 @@ export function InventoryScreen({
         inventory={equipment.inventory}
         slotType={selectedSlot}
         onSelectItem={handleEquipFromInventory}
+      />
+
+      {/* Active Set Bonus Drawer */}
+      <ActiveSetBonusDrawer
+        open={showSetBonusDrawer}
+        onOpenChange={setShowSetBonusDrawer}
+        equipment={equipment}
+        characterName={characterName}
       />
     </div>
   );
