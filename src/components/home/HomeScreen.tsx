@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Character } from '@/lib/types';
 import { CharacterEquipment } from '@/lib/inventory';
 import { Achievement } from '@/lib/achievements';
@@ -108,7 +108,10 @@ export function HomeScreen({
   onLongRest
 }: HomeScreenProps) {
   const [activeModal, setActiveModal] = useState<string | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
+  const [scrollPos, setScrollPos] = useState({ x: 0, y: 0 });
 
   // Daily quote (changes based on date)
   const dailyQuote = useMemo(() => {
@@ -116,8 +119,47 @@ export function HomeScreen({
     return deadpoolQuotes[dayOfYear % deadpoolQuotes.length];
   }, []);
 
+  // Center the scroll position on mount
+  useEffect(() => {
+    if (containerRef.current) {
+      const container = containerRef.current;
+      const scrollLeft = (container.scrollWidth - container.clientWidth) / 2;
+      const scrollTop = (container.scrollHeight - container.clientHeight) / 2;
+      container.scrollLeft = scrollLeft;
+      container.scrollTop = scrollTop;
+    }
+  }, []);
+
+  // Handle mouse/touch drag for panning
+  const handlePointerDown = (e: React.PointerEvent) => {
+    setIsDragging(true);
+    setStartPos({ x: e.clientX, y: e.clientY });
+    if (containerRef.current) {
+      setScrollPos({ 
+        x: containerRef.current.scrollLeft, 
+        y: containerRef.current.scrollTop 
+      });
+    }
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDragging || !containerRef.current) return;
+    const dx = e.clientX - startPos.x;
+    const dy = e.clientY - startPos.y;
+    containerRef.current.scrollLeft = scrollPos.x - dx;
+    containerRef.current.scrollTop = scrollPos.y - dy;
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    setIsDragging(false);
+    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+  };
+
   const handleZoneClick = (zoneId: string) => {
-    setActiveModal(zoneId);
+    if (!isDragging) {
+      setActiveModal(zoneId);
+    }
   };
 
   const closeModal = () => setActiveModal(null);
@@ -127,8 +169,7 @@ export function HomeScreen({
     onNavigateToTab(tab);
   };
 
-  // Calculate image dimensions for proper button positioning
-  // Image aspect ratio is 1920:1080 = 16:9
+  // Image dimensions for proper button positioning
   const imageAspectRatio = 1920 / 1080;
 
   return (
@@ -147,28 +188,33 @@ export function HomeScreen({
         <div className="w-9" />
       </header>
 
-      {/* Vertically Scrollable Container */}
+      {/* 4-Directional Scrollable Container */}
       <div 
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide"
+        ref={containerRef}
+        className="flex-1 overflow-auto cursor-grab active:cursor-grabbing scrollbar-hide"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
         style={{ 
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
         }}
       >
-        {/* Tall panoramic image container */}
+        {/* Large panoramic image container - bigger than viewport for panning */}
         <div 
-          className="relative w-full"
+          className="relative select-none"
           style={{ 
-            height: `calc(100vw / ${imageAspectRatio} * 2.5)`,
-            minHeight: '150vh',
+            width: '200vw',
+            height: `calc(200vw / ${imageAspectRatio})`,
+            minHeight: '200vh',
           }}
         >
           {/* Background Image */}
           <img 
             src={homeBackground} 
             alt="Deadpool Assassins"
-            className="absolute inset-0 w-full h-full object-cover object-top"
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
             draggable={false}
           />
           
@@ -176,11 +222,9 @@ export function HomeScreen({
           <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-transparent to-background/40 pointer-events-none" />
           <div className="absolute inset-0 bg-gradient-to-r from-background/20 via-transparent to-background/20 pointer-events-none" />
 
-          {/* Assassin Zone Buttons - positioned vertically along the image */}
-          {assassinZones.map((zone, index) => {
+          {/* Assassin Zone Buttons - positioned horizontally along the image at pelvis height */}
+          {assassinZones.map((zone) => {
             const IconComponent = zone.icon;
-            // Distribute zones vertically, starting from 15% and ending at 85%
-            const topPercent = 15 + (index * 10);
             return (
               <AssassinZone
                 key={zone.id}
@@ -190,19 +234,19 @@ export function HomeScreen({
                 accentColor={zone.color}
                 style={{
                   left: `${zone.leftPercent}%`,
-                  top: `${topPercent}%`,
+                  top: '65%',
                   transform: 'translate(-50%, -50%)',
                 }}
               />
             );
           })}
 
-          {/* Action Wheel Button - positioned over the leaping Deadpool's pelvis */}
+          {/* Action Wheel Button - positioned over the leaping Deadpool */}
           <div 
             className="absolute z-20"
             style={{
               left: '50%',
-              top: '12%',
+              top: '25%',
               transform: 'translate(-50%, -50%)',
             }}
           >
@@ -214,9 +258,8 @@ export function HomeScreen({
       {/* Scroll hint */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
         <p className="text-xs text-muted-foreground/70 backdrop-blur-sm bg-black/50 px-4 py-2 rounded-full flex items-center gap-2">
-          <span>↑</span>
-          <span>Scroll to explore</span>
-          <span>↓</span>
+          <span>←↑↓→</span>
+          <span>Drag to explore</span>
         </p>
       </div>
 
