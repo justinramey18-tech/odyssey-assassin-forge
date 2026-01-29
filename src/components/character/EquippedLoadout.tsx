@@ -13,6 +13,7 @@ import {
 import { DiceRollModal } from './DiceRollModal';
 import { rollDice, getAbilityDice, DiceRoll } from '@/lib/diceRoller';
 import { generateRPPrompt } from '@/lib/rpPromptGenerator';
+import { useGameMode } from '@/hooks/use-game-mode';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Target, Crosshair, Eye, Sparkles, CloudRain, Award, Radar, Undo2,
@@ -33,6 +34,7 @@ export function EquippedLoadout({ character, onEquip, onUnequip }: EquippedLoado
   const [currentRPPrompt, setCurrentRPPrompt] = useState('');
   const [activeAbility, setActiveAbility] = useState<Ability | null>(null);
   const [activeTier, setActiveTier] = useState<1 | 2 | 3>(1);
+  const { rerollsDisabled } = useGameMode();
 
   const totalSlots = getActiveSlotsByLevel(character.level);
   
@@ -186,6 +188,7 @@ export function EquippedLoadout({ character, onEquip, onUnequip }: EquippedLoado
           open={showDiceModal}
           onOpenChange={setShowDiceModal}
           onReroll={handleReroll}
+          rerollDisabled={rerollsDisabled}
         />
       )}
     </>

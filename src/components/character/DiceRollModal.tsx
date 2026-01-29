@@ -20,6 +20,7 @@ interface DiceRollModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onReroll?: () => void;
+  rerollDisabled?: boolean;
 }
 
 const treeConfig = {
@@ -51,6 +52,7 @@ export function DiceRollModal({
   open,
   onOpenChange,
   onReroll,
+  rerollDisabled = false,
 }: DiceRollModalProps) {
   const [copied, setCopied] = useState(false);
   
@@ -125,7 +127,7 @@ export function DiceRollModal({
               AI DM Prompt
             </span>
             <div className="flex gap-2">
-              {onReroll && (
+              {onReroll && !rerollDisabled && (
                 <Button
                   variant="outline"
                   size="sm"

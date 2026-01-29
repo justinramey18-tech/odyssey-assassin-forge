@@ -21,6 +21,7 @@ import { DiceRoll } from '@/lib/diceRoller';
 import { Activity, Skull } from 'lucide-react';
 import './CombatHUDStyles.css';
 import './mobile/MobileCombatStyles.css';
+import { useGameMode } from '@/hooks/use-game-mode';
 
 interface CombatTabScreenProps {
   character: Character;
@@ -88,6 +89,7 @@ function calculateModifiers(character: Character): CombatModifiers {
 
 export function CombatTabScreen({ character }: CombatTabScreenProps) {
   const isMobile = useIsMobile();
+  const { rerollsDisabled } = useGameMode();
   
   // All hooks must be called before any conditional returns
   // Situation state
@@ -327,6 +329,7 @@ export function CombatTabScreen({ character }: CombatTabScreenProps) {
           rpPrompt={dicePrompt}
           open={showDiceModal}
           onOpenChange={setShowDiceModal}
+          rerollDisabled={rerollsDisabled}
         />
       )}
     </div>

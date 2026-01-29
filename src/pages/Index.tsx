@@ -22,15 +22,17 @@ import { NarrativeForgeScreen } from '@/components/scribe/NarrativeForgeScreen';
 import { PromptDrawerProvider } from '@/components/drawers';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Swords, Backpack, Trophy, Sparkles, Home, BookOpen, ChevronUp, Crosshair } from 'lucide-react';
+import { Swords, Backpack, Trophy, Sparkles, Home, BookOpen, ChevronUp, Crosshair, Lock } from 'lucide-react';
 import { SettingsModal } from '@/components/settings/SettingsModal';
 import { CombatTabScreen } from '@/components/combat/CombatTabScreen';
 import { useToast } from '@/hooks/use-toast';
+import { useGameMode } from '@/hooks/use-game-mode';
 import { 
   CharacterEquipment, 
   EquipmentItem,
   createInitialEquipment,
 } from '@/lib/inventory/index';
+
 
 const Index = () => {
   const [showWizard, setShowWizard] = useState(true);
@@ -59,6 +61,7 @@ const Index = () => {
   );
   
   const { toast } = useToast();
+  const { requiresOrganicLevelUp, requiresGearUnlocks, rerollsDisabled } = useGameMode();
 
   // Calculate unlocked abilities map for drawer
   const unlockedAbilities = useMemo(() => {
@@ -478,7 +481,7 @@ const Index = () => {
             </div>
 
             {/* Manual Level Up Button */}
-            {character.level < 20 && (
+            {character.level < 20 && !requiresOrganicLevelUp && (
               <button
                 onClick={handleManualLevelUp}
                 className="w-full py-3 px-4 rounded-lg border-2 border-dashed border-primary/30 hover:border-primary/50 bg-primary/5 hover:bg-primary/10 transition-all flex items-center justify-center gap-2 group"
@@ -488,12 +491,22 @@ const Index = () => {
                 <ChevronUp className="w-5 h-5 text-primary group-hover:animate-bounce" />
               </button>
             )}
+            
+            {/* Honest Mode indicator for organic level up */}
+            {character.level < 20 && requiresOrganicLevelUp && (
+              <div className="w-full py-3 px-4 rounded-lg border-2 border-dashed border-muted/40 bg-muted/5 flex items-center justify-center gap-2 opacity-60">
+                <Lock className="w-4 h-4 text-muted-foreground" />
+                <span className="font-display text-sm text-muted-foreground">Organic Leveling Mode</span>
+              </div>
+            )}
 
             {/* Info about hidden ability trees */}
             <div className="mt-6 p-4 rounded-lg bg-muted/20 border border-muted/30">
               <p className="text-xs text-muted-foreground text-center font-body">
                 💡 Ability tree selection appears when you level up. 
-                Add XP to trigger a level up, or use the button above for milestone progression.
+                {requiresOrganicLevelUp 
+                  ? ' In Honest Mode, levels are gained organically through XP.'
+                  : ' Add XP to trigger a level up, or use the button above for milestone progression.'}
               </p>
             </div>
           </div>
@@ -546,7 +559,7 @@ const Index = () => {
 
       {/* Floating Action Wheel - visible on skills/feats tabs */}
       {(activeTab === 'skills' || activeTab === 'feats') && (
-        <ActionWheelButton characterName={character.name} />
+        <ActionWheelButton characterName={character.name} characterLevel={character.level} />
       )}
       </div>
     </PromptDrawerProvider>

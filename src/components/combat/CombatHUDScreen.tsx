@@ -13,6 +13,7 @@ import {
   ChevronRight, Hexagon, CircleDot, Gauge
 } from 'lucide-react';
 import './CombatHUDStyles.css';
+import { useGameMode } from '@/hooks/use-game-mode';
 
 // Combat modifier calculations
 interface CombatModifiers {
@@ -88,6 +89,7 @@ export function CombatHUDScreen({ character }: CombatHUDScreenProps) {
   const [activeAbility, setActiveAbility] = useState<Ability | null>(null);
   const [activeTier, setActiveTier] = useState<1 | 2 | 3>(1);
   const [lastAction, setLastAction] = useState<string>('SYSTEMS READY');
+  const { rerollsDisabled } = useGameMode();
   
   const modifiers = calculateModifiers(character);
   const totalSlots = getActiveSlotsByLevel(character.level);
@@ -409,6 +411,7 @@ ${isCrit ? 'Describe an exceptional success with dramatic flair. The action succ
           open={showDiceModal}
           onOpenChange={setShowDiceModal}
           onReroll={activeAbility ? handleReroll : undefined}
+          rerollDisabled={rerollsDisabled}
         />
       )}
     </div>
