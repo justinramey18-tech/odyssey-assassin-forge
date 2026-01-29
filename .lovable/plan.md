@@ -1,100 +1,91 @@
 
-
-# Odyssey Assassin Character Sheet Generator
-
-A dark fantasy-themed D&D 5e character builder focused on the unique three-tree ability progression system.
-
----
+# Plan: Display Unlock Requirements in Gear Menu and Stars Tabs
 
 ## Overview
-
-A guided wizard that walks users through creating an Assassin character with the Odyssey skill system, featuring the Hunter, Warrior, and Assassin ability trees with point allocation and tier upgrades.
-
----
-
-## Design Theme
-
-**Dark Fantasy Aesthetic**
-- Deep, moody color palette with dark backgrounds and glowing accents
-- Greek mythology influences (Artemis, Ares, Hermes iconography)
-- Parchment/ancient scroll textures for card elements
-- Glowing tier indicators (gold for maxed, silver for unlocked, dim for locked)
-- Tree-specific accent colors: Hunter (forest green glow), Warrior (crimson glow), Assassin (purple shadow glow)
+Add unlock requirement information for individual set pieces in both the Gear tab and Stars tab. This helps players understand what achievements they need to progress to unlock specific legendary gear.
 
 ---
 
-## Core Features
+## Changes
 
-### 1. Character Creation Wizard
-A step-by-step flow guiding the user through character creation:
+### 1. Enhance Stars Tab (ConstellationMap)
+**File:** `src/components/constellation/ConstellationMap.tsx`
 
-**Step 1: Basic Info**
-- Character name, level (1-20)
-- Auto-calculates available ability points based on level
+When a star (item) is selected in the constellation:
+- Import achievement utilities (`itemPrerequisites`, `achievementCategories`)
+- Look up the item's prerequisite achievement
+- Display in the info panel:
+  - Achievement name and description
+  - Current progress vs required value
+  - Visual progress bar (similar to ItemDetailSheet style)
+  - "Unlocked" badge if requirement is met
 
-**Step 2: Ability Tree Allocation**
-- The heart of the Odyssey system
-- Visual point allocation across three trees
-- Accordion panels for each tree (Hunter 🏹, Warrior ⚔️, Assassin 🗡️)
-- Spend points to unlock abilities (Tier 1) or upgrade them (Tier 2-3)
-- Clear display of points remaining vs. spent per tree
+**Visual Design:**
+- Add a new section below the current "Equip in Gear tab" text
+- Use amber/red color coding based on locked/unlocked status
+- Show a compact progress indicator
 
-### 2. Ability Tree Interface
-Each tree displayed as an expandable accordion panel showing:
+### 2. Enhance Gear Menu Equipment Cards
+**File:** `src/components/inventory/EquipmentSlotCard.tsx`
 
-**For each ability:**
-- Name with icon and tier indicator (●●○ style)
-- Brief effect description that updates based on current tier
-- Upgrade button (shows cost, disabled if maxed or insufficient points)
-- Visual distinction between Active vs Passive abilities
-- Lock icon for unowned abilities
+Currently shows minimal lock info. Enhance to:
+- Display the achievement name more prominently
+- Add a small progress bar below the achievement name
+- Keep the current `X/Y` progress format
 
-**Tree-specific styling:**
-- Hunter: Green-tinted cards with bow/arrow iconography
-- Warrior: Red-tinted cards with sword/shield iconography  
-- Assassin: Purple-tinted cards with shadow/dagger iconography
+### 3. Enhance Inventory Drawer
+**File:** `src/components/inventory/InventoryDrawer.tsx`
 
-### 3. Ability Detail Modal
-Tap any ability to see full details:
-- All three tier effects clearly listed
-- Current tier highlighted, future tiers shown but dimmed
-- Action type (Action, Bonus Action, Reaction, Passive)
-- Usage limits (at-will, short rest, long rest)
-- Synergies with other abilities noted
-
-### 4. Point Summary Display
-Persistent header/footer showing:
-- Total points available for current level
-- Points spent (broken down by tree)
-- Unspent points remaining
-- Visual progress bars for each tree
+The drawer already shows lock info. Enhance to:
+- Add achievement description tooltip or inline text
+- Show progress bar for each locked item
 
 ---
 
-## User Flow
+## Technical Details
 
-1. **Enter character name and select level** → Points auto-calculated
-2. **Browse ability trees** → Expand accordions to explore abilities
-3. **Spend points** → Click upgrade buttons to unlock/improve abilities
-4. **View details** → Tap abilities for full effect descriptions
-5. **Review build** → Summary shows final point allocation
+### ConstellationMap Changes
+- Import from `@/lib/achievements`:
+  - `itemPrerequisites`
+  - `achievementCategories`
+- In the selected star info panel, add unlock requirement section:
+  ```text
+  ┌─────────────────────────────────────┐
+  │ [Icon] Item Name                    │
+  │ Slot: chest                         │
+  │ ✓ EQUIPPED  or  🔒 LOCKED           │
+  ├─────────────────────────────────────┤
+  │ 🔓 Unlock Requirement               │
+  │ "Surviving After 0 HP"              │
+  │ ████████░░░░ 7/10                   │
+  └─────────────────────────────────────┘
+  ```
+
+### EquipmentSlotCard Changes
+- Add a mini progress bar inside the lock overlay
+- Progress bar uses same styling as ItemDetailSheet (amber gradient when locked, green when unlocked)
+
+### InventoryDrawer Changes
+- Expand lock info display to include:
+  - Achievement icon
+  - Mini progress bar
+  - Short description on hover/tap
 
 ---
 
-## Data & Export
+## Files to Modify
 
-- **JSON Export**: Download character build as JSON file
-- **JSON Import**: Load a previously exported character
-- No account/backend required - all data handled client-side
+| File | Change |
+|------|--------|
+| `src/components/constellation/ConstellationMap.tsx` | Add unlock requirement display in selected star panel |
+| `src/components/inventory/EquipmentSlotCard.tsx` | Add mini progress bar to lock overlay |
+| `src/components/inventory/InventoryDrawer.tsx` | Enhance lock info with progress bar |
 
 ---
 
-## Future Expansion Hooks
+## User Experience
 
-After core ability system is solid, we can add:
-- Character stats (ability scores, HP, AC)
-- Equipped ability loadout slots
-- Adrenaline & Divine Patron systems
-- Combat quick reference
-- Equipment & inventory tracking
-
+- **Gear Tab**: Locked items show achievement name + progress bar directly on the card
+- **Stars Tab**: Selecting any star shows its unlock status with full progress details
+- Consistent visual language (amber for locked, green for unlocked) across both tabs
+- Players can easily track what achievements to focus on for specific gear pieces
