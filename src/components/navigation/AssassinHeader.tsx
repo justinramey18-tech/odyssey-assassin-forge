@@ -52,74 +52,76 @@ export function AssassinHeader({ onHomeClick, onSettingsClick, onCloudSaveClick 
           <span className="font-cinzel uppercase tracking-wider text-[8px] text-muted-foreground group-hover:text-red-400">Home</span>
         </Button>
 
-        {/* Main Tab Navigation */}
-        <TabsList className="flex-1 h-full grid grid-cols-6 bg-transparent p-0 rounded-none">
-          <TabsTrigger 
-            value="combat" 
-            className="group h-full flex flex-col items-center justify-center gap-1 rounded-none border-x border-red-900/20 data-[state=active]:bg-gradient-to-b data-[state=active]:from-red-600/30 data-[state=active]:to-transparent data-[state=active]:border-b-2 data-[state=active]:border-b-red-500 font-cinzel uppercase tracking-wider text-[9px] transition-all hover:bg-red-900/20"
-          >
-            <span className="relative">
-              <Crosshair className="w-5 h-5 relative z-10 group-hover:animate-tab-crosshair group-data-[state=active]:animate-tab-crosshair group-data-[state=active]:text-red-400" />
-              <span className="absolute inset-0 blur-md bg-red-400 rounded-full opacity-0 group-data-[state=active]:opacity-70 group-data-[state=active]:animate-glow-pulse transition-opacity" />
-            </span>
-            <span className="group-data-[state=active]:text-red-300">Combat</span>
-          </TabsTrigger>
-          
-          <TabsTrigger 
-            value="skills" 
-            className="group h-full flex flex-col items-center justify-center gap-1 rounded-none border-x border-red-900/20 data-[state=active]:bg-gradient-to-b data-[state=active]:from-red-600/30 data-[state=active]:to-transparent data-[state=active]:border-b-2 data-[state=active]:border-b-red-500 font-cinzel uppercase tracking-wider text-[9px] transition-all hover:bg-red-900/20"
-          >
-            <span className="relative">
-              <Swords className="w-5 h-5 relative z-10 group-hover:animate-tab-swords group-data-[state=active]:animate-tab-swords group-data-[state=active]:text-red-400" />
-              <span className="absolute inset-0 blur-md bg-red-500 rounded-full opacity-0 group-data-[state=active]:opacity-70 group-data-[state=active]:animate-glow-pulse transition-opacity" />
-            </span>
-            <span className="group-data-[state=active]:text-red-300">Skills</span>
-          </TabsTrigger>
-          
-          <TabsTrigger 
-            value="gear" 
-            className="group h-full flex flex-col items-center justify-center gap-1 rounded-none border-x border-red-900/20 data-[state=active]:bg-gradient-to-b data-[state=active]:from-amber-600/30 data-[state=active]:to-transparent data-[state=active]:border-b-2 data-[state=active]:border-b-amber-500 font-cinzel uppercase tracking-wider text-[9px] transition-all hover:bg-amber-900/20"
-          >
-            <span className="relative">
-              <Backpack className="w-5 h-5 relative z-10 group-hover:animate-tab-backpack group-data-[state=active]:animate-tab-backpack group-data-[state=active]:text-amber-400" />
-              <span className="absolute inset-0 blur-md bg-amber-400 rounded-full opacity-0 group-data-[state=active]:opacity-70 group-data-[state=active]:animate-glow-pulse transition-opacity" />
-            </span>
-            <span className="group-data-[state=active]:text-amber-300">Gear</span>
-          </TabsTrigger>
-          
-          <TabsTrigger 
-            value="feats" 
-            className="group h-full flex flex-col items-center justify-center gap-1 rounded-none border-x border-red-900/20 data-[state=active]:bg-gradient-to-b data-[state=active]:from-purple-600/30 data-[state=active]:to-transparent data-[state=active]:border-b-2 data-[state=active]:border-b-purple-500 font-cinzel uppercase tracking-wider text-[9px] transition-all hover:bg-purple-900/20"
-          >
-            <span className="relative">
-              <Trophy className="w-5 h-5 relative z-10 group-hover:animate-tab-trophy group-data-[state=active]:animate-tab-trophy group-data-[state=active]:text-purple-400" />
-              <span className="absolute inset-0 blur-md bg-purple-400 rounded-full opacity-0 group-data-[state=active]:opacity-70 group-data-[state=active]:animate-glow-pulse transition-opacity" />
-            </span>
-            <span className="group-data-[state=active]:text-purple-300">Feats</span>
-          </TabsTrigger>
-          
-          <TabsTrigger 
-            value="stars" 
-            className="group h-full flex flex-col items-center justify-center gap-1 rounded-none border-x border-red-900/20 data-[state=active]:bg-gradient-to-b data-[state=active]:from-cyan-600/30 data-[state=active]:to-transparent data-[state=active]:border-b-2 data-[state=active]:border-b-cyan-500 font-cinzel uppercase tracking-wider text-[9px] transition-all hover:bg-cyan-900/20"
-          >
-            <span className="relative">
-              <Sparkles className="w-5 h-5 relative z-10 group-hover:animate-tab-sparkles group-data-[state=active]:animate-tab-sparkles group-data-[state=active]:text-cyan-400" />
-              <span className="absolute inset-0 blur-md bg-cyan-400 rounded-full opacity-0 group-data-[state=active]:opacity-70 group-data-[state=active]:animate-glow-pulse transition-opacity" />
-            </span>
-            <span className="group-data-[state=active]:text-cyan-300">Stars</span>
-          </TabsTrigger>
-          
-          <TabsTrigger 
-            value="scribe" 
-            className="group h-full flex flex-col items-center justify-center gap-1 rounded-none border-x border-red-900/20 data-[state=active]:bg-gradient-to-b data-[state=active]:from-amber-600/30 data-[state=active]:to-transparent data-[state=active]:border-b-2 data-[state=active]:border-b-amber-500 font-cinzel uppercase tracking-wider text-[9px] transition-all hover:bg-amber-900/20"
-          >
-            <span className="relative">
-              <BookOpen className="w-5 h-5 relative z-10 group-hover:animate-tab-book group-data-[state=active]:animate-tab-book group-data-[state=active]:text-amber-400" />
-              <span className="absolute inset-0 blur-md bg-amber-400 rounded-full opacity-0 group-data-[state=active]:opacity-70 group-data-[state=active]:animate-glow-pulse transition-opacity" />
-            </span>
-            <span className="group-data-[state=active]:text-amber-300">Scribe</span>
-          </TabsTrigger>
-        </TabsList>
+        {/* Main Tab Navigation - Horizontally Scrollable */}
+        <div className="flex-1 overflow-x-auto scrollbar-hide">
+          <TabsList className="h-full flex bg-transparent p-0 rounded-none min-w-max">
+            <TabsTrigger 
+              value="combat" 
+              className="group h-full flex flex-col items-center justify-center gap-1 px-4 min-w-[70px] rounded-none border-x border-red-900/20 data-[state=active]:bg-gradient-to-b data-[state=active]:from-red-600/30 data-[state=active]:to-transparent data-[state=active]:border-b-2 data-[state=active]:border-b-red-500 font-cinzel uppercase tracking-wider text-[10px] transition-all hover:bg-red-900/20"
+            >
+              <span className="relative">
+                <Crosshair className="w-5 h-5 relative z-10 group-hover:animate-tab-crosshair group-data-[state=active]:animate-tab-crosshair group-data-[state=active]:text-red-400" />
+                <span className="absolute inset-0 blur-md bg-red-400 rounded-full opacity-0 group-data-[state=active]:opacity-70 group-data-[state=active]:animate-glow-pulse transition-opacity" />
+              </span>
+              <span className="group-data-[state=active]:text-red-300 whitespace-nowrap">Combat</span>
+            </TabsTrigger>
+            
+            <TabsTrigger 
+              value="skills" 
+              className="group h-full flex flex-col items-center justify-center gap-1 px-4 min-w-[70px] rounded-none border-x border-red-900/20 data-[state=active]:bg-gradient-to-b data-[state=active]:from-red-600/30 data-[state=active]:to-transparent data-[state=active]:border-b-2 data-[state=active]:border-b-red-500 font-cinzel uppercase tracking-wider text-[10px] transition-all hover:bg-red-900/20"
+            >
+              <span className="relative">
+                <Swords className="w-5 h-5 relative z-10 group-hover:animate-tab-swords group-data-[state=active]:animate-tab-swords group-data-[state=active]:text-red-400" />
+                <span className="absolute inset-0 blur-md bg-red-500 rounded-full opacity-0 group-data-[state=active]:opacity-70 group-data-[state=active]:animate-glow-pulse transition-opacity" />
+              </span>
+              <span className="group-data-[state=active]:text-red-300 whitespace-nowrap">Skills</span>
+            </TabsTrigger>
+            
+            <TabsTrigger 
+              value="gear" 
+              className="group h-full flex flex-col items-center justify-center gap-1 px-4 min-w-[70px] rounded-none border-x border-red-900/20 data-[state=active]:bg-gradient-to-b data-[state=active]:from-amber-600/30 data-[state=active]:to-transparent data-[state=active]:border-b-2 data-[state=active]:border-b-amber-500 font-cinzel uppercase tracking-wider text-[10px] transition-all hover:bg-amber-900/20"
+            >
+              <span className="relative">
+                <Backpack className="w-5 h-5 relative z-10 group-hover:animate-tab-backpack group-data-[state=active]:animate-tab-backpack group-data-[state=active]:text-amber-400" />
+                <span className="absolute inset-0 blur-md bg-amber-400 rounded-full opacity-0 group-data-[state=active]:opacity-70 group-data-[state=active]:animate-glow-pulse transition-opacity" />
+              </span>
+              <span className="group-data-[state=active]:text-amber-300 whitespace-nowrap">Gear</span>
+            </TabsTrigger>
+            
+            <TabsTrigger 
+              value="feats" 
+              className="group h-full flex flex-col items-center justify-center gap-1 px-4 min-w-[70px] rounded-none border-x border-red-900/20 data-[state=active]:bg-gradient-to-b data-[state=active]:from-purple-600/30 data-[state=active]:to-transparent data-[state=active]:border-b-2 data-[state=active]:border-b-purple-500 font-cinzel uppercase tracking-wider text-[10px] transition-all hover:bg-purple-900/20"
+            >
+              <span className="relative">
+                <Trophy className="w-5 h-5 relative z-10 group-hover:animate-tab-trophy group-data-[state=active]:animate-tab-trophy group-data-[state=active]:text-purple-400" />
+                <span className="absolute inset-0 blur-md bg-purple-400 rounded-full opacity-0 group-data-[state=active]:opacity-70 group-data-[state=active]:animate-glow-pulse transition-opacity" />
+              </span>
+              <span className="group-data-[state=active]:text-purple-300 whitespace-nowrap">Feats</span>
+            </TabsTrigger>
+            
+            <TabsTrigger 
+              value="stars" 
+              className="group h-full flex flex-col items-center justify-center gap-1 px-4 min-w-[70px] rounded-none border-x border-red-900/20 data-[state=active]:bg-gradient-to-b data-[state=active]:from-cyan-600/30 data-[state=active]:to-transparent data-[state=active]:border-b-2 data-[state=active]:border-b-cyan-500 font-cinzel uppercase tracking-wider text-[10px] transition-all hover:bg-cyan-900/20"
+            >
+              <span className="relative">
+                <Sparkles className="w-5 h-5 relative z-10 group-hover:animate-tab-sparkles group-data-[state=active]:animate-tab-sparkles group-data-[state=active]:text-cyan-400" />
+                <span className="absolute inset-0 blur-md bg-cyan-400 rounded-full opacity-0 group-data-[state=active]:opacity-70 group-data-[state=active]:animate-glow-pulse transition-opacity" />
+              </span>
+              <span className="group-data-[state=active]:text-cyan-300 whitespace-nowrap">Stars</span>
+            </TabsTrigger>
+            
+            <TabsTrigger 
+              value="scribe" 
+              className="group h-full flex flex-col items-center justify-center gap-1 px-4 min-w-[70px] rounded-none border-x border-red-900/20 data-[state=active]:bg-gradient-to-b data-[state=active]:from-amber-600/30 data-[state=active]:to-transparent data-[state=active]:border-b-2 data-[state=active]:border-b-amber-500 font-cinzel uppercase tracking-wider text-[10px] transition-all hover:bg-amber-900/20"
+            >
+              <span className="relative">
+                <BookOpen className="w-5 h-5 relative z-10 group-hover:animate-tab-book group-data-[state=active]:animate-tab-book group-data-[state=active]:text-amber-400" />
+                <span className="absolute inset-0 blur-md bg-amber-400 rounded-full opacity-0 group-data-[state=active]:opacity-70 group-data-[state=active]:animate-glow-pulse transition-opacity" />
+              </span>
+              <span className="group-data-[state=active]:text-amber-300 whitespace-nowrap">Scribe</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* Cloud Save Button */}
         {onCloudSaveClick && (
