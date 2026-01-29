@@ -172,11 +172,8 @@ export function AchievementsScreen({
     <div className="fixed inset-0 bg-background z-50 flex flex-col overflow-hidden">
       {/* Background Image with Parallax */}
       <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat bg-fixed scale-110 z-0"
-        style={{ 
-          backgroundImage: `url(${featsBackground})`,
-          transform: 'translateZ(0)',
-        }}
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat bg-fixed z-0"
+        style={{ backgroundImage: `url(${featsBackground})` }}
       />
       {/* Gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-background/85 via-background/60 to-background/90 z-0" />

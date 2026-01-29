@@ -252,11 +252,8 @@ export function CombatTabScreen({ character }: CombatTabScreenProps) {
     <div className="combat-hud min-h-[calc(100vh-200px)] relative overflow-hidden">
       {/* Background Image with Parallax */}
       <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat bg-fixed scale-110 z-0"
-        style={{ 
-          backgroundImage: `url(${combatBackground})`,
-          transform: 'translateZ(0)',
-        }}
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat bg-fixed z-0"
+        style={{ backgroundImage: `url(${combatBackground})` }}
       />
       {/* Gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-background/85 via-background/60 to-background/90 z-0" />

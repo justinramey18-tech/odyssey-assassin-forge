@@ -111,11 +111,8 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
     <div className="min-h-screen bg-background relative overflow-hidden">
       {/* Background Image with Parallax */}
       <div 
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat bg-fixed scale-110 z-0"
-        style={{ 
-          backgroundImage: `url(${scribeBackground})`,
-          transform: 'translateZ(0)',
-        }}
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat bg-fixed z-0"
+        style={{ backgroundImage: `url(${scribeBackground})` }}
       />
       {/* Gradient overlay */}
       <div className="fixed inset-0 bg-gradient-to-b from-background/85 via-background/55 to-background/90 z-0" />
