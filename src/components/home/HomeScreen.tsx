@@ -147,21 +147,23 @@ export function HomeScreen({
         <div className="w-9" />
       </header>
 
-      {/* Horizontally Scrollable Container */}
+      {/* Four-Directional Panning Container */}
       <div 
         ref={scrollRef}
-        className="flex-1 overflow-x-auto overflow-y-hidden scrollbar-hide"
+        className="flex-1 overflow-auto scrollbar-hide"
         style={{ 
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
         }}
       >
-        {/* Wide panoramic image container */}
+        {/* Wide panoramic image container - larger than viewport for 4-way panning */}
         <div 
-          className="relative h-full"
+          className="relative"
           style={{ 
-            width: `calc(100vh * ${imageAspectRatio})`,
+            width: `calc(100vh * ${imageAspectRatio} * 1.2)`,
+            height: '120%',
             minWidth: '100%',
+            minHeight: '100%',
           }}
         >
           {/* Background Image */}
@@ -209,12 +211,14 @@ export function HomeScreen({
         </div>
       </div>
 
-      {/* Scroll hint */}
+      {/* Pan hint */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
         <p className="text-xs text-muted-foreground/70 backdrop-blur-sm bg-black/50 px-4 py-2 rounded-full flex items-center gap-2">
+          <span>↑</span>
           <span>←</span>
-          <span>Swipe to explore</span>
+          <span>Pan to explore</span>
           <span>→</span>
+          <span>↓</span>
         </p>
       </div>
 
