@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Info, X, Star, RotateCcw } from 'lucide-react';
+import { Info, X, Star, RotateCcw, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EquipmentItem, EquipmentSlotType, rarityConfig } from '@/lib/inventory/index';
 import { getIconByName } from '@/lib/iconUtils';
+import { Achievement } from '@/lib/achievements';
 import type { ViewMode } from './InventoryScreen';
 
 interface EquipmentSlotCardProps {
@@ -11,6 +12,12 @@ interface EquipmentSlotCardProps {
   icon: string;
   item: EquipmentItem | null;
   isHighlighted?: boolean;
+  isLocked?: boolean;
+  lockInfo?: {
+    achievement?: Achievement;
+    requiredValue?: number;
+    currentValue?: number;
+  };
   onTap?: () => void;
   onLongPress?: () => void;
   onSwipeLeft?: () => void;
@@ -25,6 +32,8 @@ export function EquipmentSlotCard({
   icon,
   item,
   isHighlighted,
+  isLocked = false,
+  lockInfo,
   onTap,
   onLongPress,
   onSwipeLeft,
@@ -133,13 +142,32 @@ export function EquipmentSlotCard({
             ? "bg-transparent border-l-4 " + (rarity?.borderClass || "border-l-border")
             : "bg-transparent border-dashed border-muted-foreground/50",
           isHighlighted && "ring-2 ring-primary ring-offset-2 ring-offset-background/50",
+          isLocked && "opacity-60 pointer-events-none",
         )}
         style={{ transform: `translateX(${swipeOffset}px)` }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onClick={onTap}
+        onTouchStart={isLocked ? undefined : handleTouchStart}
+        onTouchMove={isLocked ? undefined : handleTouchMove}
+        onTouchEnd={isLocked ? undefined : handleTouchEnd}
+        onClick={isLocked ? undefined : onTap}
       >
+        {/* Locked Overlay */}
+        {isLocked && item && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/60 rounded-lg backdrop-blur-[1px]">
+            <div className="flex flex-col items-center gap-1 text-center px-2">
+              <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center">
+                <Lock className="w-4 h-4 text-amber-500" />
+              </div>
+              {lockInfo?.achievement && (
+                <div className="text-[10px] text-muted-foreground max-w-[150px]">
+                  <span className="text-amber-500 font-medium">{lockInfo.currentValue}</span>
+                  <span className="text-muted-foreground">/{lockInfo.requiredValue}</span>
+                  <p className="truncate">{lockInfo.achievement.name}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Header Row */}
         <div className={cn(
           "flex items-center justify-between border-b border-border/50",
@@ -150,12 +178,15 @@ export function EquipmentSlotCard({
             <span className={cn("font-bold uppercase tracking-wide text-foreground/90 drop-shadow-md", isCompact ? "text-[10px]" : "text-xs")}>
               {label}
             </span>
+            {isLocked && (
+              <Lock className={cn("text-amber-500", isCompact ? "w-2.5 h-2.5" : "w-3 h-3")} />
+            )}
           </div>
           <button
             className={cn("rounded hover:bg-white/10 transition-colors", isCompact ? "p-0.5" : "p-1")}
             onClick={(e) => {
               e.stopPropagation();
-              onInfoTap?.();
+              if (!isLocked) onInfoTap?.();
             }}
           >
             <Info className={cn("text-foreground/80 drop-shadow-md", isCompact ? "w-3 h-3" : "w-4 h-4")} />

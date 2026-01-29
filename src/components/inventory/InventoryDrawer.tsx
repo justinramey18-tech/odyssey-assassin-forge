@@ -1,6 +1,7 @@
-import { Package, Star } from 'lucide-react';
+import { Package, Star, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EquipmentItem, EquipmentSlotType, rarityConfig, equipmentSlotDefinitions } from '@/lib/inventory/index';
+import { Achievement } from '@/lib/achievements';
 import { getIconByName } from '@/lib/iconUtils';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -11,6 +12,14 @@ interface InventoryDrawerProps {
   inventory: EquipmentItem[];
   slotType: EquipmentSlotType | null;
   onSelectItem: (item: EquipmentItem) => void;
+  // Gear lock support
+  isItemLocked?: (item: EquipmentItem) => boolean;
+  getItemLockInfo?: (item: EquipmentItem) => {
+    isLocked: boolean;
+    achievement?: Achievement;
+    requiredValue?: number;
+    currentValue?: number;
+  };
 }
 
 export function InventoryDrawer({
@@ -19,6 +28,8 @@ export function InventoryDrawer({
   inventory,
   slotType,
   onSelectItem,
+  isItemLocked,
+  getItemLockInfo,
 }: InventoryDrawerProps) {
   // Filter inventory to show only compatible items
   const compatibleItems = slotType 
@@ -60,17 +71,36 @@ export function InventoryDrawer({
               {compatibleItems.map(item => {
                 const rarity = rarityConfig[item.rarity];
                 const ItemIcon = getIconByName(item.icon);
+                const locked = isItemLocked ? isItemLocked(item) : false;
+                const lockInfo = getItemLockInfo ? getItemLockInfo(item) : undefined;
 
                 return (
                   <button
                     key={item.id}
-                    onClick={() => onSelectItem(item)}
+                    onClick={() => !locked && onSelectItem(item)}
+                    disabled={locked}
                     className={cn(
-                      "flex items-center gap-3 p-3 rounded-lg border text-left transition-all",
-                      "hover:bg-muted/50 active:scale-[0.98]",
+                      "flex items-center gap-3 p-3 rounded-lg border text-left transition-all relative",
+                      locked 
+                        ? "opacity-60 cursor-not-allowed"
+                        : "hover:bg-muted/50 active:scale-[0.98]",
                       `border-l-4 ${rarity.borderClass}`
                     )}
                   >
+                    {/* Locked Overlay */}
+                    {locked && (
+                      <div className="absolute inset-0 z-10 flex items-center justify-end pr-4 bg-background/40 rounded-lg">
+                        <div className="flex items-center gap-2 text-amber-500">
+                          <Lock className="w-4 h-4" />
+                          {lockInfo?.achievement && (
+                            <span className="text-xs">
+                              {lockInfo.currentValue}/{lockInfo.requiredValue}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Item Icon */}
                     <div className={cn(
                       "w-12 h-12 rounded-lg flex items-center justify-center border",
@@ -108,6 +138,11 @@ export function InventoryDrawer({
                         <span className="text-xs text-muted-foreground">
                           Lv {item.level}
                         </span>
+                        {locked && lockInfo?.achievement && (
+                          <span className="text-[10px] text-amber-500 truncate">
+                            {lockInfo.achievement.name}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </button>

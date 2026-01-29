@@ -2,6 +2,7 @@ import { CharacterEquipment, equipmentSlotDefinitions, EquipmentSlotType, Equipm
 import { EquipmentSlotCard } from './EquipmentSlotCard';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { Achievement } from '@/lib/achievements';
 import type { ViewMode } from './InventoryScreen';
 
 interface EquipmentListProps {
@@ -14,6 +15,14 @@ interface EquipmentListProps {
   onInfoTap: (slotType: EquipmentSlotType, item: EquipmentItem | null) => void;
   onSlotHover?: (slotType: EquipmentSlotType | null) => void;
   viewMode?: ViewMode;
+  // Gear lock support
+  isItemLocked?: (item: EquipmentItem) => boolean;
+  getItemLockInfo?: (item: EquipmentItem) => {
+    isLocked: boolean;
+    achievement?: Achievement;
+    requiredValue?: number;
+    currentValue?: number;
+  };
 }
 
 export function EquipmentList({
@@ -26,6 +35,8 @@ export function EquipmentList({
   onInfoTap,
   onSlotHover,
   viewMode = 'compact',
+  isItemLocked,
+  getItemLockInfo,
 }: EquipmentListProps) {
   const isCompact = viewMode === 'compact';
   const armorSlots = equipmentSlotDefinitions.filter(s => s.category === 'armor');
@@ -34,27 +45,34 @@ export function EquipmentList({
 
   const renderSlots = (slots: typeof equipmentSlotDefinitions) => (
     <div className={cn("space-y-1.5", !isCompact && "space-y-3")}>
-      {slots.map(slot => (
-        <div
-          key={slot.type}
-          onMouseEnter={() => onSlotHover?.(slot.type)}
-          onMouseLeave={() => onSlotHover?.(null)}
-        >
-          <EquipmentSlotCard
-            slotType={slot.type}
-            label={slot.label}
-            icon={slot.icon}
-            item={equipment.slots[slot.type]}
-            isHighlighted={highlightedSlot === slot.type}
-            onTap={() => onSlotTap(slot.type)}
-            onLongPress={() => onSlotLongPress(slot.type)}
-            onSwipeLeft={() => onUnequip(slot.type)}
-            onSwipeRight={() => onSwap(slot.type)}
-            onInfoTap={() => onInfoTap(slot.type, equipment.slots[slot.type])}
-            viewMode={viewMode}
-          />
-        </div>
-      ))}
+      {slots.map(slot => {
+        const item = equipment.slots[slot.type];
+        const locked = item && isItemLocked ? isItemLocked(item) : false;
+        const lockInfo = item && getItemLockInfo ? getItemLockInfo(item) : undefined;
+        return (
+          <div
+            key={slot.type}
+            onMouseEnter={() => onSlotHover?.(slot.type)}
+            onMouseLeave={() => onSlotHover?.(null)}
+          >
+            <EquipmentSlotCard
+              slotType={slot.type}
+              label={slot.label}
+              icon={slot.icon}
+              item={item}
+              isHighlighted={highlightedSlot === slot.type}
+              isLocked={locked}
+              lockInfo={lockInfo}
+              onTap={() => onSlotTap(slot.type)}
+              onLongPress={() => onSlotLongPress(slot.type)}
+              onSwipeLeft={() => onUnequip(slot.type)}
+              onSwipeRight={() => onSwap(slot.type)}
+              onInfoTap={() => onInfoTap(slot.type, item)}
+              viewMode={viewMode}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 
