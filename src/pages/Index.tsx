@@ -5,6 +5,7 @@ import { WizardStepOne } from '@/components/character/WizardStepOne';
 import { WizardStepTwo } from '@/components/character/WizardStepTwo';
 import { PointsSummary } from '@/components/character/PointsSummary';
 import { EquippedLoadout } from '@/components/character/EquippedLoadout';
+import { ActionWheelButton } from '@/components/character/ActionWheelButton';
 
 const Index = () => {
   const [step, setStep] = useState<1 | 2>(1);
@@ -173,6 +174,11 @@ const Index = () => {
             onUpgrade={handleUpgradeAbility}
             onDowngrade={handleDowngradeAbility}
           />
+        )}
+
+        {/* Floating Action Wheel - only visible in step 2 */}
+        {step === 2 && (
+          <ActionWheelButton characterName={character.name} />
         )}
       </main>
     </div>
