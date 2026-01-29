@@ -397,11 +397,8 @@ const Index = () => {
         <TabsContent value="skills" className="mt-0 pb-4 relative min-h-[calc(100vh-10vh)] overflow-hidden">
           {/* Background Image with Parallax */}
           <div 
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat bg-fixed scale-110"
-            style={{ 
-              backgroundImage: `url(${skillsBackgroundImage})`,
-              transform: 'translateZ(0)',
-            }}
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat bg-fixed"
+            style={{ backgroundImage: `url(${skillsBackgroundImage})` }}
           />
           {/* Gradient overlay for readability */}
           <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/50 to-background/90" />
