@@ -28,7 +28,7 @@ export function EquipmentList({
   const accessorySlots = equipmentSlotDefinitions.filter(s => s.category === 'accessories');
 
   const renderSlots = (slots: typeof equipmentSlotDefinitions) => (
-    <div className="space-y-3">
+    <div className="space-y-1.5">
       {slots.map(slot => (
         <div
           key={slot.type}
@@ -53,14 +53,14 @@ export function EquipmentList({
   );
 
   return (
-    <div className="space-y-4 pb-4">
+    <div className="space-y-2 pb-2">
       {/* Armor Section */}
       {renderSlots(armorSlots)}
 
       {/* Weapons Divider */}
-      <div className="flex items-center gap-3 py-2">
+      <div className="flex items-center gap-2 py-1">
         <Separator className="flex-1" />
-        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
           Weapons
         </span>
         <Separator className="flex-1" />
@@ -70,9 +70,9 @@ export function EquipmentList({
       {renderSlots(weaponSlots)}
 
       {/* Accessories Divider */}
-      <div className="flex items-center gap-3 py-2">
+      <div className="flex items-center gap-2 py-1">
         <Separator className="flex-1" />
-        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
           Accessories
         </span>
         <Separator className="flex-1" />
