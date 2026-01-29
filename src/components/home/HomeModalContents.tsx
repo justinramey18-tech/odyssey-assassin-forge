@@ -183,6 +183,7 @@ export function CharacterStatsContent({ character, equipment }: CharacterStatsPr
       )}
     </div>
   );
+}
 
 // --- Skills Overview Content ---
 interface SkillsOverviewProps {
