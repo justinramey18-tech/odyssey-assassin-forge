@@ -36,7 +36,7 @@ import { usePrestige } from '@/hooks/use-prestige';
 import { useEquipmentStats } from '@/hooks/use-equipment-stats';
 import { useAutoSave, loadAutoSave, SaveData, serializeConsumables } from '@/hooks/use-auto-save';
 import { useConsumables } from '@/hooks/use-consumables';
-import { ConsumablesInventoryWidget } from '@/components/consumables';
+import { ConsumablesInventoryWidget, AddConsumableDrawer } from '@/components/consumables';
 import { PrestigePointCounter, PrestigeLevelUpModal } from '@/components/prestige';
 import { 
   CharacterEquipment, 
@@ -96,7 +96,8 @@ const Index = () => {
     inventory: consumablesInventory, 
     useItem: useConsumableItem, 
     setItemQuantity: setConsumableQuantity,
-    getItemCount: getConsumableCount 
+    getItemCount: getConsumableCount,
+    addItem: addConsumableItem 
   } = useConsumables();
   
   const { toast } = useToast();
@@ -706,9 +707,15 @@ const Index = () => {
             className="min-h-[calc(100vh-10vh)]"
           >
             <div className="container max-w-4xl mx-auto px-4 py-6">
-              <h1 className="font-cinzel text-2xl text-foreground mb-6 text-center">
-                Consumables Inventory
-              </h1>
+              <div className="flex items-center justify-between mb-6">
+                <h1 className="font-cinzel text-2xl text-foreground">
+                  Consumables Inventory
+                </h1>
+                <AddConsumableDrawer 
+                  onAddItem={addConsumableItem}
+                  getItemCount={getConsumableCount}
+                />
+              </div>
               <ConsumablesInventoryWidget 
                 inventory={consumablesInventory}
                 characterName={character.name}
