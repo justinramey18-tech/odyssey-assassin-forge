@@ -70,6 +70,7 @@ const Index = () => {
   } = usePrestige(character.level);
   const [showPrestigeLevelUp, setShowPrestigeLevelUp] = useState(false);
   const [prestigeLevelUpData, setPrestigeLevelUpData] = useState<{ level: number; points: number } | null>(null);
+  const [showPrestigeSpendModal, setShowPrestigeSpendModal] = useState(false);
   
   // Shared equipment state for constellation view
   const [equipment, setEquipment] = useState<CharacterEquipment>(() => createInitialEquipment());
@@ -422,6 +423,21 @@ const Index = () => {
         onConfirmLevelUp={handleConfirmLevelUp}
       />
 
+      {/* Prestige Point Spending Modal */}
+      <LevelUpModal
+        open={showPrestigeSpendModal}
+        onClose={() => setShowPrestigeSpendModal(false)}
+        character={character}
+        newLevel={character.level}
+        pointsToSpend={prestigeData.availablePrestigePoints}
+        onUpgradeAbility={handleUpgradeAbility}
+        onDowngradeAbility={handleDowngradeAbility}
+        onConfirmLevelUp={() => setShowPrestigeSpendModal(false)}
+        isPrestigeMode={true}
+        prestigeLevel={prestigeData.prestigeLevel}
+        onSpendPrestigePoint={spendPrestigePoint}
+      />
+
       {/* Prestige Level Up Modal */}
       {prestigeLevelUpData && (
         <PrestigeLevelUpModal
@@ -477,6 +493,7 @@ const Index = () => {
                 total={prestigeData.totalPrestigePoints}
                 spent={prestigeData.spentPrestigePoints}
                 className="mb-6"
+                onSpendPoints={() => setShowPrestigeSpendModal(true)}
               />
             )}
 

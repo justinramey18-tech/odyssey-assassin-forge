@@ -1,11 +1,13 @@
-import { Star } from 'lucide-react';
+import { Star, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 interface PrestigePointCounterProps {
   available: number;
   total: number;
   spent: number;
   className?: string;
+  onSpendPoints?: () => void;
 }
 
 export function PrestigePointCounter({ 
@@ -13,6 +15,7 @@ export function PrestigePointCounter({
   total, 
   spent,
   className,
+  onSpendPoints,
 }: PrestigePointCounterProps) {
   if (total === 0) return null;
 
@@ -47,10 +50,23 @@ export function PrestigePointCounter({
         </div>
       </div>
       
-      <div className="mt-3 pt-3 border-t border-amber-500/30 flex gap-4 text-xs text-amber-300/80">
-        <span>Total Earned: <span className="font-semibold text-amber-300">{total}</span></span>
-        <span>•</span>
-        <span>Spent: <span className="font-semibold text-amber-300">{spent}</span></span>
+      <div className="mt-3 pt-3 border-t border-amber-500/30 flex items-center justify-between">
+        <div className="flex gap-4 text-xs text-amber-300/80">
+          <span>Total Earned: <span className="font-semibold text-amber-300">{total}</span></span>
+          <span>•</span>
+          <span>Spent: <span className="font-semibold text-amber-300">{spent}</span></span>
+        </div>
+        
+        {available > 0 && onSpendPoints && (
+          <Button
+            size="sm"
+            onClick={onSpendPoints}
+            className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-display gap-1.5"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            Spend Points
+          </Button>
+        )}
       </div>
     </div>
   );
