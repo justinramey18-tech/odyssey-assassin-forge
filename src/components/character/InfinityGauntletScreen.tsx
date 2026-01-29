@@ -6,24 +6,25 @@ import { PromptEditModal } from './PromptEditModal';
 import gauntletBackground from '@/assets/infinity-gauntlet-screen.jpg';
 
 // Map categories to Infinity Stones - positioned to match gauntlet image
-// This gauntlet shows: 4 finger stones on the knuckles, 1 large central stone on back of hand,
-// and additional sockets on the forearm/wrist area
+// Stones on knuckles (L to R): Orange, Red, Purple, Green/Yellow, Red(thumb)
+// Large central stone on back of hand: Orange/Yellow
+// Forearm stone: Red/Pink
 const infinityStones = [
-  {
-    id: 'reality',
-    name: 'Reality Stone',
-    color: '#ef4444', // Red - pinky knuckle (leftmost)
-    glowColor: 'rgba(239, 68, 68, 0.6)',
-    categories: ['World'],
-    position: { top: '17%', left: '32%' },
-  },
   {
     id: 'soul',
     name: 'Soul Stone',
-    color: '#f97316', // Orange - ring finger knuckle
+    color: '#f97316', // Orange - leftmost knuckle (pinky)
     glowColor: 'rgba(249, 115, 22, 0.6)',
     categories: ['Emotional', 'Social'],
-    position: { top: '15.5%', left: '42%' },
+    position: { top: '18%', left: '25%' },
+  },
+  {
+    id: 'reality',
+    name: 'Reality Stone',
+    color: '#ef4444', // Red - ring finger knuckle
+    glowColor: 'rgba(239, 68, 68, 0.6)',
+    categories: ['World'],
+    position: { top: '16%', left: '37%' },
   },
   {
     id: 'power',
@@ -31,12 +32,12 @@ const infinityStones = [
     color: '#a855f7', // Purple - middle finger knuckle
     glowColor: 'rgba(168, 85, 247, 0.6)',
     categories: ['Combat'],
-    position: { top: '15%', left: '52%' },
+    position: { top: '15%', left: '50%' },
   },
   {
     id: 'time',
     name: 'Time Stone',
-    color: '#22c55e', // Green - index finger knuckle (rightmost)
+    color: '#22c55e', // Green - index finger knuckle
     glowColor: 'rgba(34, 197, 94, 0.6)',
     categories: ['Meta Requests'],
     position: { top: '16%', left: '62%' },
@@ -44,18 +45,18 @@ const infinityStones = [
   {
     id: 'mind',
     name: 'Mind Stone',
-    color: '#eab308', // Yellow - large central stone on back of hand
+    color: '#eab308', // Yellow/Orange - large central stone on back of hand
     glowColor: 'rgba(234, 179, 8, 0.6)',
     categories: ['Investigation'],
-    position: { top: '24%', left: '50%' },
+    position: { top: '28%', left: '50%' },
   },
   {
     id: 'space',
     name: 'Space Stone',
-    color: '#3b82f6', // Blue - upper forearm socket
+    color: '#3b82f6', // Blue/Pink - forearm stone
     glowColor: 'rgba(59, 130, 246, 0.6)',
     categories: ['Voice & Tone', 'Narrative'],
-    position: { top: '38%', left: '50%' },
+    position: { top: '47%', left: '50%' },
   },
 ];
 
