@@ -1,6 +1,6 @@
 import { X, Share2, Star, Sparkles, Shield, Sword, Scale, Coins, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { EquipmentItem, rarityConfig, setDefinitions, EquipmentSlotType, CharacterEquipment } from '@/lib/inventory';
+import { EquipmentItem, rarityConfig, setDefinitions, EquipmentSlotType, CharacterEquipment } from '@/lib/inventory/index';
 import { getIconByName } from '@/lib/iconUtils';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';

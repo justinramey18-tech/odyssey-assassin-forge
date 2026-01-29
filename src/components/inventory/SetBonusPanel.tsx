@@ -1,6 +1,6 @@
 import { Sparkles, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { CharacterEquipment, getActiveSetBonuses, setDefinitions } from '@/lib/inventory';
+import { CharacterEquipment, getActiveSetBonuses, setDefinitions } from '@/lib/inventory/index';
 import { Progress } from '@/components/ui/progress';
 
 interface SetBonusPanelProps {

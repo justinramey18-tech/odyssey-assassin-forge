@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { User, Heart, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { CharacterEquipment, EquipmentSlotType, getActiveSetBonuses, rarityConfig } from '@/lib/inventory';
+import { CharacterEquipment, EquipmentSlotType, getActiveSetBonuses, rarityConfig } from '@/lib/inventory/index';
 
 interface CharacterDisplayProps {
   characterName: string;

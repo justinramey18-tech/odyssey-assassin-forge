@@ -1,4 +1,4 @@
-import { CharacterEquipment, equipmentSlotDefinitions, EquipmentSlotType, EquipmentItem } from '@/lib/inventory';
+import { CharacterEquipment, equipmentSlotDefinitions, EquipmentSlotType, EquipmentItem } from '@/lib/inventory/index';
 import { EquipmentSlotCard } from './EquipmentSlotCard';
 import { Separator } from '@/components/ui/separator';
 
