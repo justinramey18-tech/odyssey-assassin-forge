@@ -128,10 +128,10 @@ export function EquipmentSlotCard({
       {/* Main Card */}
       <div
         className={cn(
-          "relative border rounded-lg transition-all duration-200 touch-pan-y",
+          "relative border rounded-lg transition-all duration-200 touch-pan-y backdrop-blur-sm",
           item 
-            ? "bg-card border-l-4 " + (rarity?.borderClass || "border-l-border")
-            : "bg-muted/30 border-dashed border-muted-foreground/30",
+            ? "bg-card/80 border-l-4 " + (rarity?.borderClass || "border-l-border")
+            : "bg-muted/20 border-dashed border-muted-foreground/30",
           isHighlighted && "ring-2 ring-primary ring-offset-2 ring-offset-background",
         )}
         style={{ transform: `translateX(${swipeOffset}px)` }}
