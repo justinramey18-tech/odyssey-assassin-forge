@@ -23,7 +23,7 @@ import { PromptDrawerProvider } from '@/components/drawers';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Swords, Backpack, Trophy, Sparkles, Home, BookOpen, ChevronUp, Crosshair, Lock } from 'lucide-react';
-import skillsBackgroundImage from '@/assets/skills-background.jpg';
+import skillsBackgroundImage from '@/assets/skills-background-new.jpg';
 import { SettingsModal } from '@/components/settings/SettingsModal';
 import { AssassinHeader } from '@/components/navigation/AssassinHeader';
 import { CombatTabScreen } from '@/components/combat/CombatTabScreen';
@@ -394,14 +394,18 @@ const Index = () => {
         />
 
         {/* Skills Tab Content */}
-        <TabsContent value="skills" className="mt-0 pb-4 relative min-h-[calc(100vh-10vh)]">
-          {/* Background Image */}
+        <TabsContent value="skills" className="mt-0 pb-4 relative min-h-[calc(100vh-10vh)] overflow-hidden">
+          {/* Background Image with Parallax */}
           <div 
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-            style={{ backgroundImage: `url(${skillsBackgroundImage})` }}
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat bg-fixed scale-110"
+            style={{ 
+              backgroundImage: `url(${skillsBackgroundImage})`,
+              transform: 'translateZ(0)',
+            }}
           />
-          {/* Semi-transparent overlay for readability */}
-          <div className="absolute inset-0 bg-background/60" />
+          {/* Gradient overlay for readability */}
+          <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/50 to-background/90" />
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-900/20 via-transparent to-purple-900/20" />
           
           {/* Content */}
           <div className="container max-w-2xl mx-auto px-4 py-4 relative z-10">

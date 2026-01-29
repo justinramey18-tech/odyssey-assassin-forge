@@ -10,7 +10,7 @@ import { AchievementCard } from './AchievementCard';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import featsBackground from '@/assets/skills-background.jpg';
+import featsBackground from '@/assets/feats-background.jpg';
 
 interface AchievementsScreenProps {
   characterName: string;
@@ -169,13 +169,18 @@ export function AchievementsScreen({
   };
 
   return (
-    <div className="fixed inset-0 bg-background z-50 flex flex-col">
-      {/* Background Image */}
+    <div className="fixed inset-0 bg-background z-50 flex flex-col overflow-hidden">
+      {/* Background Image with Parallax */}
       <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
-        style={{ backgroundImage: `url(${featsBackground})` }}
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat bg-fixed scale-110 z-0"
+        style={{ 
+          backgroundImage: `url(${featsBackground})`,
+          transform: 'translateZ(0)',
+        }}
       />
-      <div className="absolute inset-0 bg-background/70 z-0" />
+      {/* Gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-b from-background/85 via-background/60 to-background/90 z-0" />
+      <div className="absolute inset-0 bg-gradient-to-t from-purple-900/30 via-transparent to-amber-900/20 z-0" />
       
       {/* Header */}
       <header className="relative z-10 flex items-center justify-between px-4 py-3 border-b border-purple-900/50 bg-background/80 backdrop-blur-sm">
