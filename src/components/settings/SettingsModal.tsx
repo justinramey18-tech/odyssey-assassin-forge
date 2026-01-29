@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Settings, User, Dices, Gamepad2, RotateCcw, Star, Lock, FileText, Copy, Check, RefreshCw } from 'lucide-react';
+import { Settings, User, Dices, Gamepad2, RotateCcw, Star, Lock, FileText, Copy, Check, RefreshCw, Camera } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Character, Ability } from '@/lib/types';
 import { EquipmentItem, EquipmentSlotType } from '@/lib/inventory/types';
-import { generateDynamicGMGuide, STATIC_GM_GUIDE } from '@/lib/gmGuideGenerator';
+import { generateDynamicGMGuide, generateCurrentStateSummary, STATIC_GM_GUIDE, CharacterBuildData } from '@/lib/gmGuideGenerator';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 
@@ -35,6 +35,7 @@ interface SettingsModalProps {
   unlockedAbilities?: Map<string, number>;
   equippedGear?: Record<EquipmentSlotType, EquipmentItem | null>;
   prestigeLevel?: number;
+  aggregatedStats?: CharacterBuildData['aggregatedStats'];
 }
 
 export function SettingsModal({ 
@@ -49,6 +50,7 @@ export function SettingsModal({
   unlockedAbilities,
   equippedGear,
   prestigeLevel,
+  aggregatedStats,
 }: SettingsModalProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [diceOddsMode, setDiceOddsMode] = useState<DiceOddsMode>(() => loadDiceOddsMode());
@@ -56,6 +58,7 @@ export function SettingsModal({
   const [xpProgressionMode, setXPProgressionMode] = useState<XPProgressionMode>(() => loadXPProgressionMode());
   const [copiedStatic, setCopiedStatic] = useState(false);
   const [copiedDynamic, setCopiedDynamic] = useState(false);
+  const [copiedSnapshot, setCopiedSnapshot] = useState(false);
   const [showDynamic, setShowDynamic] = useState(true);
   
   const { prestigeRespecDisabled } = useGameMode();
@@ -75,8 +78,24 @@ export function SettingsModal({
       unlockedAbilities,
       equippedGear,
       prestigeLevel,
+      aggregatedStats,
     });
-  }, [character, abilities, unlockedAbilities, equippedGear, prestigeLevel]);
+  }, [character, abilities, unlockedAbilities, equippedGear, prestigeLevel, aggregatedStats]);
+
+  // Generate compact state summary
+  const stateSummary = useMemo(() => {
+    if (!character || !abilities || !unlockedAbilities || !equippedGear) {
+      return null;
+    }
+    return generateCurrentStateSummary({
+      character,
+      abilities,
+      unlockedAbilities,
+      equippedGear,
+      prestigeLevel,
+      aggregatedStats,
+    });
+  }, [character, abilities, unlockedAbilities, equippedGear, prestigeLevel, aggregatedStats]);
 
   // Combined guide for copying
   const fullGuide = useMemo(() => {
@@ -112,6 +131,21 @@ export function SettingsModal({
       setCopiedDynamic(true);
       toast.success('Current build snapshot copied!');
       setTimeout(() => setCopiedDynamic(false), 2000);
+    } catch (err) {
+      toast.error('Failed to copy');
+    }
+  };
+
+  const handleCopySnapshot = async () => {
+    if (!stateSummary) {
+      toast.error('No character data available');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(stateSummary);
+      setCopiedSnapshot(true);
+      toast.success('📋 State snapshot copied!');
+      setTimeout(() => setCopiedSnapshot(false), 2000);
     } catch (err) {
       toast.error('Failed to copy');
     }
@@ -172,6 +206,33 @@ export function SettingsModal({
                     </p>
                   </div>
 
+                  {/* State Snapshot Button - Prominent */}
+                  {hasDynamicData && (
+                    <Button
+                      variant="outline"
+                      size="default"
+                      onClick={handleCopySnapshot}
+                      className={cn(
+                        "w-full gap-2 border-2",
+                        copiedSnapshot 
+                          ? "border-green-500/50 bg-green-500/10 text-green-400" 
+                          : "border-amber-500/50 bg-amber-500/5 hover:bg-amber-500/10 text-amber-400"
+                      )}
+                    >
+                      {copiedSnapshot ? (
+                        <>
+                          <Check className="w-4 h-4" />
+                          Snapshot Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Camera className="w-4 h-4" />
+                          Generate Current State Summary
+                        </>
+                      )}
+                    </Button>
+                  )}
+
                   {/* Copy Buttons */}
                   <div className="flex gap-2">
                     <Button
@@ -214,6 +275,25 @@ export function SettingsModal({
                       </Button>
                     )}
                   </div>
+
+                  {/* Snapshot Preview */}
+                  {hasDynamicData && stateSummary && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs bg-amber-500/10 border-amber-500/30 text-amber-400">
+                          📋 State Snapshot Preview
+                        </Badge>
+                        <span className="text-[10px] text-muted-foreground">
+                          Compact format for mid-session updates
+                        </span>
+                      </div>
+                      <pre className="p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 text-xs font-mono whitespace-pre-wrap max-h-[25vh] overflow-y-auto leading-relaxed">
+                        {stateSummary}
+                      </pre>
+                    </div>
+                  )}
+
+                  <Separator className="bg-border/30" />
 
                   {/* Toggle between dynamic and static */}
                   {hasDynamicData && (

@@ -3,12 +3,24 @@ import { Ability } from '@/lib/types';
 import { EquipmentItem, EquipmentSlotType } from '@/lib/inventory/types';
 import { legendarySetDefinitions } from '@/lib/inventory/legendarySets';
 
-interface CharacterBuildData {
+export interface CharacterBuildData {
   character: Character;
   abilities: Ability[];
   unlockedAbilities: Map<string, number>;
   equippedGear: Record<EquipmentSlotType, EquipmentItem | null>;
   prestigeLevel?: number;
+  // Optional additional stats for summary
+  aggregatedStats?: {
+    totalAC?: number;
+    totalAttackBonus?: number;
+    damage?: string | null;
+    strength?: number;
+    dexterity?: number;
+    constitution?: number;
+    intelligence?: number;
+    wisdom?: number;
+    charisma?: number;
+  };
 }
 
 export function generateDynamicGMGuide(data: CharacterBuildData): string {
@@ -271,6 +283,151 @@ function getTreePoints(
     }
   });
   return points;
+}
+
+/**
+ * Generates a compact, paste-ready snapshot of the current character state
+ * Designed for quick session updates to an AI DM
+ */
+export function generateCurrentStateSummary(data: CharacterBuildData): string {
+  const { character, abilities, unlockedAbilities, equippedGear, prestigeLevel, aggregatedStats } = data;
+  
+  const timestamp = new Date().toLocaleString();
+  const lines: string[] = [];
+  
+  // Header
+  lines.push(`📋 CHARACTER STATE SNAPSHOT`);
+  lines.push(`Generated: ${timestamp}`);
+  lines.push(`${'─'.repeat(40)}`);
+  lines.push('');
+  
+  // Core Identity
+  lines.push(`👤 ${character.name || 'Unnamed Assassin'} | Level ${character.level}${prestigeLevel ? ` (P${prestigeLevel})` : ''}`);
+  lines.push(`⚔️ Sneak Attack: ${getSneakAttackDice(character.level)}`);
+  lines.push('');
+  
+  // Combat Stats (if available)
+  if (aggregatedStats) {
+    const statsLine: string[] = [];
+    if (aggregatedStats.totalAC) statsLine.push(`AC ${aggregatedStats.totalAC}`);
+    if (aggregatedStats.totalAttackBonus) statsLine.push(`ATK +${aggregatedStats.totalAttackBonus}`);
+    if (aggregatedStats.damage) statsLine.push(`DMG ${aggregatedStats.damage}`);
+    if (statsLine.length > 0) {
+      lines.push(`🛡️ ${statsLine.join(' | ')}`);
+    }
+    
+    // Attributes
+    const attrs: string[] = [];
+    if (aggregatedStats.strength) attrs.push(`STR+${aggregatedStats.strength}`);
+    if (aggregatedStats.dexterity) attrs.push(`DEX+${aggregatedStats.dexterity}`);
+    if (aggregatedStats.constitution) attrs.push(`CON+${aggregatedStats.constitution}`);
+    if (aggregatedStats.intelligence) attrs.push(`INT+${aggregatedStats.intelligence}`);
+    if (aggregatedStats.wisdom) attrs.push(`WIS+${aggregatedStats.wisdom}`);
+    if (aggregatedStats.charisma) attrs.push(`CHA+${aggregatedStats.charisma}`);
+    if (attrs.length > 0) {
+      lines.push(`📊 Gear Bonuses: ${attrs.join(', ')}`);
+    }
+    lines.push('');
+  }
+  
+  // Active Loadout
+  const equippedIds = character.equippedAbilities || [];
+  const equippedAbilities = equippedIds
+    .map(id => {
+      const ability = abilities.find(a => a.id === id);
+      if (!ability) return null;
+      const tier = unlockedAbilities.get(ability.id) || 1;
+      const actionIcon = ability.actionType === 'action' ? '🔴' : 
+                         ability.actionType === 'bonus_action' ? '🟡' : 
+                         ability.actionType === 'reaction' ? '🔵' : '⚪';
+      return `${actionIcon} ${ability.name} (T${tier})`;
+    })
+    .filter(Boolean);
+  
+  if (equippedAbilities.length > 0) {
+    lines.push(`🎯 ACTIVE ABILITIES:`);
+    equippedAbilities.forEach(a => lines.push(`   ${a}`));
+    lines.push('');
+  }
+  
+  // Key Gear (non-empty slots with notable items)
+  const keyGear: string[] = [];
+  const weaponSlots: EquipmentSlotType[] = ['primary_weapon', 'secondary_weapon', 'ranged_weapon'];
+  const armorSlots: EquipmentSlotType[] = ['head', 'chest', 'arms', 'waist', 'legs'];
+  const accessorySlots: EquipmentSlotType[] = ['amulet', 'ring1', 'ring2'];
+  
+  // Weapons
+  weaponSlots.forEach(slot => {
+    const item = equippedGear[slot];
+    if (item) {
+      const dmg = item.stats.damage ? ` (${item.stats.damage})` : '';
+      keyGear.push(`⚔️ ${item.name}${dmg}`);
+    }
+  });
+  
+  // Count armor pieces
+  const armorPieces = armorSlots.filter(slot => equippedGear[slot]).length;
+  const legendaryArmor = armorSlots.filter(slot => equippedGear[slot]?.rarity === 'legendary').length;
+  if (armorPieces > 0) {
+    keyGear.push(`🛡️ ${armorPieces}/5 armor slots filled (${legendaryArmor} legendary)`);
+  }
+  
+  // Accessories
+  accessorySlots.forEach(slot => {
+    const item = equippedGear[slot];
+    if (item && item.rarity === 'legendary') {
+      keyGear.push(`💎 ${item.name}`);
+    }
+  });
+  
+  if (keyGear.length > 0) {
+    lines.push(`🎒 KEY GEAR:`);
+    keyGear.forEach(g => lines.push(`   ${g}`));
+    lines.push('');
+  }
+  
+  // Active Set Bonuses
+  const setCounts: Record<string, { count: number; name: string }> = {};
+  Object.values(equippedGear).forEach(item => {
+    if (item?.setId) {
+      if (!setCounts[item.setId]) {
+        setCounts[item.setId] = { count: 0, name: item.setName || item.setId };
+      }
+      setCounts[item.setId].count++;
+    }
+  });
+  
+  const activeSets = Object.entries(setCounts)
+    .filter(([, data]) => data.count >= 2)
+    .map(([setId, data]) => {
+      const setDef = legendarySetDefinitions.find(s => s.id === setId);
+      const highestBonus = setDef?.bonuses
+        .filter(b => data.count >= b.piecesRequired)
+        .sort((a, b) => b.piecesRequired - a.piecesRequired)[0];
+      return `✨ ${data.name} (${data.count}/8): ${highestBonus?.bonus || 'Bonus active'}`;
+    });
+  
+  if (activeSets.length > 0) {
+    lines.push(`🌟 SET BONUSES:`);
+    activeSets.forEach(s => lines.push(`   ${s}`));
+    lines.push('');
+  }
+  
+  // Build Archetype
+  const hunterPoints = getTreePoints(abilities, unlockedAbilities, 'hunter');
+  const warriorPoints = getTreePoints(abilities, unlockedAbilities, 'warrior');
+  const assassinPoints = getTreePoints(abilities, unlockedAbilities, 'assassin');
+  const totalPoints = hunterPoints + warriorPoints + assassinPoints;
+  
+  if (totalPoints > 0) {
+    lines.push(`📈 BUILD: Hunter ${hunterPoints} / Warrior ${warriorPoints} / Assassin ${assassinPoints}`);
+  }
+  
+  lines.push('');
+  lines.push(`${'─'.repeat(40)}`);
+  lines.push(`Use this snapshot to inform ability checks, combat narration, and gear effects.`);
+  
+  return lines.join('\n');
 }
 
 // Static guide that doesn't change

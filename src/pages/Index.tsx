@@ -32,6 +32,7 @@ import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 import { useToast } from '@/hooks/use-toast';
 import { useGameMode } from '@/hooks/use-game-mode';
 import { usePrestige } from '@/hooks/use-prestige';
+import { useEquipmentStats } from '@/hooks/use-equipment-stats';
 import { PrestigePointCounter, PrestigeLevelUpModal } from '@/components/prestige';
 import { 
   CharacterEquipment, 
@@ -75,6 +76,9 @@ const Index = () => {
   
   // Shared equipment state for constellation view
   const [equipment, setEquipment] = useState<CharacterEquipment>(() => createInitialEquipment());
+  
+  // Aggregated equipment stats for GM guide
+  const aggregatedStats = useEquipmentStats(equipment);
   
   // Shared achievements state
   const [achievements, setAchievements] = useState<Achievement[]>(
@@ -480,6 +484,17 @@ const Index = () => {
           unlockedAbilities={unlockedAbilities}
           equippedGear={equipment.slots}
           prestigeLevel={prestigeData.prestigeLevel > 0 ? prestigeData.prestigeLevel : undefined}
+          aggregatedStats={{
+            totalAC: aggregatedStats.totalAC,
+            totalAttackBonus: aggregatedStats.totalAttackBonus,
+            damage: aggregatedStats.damage,
+            strength: aggregatedStats.strength,
+            dexterity: aggregatedStats.dexterity,
+            constitution: aggregatedStats.constitution,
+            intelligence: aggregatedStats.intelligence,
+            wisdom: aggregatedStats.wisdom,
+            charisma: aggregatedStats.charisma,
+          }}
         />
 
         {/* Skills Tab Content */}
