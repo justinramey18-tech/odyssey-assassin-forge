@@ -24,6 +24,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Swords, Backpack, Trophy, Sparkles, Home, BookOpen, ChevronUp, Crosshair, Lock } from 'lucide-react';
 import skillsBackgroundImage from '@/assets/skills-background-new.jpg';
+import builderBackground from '@/assets/builder-background.jpg';
 import { SettingsModal } from '@/components/settings/SettingsModal';
 import { AssassinHeader } from '@/components/navigation/AssassinHeader';
 import { CombatTabScreen } from '@/components/combat/CombatTabScreen';
@@ -361,7 +362,14 @@ const Index = () => {
       onAddXP={handleAddXP}
       equipment={equipment}
     >
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background relative">
+      {/* Builder Background Image */}
+      <div 
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat z-0"
+        style={{ backgroundImage: `url(${builderBackground})` }}
+      />
+      {/* 60% transparent overlay */}
+      <div className="fixed inset-0 bg-background/60 z-0" />
       {/* Level Up Modal */}
       <LevelUpModal
         open={showLevelUpModal}
