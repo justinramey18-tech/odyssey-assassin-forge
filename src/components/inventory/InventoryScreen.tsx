@@ -12,7 +12,7 @@ import {
   allLegendaryItems,
 } from '@/lib/inventory/index';
 import { CharacterDisplay } from './CharacterDisplay';
-import { EquipmentList } from './EquipmentList';
+import { EquipmentTypeGrid } from './EquipmentTypeGrid';
 import { ItemDetailSheet } from './ItemDetailSheet';
 import { ComparisonSheet } from './ComparisonSheet';
 import { SetBonusPanel } from './SetBonusPanel';
@@ -56,26 +56,6 @@ export function InventoryScreen({
 
   const stats = calculateTotalStats(equipment.slots);
 
-  const handleSlotTap = useCallback((slotType: EquipmentSlotType) => {
-    const item = equipment.slots[slotType];
-    if (item) {
-      setSelectedSlot(slotType);
-      setSelectedItem(item);
-      setShowItemDetail(true);
-    } else {
-      // Open inventory drawer to select item for empty slot
-      setSelectedSlot(slotType);
-      setShowInventoryDrawer(true);
-    }
-  }, [equipment.slots]);
-
-  const handleSlotLongPress = useCallback((slotType: EquipmentSlotType) => {
-    // Show quick action menu (could implement context menu here)
-    setSelectedSlot(slotType);
-    setSelectedItem(equipment.slots[slotType]);
-    setShowItemDetail(true);
-  }, [equipment.slots]);
-
   const handleUnequip = useCallback((slotType: EquipmentSlotType) => {
     const item = equipment.slots[slotType];
     if (!item) return;
@@ -87,19 +67,22 @@ export function InventoryScreen({
     setShowItemDetail(false);
   }, [equipment.slots]);
 
-  const handleSwap = useCallback((slotType: EquipmentSlotType) => {
-    setSelectedSlot(slotType);
-    setShowInventoryDrawer(true);
-  }, []);
+  const handleEquipItem = useCallback((slotType: EquipmentSlotType, item: EquipmentItem) => {
+    const currentItem = equipment.slots[slotType];
+    
+    setEquipment(prev => ({
+      slots: { ...prev.slots, [slotType]: item },
+      inventory: [
+        ...prev.inventory.filter(i => i.id !== item.id),
+        ...(currentItem ? [currentItem] : []),
+      ],
+    }));
+  }, [equipment.slots]);
 
-  const handleInfoTap = useCallback((slotType: EquipmentSlotType, item: EquipmentItem | null) => {
+  const handleItemInfo = useCallback((item: EquipmentItem, slotType: EquipmentSlotType) => {
     setSelectedSlot(slotType);
     setSelectedItem(item);
-    if (item) {
-      setShowItemDetail(true);
-    } else {
-      setShowInventoryDrawer(true);
-    }
+    setShowItemDetail(true);
   }, []);
 
   const handleCompare = useCallback(() => {
@@ -211,10 +194,10 @@ export function InventoryScreen({
         </DropdownMenu>
       </header>
 
-      {/* Main Content - Split Screen */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Side - Character Display (40%) */}
-        <div className="w-[40%] border-r border-border/30 bg-gradient-to-b from-background to-muted/20">
+      {/* Main Content - Vertical Layout */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Character Display (Top) */}
+        <div className="h-48 flex-shrink-0 border-b border-border/30 bg-gradient-to-b from-background to-muted/20">
           <CharacterDisplay
             characterName={characterName}
             level={level}
@@ -223,27 +206,21 @@ export function InventoryScreen({
           />
         </div>
 
-        {/* Right Side - Equipment Slots (60%) */}
-        <div className="w-[60%] flex flex-col">
-          <ScrollArea className="flex-1 px-3 pt-3">
-            <EquipmentList
-              equipment={equipment}
-              highlightedSlot={highlightedSlot}
-              onSlotTap={handleSlotTap}
-              onSlotLongPress={handleSlotLongPress}
-              onUnequip={handleUnequip}
-              onSwap={handleSwap}
-              onInfoTap={handleInfoTap}
-              onSlotHover={setHighlightedSlot}
-            />
-            
-            {/* Set Bonuses */}
-            <SetBonusPanel equipment={equipment} />
-            
-            {/* Bottom padding for stats bar */}
-            <div className="h-20" />
-          </ScrollArea>
-        </div>
+        {/* Equipment Type Grid (Bottom) */}
+        <ScrollArea className="flex-1">
+          <EquipmentTypeGrid
+            equipment={equipment}
+            onEquipItem={handleEquipItem}
+            onUnequipItem={handleUnequip}
+            onItemInfo={handleItemInfo}
+          />
+          
+          {/* Set Bonuses */}
+          <SetBonusPanel equipment={equipment} />
+          
+          {/* Bottom padding for stats bar */}
+          <div className="h-20" />
+        </ScrollArea>
       </div>
 
       {/* Bottom Stats Bar */}

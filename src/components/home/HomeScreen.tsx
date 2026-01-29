@@ -147,28 +147,28 @@ export function HomeScreen({
         <div className="w-9" />
       </header>
 
-      {/* Horizontally Scrollable Container */}
+      {/* Vertically Scrollable Container */}
       <div 
         ref={scrollRef}
-        className="flex-1 overflow-x-auto overflow-y-hidden scrollbar-hide"
+        className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide"
         style={{ 
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
         }}
       >
-        {/* Wide panoramic image container */}
+        {/* Tall panoramic image container */}
         <div 
-          className="relative h-full"
+          className="relative w-full"
           style={{ 
-            width: `calc(100vh * ${imageAspectRatio})`,
-            minWidth: '100%',
+            height: `calc(100vw / ${imageAspectRatio} * 2.5)`,
+            minHeight: '150vh',
           }}
         >
           {/* Background Image */}
           <img 
             src={homeBackground} 
             alt="Deadpool Assassins"
-            className="absolute inset-0 w-full h-full object-cover object-center"
+            className="absolute inset-0 w-full h-full object-cover object-top"
             draggable={false}
           />
           
@@ -176,9 +176,11 @@ export function HomeScreen({
           <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-transparent to-background/40 pointer-events-none" />
           <div className="absolute inset-0 bg-gradient-to-r from-background/20 via-transparent to-background/20 pointer-events-none" />
 
-          {/* Assassin Zone Buttons - positioned at pelvis level (~60% from top) */}
-          {assassinZones.map((zone) => {
+          {/* Assassin Zone Buttons - positioned vertically along the image */}
+          {assassinZones.map((zone, index) => {
             const IconComponent = zone.icon;
+            // Distribute zones vertically, starting from 15% and ending at 85%
+            const topPercent = 15 + (index * 10);
             return (
               <AssassinZone
                 key={zone.id}
@@ -188,7 +190,7 @@ export function HomeScreen({
                 accentColor={zone.color}
                 style={{
                   left: `${zone.leftPercent}%`,
-                  top: '58%',
+                  top: `${topPercent}%`,
                   transform: 'translate(-50%, -50%)',
                 }}
               />
@@ -200,7 +202,7 @@ export function HomeScreen({
             className="absolute z-20"
             style={{
               left: '50%',
-              top: '32%',
+              top: '12%',
               transform: 'translate(-50%, -50%)',
             }}
           >
@@ -212,9 +214,9 @@ export function HomeScreen({
       {/* Scroll hint */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
         <p className="text-xs text-muted-foreground/70 backdrop-blur-sm bg-black/50 px-4 py-2 rounded-full flex items-center gap-2">
-          <span>←</span>
-          <span>Swipe to explore</span>
-          <span>→</span>
+          <span>↑</span>
+          <span>Scroll to explore</span>
+          <span>↓</span>
         </p>
       </div>
 
