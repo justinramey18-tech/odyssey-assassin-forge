@@ -10,7 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Copy, Check, Dices } from 'lucide-react';
+import { Copy, Check, Dices, Lock } from 'lucide-react';
 
 interface DiceRollModalProps {
   ability?: Ability;
@@ -127,15 +127,22 @@ export function DiceRollModal({
               AI DM Prompt
             </span>
             <div className="flex gap-2">
-              {onReroll && !rerollDisabled && (
+              {onReroll && (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={onReroll}
-                  className="gap-1"
+                  onClick={rerollDisabled ? undefined : onReroll}
+                  disabled={rerollDisabled}
+                  className={cn(
+                    "gap-1 relative",
+                    rerollDisabled && "opacity-50 cursor-not-allowed"
+                  )}
                 >
                   <Dices className="w-4 h-4" />
                   Reroll
+                  {rerollDisabled && (
+                    <Lock className="w-3 h-3 absolute -top-1 -right-1 text-muted-foreground" />
+                  )}
                 </Button>
               )}
               <Button
