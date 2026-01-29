@@ -473,6 +473,7 @@ const Index = () => {
           <ConstellationScreen
             characterName={character.name}
             equippedItems={Object.values(equipment.slots).filter(Boolean) as EquipmentItem[]}
+            achievements={achievements}
             onBack={() => setActiveTab('skills')}
           />
         </TabsContent>

@@ -1,14 +1,16 @@
 import { ArrowLeft } from 'lucide-react';
 import { EquipmentItem } from '@/lib/inventory/index';
+import { Achievement } from '@/lib/achievements';
 import { ConstellationMap } from './ConstellationMap';
 
 interface ConstellationScreenProps {
   characterName: string;
   equippedItems: EquipmentItem[];
+  achievements: Achievement[];
   onBack?: () => void;
 }
 
-export function ConstellationScreen({ characterName, equippedItems, onBack }: ConstellationScreenProps) {
+export function ConstellationScreen({ characterName, equippedItems, achievements, onBack }: ConstellationScreenProps) {
 
   return (
     <div className="fixed inset-0 bg-background z-50 flex flex-col">
@@ -26,7 +28,7 @@ export function ConstellationScreen({ characterName, equippedItems, onBack }: Co
 
       {/* Constellation Map */}
       <div className="flex-1 overflow-hidden">
-        <ConstellationMap equippedItems={equippedItems} />
+        <ConstellationMap equippedItems={equippedItems} achievements={achievements} />
       </div>
     </div>
   );

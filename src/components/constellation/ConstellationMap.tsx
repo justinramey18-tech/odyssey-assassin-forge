@@ -4,10 +4,12 @@ import { legendarySetDefinitions, allLegendaryItems, EquipmentItem, SetInfo } fr
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Star, ChevronLeft, ChevronRight, Lock, Sparkles, Unlock, Trophy } from 'lucide-react';
 import { getIconByName } from '@/lib/iconUtils';
-import { itemPrerequisites, achievementCategories, Achievement } from '@/lib/achievements';
+import { itemPrerequisites, Achievement } from '@/lib/achievements';
 import { Progress } from '@/components/ui/progress';
+
 interface ConstellationMapProps {
   equippedItems: EquipmentItem[];
+  achievements: Achievement[];
 }
 
 // Humanoid constellation positions for 8 pieces (head, chest, arms, waist, legs, 3 weapons)
@@ -39,10 +41,11 @@ interface SetConstellationProps {
   setInfo: SetInfo;
   setItems: EquipmentItem[];
   equippedSetItems: EquipmentItem[];
+  achievements: Achievement[];
   isActive: boolean;
 }
 
-function SetConstellation({ setInfo, setItems, equippedSetItems, isActive }: SetConstellationProps) {
+function SetConstellation({ setInfo, setItems, equippedSetItems, achievements, isActive }: SetConstellationProps) {
   const [selectedStar, setSelectedStar] = useState<EquipmentItem | null>(null);
   const equippedIds = new Set(equippedSetItems.map(i => i.id));
   const equippedCount = equippedSetItems.length;
@@ -169,7 +172,7 @@ function SetConstellation({ setInfo, setItems, equippedSetItems, isActive }: Set
         // Get unlock requirement info
         const prerequisite = itemPrerequisites[selectedStar.id];
         const achievement = prerequisite 
-          ? achievementCategories.find(a => a.id === prerequisite.achievementId) 
+          ? achievements.find(a => a.id === prerequisite.achievementId) 
           : null;
         const isUnlocked = !prerequisite || (achievement && achievement.currentValue >= prerequisite.requiredValue);
         const progressPercent = achievement && prerequisite 
@@ -289,7 +292,7 @@ function SetConstellation({ setInfo, setItems, equippedSetItems, isActive }: Set
   );
 }
 
-export function ConstellationMap({ equippedItems }: ConstellationMapProps) {
+export function ConstellationMap({ equippedItems, achievements }: ConstellationMapProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -383,6 +386,7 @@ export function ConstellationMap({ equippedItems }: ConstellationMapProps) {
                 setInfo={data.setInfo}
                 setItems={data.setItems}
                 equippedSetItems={data.equippedSetItems}
+                achievements={achievements}
                 isActive={idx === activeIndex}
               />
             </div>
