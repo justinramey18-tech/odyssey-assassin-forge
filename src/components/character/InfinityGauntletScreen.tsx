@@ -6,17 +6,17 @@ import { PromptEditModal } from './PromptEditModal';
 import gauntletBackground from '@/assets/infinity-gauntlet-screen.jpg';
 
 // Map categories to Infinity Stones - positioned to match gauntlet image
-// Stones on knuckles (L to R): Orange, Red, Purple, Green/Yellow, Red(thumb)
-// Large central stone on back of hand: Orange/Yellow
+// Knuckle row (L to R): Orange, Red, Purple, Orange/Green, Red(thumb)
+// Large central stone: Orange/Yellow
 // Forearm stone: Red/Pink
 const infinityStones = [
   {
     id: 'soul',
     name: 'Soul Stone',
-    color: '#f97316', // Orange - leftmost knuckle (pinky)
+    color: '#f97316', // Orange - pinky knuckle (leftmost)
     glowColor: 'rgba(249, 115, 22, 0.6)',
     categories: ['Emotional', 'Social'],
-    position: { top: '18%', left: '25%' },
+    position: { top: '19.5%', left: '24%' },
   },
   {
     id: 'reality',
@@ -24,7 +24,7 @@ const infinityStones = [
     color: '#ef4444', // Red - ring finger knuckle
     glowColor: 'rgba(239, 68, 68, 0.6)',
     categories: ['World'],
-    position: { top: '16%', left: '37%' },
+    position: { top: '17%', left: '36%' },
   },
   {
     id: 'power',
@@ -32,7 +32,7 @@ const infinityStones = [
     color: '#a855f7', // Purple - middle finger knuckle
     glowColor: 'rgba(168, 85, 247, 0.6)',
     categories: ['Combat'],
-    position: { top: '15%', left: '50%' },
+    position: { top: '15.5%', left: '50%' },
   },
   {
     id: 'time',
@@ -40,23 +40,23 @@ const infinityStones = [
     color: '#22c55e', // Green - index finger knuckle
     glowColor: 'rgba(34, 197, 94, 0.6)',
     categories: ['Meta Requests'],
-    position: { top: '16%', left: '62%' },
+    position: { top: '17%', left: '64%' },
   },
   {
     id: 'mind',
     name: 'Mind Stone',
-    color: '#eab308', // Yellow/Orange - large central stone on back of hand
+    color: '#eab308', // Yellow - large central stone on back of hand
     glowColor: 'rgba(234, 179, 8, 0.6)',
     categories: ['Investigation'],
-    position: { top: '28%', left: '50%' },
+    position: { top: '31%', left: '50%' },
   },
   {
     id: 'space',
     name: 'Space Stone',
-    color: '#3b82f6', // Blue/Pink - forearm stone
+    color: '#3b82f6', // Blue - forearm stone
     glowColor: 'rgba(59, 130, 246, 0.6)',
     categories: ['Voice & Tone', 'Narrative'],
-    position: { top: '47%', left: '50%' },
+    position: { top: '50%', left: '50%' },
   },
 ];
 
