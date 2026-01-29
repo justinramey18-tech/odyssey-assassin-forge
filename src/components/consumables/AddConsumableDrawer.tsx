@@ -73,8 +73,8 @@ export function AddConsumableDrawer({ onAddItem, getItemCount }: AddConsumableDr
         </Button>
       </DrawerTrigger>
       
-      <DrawerContent className="max-h-[85vh]">
-        <DrawerHeader className="border-b border-border/50 pb-4">
+      <DrawerContent className="max-h-[85vh] flex flex-col">
+        <DrawerHeader className="border-b border-border/50 pb-4 shrink-0">
           <DrawerTitle className="flex items-center gap-2">
             <Package className="w-5 h-5" />
             Add Consumables
@@ -113,8 +113,9 @@ export function AddConsumableDrawer({ onAddItem, getItemCount }: AddConsumableDr
           </ToggleGroup>
         </DrawerHeader>
         
-        <ScrollArea className="flex-1 p-4" style={{ maxHeight: 'calc(85vh - 180px)' }}>
-          <div className="grid gap-2">
+        <div className="flex-1 overflow-hidden">
+          <ScrollArea className="h-full max-h-[calc(85vh-200px)]">
+            <div className="p-4 grid gap-2">
             {filteredItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
                 <Filter className="w-8 h-8 mb-2 opacity-50" />
@@ -190,8 +191,9 @@ export function AddConsumableDrawer({ onAddItem, getItemCount }: AddConsumableDr
                 );
               })
             )}
-          </div>
-        </ScrollArea>
+            </div>
+          </ScrollArea>
+        </div>
       </DrawerContent>
     </Drawer>
   );
