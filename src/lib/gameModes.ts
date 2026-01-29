@@ -7,6 +7,8 @@ export interface HonestModeRules {
   maxLevelInfinityStones: boolean; // Infinity stones only accessible at max level (20)
   noRerolls: boolean;              // Player cannot reroll dice
   scribeItemVerification: boolean; // Items only gained through scribe input narrative verification
+  prestigePointsRequireXP: boolean; // Can't manually award prestige points
+  prestigeRespecDisabled: boolean;  // Can't reset prestige point allocation
 }
 
 export interface GameModeSettings {
@@ -22,6 +24,8 @@ const DEFAULT_HONEST_RULES: HonestModeRules = {
   maxLevelInfinityStones: true,
   noRerolls: true,
   scribeItemVerification: true,
+  prestigePointsRequireXP: true,
+  prestigeRespecDisabled: true,
 };
 
 const DEFAULT_SETTINGS: GameModeSettings = {
@@ -105,6 +109,14 @@ export function getRuleDescription(rule: keyof HonestModeRules): { label: string
       label: 'Scribe Item Verification',
       description: 'New items can only be obtained through verified narrative events in the Scribe.',
     },
+    prestigePointsRequireXP: {
+      label: 'Prestige XP Required',
+      description: 'Prestige points can only be earned through XP gains. Manual awarding is disabled.',
+    },
+    prestigeRespecDisabled: {
+      label: 'No Prestige Respec',
+      description: 'Once prestige points are allocated, they cannot be reset or reallocated.',
+    },
   };
   return descriptions[rule];
 }
@@ -117,5 +129,7 @@ export function getAllRuleKeys(): (keyof HonestModeRules)[] {
     'maxLevelInfinityStones',
     'noRerolls',
     'scribeItemVerification',
+    'prestigePointsRequireXP',
+    'prestigeRespecDisabled',
   ];
 }

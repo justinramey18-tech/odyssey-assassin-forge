@@ -56,6 +56,8 @@ export function useGameMode() {
   const infinityStonesLocked = checkRule('maxLevelInfinityStones');
   const rerollsDisabled = checkRule('noRerolls');
   const requiresScribeVerification = checkRule('scribeItemVerification');
+  const prestigePointsRequireXP = checkRule('prestigePointsRequireXP');
+  const prestigeRespecDisabled = checkRule('prestigeRespecDisabled');
 
   return {
     settings,
@@ -69,6 +71,8 @@ export function useGameMode() {
     infinityStonesLocked,
     rerollsDisabled,
     requiresScribeVerification,
+    prestigePointsRequireXP,
+    prestigeRespecDisabled,
   };
 }
 

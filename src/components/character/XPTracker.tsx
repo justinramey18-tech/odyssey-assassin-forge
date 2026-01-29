@@ -8,6 +8,7 @@ import {
   getXPToNextLevel,
   getXPForLevel,
 } from '@/lib/xpSystem';
+import { PrestigeData } from '@/lib/prestige';
 import { useXPProgression } from '@/hooks/use-xp-progression';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -20,6 +21,7 @@ import {
   DialogTrigger 
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { PrestigeXPBar } from '@/components/prestige';
 import { 
   Plus, 
   Sparkles, 
@@ -42,6 +44,8 @@ interface XPTrackerProps {
   currentXP: number;
   achievements: Achievement[];
   onAddXP: (amount: number, source: string) => void;
+  prestigeData?: PrestigeData;
+  nextPrestigeXPRequired?: number;
 }
 
 const rewardIcons: Record<XPRewardType, React.ReactNode> = {
@@ -59,6 +63,8 @@ export function XPTracker({
   currentXP,
   achievements,
   onAddXP,
+  prestigeData,
+  nextPrestigeXPRequired,
 }: XPTrackerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [customAmount, setCustomAmount] = useState('');
@@ -66,6 +72,8 @@ export function XPTracker({
 
   // Use the reactive XP progression hook
   const { mode, multiplier } = useXPProgression();
+
+  const isMaxLevel = currentLevel >= 20;
 
   const progress = getLevelProgress(currentLevel, currentXP, multiplier);
   const xpToNext = getXPToNextLevel(currentLevel, currentXP, multiplier);
@@ -119,21 +127,29 @@ export function XPTracker({
 
   return (
     <div className="space-y-2">
-      {/* XP Progress Bar */}
-      <div className="relative">
-        <div className="flex items-center justify-between text-xs mb-1">
-          <span className="text-muted-foreground font-body">Experience</span>
-          <span className="font-display font-semibold">
-            <span className="text-primary">{xpInCurrentLevel.toLocaleString()}</span>
-            <span className="text-muted-foreground"> / {xpNeededForLevel.toLocaleString()}</span>
-          </span>
+      {/* XP Progress Bar - switches to Prestige at max level */}
+      {isMaxLevel && prestigeData && nextPrestigeXPRequired ? (
+        <PrestigeXPBar
+          currentXP={prestigeData.prestigeXP}
+          requiredXP={nextPrestigeXPRequired}
+          prestigeLevel={prestigeData.prestigeLevel}
+        />
+      ) : (
+        <div className="relative">
+          <div className="flex items-center justify-between text-xs mb-1">
+            <span className="text-muted-foreground font-body">Experience</span>
+            <span className="font-display font-semibold">
+              <span className="text-primary">{xpInCurrentLevel.toLocaleString()}</span>
+              <span className="text-muted-foreground"> / {xpNeededForLevel.toLocaleString()}</span>
+            </span>
+          </div>
+          <Progress value={progress} className="h-3" />
+          <div className="flex justify-between text-[10px] text-muted-foreground mt-0.5">
+            <span>Lv {currentLevel}</span>
+            <span>{xpToNext.toLocaleString()} XP to next</span>
+          </div>
         </div>
-        <Progress value={progress} className="h-3" />
-        <div className="flex justify-between text-[10px] text-muted-foreground mt-0.5">
-          <span>Lv {currentLevel}</span>
-          <span>{xpToNext.toLocaleString()} XP to next</span>
-        </div>
-      </div>
+      )}
 
       {/* Quick XP Add Buttons */}
       <div className="flex gap-2">
@@ -165,6 +181,16 @@ export function XPTracker({
                   <span className="text-muted-foreground"> progression ({multiplier}× XP required)</span>
                 </span>
               </div>
+
+              {/* Prestige Mode Indicator */}
+              {isMaxLevel && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-amber-500/10 border border-amber-500/30">
+                  <Star className="w-4 h-4 text-amber-400" />
+                  <span className="text-xs text-amber-300">
+                    Max level reached! XP now contributes to <span className="font-semibold">Prestige</span>.
+                  </span>
+                </div>
+              )}
 
               {/* Achievement Bonus Indicator */}
               {achievements.some(a => a.currentValue > 0) && (

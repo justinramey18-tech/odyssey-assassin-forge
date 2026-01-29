@@ -1,16 +1,25 @@
 import { Character, getAbilityPointsForLevel, getTotalPointsSpent } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
 import { Badge } from '@/components/ui/badge';
-import { Skull, Shield, Swords, Target, User } from 'lucide-react';
+import { Skull, Shield, Swords, Target } from 'lucide-react';
+import { PrestigeBadge } from '@/components/prestige';
+import { PrestigeData } from '@/lib/prestige';
 
 interface CharacterHeaderProps {
   character: Character;
   currentXP: number;
+  prestigeData?: PrestigeData;
 }
 
-export function CharacterHeader({ character, currentXP }: CharacterHeaderProps) {
+export function CharacterHeader({ character, currentXP, prestigeData }: CharacterHeaderProps) {
   const totalPoints = getAbilityPointsForLevel(character.level);
   const spentPoints = getTotalPointsSpent(character.abilities);
+  const isMaxLevel = character.level >= 20;
+  const isPrestigeActive = isMaxLevel && prestigeData && prestigeData.prestigeLevel > 0;
+  
+  // Calculate total available points including prestige
+  const prestigeAvailable = prestigeData?.availablePrestigePoints ?? 0;
+  const totalAvailable = (totalPoints - spentPoints) + prestigeAvailable;
   
   // Calculate tree points
   const hunterPoints = character.abilities
@@ -40,6 +49,13 @@ export function CharacterHeader({ character, currentXP }: CharacterHeaderProps) 
                 <Badge variant="outline" className="text-xs border-primary/50 text-primary font-display">
                   Level {character.level}
                 </Badge>
+                {isPrestigeActive && (
+                  <PrestigeBadge 
+                    prestigeLevel={prestigeData!.prestigeLevel} 
+                    isActive={true} 
+                    size="sm"
+                  />
+                )}
                 <span className="text-xs text-muted-foreground">
                   {currentXP.toLocaleString()} XP
                 </span>
@@ -50,10 +66,10 @@ export function CharacterHeader({ character, currentXP }: CharacterHeaderProps) 
           {/* Ability Points Summary */}
           <div className="text-right">
             <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
-              Ability Points
+              {prestigeAvailable > 0 ? 'Total Points' : 'Ability Points'}
             </div>
             <div className="font-display font-bold text-primary">
-              {spentPoints} / {totalPoints}
+              {spentPoints} / {totalPoints}{prestigeAvailable > 0 && ` (+${prestigeAvailable})`}
             </div>
           </div>
         </div>
