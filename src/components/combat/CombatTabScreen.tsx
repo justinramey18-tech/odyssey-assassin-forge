@@ -22,7 +22,7 @@ import { Activity, Skull } from 'lucide-react';
 import './CombatHUDStyles.css';
 import './mobile/MobileCombatStyles.css';
 import { useGameMode } from '@/hooks/use-game-mode';
-import combatBackground from '@/assets/skills-background.jpg';
+import combatBackground from '@/assets/combat-background.jpg';
 
 interface CombatTabScreenProps {
   character: Character;
@@ -250,12 +250,17 @@ export function CombatTabScreen({ character }: CombatTabScreenProps) {
   }
   return (
     <div className="combat-hud min-h-[calc(100vh-200px)] relative overflow-hidden">
-      {/* Background Image */}
+      {/* Background Image with Parallax */}
       <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
-        style={{ backgroundImage: `url(${combatBackground})` }}
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat bg-fixed scale-110 z-0"
+        style={{ 
+          backgroundImage: `url(${combatBackground})`,
+          transform: 'translateZ(0)',
+        }}
       />
-      <div className="absolute inset-0 bg-background/80 z-0" />
+      {/* Gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-b from-background/85 via-background/60 to-background/90 z-0" />
+      <div className="absolute inset-0 bg-gradient-to-t from-red-900/30 via-transparent to-black/40 z-0" />
       
       {/* Scan lines overlay */}
       <div className="hud-scanlines" />
