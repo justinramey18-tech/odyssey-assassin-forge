@@ -14,13 +14,20 @@ import { GameModeSettings as GameModeSettingsType, loadGameModeSettings, saveGam
 interface SettingsModalProps {
   characterName: string;
   onEditCharacter: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function SettingsModal({ characterName, onEditCharacter }: SettingsModalProps) {
-  const [open, setOpen] = useState(false);
+export function SettingsModal({ characterName, onEditCharacter, open: controlledOpen, onOpenChange }: SettingsModalProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [diceOddsMode, setDiceOddsMode] = useState<DiceOddsMode>(() => loadDiceOddsMode());
   const [gameModeSettings, setGameModeSettings] = useState<GameModeSettingsType>(() => loadGameModeSettings());
   const [xpProgressionMode, setXPProgressionMode] = useState<XPProgressionMode>(() => loadXPProgressionMode());
+
+  // Support both controlled and uncontrolled modes
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = isControlled ? (onOpenChange ?? (() => {})) : setInternalOpen;
 
   const handleGameModeChange = (settings: GameModeSettingsType) => {
     setGameModeSettings(settings);
@@ -29,15 +36,6 @@ export function SettingsModal({ characterName, onEditCharacter }: SettingsModalP
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="gap-1 border border-muted/40 hover:bg-muted/20 font-cinzel uppercase tracking-wider text-[9px] px-3"
-        >
-          <Settings className="w-3.5 h-3.5" />
-        </Button>
-      </DialogTrigger>
       <DialogContent className="max-w-lg max-h-[90vh] p-0 gap-0">
         <DialogHeader className="p-4 pb-2 border-b border-border/50">
           <DialogTitle className="flex items-center gap-2 font-cinzel">

@@ -24,6 +24,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Swords, Backpack, Trophy, Sparkles, Home, BookOpen, ChevronUp, Crosshair, Lock } from 'lucide-react';
 import { SettingsModal } from '@/components/settings/SettingsModal';
+import { AssassinHeader } from '@/components/navigation/AssassinHeader';
 import { CombatTabScreen } from '@/components/combat/CombatTabScreen';
 import { useToast } from '@/hooks/use-toast';
 import { useGameMode } from '@/hooks/use-game-mode';
@@ -37,6 +38,7 @@ import {
 const Index = () => {
   const [showWizard, setShowWizard] = useState(true);
   const [showHomeScreen, setShowHomeScreen] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'skills' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat'>('skills');
   const [character, setCharacter] = useState<Character>({
     name: '',
@@ -375,104 +377,20 @@ const Index = () => {
       <CharacterHeader character={character} currentXP={currentXP} />
 
       {/* Tab Navigation */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'skills' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat')} className="w-full">
-        {/* Tab Navigation Bar */}
-        <div className="sticky top-0 z-40 bg-gradient-to-b from-background via-background/98 to-background/90 backdrop-blur-md border-b border-red-900/30 px-4 py-3">
-          {/* Decorative top line */}
-          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-red-500 to-transparent" />
-          
-          <div className="flex items-center gap-2 max-w-2xl mx-auto">
-            {/* Home Button - Opens full-screen overlay */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowHomeScreen(true)}
-              className="gap-1 border border-red-900/40 hover:bg-red-600/20 hover:text-red-400 font-cinzel uppercase tracking-wider text-[9px] px-3"
-            >
-              <Home className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Home</span>
-            </Button>
-
-            {/* Main Tabs */}
-            <TabsList className="flex-1 grid grid-cols-6 bg-black/40 border border-red-900/40 p-1 rounded-none relative overflow-hidden">
-              {/* Corner accents */}
-              <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-red-500/70" />
-              <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-red-500/70" />
-              <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-red-500/70" />
-              <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-red-500/70" />
-              
-              <TabsTrigger 
-                value="combat" 
-                className="group gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-red-600/40 data-[state=active]:to-red-900/30 data-[state=active]:text-red-300 data-[state=active]:border-b-2 data-[state=active]:border-red-400 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all hover:bg-red-900/20"
-              >
-                <span className="relative">
-                  <Crosshair className="w-3.5 h-3.5 relative z-10 group-hover:animate-tab-crosshair group-data-[state=active]:animate-tab-crosshair" />
-                  <span className="absolute inset-0 blur-sm bg-red-400 rounded-full opacity-0 group-data-[state=active]:opacity-60 group-data-[state=active]:animate-glow-pulse transition-opacity" />
-                </span>
-                <span>Combat</span>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="skills" 
-                className="group gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-red-600/30 data-[state=active]:to-red-900/20 data-[state=active]:text-red-400 data-[state=active]:border-b-2 data-[state=active]:border-red-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all hover:bg-red-900/20"
-              >
-                <span className="relative">
-                  <Swords className="w-3.5 h-3.5 relative z-10 group-hover:animate-tab-swords group-data-[state=active]:animate-tab-swords" />
-                  <span className="absolute inset-0 blur-sm bg-red-500 rounded-full opacity-0 group-data-[state=active]:opacity-60 group-data-[state=active]:animate-glow-pulse transition-opacity" />
-                </span>
-                <span>Skills</span>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="gear" 
-                className="group gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-amber-600/30 data-[state=active]:to-amber-900/20 data-[state=active]:text-amber-400 data-[state=active]:border-b-2 data-[state=active]:border-amber-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all hover:bg-amber-900/20"
-              >
-                <span className="relative">
-                  <Backpack className="w-3.5 h-3.5 relative z-10 group-hover:animate-tab-backpack group-data-[state=active]:animate-tab-backpack" />
-                  <span className="absolute inset-0 blur-sm bg-amber-400 rounded-full opacity-0 group-data-[state=active]:opacity-60 group-data-[state=active]:animate-glow-pulse transition-opacity" />
-                </span>
-                <span>Gear</span>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="feats" 
-                className="group gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-purple-600/30 data-[state=active]:to-purple-900/20 data-[state=active]:text-purple-400 data-[state=active]:border-b-2 data-[state=active]:border-purple-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all hover:bg-purple-900/20"
-              >
-                <span className="relative">
-                  <Trophy className="w-3.5 h-3.5 relative z-10 group-hover:animate-tab-trophy group-data-[state=active]:animate-tab-trophy" />
-                  <span className="absolute inset-0 blur-sm bg-purple-400 rounded-full opacity-0 group-data-[state=active]:opacity-60 group-data-[state=active]:animate-glow-pulse transition-opacity" />
-                </span>
-                <span>Feats</span>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="stars" 
-                className="group gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-cyan-600/30 data-[state=active]:to-cyan-900/20 data-[state=active]:text-cyan-400 data-[state=active]:border-b-2 data-[state=active]:border-cyan-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all hover:bg-cyan-900/20"
-              >
-                <span className="relative">
-                  <Sparkles className="w-3.5 h-3.5 relative z-10 group-hover:animate-tab-sparkles group-data-[state=active]:animate-tab-sparkles" />
-                  <span className="absolute inset-0 blur-sm bg-cyan-400 rounded-full opacity-0 group-data-[state=active]:opacity-60 group-data-[state=active]:animate-glow-pulse transition-opacity" />
-                </span>
-                <span>Stars</span>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="scribe" 
-                className="group gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-amber-600/30 data-[state=active]:to-amber-900/20 data-[state=active]:text-amber-400 data-[state=active]:border-b-2 data-[state=active]:border-amber-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all hover:bg-amber-900/20"
-              >
-                <span className="relative">
-                  <BookOpen className="w-3.5 h-3.5 relative z-10 group-hover:animate-tab-book group-data-[state=active]:animate-tab-book" />
-                  <span className="absolute inset-0 blur-sm bg-amber-400 rounded-full opacity-0 group-data-[state=active]:opacity-60 group-data-[state=active]:animate-glow-pulse transition-opacity" />
-                </span>
-                <span>Scribe</span>
-              </TabsTrigger>
-            </TabsList>
-
-            {/* Settings Modal */}
-            <SettingsModal 
-              characterName={character.name} 
-              onEditCharacter={() => setShowWizard(true)} 
-            />
-          </div>
-          
-          {/* Decorative bottom accent */}
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-[2px] bg-gradient-to-r from-transparent via-red-500/50 to-transparent" />
-        </div>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'skills' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat')} className="w-full flex flex-col">
+        {/* Assassin's Creed Styled Header Navigation */}
+        <AssassinHeader 
+          onHomeClick={() => setShowHomeScreen(true)}
+          onSettingsClick={() => setShowSettingsModal(true)}
+        />
+        
+        {/* Settings Modal - Controlled */}
+        <SettingsModal 
+          characterName={character.name} 
+          onEditCharacter={() => setShowWizard(true)}
+          open={showSettingsModal}
+          onOpenChange={setShowSettingsModal}
+        />
 
         {/* Skills Tab Content */}
         <TabsContent value="skills" className="mt-0 pb-4">
