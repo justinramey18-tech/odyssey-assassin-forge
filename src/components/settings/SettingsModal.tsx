@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { Settings, User, Dices, Gamepad2, RotateCcw, Star, Lock, FileText, Copy, Check } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useState, useMemo } from 'react';
+import { Settings, User, Dices, Gamepad2, RotateCcw, Star, Lock, FileText, Copy, Check, RefreshCw } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -12,219 +12,11 @@ import { GameModeSettings as GameModeSettingsType, loadGameModeSettings, saveGam
 import { useGameMode } from '@/hooks/use-game-mode';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-
-const GM_GUIDE = `# ODYSSEY ASSASSIN - AI GM SYNCHRONIZATION GUIDE
-Version 2.0 | For AI Dungeon Masters
-
-## OVERVIEW
-You are GMing for a player using the "Odyssey Assassin" digital character sheet. This guide bridges communication between the sheet's mechanics and your narrative. The player will report their stats, abilities, and roll results—your role is to interpret these within the fiction.
-
----
-
-## CHARACTER STRUCTURE
-
-### Level & XP System
-- **Max Level**: 20
-- **XP per Level**: Varies by progression mode (Standard/Accelerated/Relaxed)
-- **Ability Points**: 1 per level + bonus at levels 4, 8, 12, 16, 19
-- **Active Ability Slots**: 2 (Lv1-4) → 3 (Lv5-10) → 4 (Lv11-16) → 5 (Lv17-20)
-
-### Three Ability Trees
-1. **HUNTER** (Ranged/Tactical) - Bow mastery, traps, beast companions, environmental exploitation
-2. **WARRIOR** (Melee/Tank) - Heavy weapons, shields, berserker rage, crowd control
-3. **ASSASSIN** (Stealth/Precision) - Critical strikes, poison, invisibility, instant kills
-
-### Ability Tiers (1-3)
-Each ability can be upgraded through 3 tiers:
-- **Tier 1**: Basic effect, foundational
-- **Tier 2**: Enhanced effect, additional utility
-- **Tier 3**: Mastery effect, dramatic power spike
-
----
-
-## ACTION ECONOMY (Per Turn)
-
-| Action Type | Count | Examples |
-|-------------|-------|----------|
-| Action | 1 | Attack, Ability, Interact |
-| Bonus Action | 1 | Off-hand attack, Quick ability |
-| Reaction | 1 | Counter, Parry, Opportunity |
-| Movement | 30ft | Can split before/after actions |
-| Free Action | Unlimited | Speak, drop item, simple gesture |
-
-### Usage Types
-- **At-Will**: Unlimited use
-- **Short Rest**: Recharges after 1-hour rest
-- **Long Rest**: Recharges after 8-hour rest
-
----
-
-## DICE SYSTEM
-
-### Standard Roll Format
-Player reports: "[Ability/Skill] roll: [Result] (natural [d20 value])"
-
-### Critical Thresholds
-- **Natural 1**: Critical failure - something goes dramatically wrong
-- **Natural 20**: Critical success - maximum effect + narrative bonus
-- **DC Ranges**: Easy (10), Medium (15), Hard (20), Very Hard (25), Nearly Impossible (30)
-
-### Advantage/Disadvantage
-- **Advantage**: Roll 2d20, take higher
-- **Disadvantage**: Roll 2d20, take lower
-- Player will specify when reporting rolls
-
----
-
-## LEGENDARY GEAR SYSTEM
-
-### 8 Legendary Sets (5 pieces each)
-Each set has a thematic identity. Players unlock gear by completing FEATS (tracked achievements).
-
-**Set Bonuses:**
-- 2 pieces: Minor passive bonus
-- 3 pieces: Moderate ability enhancement
-- 4 pieces: Significant power boost
-- 5 pieces: Ultimate set effect (build-defining)
-
-### Equipment Slots
-- **Head**: Perception, awareness, mental effects
-- **Chest**: Defense, health, regeneration
-- **Hands**: Attack, manipulation, crafting
-- **Waist**: Utility, storage, resource management
-- **Legs**: Movement, agility, positioning
-
-### Gear Unlock Status
-Player will report: "[Item Name] - LOCKED (Progress: X/Y)" or "[Item Name] - EQUIPPED"
-- Locked gear cannot be used until feat requirement is met
-- Interpret equipped gear's effects in your narration
-
----
-
-## FEAT SYSTEM (Achievement Tracking)
-
-Feats track specific in-game accomplishments. When a player performs a feat-worthy action, they'll increment their progress. Examples:
-
-| Feat Category | Trigger Actions |
-|--------------|-----------------|
-| Distracting Enemies with Dialogue | Talking during combat to create openings |
-| Surviving After 0 HP | Death saves, clutch heals, regeneration |
-| Overkill Strikes | Dealing 2x+ lethal damage |
-| Delivering One-Liners | Quips after kills |
-| Breaking Fourth Wall | Meta-humor, genre awareness |
-| Befriending Enemies | Diplomacy with hostiles |
-| Dramatic Entrances | Theatrical battle arrivals |
-
-**Your Role**: Acknowledge feat-worthy moments. Say "That sounds like a [Feat Name] moment!" to prompt the player to track progress.
-
----
-
-## COMBAT FLOW
-
-### Initiative
-Player reports their initiative roll. You determine enemy initiatives and turn order.
-
-### Attack Resolution
-1. Player declares action + target
-2. Player rolls attack (reports result + natural value)
-3. If hit, player rolls damage
-4. You narrate the outcome, incorporating their gear/abilities
-
-### Damage Types
-Physical: Slashing, Piercing, Bludgeoning
-Elemental: Fire, Cold, Lightning, Poison, Acid
-Special: Psychic, Necrotic, Radiant, Force
-
-### Status Effects to Track
-- **Bleeding**: Ongoing damage each turn
-- **Poisoned**: Disadvantage on attacks/ability checks
-- **Stunned**: Skip turn, auto-fail Dex saves
-- **Invisible**: Advantage on attacks, enemies have disadvantage
-- **Marked**: Hunter's Focus - extra damage from marker
-
----
-
-## SITUATIONAL MODIFIERS
-
-The player's sheet tracks active situations. They may report:
-- "I have HIGH GROUND" (+2 to ranged attacks)
-- "Enemy is FLANKED" (Advantage on melee)
-- "I'm in STEALTH" (Advantage on first attack)
-- "Combat started with SURPRISE" (Extra turn for ambushers)
-
-Acknowledge these in your DC settings and narrative.
-
----
-
-## PRESTIGE SYSTEM (Post-Level 20)
-
-If player mentions Prestige:
-- **Prestige Points**: Earned after max level, spent on permanent bonuses
-- **Prestige Level**: Indicates how many times they've "prestiged"
-- These represent mastery beyond normal limits
-
----
-
-## INFINITY STONES (Optional Endgame)
-
-If the player has collected Infinity Stones:
-- **Power**: Raw damage amplification
-- **Space**: Teleportation, positioning
-- **Time**: Action economy manipulation
-- **Reality**: Environment alteration
-- **Soul**: Life/death manipulation
-- **Mind**: Mental domination
-
-Each stone grants reality-bending abilities. Treat with appropriate narrative weight.
-
----
-
-## COMMUNICATION PROTOCOL
-
-### What the Player Reports
-- Current HP / Max HP
-- Active abilities in loadout (up to 5)
-- Equipped gear and set bonuses
-- Roll results with natural values
-- Active situational modifiers
-- Feat progress (when relevant)
-
-### What You Provide
-- Enemy stats and behaviors (hidden)
-- Environmental descriptions and hazards
-- DC values for checks
-- Narrative consequences of actions
-- XP rewards (if tracking)
-- Loot and treasure
-
----
-
-## NARRATIVE INTEGRATION TIPS
-
-1. **Reference Their Gear**: "Your Mask of Perpetual Commentary whispers a quip as you..."
-2. **Honor Their Build**: Hunter → describe tactical positioning; Warrior → emphasize raw power; Assassin → highlight precision
-3. **Acknowledge Tier Upgrades**: Higher tiers = more dramatic effect descriptions
-4. **Track Ability Cooldowns**: If they used a Short Rest ability, it's unavailable until rest
-5. **Celebrate Feats**: When they unlock gear, describe it manifesting or being discovered
-
----
-
-## QUICK REFERENCE
-
-**Ability Points by Level**: Level + bonuses at 4/8/12/16/19
-**Active Slots**: 2→3→4→5 at levels 1/5/11/17
-**Critical Hit**: Natural 20 = max damage + bonus effect
-**Death Saves**: 3 successes = stabilize, 3 failures = death
-**Short Rest**: 1 hour, recover some abilities
-**Long Rest**: 8 hours, recover all abilities + HP
-
----
-
-## FINAL NOTE
-
-This character sheet emphasizes player agency and mechanical depth. Your role is to create a world that responds meaningfully to their choices. When in doubt, ask the player to clarify their sheet's current state—they have all the data, you have the narrative authority.
-
-**Let the hunt begin.**`;
+import { Character, Ability } from '@/lib/types';
+import { EquipmentItem, EquipmentSlotType } from '@/lib/inventory/types';
+import { generateDynamicGMGuide, STATIC_GM_GUIDE } from '@/lib/gmGuideGenerator';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 
 interface SettingsModalProps {
   characterName: string;
@@ -237,6 +29,12 @@ interface SettingsModalProps {
     availablePrestigePoints: number;
   };
   onPrestigeRespec?: () => void;
+  // New props for dynamic GM guide
+  character?: Character;
+  abilities?: Ability[];
+  unlockedAbilities?: Map<string, number>;
+  equippedGear?: Record<EquipmentSlotType, EquipmentItem | null>;
+  prestigeLevel?: number;
 }
 
 export function SettingsModal({ 
@@ -246,12 +44,19 @@ export function SettingsModal({
   onOpenChange,
   prestigeData,
   onPrestigeRespec,
+  character,
+  abilities,
+  unlockedAbilities,
+  equippedGear,
+  prestigeLevel,
 }: SettingsModalProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [diceOddsMode, setDiceOddsMode] = useState<DiceOddsMode>(() => loadDiceOddsMode());
   const [gameModeSettings, setGameModeSettings] = useState<GameModeSettingsType>(() => loadGameModeSettings());
   const [xpProgressionMode, setXPProgressionMode] = useState<XPProgressionMode>(() => loadXPProgressionMode());
-  const [copied, setCopied] = useState(false);
+  const [copiedStatic, setCopiedStatic] = useState(false);
+  const [copiedDynamic, setCopiedDynamic] = useState(false);
+  const [showDynamic, setShowDynamic] = useState(true);
   
   const { prestigeRespecDisabled } = useGameMode();
 
@@ -259,17 +64,54 @@ export function SettingsModal({
   const open = isControlled ? controlledOpen : internalOpen;
   const setOpen = isControlled ? (onOpenChange ?? (() => {})) : setInternalOpen;
 
+  // Generate dynamic guide based on current character state
+  const dynamicGuide = useMemo(() => {
+    if (!character || !abilities || !unlockedAbilities || !equippedGear) {
+      return null;
+    }
+    return generateDynamicGMGuide({
+      character,
+      abilities,
+      unlockedAbilities,
+      equippedGear,
+      prestigeLevel,
+    });
+  }, [character, abilities, unlockedAbilities, equippedGear, prestigeLevel]);
+
+  // Combined guide for copying
+  const fullGuide = useMemo(() => {
+    if (dynamicGuide) {
+      return `${dynamicGuide}\n\n${'='.repeat(60)}\n\n${STATIC_GM_GUIDE}`;
+    }
+    return STATIC_GM_GUIDE;
+  }, [dynamicGuide]);
+
   const handleGameModeChange = (settings: GameModeSettingsType) => {
     setGameModeSettings(settings);
     saveGameModeSettings(settings);
   };
 
-  const handleCopyGuide = async () => {
+  const handleCopyFullGuide = async () => {
     try {
-      await navigator.clipboard.writeText(GM_GUIDE);
-      setCopied(true);
-      toast.success('GM Guide copied to clipboard!');
-      setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(fullGuide);
+      setCopiedStatic(true);
+      toast.success('Complete GM Guide copied!');
+      setTimeout(() => setCopiedStatic(false), 2000);
+    } catch (err) {
+      toast.error('Failed to copy');
+    }
+  };
+
+  const handleCopyDynamicOnly = async () => {
+    if (!dynamicGuide) {
+      toast.error('No character data available');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(dynamicGuide);
+      setCopiedDynamic(true);
+      toast.success('Current build snapshot copied!');
+      setTimeout(() => setCopiedDynamic(false), 2000);
     } catch (err) {
       toast.error('Failed to copy');
     }
@@ -278,6 +120,7 @@ export function SettingsModal({
   const hasPrestigePoints = prestigeData && prestigeData.totalPrestigePoints > 0;
   const hasSpentPoints = prestigeData && prestigeData.spentPrestigePoints > 0;
   const canRespec = hasSpentPoints && !prestigeRespecDisabled && onPrestigeRespec;
+  const hasDynamicData = !!dynamicGuide;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -320,42 +163,124 @@ export function SettingsModal({
               </TabsContent>
 
               <TabsContent value="setup" className="mt-0 space-y-4">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-cinzel font-semibold text-sm">AI GM Synchronization Guide</h3>
-                      <p className="text-xs text-muted-foreground">
-                        Copy this guide and paste it to your AI Dungeon Master
-                      </p>
-                    </div>
+                <div className="space-y-4">
+                  {/* Header */}
+                  <div>
+                    <h3 className="font-cinzel font-semibold text-sm">AI GM Synchronization Guide</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Copy and paste to your AI Dungeon Master to sync with your character
+                    </p>
+                  </div>
+
+                  {/* Copy Buttons */}
+                  <div className="flex gap-2">
                     <Button
-                      variant="outline"
+                      variant="default"
                       size="sm"
-                      onClick={handleCopyGuide}
-                      className="gap-1.5 shrink-0"
+                      onClick={handleCopyFullGuide}
+                      className="gap-1.5 flex-1"
                     >
-                      {copied ? (
+                      {copiedStatic ? (
                         <>
-                          <Check className="w-3.5 h-3.5 text-green-500" />
+                          <Check className="w-3.5 h-3.5 text-green-300" />
                           Copied!
                         </>
                       ) : (
                         <>
                           <Copy className="w-3.5 h-3.5" />
-                          Copy Guide
+                          Copy Full Guide
                         </>
                       )}
                     </Button>
+                    
+                    {hasDynamicData && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCopyDynamicOnly}
+                        className="gap-1.5"
+                      >
+                        {copiedDynamic ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-green-500" />
+                            Copied!
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            Build Only
+                          </>
+                        )}
+                      </Button>
+                    )}
                   </div>
 
-                  <div className="relative">
-                    <pre className="p-3 rounded-lg border border-border/50 bg-muted/30 text-xs font-mono whitespace-pre-wrap max-h-[45vh] overflow-y-auto leading-relaxed">
-                      {GM_GUIDE}
-                    </pre>
-                  </div>
+                  {/* Toggle between dynamic and static */}
+                  {hasDynamicData && (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant={showDynamic ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setShowDynamic(true)}
+                        className="text-xs h-7"
+                      >
+                        Current Build
+                      </Button>
+                      <Button
+                        variant={!showDynamic ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setShowDynamic(false)}
+                        className="text-xs h-7"
+                      >
+                        System Rules
+                      </Button>
+                    </div>
+                  )}
 
-                  <p className="text-xs text-muted-foreground text-center pt-2 border-t border-border/30">
-                    This guide helps AI DMs understand your character sheet mechanics
+                  {/* Dynamic Build Section */}
+                  {showDynamic && hasDynamicData && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs bg-primary/10 border-primary/30 text-primary">
+                          Live Character Data
+                        </Badge>
+                        <span className="text-[10px] text-muted-foreground">
+                          Auto-updates with your build
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <pre className="p-3 rounded-lg border border-primary/30 bg-primary/5 text-xs font-mono whitespace-pre-wrap max-h-[35vh] overflow-y-auto leading-relaxed">
+                          {dynamicGuide}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Static System Rules Section */}
+                  {(!showDynamic || !hasDynamicData) && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs">
+                          System Reference
+                        </Badge>
+                        <span className="text-[10px] text-muted-foreground">
+                          Core mechanics & rules
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <pre className="p-3 rounded-lg border border-border/50 bg-muted/30 text-xs font-mono whitespace-pre-wrap max-h-[35vh] overflow-y-auto leading-relaxed">
+                          {STATIC_GM_GUIDE}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
+
+                  <Separator className="bg-border/30" />
+
+                  <p className="text-xs text-muted-foreground text-center">
+                    {hasDynamicData 
+                      ? '💡 "Full Guide" includes your current build + system rules. "Build Only" is for quick updates.'
+                      : '💡 Configure your character to enable dynamic build snapshots.'}
                   </p>
                 </div>
               </TabsContent>
