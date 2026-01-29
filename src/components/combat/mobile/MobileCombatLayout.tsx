@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Character, Ability } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
 import { cn } from '@/lib/utils';
@@ -14,6 +14,7 @@ import {
 import { DiceRoll, rollDice, getAbilityDice } from '@/lib/diceRoller';
 import { generateRPPrompt } from '@/lib/rpPromptGenerator';
 import { DiceRollModal } from '@/components/character/DiceRollModal';
+import { useSwipe } from '@/hooks/use-swipe';
 
 // Mobile components
 import { CombatBottomNav, CombatTab } from './CombatBottomNav';
@@ -25,6 +26,9 @@ import { CombatFAB } from './CombatFAB';
 import { TurnSummaryPanel } from './TurnSummaryPanel';
 import { MobileAbilityList } from './MobileAbilityList';
 import { MobileItemsGrid } from './MobileItemsGrid';
+
+// Tab order for swipe navigation
+const TAB_ORDER: CombatTab[] = ['attacks', 'stealth', 'abilities', 'items', 'summary'];
 
 // Combat modifier calculations
 interface CombatModifiers {
@@ -89,6 +93,34 @@ export function MobileCombatLayout({ character }: MobileCombatLayoutProps) {
   const [activeTab, setActiveTab] = useState<CombatTab>('attacks');
   const [round, setRound] = useState(1);
   const [isYourTurn, setIsYourTurn] = useState(true);
+  const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
+  
+  // Swipe navigation handlers
+  const handleSwipeLeft = useCallback(() => {
+    const currentIndex = TAB_ORDER.indexOf(activeTab);
+    if (currentIndex < TAB_ORDER.length - 1) {
+      setSlideDirection('left');
+      setActiveTab(TAB_ORDER[currentIndex + 1]);
+      // Reset animation after it completes
+      setTimeout(() => setSlideDirection(null), 300);
+    }
+  }, [activeTab]);
+  
+  const handleSwipeRight = useCallback(() => {
+    const currentIndex = TAB_ORDER.indexOf(activeTab);
+    if (currentIndex > 0) {
+      setSlideDirection('right');
+      setActiveTab(TAB_ORDER[currentIndex - 1]);
+      // Reset animation after it completes
+      setTimeout(() => setSlideDirection(null), 300);
+    }
+  }, [activeTab]);
+  
+  const { handlers: swipeHandlers, swiping, swipeOffset } = useSwipe(
+    handleSwipeLeft,
+    handleSwipeRight,
+    { threshold: 60, velocityThreshold: 0.4 }
+  );
   
   // Situation state
   const [conditions, setConditions] = useState<string[]>([]);
@@ -382,9 +414,27 @@ export function MobileCombatLayout({ character }: MobileCombatLayoutProps) {
           reactionCount={reactionCount}
         />
         
-        {/* Tab Content */}
-        <div className="overflow-auto">
-          {renderTabContent()}
+        {/* Tab Content - Swipeable */}
+        <div 
+          {...swipeHandlers}
+          className="overflow-auto touch-pan-y"
+          style={{ 
+            touchAction: 'pan-y pinch-zoom',
+          }}
+        >
+          <div 
+            className={cn(
+              "transition-transform duration-300 ease-out",
+              slideDirection === 'left' && "animate-slide-in-from-right",
+              slideDirection === 'right' && "animate-slide-in-from-left"
+            )}
+            style={{
+              transform: swiping ? `translateX(${swipeOffset}px)` : undefined,
+              transition: swiping ? 'none' : undefined,
+            }}
+          >
+            {renderTabContent()}
+          </div>
         </div>
       </main>
       
