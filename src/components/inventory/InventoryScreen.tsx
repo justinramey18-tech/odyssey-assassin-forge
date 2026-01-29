@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { ArrowLeft, Shield, Sword, Backpack, Wand2, Minimize2, Maximize2, User, Sparkles } from 'lucide-react';
+import { ArrowLeft, Shield, Sword, Backpack, Wand2, Minimize2, Maximize2, User, Sparkles, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { 
   CharacterEquipment, 
@@ -13,6 +13,8 @@ import {
   getActiveSetBonuses,
 } from '@/lib/inventory/index';
 import { setImages } from '@/lib/inventory/setImages';
+import { useGearLock } from '@/hooks/use-gear-lock';
+import { achievementCategories, Achievement } from '@/lib/achievements';
 import { EquipmentList } from './EquipmentList';
 import { ItemDetailSheet } from './ItemDetailSheet';
 import { ComparisonSheet } from './ComparisonSheet';
@@ -28,6 +30,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 export type ViewMode = 'compact' | 'expanded';
 
@@ -37,6 +45,7 @@ interface InventoryScreenProps {
   onBack: () => void;
   equipment?: CharacterEquipment;
   onEquipmentChange?: (equipment: CharacterEquipment) => void;
+  achievements?: Achievement[];
 }
 
 export function InventoryScreen({ 
@@ -45,9 +54,18 @@ export function InventoryScreen({
   onBack,
   equipment: externalEquipment,
   onEquipmentChange,
+  achievements = achievementCategories,
 }: InventoryScreenProps) {
   const [internalEquipment, setInternalEquipment] = useState<CharacterEquipment>(createInitialEquipment);
   const [viewMode, setViewMode] = useState<ViewMode>('compact');
+  
+  // Gear lock integration
+  const { 
+    requiresGearUnlocks, 
+    isItemLocked, 
+    getItemLockInfo, 
+    isSetLocked 
+  } = useGearLock(achievements);
   
   // Use external equipment if provided, otherwise use internal state
   const equipment = externalEquipment ?? internalEquipment;
@@ -285,28 +303,69 @@ export function InventoryScreen({
           </Toggle>
           
           {/* Quick Equip Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <Wand2 className="w-4 h-4 text-amber-400" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64">
-              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                Quick Equip Full Set
-              </div>
-              {legendarySetDefinitions.map(set => (
-                <DropdownMenuItem
-                  key={set.id}
-                  onClick={() => handleQuickEquipSet(set.id)}
-                  className="cursor-pointer"
-                >
-                  <span className="text-amber-400">★</span>
-                  <span className="ml-2 truncate">{set.name}</span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className={cn(
+                          "h-8 w-8",
+                          requiresGearUnlocks && "opacity-50 cursor-not-allowed"
+                        )}
+                        disabled={requiresGearUnlocks}
+                      >
+                        {requiresGearUnlocks ? (
+                          <Lock className="w-4 h-4 text-amber-500" />
+                        ) : (
+                          <Wand2 className="w-4 h-4 text-amber-400" />
+                        )}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    {!requiresGearUnlocks && (
+                      <DropdownMenuContent align="end" className="w-64">
+                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                          Quick Equip Full Set
+                        </div>
+                        {legendarySetDefinitions.map(set => {
+                          const setLocked = isSetLocked(set.id, allLegendaryItems);
+                          return (
+                            <DropdownMenuItem
+                              key={set.id}
+                              onClick={() => !setLocked && handleQuickEquipSet(set.id)}
+                              disabled={setLocked}
+                              className={cn(
+                                "cursor-pointer",
+                                setLocked && "opacity-50 cursor-not-allowed"
+                              )}
+                            >
+                              {setLocked ? (
+                                <Lock className="w-3 h-3 text-amber-500" />
+                              ) : (
+                                <span className="text-amber-400">★</span>
+                              )}
+                              <span className="ml-2 truncate">{set.name}</span>
+                              {setLocked && (
+                                <span className="ml-auto text-[10px] text-amber-500">Locked</span>
+                              )}
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </DropdownMenuContent>
+                    )}
+                  </DropdownMenu>
+                </div>
+              </TooltipTrigger>
+              {requiresGearUnlocks && (
+                <TooltipContent side="bottom">
+                  <p className="text-xs">Quick Equip disabled in Honest Mode</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </header>
 
@@ -323,6 +382,8 @@ export function InventoryScreen({
             onInfoTap={handleInfoTap}
             onSlotHover={setHighlightedSlot}
             viewMode={viewMode}
+            isItemLocked={isItemLocked}
+            getItemLockInfo={getItemLockInfo}
           />
           
           {/* Set Bonuses */}
@@ -391,6 +452,8 @@ export function InventoryScreen({
         inventory={equipment.inventory}
         slotType={selectedSlot}
         onSelectItem={handleEquipFromInventory}
+        isItemLocked={isItemLocked}
+        getItemLockInfo={getItemLockInfo}
       />
 
       {/* Active Set Bonus Drawer */}
