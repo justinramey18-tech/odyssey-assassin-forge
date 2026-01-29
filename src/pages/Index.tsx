@@ -6,9 +6,13 @@ import { WizardStepTwo } from '@/components/character/WizardStepTwo';
 import { PointsSummary } from '@/components/character/PointsSummary';
 import { EquippedLoadout } from '@/components/character/EquippedLoadout';
 import { ActionWheelButton } from '@/components/character/ActionWheelButton';
+import { InventoryScreen } from '@/components/inventory/InventoryScreen';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Swords, Backpack } from 'lucide-react';
 
 const Index = () => {
   const [step, setStep] = useState<1 | 2>(1);
+  const [activeTab, setActiveTab] = useState<'abilities' | 'inventory'>('abilities');
   const [character, setCharacter] = useState<Character>({
     name: '',
     level: 1,
@@ -133,7 +137,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header with points summary - always visible in step 2 */}
-      {step === 2 && (
+      {step === 2 && activeTab === 'abilities' && (
         <PointsSummary
           character={character}
           totalPoints={totalPoints}
@@ -146,7 +150,7 @@ const Index = () => {
       )}
 
       {/* Main content */}
-      <main className={step === 2 ? 'pt-4' : ''}>
+      <main className={step === 2 && activeTab === 'abilities' ? 'pt-4' : ''}>
         {step === 1 && (
           <WizardStepOne
             initialName={character.name}
@@ -156,28 +160,54 @@ const Index = () => {
         )}
 
         {step === 2 && (
-          <div className="container max-w-2xl mx-auto px-4 pb-4">
-            <div className="mb-6 p-4 rounded-lg border border-border/50 bg-card/30">
-              <EquippedLoadout
-                character={character}
-                onEquip={handleEquipAbility}
-                onUnequip={handleUnequipAbility}
-              />
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'abilities' | 'inventory')} className="w-full">
+            {/* Tab Navigation - Fixed at bottom on mobile */}
+            <div className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-sm border-t border-border/50 px-4 py-2 md:relative md:border-t-0 md:py-0 md:bg-transparent">
+              <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto">
+                <TabsTrigger value="abilities" className="gap-2">
+                  <Swords className="w-4 h-4" />
+                  <span>Abilities</span>
+                </TabsTrigger>
+                <TabsTrigger value="inventory" className="gap-2">
+                  <Backpack className="w-4 h-4" />
+                  <span>Inventory</span>
+                </TabsTrigger>
+              </TabsList>
             </div>
-          </div>
+
+            {/* Abilities Tab Content */}
+            <TabsContent value="abilities" className="mt-0 pb-20 md:pb-4">
+              <div className="container max-w-2xl mx-auto px-4 pb-4">
+                <div className="mb-6 p-4 rounded-lg border border-border/50 bg-card/30">
+                  <EquippedLoadout
+                    character={character}
+                    onEquip={handleEquipAbility}
+                    onUnequip={handleUnequipAbility}
+                  />
+                </div>
+              </div>
+
+              <WizardStepTwo
+                character={character}
+                remainingPoints={remainingPoints}
+                onUpgrade={handleUpgradeAbility}
+                onDowngrade={handleDowngradeAbility}
+              />
+            </TabsContent>
+
+            {/* Inventory Tab Content */}
+            <TabsContent value="inventory" className="mt-0">
+              <InventoryScreen
+                characterName={character.name}
+                level={character.level}
+                onBack={() => setActiveTab('abilities')}
+              />
+            </TabsContent>
+          </Tabs>
         )}
 
-        {step === 2 && (
-          <WizardStepTwo
-            character={character}
-            remainingPoints={remainingPoints}
-            onUpgrade={handleUpgradeAbility}
-            onDowngrade={handleDowngradeAbility}
-          />
-        )}
-
-        {/* Floating Action Wheel - only visible in step 2 */}
-        {step === 2 && (
+        {/* Floating Action Wheel - only visible in step 2 abilities tab */}
+        {step === 2 && activeTab === 'abilities' && (
           <ActionWheelButton characterName={character.name} />
         )}
       </main>
