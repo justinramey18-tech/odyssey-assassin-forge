@@ -4,3 +4,4 @@ export * from './baseItems';
 export * from './legendaryItems';
 export * from './legendarySets';
 export * from './utils';
+export * from './setImages';
