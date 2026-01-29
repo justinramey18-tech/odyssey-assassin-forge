@@ -3,13 +3,12 @@ import { Achievement } from '@/lib/achievements';
 import { 
   XP_REWARDS, 
   XPRewardType, 
-  XP_PRESETS, 
-  XPPreset,
   calculateXPGain,
   getLevelProgress,
   getXPToNextLevel,
   getXPForLevel,
 } from '@/lib/xpSystem';
+import { useXPProgression } from '@/hooks/use-xp-progression';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
@@ -20,13 +19,6 @@ import {
   DialogTitle, 
   DialogTrigger 
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { 
   Plus, 
@@ -40,16 +32,16 @@ import {
   Search,
   Users,
   Gift,
+  Snail,
+  Gauge,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface XPTrackerProps {
   currentLevel: number;
   currentXP: number;
-  xpPreset: XPPreset;
   achievements: Achievement[];
   onAddXP: (amount: number, source: string) => void;
-  onPresetChange: (preset: XPPreset) => void;
 }
 
 const rewardIcons: Record<XPRewardType, React.ReactNode> = {
@@ -65,22 +57,38 @@ const rewardIcons: Record<XPRewardType, React.ReactNode> = {
 export function XPTracker({
   currentLevel,
   currentXP,
-  xpPreset,
   achievements,
   onAddXP,
-  onPresetChange,
 }: XPTrackerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [customAmount, setCustomAmount] = useState('');
   const [selectedReward, setSelectedReward] = useState<XPRewardType | null>(null);
 
-  const multiplier = XP_PRESETS[xpPreset].multiplier;
+  // Use the reactive XP progression hook
+  const { mode, multiplier } = useXPProgression();
+
   const progress = getLevelProgress(currentLevel, currentXP, multiplier);
   const xpToNext = getXPToNextLevel(currentLevel, currentXP, multiplier);
   const currentLevelXP = getXPForLevel(currentLevel, multiplier);
   const nextLevelXP = getXPForLevel(currentLevel + 1, multiplier);
   const xpInCurrentLevel = currentXP - currentLevelXP;
   const xpNeededForLevel = nextLevelXP - currentLevelXP;
+
+  const getModeIcon = () => {
+    switch (mode) {
+      case 'slow': return <Snail className="w-3 h-3" />;
+      case 'fast': return <Zap className="w-3 h-3" />;
+      default: return <Gauge className="w-3 h-3" />;
+    }
+  };
+
+  const getModeLabel = () => {
+    switch (mode) {
+      case 'slow': return 'Slow';
+      case 'fast': return 'Fast Track';
+      default: return 'Natural';
+    }
+  };
 
   const handleAddReward = (rewardType: XPRewardType) => {
     const reward = XP_REWARDS[rewardType];
@@ -148,22 +156,14 @@ export function XPTracker({
               </DialogTitle>
             </DialogHeader>
 
-            {/* Preset Selection */}
+            {/* Progression Mode Indicator */}
             <div className="space-y-3">
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">XP Rate</label>
-                <Select value={xpPreset} onValueChange={(v) => onPresetChange(v as XPPreset)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(XP_PRESETS).map(([key, preset]) => (
-                      <SelectItem key={key} value={key}>
-                        {preset.name} {preset.multiplier > 0 && `(×${preset.multiplier})`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted/50 border border-border/50">
+                {getModeIcon()}
+                <span className="text-xs">
+                  <span className="font-medium">{getModeLabel()}</span>
+                  <span className="text-muted-foreground"> progression ({multiplier}× XP required)</span>
+                </span>
               </div>
 
               {/* Achievement Bonus Indicator */}
@@ -238,11 +238,11 @@ export function XPTracker({
         </Button>
       </div>
 
-      {/* Current Preset Badge */}
+      {/* Current Mode Badge */}
       <div className="flex justify-center">
         <Badge variant="outline" className="text-[10px] gap-1">
-          <Zap className="w-3 h-3" />
-          {XP_PRESETS[xpPreset].name}
+          {getModeIcon()}
+          {getModeLabel()}
         </Badge>
       </div>
     </div>

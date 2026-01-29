@@ -464,10 +464,8 @@ const Index = () => {
               <XPTracker
                 currentLevel={character.level}
                 currentXP={currentXP}
-                xpPreset={xpPreset}
                 achievements={achievements}
                 onAddXP={handleAddXP}
-                onPresetChange={setXPPreset}
               />
             </div>
 
