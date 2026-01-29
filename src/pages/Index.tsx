@@ -36,6 +36,7 @@ import { usePrestige } from '@/hooks/use-prestige';
 import { useEquipmentStats } from '@/hooks/use-equipment-stats';
 import { useAutoSave, loadAutoSave, SaveData, serializeConsumables } from '@/hooks/use-auto-save';
 import { useConsumables } from '@/hooks/use-consumables';
+import { ConsumablesInventoryWidget } from '@/components/consumables';
 import { PrestigePointCounter, PrestigeLevelUpModal } from '@/components/prestige';
 import { 
   CharacterEquipment, 
@@ -50,7 +51,7 @@ const Index = () => {
   const [showHomeScreen, setShowHomeScreen] = useState(true); // Home is default after wizard
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showCloudSaveModal, setShowCloudSaveModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'skills' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat'>('skills');
+  const [activeTab, setActiveTab] = useState<'skills' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables'>('skills');
   const [character, setCharacter] = useState<Character>({
     name: '',
     level: 1,
@@ -91,7 +92,12 @@ const Index = () => {
   );
   
   // Consumables inventory
-  const { inventory: consumablesInventory } = useConsumables();
+  const { 
+    inventory: consumablesInventory, 
+    useItem: useConsumableItem, 
+    setItemQuantity: setConsumableQuantity,
+    getItemCount: getConsumableCount 
+  } = useConsumables();
   
   const { toast } = useToast();
   const { requiresOrganicLevelUp, requiresGearUnlocks, rerollsDisabled } = useGameMode();
@@ -518,7 +524,14 @@ const Index = () => {
       />
 
       {/* Tab Navigation */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'skills' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat')} className="w-full flex flex-col">
+      <Tabs value={activeTab} onValueChange={(v) => {
+        // Handle special tabs that trigger actions instead of navigation
+        if (v === 'home') {
+          setShowHomeScreen(true);
+          return;
+        }
+        setActiveTab(v as 'skills' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables');
+      }} className="w-full flex flex-col">
         {/* Assassin's Creed Styled Header Navigation */}
         <AssassinHeader 
           onHomeClick={() => setShowHomeScreen(true)}
@@ -681,6 +694,32 @@ const Index = () => {
         {/* Combat Tab Content */}
         <TabsContent value="combat" className="mt-0">
           <CombatTabScreen character={character} />
+        </TabsContent>
+
+        {/* Consumables Tab Content */}
+        <TabsContent value="consumables" className="mt-0">
+          <BackgroundWrapper 
+            imagePath={builderBackground} 
+            overlayOpacity={70} 
+            tintColor="green" 
+            tintOpacity={15}
+            className="min-h-[calc(100vh-10vh)]"
+          >
+            <div className="container max-w-4xl mx-auto px-4 py-6">
+              <h1 className="font-cinzel text-2xl text-foreground mb-6 text-center">
+                Consumables Inventory
+              </h1>
+              <ConsumablesInventoryWidget 
+                inventory={consumablesInventory}
+                characterName={character.name}
+                onUseItem={(id) => useConsumableItem(id)}
+                onAdjustQuantity={(id, delta) => {
+                  const currentQty = getConsumableCount(id);
+                  setConsumableQuantity(id, currentQty + delta);
+                }}
+              />
+            </div>
+          </BackgroundWrapper>
         </TabsContent>
       </Tabs>
 
