@@ -12,6 +12,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import builderBackground from '@/assets/builder-background.jpg';
 
 interface WizardStepOneProps {
   initialName: string;
@@ -39,7 +40,14 @@ export function WizardStepOne({ initialName, initialLevel, onComplete }: WizardS
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4 relative">
+      {/* Builder Background Image */}
+      <div 
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat -z-10"
+        style={{ backgroundImage: `url(${builderBackground})` }}
+      />
+      {/* 60% transparent tint overlay */}
+      <div className="fixed inset-0 bg-background/60 -z-10" />
       <div className="w-full max-w-md">
         {/* Logo/Title */}
         <div className="text-center mb-8">
