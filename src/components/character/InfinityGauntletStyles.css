@@ -1,0 +1,147 @@
+/* Energy Button Animations */
+.energy-button {
+  position: relative;
+}
+
+/* Flowing energy background */
+.energy-flow {
+  position: absolute;
+  inset: 0;
+  opacity: 0.4;
+  animation: energyFlow 2s ease-in-out infinite;
+  animation-delay: var(--animation-delay);
+}
+
+@keyframes energyFlow {
+  0%, 100% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  50% {
+    transform: translateX(100%);
+    opacity: 0.6;
+  }
+}
+
+/* Pulsing energy core */
+.energy-pulse {
+  position: absolute;
+  inset: -50%;
+  opacity: 0;
+  animation: energyPulse 3s ease-in-out infinite;
+  animation-delay: var(--animation-delay);
+}
+
+@keyframes energyPulse {
+  0%, 100% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0.3;
+  }
+}
+
+/* Electricity arc effect */
+.electricity-arc {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 2px;
+  opacity: 0;
+  filter: blur(1px);
+  animation: electricityArc 1.5s ease-in-out infinite;
+  animation-delay: calc(var(--animation-delay) + 0.5s);
+}
+
+@keyframes electricityArc {
+  0%, 100% {
+    opacity: 0;
+    transform: translateY(-50%) scaleX(0);
+  }
+  25% {
+    opacity: 0.8;
+    transform: translateY(-50%) scaleX(0.3) translateX(-30%);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-50%) scaleX(1);
+  }
+  75% {
+    opacity: 0.8;
+    transform: translateY(-50%) scaleX(0.3) translateX(30%);
+  }
+}
+
+/* Shimmer overlay */
+.energy-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  animation: shimmer 3s ease-in-out infinite;
+  animation-delay: var(--animation-delay);
+}
+
+@keyframes shimmer {
+  0%, 100% {
+    left: -100%;
+  }
+  50% {
+    left: 100%;
+  }
+}
+
+/* Crackling border effect */
+.energy-button::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    var(--rotation, 0deg),
+    var(--stone-color),
+    transparent,
+    var(--stone-color)
+  );
+  opacity: 0.5;
+  z-index: -1;
+  animation: rotateBorder 4s linear infinite;
+  animation-delay: var(--animation-delay);
+}
+
+@keyframes rotateBorder {
+  0% {
+    --rotation: 0deg;
+    transform: rotate(0deg);
+  }
+  100% {
+    --rotation: 360deg;
+    transform: rotate(360deg);
+  }
+}
+
+/* Active state enhancement */
+.energy-button:hover .energy-flow,
+.energy-button:hover .energy-pulse {
+  animation-duration: 1s;
+}
+
+.energy-button:hover .electricity-arc {
+  animation-duration: 0.8s;
+}
+
+/* Particle effects on hover */
+.energy-button:hover::before {
+  animation-duration: 1.5s;
+}

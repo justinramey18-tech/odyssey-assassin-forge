@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { characterPrompts, CharacterPrompt } from '@/lib/characterPrompts';
 import { PromptEditModal } from './PromptEditModal';
 import gauntletBackground from '@/assets/infinity-gauntlet-screen.jpg';
+import './InfinityGauntletStyles.css';
 
 // Map categories to Infinity Stones - positioned to match gauntlet image
 // Knuckle row (L to R): Orange, Red, Purple, Orange/Green, Red(thumb)
@@ -119,25 +120,21 @@ export function InfinityGauntletScreen({ characterName, open, onClose }: Infinit
         <p className="text-white/70 text-sm mt-1">Tap an Infinity Stone</p>
       </div>
 
-      {/* Infinity Stones */}
+      {/* Infinity Stones - Invisible tap targets */}
       <div className="absolute inset-0 z-10">
         {infinityStones.map((stone) => (
           <button
             key={stone.id}
             onClick={() => handleStoneClick(stone.id)}
             className={cn(
-              'absolute w-12 h-12 rounded-full transition-all duration-300',
-              'border-2 transform -translate-x-1/2 -translate-y-1/2',
-              activeStone === stone.id 
-                ? 'scale-150 z-20' 
-                : 'hover:scale-125 animate-pulse'
+              'absolute w-14 h-14 rounded-full transition-all duration-300',
+              'transform -translate-x-1/2 -translate-y-1/2',
+              activeStone === stone.id ? 'scale-125 z-20' : 'hover:scale-110'
             )}
             style={{
               top: stone.position.top,
               left: stone.position.left,
-              backgroundColor: stone.color,
-              borderColor: 'rgba(255,255,255,0.6)',
-              boxShadow: `0 0 20px ${stone.glowColor}, 0 0 40px ${stone.glowColor}, inset 0 0 10px rgba(255,255,255,0.3)`,
+              backgroundColor: 'transparent',
             }}
             title={stone.name}
           >
@@ -232,29 +229,47 @@ export function InfinityGauntletScreen({ characterName, open, onClose }: Infinit
         />
       )}
 
-      {/* Stone Legend at Bottom */}
+      {/* Stone Legend at Bottom - Energy Flow Buttons */}
       <div className="absolute bottom-6 left-0 right-0 z-10 px-4">
         <div className="flex flex-wrap justify-center gap-2">
-          {infinityStones.map((stone) => (
+          {infinityStones.map((stone, index) => (
             <button
               key={stone.id}
               onClick={() => handleStoneClick(stone.id)}
               className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium',
-                'bg-black/50 backdrop-blur-sm border transition-all',
+                'energy-button relative flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium overflow-hidden',
+                'backdrop-blur-sm transition-all duration-300',
                 activeStone === stone.id 
-                  ? 'border-white/60 scale-105' 
-                  : 'border-white/20 hover:border-white/40'
+                  ? 'scale-110 z-20' 
+                  : 'hover:scale-105'
               )}
               style={{
-                boxShadow: activeStone === stone.id ? `0 0 15px ${stone.glowColor}` : 'none',
-              }}
+                '--stone-color': stone.color,
+                '--stone-glow': stone.glowColor,
+                '--animation-delay': `${index * 0.15}s`,
+                background: `linear-gradient(135deg, ${stone.color}20, ${stone.color}40)`,
+                border: `1px solid ${stone.color}60`,
+                boxShadow: activeStone === stone.id 
+                  ? `0 0 25px ${stone.glowColor}, 0 0 50px ${stone.glowColor}` 
+                  : `0 0 10px ${stone.glowColor}`,
+              } as React.CSSProperties}
             >
+              {/* Energy flow background */}
+              <div className="energy-flow" style={{ background: `linear-gradient(90deg, transparent, ${stone.color}, transparent)` }} />
+              <div className="energy-pulse" style={{ background: `radial-gradient(circle, ${stone.color}80, transparent)` }} />
+              <div className="electricity-arc" style={{ background: `linear-gradient(90deg, transparent, ${stone.color}, transparent)` }} />
+              
+              {/* Stone indicator */}
               <span 
-                className="w-2.5 h-2.5 rounded-full"
-                style={{ backgroundColor: stone.color }}
+                className="relative z-10 w-3 h-3 rounded-full animate-pulse"
+                style={{ 
+                  backgroundColor: stone.color,
+                  boxShadow: `0 0 8px ${stone.color}, 0 0 16px ${stone.glowColor}`,
+                }}
               />
-              <span className="text-white/90">{stone.categories[0]}</span>
+              <span className="relative z-10 text-white font-semibold tracking-wide drop-shadow-lg">
+                {stone.categories[0]}
+              </span>
             </button>
           ))}
         </div>
