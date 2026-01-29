@@ -1,10 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { getAbilityPointsForLevel } from '@/lib/types';
-import { Skull, ChevronRight } from 'lucide-react';
+import { DiceOddsMode, loadDiceOddsMode } from '@/lib/diceOdds';
+import { DiceOddsWidget } from '@/components/settings/DiceOddsWidget';
+import { Skull, ChevronRight, Settings } from 'lucide-react';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 
 interface WizardStepOneProps {
   initialName: string;
@@ -15,6 +22,12 @@ interface WizardStepOneProps {
 export function WizardStepOne({ initialName, initialLevel, onComplete }: WizardStepOneProps) {
   const [name, setName] = useState(initialName);
   const [level, setLevel] = useState(initialLevel);
+  const [diceOddsMode, setDiceOddsMode] = useState<DiceOddsMode>('fair');
+  const [showSettings, setShowSettings] = useState(false);
+
+  useEffect(() => {
+    setDiceOddsMode(loadDiceOddsMode());
+  }, []);
 
   const abilityPoints = getAbilityPointsForLevel(level);
 
@@ -101,6 +114,30 @@ export function WizardStepOne({ initialName, initialLevel, onComplete }: WizardS
               </p>
             </div>
           </div>
+
+          {/* Advanced Settings Collapsible */}
+          <Collapsible open={showSettings} onOpenChange={setShowSettings}>
+            <CollapsibleTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full justify-between text-muted-foreground hover:text-foreground"
+              >
+                <span className="flex items-center gap-2">
+                  <Settings className="w-4 h-4" />
+                  <span className="font-display text-xs uppercase tracking-wider">Advanced Settings</span>
+                </span>
+                <ChevronRight className={`w-4 h-4 transition-transform ${showSettings ? 'rotate-90' : ''}`} />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-4 space-y-4">
+              {/* Dice Odds Widget */}
+              <DiceOddsWidget 
+                value={diceOddsMode} 
+                onChange={setDiceOddsMode} 
+              />
+            </CollapsibleContent>
+          </Collapsible>
 
           <Button
             type="submit"
