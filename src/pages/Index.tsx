@@ -47,7 +47,7 @@ import {
 
 const Index = () => {
   const [showWizard, setShowWizard] = useState(true);
-  const [showHomeScreen, setShowHomeScreen] = useState(false);
+  const [showHomeScreen, setShowHomeScreen] = useState(true); // Home is default after wizard
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showCloudSaveModal, setShowCloudSaveModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'skills' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat'>('skills');
