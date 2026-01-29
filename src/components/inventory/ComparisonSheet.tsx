@@ -1,6 +1,6 @@
 import { X, ArrowUp, ArrowDown, Minus, Star, HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { EquipmentItem, rarityConfig, EquipmentSlotType } from '@/lib/inventory';
+import { EquipmentItem, rarityConfig, EquipmentSlotType } from '@/lib/inventory/index';
 import { getIconByName } from '@/lib/iconUtils';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';

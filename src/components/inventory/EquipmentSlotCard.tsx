@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Info, X, Star, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { EquipmentItem, EquipmentSlotType, rarityConfig } from '@/lib/inventory';
+import { EquipmentItem, EquipmentSlotType, rarityConfig } from '@/lib/inventory/index';
 import { getIconByName } from '@/lib/iconUtils';
 
 interface EquipmentSlotCardProps {

@@ -8,7 +8,7 @@ import {
   calculateTotalStats,
   createInitialEquipment,
   sampleEquipment,
-} from '@/lib/inventory';
+} from '@/lib/inventory/index';
 import { CharacterDisplay } from './CharacterDisplay';
 import { EquipmentList } from './EquipmentList';
 import { ItemDetailSheet } from './ItemDetailSheet';

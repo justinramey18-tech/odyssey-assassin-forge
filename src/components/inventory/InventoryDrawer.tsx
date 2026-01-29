@@ -1,6 +1,6 @@
 import { Package, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { EquipmentItem, EquipmentSlotType, rarityConfig, equipmentSlotDefinitions } from '@/lib/inventory';
+import { EquipmentItem, EquipmentSlotType, rarityConfig, equipmentSlotDefinitions } from '@/lib/inventory/index';
 import { getIconByName } from '@/lib/iconUtils';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { ScrollArea } from '@/components/ui/scroll-area';
