@@ -7,6 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { FloatingOverlaySettings } from './FloatingOverlaySettings';
 import { DiceOddsWidget } from './DiceOddsWidget';
 import { GameModeSettings } from './GameModeSettings';
+import { XPProgressionWidget, XPProgressionMode, loadXPProgressionMode } from './XPProgressionWidget';
 import { DiceOddsMode, loadDiceOddsMode } from '@/lib/diceOdds';
 import { GameModeSettings as GameModeSettingsType, loadGameModeSettings, saveGameModeSettings } from '@/lib/gameModes';
 
@@ -19,6 +20,7 @@ export function SettingsModal({ characterName, onEditCharacter }: SettingsModalP
   const [open, setOpen] = useState(false);
   const [diceOddsMode, setDiceOddsMode] = useState<DiceOddsMode>(() => loadDiceOddsMode());
   const [gameModeSettings, setGameModeSettings] = useState<GameModeSettingsType>(() => loadGameModeSettings());
+  const [xpProgressionMode, setXPProgressionMode] = useState<XPProgressionMode>(() => loadXPProgressionMode());
 
   const handleGameModeChange = (settings: GameModeSettingsType) => {
     setGameModeSettings(settings);
@@ -66,8 +68,12 @@ export function SettingsModal({ characterName, onEditCharacter }: SettingsModalP
 
           <ScrollArea className="h-[60vh]">
             <div className="p-4">
-              <TabsContent value="game" className="mt-0 space-y-4">
+              <TabsContent value="game" className="mt-0 space-y-6">
                 <GameModeSettings settings={gameModeSettings} onChange={handleGameModeChange} />
+                
+                <div className="border-t border-border/30 pt-4">
+                  <XPProgressionWidget value={xpProgressionMode} onChange={setXPProgressionMode} />
+                </div>
               </TabsContent>
 
               <TabsContent value="app" className="mt-0 space-y-4">
