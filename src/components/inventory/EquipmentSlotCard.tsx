@@ -3,6 +3,7 @@ import { Info, X, Star, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EquipmentItem, EquipmentSlotType, rarityConfig } from '@/lib/inventory/index';
 import { getIconByName } from '@/lib/iconUtils';
+import type { ViewMode } from './InventoryScreen';
 
 interface EquipmentSlotCardProps {
   slotType: EquipmentSlotType;
@@ -15,6 +16,7 @@ interface EquipmentSlotCardProps {
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
   onInfoTap?: () => void;
+  viewMode?: ViewMode;
 }
 
 export function EquipmentSlotCard({
@@ -28,7 +30,9 @@ export function EquipmentSlotCard({
   onSwipeLeft,
   onSwipeRight,
   onInfoTap,
+  viewMode = 'compact',
 }: EquipmentSlotCardProps) {
+  const isCompact = viewMode === 'compact';
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number; time: number } | null>(null);
   const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null);
@@ -137,81 +141,87 @@ export function EquipmentSlotCard({
         onClick={onTap}
       >
         {/* Header Row */}
-        <div className="flex items-center justify-between px-2 py-1 border-b border-border/30">
-          <div className="flex items-center gap-1.5">
-            <IconComponent className="w-3 h-3 text-muted-foreground" />
-            <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+        <div className={cn(
+          "flex items-center justify-between border-b border-border/30",
+          isCompact ? "px-2 py-1" : "px-3 py-2"
+        )}>
+          <div className={cn("flex items-center", isCompact ? "gap-1.5" : "gap-2")}>
+            <IconComponent className={cn("text-muted-foreground", isCompact ? "w-3 h-3" : "w-4 h-4")} />
+            <span className={cn("font-bold uppercase tracking-wide text-muted-foreground", isCompact ? "text-[10px]" : "text-xs")}>
               {label}
             </span>
           </div>
           <button
-            className="p-0.5 rounded hover:bg-muted/50 transition-colors"
+            className={cn("rounded hover:bg-muted/50 transition-colors", isCompact ? "p-0.5" : "p-1")}
             onClick={(e) => {
               e.stopPropagation();
               onInfoTap?.();
             }}
           >
-            <Info className="w-3 h-3 text-muted-foreground" />
+            <Info className={cn("text-muted-foreground", isCompact ? "w-3 h-3" : "w-4 h-4")} />
           </button>
         </div>
 
         {/* Content Area */}
-        <div className="p-2">
+        <div className={isCompact ? "p-2" : "p-3"}>
           {item ? (
-            <div className="flex items-start gap-2">
+            <div className={cn("flex items-start", isCompact ? "gap-2" : "gap-3")}>
               {/* Item Icon */}
               <div className={cn(
-                "w-10 h-10 rounded flex items-center justify-center border shrink-0",
+                "rounded flex items-center justify-center border shrink-0",
                 rarity?.borderClass?.replace('border-l-', 'border-') || "border-border",
                 item.rarity === 'legendary' && "bg-amber-400/10",
                 item.rarity === 'epic' && "bg-purple-400/10",
                 item.rarity === 'rare' && "bg-blue-400/10",
+                isCompact ? "w-10 h-10" : "w-14 h-14"
               )}>
-                {ItemIcon && <ItemIcon className={cn("w-5 h-5", rarity?.color)} />}
+                {ItemIcon && <ItemIcon className={cn(rarity?.color, isCompact ? "w-5 h-5" : "w-8 h-8")} />}
               </div>
 
               {/* Item Details */}
               <div className="flex-1 min-w-0">
-                <h4 className={cn("font-semibold text-xs truncate", rarity?.color)}>
+                <h4 className={cn("font-semibold truncate", rarity?.color, isCompact ? "text-xs" : "text-sm")}>
                   {item.name}
                 </h4>
                 
                 {/* Set Badge - Shows which legendary set this item belongs to */}
                 {item.setName && (
                   <span className={cn(
-                    "inline-flex items-center gap-0.5 px-1 py-0 text-[8px] font-bold uppercase tracking-wide rounded-sm border mt-0.5",
+                    "inline-flex items-center font-bold uppercase tracking-wide rounded-sm border mt-0.5",
                     item.rarity === 'legendary' && "bg-amber-500/20 text-amber-400 border-amber-500/40",
                     item.rarity === 'epic' && "bg-purple-500/20 text-purple-400 border-purple-500/40",
                     item.rarity === 'rare' && "bg-blue-500/20 text-blue-400 border-blue-500/40",
+                    isCompact ? "gap-0.5 px-1 py-0 text-[8px]" : "gap-1 px-2 py-0.5 text-[10px]"
                   )}>
-                    <span className="w-1 h-1 rounded-full bg-current animate-pulse" />
+                    <span className={cn("rounded-full bg-current animate-pulse", isCompact ? "w-1 h-1" : "w-1.5 h-1.5")} />
                     {item.setName}
                   </span>
                 )}
                 
                 {/* Primary Stat & Rarity inline */}
-                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                <div className={cn("flex items-center flex-wrap", isCompact ? "gap-1.5 mt-0.5" : "gap-2 mt-1")}>
                   {item.stats.ac && (
-                    <span className="text-[10px] text-muted-foreground">
-                      🛡️+{item.stats.ac}
+                    <span className={cn("text-muted-foreground", isCompact ? "text-[10px]" : "text-xs")}>
+                      🛡️{isCompact ? '' : ' '}+{item.stats.ac}{isCompact ? '' : ' AC'}
                     </span>
                   )}
                   {item.stats.damage && (
-                    <span className="text-[10px] text-muted-foreground">
-                      ⚔️{item.stats.damage}
+                    <span className={cn("text-muted-foreground", isCompact ? "text-[10px]" : "text-xs")}>
+                      ⚔️{isCompact ? '' : ' '}{item.stats.damage}
                     </span>
                   )}
                   <div className={cn("flex items-center gap-0.5", rarity?.color)}>
                     {rarity && renderStars(rarity.stars)}
+                    {!isCompact && <span className="text-xs ml-1">{rarity?.label}</span>}
                   </div>
                 </div>
               </div>
             </div>
           ) : (
             /* Empty Slot */
-            <div className="flex items-center justify-center py-2 opacity-60 gap-2">
-              <IconComponent className="w-6 h-6 text-muted-foreground/50" />
-              <span className="text-[10px] text-muted-foreground">Tap to equip</span>
+            <div className={cn("flex items-center justify-center opacity-60 gap-2", isCompact ? "py-2" : "py-4 flex-col")}>
+              <IconComponent className={cn("text-muted-foreground/50", isCompact ? "w-6 h-6" : "w-10 h-10")} />
+              <span className={cn("text-muted-foreground", isCompact ? "text-[10px]" : "text-xs")}>Tap to equip</span>
             </div>
           )}
         </div>

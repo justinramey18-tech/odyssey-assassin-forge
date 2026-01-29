@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { ArrowLeft, Settings, Shield, Sword, Backpack, Wand2 } from 'lucide-react';
+import { ArrowLeft, Settings, Shield, Sword, Backpack, Wand2, Minimize2, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { 
   CharacterEquipment, 
@@ -19,12 +19,15 @@ import { SetBonusPanel } from './SetBonusPanel';
 import { InventoryDrawer } from './InventoryDrawer';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
+import { Toggle } from '@/components/ui/toggle';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+
+export type ViewMode = 'compact' | 'expanded';
 
 interface InventoryScreenProps {
   characterName: string;
@@ -42,6 +45,7 @@ export function InventoryScreen({
   onEquipmentChange,
 }: InventoryScreenProps) {
   const [internalEquipment, setInternalEquipment] = useState<CharacterEquipment>(createInitialEquipment);
+  const [viewMode, setViewMode] = useState<ViewMode>('compact');
   
   // Use external equipment if provided, otherwise use internal state
   const equipment = externalEquipment ?? internalEquipment;
@@ -53,6 +57,8 @@ export function InventoryScreen({
   const [showComparison, setShowComparison] = useState(false);
   const [compareItem, setCompareItem] = useState<EquipmentItem | null>(null);
   const [showInventoryDrawer, setShowInventoryDrawer] = useState(false);
+
+  const isCompact = viewMode === 'compact';
 
   const stats = calculateTotalStats(equipment.slots);
 
@@ -179,53 +185,80 @@ export function InventoryScreen({
   return (
     <div className="fixed inset-0 bg-background z-50 flex flex-col">
       {/* Top Status Bar */}
-      <header className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-background/95 backdrop-blur-sm">
+      <header className="flex items-center justify-between px-3 py-2 border-b border-border/50 bg-background/95 backdrop-blur-sm">
         <button 
           onClick={onBack}
-          className="p-2 -ml-2 rounded-lg hover:bg-muted transition-colors"
+          className="p-1.5 -ml-1 rounded-lg hover:bg-muted transition-colors"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="w-4 h-4" />
         </button>
-        <h1 className="font-bold">{characterName}</h1>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="-mr-2">
-              <Wand2 className="w-5 h-5 text-amber-400" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-64">
-            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-              Quick Equip Full Set
-            </div>
-            {legendarySetDefinitions.map(set => (
-              <DropdownMenuItem
-                key={set.id}
-                onClick={() => handleQuickEquipSet(set.id)}
-                className="cursor-pointer"
-              >
-                <span className="text-amber-400">★</span>
-                <span className="ml-2 truncate">{set.name}</span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        
+        <h1 className="font-bold text-sm">{characterName}</h1>
+        
+        <div className="flex items-center gap-1">
+          {/* View Mode Toggle */}
+          <Toggle
+            pressed={isCompact}
+            onPressedChange={(pressed) => setViewMode(pressed ? 'compact' : 'expanded')}
+            size="sm"
+            className="h-8 w-8 p-0"
+            aria-label="Toggle view mode"
+          >
+            {isCompact ? (
+              <Minimize2 className="w-4 h-4" />
+            ) : (
+              <Maximize2 className="w-4 h-4" />
+            )}
+          </Toggle>
+          
+          {/* Quick Equip Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Wand2 className="w-4 h-4 text-amber-400" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                Quick Equip Full Set
+              </div>
+              {legendarySetDefinitions.map(set => (
+                <DropdownMenuItem
+                  key={set.id}
+                  onClick={() => handleQuickEquipSet(set.id)}
+                  className="cursor-pointer"
+                >
+                  <span className="text-amber-400">★</span>
+                  <span className="ml-2 truncate">{set.name}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </header>
 
       {/* Main Content - Split Screen */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Side - Character Display (35%) */}
-        <div className="w-[35%] border-r border-border/30 bg-gradient-to-b from-background to-muted/20">
+        {/* Left Side - Character Display */}
+        <div className={cn(
+          "border-r border-border/30 bg-gradient-to-b from-background to-muted/20 transition-all duration-300",
+          isCompact ? "w-[35%]" : "w-[40%]"
+        )}>
           <CharacterDisplay
             characterName={characterName}
             level={level}
             equipment={equipment}
             highlightedSlot={highlightedSlot}
+            viewMode={viewMode}
           />
         </div>
 
-        {/* Right Side - Equipment Slots (65%) */}
-        <div className="w-[65%] flex flex-col">
-          <ScrollArea className="flex-1 px-2 pt-2">
+        {/* Right Side - Equipment Slots */}
+        <div className={cn(
+          "flex flex-col transition-all duration-300",
+          isCompact ? "w-[65%]" : "w-[60%]"
+        )}>
+          <ScrollArea className={cn("flex-1", isCompact ? "px-2 pt-2" : "px-3 pt-3")}>
             <EquipmentList
               equipment={equipment}
               highlightedSlot={highlightedSlot}
@@ -235,40 +268,44 @@ export function InventoryScreen({
               onSwap={handleSwap}
               onInfoTap={handleInfoTap}
               onSlotHover={setHighlightedSlot}
+              viewMode={viewMode}
             />
             
             {/* Set Bonuses */}
             <SetBonusPanel equipment={equipment} />
             
             {/* Bottom padding for stats bar */}
-            <div className="h-14" />
+            <div className={isCompact ? "h-14" : "h-20"} />
           </ScrollArea>
         </div>
       </div>
 
       {/* Bottom Stats Bar */}
-      <footer className="flex items-center justify-around px-3 py-2 border-t border-border/50 bg-background/95 backdrop-blur-sm">
+      <footer className={cn(
+        "flex items-center justify-around border-t border-border/50 bg-background/95 backdrop-blur-sm transition-all duration-300",
+        isCompact ? "px-3 py-2" : "px-4 py-3"
+      )}>
         <div className="flex items-center gap-1.5">
-          <Shield className="w-4 h-4 text-blue-400" />
+          <Shield className={cn("text-blue-400", isCompact ? "w-4 h-4" : "w-5 h-5")} />
           <div className="text-center">
-            <p className="text-sm font-bold">{stats.totalAC}</p>
-            <p className="text-[8px] text-muted-foreground uppercase">AC</p>
+            <p className={cn("font-bold", isCompact ? "text-sm" : "text-lg")}>{stats.totalAC}</p>
+            <p className={cn("text-muted-foreground uppercase", isCompact ? "text-[8px]" : "text-[10px]")}>AC</p>
           </div>
         </div>
         
         <div className="flex items-center gap-1.5">
-          <Sword className="w-4 h-4 text-red-400" />
+          <Sword className={cn("text-red-400", isCompact ? "w-4 h-4" : "w-5 h-5")} />
           <div className="text-center">
-            <p className="text-sm font-bold">{stats.totalDamage}</p>
-            <p className="text-[8px] text-muted-foreground uppercase">Attack</p>
+            <p className={cn("font-bold", isCompact ? "text-sm" : "text-lg")}>{stats.totalDamage}</p>
+            <p className={cn("text-muted-foreground uppercase", isCompact ? "text-[8px]" : "text-[10px]")}>Attack</p>
           </div>
         </div>
         
         <div className="flex items-center gap-1.5">
-          <Backpack className="w-4 h-4 text-amber-400" />
+          <Backpack className={cn("text-amber-400", isCompact ? "w-4 h-4" : "w-5 h-5")} />
           <div className="text-center">
-            <p className="text-sm font-bold">{stats.totalWeight}</p>
-            <p className="text-[8px] text-muted-foreground uppercase">Weight</p>
+            <p className={cn("font-bold", isCompact ? "text-sm" : "text-lg")}>{stats.totalWeight}</p>
+            <p className={cn("text-muted-foreground uppercase", isCompact ? "text-[8px]" : "text-[10px]")}>Weight</p>
           </div>
         </div>
       </footer>
