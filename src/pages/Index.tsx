@@ -401,7 +401,7 @@ const Index = () => {
             style={{ backgroundImage: `url(${skillsBackgroundImage})` }}
           />
           {/* Semi-transparent overlay for readability */}
-          <div className="absolute inset-0 bg-background/80 backdrop-blur-[2px]" />
+          <div className="absolute inset-0 bg-background/60" />
           
           {/* Content */}
           <div className="container max-w-2xl mx-auto px-4 py-4 relative z-10">
