@@ -22,7 +22,7 @@ import { NarrativeForgeScreen } from '@/components/scribe/NarrativeForgeScreen';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Swords, Backpack, Trophy, Sparkles, Home, BookOpen, ChevronUp, Settings, Crosshair } from 'lucide-react';
-import { CombatHUDScreen } from '@/components/combat/CombatHUDScreen';
+import { CombatTabScreen } from '@/components/combat/CombatTabScreen';
 import { useToast } from '@/hooks/use-toast';
 import { 
   CharacterEquipment, 
@@ -520,9 +520,9 @@ const Index = () => {
           />
         </TabsContent>
 
-        {/* Combat HUD Tab Content */}
+        {/* Combat Tab Content */}
         <TabsContent value="combat" className="mt-0">
-          <CombatHUDScreen character={character} />
+          <CombatTabScreen character={character} />
         </TabsContent>
       </Tabs>
 
