@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Swords, Copy, Check, Target, Shield, Zap, Eye, Footprints } from 'lucide-react';
+import { Swords, Copy, Check, Target, Shield, Zap, Eye, Footprints, Package } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { EdgeDrawer } from './EdgeDrawer';
-import { allAbilities, getAbilitiesByTree } from '@/lib/abilities';
+import { allAbilities } from '@/lib/abilities';
 import { Ability, Character } from '@/lib/types';
 import { generateRPPrompt } from '@/lib/rpPromptGenerator';
 import { rollDice } from '@/lib/diceRoller';
@@ -14,6 +14,9 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { ConsumablesInventoryWidget, AddConsumableDrawer } from '@/components/consumables';
+import { useConsumables } from '@/hooks/use-consumables';
+import { Separator } from '@/components/ui/separator';
 
 const combatActions = [
   {
@@ -67,6 +70,14 @@ export function CombatDrawer({
   unlockedAbilities,
 }: CombatDrawerProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const { 
+    inventory, 
+    useItem, 
+    addItem, 
+    setItemQuantity, 
+    getItemCount,
+    getTotalItems 
+  } = useConsumables();
 
   const copyToClipboard = async (text: string, id: string) => {
     const processedText = text.replace(/\[Character Name\]/g, character.name || 'The Assassin');
@@ -88,6 +99,15 @@ export function CombatDrawer({
 
   const unlockedActiveAbilities = getUnlockedAbilities();
 
+  const handleUseConsumable = (id: string) => {
+    useItem(id);
+  };
+
+  const handleAdjustQuantity = (id: string, delta: number) => {
+    const current = getItemCount(id);
+    setItemQuantity(id, current + delta);
+  };
+
   return (
     <EdgeDrawer
       side="left"
@@ -99,6 +119,35 @@ export function CombatDrawer({
     >
       <ScrollArea className="h-[calc(100vh-120px)]">
         <div className="space-y-4 pr-2">
+          {/* Consumables Section */}
+          <Accordion type="single" collapsible className="w-full" defaultValue="consumables">
+            <AccordionItem value="consumables" className="border-border/50">
+              <AccordionTrigger className="text-xs font-semibold uppercase tracking-wider text-muted-foreground py-2 hover:no-underline">
+                <div className="flex items-center gap-2">
+                  <Package className="w-4 h-4" />
+                  Consumables ({getTotalItems()})
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-3 pt-2">
+                  <AddConsumableDrawer 
+                    onAddItem={addItem}
+                    getItemCount={getItemCount}
+                  />
+                  <ConsumablesInventoryWidget
+                    inventory={inventory}
+                    characterName={character.name || 'The Assassin'}
+                    onUseItem={handleUseConsumable}
+                    onAdjustQuantity={handleAdjustQuantity}
+                    compact
+                  />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+
+          <Separator className="bg-border/30" />
+
           {/* Basic Combat Actions */}
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
