@@ -4,9 +4,9 @@
  * 
  * Note: Full floating overlay functionality requires native Android/iOS implementation.
  * This module provides the web-side configuration and state management.
+ * 
+ * When Capacitor is set up externally, these settings will be used by the native bridge.
  */
-
-import { App } from '@capacitor/app';
 
 export interface FloatingOverlaySettings {
   enabled: boolean;
@@ -196,19 +196,18 @@ export async function stopFloatingOverlay(): Promise<void> {
 
 /**
  * Set up app lifecycle listeners for background handling
+ * Call this when Capacitor is available
  */
 export function setupAppLifecycleListeners(): void {
   if (!isNativeApp()) return;
 
-  App.addListener('appStateChange', ({ isActive }) => {
-    const settings = getFloatingOverlaySettings();
-    
-    if (!isActive && settings.enabled && settings.overlayPermissionGranted) {
-      // App went to background - start floating overlay if enabled
-      startFloatingOverlay();
-    } else if (isActive) {
-      // App came to foreground - could stop overlay or keep it
-      // Depending on user preference
-    }
-  });
+  // This would be called when Capacitor @capacitor/app is available
+  // App.addListener('appStateChange', ({ isActive }) => {
+  //   const settings = getFloatingOverlaySettings();
+  //   
+  //   if (!isActive && settings.enabled && settings.overlayPermissionGranted) {
+  //     startFloatingOverlay();
+  //   }
+  // });
+  console.log('App lifecycle listeners would be set up here with Capacitor');
 }
