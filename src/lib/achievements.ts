@@ -256,6 +256,129 @@ export const achievementCategories: Achievement[] = [
     maxValue: 50,
     currentValue: 0,
   },
+  // SET 6: UNKILLABLE MERC'S LOADOUT
+  {
+    id: 'survive-lethal',
+    name: 'Surviving Lethal Damage',
+    description: 'Survive damage that should have killed you',
+    icon: 'HeartCrack',
+    maxValue: 40,
+    currentValue: 0,
+  },
+  {
+    id: 'come-back-death',
+    name: 'Coming Back from Death',
+    description: 'Return from death through various means',
+    icon: 'Ghost',
+    maxValue: 15,
+    currentValue: 0,
+  },
+  {
+    id: 'counterattack-hit',
+    name: 'Counterattacking After Being Hit',
+    description: 'Successfully counterattack after taking damage',
+    icon: 'Sword',
+    maxValue: 150,
+    currentValue: 0,
+  },
+  {
+    id: 'reverse-time',
+    name: 'Reversing Time or Outcomes',
+    description: 'Use abilities or items to reverse outcomes',
+    icon: 'RotateCcw',
+    maxValue: 10,
+    currentValue: 0,
+  },
+  {
+    id: 'avoid-area-effects',
+    name: 'Avoiding Area Effects',
+    description: 'Dodge or avoid area of effect attacks',
+    icon: 'ShieldX',
+    maxValue: 80,
+    currentValue: 0,
+  },
+  // SET 7: ARSENAL OF ABSOLUTE ABSURDITY
+  {
+    id: 'break-fourth-wall',
+    name: 'Breaking the Fourth Wall',
+    description: 'Make meta-references that acknowledge the game',
+    icon: 'Frame',
+    maxValue: 50,
+    currentValue: 0,
+  },
+  {
+    id: 'befriend-enemies',
+    name: 'Befriending Enemies',
+    description: 'Turn enemies into allies through diplomacy or charm',
+    icon: 'Handshake',
+    maxValue: 40,
+    currentValue: 0,
+  },
+  {
+    id: 'defeat-with-words',
+    name: 'Defeating Enemies with Words Alone',
+    description: 'Defeat enemies without attacking',
+    icon: 'MessageCircle',
+    maxValue: 50,
+    currentValue: 0,
+  },
+  {
+    id: 'lucky-accidents',
+    name: 'Benefiting from Lucky Accidents',
+    description: 'Gain advantage from random fortunate events',
+    icon: 'Clover',
+    maxValue: 75,
+    currentValue: 0,
+  },
+  {
+    id: 'dramatic-entrances',
+    name: 'Making Dramatic Entrances',
+    description: 'Arrive at scenes with theatrical flair',
+    icon: 'Sparkle',
+    maxValue: 70,
+    currentValue: 0,
+  },
+  // SET 8: SELF-AWARE SLAYER'S KIT
+  {
+    id: 'perceive-meta',
+    name: 'Perceiving Meta-Narrative Elements',
+    description: 'Notice and comment on story structure',
+    icon: 'Eye',
+    maxValue: 25,
+    currentValue: 0,
+  },
+  {
+    id: 'survive-impossible',
+    name: 'Surviving Impossible Odds',
+    description: 'Survive situations with very low probability',
+    icon: 'Infinity',
+    maxValue: 20,
+    currentValue: 0,
+  },
+  {
+    id: 'influence-story',
+    name: 'Influencing Story Outcomes',
+    description: 'Change the direction of the narrative',
+    icon: 'Pencil',
+    maxValue: 30,
+    currentValue: 0,
+  },
+  {
+    id: 'deus-ex-machina',
+    name: 'Resolving Conflicts Through Improbable Means',
+    description: 'Solve problems with unexpected solutions',
+    icon: 'Wand2',
+    maxValue: 15,
+    currentValue: 0,
+  },
+  {
+    id: 'escape-last-second',
+    name: 'Escaping at the Last Second',
+    description: 'Narrowly escape dangerous situations',
+    icon: 'Timer',
+    maxValue: 50,
+    currentValue: 0,
+  },
 ];
 
 // Map of item IDs to their prerequisites
@@ -294,6 +417,27 @@ export const itemPrerequisites: Record<string, AchievementPrerequisite> = {
   'gloves-gratuitous-gestures': { achievementId: 'combat-flourishes', requiredValue: 50 },
   'sash-snack-storage': { achievementId: 'share-food-enemies', requiredValue: 10 },
   'pants-improbable-pockets': { achievementId: 'lucky-items', requiredValue: 20 },
+  
+  // SET 6: THE UNKILLABLE MERC'S LOADOUT
+  'helm-helpful-hallucinations': { achievementId: 'survive-lethal', requiredValue: 15 },
+  'cuirass-continuous-carnage': { achievementId: 'come-back-death', requiredValue: 5 },
+  'bracers-boundary-breaking': { achievementId: 'counterattack-hit', requiredValue: 75 },
+  'belt-unnecessary-buckles': { achievementId: 'reverse-time', requiredValue: 3 },
+  'greaves-gravity-defiance': { achievementId: 'avoid-area-effects', requiredValue: 40 },
+  
+  // SET 7: ARSENAL OF ABSOLUTE ABSURDITY
+  'mask-mixed-messages': { achievementId: 'break-fourth-wall', requiredValue: 25 },
+  'breastplate-borrowed-time': { achievementId: 'befriend-enemies', requiredValue: 15 },
+  'gauntlets-gratuitous-gore': { achievementId: 'defeat-with-words', requiredValue: 20 },
+  'belt-bottomless-pouches': { achievementId: 'lucky-accidents', requiredValue: 30 },
+  'boots-bizarre-locomotion': { achievementId: 'dramatic-entrances', requiredValue: 35 },
+  
+  // SET 8: THE SELF-AWARE SLAYER'S KIT
+  'cowl-cosmic-awareness': { achievementId: 'perceive-meta', requiredValue: 10 },
+  'armor-authorial-intent': { achievementId: 'survive-impossible', requiredValue: 8 },
+  'gloves-genre-savviness': { achievementId: 'influence-story', requiredValue: 12 },
+  'sash-script-flipping': { achievementId: 'deus-ex-machina', requiredValue: 6 },
+  'boots-boundary-crossing': { achievementId: 'escape-last-second', requiredValue: 20 },
 };
 
 // Helper function to check if item is unlocked

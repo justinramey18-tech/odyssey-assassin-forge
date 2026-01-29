@@ -562,6 +562,7 @@ const Index = () => {
             onBack={() => setActiveTab('skills')}
             equipment={equipment}
             onEquipmentChange={setEquipment}
+            achievements={achievements}
           />
         </TabsContent>
 

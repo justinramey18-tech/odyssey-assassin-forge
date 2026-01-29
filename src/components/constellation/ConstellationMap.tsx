@@ -1,11 +1,11 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { legendarySetDefinitions, allLegendaryItems, EquipmentItem, SetInfo } from '@/lib/inventory/index';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Star, ChevronLeft, ChevronRight, Lock, Sparkles, Unlock, Trophy } from 'lucide-react';
+import { Star, ChevronLeft, ChevronRight, Lock, Sparkles, Unlock, Trophy, Check } from 'lucide-react';
 import { getIconByName } from '@/lib/iconUtils';
 import { itemPrerequisites, Achievement } from '@/lib/achievements';
-import { Progress } from '@/components/ui/progress';
+import { useGearLock } from '@/hooks/use-gear-lock';
+import { useGameMode } from '@/hooks/use-game-mode';
 
 interface ConstellationMapProps {
   equippedItems: EquipmentItem[];
@@ -50,6 +50,9 @@ function SetConstellation({ setInfo, setItems, equippedSetItems, achievements, i
   const equippedIds = new Set(equippedSetItems.map(i => i.id));
   const equippedCount = equippedSetItems.length;
   const totalPieces = setItems.length;
+  
+  // Use gear lock hook for unlock status
+  const { getItemLockInfoById, requiresGearUnlocks } = useGearLock(achievements);
 
   // Get set-specific glow color
   const getSetGlowColor = () => {
@@ -69,6 +72,24 @@ function SetConstellation({ setInfo, setItems, equippedSetItems, achievements, i
   const glowColor = getSetGlowColor();
   const bgGlowColor = glowColor.replace('0.8', '0.1');
 
+  // Count unlocked items in the set
+  const unlockStats = useMemo(() => {
+    let unlockedCount = 0;
+    let totalWithRequirements = 0;
+    
+    setItems.forEach(item => {
+      const lockInfo = getItemLockInfoById(item.id);
+      if (lockInfo.hasRequirement) {
+        totalWithRequirements++;
+        if (!lockInfo.isLocked) {
+          unlockedCount++;
+        }
+      }
+    });
+    
+    return { unlockedCount, totalWithRequirements };
+  }, [setItems, getItemLockInfoById]);
+
   return (
     <div 
       className={cn(
@@ -86,9 +107,16 @@ function SetConstellation({ setInfo, setItems, equippedSetItems, achievements, i
         <h3 className="font-cinzel text-sm font-bold uppercase tracking-wider" style={{ color: glowColor }}>
           {setInfo.name}
         </h3>
-        <p className="text-xs text-muted-foreground mt-1">
-          {equippedCount}/{totalPieces} Pieces Unlocked
-        </p>
+        <div className="flex items-center justify-center gap-2 mt-1">
+          <p className="text-xs text-muted-foreground">
+            {equippedCount}/{totalPieces} Equipped
+          </p>
+          {requiresGearUnlocks && unlockStats.totalWithRequirements > 0 && (
+            <p className="text-[10px] text-amber-400">
+              • {unlockStats.unlockedCount}/{unlockStats.totalWithRequirements} Unlocked
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Constellation SVG */}
@@ -130,6 +158,22 @@ function SetConstellation({ setInfo, setItems, equippedSetItems, achievements, i
         const isEquipped = equippedIds.has(item.id);
         const isSelected = selectedStar?.id === item.id;
         const ItemIcon = getIconByName(item.icon);
+        
+        // Get lock status
+        const lockInfo = getItemLockInfoById(item.id);
+        const isLocked = requiresGearUnlocks && lockInfo.isLocked;
+        const isUnlocked = !isLocked;
+        const hasRequirement = lockInfo.hasRequirement;
+
+        // Determine node state: equipped > unlocked > locked > no requirement
+        let nodeStyle: 'equipped' | 'unlocked' | 'locked' | 'accessible' = 'accessible';
+        if (isEquipped) {
+          nodeStyle = 'equipped';
+        } else if (hasRequirement && isUnlocked) {
+          nodeStyle = 'unlocked';
+        } else if (hasRequirement && isLocked) {
+          nodeStyle = 'locked';
+        }
 
         return (
           <button
@@ -138,29 +182,48 @@ function SetConstellation({ setInfo, setItems, equippedSetItems, achievements, i
             className={cn(
               "absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300 z-10",
               "w-10 h-10 rounded-full flex items-center justify-center",
-              isEquipped 
-                ? "bg-gradient-to-br from-amber-400/30 to-amber-600/20 border-2" 
-                : "bg-black/40 border border-white/20",
+              nodeStyle === 'equipped' && "bg-gradient-to-br from-amber-400/30 to-amber-600/20 border-2",
+              nodeStyle === 'unlocked' && "bg-gradient-to-br from-green-400/20 to-emerald-600/10 border-2 border-green-500/60",
+              nodeStyle === 'locked' && "bg-black/60 border border-amber-500/40",
+              nodeStyle === 'accessible' && "bg-black/40 border border-white/20",
               isSelected && "scale-125 ring-2 ring-offset-2 ring-offset-background ring-amber-400"
             )}
             style={{
               left: `${position.x}%`,
               top: `calc(${position.y}% + 48px)`,
-              borderColor: isEquipped ? glowColor : undefined,
-              boxShadow: isEquipped ? `0 0 20px ${glowColor}, 0 0 40px ${bgGlowColor}` : undefined,
+              borderColor: nodeStyle === 'equipped' ? glowColor : undefined,
+              boxShadow: nodeStyle === 'equipped' 
+                ? `0 0 20px ${glowColor}, 0 0 40px ${bgGlowColor}` 
+                : nodeStyle === 'unlocked' 
+                  ? '0 0 15px rgba(34, 197, 94, 0.4)' 
+                  : undefined,
             }}
           >
-            {isEquipped ? (
+            {nodeStyle === 'equipped' ? (
               <ItemIcon className="w-5 h-5 text-amber-400" />
+            ) : nodeStyle === 'unlocked' ? (
+              <div className="relative">
+                <ItemIcon className="w-4 h-4 text-green-400" />
+                <Check className="absolute -bottom-1 -right-1 w-2.5 h-2.5 text-green-400" />
+              </div>
+            ) : nodeStyle === 'locked' ? (
+              <Lock className="w-4 h-4 text-amber-500/70" />
             ) : (
-              <Lock className="w-4 h-4 text-muted-foreground/50" />
+              <ItemIcon className="w-4 h-4 text-muted-foreground/70" />
             )}
             
             {/* Pulse effect for equipped */}
-            {isEquipped && (
+            {nodeStyle === 'equipped' && (
               <span 
                 className="absolute inset-0 rounded-full animate-ping opacity-30"
                 style={{ backgroundColor: glowColor }}
+              />
+            )}
+            
+            {/* Subtle glow for unlocked */}
+            {nodeStyle === 'unlocked' && (
+              <span 
+                className="absolute inset-0 rounded-full animate-pulse opacity-20 bg-green-400"
               />
             )}
           </button>
@@ -169,45 +232,62 @@ function SetConstellation({ setInfo, setItems, equippedSetItems, achievements, i
 
       {/* Selected Star Info Panel */}
       {selectedStar && (() => {
-        // Get unlock requirement info
-        const prerequisite = itemPrerequisites[selectedStar.id];
-        const achievement = prerequisite 
-          ? achievements.find(a => a.id === prerequisite.achievementId) 
-          : null;
-        const isUnlocked = !prerequisite || (achievement && achievement.currentValue >= prerequisite.requiredValue);
-        const progressPercent = achievement && prerequisite 
-          ? Math.min(100, (achievement.currentValue / prerequisite.requiredValue) * 100) 
-          : 100;
+        const lockInfo = getItemLockInfoById(selectedStar.id);
+        const isEquipped = equippedIds.has(selectedStar.id);
+        const isLocked = requiresGearUnlocks && lockInfo.isLocked;
+        const isUnlocked = !isLocked && lockInfo.hasRequirement;
 
         return (
           <div 
             className="absolute bottom-16 left-4 right-4 p-3 rounded-lg border backdrop-blur-md"
             style={{
               background: `linear-gradient(135deg, ${bgGlowColor}, rgba(0,0,0,0.8))`,
-              borderColor: glowColor,
+              borderColor: isLocked ? 'rgba(245, 158, 11, 0.5)' : isUnlocked ? 'rgba(34, 197, 94, 0.5)' : glowColor,
             }}
           >
             <div className="flex items-start gap-3">
               <div 
-                className="w-10 h-10 rounded-lg flex items-center justify-center border"
-                style={{ borderColor: glowColor, backgroundColor: bgGlowColor }}
+                className={cn(
+                  "w-10 h-10 rounded-lg flex items-center justify-center border",
+                  isLocked && "border-amber-500/50 bg-amber-500/10",
+                  isUnlocked && "border-green-500/50 bg-green-500/10",
+                  isEquipped && "border-amber-500 bg-amber-500/20",
+                  !isLocked && !isUnlocked && !isEquipped && "border-white/20 bg-white/5"
+                )}
               >
                 {(() => {
                   const Icon = getIconByName(selectedStar.icon);
-                  return <Icon className="w-5 h-5 text-amber-400" />;
+                  return <Icon className={cn(
+                    "w-5 h-5",
+                    isEquipped ? "text-amber-400" : isUnlocked ? "text-green-400" : isLocked ? "text-amber-500/70" : "text-muted-foreground"
+                  )} />;
                 })()}
               </div>
               <div className="flex-1 min-w-0">
-                <h4 className="font-semibold text-sm text-amber-400 truncate">{selectedStar.name}</h4>
+                <h4 className={cn(
+                  "font-semibold text-sm truncate",
+                  isEquipped ? "text-amber-400" : isUnlocked ? "text-green-400" : isLocked ? "text-amber-500" : "text-foreground"
+                )}>{selectedStar.name}</h4>
                 <p className="text-[10px] text-muted-foreground capitalize">{selectedStar.slotType.replace('_', ' ')}</p>
-                {equippedIds.has(selectedStar.id) ? (
+                
+                {/* Status Badge */}
+                {isEquipped ? (
                   <div className="flex items-center gap-1 mt-1">
-                    <Sparkles className="w-3 h-3 text-green-400" />
-                    <span className="text-[10px] text-green-400 font-medium">EQUIPPED</span>
+                    <Sparkles className="w-3 h-3 text-amber-400" />
+                    <span className="text-[10px] text-amber-400 font-medium">EQUIPPED</span>
+                  </div>
+                ) : isUnlocked ? (
+                  <div className="flex items-center gap-1 mt-1">
+                    <Check className="w-3 h-3 text-green-400" />
+                    <span className="text-[10px] text-green-400 font-medium">UNLOCKED - Equip in Gear tab</span>
+                  </div>
+                ) : isLocked ? (
+                  <div className="flex items-center gap-1 mt-1">
+                    <Lock className="w-3 h-3 text-amber-500" />
+                    <span className="text-[10px] text-amber-500 font-medium">LOCKED</span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-1 mt-1">
-                    <Lock className="w-3 h-3 text-muted-foreground" />
                     <span className="text-[10px] text-muted-foreground">Equip in Gear tab</span>
                   </div>
                 )}
@@ -215,39 +295,39 @@ function SetConstellation({ setInfo, setItems, equippedSetItems, achievements, i
             </div>
 
             {/* Unlock Requirement Section */}
-            {prerequisite && achievement && (
+            {lockInfo.hasRequirement && lockInfo.achievement && (
               <div className="mt-3 pt-3 border-t border-white/10">
                 <div className="flex items-center gap-2 mb-2">
-                  {isUnlocked ? (
+                  {!isLocked ? (
                     <Unlock className="w-3.5 h-3.5 text-green-400" />
                   ) : (
                     <Trophy className="w-3.5 h-3.5 text-amber-500" />
                   )}
                   <span className={cn(
                     "text-[10px] font-semibold uppercase tracking-wide",
-                    isUnlocked ? "text-green-400" : "text-amber-500"
+                    !isLocked ? "text-green-400" : "text-amber-500"
                   )}>
-                    {isUnlocked ? 'Unlocked' : 'Unlock Requirement'}
+                    {!isLocked ? 'Requirement Met' : 'Unlock Requirement'}
                   </span>
                 </div>
-                <p className="text-[11px] text-foreground/90 mb-1.5">"{achievement.name}"</p>
+                <p className="text-[11px] text-foreground/90 mb-1.5">"{lockInfo.achievement.name}"</p>
                 <div className="flex items-center gap-2">
                   <div className="flex-1 h-1.5 rounded-full bg-black/40 overflow-hidden">
                     <div 
                       className={cn(
                         "h-full rounded-full transition-all duration-500",
-                        isUnlocked 
+                        !isLocked
                           ? "bg-gradient-to-r from-green-500 to-emerald-400" 
                           : "bg-gradient-to-r from-amber-600 to-amber-400"
                       )}
-                      style={{ width: `${progressPercent}%` }}
+                      style={{ width: `${lockInfo.progressPercent || 0}%` }}
                     />
                   </div>
                   <span className={cn(
                     "text-[10px] font-medium tabular-nums",
-                    isUnlocked ? "text-green-400" : "text-amber-400"
+                    !isLocked ? "text-green-400" : "text-amber-400"
                   )}>
-                    {achievement.currentValue}/{prerequisite.requiredValue}
+                    {lockInfo.currentValue}/{lockInfo.requiredValue}
                   </span>
                 </div>
               </div>
@@ -347,7 +427,7 @@ export function ConstellationMap({ equippedItems, achievements }: ConstellationM
           <Star className="inline-block w-5 h-5 ml-2 fill-amber-400" />
         </h2>
         <p className="text-xs text-muted-foreground mt-1">
-          Equip legendary gear to illuminate the stars
+          Complete feats to unlock legendary gear
         </p>
       </div>
 
