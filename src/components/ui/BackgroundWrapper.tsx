@@ -7,6 +7,7 @@ interface BackgroundWrapperProps {
   tintColor?: 'red' | 'amber' | 'purple' | 'cyan' | 'green';
   tintOpacity?: number;
   fixed?: boolean;
+  backgroundSize?: 'cover' | 'contain';
   children: ReactNode;
   className?: string;
 }
@@ -25,6 +26,7 @@ export function BackgroundWrapper({
   tintColor,
   tintOpacity = 20,
   fixed = true,
+  backgroundSize = 'cover',
   children,
   className,
 }: BackgroundWrapperProps) {
@@ -40,10 +42,13 @@ export function BackgroundWrapper({
       {/* Background Image Layer */}
       <div 
         className={cn(
-          'absolute inset-0 bg-cover bg-center bg-no-repeat z-0',
+          'absolute inset-0 bg-center bg-no-repeat z-0',
           fixed && 'bg-fixed'
         )}
-        style={{ backgroundImage: `url(${imagePath})` }}
+        style={{ 
+          backgroundImage: `url(${imagePath})`,
+          backgroundSize: backgroundSize,
+        }}
       />
       
       {/* Dark Gradient Overlay */}
