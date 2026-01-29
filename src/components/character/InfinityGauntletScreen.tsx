@@ -155,7 +155,7 @@ export function InfinityGauntletScreen({ characterName, open, onClose }: Infinit
             boxShadow: `0 0 30px ${activeStoneData.glowColor}`,
           }}
         >
-          {/* Stone Header */}
+          {/* Stone Header with Close Button */}
           <div 
             className="sticky top-0 z-10 p-3 border-b backdrop-blur-md"
             style={{ 
@@ -163,19 +163,30 @@ export function InfinityGauntletScreen({ characterName, open, onClose }: Infinit
               borderColor: `${activeStoneData.color}50`,
             }}
           >
-            <h3 
-              className="font-display text-lg font-bold flex items-center gap-2"
-              style={{ color: activeStoneData.color }}
-            >
-              <span 
-                className="w-4 h-4 rounded-full"
-                style={{ backgroundColor: activeStoneData.color }}
-              />
-              {activeStoneData.name}
-            </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {activeStoneData.categories.join(' & ')}
-            </p>
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 
+                  className="font-display text-lg font-bold flex items-center gap-2"
+                  style={{ color: activeStoneData.color }}
+                >
+                  <span 
+                    className="w-4 h-4 rounded-full"
+                    style={{ backgroundColor: activeStoneData.color }}
+                  />
+                  {activeStoneData.name}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {activeStoneData.categories.join(' & ')}
+                </p>
+              </div>
+              <button
+                onClick={() => setActiveStone(null)}
+                className="p-1.5 rounded-full hover:bg-white/10 transition-colors"
+                style={{ color: activeStoneData.color }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Prompts List */}
