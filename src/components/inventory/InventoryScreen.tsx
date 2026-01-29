@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { ArrowLeft, Settings, Shield, Sword, Backpack, Wand2, Minimize2, Maximize2 } from 'lucide-react';
+import { useState, useCallback, useMemo } from 'react';
+import { ArrowLeft, Shield, Sword, Backpack, Wand2, Minimize2, Maximize2, User, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { 
   CharacterEquipment, 
@@ -10,8 +10,9 @@ import {
   sampleEquipment,
   legendarySetDefinitions,
   allLegendaryItems,
+  getActiveSetBonuses,
 } from '@/lib/inventory/index';
-import { CharacterDisplay } from './CharacterDisplay';
+import { setImages } from '@/lib/inventory/setImages';
 import { EquipmentList } from './EquipmentList';
 import { ItemDetailSheet } from './ItemDetailSheet';
 import { ComparisonSheet } from './ComparisonSheet';
@@ -59,6 +60,22 @@ export function InventoryScreen({
   const [showInventoryDrawer, setShowInventoryDrawer] = useState(false);
 
   const isCompact = viewMode === 'compact';
+
+  // Check for complete legendary set for background image
+  const activeSetBonuses = getActiveSetBonuses(equipment.slots);
+  const completeSet = useMemo(() => {
+    for (const bonus of activeSetBonuses) {
+      if (bonus.activePieces >= 8 && setImages[bonus.setInfo.id]) {
+        return {
+          setInfo: bonus.setInfo,
+          images: setImages[bonus.setInfo.id],
+        };
+      }
+    }
+    return null;
+  }, [activeSetBonuses]);
+
+  const backgroundImage = completeSet?.images.front || null;
 
   const stats = calculateTotalStats(equipment.slots);
 
@@ -183,9 +200,40 @@ export function InventoryScreen({
   }, []);
 
   return (
-    <div className="fixed inset-0 bg-background z-50 flex flex-col">
+    <div className="fixed inset-0 bg-background z-50 flex flex-col overflow-hidden">
+      {/* Background Image Layer - Set Armor Art */}
+      {backgroundImage && (
+        <div 
+          className="absolute inset-0 z-0"
+          style={{
+            backgroundImage: `url(${backgroundImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center top',
+          }}
+        >
+          {/* Overlay gradient for readability */}
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-background/40" />
+          {/* Animated glow effect */}
+          <div 
+            className="absolute inset-0 opacity-30 animate-pulse"
+            style={{
+              boxShadow: `inset 0 0 100px ${completeSet?.images.glowColor}`,
+            }}
+          />
+        </div>
+      )}
+
+      {/* Default background when no complete set */}
+      {!backgroundImage && (
+        <div className="absolute inset-0 z-0 bg-gradient-to-b from-muted/20 via-background to-background">
+          <div className="absolute inset-0 flex items-center justify-center opacity-10">
+            <User className="w-64 h-64 text-muted-foreground" />
+          </div>
+        </div>
+      )}
+
       {/* Top Status Bar */}
-      <header className="flex items-center justify-between px-3 py-2 border-b border-border/50 bg-background/95 backdrop-blur-sm">
+      <header className="relative z-10 flex items-center justify-between px-3 py-2 border-b border-border/50 bg-background/80 backdrop-blur-md">
         <button 
           onClick={onBack}
           className="p-1.5 -ml-1 rounded-lg hover:bg-muted transition-colors"
@@ -193,7 +241,15 @@ export function InventoryScreen({
           <ArrowLeft className="w-4 h-4" />
         </button>
         
-        <h1 className="font-bold text-sm">{characterName}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="font-bold text-sm">{characterName}</h1>
+          {completeSet && (
+            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40">
+              <Sparkles className="w-3 h-3 text-amber-400" />
+              <span className="text-[10px] font-bold text-amber-400 uppercase">{completeSet.setInfo.name}</span>
+            </div>
+          )}
+        </div>
         
         <div className="flex items-center gap-1">
           {/* View Mode Toggle */}
@@ -237,52 +293,32 @@ export function InventoryScreen({
         </div>
       </header>
 
-      {/* Main Content - Split Screen */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Side - Character Display */}
-        <div className={cn(
-          "border-r border-border/30 bg-gradient-to-b from-background to-muted/20 transition-all duration-300",
-          isCompact ? "w-[35%]" : "w-[40%]"
-        )}>
-          <CharacterDisplay
-            characterName={characterName}
-            level={level}
+      {/* Full Screen Equipment List Overlay */}
+      <div className="relative z-10 flex-1 flex flex-col overflow-hidden">
+        <ScrollArea className={cn("flex-1", isCompact ? "px-3 pt-2" : "px-4 pt-3")}>
+          <EquipmentList
             equipment={equipment}
             highlightedSlot={highlightedSlot}
+            onSlotTap={handleSlotTap}
+            onSlotLongPress={handleSlotLongPress}
+            onUnequip={handleUnequip}
+            onSwap={handleSwap}
+            onInfoTap={handleInfoTap}
+            onSlotHover={setHighlightedSlot}
             viewMode={viewMode}
           />
-        </div>
-
-        {/* Right Side - Equipment Slots */}
-        <div className={cn(
-          "flex flex-col transition-all duration-300",
-          isCompact ? "w-[65%]" : "w-[60%]"
-        )}>
-          <ScrollArea className={cn("flex-1", isCompact ? "px-2 pt-2" : "px-3 pt-3")}>
-            <EquipmentList
-              equipment={equipment}
-              highlightedSlot={highlightedSlot}
-              onSlotTap={handleSlotTap}
-              onSlotLongPress={handleSlotLongPress}
-              onUnequip={handleUnequip}
-              onSwap={handleSwap}
-              onInfoTap={handleInfoTap}
-              onSlotHover={setHighlightedSlot}
-              viewMode={viewMode}
-            />
-            
-            {/* Set Bonuses */}
-            <SetBonusPanel equipment={equipment} />
-            
-            {/* Bottom padding for stats bar */}
-            <div className={isCompact ? "h-14" : "h-20"} />
-          </ScrollArea>
-        </div>
+          
+          {/* Set Bonuses */}
+          <SetBonusPanel equipment={equipment} />
+          
+          {/* Bottom padding for stats bar */}
+          <div className={isCompact ? "h-16" : "h-20"} />
+        </ScrollArea>
       </div>
 
       {/* Bottom Stats Bar */}
       <footer className={cn(
-        "flex items-center justify-around border-t border-border/50 bg-background/95 backdrop-blur-sm transition-all duration-300",
+        "relative z-10 flex items-center justify-around border-t border-border/50 bg-background/80 backdrop-blur-md transition-all duration-300",
         isCompact ? "px-3 py-2" : "px-4 py-3"
       )}>
         <div className="flex items-center gap-1.5">
