@@ -142,17 +142,17 @@ export function EquipmentSlotCard({
             ? "bg-transparent border-l-4 " + (rarity?.borderClass || "border-l-border")
             : "bg-transparent border-dashed border-muted-foreground/50",
           isHighlighted && "ring-2 ring-primary ring-offset-2 ring-offset-background/50",
-          isLocked && "opacity-60 pointer-events-none",
+          isLocked && "opacity-60",
         )}
         style={{ transform: `translateX(${swipeOffset}px)` }}
-        onTouchStart={isLocked ? undefined : handleTouchStart}
-        onTouchMove={isLocked ? undefined : handleTouchMove}
-        onTouchEnd={isLocked ? undefined : handleTouchEnd}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         onClick={isLocked ? undefined : onTap}
       >
-        {/* Locked Overlay */}
+        {/* Locked Overlay - allows touch events to pass through for swipe */}
         {isLocked && item && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/60 rounded-lg backdrop-blur-[1px]">
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/60 rounded-lg backdrop-blur-[1px] pointer-events-none">
             <div className="flex flex-col items-center gap-1 text-center px-2">
               <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center">
                 <Lock className="w-4 h-4 text-amber-500" />
@@ -164,6 +164,7 @@ export function EquipmentSlotCard({
                   <p className="truncate">{lockInfo.achievement.name}</p>
                 </div>
               )}
+              <p className="text-[9px] text-muted-foreground mt-1">Swipe left to unequip</p>
             </div>
           </div>
         )}
