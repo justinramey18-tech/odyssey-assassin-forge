@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { Character } from '@/lib/types';
 import { CharacterEquipment } from '@/lib/inventory';
 import { Achievement } from '@/lib/achievements';
@@ -108,10 +108,7 @@ export function HomeScreen({
   onLongRest
 }: HomeScreenProps) {
   const [activeModal, setActiveModal] = useState<string | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
-  const [scrollPos, setScrollPos] = useState({ x: 0, y: 0 });
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Daily quote (changes based on date)
   const dailyQuote = useMemo(() => {
@@ -119,47 +116,8 @@ export function HomeScreen({
     return deadpoolQuotes[dayOfYear % deadpoolQuotes.length];
   }, []);
 
-  // Center the scroll position on mount
-  useEffect(() => {
-    if (containerRef.current) {
-      const container = containerRef.current;
-      const scrollLeft = (container.scrollWidth - container.clientWidth) / 2;
-      const scrollTop = (container.scrollHeight - container.clientHeight) / 2;
-      container.scrollLeft = scrollLeft;
-      container.scrollTop = scrollTop;
-    }
-  }, []);
-
-  // Handle mouse/touch drag for panning
-  const handlePointerDown = (e: React.PointerEvent) => {
-    setIsDragging(true);
-    setStartPos({ x: e.clientX, y: e.clientY });
-    if (containerRef.current) {
-      setScrollPos({ 
-        x: containerRef.current.scrollLeft, 
-        y: containerRef.current.scrollTop 
-      });
-    }
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isDragging || !containerRef.current) return;
-    const dx = e.clientX - startPos.x;
-    const dy = e.clientY - startPos.y;
-    containerRef.current.scrollLeft = scrollPos.x - dx;
-    containerRef.current.scrollTop = scrollPos.y - dy;
-  };
-
-  const handlePointerUp = (e: React.PointerEvent) => {
-    setIsDragging(false);
-    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-  };
-
   const handleZoneClick = (zoneId: string) => {
-    if (!isDragging) {
-      setActiveModal(zoneId);
-    }
+    setActiveModal(zoneId);
   };
 
   const closeModal = () => setActiveModal(null);
@@ -169,7 +127,8 @@ export function HomeScreen({
     onNavigateToTab(tab);
   };
 
-  // Image dimensions for proper button positioning
+  // Calculate image dimensions for proper button positioning
+  // Image aspect ratio is 1920:1080 = 16:9
   const imageAspectRatio = 1920 / 1080;
 
   return (
@@ -188,33 +147,28 @@ export function HomeScreen({
         <div className="w-9" />
       </header>
 
-      {/* 4-Directional Scrollable Container */}
+      {/* Horizontally Scrollable Container */}
       <div 
-        ref={containerRef}
-        className="flex-1 overflow-auto cursor-grab active:cursor-grabbing scrollbar-hide"
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
+        ref={scrollRef}
+        className="flex-1 overflow-x-auto overflow-y-hidden scrollbar-hide"
         style={{ 
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
         }}
       >
-        {/* Large panoramic image container - bigger than viewport for panning */}
+        {/* Wide panoramic image container */}
         <div 
-          className="relative select-none"
+          className="relative h-full"
           style={{ 
-            width: '200vw',
-            height: `calc(200vw / ${imageAspectRatio})`,
-            minHeight: '200vh',
+            width: `calc(100vh * ${imageAspectRatio})`,
+            minWidth: '100%',
           }}
         >
           {/* Background Image */}
           <img 
             src={homeBackground} 
             alt="Deadpool Assassins"
-            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+            className="absolute inset-0 w-full h-full object-cover object-center"
             draggable={false}
           />
           
@@ -222,7 +176,7 @@ export function HomeScreen({
           <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-transparent to-background/40 pointer-events-none" />
           <div className="absolute inset-0 bg-gradient-to-r from-background/20 via-transparent to-background/20 pointer-events-none" />
 
-          {/* Assassin Zone Buttons - positioned horizontally along the image at pelvis height */}
+          {/* Assassin Zone Buttons - positioned at pelvis level (~60% from top) */}
           {assassinZones.map((zone) => {
             const IconComponent = zone.icon;
             return (
@@ -234,19 +188,19 @@ export function HomeScreen({
                 accentColor={zone.color}
                 style={{
                   left: `${zone.leftPercent}%`,
-                  top: '65%',
+                  top: '58%',
                   transform: 'translate(-50%, -50%)',
                 }}
               />
             );
           })}
 
-          {/* Action Wheel Button - positioned over the leaping Deadpool */}
+          {/* Action Wheel Button - positioned over the leaping Deadpool's pelvis */}
           <div 
             className="absolute z-20"
             style={{
               left: '50%',
-              top: '25%',
+              top: '32%',
               transform: 'translate(-50%, -50%)',
             }}
           >
@@ -258,8 +212,9 @@ export function HomeScreen({
       {/* Scroll hint */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
         <p className="text-xs text-muted-foreground/70 backdrop-blur-sm bg-black/50 px-4 py-2 rounded-full flex items-center gap-2">
-          <span>←↑↓→</span>
-          <span>Drag to explore</span>
+          <span>←</span>
+          <span>Swipe to explore</span>
+          <span>→</span>
         </p>
       </div>
 
