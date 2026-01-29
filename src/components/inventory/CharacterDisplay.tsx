@@ -3,6 +3,7 @@ import { User, Heart, Sparkles, RotateCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CharacterEquipment, EquipmentSlotType, getActiveSetBonuses, rarityConfig } from '@/lib/inventory/index';
 import { setImages, SetImagePair } from '@/lib/inventory/setImages';
+import type { ViewMode } from './InventoryScreen';
 
 interface CharacterDisplayProps {
   characterName: string;
@@ -11,6 +12,7 @@ interface CharacterDisplayProps {
   highlightedSlot?: EquipmentSlotType | null;
   currentHP?: number;
   maxHP?: number;
+  viewMode?: ViewMode;
 }
 
 export function CharacterDisplay({
@@ -20,7 +22,9 @@ export function CharacterDisplay({
   highlightedSlot,
   currentHP = 45,
   maxHP = 50,
+  viewMode = 'compact',
 }: CharacterDisplayProps) {
+  const isCompact = viewMode === 'compact';
   const [viewAngle, setViewAngle] = useState<'front' | 'back'>('front');
   
   const activeSetBonuses = getActiveSetBonuses(equipment.slots);
@@ -76,29 +80,37 @@ export function CharacterDisplay({
 
   return (
     <div 
-      className="relative h-full flex flex-col items-center justify-center p-2 select-none"
+      className={cn(
+        "relative h-full flex flex-col items-center justify-center select-none",
+        isCompact ? "p-2" : "p-4"
+      )}
       onDoubleClick={handleDoubleTap}
     >
       {/* Character Name Badge */}
-      <div className="absolute top-2 left-2 right-2 text-center z-10">
-        <h3 className="text-xs font-bold text-foreground truncate drop-shadow-lg">{characterName}</h3>
+      <div className={cn("absolute left-2 right-2 text-center z-10", isCompact ? "top-2" : "top-3")}>
+        <h3 className={cn("font-bold text-foreground truncate drop-shadow-lg", isCompact ? "text-xs" : "text-sm")}>{characterName}</h3>
       </div>
 
       {/* Level Badge */}
-      <div className="absolute top-2 right-2 bg-primary/20 border border-primary/40 rounded-full px-1.5 py-0.5 z-10">
-        <span className="text-[10px] font-bold text-primary">Lv {level}</span>
+      <div className={cn(
+        "absolute bg-primary/20 border border-primary/40 rounded-full z-10",
+        isCompact ? "top-2 right-2 px-1.5 py-0.5" : "top-3 right-3 px-2 py-0.5"
+      )}>
+        <span className={cn("font-bold text-primary", isCompact ? "text-[10px]" : "text-xs")}>Lv {level}</span>
       </div>
 
       {/* Character Model Container */}
       <div 
         className={cn(
-          "relative w-full max-w-[120px] aspect-[3/5] flex items-center justify-center transition-all duration-500 overflow-hidden rounded-lg",
-          completeSet && "max-w-[140px]"
+          "relative w-full flex items-center justify-center transition-all duration-500 overflow-hidden rounded-lg aspect-[3/5]",
+          isCompact 
+            ? (completeSet ? "max-w-[140px]" : "max-w-[120px]")
+            : (completeSet ? "max-w-[180px]" : "max-w-[160px]")
         )}
         style={completeSet ? {
-          boxShadow: `0 0 20px ${completeSet.images.glowColor}, 0 0 40px ${completeSet.images.glowColor}`,
+          boxShadow: `0 0 ${isCompact ? '20px' : '30px'} ${completeSet.images.glowColor}, 0 0 ${isCompact ? '40px' : '60px'} ${completeSet.images.glowColor}`,
         } : hasLegendarySet ? {
-          filter: 'drop-shadow(0 0 10px rgba(251,191,36,0.4))',
+          filter: `drop-shadow(0 0 ${isCompact ? '10px' : '15px'} rgba(251,191,36,0.4))`,
         } : undefined}
       >
         {/* Decorative Frame */}
@@ -157,9 +169,10 @@ export function CharacterDisplay({
             <div className="relative z-10 flex flex-col items-center justify-center">
               <User 
                 className={cn(
-                  "w-14 h-14 transition-transform duration-300",
+                  "transition-transform duration-300",
                   viewAngle === 'back' && "scale-x-[-1]",
-                  highlightedSlot ? "text-primary/80" : "text-foreground/70"
+                  highlightedSlot ? "text-primary/80" : "text-foreground/70",
+                  isCompact ? "w-14 h-14" : "w-20 h-20"
                 )} 
                 strokeWidth={1.5}
               />
@@ -178,10 +191,13 @@ export function CharacterDisplay({
 
       {/* Complete Set Name Badge */}
       {completeSet && (
-        <div className="absolute left-2 right-2 text-center" style={{ top: '65px' }}>
-          <div className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-sm border border-amber-400/50">
-            <Sparkles className="w-2.5 h-2.5 text-amber-400" />
-            <span className="text-[8px] font-bold text-amber-400 uppercase tracking-wider">
+        <div className="absolute left-2 right-2 text-center" style={{ top: isCompact ? '65px' : '85px' }}>
+          <div className={cn(
+            "inline-flex items-center rounded-full bg-black/60 backdrop-blur-sm border border-amber-400/50",
+            isCompact ? "gap-0.5 px-1.5 py-0.5" : "gap-1 px-2 py-1"
+          )}>
+            <Sparkles className={cn("text-amber-400", isCompact ? "w-2.5 h-2.5" : "w-3 h-3")} />
+            <span className={cn("font-bold text-amber-400 uppercase tracking-wider", isCompact ? "text-[8px]" : "text-[10px]")}>
               Full Set
             </span>
           </div>
@@ -191,23 +207,26 @@ export function CharacterDisplay({
       {/* Rotate Button */}
       <button 
         onClick={handleDoubleTap}
-        className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded-full bg-black/40 hover:bg-black/60 border border-border/30 transition-colors z-20"
+        className={cn(
+          "absolute top-1/2 -translate-y-1/2 rounded-full bg-black/40 hover:bg-black/60 border border-border/30 transition-colors z-20",
+          isCompact ? "right-1 p-1" : "right-2 p-1.5"
+        )}
       >
-        <RotateCw className="w-2.5 h-2.5 text-muted-foreground" />
+        <RotateCw className={cn("text-muted-foreground", isCompact ? "w-2.5 h-2.5" : "w-3 h-3")} />
       </button>
 
       {/* View Indicator */}
-      <span className="text-[8px] text-muted-foreground mt-1 uppercase tracking-wider">
+      <span className={cn("text-muted-foreground uppercase tracking-wider", isCompact ? "text-[8px] mt-1" : "text-[10px] mt-2")}>
         {viewAngle}
       </span>
 
       {/* Health Bar */}
-      <div className="absolute bottom-2 left-2 right-2">
-        <div className="flex items-center gap-1 mb-0.5">
-          <Heart className="w-2.5 h-2.5 text-red-400" />
-          <span className="text-[8px] text-muted-foreground">{currentHP}/{maxHP}</span>
+      <div className={cn("absolute left-2 right-2", isCompact ? "bottom-2" : "bottom-3")}>
+        <div className={cn("flex items-center mb-0.5", isCompact ? "gap-1" : "gap-1.5")}>
+          <Heart className={cn("text-red-400", isCompact ? "w-2.5 h-2.5" : "w-3 h-3")} />
+          <span className={cn("text-muted-foreground", isCompact ? "text-[8px]" : "text-[10px]")}>{currentHP}/{maxHP}</span>
         </div>
-        <div className="h-1 bg-muted rounded-full overflow-hidden">
+        <div className={cn("bg-muted rounded-full overflow-hidden", isCompact ? "h-1" : "h-1.5")}>
           <div 
             className="h-full bg-gradient-to-r from-red-500 to-red-400 transition-all duration-500"
             style={{ width: `${(currentHP / maxHP) * 100}%` }}
@@ -217,13 +236,13 @@ export function CharacterDisplay({
 
       {/* Active Set Bonus Indicator */}
       {activeSetBonuses.length > 0 && !completeSet && (
-        <div className="absolute bottom-8 left-2 right-2">
+        <div className={cn("absolute left-2 right-2", isCompact ? "bottom-8" : "bottom-12")}>
           {activeSetBonuses.map(({ setInfo, activePieces }) => (
             <div 
               key={setInfo.id}
-              className="flex items-center gap-0.5 text-[8px] text-amber-400"
+              className={cn("flex items-center text-amber-400", isCompact ? "gap-0.5 text-[8px]" : "gap-1 text-[9px]")}
             >
-              <Sparkles className="w-2 h-2" />
+              <Sparkles className={isCompact ? "w-2 h-2" : "w-2.5 h-2.5"} />
               <span className="truncate">{setInfo.name} ({activePieces}/{setInfo.pieces.length})</span>
             </div>
           ))}
@@ -231,8 +250,8 @@ export function CharacterDisplay({
       )}
 
       {/* Touch hint */}
-      <p className="absolute bottom-0 left-0 right-0 text-center text-[6px] text-muted-foreground/50 pb-0.5">
-        Tap rotate
+      <p className={cn("absolute bottom-0 left-0 right-0 text-center text-muted-foreground/50", isCompact ? "text-[6px] pb-0.5" : "text-[8px] pb-1")}>
+        {isCompact ? "Tap rotate" : "Tap rotate or double-tap"}
       </p>
     </div>
   );

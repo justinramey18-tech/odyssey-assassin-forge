@@ -1,6 +1,8 @@
 import { CharacterEquipment, equipmentSlotDefinitions, EquipmentSlotType, EquipmentItem } from '@/lib/inventory/index';
 import { EquipmentSlotCard } from './EquipmentSlotCard';
 import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
+import type { ViewMode } from './InventoryScreen';
 
 interface EquipmentListProps {
   equipment: CharacterEquipment;
@@ -11,6 +13,7 @@ interface EquipmentListProps {
   onSwap: (slotType: EquipmentSlotType) => void;
   onInfoTap: (slotType: EquipmentSlotType, item: EquipmentItem | null) => void;
   onSlotHover?: (slotType: EquipmentSlotType | null) => void;
+  viewMode?: ViewMode;
 }
 
 export function EquipmentList({
@@ -22,13 +25,15 @@ export function EquipmentList({
   onSwap,
   onInfoTap,
   onSlotHover,
+  viewMode = 'compact',
 }: EquipmentListProps) {
+  const isCompact = viewMode === 'compact';
   const armorSlots = equipmentSlotDefinitions.filter(s => s.category === 'armor');
   const weaponSlots = equipmentSlotDefinitions.filter(s => s.category === 'weapons');
   const accessorySlots = equipmentSlotDefinitions.filter(s => s.category === 'accessories');
 
   const renderSlots = (slots: typeof equipmentSlotDefinitions) => (
-    <div className="space-y-1.5">
+    <div className={cn("space-y-1.5", !isCompact && "space-y-3")}>
       {slots.map(slot => (
         <div
           key={slot.type}
@@ -46,6 +51,7 @@ export function EquipmentList({
             onSwipeLeft={() => onUnequip(slot.type)}
             onSwipeRight={() => onSwap(slot.type)}
             onInfoTap={() => onInfoTap(slot.type, equipment.slots[slot.type])}
+            viewMode={viewMode}
           />
         </div>
       ))}
@@ -53,14 +59,14 @@ export function EquipmentList({
   );
 
   return (
-    <div className="space-y-2 pb-2">
+    <div className={cn("pb-2", isCompact ? "space-y-2" : "space-y-4")}>
       {/* Armor Section */}
       {renderSlots(armorSlots)}
 
       {/* Weapons Divider */}
-      <div className="flex items-center gap-2 py-1">
+      <div className={cn("flex items-center", isCompact ? "gap-2 py-1" : "gap-3 py-2")}>
         <Separator className="flex-1" />
-        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+        <span className={cn("font-bold uppercase tracking-wider text-muted-foreground", isCompact ? "text-[10px]" : "text-xs")}>
           Weapons
         </span>
         <Separator className="flex-1" />
@@ -70,9 +76,9 @@ export function EquipmentList({
       {renderSlots(weaponSlots)}
 
       {/* Accessories Divider */}
-      <div className="flex items-center gap-2 py-1">
+      <div className={cn("flex items-center", isCompact ? "gap-2 py-1" : "gap-3 py-2")}>
         <Separator className="flex-1" />
-        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+        <span className={cn("font-bold uppercase tracking-wider text-muted-foreground", isCompact ? "text-[10px]" : "text-xs")}>
           Accessories
         </span>
         <Separator className="flex-1" />
