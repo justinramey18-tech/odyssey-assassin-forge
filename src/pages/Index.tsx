@@ -22,7 +22,8 @@ import { NarrativeForgeScreen } from '@/components/scribe/NarrativeForgeScreen';
 import { PromptDrawerProvider } from '@/components/drawers';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Swords, Backpack, Trophy, Sparkles, Home, BookOpen, ChevronUp, Settings, Crosshair } from 'lucide-react';
+import { Swords, Backpack, Trophy, Sparkles, Home, BookOpen, ChevronUp, Crosshair } from 'lucide-react';
+import { SettingsModal } from '@/components/settings/SettingsModal';
 import { CombatTabScreen } from '@/components/combat/CombatTabScreen';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -441,15 +442,11 @@ const Index = () => {
               </TabsTrigger>
             </TabsList>
 
-            {/* Settings Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowWizard(true)}
-              className="gap-1 border border-muted/40 hover:bg-muted/20 font-cinzel uppercase tracking-wider text-[9px] px-3"
-            >
-              <Settings className="w-3.5 h-3.5" />
-            </Button>
+            {/* Settings Modal */}
+            <SettingsModal 
+              characterName={character.name} 
+              onEditCharacter={() => setShowWizard(true)} 
+            />
           </div>
           
           {/* Decorative bottom accent */}
