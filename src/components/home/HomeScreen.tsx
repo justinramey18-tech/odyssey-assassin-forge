@@ -8,6 +8,7 @@ import {
   Sparkles, Moon, Scroll, ArrowLeft, Gem, Lock
 } from 'lucide-react';
 import { AssassinZone } from './AssassinZone';
+import { InstallBanner } from './InstallBanner';
 import { InfinityGauntletScreen } from '../character/InfinityGauntletScreen';
 import { HomeDataModal } from './HomeDataModal';
 import { useGameMode, shouldShowInfinityStones } from '@/hooks/use-game-mode';
@@ -151,6 +152,9 @@ export function HomeScreen({
 
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col overflow-hidden">
+      {/* Install Banner - shows for users who haven't installed */}
+      <InstallBanner />
+
       {/* Header */}
       <header className="relative flex items-center justify-between px-4 py-3 border-b border-red-900/30 bg-background/70 backdrop-blur-md z-20">
         <button 
