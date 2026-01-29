@@ -7,12 +7,13 @@ import { PointsSummary } from '@/components/character/PointsSummary';
 import { EquippedLoadout } from '@/components/character/EquippedLoadout';
 import { ActionWheelButton } from '@/components/character/ActionWheelButton';
 import { InventoryScreen } from '@/components/inventory/InventoryScreen';
+import { AchievementsScreen } from '@/components/achievements/AchievementsScreen';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Swords, Backpack } from 'lucide-react';
+import { Swords, Backpack, Trophy } from 'lucide-react';
 
 const Index = () => {
-  const [step, setStep] = useState<1 | 2>(1);
-  const [activeTab, setActiveTab] = useState<'abilities' | 'inventory'>('abilities');
+const [step, setStep] = useState<1 | 2>(1);
+  const [activeTab, setActiveTab] = useState<'abilities' | 'inventory' | 'achievements'>('abilities');
   const [character, setCharacter] = useState<Character>({
     name: '',
     level: 1,
@@ -137,7 +138,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header with points summary - always visible in step 2 */}
-      {step === 2 && activeTab === 'abilities' && (
+{step === 2 && (activeTab === 'abilities' || activeTab === 'achievements') && (
         <PointsSummary
           character={character}
           totalPoints={totalPoints}
@@ -150,7 +151,7 @@ const Index = () => {
       )}
 
       {/* Main content */}
-      <main className={step === 2 && activeTab === 'abilities' ? 'pt-4' : ''}>
+      <main className={step === 2 && (activeTab === 'abilities' || activeTab === 'achievements') ? 'pt-4' : ''}>
         {step === 1 && (
           <WizardStepOne
             initialName={character.name}
@@ -160,17 +161,21 @@ const Index = () => {
         )}
 
         {step === 2 && (
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'abilities' | 'inventory')} className="w-full">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'abilities' | 'inventory' | 'achievements')} className="w-full">
             {/* Tab Navigation - Fixed at bottom on mobile */}
             <div className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-sm border-t border-border/50 px-4 py-2 md:relative md:border-t-0 md:py-0 md:bg-transparent">
-              <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto">
+              <TabsList className="grid w-full grid-cols-3 max-w-md mx-auto">
                 <TabsTrigger value="abilities" className="gap-2">
                   <Swords className="w-4 h-4" />
-                  <span>Abilities</span>
+                  <span className="hidden sm:inline">Abilities</span>
                 </TabsTrigger>
                 <TabsTrigger value="inventory" className="gap-2">
                   <Backpack className="w-4 h-4" />
-                  <span>Inventory</span>
+                  <span className="hidden sm:inline">Inventory</span>
+                </TabsTrigger>
+                <TabsTrigger value="achievements" className="gap-2">
+                  <Trophy className="w-4 h-4" />
+                  <span className="hidden sm:inline">Achieve</span>
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -203,11 +208,19 @@ const Index = () => {
                 onBack={() => setActiveTab('abilities')}
               />
             </TabsContent>
+
+            {/* Achievements Tab Content */}
+            <TabsContent value="achievements" className="mt-0">
+              <AchievementsScreen
+                characterName={character.name}
+                onBack={() => setActiveTab('abilities')}
+              />
+            </TabsContent>
           </Tabs>
         )}
 
-        {/* Floating Action Wheel - only visible in step 2 abilities tab */}
-        {step === 2 && activeTab === 'abilities' && (
+        {/* Floating Action Wheel - only visible in step 2 abilities/achievements tab */}
+        {step === 2 && (activeTab === 'abilities' || activeTab === 'achievements') && (
           <ActionWheelButton characterName={character.name} />
         )}
       </main>
