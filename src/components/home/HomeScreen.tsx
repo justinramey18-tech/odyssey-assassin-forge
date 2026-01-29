@@ -1,13 +1,11 @@
-import { useState, useMemo } from 'react';
-import { Character, getAbilityPointsForLevel, getTotalPointsSpent, getPointsSpentInTree, getActiveSlotsByLevel } from '@/lib/types';
-import { allAbilities } from '@/lib/abilities';
-import { CharacterEquipment, EquipmentItem, legendarySetDefinitions } from '@/lib/inventory';
+import { useState, useMemo, useRef } from 'react';
+import { Character } from '@/lib/types';
+import { CharacterEquipment } from '@/lib/inventory';
 import { Achievement } from '@/lib/achievements';
 import { 
-  User, Heart, Shield, Swords, Package, Trophy, 
+  User, Swords, Package, Trophy, 
   Sparkles, Moon, Scroll, ArrowLeft
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { AssassinZone } from './AssassinZone';
 import { HomeDataModal } from './HomeDataModal';
 import {
@@ -19,7 +17,7 @@ import {
   RestActionsContent,
   DailyQuoteContent,
 } from './HomeModalContents';
-import homeBackground from '@/assets/home-background.jpg';
+import homeBackground from '@/assets/home-assassins-wide.jpg';
 
 // Deadpool-style quotes
 const deadpoolQuotes = [
@@ -36,55 +34,55 @@ const deadpoolQuotes = [
 ];
 
 // Assassin zone configurations - positioned at pelvis level of each assassin
-// Spread across the image with buttons at body center
+// 7 assassins spread evenly across the wide panoramic image
 const assassinZones = [
   { 
     id: 'character', 
     label: 'Character', 
     color: '#ef4444', // red
-    position: { left: '5%', top: '55%' },
+    leftPercent: 7.5, // Altair (leftmost)
     icon: User,
   },
   { 
     id: 'skills', 
     label: 'Skills', 
     color: '#22c55e', // green
-    position: { left: '18%', top: '52%' },
+    leftPercent: 21, // Ezio
     icon: Swords,
   },
   { 
     id: 'gear', 
     label: 'Gear', 
     color: '#f59e0b', // amber
-    position: { left: '32%', top: '50%' },
+    leftPercent: 35.5, // Connor
     icon: Package,
   },
   { 
     id: 'wisdom', 
     label: 'Wisdom', 
     color: '#dc2626', // red-600
-    position: { left: '50%', top: '48%', transform: 'translateX(-50%)' },
+    leftPercent: 50, // Edward (center)
     icon: Scroll,
   },
   { 
     id: 'feats', 
     label: 'Feats', 
     color: '#a855f7', // purple
-    position: { right: '32%', top: '50%' },
+    leftPercent: 64.5, // Arno
     icon: Trophy,
   },
   { 
     id: 'stars', 
     label: 'Stars', 
     color: '#06b6d4', // cyan
-    position: { right: '18%', top: '52%' },
+    leftPercent: 78.5, // Jacob
     icon: Sparkles,
   },
   { 
     id: 'rest', 
     label: 'Rest', 
     color: '#3b82f6', // blue
-    position: { right: '5%', top: '55%' },
+    leftPercent: 92.5, // Bayek (rightmost)
     icon: Moon,
   },
 ];
@@ -109,6 +107,7 @@ export function HomeScreen({
   onLongRest
 }: HomeScreenProps) {
   const [activeModal, setActiveModal] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Daily quote (changes based on date)
   const dailyQuote = useMemo(() => {
@@ -127,20 +126,12 @@ export function HomeScreen({
     onNavigateToTab(tab);
   };
 
-  return (
-    <div className="fixed inset-0 bg-background z-50 flex flex-col overflow-hidden">
-      {/* Static Background Image - Zoomed out to show full figures */}
-      <div 
-        className="absolute inset-0 bg-contain bg-center bg-no-repeat pointer-events-none"
-        style={{ backgroundImage: `url(${homeBackground})` }}
-      >
-        {/* Dark fill behind the contained image */}
-        <div className="absolute inset-0 bg-black -z-10" />
-        {/* Subtle vignette overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-transparent to-background/50" />
-        <div className="absolute inset-0 bg-gradient-to-r from-background/20 via-transparent to-background/20" />
-      </div>
+  // Calculate image dimensions for proper button positioning
+  // Image aspect ratio is 1920:1080 = 16:9
+  const imageAspectRatio = 1920 / 1080;
 
+  return (
+    <div className="fixed inset-0 bg-black z-50 flex flex-col overflow-hidden">
       {/* Header */}
       <header className="relative flex items-center justify-between px-4 py-3 border-b border-red-900/30 bg-background/70 backdrop-blur-md z-20">
         <button 
@@ -155,29 +146,63 @@ export function HomeScreen({
         <div className="w-9" />
       </header>
 
-      {/* Main Content Area with Clickable Assassin Zones */}
-      <div className="flex-1 relative z-10">
-        {/* Assassin Zone Buttons */}
-        {assassinZones.map((zone) => {
-          const IconComponent = zone.icon;
-          return (
-            <AssassinZone
-              key={zone.id}
-              label={zone.label}
-              icon={<IconComponent className="w-3.5 h-3.5" />}
-              onClick={() => handleZoneClick(zone.id)}
-              accentColor={zone.color}
-              style={zone.position as React.CSSProperties}
-            />
-          );
-        })}
+      {/* Horizontally Scrollable Container */}
+      <div 
+        ref={scrollRef}
+        className="flex-1 overflow-x-auto overflow-y-hidden scrollbar-hide"
+        style={{ 
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+        }}
+      >
+        {/* Wide panoramic image container */}
+        <div 
+          className="relative h-full"
+          style={{ 
+            width: `calc(100vh * ${imageAspectRatio})`,
+            minWidth: '100%',
+          }}
+        >
+          {/* Background Image */}
+          <img 
+            src={homeBackground} 
+            alt="Deadpool Assassins"
+            className="absolute inset-0 w-full h-full object-cover object-center"
+            draggable={false}
+          />
+          
+          {/* Subtle vignette overlays */}
+          <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-transparent to-background/40 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-r from-background/20 via-transparent to-background/20 pointer-events-none" />
 
-        {/* Bottom hint */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-center">
-          <p className="text-xs text-muted-foreground/70 backdrop-blur-sm bg-black/30 px-4 py-2 rounded-full">
-            Tap an assassin to view details
-          </p>
+          {/* Assassin Zone Buttons - positioned at pelvis level (~60% from top) */}
+          {assassinZones.map((zone) => {
+            const IconComponent = zone.icon;
+            return (
+              <AssassinZone
+                key={zone.id}
+                label={zone.label}
+                icon={<IconComponent className="w-3.5 h-3.5" />}
+                onClick={() => handleZoneClick(zone.id)}
+                accentColor={zone.color}
+                style={{
+                  left: `${zone.leftPercent}%`,
+                  top: '58%',
+                  transform: 'translate(-50%, -50%)',
+                }}
+              />
+            );
+          })}
         </div>
+      </div>
+
+      {/* Scroll hint */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
+        <p className="text-xs text-muted-foreground/70 backdrop-blur-sm bg-black/50 px-4 py-2 rounded-full flex items-center gap-2">
+          <span>←</span>
+          <span>Swipe to explore</span>
+          <span>→</span>
+        </p>
       </div>
 
       {/* Modals for each zone */}
@@ -265,6 +290,13 @@ export function HomeScreen({
       >
         <DailyQuoteContent quote={dailyQuote} />
       </HomeDataModal>
+
+      {/* Hide scrollbar with CSS */}
+      <style>{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
     </div>
   );
 }
