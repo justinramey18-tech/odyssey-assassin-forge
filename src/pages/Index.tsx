@@ -352,6 +352,7 @@ const Index = () => {
       currentXP={currentXP}
       xpPreset={xpPreset}
       onAddXP={handleAddXP}
+      equipment={equipment}
     >
       <div className="min-h-screen bg-background">
       {/* Level Up Modal */}

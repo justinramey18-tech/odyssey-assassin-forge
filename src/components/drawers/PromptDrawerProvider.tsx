@@ -1,13 +1,15 @@
 import { useState, useEffect, useCallback, createContext, useContext, ReactNode } from 'react';
-import { Swords, Gem, Zap, Heart, BookOpen } from 'lucide-react';
+import { Swords, Gem, Zap, Heart, BookOpen, Sparkles } from 'lucide-react';
 import { EdgeTriggerStack } from './EdgeDrawer';
 import { CombatDrawer } from './CombatDrawer';
 import { InfinityStoneDrawer } from './InfinityStoneDrawer';
 import { AbilitiesDrawer } from './AbilitiesDrawer';
 import { StatsDrawer } from './StatsDrawer';
 import { ScribeDrawer } from './ScribeDrawer';
+import { ActiveSetBonusDrawer } from './ActiveSetBonusDrawer';
 import { Character } from '@/lib/types';
 import { XPPreset } from '@/lib/xpSystem';
+import { CharacterEquipment } from '@/lib/inventory/types';
 
 interface PromptDrawerContextValue {
   openCombatDrawer: () => void;
@@ -15,6 +17,7 @@ interface PromptDrawerContextValue {
   openAbilitiesDrawer: () => void;
   openStatsDrawer: () => void;
   openScribeDrawer: () => void;
+  openSetBonusDrawer: () => void;
   closeAllDrawers: () => void;
 }
 
@@ -37,6 +40,8 @@ interface PromptDrawerProviderProps {
   currentXP?: number;
   xpPreset?: XPPreset;
   onAddXP?: (amount: number, source: string) => void;
+  // Equipment for set bonus drawer
+  equipment?: CharacterEquipment;
 }
 
 export function PromptDrawerProvider({
@@ -47,12 +52,14 @@ export function PromptDrawerProvider({
   currentXP = 0,
   xpPreset = 'standard',
   onAddXP = () => {},
+  equipment,
 }: PromptDrawerProviderProps) {
   const [combatOpen, setCombatOpen] = useState(false);
   const [infinityOpen, setInfinityOpen] = useState(false);
   const [abilitiesOpen, setAbilitiesOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
   const [scribeOpen, setScribeOpen] = useState(false);
+  const [setBonusOpen, setSetBonusOpen] = useState(false);
   
   // Collapse state for edge triggers
   const [leftCollapsed, setLeftCollapsed] = useState(false);
@@ -65,6 +72,7 @@ export function PromptDrawerProvider({
     setAbilitiesOpen(false);
     setStatsOpen(false);
     setScribeOpen(false);
+    setSetBonusOpen(false);
   }, []);
 
   // Edge swipe detection
@@ -116,13 +124,14 @@ export function PromptDrawerProvider({
     openAbilitiesDrawer: useCallback(() => { closeAllDrawers(); setAbilitiesOpen(true); }, [closeAllDrawers]),
     openStatsDrawer: useCallback(() => { closeAllDrawers(); setStatsOpen(true); }, [closeAllDrawers]),
     openScribeDrawer: useCallback(() => { closeAllDrawers(); setScribeOpen(true); }, [closeAllDrawers]),
+    openSetBonusDrawer: useCallback(() => { closeAllDrawers(); setSetBonusOpen(true); }, [closeAllDrawers]),
     closeAllDrawers,
   };
 
   // Check if any drawer is open
-  const anyDrawerOpen = combatOpen || infinityOpen || abilitiesOpen || statsOpen || scribeOpen;
+  const anyDrawerOpen = combatOpen || infinityOpen || abilitiesOpen || statsOpen || scribeOpen || setBonusOpen;
 
-  // Left side triggers (Combat, Stats)
+  // Left side triggers (Combat, Stats, Set Bonuses)
   const leftTriggers = [
     {
       id: 'combat',
@@ -137,6 +146,13 @@ export function PromptDrawerProvider({
       icon: <Heart className="w-4 h-4" />,
       accentColor: '#22c55e',
       onClick: () => { closeAllDrawers(); setStatsOpen(true); },
+    },
+    {
+      id: 'setbonus',
+      label: 'Set Bonus',
+      icon: <Sparkles className="w-4 h-4" />,
+      accentColor: '#f59e0b',
+      onClick: () => { closeAllDrawers(); setSetBonusOpen(true); },
     },
   ];
 
@@ -227,6 +243,15 @@ export function PromptDrawerProvider({
             onOpenChange={setScribeOpen}
             characterName={character.name}
           />
+
+          {equipment && (
+            <ActiveSetBonusDrawer
+              open={setBonusOpen}
+              onOpenChange={setSetBonusOpen}
+              equipment={equipment}
+              characterName={character.name}
+            />
+          )}
         </>
       )}
     </PromptDrawerContext.Provider>
