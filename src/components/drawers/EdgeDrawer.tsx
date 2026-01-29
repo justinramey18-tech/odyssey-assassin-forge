@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, ReactNode } from 'react';
-import { X, GripVertical } from 'lucide-react';
+import { useState, ReactNode } from 'react';
+import { GripVertical, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
@@ -69,43 +69,219 @@ export function EdgeDrawer({
   );
 }
 
-// Edge trigger tab component that sticks to screen edge
+// Collapsible edge trigger tabs that can minimize to just an icon
 interface EdgeTriggerProps {
   side: 'left' | 'right';
   label: string;
   icon: ReactNode;
   accentColor: string;
   onClick: () => void;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-export function EdgeTrigger({ side, label, icon, accentColor, onClick }: EdgeTriggerProps) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'fixed top-1/2 -translate-y-1/2 z-40',
-        'flex items-center gap-1 py-3 px-1.5',
-        'rounded-lg border backdrop-blur-sm',
-        'transition-all duration-300 hover:scale-105',
-        'touch-manipulation',
-        side === 'left' ? 'left-0 rounded-l-none' : 'right-0 rounded-r-none',
-      )}
-      style={{
-        backgroundColor: `${accentColor}20`,
-        borderColor: `${accentColor}50`,
-        boxShadow: `0 0 15px ${accentColor}30`,
-        writingMode: 'vertical-rl',
-        textOrientation: 'mixed',
-      }}
-    >
-      <span style={{ color: accentColor }}>{icon}</span>
-      <span 
-        className="text-xs font-semibold tracking-wider uppercase"
-        style={{ color: accentColor }}
+export function EdgeTrigger({ 
+  side, 
+  label, 
+  icon, 
+  accentColor, 
+  onClick,
+  collapsed = false,
+  onToggleCollapse,
+}: EdgeTriggerProps) {
+  const CollapseIcon = side === 'left' ? ChevronLeft : ChevronRight;
+  const ExpandIcon = side === 'left' ? ChevronRight : ChevronLeft;
+
+  if (collapsed) {
+    // Minimized state - just a small icon button
+    return (
+      <div 
+        className={cn(
+          'fixed z-40 flex flex-col gap-1',
+          side === 'left' ? 'left-0' : 'right-0',
+        )}
+        style={{ top: '50%', transform: 'translateY(-50%)' }}
       >
-        {label}
-      </span>
-      <GripVertical className="w-3 h-3 opacity-50" style={{ color: accentColor }} />
-    </button>
+        <button
+          onClick={onClick}
+          className={cn(
+            'p-2 rounded-lg border backdrop-blur-sm',
+            'transition-all duration-300 hover:scale-110',
+            'touch-manipulation',
+            side === 'left' ? 'rounded-l-none' : 'rounded-r-none',
+          )}
+          style={{
+            backgroundColor: `${accentColor}30`,
+            borderColor: `${accentColor}50`,
+            boxShadow: `0 0 10px ${accentColor}40`,
+          }}
+        >
+          <span style={{ color: accentColor }}>{icon}</span>
+        </button>
+        {onToggleCollapse && (
+          <button
+            onClick={onToggleCollapse}
+            className={cn(
+              'p-1 rounded-lg border backdrop-blur-sm',
+              'transition-all duration-200 hover:bg-white/10',
+              'touch-manipulation',
+              side === 'left' ? 'rounded-l-none' : 'rounded-r-none',
+            )}
+            style={{
+              backgroundColor: `${accentColor}10`,
+              borderColor: `${accentColor}30`,
+            }}
+          >
+            <ExpandIcon className="w-3 h-3" style={{ color: accentColor }} />
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // Expanded state - full vertical tab
+  return (
+    <div
+      className={cn(
+        'fixed z-40',
+        side === 'left' ? 'left-0' : 'right-0',
+      )}
+      style={{ top: '50%', transform: 'translateY(-50%)' }}
+    >
+      <div className="flex flex-col">
+        <button
+          onClick={onClick}
+          className={cn(
+            'flex items-center gap-1 py-3 px-1.5',
+            'rounded-lg border backdrop-blur-sm',
+            'transition-all duration-300 hover:scale-105',
+            'touch-manipulation',
+            side === 'left' ? 'rounded-l-none' : 'rounded-r-none',
+          )}
+          style={{
+            backgroundColor: `${accentColor}20`,
+            borderColor: `${accentColor}50`,
+            boxShadow: `0 0 15px ${accentColor}30`,
+            writingMode: 'vertical-rl',
+            textOrientation: 'mixed',
+          }}
+        >
+          <span style={{ color: accentColor }}>{icon}</span>
+          <span 
+            className="text-xs font-semibold tracking-wider uppercase"
+            style={{ color: accentColor }}
+          >
+            {label}
+          </span>
+          <GripVertical className="w-3 h-3 opacity-50" style={{ color: accentColor }} />
+        </button>
+        {onToggleCollapse && (
+          <button
+            onClick={onToggleCollapse}
+            className={cn(
+              'mt-1 p-1 rounded-lg border backdrop-blur-sm mx-auto',
+              'transition-all duration-200 hover:bg-white/10',
+              'touch-manipulation',
+              side === 'left' ? 'rounded-l-none' : 'rounded-r-none',
+            )}
+            style={{
+              backgroundColor: `${accentColor}10`,
+              borderColor: `${accentColor}30`,
+            }}
+          >
+            <CollapseIcon className="w-3 h-3" style={{ color: accentColor }} />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Container for multiple stacked edge triggers
+interface EdgeTriggerStackProps {
+  side: 'left' | 'right';
+  triggers: Array<{
+    id: string;
+    label: string;
+    icon: ReactNode;
+    accentColor: string;
+    onClick: () => void;
+  }>;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+}
+
+export function EdgeTriggerStack({
+  side,
+  triggers,
+  collapsed = false,
+  onToggleCollapse,
+}: EdgeTriggerStackProps) {
+  const CollapseIcon = side === 'left' ? ChevronLeft : ChevronRight;
+  const ExpandIcon = side === 'left' ? ChevronRight : ChevronLeft;
+
+  return (
+    <div
+      className={cn(
+        'fixed z-40 flex flex-col gap-1',
+        side === 'left' ? 'left-0' : 'right-0',
+      )}
+      style={{ top: '50%', transform: 'translateY(-50%)' }}
+    >
+      {triggers.map((trigger, index) => (
+        <button
+          key={trigger.id}
+          onClick={trigger.onClick}
+          className={cn(
+            'flex items-center gap-1 backdrop-blur-sm border',
+            'transition-all duration-300 hover:scale-105',
+            'touch-manipulation',
+            side === 'left' ? 'rounded-l-none rounded-r-lg' : 'rounded-r-none rounded-l-lg',
+            collapsed ? 'p-2' : 'py-2 px-1.5',
+          )}
+          style={{
+            backgroundColor: `${trigger.accentColor}20`,
+            borderColor: `${trigger.accentColor}50`,
+            boxShadow: `0 0 10px ${trigger.accentColor}30`,
+            writingMode: collapsed ? undefined : 'vertical-rl',
+            textOrientation: collapsed ? undefined : 'mixed',
+          }}
+        >
+          <span style={{ color: trigger.accentColor }}>{trigger.icon}</span>
+          {!collapsed && (
+            <>
+              <span 
+                className="text-[10px] font-semibold tracking-wider uppercase"
+                style={{ color: trigger.accentColor }}
+              >
+                {trigger.label}
+              </span>
+            </>
+          )}
+        </button>
+      ))}
+      
+      {onToggleCollapse && (
+        <button
+          onClick={onToggleCollapse}
+          className={cn(
+            'p-1.5 rounded-lg border backdrop-blur-sm',
+            'transition-all duration-200 hover:bg-white/10',
+            'touch-manipulation',
+            side === 'left' ? 'rounded-l-none' : 'rounded-r-none',
+          )}
+          style={{
+            backgroundColor: 'hsl(var(--muted) / 0.3)',
+            borderColor: 'hsl(var(--border) / 0.5)',
+          }}
+        >
+          {collapsed ? (
+            <ExpandIcon className="w-3 h-3 text-muted-foreground" />
+          ) : (
+            <CollapseIcon className="w-3 h-3 text-muted-foreground" />
+          )}
+        </button>
+      )}
+    </div>
   );
 }

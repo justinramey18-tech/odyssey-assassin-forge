@@ -349,6 +349,9 @@ const Index = () => {
       character={character}
       unlockedAbilities={unlockedAbilities}
       enabled={!showLevelUpModal}
+      currentXP={currentXP}
+      xpPreset={xpPreset}
+      onAddXP={handleAddXP}
     >
       <div className="min-h-screen bg-background">
       {/* Level Up Modal */}
