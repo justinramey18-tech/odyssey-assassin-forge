@@ -15,6 +15,7 @@ import { DiceRoll, rollDice, getAbilityDice } from '@/lib/diceRoller';
 import { generateRPPrompt } from '@/lib/rpPromptGenerator';
 import { DiceRollModal } from '@/components/character/DiceRollModal';
 import { useSwipe } from '@/hooks/use-swipe';
+import { useGameMode } from '@/hooks/use-game-mode';
 
 // Mobile components
 import { CombatBottomNav, CombatTab } from './CombatBottomNav';
@@ -94,6 +95,7 @@ export function MobileCombatLayout({ character }: MobileCombatLayoutProps) {
   const [round, setRound] = useState(1);
   const [isYourTurn, setIsYourTurn] = useState(true);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
+  const { rerollsDisabled } = useGameMode();
   
   // Swipe navigation handlers
   const handleSwipeLeft = useCallback(() => {
@@ -468,6 +470,7 @@ export function MobileCombatLayout({ character }: MobileCombatLayoutProps) {
           rpPrompt={dicePrompt}
           open={showDiceModal}
           onOpenChange={setShowDiceModal}
+          rerollDisabled={rerollsDisabled}
         />
       )}
     </div>

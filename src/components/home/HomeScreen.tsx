@@ -5,11 +5,12 @@ import { Achievement } from '@/lib/achievements';
 import { XPPreset } from '@/lib/xpSystem';
 import { 
   User, Swords, Package, Trophy, 
-  Sparkles, Moon, Scroll, ArrowLeft, Gem
+  Sparkles, Moon, Scroll, ArrowLeft, Gem, Lock
 } from 'lucide-react';
 import { AssassinZone } from './AssassinZone';
 import { InfinityGauntletScreen } from '../character/InfinityGauntletScreen';
 import { HomeDataModal } from './HomeDataModal';
+import { useGameMode, shouldShowInfinityStones } from '@/hooks/use-game-mode';
 import {
   CharacterStatsContent,
   SkillsOverviewContent,
@@ -123,6 +124,9 @@ export function HomeScreen({
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [showGauntletScreen, setShowGauntletScreen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  
+  const { infinityStonesLocked } = useGameMode();
+  const stonesAccessible = shouldShowInfinityStones(character.level, infinityStonesLocked);
 
   // Daily quote (changes based on date)
   const dailyQuote = useMemo(() => {
@@ -212,17 +216,33 @@ export function HomeScreen({
           })}
 
           {/* Gauntlet Zone - positioned over the leaping Deadpool */}
-          <AssassinZone
-            label="Gauntlet"
-            icon={<Gem className="w-3.5 h-3.5" />}
-            onClick={() => setShowGauntletScreen(true)}
-            accentColor="#eab308"
-            style={{
-              left: '50%',
-              top: '32%',
-              transform: 'translate(-50%, -50%)',
-            }}
-          />
+          {stonesAccessible ? (
+            <AssassinZone
+              label="Gauntlet"
+              icon={<Gem className="w-3.5 h-3.5" />}
+              onClick={() => setShowGauntletScreen(true)}
+              accentColor="#eab308"
+              style={{
+                left: '50%',
+                top: '32%',
+                transform: 'translate(-50%, -50%)',
+              }}
+            />
+          ) : (
+            <AssassinZone
+              label="Lv.20"
+              icon={<Lock className="w-3.5 h-3.5" />}
+              onClick={() => {}}
+              accentColor="#6b7280"
+              style={{
+                left: '50%',
+                top: '32%',
+                transform: 'translate(-50%, -50%)',
+                opacity: 0.6,
+                cursor: 'not-allowed',
+              }}
+            />
+          )}
         </div>
       </div>
 

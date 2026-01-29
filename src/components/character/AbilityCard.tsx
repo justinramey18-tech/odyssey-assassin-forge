@@ -8,6 +8,7 @@ import { AbilityDetailModal } from './AbilityDetailModal';
 import { DiceRollModal } from './DiceRollModal';
 import { rollDice, getAbilityDice, DiceRoll } from '@/lib/diceRoller';
 import { generateRPPrompt } from '@/lib/rpPromptGenerator';
+import { useGameMode } from '@/hooks/use-game-mode';
 
 // Icon map for dynamic icon rendering
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -47,6 +48,7 @@ export function AbilityCard({
   const [showDiceModal, setShowDiceModal] = useState(false);
   const [currentRoll, setCurrentRoll] = useState<DiceRoll | null>(null);
   const [currentRPPrompt, setCurrentRPPrompt] = useState('');
+  const { rerollsDisabled } = useGameMode();
 
   const isLocked = currentTier === 0;
   const isMaxed = currentTier === 3;
@@ -249,6 +251,7 @@ export function AbilityCard({
           open={showDiceModal}
           onOpenChange={setShowDiceModal}
           onReroll={handleReroll}
+          rerollDisabled={rerollsDisabled}
         />
       )}
     </>
