@@ -14,7 +14,72 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      character_saves: {
+        Row: {
+          achievements_data: Json | null
+          character_data: Json
+          consumables_data: Json | null
+          created_at: string
+          equipment_data: Json | null
+          id: string
+          prestige_data: Json | null
+          save_name: string
+          updated_at: string
+          user_id: string
+          xp_data: Json | null
+        }
+        Insert: {
+          achievements_data?: Json | null
+          character_data: Json
+          consumables_data?: Json | null
+          created_at?: string
+          equipment_data?: Json | null
+          id?: string
+          prestige_data?: Json | null
+          save_name?: string
+          updated_at?: string
+          user_id: string
+          xp_data?: Json | null
+        }
+        Update: {
+          achievements_data?: Json | null
+          character_data?: Json
+          consumables_data?: Json | null
+          created_at?: string
+          equipment_data?: Json | null
+          id?: string
+          prestige_data?: Json | null
+          save_name?: string
+          updated_at?: string
+          user_id?: string
+          xp_data?: Json | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -1,4 +1,4 @@
-import { Home, Settings, Crosshair, Swords, Backpack, Trophy, Sparkles, BookOpen } from 'lucide-react';
+import { Home, Settings, Crosshair, Swords, Backpack, Trophy, Sparkles, BookOpen, Cloud } from 'lucide-react';
 import { TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -6,9 +6,10 @@ import { cn } from '@/lib/utils';
 interface AssassinHeaderProps {
   onHomeClick: () => void;
   onSettingsClick: () => void;
+  onCloudSaveClick?: () => void;
 }
 
-export function AssassinHeader({ onHomeClick, onSettingsClick }: AssassinHeaderProps) {
+export function AssassinHeader({ onHomeClick, onSettingsClick, onCloudSaveClick }: AssassinHeaderProps) {
   return (
     <header className="sticky top-0 z-50 w-full h-[10vh] min-h-[70px] max-h-[100px] bg-gradient-to-b from-black via-background/98 to-background/90 backdrop-blur-md">
       {/* Assassin's Creed Top Border Art */}
@@ -119,6 +120,21 @@ export function AssassinHeader({ onHomeClick, onSettingsClick }: AssassinHeaderP
             <span className="group-data-[state=active]:text-amber-300">Scribe</span>
           </TabsTrigger>
         </TabsList>
+
+        {/* Cloud Save Button */}
+        {onCloudSaveClick && (
+          <Button
+            variant="ghost"
+            onClick={onCloudSaveClick}
+            className="h-full aspect-square flex flex-col items-center justify-center gap-1 rounded-none border-l border-red-900/40 hover:bg-cyan-600/20 hover:text-cyan-400 transition-all group"
+          >
+            <span className="relative">
+              <Cloud className="w-5 h-5 relative z-10 group-hover:scale-110 transition-transform" />
+              <span className="absolute inset-0 blur-sm bg-cyan-400 rounded-full opacity-0 group-hover:opacity-40 transition-opacity" />
+            </span>
+            <span className="font-cinzel uppercase tracking-wider text-[8px] text-muted-foreground group-hover:text-cyan-400">Cloud</span>
+          </Button>
+        )}
 
         {/* Settings Button */}
         <Button
