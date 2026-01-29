@@ -259,14 +259,22 @@ export function InfinityGauntletScreen({ characterName, open, onClose }: Infinit
               <div className="energy-pulse" style={{ background: `radial-gradient(circle, ${stone.color}80, transparent)` }} />
               <div className="electricity-arc" style={{ background: `linear-gradient(90deg, transparent, ${stone.color}, transparent)` }} />
               
-              {/* Stone indicator */}
-              <span 
-                className="relative z-10 w-3 h-3 rounded-full animate-pulse"
-                style={{ 
-                  backgroundColor: stone.color,
-                  boxShadow: `0 0 8px ${stone.color}, 0 0 16px ${stone.glowColor}`,
-                }}
-              />
+              {/* Stone indicator or X close button when active */}
+              {activeStone === stone.id ? (
+                <span 
+                  className="relative z-10 w-4 h-4 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/40 transition-colors"
+                >
+                  <X className="w-3 h-3 text-white" />
+                </span>
+              ) : (
+                <span 
+                  className="relative z-10 w-3 h-3 rounded-full animate-pulse"
+                  style={{ 
+                    backgroundColor: stone.color,
+                    boxShadow: `0 0 8px ${stone.color}, 0 0 16px ${stone.glowColor}`,
+                  }}
+                />
+              )}
               <span className="relative z-10 text-white font-semibold tracking-wide drop-shadow-lg">
                 {stone.categories[0]}
               </span>
