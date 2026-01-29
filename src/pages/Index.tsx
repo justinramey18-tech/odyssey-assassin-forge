@@ -21,7 +21,8 @@ import { HomeScreen } from '@/components/home/HomeScreen';
 import { NarrativeForgeScreen } from '@/components/scribe/NarrativeForgeScreen';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Swords, Backpack, Trophy, Sparkles, Home, BookOpen, ChevronUp, Settings } from 'lucide-react';
+import { Swords, Backpack, Trophy, Sparkles, Home, BookOpen, ChevronUp, Settings, Crosshair } from 'lucide-react';
+import { CombatHUDScreen } from '@/components/combat/CombatHUDScreen';
 import { useToast } from '@/hooks/use-toast';
 import { 
   CharacterEquipment, 
@@ -32,7 +33,7 @@ import {
 const Index = () => {
   const [showWizard, setShowWizard] = useState(true);
   const [showHomeScreen, setShowHomeScreen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'skills' | 'gear' | 'feats' | 'stars' | 'scribe'>('skills');
+  const [activeTab, setActiveTab] = useState<'skills' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat'>('skills');
   const [character, setCharacter] = useState<Character>({
     name: '',
     level: 1,
@@ -349,7 +350,7 @@ const Index = () => {
       <CharacterHeader character={character} currentXP={currentXP} />
 
       {/* Tab Navigation */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'skills' | 'gear' | 'feats' | 'stars' | 'scribe')} className="w-full">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'skills' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat')} className="w-full">
         {/* Tab Navigation Bar */}
         <div className="sticky top-0 z-40 bg-gradient-to-b from-background via-background/98 to-background/90 backdrop-blur-md border-b border-red-900/30 px-4 py-3">
           {/* Decorative top line */}
@@ -368,13 +369,20 @@ const Index = () => {
             </Button>
 
             {/* Main Tabs */}
-            <TabsList className="flex-1 grid grid-cols-5 bg-black/40 border border-red-900/40 p-1 rounded-none relative overflow-hidden">
+            <TabsList className="flex-1 grid grid-cols-6 bg-black/40 border border-red-900/40 p-1 rounded-none relative overflow-hidden">
               {/* Corner accents */}
               <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-red-500/70" />
               <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-red-500/70" />
               <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-red-500/70" />
               <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-red-500/70" />
               
+              <TabsTrigger 
+                value="combat" 
+                className="gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-red-600/40 data-[state=active]:to-red-900/30 data-[state=active]:text-red-300 data-[state=active]:border-b-2 data-[state=active]:border-red-400 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all"
+              >
+                <Crosshair className="w-3.5 h-3.5" />
+                <span>Combat</span>
+              </TabsTrigger>
               <TabsTrigger 
                 value="skills" 
                 className="gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-red-600/30 data-[state=active]:to-red-900/20 data-[state=active]:text-red-400 data-[state=active]:border-b-2 data-[state=active]:border-red-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all"
@@ -510,6 +518,11 @@ const Index = () => {
             characterName={character.name}
             onBack={() => setActiveTab('skills')}
           />
+        </TabsContent>
+
+        {/* Combat HUD Tab Content */}
+        <TabsContent value="combat" className="mt-0">
+          <CombatHUDScreen character={character} />
         </TabsContent>
       </Tabs>
 

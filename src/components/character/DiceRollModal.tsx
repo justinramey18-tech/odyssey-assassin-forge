@@ -13,13 +13,13 @@ import { cn } from '@/lib/utils';
 import { Copy, Check, Dices } from 'lucide-react';
 
 interface DiceRollModalProps {
-  ability: Ability;
+  ability?: Ability;
   tier: 1 | 2 | 3;
   roll: DiceRoll;
   rpPrompt: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onReroll: () => void;
+  onReroll?: () => void;
 }
 
 const treeConfig = {
@@ -53,7 +53,14 @@ export function DiceRollModal({
   onReroll,
 }: DiceRollModalProps) {
   const [copied, setCopied] = useState(false);
-  const tree = treeConfig[ability.tree];
+  
+  // Default to neutral styling for generic combat rolls
+  const tree = ability ? treeConfig[ability.tree] : {
+    bgClass: 'bg-red-900/20',
+    borderClass: 'border-red-500/50',
+    glowClass: 'text-red-400',
+    accentClass: 'bg-red-900/20 border-red-500/30',
+  };
 
   const isCritical = roll.rolls.includes(parseInt(roll.die.slice(1)));
   const isFumble = roll.rolls.every(r => r === 1);
@@ -78,7 +85,7 @@ export function DiceRollModal({
         <DialogHeader>
           <DialogTitle className="font-display text-xl flex items-center gap-3">
             <Dices className={cn('w-6 h-6', tree.glowClass)} />
-            {ability.name} — Dice Roll
+            {ability ? `${ability.name} — Dice Roll` : 'Combat Roll'}
           </DialogTitle>
         </DialogHeader>
 
@@ -88,7 +95,7 @@ export function DiceRollModal({
           tree.accentClass
         )}>
           <div className="text-sm text-muted-foreground font-body mb-1">
-            Rolling {roll.count}{roll.die} for Tier {tier}
+            Rolling {roll.count}{roll.die}{ability ? ` for Tier ${tier}` : ''}
           </div>
           <div className={cn(
             'text-4xl font-display font-bold',
@@ -118,15 +125,17 @@ export function DiceRollModal({
               AI DM Prompt
             </span>
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onReroll}
-                className="gap-1"
-              >
-                <Dices className="w-4 h-4" />
-                Reroll
-              </Button>
+              {onReroll && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onReroll}
+                  className="gap-1"
+                >
+                  <Dices className="w-4 h-4" />
+                  Reroll
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
