@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { AssassinZone } from './AssassinZone';
 import { InstallBanner } from './InstallBanner';
+import { ClockWidget } from './ClockWidget';
 import { InfinityGauntletScreen } from '../character/InfinityGauntletScreen';
 import { HomeDataModal } from './HomeDataModal';
 import { useGameMode, shouldShowInfinityStones } from '@/hooks/use-game-mode';
@@ -166,7 +167,7 @@ export function HomeScreen({
         <h1 className="font-cinzel font-bold text-lg uppercase tracking-wider text-red-400">
           {character.name || 'Home Base'}
         </h1>
-        <div className="w-9" />
+        <ClockWidget />
       </header>
 
       {/* Four-Directional Panning Container */}
