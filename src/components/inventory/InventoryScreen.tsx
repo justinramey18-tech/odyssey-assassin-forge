@@ -213,8 +213,8 @@ export function InventoryScreen({
 
       {/* Main Content - Split Screen */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Side - Character Display (40%) */}
-        <div className="w-[40%] border-r border-border/30 bg-gradient-to-b from-background to-muted/20">
+        {/* Left Side - Character Display (35%) */}
+        <div className="w-[35%] border-r border-border/30 bg-gradient-to-b from-background to-muted/20">
           <CharacterDisplay
             characterName={characterName}
             level={level}
@@ -223,9 +223,9 @@ export function InventoryScreen({
           />
         </div>
 
-        {/* Right Side - Equipment Slots (60%) */}
-        <div className="w-[60%] flex flex-col">
-          <ScrollArea className="flex-1 px-3 pt-3">
+        {/* Right Side - Equipment Slots (65%) */}
+        <div className="w-[65%] flex flex-col">
+          <ScrollArea className="flex-1 px-2 pt-2">
             <EquipmentList
               equipment={equipment}
               highlightedSlot={highlightedSlot}
@@ -241,34 +241,34 @@ export function InventoryScreen({
             <SetBonusPanel equipment={equipment} />
             
             {/* Bottom padding for stats bar */}
-            <div className="h-20" />
+            <div className="h-14" />
           </ScrollArea>
         </div>
       </div>
 
       {/* Bottom Stats Bar */}
-      <footer className="flex items-center justify-around px-4 py-3 border-t border-border/50 bg-background/95 backdrop-blur-sm">
-        <div className="flex items-center gap-2">
-          <Shield className="w-5 h-5 text-blue-400" />
+      <footer className="flex items-center justify-around px-3 py-2 border-t border-border/50 bg-background/95 backdrop-blur-sm">
+        <div className="flex items-center gap-1.5">
+          <Shield className="w-4 h-4 text-blue-400" />
           <div className="text-center">
-            <p className="text-lg font-bold">{stats.totalAC}</p>
-            <p className="text-[10px] text-muted-foreground uppercase">AC</p>
+            <p className="text-sm font-bold">{stats.totalAC}</p>
+            <p className="text-[8px] text-muted-foreground uppercase">AC</p>
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
-          <Sword className="w-5 h-5 text-red-400" />
+        <div className="flex items-center gap-1.5">
+          <Sword className="w-4 h-4 text-red-400" />
           <div className="text-center">
-            <p className="text-lg font-bold">{stats.totalDamage}</p>
-            <p className="text-[10px] text-muted-foreground uppercase">Attack</p>
+            <p className="text-sm font-bold">{stats.totalDamage}</p>
+            <p className="text-[8px] text-muted-foreground uppercase">Attack</p>
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
-          <Backpack className="w-5 h-5 text-amber-400" />
+        <div className="flex items-center gap-1.5">
+          <Backpack className="w-4 h-4 text-amber-400" />
           <div className="text-center">
-            <p className="text-lg font-bold">{stats.totalWeight}</p>
-            <p className="text-[10px] text-muted-foreground uppercase">Weight</p>
+            <p className="text-sm font-bold">{stats.totalWeight}</p>
+            <p className="text-[8px] text-muted-foreground uppercase">Weight</p>
           </div>
         </div>
       </footer>

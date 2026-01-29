@@ -76,29 +76,29 @@ export function CharacterDisplay({
 
   return (
     <div 
-      className="relative h-full flex flex-col items-center justify-center p-4 select-none"
+      className="relative h-full flex flex-col items-center justify-center p-2 select-none"
       onDoubleClick={handleDoubleTap}
     >
       {/* Character Name Badge */}
-      <div className="absolute top-3 left-3 right-3 text-center z-10">
-        <h3 className="text-sm font-bold text-foreground truncate drop-shadow-lg">{characterName}</h3>
+      <div className="absolute top-2 left-2 right-2 text-center z-10">
+        <h3 className="text-xs font-bold text-foreground truncate drop-shadow-lg">{characterName}</h3>
       </div>
 
       {/* Level Badge */}
-      <div className="absolute top-3 right-3 bg-primary/20 border border-primary/40 rounded-full px-2 py-0.5 z-10">
-        <span className="text-xs font-bold text-primary">Lv {level}</span>
+      <div className="absolute top-2 right-2 bg-primary/20 border border-primary/40 rounded-full px-1.5 py-0.5 z-10">
+        <span className="text-[10px] font-bold text-primary">Lv {level}</span>
       </div>
 
       {/* Character Model Container */}
       <div 
         className={cn(
-          "relative w-full max-w-[160px] aspect-[3/5] flex items-center justify-center transition-all duration-500 overflow-hidden rounded-lg",
-          completeSet && "max-w-[180px]"
+          "relative w-full max-w-[120px] aspect-[3/5] flex items-center justify-center transition-all duration-500 overflow-hidden rounded-lg",
+          completeSet && "max-w-[140px]"
         )}
         style={completeSet ? {
-          boxShadow: `0 0 30px ${completeSet.images.glowColor}, 0 0 60px ${completeSet.images.glowColor}`,
+          boxShadow: `0 0 20px ${completeSet.images.glowColor}, 0 0 40px ${completeSet.images.glowColor}`,
         } : hasLegendarySet ? {
-          filter: 'drop-shadow(0 0 15px rgba(251,191,36,0.4))',
+          filter: 'drop-shadow(0 0 10px rgba(251,191,36,0.4))',
         } : undefined}
       >
         {/* Decorative Frame */}
@@ -157,7 +157,7 @@ export function CharacterDisplay({
             <div className="relative z-10 flex flex-col items-center justify-center">
               <User 
                 className={cn(
-                  "w-20 h-20 transition-transform duration-300",
+                  "w-14 h-14 transition-transform duration-300",
                   viewAngle === 'back' && "scale-x-[-1]",
                   highlightedSlot ? "text-primary/80" : "text-foreground/70"
                 )} 
@@ -178,10 +178,10 @@ export function CharacterDisplay({
 
       {/* Complete Set Name Badge */}
       {completeSet && (
-        <div className="absolute left-3 right-3 text-center" style={{ top: '85px' }}>
-          <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-black/60 backdrop-blur-sm border border-amber-400/50">
-            <Sparkles className="w-3 h-3 text-amber-400" />
-            <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">
+        <div className="absolute left-2 right-2 text-center" style={{ top: '65px' }}>
+          <div className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-sm border border-amber-400/50">
+            <Sparkles className="w-2.5 h-2.5 text-amber-400" />
+            <span className="text-[8px] font-bold text-amber-400 uppercase tracking-wider">
               Full Set
             </span>
           </div>
@@ -191,23 +191,23 @@ export function CharacterDisplay({
       {/* Rotate Button */}
       <button 
         onClick={handleDoubleTap}
-        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/40 hover:bg-black/60 border border-border/30 transition-colors z-20"
+        className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded-full bg-black/40 hover:bg-black/60 border border-border/30 transition-colors z-20"
       >
-        <RotateCw className="w-3 h-3 text-muted-foreground" />
+        <RotateCw className="w-2.5 h-2.5 text-muted-foreground" />
       </button>
 
       {/* View Indicator */}
-      <span className="text-[10px] text-muted-foreground mt-2 uppercase tracking-wider">
+      <span className="text-[8px] text-muted-foreground mt-1 uppercase tracking-wider">
         {viewAngle}
       </span>
 
       {/* Health Bar */}
-      <div className="absolute bottom-3 left-3 right-3">
-        <div className="flex items-center gap-1.5 mb-1">
-          <Heart className="w-3 h-3 text-red-400" />
-          <span className="text-[10px] text-muted-foreground">{currentHP}/{maxHP}</span>
+      <div className="absolute bottom-2 left-2 right-2">
+        <div className="flex items-center gap-1 mb-0.5">
+          <Heart className="w-2.5 h-2.5 text-red-400" />
+          <span className="text-[8px] text-muted-foreground">{currentHP}/{maxHP}</span>
         </div>
-        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+        <div className="h-1 bg-muted rounded-full overflow-hidden">
           <div 
             className="h-full bg-gradient-to-r from-red-500 to-red-400 transition-all duration-500"
             style={{ width: `${(currentHP / maxHP) * 100}%` }}
@@ -217,13 +217,13 @@ export function CharacterDisplay({
 
       {/* Active Set Bonus Indicator */}
       {activeSetBonuses.length > 0 && !completeSet && (
-        <div className="absolute bottom-12 left-3 right-3">
+        <div className="absolute bottom-8 left-2 right-2">
           {activeSetBonuses.map(({ setInfo, activePieces }) => (
             <div 
               key={setInfo.id}
-              className="flex items-center gap-1 text-[9px] text-amber-400"
+              className="flex items-center gap-0.5 text-[8px] text-amber-400"
             >
-              <Sparkles className="w-2.5 h-2.5" />
+              <Sparkles className="w-2 h-2" />
               <span className="truncate">{setInfo.name} ({activePieces}/{setInfo.pieces.length})</span>
             </div>
           ))}
@@ -231,8 +231,8 @@ export function CharacterDisplay({
       )}
 
       {/* Touch hint */}
-      <p className="absolute bottom-0 left-0 right-0 text-center text-[8px] text-muted-foreground/50 pb-1">
-        Tap rotate or double-tap
+      <p className="absolute bottom-0 left-0 right-0 text-center text-[6px] text-muted-foreground/50 pb-0.5">
+        Tap rotate
       </p>
     </div>
   );
