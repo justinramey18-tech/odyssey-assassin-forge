@@ -5,6 +5,7 @@ import {
   saveGameModeSettings,
   isRuleActive,
   HonestModeRules,
+  GAME_MODE_CHANGE_EVENT,
 } from '@/lib/gameModes';
 
 /**
@@ -14,16 +15,25 @@ import {
 export function useGameMode() {
   const [settings, setSettings] = useState<GameModeSettings>(() => loadGameModeSettings());
 
-  // Listen for storage changes (in case settings change in another component)
+  // Listen for both storage changes (other tabs) and custom events (same tab)
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'odyssey-game-mode') {
         setSettings(loadGameModeSettings());
       }
     };
+
+    const handleGameModeChange = (e: CustomEvent<GameModeSettings>) => {
+      setSettings(e.detail);
+    };
     
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener(GAME_MODE_CHANGE_EVENT, handleGameModeChange as EventListener);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener(GAME_MODE_CHANGE_EVENT, handleGameModeChange as EventListener);
+    };
   }, []);
 
   // Reload settings when they might have changed

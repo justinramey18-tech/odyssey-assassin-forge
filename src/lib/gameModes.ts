@@ -50,10 +50,15 @@ export function loadGameModeSettings(): GameModeSettings {
   return DEFAULT_SETTINGS;
 }
 
-// Save settings to localStorage
+// Custom event for same-tab synchronization
+export const GAME_MODE_CHANGE_EVENT = 'odyssey-game-mode-change';
+
+// Save settings to localStorage and dispatch sync event
 export function saveGameModeSettings(settings: GameModeSettings): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    // Dispatch custom event for same-tab listeners
+    window.dispatchEvent(new CustomEvent(GAME_MODE_CHANGE_EVENT, { detail: settings }));
   } catch (e) {
     console.error('Failed to save game mode settings:', e);
   }
