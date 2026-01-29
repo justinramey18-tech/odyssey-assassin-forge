@@ -11,8 +11,9 @@ import { InventoryScreen } from '@/components/inventory/InventoryScreen';
 import { AchievementsScreen } from '@/components/achievements/AchievementsScreen';
 import { ConstellationScreen } from '@/components/constellation/ConstellationScreen';
 import { HomeScreen } from '@/components/home/HomeScreen';
+import { NarrativeForgeScreen } from '@/components/scribe/NarrativeForgeScreen';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Swords, Backpack, Trophy, Sparkles, Home } from 'lucide-react';
+import { Swords, Backpack, Trophy, Sparkles, Home, BookOpen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
   CharacterEquipment, 
@@ -22,7 +23,7 @@ import {
 
 const Index = () => {
   const [step, setStep] = useState<1 | 2>(1);
-  const [activeTab, setActiveTab] = useState<'home' | 'abilities' | 'inventory' | 'achievements' | 'constellation'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'abilities' | 'inventory' | 'achievements' | 'constellation' | 'scribe'>('home');
   const [character, setCharacter] = useState<Character>({
     name: '',
     level: 1,
@@ -193,13 +194,13 @@ const Index = () => {
         )}
 
         {step === 2 && (
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'home' | 'abilities' | 'inventory' | 'achievements' | 'constellation')} className="w-full">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'home' | 'abilities' | 'inventory' | 'achievements' | 'constellation' | 'scribe')} className="w-full">
             {/* Tab Navigation - Fixed at top with Assassin's Creed / Deadpool theme */}
             <div className="sticky top-0 z-40 bg-gradient-to-b from-background via-background/98 to-background/90 backdrop-blur-md border-b border-red-900/30 px-4 py-3">
               {/* Decorative top line */}
               <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-red-500 to-transparent" />
               
-              <TabsList className="grid w-full grid-cols-5 max-w-xl mx-auto bg-black/40 border border-red-900/40 p-1 rounded-none relative overflow-hidden">
+              <TabsList className="grid w-full grid-cols-6 max-w-2xl mx-auto bg-black/40 border border-red-900/40 p-1 rounded-none relative overflow-hidden">
                 {/* Corner accents */}
                 <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-red-500/70" />
                 <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-red-500/70" />
@@ -240,6 +241,13 @@ const Index = () => {
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>Stars</span>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="scribe" 
+                  className="gap-1 data-[state=active]:bg-gradient-to-b data-[state=active]:from-amber-600/30 data-[state=active]:to-amber-900/20 data-[state=active]:text-amber-400 data-[state=active]:border-b-2 data-[state=active]:border-amber-500 rounded-none font-cinzel uppercase tracking-wider text-[9px] transition-all"
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>Scribe</span>
                 </TabsTrigger>
               </TabsList>
               
@@ -306,6 +314,14 @@ const Index = () => {
               <ConstellationScreen
                 characterName={character.name}
                 equippedItems={Object.values(equipment.slots).filter(Boolean) as EquipmentItem[]}
+                onBack={() => setActiveTab('home')}
+              />
+            </TabsContent>
+
+            {/* Scribe Tab Content */}
+            <TabsContent value="scribe" className="mt-0">
+              <NarrativeForgeScreen
+                characterName={character.name}
                 onBack={() => setActiveTab('home')}
               />
             </TabsContent>
