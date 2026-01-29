@@ -30,10 +30,22 @@ interface InventoryScreenProps {
   characterName: string;
   level: number;
   onBack: () => void;
+  equipment?: CharacterEquipment;
+  onEquipmentChange?: (equipment: CharacterEquipment) => void;
 }
 
-export function InventoryScreen({ characterName, level, onBack }: InventoryScreenProps) {
-  const [equipment, setEquipment] = useState<CharacterEquipment>(createInitialEquipment);
+export function InventoryScreen({ 
+  characterName, 
+  level, 
+  onBack,
+  equipment: externalEquipment,
+  onEquipmentChange,
+}: InventoryScreenProps) {
+  const [internalEquipment, setInternalEquipment] = useState<CharacterEquipment>(createInitialEquipment);
+  
+  // Use external equipment if provided, otherwise use internal state
+  const equipment = externalEquipment ?? internalEquipment;
+  const setEquipment = onEquipmentChange ?? setInternalEquipment;
   const [highlightedSlot, setHighlightedSlot] = useState<EquipmentSlotType | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<EquipmentSlotType | null>(null);
   const [selectedItem, setSelectedItem] = useState<EquipmentItem | null>(null);
