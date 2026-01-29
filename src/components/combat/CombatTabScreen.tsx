@@ -89,11 +89,7 @@ function calculateModifiers(character: Character): CombatModifiers {
 export function CombatTabScreen({ character }: CombatTabScreenProps) {
   const isMobile = useIsMobile();
   
-  // Use mobile layout for smaller screens
-  if (isMobile) {
-    return <MobileCombatLayout character={character} />;
-  }
-  
+  // All hooks must be called before any conditional returns
   // Situation state
   const [conditions, setConditions] = useState<string[]>([]);
   const [activeEffects, setActiveEffects] = useState<ActiveEffect[]>([]);
@@ -244,7 +240,11 @@ export function CombatTabScreen({ character }: CombatTabScreenProps) {
       }));
     }
   }, [turnActions]);
-
+  
+  // Use mobile layout for smaller screens
+  if (isMobile) {
+    return <MobileCombatLayout character={character} />;
+  }
   return (
     <div className="combat-hud min-h-[calc(100vh-200px)] relative overflow-hidden">
       {/* Scan lines overlay */}
