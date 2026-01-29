@@ -28,6 +28,7 @@ import builderBackground from '@/assets/builder-background.jpg';
 import { SettingsModal } from '@/components/settings/SettingsModal';
 import { AssassinHeader } from '@/components/navigation/AssassinHeader';
 import { CombatTabScreen } from '@/components/combat/CombatTabScreen';
+import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 import { useToast } from '@/hooks/use-toast';
 import { useGameMode } from '@/hooks/use-game-mode';
 import { 
@@ -402,16 +403,14 @@ const Index = () => {
         />
 
         {/* Skills Tab Content */}
-        <TabsContent value="skills" className="mt-0 pb-4 relative min-h-[calc(100vh-10vh)] overflow-hidden">
-          {/* Background Image with Parallax */}
-          <div 
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat bg-fixed"
-            style={{ backgroundImage: `url(${skillsBackgroundImage})` }}
-          />
-          {/* Gradient overlay for readability */}
-          <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/50 to-background/90" />
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-900/20 via-transparent to-purple-900/20" />
-          
+        <TabsContent value="skills" className="mt-0 pb-4">
+          <BackgroundWrapper 
+            imagePath={skillsBackgroundImage} 
+            overlayOpacity={65} 
+            tintColor="purple" 
+            tintOpacity={20}
+            className="min-h-[calc(100vh-10vh)]"
+          >
           {/* Content */}
           <div className="container max-w-2xl mx-auto px-4 py-4 relative z-10">
             {/* XP Tracker */}
@@ -463,6 +462,7 @@ const Index = () => {
               </p>
             </div>
           </div>
+          </BackgroundWrapper>
         </TabsContent>
 
         {/* Gear Tab Content */}

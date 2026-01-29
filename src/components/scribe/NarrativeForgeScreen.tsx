@@ -10,6 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
+import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 import { 
   processTextOffline, 
   getRemovalPreview,
@@ -108,15 +109,12 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
   const removalPreview = inputText ? getRemovalPreview(inputText) : [];
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
-      {/* Background Image with Parallax */}
-      <div 
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat bg-fixed z-0"
-        style={{ backgroundImage: `url(${scribeBackground})` }}
-      />
-      {/* Gradient overlay */}
-      <div className="fixed inset-0 bg-gradient-to-b from-background/85 via-background/55 to-background/90 z-0" />
-      <div className="fixed inset-0 bg-gradient-to-r from-amber-900/25 via-transparent to-amber-900/25 z-0" />
+    <BackgroundWrapper 
+      imagePath={scribeBackground} 
+      overlayOpacity={75} 
+      tintColor="amber" 
+      tintOpacity={25}
+    >
       {/* Header */}
       <header className="sticky top-0 z-40 bg-gradient-to-b from-background/90 via-background/80 to-transparent backdrop-blur-md border-b border-amber-900/30 px-4 py-3">
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-amber-500 to-transparent" />
@@ -360,6 +358,6 @@ The trap clicks harmlessly as she disables it."
           </ul>
         </div>
       </div>
-    </div>
+    </BackgroundWrapper>
   );
 }
