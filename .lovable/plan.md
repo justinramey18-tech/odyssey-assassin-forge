@@ -1,75 +1,97 @@
 
-# Plan: Display Unlock Requirements in Gear Menu and Stars Tabs
+# Plan: Sync Gear Unlock Progress with Feats Tab Values
 
-## Overview
-Add unlock requirement information for individual set pieces in both the Gear tab and Stars tab. This helps players understand what achievements they need to progress to unlock specific legendary gear.
+## Problem
+
+Currently, the gear unlock system (`useGearLock`, `EquipmentSlotCard`, `ConstellationMap`) uses the static `achievementCategories` array from `src/lib/achievements.ts` instead of the live `achievements` state managed in `Index.tsx`. This means:
+
+- Progress made in the Feats tab doesn't update the unlock progress bars in Gear/Stars tabs
+- Items don't automatically unlock when feat requirements are met
+- Star nodes in the constellation don't reflect current achievement progress
+
+## Solution
+
+Thread the live `achievements` state from `Index.tsx` through all components that need it:
+
+1. **InventoryScreen** - already receives `achievements` prop but needs to pass to child components
+2. **ConstellationScreen** - needs to receive `achievements` as a prop
+3. **ConstellationMap** - needs to use passed achievements instead of static array
+4. **useGearLock** - already accepts `achievements` param, just needs correct data
 
 ---
 
 ## Changes
 
-### 1. Enhance Stars Tab (ConstellationMap)
+### 1. Update ConstellationScreen to Accept Achievements
+**File:** `src/components/constellation/ConstellationScreen.tsx`
+
+- Add `achievements` prop to interface
+- Pass achievements to `ConstellationMap`
+
+### 2. Update ConstellationMap to Use Live Achievements
 **File:** `src/components/constellation/ConstellationMap.tsx`
 
-When a star (item) is selected in the constellation:
-- Import achievement utilities (`itemPrerequisites`, `achievementCategories`)
-- Look up the item's prerequisite achievement
-- Display in the info panel:
-  - Achievement name and description
-  - Current progress vs required value
-  - Visual progress bar (similar to ItemDetailSheet style)
-  - "Unlocked" badge if requirement is met
+- Add `achievements` prop to interface
+- Replace static `achievementCategories` lookups with the passed `achievements` array
+- This ensures progress bars and unlock states reflect real-time feat values
 
-**Visual Design:**
-- Add a new section below the current "Equip in Gear tab" text
-- Use amber/red color coding based on locked/unlocked status
-- Show a compact progress indicator
+### 3. Update Index.tsx to Pass Achievements to Stars Tab
+**File:** `src/pages/Index.tsx`
 
-### 2. Enhance Gear Menu Equipment Cards
-**File:** `src/components/inventory/EquipmentSlotCard.tsx`
+- Pass `achievements` state to `ConstellationScreen`
 
-Currently shows minimal lock info. Enhance to:
-- Display the achievement name more prominently
-- Add a small progress bar below the achievement name
-- Keep the current `X/Y` progress format
+### 4. Ensure InventoryScreen Passes Achievements to useGearLock
+**File:** `src/components/inventory/InventoryScreen.tsx`
 
-### 3. Enhance Inventory Drawer
-**File:** `src/components/inventory/InventoryDrawer.tsx`
-
-The drawer already shows lock info. Enhance to:
-- Add achievement description tooltip or inline text
-- Show progress bar for each locked item
+- Already receives `achievements` prop and passes to `useGearLock` (confirmed working)
+- Verify the hook dependency array includes achievements for reactivity
 
 ---
 
-## Technical Details
+## Data Flow After Changes
 
-### ConstellationMap Changes
-- Import from `@/lib/achievements`:
-  - `itemPrerequisites`
-  - `achievementCategories`
-- In the selected star info panel, add unlock requirement section:
-  ```text
-  ┌─────────────────────────────────────┐
-  │ [Icon] Item Name                    │
-  │ Slot: chest                         │
-  │ ✓ EQUIPPED  or  🔒 LOCKED           │
-  ├─────────────────────────────────────┤
-  │ 🔓 Unlock Requirement               │
-  │ "Surviving After 0 HP"              │
-  │ ████████░░░░ 7/10                   │
-  └─────────────────────────────────────┘
-  ```
+```text
+Index.tsx (achievements state)
+     |
+     +---> AchievementsScreen (updates achievements)
+     |           |
+     |           v
+     |     [User increments feat progress]
+     |           |
+     |           v
+     +---> InventoryScreen(achievements)
+     |           |
+     |           +---> useGearLock(achievements)
+     |           |           |
+     |           |           v
+     |           |     [isItemLocked checks live progress]
+     |           |
+     |           +---> EquipmentSlotCard(lockInfo)
+     |                       |
+     |                       v
+     |                 [Progress bar shows current/required]
+     |
+     +---> ConstellationScreen(achievements)
+                 |
+                 +---> ConstellationMap(achievements)
+                             |
+                             v
+                       [Star nodes show live unlock status]
+```
 
-### EquipmentSlotCard Changes
-- Add a mini progress bar inside the lock overlay
-- Progress bar uses same styling as ItemDetailSheet (amber gradient when locked, green when unlocked)
+---
 
-### InventoryDrawer Changes
-- Expand lock info display to include:
-  - Achievement icon
-  - Mini progress bar
-  - Short description on hover/tap
+## Automatic Unlock Behavior
+
+When a user increments an achievement in the Feats tab:
+1. `setAchievements()` updates state in Index.tsx
+2. React re-renders child components with new `achievements` array
+3. `useGearLock` recalculates `isItemLocked` for all items
+4. `ConstellationMap` recalculates unlock status for all stars
+5. Items that now meet requirements:
+   - Show green "Unlocked" badge instead of amber "Locked"
+   - Become tappable/equippable in the Gear tab
+   - Star nodes illuminate in the Stars tab
 
 ---
 
@@ -77,15 +99,56 @@ The drawer already shows lock info. Enhance to:
 
 | File | Change |
 |------|--------|
-| `src/components/constellation/ConstellationMap.tsx` | Add unlock requirement display in selected star panel |
-| `src/components/inventory/EquipmentSlotCard.tsx` | Add mini progress bar to lock overlay |
-| `src/components/inventory/InventoryDrawer.tsx` | Enhance lock info with progress bar |
+| `src/components/constellation/ConstellationScreen.tsx` | Add `achievements` prop, pass to ConstellationMap |
+| `src/components/constellation/ConstellationMap.tsx` | Accept `achievements` prop, use instead of static array |
+| `src/pages/Index.tsx` | Pass `achievements` to ConstellationScreen |
+
+---
+
+## Technical Details
+
+### ConstellationMap Changes
+
+```typescript
+// Before
+const achievement = prerequisite 
+  ? achievementCategories.find(a => a.id === prerequisite.achievementId) 
+  : null;
+
+// After
+const achievement = prerequisite 
+  ? achievements.find(a => a.id === prerequisite.achievementId) 
+  : null;
+```
+
+### ConstellationScreen Interface Update
+
+```typescript
+interface ConstellationScreenProps {
+  characterName: string;
+  equippedItems: EquipmentItem[];
+  achievements: Achievement[];  // NEW
+  onBack?: () => void;
+}
+```
+
+### Index.tsx Stars Tab Update
+
+```typescript
+<ConstellationScreen
+  characterName={character.name}
+  equippedItems={Object.values(equipment.slots).filter(Boolean) as EquipmentItem[]}
+  achievements={achievements}  // NEW
+  onBack={() => setActiveTab('skills')}
+/>
+```
 
 ---
 
 ## User Experience
 
-- **Gear Tab**: Locked items show achievement name + progress bar directly on the card
-- **Stars Tab**: Selecting any star shows its unlock status with full progress details
-- Consistent visual language (amber for locked, green for unlocked) across both tabs
-- Players can easily track what achievements to focus on for specific gear pieces
+After implementation:
+- **Feats Tab**: User increments "Surviving After 0 HP" from 9 to 10
+- **Gear Tab**: "Cuirass of Regenerative Nonsense" lock overlay disappears, item becomes equippable
+- **Stars Tab**: The chest star for "Merc with a Mouth" set shows green "Unlocked" badge with full progress bar
+- All updates happen instantly with no page refresh needed
