@@ -2,10 +2,11 @@ import { Character, getAbilityPointsForLevel, getTotalPointsSpent, getPointsSpen
 import { allAbilities } from '@/lib/abilities';
 import { CharacterEquipment, EquipmentItem, legendarySetDefinitions } from '@/lib/inventory';
 import { Achievement } from '@/lib/achievements';
+import { useEquipmentStats } from '@/hooks/use-equipment-stats';
 import { 
   User, Heart, Shield, Zap, Target, 
   Trophy, Package, Star, Sparkles, Moon, Sun,
-  Swords, Crown, Scroll
+  Swords, Crown, Scroll, Weight, Eye, Move, Gem
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -13,14 +14,20 @@ import { Button } from '@/components/ui/button';
 // --- Character Stats Content ---
 interface CharacterStatsProps {
   character: Character;
+  equipment?: CharacterEquipment;
 }
 
-export function CharacterStatsContent({ character }: CharacterStatsProps) {
+export function CharacterStatsContent({ character, equipment }: CharacterStatsProps) {
   const activeSlots = getActiveSlotsByLevel(character.level);
   const xpForLevel = (level: number) => level * 1000;
   const currentXP = Math.floor(xpForLevel(character.level) * 0.65);
   const xpToNext = xpForLevel(character.level + 1) - xpForLevel(character.level);
   const xpProgress = Math.round((currentXP / xpToNext) * 100);
+
+  // Calculate equipment stats if equipment is provided
+  const defaultEquipment: CharacterEquipment = { slots: {} as any, inventory: [] };
+  const equipmentStats = useEquipmentStats(equipment || defaultEquipment);
+  const hasEquipment = equipment && Object.values(equipment.slots).some(Boolean);
 
   return (
     <div className="space-y-4">
@@ -49,7 +56,7 @@ export function CharacterStatsContent({ character }: CharacterStatsProps) {
         <Progress value={xpProgress} className="h-2 bg-muted/30" />
       </div>
 
-      {/* Stats Grid */}
+      {/* Primary Combat Stats - now from equipment */}
       <div className="grid grid-cols-2 gap-2">
         <div className="text-center p-3 rounded-lg bg-red-950/30 border border-red-900/30">
           <Heart className="w-5 h-5 mx-auto text-red-400 mb-1" />
@@ -58,23 +65,124 @@ export function CharacterStatsContent({ character }: CharacterStatsProps) {
         </div>
         <div className="text-center p-3 rounded-lg bg-blue-950/30 border border-blue-900/30">
           <Shield className="w-5 h-5 mx-auto text-blue-400 mb-1" />
-          <div className="text-lg font-bold">{12 + Math.floor(character.level / 4)}</div>
+          <div className="text-lg font-bold">{hasEquipment ? equipmentStats.totalAC : 12 + Math.floor(character.level / 4)}</div>
           <div className="text-[9px] text-muted-foreground uppercase">Armor Class</div>
+          {hasEquipment && equipmentStats.acFromGear > 0 && (
+            <div className="text-[8px] text-blue-400/70">+{equipmentStats.acFromGear} gear</div>
+          )}
         </div>
         <div className="text-center p-3 rounded-lg bg-amber-950/30 border border-amber-900/30">
-          <Zap className="w-5 h-5 mx-auto text-amber-400 mb-1" />
-          <div className="text-lg font-bold">+{2 + Math.floor((character.level - 1) / 4)}</div>
-          <div className="text-[9px] text-muted-foreground uppercase">Proficiency</div>
+          <Swords className="w-5 h-5 mx-auto text-amber-400 mb-1" />
+          <div className="text-lg font-bold">
+            {hasEquipment ? (equipmentStats.totalAttackBonus >= 0 ? '+' : '') + equipmentStats.totalAttackBonus : '+' + (2 + Math.floor((character.level - 1) / 4))}
+          </div>
+          <div className="text-[9px] text-muted-foreground uppercase">Attack Bonus</div>
         </div>
         <div className="text-center p-3 rounded-lg bg-purple-950/30 border border-purple-900/30">
           <Target className="w-5 h-5 mx-auto text-purple-400 mb-1" />
-          <div className="text-lg font-bold">{activeSlots}</div>
-          <div className="text-[9px] text-muted-foreground uppercase">Active Slots</div>
+          <div className="text-lg font-bold font-mono">
+            {hasEquipment && equipmentStats.damage ? equipmentStats.damage : '1d6'}
+          </div>
+          <div className="text-[9px] text-muted-foreground uppercase">Damage</div>
         </div>
       </div>
+
+      {/* Equipment Attribute Bonuses */}
+      {hasEquipment && (equipmentStats.strength !== 0 || equipmentStats.dexterity !== 0 || 
+        equipmentStats.constitution !== 0 || equipmentStats.perception !== 0 ||
+        equipmentStats.movement !== 0) && (
+        <div className="space-y-2">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            Equipment Bonuses
+          </div>
+          <div className="grid grid-cols-3 gap-1.5">
+            {equipmentStats.strength !== 0 && (
+              <div className="flex items-center gap-1 px-2 py-1 rounded bg-red-500/10 border border-red-500/30">
+                <Swords className="w-3 h-3 text-red-400" />
+                <span className="text-[10px] text-red-400 font-mono">
+                  {equipmentStats.strength > 0 ? '+' : ''}{equipmentStats.strength} STR
+                </span>
+              </div>
+            )}
+            {equipmentStats.dexterity !== 0 && (
+              <div className="flex items-center gap-1 px-2 py-1 rounded bg-green-500/10 border border-green-500/30">
+                <Move className="w-3 h-3 text-green-400" />
+                <span className="text-[10px] text-green-400 font-mono">
+                  {equipmentStats.dexterity > 0 ? '+' : ''}{equipmentStats.dexterity} DEX
+                </span>
+              </div>
+            )}
+            {equipmentStats.constitution !== 0 && (
+              <div className="flex items-center gap-1 px-2 py-1 rounded bg-orange-500/10 border border-orange-500/30">
+                <Heart className="w-3 h-3 text-orange-400" />
+                <span className="text-[10px] text-orange-400 font-mono">
+                  {equipmentStats.constitution > 0 ? '+' : ''}{equipmentStats.constitution} CON
+                </span>
+              </div>
+            )}
+            {equipmentStats.perception !== 0 && (
+              <div className="flex items-center gap-1 px-2 py-1 rounded bg-purple-500/10 border border-purple-500/30">
+                <Eye className="w-3 h-3 text-purple-400" />
+                <span className="text-[10px] text-purple-400 font-mono">
+                  {equipmentStats.perception > 0 ? '+' : ''}{equipmentStats.perception} PER
+                </span>
+              </div>
+            )}
+            {equipmentStats.movement !== 0 && (
+              <div className="flex items-center gap-1 px-2 py-1 rounded bg-cyan-500/10 border border-cyan-500/30">
+                <Zap className="w-3 h-3 text-cyan-400" />
+                <span className="text-[10px] text-cyan-400 font-mono">
+                  {equipmentStats.movement > 0 ? '+' : ''}{equipmentStats.movement} SPD
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Weight & Active Slots */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="flex items-center justify-between px-3 py-2 rounded-md bg-muted/20 border border-muted/30">
+          <div className="flex items-center gap-2">
+            <Weight className="w-4 h-4 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Weight</span>
+          </div>
+          <span className="font-mono text-sm">{hasEquipment ? equipmentStats.totalWeight : 0} lbs</span>
+        </div>
+        <div className="flex items-center justify-between px-3 py-2 rounded-md bg-muted/20 border border-muted/30">
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Slots</span>
+          </div>
+          <span className="font-mono text-sm">{activeSlots}</span>
+        </div>
+      </div>
+
+      {/* Active Set Bonuses */}
+      {hasEquipment && equipmentStats.activeSetBonuses.length > 0 && (
+        <div className="space-y-2">
+          <div className="text-[10px] uppercase tracking-wider text-amber-400 flex items-center gap-1">
+            <Gem className="w-3 h-3" />
+            Active Set Bonuses
+          </div>
+          {equipmentStats.activeSetBonuses.map((set, idx) => (
+            <div 
+              key={idx}
+              className="p-2 rounded-md border bg-amber-500/10 border-amber-500/40"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-amber-400">{set.setName}</span>
+                <span className="text-[10px] text-amber-400/70">
+                  {set.piecesActive}/{set.piecesTotal}
+                </span>
+              </div>
+              <p className="text-[10px] text-amber-300/80 mt-1">{set.bonus}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
-}
 
 // --- Skills Overview Content ---
 interface SkillsOverviewProps {

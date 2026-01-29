@@ -265,7 +265,7 @@ export function HomeScreen({
         icon={<User className="w-5 h-5" />}
         accentColor="#ef4444"
       >
-        <CharacterStatsContent character={character} />
+        <CharacterStatsContent character={character} equipment={equipment} />
       </HomeDataModal>
 
       <HomeDataModal
