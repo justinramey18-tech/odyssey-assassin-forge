@@ -1,7 +1,8 @@
 import { useState, ReactNode } from 'react';
-import { GripVertical, ChevronLeft, ChevronRight } from 'lucide-react';
+import { GripVertical, ChevronLeft, ChevronRight, Move, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { useDraggable } from '@/hooks/use-draggable';
 
 interface EdgeDrawerProps {
   side: 'left' | 'right';
@@ -197,7 +198,7 @@ export function EdgeTrigger({
   );
 }
 
-// Container for multiple stacked edge triggers
+// Container for multiple stacked edge triggers - now draggable
 interface EdgeTriggerStackProps {
   side: 'left' | 'right';
   triggers: Array<{
@@ -220,16 +221,95 @@ export function EdgeTriggerStack({
 }: EdgeTriggerStackProps) {
   const CollapseIcon = side === 'left' ? ChevronLeft : ChevronRight;
   const ExpandIcon = side === 'left' ? ChevronRight : ChevronLeft;
+  
+  // Draggable functionality
+  const { position, isDragging, dragHandlers, resetPosition } = useDraggable({
+    storageKey: `drawer-stack-position-${side}`,
+    initialPosition: { 
+      x: side === 'left' ? 0 : (typeof window !== 'undefined' ? window.innerWidth - 50 : 0), 
+      y: typeof window !== 'undefined' ? window.innerHeight / 2 - 100 : 200 
+    },
+  });
+
+  // Determine if we should use fixed edge position or dragged position
+  const [hasBeenDragged, setHasBeenDragged] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const saved = localStorage.getItem(`drawer-stack-position-${side}`);
+    return saved !== null;
+  });
+
+  const handleResetPosition = () => {
+    resetPosition();
+    setHasBeenDragged(false);
+    localStorage.removeItem(`drawer-stack-position-${side}`);
+  };
+
+  // Update hasBeenDragged when drag ends
+  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
+    setHasBeenDragged(true);
+    if ('touches' in e) {
+      dragHandlers.onTouchStart(e);
+    } else {
+      dragHandlers.onMouseDown(e);
+    }
+  };
+
+  const containerStyle = hasBeenDragged
+    ? {
+        position: 'fixed' as const,
+        left: position.x,
+        top: position.y,
+        zIndex: 40,
+      }
+    : {
+        position: 'fixed' as const,
+        left: side === 'left' ? 0 : undefined,
+        right: side === 'right' ? 0 : undefined,
+        top: '50%',
+        transform: 'translateY(-50%)',
+        zIndex: 40,
+      };
 
   return (
     <div
       className={cn(
-        'fixed z-40 flex flex-col gap-1',
-        side === 'left' ? 'left-0' : 'right-0',
+        'flex flex-col gap-1',
+        isDragging && 'cursor-grabbing',
       )}
-      style={{ top: '50%', transform: 'translateY(-50%)' }}
+      style={containerStyle}
     >
-      {triggers.map((trigger, index) => (
+      {/* Drag Handle */}
+      <div
+        className={cn(
+          'flex items-center justify-center gap-1 p-1.5 rounded-lg border backdrop-blur-sm cursor-grab',
+          'transition-all duration-200 hover:bg-white/10',
+          'touch-manipulation select-none',
+          !hasBeenDragged && (side === 'left' ? 'rounded-l-none' : 'rounded-r-none'),
+          isDragging && 'cursor-grabbing bg-white/20',
+        )}
+        style={{
+          backgroundColor: 'hsl(var(--muted) / 0.4)',
+          borderColor: 'hsl(var(--border) / 0.5)',
+        }}
+        onMouseDown={handleDragStart}
+        onTouchStart={handleDragStart}
+      >
+        <Move className="w-3 h-3 text-muted-foreground" />
+        {hasBeenDragged && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleResetPosition();
+            }}
+            className="p-0.5 rounded hover:bg-white/20 transition-colors"
+            title="Reset position"
+          >
+            <RotateCcw className="w-2.5 h-2.5 text-muted-foreground" />
+          </button>
+        )}
+      </div>
+
+      {triggers.map((trigger) => (
         <button
           key={trigger.id}
           onClick={trigger.onClick}
@@ -238,7 +318,9 @@ export function EdgeTriggerStack({
             'flex items-center gap-1 backdrop-blur-sm border',
             'transition-all duration-300',
             'touch-manipulation',
-            side === 'left' ? 'rounded-l-none rounded-r-lg' : 'rounded-r-none rounded-l-lg',
+            hasBeenDragged 
+              ? 'rounded-lg' 
+              : (side === 'left' ? 'rounded-l-none rounded-r-lg' : 'rounded-r-none rounded-l-lg'),
             collapsed ? 'p-2' : 'py-2 px-1.5',
             trigger.disabled 
               ? 'opacity-50 cursor-not-allowed' 
@@ -273,7 +355,7 @@ export function EdgeTriggerStack({
             'p-1.5 rounded-lg border backdrop-blur-sm',
             'transition-all duration-200 hover:bg-white/10',
             'touch-manipulation',
-            side === 'left' ? 'rounded-l-none' : 'rounded-r-none',
+            !hasBeenDragged && (side === 'left' ? 'rounded-l-none' : 'rounded-r-none'),
           )}
           style={{
             backgroundColor: 'hsl(var(--muted) / 0.3)',
