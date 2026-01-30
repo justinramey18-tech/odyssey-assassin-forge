@@ -601,6 +601,17 @@ const Index = () => {
             onXPPresetChange={setXPPreset}
             onManualLevelUp={handleManualLevelUp}
             onReturnToBuilder={() => setShowHomeScreen(false)}
+            onOpenSettings={() => setShowSettingsModal(true)}
+          />
+          
+          {/* Settings Modal */}
+          <SettingsModal 
+            characterName={character.name} 
+            onEditCharacter={() => setShowWizard(true)}
+            open={showSettingsModal}
+            onOpenChange={setShowSettingsModal}
+            prestigeData={prestigeData}
+            onPrestigeRespec={resetPrestigePoints}
           />
         </PromptDrawerProvider>
       </OnboardingProvider>
