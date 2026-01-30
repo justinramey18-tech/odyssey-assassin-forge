@@ -221,7 +221,7 @@ export function HomeScreen({
         <img 
           src={assassinLogo} 
           alt="" 
-          className="w-[20vh] h-[20vh] opacity-20 object-contain"
+          className="w-[20vh] h-[20vh] opacity-35 object-contain"
         />
       </div>
 
