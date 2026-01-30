@@ -14,16 +14,15 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { InstallBanner } from './InstallBanner';
 import { ClockWidget } from './ClockWidget';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
-import { Glass } from '@/components/ui/glass';
 import type { LucideIcon } from 'lucide-react';
 
 import tposeBackground from '@/assets/generated/deadpool-assassin-tpose-dive.jpg';
+import assassinLogo from '@/assets/assassin-logo.png';
 
 // Navigable tab types
 type NavigableTab = 
@@ -111,6 +110,10 @@ const itemVariants = {
     transition: { duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] as const }
   },
 };
+
+// Transparent card styles
+const transparentCardBase = "border border-white/20 rounded-lg bg-transparent hover:bg-white/5 transition-all duration-200";
+const transparentButtonBase = "border border-white/30 rounded-lg bg-transparent hover:bg-white/10 hover:border-white/50 transition-all duration-300";
 
 export function HomeScreen({ 
   character, 
@@ -210,17 +213,24 @@ export function HomeScreen({
       backgroundPosition="center center"
       className="fixed inset-0 z-50"
     >
-      <div className="flex flex-col h-screen overflow-hidden">
+      {/* Centered Assassin Logo Watermark */}
+      <div 
+        className="fixed inset-0 flex items-center justify-center pointer-events-none z-0"
+        aria-hidden="true"
+      >
+        <img 
+          src={assassinLogo} 
+          alt="" 
+          className="w-[20vh] h-[20vh] opacity-20 object-contain"
+        />
+      </div>
+
+      <div className="flex flex-col h-screen overflow-hidden relative z-10">
         {/* Install Banner */}
         <InstallBanner />
 
         {/* Header */}
-        <Glass 
-          as="header" 
-          variant="header" 
-          rounded="none"
-          className="flex items-center gap-4 px-4 py-3 border-b border-glass"
-        >
+        <header className="flex items-center gap-4 px-4 py-3 border-b border-white/10">
           <button 
             onClick={onReturnToBuilder}
             className="p-2 -ml-2 rounded-lg hover:bg-white/10 transition-colors"
@@ -231,17 +241,17 @@ export function HomeScreen({
           
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <Avatar className="w-12 h-12 border-2 border-primary shrink-0">
-              <AvatarFallback className="text-lg font-bold bg-primary/20 text-white">
+              <AvatarFallback className="text-lg font-bold bg-primary/20 text-white font-cinzel">
                 {character.name.substring(0, 2).toUpperCase() || 'DP'}
               </AvatarFallback>
             </Avatar>
             
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <h1 className="font-bold text-lg truncate text-white drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">
+                <h1 className="font-cinzel font-bold text-lg truncate text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
                   {character.name || 'Mercenary'}
                 </h1>
-                <Badge variant="secondary" className="shrink-0 bg-white/20 text-white border-none">
+                <Badge variant="secondary" className="shrink-0 bg-white/20 text-white border-none font-cinzel">
                   Lv.{character.level}
                 </Badge>
               </div>
@@ -262,7 +272,7 @@ export function HomeScreen({
           </div>
           
           <ClockWidget />
-        </Glass>
+        </header>
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-auto p-4 space-y-4">
@@ -275,17 +285,17 @@ export function HomeScreen({
           >
             {quickStats.map((stat) => (
               <motion.div key={stat.label} variants={itemVariants}>
-                <Glass variant="default" className="p-3 flex flex-col items-center gap-1.5">
+                <div className={cn(transparentCardBase, "p-3 flex flex-col items-center gap-1.5")}>
                   <div className="p-2 rounded-full bg-white/10">
                     <stat.icon className={cn("w-4 h-4", stat.color)} />
                   </div>
-                  <p className="text-xl font-bold text-white drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">
+                  <p className="text-xl font-cinzel font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
                     {stat.value}
                   </p>
-                  <p className="text-[10px] text-white/70 uppercase tracking-wide drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]">
+                  <p className="text-[10px] text-white/70 uppercase tracking-widest font-cinzel drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]">
                     {stat.label}
                   </p>
-                </Glass>
+                </div>
               </motion.div>
             ))}
           </motion.div>
@@ -308,25 +318,17 @@ export function HomeScreen({
               
               return (
                 <motion.div key={card.id} variants={itemVariants}>
-                  <Glass
-                    variant="interactive"
+                  <button
                     className={cn(
-                      "cursor-pointer min-h-[120px] p-4",
+                      transparentButtonBase,
+                      "cursor-pointer min-h-[120px] p-4 w-full",
                       "flex flex-col items-center justify-center text-center gap-2"
                     )}
                     onClick={() => handleCardClick(card.id)}
                     style={{ touchAction: 'manipulation' }}
-                    role="button"
-                    tabIndex={0}
                     aria-label={`Navigate to ${card.label}. ${card.description}${
                       badge ? `. ${badge} notifications.` : ''
                     }`}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        handleCardClick(card.id);
-                      }
-                    }}
                   >
                     {/* Icon with badge */}
                     <div className="relative">
@@ -354,7 +356,7 @@ export function HomeScreen({
                     {/* Label */}
                     <h3 
                       className={cn(
-                        "font-semibold text-white drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]",
+                        "font-cinzel font-semibold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]",
                         isMobile ? "text-sm" : "text-base"
                       )}
                     >
@@ -367,7 +369,7 @@ export function HomeScreen({
                         {card.description}
                       </p>
                     )}
-                  </Glass>
+                  </button>
                 </motion.div>
               );
             })}
@@ -375,57 +377,49 @@ export function HomeScreen({
         </div>
 
         {/* Quick Actions Footer */}
-        <Glass 
-          as="footer" 
-          variant="header" 
-          rounded="none"
-          className="border-t border-glass p-4"
-        >
+        <footer className="border-t border-white/10 p-4">
           <div className="grid grid-cols-3 gap-3 max-w-md mx-auto">
-            <Glass
-              as="button"
-              variant="interactive"
-              className="h-auto py-3 flex flex-col items-center gap-1 text-white"
+            <button
+              className={cn(transparentButtonBase, "py-3 flex flex-col items-center gap-1 text-white")}
               onClick={() => handleQuickAction('shortRest')}
               style={{ touchAction: 'manipulation' }}
             >
               <Coffee className="w-5 h-5 text-amber-400" />
-              <span className="text-xs drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Short Rest</span>
-            </Glass>
+              <span className="text-xs font-cinzel drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Short Rest</span>
+            </button>
             
-            <Glass
-              as="button"
-              variant="interactive"
-              className="h-auto py-3 flex flex-col items-center gap-1 text-white"
+            <button
+              className={cn(transparentButtonBase, "py-3 flex flex-col items-center gap-1 text-white")}
               onClick={() => handleQuickAction('longRest')}
               style={{ touchAction: 'manipulation' }}
             >
               <Moon className="w-5 h-5 text-blue-400" />
-              <span className="text-xs drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Long Rest</span>
-            </Glass>
+              <span className="text-xs font-cinzel drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Long Rest</span>
+            </button>
             
             {canLevelUp ? (
-              <Glass
-                as="button"
-                variant="interactive"
-                className="h-auto py-3 flex flex-col items-center gap-1 text-white border-primary/50 shadow-[0_0_15px_rgba(var(--primary),0.3)]"
+              <button
+                className={cn(
+                  transparentButtonBase, 
+                  "py-3 flex flex-col items-center gap-1 text-white",
+                  "border-primary/50 shadow-[0_0_15px_rgba(var(--primary),0.3)] animate-pulse"
+                )}
                 onClick={() => handleQuickAction('levelUp')}
                 style={{ touchAction: 'manipulation' }}
               >
                 <TrendingUp className="w-5 h-5 text-primary" />
-                <span className="text-xs drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Level Up</span>
-              </Glass>
+                <span className="text-xs font-cinzel drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Level Up</span>
+              </button>
             ) : (
-              <Glass
-                variant="default"
-                className="h-auto py-3 flex flex-col items-center gap-1 opacity-40 cursor-not-allowed"
+              <div
+                className={cn(transparentCardBase, "py-3 flex flex-col items-center gap-1 opacity-40 cursor-not-allowed")}
               >
                 <TrendingUp className="w-5 h-5 text-white/50" />
-                <span className="text-xs text-white/50 drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]">Level Up</span>
-              </Glass>
+                <span className="text-xs font-cinzel text-white/50 drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]">Level Up</span>
+              </div>
             )}
           </div>
-        </Glass>
+        </footer>
       </div>
     </BackgroundWrapper>
   );
