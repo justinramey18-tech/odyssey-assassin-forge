@@ -1,267 +1,238 @@
 
-# Enhanced Home Screen Background Implementation
+# Universal Glassmorphism Audit & Refactor for Home Screen
 
 ## Overview
 
-Transform the Home Screen into an immersive dashboard featuring the Deadpool T-pose leap of faith artwork (`deadpool-assassin-tpose-dive.jpg`) as a full-screen background. This implementation incorporates architectural best practices including a reusable Glass component, design tokens, and staggered entry animations for a premium experience.
+Perform a comprehensive audit and refactor of ALL UI elements on the Home Screen to ensure they adhere to the established glassmorphism design system. The guiding principle is "See-Through Everything" - no container should be fully opaque, allowing the T-pose background artwork to remain visible through the entire interface.
 
 ---
 
-## What Will Change
+## Current State Analysis
 
-The Home Screen will evolve from a solid dark background to feature your epic leap of faith artwork as a fixed, full-screen background. All cards, headers, and panels will become semi-transparent frosted glass elements. The character diving through storm clouds will be visible behind all interface elements while text remains crisp and readable.
+After auditing the codebase, here's what needs attention:
 
----
-
-## Phase 0: Architecture and Tooling
-
-Before implementing the visual changes, establish the foundational components and design tokens for maintainability.
-
-### 0.1 Create Glass Component
-
-Create a new reusable `Glass` component using class-variance-authority (CVA) for consistent glassmorphism styling across the app:
-
-| Variant | Style | Use Case |
-|---------|-------|----------|
-| `default` | `bg-black/40 backdrop-blur-md` | Static containers, stat cards |
-| `interactive` | `bg-black/50 backdrop-blur-lg` + hover effects | Buttons, navigation cards |
-| `header` | `bg-black/50 backdrop-blur-xl` | Header and footer bars |
-
-The component will use `@radix-ui/react-slot` (already installed) for polymorphism, allowing it to render as any HTML element.
-
-### 0.2 Add Design Tokens to Tailwind Config
-
-Extend `tailwind.config.ts` with semantic glassmorphism tokens:
-
-| Token | Value | Purpose |
-|-------|-------|---------|
-| `colors.glass.DEFAULT` | `rgba(0, 0, 0, 0.50)` | Standard glass background |
-| `colors.glass.subtle` | `rgba(0, 0, 0, 0.40)` | Lighter glass effect |
-| `colors.glass.strong` | `rgba(0, 0, 0, 0.60)` | High contrast glass |
-| `borderColor.glass` | `rgba(255, 255, 255, 0.10)` | Glass border color |
-| `boxShadow.glass-glow` | `inset 0 1px 0 rgba(255,255,255,0.1)` | Inner highlight |
-
-### 0.3 Install Framer Motion (Optional)
-
-Add `framer-motion` for staggered entry animations. This can be deferred if performance is a concern, as CSS-only alternatives exist.
+| Component | Current State | Status |
+|-----------|--------------|--------|
+| Header Bar | Already using `Glass variant="header"` | Done |
+| Footer Bar | Already using `Glass variant="header"` | Done |
+| Stat Cards | Already using `Glass variant="default"` | Done |
+| Navigation Cards | Already using `Glass variant="interactive"` | Done |
+| Footer Buttons | Using custom `bg-white/10 border-glass` | Needs Refactor |
+| Clock Widget | Using `bg-black/60 backdrop-blur-md` | Needs Refactor |
+| Install Banner | Using `bg-gradient-to-r from-primary/90` | Needs Refactor |
+| Floating Drawer Triggers | Using inline styles with `rgba(0,0,0,0.3)` | Needs Refactor |
+| Drawer Panel (SheetContent) | Using `bg-background/95 backdrop-blur-xl` | Needs Refactor |
+| Dialog/Modal Content | Using `bg-background` | Needs Refactor |
+| HomeDataModal | Using `bg-black/95 backdrop-blur-xl` | Needs Refactor |
+| Tooltip Content | Using `bg-popover` (solid) | Needs Refactor |
+| Scroll Area Thumbs | Using `bg-border` (solid) | Needs Refactor |
 
 ---
 
-## Phase 1: BackgroundWrapper Enhancement
+## Phase 1: Core UI Component Refactors
 
-Extend the existing `BackgroundWrapper` component to support the Home Screen requirements:
+### 1.1 Footer Action Buttons
 
-| New Prop | Type | Default | Purpose |
-|----------|------|---------|---------|
-| `backgroundPosition` | `string` | `'center center'` | Control focal point |
-| `fallbackGradient` | `string` | Dark gradient | Fallback when image fails |
-| `enablePerformanceHints` | `boolean` | `true` | Add `will-change`, `contain` |
-| `respectReducedMotion` | `boolean` | `true` | Disable parallax for accessibility |
-| `onLoad` | `() => void` | - | Callback when image loads |
+**File**: `src/components/home/HomeScreen.tsx`
 
-**Performance Optimizations:**
-- Add `will-change: transform` and `contain: layout style paint` to background layer
-- Detect touch devices and disable `bg-fixed` for 60fps scrolling
-- Check `prefers-reduced-motion` and skip parallax effects
+Convert the three footer buttons from custom Button styling to use the Glass component:
 
-**Responsive Focal Points:**
+| Element | Current | New |
+|---------|---------|-----|
+| Short Rest Button | `Button variant="outline" + bg-white/10` | `Glass as="button" variant="interactive"` |
+| Long Rest Button | `Button variant="outline" + bg-white/10` | `Glass as="button" variant="interactive"` |
+| Level Up Button | `Button variant="default"` (solid) | `Glass as="button" variant="interactive"` with accent glow |
+| Disabled Level Up | `div opacity-40` | Same structure with disabled Glass styling |
+
+### 1.2 Clock Widget
+
+**File**: `src/components/home/ClockWidget.tsx`
+
+Replace custom inline styles with Glass component:
+
+| Current | New |
+|---------|-----|
+| `bg-black/60 backdrop-blur-md border border-red-900/40` | `Glass variant="default" rounded="full"` |
+
+### 1.3 Install Banner
+
+**File**: `src/components/home/InstallBanner.tsx`
+
+Replace gradient background with Glass styling:
+
+| Current | New |
+|---------|-----|
+| `bg-gradient-to-r from-primary/90 to-primary/70 backdrop-blur-md` | `Glass variant="interactive"` with primary accent border |
+
+---
+
+## Phase 2: Floating Drawer System
+
+### 2.1 Draggable Trigger Buttons
+
+**File**: `src/components/drawers/EdgeDrawer.tsx`
+
+Update the `DraggableTrigger` component to use Glass styling:
+
+| Current | New |
+|---------|-----|
+| Inline `backgroundColor: 'rgba(0, 0, 0, 0.3)'` | Use Glass design tokens via Tailwind classes |
+| Inline `borderColor`, `boxShadow` | Apply Glass component styling with accent color overlays |
+
+Implementation approach:
+- Add `bg-glass-subtle backdrop-blur-md border-glass shadow-glass-glow` base classes
+- Maintain accent color highlights via CSS custom properties or overlay styles
+- Keep the edge-detection glow animation as an enhancement on top
+
+### 2.2 Drawer Panel (Sheet)
+
+**File**: `src/components/drawers/EdgeDrawer.tsx`
+
+Update the `SheetContent` styling in the EdgeDrawer:
+
+| Current | New |
+|---------|-----|
+| `bg-background/95 backdrop-blur-xl` | `bg-glass backdrop-blur-xl border-glass` |
+| Header with `background: linear-gradient(...)` | `bg-glass-subtle backdrop-blur-xl` |
+
+---
+
+## Phase 3: Modal & Overlay System
+
+### 3.1 Base Dialog Component
+
+**File**: `src/components/ui/dialog.tsx`
+
+Update `DialogContent` default styles:
+
+| Current | New |
+|---------|-----|
+| `bg-background` | `bg-glass backdrop-blur-xl border-glass shadow-glass-glow` |
+
+The overlay (`DialogOverlay`) at `bg-black/80` is correct - it should remain as a solid dim layer without blur to create the "glass-on-dimmed-glass" effect.
+
+### 3.2 Base Sheet Component
+
+**File**: `src/components/ui/sheet.tsx`
+
+Update `SheetContent` default styles:
+
+| Current | New |
+|---------|-----|
+| `bg-background` | `bg-glass backdrop-blur-xl border-glass` |
+
+The overlay at `bg-black/80` is correct and should remain unchanged.
+
+### 3.3 HomeDataModal
+
+**File**: `src/components/home/HomeDataModal.tsx`
+
+Update to use Glass component:
+
+| Current | New |
+|---------|-----|
+| `bg-black/95 backdrop-blur-xl` | `Glass variant="default"` with accent border |
+
+---
+
+## Phase 4: Tooltip & Micro-Components
+
+### 4.1 Tooltip Content
+
+**File**: `src/components/ui/tooltip.tsx`
+
+Update `TooltipContent` to use glassmorphism:
+
+| Current | New |
+|---------|-----|
+| `bg-popover` (solid) | `bg-glass-subtle backdrop-blur-md border-glass shadow-glass-glow` |
+| `text-popover-foreground` | `text-white` for contrast |
+
+### 4.2 Scroll Area
+
+**File**: `src/components/ui/scroll-area.tsx`
+
+Update scrollbar styling for glass aesthetic:
+
+| Current | New |
+|---------|-----|
+| Thumb: `bg-border` | `bg-white/30 hover:bg-white/40` |
+| Track: transparent | `bg-white/5` (very subtle) |
+
+---
+
+## Phase 5: Glass Component Enhancement
+
+### 5.1 Add New Variant
+
+**File**: `src/components/ui/glass.tsx`
+
+Add a `subtle` variant for smaller elements like tooltips and badges:
+
 ```text
-Mobile portrait:  center 25%  (focus on upper body/face)
-Mobile landscape: center 40%  (balance full figure)
-Tablet:           center 35%  (slight upper focus)
-Desktop:          center center (full composition)
+Variants to add:
+- subtle: "bg-glass-subtle/80 backdrop-blur-sm shadow-glass-glow"
 ```
 
 ---
-
-## Phase 2: HomeScreen Layout Updates
-
-### 2.1 Wrap with BackgroundWrapper
-
-Replace the solid `bg-background` container with `BackgroundWrapper`:
-
-```text
-Configuration:
-- imagePath: deadpool-assassin-tpose-dive.jpg
-- overlayOpacity: 45 (slightly higher for readability)
-- tintColor: 'red' (subtle thematic tint)
-- tintOpacity: 10
-- fixed: true (parallax on desktop)
-```
-
-### 2.2 Refactor UI Elements to Glass
-
-| Element | Current | New Glass Style |
-|---------|---------|-----------------|
-| Main container | `bg-background` | Transparent (wrapper handles) |
-| Header | `bg-card/80 backdrop-blur-md` | Glass `header` variant |
-| Stat cards | `Card` component | Glass `default` variant |
-| Navigation cards | `Card` component | Glass `interactive` variant |
-| Footer | `bg-card/80 backdrop-blur-md` | Glass `header` variant |
-
----
-
-## Phase 3: Text Contrast and Readability
-
-Ensure WCAG AA compliance (4.5:1 contrast ratio for normal text):
-
-| Enhancement | Implementation |
-|-------------|----------------|
-| Text shadows | `text-shadow: 0 2px 4px rgba(0,0,0,0.8)` on headers and labels |
-| Bright foreground | Replace `text-foreground` with `text-white` where needed |
-| Stat values | Add `drop-shadow-lg` to numbers |
-| Descriptions | Change `text-muted-foreground` to `text-white/70` |
-| XP bar text | Add subtle text shadow for visibility |
-
----
-
-## Phase 4: Staggered Entry Animations
-
-Add premium entry animations using Framer Motion:
-
-**Container Configuration:**
-```text
-staggerChildren: 0.05 (50ms between each card)
-delayChildren: 0.1 (100ms initial delay)
-```
-
-**Item Animation:**
-```text
-Initial: opacity: 0, y: 20px
-Animate: opacity: 1, y: 0
-Transition: duration: 0.3s, ease: "easeOut"
-```
-
-**CSS-Only Fallback (if Framer Motion not added):**
-Use CSS custom properties with `animation-delay` calculated per card index.
-
----
-
-## Phase 5: Loading Experience
-
-Implement progressive loading with fallback:
-
-| State | Display |
-|-------|---------|
-| Loading | Solid gradient: `linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%)` |
-| Loaded | Fade-in animation (0.3s ease-out) on background image |
-| Error | Fallback gradient persists (image is purely decorative) |
-
----
-
-## Phase 6: Accessibility Compliance
-
-| Requirement | Implementation |
-|-------------|----------------|
-| Decorative background | Add `aria-hidden="true"` to BackgroundWrapper image layer |
-| Reduced motion | Check `prefers-reduced-motion` and disable parallax + entry animations |
-| Focus indicators | Ensure focus rings use `ring-white/50` for visibility against glass |
-| Keyboard navigation | All cards remain fully keyboard accessible |
-| Screen readers | Background is decorative; content announces correctly |
-
----
-
-## Files to Create
-
-| File | Purpose |
-|------|---------|
-| `src/components/ui/glass.tsx` | Reusable Glass component with CVA variants |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `tailwind.config.ts` | Add glassmorphism design tokens and animations |
-| `src/components/ui/BackgroundWrapper.tsx` | Add new props, performance hints, reduced-motion support, responsive positioning |
-| `src/components/home/HomeScreen.tsx` | Import BackgroundWrapper and Glass, refactor all UI elements, add text contrast |
-| `package.json` | Add `framer-motion` dependency (optional) |
+| `src/components/home/HomeScreen.tsx` | Convert footer buttons to Glass component |
+| `src/components/home/ClockWidget.tsx` | Replace inline styles with Glass component |
+| `src/components/home/InstallBanner.tsx` | Apply Glass styling to banner container |
+| `src/components/home/HomeDataModal.tsx` | Use Glass component for modal body |
+| `src/components/drawers/EdgeDrawer.tsx` | Update trigger and drawer panel to use Glass tokens |
+| `src/components/ui/dialog.tsx` | Add Glass styling to DialogContent |
+| `src/components/ui/sheet.tsx` | Add Glass styling to SheetContent |
+| `src/components/ui/tooltip.tsx` | Apply glassmorphism to TooltipContent |
+| `src/components/ui/scroll-area.tsx` | Update scrollbar colors for glass aesthetic |
+| `src/components/ui/glass.tsx` | Add `subtle` variant for micro-components |
 
 ---
 
-## Visual Result Preview
+## Visual Consistency Matrix
 
-```text
-+------------------------------------------+
-|  [glass header: bg-black/50 blur-xl]     |
-|  [<] Avatar  Name  Lv.X  [XP===] [Clock] |
-+------------------------------------------+
-|                                          |
-|   +-------+  +-------+  +-------+        |
-|   | HP    |  | AC    |  | Init  |  Stats |
-|   | glass |  | glass |  | glass |        |
-|   +-------+  +-------+  +-------+        |
-|                                          |
-|          /\                              |
-|    =====[  ]T-POSE======                 |
-|         [  ] DIVE                        |
-|         [  ] (visible behind glass)      |
-|          \/                              |
-|                                          |
-|   +---------+  +---------+               |
-|   | Skills  |  |Abilities|  Nav Cards    |
-|   | [glass] |  | [glass] |  (9 total)    |
-|   | hover:  |  | hover:  |               |
-|   | glow+   |  | glow+   |               |
-|   | scale   |  | scale   |               |
-|   +---------+  +---------+               |
-|                                          |
-+------------------------------------------+
-|  [glass footer: bg-black/50 blur-xl]     |
-|    [Short Rest] [Long Rest] [Level Up]   |
-+------------------------------------------+
-```
+After refactoring, every container on the Home Screen will use this consistent system:
+
+| Element Type | Glass Variant | Blur Level | Opacity |
+|--------------|---------------|------------|---------|
+| Headers/Footers | `header` | `backdrop-blur-xl` | 50% |
+| Static Cards | `default` | `backdrop-blur-md` | 40% |
+| Interactive Cards/Buttons | `interactive` | `backdrop-blur-lg` | 50% (60% on hover) |
+| Floating Triggers | `interactive` | `backdrop-blur-md` | 40% |
+| Modals/Dialogs | `default` | `backdrop-blur-xl` | 50% |
+| Drawers | `header` | `backdrop-blur-xl` | 50% |
+| Tooltips | `subtle` (new) | `backdrop-blur-sm` | 40% |
+| Scrollbar Thumb | N/A | N/A | `bg-white/30` |
 
 ---
 
-## Testing Checklist
+## Acceptance Criteria Checklist
 
-### Visual QA
-- Background visible on all screen sizes (320px - 2560px)
-- Character's face/weapons remain in frame on mobile
-- All text passes WCAG AA contrast (4.5:1 minimum)
-- Glass cards have visible borders/separation
-- No text clipping or overflow
-- Staggered animations play smoothly on load
+Upon completion, the following conditions will be verified:
 
-### Performance QA
-- Lighthouse Performance score greater than 90 (mobile)
-- No jank during scroll (60fps maintained)
-- Backdrop blur doesn't cause repaints on mobile
-- Entry animations complete within 500ms
-
-### Cross-Browser/Device
-- Chrome/Edge (latest)
-- Safari iOS (latest 2 versions)
-- Firefox (latest)
-- iPhone SE, iPhone 14 Pro, iPad, Android mid-range
-
-### Accessibility
-- Screen reader announces content correctly
-- Parallax and animations disabled when `prefers-reduced-motion: reduce`
-- Keyboard navigation unaffected
-- Focus indicators visible against glass background
-
----
-
-## Risk Mitigation
-
-| Risk | Mitigation |
-|------|------------|
-| Performance on mid-range mobile | Disable `bg-fixed` on touch devices, use `backdrop-blur-md` instead of `backdrop-blur-xl` |
-| Poor contrast on bright screens | 45% overlay + text shadows ensure readability |
-| Image crops character awkwardly | Responsive `background-position` adjusts focal point per breakpoint |
-| Backdrop blur unsupported | CSS fallback to solid `bg-black/60` |
-| Framer Motion bundle size | Optional; CSS-only fallback available |
+- No opaque containers: Zero solid-colored container elements on the Home Screen
+- Constant visibility: Background artwork visible (blurred) through every UI panel
+- Universal consistency: Frosted glass aesthetic applied from header to tooltip
+- Readability preserved: All text and icons at 100% opacity with text shadows for contrast
+- Interactivity clear: All interactive elements use proper hover/focus states
+- Design system compliance: All styles reference Glass component or design tokens
 
 ---
 
 ## Implementation Priority
 
-1. Create Glass component and add design tokens (Phase 0)
-2. Enhance BackgroundWrapper with new props (Phase 1)
-3. Wrap HomeScreen and apply Glass to all elements (Phase 2)
-4. Add text contrast enhancements (Phase 3)
-5. Add staggered entry animations (Phase 4)
-6. Implement loading states (Phase 5)
-7. Final accessibility compliance pass (Phase 6)
-8. Execute testing checklist
+1. Footer action buttons (HomeScreen.tsx)
+2. Clock Widget (ClockWidget.tsx)
+3. Floating drawer triggers (EdgeDrawer.tsx)
+4. Install Banner (InstallBanner.tsx)
+5. Drawer panel styling (EdgeDrawer.tsx)
+6. Dialog base component (dialog.tsx)
+7. Sheet base component (sheet.tsx)
+8. HomeDataModal (HomeDataModal.tsx)
+9. Tooltip component (tooltip.tsx)
+10. Scroll area styling (scroll-area.tsx)
+11. Glass component enhancement (glass.tsx)
