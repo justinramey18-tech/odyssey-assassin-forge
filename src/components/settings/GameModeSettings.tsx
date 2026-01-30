@@ -57,7 +57,7 @@ export function GameModeSettings({ settings, onChange }: GameModeSettingsProps) 
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-tutorial-id="game-mode-section">
       {/* Mode Selection Cards */}
       <div className="grid grid-cols-2 gap-3">
         {/* Honest Mode Card */}

@@ -173,6 +173,7 @@ export function HomeScreen({
       {/* Four-Directional Panning Container */}
       <div 
         ref={scrollRef}
+        data-tutorial-id="home-screen-zones"
         className="flex-1 overflow-auto scrollbar-hide"
         style={{ 
           scrollbarWidth: 'none',
@@ -227,6 +228,7 @@ export function HomeScreen({
               icon={<Gem className="w-3.5 h-3.5" />}
               onClick={() => setShowGauntletScreen(true)}
               accentColor="#eab308"
+              data-tutorial-id="zone-gauntlet"
               style={{
                 left: '50%',
                 top: '32%',

@@ -20,6 +20,7 @@ import { ConstellationScreen } from '@/components/constellation/ConstellationScr
 import { HomeScreen } from '@/components/home/HomeScreen';
 import { NarrativeForgeScreen } from '@/components/scribe/NarrativeForgeScreen';
 import { PromptDrawerProvider } from '@/components/drawers';
+import { TutorialProvider } from '@/components/tutorial';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Swords, Backpack, Trophy, Sparkles, Home, BookOpen, ChevronUp, Crosshair, Lock, Cloud } from 'lucide-react';
@@ -101,7 +102,7 @@ const Index = () => {
   } = useConsumables();
   
   const { toast } = useToast();
-  const { requiresOrganicLevelUp, requiresGearUnlocks, rerollsDisabled } = useGameMode();
+  const { requiresOrganicLevelUp, requiresGearUnlocks, rerollsDisabled, infinityStonesLocked } = useGameMode();
 
   // Data for auto-save
   const saveData = useMemo(() => ({
@@ -435,43 +436,55 @@ const Index = () => {
   // Full-screen Home overlay
   if (showHomeScreen) {
     return (
-      <PromptDrawerProvider
-        character={character}
-        unlockedAbilities={unlockedAbilities}
-        enabled={true}
-        currentXP={currentXP}
-        xpPreset={xpPreset}
-        onAddXP={handleAddXP}
-        equipment={equipment}
-        isHomeScreen={true}
-        onNavigateToSkills={() => { setShowHomeScreen(false); setActiveTab('skills'); }}
+      <TutorialProvider
+        characterLevel={character.level}
+        isHonestMode={requiresGearUnlocks}
+        gauntletLocked={infinityStonesLocked && character.level < 20}
+        autoStart={true}
       >
-        <HomeScreen 
+        <PromptDrawerProvider
           character={character}
-          equipment={equipment}
-          achievements={achievements}
+          unlockedAbilities={unlockedAbilities}
+          enabled={true}
           currentXP={currentXP}
           xpPreset={xpPreset}
-          onBack={() => setShowWizard(true)}
-          onNavigateToTab={(tab) => {
-            setShowHomeScreen(false);
-            if (tab === 'abilities') setActiveTab('skills');
-            else if (tab === 'inventory') setActiveTab('gear');
-            else if (tab === 'achievements') setActiveTab('feats');
-            else if (tab === 'constellation') setActiveTab('stars');
-          }}
-          onShortRest={handleShortRest}
-          onLongRest={handleLongRest}
           onAddXP={handleAddXP}
-          onXPPresetChange={setXPPreset}
-          onManualLevelUp={handleManualLevelUp}
-          onReturnToBuilder={() => setShowHomeScreen(false)}
-        />
-      </PromptDrawerProvider>
+          equipment={equipment}
+          isHomeScreen={true}
+          onNavigateToSkills={() => { setShowHomeScreen(false); setActiveTab('skills'); }}
+        >
+          <HomeScreen 
+            character={character}
+            equipment={equipment}
+            achievements={achievements}
+            currentXP={currentXP}
+            xpPreset={xpPreset}
+            onBack={() => setShowWizard(true)}
+            onNavigateToTab={(tab) => {
+              setShowHomeScreen(false);
+              if (tab === 'abilities') setActiveTab('skills');
+              else if (tab === 'inventory') setActiveTab('gear');
+              else if (tab === 'achievements') setActiveTab('feats');
+              else if (tab === 'constellation') setActiveTab('stars');
+            }}
+            onShortRest={handleShortRest}
+            onLongRest={handleLongRest}
+            onAddXP={handleAddXP}
+            onXPPresetChange={setXPPreset}
+            onManualLevelUp={handleManualLevelUp}
+            onReturnToBuilder={() => setShowHomeScreen(false)}
+          />
+        </PromptDrawerProvider>
+      </TutorialProvider>
     );
   }
 
   return (
+    <TutorialProvider
+      characterLevel={character.level}
+      isHonestMode={requiresGearUnlocks}
+      gauntletLocked={infinityStonesLocked && character.level < 20}
+    >
     <PromptDrawerProvider
       character={character}
       unlockedAbilities={unlockedAbilities}
@@ -750,6 +763,7 @@ const Index = () => {
       )}
       </div>
     </PromptDrawerProvider>
+    </TutorialProvider>
   );
 };
 

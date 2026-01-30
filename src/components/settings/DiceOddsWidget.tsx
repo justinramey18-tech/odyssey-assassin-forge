@@ -39,7 +39,7 @@ export function DiceOddsWidget({ value, onChange }: DiceOddsWidgetProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tutorial-id="dice-odds-widget">
       {/* Header */}
       <div className="flex items-center gap-2">
         <Dices className="w-5 h-5 text-primary" />
