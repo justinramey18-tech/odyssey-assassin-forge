@@ -43,6 +43,10 @@ interface PromptDrawerProviderProps {
   onAddXP?: (amount: number, source: string) => void;
   // Equipment for set bonus drawer
   equipment?: CharacterEquipment;
+  // Navigation callbacks for edge-hold gestures
+  isHomeScreen?: boolean;
+  onNavigateHome?: () => void;
+  onNavigateToSkills?: () => void;
 }
 
 export function PromptDrawerProvider({
@@ -54,6 +58,9 @@ export function PromptDrawerProvider({
   xpPreset = 'standard',
   onAddXP = () => {},
   equipment,
+  isHomeScreen = false,
+  onNavigateHome,
+  onNavigateToSkills,
 }: PromptDrawerProviderProps) {
   const [infinityOpen, setInfinityOpen] = useState(false);
   const [abilitiesOpen, setAbilitiesOpen] = useState(false);
@@ -189,6 +196,9 @@ export function PromptDrawerProvider({
             <EdgeTriggerStack
               side="left"
               triggers={leftTriggers}
+              isHomeScreen={isHomeScreen}
+              onNavigateHome={onNavigateHome}
+              onNavigateToSkills={onNavigateToSkills}
             />
           )}
 
