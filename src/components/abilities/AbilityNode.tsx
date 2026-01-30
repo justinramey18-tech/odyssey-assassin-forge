@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Ability, AbilityTree } from '@/lib/types';
 import { TREE_VISUAL_CONFIG } from '@/lib/abilityTrees/colors';
+import { TARGET_ABILITY } from '@/lib/onboarding/types';
 import { cn } from '@/lib/utils';
 import * as LucideIcons from 'lucide-react';
 import { Shield } from 'lucide-react';
@@ -113,6 +114,7 @@ export function AbilityNode({
   return (
     <div
       role="button"
+      id={ability.id === TARGET_ABILITY ? `onboarding-${TARGET_ABILITY}` : undefined}
       tabIndex={0}
       aria-label={`${ability.name}, Tier ${currentTier} of 3, ${isLocked ? 'Locked' : isAvailable ? 'Available' : 'Unlocked'}`}
       onClick={handleClick}

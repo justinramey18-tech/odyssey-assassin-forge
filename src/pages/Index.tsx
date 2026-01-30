@@ -22,7 +22,7 @@ import { IntroSplashScreen } from '@/components/home/IntroSplashScreen';
 import { NarrativeForgeScreen } from '@/components/scribe/NarrativeForgeScreen';
 import { ChronicleSyncScreen } from '@/components/chronicle';
 import { PromptDrawerProvider } from '@/components/drawers';
-import { TutorialProvider } from '@/components/tutorial';
+import { OnboardingProvider } from '@/components/onboarding';
 import { AbilitiesScreen } from '@/components/abilities';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -526,11 +526,13 @@ const Index = () => {
   // Intro splash screen - shows once after tutorial completion
   if (showHomeScreen && showIntroSplash) {
     return (
-      <TutorialProvider
-        characterLevel={character.level}
-        isHonestMode={requiresGearUnlocks}
-        gauntletLocked={infinityStonesLocked && character.level < 20}
-        autoStart={true}
+      <OnboardingProvider
+        totalPointsSpent={spentPoints}
+        characterName={character.name}
+        onForceNavigate={(tab) => { 
+          setShowHomeScreen(false); 
+          setActiveTab(tab as typeof activeTab); 
+        }}
       >
         <IntroSplashScreen 
           onBegin={() => {
@@ -538,18 +540,20 @@ const Index = () => {
             setShowIntroSplash(false);
           }}
         />
-      </TutorialProvider>
+      </OnboardingProvider>
     );
   }
 
   // Full-screen Home overlay
   if (showHomeScreen) {
     return (
-      <TutorialProvider
-        characterLevel={character.level}
-        isHonestMode={requiresGearUnlocks}
-        gauntletLocked={infinityStonesLocked && character.level < 20}
-        autoStart={false}
+      <OnboardingProvider
+        totalPointsSpent={spentPoints}
+        characterName={character.name}
+        onForceNavigate={(tab) => { 
+          setShowHomeScreen(false); 
+          setActiveTab(tab as typeof activeTab); 
+        }}
       >
         <PromptDrawerProvider
           character={character}
@@ -571,7 +575,6 @@ const Index = () => {
             onBack={() => setShowWizard(true)}
             onNavigateToTab={(tab) => {
               setShowHomeScreen(false);
-              // Direct mapping for all tabs
               setActiveTab(tab as typeof activeTab);
             }}
             onShortRest={handleShortRest}
@@ -582,15 +585,18 @@ const Index = () => {
             onReturnToBuilder={() => setShowHomeScreen(false)}
           />
         </PromptDrawerProvider>
-      </TutorialProvider>
+      </OnboardingProvider>
     );
   }
 
   return (
-    <TutorialProvider
-      characterLevel={character.level}
-      isHonestMode={requiresGearUnlocks}
-      gauntletLocked={infinityStonesLocked && character.level < 20}
+    <OnboardingProvider
+      totalPointsSpent={spentPoints}
+      characterName={character.name}
+      onForceNavigate={(tab) => { 
+        setShowHomeScreen(false); 
+        setActiveTab(tab as typeof activeTab); 
+      }}
     >
     <PromptDrawerProvider
       character={character}
@@ -914,7 +920,7 @@ const Index = () => {
       )}
       </div>
     </PromptDrawerProvider>
-    </TutorialProvider>
+    </OnboardingProvider>
   );
 };
 

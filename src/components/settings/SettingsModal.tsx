@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Settings, User, Dices, Gamepad2, RotateCcw, Star, Lock, FileText, Copy, Check, RefreshCw, Camera } from 'lucide-react';
+import { Settings, User, Dices, Gamepad2, RotateCcw, Star, Lock, FileText, Copy, Check, RefreshCw, Camera, BookOpen } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { Character, Ability } from '@/lib/types';
 import { EquipmentItem, EquipmentSlotType } from '@/lib/inventory/types';
 import { generateDynamicGMGuide, generateCurrentStateSummary, STATIC_GM_GUIDE, CharacterBuildData } from '@/lib/gmGuideGenerator';
+import { ONBOARDING_STORAGE_KEY } from '@/lib/onboarding/types';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 
@@ -362,6 +363,28 @@ export function SettingsModal({
                       ? '💡 "Full Guide" includes your current build + system rules. "Build Only" is for quick updates.'
                       : '💡 Configure your character to enable dynamic build snapshots.'}
                   </p>
+
+                  <Separator className="bg-border/30" />
+
+                  {/* Replay Tutorial */}
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                    <div>
+                      <p className="font-medium text-sm">Tutorial</p>
+                      <p className="text-xs text-muted-foreground">Replay the onboarding walkthrough</p>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        localStorage.removeItem(ONBOARDING_STORAGE_KEY);
+                        toast.success('Tutorial reset! Refresh to replay.');
+                        setOpen(false);
+                      }}
+                    >
+                      <BookOpen className="w-4 h-4 mr-2" />
+                      Replay
+                    </Button>
+                  </div>
                 </div>
               </TabsContent>
 
