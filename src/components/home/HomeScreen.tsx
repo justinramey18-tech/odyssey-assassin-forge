@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Character, getAbilityPointsForLevel, getTotalPointsSpent } from '@/lib/types';
 import { CharacterEquipment } from '@/lib/inventory';
@@ -6,16 +6,19 @@ import { Achievement } from '@/lib/achievements';
 import { XPPreset, getXPForLevel, getLevelProgress, XP_PRESETS } from '@/lib/xpSystem';
 import { useEquipmentStats } from '@/hooks/use-equipment-stats';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { 
   ArrowLeft, Heart, Shield, Zap, 
   BookOpen, Backpack, Trophy, Swords, 
   Scroll, Beaker, FileSearch, Star,
-  Coffee, Moon, TrendingUp, Settings
+  Coffee, Moon, TrendingUp, Settings,
+  PanelLeft, Gem, Sparkles, Timer
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { InstallBanner } from './InstallBanner';
 import { ClockWidget } from './ClockWidget';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
@@ -132,6 +135,15 @@ export function HomeScreen({
   const isMobile = useIsMobile();
   const stats = useEquipmentStats(equipment);
   const multiplier = XP_PRESETS[xpPreset].multiplier;
+  const [showDrawersMenu, setShowDrawersMenu] = useState(false);
+  
+  // Get drawer context - wrapped in try/catch since we might be outside provider
+  let drawerContext: ReturnType<typeof usePromptDrawers> | null = null;
+  try {
+    drawerContext = usePromptDrawers();
+  } catch {
+    // Not inside PromptDrawerProvider - drawers won't be available
+  }
 
   // XP calculations
   const nextLevelXP = getXPForLevel(character.level + 1, multiplier);
@@ -201,6 +213,24 @@ export function HomeScreen({
       case 'levelUp':
         onManualLevelUp();
         break;
+    }
+  };
+
+  // Drawer menu options
+  const drawerOptions = [
+    { id: 'stats', label: 'Stats', icon: Heart, color: 'text-green-400', action: drawerContext?.openStatsDrawer },
+    { id: 'setbonus', label: 'Set Bonus', icon: Sparkles, color: 'text-amber-400', action: drawerContext?.openSetBonusDrawer },
+    { id: 'prompts', label: 'Prompts', icon: Gem, color: 'text-yellow-400', action: drawerContext?.openInfinityDrawer },
+    { id: 'abilities', label: 'Abilities', icon: Zap, color: 'text-purple-400', action: drawerContext?.openAbilitiesDrawer },
+    { id: 'scribe', label: 'Scribe', icon: BookOpen, color: 'text-orange-400', action: drawerContext?.openScribeDrawer },
+    { id: 'timers', label: 'Timers', icon: Timer, color: 'text-cyan-400', action: drawerContext?.openCooldownDrawer },
+  ];
+
+  const handleDrawerOptionClick = (action?: () => void) => {
+    if (action) {
+      triggerHaptic('light');
+      setShowDrawersMenu(false);
+      action();
     }
   };
 
@@ -390,6 +420,53 @@ export function HomeScreen({
                 </motion.div>
               );
             })}
+            
+            {/* Drawers Card */}
+            {drawerContext && (
+              <motion.div variants={itemVariants}>
+                <button
+                  className={cn(
+                    transparentButtonBase,
+                    "cursor-pointer min-h-[120px] p-4 w-full",
+                    "flex flex-col items-center justify-center text-center gap-2",
+                    "border-cyan-500/30 hover:border-cyan-400/50"
+                  )}
+                  onClick={() => {
+                    triggerHaptic('light');
+                    setShowDrawersMenu(true);
+                  }}
+                  style={{ touchAction: 'manipulation' }}
+                  aria-label="Open quick-access drawers menu"
+                >
+                  <div className="relative">
+                    <div className={cn(
+                      "rounded-full flex items-center justify-center bg-white/10",
+                      isMobile ? "w-12 h-12" : "w-14 h-14"
+                    )}>
+                      <PanelLeft className={cn(
+                        "text-cyan-400",
+                        isMobile ? "w-6 h-6" : "w-7 h-7"
+                      )} />
+                    </div>
+                  </div>
+                  
+                  <h3 
+                    className={cn(
+                      "font-cinzel font-semibold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]",
+                      isMobile ? "text-sm" : "text-base"
+                    )}
+                  >
+                    Drawers
+                  </h3>
+                  
+                  {!isMobile && (
+                    <p className="text-xs text-white/70 drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]">
+                      Quick-access panels
+                    </p>
+                  )}
+                </button>
+              </motion.div>
+            )}
           </motion.div>
         </div>
 
@@ -438,6 +515,42 @@ export function HomeScreen({
           </div>
         </footer>
       </div>
+
+      {/* Drawers Quick-Access Sheet */}
+      <Sheet open={showDrawersMenu} onOpenChange={setShowDrawersMenu}>
+        <SheetContent side="bottom" className="h-auto max-h-[60vh] rounded-t-xl">
+          <div className="w-12 h-1 bg-muted rounded-full mx-auto mb-4" />
+          <SheetTitle className="text-center font-cinzel mb-4">Quick-Access Drawers</SheetTitle>
+          
+          <div className="grid grid-cols-3 gap-3 pb-6">
+            {drawerOptions.map((option) => {
+              const IconComponent = option.icon;
+              return (
+                <button
+                  key={option.id}
+                  onClick={() => handleDrawerOptionClick(option.action)}
+                  disabled={!option.action}
+                  className={cn(
+                    "flex flex-col items-center gap-2 p-4 rounded-lg",
+                    "border border-border/50 bg-card/50",
+                    "hover:bg-card hover:border-border transition-all",
+                    "disabled:opacity-40 disabled:cursor-not-allowed"
+                  )}
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <div className={cn(
+                    "w-12 h-12 rounded-full flex items-center justify-center",
+                    "bg-muted/50"
+                  )}>
+                    <IconComponent className={cn("w-6 h-6", option.color)} />
+                  </div>
+                  <span className="text-sm font-medium font-cinzel">{option.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </SheetContent>
+      </Sheet>
     </BackgroundWrapper>
   );
 }
