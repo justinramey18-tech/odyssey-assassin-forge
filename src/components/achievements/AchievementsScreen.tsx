@@ -1,4 +1,5 @@
-import { ArrowLeft, Trophy, Star, Download, Upload, Zap } from 'lucide-react';
+import { useState, useCallback, useMemo } from 'react';
+import { ArrowLeft, Trophy, Star, Download, Upload, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { 
   Achievement, 
   itemPrerequisites, 
@@ -11,7 +12,32 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
+import { usePan } from '@/hooks/use-pan';
+import { cn } from '@/lib/utils';
 import featsBackground from '@/assets/feats-background.jpg';
+
+// Group achievements by set
+const SET_ORDER = [
+  'merc_mouth',
+  'regenerative', 
+  'self_aware',
+  'unkillable',
+  'violent_comedy',
+  'chaotic_contracts',
+  'absolute_absurdity',
+  'self_aware_slayer',
+];
+
+const SET_NAMES: Record<string, string> = {
+  merc_mouth: 'Merc with a Mouth',
+  regenerative: 'Regenerative Ridiculousness',
+  self_aware: 'Self-Aware Arsenal',
+  unkillable: 'Unkillable Merc',
+  violent_comedy: 'Violent Comedy',
+  chaotic_contracts: 'Chaotic Contracts',
+  absolute_absurdity: 'Absolute Absurdity',
+  self_aware_slayer: 'Self-Aware Slayer',
+};
 
 interface AchievementsScreenProps {
   characterName: string;
@@ -29,6 +55,77 @@ export function AchievementsScreen({
   onAwardXP,
 }: AchievementsScreenProps) {
   const { toast } = useToast();
+  const [currentSetIndex, setCurrentSetIndex] = useState(0);
+  const [currentAchievementIndex, setCurrentAchievementIndex] = useState(0);
+  const [slideDirection, setSlideDirection] = useState<'left' | 'right' | 'up' | 'down' | null>(null);
+
+  // Group achievements by their set prefix
+  const achievementsBySet = useMemo(() => {
+    const grouped: Record<string, Achievement[]> = {};
+    achievements.forEach(a => {
+      const setKey = a.id.split('_').slice(0, -1).join('_') || a.id;
+      // Map to known sets
+      const matchedSet = SET_ORDER.find(s => a.id.startsWith(s));
+      const key = matchedSet || 'other';
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(a);
+    });
+    return grouped;
+  }, [achievements]);
+
+  // Get ordered sets that have achievements
+  const orderedSets = useMemo(() => {
+    return SET_ORDER.filter(s => achievementsBySet[s]?.length > 0);
+  }, [achievementsBySet]);
+
+  const currentSet = orderedSets[currentSetIndex] || orderedSets[0];
+  const currentSetAchievements = achievementsBySet[currentSet] || [];
+  const currentAchievement = currentSetAchievements[currentAchievementIndex];
+
+  // Pan navigation handlers
+  const handlePanLeft = useCallback(() => {
+    if (currentSetIndex < orderedSets.length - 1) {
+      setSlideDirection('left');
+      setCurrentSetIndex(prev => prev + 1);
+      setCurrentAchievementIndex(0);
+      setTimeout(() => setSlideDirection(null), 300);
+    }
+  }, [currentSetIndex, orderedSets.length]);
+
+  const handlePanRight = useCallback(() => {
+    if (currentSetIndex > 0) {
+      setSlideDirection('right');
+      setCurrentSetIndex(prev => prev - 1);
+      setCurrentAchievementIndex(0);
+      setTimeout(() => setSlideDirection(null), 300);
+    }
+  }, [currentSetIndex]);
+
+  const handlePanUp = useCallback(() => {
+    if (currentAchievementIndex < currentSetAchievements.length - 1) {
+      setSlideDirection('up');
+      setCurrentAchievementIndex(prev => prev + 1);
+      setTimeout(() => setSlideDirection(null), 300);
+    }
+  }, [currentAchievementIndex, currentSetAchievements.length]);
+
+  const handlePanDown = useCallback(() => {
+    if (currentAchievementIndex > 0) {
+      setSlideDirection('down');
+      setCurrentAchievementIndex(prev => prev - 1);
+      setTimeout(() => setSlideDirection(null), 300);
+    }
+  }, [currentAchievementIndex]);
+
+  const { handlers: panHandlers, panOffset, panDirection, panning } = usePan(
+    {
+      onPanLeft: handlePanLeft,
+      onPanRight: handlePanRight,
+      onPanUp: handlePanUp,
+      onPanDown: handlePanDown,
+    },
+    { threshold: 60, velocityThreshold: 0.4 }
+  );
 
   // Check and claim milestones after achievement changes
   const checkAndClaimMilestones = (updatedAchievements: Achievement[]) => {
@@ -169,6 +266,14 @@ export function AchievementsScreen({
     input.click();
   };
 
+  // Calculate set progress
+  const setProgress = useMemo(() => {
+    const setAchievements = achievementsBySet[currentSet] || [];
+    const progress = setAchievements.reduce((sum, a) => sum + a.currentValue, 0);
+    const max = setAchievements.reduce((sum, a) => sum + a.maxValue, 0);
+    return { progress, max, percent: max > 0 ? Math.round((progress / max) * 100) : 0 };
+  }, [achievementsBySet, currentSet]);
+
   return (
     <BackgroundWrapper 
       imagePath={featsBackground} 
@@ -197,7 +302,7 @@ export function AchievementsScreen({
         </div>
       </header>
 
-      {/* Stats Summary - relative z for content visibility */}
+      {/* Stats Summary */}
       <div className="relative z-10 px-4 py-4 border-b border-purple-900/30 bg-background/60 backdrop-blur-sm">
         <div className="grid grid-cols-3 gap-4">
           <div className="text-center">
@@ -223,19 +328,154 @@ export function AchievementsScreen({
         </div>
       </div>
 
-      {/* Achievement List - Scrollable Accordion */}
-      <ScrollArea className="flex-1 relative z-10">
-        <div className="p-4 flex flex-col gap-2 pb-20 md:pb-4">
-          {achievements.map(achievement => (
-            <AchievementCard
-              key={achievement.id}
-              achievement={achievement}
-              onIncrement={handleIncrement}
-              onDecrement={handleDecrement}
-            />
-          ))}
+      {/* Set Navigation Header */}
+      <div className="relative z-10 px-4 py-3 bg-background/40 backdrop-blur-sm border-b border-purple-900/20">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={handlePanRight}
+            disabled={currentSetIndex === 0}
+            className={cn(
+              "p-2 rounded-lg transition-all",
+              currentSetIndex === 0 
+                ? "opacity-30 cursor-not-allowed" 
+                : "hover:bg-purple-500/20 active:scale-95"
+            )}
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          
+          <div className="flex-1 text-center">
+            <h2 className="font-display font-bold text-sm uppercase tracking-wider text-purple-300">
+              {SET_NAMES[currentSet] || currentSet}
+            </h2>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              Set {currentSetIndex + 1} of {orderedSets.length} · {setProgress.percent}% complete
+            </p>
+          </div>
+          
+          <button
+            onClick={handlePanLeft}
+            disabled={currentSetIndex >= orderedSets.length - 1}
+            className={cn(
+              "p-2 rounded-lg transition-all",
+              currentSetIndex >= orderedSets.length - 1
+                ? "opacity-30 cursor-not-allowed" 
+                : "hover:bg-purple-500/20 active:scale-95"
+            )}
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
         </div>
-      </ScrollArea>
+      </div>
+
+      {/* 4-Direction Pan Area */}
+      <div 
+        {...panHandlers}
+        className="flex-1 relative z-10 overflow-hidden flex flex-col"
+      >
+        {/* Up indicator */}
+        <div className={cn(
+          "flex justify-center py-2 transition-opacity",
+          currentAchievementIndex > 0 ? "opacity-100" : "opacity-30"
+        )}>
+          <button
+            onClick={handlePanDown}
+            disabled={currentAchievementIndex === 0}
+            className={cn(
+              "p-1 rounded-lg transition-all",
+              currentAchievementIndex > 0 && "hover:bg-purple-500/20 active:scale-95"
+            )}
+          >
+            <ChevronUp className="w-5 h-5 text-purple-300" />
+          </button>
+        </div>
+
+        {/* Current Achievement Card */}
+        <div 
+          className={cn(
+            "flex-1 px-4 flex items-center justify-center transition-all duration-300",
+            panning && "transition-none"
+          )}
+          style={{
+            transform: `translate(${panOffset.x}px, ${panOffset.y}px)`,
+          }}
+        >
+          {currentAchievement && (
+            <div className={cn(
+              "w-full max-w-md transition-all duration-300",
+              slideDirection === 'left' && "animate-slide-left",
+              slideDirection === 'right' && "animate-slide-right",
+              slideDirection === 'up' && "animate-slide-up",
+              slideDirection === 'down' && "animate-slide-down",
+            )}>
+              <AchievementCard
+                achievement={currentAchievement}
+                onIncrement={handleIncrement}
+                onDecrement={handleDecrement}
+                expanded
+              />
+              
+              {/* Achievement position indicator */}
+              <div className="flex justify-center gap-1.5 mt-4">
+                {currentSetAchievements.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      setSlideDirection(idx > currentAchievementIndex ? 'up' : 'down');
+                      setCurrentAchievementIndex(idx);
+                      setTimeout(() => setSlideDirection(null), 300);
+                    }}
+                    className={cn(
+                      "w-2 h-2 rounded-full transition-all",
+                      idx === currentAchievementIndex 
+                        ? "bg-purple-400 scale-125" 
+                        : "bg-purple-900/50 hover:bg-purple-700/50"
+                    )}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Down indicator */}
+        <div className={cn(
+          "flex justify-center py-2 transition-opacity",
+          currentAchievementIndex < currentSetAchievements.length - 1 ? "opacity-100" : "opacity-30"
+        )}>
+          <button
+            onClick={handlePanUp}
+            disabled={currentAchievementIndex >= currentSetAchievements.length - 1}
+            className={cn(
+              "p-1 rounded-lg transition-all",
+              currentAchievementIndex < currentSetAchievements.length - 1 && "hover:bg-purple-500/20 active:scale-95"
+            )}
+          >
+            <ChevronDown className="w-5 h-5 text-purple-300" />
+          </button>
+        </div>
+
+        {/* Pan direction feedback overlay */}
+        {panning && panDirection && (
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+            <div className={cn(
+              "absolute bg-purple-500/10 rounded-full transition-opacity",
+              panDirection === 'left' && "right-4 top-1/2 -translate-y-1/2 w-16 h-32",
+              panDirection === 'right' && "left-4 top-1/2 -translate-y-1/2 w-16 h-32",
+              panDirection === 'up' && "bottom-4 left-1/2 -translate-x-1/2 w-32 h-16",
+              panDirection === 'down' && "top-4 left-1/2 -translate-x-1/2 w-32 h-16",
+            )}>
+              {panDirection === 'left' && <ChevronRight className="w-8 h-8 text-purple-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />}
+              {panDirection === 'right' && <ChevronLeft className="w-8 h-8 text-purple-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />}
+              {panDirection === 'up' && <ChevronDown className="w-8 h-8 text-purple-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />}
+              {panDirection === 'down' && <ChevronUp className="w-8 h-8 text-purple-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom padding for mobile nav */}
+      <div className="h-16 md:h-0" />
     </BackgroundWrapper>
   );
 }

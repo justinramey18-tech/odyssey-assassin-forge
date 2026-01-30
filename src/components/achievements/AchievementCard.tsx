@@ -14,16 +14,22 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface AchievementCardProps {
   achievement: Achievement;
   onIncrement: (id: string) => void;
   onDecrement: (id: string) => void;
+  expanded?: boolean;
 }
 
-export function AchievementCard({ achievement, onIncrement, onDecrement }: AchievementCardProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function AchievementCard({ achievement, onIncrement, onDecrement, expanded = false }: AchievementCardProps) {
+  const [isOpen, setIsOpen] = useState(expanded);
+  
+  // Sync with expanded prop when it changes
+  useEffect(() => {
+    setIsOpen(expanded);
+  }, [expanded]);
   const Icon = getIconByName(achievement.icon);
   const progress = getAchievementProgress(achievement);
   const isComplete = achievement.currentValue >= achievement.maxValue;
