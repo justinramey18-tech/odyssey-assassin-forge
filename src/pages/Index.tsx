@@ -530,6 +530,9 @@ const Index = () => {
         totalPointsSpent={spentPoints}
         characterName={character.name}
         onForceNavigate={(tab) => { 
+          // Skip the intro splash when onboarding navigates
+          localStorage.setItem('odyssey-intro-seen', 'true');
+          setShowIntroSplash(false);
           setShowHomeScreen(false); 
           setActiveTab(tab as typeof activeTab); 
         }}
