@@ -176,6 +176,7 @@ export function AssassinHeader({
           <TabsTrigger 
             value="legacy" 
             disabled={!isLegacyUnlocked}
+            data-tutorial-id="tab-legacy"
             className={cn(
               "group h-full flex flex-col items-center justify-center gap-1 px-4 min-w-[70px] rounded-none border-x border-red-900/20",
               "data-[state=active]:bg-gradient-to-b data-[state=active]:from-purple-600/30 data-[state=active]:to-transparent",
