@@ -51,6 +51,12 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Glassmorphism design tokens
+        glass: {
+          DEFAULT: "rgba(0, 0, 0, 0.50)",
+          subtle: "rgba(0, 0, 0, 0.40)",
+          strong: "rgba(0, 0, 0, 0.60)",
+        },
         // Ability tree colors
         hunter: {
           DEFAULT: "hsl(var(--hunter))",
@@ -96,6 +102,12 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      borderColor: {
+        glass: "rgba(255, 255, 255, 0.10)",
+      },
+      boxShadow: {
+        "glass-glow": "inset 0 1px 0 rgba(255,255,255,0.1)",
       },
       keyframes: {
         "accordion-down": {
