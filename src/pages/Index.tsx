@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Character, CharacterAbility, getAbilityPointsForLevel, getTotalPointsSpent, getActiveSlotsByLevel } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
 import { achievementCategories, Achievement } from '@/lib/achievements';
@@ -46,6 +47,7 @@ import { ApprovedChanges } from '@/lib/chronicleSync/types';
 import { PrestigePointCounter, PrestigeLevelUpModal } from '@/components/prestige';
 import { PrestigeTreeScreen } from '@/components/prestigeTree';
 import { usePrestigeTree } from '@/hooks/use-prestige-tree';
+import { resetAllAppData } from '@/lib/resetApp';
 import { 
   CharacterEquipment, 
   EquipmentItem,
@@ -55,6 +57,19 @@ import {
 
 
 const Index = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Check for reset parameter on mount
+  useEffect(() => {
+    if (searchParams.get('reset') === 'true') {
+      console.log('[AppReset] Reset parameter detected, clearing all data...');
+      resetAllAppData();
+      // Remove the reset parameter and reload
+      setSearchParams({});
+      window.location.reload();
+    }
+  }, [searchParams, setSearchParams]);
+
   const [showWizard, setShowWizard] = useState(true);
   const [showIntroSplash, setShowIntroSplash] = useState(() => {
     // Show intro splash only if user hasn't seen it before
