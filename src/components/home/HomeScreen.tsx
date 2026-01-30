@@ -202,7 +202,7 @@ export function HomeScreen({
   return (
     <BackgroundWrapper
       imagePath={tposeBackground}
-      overlayOpacity={45}
+      overlayOpacity={60}
       tintColor="red"
       tintOpacity={10}
       fixed={true}
