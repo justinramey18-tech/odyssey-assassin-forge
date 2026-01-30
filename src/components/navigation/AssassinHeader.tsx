@@ -67,6 +67,7 @@ export function AssassinHeader({ onHomeClick, onSettingsClick, onCloudSaveClick 
           {/* Skills Tab */}
           <TabsTrigger 
             value="skills" 
+            data-tutorial-id="tab-skills"
             className="group h-full flex flex-col items-center justify-center gap-1 px-4 min-w-[70px] rounded-none border-x border-red-900/20 data-[state=active]:bg-gradient-to-b data-[state=active]:from-red-600/30 data-[state=active]:to-transparent data-[state=active]:border-b-2 data-[state=active]:border-b-red-500 font-cinzel uppercase tracking-wider text-[10px] transition-all hover:bg-red-900/20"
           >
             <span className="relative">
@@ -79,6 +80,7 @@ export function AssassinHeader({ onHomeClick, onSettingsClick, onCloudSaveClick 
           {/* Gear Tab */}
           <TabsTrigger 
             value="gear" 
+            data-tutorial-id="tab-gear"
             className="group h-full flex flex-col items-center justify-center gap-1 px-4 min-w-[70px] rounded-none border-x border-red-900/20 data-[state=active]:bg-gradient-to-b data-[state=active]:from-amber-600/30 data-[state=active]:to-transparent data-[state=active]:border-b-2 data-[state=active]:border-b-amber-500 font-cinzel uppercase tracking-wider text-[10px] transition-all hover:bg-amber-900/20"
           >
             <span className="relative">
@@ -103,6 +105,7 @@ export function AssassinHeader({ onHomeClick, onSettingsClick, onCloudSaveClick 
           {/* Feats Tab */}
           <TabsTrigger 
             value="feats" 
+            data-tutorial-id="tab-feats"
             className="group h-full flex flex-col items-center justify-center gap-1 px-4 min-w-[70px] rounded-none border-x border-red-900/20 data-[state=active]:bg-gradient-to-b data-[state=active]:from-purple-600/30 data-[state=active]:to-transparent data-[state=active]:border-b-2 data-[state=active]:border-b-purple-500 font-cinzel uppercase tracking-wider text-[10px] transition-all hover:bg-purple-900/20"
           >
             <span className="relative">
@@ -115,6 +118,7 @@ export function AssassinHeader({ onHomeClick, onSettingsClick, onCloudSaveClick 
           {/* Stars Tab */}
           <TabsTrigger 
             value="stars" 
+            data-tutorial-id="tab-stars"
             className="group h-full flex flex-col items-center justify-center gap-1 px-4 min-w-[70px] rounded-none border-x border-red-900/20 data-[state=active]:bg-gradient-to-b data-[state=active]:from-cyan-600/30 data-[state=active]:to-transparent data-[state=active]:border-b-2 data-[state=active]:border-b-cyan-500 font-cinzel uppercase tracking-wider text-[10px] transition-all hover:bg-cyan-900/20"
           >
             <span className="relative">
@@ -154,6 +158,7 @@ export function AssassinHeader({ onHomeClick, onSettingsClick, onCloudSaveClick 
           {/* Settings Tab */}
           <TabsTrigger 
             value="settings" 
+            data-tutorial-id="settings-button"
             onClick={onSettingsClick}
             className="group h-full flex flex-col items-center justify-center gap-1 px-4 min-w-[70px] rounded-none border-x border-red-900/20 data-[state=active]:bg-gradient-to-b data-[state=active]:from-slate-600/30 data-[state=active]:to-transparent data-[state=active]:border-b-2 data-[state=active]:border-b-slate-400 font-cinzel uppercase tracking-wider text-[10px] transition-all hover:bg-slate-900/20"
           >

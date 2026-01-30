@@ -195,6 +195,7 @@ function DraggableTrigger({
       }}
     >
       <button
+        data-tutorial-id={id === 'stats' ? 'drawer-stats' : id === 'scribe' ? 'drawer-scribe' : undefined}
         onMouseDown={handleMouseDown}
         onTouchStart={handleTouchStart}
         onClick={handleClick}
@@ -234,19 +235,21 @@ function DraggableTrigger({
 }
 
 // Container that renders each trigger as independently draggable
+interface TriggerConfig {
+  id: string;
+  label: string;
+  icon: ReactNode;
+  accentColor: string;
+  onClick: () => void;
+  disabled?: boolean;
+  'data-tutorial-id'?: string;
+}
+
 interface EdgeTriggerStackProps {
   side: 'left' | 'right';
-  triggers: Array<{
-    id: string;
-    label: string;
-    icon: ReactNode;
-    accentColor: string;
-    onClick: () => void;
-    disabled?: boolean;
-  }>;
+  triggers: TriggerConfig[];
   collapsed?: boolean;
   onToggleCollapse?: () => void;
-  // Navigation props for edge-hold gestures
   isHomeScreen?: boolean;
   onNavigateHome?: () => void;
   onNavigateToSkills?: () => void;

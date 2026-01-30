@@ -86,7 +86,7 @@ export function XPProgressionWidget({ value, onChange }: XPProgressionWidgetProp
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-tutorial-id="xp-progression-widget">
       <div className="flex items-center gap-2">
         <Gauge className="w-4 h-4 text-primary" />
         <Label className="text-sm font-display uppercase tracking-wider">

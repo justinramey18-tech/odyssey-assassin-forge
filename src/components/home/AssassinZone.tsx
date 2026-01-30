@@ -8,12 +8,14 @@ interface AssassinZoneProps {
   onClick: () => void;
   style: React.CSSProperties;
   accentColor: string;
+  'data-tutorial-id'?: string;
 }
 
-export function AssassinZone({ label, icon, onClick, style, accentColor }: AssassinZoneProps) {
+export function AssassinZone({ label, icon, onClick, style, accentColor, 'data-tutorial-id': tutorialId }: AssassinZoneProps) {
   return (
     <button
       onClick={onClick}
+      data-tutorial-id={tutorialId}
       className="absolute flex flex-col items-center gap-1 group cursor-pointer transition-all duration-300 hover:scale-105"
       style={style}
     >

@@ -30,6 +30,7 @@ export function PrestigeBadge({
 
   return (
     <div 
+      data-tutorial-id="prestige-badge"
       className={cn(
         'inline-flex items-center rounded border font-display font-bold',
         'bg-gradient-to-r from-amber-500 to-orange-600',

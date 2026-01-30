@@ -145,7 +145,7 @@ export function PromptDrawerProvider({
   // Check if any drawer is open
   const anyDrawerOpen = infinityOpen || abilitiesOpen || statsOpen || scribeOpen || setBonusOpen;
 
-  // All 5 triggers on the left side
+  // All 5 triggers on the left side with tutorial IDs
   const leftTriggers = [
     {
       id: 'stats',
@@ -153,6 +153,7 @@ export function PromptDrawerProvider({
       icon: <Heart className="w-4 h-4" />,
       accentColor: '#22c55e',
       onClick: () => { closeAllDrawers(); setStatsOpen(true); },
+      'data-tutorial-id': 'drawer-stats',
     },
     {
       id: 'setbonus',
@@ -182,6 +183,7 @@ export function PromptDrawerProvider({
       icon: <BookOpen className="w-4 h-4" />,
       accentColor: '#d97706',
       onClick: () => { closeAllDrawers(); setScribeOpen(true); },
+      'data-tutorial-id': 'drawer-scribe',
     },
   ];
 

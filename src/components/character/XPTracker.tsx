@@ -126,7 +126,7 @@ export function XPTracker({
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" data-tutorial-id="xp-tracker">
       {/* XP Progress Bar - switches to Prestige at max level */}
       {isMaxLevel && prestigeData && nextPrestigeXPRequired ? (
         <PrestigeXPBar
