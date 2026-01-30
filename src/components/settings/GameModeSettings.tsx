@@ -1,4 +1,5 @@
-import { Shield, Infinity, Info } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Shield, Infinity, Info, Clock } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
@@ -10,6 +11,11 @@ import {
   getRuleDescription,
   getAllRuleKeys,
 } from '@/lib/gameModes';
+import {
+  load4thWallTimeSetting,
+  save4thWallTimeSetting,
+  FOURTH_WALL_TIME_CHANGE_EVENT,
+} from '@/lib/fourthWallTime';
 
 interface GameModeSettingsProps {
   settings: GameModeSettingsType;
@@ -19,6 +25,17 @@ interface GameModeSettingsProps {
 export function GameModeSettings({ settings, onChange }: GameModeSettingsProps) {
   const isHonestMode = settings.mode === 'honest';
   const isInfinityPool = settings.mode === 'infinityPool';
+  const [fourthWallTime, setFourthWallTime] = useState(() => load4thWallTimeSetting());
+
+  // Listen for external changes to 4th Wall Time setting
+  useEffect(() => {
+    const handleChange = (e: Event) => {
+      const customEvent = e as CustomEvent<boolean>;
+      setFourthWallTime(customEvent.detail);
+    };
+    window.addEventListener(FOURTH_WALL_TIME_CHANGE_EVENT, handleChange);
+    return () => window.removeEventListener(FOURTH_WALL_TIME_CHANGE_EVENT, handleChange);
+  }, []);
 
   const handleModeToggle = (mode: 'honest' | 'infinityPool') => {
     onChange({ ...settings, mode });
@@ -32,6 +49,11 @@ export function GameModeSettings({ settings, onChange }: GameModeSettingsProps) 
         [rule]: !settings.honestModeRules[rule],
       },
     });
+  };
+
+  const handleFourthWallTimeToggle = (checked: boolean) => {
+    setFourthWallTime(checked);
+    save4thWallTimeSetting(checked);
   };
 
   return (
@@ -123,6 +145,48 @@ export function GameModeSettings({ settings, onChange }: GameModeSettingsProps) 
             </Badge>
           )}
         </button>
+      </div>
+
+      <Separator />
+
+      {/* 4th Wall Time Setting */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Clock className="w-4 h-4 text-cyan-400" />
+          <span className="text-sm font-medium text-cyan-400">AI Integration</span>
+        </div>
+        
+        <div
+          className={cn(
+            'p-3 rounded-lg border transition-all',
+            fourthWallTime
+              ? 'border-cyan-500/50 bg-cyan-500/5'
+              : 'border-border/30 bg-card/30'
+          )}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <Label
+                htmlFor="fourth-wall-time"
+                className={cn(
+                  'text-sm font-medium cursor-pointer',
+                  fourthWallTime ? 'text-cyan-400' : 'text-foreground'
+                )}
+              >
+                4th Wall Time
+              </Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Prefix all AI prompts with the current EST timestamp so your AI DM knows the real-world time.
+              </p>
+            </div>
+            <Switch
+              id="fourth-wall-time"
+              checked={fourthWallTime}
+              onCheckedChange={handleFourthWallTimeToggle}
+              className="data-[state=checked]:bg-cyan-500"
+            />
+          </div>
+        </div>
       </div>
 
       <Separator />

@@ -1,4 +1,5 @@
 import { Consumable } from './types';
+import { applyTimePrefix } from '../fourthWallTime';
 
 export function generatePotionPrompt(consumable: Consumable, characterName: string): string {
   return `I'm using ${consumable.name} in D&D 5e. It ${consumable.effect.toLowerCase()}. Describe the visual and sensory experience of ${characterName} drinking this potion in vivid, immersive detail. Include taste, color, texture, and immediate physical sensations. Keep it under 100 words.`;
@@ -15,16 +16,21 @@ export function generateScrollPrompt(consumable: Consumable, characterName: stri
 }
 
 export function generateConsumablePrompt(consumable: Consumable, characterName: string = 'The Assassin'): string {
+  let prompt: string;
   switch (consumable.type) {
     case 'potion':
-      return generatePotionPrompt(consumable, characterName);
+      prompt = generatePotionPrompt(consumable, characterName);
+      break;
     case 'poison':
-      return generatePoisonPrompt(consumable, characterName);
+      prompt = generatePoisonPrompt(consumable, characterName);
+      break;
     case 'scroll':
-      return generateScrollPrompt(consumable, characterName);
+      prompt = generateScrollPrompt(consumable, characterName);
+      break;
     default:
-      return `${characterName} uses ${consumable.name}. ${consumable.effect}.`;
+      prompt = `${characterName} uses ${consumable.name}. ${consumable.effect}.`;
   }
+  return applyTimePrefix(prompt);
 }
 
 function getApplicationMethod(usageType: string): string {
