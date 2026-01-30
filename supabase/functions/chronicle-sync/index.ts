@@ -5,6 +5,59 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Input validation constants
+const MAX_SESSION_LOG_LENGTH = 50000;
+const MIN_SESSION_LOG_LENGTH = 10;
+
+// Sanitize input to remove potential prompt injection patterns
+function sanitizeInput(text: string): string {
+  // Remove common prompt injection patterns
+  const injectionPatterns = [
+    /ignore\s+(previous|above|all)\s+instructions?/gi,
+    /disregard\s+(previous|above|all)\s+instructions?/gi,
+    /forget\s+(everything|all|previous)/gi,
+    /new\s+instructions?:/gi,
+    /system\s*:\s*/gi,
+    /\[INST\]/gi,
+    /<<SYS>>/gi,
+    /<\|im_start\|>/gi,
+  ];
+  
+  let sanitized = text;
+  for (const pattern of injectionPatterns) {
+    sanitized = sanitized.replace(pattern, '[REDACTED]');
+  }
+  
+  return sanitized;
+}
+
+// Validate request body structure
+function validateRequestBody(body: unknown): { valid: true; sessionLog: string } | { valid: false; error: string } {
+  if (!body || typeof body !== 'object') {
+    return { valid: false, error: "Invalid request body" };
+  }
+  
+  const { sessionLog } = body as { sessionLog?: unknown };
+  
+  if (sessionLog === undefined || sessionLog === null) {
+    return { valid: false, error: "Missing sessionLog parameter" };
+  }
+  
+  if (typeof sessionLog !== 'string') {
+    return { valid: false, error: "sessionLog must be a string" };
+  }
+  
+  if (sessionLog.length < MIN_SESSION_LOG_LENGTH) {
+    return { valid: false, error: `sessionLog must be at least ${MIN_SESSION_LOG_LENGTH} characters` };
+  }
+  
+  if (sessionLog.length > MAX_SESSION_LOG_LENGTH) {
+    return { valid: false, error: `sessionLog exceeds maximum length of ${MAX_SESSION_LOG_LENGTH} characters` };
+  }
+  
+  return { valid: true, sessionLog };
+}
+
 // Achievement categories for AI prompt
 const ACHIEVEMENT_NAMES: Record<string, string> = {
   'distract-enemies': 'Distracting Enemies with Dialogue',
@@ -108,17 +161,30 @@ serve(async (req) => {
   }
 
   try {
-    const { sessionLog } = await req.json();
-
-    if (!sessionLog || typeof sessionLog !== 'string') {
+    // Parse request body
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      console.error("Invalid JSON in request body");
       return new Response(
-        JSON.stringify({ error: "Missing or invalid sessionLog parameter" }),
+        JSON.stringify({ error: "Invalid JSON in request body" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Truncate if too long (leave room for system prompt)
-    const truncatedLog = sessionLog.slice(0, 45000);
+    // Validate input
+    const validation = validateRequestBody(body);
+    if (!validation.valid) {
+      console.error("Validation failed:", validation.error);
+      return new Response(
+        JSON.stringify({ error: validation.error }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Sanitize input to prevent prompt injection
+    const sanitizedLog = sanitizeInput(validation.sessionLog);
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -129,7 +195,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Parsing session log of ${truncatedLog.length} characters`);
+    console.log(`Parsing session log of ${sanitizedLog.length} characters (sanitized)`);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -141,7 +207,7 @@ serve(async (req) => {
         model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: buildSystemPrompt() },
-          { role: "user", content: `Parse the following TTRPG session log and extract all game mechanics:\n\n${truncatedLog}` },
+          { role: "user", content: `Parse the following TTRPG session log and extract all game mechanics:\n\n${sanitizedLog}` },
         ],
         temperature: 0.1, // Low temperature for consistent extraction
       }),
