@@ -44,6 +44,8 @@ import { ConsumablesInventoryWidget, AddConsumableDrawer } from '@/components/co
 import { getConsumableById } from '@/lib/consumables';
 import { ApprovedChanges } from '@/lib/chronicleSync/types';
 import { PrestigePointCounter, PrestigeLevelUpModal } from '@/components/prestige';
+import { PrestigeTreeScreen } from '@/components/prestigeTree';
+import { usePrestigeTree } from '@/hooks/use-prestige-tree';
 import { 
   CharacterEquipment, 
   EquipmentItem,
@@ -61,7 +63,7 @@ const Index = () => {
   const [showHomeScreen, setShowHomeScreen] = useState(true); // Home is default after wizard
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showCloudSaveModal, setShowCloudSaveModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'skills' | 'abilities' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle'>('skills');
+  const [activeTab, setActiveTab] = useState<'skills' | 'abilities' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle' | 'legacy'>('skills');
   const [character, setCharacter] = useState<Character>({
     name: '',
     level: 1,
@@ -85,7 +87,12 @@ const Index = () => {
     awardPrestigeXP,
     spendPrestigePoint,
     resetPrestigePoints,
+    setPrestigeData,
   } = usePrestige(character.level);
+  
+  // Prestige Tree (Drizzt's Legacy) hook
+  const prestigeTree = usePrestigeTree(character.abilities, prestigeData);
+  
   const [showPrestigeLevelUp, setShowPrestigeLevelUp] = useState(false);
   const [prestigeLevelUpData, setPrestigeLevelUpData] = useState<{ level: number; points: number } | null>(null);
   const [showPrestigeSpendModal, setShowPrestigeSpendModal] = useState(false);
@@ -658,13 +665,15 @@ const Index = () => {
           setShowHomeScreen(true);
           return;
         }
-        setActiveTab(v as 'skills' | 'abilities' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle');
+        setActiveTab(v as 'skills' | 'abilities' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle' | 'legacy');
       }} className="w-full flex flex-col">
         {/* Assassin's Creed Styled Header Navigation */}
         <AssassinHeader 
           onHomeClick={() => setShowHomeScreen(true)}
           onSettingsClick={() => setShowSettingsModal(true)}
           onCloudSaveClick={() => setShowCloudSaveModal(true)}
+          isLegacyUnlocked={prestigeTree.isLegacyUnlocked}
+          legacyProgress={prestigeTree.unlockProgress}
         />
         
         {/* Cloud Save Modal */}
@@ -881,6 +890,20 @@ const Index = () => {
             characterLevel={character.level}
             onApplyChanges={handleApplyChronicleChanges}
             onBack={() => setActiveTab('skills')}
+          />
+        </TabsContent>
+
+        {/* Legacy Tab Content - Drizzt's Legacy Prestige Tree */}
+        <TabsContent value="legacy" className="mt-0">
+          <PrestigeTreeScreen
+            prestigeTree={prestigeTree}
+            prestigeLevel={prestigeData.prestigeLevel}
+            onPrestigePointSpent={(cost) => {
+              // Deduct from main prestige point pool
+              for (let i = 0; i < cost; i++) {
+                spendPrestigePoint();
+              }
+            }}
           />
         </TabsContent>
       </Tabs>

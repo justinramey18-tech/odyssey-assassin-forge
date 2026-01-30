@@ -1,4 +1,4 @@
-import { Home, Settings, Crosshair, Swords, Backpack, Trophy, Sparkles, BookOpen, Cloud, FlaskConical, Search, Zap } from 'lucide-react';
+import { Home, Settings, Crosshair, Swords, Backpack, Trophy, Sparkles, BookOpen, Cloud, FlaskConical, Search, Zap, Crown, Lock } from 'lucide-react';
 import { TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
@@ -6,9 +6,17 @@ interface AssassinHeaderProps {
   onHomeClick: () => void;
   onSettingsClick: () => void;
   onCloudSaveClick?: () => void;
+  isLegacyUnlocked?: boolean;
+  legacyProgress?: { current: number; required: number };
 }
 
-export function AssassinHeader({ onHomeClick, onSettingsClick, onCloudSaveClick }: AssassinHeaderProps) {
+export function AssassinHeader({ 
+  onHomeClick, 
+  onSettingsClick, 
+  onCloudSaveClick,
+  isLegacyUnlocked = false,
+  legacyProgress = { current: 0, required: 72 },
+}: AssassinHeaderProps) {
   return (
     <header className="sticky top-0 z-50 w-full h-[10vh] min-h-[70px] max-h-[100px] bg-gradient-to-b from-black via-background/98 to-background/90 backdrop-blur-md">
       {/* Assassin's Creed Top Border Art */}
@@ -162,6 +170,34 @@ export function AssassinHeader({ onHomeClick, onSettingsClick, onCloudSaveClick 
               <span className="absolute inset-0 blur-md bg-blue-400 rounded-full opacity-0 group-data-[state=active]:opacity-70 group-data-[state=active]:animate-glow-pulse transition-opacity" />
             </span>
             <span className="group-data-[state=active]:text-blue-300 whitespace-nowrap">Chronicle</span>
+          </TabsTrigger>
+
+          {/* Drizzt's Legacy Tab */}
+          <TabsTrigger 
+            value="legacy" 
+            disabled={!isLegacyUnlocked}
+            className={cn(
+              "group h-full flex flex-col items-center justify-center gap-1 px-4 min-w-[70px] rounded-none border-x border-red-900/20",
+              "data-[state=active]:bg-gradient-to-b data-[state=active]:from-purple-600/30 data-[state=active]:to-transparent",
+              "data-[state=active]:border-b-2 data-[state=active]:border-b-purple-500",
+              "font-cinzel uppercase tracking-wider text-[10px] transition-all hover:bg-purple-900/20",
+              !isLegacyUnlocked && "opacity-60"
+            )}
+          >
+            <span className="relative">
+              {isLegacyUnlocked ? (
+                <Crown className="w-5 h-5 relative z-10 group-hover:scale-110 group-data-[state=active]:text-purple-400 transition-transform" />
+              ) : (
+                <Lock className="w-5 h-5 text-muted-foreground" />
+              )}
+              <span className="absolute inset-0 blur-md bg-purple-400 rounded-full opacity-0 group-data-[state=active]:opacity-70 group-data-[state=active]:animate-glow-pulse transition-opacity" />
+              {!isLegacyUnlocked && (
+                <span className="absolute -top-1 -right-2 text-[8px] text-muted-foreground">
+                  {legacyProgress.current}/{legacyProgress.required}
+                </span>
+              )}
+            </span>
+            <span className="group-data-[state=active]:text-purple-300 whitespace-nowrap">Legacy</span>
           </TabsTrigger>
 
           {/* Cloud Save Tab */}
