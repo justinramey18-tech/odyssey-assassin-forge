@@ -202,7 +202,7 @@ export function HomeScreen({
   return (
     <BackgroundWrapper
       imagePath={tposeBackground}
-      overlayOpacity={60}
+      overlayOpacity={50}
       tintColor="red"
       tintOpacity={10}
       fixed={true}
@@ -237,10 +237,7 @@ export function HomeScreen({
             
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <h1 
-                  className="font-bold text-lg truncate text-white"
-                  style={{ textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}
-                >
+                <h1 className="font-bold text-lg truncate text-white drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">
                   {character.name || 'Mercenary'}
                 </h1>
                 <Badge variant="secondary" className="shrink-0 bg-white/20 text-white border-none">
@@ -251,10 +248,7 @@ export function HomeScreen({
               {/* XP Progress */}
               <div className="mt-1 space-y-0.5">
                 <Progress value={xpProgress} className="h-1.5" />
-                <div 
-                  className="flex justify-between text-[10px] text-white/70"
-                  style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
-                >
+                <div className="flex justify-between text-[10px] text-white/70 drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]">
                   <span>{currentXP.toLocaleString()} XP</span>
                   <span>
                     {character.level >= 20 
@@ -284,16 +278,10 @@ export function HomeScreen({
                   <div className="p-2 rounded-full bg-white/10">
                     <stat.icon className={cn("w-4 h-4", stat.color)} />
                   </div>
-                  <p 
-                    className="text-xl font-bold text-white drop-shadow-lg"
-                    style={{ textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}
-                  >
+                  <p className="text-xl font-bold text-white drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">
                     {stat.value}
                   </p>
-                  <p 
-                    className="text-[10px] text-white/70 uppercase tracking-wide"
-                    style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
-                  >
+                  <p className="text-[10px] text-white/70 uppercase tracking-wide drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]">
                     {stat.label}
                   </p>
                 </Glass>
@@ -365,20 +353,16 @@ export function HomeScreen({
                     {/* Label */}
                     <h3 
                       className={cn(
-                        "font-semibold text-white",
+                        "font-semibold text-white drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]",
                         isMobile ? "text-sm" : "text-base"
                       )}
-                      style={{ textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}
                     >
                       {card.label}
                     </h3>
                     
                     {/* Description (Desktop only) */}
                     {!isMobile && (
-                      <p 
-                        className="text-xs text-white/70"
-                        style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
-                      >
+                      <p className="text-xs text-white/70 drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]">
                         {card.description}
                       </p>
                     )}
@@ -405,7 +389,7 @@ export function HomeScreen({
               style={{ touchAction: 'manipulation' }}
             >
               <Coffee className="w-5 h-5 text-amber-400" />
-              <span className="text-xs">Short Rest</span>
+              <span className="text-xs drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Short Rest</span>
             </Glass>
             
             <Glass
@@ -416,7 +400,7 @@ export function HomeScreen({
               style={{ touchAction: 'manipulation' }}
             >
               <Moon className="w-5 h-5 text-blue-400" />
-              <span className="text-xs">Long Rest</span>
+              <span className="text-xs drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Long Rest</span>
             </Glass>
             
             {canLevelUp ? (
@@ -428,7 +412,7 @@ export function HomeScreen({
                 style={{ touchAction: 'manipulation' }}
               >
                 <TrendingUp className="w-5 h-5 text-primary" />
-                <span className="text-xs">Level Up</span>
+                <span className="text-xs drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Level Up</span>
               </Glass>
             ) : (
               <Glass
@@ -436,7 +420,7 @@ export function HomeScreen({
                 className="h-auto py-3 flex flex-col items-center gap-1 opacity-40 cursor-not-allowed"
               >
                 <TrendingUp className="w-5 h-5 text-white/50" />
-                <span className="text-xs text-white/50">Level Up</span>
+                <span className="text-xs text-white/50 drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]">Level Up</span>
               </Glass>
             )}
           </div>
