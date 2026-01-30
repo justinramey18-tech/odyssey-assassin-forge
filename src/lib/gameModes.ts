@@ -9,6 +9,7 @@ export interface HonestModeRules {
   scribeItemVerification: boolean; // Items only gained through scribe input narrative verification
   prestigePointsRequireXP: boolean; // Can't manually award prestige points
   prestigeRespecDisabled: boolean;  // Can't reset prestige point allocation
+  enforceCooldowns: boolean;        // Prevents manual cooldown resets
 }
 
 export interface GameModeSettings {
@@ -26,6 +27,7 @@ const DEFAULT_HONEST_RULES: HonestModeRules = {
   scribeItemVerification: true,
   prestigePointsRequireXP: true,
   prestigeRespecDisabled: true,
+  enforceCooldowns: true,
 };
 
 const DEFAULT_SETTINGS: GameModeSettings = {
@@ -117,6 +119,10 @@ export function getRuleDescription(rule: keyof HonestModeRules): { label: string
       label: 'No Prestige Respec',
       description: 'Once prestige points are allocated, they cannot be reset or reallocated.',
     },
+    enforceCooldowns: {
+      label: 'Enforce Cooldowns',
+      description: 'Manual cooldown resets are disabled. Use rest mechanics to reset abilities.',
+    },
   };
   return descriptions[rule];
 }
@@ -131,5 +137,6 @@ export function getAllRuleKeys(): (keyof HonestModeRules)[] {
     'scribeItemVerification',
     'prestigePointsRequireXP',
     'prestigeRespecDisabled',
+    'enforceCooldowns',
   ];
 }

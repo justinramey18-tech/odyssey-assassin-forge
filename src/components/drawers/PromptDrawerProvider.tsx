@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, createContext, useContext, ReactNode } from 'react';
-import { Gem, Zap, Heart, BookOpen, Sparkles, Lock } from 'lucide-react';
+import { Gem, Zap, Heart, BookOpen, Sparkles, Lock, Timer } from 'lucide-react';
 import { toast } from 'sonner';
 import { EdgeTriggerStack } from './EdgeDrawer';
 import { InfinityStoneDrawer } from './InfinityStoneDrawer';
@@ -7,11 +7,13 @@ import { AbilitiesDrawer } from './AbilitiesDrawer';
 import { StatsDrawer } from './StatsDrawer';
 import { ScribeDrawer } from './ScribeDrawer';
 import { ActiveSetBonusDrawer } from './ActiveSetBonusDrawer';
+import { CooldownDrawer } from './CooldownDrawer';
 import { Character } from '@/lib/types';
 import { XPPreset } from '@/lib/xpSystem';
 import { CharacterEquipment } from '@/lib/inventory/types';
 import { useGameMode, shouldShowInfinityStones } from '@/hooks/use-game-mode';
 import { useEquipmentStats } from '@/hooks/use-equipment-stats';
+import { useCooldowns } from '@/hooks/use-cooldowns';
 
 interface PromptDrawerContextValue {
   openInfinityDrawer: () => void;
@@ -19,7 +21,15 @@ interface PromptDrawerContextValue {
   openStatsDrawer: () => void;
   openScribeDrawer: () => void;
   openSetBonusDrawer: () => void;
+  openCooldownDrawer: () => void;
   closeAllDrawers: () => void;
+  // Cooldown system exposure
+  triggerCooldown: (abilityId: string) => void;
+  isOnCooldown: (abilityId: string) => boolean;
+  getRemainingTime: (abilityId: string) => number;
+  formatRemainingTime: (seconds: number) => string;
+  resetShortRestCooldowns: () => void;
+  resetAllCooldowns: () => void;
 }
 
 const PromptDrawerContext = createContext<PromptDrawerContextValue | null>(null);
@@ -67,14 +77,22 @@ export function PromptDrawerProvider({
   const [statsOpen, setStatsOpen] = useState(false);
   const [scribeOpen, setScribeOpen] = useState(false);
   const [setBonusOpen, setSetBonusOpen] = useState(false);
+  const [cooldownOpen, setCooldownOpen] = useState(false);
   
-  // Game mode integration for Infinity Stones lock
-  const { infinityStonesLocked } = useGameMode();
+  // Game mode integration for Infinity Stones lock and cooldown enforcement
+  const { infinityStonesLocked, isHonestMode, enforceCooldowns } = useGameMode();
   const isInfinityLocked = !shouldShowInfinityStones(character.level, infinityStonesLocked);
   
   // Calculate equipment stats for real-time display
   const defaultEquipment: CharacterEquipment = { slots: {} as any, inventory: [] };
   const equipmentStats = useEquipmentStats(equipment || defaultEquipment);
+  
+  // Cooldown system
+  const cooldownSystem = useCooldowns({
+    characterAbilities: character.abilities,
+    isHonestMode,
+    enforceCooldowns,
+  });
   
   // Close all drawers when opening a new one
   const closeAllDrawers = useCallback(() => {
@@ -83,6 +101,7 @@ export function PromptDrawerProvider({
     setStatsOpen(false);
     setScribeOpen(false);
     setSetBonusOpen(false);
+    setCooldownOpen(false);
   }, []);
 
   // Edge swipe detection
@@ -139,13 +158,21 @@ export function PromptDrawerProvider({
     openStatsDrawer: useCallback(() => { closeAllDrawers(); setStatsOpen(true); }, [closeAllDrawers]),
     openScribeDrawer: useCallback(() => { closeAllDrawers(); setScribeOpen(true); }, [closeAllDrawers]),
     openSetBonusDrawer: useCallback(() => { closeAllDrawers(); setSetBonusOpen(true); }, [closeAllDrawers]),
+    openCooldownDrawer: useCallback(() => { closeAllDrawers(); setCooldownOpen(true); }, [closeAllDrawers]),
     closeAllDrawers,
+    // Cooldown system exposure
+    triggerCooldown: cooldownSystem.triggerCooldown,
+    isOnCooldown: cooldownSystem.isOnCooldown,
+    getRemainingTime: cooldownSystem.getRemainingTime,
+    formatRemainingTime: cooldownSystem.formatRemainingTime,
+    resetShortRestCooldowns: cooldownSystem.resetShortRestCooldowns,
+    resetAllCooldowns: cooldownSystem.resetAllCooldowns,
   };
 
   // Check if any drawer is open
-  const anyDrawerOpen = infinityOpen || abilitiesOpen || statsOpen || scribeOpen || setBonusOpen;
+  const anyDrawerOpen = infinityOpen || abilitiesOpen || statsOpen || scribeOpen || setBonusOpen || cooldownOpen;
 
-  // All 5 triggers on the left side with tutorial IDs
+  // All 6 triggers on the left side with tutorial IDs
   const leftTriggers = [
     {
       id: 'stats',
@@ -184,6 +211,14 @@ export function PromptDrawerProvider({
       accentColor: '#d97706',
       onClick: () => { closeAllDrawers(); setScribeOpen(true); },
       'data-tutorial-id': 'drawer-scribe',
+    },
+    {
+      id: 'cooldowns',
+      label: 'Timers',
+      icon: <Timer className="w-4 h-4" />,
+      accentColor: '#06b6d4', // cyan-500
+      onClick: () => { closeAllDrawers(); setCooldownOpen(true); },
+      'data-tutorial-id': 'drawer-cooldowns',
     },
   ];
 
@@ -243,6 +278,22 @@ export function PromptDrawerProvider({
               characterName={character.name}
             />
           )}
+
+          <CooldownDrawer
+            open={cooldownOpen}
+            onOpenChange={setCooldownOpen}
+            cooldowns={cooldownSystem.cooldowns}
+            sessionState={cooldownSystem.sessionState}
+            settings={cooldownSystem.settings}
+            isHonestMode={isHonestMode}
+            enforceCooldowns={enforceCooldowns}
+            onPause={cooldownSystem.pauseAllCooldowns}
+            onResume={cooldownSystem.resumeAllCooldowns}
+            onResetAll={cooldownSystem.resetAllCooldowns}
+            onGenerateStats={cooldownSystem.generateSessionStats}
+            getRemainingTime={cooldownSystem.getRemainingTime}
+            getEffectiveCooldown={cooldownSystem.getEffectiveCooldown}
+          />
         </>
       )}
     </PromptDrawerContext.Provider>
