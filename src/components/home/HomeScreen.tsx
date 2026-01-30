@@ -397,43 +397,47 @@ export function HomeScreen({
           className="border-t border-glass p-4"
         >
           <div className="grid grid-cols-3 gap-3 max-w-md mx-auto">
-            <Button
-              variant="outline"
-              className="h-auto py-3 flex flex-col items-center gap-1 bg-white/10 border-glass hover:bg-white/20 text-white"
+            <Glass
+              as="button"
+              variant="interactive"
+              className="h-auto py-3 flex flex-col items-center gap-1 text-white"
               onClick={() => handleQuickAction('shortRest')}
               style={{ touchAction: 'manipulation' }}
             >
               <Coffee className="w-5 h-5 text-amber-400" />
               <span className="text-xs">Short Rest</span>
-            </Button>
+            </Glass>
             
-            <Button
-              variant="outline"
-              className="h-auto py-3 flex flex-col items-center gap-1 bg-white/10 border-glass hover:bg-white/20 text-white"
+            <Glass
+              as="button"
+              variant="interactive"
+              className="h-auto py-3 flex flex-col items-center gap-1 text-white"
               onClick={() => handleQuickAction('longRest')}
               style={{ touchAction: 'manipulation' }}
             >
               <Moon className="w-5 h-5 text-blue-400" />
               <span className="text-xs">Long Rest</span>
-            </Button>
+            </Glass>
             
-            {canLevelUp && (
-              <Button
-                variant="default"
-                className="h-auto py-3 flex flex-col items-center gap-1"
+            {canLevelUp ? (
+              <Glass
+                as="button"
+                variant="interactive"
+                className="h-auto py-3 flex flex-col items-center gap-1 text-white border-primary/50 shadow-[0_0_15px_rgba(var(--primary),0.3)]"
                 onClick={() => handleQuickAction('levelUp')}
                 style={{ touchAction: 'manipulation' }}
               >
-                <TrendingUp className="w-5 h-5" />
+                <TrendingUp className="w-5 h-5 text-primary" />
                 <span className="text-xs">Level Up</span>
-              </Button>
-            )}
-            
-            {!canLevelUp && (
-              <div className="h-auto py-3 flex flex-col items-center gap-1 opacity-40">
+              </Glass>
+            ) : (
+              <Glass
+                variant="default"
+                className="h-auto py-3 flex flex-col items-center gap-1 opacity-40 cursor-not-allowed"
+              >
                 <TrendingUp className="w-5 h-5 text-white/50" />
                 <span className="text-xs text-white/50">Level Up</span>
-              </div>
+              </Glass>
             )}
           </div>
         </Glass>

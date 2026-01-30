@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Clock } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Glass } from '@/components/ui/glass';
 
 export function ClockWidget() {
   const [time, setTime] = useState<string>('');
@@ -25,16 +25,14 @@ export function ClockWidget() {
   }, []);
 
   return (
-    <div
-      className={cn(
-        'flex items-center gap-2 px-3 py-1.5 rounded-full',
-        'bg-black/60 backdrop-blur-md border border-red-900/40',
-        'text-sm font-mono tracking-wide'
-      )}
+    <Glass
+      variant="default"
+      rounded="full"
+      className="flex items-center gap-2 px-3 py-1.5 text-sm font-mono tracking-wide"
     >
       <Clock className="w-3.5 h-3.5 text-red-400" />
-      <span className="text-zinc-100">{time}</span>
-      <span className="text-xs text-muted-foreground">EST</span>
-    </div>
+      <span className="text-white">{time}</span>
+      <span className="text-xs text-white/60">EST</span>
+    </Glass>
   );
 }

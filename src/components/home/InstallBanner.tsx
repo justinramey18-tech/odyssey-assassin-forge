@@ -3,6 +3,7 @@ import { usePWAInstall } from '@/hooks/use-pwa-install';
 import { Download, X, Share } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import { Glass } from '@/components/ui/glass';
 
 export function InstallBanner() {
   const { isInstallable, isInstalled, installApp, isIOS } = usePWAInstall();
@@ -39,30 +40,33 @@ export function InstallBanner() {
 
   return (
     <div className="absolute top-16 left-4 right-4 z-30 animate-in slide-in-from-top-2 duration-300">
-      <div className="relative bg-gradient-to-r from-primary/90 to-primary/70 backdrop-blur-md rounded-xl border border-primary/30 shadow-lg shadow-primary/20 p-3">
+      <Glass 
+        variant="interactive" 
+        className="relative p-3 border-primary/30 shadow-lg shadow-primary/20"
+      >
         {/* Dismiss button */}
         <button
           onClick={handleDismiss}
           className="absolute top-2 right-2 p-1 rounded-full hover:bg-white/20 transition-colors"
           aria-label="Dismiss"
         >
-          <X className="w-4 h-4 text-primary-foreground/80" />
+          <X className="w-4 h-4 text-white/80" />
         </button>
 
         <div className="flex items-center gap-3 pr-6">
           <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
             {isIOS ? (
-              <Share className="w-5 h-5 text-primary-foreground" />
+              <Share className="w-5 h-5 text-white" />
             ) : (
-              <Download className="w-5 h-5 text-primary-foreground" />
+              <Download className="w-5 h-5 text-white" />
             )}
           </div>
           
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-primary-foreground">
+            <p className="text-sm font-medium text-white">
               Install for Offline Access
             </p>
-            <p className="text-xs text-primary-foreground/70 truncate">
+            <p className="text-xs text-white/70 truncate">
               {isIOS ? 'Add to Home Screen via Share' : 'Quick install, no app store needed'}
             </p>
           </div>
@@ -72,7 +76,7 @@ export function InstallBanner() {
               onClick={handleInstall}
               size="sm"
               variant="secondary"
-              className="flex-shrink-0 bg-white/20 hover:bg-white/30 text-primary-foreground border-0"
+              className="flex-shrink-0 bg-white/20 hover:bg-white/30 text-white border-0"
             >
               Install
             </Button>
@@ -81,13 +85,13 @@ export function InstallBanner() {
               onClick={handleLearnMore}
               size="sm"
               variant="secondary"
-              className="flex-shrink-0 bg-white/20 hover:bg-white/30 text-primary-foreground border-0"
+              className="flex-shrink-0 bg-white/20 hover:bg-white/30 text-white border-0"
             >
               How?
             </Button>
           )}
         </div>
-      </div>
+      </Glass>
     </div>
   );
 }
