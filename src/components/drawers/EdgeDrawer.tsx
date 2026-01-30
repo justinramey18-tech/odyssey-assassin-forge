@@ -28,8 +28,8 @@ export function EdgeDrawer({
       <SheetContent
         side={side}
         className={cn(
-          'w-[85vw] max-w-[320px] p-0 border-0',
-          'bg-background/95 backdrop-blur-xl',
+          'w-[85vw] max-w-[320px] p-0',
+          'bg-glass backdrop-blur-xl border-glass',
         )}
         style={{
           borderLeft: side === 'right' ? `2px solid ${accentColor}40` : undefined,
@@ -41,10 +41,9 @@ export function EdgeDrawer({
       >
         {/* Header */}
         <SheetHeader 
-          className="p-4 border-b"
+          className="p-4 border-b border-glass bg-glass-subtle backdrop-blur-xl"
           style={{ 
             borderColor: `${accentColor}30`,
-            background: `linear-gradient(135deg, ${accentColor}10, transparent)`,
           }}
         >
           <SheetTitle className="flex items-center gap-3 text-lg font-cinzel">
@@ -201,7 +200,8 @@ function DraggableTrigger({
         onClick={handleClick}
         disabled={disabled}
         className={cn(
-          'flex items-center gap-1.5 py-2.5 px-2 rounded-lg border backdrop-blur-md',
+          'flex items-center gap-1.5 py-2.5 px-2 rounded-lg',
+          'bg-glass-subtle backdrop-blur-md border border-glass shadow-glass-glow',
           'transition-all duration-200',
           'touch-manipulation select-none',
           isDragging ? 'cursor-grabbing scale-105' : 'cursor-grab',
@@ -209,13 +209,13 @@ function DraggableTrigger({
           isAtEdge && 'animate-pulse',
         )}
         style={{
-          backgroundColor: isAtEdge ? `${accentColor}20` : 'rgba(0, 0, 0, 0.3)',
+          backgroundColor: isAtEdge ? `${accentColor}20` : undefined,
           borderColor: isAtEdge ? accentColor : `${accentColor}40`,
           boxShadow: isAtEdge
-            ? `0 0 25px ${accentColor}70, 0 0 50px ${accentColor}40`
+            ? `0 0 25px ${accentColor}70, 0 0 50px ${accentColor}40, inset 0 1px 0 rgba(255,255,255,0.1)`
             : isDragging 
-              ? `0 0 20px ${accentColor}50, 0 8px 25px rgba(0,0,0,0.3)` 
-              : `0 0 8px ${accentColor}20`,
+              ? `0 0 20px ${accentColor}50, 0 8px 25px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)` 
+              : undefined,
         }}
       >
         <span style={{ color: accentColor }}>{icon}</span>
