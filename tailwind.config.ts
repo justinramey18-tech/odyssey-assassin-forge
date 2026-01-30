@@ -53,9 +53,9 @@ export default {
         },
         // Glassmorphism design tokens
         glass: {
-          DEFAULT: "rgba(0, 0, 0, 0.50)",
-          subtle: "rgba(0, 0, 0, 0.40)",
-          strong: "rgba(0, 0, 0, 0.60)",
+          DEFAULT: "rgba(0, 0, 0, 0.30)",
+          subtle: "rgba(0, 0, 0, 0.20)",
+          strong: "rgba(0, 0, 0, 0.40)",
         },
         // Ability tree colors
         hunter: {
