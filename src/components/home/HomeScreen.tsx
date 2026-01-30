@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { Character, getAbilityPointsForLevel, getTotalPointsSpent } from '@/lib/types';
 import { CharacterEquipment } from '@/lib/inventory';
 import { Achievement } from '@/lib/achievements';
@@ -12,14 +13,17 @@ import {
   Coffee, Moon, TrendingUp
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { InstallBanner } from './InstallBanner';
 import { ClockWidget } from './ClockWidget';
+import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
+import { Glass } from '@/components/ui/glass';
 import type { LucideIcon } from 'lucide-react';
+
+import tposeBackground from '@/assets/generated/deadpool-assassin-tpose-dive.jpg';
 
 // Navigable tab types
 type NavigableTab = 
@@ -55,29 +59,28 @@ interface NavigationCardData {
   description: string;
   icon: LucideIcon;
   color: string;
-  bgColor: string;
 }
 
 // Navigation card configuration
 const navigationCards: NavigationCardData[] = [
   { id: 'skills', label: 'Skills', description: 'Proficiencies & checks', 
-    icon: BookOpen, color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
+    icon: BookOpen, color: 'text-blue-400' },
   { id: 'abilities', label: 'Abilities', description: 'Unlock & upgrade', 
-    icon: Zap, color: 'text-violet-500', bgColor: 'bg-violet-500/10' },
+    icon: Zap, color: 'text-violet-400' },
   { id: 'gear', label: 'Gear', description: 'Equipment & inventory', 
-    icon: Backpack, color: 'text-amber-500', bgColor: 'bg-amber-500/10' },
+    icon: Backpack, color: 'text-amber-400' },
   { id: 'feats', label: 'Feats', description: 'Achievements & progress', 
-    icon: Trophy, color: 'text-yellow-500', bgColor: 'bg-yellow-500/10' },
+    icon: Trophy, color: 'text-yellow-400' },
   { id: 'combat', label: 'Combat', description: 'Battle tracker', 
-    icon: Swords, color: 'text-red-500', bgColor: 'bg-red-500/10' },
+    icon: Swords, color: 'text-red-400' },
   { id: 'scribe', label: 'Scribe', description: 'AI narrative tools', 
-    icon: Scroll, color: 'text-orange-500', bgColor: 'bg-orange-500/10' },
+    icon: Scroll, color: 'text-orange-400' },
   { id: 'consumables', label: 'Items', description: 'Potions & scrolls', 
-    icon: Beaker, color: 'text-green-500', bgColor: 'bg-green-500/10' },
+    icon: Beaker, color: 'text-green-400' },
   { id: 'chronicle', label: 'Chronicle', description: 'Session log sync', 
-    icon: FileSearch, color: 'text-blue-600', bgColor: 'bg-blue-600/10' },
+    icon: FileSearch, color: 'text-blue-300' },
   { id: 'stars', label: 'Stars', description: 'Constellation view', 
-    icon: Star, color: 'text-purple-500', bgColor: 'bg-purple-500/10' },
+    icon: Star, color: 'text-purple-400' },
 ];
 
 // Haptic feedback helper
@@ -86,6 +89,27 @@ const triggerHaptic = (intensity: 'light' | 'medium' | 'heavy' = 'light') => {
     const patterns = { light: 10, medium: 20, heavy: 30 };
     navigator.vibrate(patterns[intensity]);
   }
+};
+
+// Animation variants
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.05,
+      delayChildren: 0.1,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: { duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] as const }
+  },
 };
 
 export function HomeScreen({ 
@@ -139,22 +163,19 @@ export function HomeScreen({
       label: 'HP',
       value: `${character.level * 8 + 10}`,
       icon: Heart,
-      color: 'text-red-500',
-      bgColor: 'bg-red-500/10',
+      color: 'text-red-400',
     },
     {
       label: 'AC',
       value: stats.totalAC.toString(),
       icon: Shield,
-      color: 'text-blue-500',
-      bgColor: 'bg-blue-500/10',
+      color: 'text-blue-400',
     },
     {
       label: 'Init',
       value: stats.dexterity >= 0 ? `+${stats.dexterity}` : stats.dexterity.toString(),
       icon: Zap,
-      color: 'text-yellow-500',
-      bgColor: 'bg-yellow-500/10',
+      color: 'text-yellow-400',
     },
   ], [character.level, stats]);
 
@@ -179,197 +200,244 @@ export function HomeScreen({
   };
 
   return (
-    <div className="fixed inset-0 bg-background z-50 flex flex-col overflow-hidden">
-      {/* Install Banner */}
-      <InstallBanner />
+    <BackgroundWrapper
+      imagePath={tposeBackground}
+      overlayOpacity={45}
+      tintColor="red"
+      tintOpacity={10}
+      fixed={true}
+      backgroundPosition={isMobile ? 'center 25%' : 'center center'}
+      className="fixed inset-0 z-50"
+    >
+      <div className="flex flex-col h-screen overflow-hidden">
+        {/* Install Banner */}
+        <InstallBanner />
 
-      {/* Header */}
-      <header className="flex items-center gap-4 px-4 py-3 border-b border-border bg-card/80 backdrop-blur-md">
-        <button 
-          onClick={onReturnToBuilder}
-          className="p-2 -ml-2 rounded-lg hover:bg-muted transition-colors"
-          style={{ touchAction: 'manipulation' }}
+        {/* Header */}
+        <Glass 
+          as="header" 
+          variant="header" 
+          rounded="none"
+          className="flex items-center gap-4 px-4 py-3 border-b border-glass"
         >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <Avatar className="w-12 h-12 border-2 border-primary shrink-0">
-            <AvatarFallback className="text-lg font-bold bg-primary/10 text-primary">
-              {character.name.substring(0, 2).toUpperCase() || 'DP'}
-            </AvatarFallback>
-          </Avatar>
+          <button 
+            onClick={onReturnToBuilder}
+            className="p-2 -ml-2 rounded-lg hover:bg-white/10 transition-colors"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <ArrowLeft className="w-5 h-5 text-white" />
+          </button>
           
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="font-bold text-lg truncate">
-                {character.name || 'Mercenary'}
-              </h1>
-              <Badge variant="secondary" className="shrink-0">
-                Lv.{character.level}
-              </Badge>
-            </div>
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <Avatar className="w-12 h-12 border-2 border-primary shrink-0">
+              <AvatarFallback className="text-lg font-bold bg-primary/20 text-white">
+                {character.name.substring(0, 2).toUpperCase() || 'DP'}
+              </AvatarFallback>
+            </Avatar>
             
-            {/* XP Progress */}
-            <div className="mt-1 space-y-0.5">
-              <Progress value={xpProgress} className="h-1.5" />
-              <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>{currentXP.toLocaleString()} XP</span>
-                <span>
-                  {character.level >= 20 
-                    ? 'MAX' 
-                    : `${nextLevelXP.toLocaleString()} XP`}
-                </span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 
+                  className="font-bold text-lg truncate text-white"
+                  style={{ textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}
+                >
+                  {character.name || 'Mercenary'}
+                </h1>
+                <Badge variant="secondary" className="shrink-0 bg-white/20 text-white border-none">
+                  Lv.{character.level}
+                </Badge>
+              </div>
+              
+              {/* XP Progress */}
+              <div className="mt-1 space-y-0.5">
+                <Progress value={xpProgress} className="h-1.5" />
+                <div 
+                  className="flex justify-between text-[10px] text-white/70"
+                  style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
+                >
+                  <span>{currentXP.toLocaleString()} XP</span>
+                  <span>
+                    {character.level >= 20 
+                      ? 'MAX' 
+                      : `${nextLevelXP.toLocaleString()} XP`}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        
-        <ClockWidget />
-      </header>
+          
+          <ClockWidget />
+        </Glass>
 
-      {/* Scrollable Content */}
-      <div className="flex-1 overflow-auto p-4 space-y-4">
-        {/* Quick Stats Row */}
-        <div className="grid grid-cols-3 gap-3">
-          {quickStats.map((stat) => (
-            <Card key={stat.label} className="overflow-hidden">
-              <CardContent className="p-3 flex flex-col items-center gap-1.5">
-                <div className={cn("p-2 rounded-full", stat.bgColor)}>
-                  <stat.icon className={cn("w-4 h-4", stat.color)} />
-                </div>
-                <p className="text-xl font-bold">{stat.value}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                  {stat.label}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-auto p-4 space-y-4">
+          {/* Quick Stats Row */}
+          <motion.div 
+            className="grid grid-cols-3 gap-3"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            {quickStats.map((stat) => (
+              <motion.div key={stat.label} variants={itemVariants}>
+                <Glass variant="default" className="p-3 flex flex-col items-center gap-1.5">
+                  <div className="p-2 rounded-full bg-white/10">
+                    <stat.icon className={cn("w-4 h-4", stat.color)} />
+                  </div>
+                  <p 
+                    className="text-xl font-bold text-white drop-shadow-lg"
+                    style={{ textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}
+                  >
+                    {stat.value}
+                  </p>
+                  <p 
+                    className="text-[10px] text-white/70 uppercase tracking-wide"
+                    style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
+                  >
+                    {stat.label}
+                  </p>
+                </Glass>
+              </motion.div>
+            ))}
+          </motion.div>
 
-        {/* Navigation Grid */}
-        <div className={cn(
-          "grid gap-3",
-          "grid-cols-2",
-          "md:grid-cols-3",
-          "lg:grid-cols-4"
-        )}>
-          {navigationCards.map((card) => {
-            const badge = getBadge(card.id);
-            const IconComponent = card.icon;
-            
-            return (
-              <Card
-                key={card.id}
-                className={cn(
-                  "cursor-pointer transition-all duration-200",
-                  "hover:scale-105 hover:shadow-lg active:scale-95",
-                  "border-2 border-transparent hover:border-current/20",
-                  "min-h-[120px]"
-                )}
-                onClick={() => handleCardClick(card.id)}
-                style={{ touchAction: 'manipulation' }}
-                role="button"
-                tabIndex={0}
-                aria-label={`Navigate to ${card.label}. ${card.description}${
-                  badge ? `. ${badge} notifications.` : ''
-                }`}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleCardClick(card.id);
-                  }
-                }}
-              >
-                <CardContent className="p-4 flex flex-col items-center justify-center text-center gap-2 h-full">
-                  {/* Icon with badge */}
-                  <div className="relative">
-                    <div className={cn(
-                      "rounded-full flex items-center justify-center",
-                      card.bgColor,
-                      isMobile ? "w-12 h-12" : "w-14 h-14"
-                    )}>
-                      <IconComponent className={cn(
-                        card.color,
-                        isMobile ? "w-6 h-6" : "w-7 h-7"
-                      )} />
+          {/* Navigation Grid */}
+          <motion.div 
+            className={cn(
+              "grid gap-3",
+              "grid-cols-2",
+              "md:grid-cols-3",
+              "lg:grid-cols-4"
+            )}
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            {navigationCards.map((card) => {
+              const badge = getBadge(card.id);
+              const IconComponent = card.icon;
+              
+              return (
+                <motion.div key={card.id} variants={itemVariants}>
+                  <Glass
+                    variant="interactive"
+                    className={cn(
+                      "cursor-pointer min-h-[120px] p-4",
+                      "flex flex-col items-center justify-center text-center gap-2"
+                    )}
+                    onClick={() => handleCardClick(card.id)}
+                    style={{ touchAction: 'manipulation' }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Navigate to ${card.label}. ${card.description}${
+                      badge ? `. ${badge} notifications.` : ''
+                    }`}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleCardClick(card.id);
+                      }
+                    }}
+                  >
+                    {/* Icon with badge */}
+                    <div className="relative">
+                      <div className={cn(
+                        "rounded-full flex items-center justify-center bg-white/10",
+                        isMobile ? "w-12 h-12" : "w-14 h-14"
+                      )}>
+                        <IconComponent className={cn(
+                          card.color,
+                          isMobile ? "w-6 h-6" : "w-7 h-7"
+                        )} />
+                      </div>
+                      
+                      {/* Notification Badge */}
+                      {badge !== undefined && (
+                        <Badge 
+                          variant="destructive" 
+                          className="absolute -top-1 -right-1 w-5 h-5 p-0 flex items-center justify-center text-xs animate-badge-pulse"
+                        >
+                          {badge}
+                        </Badge>
+                      )}
                     </div>
                     
-                    {/* Notification Badge */}
-                    {badge !== undefined && (
-                      <Badge 
-                        variant="destructive" 
-                        className="absolute -top-1 -right-1 w-5 h-5 p-0 flex items-center justify-center text-xs animate-badge-pulse"
+                    {/* Label */}
+                    <h3 
+                      className={cn(
+                        "font-semibold text-white",
+                        isMobile ? "text-sm" : "text-base"
+                      )}
+                      style={{ textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}
+                    >
+                      {card.label}
+                    </h3>
+                    
+                    {/* Description (Desktop only) */}
+                    {!isMobile && (
+                      <p 
+                        className="text-xs text-white/70"
+                        style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
                       >
-                        {badge}
-                      </Badge>
+                        {card.description}
+                      </p>
                     )}
-                  </div>
-                  
-                  {/* Label */}
-                  <h3 className={cn(
-                    "font-semibold",
-                    isMobile ? "text-sm" : "text-base"
-                  )}>
-                    {card.label}
-                  </h3>
-                  
-                  {/* Description (Desktop only) */}
-                  {!isMobile && (
-                    <p className="text-xs text-muted-foreground">
-                      {card.description}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
+                  </Glass>
+                </motion.div>
+              );
+            })}
+          </motion.div>
         </div>
-      </div>
 
-      {/* Quick Actions Footer */}
-      <div className="border-t border-border bg-card/80 backdrop-blur-md p-4">
-        <div className="grid grid-cols-3 gap-3 max-w-md mx-auto">
-          <Button
-            variant="outline"
-            className="h-auto py-3 flex flex-col items-center gap-1"
-            onClick={() => handleQuickAction('shortRest')}
-            style={{ touchAction: 'manipulation' }}
-          >
-            <Coffee className="w-5 h-5 text-amber-500" />
-            <span className="text-xs">Short Rest</span>
-          </Button>
-          
-          <Button
-            variant="outline"
-            className="h-auto py-3 flex flex-col items-center gap-1"
-            onClick={() => handleQuickAction('longRest')}
-            style={{ touchAction: 'manipulation' }}
-          >
-            <Moon className="w-5 h-5 text-blue-500" />
-            <span className="text-xs">Long Rest</span>
-          </Button>
-          
-          {canLevelUp && (
+        {/* Quick Actions Footer */}
+        <Glass 
+          as="footer" 
+          variant="header" 
+          rounded="none"
+          className="border-t border-glass p-4"
+        >
+          <div className="grid grid-cols-3 gap-3 max-w-md mx-auto">
             <Button
-              variant="default"
-              className="h-auto py-3 flex flex-col items-center gap-1"
-              onClick={() => handleQuickAction('levelUp')}
+              variant="outline"
+              className="h-auto py-3 flex flex-col items-center gap-1 bg-white/10 border-glass hover:bg-white/20 text-white"
+              onClick={() => handleQuickAction('shortRest')}
               style={{ touchAction: 'manipulation' }}
             >
-              <TrendingUp className="w-5 h-5" />
-              <span className="text-xs">Level Up</span>
+              <Coffee className="w-5 h-5 text-amber-400" />
+              <span className="text-xs">Short Rest</span>
             </Button>
-          )}
-          
-          {!canLevelUp && (
-            <div className="h-auto py-3 flex flex-col items-center gap-1 opacity-50">
-              <TrendingUp className="w-5 h-5 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Level Up</span>
-            </div>
-          )}
-        </div>
+            
+            <Button
+              variant="outline"
+              className="h-auto py-3 flex flex-col items-center gap-1 bg-white/10 border-glass hover:bg-white/20 text-white"
+              onClick={() => handleQuickAction('longRest')}
+              style={{ touchAction: 'manipulation' }}
+            >
+              <Moon className="w-5 h-5 text-blue-400" />
+              <span className="text-xs">Long Rest</span>
+            </Button>
+            
+            {canLevelUp && (
+              <Button
+                variant="default"
+                className="h-auto py-3 flex flex-col items-center gap-1"
+                onClick={() => handleQuickAction('levelUp')}
+                style={{ touchAction: 'manipulation' }}
+              >
+                <TrendingUp className="w-5 h-5" />
+                <span className="text-xs">Level Up</span>
+              </Button>
+            )}
+            
+            {!canLevelUp && (
+              <div className="h-auto py-3 flex flex-col items-center gap-1 opacity-40">
+                <TrendingUp className="w-5 h-5 text-white/50" />
+                <span className="text-xs text-white/50">Level Up</span>
+              </div>
+            )}
+          </div>
+        </Glass>
       </div>
-    </div>
+    </BackgroundWrapper>
   );
 }
