@@ -71,7 +71,6 @@ export function PromptDrawerProvider({
   
   // Collapse state for edge triggers
   const [leftCollapsed, setLeftCollapsed] = useState(false);
-  const [rightCollapsed, setRightCollapsed] = useState(false);
 
   // Close all drawers when opening a new one
   const closeAllDrawers = useCallback(() => {
@@ -104,19 +103,10 @@ export function PromptDrawerProvider({
       
       if (diffY > Math.abs(diffX) * 0.5) return;
 
-      // Left edge swipe right → open stats
+      // Left edge swipe right → open stats (first drawer)
       if (startX < EDGE_THRESHOLD && diffX > SWIPE_THRESHOLD) {
         closeAllDrawers();
         setStatsOpen(true);
-      }
-      // Right edge swipe left → open infinity/abilities (check lock status)
-      if (startX > window.innerWidth - EDGE_THRESHOLD && diffX < -SWIPE_THRESHOLD) {
-        closeAllDrawers();
-        if (isInfinityLocked) {
-          toast.error(`RP Prompts locked until Level 20 (Current: ${character.level})`);
-        } else {
-          setInfinityOpen(true);
-        }
       }
     };
 
@@ -151,7 +141,7 @@ export function PromptDrawerProvider({
   // Check if any drawer is open
   const anyDrawerOpen = infinityOpen || abilitiesOpen || statsOpen || scribeOpen || setBonusOpen;
 
-  // Left side triggers (Stats, Set Bonuses)
+  // All 5 triggers on the left side
   const leftTriggers = [
     {
       id: 'stats',
@@ -167,10 +157,6 @@ export function PromptDrawerProvider({
       accentColor: '#f59e0b',
       onClick: () => { closeAllDrawers(); setSetBonusOpen(true); },
     },
-  ];
-
-  // Right side triggers (Prompts, Abilities, Scribe)
-  const rightTriggers = [
     {
       id: 'prompts',
       label: isInfinityLocked ? 'Locked' : 'Prompts',
@@ -201,23 +187,13 @@ export function PromptDrawerProvider({
 
       {enabled && (
         <>
-          {/* Left Edge Triggers */}
+          {/* Left Edge Triggers - All 5 drawers */}
           {!anyDrawerOpen && (
             <EdgeTriggerStack
               side="left"
               triggers={leftTriggers}
               collapsed={leftCollapsed}
               onToggleCollapse={() => setLeftCollapsed(!leftCollapsed)}
-            />
-          )}
-          
-          {/* Right Edge Triggers */}
-          {!anyDrawerOpen && (
-            <EdgeTriggerStack
-              side="right"
-              triggers={rightTriggers}
-              collapsed={rightCollapsed}
-              onToggleCollapse={() => setRightCollapsed(!rightCollapsed)}
             />
           )}
 
