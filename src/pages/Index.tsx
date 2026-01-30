@@ -540,10 +540,8 @@ const Index = () => {
             onBack={() => setShowWizard(true)}
             onNavigateToTab={(tab) => {
               setShowHomeScreen(false);
-              if (tab === 'abilities') setActiveTab('abilities');
-              else if (tab === 'inventory') setActiveTab('gear');
-              else if (tab === 'achievements') setActiveTab('feats');
-              else if (tab === 'constellation') setActiveTab('stars');
+              // Direct mapping for all tabs
+              setActiveTab(tab as typeof activeTab);
             }}
             onShortRest={handleShortRest}
             onLongRest={handleLongRest}

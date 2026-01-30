@@ -178,6 +178,10 @@ export default {
           "0%": { backgroundPosition: "-200% 0" },
           "100%": { backgroundPosition: "200% 0" },
         },
+        "badge-pulse": {
+          "0%, 100%": { opacity: "1", transform: "scale(1)" },
+          "50%": { opacity: "0.8", transform: "scale(1.1)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -200,6 +204,7 @@ export default {
         "connection-flow": "connection-flow 1s linear infinite",
         "ability-pulse-mobile": "ability-pulse-mobile 3s ease-in-out infinite",
         "ability-unlock-mobile": "ability-unlock-mobile 0.3s ease-out",
+        "badge-pulse": "badge-pulse 2s ease-in-out infinite",
       },
     },
   },

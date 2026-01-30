@@ -1,96 +1,37 @@
-import { useState, useMemo, useRef } from 'react';
-import { Character } from '@/lib/types';
+import { useMemo } from 'react';
+import { Character, getAbilityPointsForLevel, getTotalPointsSpent } from '@/lib/types';
 import { CharacterEquipment } from '@/lib/inventory';
 import { Achievement } from '@/lib/achievements';
-import { XPPreset } from '@/lib/xpSystem';
+import { XPPreset, getXPForLevel, getLevelProgress, XP_PRESETS } from '@/lib/xpSystem';
+import { useEquipmentStats } from '@/hooks/use-equipment-stats';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { 
-  User, Swords, Package, Trophy, 
-  Sparkles, Moon, Scroll, ArrowLeft, Gem, Lock
+  ArrowLeft, Heart, Shield, Zap, 
+  BookOpen, Backpack, Trophy, Swords, 
+  Scroll, Beaker, FileSearch, Star,
+  Coffee, Moon, TrendingUp
 } from 'lucide-react';
-import { AssassinZone } from './AssassinZone';
+import { cn } from '@/lib/utils';
+import { Card, CardContent } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { InstallBanner } from './InstallBanner';
 import { ClockWidget } from './ClockWidget';
-import { InfinityGauntletScreen } from '../character/InfinityGauntletScreen';
-import { HomeDataModal } from './HomeDataModal';
-import { useGameMode, shouldShowInfinityStones } from '@/hooks/use-game-mode';
-import {
-  CharacterStatsContent,
-  SkillsOverviewContent,
-  GearOverviewContent,
-  AchievementsOverviewContent,
-  ConstellationOverviewContent,
-  RestActionsContent,
-  DailyQuoteContent,
-} from './HomeModalContents';
-import homeBackground from '@/assets/home-assassins-wide.jpg';
+import type { LucideIcon } from 'lucide-react';
 
-// Deadpool-style quotes
-const deadpoolQuotes = [
-  "Maximum effort!",
-  "I'm touching myself tonight.",
-  "You may be wondering why the red suit? So bad guys can't see me bleed.",
-  "I know, right? Whose balls did I have to fondle to get my own movie?",
-  "Time to make the chimichangas!",
-  "I'm gonna do what's right. You know what that is?",
-  "Fourth wall break inside a fourth wall break? That's like... 16 walls!",
-  "Did I leave the stove on?",
-  "Superhero landing! She's gonna do a superhero landing!",
-  "Pump the hate brakes, Thanos.",
-];
-
-// Assassin zone configurations - positioned at pelvis level of each assassin
-// 7 assassins spread evenly across the wide panoramic image
-const assassinZones = [
-  { 
-    id: 'character', 
-    label: 'Character', 
-    color: '#ef4444', // red
-    leftPercent: 7.5, // Altair (leftmost)
-    icon: User,
-  },
-  { 
-    id: 'skills', 
-    label: 'Skills', 
-    color: '#22c55e', // green
-    leftPercent: 21, // Ezio
-    icon: Swords,
-  },
-  { 
-    id: 'gear', 
-    label: 'Gear', 
-    color: '#f59e0b', // amber
-    leftPercent: 35.5, // Connor
-    icon: Package,
-  },
-  { 
-    id: 'wisdom', 
-    label: 'Wisdom', 
-    color: '#dc2626', // red-600
-    leftPercent: 50, // Edward (center)
-    icon: Scroll,
-  },
-  { 
-    id: 'feats', 
-    label: 'Feats', 
-    color: '#a855f7', // purple
-    leftPercent: 64.5, // Arno
-    icon: Trophy,
-  },
-  { 
-    id: 'stars', 
-    label: 'Stars', 
-    color: '#06b6d4', // cyan
-    leftPercent: 78.5, // Jacob
-    icon: Sparkles,
-  },
-  { 
-    id: 'rest', 
-    label: 'Rest', 
-    color: '#3b82f6', // blue
-    leftPercent: 92.5, // Bayek (rightmost)
-    icon: Moon,
-  },
-];
+// Navigable tab types
+type NavigableTab = 
+  | 'skills' 
+  | 'abilities' 
+  | 'gear' 
+  | 'feats' 
+  | 'stars' 
+  | 'scribe' 
+  | 'combat' 
+  | 'consumables' 
+  | 'chronicle';
 
 interface HomeScreenProps {
   character: Character;
@@ -99,7 +40,7 @@ interface HomeScreenProps {
   currentXP: number;
   xpPreset: XPPreset;
   onBack: () => void;
-  onNavigateToTab: (tab: 'abilities' | 'inventory' | 'achievements' | 'constellation') => void;
+  onNavigateToTab: (tab: NavigableTab) => void;
   onShortRest: () => void;
   onLongRest: () => void;
   onAddXP: (amount: number, source: string) => void;
@@ -108,261 +49,327 @@ interface HomeScreenProps {
   onReturnToBuilder: () => void;
 }
 
+interface NavigationCardData {
+  id: NavigableTab;
+  label: string;
+  description: string;
+  icon: LucideIcon;
+  color: string;
+  bgColor: string;
+}
+
+// Navigation card configuration
+const navigationCards: NavigationCardData[] = [
+  { id: 'skills', label: 'Skills', description: 'Proficiencies & checks', 
+    icon: BookOpen, color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
+  { id: 'abilities', label: 'Abilities', description: 'Unlock & upgrade', 
+    icon: Zap, color: 'text-violet-500', bgColor: 'bg-violet-500/10' },
+  { id: 'gear', label: 'Gear', description: 'Equipment & inventory', 
+    icon: Backpack, color: 'text-amber-500', bgColor: 'bg-amber-500/10' },
+  { id: 'feats', label: 'Feats', description: 'Achievements & progress', 
+    icon: Trophy, color: 'text-yellow-500', bgColor: 'bg-yellow-500/10' },
+  { id: 'combat', label: 'Combat', description: 'Battle tracker', 
+    icon: Swords, color: 'text-red-500', bgColor: 'bg-red-500/10' },
+  { id: 'scribe', label: 'Scribe', description: 'AI narrative tools', 
+    icon: Scroll, color: 'text-orange-500', bgColor: 'bg-orange-500/10' },
+  { id: 'consumables', label: 'Items', description: 'Potions & scrolls', 
+    icon: Beaker, color: 'text-green-500', bgColor: 'bg-green-500/10' },
+  { id: 'chronicle', label: 'Chronicle', description: 'Session log sync', 
+    icon: FileSearch, color: 'text-blue-600', bgColor: 'bg-blue-600/10' },
+  { id: 'stars', label: 'Stars', description: 'Constellation view', 
+    icon: Star, color: 'text-purple-500', bgColor: 'bg-purple-500/10' },
+];
+
+// Haptic feedback helper
+const triggerHaptic = (intensity: 'light' | 'medium' | 'heavy' = 'light') => {
+  if ('vibrate' in navigator) {
+    const patterns = { light: 10, medium: 20, heavy: 30 };
+    navigator.vibrate(patterns[intensity]);
+  }
+};
+
 export function HomeScreen({ 
   character, 
   equipment, 
   achievements,
   currentXP,
   xpPreset,
-  onBack,
   onNavigateToTab,
   onShortRest,
   onLongRest,
-  onAddXP,
-  onXPPresetChange,
   onManualLevelUp,
   onReturnToBuilder,
 }: HomeScreenProps) {
-  const [activeModal, setActiveModal] = useState<string | null>(null);
-  const [showGauntletScreen, setShowGauntletScreen] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  
-  const { infinityStonesLocked } = useGameMode();
-  const stonesAccessible = shouldShowInfinityStones(character.level, infinityStonesLocked);
+  const isMobile = useIsMobile();
+  const stats = useEquipmentStats(equipment);
+  const multiplier = XP_PRESETS[xpPreset].multiplier;
 
-  // Daily quote (changes based on date)
-  const dailyQuote = useMemo(() => {
-    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
-    return deadpoolQuotes[dayOfYear % deadpoolQuotes.length];
-  }, []);
+  // XP calculations
+  const nextLevelXP = getXPForLevel(character.level + 1, multiplier);
+  const currentLevelXP = getXPForLevel(character.level, multiplier);
+  const xpProgress = character.level >= 20 ? 100 : getLevelProgress(character.level, currentXP, multiplier);
+  const canLevelUp = character.level < 20 && currentXP >= nextLevelXP;
 
-  const handleZoneClick = (zoneId: string) => {
-    setActiveModal(zoneId);
+  // Badge calculation logic
+  const getBadge = (tabId: string): string | number | undefined => {
+    switch (tabId) {
+      case 'abilities':
+        const available = getAbilityPointsForLevel(character.level) - 
+          getTotalPointsSpent(character.abilities);
+        return available > 0 ? available : undefined;
+      
+      case 'feats':
+        const unclaimed = achievements.filter(
+          a => a.currentValue >= a.maxValue && !a.claimedMilestones?.includes(100)
+        ).length;
+        return unclaimed > 0 ? unclaimed : undefined;
+      
+      case 'chronicle':
+        const hasUndo = localStorage.getItem('odyssey-chronicle-undo');
+        return hasUndo ? '!' : undefined;
+      
+      default:
+        return undefined;
+    }
   };
 
-  const closeModal = () => setActiveModal(null);
+  // Quick stats configuration
+  const quickStats = useMemo(() => [
+    {
+      label: 'HP',
+      value: `${character.level * 8 + 10}`,
+      icon: Heart,
+      color: 'text-red-500',
+      bgColor: 'bg-red-500/10',
+    },
+    {
+      label: 'AC',
+      value: stats.totalAC.toString(),
+      icon: Shield,
+      color: 'text-blue-500',
+      bgColor: 'bg-blue-500/10',
+    },
+    {
+      label: 'Init',
+      value: stats.dexterity >= 0 ? `+${stats.dexterity}` : stats.dexterity.toString(),
+      icon: Zap,
+      color: 'text-yellow-500',
+      bgColor: 'bg-yellow-500/10',
+    },
+  ], [character.level, stats]);
 
-  const navigateAndClose = (tab: 'abilities' | 'inventory' | 'achievements' | 'constellation') => {
-    closeModal();
-    onNavigateToTab(tab);
+  const handleCardClick = (cardId: NavigableTab) => {
+    triggerHaptic('light');
+    onNavigateToTab(cardId);
   };
 
-  // Calculate image dimensions for proper button positioning
-  // Image aspect ratio is 1920:1080 = 16:9
-  const imageAspectRatio = 1920 / 1080;
+  const handleQuickAction = (action: 'shortRest' | 'longRest' | 'levelUp') => {
+    triggerHaptic('medium');
+    switch (action) {
+      case 'shortRest':
+        onShortRest();
+        break;
+      case 'longRest':
+        onLongRest();
+        break;
+      case 'levelUp':
+        onManualLevelUp();
+        break;
+    }
+  };
 
   return (
-    <div className="fixed inset-0 bg-black z-50 flex flex-col overflow-hidden">
-      {/* Install Banner - shows for users who haven't installed */}
+    <div className="fixed inset-0 bg-background z-50 flex flex-col overflow-hidden">
+      {/* Install Banner */}
       <InstallBanner />
 
       {/* Header */}
-      <header className="relative flex items-center justify-between px-4 py-3 border-b border-red-900/30 bg-background/70 backdrop-blur-md z-20">
+      <header className="flex items-center gap-4 px-4 py-3 border-b border-border bg-card/80 backdrop-blur-md">
         <button 
           onClick={onReturnToBuilder}
           className="p-2 -ml-2 rounded-lg hover:bg-muted transition-colors"
+          style={{ touchAction: 'manipulation' }}
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="font-cinzel font-bold text-lg uppercase tracking-wider text-red-400">
-          {character.name || 'Home Base'}
-        </h1>
+        
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <Avatar className="w-12 h-12 border-2 border-primary shrink-0">
+            <AvatarFallback className="text-lg font-bold bg-primary/10 text-primary">
+              {character.name.substring(0, 2).toUpperCase() || 'DP'}
+            </AvatarFallback>
+          </Avatar>
+          
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="font-bold text-lg truncate">
+                {character.name || 'Mercenary'}
+              </h1>
+              <Badge variant="secondary" className="shrink-0">
+                Lv.{character.level}
+              </Badge>
+            </div>
+            
+            {/* XP Progress */}
+            <div className="mt-1 space-y-0.5">
+              <Progress value={xpProgress} className="h-1.5" />
+              <div className="flex justify-between text-[10px] text-muted-foreground">
+                <span>{currentXP.toLocaleString()} XP</span>
+                <span>
+                  {character.level >= 20 
+                    ? 'MAX' 
+                    : `${nextLevelXP.toLocaleString()} XP`}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
         <ClockWidget />
       </header>
 
-      {/* Four-Directional Panning Container */}
-      <div 
-        ref={scrollRef}
-        data-tutorial-id="home-screen-zones"
-        className="flex-1 overflow-auto scrollbar-hide"
-        style={{ 
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none',
-        }}
-      >
-        {/* Wide panoramic image container - larger than viewport for 4-way panning */}
-        <div 
-          className="relative"
-          style={{ 
-            width: `calc(100vh * ${imageAspectRatio} * 1.2)`,
-            height: '120%',
-            minWidth: '100%',
-            minHeight: '100%',
-          }}
-        >
-          {/* Background Image */}
-          <img 
-            src={homeBackground} 
-            alt="Deadpool Assassins"
-            className="absolute inset-0 w-full h-full object-cover object-center"
-            draggable={false}
-          />
-          
-          {/* Subtle vignette overlays */}
-          <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-transparent to-background/40 pointer-events-none" />
-          <div className="absolute inset-0 bg-gradient-to-r from-background/20 via-transparent to-background/20 pointer-events-none" />
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-auto p-4 space-y-4">
+        {/* Quick Stats Row */}
+        <div className="grid grid-cols-3 gap-3">
+          {quickStats.map((stat) => (
+            <Card key={stat.label} className="overflow-hidden">
+              <CardContent className="p-3 flex flex-col items-center gap-1.5">
+                <div className={cn("p-2 rounded-full", stat.bgColor)}>
+                  <stat.icon className={cn("w-4 h-4", stat.color)} />
+                </div>
+                <p className="text-xl font-bold">{stat.value}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                  {stat.label}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
-          {/* Assassin Zone Buttons - positioned at pelvis level (~60% from top) */}
-          {assassinZones.map((zone) => {
-            const IconComponent = zone.icon;
+        {/* Navigation Grid */}
+        <div className={cn(
+          "grid gap-3",
+          "grid-cols-2",
+          "md:grid-cols-3",
+          "lg:grid-cols-4"
+        )}>
+          {navigationCards.map((card) => {
+            const badge = getBadge(card.id);
+            const IconComponent = card.icon;
+            
             return (
-              <AssassinZone
-                key={zone.id}
-                label={zone.label}
-                icon={<IconComponent className="w-3.5 h-3.5" />}
-                onClick={() => handleZoneClick(zone.id)}
-                accentColor={zone.color}
-                style={{
-                  left: `${zone.leftPercent}%`,
-                  top: '58%',
-                  transform: 'translate(-50%, -50%)',
+              <Card
+                key={card.id}
+                className={cn(
+                  "cursor-pointer transition-all duration-200",
+                  "hover:scale-105 hover:shadow-lg active:scale-95",
+                  "border-2 border-transparent hover:border-current/20",
+                  "min-h-[120px]"
+                )}
+                onClick={() => handleCardClick(card.id)}
+                style={{ touchAction: 'manipulation' }}
+                role="button"
+                tabIndex={0}
+                aria-label={`Navigate to ${card.label}. ${card.description}${
+                  badge ? `. ${badge} notifications.` : ''
+                }`}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleCardClick(card.id);
+                  }
                 }}
-              />
+              >
+                <CardContent className="p-4 flex flex-col items-center justify-center text-center gap-2 h-full">
+                  {/* Icon with badge */}
+                  <div className="relative">
+                    <div className={cn(
+                      "rounded-full flex items-center justify-center",
+                      card.bgColor,
+                      isMobile ? "w-12 h-12" : "w-14 h-14"
+                    )}>
+                      <IconComponent className={cn(
+                        card.color,
+                        isMobile ? "w-6 h-6" : "w-7 h-7"
+                      )} />
+                    </div>
+                    
+                    {/* Notification Badge */}
+                    {badge !== undefined && (
+                      <Badge 
+                        variant="destructive" 
+                        className="absolute -top-1 -right-1 w-5 h-5 p-0 flex items-center justify-center text-xs animate-badge-pulse"
+                      >
+                        {badge}
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  {/* Label */}
+                  <h3 className={cn(
+                    "font-semibold",
+                    isMobile ? "text-sm" : "text-base"
+                  )}>
+                    {card.label}
+                  </h3>
+                  
+                  {/* Description (Desktop only) */}
+                  {!isMobile && (
+                    <p className="text-xs text-muted-foreground">
+                      {card.description}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
             );
           })}
-
-          {/* Gauntlet Zone - positioned over the leaping Deadpool */}
-          {stonesAccessible ? (
-            <AssassinZone
-              label="Gauntlet"
-              icon={<Gem className="w-3.5 h-3.5" />}
-              onClick={() => setShowGauntletScreen(true)}
-              accentColor="#eab308"
-              data-tutorial-id="zone-gauntlet"
-              style={{
-                left: '50%',
-                top: '32%',
-                transform: 'translate(-50%, -50%)',
-              }}
-            />
-          ) : (
-            <AssassinZone
-              label="Lv.20"
-              icon={<Lock className="w-3.5 h-3.5" />}
-              onClick={() => {}}
-              accentColor="#6b7280"
-              style={{
-                left: '50%',
-                top: '32%',
-                transform: 'translate(-50%, -50%)',
-                opacity: 0.6,
-                cursor: 'not-allowed',
-              }}
-            />
-          )}
         </div>
       </div>
 
-      {/* Pan hint */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
-        <p className="text-xs text-muted-foreground/70 backdrop-blur-sm bg-black/50 px-4 py-2 rounded-full flex items-center gap-2">
-          <span>↑</span>
-          <span>←</span>
-          <span>Pan to explore</span>
-          <span>→</span>
-          <span>↓</span>
-        </p>
+      {/* Quick Actions Footer */}
+      <div className="border-t border-border bg-card/80 backdrop-blur-md p-4">
+        <div className="grid grid-cols-3 gap-3 max-w-md mx-auto">
+          <Button
+            variant="outline"
+            className="h-auto py-3 flex flex-col items-center gap-1"
+            onClick={() => handleQuickAction('shortRest')}
+            style={{ touchAction: 'manipulation' }}
+          >
+            <Coffee className="w-5 h-5 text-amber-500" />
+            <span className="text-xs">Short Rest</span>
+          </Button>
+          
+          <Button
+            variant="outline"
+            className="h-auto py-3 flex flex-col items-center gap-1"
+            onClick={() => handleQuickAction('longRest')}
+            style={{ touchAction: 'manipulation' }}
+          >
+            <Moon className="w-5 h-5 text-blue-500" />
+            <span className="text-xs">Long Rest</span>
+          </Button>
+          
+          {canLevelUp && (
+            <Button
+              variant="default"
+              className="h-auto py-3 flex flex-col items-center gap-1"
+              onClick={() => handleQuickAction('levelUp')}
+              style={{ touchAction: 'manipulation' }}
+            >
+              <TrendingUp className="w-5 h-5" />
+              <span className="text-xs">Level Up</span>
+            </Button>
+          )}
+          
+          {!canLevelUp && (
+            <div className="h-auto py-3 flex flex-col items-center gap-1 opacity-50">
+              <TrendingUp className="w-5 h-5 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Level Up</span>
+            </div>
+          )}
+        </div>
       </div>
-
-      {/* Modals for each zone */}
-      <HomeDataModal
-        open={activeModal === 'character'}
-        onOpenChange={(open) => !open && closeModal()}
-        title="Character Stats"
-        icon={<User className="w-5 h-5" />}
-        accentColor="#ef4444"
-      >
-        <CharacterStatsContent character={character} equipment={equipment} />
-      </HomeDataModal>
-
-      <HomeDataModal
-        open={activeModal === 'skills'}
-        onOpenChange={(open) => !open && closeModal()}
-        title="Skills Overview"
-        icon={<Swords className="w-5 h-5" />}
-        accentColor="#22c55e"
-      >
-        <SkillsOverviewContent 
-          character={character} 
-          onNavigate={() => navigateAndClose('abilities')} 
-        />
-      </HomeDataModal>
-
-      <HomeDataModal
-        open={activeModal === 'gear'}
-        onOpenChange={(open) => !open && closeModal()}
-        title="Gear Overview"
-        icon={<Package className="w-5 h-5" />}
-        accentColor="#f59e0b"
-      >
-        <GearOverviewContent 
-          equipment={equipment} 
-          onNavigate={() => navigateAndClose('inventory')} 
-        />
-      </HomeDataModal>
-
-      <HomeDataModal
-        open={activeModal === 'feats'}
-        onOpenChange={(open) => !open && closeModal()}
-        title="Feats Overview"
-        icon={<Trophy className="w-5 h-5" />}
-        accentColor="#a855f7"
-      >
-        <AchievementsOverviewContent 
-          achievements={achievements} 
-          onNavigate={() => navigateAndClose('achievements')} 
-        />
-      </HomeDataModal>
-
-      <HomeDataModal
-        open={activeModal === 'stars'}
-        onOpenChange={(open) => !open && closeModal()}
-        title="Constellations"
-        icon={<Sparkles className="w-5 h-5" />}
-        accentColor="#06b6d4"
-      >
-        <ConstellationOverviewContent 
-          equipment={equipment} 
-          onNavigate={() => navigateAndClose('constellation')} 
-        />
-      </HomeDataModal>
-
-      <HomeDataModal
-        open={activeModal === 'rest'}
-        onOpenChange={(open) => !open && closeModal()}
-        title="Rest & Recovery"
-        icon={<Moon className="w-5 h-5" />}
-        accentColor="#3b82f6"
-      >
-        <RestActionsContent 
-          onShortRest={() => { onShortRest(); closeModal(); }}
-          onLongRest={() => { onLongRest(); closeModal(); }}
-        />
-      </HomeDataModal>
-
-      {/* Infinity Gauntlet Screen */}
-      <InfinityGauntletScreen
-        characterName={character.name}
-        open={showGauntletScreen}
-        onClose={() => setShowGauntletScreen(false)}
-      />
-
-      <HomeDataModal
-        open={activeModal === 'wisdom'}
-        onOpenChange={(open) => !open && closeModal()}
-        title="Daily Wisdom"
-        icon={<Scroll className="w-5 h-5" />}
-        accentColor="#dc2626"
-      >
-        <DailyQuoteContent quote={dailyQuote} />
-      </HomeDataModal>
-
-      {/* Hide scrollbar with CSS */}
-      <style>{`
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-      `}</style>
     </div>
   );
 }
