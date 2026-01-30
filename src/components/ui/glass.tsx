@@ -8,9 +8,9 @@ const glassVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-transparent backdrop-blur-md shadow-glass-glow",
+        default: "bg-glass-subtle backdrop-blur-md shadow-glass-glow",
         interactive: 
-          "bg-transparent backdrop-blur-lg shadow-glass-glow hover:bg-white/5 hover:backdrop-blur-xl hover:scale-[1.02] hover:border-white/20 active:scale-[0.98]",
+          "bg-glass backdrop-blur-lg shadow-glass-glow hover:bg-glass-strong hover:backdrop-blur-xl hover:scale-[1.02] hover:border-white/20 active:scale-[0.98]",
         header: "bg-glass backdrop-blur-xl shadow-glass-glow",
       },
       rounded: {
