@@ -435,27 +435,37 @@ const Index = () => {
   // Full-screen Home overlay
   if (showHomeScreen) {
     return (
-      <HomeScreen
+      <PromptDrawerProvider
         character={character}
-        equipment={equipment}
-        achievements={achievements}
+        unlockedAbilities={unlockedAbilities}
+        enabled={true}
         currentXP={currentXP}
         xpPreset={xpPreset}
-        onBack={() => setShowWizard(true)}
-        onNavigateToTab={(tab) => {
-          setShowHomeScreen(false);
-          if (tab === 'abilities') setActiveTab('skills');
-          else if (tab === 'inventory') setActiveTab('gear');
-          else if (tab === 'achievements') setActiveTab('feats');
-          else if (tab === 'constellation') setActiveTab('stars');
-        }}
-        onShortRest={handleShortRest}
-        onLongRest={handleLongRest}
         onAddXP={handleAddXP}
-        onXPPresetChange={setXPPreset}
-        onManualLevelUp={handleManualLevelUp}
-        onReturnToBuilder={() => setShowHomeScreen(false)}
-      />
+        equipment={equipment}
+      >
+        <HomeScreen 
+          character={character}
+          equipment={equipment}
+          achievements={achievements}
+          currentXP={currentXP}
+          xpPreset={xpPreset}
+          onBack={() => setShowWizard(true)}
+          onNavigateToTab={(tab) => {
+            setShowHomeScreen(false);
+            if (tab === 'abilities') setActiveTab('skills');
+            else if (tab === 'inventory') setActiveTab('gear');
+            else if (tab === 'achievements') setActiveTab('feats');
+            else if (tab === 'constellation') setActiveTab('stars');
+          }}
+          onShortRest={handleShortRest}
+          onLongRest={handleLongRest}
+          onAddXP={handleAddXP}
+          onXPPresetChange={setXPPreset}
+          onManualLevelUp={handleManualLevelUp}
+          onReturnToBuilder={() => setShowHomeScreen(false)}
+        />
+      </PromptDrawerProvider>
     );
   }
 
