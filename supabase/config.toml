@@ -1,1 +1,7 @@
 project_id = "rkkgmonjfvncpvlzsojw"
+
+[functions.narrative-forge]
+verify_jwt = false
+
+[functions.chronicle-sync]
+verify_jwt = false

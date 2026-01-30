@@ -19,6 +19,7 @@ import { AchievementsScreen } from '@/components/achievements/AchievementsScreen
 import { ConstellationScreen } from '@/components/constellation/ConstellationScreen';
 import { HomeScreen } from '@/components/home/HomeScreen';
 import { NarrativeForgeScreen } from '@/components/scribe/NarrativeForgeScreen';
+import { ChronicleSyncScreen } from '@/components/chronicle';
 import { PromptDrawerProvider } from '@/components/drawers';
 import { TutorialProvider } from '@/components/tutorial';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -52,7 +53,7 @@ const Index = () => {
   const [showHomeScreen, setShowHomeScreen] = useState(true); // Home is default after wizard
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showCloudSaveModal, setShowCloudSaveModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'skills' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables'>('skills');
+  const [activeTab, setActiveTab] = useState<'skills' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle'>('skills');
   const [character, setCharacter] = useState<Character>({
     name: '',
     level: 1,
