@@ -58,6 +58,7 @@ export function useGameMode() {
   const requiresScribeVerification = checkRule('scribeItemVerification');
   const prestigePointsRequireXP = checkRule('prestigePointsRequireXP');
   const prestigeRespecDisabled = checkRule('prestigeRespecDisabled');
+  const enforceCooldowns = checkRule('enforceCooldowns');
 
   return {
     settings,
@@ -73,6 +74,7 @@ export function useGameMode() {
     requiresScribeVerification,
     prestigePointsRequireXP,
     prestigeRespecDisabled,
+    enforceCooldowns,
   };
 }
 

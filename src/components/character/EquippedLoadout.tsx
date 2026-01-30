@@ -3,7 +3,7 @@ import { Character, getActiveSlotsByLevel, Ability } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { X, Plus, HelpCircle, Target, Crosshair, Eye, Sparkles, CloudRain, Award, Radar, Undo2, Flame, ShieldOff, Megaphone, Zap, Swords, Sword, Shield, Heart, Skull, Footprints, Droplets, EyeOff, Ghost, Moon, FlaskConical, Brain, Dices } from 'lucide-react';
+import { X, Plus, HelpCircle, Target, Crosshair, Eye, Sparkles, CloudRain, Award, Radar, Undo2, Flame, ShieldOff, Megaphone, Zap, Swords, Sword, Shield, Heart, Skull, Footprints, Droplets, EyeOff, Ghost, Moon, FlaskConical, Brain, Dices, Clock } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +14,10 @@ import { DiceRollModal } from './DiceRollModal';
 import { rollDice, getAbilityDice, DiceRoll } from '@/lib/diceRoller';
 import { generateRPPrompt } from '@/lib/rpPromptGenerator';
 import { useGameMode } from '@/hooks/use-game-mode';
+import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
+import { CooldownBadge } from '@/components/cooldowns';
+import { COOLDOWN_CONFIGS } from '@/lib/cooldowns/config';
+import { toast } from 'sonner';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Target, Crosshair, Eye, Sparkles, CloudRain, Award, Radar, Undo2,
@@ -35,6 +39,14 @@ export function EquippedLoadout({ character, onEquip, onUnequip }: EquippedLoado
   const [activeAbility, setActiveAbility] = useState<Ability | null>(null);
   const [activeTier, setActiveTier] = useState<1 | 2 | 3>(1);
   const { rerollsDisabled } = useGameMode();
+  
+  // Cooldown system from drawer context
+  let cooldownContext: ReturnType<typeof usePromptDrawers> | null = null;
+  try {
+    cooldownContext = usePromptDrawers();
+  } catch {
+    // Not within provider, cooldowns disabled
+  }
 
   const totalSlots = getActiveSlotsByLevel(character.level);
   
@@ -57,6 +69,17 @@ export function EquippedLoadout({ character, onEquip, onUnequip }: EquippedLoado
   };
 
   const handleUseAbility = (ability: Ability) => {
+    // Check if ability has cooldown tracking and is on cooldown
+    const config = COOLDOWN_CONFIGS[ability.id];
+    if (config && !config.isPassive && cooldownContext) {
+      if (cooldownContext.isOnCooldown(ability.id)) {
+        const remaining = cooldownContext.getRemainingTime(ability.id);
+        const formatted = cooldownContext.formatRemainingTime(remaining);
+        toast.error(`${ability.name} on cooldown! Ready in ${formatted}`);
+        return;
+      }
+    }
+    
     // Get the current tier of this ability
     const charAbility = character.abilities.find(ca => ca.abilityId === ability.id);
     const tier = (charAbility?.currentTier || 1) as 1 | 2 | 3;
@@ -70,6 +93,11 @@ export function EquippedLoadout({ character, onEquip, onUnequip }: EquippedLoado
     setCurrentRoll(roll);
     setCurrentRPPrompt(prompt);
     setShowDiceModal(true);
+    
+    // Trigger cooldown after successful ability use
+    if (config && !config.isPassive && cooldownContext) {
+      cooldownContext.triggerCooldown(ability.id);
+    }
   };
 
   const handleReroll = () => {
@@ -100,6 +128,18 @@ export function EquippedLoadout({ character, onEquip, onUnequip }: EquippedLoado
             const equippedId = character.equippedAbilities[index];
             const equippedAbility = equippedId ? allAbilities.find(a => a.id === equippedId) : null;
             const IconComponent = equippedAbility ? (iconMap[equippedAbility.icon] || HelpCircle) : Plus;
+            
+            // Check cooldown state
+            const config = equippedAbility ? COOLDOWN_CONFIGS[equippedAbility.id] : null;
+            const isOnCooldown = config && !config.isPassive && cooldownContext 
+              ? cooldownContext.isOnCooldown(equippedAbility!.id) 
+              : false;
+            const remainingTime = isOnCooldown && cooldownContext 
+              ? cooldownContext.getRemainingTime(equippedAbility!.id) 
+              : 0;
+            const effectiveCooldown = config && cooldownContext 
+              ? cooldownContext.getRemainingTime(equippedAbility!.id) + (cooldownContext.getRemainingTime(equippedAbility!.id) > 0 ? 1 : 0)
+              : 0;
 
             if (equippedAbility) {
               return (
@@ -107,12 +147,30 @@ export function EquippedLoadout({ character, onEquip, onUnequip }: EquippedLoado
                   key={index}
                   className={cn(
                     'relative group flex items-center gap-2 px-3 py-2 rounded-lg border transition-all cursor-pointer hover:scale-105',
-                    treeStyles[equippedAbility.tree]
+                    treeStyles[equippedAbility.tree],
+                    isOnCooldown && 'opacity-60'
                   )}
                   onClick={() => handleUseAbility(equippedAbility)}
-                  title={`Click to use ${equippedAbility.name}`}
+                  title={isOnCooldown 
+                    ? `${equippedAbility.name} on cooldown` 
+                    : `Click to use ${equippedAbility.name}`
+                  }
                 >
-                  <Dices className="w-3 h-3 opacity-50 absolute -top-1 -right-1" />
+                  {isOnCooldown ? (
+                    <Clock className="w-3 h-3 opacity-50 absolute -top-1 -right-1 text-amber-400" />
+                  ) : (
+                    <Dices className="w-3 h-3 opacity-50 absolute -top-1 -right-1" />
+                  )}
+                  
+                  {/* Cooldown badge */}
+                  {isOnCooldown && config && (
+                    <CooldownBadge
+                      remaining={remainingTime}
+                      total={effectiveCooldown}
+                      className="absolute -top-2 -right-2"
+                    />
+                  )}
+                  
                   <IconComponent className="w-4 h-4" />
                   <span className="text-xs font-body font-medium text-foreground">
                     {equippedAbility.name}
