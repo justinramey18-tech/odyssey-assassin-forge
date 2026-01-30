@@ -22,6 +22,7 @@ import { NarrativeForgeScreen } from '@/components/scribe/NarrativeForgeScreen';
 import { ChronicleSyncScreen } from '@/components/chronicle';
 import { PromptDrawerProvider } from '@/components/drawers';
 import { TutorialProvider } from '@/components/tutorial';
+import { AbilitiesScreen } from '@/components/abilities';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Swords, Backpack, Trophy, Sparkles, Home, BookOpen, ChevronUp, Crosshair, Lock, Cloud } from 'lucide-react';
@@ -55,7 +56,7 @@ const Index = () => {
   const [showHomeScreen, setShowHomeScreen] = useState(true); // Home is default after wizard
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showCloudSaveModal, setShowCloudSaveModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'skills' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle'>('skills');
+  const [activeTab, setActiveTab] = useState<'skills' | 'abilities' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle'>('skills');
   const [character, setCharacter] = useState<Character>({
     name: '',
     level: 1,
@@ -539,7 +540,7 @@ const Index = () => {
             onBack={() => setShowWizard(true)}
             onNavigateToTab={(tab) => {
               setShowHomeScreen(false);
-              if (tab === 'abilities') setActiveTab('skills');
+              if (tab === 'abilities') setActiveTab('abilities');
               else if (tab === 'inventory') setActiveTab('gear');
               else if (tab === 'achievements') setActiveTab('feats');
               else if (tab === 'constellation') setActiveTab('stars');
@@ -635,7 +636,7 @@ const Index = () => {
           setShowHomeScreen(true);
           return;
         }
-        setActiveTab(v as 'skills' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle');
+        setActiveTab(v as 'skills' | 'abilities' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle');
       }} className="w-full flex flex-col">
         {/* Assassin's Creed Styled Header Navigation */}
         <AssassinHeader 
@@ -753,6 +754,24 @@ const Index = () => {
             </div>
           </div>
           </BackgroundWrapper>
+        </TabsContent>
+
+        {/* Abilities Tab Content */}
+        <TabsContent value="abilities" className="mt-0">
+          <AbilitiesScreen
+            character={character}
+            availablePoints={remainingPoints}
+            onUpgradeAbility={handleUpgradeAbility}
+            onDowngradeAbility={handleDowngradeAbility}
+            onEquipAbility={(id, slot) => {
+              setCharacter(prev => {
+                const newEquipped = [...prev.equippedAbilities];
+                newEquipped[slot] = id;
+                return { ...prev, equippedAbilities: newEquipped };
+              });
+            }}
+            onBack={() => setActiveTab('skills')}
+          />
         </TabsContent>
 
         {/* Gear Tab Content */}
