@@ -1,9 +1,44 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+// Authenticate user and return user ID or error response
+async function authenticateRequest(req: Request): Promise<{ userId: string } | { error: Response }> {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return {
+      error: new Response(
+        JSON.stringify({ error: 'Unauthorized - Missing or invalid Authorization header' }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      )
+    };
+  }
+
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+    { global: { headers: { Authorization: authHeader } } }
+  );
+
+  const token = authHeader.replace('Bearer ', '');
+  const { data, error } = await supabase.auth.getClaims(token);
+  
+  if (error || !data?.claims) {
+    console.error('Authentication failed:', error?.message);
+    return {
+      error: new Response(
+        JSON.stringify({ error: 'Unauthorized - Invalid token' }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      )
+    };
+  }
+
+  return { userId: data.claims.sub as string };
+}
 
 // Input validation constants
 const MAX_SESSION_LOG_LENGTH = 50000;
@@ -161,6 +196,13 @@ serve(async (req) => {
   }
 
   try {
+    // Authenticate request
+    const authResult = await authenticateRequest(req);
+    if ('error' in authResult) {
+      return authResult.error;
+    }
+    const userId = authResult.userId;
+    console.log(`Authenticated request from user: ${userId.slice(0, 8)}...`);
     // Parse request body
     let body: unknown;
     try {
