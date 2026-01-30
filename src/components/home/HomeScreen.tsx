@@ -206,7 +206,8 @@ export function HomeScreen({
       tintColor="red"
       tintOpacity={10}
       fixed={true}
-      backgroundPosition={isMobile ? 'center 25%' : 'center center'}
+      backgroundSize="contain"
+      backgroundPosition="center center"
       className="fixed inset-0 z-50"
     >
       <div className="flex flex-col h-screen overflow-hidden">
