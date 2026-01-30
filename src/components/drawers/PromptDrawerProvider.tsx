@@ -228,8 +228,8 @@ export function PromptDrawerProvider({
 
       {enabled && (
         <>
-          {/* Left Edge Triggers - All 5 drawers */}
-          {!anyDrawerOpen && (
+          {/* Left Edge Triggers - All 6 drawers (hidden on Home Screen) */}
+          {!anyDrawerOpen && !isHomeScreen && (
             <EdgeTriggerStack
               side="left"
               triggers={leftTriggers}
