@@ -1,4 +1,4 @@
-import { useState, ReactNode } from 'react';
+import { useState, useRef, useEffect, ReactNode } from 'react';
 import { GripVertical, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -79,7 +79,15 @@ interface DraggableTriggerProps {
   onClick: () => void;
   disabled?: boolean;
   defaultPosition: { x: number; y: number };
+  // Navigation props for edge-hold gestures
+  isHomeScreen?: boolean;
+  onNavigateHome?: () => void;
+  onNavigateToSkills?: () => void;
 }
+
+const LEFT_EDGE_THRESHOLD = 15;
+const RIGHT_EDGE_BUFFER = 75;
+const HOLD_DURATION_MS = 1000;
 
 function DraggableTrigger({
   id,
@@ -89,6 +97,9 @@ function DraggableTrigger({
   onClick,
   disabled = false,
   defaultPosition,
+  isHomeScreen = false,
+  onNavigateHome,
+  onNavigateToSkills,
 }: DraggableTriggerProps) {
   const { position, isDragging, dragHandlers } = useDraggable({
     storageKey: `drawer-trigger-${id}`,
@@ -97,6 +108,56 @@ function DraggableTrigger({
 
   const [dragStartTime, setDragStartTime] = useState<number>(0);
   const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isAtEdge, setIsAtEdge] = useState(false);
+  const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Monitor position during drag for edge detection
+  useEffect(() => {
+    if (!isDragging) {
+      // Clear timer when not dragging
+      if (holdTimerRef.current) {
+        clearTimeout(holdTimerRef.current);
+        holdTimerRef.current = null;
+      }
+      setIsAtEdge(false);
+      return;
+    }
+
+    const screenWidth = window.innerWidth;
+    const atLeftEdge = position.x <= LEFT_EDGE_THRESHOLD;
+    const atRightEdge = position.x >= screenWidth - RIGHT_EDGE_BUFFER;
+
+    // Determine if we're at a relevant edge for navigation
+    const shouldTriggerNav = 
+      (atLeftEdge && !isHomeScreen && onNavigateHome) ||
+      (atRightEdge && isHomeScreen && onNavigateToSkills);
+
+    if (shouldTriggerNav && !holdTimerRef.current) {
+      // Start hold timer
+      setIsAtEdge(true);
+      holdTimerRef.current = setTimeout(() => {
+        if (atLeftEdge && !isHomeScreen && onNavigateHome) {
+          onNavigateHome();
+        } else if (atRightEdge && isHomeScreen && onNavigateToSkills) {
+          onNavigateToSkills();
+        }
+        holdTimerRef.current = null;
+        setIsAtEdge(false);
+      }, HOLD_DURATION_MS);
+    } else if (!shouldTriggerNav && holdTimerRef.current) {
+      // Moved away from edge, clear timer
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+      setIsAtEdge(false);
+    }
+
+    return () => {
+      if (holdTimerRef.current) {
+        clearTimeout(holdTimerRef.current);
+        holdTimerRef.current = null;
+      }
+    };
+  }, [isDragging, position.x, isHomeScreen, onNavigateHome, onNavigateToSkills]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setDragStartTime(Date.now());
@@ -140,17 +201,20 @@ function DraggableTrigger({
         disabled={disabled}
         className={cn(
           'flex items-center gap-1.5 py-2.5 px-2 rounded-lg border backdrop-blur-sm',
-          'transition-shadow duration-200',
+          'transition-all duration-200',
           'touch-manipulation select-none',
           isDragging ? 'cursor-grabbing scale-105' : 'cursor-grab',
           disabled && 'opacity-50 cursor-not-allowed',
+          isAtEdge && 'animate-pulse',
         )}
         style={{
-          backgroundColor: `${accentColor}25`,
-          borderColor: `${accentColor}60`,
-          boxShadow: isDragging 
-            ? `0 0 20px ${accentColor}50, 0 8px 25px rgba(0,0,0,0.3)` 
-            : `0 0 12px ${accentColor}30`,
+          backgroundColor: isAtEdge ? `${accentColor}40` : `${accentColor}25`,
+          borderColor: isAtEdge ? accentColor : `${accentColor}60`,
+          boxShadow: isAtEdge
+            ? `0 0 25px ${accentColor}70, 0 0 50px ${accentColor}40`
+            : isDragging 
+              ? `0 0 20px ${accentColor}50, 0 8px 25px rgba(0,0,0,0.3)` 
+              : `0 0 12px ${accentColor}30`,
         }}
       >
         <span style={{ color: accentColor }}>{icon}</span>
@@ -182,11 +246,18 @@ interface EdgeTriggerStackProps {
   }>;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+  // Navigation props for edge-hold gestures
+  isHomeScreen?: boolean;
+  onNavigateHome?: () => void;
+  onNavigateToSkills?: () => void;
 }
 
 export function EdgeTriggerStack({
   side,
   triggers,
+  isHomeScreen = false,
+  onNavigateHome,
+  onNavigateToSkills,
 }: EdgeTriggerStackProps) {
   // Calculate default positions - stacked vertically on the left edge
   const getDefaultPosition = (index: number) => {
@@ -210,6 +281,9 @@ export function EdgeTriggerStack({
           onClick={trigger.onClick}
           disabled={trigger.disabled}
           defaultPosition={getDefaultPosition(index)}
+          isHomeScreen={isHomeScreen}
+          onNavigateHome={onNavigateHome}
+          onNavigateToSkills={onNavigateToSkills}
         />
       ))}
     </>
