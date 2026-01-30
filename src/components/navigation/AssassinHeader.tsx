@@ -1,4 +1,4 @@
-import { Home, Settings, Crosshair, Swords, Backpack, Trophy, Sparkles, BookOpen, Cloud, FlaskConical, Search } from 'lucide-react';
+import { Home, Settings, Crosshair, Swords, Backpack, Trophy, Sparkles, BookOpen, Cloud, FlaskConical, Search, Zap } from 'lucide-react';
 import { TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
@@ -75,6 +75,18 @@ export function AssassinHeader({ onHomeClick, onSettingsClick, onCloudSaveClick 
               <span className="absolute inset-0 blur-md bg-red-500 rounded-full opacity-0 group-data-[state=active]:opacity-70 group-data-[state=active]:animate-glow-pulse transition-opacity" />
             </span>
             <span className="group-data-[state=active]:text-red-300 whitespace-nowrap">Skills</span>
+          </TabsTrigger>
+
+          {/* Abilities Tab */}
+          <TabsTrigger 
+            value="abilities" 
+            className="group h-full flex flex-col items-center justify-center gap-1 px-4 min-w-[70px] rounded-none border-x border-red-900/20 data-[state=active]:bg-gradient-to-b data-[state=active]:from-violet-600/30 data-[state=active]:to-transparent data-[state=active]:border-b-2 data-[state=active]:border-b-violet-500 font-cinzel uppercase tracking-wider text-[10px] transition-all hover:bg-violet-900/20"
+          >
+            <span className="relative">
+              <Zap className="w-5 h-5 relative z-10 group-hover:scale-110 group-data-[state=active]:text-violet-400 transition-transform" />
+              <span className="absolute inset-0 blur-md bg-violet-500 rounded-full opacity-0 group-data-[state=active]:opacity-70 group-data-[state=active]:animate-glow-pulse transition-opacity" />
+            </span>
+            <span className="group-data-[state=active]:text-violet-300 whitespace-nowrap">Abilities</span>
           </TabsTrigger>
           
           {/* Gear Tab */}

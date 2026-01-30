@@ -115,6 +115,34 @@ export default {
           "50%": { transform: "scale(1.3)" },
           "100%": { transform: "scale(1)", opacity: "1" },
         },
+        // Ability tree animations - Desktop (full effects)
+        "ability-pulse": {
+          "0%, 100%": { boxShadow: "0 0 0 0 currentColor" },
+          "50%": { boxShadow: "0 0 20px 4px currentColor" },
+        },
+        "ability-unlock": {
+          "0%": { transform: "scale(1)", filter: "brightness(1)" },
+          "50%": { transform: "scale(1.2)", filter: "brightness(1.5)" },
+          "100%": { transform: "scale(1)", filter: "brightness(1)" },
+        },
+        "tier-glow": {
+          "0%, 100%": { opacity: "0.6" },
+          "50%": { opacity: "1" },
+        },
+        "connection-flow": {
+          "0%": { strokeDashoffset: "20" },
+          "100%": { strokeDashoffset: "0" },
+        },
+        // Ability tree animations - Mobile (simpler, better performance)
+        "ability-pulse-mobile": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.8" },
+        },
+        "ability-unlock-mobile": {
+          "0%": { transform: "scale(1)" },
+          "50%": { transform: "scale(1.1)" },
+          "100%": { transform: "scale(1)" },
+        },
         // Tab icon animations
         "tab-crosshair": {
           "0%, 100%": { transform: "rotate(0deg) scale(1)" },
@@ -165,6 +193,13 @@ export default {
         "tab-book": "tab-book 2.5s ease-in-out infinite",
         "tab-glow": "tab-glow 2s ease-in-out infinite",
         "tab-shimmer": "tab-shimmer 3s linear infinite",
+        // Ability tree animations
+        "ability-pulse": "ability-pulse 2s ease-in-out infinite",
+        "ability-unlock": "ability-unlock 0.4s ease-out",
+        "tier-glow": "tier-glow 1.5s ease-in-out infinite",
+        "connection-flow": "connection-flow 1s linear infinite",
+        "ability-pulse-mobile": "ability-pulse-mobile 3s ease-in-out infinite",
+        "ability-unlock-mobile": "ability-unlock-mobile 0.3s ease-out",
       },
     },
   },
