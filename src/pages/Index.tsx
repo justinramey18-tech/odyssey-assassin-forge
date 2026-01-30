@@ -39,6 +39,8 @@ import { useEquipmentStats } from '@/hooks/use-equipment-stats';
 import { useAutoSave, loadAutoSave, SaveData, serializeConsumables } from '@/hooks/use-auto-save';
 import { useConsumables } from '@/hooks/use-consumables';
 import { ConsumablesInventoryWidget, AddConsumableDrawer } from '@/components/consumables';
+import { getConsumableById } from '@/lib/consumables';
+import { ApprovedChanges } from '@/lib/chronicleSync/types';
 import { PrestigePointCounter, PrestigeLevelUpModal } from '@/components/prestige';
 import { 
   CharacterEquipment, 
@@ -408,6 +410,80 @@ const Index = () => {
     });
   };
 
+  // Chronicle Sync change handler
+  const handleApplyChronicleChanges = (changes: ApprovedChanges) => {
+    // Create undo snapshot before applying changes
+    const snapshot = {
+      currentXP,
+      characterLevel: character.level,
+      achievements: achievements.map(a => ({ 
+        id: a.id, 
+        currentValue: a.currentValue, 
+        claimedMilestones: a.claimedMilestones 
+      })),
+      consumablesInventory: consumablesInventory.map(item => ({
+        consumableId: item.consumable.id,
+        quantity: item.quantity,
+      })),
+      timestamp: Date.now(),
+      changesApplied: changes.totalApplied,
+    };
+    localStorage.setItem('odyssey-chronicle-undo', JSON.stringify(snapshot));
+
+    // Apply XP changes
+    if (changes.xp.length > 0) {
+      const totalXP = changes.xp.reduce((sum, xp) => sum + xp.amount, 0);
+      handleAddXP(totalXP, 'Chronicle Sync import');
+    }
+
+    // Apply achievement increments
+    changes.achievements.forEach(trigger => {
+      setAchievements(prev => prev.map(a => 
+        a.id === trigger.achievementId 
+          ? { ...a, currentValue: Math.min(a.maxValue, a.currentValue + trigger.increment) }
+          : a
+      ));
+    });
+
+    // Apply item acquisitions
+    changes.items.filter(i => i.action === 'acquired' && i.consumableId).forEach(item => {
+      const consumable = getConsumableById(item.consumableId!);
+      if (consumable) {
+        addConsumableItem(consumable, item.quantity);
+      }
+    });
+
+    // Apply item consumptions (useConsumableItem returns false if insufficient)
+    changes.items.filter(i => i.action === 'consumed' && i.consumableId).forEach(item => {
+      const success = useConsumableItem(item.consumableId!, item.quantity);
+      if (!success) {
+        toast({
+          title: "Insufficient Inventory",
+          description: `Couldn't consume ${item.quantity}x ${item.name} - not enough in inventory`,
+          variant: "destructive",
+        });
+      }
+    });
+
+    // Level-up triggers existing modal flow
+    if (changes.levelUp && changes.levelUp.newLevel > character.level) {
+      const levelsToGain = changes.levelUp.newLevel - character.level;
+      const currentPoints = getAbilityPointsForLevel(character.level);
+      const newPoints = getAbilityPointsForLevel(changes.levelUp.newLevel);
+      const pointsGained = newPoints - currentPoints;
+
+      setPendingLevelUps(levelsToGain);
+      setLevelUpPointsToSpend(pointsGained);
+      setShowLevelUpModal(true);
+    }
+
+    toast({
+      title: "Chronicle Sync Complete!",
+      description: `Applied ${changes.totalApplied} changes successfully.`,
+      className: "border-blue-500 bg-blue-500/10",
+    });
+  };
+
   // Manual level up trigger (for milestone mode or testing)
   const handleManualLevelUp = () => {
     if (character.level >= 20) return;
@@ -559,7 +635,7 @@ const Index = () => {
           setShowHomeScreen(true);
           return;
         }
-        setActiveTab(v as 'skills' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables');
+        setActiveTab(v as 'skills' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle');
       }} className="w-full flex flex-col">
         {/* Assassin's Creed Styled Header Navigation */}
         <AssassinHeader 
@@ -755,6 +831,16 @@ const Index = () => {
               />
             </div>
           </BackgroundWrapper>
+        </TabsContent>
+
+        {/* Chronicle Tab Content */}
+        <TabsContent value="chronicle" className="mt-0">
+          <ChronicleSyncScreen
+            characterName={character.name}
+            characterLevel={character.level}
+            onApplyChanges={handleApplyChronicleChanges}
+            onBack={() => setActiveTab('skills')}
+          />
         </TabsContent>
       </Tabs>
 
