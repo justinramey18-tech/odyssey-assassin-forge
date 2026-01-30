@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback, createContext, useContext, ReactNode } from 'react';
-import { Swords, Gem, Zap, Heart, BookOpen, Sparkles, Lock } from 'lucide-react';
+import { Gem, Zap, Heart, BookOpen, Sparkles, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { EdgeTriggerStack } from './EdgeDrawer';
-import { CombatDrawer } from './CombatDrawer';
 import { InfinityStoneDrawer } from './InfinityStoneDrawer';
 import { AbilitiesDrawer } from './AbilitiesDrawer';
 import { StatsDrawer } from './StatsDrawer';
@@ -15,7 +14,6 @@ import { useGameMode, shouldShowInfinityStones } from '@/hooks/use-game-mode';
 import { useEquipmentStats } from '@/hooks/use-equipment-stats';
 
 interface PromptDrawerContextValue {
-  openCombatDrawer: () => void;
   openInfinityDrawer: () => void;
   openAbilitiesDrawer: () => void;
   openStatsDrawer: () => void;
@@ -57,7 +55,6 @@ export function PromptDrawerProvider({
   onAddXP = () => {},
   equipment,
 }: PromptDrawerProviderProps) {
-  const [combatOpen, setCombatOpen] = useState(false);
   const [infinityOpen, setInfinityOpen] = useState(false);
   const [abilitiesOpen, setAbilitiesOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
@@ -78,7 +75,6 @@ export function PromptDrawerProvider({
 
   // Close all drawers when opening a new one
   const closeAllDrawers = useCallback(() => {
-    setCombatOpen(false);
     setInfinityOpen(false);
     setAbilitiesOpen(false);
     setStatsOpen(false);
@@ -108,10 +104,10 @@ export function PromptDrawerProvider({
       
       if (diffY > Math.abs(diffX) * 0.5) return;
 
-      // Left edge swipe right → open combat/stats
+      // Left edge swipe right → open stats
       if (startX < EDGE_THRESHOLD && diffX > SWIPE_THRESHOLD) {
         closeAllDrawers();
-        setCombatOpen(true);
+        setStatsOpen(true);
       }
       // Right edge swipe left → open infinity/abilities (check lock status)
       if (startX > window.innerWidth - EDGE_THRESHOLD && diffX < -SWIPE_THRESHOLD) {
@@ -144,7 +140,6 @@ export function PromptDrawerProvider({
   }, [isInfinityLocked, character.level, closeAllDrawers]);
 
   const contextValue: PromptDrawerContextValue = {
-    openCombatDrawer: useCallback(() => { closeAllDrawers(); setCombatOpen(true); }, [closeAllDrawers]),
     openInfinityDrawer: handleOpenInfinityDrawer,
     openAbilitiesDrawer: useCallback(() => { closeAllDrawers(); setAbilitiesOpen(true); }, [closeAllDrawers]),
     openStatsDrawer: useCallback(() => { closeAllDrawers(); setStatsOpen(true); }, [closeAllDrawers]),
@@ -154,17 +149,10 @@ export function PromptDrawerProvider({
   };
 
   // Check if any drawer is open
-  const anyDrawerOpen = combatOpen || infinityOpen || abilitiesOpen || statsOpen || scribeOpen || setBonusOpen;
+  const anyDrawerOpen = infinityOpen || abilitiesOpen || statsOpen || scribeOpen || setBonusOpen;
 
-  // Left side triggers (Combat, Stats, Set Bonuses)
+  // Left side triggers (Stats, Set Bonuses)
   const leftTriggers = [
-    {
-      id: 'combat',
-      label: 'Combat',
-      icon: <Swords className="w-4 h-4" />,
-      accentColor: '#ef4444',
-      onClick: () => { closeAllDrawers(); setCombatOpen(true); },
-    },
     {
       id: 'stats',
       label: 'Stats',
@@ -234,13 +222,6 @@ export function PromptDrawerProvider({
           )}
 
           {/* Drawer Components */}
-          <CombatDrawer
-            open={combatOpen}
-            onOpenChange={setCombatOpen}
-            character={character}
-            unlockedAbilities={unlockedAbilities}
-          />
-
           <InfinityStoneDrawer
             open={infinityOpen}
             onOpenChange={setInfinityOpen}
