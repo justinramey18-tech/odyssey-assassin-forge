@@ -18,6 +18,7 @@ import { InventoryScreen } from '@/components/inventory/InventoryScreen';
 import { AchievementsScreen } from '@/components/achievements/AchievementsScreen';
 import { ConstellationScreen } from '@/components/constellation/ConstellationScreen';
 import { HomeScreen } from '@/components/home/HomeScreen';
+import { IntroSplashScreen } from '@/components/home/IntroSplashScreen';
 import { NarrativeForgeScreen } from '@/components/scribe/NarrativeForgeScreen';
 import { ChronicleSyncScreen } from '@/components/chronicle';
 import { PromptDrawerProvider } from '@/components/drawers';
@@ -53,6 +54,10 @@ import {
 
 const Index = () => {
   const [showWizard, setShowWizard] = useState(true);
+  const [showIntroSplash, setShowIntroSplash] = useState(() => {
+    // Show intro splash only if user hasn't seen it before
+    return !localStorage.getItem('odyssey-intro-seen');
+  });
   const [showHomeScreen, setShowHomeScreen] = useState(true); // Home is default after wizard
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showCloudSaveModal, setShowCloudSaveModal] = useState(false);
@@ -511,6 +516,25 @@ const Index = () => {
     );
   }
 
+  // Intro splash screen - shows once after tutorial completion
+  if (showHomeScreen && showIntroSplash) {
+    return (
+      <TutorialProvider
+        characterLevel={character.level}
+        isHonestMode={requiresGearUnlocks}
+        gauntletLocked={infinityStonesLocked && character.level < 20}
+        autoStart={true}
+      >
+        <IntroSplashScreen 
+          onBegin={() => {
+            localStorage.setItem('odyssey-intro-seen', 'true');
+            setShowIntroSplash(false);
+          }}
+        />
+      </TutorialProvider>
+    );
+  }
+
   // Full-screen Home overlay
   if (showHomeScreen) {
     return (
@@ -518,7 +542,7 @@ const Index = () => {
         characterLevel={character.level}
         isHonestMode={requiresGearUnlocks}
         gauntletLocked={infinityStonesLocked && character.level < 20}
-        autoStart={true}
+        autoStart={false}
       >
         <PromptDrawerProvider
           character={character}
