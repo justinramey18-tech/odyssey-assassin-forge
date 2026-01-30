@@ -1,5 +1,6 @@
 import { Ability } from './types';
 import { DiceRoll } from './diceRoller';
+import { applyTimePrefix } from './fourthWallTime';
 
 // Generate high-granularity RP prompts for AI DM based on ability and roll
 export function generateRPPrompt(
@@ -28,7 +29,7 @@ export function generateRPPrompt(
     passive: 'channels',
   };
 
-  return `## Ability Activation: ${ability.name}
+  const prompt = `## Ability Activation: ${ability.name}
 
 **Character:** ${characterName || 'The Assassin'}
 **Ability:** ${ability.name} (Tier ${tier}/3)
@@ -69,4 +70,6 @@ ${isCritical ? `
 ---
 
 *Roll: ${roll.count}${roll.die} = ${roll.total} | Tier ${tier} ${ability.name}*`;
+
+  return applyTimePrefix(prompt);
 }
