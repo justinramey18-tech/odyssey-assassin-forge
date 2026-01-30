@@ -123,6 +123,15 @@ export const tutorialSteps: TutorialStep[] = [
     category: 'progression',
     skipCondition: 'notMaxLevel',
   },
+  {
+    id: 'legacy-tab',
+    targetId: 'tab-legacy',
+    title: "Drizzt's Legacy",
+    description: 'Master all 24 base abilities to unlock legendary powers from Drizzt Do\'Urden! Four branches await: Dual Wielding, Guenhwyvar, Drow Abilities, and Monk techniques.',
+    position: 'bottom',
+    category: 'progression',
+    action: 'tap',
+  },
   
   // Phase 4: Equipment & Achievements
   {
