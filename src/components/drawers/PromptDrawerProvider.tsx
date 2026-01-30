@@ -69,9 +69,6 @@ export function PromptDrawerProvider({
   const defaultEquipment: CharacterEquipment = { slots: {} as any, inventory: [] };
   const equipmentStats = useEquipmentStats(equipment || defaultEquipment);
   
-  // Collapse state for edge triggers
-  const [leftCollapsed, setLeftCollapsed] = useState(false);
-
   // Close all drawers when opening a new one
   const closeAllDrawers = useCallback(() => {
     setInfinityOpen(false);
@@ -192,8 +189,6 @@ export function PromptDrawerProvider({
             <EdgeTriggerStack
               side="left"
               triggers={leftTriggers}
-              collapsed={leftCollapsed}
-              onToggleCollapse={() => setLeftCollapsed(!leftCollapsed)}
             />
           )}
 
