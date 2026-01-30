@@ -223,9 +223,9 @@ export function AchievementsScreen({
         </div>
       </div>
 
-      {/* Achievement List */}
+      {/* Achievement List - Scrollable Accordion */}
       <ScrollArea className="flex-1 relative z-10">
-        <div className="p-4 grid gap-3 pb-20 md:pb-4">
+        <div className="p-4 flex flex-col gap-2 pb-20 md:pb-4">
           {achievements.map(achievement => (
             <AchievementCard
               key={achievement.id}
