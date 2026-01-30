@@ -201,7 +201,7 @@ function DraggableTrigger({
         onClick={handleClick}
         disabled={disabled}
         className={cn(
-          'flex items-center gap-1.5 py-2.5 px-2 rounded-lg border backdrop-blur-sm',
+          'flex items-center gap-1.5 py-2.5 px-2 rounded-lg border backdrop-blur-md',
           'transition-all duration-200',
           'touch-manipulation select-none',
           isDragging ? 'cursor-grabbing scale-105' : 'cursor-grab',
@@ -209,13 +209,13 @@ function DraggableTrigger({
           isAtEdge && 'animate-pulse',
         )}
         style={{
-          backgroundColor: isAtEdge ? `${accentColor}40` : `${accentColor}25`,
-          borderColor: isAtEdge ? accentColor : `${accentColor}60`,
+          backgroundColor: isAtEdge ? `${accentColor}20` : 'rgba(0, 0, 0, 0.3)',
+          borderColor: isAtEdge ? accentColor : `${accentColor}40`,
           boxShadow: isAtEdge
             ? `0 0 25px ${accentColor}70, 0 0 50px ${accentColor}40`
             : isDragging 
               ? `0 0 20px ${accentColor}50, 0 8px 25px rgba(0,0,0,0.3)` 
-              : `0 0 12px ${accentColor}30`,
+              : `0 0 8px ${accentColor}20`,
         }}
       >
         <span style={{ color: accentColor }}>{icon}</span>
