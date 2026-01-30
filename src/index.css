@@ -203,6 +203,25 @@
   .animate-onboarding-pulse {
     animation: onboarding-pulse 1.5s ease-in-out infinite;
   }
+  /* ═══════════════════════════════════════════════════
+     4-DIRECTION PAN SLIDE ANIMATIONS
+     ═══════════════════════════════════════════════════ */
+  
+  .animate-slide-left {
+    animation: slide-left 0.3s ease-out;
+  }
+  
+  .animate-slide-right {
+    animation: slide-right 0.3s ease-out;
+  }
+  
+  .animate-slide-up {
+    animation: slide-up 0.3s ease-out;
+  }
+  
+  .animate-slide-down {
+    animation: slide-down 0.3s ease-out;
+  }
 }
 
 /* Onboarding spotlight pulse animation */
@@ -214,5 +233,50 @@
   50% { 
     opacity: 0.7; 
     transform: translateZ(0) scale(1.02); 
+  }
+}
+
+/* Pan slide animations */
+@keyframes slide-left {
+  0% { 
+    opacity: 0; 
+    transform: translateX(30px); 
+  }
+  100% { 
+    opacity: 1; 
+    transform: translateX(0); 
+  }
+}
+
+@keyframes slide-right {
+  0% { 
+    opacity: 0; 
+    transform: translateX(-30px); 
+  }
+  100% { 
+    opacity: 1; 
+    transform: translateX(0); 
+  }
+}
+
+@keyframes slide-up {
+  0% { 
+    opacity: 0; 
+    transform: translateY(30px); 
+  }
+  100% { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+@keyframes slide-down {
+  0% { 
+    opacity: 0; 
+    transform: translateY(-30px); 
+  }
+  100% { 
+    opacity: 1; 
+    transform: translateY(0); 
   }
 }
