@@ -15,6 +15,7 @@ export default {
     extend: {
       fontFamily: {
         display: ['Cinzel', 'Times New Roman', 'serif'],
+        cinzel: ['Cinzel', 'Times New Roman', 'serif'],
         body: ['Inter', 'system-ui', 'sans-serif'],
       },
       colors: {
