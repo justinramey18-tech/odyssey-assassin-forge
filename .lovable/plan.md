@@ -1,152 +1,120 @@
 
-
-# BackgroundWrapper Implementation Plan
+# Plan: Hold-at-Edge Navigation for Drawer Triggers
 
 ## Overview
-Create a reusable `BackgroundWrapper` component and apply it consistently across all tabs (except Gear, which uses dynamic legendary set backgrounds). This will centralize background management while preserving each tab's unique overlay opacity settings.
+Implement a "hold at edge for 1 second" navigation system where:
+- **On Skills tab (or any builder tab)**: Holding a drawer trigger against the LEFT edge for 1 second navigates to the Home Screen
+- **On Home Screen**: Holding a drawer trigger against the RIGHT edge for 1 second navigates to the Skills tab
+
+## Current Architecture
+- `DraggableTrigger` in `EdgeDrawer.tsx` manages individual button dragging with position tracking
+- `useDraggable` hook handles drag mechanics, position clamping, and localStorage persistence
+- `Index.tsx` controls navigation via `showHomeScreen` state
+- `PromptDrawerProvider` wraps both screens and provides drawer context
 
 ---
 
-## Phase 1: Create BackgroundWrapper Component
+## Implementation Steps
 
-### File: `src/components/ui/BackgroundWrapper.tsx`
+### 1. Add Navigation Callbacks to PromptDrawerProvider
+Pass two callbacks from `Index.tsx`:
+- `onNavigateHome: () => void` — switches to Home Screen
+- `onNavigateToSkills: () => void` — switches to Skills tab
 
-A reusable wrapper component with the following props:
+Also pass `isHomeScreen: boolean` to know current screen context.
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `imagePath` | `string` | required | Path to background image |
-| `overlayOpacity` | `number` | 60 | Opacity 0-100 for dark overlay |
-| `tintColor` | `string` | - | Optional accent tint (e.g., "red", "amber", "purple") |
-| `tintOpacity` | `number` | 20 | Opacity for accent tint layer |
-| `fixed` | `boolean` | true | Whether to use `bg-fixed` for parallax effect |
-| `children` | `ReactNode` | required | Content to render on top |
+### 2. Thread Props Through to EdgeTriggerStack and DraggableTrigger
+Update interfaces to accept:
+- `onNavigateHome`
+- `onNavigateToSkills`
+- `isHomeScreen`
 
-### Component Structure
+### 3. Implement Hold-Timer Logic in DraggableTrigger
+Add edge detection with a 1-second hold timer:
 
 ```text
-+--------------------------------------------+
-|  [Background Image Layer - fixed/absolute] |
-|  +----------------------------------------+|
-|  |     [Dark Overlay Layer]               ||
-|  |  +------------------------------------+||
-|  |  |   [Optional Tint Layer]            |||
-|  |  | +--------------------------------+ |||
-|  |  | |        Children (z-10)         | |||
-|  |  | +--------------------------------+ |||
-|  |  +------------------------------------+||
-|  +----------------------------------------+|
-+--------------------------------------------+
+┌─────────────────────────────────────────────────────────┐
+│                                                         │
+│  LEFT EDGE (x ≤ 15px)          RIGHT EDGE (x ≥ width-75)│
+│  ↓                                                   ↓  │
+│  ┌─────┐                                       ┌─────┐  │
+│  │Timer│                                       │Timer│  │
+│  │Start│  ←── Drawer held at edge ──→          │Start│  │
+│  └─────┘                                       └─────┘  │
+│     │                                             │     │
+│     ▼ 1 second                                    ▼     │
+│  Navigate                                    Navigate   │
+│  to Home                                    to Skills   │
+│  (if on builder)                          (if on Home)  │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
 ```
 
----
+**Logic Flow:**
+1. During drag move, continuously check position
+2. If position is at left edge (`x ≤ 15`) and not on Home Screen:
+   - Start a 1-second timer
+   - If timer completes while still at edge → call `onNavigateHome()`
+   - If moved away from edge → clear timer
+3. If position is at right edge (`x ≥ window.innerWidth - 75`) and on Home Screen:
+   - Start a 1-second timer
+   - If timer completes while still at edge → call `onNavigateToSkills()`
+   - If moved away from edge → clear timer
 
-## Phase 2: Apply to Each Tab
-
-### Combat Tab
-- **File**: `src/components/combat/CombatTabScreen.tsx`
-- **Action**: Remove inline background code, wrap content with `BackgroundWrapper`
-- **Settings**: `overlayOpacity={70}`, `tintColor="red"`, `tintOpacity={30}`
-- **Note**: Preserve all existing HUD elements, scan lines, corner brackets
-
-### Skills Tab  
-- **File**: `src/pages/Index.tsx` (TabsContent for "skills")
-- **Action**: Replace inline background divs with `BackgroundWrapper`
-- **Settings**: `overlayOpacity={65}`, `tintColor="purple"`, `tintOpacity={20}`
-
-### Feats Tab
-- **File**: `src/components/achievements/AchievementsScreen.tsx`
-- **Action**: Remove inline background code, wrap with `BackgroundWrapper`
-- **Settings**: `overlayOpacity={60}`, `tintColor="purple"`, `tintOpacity={15}`
-
-### Stars Tab
-- **File**: `src/components/constellation/ConstellationScreen.tsx`
-- **Action**: Add new background layer (currently no static image)
-- **Settings**: `overlayOpacity={40}` (lighter to see stars)
-- **Requirement**: Need a `stars-background.jpg` image OR keep current animated starfield
-
-### Scribe Tab
-- **File**: `src/components/scribe/NarrativeForgeScreen.tsx`
-- **Action**: Replace inline background code with `BackgroundWrapper`
-- **Settings**: `overlayOpacity={75}`, `tintColor="amber"`, `tintOpacity={25}`
-
-### Home Dashboard
-- **File**: `src/components/home/HomeScreen.tsx`
-- **Action**: Keep existing panoramic panning system (unique behavior)
-- **Note**: HomeScreen uses a different interaction pattern with four-directional scrolling - a static `BackgroundWrapper` would break this functionality
-
----
-
-## Phase 3: Asset Path Configuration
-
-Since your assets are in `src/assets/` (imported as ES modules) rather than `public/backgrounds/`, the wrapper will use imported paths:
-
-| Tab | Import Path | Current Status |
-|-----|-------------|----------------|
-| Combat | `@/assets/combat-background.jpg` | Exists |
-| Skills | `@/assets/skills-background-new.jpg` | Exists |
-| Feats | `@/assets/feats-background.jpg` | Exists |
-| Scribe | `@/assets/scribe-background.jpg` | Exists |
-| Stars | `@/assets/stars-background.jpg` | **Missing - needs creation** |
-| Home | N/A (keeps existing panoramic) | Special case |
-
----
-
-## Files to Create
-
-1. `src/components/ui/BackgroundWrapper.tsx` - New reusable component
-
-## Files to Modify
-
-1. `src/components/combat/CombatTabScreen.tsx` - Wrap with BackgroundWrapper
-2. `src/pages/Index.tsx` - Replace Skills tab inline background
-3. `src/components/achievements/AchievementsScreen.tsx` - Wrap with BackgroundWrapper
-4. `src/components/scribe/NarrativeForgeScreen.tsx` - Wrap with BackgroundWrapper
-5. `src/components/constellation/ConstellationScreen.tsx` - Add optional background
-
----
-
-## Decision Point: Stars Tab
-
-The Stars/Constellation tab currently uses an animated starfield effect with 50 random pulsing particles. Two options:
-
-**Option A - Keep Current Design (Recommended)**
-- The animated particles create a cosmic "looking into space" atmosphere
-- No static background needed
-- Skip BackgroundWrapper for this tab
-
-**Option B - Add Space Background**
-- Upload a dark nebula/starfield image as `src/assets/stars-background.jpg`
-- Apply BackgroundWrapper with 40% overlay
-- Keep animated particles on top for depth
+### 4. Visual Feedback (Optional Enhancement)
+Add a subtle glow or pulse effect when the drawer is "charging" at the edge to indicate navigation is about to trigger.
 
 ---
 
 ## Technical Details
 
-### BackgroundWrapper Implementation
+### Files to Modify
 
-```tsx
-interface BackgroundWrapperProps {
-  imagePath: string;
-  overlayOpacity?: number;
-  tintColor?: 'red' | 'amber' | 'purple' | 'cyan' | 'green';
-  tintOpacity?: number;
-  fixed?: boolean;
-  children: React.ReactNode;
-  className?: string;
-}
-```
+**`src/pages/Index.tsx`**
+- Add `onNavigateHome` callback: `() => setShowHomeScreen(true)`
+- Add `onNavigateToSkills` callback: `() => { setShowHomeScreen(false); setActiveTab('skills'); }`
+- Pass `isHomeScreen={showHomeScreen}` to both `PromptDrawerProvider` instances
 
-The component will:
-1. Render background image with `bg-cover bg-center` and optional `bg-fixed`
-2. Apply a gradient overlay: `from-background/${top} via-background/${mid} to-background/${bottom}`
-3. Apply optional colored tint layer with directional gradient
-4. Render children with `relative z-10` to ensure content visibility
+**`src/components/drawers/PromptDrawerProvider.tsx`**
+- Accept new props: `onNavigateHome`, `onNavigateToSkills`, `isHomeScreen`
+- Pass these props to `EdgeTriggerStack`
 
-### Gradient Formula
-Based on current implementations, the overlay uses a 3-stop vertical gradient:
-- Top: `overlayOpacity * 0.9` (darker at top)
-- Middle: `overlayOpacity * 0.6` (lighter in middle for visibility)
-- Bottom: `overlayOpacity * 0.95` (darkest at bottom)
+**`src/components/drawers/EdgeDrawer.tsx`**
+- Update `EdgeTriggerStackProps` and `DraggableTriggerProps` interfaces
+- Add `useRef` for hold timer in `DraggableTrigger`
+- Add `useEffect` to monitor position during drag and manage timers:
+  - Left edge detection: `position.x <= 15`
+  - Right edge detection: `position.x >= window.innerWidth - 75`
+- Clear timer on drag end or when moving away from edge
+- Trigger navigation callback when timer completes
 
+---
+
+## Edge Cases Handled
+- **Already on target screen**: No timer starts (e.g., at left edge while already on Home)
+- **Move away before 1 second**: Timer is cleared, no navigation
+- **Release at edge before 1 second**: Timer is cleared on drag end
+- **Quick tap (not a drag)**: Existing tap detection continues to open drawer
+- **Multiple triggers at edges**: Each trigger has its own independent timer
+
+---
+
+## User Experience Flow
+
+**Scenario A: Builder Tab → Home**
+1. User is on Skills tab
+2. User drags "Stats" drawer button toward left edge
+3. Button reaches left edge (x ≤ 15px)
+4. Visual indicator appears (optional: subtle glow)
+5. User holds for 1 second
+6. App navigates to Home Screen
+7. Button remains at its position (persisted)
+
+**Scenario B: Home → Skills Tab**
+1. User is on Home Screen
+2. User drags "Abilities" drawer button toward right edge
+3. Button reaches right edge (x ≥ screen width - 75px)
+4. Visual indicator appears
+5. User holds for 1 second
+6. App navigates to Skills tab
+7. Button remains at its position
