@@ -48,6 +48,9 @@ interface Props {
 export function OnboardingTooltip({ step, targetId, onSkip, onAdvance }: Props) {
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const tooltipRef = useRef<HTMLDivElement>(null);
+  
+  // Refs to track latest values (Issue #10 - race condition protection)
+  const targetIdRef = useRef(targetId);
 
   const content = STEP_CONTENT[step];
   if (!content) return null;
@@ -56,43 +59,84 @@ export function OnboardingTooltip({ step, targetId, onSkip, onAdvance }: Props) 
     ? Math.min(320, window.innerWidth - 32) 
     : 320;
 
+  // Keep targetId ref updated
+  useEffect(() => {
+    targetIdRef.current = targetId;
+  }, [targetId]);
+
+  // Position updates with RAF for smooth performance (Issue #3)
   useEffect(() => {
     if (!targetId) return;
 
-    const updatePosition = () => {
-      const target = document.getElementById(targetId);
-      if (!target) return;
+    let rafId: number | null = null;
+    let updateScheduled = false;
+    let isMounted = true;
 
-      const rect = target.getBoundingClientRect();
-      const offset = 24;
+    const scheduleUpdate = () => {
+      if (!isMounted || updateScheduled) return;
+      updateScheduled = true;
+      
+      rafId = requestAnimationFrame(() => {
+        if (!isMounted) return;
+        
+        const currentTargetId = targetIdRef.current;
+        if (!currentTargetId) {
+          updateScheduled = false;
+          return;
+        }
+        
+        const target = document.getElementById(currentTargetId);
+        if (!target) {
+          updateScheduled = false;
+          return;
+        }
 
-      let top = rect.bottom + offset;
-      let left = rect.left + rect.width / 2 - tooltipWidth / 2;
+        const rect = target.getBoundingClientRect();
+        const offset = 24;
 
-      left = Math.max(16, Math.min(window.innerWidth - tooltipWidth - 16, left));
-      if (top + 200 > window.innerHeight) {
-        top = rect.top - 200 - offset;
-      }
+        let top = rect.bottom + offset;
+        let left = rect.left + rect.width / 2 - tooltipWidth / 2;
 
-      setPosition({ top, left });
+        left = Math.max(16, Math.min(window.innerWidth - tooltipWidth - 16, left));
+        if (top + 200 > window.innerHeight) {
+          top = rect.top - 200 - offset;
+        }
+
+        setPosition({ top, left });
+        updateScheduled = false;
+      });
     };
 
-    updatePosition();
-    window.addEventListener('resize', updatePosition);
-    window.addEventListener('scroll', updatePosition, true);
+    // Initial position
+    scheduleUpdate();
+    
+    window.addEventListener('resize', scheduleUpdate);
+    window.addEventListener('scroll', scheduleUpdate, true);
 
     return () => {
-      window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition, true);
+      isMounted = false;
+      if (rafId) cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', scheduleUpdate);
+      window.removeEventListener('scroll', scheduleUpdate, true);
     };
   }, [targetId, step, tooltipWidth]);
 
+  // Focus management
   useEffect(() => {
     if (tooltipRef.current) {
       const firstButton = tooltipRef.current.querySelector<HTMLButtonElement>('button');
       firstButton?.focus();
     }
   }, [step]);
+
+  // Handle advance click with null check (Issue #8)
+  const handleAdvanceClick = () => {
+    if (!onAdvance) {
+      console.error('[Onboarding] onAdvance callback not provided for step:', step);
+      return;
+    }
+    onAdvance();
+  };
 
   return (
     <Glass
@@ -138,7 +182,7 @@ export function OnboardingTooltip({ step, targetId, onSkip, onAdvance }: Props) 
             {content.action} →
           </span>
         ) : (
-          <Button size="sm" onClick={onAdvance}>
+          <Button size="sm" onClick={handleAdvanceClick}>
             {content.action}
           </Button>
         )}

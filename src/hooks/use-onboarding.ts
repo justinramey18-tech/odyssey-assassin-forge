@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { 
   OnboardingStorage,
   OnboardingStep,
@@ -6,9 +6,10 @@ import {
   ONBOARDING_STORAGE_KEY,
   STEP_ORDER,
   isValidState,
+  isStateExpired,
   TARGET_ABILITY,
 } from '@/lib/onboarding/types';
-import { trackOnboardingEvent } from '@/lib/onboarding/analytics';
+import { trackOnboardingEvent, trackAbandonmentIfNeeded } from '@/lib/onboarding/analytics';
 
 function loadOnboardingState(): OnboardingStorage {
   try {
@@ -16,6 +17,12 @@ function loadOnboardingState(): OnboardingStorage {
     if (stored) {
       const parsed = JSON.parse(stored);
       if (isValidState(parsed)) {
+        // Issue #15 - Check for expired state
+        if (isStateExpired(parsed)) {
+          console.debug('[Onboarding] State expired, resetting');
+          localStorage.removeItem(ONBOARDING_STORAGE_KEY);
+          return DEFAULT_ONBOARDING_STATE;
+        }
         return parsed;
       }
     }
@@ -44,12 +51,16 @@ export interface UseOnboardingReturn {
 export function useOnboarding(totalPointsSpent: number): UseOnboardingReturn {
   const [isMounted, setIsMounted] = useState(false);
   const [state, setState] = useState<OnboardingStorage>(() => DEFAULT_ONBOARDING_STATE);
+  
+  // Track previous step for abandonment detection
+  const previousStepRef = useRef<OnboardingStep>('inactive');
 
   // Hydrate from localStorage after mount
   useEffect(() => {
     setIsMounted(true);
     const stored = loadOnboardingState();
     setState(stored);
+    previousStepRef.current = stored.currentStep;
   }, []);
 
   // Persist state changes
@@ -64,6 +75,13 @@ export function useOnboarding(totalPointsSpent: number): UseOnboardingReturn {
       console.error('[Onboarding] Failed to save state:', error);
     }
   }, [state, isMounted]);
+
+  // Track abandonment on unmount (Issue #14)
+  useEffect(() => {
+    return () => {
+      trackAbandonmentIfNeeded(previousStepRef.current);
+    };
+  }, []);
 
   // Auto-start for new characters
   useEffect(() => {
@@ -90,6 +108,7 @@ export function useOnboarding(totalPointsSpent: number): UseOnboardingReturn {
       const nextStep = STEP_ORDER[currentIdx + 1];
       
       trackOnboardingEvent('step_advance', prev.currentStep);
+      previousStepRef.current = nextStep || 'inactive';
       
       if (nextStep === 'complete') {
         trackOnboardingEvent('complete');
@@ -103,21 +122,25 @@ export function useOnboarding(totalPointsSpent: number): UseOnboardingReturn {
 
   const skip = useCallback(() => {
     trackOnboardingEvent('step_skip', state.currentStep);
+    previousStepRef.current = 'inactive';
     setState(prev => ({ ...prev, currentStep: 'inactive', isComplete: true }));
   }, [state.currentStep]);
 
   const complete = useCallback(() => {
     trackOnboardingEvent('complete');
+    previousStepRef.current = 'inactive';
     setState(prev => ({ ...prev, currentStep: 'inactive', isComplete: true }));
   }, []);
 
   const start = useCallback(() => {
     trackOnboardingEvent('start');
+    previousStepRef.current = 'welcome';
     setState(prev => ({ ...prev, currentStep: 'welcome', isComplete: false }));
   }, []);
 
   const reset = useCallback(() => {
     localStorage.removeItem(ONBOARDING_STORAGE_KEY);
+    previousStepRef.current = 'inactive';
     setState(DEFAULT_ONBOARDING_STATE);
   }, []);
 
@@ -132,6 +155,11 @@ export function useOnboarding(totalPointsSpent: number): UseOnboardingReturn {
   };
 
   const isActive = state.currentStep !== 'inactive' && !state.isComplete;
+
+  // Update ref when step changes
+  useEffect(() => {
+    previousStepRef.current = state.currentStep;
+  }, [state.currentStep]);
 
   if (!isMounted) {
     return {

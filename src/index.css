@@ -195,4 +195,24 @@
     pointer-events: none;
     border-radius: inherit;
   }
+
+  /* ═══════════════════════════════════════════════════
+     ONBOARDING ANIMATIONS (Issue #9 - moved from inline)
+     ═══════════════════════════════════════════════════ */
+  
+  .animate-onboarding-pulse {
+    animation: onboarding-pulse 1.5s ease-in-out infinite;
+  }
+}
+
+/* Onboarding spotlight pulse animation */
+@keyframes onboarding-pulse {
+  0%, 100% { 
+    opacity: 1; 
+    transform: translateZ(0) scale(1); 
+  }
+  50% { 
+    opacity: 0.7; 
+    transform: translateZ(0) scale(1.02); 
+  }
 }
