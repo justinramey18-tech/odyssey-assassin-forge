@@ -12,9 +12,28 @@ interface Props {
 
 export function CompletionModal({ onFinish, characterName = 'Assassin' }: Props) {
   const buttonRef = useRef<HTMLButtonElement>(null);
+  
+  // Ref for stable callback (Issue #7)
+  const onFinishRef = useRef(onFinish);
+  
+  useEffect(() => {
+    onFinishRef.current = onFinish;
+  }, [onFinish]);
 
   useEffect(() => {
     buttonRef.current?.focus();
+  }, []);
+
+  // Keyboard handler with stable reference
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' || e.key === 'Enter') {
+        onFinishRef.current();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   return (

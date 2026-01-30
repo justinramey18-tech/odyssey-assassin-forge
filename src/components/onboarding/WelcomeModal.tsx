@@ -12,19 +12,31 @@ interface Props {
 
 export function WelcomeModal({ onBegin, onSkip }: Props) {
   const initialFocusRef = useRef<HTMLButtonElement>(null);
+  
+  // Refs to track latest callback values (Issue #7 - memory leak fix)
+  const onSkipRef = useRef(onSkip);
+  
+  // Keep ref updated
+  useEffect(() => {
+    onSkipRef.current = onSkip;
+  }, [onSkip]);
 
+  // Focus management
   useEffect(() => {
     initialFocusRef.current?.focus();
+  }, []);
 
+  // Keyboard handler with stable reference (Issue #7)
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onSkip();
+        onSkipRef.current();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onSkip]);
+  }, []); // Empty dependency array - no re-adds
 
   return (
     <div
