@@ -25,6 +25,7 @@ export function EdgeDrawer({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side={side}
+        onOpenAutoFocus={(e) => e.preventDefault()}
         className={cn(
           'w-[85vw] max-w-[320px] p-0',
           'bg-glass backdrop-blur-xl border-glass',
