@@ -4,15 +4,30 @@ import { Badge } from '@/components/ui/badge';
 import { Skull, Shield, Swords, Target } from 'lucide-react';
 import { PrestigeBadge } from '@/components/prestige';
 import { PrestigeData } from '@/lib/prestige';
+import { HPWidget } from './HPWidget';
 
 interface CharacterHeaderProps {
   character: Character;
   currentXP: number;
   prestigeData?: PrestigeData;
   availableAbilityPoints: number;
+  // HP props
+  currentHP: number;
+  maxHP: number;
+  tempHP: number;
+  onHPChange: (current: number, max: number, temp: number) => void;
 }
 
-export function CharacterHeader({ character, currentXP, prestigeData, availableAbilityPoints }: CharacterHeaderProps) {
+export function CharacterHeader({ 
+  character, 
+  currentXP, 
+  prestigeData, 
+  availableAbilityPoints,
+  currentHP,
+  maxHP,
+  tempHP,
+  onHPChange,
+}: CharacterHeaderProps) {
   const isMaxLevel = character.level >= 20;
   const isPrestigeActive = isMaxLevel && prestigeData && prestigeData.prestigeLevel > 0;
   
@@ -30,7 +45,7 @@ export function CharacterHeader({ character, currentXP, prestigeData, availableA
   return (
     <div className="bg-gradient-to-b from-card/80 to-card/40 border-b border-red-900/30 backdrop-blur-sm">
       <div className="container max-w-2xl mx-auto px-4 py-4">
-        {/* Character Name & Level */}
+        {/* Character Name, Level & HP */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-600/30 to-red-900/30 border-2 border-red-500/50 flex items-center justify-center">
@@ -58,13 +73,21 @@ export function CharacterHeader({ character, currentXP, prestigeData, availableA
             </div>
           </div>
           
-          {/* Available Ability Points */}
-          <div className="text-right">
-            <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
-              Available Ability Points
-            </div>
-            <div className="font-display font-bold text-2xl text-primary">
-              {Math.max(0, availableAbilityPoints)}
+          {/* HP Widget & Available Points */}
+          <div className="flex items-center gap-3">
+            <HPWidget
+              currentHP={currentHP}
+              maxHP={maxHP}
+              tempHP={tempHP}
+              onHPChange={onHPChange}
+            />
+            <div className="text-right">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                Available
+              </div>
+              <div className="font-display font-bold text-xl text-primary">
+                {Math.max(0, availableAbilityPoints)}
+              </div>
             </div>
           </div>
         </div>
