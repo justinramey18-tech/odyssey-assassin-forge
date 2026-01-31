@@ -1,68 +1,43 @@
 
 
-# Reorder Home Screen Navigation Cards
+# Stop Keyboard from Auto-Opening in Stats Drawer
 
-## What We're Doing
+## The Problem
 
-Rearranging the navigation buttons on your Home dashboard to match your preferred order.
+When you open the **Stats** panel from the Drawers menu on your phone, the keyboard pops up automatically. This is annoying because you probably just want to look at your stats, not type anything right away.
 
----
+## Why This Happens
 
-## Current Order vs New Order
+The Stats panel uses a slide-out drawer component. When this drawer opens, it's designed to automatically focus on the first thing you can type into. Since there's an input box for "HP Amount" near the top of the Stats panel, your phone sees it get focused and helpfully opens the keyboard.
 
-| Position | Currently | After Change |
-|----------|-----------|--------------|
-| 1 | Skills | **Drawers** |
-| 2 | Abilities | **Combat** |
-| 3 | Gear | **Items** |
-| 4 | Feats | **Abilities** |
-| 5 | Combat | **Gear** |
-| 6 | Scribe | **Stars** |
-| 7 | Items | **Feats** |
-| 8 | Chronicle | **Skills** |
-| 9 | Stars | **Chronicle** |
-| 10 | Drawers (separate) | **Scribe** |
+## The Fix
+
+We'll tell the drawer "don't automatically focus on anything when you open" — this is a simple one-line addition.
 
 ---
 
-## How It Will Work
+## What We'll Change
 
-**File to edit:** `src/components/home/HomeScreen.tsx`
+**File:** `src/components/drawers/EdgeDrawer.tsx`
 
-### Step 1: Add Drawers to the main navigation list
-- Currently, Drawers is rendered as a special separate button after all other cards
-- We'll add it as the **first item** in the cards list with a special marker so it opens the quick-access menu instead of navigating to a tab
+This file controls how all the side drawers (Stats, Scribe, Abilities, etc.) behave. We'll add a small instruction that says:
 
-### Step 2: Reorder the cards array
-The list will be reorganized to:
-```
-1. Drawers (opens menu)
-2. Combat (battle tracker)
-3. Items/Consumables (potions & scrolls)
-4. Abilities (unlock & upgrade)
-5. Gear (equipment & inventory)
-6. Stars (constellation view)
-7. Feats (achievements & progress)
-8. Skills (proficiencies & checks)
-9. Chronicle (session log sync)
-10. Scribe (AI narrative tools)
-```
+> "When this drawer opens, don't automatically jump to any input fields"
 
-### Step 3: Update the rendering logic
-- Check if a card is the "Drawers" type
-- If yes → open the quick-access bottom sheet menu
-- If no → navigate to that tab as usual
+### The Change:
+
+Add a simple setting to the drawer content that prevents auto-focus:
+
+- **Before**: Drawer opens → automatically focuses first input → keyboard appears
+- **After**: Drawer opens → nothing is focused → keyboard stays closed
+
+You'll still be able to tap on any input field when you actually want to type — it just won't happen automatically.
 
 ---
 
-## What You'll See
+## What You'll Notice
 
-When you open the Home Screen, the grid will show:
-- **Top row**: Drawers, Combat
-- **Second row**: Items, Abilities
-- **Third row**: Gear, Stars
-- **Fourth row**: Feats, Skills
-- **Fifth row**: Chronicle, Scribe
-
-This puts your most-used features (Drawers and Combat) front and center at the top.
+✅ Open Stats drawer → keyboard stays closed  
+✅ Tap on the HP amount box → keyboard opens (when you want it)  
+✅ All other drawers (Scribe, Abilities, etc.) will also benefit from this fix
 
