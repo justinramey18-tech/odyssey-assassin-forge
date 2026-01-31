@@ -770,6 +770,11 @@ const Index = () => {
         xpPreset={xpPreset}
         onAddXP={handleAddXP}
         equipment={equipment}
+        currentHP={hpState.current}
+        maxHP={hpState.max}
+        consumables={consumablesInventory}
+        prestigeLevel={prestigeData.prestigeLevel}
+        prestigeAbilities={prestigeTree.progress.unlockedAbilities}
       >
         <HomeScreen 
           character={character}
@@ -819,6 +824,11 @@ const Index = () => {
       xpPreset={xpPreset}
       onAddXP={handleAddXP}
       equipment={equipment}
+      currentHP={hpState.current}
+      maxHP={hpState.max}
+      consumables={consumablesInventory}
+      prestigeLevel={prestigeData.prestigeLevel}
+      prestigeAbilities={prestigeTree.progress.unlockedAbilities}
     >
       <div className="min-h-screen relative">
       {/* Builder Background Image - fixed behind everything */}

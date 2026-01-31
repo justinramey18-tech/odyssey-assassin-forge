@@ -6,3 +6,4 @@ export { ScribeDrawer } from './ScribeDrawer';
 export { ActiveSetBonusDrawer } from './ActiveSetBonusDrawer';
 export { CooldownDrawer } from './CooldownDrawer';
 export { PromptDrawerProvider, usePromptDrawers } from './PromptDrawerProvider';
+export { OracleDrawer } from '../oracle/OracleDrawer';
