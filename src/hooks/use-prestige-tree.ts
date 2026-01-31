@@ -10,8 +10,10 @@ import {
 import { prestigeAbilities, getPrestigeAbilityById, ABILITY_COUNTS } from '@/lib/prestigeTree/abilities';
 import { PrestigeData } from '@/lib/prestige/types';
 import { CharacterAbility, getTotalPointsSpent } from '@/lib/types';
+import { useGameMode } from '@/hooks/use-game-mode';
 
 const STORAGE_KEY = 'odyssey-prestige-tree';
+const HONEST_MODE_LEVEL_REQUIREMENT = 20;
 
 function loadProgress(): PrestigeTreeProgress {
   try {
@@ -36,7 +38,7 @@ function saveProgress(data: PrestigeTreeProgress): void {
 export interface UsePrestigeTreeReturn {
   // Unlock status
   isLegacyUnlocked: boolean;
-  unlockProgress: { current: number; required: number };
+  unlockProgress: { current: number; required: number; isLevelBased?: boolean };
   
   // Prestige tree state
   progress: PrestigeTreeProgress;
@@ -72,17 +74,47 @@ export interface UsePrestigeTreeReturn {
 export function usePrestigeTree(
   characterAbilities: CharacterAbility[],
   prestigeData: PrestigeData,
-  onPrestigePointSpent?: (cost: number) => void
+  onPrestigePointSpent?: (cost: number) => void,
+  characterLevel?: number
 ): UsePrestigeTreeReturn {
   const [progress, setProgress] = useState<PrestigeTreeProgress>(() => loadProgress());
+  const { isInfinityPoolMode, isHonestMode } = useGameMode();
 
-  // Calculate if legacy tree is unlocked (all 72 base ability points spent)
+  // Calculate base points spent for progress display
   const basePointsSpent = useMemo(() => 
     getTotalPointsSpent(characterAbilities), 
     [characterAbilities]
   );
-  const isLegacyUnlocked = basePointsSpent >= LEGACY_UNLOCK_THRESHOLD;
-  const unlockProgress = { current: basePointsSpent, required: LEGACY_UNLOCK_THRESHOLD };
+
+  // Game mode aware unlock logic:
+  // - Infinity Pool Mode: Always unlocked
+  // - Honest Mode: Requires level 20
+  const isLegacyUnlocked = useMemo(() => {
+    if (isInfinityPoolMode) {
+      return true; // Always unlocked in Infinity Pool
+    }
+    if (isHonestMode) {
+      return (characterLevel ?? 1) >= HONEST_MODE_LEVEL_REQUIREMENT;
+    }
+    // Fallback to original logic
+    return basePointsSpent >= LEGACY_UNLOCK_THRESHOLD;
+  }, [isInfinityPoolMode, isHonestMode, characterLevel, basePointsSpent]);
+
+  // Progress display depends on game mode
+  const unlockProgress = useMemo(() => {
+    if (isHonestMode) {
+      return { 
+        current: characterLevel ?? 1, 
+        required: HONEST_MODE_LEVEL_REQUIREMENT,
+        isLevelBased: true 
+      };
+    }
+    return { 
+      current: basePointsSpent, 
+      required: LEGACY_UNLOCK_THRESHOLD,
+      isLevelBased: false 
+    };
+  }, [isHonestMode, characterLevel, basePointsSpent]);
 
   // Convert to Set for fast lookups
   const unlockedSet = useMemo(() => 

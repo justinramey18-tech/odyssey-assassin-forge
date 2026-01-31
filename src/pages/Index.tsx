@@ -105,8 +105,8 @@ const Index = () => {
     setPrestigeData,
   } = usePrestige(character.level);
   
-  // Prestige Tree (Drizzt's Legacy) hook
-  const prestigeTree = usePrestigeTree(character.abilities, prestigeData);
+  // Prestige Tree (Drizzt's Legacy) hook - pass character level for game mode unlock logic
+  const prestigeTree = usePrestigeTree(character.abilities, prestigeData, undefined, character.level);
   
   const [showPrestigeLevelUp, setShowPrestigeLevelUp] = useState(false);
   const [prestigeLevelUpData, setPrestigeLevelUpData] = useState<{ level: number; points: number } | null>(null);

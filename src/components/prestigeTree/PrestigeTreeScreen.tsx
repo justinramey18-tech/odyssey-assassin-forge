@@ -83,6 +83,7 @@ export function PrestigeTreeScreen({
         current={unlockProgress.current}
         required={unlockProgress.required}
         isUnlocked={isLegacyUnlocked}
+        isLevelBased={unlockProgress.isLevelBased}
       />
     );
   }
