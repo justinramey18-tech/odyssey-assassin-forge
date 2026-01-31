@@ -271,8 +271,8 @@ export function HomeScreen({
       tintColor="red"
       tintOpacity={10}
       fixed={true}
-      backgroundSize="contain"
-      backgroundPosition="center center"
+      backgroundSize={isMobile ? "cover" : "contain"}
+      backgroundPosition={isMobile ? "center 20%" : "center center"}
       className="fixed inset-0 z-50"
     >
       {/* Centered Assassin Logo Watermark */}
