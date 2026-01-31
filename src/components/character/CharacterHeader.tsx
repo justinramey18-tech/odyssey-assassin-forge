@@ -6,6 +6,11 @@ import { PrestigeBadge } from '@/components/prestige';
 import { PrestigeData } from '@/lib/prestige';
 import { HPWidget } from './HPWidget';
 
+interface DeathSavesState {
+  successes: number;
+  failures: number;
+}
+
 interface CharacterHeaderProps {
   character: Character;
   currentXP: number;
@@ -15,7 +20,9 @@ interface CharacterHeaderProps {
   currentHP: number;
   maxHP: number;
   tempHP: number;
+  deathSaves: DeathSavesState;
   onHPChange: (current: number, max: number, temp: number) => void;
+  onDeathSavesChange: (saves: DeathSavesState) => void;
 }
 
 export function CharacterHeader({ 
@@ -26,7 +33,9 @@ export function CharacterHeader({
   currentHP,
   maxHP,
   tempHP,
+  deathSaves,
   onHPChange,
+  onDeathSavesChange,
 }: CharacterHeaderProps) {
   const isMaxLevel = character.level >= 20;
   const isPrestigeActive = isMaxLevel && prestigeData && prestigeData.prestigeLevel > 0;
@@ -79,7 +88,9 @@ export function CharacterHeader({
               currentHP={currentHP}
               maxHP={maxHP}
               tempHP={tempHP}
+              deathSaves={deathSaves}
               onHPChange={onHPChange}
+              onDeathSavesChange={onDeathSavesChange}
             />
             <div className="text-right">
               <div className="text-[10px] text-muted-foreground uppercase tracking-wider">

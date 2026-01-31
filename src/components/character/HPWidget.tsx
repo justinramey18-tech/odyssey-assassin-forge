@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Heart, Shield, Plus, Minus, Zap } from 'lucide-react';
+import { Heart, Shield, Plus, Minus, Zap, Skull } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,15 +10,23 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
+import { DeathSavesTracker } from './DeathSavesTracker';
+
+interface DeathSavesState {
+  successes: number;
+  failures: number;
+}
 
 interface HPWidgetProps {
   currentHP: number;
   maxHP: number;
   tempHP: number;
+  deathSaves: DeathSavesState;
   onHPChange: (current: number, max: number, temp: number) => void;
+  onDeathSavesChange: (saves: DeathSavesState) => void;
 }
 
-export function HPWidget({ currentHP, maxHP, tempHP, onHPChange }: HPWidgetProps) {
+export function HPWidget({ currentHP, maxHP, tempHP, deathSaves, onHPChange, onDeathSavesChange }: HPWidgetProps) {
   const [hpDelta, setHpDelta] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const { toast } = useToast();
@@ -130,19 +138,39 @@ export function HPWidget({ currentHP, maxHP, tempHP, onHPChange }: HPWidgetProps
     }
   };
 
+  const isDown = currentHP === 0;
+
+  // Handler for regaining HP from death saves (natural 20)
+  const handleRegainHP = (amount: number) => {
+    onHPChange(amount, maxHP, tempHP);
+  };
+
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-card/50 border border-border/50 hover:bg-card/80 transition-colors">
-          <Heart className={cn("w-4 h-4", getHPColor())} />
+        <button className={cn(
+          "flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors",
+          isDown 
+            ? "bg-rose-950/50 border-rose-500/50 hover:bg-rose-950/80 animate-pulse" 
+            : "bg-card/50 border-border/50 hover:bg-card/80"
+        )}>
+          {isDown ? (
+            <Skull className="w-4 h-4 text-rose-400" />
+          ) : (
+            <Heart className={cn("w-4 h-4", getHPColor())} />
+          )}
           <div className="flex flex-col items-start">
             <div className="flex items-center gap-1">
-              <span className={cn("font-bold text-sm", getHPColor())}>
-                {currentHP}
+              <span className={cn("font-bold text-sm", isDown ? "text-rose-400" : getHPColor())}>
+                {isDown ? "DOWN" : currentHP}
               </span>
-              <span className="text-xs text-muted-foreground">/{maxHP}</span>
-              {tempHP > 0 && (
-                <span className="text-xs text-sky-400 ml-1">+{tempHP}</span>
+              {!isDown && (
+                <>
+                  <span className="text-xs text-muted-foreground">/{maxHP}</span>
+                  {tempHP > 0 && (
+                    <span className="text-xs text-sky-400 ml-1">+{tempHP}</span>
+                  )}
+                </>
               )}
             </div>
             <div className="w-16 h-1 rounded-full bg-muted overflow-hidden">
@@ -154,8 +182,17 @@ export function HPWidget({ currentHP, maxHP, tempHP, onHPChange }: HPWidgetProps
           </div>
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-72 p-4" align="start">
+      <PopoverContent className={cn("p-4", isDown ? "w-80" : "w-72")} align="start">
         <div className="space-y-4">
+          {/* Death Saves Tracker - Show when HP is 0 */}
+          {isDown && (
+            <DeathSavesTracker
+              deathSaves={deathSaves}
+              onDeathSavesChange={onDeathSavesChange}
+              onRegainHP={handleRegainHP}
+            />
+          )}
+
           {/* HP Display */}
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 mb-2">

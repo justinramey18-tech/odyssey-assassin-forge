@@ -163,11 +163,36 @@ const Index = () => {
     return { current: defaultMax, max: defaultMax, temp: 0 };
   });
 
+  // Death Saves State (persisted to localStorage)
+  const [deathSaves, setDeathSaves] = useState<{ successes: number; failures: number }>(() => {
+    const stored = localStorage.getItem('odyssey-death-saves');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return { successes: 0, failures: 0 };
+      }
+    }
+    return { successes: 0, failures: 0 };
+  });
+
   // HP change handler with localStorage persistence
   const handleHPChange = useCallback((current: number, max: number, temp: number) => {
     const newState = { current, max, temp };
     setHpState(newState);
     localStorage.setItem('odyssey-hp-state', JSON.stringify(newState));
+    
+    // Reset death saves when regaining HP from 0
+    if (current > 0 && deathSaves.successes + deathSaves.failures > 0) {
+      setDeathSaves({ successes: 0, failures: 0 });
+      localStorage.setItem('odyssey-death-saves', JSON.stringify({ successes: 0, failures: 0 }));
+    }
+  }, [deathSaves]);
+
+  // Death saves change handler with localStorage persistence
+  const handleDeathSavesChange = useCallback((saves: { successes: number; failures: number }) => {
+    setDeathSaves(saves);
+    localStorage.setItem('odyssey-death-saves', JSON.stringify(saves));
   }, []);
 
   // Aggregated equipment stats for GM guide
@@ -813,7 +838,9 @@ const Index = () => {
         currentHP={hpState.current}
         maxHP={hpState.max}
         tempHP={hpState.temp}
+        deathSaves={deathSaves}
         onHPChange={handleHPChange}
+        onDeathSavesChange={handleDeathSavesChange}
       />
 
       {/* Tab Navigation */}
