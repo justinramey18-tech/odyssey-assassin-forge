@@ -613,6 +613,9 @@ const Index = () => {
         totalPrestigePoints: 0,
       });
 
+      // Reset Legacy (Prestige Tree) via hook
+      actualPrestigeTree.resetTree();
+
       // 2. Reset UI state
       setActiveTab('skills');
       setShowHomeScreen(false);
@@ -620,6 +623,9 @@ const Index = () => {
 
       // 3. Clear all localStorage (after state reset to prevent race conditions)
       resetAllAppData();
+      
+      // Also clear prestige tree localStorage explicitly
+      localStorage.removeItem('odyssey-prestige-tree');
       
       // Ensure intro splash flag is also cleared for true first-launch experience
       localStorage.removeItem('odyssey-intro-seen');
