@@ -17,13 +17,35 @@ const STORAGE_KEY = 'odyssey-prestige-data';
 export const PRESTIGE_CHANGE_EVENT = 'odyssey-prestige-change';
 
 /**
+ * Migrate old prestige data format to new format
+ * Removes spentPrestigePoints and availablePrestigePoints fields
+ */
+function migratePrestigeData(saved: any): PrestigeData {
+  // Old format had spentPrestigePoints and availablePrestigePoints
+  // New format only tracks totalPrestigePoints
+  if ('spentPrestigePoints' in saved || 'availablePrestigePoints' in saved) {
+    return {
+      prestigeLevel: saved.prestigeLevel ?? 0,
+      prestigeXP: saved.prestigeXP ?? 0,
+      totalPrestigePoints: saved.totalPrestigePoints ?? saved.prestigeLevel ?? 0,
+    };
+  }
+  return {
+    prestigeLevel: saved.prestigeLevel ?? 0,
+    prestigeXP: saved.prestigeXP ?? 0,
+    totalPrestigePoints: saved.totalPrestigePoints ?? 0,
+  };
+}
+
+/**
  * Load prestige data from localStorage
  */
 function loadPrestigeData(): PrestigeData {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      return { ...DEFAULT_PRESTIGE_DATA, ...JSON.parse(stored) };
+      const parsed = JSON.parse(stored);
+      return migratePrestigeData(parsed);
     }
   } catch (e) {
     console.error('Failed to load prestige data:', e);
@@ -51,14 +73,13 @@ export interface UsePrestigeReturn {
   prestigeProgress: number;
   xpToNextPrestige: number;
   awardPrestigeXP: (amount: number) => PrestigeXPResult;
-  spendPrestigePoint: (cost?: number) => { success: boolean; message?: string };
-  resetPrestigePoints: () => void;
   setPrestigeData: React.Dispatch<React.SetStateAction<PrestigeData>>;
 }
 
 /**
  * Hook to manage prestige system state
- * Handles XP tracking, level ups, and point allocation post-max-level
+ * Handles XP tracking and level ups post-max-level
+ * Points are unified with regular ability points - no separate spending
  */
 export function usePrestige(currentLevel: number): UsePrestigeReturn {
   const [prestigeData, setPrestigeData] = useState<PrestigeData>(() => loadPrestigeData());
@@ -94,38 +115,36 @@ export function usePrestige(currentLevel: number): UsePrestigeReturn {
 
   /**
    * Award XP to prestige system (only works at max level)
-   * Returns result indicating what happened
+   * Handles overflow for multiple level-ups from large XP gains
    */
   const awardPrestigeXP = useCallback((amount: number): PrestigeXPResult => {
     if (!isMaxLevel) {
       return { type: 'normal', amount };
     }
 
-    // Check if already at max prestige level
-    if (prestigeData.prestigeLevel >= PRESTIGE_CONFIG.MAX_PRESTIGE_LEVEL) {
-      return { type: 'prestige_xp', amount: 0 };
+    let newPrestigeXP = prestigeData.prestigeXP + amount;
+    let newPrestigeLevel = prestigeData.prestigeLevel;
+    let totalPointsAwarded = 0;
+
+    // Loop to handle multiple level-ups from large XP gains
+    while (newPrestigeXP >= PRESTIGE_CONFIG.XP_PER_PRESTIGE_LEVEL) {
+      newPrestigeXP -= PRESTIGE_CONFIG.XP_PER_PRESTIGE_LEVEL;
+      newPrestigeLevel++;
+      totalPointsAwarded += PRESTIGE_CONFIG.POINTS_PER_PRESTIGE;
     }
 
-    const newPrestigeXP = prestigeData.prestigeXP + amount;
-    const xpRequired = getPrestigeXPRequired(prestigeData.prestigeLevel);
-
-    if (newPrestigeXP >= xpRequired) {
-      // Level up prestige
-      const newPrestigeLevel = prestigeData.prestigeLevel + 1;
-      const overflow = newPrestigeXP - xpRequired;
-      
+    if (totalPointsAwarded > 0) {
       setPrestigeData(prev => ({
         ...prev,
         prestigeLevel: newPrestigeLevel,
-        prestigeXP: overflow,
-        totalPrestigePoints: prev.totalPrestigePoints + PRESTIGE_CONFIG.POINTS_PER_PRESTIGE,
-        availablePrestigePoints: prev.availablePrestigePoints + PRESTIGE_CONFIG.POINTS_PER_PRESTIGE,
+        prestigeXP: newPrestigeXP,
+        totalPrestigePoints: prev.totalPrestigePoints + totalPointsAwarded,
       }));
 
       return { 
         type: 'prestige_levelup', 
         newLevel: newPrestigeLevel,
-        pointsAwarded: PRESTIGE_CONFIG.POINTS_PER_PRESTIGE,
+        pointsAwarded: totalPointsAwarded,
       };
     } else {
       setPrestigeData(prev => ({
@@ -137,41 +156,6 @@ export function usePrestige(currentLevel: number): UsePrestigeReturn {
     }
   }, [isMaxLevel, prestigeData.prestigeLevel, prestigeData.prestigeXP]);
 
-  /**
-   * Spend prestige points on ability upgrades
-   * @param cost - Number of points to spend (default: 1)
-   */
-  const spendPrestigePoint = useCallback((cost: number = 1): { success: boolean; message?: string } => {
-    // Validate cost is positive
-    if (cost <= 0) {
-      return { success: false, message: 'Invalid cost' };
-    }
-    
-    if (prestigeData.availablePrestigePoints < cost) {
-      return { success: false, message: `Need ${cost} prestige points, only have ${prestigeData.availablePrestigePoints}` };
-    }
-
-    setPrestigeData(prev => ({
-      ...prev,
-      spentPrestigePoints: prev.spentPrestigePoints + cost,
-      // Defensive guard: ensure we never go negative
-      availablePrestigePoints: Math.max(0, prev.availablePrestigePoints - cost),
-    }));
-
-    return { success: true };
-  }, [prestigeData.availablePrestigePoints]);
-
-  /**
-   * Reset all prestige point allocations (respec)
-   */
-  const resetPrestigePoints = useCallback(() => {
-    setPrestigeData(prev => ({
-      ...prev,
-      spentPrestigePoints: 0,
-      availablePrestigePoints: prev.totalPrestigePoints,
-    }));
-  }, []);
-
   return {
     prestigeData,
     isMaxLevel,
@@ -180,8 +164,6 @@ export function usePrestige(currentLevel: number): UsePrestigeReturn {
     prestigeProgress: getPrestigeProgress(prestigeData.prestigeXP, prestigeData.prestigeLevel),
     xpToNextPrestige: getXPToNextPrestige(prestigeData.prestigeXP, prestigeData.prestigeLevel),
     awardPrestigeXP,
-    spendPrestigePoint,
-    resetPrestigePoints,
     setPrestigeData,
   };
 }

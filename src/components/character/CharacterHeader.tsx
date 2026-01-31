@@ -17,9 +17,9 @@ export function CharacterHeader({ character, currentXP, prestigeData }: Characte
   const isMaxLevel = character.level >= 20;
   const isPrestigeActive = isMaxLevel && prestigeData && prestigeData.prestigeLevel > 0;
   
-  // Calculate total available points including prestige
-  const prestigeAvailable = prestigeData?.availablePrestigePoints ?? 0;
-  const totalAvailable = (totalPoints - spentPoints) + prestigeAvailable;
+  // Calculate total available points including prestige (unified pool)
+  const prestigePoints = prestigeData?.totalPrestigePoints ?? 0;
+  const totalWithPrestige = totalPoints + prestigePoints;
   
   // Calculate tree points
   const hunterPoints = character.abilities
@@ -66,10 +66,10 @@ export function CharacterHeader({ character, currentXP, prestigeData }: Characte
           {/* Ability Points Summary */}
           <div className="text-right">
             <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
-              {prestigeAvailable > 0 ? 'Total Points' : 'Ability Points'}
+              {prestigePoints > 0 ? 'Total Points' : 'Ability Points'}
             </div>
             <div className="font-display font-bold text-primary">
-              {spentPoints} / {totalPoints}{prestigeAvailable > 0 && ` (+${prestigeAvailable})`}
+              {spentPoints} / {totalWithPrestige}
             </div>
           </div>
         </div>

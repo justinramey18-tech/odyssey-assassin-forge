@@ -36,7 +36,6 @@ export function PrestigeTreeScreen({
     isLegacyUnlocked,
     unlockProgress,
     unlockedSet,
-    availablePrestigePoints,
     spentOnTree,
     branchProgress,
     canUnlockAbility,
@@ -97,7 +96,6 @@ export function PrestigeTreeScreen({
         prestigeLevel={prestigeLevel}
         totalPointsEarned={prestigeTree.progress.unlockedAbilities.length}
         pointsSpentOnTree={spentOnTree}
-        availablePoints={availablePrestigePoints}
         isMobile={isMobile}
         className="border-b border-purple-900/30"
       />
