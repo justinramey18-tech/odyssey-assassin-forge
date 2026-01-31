@@ -9,3 +9,6 @@ export { PrestigeAbilityDetails } from './PrestigeAbilityDetails';
 export { PromptCopyButton } from './PromptCopyButton';
 export { UnlockProgressGate } from './UnlockProgressGate';
 export { BranchSelector } from './BranchSelector';
+export { MobilePrestigeHeader } from './MobilePrestigeHeader';
+export { MobileBranchView } from './MobileBranchView';
+export { MobileTierSection } from './MobileTierSection';

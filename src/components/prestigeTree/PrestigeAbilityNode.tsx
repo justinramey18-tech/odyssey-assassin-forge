@@ -1,4 +1,5 @@
 // Prestige Ability Node - Individual Node in the Constellation
+// Mobile-first with larger touch targets
 
 import { Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -13,7 +14,7 @@ interface PrestigeAbilityNodeProps {
   unlockReason?: string;
   onClick: () => void;
   isMobile: boolean;
-  isTierLocked?: boolean;  // NEW - entire tier is inaccessible
+  isTierLocked?: boolean;
 }
 
 export function PrestigeAbilityNode({
@@ -28,40 +29,47 @@ export function PrestigeAbilityNode({
   const branchConfig = BRANCH_VISUAL_CONFIG[ability.branch];
   const Icon = getIconByName(ability.icon);
   
-  const nodeSize = isMobile ? 'w-12 h-12' : 'w-16 h-16';
-  const iconSize = isMobile ? 'w-5 h-5' : 'w-7 h-7';
+  // Mobile-first: Larger touch targets
+  const nodeSize = isMobile ? 'w-10 h-10' : 'w-16 h-16';
+  const iconSize = isMobile ? 'w-4 h-4' : 'w-7 h-7';
 
   return (
-    <button
+    <div
       onClick={!isTierLocked ? onClick : undefined}
-      disabled={isTierLocked || (!isUnlocked && !canUnlock)}
+      role="button"
+      tabIndex={isTierLocked ? -1 : 0}
+      onKeyDown={(e) => {
+        if (!isTierLocked && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          onClick();
+        }
+      }}
       className={cn(
         "relative flex items-center justify-center rounded-full transition-all duration-300",
-        "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black",
+        "touch-manipulation",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black",
         nodeSize,
-        // Tier locked state - heavy overlay, non-interactive
+        // Tier locked state
         isTierLocked && [
           "opacity-30",
           "cursor-not-allowed",
-          "pointer-events-none",
           "bg-slate-900/40",
           "border border-slate-800/40",
         ],
         // Unlocked state
         !isTierLocked && isUnlocked && [
-          "bg-gradient-to-br",
-          `from-${branchConfig.primaryColor}/40 to-${branchConfig.primaryColor}/20`,
-          `border-2 border-${branchConfig.primaryColor}/60`,
-          "shadow-lg",
+          "bg-gradient-to-br from-purple-600/30 to-purple-900/20",
+          "border-2 border-purple-500/60",
+          "shadow-lg cursor-pointer",
         ],
         // Can unlock state
         !isTierLocked && !isUnlocked && canUnlock && [
           "bg-gradient-to-br from-amber-500/20 to-amber-600/10",
           "border-2 border-amber-500/50 border-dashed",
-          "hover:border-solid hover:scale-110",
+          "cursor-pointer",
           "animate-pulse",
         ],
-        // Cannot unlock yet state (accessible but missing points/prereqs)
+        // Cannot unlock yet state
         !isTierLocked && !isUnlocked && !canUnlock && [
           "bg-slate-900/40",
           "border border-slate-700/40",
@@ -73,14 +81,14 @@ export function PrestigeAbilityNode({
         boxShadow: isTierLocked 
           ? undefined 
           : isUnlocked 
-            ? `0 0 20px ${branchConfig.glowColor}40, 0 0 40px ${branchConfig.glowColor}20` 
+            ? `0 0 16px ${branchConfig.glowColor}40` 
             : canUnlock 
-              ? '0 0 15px rgba(251, 191, 36, 0.3)' 
+              ? '0 0 12px rgba(251, 191, 36, 0.25)' 
               : undefined,
       }}
       aria-label={`${ability.name}: ${ability.description}. Cost: ${ability.prestigeCost} points. ${isTierLocked ? 'Tier locked' : isUnlocked ? 'Unlocked' : unlockReason || 'Locked'}`}
     >
-      {/* Tier lock overlay - heavy blur with centered lock */}
+      {/* Tier lock overlay */}
       {isTierLocked && (
         <div className="absolute inset-0 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center z-20">
           <Lock className={cn(iconSize, "text-slate-500")} />
@@ -90,7 +98,7 @@ export function PrestigeAbilityNode({
       {/* Outer glow for unlocked nodes */}
       {!isTierLocked && isUnlocked && (
         <div 
-          className="absolute -inset-1 rounded-full blur-md opacity-50"
+          className="absolute -inset-1 rounded-full blur-md opacity-40"
           style={{ backgroundColor: branchConfig.glowColor }}
         />
       )}
@@ -111,27 +119,29 @@ export function PrestigeAbilityNode({
         </div>
       )}
 
-      {/* Cost badge for unlockable nodes */}
-      {!isTierLocked && !isUnlocked && canUnlock && (
+      {/* Cost badge for unlockable nodes - mobile: smaller */}
+      {!isTierLocked && !isUnlocked && canUnlock && !isMobile && (
         <div className="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-full bg-amber-500 text-[9px] font-bold text-black">
           {ability.prestigeCost}
         </div>
       )}
 
-      {/* Tier indicator */}
-      <div 
-        className={cn(
-          "absolute -top-1 -left-1 w-4 h-4 rounded-full flex items-center justify-center",
-          "text-[8px] font-bold",
-          isTierLocked
-            ? "bg-slate-800 text-slate-600"
-            : isUnlocked 
-              ? "bg-purple-600 text-white" 
-              : "bg-slate-700 text-slate-400"
-        )}
-      >
-        {ability.tier}
-      </div>
-    </button>
+      {/* Tier indicator - mobile: smaller */}
+      {!isMobile && (
+        <div 
+          className={cn(
+            "absolute -top-1 -left-1 w-4 h-4 rounded-full flex items-center justify-center",
+            "text-[8px] font-bold",
+            isTierLocked
+              ? "bg-slate-800 text-slate-600"
+              : isUnlocked 
+                ? "bg-purple-600 text-white" 
+                : "bg-slate-700 text-slate-400"
+          )}
+        >
+          {ability.tier}
+        </div>
+      )}
+    </div>
   );
 }

@@ -1,0 +1,77 @@
+// Mobile Prestige Header - Compact header for mobile Legacy tab
+
+import { Crown, Sparkles } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { DRIZZT_CENTRAL_NODE } from '@/lib/prestigeTree/branchConfig';
+
+interface MobilePrestigeHeaderProps {
+  prestigeLevel: number;
+  totalUnlocked: number;
+  pointsSpent: number;
+  availablePoints?: number;
+}
+
+export function MobilePrestigeHeader({
+  prestigeLevel,
+  totalUnlocked,
+  pointsSpent,
+  availablePoints,
+}: MobilePrestigeHeaderProps) {
+  return (
+    <div className="relative overflow-hidden">
+      {/* Background gradient */}
+      <div 
+        className="absolute inset-0 opacity-20"
+        style={{
+          background: `radial-gradient(ellipse at top center, ${DRIZZT_CENTRAL_NODE.glowColor}40 0%, transparent 70%)`,
+        }}
+      />
+      
+      <div className="relative flex items-center gap-4 p-4">
+        {/* Portrait/Icon */}
+        <div className="relative flex-shrink-0">
+          {/* Glow ring */}
+          <div 
+            className="absolute -inset-1 rounded-full blur-md opacity-50 animate-pulse"
+            style={{ backgroundColor: DRIZZT_CENTRAL_NODE.glowColor }}
+          />
+          
+          <div className={cn(
+            "relative flex items-center justify-center w-14 h-14 rounded-full",
+            "bg-gradient-to-b from-purple-900/80 to-black/90",
+            "border-2 border-purple-500/50"
+          )}>
+            <Crown className="w-7 h-7 text-purple-400" />
+          </div>
+        </div>
+        
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <h3 className="font-cinzel font-bold text-base text-purple-300 truncate">
+            {DRIZZT_CENTRAL_NODE.name}
+          </h3>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+            Drizzt's Legacy
+          </p>
+        </div>
+        
+        {/* Stats - Compact badges */}
+        <div className="flex flex-col gap-1.5">
+          {/* Prestige Level */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/30">
+            <Sparkles className="w-3 h-3 text-purple-400" />
+            <span className="text-xs font-bold text-purple-400">P{prestigeLevel}</span>
+          </div>
+          
+          {/* Available Points - if any */}
+          {availablePoints !== undefined && availablePoints > 0 && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30">
+              <span className="text-xs font-bold text-amber-400">{availablePoints}</span>
+              <span className="text-[9px] text-amber-400/70">pts</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
