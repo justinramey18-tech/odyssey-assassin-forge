@@ -147,6 +147,29 @@ const Index = () => {
   // Shared equipment state for constellation view
   const [equipment, setEquipment] = useState<CharacterEquipment>(() => createInitialEquipment());
   
+  // HP State Management (persisted to localStorage)
+  const [hpState, setHpState] = useState<{ current: number; max: number; temp: number }>(() => {
+    const stored = localStorage.getItem('odyssey-hp-state');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        // Default HP formula: 8 + 5 per level
+        const defaultMax = 8 + (character.level - 1) * 5;
+        return { current: defaultMax, max: defaultMax, temp: 0 };
+      }
+    }
+    const defaultMax = 8 + (character.level - 1) * 5;
+    return { current: defaultMax, max: defaultMax, temp: 0 };
+  });
+
+  // HP change handler with localStorage persistence
+  const handleHPChange = useCallback((current: number, max: number, temp: number) => {
+    const newState = { current, max, temp };
+    setHpState(newState);
+    localStorage.setItem('odyssey-hp-state', JSON.stringify(newState));
+  }, []);
+
   // Aggregated equipment stats for GM guide
   const aggregatedStats = useEquipmentStats(equipment);
   
@@ -627,6 +650,11 @@ const Index = () => {
       setPrestigeTreeSpentState(0);
       prestigeTree.resetTree();
 
+      // Reset HP to level 1 defaults
+      const defaultHP = { current: 8, max: 8, temp: 0 };
+      setHpState(defaultHP);
+      localStorage.removeItem('odyssey-hp-state');
+
       // 2. Reset UI state
       setActiveTab('skills');
       setShowHomeScreen(false);
@@ -757,6 +785,10 @@ const Index = () => {
         currentXP={currentXP} 
         prestigeData={prestigeData}
         availableAbilityPoints={availableAbilityPoints}
+        currentHP={hpState.current}
+        maxHP={hpState.max}
+        tempHP={hpState.temp}
+        onHPChange={handleHPChange}
       />
 
       {/* Tab Navigation */}
