@@ -64,7 +64,7 @@ export function CharacterHeader({ character, currentXP, prestigeData, availableA
               Available Ability Points
             </div>
             <div className="font-display font-bold text-2xl text-primary">
-              {availableAbilityPoints}
+              {Math.max(0, availableAbilityPoints)}
             </div>
           </div>
         </div>
