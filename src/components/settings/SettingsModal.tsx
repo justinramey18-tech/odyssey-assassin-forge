@@ -513,6 +513,10 @@ export function SettingsModal({
                         <span className="w-1 h-1 rounded-full bg-destructive/70" />
                         Equipment, achievements, and consumables
                       </li>
+                      <li className="flex items-center gap-2">
+                        <span className="w-1 h-1 rounded-full bg-destructive/70" />
+                        Drizzt's Legacy tree progress
+                      </li>
                       {prestigeData && prestigeData.prestigeLevel > 0 && (
                         <li className="flex items-center gap-2">
                           <span className="w-1 h-1 rounded-full bg-destructive/70" />
