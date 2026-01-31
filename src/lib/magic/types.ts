@@ -72,7 +72,7 @@ export interface SpellComponents {
 export interface SpellDefinition {
   id: string;
   name: string;
-  level: 0 | 1 | 2 | 3 | 4; // 0 = cantrip
+  level: 0 | 1 | 2 | 3 | 4 | 5; // 0 = cantrip, max 5th level for half-casters
   school: SpellSchool;
   castingTime: CastingTime;
   range: string;
@@ -250,10 +250,10 @@ export const HALF_CASTER_SLOTS: Record<number, Record<number, number>> = {
   14: { 1: 4, 2: 3, 3: 3, 4: 1 },
   15: { 1: 4, 2: 3, 3: 3, 4: 2 },
   16: { 1: 4, 2: 3, 3: 3, 4: 2 },
-  17: { 1: 4, 2: 3, 3: 3, 4: 3 },
-  18: { 1: 4, 2: 3, 3: 3, 4: 3 },
-  19: { 1: 4, 2: 3, 3: 3, 4: 3 },
-  20: { 1: 4, 2: 3, 3: 3, 4: 3 },
+  17: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 1 },
+  18: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 1 },
+  19: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2 },
+  20: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2 },
 };
 
 // Warlock-style pact magic progression
@@ -266,18 +266,18 @@ export const PACT_CASTER_SLOTS: Record<number, { slots: number; level: number }>
   6: { slots: 2, level: 3 },
   7: { slots: 2, level: 4 },
   8: { slots: 2, level: 4 },
-  9: { slots: 2, level: 4 },
-  10: { slots: 2, level: 4 },
-  11: { slots: 3, level: 4 },
-  12: { slots: 3, level: 4 },
-  13: { slots: 3, level: 4 },
-  14: { slots: 3, level: 4 },
-  15: { slots: 3, level: 4 },
-  16: { slots: 3, level: 4 },
-  17: { slots: 4, level: 4 },
-  18: { slots: 4, level: 4 },
-  19: { slots: 4, level: 4 },
-  20: { slots: 4, level: 4 },
+  9: { slots: 2, level: 5 },
+  10: { slots: 2, level: 5 },
+  11: { slots: 3, level: 5 },
+  12: { slots: 3, level: 5 },
+  13: { slots: 3, level: 5 },
+  14: { slots: 3, level: 5 },
+  15: { slots: 3, level: 5 },
+  16: { slots: 3, level: 5 },
+  17: { slots: 4, level: 5 },
+  18: { slots: 4, level: 5 },
+  19: { slots: 4, level: 5 },
+  20: { slots: 4, level: 5 },
 };
 
 // ============================================
