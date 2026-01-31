@@ -203,25 +203,67 @@ export function PrestigeAbilityDetails({
 
         {/* Action Button */}
         <div className="absolute bottom-6 left-6 right-6">
-          {isUnlocked ? (
-            <div className="flex items-center justify-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
-              <Unlock className="w-4 h-4 text-green-400" />
-              <span className="text-sm text-green-400">Unlocked</span>
-            </div>
-          ) : canUnlock ? (
-            <Button
-              onClick={handleUnlock}
-              className="w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black font-bold"
-            >
-              <Unlock className="w-4 h-4 mr-2" />
-              Unlock for {ability.prestigeCost} Point{ability.prestigeCost > 1 ? 's' : ''}
-            </Button>
-          ) : (
-            <div className="flex items-center justify-center gap-2 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
-              <Lock className="w-4 h-4 text-slate-500" />
-              <span className="text-sm text-slate-500">{unlockReason}</span>
-            </div>
-          )}
+          {(() => {
+            // Detect different lock types from unlock reason
+            const isTierLocked = unlockReason?.toLowerCase().includes('locked') && 
+              (unlockReason?.includes('Foundation') || unlockReason?.includes('Intermediate'));
+            const isPrestigeLevelLocked = unlockReason?.includes('Prestige Level');
+
+            if (isUnlocked) {
+              return (
+                <div className="flex items-center justify-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
+                  <Unlock className="w-4 h-4 text-green-400" />
+                  <span className="text-sm text-green-400">Unlocked</span>
+                </div>
+              );
+            }
+            
+            if (canUnlock) {
+              return (
+                <Button
+                  onClick={handleUnlock}
+                  className="w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black font-bold"
+                >
+                  <Unlock className="w-4 h-4 mr-2" />
+                  Unlock for {ability.prestigeCost} Point{ability.prestigeCost > 1 ? 's' : ''}
+                </Button>
+              );
+            }
+            
+            if (isTierLocked) {
+              // Tier Locked - Distinct amber styling
+              return (
+                <div className="flex flex-col items-center gap-1.5 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                  <div className="flex items-center gap-2">
+                    <Lock className="w-4 h-4 text-amber-400" />
+                    <span className="text-sm font-semibold text-amber-400">Tier Locked</span>
+                  </div>
+                  <span className="text-xs text-amber-400/70 text-center">{unlockReason}</span>
+                </div>
+              );
+            }
+            
+            if (isPrestigeLevelLocked) {
+              // Prestige Level Locked - Purple styling
+              return (
+                <div className="flex flex-col items-center gap-1.5 p-3 rounded-lg bg-purple-500/10 border border-purple-500/30">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-purple-400" />
+                    <span className="text-sm font-semibold text-purple-400">Level Required</span>
+                  </div>
+                  <span className="text-xs text-purple-400/70 text-center">{unlockReason}</span>
+                </div>
+              );
+            }
+            
+            // Missing points or prerequisites - Default gray
+            return (
+              <div className="flex items-center justify-center gap-2 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                <Lock className="w-4 h-4 text-slate-500" />
+                <span className="text-sm text-slate-500">{unlockReason}</span>
+              </div>
+            );
+          })()}
         </div>
       </SheetContent>
     </Sheet>

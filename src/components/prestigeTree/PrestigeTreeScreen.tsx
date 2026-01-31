@@ -41,6 +41,8 @@ export function PrestigeTreeScreen({
     canUnlockAbility,
     unlockAbility,
     isAbilityUnlocked,
+    isTierUnlockedForBranch,
+    getTierUnlockProgress,
   } = prestigeTree;
 
   // Handle node click
@@ -122,6 +124,8 @@ export function PrestigeTreeScreen({
               canUnlockAbility={canUnlockAbility}
               onNodeClick={handleNodeClick}
               isMobile={isMobile}
+              isTierUnlockedForBranch={isTierUnlockedForBranch}
+              getTierUnlockProgress={getTierUnlockProgress}
             />
           </div>
         ) : (
@@ -135,6 +139,8 @@ export function PrestigeTreeScreen({
                 canUnlockAbility={canUnlockAbility}
                 onNodeClick={handleNodeClick}
                 isMobile={isMobile}
+                isTierUnlockedForBranch={isTierUnlockedForBranch}
+                getTierUnlockProgress={getTierUnlockProgress}
                 className="border border-purple-900/20 rounded-xl bg-black/20"
               />
             ))}

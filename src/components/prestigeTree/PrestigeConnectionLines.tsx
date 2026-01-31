@@ -10,6 +10,8 @@ interface PrestigeConnectionLinesProps {
   positions: Map<string, NodePosition>;
   unlockedSet: Set<string>;
   isMobile: boolean;
+  isTier2Accessible: boolean;
+  isTier3Accessible: boolean;
   className?: string;
 }
 
@@ -20,6 +22,7 @@ interface ConnectionLine {
   toPos: NodePosition;
   isActive: boolean;
   branch: PrestigeBranch;
+  targetTier: 1 | 2 | 3;  // Tier of the destination node
 }
 
 export function PrestigeConnectionLines({
@@ -27,6 +30,8 @@ export function PrestigeConnectionLines({
   positions,
   unlockedSet,
   isMobile,
+  isTier2Accessible,
+  isTier3Accessible,
   className,
 }: PrestigeConnectionLinesProps) {
   // Calculate all connection lines
@@ -50,6 +55,7 @@ export function PrestigeConnectionLines({
         toPos,
         isActive,
         branch: ability.branch,
+        targetTier: ability.tier,
       });
     }
   }
@@ -104,6 +110,15 @@ export function PrestigeConnectionLines({
       {lines.map((line, index) => {
         const config = BRANCH_VISUAL_CONFIG[line.branch];
         
+        // Determine if target tier is accessible
+        const isTierAccessible = 
+          line.targetTier === 1 ? true :
+          line.targetTier === 2 ? isTier2Accessible :
+          isTier3Accessible;
+        
+        // Line is dimmed if tier is locked
+        const isTierLocked = !isTierAccessible;
+        
         return (
           <g key={`${line.fromId}-${line.toId}-${index}`}>
             {/* Base line */}
@@ -112,17 +127,20 @@ export function PrestigeConnectionLines({
               y1={`${line.fromPos.y}%`}
               x2={`${line.toPos.x}%`}
               y2={`${line.toPos.y}%`}
-              stroke={line.isActive ? config.glowColor : '#374151'}
-              strokeWidth={line.isActive ? 2 : 1}
-              strokeDasharray={line.isActive ? undefined : '4 4'}
-              opacity={line.isActive ? 0.8 : 0.3}
+              stroke={
+                isTierLocked ? '#1f2937' :  // Very dim for locked tiers
+                line.isActive ? config.glowColor : '#374151'
+              }
+              strokeWidth={isTierLocked ? 1 : line.isActive ? 2 : 1}
+              strokeDasharray={isTierLocked ? '2 4' : line.isActive ? undefined : '4 4'}
+              opacity={isTierLocked ? 0.15 : line.isActive ? 0.8 : 0.3}
               style={{
                 transition: 'stroke 0.3s, opacity 0.3s',
               }}
             />
             
-            {/* Glow effect for active lines (desktop only) */}
-            {line.isActive && !isMobile && (
+            {/* Glow effect for active lines (desktop only, not for locked tiers) */}
+            {line.isActive && !isMobile && !isTierLocked && (
               <line
                 x1={`${line.fromPos.x}%`}
                 y1={`${line.fromPos.y}%`}
