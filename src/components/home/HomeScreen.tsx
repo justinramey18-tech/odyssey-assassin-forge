@@ -39,6 +39,9 @@ type NavigableTab =
   | 'consumables' 
   | 'chronicle';
 
+// Card types for navigation
+type CardType = 'navigation' | 'drawers';
+
 interface HomeScreenProps {
   character: Character;
   equipment: CharacterEquipment;
@@ -61,33 +64,36 @@ interface HomeScreenProps {
 }
 
 interface NavigationCardData {
-  id: NavigableTab;
+  id: NavigableTab | 'drawers';
   label: string;
   description: string;
   icon: LucideIcon;
   color: string;
+  type: CardType;
 }
 
-// Navigation card configuration
+// Navigation card configuration - ordered by user preference
 const navigationCards: NavigationCardData[] = [
-  { id: 'skills', label: 'Skills', description: 'Proficiencies & checks', 
-    icon: BookOpen, color: 'text-blue-400' },
-  { id: 'abilities', label: 'Abilities', description: 'Unlock & upgrade', 
-    icon: Zap, color: 'text-violet-400' },
-  { id: 'gear', label: 'Gear', description: 'Equipment & inventory', 
-    icon: Backpack, color: 'text-amber-400' },
-  { id: 'feats', label: 'Feats', description: 'Achievements & progress', 
-    icon: Trophy, color: 'text-yellow-400' },
+  { id: 'drawers', label: 'Drawers', description: 'Quick-access panels', 
+    icon: PanelLeft, color: 'text-cyan-400', type: 'drawers' },
   { id: 'combat', label: 'Combat', description: 'Battle tracker', 
-    icon: Swords, color: 'text-red-400' },
-  { id: 'scribe', label: 'Scribe', description: 'AI narrative tools', 
-    icon: Scroll, color: 'text-orange-400' },
+    icon: Swords, color: 'text-red-400', type: 'navigation' },
   { id: 'consumables', label: 'Items', description: 'Potions & scrolls', 
-    icon: Beaker, color: 'text-green-400' },
-  { id: 'chronicle', label: 'Chronicle', description: 'Session log sync', 
-    icon: FileSearch, color: 'text-blue-300' },
+    icon: Beaker, color: 'text-green-400', type: 'navigation' },
+  { id: 'abilities', label: 'Abilities', description: 'Unlock & upgrade', 
+    icon: Zap, color: 'text-violet-400', type: 'navigation' },
+  { id: 'gear', label: 'Gear', description: 'Equipment & inventory', 
+    icon: Backpack, color: 'text-amber-400', type: 'navigation' },
   { id: 'stars', label: 'Stars', description: 'Constellation view', 
-    icon: Star, color: 'text-purple-400' },
+    icon: Star, color: 'text-purple-400', type: 'navigation' },
+  { id: 'feats', label: 'Feats', description: 'Achievements & progress', 
+    icon: Trophy, color: 'text-yellow-400', type: 'navigation' },
+  { id: 'skills', label: 'Skills', description: 'Proficiencies & checks', 
+    icon: BookOpen, color: 'text-blue-400', type: 'navigation' },
+  { id: 'chronicle', label: 'Chronicle', description: 'Session log sync', 
+    icon: FileSearch, color: 'text-blue-300', type: 'navigation' },
+  { id: 'scribe', label: 'Scribe', description: 'AI narrative tools', 
+    icon: Scroll, color: 'text-orange-400', type: 'navigation' },
 ];
 
 // Haptic feedback helper
@@ -400,9 +406,61 @@ export function HomeScreen({
             animate="visible"
           >
             {navigationCards.map((card) => {
-              const badge = getBadge(card.id);
+              const badge = card.type === 'navigation' ? getBadge(card.id) : undefined;
               const IconComponent = card.icon;
               
+              // Handle Drawers card specially
+              if (card.type === 'drawers') {
+                if (!drawerContext) return null;
+                
+                return (
+                  <motion.div key={card.id} variants={itemVariants}>
+                    <button
+                      className={cn(
+                        transparentButtonBase,
+                        "cursor-pointer min-h-[120px] p-4 w-full",
+                        "flex flex-col items-center justify-center text-center gap-2",
+                        "border-cyan-500/30 hover:border-cyan-400/50"
+                      )}
+                      onClick={() => {
+                        triggerHaptic('light');
+                        setShowDrawersMenu(true);
+                      }}
+                      style={{ touchAction: 'manipulation' }}
+                      aria-label="Open quick-access drawers menu"
+                    >
+                      <div className="relative">
+                        <div className={cn(
+                          "rounded-full flex items-center justify-center bg-white/10",
+                          isMobile ? "w-12 h-12" : "w-14 h-14"
+                        )}>
+                          <IconComponent className={cn(
+                            card.color,
+                            isMobile ? "w-6 h-6" : "w-7 h-7"
+                          )} />
+                        </div>
+                      </div>
+                      
+                      <h3 
+                        className={cn(
+                          "font-cinzel font-semibold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]",
+                          isMobile ? "text-sm" : "text-base"
+                        )}
+                      >
+                        {card.label}
+                      </h3>
+                      
+                      {!isMobile && (
+                        <p className="text-xs text-white/70 drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]">
+                          {card.description}
+                        </p>
+                      )}
+                    </button>
+                  </motion.div>
+                );
+              }
+              
+              // Regular navigation cards
               return (
                 <motion.div key={card.id} variants={itemVariants}>
                   <button
@@ -411,7 +469,7 @@ export function HomeScreen({
                       "cursor-pointer min-h-[120px] p-4 w-full",
                       "flex flex-col items-center justify-center text-center gap-2"
                     )}
-                    onClick={() => handleCardClick(card.id)}
+                    onClick={() => handleCardClick(card.id as NavigableTab)}
                     style={{ touchAction: 'manipulation' }}
                     aria-label={`Navigate to ${card.label}. ${card.description}${
                       badge ? `. ${badge} notifications.` : ''
@@ -460,53 +518,6 @@ export function HomeScreen({
                 </motion.div>
               );
             })}
-            
-            {/* Drawers Card */}
-            {drawerContext && (
-              <motion.div variants={itemVariants}>
-                <button
-                  className={cn(
-                    transparentButtonBase,
-                    "cursor-pointer min-h-[120px] p-4 w-full",
-                    "flex flex-col items-center justify-center text-center gap-2",
-                    "border-cyan-500/30 hover:border-cyan-400/50"
-                  )}
-                  onClick={() => {
-                    triggerHaptic('light');
-                    setShowDrawersMenu(true);
-                  }}
-                  style={{ touchAction: 'manipulation' }}
-                  aria-label="Open quick-access drawers menu"
-                >
-                  <div className="relative">
-                    <div className={cn(
-                      "rounded-full flex items-center justify-center bg-white/10",
-                      isMobile ? "w-12 h-12" : "w-14 h-14"
-                    )}>
-                      <PanelLeft className={cn(
-                        "text-cyan-400",
-                        isMobile ? "w-6 h-6" : "w-7 h-7"
-                      )} />
-                    </div>
-                  </div>
-                  
-                  <h3 
-                    className={cn(
-                      "font-cinzel font-semibold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]",
-                      isMobile ? "text-sm" : "text-base"
-                    )}
-                  >
-                    Drawers
-                  </h3>
-                  
-                  {!isMobile && (
-                    <p className="text-xs text-white/70 drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]">
-                      Quick-access panels
-                    </p>
-                  )}
-                </button>
-              </motion.div>
-            )}
           </motion.div>
         </div>
 
