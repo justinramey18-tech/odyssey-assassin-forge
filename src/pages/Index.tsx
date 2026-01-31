@@ -768,6 +768,7 @@ const Index = () => {
         character={character} 
         currentXP={currentXP} 
         prestigeData={prestigeData}
+        availableAbilityPoints={availableAbilityPoints}
       />
 
       {/* Tab Navigation */}
