@@ -1,379 +1,516 @@
 
 
-# Production-Ready App Reset Button - Final Implementation
+# Prestige Tree Tier Lock Visual Enhancement - Implementation Plan
 
 ## Overview
+Implement visual tier-locking indicators in the Legacy (Prestige) tab to clearly show when Intermediate and Advanced tiers are inaccessible because Foundation abilities haven't been completed.
 
-Add a **Danger Zone** section with a destructive reset button to the Settings Modal's Character tab. This clears all React state and localStorage, returning the app to its first-launch state.
+## Current State
 
----
+The tier-gating **logic** is already correctly implemented in `use-prestige-tree.ts`:
+- `isTierUnlockedForBranch(branch, tier)` - checks if a tier is accessible
+- `getTierUnlockProgress(branch, tier)` - returns completion progress with `requiredTierName` and `targetTierName`
+- `canUnlockAbility()` returns proper lock reasons like "Intermediate locked. Complete all Foundation abilities (2/4)"
 
-## Verified Codebase Analysis
-
-| Item | Finding | Impact |
-|------|---------|--------|
-| `resetAllAppData` import | Already exists in Index.tsx (line 49) | No import needed |
-| Toast in SettingsModal | Uses `toast` from `sonner` (line 14) | Use `toast.error()` syntax |
-| Achievement structure | Flat array, no nested objects | Shallow copy sufficient |
-| `createInitialEquipment()` | Factory function, returns new object | No mutation risk |
-| `useConsumables` | Reads from localStorage on mount | Clearing storage resets it |
-| Intro splash flow | Shows when `showHomeScreen && showIntroSplash` | Wizard takes precedence |
+**The problem**: The UI doesn't visually distinguish between:
+1. **Tier locked** (previous tier incomplete) - should show lock overlay, non-interactive
+2. **Available but not purchased** (tier accessible, missing points/prereqs) - should be clickable
+3. **Already unlocked** - should show completion state
 
 ---
 
-## Files to Modify
+## Phase 1: Add `isTierLocked` Prop to PrestigeAbilityNode
 
-### File 1: `src/components/settings/SettingsModal.tsx`
+**File**: `src/components/prestigeTree/PrestigeAbilityNode.tsx`
 
-#### A. Add Imports (After line 2)
+### Changes
 
-Add `AlertTriangle` to existing lucide-react import:
+1. Add new prop to interface:
 ```typescript
-import { Settings, User, Dices, Gamepad2, RotateCcw, Star, Lock, FileText, Copy, Check, RefreshCw, Camera, BookOpen, AlertTriangle } from 'lucide-react';
-```
-
-#### B. Add AlertDialog Import (After line 20)
-
-```typescript
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-```
-
-#### C. Update Props Interface (Line 22)
-
-Add new prop:
-```typescript
-interface SettingsModalProps {
-  characterName: string;
-  onEditCharacter: () => void;
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
-  prestigeData?: {
-    totalPrestigePoints: number;
-    prestigeLevel: number;
-  };
-  onPrestigeRespec?: () => void;
-  onResetComplete?: () => void;  // NEW PROP
-  // ... existing props ...
+interface PrestigeAbilityNodeProps {
+  // ... existing props
+  isTierLocked?: boolean;  // NEW - entire tier is inaccessible
 }
 ```
 
-#### D. Destructure New Prop (Line 41)
+2. Add distinct visual state for tier-locked nodes:
+   - Heavy blur overlay (bg-black/70 backdrop-blur-sm)
+   - Centered lock icon (replaces ability icon entirely)
+   - Opacity reduction to 0.3 (vs 0.5 for "can't afford")
+   - Disable all hover effects and interactions
+   - Remove pointer events
 
+3. Update button element:
 ```typescript
-export function SettingsModal({ 
-  characterName, 
-  // ... existing props ...
-  onResetComplete,  // NEW
-}: SettingsModalProps) {
+<button
+  onClick={!isTierLocked ? onClick : undefined}
+  disabled={isTierLocked || (!isUnlocked && !canUnlock)}
+  className={cn(
+    // ... existing styles
+    isTierLocked && [
+      "opacity-30",
+      "cursor-not-allowed",
+      "pointer-events-none",
+    ]
+  )}
+>
 ```
 
-#### E. Add State for Reset Dialog (After line 62)
-
+4. Add tier-lock overlay inside the button:
 ```typescript
-const [showResetDialog, setShowResetDialog] = useState(false);
-```
-
-#### F. Add Reset Handler (After line 156)
-
-```typescript
-const handleReset = () => {
-  try {
-    // Close dialogs first to prevent animation glitches
-    setShowResetDialog(false);
-    setOpen(false);
-    
-    // Trigger parent state reset (which clears localStorage)
-    if (onResetComplete) {
-      onResetComplete();
-    }
-  } catch (error) {
-    console.error('[AppReset] Reset failed:', error);
-    toast.error('Reset failed. Please refresh the page and try again.');
-  }
-};
-```
-
-#### G. Add Danger Zone Section (After line 454)
-
-Insert after the "Character editing opens the setup wizard" text, inside the Character TabsContent:
-
-```typescript
-{/* Danger Zone - App Reset */}
-<div className="mt-6 border-2 border-destructive/50 rounded-lg p-4 bg-destructive/5 space-y-4">
-  <div className="flex items-start gap-3">
-    <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
-    <div className="flex-1">
-      <h4 className="font-display font-semibold text-destructive">
-        Danger Zone
-      </h4>
-      <p className="text-xs text-muted-foreground mt-1">
-        Permanently delete all data and start fresh.
-      </p>
-    </div>
+{isTierLocked && (
+  <div className="absolute inset-0 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center z-20">
+    <Lock className="w-5 h-5 text-slate-500" />
   </div>
+)}
+```
 
-  <div className="bg-background/50 rounded-md p-3 space-y-1.5">
-    <p className="text-xs font-semibold text-foreground">This will delete:</p>
-    <ul className="text-xs text-muted-foreground space-y-1 ml-3">
-      <li className="flex items-center gap-2">
-        <span className="w-1 h-1 rounded-full bg-destructive/70" />
-        Character ({characterName || 'Unnamed'})
-      </li>
-      <li className="flex items-center gap-2">
-        <span className="w-1 h-1 rounded-full bg-destructive/70" />
-        All levels, XP, and ability upgrades
-      </li>
-      <li className="flex items-center gap-2">
-        <span className="w-1 h-1 rounded-full bg-destructive/70" />
-        Equipment, achievements, and consumables
-      </li>
-      {prestigeData && prestigeData.prestigeLevel > 0 && (
-        <li className="flex items-center gap-2">
-          <span className="w-1 h-1 rounded-full bg-destructive/70" />
-          Prestige Level {prestigeData.prestigeLevel}
-        </li>
-      )}
-    </ul>
-  </div>
+### Visual States Summary
 
-  <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
-    <AlertDialogTrigger asChild>
-      <Button 
-        variant="destructive" 
-        size="sm"
-        className="w-full gap-2"
-      >
-        <RotateCcw className="w-3.5 h-3.5" />
-        Reset Entire App
-      </Button>
-    </AlertDialogTrigger>
-    
-    <AlertDialogContent className="max-w-md">
-      <AlertDialogHeader>
-        <AlertDialogTitle className="flex items-center gap-2 text-destructive">
-          <AlertTriangle className="w-5 h-5" />
-          Reset Application?
-        </AlertDialogTitle>
-        <AlertDialogDescription asChild>
-          <div className="space-y-3 pt-2">
-            <p className="text-sm">
-              You are about to <span className="font-semibold text-destructive">permanently delete</span> all data:
-            </p>
-            
-            <div className="bg-muted/50 rounded-md p-3">
-              <p className="font-semibold text-sm text-foreground">
-                {characterName || 'Unnamed Character'}
-              </p>
-              {prestigeData && prestigeData.prestigeLevel > 0 && (
-                <p className="text-xs text-amber-400 mt-1">
-                  Prestige Level {prestigeData.prestigeLevel}
-                </p>
+| State | Opacity | Border | Icon | Hover | Clickable |
+|-------|---------|--------|------|-------|-----------|
+| Unlocked | 1.0 | Branch glow | Ability icon (colored) | - | Yes (view details) |
+| Can Unlock | 1.0 | Amber dashed | Ability icon (amber) | Scale up | Yes |
+| Cannot Unlock Yet | 0.5 | Slate | Lock icon | None | Yes (view reason) |
+| Tier Locked | 0.3 | None | Lock overlay | None | No |
+
+---
+
+## Phase 2: Update PrestigeBranchColumn to Calculate Tier Accessibility
+
+**File**: `src/components/prestigeTree/PrestigeBranchColumn.tsx`
+
+### Changes
+
+1. Add new props to interface:
+```typescript
+interface PrestigeBranchColumnProps {
+  // ... existing props
+  isTierUnlockedForBranch: (branch: PrestigeBranch, tier: 1 | 2 | 3) => boolean;
+  getTierUnlockProgress: (branch: PrestigeBranch, tier: 1 | 2 | 3) => {
+    unlockedCount: number;
+    totalRequired: number;
+    requiredTierName: string;
+    targetTierName: string;
+  };
+}
+```
+
+2. Calculate tier accessibility inside component:
+```typescript
+// Calculate tier accessibility for this branch
+const isTier2Accessible = isTierUnlockedForBranch(branch, 2);
+const isTier3Accessible = isTierUnlockedForBranch(branch, 3);
+
+// Get progress for each tier
+const tier1Progress = getTierUnlockProgress(branch, 1);
+const tier2Progress = getTierUnlockProgress(branch, 2);
+const tier3Progress = getTierUnlockProgress(branch, 3);
+```
+
+3. Pass `isTierLocked` to each node:
+```typescript
+// Tier 1 nodes - always accessible
+<PrestigeAbilityNode
+  isTierLocked={false}
+  // ... other props
+/>
+
+// Tier 2 nodes
+<PrestigeAbilityNode
+  isTierLocked={!isTier2Accessible}
+  // ... other props
+/>
+
+// Tier 3 nodes
+<PrestigeAbilityNode
+  isTierLocked={!isTier3Accessible}
+  // ... other props
+/>
+```
+
+---
+
+## Phase 3: Add Tier Section Headers with Progress
+
+**File**: `src/components/prestigeTree/PrestigeBranchColumn.tsx`
+
+### New Tier Header Component
+
+Replace static tier labels with enhanced headers:
+
+```typescript
+function TierHeader({
+  tierName,
+  isAccessible,
+  progress,
+  isMobile,
+}: {
+  tierName: string;
+  isAccessible: boolean;
+  progress: { unlockedCount: number; totalRequired: number };
+  isMobile: boolean;
+}) {
+  const isComplete = progress.unlockedCount === progress.totalRequired;
+  const percentage = progress.totalRequired > 0 
+    ? Math.round((progress.unlockedCount / progress.totalRequired) * 100)
+    : 0;
+
+  return (
+    <div className={cn(
+      "flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2",
+      "py-2 mb-4"
+    )}>
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] text-muted-foreground/70 uppercase tracking-widest">
+          {tierName}
+        </span>
+        
+        {/* Status Badge */}
+        {!isAccessible && (
+          <Badge variant="secondary" className="text-[8px] gap-1 px-1.5 py-0.5">
+            <Lock className="w-2 h-2" />
+            Locked
+          </Badge>
+        )}
+        
+        {isAccessible && !isComplete && (
+          <Badge variant="outline" className="text-[8px] px-1.5 py-0.5">
+            {progress.unlockedCount}/{progress.totalRequired}
+          </Badge>
+        )}
+        
+        {isComplete && (
+          <Badge className="text-[8px] gap-1 px-1.5 py-0.5 bg-green-600">
+            <Check className="w-2 h-2" />
+          </Badge>
+        )}
+      </div>
+
+      {/* Progress Bar (Tier 2/3 only) */}
+      {progress.totalRequired > 0 && (
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="w-16 sm:w-20 h-1.5 bg-muted rounded-full overflow-hidden">
+            <div 
+              className={cn(
+                "h-full transition-all duration-500 ease-out",
+                isComplete ? "bg-green-500" : isAccessible ? "bg-amber-500" : "bg-slate-600"
               )}
-            </div>
-
-            <div className="bg-destructive/10 border border-destructive/30 rounded-md p-3">
-              <p className="text-xs font-semibold text-destructive">
-                This cannot be undone
-              </p>
-            </div>
+              style={{ width: `${percentage}%` }}
+            />
           </div>
-        </AlertDialogDescription>
-      </AlertDialogHeader>
+          <span className="text-[9px] text-muted-foreground/50 w-8">
+            {percentage}%
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+### Layout with Headers
+
+```typescript
+{/* Tier 1 - Foundation */}
+<TierHeader
+  tierName="Foundation"
+  isAccessible={true}
+  progress={tier1Progress}
+  isMobile={isMobile}
+/>
+<div className="relative z-10 flex justify-center gap-4 mb-6">
+  {tier1.map((ability) => (
+    <PrestigeAbilityNode
+      key={ability.id}
+      ability={ability}
+      isTierLocked={false}
+      // ... other props
+    />
+  ))}
+</div>
+
+{/* Tier 2 - Intermediate */}
+<TierHeader
+  tierName="Intermediate"
+  isAccessible={isTier2Accessible}
+  progress={tier2Progress}
+  isMobile={isMobile}
+/>
+{/* Lock message if tier is locked */}
+{!isTier2Accessible && (
+  <div className="text-center text-[10px] text-amber-400/60 mb-4">
+    Complete all Foundation abilities ({tier1Progress.unlockedCount}/{tier1Progress.totalRequired})
+  </div>
+)}
+<div className="relative z-10 flex justify-center gap-4 mb-6">
+  {tier2.map((ability) => (
+    <PrestigeAbilityNode
+      key={ability.id}
+      ability={ability}
+      isTierLocked={!isTier2Accessible}
+      // ... other props
+    />
+  ))}
+</div>
+
+{/* Similar pattern for Tier 3 */}
+```
+
+---
+
+## Phase 4: Update PrestigeConnectionLines for Tier Lock State
+
+**File**: `src/components/prestigeTree/PrestigeConnectionLines.tsx`
+
+### Changes
+
+1. Add new props:
+```typescript
+interface PrestigeConnectionLinesProps {
+  // ... existing props
+  isTier2Accessible: boolean;
+  isTier3Accessible: boolean;
+}
+```
+
+2. Update line interface to track target tier:
+```typescript
+interface ConnectionLine {
+  // ... existing fields
+  targetTier: 1 | 2 | 3;  // NEW - tier of the destination node
+}
+```
+
+3. Populate targetTier when building lines:
+```typescript
+for (const ability of abilities) {
+  // ...
+  lines.push({
+    // ... existing fields
+    targetTier: ability.tier,
+  });
+}
+```
+
+4. Update line rendering to show tier lock state:
+```typescript
+{lines.map((line, index) => {
+  const config = BRANCH_VISUAL_CONFIG[line.branch];
+  
+  // Determine if target tier is accessible
+  const isTierAccessible = 
+    line.targetTier === 1 ? true :
+    line.targetTier === 2 ? isTier2Accessible :
+    isTier3Accessible;
+  
+  // Line is dimmed if tier is locked
+  const isTierLocked = !isTierAccessible;
+  
+  return (
+    <g key={`${line.fromId}-${line.toId}-${index}`}>
+      <line
+        x1={`${line.fromPos.x}%`}
+        y1={`${line.fromPos.y}%`}
+        x2={`${line.toPos.x}%`}
+        y2={`${line.toPos.y}%`}
+        stroke={
+          isTierLocked ? '#1f2937' :  // Very dim for locked tiers
+          line.isActive ? config.glowColor : '#374151'
+        }
+        strokeWidth={isTierLocked ? 1 : line.isActive ? 2 : 1}
+        strokeDasharray={isTierLocked ? '2 4' : line.isActive ? undefined : '4 4'}
+        opacity={isTierLocked ? 0.15 : line.isActive ? 0.8 : 0.3}
+        style={{
+          transition: 'stroke 0.3s, opacity 0.3s',
+        }}
+      />
       
-      <AlertDialogFooter className="gap-2 sm:gap-0">
-        <AlertDialogCancel className="mt-0">
-          Cancel
-        </AlertDialogCancel>
-        <AlertDialogAction
-          onClick={handleReset}
-          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-        >
-          Yes, Delete Everything
-        </AlertDialogAction>
-      </AlertDialogFooter>
-    </AlertDialogContent>
-  </AlertDialog>
+      {/* Glow effect only for active, accessible lines */}
+      {line.isActive && !isMobile && !isTierLocked && (
+        <line /* glow line */ />
+      )}
+    </g>
+  );
+})}
+```
+
+---
+
+## Phase 5: Update PrestigeTreeScreen to Pass Tier Helpers
+
+**File**: `src/components/prestigeTree/PrestigeTreeScreen.tsx`
+
+### Changes
+
+1. Destructure tier helpers from hook:
+```typescript
+const {
+  isLegacyUnlocked,
+  unlockProgress,
+  unlockedSet,
+  spentOnTree,
+  branchProgress,
+  canUnlockAbility,
+  unlockAbility,
+  isAbilityUnlocked,
+  isTierUnlockedForBranch,    // ADD
+  getTierUnlockProgress,      // ADD
+} = prestigeTree;
+```
+
+2. Pass to PrestigeBranchColumn:
+```typescript
+<PrestigeBranchColumn
+  key={branch}
+  branch={branch}
+  unlockedSet={unlockedSet}
+  canUnlockAbility={canUnlockAbility}
+  onNodeClick={handleNodeClick}
+  isMobile={isMobile}
+  isTierUnlockedForBranch={isTierUnlockedForBranch}  // ADD
+  getTierUnlockProgress={getTierUnlockProgress}      // ADD
+  className="border border-purple-900/20 rounded-xl bg-black/20"
+/>
+```
+
+---
+
+## Phase 6: Enhance PrestigeAbilityDetails Sheet
+
+**File**: `src/components/prestigeTree/PrestigeAbilityDetails.tsx`
+
+### Changes
+
+1. Detect tier-lock vs other lock reasons:
+```typescript
+// Detect different lock types from unlock reason
+const isTierLocked = unlockReason?.toLowerCase().includes('locked') && 
+  (unlockReason?.includes('Foundation') || unlockReason?.includes('Intermediate'));
+
+const isPrestigeLevelLocked = unlockReason?.includes('Prestige Level');
+
+const isMissingPoints = unlockReason?.includes('more ability point');
+
+const isMissingPrereqs = unlockReason?.includes('Requires:');
+```
+
+2. Update action button section with distinct UI for each lock type:
+```typescript
+{/* Action Button */}
+<div className="absolute bottom-6 left-6 right-6">
+  {isUnlocked ? (
+    <div className="flex items-center justify-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
+      <Unlock className="w-4 h-4 text-green-400" />
+      <span className="text-sm text-green-400">Unlocked</span>
+    </div>
+  ) : canUnlock ? (
+    <Button
+      onClick={handleUnlock}
+      className="w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black font-bold"
+    >
+      <Unlock className="w-4 h-4 mr-2" />
+      Unlock for {ability.prestigeCost} Point{ability.prestigeCost > 1 ? 's' : ''}
+    </Button>
+  ) : isTierLocked ? (
+    // Tier Locked - Distinct amber/red styling
+    <div className="flex flex-col items-center gap-1.5 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+      <div className="flex items-center gap-2">
+        <Lock className="w-4 h-4 text-amber-400" />
+        <span className="text-sm font-semibold text-amber-400">Tier Locked</span>
+      </div>
+      <span className="text-xs text-amber-400/70 text-center">{unlockReason}</span>
+    </div>
+  ) : isPrestigeLevelLocked ? (
+    // Prestige Level Locked - Purple styling
+    <div className="flex flex-col items-center gap-1.5 p-3 rounded-lg bg-purple-500/10 border border-purple-500/30">
+      <div className="flex items-center gap-2">
+        <AlertCircle className="w-4 h-4 text-purple-400" />
+        <span className="text-sm font-semibold text-purple-400">Level Required</span>
+      </div>
+      <span className="text-xs text-purple-400/70 text-center">{unlockReason}</span>
+    </div>
+  ) : (
+    // Missing points or prerequisites - Default gray
+    <div className="flex items-center justify-center gap-2 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+      <Lock className="w-4 h-4 text-slate-500" />
+      <span className="text-sm text-slate-500">{unlockReason}</span>
+    </div>
+  )}
 </div>
 ```
 
 ---
 
-### File 2: `src/pages/Index.tsx`
+## Real-Time Update Mechanism
 
-#### A. Add handleResetApp Function (After line 584)
+The UI will update instantly when abilities are unlocked:
 
-```typescript
-const handleResetApp = () => {
-  try {
-    // 1. Reset all React state FIRST (prevents hooks reading stale data)
-    
-    // Reset character to default
-    setCharacter({
-      name: '',
-      level: 1,
-      abilities: allAbilities.map(a => ({ abilityId: a.id, currentTier: 0 as const })),
-      equippedAbilities: [],
-    });
-
-    // Reset XP
-    setCurrentXP(0);
-    setXPPreset('standard');
-
-    // Reset equipment (factory returns new object each call)
-    setEquipment(createInitialEquipment());
-
-    // Reset achievements (shallow copy is sufficient)
-    setAchievements(achievementCategories.map(a => ({ ...a })));
-
-    // Reset prestige data
-    setPrestigeData({
-      prestigeLevel: 0,
-      prestigeXP: 0,
-      totalPrestigePoints: 0,
-    });
-
-    // 2. Reset UI state
-    setActiveTab('skills');
-    setShowHomeScreen(false);
-    setShowWizard(true);
-    // Note: showIntroSplash will be reset when localStorage is cleared below
-
-    // 3. Clear all localStorage (after state reset to prevent race conditions)
-    resetAllAppData();
-    
-    // Ensure intro splash flag is also cleared for true first-launch experience
-    localStorage.removeItem('odyssey-intro-seen');
-
-    // 4. Success feedback
-    toast({
-      title: "App Reset Complete",
-      description: "All data cleared. Create a new character to begin.",
-      className: "border-blue-500 bg-blue-500/10",
-      duration: 4000,
-    });
-
-  } catch (error) {
-    console.error('[AppReset] Reset failed:', error);
-    toast({
-      title: "Reset Failed",
-      description: "An error occurred. Please refresh the page and try again.",
-      variant: "destructive",
-    });
-  }
-};
-```
-
-#### B. Update First SettingsModal Instance (Line 664)
-
-Add `onResetComplete` prop:
-```typescript
-<SettingsModal 
-  characterName={character.name} 
-  onEditCharacter={() => setShowWizard(true)}
-  open={showSettingsModal}
-  onOpenChange={setShowSettingsModal}
-  prestigeData={{
-    totalPrestigePoints: prestigeData.totalPrestigePoints,
-    prestigeLevel: prestigeData.prestigeLevel,
-  }}
-  onResetComplete={handleResetApp}
-/>
-```
-
-#### C. Update Second SettingsModal Instance (Line 740)
-
-Add `onResetComplete` prop:
-```typescript
-<SettingsModal 
-  characterName={character.name} 
-  onEditCharacter={() => setShowWizard(true)}
-  open={showSettingsModal}
-  onOpenChange={setShowSettingsModal}
-  prestigeData={{
-    totalPrestigePoints: prestigeData.totalPrestigePoints,
-    prestigeLevel: prestigeData.prestigeLevel,
-  }}
-  onResetComplete={handleResetApp}
-  character={character}
-  abilities={allAbilities}
-  unlockedAbilities={unlockedAbilities}
-  equippedGear={equipment.slots}
-  prestigeLevel={prestigeData.prestigeLevel > 0 ? prestigeData.prestigeLevel : undefined}
-  aggregatedStats={{
-    totalAC: aggregatedStats.totalAC,
-    totalAttackBonus: aggregatedStats.totalAttackBonus,
-    damage: aggregatedStats.damage,
-    strength: aggregatedStats.strength,
-    dexterity: aggregatedStats.dexterity,
-    constitution: aggregatedStats.constitution,
-    intelligence: aggregatedStats.intelligence,
-    wisdom: aggregatedStats.wisdom,
-    charisma: aggregatedStats.charisma,
-  }}
-/>
-```
+1. When `unlockAbility()` succeeds, it updates `progress.unlockedAbilities`
+2. This triggers React re-render via `useState`
+3. `unlockedSet` is recalculated (useMemo dependency on progress)
+4. `isTierUnlockedForBranch` uses the new `unlockedSet`
+5. `PrestigeBranchColumn` re-renders with updated `isTier2Accessible`/`isTier3Accessible`
+6. Lock overlays disappear via React reconciliation
+7. CSS transitions provide smooth visual feedback (300ms on opacity/stroke)
 
 ---
 
-## Technical Decisions
+## Mobile Responsive Considerations
 
-### 1. State Reset Before localStorage Clear
-
-State updates execute before localStorage is cleared. This prevents:
-- Race conditions where hooks read stale storage data
-- Auto-save effects writing stale data back
-
-### 2. Intro Splash Flow After Reset
-
-After reset:
-1. `showWizard = true` - Wizard displays first (line 587 takes precedence)
-2. `odyssey-intro-seen` cleared - After wizard completion, intro splash will show
-3. Intro splash - User clicks "Begin Journey" to reach home screen
-
-### 3. No Redundant Modal Closing
-
-SettingsModal's `handleReset` closes dialogs via `setOpen(false)`. Parent's `handleResetApp` does NOT call `setShowSettingsModal(false)` to avoid duplicate state updates.
-
-### 4. Consumables Reset
-
-`useConsumables` hook reads from localStorage on mount. After reset:
-1. localStorage is cleared
-2. Wizard renders (which doesn't use consumables)
-3. When consumables are next accessed, hook reads empty storage
+1. **Tier Headers**: Stack vertically on mobile with `flex-col sm:flex-row`
+2. **Progress Bars**: Full width on mobile, fixed width on desktop
+3. **Lock Overlays**: Same size as nodes (w-12 h-12 on mobile vs w-16 h-16 desktop)
+4. **Touch Targets**: Disabled nodes have `pointer-events-none` to prevent accidental taps
+5. **Lock Messages**: Centered text with adequate padding for readability
 
 ---
 
-## What NOT to Change
+## Edge Cases Handled
 
-- The existing `resetAllAppData()` utility
-- URL parameter reset functionality (`?reset=true`)
-- Auto-save logic
-- Any other tabs or components
-- XP progression widget, game mode settings
+| Case | Behavior |
+|------|----------|
+| Empty branch (no abilities) | Console error, tier returns locked |
+| Missing previous tier | Console warning, tier allowed to unlock |
+| Prestige level requirement | Shows purple "Level Required" UI |
+| Prerequisites not met | Shows gray "Requires: X, Y" UI |
+| Zero points available | Shows gray "Need X more points" UI |
+| Rapid unlock attempts | Debounced via `isUnlocking` state |
+
+---
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `PrestigeAbilityNode.tsx` | Add `isTierLocked` prop, blur overlay, disabled styles |
+| `PrestigeBranchColumn.tsx` | Add tier helpers props, calculate accessibility, tier headers, lock messages |
+| `PrestigeConnectionLines.tsx` | Add tier accessibility props, dim lines to locked tiers |
+| `PrestigeTreeScreen.tsx` | Destructure and pass tier helper functions |
+| `PrestigeAbilityDetails.tsx` | Detect lock types, distinct UI for tier/prestige/prereq locks |
 
 ---
 
 ## Testing Checklist
 
-- [ ] "Danger Zone" appears at bottom of Character tab in Settings
-- [ ] Clicking "Reset Entire App" opens confirmation dialog
-- [ ] Dialog shows character name and prestige level (if any)
-- [ ] "Cancel" closes dialog without changes
-- [ ] "Yes, Delete Everything" triggers reset
-- [ ] Character creation wizard appears immediately
-- [ ] localStorage is empty (check DevTools > Application)
-- [ ] Success toast appears
-- [ ] After completing wizard, intro splash screen shows
-- [ ] No console errors during reset
-- [ ] Refreshing page shows wizard (not stale data)
+### Per-Branch Testing
+- Foundation (Tier 1) abilities always accessible in all 4 branches
+- Intermediate (Tier 2) shows lock overlay until ALL Foundation unlocked
+- Advanced (Tier 3) shows lock overlay until ALL Intermediate unlocked
+- Each branch progresses independently
+
+### Visual States
+- Tier-locked nodes: Heavy blur overlay, lock icon, non-interactive
+- Available nodes: Amber pulse, cost badge, clickable
+- Unlocked nodes: Branch-colored glow, ability icon
+
+### Real-Time Updates
+- Unlocking last Foundation ability instantly removes Intermediate lock overlays
+- Progress bars update immediately on unlock
+- Connection lines brighten when tier becomes accessible
+
+### Edge Cases
+- Prestige level requirement shows purple UI in details sheet
+- Missing points shows gray UI with specific message
+- Mobile view handles all states correctly
 
