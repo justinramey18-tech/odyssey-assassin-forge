@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 interface BackgroundWrapperProps {
   imagePath: string;
   overlayOpacity?: number;
-  tintColor?: 'red' | 'amber' | 'purple' | 'cyan' | 'green';
+  tintColor?: 'red' | 'amber' | 'purple' | 'cyan' | 'green' | 'indigo';
   tintOpacity?: number;
   fixed?: boolean;
   backgroundSize?: 'cover' | 'contain';
@@ -23,6 +23,7 @@ const tintColorMap = {
   purple: 'from-purple-900 via-transparent to-purple-900',
   cyan: 'from-cyan-900 via-transparent to-cyan-900',
   green: 'from-green-900 via-transparent to-green-900',
+  indigo: 'from-indigo-900 via-transparent to-indigo-900',
 };
 
 const DEFAULT_FALLBACK_GRADIENT = 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%)';
