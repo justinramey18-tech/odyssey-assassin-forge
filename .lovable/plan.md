@@ -1,516 +1,325 @@
 
+# Revised Implementation Plan: Unified XP/Leveling/Ability Points System
 
-# Prestige Tree Tier Lock Visual Enhancement - Implementation Plan
+## Key Discovery: Character Points Don't Need Migration
 
-## Overview
-Implement visual tier-locking indicators in the Legacy (Prestige) tab to clearly show when Intermediate and Advanced tiers are inaccessible because Foundation abilities haven't been completed.
+After analyzing the codebase, I discovered that **character level points are calculated dynamically** via `getAbilityPointsForLevel(character.level)` - they're never stored. This means:
 
-## Current State
-
-The tier-gating **logic** is already correctly implemented in `use-prestige-tree.ts`:
-- `isTierUnlockedForBranch(branch, tier)` - checks if a tier is accessible
-- `getTierUnlockProgress(branch, tier)` - returns completion progress with `requiredTierName` and `targetTierName`
-- `canUnlockAbility()` returns proper lock reasons like "Intermediate locked. Complete all Foundation abilities (2/4)"
-
-**The problem**: The UI doesn't visually distinguish between:
-1. **Tier locked** (previous tier incomplete) - should show lock overlay, non-interactive
-2. **Available but not purchased** (tier accessible, missing points/prereqs) - should be clickable
-3. **Already unlocked** - should show completion state
+- Updating the formula in `types.ts` will **automatically** give existing characters the correct new point totals
+- Only **prestige points need migration** because `totalPrestigePoints` is stored in localStorage
 
 ---
 
-## Phase 1: Add `isTierLocked` Prop to PrestigeAbilityNode
+## Summary of Changes
 
-**File**: `src/components/prestigeTree/PrestigeAbilityNode.tsx`
+| File | Change | Impact |
+|------|--------|--------|
+| `src/lib/types.ts` | New ability points formula | All characters get new point totals automatically |
+| `src/lib/prestige/config.ts` | Add variable prestige points function | Foundation for prestige migration |
+| `src/hooks/use-prestige.ts` | Use variable points + add migration | Existing prestige data recalculated |
+| `src/hooks/use-auto-save.ts` | Bump version to 2 | Track migrated saves |
+| `src/lib/resetApp.ts` | Import XP thresholds from xpSystem | DRY consolidation |
 
-### Changes
+---
 
-1. Add new prop to interface:
+## Detailed Implementation
+
+### 1. Update Ability Points Formula
+
+**File:** `src/lib/types.ts`  
+**Function:** `getAbilityPointsForLevel()`
+
+**Current formula (lines 41-57):**
+- 1 point per level + bonus at levels 4, 8, 12, 16, 19
+- Total at Level 20: ~25 points
+
+**New formula per spec:**
 ```typescript
-interface PrestigeAbilityNodeProps {
-  // ... existing props
-  isTierLocked?: boolean;  // NEW - entire tier is inaccessible
+export function getAbilityPointsForLevel(level: number): number {
+  if (level < 1) return 0;
+  if (level > 20) level = 20;
+  
+  // Level 1: 5 starting points
+  let points = 5;
+  
+  // Level 2: +3 points
+  if (level >= 2) points += 3;
+  
+  // Levels 3-5: +2 points each
+  for (let l = 3; l <= Math.min(level, 5); l++) {
+    points += 2;
+  }
+  
+  // Levels 6-10: +3 points each
+  for (let l = 6; l <= Math.min(level, 10); l++) {
+    points += 3;
+  }
+  
+  // Levels 11-15: +4 points each
+  for (let l = 11; l <= Math.min(level, 15); l++) {
+    points += 4;
+  }
+  
+  // Levels 16-20: +5 points each
+  for (let l = 16; l <= Math.min(level, 20); l++) {
+    points += 5;
+  }
+  
+  return points;
 }
 ```
 
-2. Add distinct visual state for tier-locked nodes:
-   - Heavy blur overlay (bg-black/70 backdrop-blur-sm)
-   - Centered lock icon (replaces ability icon entirely)
-   - Opacity reduction to 0.3 (vs 0.5 for "can't afford")
-   - Disable all hover effects and interactions
-   - Remove pointer events
+**New point totals by level:**
 
-3. Update button element:
-```typescript
-<button
-  onClick={!isTierLocked ? onClick : undefined}
-  disabled={isTierLocked || (!isUnlocked && !canUnlock)}
-  className={cn(
-    // ... existing styles
-    isTierLocked && [
-      "opacity-30",
-      "cursor-not-allowed",
-      "pointer-events-none",
-    ]
-  )}
->
-```
-
-4. Add tier-lock overlay inside the button:
-```typescript
-{isTierLocked && (
-  <div className="absolute inset-0 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center z-20">
-    <Lock className="w-5 h-5 text-slate-500" />
-  </div>
-)}
-```
-
-### Visual States Summary
-
-| State | Opacity | Border | Icon | Hover | Clickable |
-|-------|---------|--------|------|-------|-----------|
-| Unlocked | 1.0 | Branch glow | Ability icon (colored) | - | Yes (view details) |
-| Can Unlock | 1.0 | Amber dashed | Ability icon (amber) | Scale up | Yes |
-| Cannot Unlock Yet | 0.5 | Slate | Lock icon | None | Yes (view reason) |
-| Tier Locked | 0.3 | None | Lock overlay | None | No |
+| Level | Cumulative Points |
+|-------|-------------------|
+| 1 | 5 |
+| 2 | 8 |
+| 5 | 14 |
+| 10 | 29 |
+| 15 | 49 |
+| 20 | 74 |
 
 ---
 
-## Phase 2: Update PrestigeBranchColumn to Calculate Tier Accessibility
+### 2. Add Variable Prestige Points Function
 
-**File**: `src/components/prestigeTree/PrestigeBranchColumn.tsx`
+**File:** `src/lib/prestige/config.ts`
 
-### Changes
+Add new function (keep existing config for XP requirements):
 
-1. Add new props to interface:
 ```typescript
-interface PrestigeBranchColumnProps {
-  // ... existing props
-  isTierUnlockedForBranch: (branch: PrestigeBranch, tier: 1 | 2 | 3) => boolean;
-  getTierUnlockProgress: (branch: PrestigeBranch, tier: 1 | 2 | 3) => {
-    unlockedCount: number;
-    totalRequired: number;
-    requiredTierName: string;
-    targetTierName: string;
+/**
+ * Get points awarded for reaching a specific prestige level
+ * Variable scaling per spec
+ */
+export function getPrestigePointsForLevel(prestigeLevel: number): number {
+  const levelRewards: Record<number, number> = {
+    1: 3, 2: 2, 3: 2, 4: 2, 5: 3,
+    6: 2, 7: 2, 8: 3, 9: 3, 10: 5,
+  };
+  return levelRewards[prestigeLevel] ?? 3; // 3 points for levels 11+
+}
+
+/**
+ * Calculate total prestige points earned from level 1 to current level
+ * Used for migration and validation
+ */
+export function getTotalPrestigePointsForLevel(prestigeLevel: number): number {
+  let total = 0;
+  for (let l = 1; l <= prestigeLevel; l++) {
+    total += getPrestigePointsForLevel(l);
+  }
+  return total;
+}
+```
+
+**Prestige point totals:**
+
+| Prestige Level | Points This Level | Cumulative |
+|----------------|-------------------|------------|
+| 1 | 3 | 3 |
+| 2 | 2 | 5 |
+| 3 | 2 | 7 |
+| 4 | 2 | 9 |
+| 5 | 3 | 12 |
+| 10 | 5 | 26 |
+| 15 | 3 | 41 |
+
+---
+
+### 3. Update Prestige Hook with Migration
+
+**File:** `src/hooks/use-prestige.ts`
+
+**Update `migratePrestigeData()` to recalculate points:**
+
+```typescript
+import { 
+  getPrestigePointsForLevel,
+  getTotalPrestigePointsForLevel,
+} from '@/lib/prestige/config';
+
+function migratePrestigeData(saved: any): PrestigeData {
+  const prestigeLevel = saved.prestigeLevel ?? 0;
+  
+  // Always recalculate total points from prestige level
+  // This ensures old saves (with 1 point per level) get updated
+  const recalculatedPoints = getTotalPrestigePointsForLevel(prestigeLevel);
+  
+  // Handle legacy format with spentPrestigePoints
+  if ('spentPrestigePoints' in saved || 'availablePrestigePoints' in saved) {
+    console.log('[Prestige Migration] Old format detected, recalculating points');
+  }
+  
+  // If stored points differ from recalculated, log the migration
+  if (saved.totalPrestigePoints !== recalculatedPoints && prestigeLevel > 0) {
+    console.log(`[Prestige Migration] Points updated: ${saved.totalPrestigePoints ?? 0} → ${recalculatedPoints}`);
+  }
+  
+  return {
+    prestigeLevel,
+    prestigeXP: saved.prestigeXP ?? 0,
+    totalPrestigePoints: recalculatedPoints,
   };
 }
 ```
 
-2. Calculate tier accessibility inside component:
+**Update `awardPrestigeXP()` to use variable points:**
+
 ```typescript
-// Calculate tier accessibility for this branch
-const isTier2Accessible = isTierUnlockedForBranch(branch, 2);
-const isTier3Accessible = isTierUnlockedForBranch(branch, 3);
+const awardPrestigeXP = useCallback((amount: number): PrestigeXPResult => {
+  if (!isMaxLevel) {
+    return { type: 'normal', amount };
+  }
 
-// Get progress for each tier
-const tier1Progress = getTierUnlockProgress(branch, 1);
-const tier2Progress = getTierUnlockProgress(branch, 2);
-const tier3Progress = getTierUnlockProgress(branch, 3);
-```
+  let newPrestigeXP = prestigeData.prestigeXP + amount;
+  let newPrestigeLevel = prestigeData.prestigeLevel;
+  let totalPointsAwarded = 0;
 
-3. Pass `isTierLocked` to each node:
-```typescript
-// Tier 1 nodes - always accessible
-<PrestigeAbilityNode
-  isTierLocked={false}
-  // ... other props
-/>
+  // Loop to handle multiple level-ups from large XP gains
+  while (newPrestigeXP >= PRESTIGE_CONFIG.XP_PER_PRESTIGE_LEVEL) {
+    newPrestigeXP -= PRESTIGE_CONFIG.XP_PER_PRESTIGE_LEVEL;
+    newPrestigeLevel++;
+    // Use variable points per level instead of fixed
+    totalPointsAwarded += getPrestigePointsForLevel(newPrestigeLevel);
+  }
 
-// Tier 2 nodes
-<PrestigeAbilityNode
-  isTierLocked={!isTier2Accessible}
-  // ... other props
-/>
-
-// Tier 3 nodes
-<PrestigeAbilityNode
-  isTierLocked={!isTier3Accessible}
-  // ... other props
-/>
+  // ... rest unchanged
+}, [isMaxLevel, prestigeData.prestigeLevel, prestigeData.prestigeXP]);
 ```
 
 ---
 
-## Phase 3: Add Tier Section Headers with Progress
+### 4. Bump Save Version
 
-**File**: `src/components/prestigeTree/PrestigeBranchColumn.tsx`
+**File:** `src/hooks/use-auto-save.ts`
 
-### New Tier Header Component
-
-Replace static tier labels with enhanced headers:
+Change version constant:
 
 ```typescript
-function TierHeader({
-  tierName,
-  isAccessible,
-  progress,
-  isMobile,
-}: {
-  tierName: string;
-  isAccessible: boolean;
-  progress: { unlockedCount: number; totalRequired: number };
-  isMobile: boolean;
-}) {
-  const isComplete = progress.unlockedCount === progress.totalRequired;
-  const percentage = progress.totalRequired > 0 
-    ? Math.round((progress.unlockedCount / progress.totalRequired) * 100)
-    : 0;
-
-  return (
-    <div className={cn(
-      "flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2",
-      "py-2 mb-4"
-    )}>
-      <div className="flex items-center gap-2">
-        <span className="text-[10px] text-muted-foreground/70 uppercase tracking-widest">
-          {tierName}
-        </span>
-        
-        {/* Status Badge */}
-        {!isAccessible && (
-          <Badge variant="secondary" className="text-[8px] gap-1 px-1.5 py-0.5">
-            <Lock className="w-2 h-2" />
-            Locked
-          </Badge>
-        )}
-        
-        {isAccessible && !isComplete && (
-          <Badge variant="outline" className="text-[8px] px-1.5 py-0.5">
-            {progress.unlockedCount}/{progress.totalRequired}
-          </Badge>
-        )}
-        
-        {isComplete && (
-          <Badge className="text-[8px] gap-1 px-1.5 py-0.5 bg-green-600">
-            <Check className="w-2 h-2" />
-          </Badge>
-        )}
-      </div>
-
-      {/* Progress Bar (Tier 2/3 only) */}
-      {progress.totalRequired > 0 && (
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <div className="w-16 sm:w-20 h-1.5 bg-muted rounded-full overflow-hidden">
-            <div 
-              className={cn(
-                "h-full transition-all duration-500 ease-out",
-                isComplete ? "bg-green-500" : isAccessible ? "bg-amber-500" : "bg-slate-600"
-              )}
-              style={{ width: `${percentage}%` }}
-            />
-          </div>
-          <span className="text-[9px] text-muted-foreground/50 w-8">
-            {percentage}%
-          </span>
-        </div>
-      )}
-    </div>
-  );
-}
+const CURRENT_VERSION = 2; // Was 1, now 2 for new point formulas
 ```
 
-### Layout with Headers
+Add migration logging in `loadAutoSave()`:
 
 ```typescript
-{/* Tier 1 - Foundation */}
-<TierHeader
-  tierName="Foundation"
-  isAccessible={true}
-  progress={tier1Progress}
-  isMobile={isMobile}
-/>
-<div className="relative z-10 flex justify-center gap-4 mb-6">
-  {tier1.map((ability) => (
-    <PrestigeAbilityNode
-      key={ability.id}
-      ability={ability}
-      isTierLocked={false}
-      // ... other props
-    />
-  ))}
-</div>
-
-{/* Tier 2 - Intermediate */}
-<TierHeader
-  tierName="Intermediate"
-  isAccessible={isTier2Accessible}
-  progress={tier2Progress}
-  isMobile={isMobile}
-/>
-{/* Lock message if tier is locked */}
-{!isTier2Accessible && (
-  <div className="text-center text-[10px] text-amber-400/60 mb-4">
-    Complete all Foundation abilities ({tier1Progress.unlockedCount}/{tier1Progress.totalRequired})
-  </div>
-)}
-<div className="relative z-10 flex justify-center gap-4 mb-6">
-  {tier2.map((ability) => (
-    <PrestigeAbilityNode
-      key={ability.id}
-      ability={ability}
-      isTierLocked={!isTier2Accessible}
-      // ... other props
-    />
-  ))}
-</div>
-
-{/* Similar pattern for Tier 3 */}
+if (data.version !== CURRENT_VERSION) {
+  console.log('[AutoSave] Migrating from version', data.version, 'to', CURRENT_VERSION);
+  // Character points auto-migrate via formula
+  // Prestige points migrate via usePrestige hook
+}
 ```
 
 ---
 
-## Phase 4: Update PrestigeConnectionLines for Tier Lock State
+### 5. Consolidate XP Thresholds (DRY)
 
-**File**: `src/components/prestigeTree/PrestigeConnectionLines.tsx`
+**File:** `src/lib/resetApp.ts`
 
-### Changes
+Replace duplicated thresholds with import:
 
-1. Add new props:
 ```typescript
-interface PrestigeConnectionLinesProps {
-  // ... existing props
-  isTier2Accessible: boolean;
-  isTier3Accessible: boolean;
-}
-```
+import { DEFAULT_XP_THRESHOLDS } from './xpSystem';
 
-2. Update line interface to track target tier:
-```typescript
-interface ConnectionLine {
-  // ... existing fields
-  targetTier: 1 | 2 | 3;  // NEW - tier of the destination node
-}
-```
-
-3. Populate targetTier when building lines:
-```typescript
-for (const ability of abilities) {
-  // ...
-  lines.push({
-    // ... existing fields
-    targetTier: ability.tier,
-  });
-}
-```
-
-4. Update line rendering to show tier lock state:
-```typescript
-{lines.map((line, index) => {
-  const config = BRANCH_VISUAL_CONFIG[line.branch];
+export function repairXPData(currentLevel: number, currentXP: number, multiplier: number = 1.0): number {
+  const minXPForLevel = Math.floor((DEFAULT_XP_THRESHOLDS[currentLevel] || 0) * multiplier);
   
-  // Determine if target tier is accessible
-  const isTierAccessible = 
-    line.targetTier === 1 ? true :
-    line.targetTier === 2 ? isTier2Accessible :
-    isTier3Accessible;
+  if (currentXP < minXPForLevel) {
+    console.log(`[XP Repair] XP ${currentXP} is below minimum ${minXPForLevel} for level ${currentLevel}. Repairing...`);
+    return minXPForLevel;
+  }
   
-  // Line is dimmed if tier is locked
-  const isTierLocked = !isTierAccessible;
-  
-  return (
-    <g key={`${line.fromId}-${line.toId}-${index}`}>
-      <line
-        x1={`${line.fromPos.x}%`}
-        y1={`${line.fromPos.y}%`}
-        x2={`${line.toPos.x}%`}
-        y2={`${line.toPos.y}%`}
-        stroke={
-          isTierLocked ? '#1f2937' :  // Very dim for locked tiers
-          line.isActive ? config.glowColor : '#374151'
-        }
-        strokeWidth={isTierLocked ? 1 : line.isActive ? 2 : 1}
-        strokeDasharray={isTierLocked ? '2 4' : line.isActive ? undefined : '4 4'}
-        opacity={isTierLocked ? 0.15 : line.isActive ? 0.8 : 0.3}
-        style={{
-          transition: 'stroke 0.3s, opacity 0.3s',
-        }}
-      />
-      
-      {/* Glow effect only for active, accessible lines */}
-      {line.isActive && !isMobile && !isTierLocked && (
-        <line /* glow line */ />
-      )}
-    </g>
-  );
-})}
+  return currentXP;
+}
 ```
 
 ---
 
-## Phase 5: Update PrestigeTreeScreen to Pass Tier Helpers
+## XP Threshold Decision
 
-**File**: `src/components/prestigeTree/PrestigeTreeScreen.tsx`
+**Decision: Keep D&D 5e thresholds** (current implementation)
 
-### Changes
-
-1. Destructure tier helpers from hook:
-```typescript
-const {
-  isLegacyUnlocked,
-  unlockProgress,
-  unlockedSet,
-  spentOnTree,
-  branchProgress,
-  canUnlockAbility,
-  unlockAbility,
-  isAbilityUnlocked,
-  isTierUnlockedForBranch,    // ADD
-  getTierUnlockProgress,      // ADD
-} = prestigeTree;
-```
-
-2. Pass to PrestigeBranchColumn:
-```typescript
-<PrestigeBranchColumn
-  key={branch}
-  branch={branch}
-  unlockedSet={unlockedSet}
-  canUnlockAbility={canUnlockAbility}
-  onNodeClick={handleNodeClick}
-  isMobile={isMobile}
-  isTierUnlockedForBranch={isTierUnlockedForBranch}  // ADD
-  getTierUnlockProgress={getTierUnlockProgress}      // ADD
-  className="border border-purple-900/20 rounded-xl bg-black/20"
-/>
-```
+**Rationale:**
+- D&D 5e thresholds are well-tested and familiar to players
+- XP is for leveling progression, ability points are the reward
+- Changing XP thresholds would require more extensive testing
+- Current thresholds already work with the existing repairXPData logic
 
 ---
 
-## Phase 6: Enhance PrestigeAbilityDetails Sheet
+## Edge Cases
 
-**File**: `src/components/prestigeTree/PrestigeAbilityDetails.tsx`
-
-### Changes
-
-1. Detect tier-lock vs other lock reasons:
-```typescript
-// Detect different lock types from unlock reason
-const isTierLocked = unlockReason?.toLowerCase().includes('locked') && 
-  (unlockReason?.includes('Foundation') || unlockReason?.includes('Intermediate'));
-
-const isPrestigeLevelLocked = unlockReason?.includes('Prestige Level');
-
-const isMissingPoints = unlockReason?.includes('more ability point');
-
-const isMissingPrereqs = unlockReason?.includes('Requires:');
-```
-
-2. Update action button section with distinct UI for each lock type:
-```typescript
-{/* Action Button */}
-<div className="absolute bottom-6 left-6 right-6">
-  {isUnlocked ? (
-    <div className="flex items-center justify-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
-      <Unlock className="w-4 h-4 text-green-400" />
-      <span className="text-sm text-green-400">Unlocked</span>
-    </div>
-  ) : canUnlock ? (
-    <Button
-      onClick={handleUnlock}
-      className="w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black font-bold"
-    >
-      <Unlock className="w-4 h-4 mr-2" />
-      Unlock for {ability.prestigeCost} Point{ability.prestigeCost > 1 ? 's' : ''}
-    </Button>
-  ) : isTierLocked ? (
-    // Tier Locked - Distinct amber/red styling
-    <div className="flex flex-col items-center gap-1.5 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
-      <div className="flex items-center gap-2">
-        <Lock className="w-4 h-4 text-amber-400" />
-        <span className="text-sm font-semibold text-amber-400">Tier Locked</span>
-      </div>
-      <span className="text-xs text-amber-400/70 text-center">{unlockReason}</span>
-    </div>
-  ) : isPrestigeLevelLocked ? (
-    // Prestige Level Locked - Purple styling
-    <div className="flex flex-col items-center gap-1.5 p-3 rounded-lg bg-purple-500/10 border border-purple-500/30">
-      <div className="flex items-center gap-2">
-        <AlertCircle className="w-4 h-4 text-purple-400" />
-        <span className="text-sm font-semibold text-purple-400">Level Required</span>
-      </div>
-      <span className="text-xs text-purple-400/70 text-center">{unlockReason}</span>
-    </div>
-  ) : (
-    // Missing points or prerequisites - Default gray
-    <div className="flex items-center justify-center gap-2 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
-      <Lock className="w-4 h-4 text-slate-500" />
-      <span className="text-sm text-slate-500">{unlockReason}</span>
-    </div>
-  )}
-</div>
-```
-
----
-
-## Real-Time Update Mechanism
-
-The UI will update instantly when abilities are unlocked:
-
-1. When `unlockAbility()` succeeds, it updates `progress.unlockedAbilities`
-2. This triggers React re-render via `useState`
-3. `unlockedSet` is recalculated (useMemo dependency on progress)
-4. `isTierUnlockedForBranch` uses the new `unlockedSet`
-5. `PrestigeBranchColumn` re-renders with updated `isTier2Accessible`/`isTier3Accessible`
-6. Lock overlays disappear via React reconciliation
-7. CSS transitions provide smooth visual feedback (300ms on opacity/stroke)
-
----
-
-## Mobile Responsive Considerations
-
-1. **Tier Headers**: Stack vertically on mobile with `flex-col sm:flex-row`
-2. **Progress Bars**: Full width on mobile, fixed width on desktop
-3. **Lock Overlays**: Same size as nodes (w-12 h-12 on mobile vs w-16 h-16 desktop)
-4. **Touch Targets**: Disabled nodes have `pointer-events-none` to prevent accidental taps
-5. **Lock Messages**: Centered text with adequate padding for readability
-
----
-
-## Edge Cases Handled
-
-| Case | Behavior |
+| Case | Handling |
 |------|----------|
-| Empty branch (no abilities) | Console error, tier returns locked |
-| Missing previous tier | Console warning, tier allowed to unlock |
-| Prestige level requirement | Shows purple "Level Required" UI |
-| Prerequisites not met | Shows gray "Requires: X, Y" UI |
-| Zero points available | Shows gray "Need X more points" UI |
-| Rapid unlock attempts | Debounced via `isUnlocking` state |
+| Level 0 | Return 0 points |
+| Level < 1 | Return 0 points |
+| Level > 20 | Cap at 20 (74 points) |
+| Prestige 0 | Return 0 points (no levels completed) |
+| Prestige > 10 | Return 3 points per level (fallback) |
+| Negative XP | Already guarded with `Math.max(0, ...)` |
 
 ---
 
-## Files to Modify
+## Testing Criteria
 
-| File | Changes |
-|------|---------|
-| `PrestigeAbilityNode.tsx` | Add `isTierLocked` prop, blur overlay, disabled styles |
-| `PrestigeBranchColumn.tsx` | Add tier helpers props, calculate accessibility, tier headers, lock messages |
-| `PrestigeConnectionLines.tsx` | Add tier accessibility props, dim lines to locked tiers |
-| `PrestigeTreeScreen.tsx` | Destructure and pass tier helper functions |
-| `PrestigeAbilityDetails.tsx` | Detect lock types, distinct UI for tier/prestige/prereq locks |
+### New Character Tests
+1. Create new character at Level 1 → verify 5 ability points
+2. Level up to 5 → verify 14 total points
+3. Level up to 10 → verify 29 total points
+4. Level up to 20 → verify 74 total points
+
+### Existing Character Migration Tests
+5. Load Level 10 character (old save) → verify points auto-recalculate to 29
+6. Load Prestige 5 character (old save) → verify prestige points recalculate to 12
+7. Load Level 10 + Prestige 5 character → verify total = 29 + 12 = 41
+
+### Prestige Level-Up Tests
+8. At max level, gain prestige 1 → verify +3 points (not +1)
+9. Gain prestige 5 → verify cumulative 12 points total
+10. Gain prestige 10 → verify +5 points for that level
+
+### Point Spending Tests
+11. Spend points in Character Tab → available decreases
+12. Spend points in Legacy Tab → same pool decreases
+13. Cannot spend more than available (button disabled)
+
+### Data Persistence Tests
+14. Refresh page → all data persists correctly
+15. Check console for migration logs on first load after update
 
 ---
 
-## Testing Checklist
+## Implementation Order
 
-### Per-Branch Testing
-- Foundation (Tier 1) abilities always accessible in all 4 branches
-- Intermediate (Tier 2) shows lock overlay until ALL Foundation unlocked
-- Advanced (Tier 3) shows lock overlay until ALL Intermediate unlocked
-- Each branch progresses independently
+1. **`src/lib/prestige/config.ts`** - Add `getPrestigePointsForLevel()` and `getTotalPrestigePointsForLevel()`
+2. **`src/hooks/use-prestige.ts`** - Update migration + `awardPrestigeXP()` to use new functions
+3. **`src/lib/types.ts`** - Update `getAbilityPointsForLevel()` formula
+4. **`src/hooks/use-auto-save.ts`** - Bump version to 2
+5. **`src/lib/resetApp.ts`** - Import XP thresholds from xpSystem
+6. **Test all scenarios**
 
-### Visual States
-- Tier-locked nodes: Heavy blur overlay, lock icon, non-interactive
-- Available nodes: Amber pulse, cost badge, clickable
-- Unlocked nodes: Branch-colored glow, ability icon
+---
 
-### Real-Time Updates
-- Unlocking last Foundation ability instantly removes Intermediate lock overlays
-- Progress bars update immediately on unlock
-- Connection lines brighten when tier becomes accessible
+## Risk Assessment
 
-### Edge Cases
-- Prestige level requirement shows purple UI in details sheet
-- Missing points shows gray UI with specific message
-- Mobile view handles all states correctly
+| Risk | Mitigation |
+|------|------------|
+| Existing characters get more points | **Intended** - formula recalculates automatically |
+| Points go negative | Already guarded with `Math.max(0, ...)` |
+| XP/Level mismatch | `repairXPData()` corrects on load |
+| Prestige points mismatch | Migration function recalculates from level |
+| Double-counting spent points | Spent points are preserved separately |
 
+---
+
+## Files NOT Modified
+
+These already work correctly with the unified pool:
+
+- `AbilitiesScreen.tsx` - Uses `availableAbilityPoints` prop
+- `MobilePrestigeHeader.tsx` - Uses `availableAbilityPoints` prop
+- `PrestigeAbilityDetails.tsx` - Unlock logic unchanged
+- `XPTracker.tsx` - XP display unchanged
+- `use-prestige-tree.ts` - Tier validation unchanged
+- `CharacterHeader.tsx` - Displays calculated values
