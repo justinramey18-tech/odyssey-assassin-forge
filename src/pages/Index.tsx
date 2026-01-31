@@ -742,6 +742,9 @@ const Index = () => {
           onManualLevelUp={handleManualLevelUp}
           onReturnToBuilder={() => setShowHomeScreen(false)}
           onOpenSettings={() => setShowSettingsModal(true)}
+          currentHP={hpState.current}
+          maxHP={hpState.max}
+          tempHP={hpState.temp}
         />
         
         {/* Settings Modal */}

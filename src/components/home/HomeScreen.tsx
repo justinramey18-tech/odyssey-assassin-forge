@@ -54,6 +54,10 @@ interface HomeScreenProps {
   onManualLevelUp: () => void;
   onReturnToBuilder: () => void;
   onOpenSettings?: () => void;
+  // HP props
+  currentHP?: number;
+  maxHP?: number;
+  tempHP?: number;
 }
 
 interface NavigationCardData {
@@ -131,6 +135,9 @@ export function HomeScreen({
   onManualLevelUp,
   onReturnToBuilder,
   onOpenSettings,
+  currentHP: propCurrentHP,
+  maxHP: propMaxHP,
+  tempHP: propTempHP = 0,
 }: HomeScreenProps) {
   const isMobile = useIsMobile();
   const stats = useEquipmentStats(equipment);
@@ -174,13 +181,30 @@ export function HomeScreen({
     }
   };
 
+  // Calculate HP values
+  const defaultMaxHP = character.level * 8 + 10;
+  const maxHP = propMaxHP ?? defaultMaxHP;
+  const currentHP = propCurrentHP ?? maxHP;
+  const tempHP = propTempHP;
+  const hpPercentage = Math.max(0, Math.min(100, (currentHP / maxHP) * 100));
+  
+  // HP color based on percentage
+  const getHPColor = () => {
+    if (hpPercentage > 50) return 'text-emerald-400';
+    if (hpPercentage > 25) return 'text-amber-400';
+    return 'text-rose-400';
+  };
+
   // Quick stats configuration
   const quickStats = useMemo(() => [
     {
       label: 'HP',
-      value: `${character.level * 8 + 10}`,
+      value: `${currentHP}/${maxHP}`,
+      subValue: tempHP > 0 ? `+${tempHP}` : undefined,
       icon: Heart,
-      color: 'text-red-400',
+      color: getHPColor(),
+      hasBar: true,
+      barPercent: hpPercentage,
     },
     {
       label: 'AC',
@@ -194,7 +218,7 @@ export function HomeScreen({
       icon: Zap,
       color: 'text-yellow-400',
     },
-  ], [character.level, stats]);
+  ], [currentHP, maxHP, tempHP, hpPercentage, stats]);
 
   const handleCardClick = (cardId: NavigableTab) => {
     triggerHaptic('light');
@@ -336,9 +360,25 @@ export function HomeScreen({
                   <div className="p-2 rounded-full bg-white/10">
                     <stat.icon className={cn("w-4 h-4", stat.color)} />
                   </div>
-                  <p className="text-xl font-cinzel font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                    {stat.value}
-                  </p>
+                  <div className="flex items-baseline gap-1">
+                    <p className={cn("text-lg font-cinzel font-bold drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]", stat.color)}>
+                      {stat.value}
+                    </p>
+                    {'subValue' in stat && stat.subValue && (
+                      <span className="text-xs text-sky-400 font-medium">{stat.subValue}</span>
+                    )}
+                  </div>
+                  {'hasBar' in stat && stat.hasBar && (
+                    <div className="w-full h-1.5 rounded-full bg-white/20 overflow-hidden">
+                      <div 
+                        className={cn("h-full transition-all", 
+                          stat.barPercent! > 50 ? 'bg-emerald-500' : 
+                          stat.barPercent! > 25 ? 'bg-amber-500' : 'bg-rose-500'
+                        )}
+                        style={{ width: `${stat.barPercent}%` }}
+                      />
+                    </div>
+                  )}
                   <p className="text-[10px] text-white/70 uppercase tracking-widest font-cinzel drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]">
                     {stat.label}
                   </p>
