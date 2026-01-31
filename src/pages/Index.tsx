@@ -284,7 +284,7 @@ const Index = () => {
   };
 
   const handleUpgradeAbility = (abilityId: string) => {
-    if (remainingPoints <= 0 && !showLevelUpModal) return;
+    if (remainingPoints <= 0 && !showLevelUpModal && !showPrestigeSpendModal) return;
 
     setCharacter(prev => ({
       ...prev,
