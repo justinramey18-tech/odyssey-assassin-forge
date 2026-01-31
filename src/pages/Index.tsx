@@ -508,16 +508,38 @@ const Index = () => {
   };
 
   const handleShortRest = () => {
+    // Short rest restores 25% of max HP (rounded up), capped at max
+    const healAmount = Math.ceil(hpState.max * 0.25);
+    const newCurrentHP = Math.min(hpState.max, hpState.current + healAmount);
+    const actualHealed = newCurrentHP - hpState.current;
+    
+    setHpState(prev => ({ ...prev, current: newCurrentHP }));
+    
     toast({
-      title: "Short Rest Complete",
-      description: "You've rested for 1 hour. Some abilities have been restored.",
+      title: "☕ Short Rest Complete",
+      description: actualHealed > 0 
+        ? `You've rested for 1 hour. Restored ${actualHealed} HP. Some abilities refreshed.`
+        : "You've rested for 1 hour. HP already full. Some abilities refreshed.",
+      className: "border-amber-500/30 bg-amber-500/10",
     });
   };
 
   const handleLongRest = () => {
+    // Long rest fully restores HP and clears temp HP
+    const wasFullHP = hpState.current === hpState.max;
+    
+    setHpState(prev => ({ 
+      ...prev, 
+      current: prev.max,
+      temp: 0 // Temp HP doesn't persist through long rest
+    }));
+    
     toast({
-      title: "Long Rest Complete", 
-      description: "You've rested for 8 hours. All abilities and HP restored.",
+      title: "🌙 Long Rest Complete", 
+      description: wasFullHP
+        ? "You've rested for 8 hours. All abilities restored."
+        : `You've rested for 8 hours. HP fully restored to ${hpState.max}. All abilities refreshed.`,
+      className: "border-indigo-500/30 bg-indigo-500/10",
     });
   };
 
