@@ -11,6 +11,7 @@ export interface CharacterBuildData {
   unlockedAbilities: Map<string, number>;
   equippedGear: Record<EquipmentSlotType, EquipmentItem | null>;
   prestigeLevel?: number;
+  totalPrestigePoints?: number;
   prestigeTreeProgress?: PrestigeTreeProgress;
   // Optional additional stats for summary
   aggregatedStats?: {
@@ -27,7 +28,7 @@ export interface CharacterBuildData {
 }
 
 export function generateDynamicGMGuide(data: CharacterBuildData): string {
-  const { character, abilities, unlockedAbilities, equippedGear, prestigeLevel, prestigeTreeProgress } = data;
+  const { character, abilities, unlockedAbilities, equippedGear, prestigeLevel, totalPrestigePoints, prestigeTreeProgress } = data;
   
   const sections: string[] = [];
   
@@ -39,7 +40,7 @@ Player: ${character.name || 'Unnamed Assassin'}
 ---`);
 
   // Core Stats Section
-  sections.push(generateCoreStatsSection(character, prestigeLevel));
+  sections.push(generateCoreStatsSection(character, prestigeLevel, totalPrestigePoints));
   
   // Equipped Abilities Section
   sections.push(generateAbilitiesSection(character, abilities, unlockedAbilities));
@@ -61,8 +62,8 @@ Player: ${character.name || 'Unnamed Assassin'}
   return sections.join('\n\n');
 }
 
-function generateCoreStatsSection(character: Character, prestigeLevel?: number): string {
-  const activeSlots = getActiveSlotsByLevel(character.level);
+function generateCoreStatsSection(character: Character, prestigeLevel?: number, totalPrestigePoints?: number): string {
+  const activeSlots = getActiveSlotsByLevel(character.level, totalPrestigePoints || 0);
   const prestigeInfo = prestigeLevel && prestigeLevel > 0 
     ? `\n- **Prestige Level**: P${prestigeLevel} (Post-cap progression active)` 
     : '';

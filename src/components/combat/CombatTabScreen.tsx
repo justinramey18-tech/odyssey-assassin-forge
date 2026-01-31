@@ -27,6 +27,7 @@ import combatBackground from '@/assets/combat-background.jpg';
 
 interface CombatTabScreenProps {
   character: Character;
+  prestigePoints?: number;
 }
 
 // Combat modifier calculations
@@ -89,7 +90,7 @@ function calculateModifiers(character: Character): CombatModifiers {
   };
 }
 
-export function CombatTabScreen({ character }: CombatTabScreenProps) {
+export function CombatTabScreen({ character, prestigePoints = 0 }: CombatTabScreenProps) {
   const isMobile = useIsMobile();
   const { rerollsDisabled } = useGameMode();
   

@@ -80,9 +80,10 @@ type CombatAction = 'attack' | 'skill' | 'save' | 'initiative' | 'damage';
 
 interface CombatHUDScreenProps {
   character: Character;
+  prestigePoints?: number;
 }
 
-export function CombatHUDScreen({ character }: CombatHUDScreenProps) {
+export function CombatHUDScreen({ character, prestigePoints = 0 }: CombatHUDScreenProps) {
   const [showDiceModal, setShowDiceModal] = useState(false);
   const [currentRoll, setCurrentRoll] = useState<DiceRoll | null>(null);
   const [currentRPPrompt, setCurrentRPPrompt] = useState('');
@@ -92,7 +93,7 @@ export function CombatHUDScreen({ character }: CombatHUDScreenProps) {
   const { rerollsDisabled } = useGameMode();
   
   const modifiers = calculateModifiers(character);
-  const totalSlots = getActiveSlotsByLevel(character.level);
+  const totalSlots = getActiveSlotsByLevel(character.level, prestigePoints);
   
   // Get equipped abilities
   const equippedAbilities = character.equippedAbilities

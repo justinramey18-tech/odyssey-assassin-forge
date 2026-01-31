@@ -56,12 +56,16 @@ export function getAbilityPointsForLevel(level: number): number {
   return points;
 }
 
-// Calculate active ability slots by level
-export function getActiveSlotsByLevel(level: number): number {
-  if (level >= 17) return 5;
-  if (level >= 11) return 4;
-  if (level >= 5) return 3;
-  return 2;
+// Calculate active ability slots by level (1 slot per level, max 20)
+// Can optionally add prestige points for bonus slots
+export function getActiveSlotsByLevel(level: number, prestigePoints: number = 0): number {
+  // Base slots: 1 per level, capped at 20
+  const baseSlots = Math.min(Math.max(level, 1), 20);
+  
+  // Bonus slots: 1 per prestige point earned (no max)
+  const bonusSlots = Math.max(prestigePoints, 0);
+  
+  return baseSlots + bonusSlots;
 }
 
 // Get points spent in a specific tree
