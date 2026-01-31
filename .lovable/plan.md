@@ -1,277 +1,443 @@
 
 
-# Enhanced Condition Status Board: Maximum Immersion
+# Enhanced Flexible Multi-Path Magic System: Maximum Utility, Integration & Immersion
 
-## Overview
+## Executive Summary
 
-Building on the base Condition Status Board proposal, here are immersive enhancements that leverage your existing visual language, Oracle integration, and personality-driven theming.
-
----
-
-## Immersion Enhancements
-
-### 1. Personality-Voiced Condition Descriptions
-
-Instead of static mechanical text, conditions get **flavor descriptions** that match the active Oracle personality:
-
-| Condition | Standard | Thunderhead | JARVIS | Deadpool |
-|-----------|----------|-------------|--------|----------|
-| **Poisoned** | "Disadvantage on attacks and ability checks" | "Toxins course through your system. I calculate 47.3% reduced combat efficacy until purged." | "Sir, your biological systems are experiencing... interference. I strongly recommend finding an antidote." | "Ugh, you got the spinny-brain poison. Everything looks green and your attacks are gonna be *garbage*. Ask me how I know. 💀" |
-| **Frightened** | "Disadvantage while source visible, can't approach" | "Fear responses detected. Neural activity indicates a 89.2% impulse to flee from the source." | "Your amygdala appears to be... overreacting, Sir. Might I suggest looking elsewhere?" | "BIG SCARY THING. LEGS WON'T MOVE TOWARD IT. We've all been there, buddy. *Usually involving clowns.*" |
-| **Stunned** | "Incapacitated, can't move, auto-fail Str/Dex saves" | "Motor functions suspended. Zero percent capacity for voluntary action until recovery." | "All systems are currently... offline, Sir. A concerning development." | "BRAIN.EXE HAS STOPPED WORKING. You're basically a very handsome statue right now." |
-
-**Implementation**: Store personality-keyed descriptions in the condition config, and pass the active Oracle personality to the Condition drawer.
+A standalone spellcasting system that mirrors your existing architectural patterns (ability trees, prestige, conditions) while adding full D&D 5e spellcasting complexity. Designed for seamless integration with your Oracle, Combat HUD, Conditions, and Rest systems.
 
 ---
 
-### 2. Visual Affliction Animations
+## I. Enhanced Utility Features
 
-Borrow from your `InfinityGauntletStyles.css` energy effects for condition severity:
+### 1. Spell Slots Visualization
 
-| Severity | Visual Effect |
-|----------|---------------|
-| **Low** (Grappled, Deafened) | Subtle pulse, muted border glow |
-| **Medium** (Poisoned, Frightened) | Slow energy flow animation (green for poison, purple for fear) |
-| **High** (Stunned, Incapacitated) | Faster pulse, stronger glow, scan line overlay |
-| **Critical** (Paralyzed, Unconscious) | Full "alarm" mode - pulsing red border, electricity arcs, particle effects |
+| Standard | Enhanced |
+|----------|----------|
+| Simple pip display | **Energy-ring visualization** inspired by `InfinityGauntletStyles.css` |
+| Manual tracking | **Auto-rest recovery** integrated with existing Short/Long Rest handlers |
+| Static UI | **Animated consumption** with school-colored energy effects |
 
-**CSS Addition**: Create `ConditionStyles.css` using your existing `energyPulse`, `electricityArc`, and `shimmer` keyframes.
+**Visual Design:**
+- Each spell level gets a row of "energy orbs" (similar to condition severity animations)
+- Consumed slots fade with a drain animation; recovered slots pulse with restoration glow
+- Warlock "Pact Slots" have distinct violet styling and recover on Short Rest
+
+### 2. Spellbook Management
+
+**Preparation Flow:**
+- Daily preparation limit based on path (e.g., Arcane Trickster: INT mod + 1/3 level)
+- Drag-and-drop spell ordering (mobile: tap-to-select, then tap destination)
+- Smart filtering: By school, level, concentration, ritual, prepared status
+- "Quick Prepare" suggestions based on Oracle analysis of current conditions/buffs
+
+**Spell Search:**
+- Fuzzy search by name, school, or effect keywords
+- "Recently Cast" section for quick access
+- "Favorited" spells pinned to top
+
+### 3. Component Tracking
+
+| Component Type | UI Element | Automation |
+|----------------|------------|------------|
+| **Verbal (V)** | Mic icon | Silence condition blocks casting |
+| **Somatic (S)** | Hand icon | Restrained condition blocks casting |
+| **Material (M)** | Pouch icon | Component inventory with quantities |
+| **M (consumed)** | Flame icon | Auto-deduct on cast |
+| **Focus** | Crystal icon | Bypasses non-consumed materials |
+
+**Component Pouch Widget:**
+- Collapsible inventory of material components
+- Auto-warning when casting a spell with insufficient materials
+- Integration with Consumables system for shared inventory logic
+
+### 4. Ritual Casting Mode
+
+- Toggle "Ritual" on eligible spells
+- UI shows extended casting time (10 minutes base)
+- No slot consumption, but cannot be rushed
+- Oracle personality comments:
+  - Thunderhead: "Ritual efficiency detected. 10-minute casting window initiated."
+  - JARVIS: "Ritual casting mode engaged, Sir. I'll notify you upon completion."
+  - Deadpool: "Ooh, ritual time! Sit back, relax, maybe do some stretches..."
 
 ---
 
-### 3. Condition Source Tracking with NPC Memory
+## II. Seamless UI Integration
 
-When adding a condition, optionally record the **source**:
-- "Giant Spider"
-- "Necromancer's Curse"
-- "Trap - Hallway C"
+### 1. Navigation Tab: "Arcana"
 
-This source is:
-1. Displayed on the condition card
-2. Passed to the Oracle's context so it can reference *who* did this to you
-3. Stored for session summary ("You were poisoned 3 times by spiders today")
+**Position:** Between "Abilities" and "Legacy" in `AssassinHeader.tsx`
 
-**Oracle Enhancement**: "You're currently Frightened of the Dragon. Since you can't approach it willingly, consider using your Shortbow or waiting for an ally to break line of sight."
+**Visual Treatment:**
+- Icon: `Wand2` (Lucide) with sparkle animation on active
+- Color: Indigo/magenta gradient (`from-indigo-600/30 to-purple-600/30`)
+- Active border: `border-indigo-500`
+- Glow animation matching other tabs (`animate-glow-pulse`)
 
----
-
-### 4. Combat HUD Integration: Condition Strip
-
-A compact, always-visible strip in the Combat HUD showing active conditions:
-
-```text
-┌──────────────────────────────────────────────────────────────┐
-│ 🟠 Poisoned(3) · 😨 Frightened(10) │ ✨ Invisible(60) · 🎯 Concentrating │
-└──────────────────────────────────────────────────────────────┘
+```
+[ Combat ] [ Skills ] [ Abilities ] [ ✨ Arcana ✨ ] [ Legacy ] [ Gear ]
 ```
 
-- Tapping a condition opens quick-dismiss or details
-- Color-coded by severity (matches card colors)
-- Shows duration in **rounds** (combat context) not minutes
-- Concentration effects have a distinct marker
+### 2. Magic Screen Layout
+
+**Desktop:** 3-column layout
+- Left: Path selector + path abilities overview
+- Center: Spellbook grid with school-colored borders
+- Right: Spell details panel (matches `AbilityDetailsPanel` structure)
+
+**Mobile:** Single-column with bottom sheet details
+- Path tabs at top (styled like `BranchSelector` in Prestige)
+- Swipe between: Spellbook → Slots → Components
+- Bottom sheet for spell details (matches `PrestigeAbilityDetails`)
+
+### 3. Home Screen Integration
+
+**New Drawer Option:**
+- Add "Arcana" to `drawerOptions` in `HomeScreen.tsx`
+- Icon: `Sparkles` with `text-indigo-400`
+- Opens quick spell slot status and prepared spell list
+
+**Quick Stats Enhancement:**
+- Optional 4th stat card showing "Spell Slots" with mini energy ring
+- Tap opens Arcana drawer
+
+### 4. Combat HUD Integration
+
+**New Tab: "Spells"**
+- Position after "Abilities" in `TAB_ORDER`
+- Shows prepared spells with quick-cast buttons
+- Spell slot consumption inline
+- Concentration indicator in `ConditionStrip`
+
+**Quick Cast Flow:**
+1. Tap spell card
+2. Select slot level (if upcastable)
+3. Roll (if applicable)
+4. Auto-add concentration condition (if applicable)
+5. Generate narrative prompt with personality flavor
+
+**Combat Bottom Nav Enhancement:**
+- Add `Wand2` icon for Spells tab with badge showing remaining slots
 
 ---
 
-### 5. Save Reminder System
+## III. Deepened Immersion
 
-For conditions with "Save Ends" duration:
+### 1. Path Identity System
 
-1. At start of turn, toast notification: *"⚖️ Make a WIS save vs. Frightened (Source: Lich)"*
-2. Quick action buttons: **[Passed]** or **[Failed]**
-3. On **Passed**: Condition auto-removes with satisfying animation
-4. On **Failed**: Duration remains, Oracle may comment ("Still frightened. The Thunderhead calculates 2 more save attempts on average.")
+Each magic path has a distinct **visual identity** and **personality flavor**:
+
+| Path | Visual Theme | Oracle Flavor | Unique Mechanic |
+|------|--------------|---------------|-----------------|
+| **Arcane Trickster** | Emerald/silver, illusory shimmer | "Your magical prestidigitation..." | Mage Hand Legerdemain prompts |
+| **Shadow Blade** | Deep purple/black, shadow tendrils | "The Shadowfell responds..." | Teleportation flavor text |
+| **Eldritch Knight** | Steel blue/amber, rune glow | "Your blade resonates with..." | Weapon bond effects |
+| **Hexblade** | Violet/crimson, eldritch energy | "Your patron whispers..." | Invocation selection |
+
+### 2. Personality-Voiced Spellcasting
+
+**Spell Cast Prompts** (integrated with Oracle personalities):
+
+| Event | Thunderhead | JARVIS | Deadpool |
+|-------|-------------|--------|----------|
+| **Spell success** | "Arcane probability: 94.7%. Execution: optimal." | "Excellent form, Sir. The weave responds beautifully." | "MAGIC MISSILE GO BRRRR! Three little blue darts of 'go away'!" |
+| **Concentration start** | "Mental bandwidth allocated. Monitoring stability." | "Concentration lock engaged. I shall monitor for disruptions." | "Okay, focusing now. Don't think about tacos. DON'T THINK ABOUT TACOS." |
+| **Concentration save** | "Neural stability: 78.3%. Probability of failure: 21.7%." | "Concentration check required, Sir. Current strain levels: elevated." | "Quick! Think about literally ANYTHING except dropping this spell!" |
+| **Slot exhausted** | "Arcane reserves depleted for this tier." | "I'm afraid that slot is... unavailable, Sir." | "Empty! Just like my bank account and emotional availability!" |
+
+### 3. Spell School Visual Language
+
+Borrow from `ConditionStyles.css` severity animations:
+
+| School | Color | Animation | Icon |
+|--------|-------|-----------|------|
+| **Abjuration** | Blue | Shield pulse | `Shield` |
+| **Conjuration** | Teal | Portal swirl | `Sparkles` |
+| **Divination** | Violet | Eye glow | `Eye` |
+| **Enchantment** | Pink | Heart beat | `Heart` |
+| **Evocation** | Orange/Red | Fire burst | `Flame` |
+| **Illusion** | Silver | Shimmer fade | `Ghost` |
+| **Necromancy** | Green/Black | Skull pulse | `Skull` |
+| **Transmutation** | Gold | Alchemical glow | `FlaskConical` |
+
+### 4. Concentration Integration with Conditions
+
+**Auto-Add "Concentrating" Buff:**
+- When casting concentration spell, auto-add to Condition Status Board
+- Duration: Matches spell duration
+- Visual: Distinct styling (blue glow, eye icon overlay)
+- Oracle context: Included in `activeBuffs` for tactical advice
+
+**Concentration Break Flow:**
+1. When damage taken, prompt for CON save
+2. DC = 10 or half damage (whichever higher)
+3. Quick buttons: [Passed] / [Failed]
+4. On failure: Auto-remove concentration buff + spell effect
+5. Personality-flavored toast notification
+
+### 5. Spell Prompt Generation
+
+Extend `generateRPPrompt` pattern to `generateSpellPrompt`:
+
+```typescript
+interface SpellPrompt {
+  spell: SpellDefinition;
+  castLevel: number;
+  characterName: string;
+  path: MagicPath;
+  roll?: DiceRoll; // For attack spells
+  saveDC?: number; // For save-based spells
+  targets?: string[];
+  personality: Personality;
+}
+```
+
+**Output Example (Deadpool personality, Magic Missile):**
+```markdown
+## Spell Cast: Magic Missile
+
+**Character:** Wade Wilson
+**Spell:** Magic Missile (1st Level Evocation)
+**Path:** Arcane Trickster — because why just stab when you can stab AND do magic?
+**Cast Level:** 1st (3 darts) | **Slot Used:** 1/3 remaining
 
 ---
+
+### The Moment
+
+Wade flicks his fingers like he's tossing invisible playing cards. Three glowing blue darts of pure force materialize, each one unerringly locked onto its target.
+
+*"Pew pew pew! These babies NEVER miss. Unlike my love life. And my fashion sense. And most of my life choices, really..."*
+
+**Damage:** 3 darts × (1d4+1) = [3, 2, 4] = **9 force damage** (auto-hit)
+
+---
+
+### Scene Direction for AI DM
+
+The darts streak toward the target with perfect accuracy. Force magic doesn't care about cover or armor—describe the impact as pure kinetic punishment. The target staggers from the triple impact.
+
+**Narrative Hooks:**
+- Does the target realize they can't dodge these?
+- What's Wade's quip as the darts connect?
+
+---
+
+*Cast: Magic Missile (1st) | Slots: 1/3 1st-level remaining*
+```
 
 ### 6. Rest Integration
 
-**Short Rest Button Effects:**
-- Clears conditions marked as "Short Rest clears" (Exhaustion -1, some spell effects)
-- Toast: "Short rest complete. Cleared: [list]"
-- Oracle personality comments:
-  - Thunderhead: "Biological recovery at 34% efficiency. Optimal, given constraints."
-  - JARVIS: "Systems restored to... acceptable parameters, Sir."
-  - Deadpool: "Nap time over! You're probably not gonna die. Probably."
+**Short Rest (for Hexblade/Warlock path):**
+- Pact Slots fully recover
+- Other paths: No slot recovery
+- Toast with personality flavor
 
-**Long Rest Button Effects:**
-- Clears all conditions except permanent curses
-- Exhaustion resets fully
-- Full health restore prompt
-- Session summary available
+**Long Rest (all paths):**
+- All spell slots recover
+- Prepared spells can be changed
+- Concentration effects end (with warning)
+- Toast: "Arcane reserves restored."
 
 ---
 
-### 7. Proactive Oracle Warnings
+## IV. Technical Architecture
 
-The Oracle can now provide condition-aware proactive suggestions:
+### New File Structure
 
-| Trigger | Oracle Alert |
-|---------|--------------|
-| HP < 25% + Poisoned | "Your HP is critical AND you're poisoned. Healing will be less effective. Consider removing poison first." |
-| 1 round left on Invisible | "Invisibility ending next turn. Plan your positioning." |
-| Frightened + trying to approach | "You're Frightened of [source]. You cannot willingly move closer. Consider ranged options." |
-| Concentration + taking damage | "Your Concentration is at risk. If you fail the save, [effect] ends." |
+```
+src/lib/magic/
+├── types.ts                 # Core interfaces
+├── paths/
+│   ├── types.ts             # MagicPath, PathConfig
+│   ├── arcane-trickster.ts  # Path definition
+│   ├── shadow-blade.ts
+│   ├── eldritch-knight.ts
+│   ├── hexblade.ts
+│   └── index.ts
+├── spells/
+│   ├── types.ts             # SpellDefinition, SpellSlot
+│   ├── cantrips.ts
+│   ├── 1st-level.ts
+│   ├── 2nd-level.ts
+│   ├── 3rd-level.ts
+│   ├── 4th-level.ts
+│   └── index.ts
+├── components.ts            # Material component catalog
+├── schools.ts               # School visual config
+├── prompts.ts               # Spell RP prompt generator
+└── index.ts
 
-These appear as **Context Chips** in the Oracle drawer:
-- 🩹 `Poisoned (3r)` → Tappable to ask "What should I do about being poisoned?"
+src/hooks/use-spellcasting.ts  # State management hook
 
----
+src/components/magic/
+├── MagicScreen.tsx          # Main tab component
+├── PathSelector.tsx         # Path selection tabs
+├── SpellbookGrid.tsx        # Spell display grid
+├── SpellCard.tsx            # Individual spell display
+├── SpellDetailsSheet.tsx    # Bottom sheet details
+├── SpellSlotTracker.tsx     # Slot visualization
+├── SpellCastSheet.tsx       # Casting modal with upcast
+├── ComponentPouch.tsx       # Material components inventory
+├── ConcentrationWidget.tsx  # Concentration status
+├── MagicStyles.css          # School-based animations
+└── index.ts
 
-### 8. Condition Quick-Add from Combat
+src/components/combat/mobile/
+├── MobileSpellList.tsx      # Combat spell grid (new)
+└── SpellCastFAB.tsx         # Quick-cast button (new)
+```
 
-During combat, common conditions can be added with one tap:
+### Key Type Definitions
 
-**Combat Action → "Apply Condition"** opens a quick picker:
-- Recent conditions (last 3 used)
-- Common combat conditions (Prone, Grappled, Restrained)
-- Custom entry for spells/effects
-
-This lives in the Combat HUD bottom sheet or FAB menu.
-
----
-
-### 9. Deadpool Commentary on Conditions
-
-Special Deadpool-only flavor text for condition events:
-
-| Event | Deadpool Commentary |
-|-------|---------------------|
-| Condition added | "Aaand now you're [condition]. Cool cool cool. *This is fine.*" |
-| Critical severity | "Oh no. OH NO. *checks notes* Yep, that's bad. That's REAL bad." |
-| Condition cleared | "FREEDOM! 🎉 ...For now. They'll probably do it again." |
-| Save succeeded | "NAT 20 ENERGY! Your body said 'NOPE' to that nonsense!" |
-| Save failed | "Oof. Your dice betrayed you. *Again.* We need to talk to those dice." |
-
-These can optionally appear as toasts or in-drawer commentary when Deadpool is the active personality.
-
----
-
-### 10. Session Statistics
-
-Track condition data across the session for summary:
-
-- **Most Applied Condition**: Poisoned (7 times)
-- **Longest Duration**: Frightened (23 rounds total)
-- **Most Common Source**: Giant Spiders (4 conditions)
-- **Saves Made/Failed**: 5/3
-
-This feeds into the Chronicle Sync and Session Recap systems.
-
----
-
-## Implementation Summary
-
-### New Files
-| File | Purpose |
-|------|---------|
-| `src/lib/conditions/types.ts` | Condition interfaces, duration types, severity levels |
-| `src/lib/conditions/config.ts` | D&D 5e conditions with personality-keyed descriptions |
-| `src/lib/conditions/index.ts` | Barrel export |
-| `src/hooks/use-conditions.ts` | State management, localStorage persistence, session tracking |
-| `src/components/conditions/ConditionStatusBoard.tsx` | Main drawer content with personality integration |
-| `src/components/conditions/ConditionCard.tsx` | Individual condition with animations and source display |
-| `src/components/conditions/AddConditionSheet.tsx` | Bottom sheet picker with duration and source input |
-| `src/components/conditions/ConditionStrip.tsx` | Compact Combat HUD display |
-| `src/components/conditions/ConditionStyles.css` | Severity-based animations (pulse, glow, arcs) |
-| `src/components/conditions/index.ts` | Barrel export |
-
-### Modified Files
-| File | Change |
-|------|--------|
-| `src/components/drawers/PromptDrawerProvider.tsx` | Add conditions state, drawer, pass to Oracle |
-| `src/components/oracle/types.ts` | Add `activeConditions` and `activeBuffs` to CharacterContext |
-| `supabase/functions/oracle-assistant/index.ts` | Include conditions in context summary and personality responses |
-| `src/components/home/HomeScreen.tsx` | Add "Conditions" to drawer menu |
-| `src/components/combat/mobile/MobileCombatLayout.tsx` | Add ConditionStrip component |
-
----
-
-## Technical Details
-
-### Condition Data Structure
 ```typescript
-interface ConditionDefinition {
+// Magic Path
+type MagicPath = 'arcane_trickster' | 'shadow_blade' | 'eldritch_knight' | 'hexblade';
+
+interface PathConfig {
+  id: MagicPath;
+  name: string;
+  subtitle: string;
+  icon: LucideIcon;
+  primaryColor: string;
+  spellcastingAbility: 'INT' | 'CHA' | 'WIS';
+  spellListRestrictions?: SpellSchool[];
+  slotProgression: 'third' | 'half' | 'pact';
+  features: PathFeature[];
+}
+
+// Spell Definition
+interface SpellDefinition {
   id: string;
   name: string;
+  level: 0 | 1 | 2 | 3 | 4; // 0 = cantrip
+  school: SpellSchool;
+  castingTime: 'action' | 'bonus_action' | 'reaction' | 'ritual';
+  range: string;
+  components: {
+    verbal: boolean;
+    somatic: boolean;
+    material?: string;
+    materialConsumed?: boolean;
+    materialCost?: number;
+  };
+  duration: string;
+  concentration: boolean;
+  description: string;
+  upcastEffect?: string;
+  attackType?: 'melee' | 'ranged' | 'save';
+  saveStat?: 'STR' | 'DEX' | 'CON' | 'INT' | 'WIS' | 'CHA';
+  damageType?: string;
   icon: string;
-  category: 'debuff' | 'buff' | 'environmental';
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  mechanicalEffect: string;
-  personalityDescriptions: {
+  personalityQuips: {
     thunderhead: string;
     jarvis: string;
     deadpool: string;
   };
-  saveStat?: 'STR' | 'DEX' | 'CON' | 'INT' | 'WIS' | 'CHA';
-  shortRestClears?: boolean;
 }
 
-interface ActiveCondition {
-  id: string; // Unique instance ID
-  conditionId: string;
-  name: string;
-  source?: string; // "Giant Spider", "Lich's Curse"
-  duration: {
-    type: 'rounds' | 'minutes' | 'hours' | 'save_ends' | 'indefinite';
-    value: number;
-    initial: number;
-  };
-  isConcentration: boolean;
-  appliedAt: number;
-  notes?: string;
+// Active Spellcasting State
+interface SpellcastingState {
+  path: MagicPath | null;
+  knownSpells: string[];       // Spell IDs
+  preparedSpells: string[];    // Subset of known
+  spellSlots: Record<number, { current: number; max: number }>;
+  pactSlots?: { current: number; max: number; level: number };
+  spellcastingAbility: 'INT' | 'CHA' | 'WIS';
+  proficiencyBonus: number;
+  materialComponents: Record<string, number>; // Component ID -> quantity
+  focusEquipped: boolean;
+  concentratingOn: string | null; // Spell ID
 }
 ```
 
-### Oracle Context Enhancement
-```typescript
-interface CharacterContext {
-  // ...existing fields...
-  activeConditions: Array<{
-    name: string;
-    remainingRounds: number;
-    source?: string;
-    severity: string;
-    saveType?: string;
-  }>;
-  activeBuffs: Array<{
-    name: string;
-    remainingMinutes: number;
-    concentration: boolean;
-  }>;
-}
-```
+### Files to Modify
 
-### Animation Classes
-```css
-/* Severity-based condition animations */
-.condition-low { /* subtle pulse */ }
-.condition-medium { /* slow energy flow */ }
-.condition-high { /* faster pulse, glow */ }
-.condition-critical { /* alarm mode - pulsing red, electricity */ }
-
-/* Poison-specific (green energy) */
-.condition-poison { --condition-color: hsl(120 60% 40%); }
-
-/* Fear-specific (purple energy) */
-.condition-fear { --condition-color: hsl(270 60% 50%); }
-
-/* Concentration marker */
-.condition-concentration::before { /* eye icon overlay */ }
-```
+| File | Change |
+|------|--------|
+| `src/components/navigation/AssassinHeader.tsx` | Add "Arcana" tab with indigo styling |
+| `src/pages/Index.tsx` | Add `arcana` to tab types, integrate `useSpellcasting` hook, add `<MagicScreen />` |
+| `src/components/home/HomeScreen.tsx` | Add "Arcana" to `drawerOptions`, optional spell slot stat card |
+| `src/components/drawers/PromptDrawerProvider.tsx` | Add `arcanaOpen` state, pass spellcasting data to Oracle |
+| `src/components/oracle/types.ts` | Add `spellcasting` to `CharacterContext` |
+| `supabase/functions/oracle-assistant/index.ts` | Include spell slots, concentration, path in context |
+| `src/components/combat/mobile/MobileCombatLayout.tsx` | Add `spells` tab, integrate concentration with conditions |
+| `src/components/combat/mobile/CombatBottomNav.tsx` | Add spell tab with slot count badge |
+| `src/hooks/use-conditions.ts` | Add `addConcentrationCondition` helper |
+| `src/components/conditions/ConditionStatusBoard.tsx` | Special styling for concentration buffs |
 
 ---
 
-## What Makes This More Immersive
+## V. Implementation Phases
 
-| Original Proposal | Enhanced Version |
-|-------------------|------------------|
-| Static condition descriptions | Personality-voiced descriptions matching active Oracle |
-| Basic visual indicators | Animated effects matching Infinity Gauntlet energy style |
-| Duration tracking | Source tracking with NPC memory for Oracle context |
-| Manual management | Proactive Oracle warnings and save reminders |
-| Standalone feature | Deep Combat HUD integration with quick-add |
-| Generic feedback | Personality-specific commentary (especially Deadpool) |
-| Single session | Session statistics for Chronicle Sync integration |
+### Phase 1: Foundation (Types + Path Selection)
+- Create `src/lib/magic/` type system
+- Build path definitions with visual configs
+- Create `useSpellcasting` hook with localStorage persistence
+- Add "Arcana" tab to navigation (locked until path selected)
 
-The conditions system becomes another touchpoint for the Oracle's personality to shine through, making status effects feel like part of your character's story rather than just mechanical bookkeeping.
+### Phase 2: Spellbook Core
+- Build spell database (cantrips + 1st-2nd level for each path)
+- Create `MagicScreen.tsx` with path selector and spell grid
+- Implement spell details sheet
+- Add spell slot tracker visualization
+
+### Phase 3: Casting Flow
+- Build `SpellCastSheet.tsx` with upcast selection
+- Integrate concentration with Condition Status Board
+- Add component tracking
+- Create spell RP prompt generator with personality support
+
+### Phase 4: Combat + Oracle Integration
+- Add "Spells" tab to Combat HUD
+- Implement quick-cast flow
+- Update Oracle context with spellcasting state
+- Add spell-aware Oracle suggestions
+
+### Phase 5: Polish
+- Ritual casting mode
+- Full material component inventory
+- Spell search/filtering
+- Session statistics for Chronicle Sync
+
+---
+
+## VI. Oracle Integration Summary
+
+**New Context Fields:**
+```typescript
+interface CharacterContext {
+  // ...existing fields...
+  spellcasting?: {
+    path: MagicPath;
+    pathName: string;
+    slotsRemaining: Record<number, number>;
+    preparedSpells: string[];
+    concentratingOn: string | null;
+    spellAttackBonus: number;
+    spellSaveDC: number;
+  };
+}
+```
+
+**Smart Suggestions:**
+- "You have 2 1st-level slots remaining. Consider Shield if you expect to be targeted."
+- "Warning: Casting a concentration spell will end your current Invisibility."
+- "Your spell save DC is 14. Against this target's likely WIS save, success probability is approximately 65%."
+
+---
+
+## VII. Differentiation from Ability Trees
+
+| Aspect | Ability Trees | Magic System |
+|--------|---------------|--------------|
+| **Progression** | Tier 1→2→3 per ability | Spell level access via path progression |
+| **Resource** | Ability Points (permanent) | Spell Slots (per-rest) |
+| **Cost** | Points invested | Slots consumed per cast |
+| **Recovery** | N/A (permanent upgrades) | Short Rest (Pact) / Long Rest (all) |
+| **Customization** | Tree builds | Spell preparation |
+| **Combat** | Equipped loadout | Prepared spells + available slots |
+
+This maintains the fantasy of being a **martial class with magical augmentation**, not a full caster—you're still an Assassin who happens to have picked up some tricks.
 
