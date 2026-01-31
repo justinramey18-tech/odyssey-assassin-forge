@@ -3,19 +3,25 @@
 import { Lock, Crown } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import { useGameMode } from '@/hooks/use-game-mode';
 
 interface UnlockProgressGateProps {
   current: number;
   required: number;
   isUnlocked: boolean;
+  isLevelBased?: boolean;
 }
 
-export function UnlockProgressGate({ current, required, isUnlocked }: UnlockProgressGateProps) {
+export function UnlockProgressGate({ current, required, isUnlocked, isLevelBased }: UnlockProgressGateProps) {
   const progress = Math.min(100, (current / required) * 100);
+  const { isHonestMode } = useGameMode();
 
   if (isUnlocked) {
     return null; // Don't show gate when unlocked
   }
+
+  // Determine messaging based on game mode
+  const isLevelRequirement = isLevelBased || isHonestMode;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
@@ -32,15 +38,22 @@ export function UnlockProgressGate({ current, required, isUnlocked }: UnlockProg
         Drizzt's Legacy
       </h2>
       <p className="text-muted-foreground text-sm md:text-base max-w-md mb-6">
-        Master all 24 base abilities across Hunter, Warrior, and Assassin trees 
-        to unlock the legendary powers of Drizzt Do'Urden.
+        {isLevelRequirement 
+          ? "Reach Level 20 to unlock the legendary powers of Drizzt Do'Urden."
+          : "Master all 24 base abilities across Hunter, Warrior, and Assassin trees to unlock the legendary powers of Drizzt Do'Urden."
+        }
       </p>
 
       {/* Progress Bar */}
       <div className="w-full max-w-sm mb-4">
         <div className="flex justify-between text-sm mb-2">
           <span className="text-muted-foreground">Progress</span>
-          <span className="text-purple-400 font-mono">{current}/{required} points</span>
+          <span className="text-purple-400 font-mono">
+            {isLevelRequirement 
+              ? `Level ${current}/${required}`
+              : `${current}/${required} points`
+            }
+          </span>
         </div>
         <Progress 
           value={progress} 
@@ -50,7 +63,10 @@ export function UnlockProgressGate({ current, required, isUnlocked }: UnlockProg
 
       {/* Hint */}
       <p className="text-xs text-muted-foreground/60 max-w-xs">
-        Spend {required - current} more ability points to unlock this legendary skill tree.
+        {isLevelRequirement 
+          ? `Gain ${required - current} more level${required - current === 1 ? '' : 's'} to unlock this legendary skill tree.`
+          : `Spend ${required - current} more ability points to unlock this legendary skill tree.`
+        }
       </p>
 
       {/* Decorative Elements */}
