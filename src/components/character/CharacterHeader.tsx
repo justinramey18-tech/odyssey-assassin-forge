@@ -52,7 +52,7 @@ export function CharacterHeader({ character, currentXP, prestigeData, availableA
                   />
                 )}
                 <span className="text-xs text-muted-foreground">
-                  {currentXP.toLocaleString()} XP
+                  {Math.max(0, currentXP).toLocaleString()} XP
                 </span>
               </div>
             </div>
