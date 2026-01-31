@@ -25,6 +25,7 @@ import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 import type { LucideIcon } from 'lucide-react';
 
 import tposeBackground from '@/assets/generated/deadpool-assassin-tpose-dive.jpg';
+import tposeBackgroundMobile from '@/assets/generated/deadpool-assassin-tpose-dive-mobile.jpg';
 import assassinLogo from '@/assets/assassin-logo.png';
 
 // Navigable tab types
@@ -266,13 +267,13 @@ export function HomeScreen({
 
   return (
     <BackgroundWrapper
-      imagePath={tposeBackground}
+      imagePath={isMobile ? tposeBackgroundMobile : tposeBackground}
       overlayOpacity={50}
       tintColor="red"
       tintOpacity={10}
       fixed={true}
-      backgroundSize={isMobile ? "cover" : "contain"}
-      backgroundPosition={isMobile ? "center 20%" : "center center"}
+      backgroundSize="contain"
+      backgroundPosition="center center"
       className="fixed inset-0 z-50"
     >
       {/* Centered Assassin Logo Watermark */}
