@@ -82,7 +82,8 @@ export interface UsePrestigeTreeReturn {
   getTierUnlockProgress: (branch: PrestigeBranch, tier: 1 | 2 | 3) => {
     unlockedCount: number;
     totalRequired: number;
-    tierName: string;
+    requiredTierName: string;
+    targetTierName: string;
   };
 }
 
@@ -178,7 +179,20 @@ export function usePrestigeTree(
     
     // Get all abilities in the previous tier for this specific branch
     const branchAbilities = getAbilitiesByBranch(branch);
+    
+    // Validate branch has abilities
+    if (branchAbilities.length === 0) {
+      console.error(`[PrestigeTree] No abilities found for branch: ${branch}`);
+      return false;
+    }
+    
     const previousTierAbilities = branchAbilities.filter(a => a.tier === requiredTier);
+    
+    // If no abilities in previous tier, allow unlock (edge case)
+    if (previousTierAbilities.length === 0) {
+      console.warn(`[PrestigeTree] No tier ${requiredTier} abilities in branch ${branch}`);
+      return true;
+    }
     
     // All previous tier abilities must be unlocked
     return previousTierAbilities.every(ability => unlockedSet.has(ability.id));
@@ -191,13 +205,29 @@ export function usePrestigeTree(
   const getTierUnlockProgress = useCallback((branch: PrestigeBranch, tier: 1 | 2 | 3): {
     unlockedCount: number;
     totalRequired: number;
-    tierName: string;
+    requiredTierName: string;
+    targetTierName: string;
   } => {
+    const targetTierName = TIER_NAMES[tier];
+    
+    // For Tier 1, show its own progress
     if (tier === 1) {
-      return { unlockedCount: 0, totalRequired: 0, tierName: TIER_NAMES[1] };
+      const branchAbilities = getAbilitiesByBranch(branch);
+      const tier1Abilities = branchAbilities.filter(a => a.tier === 1);
+      const unlockedCount = tier1Abilities.filter(a => unlockedSet.has(a.id)).length;
+      
+      return { 
+        unlockedCount, 
+        totalRequired: tier1Abilities.length, 
+        requiredTierName: '',
+        targetTierName 
+      };
     }
 
+    // For Tier 2/3, show previous tier progress
     const requiredTier = (tier - 1) as 1 | 2;
+    const requiredTierName = TIER_NAMES[requiredTier];
+    
     const branchAbilities = getAbilitiesByBranch(branch);
     const previousTierAbilities = branchAbilities.filter(a => a.tier === requiredTier);
     
@@ -206,7 +236,8 @@ export function usePrestigeTree(
     return {
       unlockedCount,
       totalRequired: previousTierAbilities.length,
-      tierName: TIER_NAMES[requiredTier],
+      requiredTierName,
+      targetTierName,
     };
   }, [unlockedSet]);
 
@@ -240,7 +271,7 @@ export function usePrestigeTree(
         const progress = getTierUnlockProgress(ability.branch, ability.tier);
         return {
           canUnlock: false,
-          reason: `Unlock all ${progress.tierName} abilities first (${progress.unlockedCount}/${progress.totalRequired})`,
+          reason: `${progress.targetTierName} locked. Complete all ${progress.requiredTierName} abilities (${progress.unlockedCount}/${progress.totalRequired})`,
         };
       }
     }
