@@ -63,13 +63,13 @@ export function CharacterHeader({ character, currentXP, prestigeData }: Characte
             </div>
           </div>
           
-          {/* Ability Points Summary */}
+          {/* Available Ability Points */}
           <div className="text-right">
             <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
-              {prestigePoints > 0 ? 'Total Points' : 'Ability Points'}
+              Available Ability Points
             </div>
-            <div className="font-display font-bold text-primary">
-              {spentPoints} / {totalWithPrestige}
+            <div className="font-display font-bold text-2xl text-primary">
+              {totalWithPrestige - spentPoints}
             </div>
           </div>
         </div>
