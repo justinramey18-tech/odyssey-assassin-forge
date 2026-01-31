@@ -2,6 +2,8 @@ import { SpellDefinition, MagicPath, SpellSchool } from '../types';
 import { CANTRIPS, getCantripsByPath } from './cantrips';
 import { FIRST_LEVEL_SPELLS, getFirstLevelSpellsByPath } from './1st-level';
 import { SECOND_LEVEL_SPELLS, getSecondLevelSpellsByPath } from './2nd-level';
+import { THIRD_LEVEL_SPELLS, getThirdLevelSpellsByPath } from './3rd-level';
+import { FOURTH_LEVEL_SPELLS, getFourthLevelSpellsByPath } from './4th-level';
 import { SpellFilter, SpellListResult, SpellRegistry } from './types';
 
 // ============================================
@@ -12,6 +14,8 @@ export const ALL_SPELLS: SpellDefinition[] = [
   ...CANTRIPS,
   ...FIRST_LEVEL_SPELLS,
   ...SECOND_LEVEL_SPELLS,
+  ...THIRD_LEVEL_SPELLS,
+  ...FOURTH_LEVEL_SPELLS,
 ];
 
 export const SPELL_REGISTRY: SpellRegistry = ALL_SPELLS.reduce((acc, spell) => {
@@ -172,3 +176,5 @@ export * from './types';
 export { CANTRIPS, getCantripsByPath } from './cantrips';
 export { FIRST_LEVEL_SPELLS, getFirstLevelSpellsByPath } from './1st-level';
 export { SECOND_LEVEL_SPELLS, getSecondLevelSpellsByPath } from './2nd-level';
+export { THIRD_LEVEL_SPELLS, getThirdLevelSpellsByPath } from './3rd-level';
+export { FOURTH_LEVEL_SPELLS, getFourthLevelSpellsByPath } from './4th-level';
