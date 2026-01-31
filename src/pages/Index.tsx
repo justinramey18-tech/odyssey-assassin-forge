@@ -22,7 +22,7 @@ import { IntroSplashScreen } from '@/components/home/IntroSplashScreen';
 import { NarrativeForgeScreen } from '@/components/scribe/NarrativeForgeScreen';
 import { ChronicleSyncScreen } from '@/components/chronicle';
 import { PromptDrawerProvider } from '@/components/drawers';
-import { OnboardingProvider } from '@/components/onboarding';
+
 import { AbilitiesScreen } from '@/components/abilities';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -672,96 +672,67 @@ const Index = () => {
     );
   }
 
-  // Intro splash screen - shows once after tutorial completion
+  // Intro splash screen - shows once
   if (showHomeScreen && showIntroSplash) {
     return (
-      <OnboardingProvider
-        totalPointsSpent={spentPoints}
-        characterName={character.name}
-        onForceNavigate={(tab) => { 
-          // Skip the intro splash when onboarding navigates
+      <IntroSplashScreen 
+        onBegin={() => {
           localStorage.setItem('odyssey-intro-seen', 'true');
           setShowIntroSplash(false);
-          setShowHomeScreen(false); 
-          setActiveTab(tab as typeof activeTab); 
         }}
-      >
-        <IntroSplashScreen 
-          onBegin={() => {
-            localStorage.setItem('odyssey-intro-seen', 'true');
-            setShowIntroSplash(false);
-          }}
-        />
-      </OnboardingProvider>
+      />
     );
   }
 
   // Full-screen Home overlay
   if (showHomeScreen) {
     return (
-      <OnboardingProvider
-        totalPointsSpent={spentPoints}
-        characterName={character.name}
-        onForceNavigate={(tab) => { 
-          setShowHomeScreen(false); 
-          setActiveTab(tab as typeof activeTab); 
-        }}
+      <PromptDrawerProvider
+        character={character}
+        unlockedAbilities={unlockedAbilities}
+        enabled={true}
+        currentXP={currentXP}
+        xpPreset={xpPreset}
+        onAddXP={handleAddXP}
+        equipment={equipment}
       >
-        <PromptDrawerProvider
+        <HomeScreen 
           character={character}
-          unlockedAbilities={unlockedAbilities}
-          enabled={true}
+          equipment={equipment}
+          achievements={achievements}
           currentXP={currentXP}
           xpPreset={xpPreset}
+          onBack={() => setShowWizard(true)}
+          onNavigateToTab={(tab) => {
+            setShowHomeScreen(false);
+            setActiveTab(tab as typeof activeTab);
+          }}
+          onShortRest={handleShortRest}
+          onLongRest={handleLongRest}
           onAddXP={handleAddXP}
-          equipment={equipment}
-        >
-          <HomeScreen 
-            character={character}
-            equipment={equipment}
-            achievements={achievements}
-            currentXP={currentXP}
-            xpPreset={xpPreset}
-            onBack={() => setShowWizard(true)}
-            onNavigateToTab={(tab) => {
-              setShowHomeScreen(false);
-              setActiveTab(tab as typeof activeTab);
-            }}
-            onShortRest={handleShortRest}
-            onLongRest={handleLongRest}
-            onAddXP={handleAddXP}
-            onXPPresetChange={setXPPreset}
-            onManualLevelUp={handleManualLevelUp}
-            onReturnToBuilder={() => setShowHomeScreen(false)}
-            onOpenSettings={() => setShowSettingsModal(true)}
-          />
-          
-          {/* Settings Modal */}
-          <SettingsModal 
-            characterName={character.name} 
-            onEditCharacter={() => setShowWizard(true)}
-            open={showSettingsModal}
-            onOpenChange={setShowSettingsModal}
-            prestigeData={{
-              totalPrestigePoints: prestigeData.totalPrestigePoints,
-              prestigeLevel: prestigeData.prestigeLevel,
-            }}
-            onResetComplete={handleResetApp}
-          />
-        </PromptDrawerProvider>
-      </OnboardingProvider>
+          onXPPresetChange={setXPPreset}
+          onManualLevelUp={handleManualLevelUp}
+          onReturnToBuilder={() => setShowHomeScreen(false)}
+          onOpenSettings={() => setShowSettingsModal(true)}
+        />
+        
+        {/* Settings Modal */}
+        <SettingsModal 
+          characterName={character.name} 
+          onEditCharacter={() => setShowWizard(true)}
+          open={showSettingsModal}
+          onOpenChange={setShowSettingsModal}
+          prestigeData={{
+            totalPrestigePoints: prestigeData.totalPrestigePoints,
+            prestigeLevel: prestigeData.prestigeLevel,
+          }}
+          onResetComplete={handleResetApp}
+        />
+      </PromptDrawerProvider>
     );
   }
 
   return (
-    <OnboardingProvider
-      totalPointsSpent={spentPoints}
-      characterName={character.name}
-      onForceNavigate={(tab) => { 
-        setShowHomeScreen(false); 
-        setActiveTab(tab as typeof activeTab); 
-      }}
-    >
     <PromptDrawerProvider
       character={character}
       unlockedAbilities={unlockedAbilities}
@@ -1033,7 +1004,6 @@ const Index = () => {
       )}
       </div>
     </PromptDrawerProvider>
-    </OnboardingProvider>
   );
 };
 

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Settings, User, Dices, Gamepad2, RotateCcw, Star, Lock, FileText, Copy, Check, RefreshCw, Camera, BookOpen, AlertTriangle } from 'lucide-react';
+import { Settings, User, Dices, Gamepad2, RotateCcw, Star, Lock, FileText, Copy, Check, RefreshCw, Camera, HelpCircle, AlertTriangle, ChevronDown } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -15,9 +15,9 @@ import { toast } from 'sonner';
 import { Character, Ability } from '@/lib/types';
 import { EquipmentItem, EquipmentSlotType } from '@/lib/inventory/types';
 import { generateDynamicGMGuide, generateCurrentStateSummary, STATIC_GM_GUIDE, CharacterBuildData } from '@/lib/gmGuideGenerator';
-import { ONBOARDING_STORAGE_KEY } from '@/lib/onboarding/types';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +29,129 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+
+// FAQ Data
+const FAQ_ITEMS = [
+  {
+    category: "Getting Started",
+    questions: [
+      {
+        q: "How do I unlock abilities?",
+        a: "Navigate to the Skills tab and tap on any ability node. Each ability has 3 tiers - spend 1 point per tier to unlock. You earn ability points as you level up.",
+      },
+      {
+        q: "What are the three skill trees?",
+        a: "Hunter focuses on ranged attacks and tracking. Warrior emphasizes melee combat and defense. Assassin specializes in stealth, critical strikes, and evasion.",
+      },
+      {
+        q: "How do I level up?",
+        a: "Gain XP through gameplay sessions with your GM. When you have enough XP for the next level, tap the level-up notification on your character header.",
+      },
+    ],
+  },
+  {
+    category: "Abilities & Combat",
+    questions: [
+      {
+        q: "What's the difference between Active and Passive abilities?",
+        a: "Active abilities require an action to use (action, bonus action, or reaction). Passive abilities are always active once unlocked and provide constant benefits.",
+      },
+      {
+        q: "How do ability loadout slots work?",
+        a: "You can equip active abilities to loadout slots for quick access during combat. The number of slots increases with your level. Go to an ability's detail panel and tap 'Equip to Loadout'.",
+      },
+      {
+        q: "What do the tier levels mean?",
+        a: "Each ability has 3 tiers (I, II, III). Higher tiers provide stronger effects. Tier III is the maximum 'Mastered' state, shown with a golden glow.",
+      },
+      {
+        q: "Can I refund ability points?",
+        a: "Yes! Tap on an unlocked ability and use the 'Refund Tier' button to get your point back. This allows you to experiment with different builds.",
+      },
+    ],
+  },
+  {
+    category: "Drizzt's Legacy",
+    questions: [
+      {
+        q: "What is Drizzt's Legacy?",
+        a: "It's an advanced prestige tree that unlocks powerful abilities. You gain access as you progress and earn prestige levels through extended gameplay.",
+      },
+      {
+        q: "How do I unlock Legacy abilities?",
+        a: "Legacy abilities use the same unified ability points as regular skills. Spend points on any branch that interests you, but some require prerequisites.",
+      },
+      {
+        q: "What are the Legacy branches?",
+        a: "There are multiple branches representing different aspects of Drizzt's legacy: Shadow, Hunter, Protector, Blademaster, and Survivor. Each offers unique abilities.",
+      },
+    ],
+  },
+  {
+    category: "Equipment & Gear",
+    questions: [
+      {
+        q: "How do I equip items?",
+        a: "Go to the Gear tab and tap on an equipment slot. Select an item from your inventory to equip it. Different slots accept different item types.",
+      },
+      {
+        q: "What are Set Bonuses?",
+        a: "Some items belong to legendary sets. Equipping multiple pieces from the same set unlocks powerful bonus effects. Check the Set Bonus panel for details.",
+      },
+      {
+        q: "How do I unlock better gear?",
+        a: "Legendary items and sets unlock as you reach higher levels. Check the Gear tab to see what's available at your current level.",
+      },
+    ],
+  },
+  {
+    category: "AI GM Integration",
+    questions: [
+      {
+        q: "How do I sync with my AI GM?",
+        a: "Go to Settings → Set Up tab. Use 'Generate Current State Summary' to copy your character's current build, then paste it into your AI GM chat.",
+      },
+      {
+        q: "What's the difference between Full Guide and Build Only?",
+        a: "'Full Guide' includes system rules plus your build. 'Build Only' is a quick snapshot of your current abilities and gear for mid-session updates.",
+      },
+      {
+        q: "How often should I sync?",
+        a: "Sync at the start of each session and after major changes (leveling up, new abilities, gear changes). Use 'State Snapshot' for quick updates.",
+      },
+    ],
+  },
+  {
+    category: "Game Modes",
+    questions: [
+      {
+        q: "What is Honest Mode?",
+        a: "Honest Mode disables certain convenience features like respeccing, making your choices permanent. It's for players who want a more committed experience.",
+      },
+      {
+        q: "Can I change Game Mode later?",
+        a: "Yes, you can toggle game modes in Settings → Game Mode. Some restrictions apply to prevent abuse of the system.",
+      },
+    ],
+  },
+  {
+    category: "Data & Saving",
+    questions: [
+      {
+        q: "Is my progress saved automatically?",
+        a: "Yes! Your character data, abilities, and equipment are saved to your browser automatically. Use Cloud Save for backup across devices.",
+      },
+      {
+        q: "How do I use Cloud Save?",
+        a: "Sign in with your account and enable Cloud Save. Your progress will sync across devices and be protected from data loss.",
+      },
+      {
+        q: "How do I reset everything?",
+        a: "Go to Settings → Character tab and scroll to the Danger Zone. Use 'Reset Entire App' to start fresh. Warning: This is permanent!",
+      },
+    ],
+  },
+];
 
 interface SettingsModalProps {
   characterName: string;
@@ -182,7 +305,6 @@ export function SettingsModal({
   };
 
   const hasPrestigePoints = prestigeData && prestigeData.totalPrestigePoints > 0;
-  // Prestige respec is no longer needed since points are unified
   const hasDynamicData = !!dynamicGuide;
 
   return (
@@ -204,6 +326,10 @@ export function SettingsModal({
             <TabsTrigger value="setup" className="gap-1 text-xs">
               <FileText className="w-3.5 h-3.5" />
               Set Up
+            </TabsTrigger>
+            <TabsTrigger value="faq" className="gap-1 text-xs">
+              <HelpCircle className="w-3.5 h-3.5" />
+              Q&A
             </TabsTrigger>
             <TabsTrigger value="character" className="gap-1 text-xs">
               <User className="w-3.5 h-3.5" />
@@ -391,28 +517,45 @@ export function SettingsModal({
                       ? '💡 "Full Guide" includes your current build + system rules. "Build Only" is for quick updates.'
                       : '💡 Configure your character to enable dynamic build snapshots.'}
                   </p>
+                </div>
+              </TabsContent>
 
-                  <Separator className="bg-border/30" />
+              {/* Q&A Tab */}
+              <TabsContent value="faq" className="mt-0 space-y-4">
+                <div>
+                  <h3 className="font-cinzel font-semibold text-sm flex items-center gap-2">
+                    <HelpCircle className="w-4 h-4 text-primary" />
+                    Frequently Asked Questions
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Find answers to common questions about using this app
+                  </p>
+                </div>
 
-                  {/* Replay Tutorial */}
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                    <div>
-                      <p className="font-medium text-sm">Tutorial</p>
-                      <p className="text-xs text-muted-foreground">Replay the onboarding walkthrough</p>
+                <div className="space-y-4">
+                  {FAQ_ITEMS.map((category, catIdx) => (
+                    <div key={catIdx} className="space-y-2">
+                      <Badge variant="secondary" className="text-xs">
+                        {category.category}
+                      </Badge>
+                      <Accordion type="single" collapsible className="space-y-1">
+                        {category.questions.map((item, qIdx) => (
+                          <AccordionItem 
+                            key={qIdx} 
+                            value={`${catIdx}-${qIdx}`}
+                            className="border border-border/30 rounded-lg px-3 bg-muted/20"
+                          >
+                            <AccordionTrigger className="text-sm text-left py-3 hover:no-underline">
+                              {item.q}
+                            </AccordionTrigger>
+                            <AccordionContent className="text-sm text-muted-foreground pb-3">
+                              {item.a}
+                            </AccordionContent>
+                          </AccordionItem>
+                        ))}
+                      </Accordion>
                     </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => {
-                        localStorage.removeItem(ONBOARDING_STORAGE_KEY);
-                        toast.success('Tutorial reset! Refresh to replay.');
-                        setOpen(false);
-                      }}
-                    >
-                      <BookOpen className="w-4 h-4 mr-2" />
-                      Replay
-                    </Button>
-                  </div>
+                  ))}
                 </div>
               </TabsContent>
 

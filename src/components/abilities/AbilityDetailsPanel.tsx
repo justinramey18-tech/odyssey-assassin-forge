@@ -2,8 +2,6 @@ import { useState } from 'react';
 import { Ability, AbilityTree, getActiveSlotsByLevel } from '@/lib/types';
 import { TREE_VISUAL_CONFIG } from '@/lib/abilityTrees/colors';
 import { allAbilities, getAbilityById } from '@/lib/abilities';
-import { TARGET_ABILITY } from '@/lib/onboarding/types';
-import { OnboardingTrigger } from '@/components/onboarding/OnboardingTrigger';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -301,23 +299,6 @@ export function AbilityDetailsPanel({
             <Sparkles className="w-5 h-5 text-yellow-400" />
             <span className="font-bold text-yellow-400">Mastered</span>
           </div>
-        ) : ability?.id === TARGET_ABILITY && currentTier === 0 ? (
-          <OnboardingTrigger 
-            step="unlock_ability" 
-            id="onboarding-unlock-button"
-          >
-            <Button
-              onClick={handleUpgradeClick}
-              disabled={!canUpgrade || !meetsLevelRequirement}
-              className={cn(
-                'w-full',
-                canUpgrade && meetsLevelRequirement && `bg-${treeConfig.primary} hover:bg-${treeConfig.primary}/90`
-              )}
-            >
-              Unlock Tier I
-              <span className="ml-2 text-xs opacity-80">(1 pt)</span>
-            </Button>
-          </OnboardingTrigger>
         ) : (
           <Button
             onClick={handleUpgradeClick}
