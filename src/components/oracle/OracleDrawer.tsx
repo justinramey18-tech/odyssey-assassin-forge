@@ -16,6 +16,8 @@ import { ContextChipBar } from './ContextChipBar';
 import { MessageList } from './MessageList';
 import { QuickPromptBar } from './QuickPromptBar';
 import { CharacterContext } from './types';
+import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
+import { getSpellById } from '@/lib/magic/spells';
 
 interface OracleDrawerProps {
   open: boolean;
@@ -42,6 +44,8 @@ interface OracleDrawerProps {
     remainingMinutes: number;
     concentration: boolean;
   }>;
+  // Spellcasting context
+  spellcasting?: UseSpellcastingReturn;
 }
 
 export function OracleDrawer({
@@ -58,6 +62,7 @@ export function OracleDrawer({
   getRemainingTime,
   activeConditions = [],
   activeBuffs = [],
+  spellcasting,
 }: OracleDrawerProps) {
   const [inputValue, setInputValue] = useState('');
 
@@ -134,6 +139,46 @@ export function OracleDrawer({
         }
       });
 
+    // Build spellcasting context
+    let spellcastingContext: CharacterContext['spellcasting'] = undefined;
+    if (spellcasting?.state.path) {
+      const { state, spellAttackBonus, spellSaveDC, totalSlotsRemaining } = spellcasting;
+      
+      // Get spell names for prepared spells
+      const preparedSpellNames = state.preparedSpells
+        .map(id => getSpellById(id)?.name || id)
+        .filter(Boolean);
+      
+      // Get concentration spell name
+      const concentrationName = state.concentratingOn 
+        ? getSpellById(state.concentratingOn)?.name || state.concentratingOn
+        : null;
+      
+      // Build slots array
+      const slotsArray = Object.entries(state.spellSlots)
+        .filter(([_, slot]) => slot.max > 0)
+        .map(([level, slot]) => ({
+          level: parseInt(level),
+          current: slot.current,
+          max: slot.max,
+        }));
+
+      spellcastingContext = {
+        path: state.path,
+        spellAttackBonus,
+        spellSaveDC,
+        totalSlotsRemaining,
+        concentratingOn: concentrationName,
+        preparedSpells: preparedSpellNames,
+        slots: slotsArray,
+        pactSlots: state.pactSlots ? {
+          current: state.pactSlots.current,
+          max: state.pactSlots.max,
+          level: state.pactSlots.level,
+        } : undefined,
+      };
+    }
+
     return {
       name: character.name,
       level: character.level,
@@ -152,8 +197,9 @@ export function OracleDrawer({
       prestigeAbilities,
       activeConditions,
       activeBuffs,
+      spellcasting: spellcastingContext,
     };
-  }, [character, currentHP, maxHP, equipment, consumables, cooldowns, prestigeLevel, prestigeAbilities, getRemainingTime, activeConditions, activeBuffs]);
+  }, [character, currentHP, maxHP, equipment, consumables, cooldowns, prestigeLevel, prestigeAbilities, getRemainingTime, activeConditions, activeBuffs, spellcasting]);
 
   const {
     messages,

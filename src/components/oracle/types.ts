@@ -37,6 +37,17 @@ export interface CharacterContext {
     remainingMinutes: number;
     concentration: boolean;
   }>;
+  // Spellcasting context
+  spellcasting?: {
+    path: string | null;
+    spellAttackBonus: number;
+    spellSaveDC: number;
+    totalSlotsRemaining: number;
+    concentratingOn: string | null;
+    preparedSpells: string[];
+    slots: Array<{ level: number; current: number; max: number }>;
+    pactSlots?: { current: number; max: number; level: number };
+  };
 }
 
 export interface PersonalityConfig {

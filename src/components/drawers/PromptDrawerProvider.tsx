@@ -285,6 +285,7 @@ export function PromptDrawerProvider({
             getRemainingTime={cooldownSystem.getRemainingTime}
             activeConditions={conditionSystem.oracleContext.activeConditions}
             activeBuffs={conditionSystem.oracleContext.activeBuffs}
+            spellcasting={spellcasting}
           />
 
           <ConditionStatusBoard

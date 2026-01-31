@@ -1,4 +1,4 @@
-import { Heart, Timer, Package } from 'lucide-react';
+import { Heart, Timer, Package, Wand2, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CharacterContext } from './types';
 
@@ -6,6 +6,15 @@ interface ContextChipBarProps {
   context: CharacterContext;
   onChipClick: (query: string) => void;
   disabled?: boolean;
+}
+
+interface ChipData {
+  icon: typeof Heart;
+  label: string;
+  color: string;
+  query: string;
+  subtext?: string;
+  pulse?: boolean;
 }
 
 export function ContextChipBar({ context, onChipClick, disabled }: ContextChipBarProps) {
@@ -17,7 +26,13 @@ export function ContextChipBar({ context, onChipClick, disabled }: ContextChipBa
   
   const consumableCount = context.consumables.reduce((sum, c) => sum + c.quantity, 0);
 
-  const chips = [
+  // Spellcasting context
+  const spell = context.spellcasting;
+  const hasSpells = spell?.path && spell.preparedSpells.length > 0;
+  const isConcentrating = !!spell?.concentratingOn;
+  const slotsRemaining = spell?.totalSlotsRemaining ?? 0;
+
+  const chips: ChipData[] = [
     {
       icon: Heart,
       label: `${context.currentHP}/${context.maxHP}`,
@@ -41,6 +56,24 @@ export function ContextChipBar({ context, onChipClick, disabled }: ContextChipBa
     },
   ];
 
+  // Add spells chip if character has spellcasting
+  if (hasSpells) {
+    chips.push({
+      icon: isConcentrating ? Eye : Wand2,
+      label: isConcentrating ? 'Concentrating' : `${slotsRemaining} Slots`,
+      color: isConcentrating ? 'text-amber-400' : slotsRemaining > 0 ? 'text-indigo-400' : 'text-white/50',
+      query: isConcentrating 
+        ? 'What should I consider regarding my concentration spell? When should I break it?'
+        : slotsRemaining > 0
+          ? 'Which spells should I prioritize casting with my remaining slots?'
+          : 'I\'m out of spell slots. What are my best non-spell options?',
+      subtext: isConcentrating 
+        ? spell.concentratingOn 
+        : spell.preparedSpells.length + ' prepared',
+      pulse: isConcentrating,
+    });
+  }
+
   return (
     <div className="flex gap-2 px-3 pb-2 overflow-x-auto">
       {chips.map((chip, index) => (
@@ -57,13 +90,13 @@ export function ContextChipBar({ context, onChipClick, disabled }: ContextChipBa
             disabled && 'opacity-50 cursor-not-allowed'
           )}
         >
-          <chip.icon className={cn('w-4 h-4', chip.color)} />
+          <chip.icon className={cn('w-4 h-4', chip.color, chip.pulse && 'animate-pulse')} />
           <div className="flex flex-col items-start">
             <span className={cn('text-sm font-medium', chip.color)}>
               {chip.label}
             </span>
             {chip.subtext && (
-              <span className="text-[10px] text-white/40">{chip.subtext}</span>
+              <span className="text-[10px] text-white/40 truncate max-w-[80px]">{chip.subtext}</span>
             )}
           </div>
         </button>
