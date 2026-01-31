@@ -46,7 +46,7 @@ import { ApprovedChanges } from '@/lib/chronicleSync/types';
 import { PrestigeTreeScreen } from '@/components/prestigeTree';
 import { usePrestigeTree } from '@/hooks/use-prestige-tree';
 import { getPrestigeAbilityById } from '@/lib/prestigeTree/abilities';
-import { resetAllAppData } from '@/lib/resetApp';
+import { resetAllAppData, repairXPData } from '@/lib/resetApp';
 import { 
   CharacterEquipment, 
   EquipmentItem,
@@ -185,17 +185,22 @@ const Index = () => {
   // Auto-save (only when not in wizard)
   useAutoSave(saveData, !showWizard);
 
-  // Load auto-save on mount
+  // Load auto-save on mount with XP repair
   useEffect(() => {
     const saved = loadAutoSave();
     if (saved && saved.character.name) {
       setCharacter(saved.character);
       setEquipment(saved.equipment);
       setAchievements(saved.achievements);
-      setCurrentXP(saved.xp.currentXP);
+      
+      // Repair XP if corrupted (below minimum for level)
+      const multiplier = XP_PRESETS[saved.xp.xpPreset as XPPreset]?.multiplier ?? 1.0;
+      const repairedXP = repairXPData(saved.character.level, saved.xp.currentXP, multiplier);
+      setCurrentXP(repairedXP);
+      
       setXPPreset(saved.xp.xpPreset as XPPreset);
       setShowWizard(false);
-      console.log('[AutoSave] Loaded character:', saved.character.name);
+      console.log('[AutoSave] Loaded character:', saved.character.name, repairedXP !== saved.xp.currentXP ? '(XP repaired)' : '');
     }
   }, []);
 
