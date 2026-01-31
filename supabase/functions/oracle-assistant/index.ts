@@ -36,6 +36,17 @@ interface CharacterContext {
     remainingMinutes: number;
     concentration: boolean;
   }>;
+  // Spellcasting context
+  spellcasting?: {
+    path: string | null;
+    spellAttackBonus: number;
+    spellSaveDC: number;
+    totalSlotsRemaining: number;
+    concentratingOn: string | null;
+    preparedSpells: string[];
+    slots: Array<{ level: number; current: number; max: number }>;
+    pactSlots?: { current: number; max: number; level: number };
+  };
 }
 
 interface OracleRequest {
@@ -115,6 +126,40 @@ function buildContextSummary(ctx: CharacterContext): string {
       .map(b => `${b.name} (${b.remainingMinutes}min${b.concentration ? ', CONCENTRATION' : ''})`)
       .join(', ');
     lines.push(`✨ ACTIVE BUFFS: ${buffList}`);
+  }
+  
+  // Add spellcasting context
+  if (ctx.spellcasting && ctx.spellcasting.path) {
+    const spell = ctx.spellcasting;
+    lines.push(`\n🔮 SPELLCASTING (${spell.path}):`);
+    lines.push(`   Attack Bonus: +${spell.spellAttackBonus} | Save DC: ${spell.spellSaveDC}`);
+    
+    // Slot status
+    const slotStatus = spell.slots
+      .filter(s => s.max > 0)
+      .map(s => `${s.level === 1 ? '1st' : s.level === 2 ? '2nd' : s.level === 3 ? '3rd' : s.level + 'th'}: ${s.current}/${s.max}`)
+      .join(', ');
+    if (slotStatus) {
+      lines.push(`   Spell Slots: ${slotStatus}`);
+    }
+    
+    // Pact slots for Hexblades
+    if (spell.pactSlots && spell.pactSlots.max > 0) {
+      lines.push(`   Pact Slots: ${spell.pactSlots.current}/${spell.pactSlots.max} (Level ${spell.pactSlots.level})`);
+    }
+    
+    // Total remaining
+    lines.push(`   Total Slots Remaining: ${spell.totalSlotsRemaining}`);
+    
+    // Concentration status - IMPORTANT for tactical advice
+    if (spell.concentratingOn) {
+      lines.push(`   ⚡ CONCENTRATING ON: ${spell.concentratingOn} (taking damage requires CON save!)`);
+    }
+    
+    // Prepared spells
+    if (spell.preparedSpells.length > 0) {
+      lines.push(`   Prepared Spells: ${spell.preparedSpells.join(', ')}`);
+    }
   }
   
   return lines.join('\n');
