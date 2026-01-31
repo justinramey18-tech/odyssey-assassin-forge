@@ -1042,7 +1042,11 @@ const Index = () => {
 
         {/* Combat Tab Content */}
         <TabsContent value="combat" className="mt-0">
-          <CombatTabScreen character={character} prestigePoints={prestigeData.totalPrestigePoints} />
+          <CombatTabScreen 
+            character={character} 
+            prestigePoints={prestigeData.totalPrestigePoints}
+            spellcasting={spellcasting}
+          />
         </TabsContent>
 
         {/* Consumables Tab Content */}

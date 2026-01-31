@@ -24,10 +24,12 @@ import './CombatHUDStyles.css';
 import './mobile/MobileCombatStyles.css';
 import { useGameMode } from '@/hooks/use-game-mode';
 import combatBackground from '@/assets/combat-background.jpg';
+import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
 
 interface CombatTabScreenProps {
   character: Character;
   prestigePoints?: number;
+  spellcasting?: UseSpellcastingReturn;
 }
 
 // Combat modifier calculations
@@ -90,7 +92,7 @@ function calculateModifiers(character: Character): CombatModifiers {
   };
 }
 
-export function CombatTabScreen({ character, prestigePoints = 0 }: CombatTabScreenProps) {
+export function CombatTabScreen({ character, prestigePoints = 0, spellcasting }: CombatTabScreenProps) {
   const isMobile = useIsMobile();
   const { rerollsDisabled } = useGameMode();
   
@@ -248,7 +250,7 @@ export function CombatTabScreen({ character, prestigePoints = 0 }: CombatTabScre
   
   // Use mobile layout for smaller screens
   if (isMobile) {
-    return <MobileCombatLayout character={character} />;
+    return <MobileCombatLayout character={character} spellcasting={spellcasting} />;
   }
   return (
     <BackgroundWrapper 

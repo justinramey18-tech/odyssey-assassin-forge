@@ -4,10 +4,11 @@ import {
   Moon, 
   Sparkles, 
   Backpack, 
-  FileText 
+  FileText,
+  Wand2,
 } from 'lucide-react';
 
-export type CombatTab = 'attacks' | 'stealth' | 'abilities' | 'items' | 'summary';
+export type CombatTab = 'attacks' | 'stealth' | 'abilities' | 'spells' | 'items' | 'summary';
 
 interface CombatBottomNavProps {
   activeTab: CombatTab;
@@ -16,6 +17,7 @@ interface CombatBottomNavProps {
     attacks: number;
     stealth: number;
     abilities: number;
+    spells?: number;
     items: number;
   };
 }
@@ -24,6 +26,7 @@ const tabs = [
   { id: 'attacks' as CombatTab, label: 'ATTACKS', icon: Sword, color: 'text-red-400' },
   { id: 'stealth' as CombatTab, label: 'STEALTH', icon: Moon, color: 'text-purple-400' },
   { id: 'abilities' as CombatTab, label: 'ABILITIES', icon: Sparkles, color: 'text-amber-400' },
+  { id: 'spells' as CombatTab, label: 'SPELLS', icon: Wand2, color: 'text-indigo-400' },
   { id: 'items' as CombatTab, label: 'ITEMS', icon: Backpack, color: 'text-cyan-400' },
   { id: 'summary' as CombatTab, label: 'SUMMARY', icon: FileText, color: 'text-green-400' },
 ];
