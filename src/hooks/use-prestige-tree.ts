@@ -5,14 +5,22 @@ import {
   PrestigeTreeProgress,
   DEFAULT_PRESTIGE_TREE_PROGRESS,
   PrestigeAbility,
+  PrestigeBranch,
   LEGACY_UNLOCK_THRESHOLD,
 } from '@/lib/prestigeTree/types';
-import { prestigeAbilities, getPrestigeAbilityById, ABILITY_COUNTS } from '@/lib/prestigeTree/abilities';
+import { prestigeAbilities, getPrestigeAbilityById, getAbilitiesByBranch, ABILITY_COUNTS } from '@/lib/prestigeTree/abilities';
 import { PrestigeData } from '@/lib/prestige/types';
 import { CharacterAbility, getTotalPointsSpent } from '@/lib/types';
 import { useGameMode } from '@/hooks/use-game-mode';
 
 const STORAGE_KEY = 'odyssey-prestige-tree';
+
+// Tier display names for UI
+const TIER_NAMES: Record<1 | 2 | 3, string> = {
+  1: 'Foundation',
+  2: 'Intermediate', 
+  3: 'Advanced',
+};
 const HONEST_MODE_LEVEL_REQUIREMENT = 20;
 
 function loadProgress(): PrestigeTreeProgress {
@@ -67,6 +75,14 @@ export interface UsePrestigeTreeReturn {
   getPrerequisitesStatus: (abilityId: string) => {
     met: boolean;
     missing: string[];
+  };
+  
+  // Tier unlock helpers
+  isTierUnlockedForBranch: (branch: PrestigeBranch, tier: 1 | 2 | 3) => boolean;
+  getTierUnlockProgress: (branch: PrestigeBranch, tier: 1 | 2 | 3) => {
+    unlockedCount: number;
+    totalRequired: number;
+    tierName: string;
   };
 }
 
@@ -147,6 +163,53 @@ export function usePrestigeTree(
     return result;
   }, [unlockedSet]);
 
+  /**
+   * Check if a tier is unlocked for a specific branch.
+   * Tier 1 (Foundation) is always unlocked.
+   * Tier 2 (Intermediate) requires ALL Tier 1 abilities in the same branch to be unlocked.
+   * Tier 3 (Advanced) requires ALL Tier 2 abilities in the same branch to be unlocked.
+   */
+  const isTierUnlockedForBranch = useCallback((branch: PrestigeBranch, tier: 1 | 2 | 3): boolean => {
+    // Tier 1 is always unlocked
+    if (tier === 1) return true;
+
+    // Get the required previous tier
+    const requiredTier = (tier - 1) as 1 | 2;
+    
+    // Get all abilities in the previous tier for this specific branch
+    const branchAbilities = getAbilitiesByBranch(branch);
+    const previousTierAbilities = branchAbilities.filter(a => a.tier === requiredTier);
+    
+    // All previous tier abilities must be unlocked
+    return previousTierAbilities.every(ability => unlockedSet.has(ability.id));
+  }, [unlockedSet]);
+
+  /**
+   * Get progress for unlocking a specific tier in a branch.
+   * Returns count of unlocked abilities and total required.
+   */
+  const getTierUnlockProgress = useCallback((branch: PrestigeBranch, tier: 1 | 2 | 3): {
+    unlockedCount: number;
+    totalRequired: number;
+    tierName: string;
+  } => {
+    if (tier === 1) {
+      return { unlockedCount: 0, totalRequired: 0, tierName: TIER_NAMES[1] };
+    }
+
+    const requiredTier = (tier - 1) as 1 | 2;
+    const branchAbilities = getAbilitiesByBranch(branch);
+    const previousTierAbilities = branchAbilities.filter(a => a.tier === requiredTier);
+    
+    const unlockedCount = previousTierAbilities.filter(a => unlockedSet.has(a.id)).length;
+    
+    return {
+      unlockedCount,
+      totalRequired: previousTierAbilities.length,
+      tierName: TIER_NAMES[requiredTier],
+    };
+  }, [unlockedSet]);
+
   // Persist changes to localStorage
   useEffect(() => {
     saveProgress(progress);
@@ -169,6 +232,19 @@ export function usePrestigeTree(
       return { canUnlock: false, reason: 'Already unlocked' };
     }
 
+    // Check tier unlock requirement (per-branch tier gating)
+    // Tier 2/3 abilities require ALL previous tier abilities in the same branch to be unlocked
+    if (ability.tier > 1) {
+      const tierUnlocked = isTierUnlockedForBranch(ability.branch, ability.tier);
+      if (!tierUnlocked) {
+        const progress = getTierUnlockProgress(ability.branch, ability.tier);
+        return {
+          canUnlock: false,
+          reason: `Unlock all ${progress.tierName} abilities first (${progress.unlockedCount}/${progress.totalRequired})`,
+        };
+      }
+    }
+
     // Check prestige level requirement
     if (ability.minimumPrestigeLevel && prestigeData.prestigeLevel < ability.minimumPrestigeLevel) {
       return { 
@@ -186,7 +262,7 @@ export function usePrestigeTree(
       };
     }
 
-    // Check prerequisites
+    // Check prerequisites (individual ability dependencies)
     const missingPrereqs = ability.prerequisites.filter(prereq => !unlockedSet.has(prereq));
     if (missingPrereqs.length > 0) {
       const missingNames = missingPrereqs
@@ -199,7 +275,7 @@ export function usePrestigeTree(
     }
 
     return { canUnlock: true };
-  }, [unlockedSet, prestigeData.prestigeLevel, availableUnifiedPoints, isLegacyUnlocked]);
+  }, [unlockedSet, prestigeData.prestigeLevel, availableUnifiedPoints, isLegacyUnlocked, isTierUnlockedForBranch, getTierUnlockProgress]);
 
   // Unlock ability - validates before updating state
   const unlockAbility = useCallback((abilityId: string): { success: boolean; error?: string } => {
@@ -266,5 +342,7 @@ export function usePrestigeTree(
     getAbilityDetails,
     isAbilityUnlocked,
     getPrerequisitesStatus,
+    isTierUnlockedForBranch,
+    getTierUnlockProgress,
   };
 }
