@@ -23,6 +23,19 @@ interface CharacterContext {
   };
   prestigeLevel: number;
   prestigeAbilities: string[];
+  // Condition tracking
+  activeConditions?: Array<{
+    name: string;
+    remainingRounds: number;
+    source?: string;
+    severity: string;
+    saveType?: string;
+  }>;
+  activeBuffs?: Array<{
+    name: string;
+    remainingMinutes: number;
+    concentration: boolean;
+  }>;
 }
 
 interface OracleRequest {
@@ -86,6 +99,22 @@ function buildContextSummary(ctx: CharacterContext): string {
   
   if (ctx.prestigeAbilities.length > 0) {
     lines.push(`PRESTIGE ABILITIES: ${ctx.prestigeAbilities.join(', ')}`);
+  }
+  
+  // Add active conditions
+  if (ctx.activeConditions && ctx.activeConditions.length > 0) {
+    const condList = ctx.activeConditions
+      .map(c => `${c.name} (${c.remainingRounds}r${c.source ? `, from ${c.source}` : ''}, ${c.severity})`)
+      .join(', ');
+    lines.push(`⚠️ ACTIVE CONDITIONS: ${condList}`);
+  }
+  
+  // Add active buffs
+  if (ctx.activeBuffs && ctx.activeBuffs.length > 0) {
+    const buffList = ctx.activeBuffs
+      .map(b => `${b.name} (${b.remainingMinutes}min${b.concentration ? ', CONCENTRATION' : ''})`)
+      .join(', ');
+    lines.push(`✨ ACTIVE BUFFS: ${buffList}`);
   }
   
   return lines.join('\n');

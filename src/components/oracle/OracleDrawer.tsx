@@ -29,6 +29,19 @@ interface OracleDrawerProps {
   prestigeLevel?: number;
   prestigeAbilities?: string[];
   getRemainingTime?: (abilityId: string) => number;
+  // Condition context
+  activeConditions?: Array<{
+    name: string;
+    remainingRounds: number;
+    source?: string;
+    severity: string;
+    saveType?: string;
+  }>;
+  activeBuffs?: Array<{
+    name: string;
+    remainingMinutes: number;
+    concentration: boolean;
+  }>;
 }
 
 export function OracleDrawer({
@@ -43,6 +56,8 @@ export function OracleDrawer({
   prestigeLevel = 0,
   prestigeAbilities = [],
   getRemainingTime,
+  activeConditions = [],
+  activeBuffs = [],
 }: OracleDrawerProps) {
   const [inputValue, setInputValue] = useState('');
 
@@ -135,8 +150,10 @@ export function OracleDrawer({
       },
       prestigeLevel,
       prestigeAbilities,
+      activeConditions,
+      activeBuffs,
     };
-  }, [character, currentHP, maxHP, equipment, consumables, cooldowns, prestigeLevel, prestigeAbilities, getRemainingTime]);
+  }, [character, currentHP, maxHP, equipment, consumables, cooldowns, prestigeLevel, prestigeAbilities, getRemainingTime, activeConditions, activeBuffs]);
 
   const {
     messages,

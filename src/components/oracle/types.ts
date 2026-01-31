@@ -24,6 +24,19 @@ export interface CharacterContext {
   };
   prestigeLevel: number;
   prestigeAbilities: string[];
+  // Condition tracking
+  activeConditions?: Array<{
+    name: string;
+    remainingRounds: number;
+    source?: string;
+    severity: string;
+    saveType?: string;
+  }>;
+  activeBuffs?: Array<{
+    name: string;
+    remainingMinutes: number;
+    concentration: boolean;
+  }>;
 }
 
 export interface PersonalityConfig {

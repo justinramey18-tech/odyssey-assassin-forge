@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, createContext, useContext, ReactNode } from 'react';
+import { useState, useEffect, useCallback, createContext, useContext, ReactNode, useMemo } from 'react';
 import { Gem, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { InfinityStoneDrawer } from './InfinityStoneDrawer';
@@ -8,6 +8,7 @@ import { ScribeDrawer } from './ScribeDrawer';
 import { ActiveSetBonusDrawer } from './ActiveSetBonusDrawer';
 import { CooldownDrawer } from './CooldownDrawer';
 import { OracleDrawer } from '@/components/oracle';
+import { ConditionStatusBoard } from '@/components/conditions';
 import { Character } from '@/lib/types';
 import { XPPreset } from '@/lib/xpSystem';
 import { CharacterEquipment } from '@/lib/inventory/types';
@@ -15,6 +16,8 @@ import { InventoryItem as ConsumableItem } from '@/lib/consumables/types';
 import { useGameMode, shouldShowInfinityStones } from '@/hooks/use-game-mode';
 import { useEquipmentStats } from '@/hooks/use-equipment-stats';
 import { useCooldowns } from '@/hooks/use-cooldowns';
+import { useConditions } from '@/hooks/use-conditions';
+import { Personality } from '@/components/oracle/types';
 
 interface PromptDrawerContextValue {
   openInfinityDrawer: () => void;
@@ -24,6 +27,7 @@ interface PromptDrawerContextValue {
   openSetBonusDrawer: () => void;
   openCooldownDrawer: () => void;
   openOracleDrawer: () => void;
+  openConditionsDrawer: () => void;
   closeAllDrawers: () => void;
   // Cooldown system exposure
   triggerCooldown: (abilityId: string) => void;
@@ -32,6 +36,11 @@ interface PromptDrawerContextValue {
   formatRemainingTime: (seconds: number) => string;
   resetShortRestCooldowns: () => void;
   resetAllCooldowns: () => void;
+  // Condition system exposure
+  conditionsShortRest: () => void;
+  conditionsLongRest: () => void;
+  tickConditionRounds: (rounds?: number) => void;
+  hasCriticalCondition: boolean;
 }
 
 const PromptDrawerContext = createContext<PromptDrawerContextValue | null>(null);
@@ -87,6 +96,8 @@ export function PromptDrawerProvider({
   const [setBonusOpen, setSetBonusOpen] = useState(false);
   const [cooldownOpen, setCooldownOpen] = useState(false);
   const [oracleOpen, setOracleOpen] = useState(false);
+  const [conditionsOpen, setConditionsOpen] = useState(false);
+  const [oraclePersonality, setOraclePersonality] = useState<Personality>('deadpool');
   
   // Game mode integration for Infinity Stones lock and cooldown enforcement
   const { infinityStonesLocked, isHonestMode, enforceCooldowns } = useGameMode();
@@ -103,6 +114,11 @@ export function PromptDrawerProvider({
     enforceCooldowns,
   });
   
+  // Condition system
+  const conditionSystem = useConditions({
+    personality: oraclePersonality,
+  });
+  
   // Close all drawers when opening a new one
   const closeAllDrawers = useCallback(() => {
     setInfinityOpen(false);
@@ -112,6 +128,7 @@ export function PromptDrawerProvider({
     setSetBonusOpen(false);
     setCooldownOpen(false);
     setOracleOpen(false);
+    setConditionsOpen(false);
   }, []);
 
   // Edge swipe detection
@@ -170,6 +187,7 @@ export function PromptDrawerProvider({
     openSetBonusDrawer: useCallback(() => { closeAllDrawers(); setSetBonusOpen(true); }, [closeAllDrawers]),
     openCooldownDrawer: useCallback(() => { closeAllDrawers(); setCooldownOpen(true); }, [closeAllDrawers]),
     openOracleDrawer: useCallback(() => { closeAllDrawers(); setOracleOpen(true); }, [closeAllDrawers]),
+    openConditionsDrawer: useCallback(() => { closeAllDrawers(); setConditionsOpen(true); }, [closeAllDrawers]),
     closeAllDrawers,
     // Cooldown system exposure
     triggerCooldown: cooldownSystem.triggerCooldown,
@@ -178,6 +196,11 @@ export function PromptDrawerProvider({
     formatRemainingTime: cooldownSystem.formatRemainingTime,
     resetShortRestCooldowns: cooldownSystem.resetShortRestCooldowns,
     resetAllCooldowns: cooldownSystem.resetAllCooldowns,
+    // Condition system exposure
+    conditionsShortRest: conditionSystem.shortRest,
+    conditionsLongRest: conditionSystem.longRest,
+    tickConditionRounds: conditionSystem.tickRounds,
+    hasCriticalCondition: conditionSystem.hasCriticalCondition,
   };
 
   return (
@@ -255,6 +278,29 @@ export function PromptDrawerProvider({
             prestigeLevel={prestigeLevel}
             prestigeAbilities={prestigeAbilities}
             getRemainingTime={cooldownSystem.getRemainingTime}
+            activeConditions={conditionSystem.oracleContext.activeConditions}
+            activeBuffs={conditionSystem.oracleContext.activeBuffs}
+          />
+
+          <ConditionStatusBoard
+            open={conditionsOpen}
+            onOpenChange={setConditionsOpen}
+            activeConditions={conditionSystem.activeConditions}
+            activeBuffs={conditionSystem.activeBuffs}
+            hasCriticalCondition={conditionSystem.hasCriticalCondition}
+            onAddCondition={conditionSystem.addCondition}
+            onRemoveCondition={conditionSystem.removeCondition}
+            onAdjustDuration={conditionSystem.adjustDuration}
+            onHandleSave={conditionSystem.handleSave}
+            onTickRounds={conditionSystem.tickRounds}
+            onShortRest={conditionSystem.shortRest}
+            onLongRest={conditionSystem.longRest}
+            onClearAll={conditionSystem.clearAll}
+            personality={oraclePersonality}
+            onAskOracle={() => {
+              setConditionsOpen(false);
+              setOracleOpen(true);
+            }}
           />
         </>
       )}
