@@ -1,6 +1,8 @@
 // Complete app reset utility
 // Clears all localStorage data to return app to fresh state
 
+import { DEFAULT_XP_THRESHOLDS } from './xpSystem';
+
 const ALL_STORAGE_KEYS = [
   // Core character data
   'odyssey-character-autosave',
@@ -71,16 +73,10 @@ export function getStorageKeys(): readonly string[] {
 /**
  * Repair XP data to match character level
  * Fixes corrupted XP values that are below the threshold for current level
+ * Uses D&D 5e thresholds from xpSystem.ts (single source of truth)
  */
 export function repairXPData(currentLevel: number, currentXP: number, multiplier: number = 1.0): number {
-  // D&D 5e XP thresholds
-  const XP_THRESHOLDS: Record<number, number> = {
-    1: 0, 2: 300, 3: 900, 4: 2700, 5: 6500, 6: 14000, 7: 23000,
-    8: 34000, 9: 48000, 10: 64000, 11: 85000, 12: 100000, 13: 120000,
-    14: 140000, 15: 165000, 16: 195000, 17: 225000, 18: 265000, 19: 305000, 20: 355000,
-  };
-  
-  const minXPForLevel = Math.floor((XP_THRESHOLDS[currentLevel] || 0) * multiplier);
+  const minXPForLevel = Math.floor((DEFAULT_XP_THRESHOLDS[currentLevel] || 0) * multiplier);
   
   // If XP is below minimum for current level, repair it
   if (currentXP < minXPForLevel) {

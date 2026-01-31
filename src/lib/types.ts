@@ -38,19 +38,42 @@ export interface Character {
 }
 
 // Calculate ability points by level
+// New tiered progression formula:
+// - Level 1: 5 starting points
+// - Level 2: +3 points
+// - Levels 3-5: +2 points each
+// - Levels 6-10: +3 points each
+// - Levels 11-15: +4 points each
+// - Levels 16-20: +5 points each
+// Total at Level 20: 74 points
 export function getAbilityPointsForLevel(level: number): number {
   if (level < 1) return 0;
   if (level > 20) level = 20;
   
-  // Base: 1 point per level
-  let points = level;
+  // Level 1: 5 starting points
+  let points = 5;
   
-  // Bonus points at levels 4, 8, 12, 16, 19
-  const bonusLevels = [4, 8, 12, 16, 19];
-  for (const bonusLevel of bonusLevels) {
-    if (level >= bonusLevel) {
-      points += 1;
-    }
+  // Level 2: +3 points
+  if (level >= 2) points += 3;
+  
+  // Levels 3-5: +2 points each
+  for (let l = 3; l <= Math.min(level, 5); l++) {
+    points += 2;
+  }
+  
+  // Levels 6-10: +3 points each
+  for (let l = 6; l <= Math.min(level, 10); l++) {
+    points += 3;
+  }
+  
+  // Levels 11-15: +4 points each
+  for (let l = 11; l <= Math.min(level, 15); l++) {
+    points += 4;
+  }
+  
+  // Levels 16-20: +5 points each
+  for (let l = 16; l <= Math.min(level, 20); l++) {
+    points += 5;
   }
   
   return points;

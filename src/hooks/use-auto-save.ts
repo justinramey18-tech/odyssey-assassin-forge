@@ -33,7 +33,9 @@ export function serializeConsumables(inventory: InventoryItem[]): SaveData['cons
   }));
 }
 
-const CURRENT_VERSION = 1;
+// Version 2: Updated ability points formula (tiered progression)
+// Version 2: Updated prestige points formula (variable 2-5 per level)
+const CURRENT_VERSION = 2;
 
 export function useAutoSave(
   data: Omit<SaveData, 'savedAt' | 'version'>,
@@ -110,8 +112,9 @@ export function loadAutoSave(): SaveData | null {
     
     // Version migration if needed
     if (data.version !== CURRENT_VERSION) {
-      console.log('[AutoSave] Migrating from version', data.version);
-      // Add migration logic here if needed
+      console.log('[AutoSave] Migrating from version', data.version, 'to', CURRENT_VERSION);
+      // Character level points auto-migrate via getAbilityPointsForLevel() formula
+      // Prestige points migrate via usePrestige hook's migratePrestigeData()
     }
     
     return data;
