@@ -581,8 +581,6 @@ const Index = () => {
           xpPreset={xpPreset}
           onAddXP={handleAddXP}
           equipment={equipment}
-          isHomeScreen={true}
-          onNavigateToSkills={() => { setShowHomeScreen(false); setActiveTab('skills'); }}
         >
           <HomeScreen 
             character={character}
@@ -635,8 +633,6 @@ const Index = () => {
       xpPreset={xpPreset}
       onAddXP={handleAddXP}
       equipment={equipment}
-      isHomeScreen={false}
-      onNavigateHome={() => setShowHomeScreen(true)}
     >
       <div className="min-h-screen relative">
       {/* Builder Background Image - fixed behind everything */}
