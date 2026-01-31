@@ -27,11 +27,13 @@ import { CombatFAB } from './CombatFAB';
 import { TurnSummaryPanel } from './TurnSummaryPanel';
 import { MobileAbilityList } from './MobileAbilityList';
 import { MobileItemsGrid } from './MobileItemsGrid';
+import { MobileSpellList } from './MobileSpellList';
 import { ConditionStrip } from '@/components/conditions';
 import { useConditions } from '@/hooks/use-conditions';
+import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
 
 // Tab order for swipe navigation
-const TAB_ORDER: CombatTab[] = ['attacks', 'stealth', 'abilities', 'items', 'summary'];
+const TAB_ORDER: CombatTab[] = ['attacks', 'stealth', 'abilities', 'spells', 'items', 'summary'];
 
 // Combat modifier calculations
 interface CombatModifiers {
@@ -89,9 +91,10 @@ function calculateModifiers(character: Character): CombatModifiers {
 
 interface MobileCombatLayoutProps {
   character: Character;
+  spellcasting?: UseSpellcastingReturn;
 }
 
-export function MobileCombatLayout({ character }: MobileCombatLayoutProps) {
+export function MobileCombatLayout({ character, spellcasting }: MobileCombatLayoutProps) {
   // Navigation state
   const [activeTab, setActiveTab] = useState<CombatTab>('attacks');
   const [round, setRound] = useState(1);
@@ -364,6 +367,24 @@ export function MobileCombatLayout({ character }: MobileCombatLayoutProps) {
           />
         );
       
+      case 'spells':
+        return spellcasting ? (
+          <MobileSpellList
+            spellcasting={spellcasting}
+            characterName={character.name}
+            onCast={(result) => {
+              if (result.success) {
+                setLastAction(`${result.spellName.toUpperCase()} CAST`);
+                handleAddToTurn('action', `Cast ${result.spellName}`);
+              }
+            }}
+          />
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center text-center py-16 px-4">
+            <p className="text-muted-foreground">Spellcasting not available</p>
+          </div>
+        );
+      
       case 'items':
         return (
           <MobileItemsGrid
@@ -470,6 +491,7 @@ export function MobileCombatLayout({ character }: MobileCombatLayoutProps) {
           attacks: DEFAULT_WEAPONS.length,
           stealth: stealthAbilities.length,
           abilities: specialAbilities.length,
+          spells: spellcasting?.state.preparedSpells.length ?? 0,
           items: 4,
         }}
       />
