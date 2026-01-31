@@ -44,8 +44,7 @@ export interface UsePrestigeTreeReturn {
   progress: PrestigeTreeProgress;
   unlockedSet: Set<string>;
   
-  // Point tracking
-  availablePrestigePoints: number;
+  // Point tracking - now uses unified points
   spentOnTree: number;
   
   // Branch progress
@@ -74,7 +73,8 @@ export interface UsePrestigeTreeReturn {
 export function usePrestigeTree(
   characterAbilities: CharacterAbility[],
   prestigeData: PrestigeData,
-  onPrestigePointSpent?: (cost: number) => { success: boolean; message?: string },
+  availableUnifiedPoints: number,  // Unified ability points available
+  onPointsSpent?: (cost: number) => void,  // Callback when points are spent
   characterLevel?: number
 ): UsePrestigeTreeReturn {
   const [progress, setProgress] = useState<PrestigeTreeProgress>(() => loadProgress());
@@ -122,10 +122,13 @@ export function usePrestigeTree(
     [progress.unlockedAbilities]
   );
 
-  // Calculate points available for tree (from existing prestige system - SINGLE SOURCE OF TRUTH)
-  const availablePrestigePoints = prestigeData.availablePrestigePoints;
-  // spentOnTree comes from main prestige system, not local state (avoids double-tracking)
-  const spentOnTree = prestigeData.spentPrestigePoints;
+  // Calculate points spent on tree (variable costs per ability)
+  const spentOnTree = useMemo(() => {
+    return progress.unlockedAbilities.reduce((sum, abilityId) => {
+      const ability = getPrestigeAbilityById(abilityId);
+      return sum + (ability?.prestigeCost ?? 0);
+    }, 0);
+  }, [progress.unlockedAbilities]);
 
   // Calculate branch progress
   const branchProgress = useMemo(() => {
@@ -174,12 +177,12 @@ export function usePrestigeTree(
       };
     }
 
-    // Check prestige point cost
-    if (availablePrestigePoints < ability.prestigeCost) {
-      const needed = ability.prestigeCost - availablePrestigePoints;
+    // Check unified ability point cost
+    if (availableUnifiedPoints < ability.prestigeCost) {
+      const needed = ability.prestigeCost - availableUnifiedPoints;
       return { 
         canUnlock: false, 
-        reason: `Need ${needed} more prestige point${needed === 1 ? '' : 's'}` 
+        reason: `Need ${needed} more ability point${needed === 1 ? '' : 's'}` 
       };
     }
 
@@ -196,9 +199,9 @@ export function usePrestigeTree(
     }
 
     return { canUnlock: true };
-  }, [unlockedSet, prestigeData.prestigeLevel, availablePrestigePoints, isLegacyUnlocked]);
+  }, [unlockedSet, prestigeData.prestigeLevel, availableUnifiedPoints, isLegacyUnlocked]);
 
-  // Unlock ability - validates point spend BEFORE updating local state
+  // Unlock ability - validates before updating state
   const unlockAbility = useCallback((abilityId: string): { success: boolean; error?: string } => {
     const check = canUnlockAbility(abilityId);
     if (!check.canUnlock) {
@@ -207,23 +210,16 @@ export function usePrestigeTree(
 
     const ability = getPrestigeAbilityById(abilityId)!;
     
-    // FIRST: Attempt to deduct prestige points from main system
-    if (onPrestigePointSpent) {
-      const spendResult = onPrestigePointSpent(ability.prestigeCost);
-      
-      // If spending failed, abort the unlock entirely
-      if (!spendResult.success) {
-        return { 
-          success: false, 
-          error: spendResult.message || 'Insufficient prestige points' 
-        };
-      }
+    // Notify parent about points spent (unified pool handles the deduction)
+    if (onPointsSpent) {
+      onPointsSpent(ability.prestigeCost);
     }
 
-    // ONLY update local progress if point deduction succeeded
+    // Update local progress
     setProgress(prev => ({
       ...prev,
       unlockedAbilities: [...prev.unlockedAbilities, abilityId],
+      spentPrestigePoints: prev.spentPrestigePoints + ability.prestigeCost,
       unlockTimestamps: {
         ...prev.unlockTimestamps,
         [abilityId]: Date.now(),
@@ -231,10 +227,9 @@ export function usePrestigeTree(
     }));
 
     return { success: true };
-  }, [canUnlockAbility, onPrestigePointSpent]);
+  }, [canUnlockAbility, onPointsSpent]);
 
-  // Reset tree (full respec) - only resets local unlocked abilities
-  // Main prestige points must be reset separately via usePrestige.resetPrestigePoints()
+  // Reset tree (full respec)
   const resetTree = useCallback(() => {
     setProgress(DEFAULT_PRESTIGE_TREE_PROGRESS);
   }, []);
@@ -263,7 +258,6 @@ export function usePrestigeTree(
     unlockProgress,
     progress,
     unlockedSet,
-    availablePrestigePoints,
     spentOnTree,
     branchProgress,
     canUnlockAbility,

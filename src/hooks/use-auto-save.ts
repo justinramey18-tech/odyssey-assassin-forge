@@ -20,7 +20,6 @@ export interface SaveData {
     prestigeXP: number;
     prestigeLevel: number;
     totalPrestigePoints: number;
-    spentPrestigePoints: number;
   };
   savedAt: string;
   version: number;

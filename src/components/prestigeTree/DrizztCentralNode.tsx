@@ -8,7 +8,7 @@ interface DrizztCentralNodeProps {
   prestigeLevel: number;
   totalPointsEarned: number;
   pointsSpentOnTree: number;
-  availablePoints: number;
+  availablePoints?: number;  // Optional - no longer shown separately
   isMobile: boolean;
   className?: string;
 }
@@ -83,11 +83,13 @@ export function DrizztCentralNode({
           <span className="text-muted-foreground">Prestige</span>
         </div>
         
-        {/* Points */}
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30">
-          <span className="text-amber-400 font-bold">{availablePoints}</span>
-          <span className="text-muted-foreground">Available</span>
-        </div>
+        {/* Points Available - only show if provided */}
+        {availablePoints !== undefined && availablePoints > 0 && (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30">
+            <span className="text-amber-400 font-bold">{availablePoints}</span>
+            <span className="text-muted-foreground">Available</span>
+          </div>
+        )}
         
         {/* Spent on Tree */}
         {pointsSpentOnTree > 0 && (

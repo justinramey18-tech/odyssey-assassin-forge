@@ -14,7 +14,6 @@ import { CharacterHeader } from '@/components/character/CharacterHeader';
 import { EquippedLoadout } from '@/components/character/EquippedLoadout';
 import { ActionWheelButton } from '@/components/character/ActionWheelButton';
 import { XPTracker } from '@/components/character/XPTracker';
-import { LevelUpModal } from '@/components/character/LevelUpModal';
 import { InventoryScreen } from '@/components/inventory/InventoryScreen';
 import { AchievementsScreen } from '@/components/achievements/AchievementsScreen';
 import { ConstellationScreen } from '@/components/constellation/ConstellationScreen';
@@ -44,9 +43,9 @@ import { useConsumables } from '@/hooks/use-consumables';
 import { ConsumablesInventoryWidget, AddConsumableDrawer } from '@/components/consumables';
 import { getConsumableById } from '@/lib/consumables';
 import { ApprovedChanges } from '@/lib/chronicleSync/types';
-import { PrestigePointCounter, PrestigeLevelUpModal } from '@/components/prestige';
 import { PrestigeTreeScreen } from '@/components/prestigeTree';
 import { usePrestigeTree } from '@/hooks/use-prestige-tree';
+import { getPrestigeAbilityById } from '@/lib/prestigeTree/abilities';
 import { resetAllAppData } from '@/lib/resetApp';
 import { 
   CharacterEquipment, 
@@ -89,37 +88,56 @@ const Index = () => {
   // XP System State
   const [currentXP, setCurrentXP] = useState(0);
   const [xpPreset, setXPPreset] = useState<XPPreset>('standard');
-  const [pendingLevelUps, setPendingLevelUps] = useState(0);
-  const [showLevelUpModal, setShowLevelUpModal] = useState(false);
-  const [levelUpPointsToSpend, setLevelUpPointsToSpend] = useState(0);
   
-  // Prestige System State
+  // Prestige System State - simplified (no separate spending/respec)
   const { 
     prestigeData, 
     isMaxLevel, 
     isPrestigeActive,
     nextPrestigeXPRequired,
     awardPrestigeXP,
-    spendPrestigePoint,
-    resetPrestigePoints,
     setPrestigeData,
   } = usePrestige(character.level);
   
-  // Prestige Tree (Drizzt's Legacy) hook - pass character level for game mode unlock logic
-  // Connect to main prestige system via spendPrestigePoint callback
+  // Calculate unified ability points
+  const totalAbilityPoints = useMemo(() => {
+    const basePoints = getAbilityPointsForLevel(character.level);
+    const prestigePoints = prestigeData.totalPrestigePoints;
+    return basePoints + prestigePoints;
+  }, [character.level, prestigeData.totalPrestigePoints]);
+  
+  // Prestige Tree (Drizzt's Legacy) hook
   const prestigeTree = usePrestigeTree(
     character.abilities, 
     prestigeData, 
-    (cost: number) => {
-      // Return the result so unlockAbility can check if spending succeeded
-      return spendPrestigePoint(cost);
-    },
+    0, // Will be calculated below with proper spent value
+    undefined,
     character.level
   );
+
+  // Calculate spent on prestige tree (with variable costs per ability)
+  const prestigeTreeSpent = useMemo(() => {
+    return prestigeTree.progress.unlockedAbilities.reduce((sum, abilityId) => {
+      const ability = getPrestigeAbilityById(abilityId);
+      return sum + (ability?.prestigeCost ?? 0);
+    }, 0);
+  }, [prestigeTree.progress.unlockedAbilities]);
+
+  const spentAbilityPoints = useMemo(() => {
+    const baseSpent = getTotalPointsSpent(character.abilities);
+    return baseSpent + prestigeTreeSpent;
+  }, [character.abilities, prestigeTreeSpent]);
+
+  const availableAbilityPoints = totalAbilityPoints - spentAbilityPoints;
   
-  const [showPrestigeLevelUp, setShowPrestigeLevelUp] = useState(false);
-  const [prestigeLevelUpData, setPrestigeLevelUpData] = useState<{ level: number; points: number } | null>(null);
-  const [showPrestigeSpendModal, setShowPrestigeSpendModal] = useState(false);
+  // Now create the actual prestige tree with correct available points
+  const actualPrestigeTree = usePrestigeTree(
+    character.abilities, 
+    prestigeData, 
+    availableAbilityPoints,
+    undefined,
+    character.level
+  );
   
   // Shared equipment state for constellation view
   const [equipment, setEquipment] = useState<CharacterEquipment>(() => createInitialEquipment());
@@ -144,6 +162,9 @@ const Index = () => {
   const { toast } = useToast();
   const { requiresOrganicLevelUp, requiresGearUnlocks, rerollsDisabled, infinityStonesLocked } = useGameMode();
 
+  // Legacy spentPoints for compatibility
+  const spentPoints = getTotalPointsSpent(character.abilities);
+
   // Data for auto-save
   const saveData = useMemo(() => ({
     character,
@@ -158,7 +179,6 @@ const Index = () => {
       prestigeXP: prestigeData.prestigeXP,
       prestigeLevel: prestigeData.prestigeLevel,
       totalPrestigePoints: prestigeData.totalPrestigePoints,
-      spentPrestigePoints: prestigeData.spentPrestigePoints,
     },
   }), [character, equipment, achievements, consumablesInventory, currentXP, xpPreset, prestigeData]);
 
@@ -201,10 +221,6 @@ const Index = () => {
     return map;
   }, [character.abilities]);
 
-  const totalPoints = getAbilityPointsForLevel(character.level);
-  const spentPoints = getTotalPointsSpent(character.abilities);
-  const remainingPoints = totalPoints - spentPoints;
-
   const handleBasicInfoComplete = (name: string, level: number) => {
     setCharacter(prev => ({
       ...prev,
@@ -234,17 +250,21 @@ const Index = () => {
       const result = awardPrestigeXP(amount);
       
       if (result.type === 'prestige_levelup') {
-        setPrestigeLevelUpData({ 
-          level: result.newLevel!, 
-          points: result.pointsAwarded! 
-        });
-        setShowPrestigeLevelUp(true);
-        
+        // Toast instead of modal
         toast({
-          title: "★ PRESTIGE LEVEL UP!",
-          description: `You've reached Prestige ${result.newLevel}! +${result.pointsAwarded} ability point!`,
+          title: "🌟 Prestige Level Up!",
+          description: `Reached Prestige Level ${result.newLevel}. +${result.pointsAwarded} Ability Point${result.pointsAwarded && result.pointsAwarded > 1 ? 's' : ''} earned.`,
           className: "border-amber-500 bg-amber-500/10",
         });
+        
+        // Milestone toast every 10 levels
+        if (result.newLevel && result.newLevel % 10 === 0) {
+          toast({
+            title: `🏆 Prestige Milestone: Level ${result.newLevel}!`,
+            description: "You are becoming a legend...",
+            className: "border-purple-500 bg-purple-500/10",
+          });
+        }
       } else {
         toast({
           title: `+${amount} Prestige XP`,
@@ -257,22 +277,53 @@ const Index = () => {
     const newXP = currentXP + amount;
     setCurrentXP(newXP);
     
-    // Check for level ups
+    // Check for level ups - auto-level immediately (no modal)
     const levelsToGain = calculatePendingLevelUps(character.level, newXP, multiplier);
     
     if (levelsToGain > 0) {
-      // Calculate points to spend (difference between new and old level points)
-      const currentPoints = getAbilityPointsForLevel(character.level);
-      const newPoints = getAbilityPointsForLevel(character.level + levelsToGain);
-      const pointsGained = newPoints - currentPoints;
+      const newLevel = character.level + levelsToGain;
+      const xpAfterLevelUp = newXP - getXPForLevel(newLevel - 1, multiplier);
       
-      setPendingLevelUps(levelsToGain);
-      setLevelUpPointsToSpend(pointsGained);
-      setShowLevelUpModal(true);
+      // Auto-equip newly unlocked abilities
+      const unlockedActiveAbilities = character.abilities
+        .filter(ca => {
+          const ability = allAbilities.find(a => a.id === ca.abilityId);
+          return ca.currentTier > 0 && ability?.type === 'active';
+        })
+        .map(ca => ca.abilityId);
+      
+      const maxSlots = getActiveSlotsByLevel(newLevel, prestigeData.totalPrestigePoints);
+      
+      setCharacter(prev => {
+        const newEquipped = [...prev.equippedAbilities];
+        
+        // Find abilities that are unlocked but not equipped
+        const unequippedAbilities = unlockedActiveAbilities.filter(id => !newEquipped.includes(id));
+        
+        // Add to empty slots
+        for (const abilityId of unequippedAbilities) {
+          if (newEquipped.filter(Boolean).length < maxSlots) {
+            const emptySlot = newEquipped.findIndex((slot, idx) => !slot && idx < maxSlots);
+            if (emptySlot >= 0) {
+              newEquipped[emptySlot] = abilityId;
+            } else if (newEquipped.length < maxSlots) {
+              newEquipped.push(abilityId);
+            }
+          }
+        }
+        
+        return {
+          ...prev,
+          level: newLevel,
+          equippedAbilities: newEquipped.filter(Boolean),
+        };
+      });
+      
+      setCurrentXP(Math.max(0, xpAfterLevelUp));
       
       toast({
-        title: "⚡ LEVEL UP!",
-        description: `${character.name} is ready to reach Level ${character.level + levelsToGain}!`,
+        title: "⚡ Level Up!",
+        description: `${character.name} is now Level ${newLevel}!`,
         className: "border-primary bg-primary/10",
       });
     } else {
@@ -284,8 +335,39 @@ const Index = () => {
   };
 
   const handleUpgradeAbility = (abilityId: string) => {
-    if (remainingPoints <= 0 && !showLevelUpModal && !showPrestigeSpendModal) return;
+    // Simple unified check
+    if (availableAbilityPoints <= 0) {
+      toast({
+        title: "No Points Available",
+        description: "Level up or earn prestige levels to get more ability points.",
+        variant: "destructive",
+      });
+      return;
+    }
 
+    // Check ability-specific requirements
+    const ability = allAbilities.find(a => a.id === abilityId);
+    if (!ability) return;
+
+    const currentTier = character.abilities.find(ca => ca.abilityId === abilityId)?.currentTier ?? 0;
+    if (currentTier >= 3) return;
+
+    // Check prerequisite
+    if (ability.prerequisite) {
+      const prereqTier = character.abilities.find(
+        ca => ca.abilityId === ability.prerequisite!.abilityId
+      )?.currentTier ?? 0;
+      if (prereqTier < ability.prerequisite.tier) {
+        toast({
+          title: "Prerequisite Not Met",
+          description: `Requires ${ability.prerequisite.abilityId} at tier ${ability.prerequisite.tier}`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    // Perform upgrade
     setCharacter(prev => ({
       ...prev,
       abilities: prev.abilities.map(ca =>
@@ -294,6 +376,12 @@ const Index = () => {
           : ca
       ),
     }));
+
+    toast({
+      title: "✨ Ability Upgraded",
+      description: `${ability.name} upgraded to tier ${currentTier + 1}`,
+      duration: 2000,
+    });
   };
 
   const handleDowngradeAbility = (abilityId: string) => {
@@ -313,53 +401,6 @@ const Index = () => {
         ),
         equippedAbilities: newEquipped,
       };
-    });
-  };
-
-  const handleConfirmLevelUp = () => {
-    // Find the last upgraded ability to auto-equip
-    const unlockedActiveAbilities = character.abilities
-      .filter(ca => {
-        const ability = allAbilities.find(a => a.id === ca.abilityId);
-        return ca.currentTier > 0 && ability?.type === 'active';
-      })
-      .map(ca => ca.abilityId);
-    
-    const maxSlots = getActiveSlotsByLevel(character.level + pendingLevelUps, prestigeData.totalPrestigePoints);
-    
-    // Auto-equip newly unlocked abilities if there's room
-    setCharacter(prev => {
-      const newEquipped = [...prev.equippedAbilities];
-      
-      // Find abilities that are unlocked but not equipped
-      const unequippedAbilities = unlockedActiveAbilities.filter(id => !newEquipped.includes(id));
-      
-      // Add to empty slots
-      for (const abilityId of unequippedAbilities) {
-        if (newEquipped.filter(Boolean).length < maxSlots) {
-          const emptySlot = newEquipped.findIndex((slot, idx) => !slot && idx < maxSlots);
-          if (emptySlot >= 0) {
-            newEquipped[emptySlot] = abilityId;
-          } else if (newEquipped.length < maxSlots) {
-            newEquipped.push(abilityId);
-          }
-        }
-      }
-      
-      return {
-        ...prev,
-        level: prev.level + pendingLevelUps,
-        equippedAbilities: newEquipped.filter(Boolean),
-      };
-    });
-    
-    setPendingLevelUps(0);
-    setLevelUpPointsToSpend(0);
-    setShowLevelUpModal(false);
-    
-    toast({
-      title: "Level Up Complete!",
-      description: `${character.name} is now Level ${character.level + pendingLevelUps}!`,
     });
   };
 
@@ -502,16 +543,19 @@ const Index = () => {
       }
     });
 
-    // Level-up triggers existing modal flow
+    // Level-up from chronicle - auto-level (no modal)
     if (changes.levelUp && changes.levelUp.newLevel > character.level) {
-      const levelsToGain = changes.levelUp.newLevel - character.level;
-      const currentPoints = getAbilityPointsForLevel(character.level);
-      const newPoints = getAbilityPointsForLevel(changes.levelUp.newLevel);
-      const pointsGained = newPoints - currentPoints;
-
-      setPendingLevelUps(levelsToGain);
-      setLevelUpPointsToSpend(pointsGained);
-      setShowLevelUpModal(true);
+      const newLevel = changes.levelUp.newLevel;
+      setCharacter(prev => ({
+        ...prev,
+        level: newLevel,
+      }));
+      
+      toast({
+        title: "⚡ Level Up!",
+        description: `${character.name} is now Level ${newLevel}!`,
+        className: "border-primary bg-primary/10",
+      });
     }
 
     toast({
@@ -525,13 +569,18 @@ const Index = () => {
   const handleManualLevelUp = () => {
     if (character.level >= 20) return;
     
-    const currentPoints = getAbilityPointsForLevel(character.level);
-    const newPoints = getAbilityPointsForLevel(character.level + 1);
-    const pointsGained = newPoints - currentPoints;
+    const newLevel = character.level + 1;
     
-    setPendingLevelUps(1);
-    setLevelUpPointsToSpend(pointsGained);
-    setShowLevelUpModal(true);
+    setCharacter(prev => ({
+      ...prev,
+      level: newLevel,
+    }));
+    
+    toast({
+      title: "⚡ Level Up!",
+      description: `${character.name} is now Level ${newLevel}!`,
+      className: "border-primary bg-primary/10",
+    });
   };
 
   // Show wizard on first load
@@ -617,8 +666,10 @@ const Index = () => {
             onEditCharacter={() => setShowWizard(true)}
             open={showSettingsModal}
             onOpenChange={setShowSettingsModal}
-            prestigeData={prestigeData}
-            onPrestigeRespec={resetPrestigePoints}
+            prestigeData={{
+              totalPrestigePoints: prestigeData.totalPrestigePoints,
+              prestigeLevel: prestigeData.prestigeLevel,
+            }}
           />
         </PromptDrawerProvider>
       </OnboardingProvider>
@@ -637,7 +688,7 @@ const Index = () => {
     <PromptDrawerProvider
       character={character}
       unlockedAbilities={unlockedAbilities}
-      enabled={!showLevelUpModal}
+      enabled={true}
       currentXP={currentXP}
       xpPreset={xpPreset}
       onAddXP={handleAddXP}
@@ -651,45 +702,6 @@ const Index = () => {
       />
       {/* 60% transparent tint overlay - allows background to show through UI */}
       <div className="fixed inset-0 bg-background/60 -z-10" />
-      {/* Level Up Modal */}
-      <LevelUpModal
-        open={showLevelUpModal}
-        onClose={() => setShowLevelUpModal(false)}
-        character={character}
-        newLevel={character.level + pendingLevelUps}
-        pointsToSpend={levelUpPointsToSpend}
-        onUpgradeAbility={handleUpgradeAbility}
-        onDowngradeAbility={handleDowngradeAbility}
-        onConfirmLevelUp={handleConfirmLevelUp}
-      />
-
-      {/* Prestige Point Spending Modal */}
-      <LevelUpModal
-        open={showPrestigeSpendModal}
-        onClose={() => setShowPrestigeSpendModal(false)}
-        character={character}
-        newLevel={character.level}
-        pointsToSpend={prestigeData.availablePrestigePoints}
-        onUpgradeAbility={handleUpgradeAbility}
-        onDowngradeAbility={handleDowngradeAbility}
-        onConfirmLevelUp={() => setShowPrestigeSpendModal(false)}
-        isPrestigeMode={true}
-        prestigeLevel={prestigeData.prestigeLevel}
-        onSpendPrestigePoint={spendPrestigePoint}
-      />
-
-      {/* Prestige Level Up Modal */}
-      {prestigeLevelUpData && (
-        <PrestigeLevelUpModal
-          open={showPrestigeLevelUp}
-          prestigeLevel={prestigeLevelUpData.level}
-          pointsAwarded={prestigeLevelUpData.points}
-          onClose={() => {
-            setShowPrestigeLevelUp(false);
-            setPrestigeLevelUpData(null);
-          }}
-        />
-      )}
 
       {/* Character Header - Always visible */}
       <CharacterHeader 
@@ -712,8 +724,8 @@ const Index = () => {
           onHomeClick={() => setShowHomeScreen(true)}
           onSettingsClick={() => setShowSettingsModal(true)}
           onCloudSaveClick={() => setShowCloudSaveModal(true)}
-          isLegacyUnlocked={prestigeTree.isLegacyUnlocked}
-          legacyProgress={prestigeTree.unlockProgress}
+          isLegacyUnlocked={actualPrestigeTree.isLegacyUnlocked}
+          legacyProgress={actualPrestigeTree.unlockProgress}
         />
         
         {/* Cloud Save Modal */}
@@ -730,8 +742,10 @@ const Index = () => {
           onEditCharacter={() => setShowWizard(true)}
           open={showSettingsModal}
           onOpenChange={setShowSettingsModal}
-          prestigeData={prestigeData}
-          onPrestigeRespec={resetPrestigePoints}
+          prestigeData={{
+            totalPrestigePoints: prestigeData.totalPrestigePoints,
+            prestigeLevel: prestigeData.prestigeLevel,
+          }}
           character={character}
           abilities={allAbilities}
           unlockedAbilities={unlockedAbilities}
@@ -762,17 +776,6 @@ const Index = () => {
           >
           {/* Content */}
           <div className="container max-w-2xl mx-auto px-4 py-4 relative z-10">
-            {/* Prestige Point Counter - show at max level with prestige points */}
-            {isPrestigeActive && prestigeData.totalPrestigePoints > 0 && (
-              <PrestigePointCounter
-                available={prestigeData.availablePrestigePoints}
-                total={prestigeData.totalPrestigePoints}
-                spent={prestigeData.spentPrestigePoints}
-                className="mb-6"
-                onSpendPoints={() => setShowPrestigeSpendModal(true)}
-              />
-            )}
-
             {/* XP Tracker */}
             <div className="mb-6 p-4 rounded-lg border border-primary/30 bg-gradient-to-b from-primary/5 to-transparent">
               <XPTracker
@@ -815,13 +818,13 @@ const Index = () => {
               </div>
             )}
 
-            {/* Info about hidden ability trees */}
+            {/* Info about ability spending */}
             <div className="mt-6 p-4 rounded-lg bg-muted/20 border border-muted/30">
               <p className="text-xs text-muted-foreground text-center font-body">
-                💡 Ability tree selection appears when you level up. 
+                💡 Go to the <strong>Abilities</strong> tab to spend your {availableAbilityPoints} available ability points.
                 {requiresOrganicLevelUp 
                   ? ' In Honest Mode, levels are gained organically through XP.'
-                  : ' Add XP to trigger a level up, or use the button above for milestone progression.'}
+                  : ' Add XP to level up, or use the button above for milestone progression.'}
               </p>
             </div>
           </div>
@@ -832,7 +835,7 @@ const Index = () => {
         <TabsContent value="abilities" className="mt-0">
           <AbilitiesScreen
             character={character}
-            availablePoints={remainingPoints}
+            availablePoints={availableAbilityPoints}
             prestigePoints={prestigeData.totalPrestigePoints}
             onUpgradeAbility={handleUpgradeAbility}
             onDowngradeAbility={handleDowngradeAbility}
@@ -938,7 +941,7 @@ const Index = () => {
         {/* Legacy Tab Content - Drizzt's Legacy Prestige Tree */}
         <TabsContent value="legacy" className="mt-0">
           <PrestigeTreeScreen
-            prestigeTree={prestigeTree}
+            prestigeTree={actualPrestigeTree}
             prestigeLevel={prestigeData.prestigeLevel}
           />
         </TabsContent>

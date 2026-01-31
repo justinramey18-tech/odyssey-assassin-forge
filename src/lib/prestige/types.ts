@@ -1,20 +1,17 @@
 // Prestige System Types
 // Post-max-level progression for continued ability point earning
+// Points are unified with regular ability points
 
 export interface PrestigeData {
   prestigeLevel: number;
   prestigeXP: number;
-  totalPrestigePoints: number;
-  spentPrestigePoints: number;
-  availablePrestigePoints: number;
+  totalPrestigePoints: number;  // Total points earned from prestige levels
 }
 
 export const DEFAULT_PRESTIGE_DATA: PrestigeData = {
   prestigeLevel: 0,
   prestigeXP: 0,
   totalPrestigePoints: 0,
-  spentPrestigePoints: 0,
-  availablePrestigePoints: 0,
 };
 
 export interface PrestigeXPResult {

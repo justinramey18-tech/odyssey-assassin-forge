@@ -26,8 +26,7 @@ interface SettingsModalProps {
   onOpenChange?: (open: boolean) => void;
   prestigeData?: {
     totalPrestigePoints: number;
-    spentPrestigePoints: number;
-    availablePrestigePoints: number;
+    prestigeLevel: number;
   };
   onPrestigeRespec?: () => void;
   // New props for dynamic GM guide
@@ -153,8 +152,7 @@ export function SettingsModal({
   };
 
   const hasPrestigePoints = prestigeData && prestigeData.totalPrestigePoints > 0;
-  const hasSpentPoints = prestigeData && prestigeData.spentPrestigePoints > 0;
-  const canRespec = hasSpentPoints && !prestigeRespecDisabled && onPrestigeRespec;
+  // Prestige respec is no longer needed since points are unified
   const hasDynamicData = !!dynamicGuide;
 
   return (
@@ -441,40 +439,12 @@ export function SettingsModal({
                           )}
                         </div>
                         <p className="text-sm text-muted-foreground mt-1">
-                          {prestigeData.spentPrestigePoints} of {prestigeData.totalPrestigePoints} points spent
+                          {prestigeData.totalPrestigePoints} prestige points earned (Prestige Level {prestigeData.prestigeLevel})
                         </p>
                         
-                        <div className="mt-3 flex items-center gap-3">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={!canRespec}
-                            onClick={onPrestigeRespec}
-                            className={cn(
-                              "gap-1.5",
-                              canRespec && "border-amber-500/50 hover:bg-amber-500/10 hover:text-amber-400"
-                            )}
-                          >
-                            {prestigeRespecDisabled ? (
-                              <Lock className="w-3.5 h-3.5" />
-                            ) : (
-                              <RotateCcw className="w-3.5 h-3.5" />
-                            )}
-                            Reset Prestige Points
-                          </Button>
-                          
-                          {!hasSpentPoints && !prestigeRespecDisabled && (
-                            <span className="text-xs text-muted-foreground">
-                              No points to reset
-                            </span>
-                          )}
-                        </div>
-                        
-                        {prestigeRespecDisabled && (
-                          <p className="text-xs text-muted-foreground mt-2 italic">
-                            Disable "No Prestige Respec" in Game Mode settings to enable respec.
-                          </p>
-                        )}
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Prestige points are unified with regular ability points and can be spent on any ability.
+                        </p>
                       </div>
                     </div>
                   </div>
