@@ -1,4 +1,4 @@
-// Prestige Tree Screen - Main Screen Component for Drizzt's Legacy
+// Prestige Tree Screen - Mobile-First Main Screen Component for Drizzt's Legacy
 
 import { useState, useCallback } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -14,6 +14,8 @@ import { DrizztCentralNode } from './DrizztCentralNode';
 import { BranchSelector } from './BranchSelector';
 import { PrestigeBranchColumn } from './PrestigeBranchColumn';
 import { PrestigeAbilityDetails } from './PrestigeAbilityDetails';
+import { MobilePrestigeHeader } from './MobilePrestigeHeader';
+import { MobileBranchView } from './MobileBranchView';
 
 interface PrestigeTreeScreenProps {
   prestigeTree: UsePrestigeTreeReturn;
@@ -91,9 +93,59 @@ export function PrestigeTreeScreen({
   // Get unlock check for selected ability
   const selectedCheck = selectedAbility ? canUnlockAbility(selectedAbility.id) : { canUnlock: false };
 
+  // Mobile Layout
+  if (isMobile) {
+    return (
+      <div className="flex flex-col h-full bg-gradient-to-b from-purple-950/20 to-black/40">
+        {/* Compact Mobile Header */}
+        <MobilePrestigeHeader
+          prestigeLevel={prestigeLevel}
+          totalUnlocked={prestigeTree.progress.unlockedAbilities.length}
+          pointsSpent={spentOnTree}
+        />
+
+        {/* Branch Selector Tabs */}
+        <div className="px-3 py-2 border-b border-purple-900/30">
+          <BranchSelector
+            selectedBranch={selectedBranch}
+            onSelectBranch={setSelectedBranch}
+            branchProgress={branchProgress}
+          />
+        </div>
+
+        {/* Branch Content - Scrollable */}
+        <ScrollArea className="flex-1">
+          <div className="p-4 pb-24">
+            <MobileBranchView
+              branch={selectedBranch}
+              unlockedSet={unlockedSet}
+              canUnlockAbility={canUnlockAbility}
+              onNodeClick={handleNodeClick}
+              isTierUnlockedForBranch={isTierUnlockedForBranch}
+              getTierUnlockProgress={getTierUnlockProgress}
+            />
+          </div>
+        </ScrollArea>
+
+        {/* Ability Details Sheet */}
+        <PrestigeAbilityDetails
+          ability={selectedAbility}
+          isOpen={isDetailsOpen}
+          onClose={() => setIsDetailsOpen(false)}
+          isUnlocked={selectedAbility ? isAbilityUnlocked(selectedAbility.id) : false}
+          canUnlock={selectedCheck.canUnlock}
+          unlockReason={selectedCheck.reason}
+          onUnlock={handleUnlock}
+          isMobile={isMobile}
+        />
+      </div>
+    );
+  }
+
+  // Desktop Layout
   return (
     <div className="flex flex-col h-full bg-gradient-to-b from-purple-950/20 to-black/40">
-      {/* Central Node - Always visible */}
+      {/* Central Node - Desktop */}
       <DrizztCentralNode
         prestigeLevel={prestigeLevel}
         totalPointsEarned={prestigeTree.progress.unlockedAbilities.length}
@@ -102,50 +154,23 @@ export function PrestigeTreeScreen({
         className="border-b border-purple-900/30"
       />
 
-      {/* Mobile: Branch Selector Tabs */}
-      {isMobile && (
-        <div className="px-4 py-2">
-          <BranchSelector
-            selectedBranch={selectedBranch}
-            onSelectBranch={setSelectedBranch}
-            branchProgress={branchProgress}
-          />
-        </div>
-      )}
-
-      {/* Main Content Area */}
+      {/* Main Content Area - Desktop Grid */}
       <ScrollArea className="flex-1">
-        {isMobile ? (
-          // Mobile: Single branch view
-          <div className="p-4">
+        <div className="grid grid-cols-2 gap-4 p-6">
+          {BRANCH_ORDER.map((branch) => (
             <PrestigeBranchColumn
-              branch={selectedBranch}
+              key={branch}
+              branch={branch}
               unlockedSet={unlockedSet}
               canUnlockAbility={canUnlockAbility}
               onNodeClick={handleNodeClick}
               isMobile={isMobile}
               isTierUnlockedForBranch={isTierUnlockedForBranch}
               getTierUnlockProgress={getTierUnlockProgress}
+              className="border border-purple-900/20 rounded-xl bg-black/20"
             />
-          </div>
-        ) : (
-          // Desktop: Grid of all 4 branches
-          <div className="grid grid-cols-2 gap-4 p-6">
-            {BRANCH_ORDER.map((branch) => (
-              <PrestigeBranchColumn
-                key={branch}
-                branch={branch}
-                unlockedSet={unlockedSet}
-                canUnlockAbility={canUnlockAbility}
-                onNodeClick={handleNodeClick}
-                isMobile={isMobile}
-                isTierUnlockedForBranch={isTierUnlockedForBranch}
-                getTierUnlockProgress={getTierUnlockProgress}
-                className="border border-purple-900/20 rounded-xl bg-black/20"
-              />
-            ))}
-          </div>
-        )}
+          ))}
+        </div>
       </ScrollArea>
 
       {/* Ability Details Sheet */}
