@@ -583,6 +583,65 @@ const Index = () => {
     });
   };
 
+  // App Reset Handler - clears all state and localStorage
+  const handleResetApp = () => {
+    try {
+      // 1. Reset all React state FIRST (prevents hooks reading stale data)
+      
+      // Reset character to default
+      setCharacter({
+        name: '',
+        level: 1,
+        abilities: allAbilities.map(a => ({ abilityId: a.id, currentTier: 0 as const })),
+        equippedAbilities: [],
+      });
+
+      // Reset XP
+      setCurrentXP(0);
+      setXPPreset('standard');
+
+      // Reset equipment (factory returns new object each call)
+      setEquipment(createInitialEquipment());
+
+      // Reset achievements (shallow copy is sufficient)
+      setAchievements(achievementCategories.map(a => ({ ...a })));
+
+      // Reset prestige data
+      setPrestigeData({
+        prestigeLevel: 0,
+        prestigeXP: 0,
+        totalPrestigePoints: 0,
+      });
+
+      // 2. Reset UI state
+      setActiveTab('skills');
+      setShowHomeScreen(false);
+      setShowWizard(true);
+
+      // 3. Clear all localStorage (after state reset to prevent race conditions)
+      resetAllAppData();
+      
+      // Ensure intro splash flag is also cleared for true first-launch experience
+      localStorage.removeItem('odyssey-intro-seen');
+
+      // 4. Success feedback
+      toast({
+        title: "🔄 App Reset Complete",
+        description: "All data cleared. Create a new character to begin.",
+        className: "border-blue-500 bg-blue-500/10",
+        duration: 4000,
+      });
+
+    } catch (error) {
+      console.error('[AppReset] Reset failed:', error);
+      toast({
+        title: "Reset Failed",
+        description: "An error occurred. Please refresh the page and try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Show wizard on first load
   if (showWizard) {
     return (
@@ -670,6 +729,7 @@ const Index = () => {
               totalPrestigePoints: prestigeData.totalPrestigePoints,
               prestigeLevel: prestigeData.prestigeLevel,
             }}
+            onResetComplete={handleResetApp}
           />
         </PromptDrawerProvider>
       </OnboardingProvider>
@@ -746,6 +806,7 @@ const Index = () => {
             totalPrestigePoints: prestigeData.totalPrestigePoints,
             prestigeLevel: prestigeData.prestigeLevel,
           }}
+          onResetComplete={handleResetApp}
           character={character}
           abilities={allAbilities}
           unlockedAbilities={unlockedAbilities}
