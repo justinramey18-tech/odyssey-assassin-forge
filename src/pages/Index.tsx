@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Character, CharacterAbility, getAbilityPointsForLevel, getTotalPointsSpent, getActiveSlotsByLevel } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
@@ -106,36 +106,41 @@ const Index = () => {
     return basePoints + prestigePoints;
   }, [character.level, prestigeData.totalPrestigePoints]);
   
-  // Prestige Tree (Drizzt's Legacy) hook
+  // Track prestige tree spending with reactive state (initialized from localStorage)
+  const [prestigeTreeSpentState, setPrestigeTreeSpentState] = useState(() => {
+    const stored = localStorage.getItem('odyssey-prestige-tree');
+    if (stored) {
+      try {
+        const progress = JSON.parse(stored);
+        return (progress.unlockedAbilities || []).reduce((sum: number, abilityId: string) => {
+          const ability = getPrestigeAbilityById(abilityId);
+          return sum + (ability?.prestigeCost ?? 0);
+        }, 0);
+      } catch { return 0; }
+    }
+    return 0;
+  });
+
+  // Callback to update spent state when prestige tree points are spent
+  const handlePrestigeTreePointsSpent = useCallback((cost: number) => {
+    setPrestigeTreeSpentState(prev => prev + cost);
+  }, []);
+
+  // Calculate total spent points (base + prestige tree)
+  const spentAbilityPoints = useMemo(() => {
+    const baseSpent = getTotalPointsSpent(character.abilities);
+    return baseSpent + prestigeTreeSpentState;
+  }, [character.abilities, prestigeTreeSpentState]);
+
+  // Available points with guard clause to prevent negative values
+  const availableAbilityPoints = Math.max(0, totalAbilityPoints - spentAbilityPoints);
+  
+  // Single prestige tree hook instance with callback connected
   const prestigeTree = usePrestigeTree(
     character.abilities, 
     prestigeData, 
-    0, // Will be calculated below with proper spent value
-    undefined,
-    character.level
-  );
-
-  // Calculate spent on prestige tree (with variable costs per ability)
-  const prestigeTreeSpent = useMemo(() => {
-    return prestigeTree.progress.unlockedAbilities.reduce((sum, abilityId) => {
-      const ability = getPrestigeAbilityById(abilityId);
-      return sum + (ability?.prestigeCost ?? 0);
-    }, 0);
-  }, [prestigeTree.progress.unlockedAbilities]);
-
-  const spentAbilityPoints = useMemo(() => {
-    const baseSpent = getTotalPointsSpent(character.abilities);
-    return baseSpent + prestigeTreeSpent;
-  }, [character.abilities, prestigeTreeSpent]);
-
-  const availableAbilityPoints = totalAbilityPoints - spentAbilityPoints;
-  
-  // Now create the actual prestige tree with correct available points
-  const actualPrestigeTree = usePrestigeTree(
-    character.abilities, 
-    prestigeData, 
     availableAbilityPoints,
-    undefined,
+    handlePrestigeTreePointsSpent,
     character.level
   );
   
@@ -618,8 +623,9 @@ const Index = () => {
         totalPrestigePoints: 0,
       });
 
-      // Reset Legacy (Prestige Tree) via hook
-      actualPrestigeTree.resetTree();
+      // Reset Legacy (Prestige Tree) via hook and state
+      setPrestigeTreeSpentState(0);
+      prestigeTree.resetTree();
 
       // 2. Reset UI state
       setActiveTab('skills');
@@ -796,8 +802,8 @@ const Index = () => {
           onHomeClick={() => setShowHomeScreen(true)}
           onSettingsClick={() => setShowSettingsModal(true)}
           onCloudSaveClick={() => setShowCloudSaveModal(true)}
-          isLegacyUnlocked={actualPrestigeTree.isLegacyUnlocked}
-          legacyProgress={actualPrestigeTree.unlockProgress}
+          isLegacyUnlocked={prestigeTree.isLegacyUnlocked}
+          legacyProgress={prestigeTree.unlockProgress}
         />
         
         {/* Cloud Save Modal */}
@@ -1014,7 +1020,7 @@ const Index = () => {
         {/* Legacy Tab Content - Drizzt's Legacy Prestige Tree */}
         <TabsContent value="legacy" className="mt-0">
           <PrestigeTreeScreen
-            prestigeTree={actualPrestigeTree}
+            prestigeTree={prestigeTree}
             prestigeLevel={prestigeData.prestigeLevel}
             availableAbilityPoints={availableAbilityPoints}
           />
