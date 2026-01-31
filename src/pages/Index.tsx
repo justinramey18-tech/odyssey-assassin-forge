@@ -1005,6 +1005,7 @@ const Index = () => {
           <PrestigeTreeScreen
             prestigeTree={actualPrestigeTree}
             prestigeLevel={prestigeData.prestigeLevel}
+            availableAbilityPoints={availableAbilityPoints}
           />
         </TabsContent>
       </Tabs>

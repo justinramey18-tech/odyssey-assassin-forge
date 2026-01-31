@@ -1,6 +1,6 @@
 // Mobile Prestige Header - Compact header for mobile Legacy tab
 
-import { Crown, Sparkles } from 'lucide-react';
+import { Crown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DRIZZT_CENTRAL_NODE } from '@/lib/prestigeTree/branchConfig';
 
@@ -55,21 +55,14 @@ export function MobilePrestigeHeader({
           </p>
         </div>
         
-        {/* Stats - Compact badges */}
-        <div className="flex flex-col gap-1.5">
-          {/* Prestige Level */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/30">
-            <Sparkles className="w-3 h-3 text-purple-400" />
-            <span className="text-xs font-bold text-purple-400">P{prestigeLevel}</span>
+        {/* Available Points - consistent with header style */}
+        <div className="text-right">
+          <div className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">
+            Available Ability Points
           </div>
-          
-          {/* Available Points - if any */}
-          {availablePoints !== undefined && availablePoints > 0 && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30">
-              <span className="text-xs font-bold text-amber-400">{availablePoints}</span>
-              <span className="text-[9px] text-amber-400/70">pts</span>
-            </div>
-          )}
+          <div className="font-display font-bold text-xl text-primary">
+            {availablePoints ?? 0}
+          </div>
         </div>
       </div>
     </div>
