@@ -16,14 +16,39 @@ interface CharacterStatsProps {
   character: Character;
   equipment?: CharacterEquipment;
   prestigePoints?: number;
+  // HP props
+  currentHP?: number;
+  maxHP?: number;
+  tempHP?: number;
 }
 
-export function CharacterStatsContent({ character, equipment, prestigePoints = 0 }: CharacterStatsProps) {
+export function CharacterStatsContent({ 
+  character, 
+  equipment, 
+  prestigePoints = 0,
+  currentHP: propCurrentHP,
+  maxHP: propMaxHP,
+  tempHP: propTempHP = 0,
+}: CharacterStatsProps) {
   const activeSlots = getActiveSlotsByLevel(character.level, prestigePoints);
   const xpForLevel = (level: number) => level * 1000;
   const currentXP = Math.floor(xpForLevel(character.level) * 0.65);
   const xpToNext = xpForLevel(character.level + 1) - xpForLevel(character.level);
   const xpProgress = Math.round((currentXP / xpToNext) * 100);
+
+  // Use provided HP or calculate defaults
+  const defaultMaxHP = 10 + character.level * 6;
+  const maxHP = propMaxHP ?? defaultMaxHP;
+  const currentHP = propCurrentHP ?? maxHP;
+  const tempHP = propTempHP;
+  const hpPercentage = Math.max(0, Math.min(100, (currentHP / maxHP) * 100));
+  
+  // HP color based on percentage
+  const getHPColor = () => {
+    if (hpPercentage > 50) return 'text-emerald-400';
+    if (hpPercentage > 25) return 'text-amber-400';
+    return 'text-rose-400';
+  };
 
   // Calculate equipment stats if equipment is provided
   const defaultEquipment: CharacterEquipment = { slots: {} as any, inventory: [] };
@@ -60,9 +85,28 @@ export function CharacterStatsContent({ character, equipment, prestigePoints = 0
       {/* Primary Combat Stats - now from equipment */}
       <div className="grid grid-cols-2 gap-2">
         <div className="text-center p-3 rounded-lg bg-red-950/30 border border-red-900/30">
-          <Heart className="w-5 h-5 mx-auto text-red-400 mb-1" />
-          <div className="text-lg font-bold">{10 + character.level * 6}</div>
-          <div className="text-[9px] text-muted-foreground uppercase">Hit Points</div>
+          <Heart className={`w-5 h-5 mx-auto mb-1 ${getHPColor()}`} />
+          <div className={`text-lg font-bold ${getHPColor()}`}>
+            {currentHP}
+            <span className="text-sm font-normal text-muted-foreground">/{maxHP}</span>
+          </div>
+          {tempHP > 0 && (
+            <div className="text-[10px] text-sky-400 flex items-center justify-center gap-1">
+              <Shield className="w-3 h-3" />
+              +{tempHP} temp
+            </div>
+          )}
+          <div className="text-[9px] text-muted-foreground uppercase mt-1">Hit Points</div>
+          {/* HP mini progress bar */}
+          <div className="w-full h-1.5 rounded-full bg-muted/30 mt-1 overflow-hidden">
+            <div 
+              className={`h-full transition-all ${
+                hpPercentage > 50 ? 'bg-emerald-500' : 
+                hpPercentage > 25 ? 'bg-amber-500' : 'bg-rose-500'
+              }`}
+              style={{ width: `${hpPercentage}%` }}
+            />
+          </div>
         </div>
         <div className="text-center p-3 rounded-lg bg-blue-950/30 border border-blue-900/30">
           <Shield className="w-5 h-5 mx-auto text-blue-400 mb-1" />
