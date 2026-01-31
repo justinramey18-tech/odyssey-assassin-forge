@@ -1,238 +1,208 @@
 
-# Fix Plan: Prestige Ability Double Point Deduction & UI Sync
+# Fix Plan: Prestige Ability Point Validation & Negative Value Prevention
 
 ## Problem Summary
 
-When unlocking a prestige ability, points are deducted **twice** because the `onPrestigePointSpent` callback is invoked in two places:
-1. Inside `usePrestigeTree.unlockAbility()` (correct location)
-2. Again in `PrestigeTreeScreen.handleUnlock()` (duplicate call)
+The `unlockAbility` function in `use-prestige-tree.ts` has a **critical validation flaw**:
 
-Additionally, Index.tsx uses an outdated loop pattern instead of passing the cost directly.
+1. It calls `onPrestigePointSpent(cost)` which triggers `spendPrestigePoint(cost)`
+2. **BUT** it ignores the return value from `spendPrestigePoint`
+3. Even if spending fails (insufficient points), it proceeds to mark the ability as unlocked
+4. This causes state desynchronization and potential negative point values from race conditions
 
----
+### Current Broken Architecture
 
-## Data Flow Analysis
-
-**Current (Broken) Flow:**
 ```
-User clicks "Unlock"
-       │
-       ▼
-PrestigeAbilityDetails.handleUnlock()
-       │
-       ▼
-PrestigeTreeScreen.handleUnlock(abilityId)
-       │
-       ├──► unlockAbility(abilityId)
-       │         │
-       │         ├──► Updates local progress (adds ability to unlockedAbilities)
-       │         │
-       │         └──► Calls onPrestigePointSpent(cost) ← FIRST DEDUCTION
-       │
-       └──► Calls onPrestigePointSpent(cost) ← SECOND DEDUCTION (DUPLICATE!)
+onPrestigePointSpent: (cost: number) => spendPrestigePoint(cost)
+                                        ↑
+                           Returns { success: boolean; message?: string }
+                           BUT THIS RETURN VALUE IS LOST!
 ```
 
-**Fixed Flow:**
-```
-User clicks "Unlock"
-       │
-       ▼
-PrestigeAbilityDetails.handleUnlock()
-       │
-       ▼
-PrestigeTreeScreen.handleUnlock(abilityId)
-       │
-       └──► unlockAbility(abilityId)
-                 │
-                 ├──► Updates local progress
-                 │
-                 └──► Calls onPrestigePointSpent(cost) ← SINGLE DEDUCTION
-                              │
-                              ▼
-                      Index.tsx: spendPrestigePoint(cost)
-                              │
-                              ▼
-                      React re-renders with updated available points
-```
-
----
-
-## Implementation Steps
-
-### Step 1: Remove Duplicate Callback from PrestigeTreeScreen
-
-**File:** `src/components/prestigeTree/PrestigeTreeScreen.tsx`
-
-**Changes:**
-1. Remove `onPrestigePointSpent` from the component interface
-2. Remove the duplicate callback call from `handleUnlock`
-3. Remove `onPrestigePointSpent` from the destructured props
-
-**Before (lines 18-22, 24-28, 54-77):**
+The callback in Index.tsx line 113:
 ```typescript
-interface PrestigeTreeScreenProps {
-  prestigeTree: UsePrestigeTreeReturn;
-  prestigeLevel: number;
-  onPrestigePointSpent?: (cost: number) => void;  // REMOVE THIS
-}
-
-export function PrestigeTreeScreen({
-  prestigeTree,
-  prestigeLevel,
-  onPrestigePointSpent,  // REMOVE THIS
-}: PrestigeTreeScreenProps) {
-  ...
-  const handleUnlock = useCallback((abilityId: string) => {
-    const result = unlockAbility(abilityId);
-    if (result.success) {
-      ...
-      // REMOVE THESE LINES (66-69):
-      if (onPrestigePointSpent && ability) {
-        onPrestigePointSpent(ability.prestigeCost);
-      }
-    }
-  }, [unlockAbility, prestigeTree, toast, onPrestigePointSpent]);  // REMOVE onPrestigePointSpent
+(cost: number) => spendPrestigePoint(cost)  // Return value discarded
 ```
 
-**After:**
+And in `unlockAbility` line 212-214:
 ```typescript
-interface PrestigeTreeScreenProps {
-  prestigeTree: UsePrestigeTreeReturn;
-  prestigeLevel: number;
+if (onPrestigePointSpent) {
+  onPrestigePointSpent(ability.prestigeCost);  // No return capture
 }
-
-export function PrestigeTreeScreen({
-  prestigeTree,
-  prestigeLevel,
-}: PrestigeTreeScreenProps) {
-  ...
-  const handleUnlock = useCallback((abilityId: string) => {
-    const result = unlockAbility(abilityId);
-    if (result.success) {
-      const ability = prestigeTree.getAbilityDetails(abilityId);
-      toast({
-        title: "Ability Unlocked!",
-        description: `${ability?.name} is now available.`,
-        className: "border-purple-500 bg-purple-500/10",
-      });
-    } else {
-      toast({
-        title: "Cannot Unlock",
-        description: result.error,
-        variant: "destructive",
-      });
-    }
-  }, [unlockAbility, prestigeTree, toast]);
 ```
 
 ---
 
-### Step 2: Remove Prop from Index.tsx Usage
+## Solution Overview
+
+### Step 1: Change Callback Type Signature
+
+Update `onPrestigePointSpent` to return the spend result instead of void.
+
+**File:** `src/hooks/use-prestige-tree.ts`
+
+**Change type signature (line 77):**
+```typescript
+// Before
+onPrestigePointSpent?: (cost: number) => void,
+
+// After  
+onPrestigePointSpent?: (cost: number) => { success: boolean; message?: string },
+```
+
+---
+
+### Step 2: Fix `unlockAbility` to Check Return Value
+
+**File:** `src/hooks/use-prestige-tree.ts`
+
+**Replace lines 201-227:**
+```typescript
+// Unlock ability
+const unlockAbility = useCallback((abilityId: string): { success: boolean; error?: string } => {
+  const check = canUnlockAbility(abilityId);
+  if (!check.canUnlock) {
+    return { success: false, error: check.reason };
+  }
+
+  const ability = getPrestigeAbilityById(abilityId)!;
+  
+  // FIRST: Attempt to deduct prestige points from main system
+  if (onPrestigePointSpent) {
+    const spendResult = onPrestigePointSpent(ability.prestigeCost);
+    
+    // If spending failed, abort the unlock entirely
+    if (!spendResult.success) {
+      return { 
+        success: false, 
+        error: spendResult.message || 'Insufficient prestige points' 
+      };
+    }
+  }
+
+  // ONLY update local progress if point deduction succeeded
+  setProgress(prev => ({
+    ...prev,
+    unlockedAbilities: [...prev.unlockedAbilities, abilityId],
+    unlockTimestamps: {
+      ...prev.unlockTimestamps,
+      [abilityId]: Date.now(),
+    },
+  }));
+
+  return { success: true };
+}, [canUnlockAbility, onPrestigePointSpent]);
+```
+
+---
+
+### Step 3: Update Index.tsx Callback to Return Result
 
 **File:** `src/pages/Index.tsx`
 
-**Changes:**
-Remove the `onPrestigePointSpent` prop and its callback function from the `PrestigeTreeScreen` component.
-
-**Before (lines 937-946):**
+**Replace line 113:**
 ```typescript
-<PrestigeTreeScreen
-  prestigeTree={prestigeTree}
-  prestigeLevel={prestigeData.prestigeLevel}
-  onPrestigePointSpent={(cost) => {
-    // Deduct from main prestige point pool
-    for (let i = 0; i < cost; i++) {
-      spendPrestigePoint();
-    }
-  }}
-/>
+// Before
+(cost: number) => spendPrestigePoint(cost),
+
+// After
+(cost: number) => spendPrestigePoint(cost),  // spendPrestigePoint already returns { success, message }
 ```
 
-**After:**
+No change needed here - `spendPrestigePoint` already returns the right type, but we need to ensure the callback captures it.
+
+**Full replacement for lines 110-115:**
 ```typescript
-<PrestigeTreeScreen
-  prestigeTree={prestigeTree}
-  prestigeLevel={prestigeData.prestigeLevel}
-/>
+const prestigeTree = usePrestigeTree(
+  character.abilities, 
+  prestigeData, 
+  (cost: number) => {
+    // Return the result so unlockAbility can check if spending succeeded
+    return spendPrestigePoint(cost);
+  },
+  character.level
+);
 ```
 
 ---
 
-### Step 3: Add Double-Click Prevention (Enhancement)
+### Step 4: Add Defensive Guards Against Negative Values
 
-**File:** `src/components/prestigeTree/PrestigeTreeScreen.tsx`
+**File:** `src/hooks/use-prestige.ts`
 
-Add a guard state to prevent rapid unlock button clicks from causing race conditions:
-
+**Update `spendPrestigePoint` (lines 144-156) to add Math.max guard:**
 ```typescript
-const [isUnlocking, setIsUnlocking] = useState(false);
-
-const handleUnlock = useCallback((abilityId: string) => {
-  if (isUnlocking) return;
-  setIsUnlocking(true);
-  
-  const result = unlockAbility(abilityId);
-  
-  if (result.success) {
-    const ability = prestigeTree.getAbilityDetails(abilityId);
-    toast({
-      title: "Ability Unlocked!",
-      description: `${ability?.name} is now available.`,
-      className: "border-purple-500 bg-purple-500/10",
-    });
-  } else {
-    toast({
-      title: "Cannot Unlock",
-      description: result.error,
-      variant: "destructive",
-    });
+const spendPrestigePoint = useCallback((cost: number = 1): { success: boolean; message?: string } => {
+  // Validate cost is positive
+  if (cost <= 0) {
+    return { success: false, message: 'Invalid cost' };
   }
   
-  setIsUnlocking(false);
-}, [isUnlocking, unlockAbility, prestigeTree, toast]);
+  if (prestigeData.availablePrestigePoints < cost) {
+    return { success: false, message: `Need ${cost} prestige points, only have ${prestigeData.availablePrestigePoints}` };
+  }
+
+  setPrestigeData(prev => ({
+    ...prev,
+    spentPrestigePoints: prev.spentPrestigePoints + cost,
+    // Defensive guard: ensure we never go negative
+    availablePrestigePoints: Math.max(0, prev.availablePrestigePoints - cost),
+  }));
+
+  return { success: true };
+}, [prestigeData.availablePrestigePoints]);
 ```
-
----
-
-## Files Modified
-
-| File | Changes |
-|------|---------|
-| `src/components/prestigeTree/PrestigeTreeScreen.tsx` | Remove `onPrestigePointSpent` prop, remove duplicate callback, add double-click guard |
-| `src/pages/Index.tsx` | Remove `onPrestigePointSpent` prop from `PrestigeTreeScreen` component |
 
 ---
 
 ## Technical Details
 
-### Why the Hook Already Handles Point Deduction
+### Data Flow After Fix
 
-In `use-prestige-tree.ts` (lines 200-224), the `unlockAbility` function:
-
-1. Validates the unlock with `canUnlockAbility` 
-2. Updates local progress state with `setProgress`
-3. Calls the `onPrestigePointSpent` callback passed from Index.tsx
-
-This callback is already connected in Index.tsx (lines 108-113):
-```typescript
-const prestigeTree = usePrestigeTree(
-  character.abilities, 
-  prestigeData, 
-  (cost: number) => spendPrestigePoint(cost),  // Connected here
-  character.level
-);
+```
+User clicks "Unlock" button
+       │
+       ▼
+PrestigeTreeScreen.handleUnlock(abilityId)
+       │
+       ▼
+usePrestigeTree.unlockAbility(abilityId)
+       │
+       ├──► canUnlockAbility() check passes
+       │
+       ▼
+onPrestigePointSpent(cost)
+       │
+       ▼
+spendPrestigePoint(cost)
+       │
+       ├──► Returns { success: true } ───► setProgress() updates unlocked list
+       │                                        │
+       │                                        ▼
+       │                               Return { success: true }
+       │
+       └──► Returns { success: false } ───► ABORT: Don't update progress
+                                                    │
+                                                    ▼
+                                           Return { success: false, error: message }
 ```
 
-So the hook's internal call to `onPrestigePointSpent(cost)` already triggers `spendPrestigePoint(cost)` in the main prestige system.
+### Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/hooks/use-prestige-tree.ts` | Update callback type, fix `unlockAbility` to check return value |
+| `src/hooks/use-prestige.ts` | Add `Math.max(0, ...)` guard, validate cost > 0 |
+| `src/pages/Index.tsx` | Ensure callback returns `spendPrestigePoint` result |
 
 ---
 
 ## Verification Checklist
 
 After implementation, verify:
-- [ ] Unlocking an ability deducts points **exactly once**
-- [ ] Available prestige points update correctly in real-time
-- [ ] Ability nodes immediately show "Unlocked" state after unlock
-- [ ] Cannot unlock abilities when insufficient points
-- [ ] Rapid button clicks don't cause multiple deductions
-- [ ] Sheet closes and UI refreshes after unlock
+- [ ] Unlocking an ability with sufficient points succeeds and deducts once
+- [ ] Unlocking an ability with insufficient points fails with error message
+- [ ] Available prestige points never go negative
+- [ ] Rapid button clicks don't cause multiple deductions (existing `isUnlocking` guard)
+- [ ] UI correctly reflects point changes in real-time
+- [ ] Already-unlocked abilities cannot be unlocked again
