@@ -1,4 +1,4 @@
-export { EdgeDrawer, EdgeTrigger, EdgeTriggerStack } from './EdgeDrawer';
+export { EdgeDrawer } from './EdgeDrawer';
 export { InfinityStoneDrawer } from './InfinityStoneDrawer';
 export { AbilitiesDrawer } from './AbilitiesDrawer';
 export { StatsDrawer } from './StatsDrawer';
