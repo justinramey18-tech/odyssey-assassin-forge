@@ -9,6 +9,8 @@ import {
   getPrestigeXPRequired,
   getPrestigeProgress,
   getXPToNextPrestige,
+  getPrestigePointsForLevel,
+  getTotalPrestigePointsForLevel,
 } from '@/lib/prestige/config';
 
 const STORAGE_KEY = 'odyssey-prestige-data';
@@ -18,22 +20,30 @@ export const PRESTIGE_CHANGE_EVENT = 'odyssey-prestige-change';
 
 /**
  * Migrate old prestige data format to new format
- * Removes spentPrestigePoints and availablePrestigePoints fields
+ * Recalculates totalPrestigePoints using the new variable formula
+ * (Old format used 1 point per level, new format uses variable 2-5 points)
  */
 function migratePrestigeData(saved: any): PrestigeData {
-  // Old format had spentPrestigePoints and availablePrestigePoints
-  // New format only tracks totalPrestigePoints
+  const prestigeLevel = saved.prestigeLevel ?? 0;
+  
+  // Always recalculate total points from prestige level
+  // This ensures old saves (with 1 point per level) get updated to new formula
+  const recalculatedPoints = getTotalPrestigePointsForLevel(prestigeLevel);
+  
+  // Handle legacy format with spentPrestigePoints/availablePrestigePoints
   if ('spentPrestigePoints' in saved || 'availablePrestigePoints' in saved) {
-    return {
-      prestigeLevel: saved.prestigeLevel ?? 0,
-      prestigeXP: saved.prestigeXP ?? 0,
-      totalPrestigePoints: saved.totalPrestigePoints ?? saved.prestigeLevel ?? 0,
-    };
+    console.log('[Prestige Migration] Old format detected, recalculating points');
   }
+  
+  // If stored points differ from recalculated, log the migration
+  if (saved.totalPrestigePoints !== recalculatedPoints && prestigeLevel > 0) {
+    console.log(`[Prestige Migration] Points updated: ${saved.totalPrestigePoints ?? 0} → ${recalculatedPoints}`);
+  }
+  
   return {
-    prestigeLevel: saved.prestigeLevel ?? 0,
+    prestigeLevel,
     prestigeXP: saved.prestigeXP ?? 0,
-    totalPrestigePoints: saved.totalPrestigePoints ?? 0,
+    totalPrestigePoints: recalculatedPoints,
   };
 }
 
@@ -116,6 +126,7 @@ export function usePrestige(currentLevel: number): UsePrestigeReturn {
   /**
    * Award XP to prestige system (only works at max level)
    * Handles overflow for multiple level-ups from large XP gains
+   * Uses variable points per prestige level (2-5 based on level)
    */
   const awardPrestigeXP = useCallback((amount: number): PrestigeXPResult => {
     if (!isMaxLevel) {
@@ -130,7 +141,8 @@ export function usePrestige(currentLevel: number): UsePrestigeReturn {
     while (newPrestigeXP >= PRESTIGE_CONFIG.XP_PER_PRESTIGE_LEVEL) {
       newPrestigeXP -= PRESTIGE_CONFIG.XP_PER_PRESTIGE_LEVEL;
       newPrestigeLevel++;
-      totalPointsAwarded += PRESTIGE_CONFIG.POINTS_PER_PRESTIGE;
+      // Use variable points per level instead of fixed POINTS_PER_PRESTIGE
+      totalPointsAwarded += getPrestigePointsForLevel(newPrestigeLevel);
     }
 
     if (totalPointsAwarded > 0) {
