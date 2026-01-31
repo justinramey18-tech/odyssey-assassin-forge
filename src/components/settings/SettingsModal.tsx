@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Settings, User, Dices, Gamepad2, RotateCcw, Star, Lock, FileText, Copy, Check, RefreshCw, Camera, BookOpen } from 'lucide-react';
+import { Settings, User, Dices, Gamepad2, RotateCcw, Star, Lock, FileText, Copy, Check, RefreshCw, Camera, BookOpen, AlertTriangle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -18,6 +18,17 @@ import { generateDynamicGMGuide, generateCurrentStateSummary, STATIC_GM_GUIDE, C
 import { ONBOARDING_STORAGE_KEY } from '@/lib/onboarding/types';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface SettingsModalProps {
   characterName: string;
@@ -29,6 +40,7 @@ interface SettingsModalProps {
     prestigeLevel: number;
   };
   onPrestigeRespec?: () => void;
+  onResetComplete?: () => void;
   // New props for dynamic GM guide
   character?: Character;
   abilities?: Ability[];
@@ -45,6 +57,7 @@ export function SettingsModal({
   onOpenChange,
   prestigeData,
   onPrestigeRespec,
+  onResetComplete,
   character,
   abilities,
   unlockedAbilities,
@@ -60,6 +73,7 @@ export function SettingsModal({
   const [copiedDynamic, setCopiedDynamic] = useState(false);
   const [copiedSnapshot, setCopiedSnapshot] = useState(false);
   const [showDynamic, setShowDynamic] = useState(true);
+  const [showResetDialog, setShowResetDialog] = useState(false);
   
   const { prestigeRespecDisabled } = useGameMode();
 
@@ -148,6 +162,22 @@ export function SettingsModal({
       setTimeout(() => setCopiedSnapshot(false), 2000);
     } catch (err) {
       toast.error('Failed to copy');
+    }
+  };
+
+  const handleReset = () => {
+    try {
+      // Close dialogs first to prevent animation glitches
+      setShowResetDialog(false);
+      setOpen(false);
+      
+      // Trigger parent state reset (which clears localStorage)
+      if (onResetComplete) {
+        onResetComplete();
+      }
+    } catch (error) {
+      console.error('[AppReset] Reset failed:', error);
+      toast.error('Reset failed. Please refresh the page and try again.');
     }
   };
 
@@ -452,6 +482,103 @@ export function SettingsModal({
 
                 <div className="text-center text-xs text-muted-foreground pt-4 border-t border-border/30">
                   Character editing opens the setup wizard
+                </div>
+
+                {/* Danger Zone - App Reset */}
+                <div className="mt-6 border-2 border-destructive/50 rounded-lg p-4 bg-destructive/5 space-y-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className="font-display font-semibold text-destructive">
+                        Danger Zone
+                      </h4>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Permanently delete all data and start fresh.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-background/50 rounded-md p-3 space-y-1.5">
+                    <p className="text-xs font-semibold text-foreground">This will delete:</p>
+                    <ul className="text-xs text-muted-foreground space-y-1 ml-3">
+                      <li className="flex items-center gap-2">
+                        <span className="w-1 h-1 rounded-full bg-destructive/70" />
+                        Character ({characterName || 'Unnamed'})
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="w-1 h-1 rounded-full bg-destructive/70" />
+                        All levels, XP, and ability upgrades
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="w-1 h-1 rounded-full bg-destructive/70" />
+                        Equipment, achievements, and consumables
+                      </li>
+                      {prestigeData && prestigeData.prestigeLevel > 0 && (
+                        <li className="flex items-center gap-2">
+                          <span className="w-1 h-1 rounded-full bg-destructive/70" />
+                          Prestige Level {prestigeData.prestigeLevel}
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+
+                  <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+                    <AlertDialogTrigger asChild>
+                      <Button 
+                        variant="destructive" 
+                        size="sm"
+                        className="w-full gap-2"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        Reset Entire App
+                      </Button>
+                    </AlertDialogTrigger>
+                    
+                    <AlertDialogContent className="max-w-md">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+                          <AlertTriangle className="w-5 h-5" />
+                          Reset Application?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription asChild>
+                          <div className="space-y-3 pt-2">
+                            <p className="text-sm">
+                              You are about to <span className="font-semibold text-destructive">permanently delete</span> all data:
+                            </p>
+                            
+                            <div className="bg-muted/50 rounded-md p-3">
+                              <p className="font-semibold text-sm text-foreground">
+                                {characterName || 'Unnamed Character'}
+                              </p>
+                              {prestigeData && prestigeData.prestigeLevel > 0 && (
+                                <p className="text-xs text-amber-400 mt-1">
+                                  Prestige Level {prestigeData.prestigeLevel}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="bg-destructive/10 border border-destructive/30 rounded-md p-3">
+                              <p className="text-xs font-semibold text-destructive">
+                                ⚠️ This cannot be undone
+                              </p>
+                            </div>
+                          </div>
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      
+                      <AlertDialogFooter className="gap-2 sm:gap-0">
+                        <AlertDialogCancel className="mt-0">
+                          Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleReset}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Yes, Delete Everything
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </TabsContent>
 
