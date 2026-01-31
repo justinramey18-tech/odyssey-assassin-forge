@@ -140,7 +140,7 @@ export function AbilitiesScreen({
             Available Ability Points
           </div>
           <div className="font-display font-bold text-2xl text-primary">
-            {availablePoints}
+            {Math.max(0, availablePoints)}
           </div>
         </div>
       </header>

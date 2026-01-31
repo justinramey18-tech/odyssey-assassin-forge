@@ -86,7 +86,7 @@ export function DrizztCentralNode({
         {/* Points Available - only show if provided */}
         {availablePoints !== undefined && availablePoints > 0 && (
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30">
-            <span className="text-amber-400 font-bold">{availablePoints}</span>
+            <span className="text-amber-400 font-bold">{Math.max(0, availablePoints)}</span>
             <span className="text-muted-foreground">Available</span>
           </div>
         )}
