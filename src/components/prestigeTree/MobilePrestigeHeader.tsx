@@ -61,7 +61,7 @@ export function MobilePrestigeHeader({
             Available Ability Points
           </div>
           <div className="font-display font-bold text-xl text-primary">
-            {availablePoints ?? 0}
+            {Math.max(0, availablePoints ?? 0)}
           </div>
         </div>
       </div>
