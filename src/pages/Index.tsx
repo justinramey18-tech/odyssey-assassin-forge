@@ -52,6 +52,8 @@ import {
   EquipmentItem,
   createInitialEquipment,
 } from '@/lib/inventory/index';
+import { MagicScreen } from '@/components/magic';
+import { useSpellcasting } from '@/hooks/use-spellcasting';
 
 
 
@@ -77,7 +79,7 @@ const Index = () => {
   const [showHomeScreen, setShowHomeScreen] = useState(true); // Home is default after wizard
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showCloudSaveModal, setShowCloudSaveModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'skills' | 'abilities' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle' | 'legacy'>('skills');
+  const [activeTab, setActiveTab] = useState<'skills' | 'abilities' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle' | 'legacy' | 'arcana'>('skills');
   const [character, setCharacter] = useState<Character>({
     name: '',
     level: 1,
@@ -143,6 +145,9 @@ const Index = () => {
     handlePrestigeTreePointsSpent,
     character.level
   );
+  
+  // Spellcasting system
+  const spellcasting = useSpellcasting(character.level);
   
   // Shared equipment state for constellation view
   const [equipment, setEquipment] = useState<CharacterEquipment>(() => createInitialEquipment());
@@ -860,7 +865,7 @@ const Index = () => {
           setShowHomeScreen(true);
           return;
         }
-        setActiveTab(v as 'skills' | 'abilities' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle' | 'legacy');
+        setActiveTab(v as 'skills' | 'abilities' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle' | 'legacy' | 'arcana');
       }} className="w-full flex flex-col">
         {/* Assassin's Creed Styled Header Navigation */}
         <AssassinHeader 
@@ -1089,6 +1094,23 @@ const Index = () => {
             prestigeLevel={prestigeData.prestigeLevel}
             availableAbilityPoints={availableAbilityPoints}
           />
+        </TabsContent>
+
+        {/* Arcana Tab Content - Magic System */}
+        <TabsContent value="arcana" className="mt-0">
+          <BackgroundWrapper 
+            imagePath={builderBackground} 
+            overlayOpacity={70} 
+            tintColor="indigo" 
+            tintOpacity={15}
+            className="min-h-[calc(100vh-10vh)]"
+          >
+            <MagicScreen
+              characterLevel={character.level}
+              characterName={character.name}
+              spellcasting={spellcasting}
+            />
+          </BackgroundWrapper>
         </TabsContent>
       </Tabs>
 

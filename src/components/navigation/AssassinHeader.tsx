@@ -1,4 +1,4 @@
-import { Home, Settings, Crosshair, Swords, Backpack, Trophy, Sparkles, BookOpen, Cloud, FlaskConical, Search, Zap, Crown, Lock } from 'lucide-react';
+import { Home, Settings, Crosshair, Swords, Backpack, Trophy, Sparkles, BookOpen, Cloud, FlaskConical, Search, Zap, Crown, Lock, Wand2 } from 'lucide-react';
 import { TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
@@ -94,6 +94,18 @@ export function AssassinHeader({
               <span className="absolute inset-0 blur-md bg-violet-500 rounded-full opacity-0 group-data-[state=active]:opacity-70 group-data-[state=active]:animate-glow-pulse transition-opacity" />
             </span>
             <span className="group-data-[state=active]:text-violet-300 whitespace-nowrap">Abilities</span>
+          </TabsTrigger>
+
+          {/* Arcana Tab */}
+          <TabsTrigger 
+            value="arcana" 
+            className="group h-full flex flex-col items-center justify-center gap-1 px-4 min-w-[70px] rounded-none border-x border-red-900/20 data-[state=active]:bg-gradient-to-b data-[state=active]:from-indigo-600/30 data-[state=active]:to-transparent data-[state=active]:border-b-2 data-[state=active]:border-b-indigo-500 font-cinzel uppercase tracking-wider text-[10px] transition-all hover:bg-indigo-900/20"
+          >
+            <span className="relative">
+              <Wand2 className="w-5 h-5 relative z-10 group-hover:scale-110 group-data-[state=active]:text-indigo-400 transition-transform" />
+              <span className="absolute inset-0 blur-md bg-indigo-400 rounded-full opacity-0 group-data-[state=active]:opacity-70 group-data-[state=active]:animate-glow-pulse transition-opacity" />
+            </span>
+            <span className="group-data-[state=active]:text-indigo-300 whitespace-nowrap">Arcana</span>
           </TabsTrigger>
 
           {/* Drizzt's Legacy Tab */}
