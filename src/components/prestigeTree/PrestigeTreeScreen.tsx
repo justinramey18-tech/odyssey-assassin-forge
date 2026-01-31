@@ -20,11 +20,13 @@ import { MobileBranchView } from './MobileBranchView';
 interface PrestigeTreeScreenProps {
   prestigeTree: UsePrestigeTreeReturn;
   prestigeLevel: number;
+  availableAbilityPoints: number;
 }
 
 export function PrestigeTreeScreen({
   prestigeTree,
   prestigeLevel,
+  availableAbilityPoints,
 }: PrestigeTreeScreenProps) {
   const isMobile = useIsMobile();
   const { toast } = useToast();
@@ -102,6 +104,7 @@ export function PrestigeTreeScreen({
           prestigeLevel={prestigeLevel}
           totalUnlocked={prestigeTree.progress.unlockedAbilities.length}
           pointsSpent={spentOnTree}
+          availablePoints={availableAbilityPoints}
         />
 
         {/* Branch Selector Tabs */}
@@ -150,6 +153,7 @@ export function PrestigeTreeScreen({
         prestigeLevel={prestigeLevel}
         totalPointsEarned={prestigeTree.progress.unlockedAbilities.length}
         pointsSpentOnTree={spentOnTree}
+        availablePoints={availableAbilityPoints}
         isMobile={isMobile}
         className="border-b border-purple-900/30"
       />
