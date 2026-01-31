@@ -142,6 +142,11 @@ export function usePrestige(currentLevel: number): UsePrestigeReturn {
    * @param cost - Number of points to spend (default: 1)
    */
   const spendPrestigePoint = useCallback((cost: number = 1): { success: boolean; message?: string } => {
+    // Validate cost is positive
+    if (cost <= 0) {
+      return { success: false, message: 'Invalid cost' };
+    }
+    
     if (prestigeData.availablePrestigePoints < cost) {
       return { success: false, message: `Need ${cost} prestige points, only have ${prestigeData.availablePrestigePoints}` };
     }
@@ -149,7 +154,8 @@ export function usePrestige(currentLevel: number): UsePrestigeReturn {
     setPrestigeData(prev => ({
       ...prev,
       spentPrestigePoints: prev.spentPrestigePoints + cost,
-      availablePrestigePoints: prev.availablePrestigePoints - cost,
+      // Defensive guard: ensure we never go negative
+      availablePrestigePoints: Math.max(0, prev.availablePrestigePoints - cost),
     }));
 
     return { success: true };

@@ -74,7 +74,7 @@ export interface UsePrestigeTreeReturn {
 export function usePrestigeTree(
   characterAbilities: CharacterAbility[],
   prestigeData: PrestigeData,
-  onPrestigePointSpent?: (cost: number) => void,
+  onPrestigePointSpent?: (cost: number) => { success: boolean; message?: string },
   characterLevel?: number
 ): UsePrestigeTreeReturn {
   const [progress, setProgress] = useState<PrestigeTreeProgress>(() => loadProgress());
@@ -198,7 +198,7 @@ export function usePrestigeTree(
     return { canUnlock: true };
   }, [unlockedSet, prestigeData.prestigeLevel, availablePrestigePoints, isLegacyUnlocked]);
 
-// Unlock ability
+  // Unlock ability - validates point spend BEFORE updating local state
   const unlockAbility = useCallback((abilityId: string): { success: boolean; error?: string } => {
     const check = canUnlockAbility(abilityId);
     if (!check.canUnlock) {
@@ -207,13 +207,20 @@ export function usePrestigeTree(
 
     const ability = getPrestigeAbilityById(abilityId)!;
     
-    // FIRST: Deduct prestige points from main system (single source of truth)
-    // This must succeed before we update local progress
+    // FIRST: Attempt to deduct prestige points from main system
     if (onPrestigePointSpent) {
-      onPrestigePointSpent(ability.prestigeCost);
+      const spendResult = onPrestigePointSpent(ability.prestigeCost);
+      
+      // If spending failed, abort the unlock entirely
+      if (!spendResult.success) {
+        return { 
+          success: false, 
+          error: spendResult.message || 'Insufficient prestige points' 
+        };
+      }
     }
 
-    // THEN: Update local progress (unlocked abilities list only, NOT points)
+    // ONLY update local progress if point deduction succeeded
     setProgress(prev => ({
       ...prev,
       unlockedAbilities: [...prev.unlockedAbilities, abilityId],

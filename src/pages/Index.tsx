@@ -110,7 +110,10 @@ const Index = () => {
   const prestigeTree = usePrestigeTree(
     character.abilities, 
     prestigeData, 
-    (cost: number) => spendPrestigePoint(cost),
+    (cost: number) => {
+      // Return the result so unlockAbility can check if spending succeeded
+      return spendPrestigePoint(cost);
+    },
     character.level
   );
   
