@@ -7,9 +7,11 @@ import { StatsDrawer } from './StatsDrawer';
 import { ScribeDrawer } from './ScribeDrawer';
 import { ActiveSetBonusDrawer } from './ActiveSetBonusDrawer';
 import { CooldownDrawer } from './CooldownDrawer';
+import { OracleDrawer } from '@/components/oracle';
 import { Character } from '@/lib/types';
 import { XPPreset } from '@/lib/xpSystem';
 import { CharacterEquipment } from '@/lib/inventory/types';
+import { InventoryItem as ConsumableItem } from '@/lib/consumables/types';
 import { useGameMode, shouldShowInfinityStones } from '@/hooks/use-game-mode';
 import { useEquipmentStats } from '@/hooks/use-equipment-stats';
 import { useCooldowns } from '@/hooks/use-cooldowns';
@@ -21,6 +23,7 @@ interface PromptDrawerContextValue {
   openScribeDrawer: () => void;
   openSetBonusDrawer: () => void;
   openCooldownDrawer: () => void;
+  openOracleDrawer: () => void;
   closeAllDrawers: () => void;
   // Cooldown system exposure
   triggerCooldown: (abilityId: string) => void;
@@ -52,6 +55,14 @@ interface PromptDrawerProviderProps {
   onAddXP?: (amount: number, source: string) => void;
   // Equipment for set bonus drawer
   equipment?: CharacterEquipment;
+  // HP props for Oracle
+  currentHP?: number;
+  maxHP?: number;
+  // Consumables for Oracle
+  consumables?: ConsumableItem[];
+  // Prestige for Oracle
+  prestigeLevel?: number;
+  prestigeAbilities?: string[];
 }
 
 export function PromptDrawerProvider({
@@ -63,6 +74,11 @@ export function PromptDrawerProvider({
   xpPreset = 'standard',
   onAddXP = () => {},
   equipment,
+  currentHP,
+  maxHP,
+  consumables = [],
+  prestigeLevel = 0,
+  prestigeAbilities = [],
 }: PromptDrawerProviderProps) {
   const [infinityOpen, setInfinityOpen] = useState(false);
   const [abilitiesOpen, setAbilitiesOpen] = useState(false);
@@ -70,6 +86,7 @@ export function PromptDrawerProvider({
   const [scribeOpen, setScribeOpen] = useState(false);
   const [setBonusOpen, setSetBonusOpen] = useState(false);
   const [cooldownOpen, setCooldownOpen] = useState(false);
+  const [oracleOpen, setOracleOpen] = useState(false);
   
   // Game mode integration for Infinity Stones lock and cooldown enforcement
   const { infinityStonesLocked, isHonestMode, enforceCooldowns } = useGameMode();
@@ -94,6 +111,7 @@ export function PromptDrawerProvider({
     setScribeOpen(false);
     setSetBonusOpen(false);
     setCooldownOpen(false);
+    setOracleOpen(false);
   }, []);
 
   // Edge swipe detection
@@ -151,6 +169,7 @@ export function PromptDrawerProvider({
     openScribeDrawer: useCallback(() => { closeAllDrawers(); setScribeOpen(true); }, [closeAllDrawers]),
     openSetBonusDrawer: useCallback(() => { closeAllDrawers(); setSetBonusOpen(true); }, [closeAllDrawers]),
     openCooldownDrawer: useCallback(() => { closeAllDrawers(); setCooldownOpen(true); }, [closeAllDrawers]),
+    openOracleDrawer: useCallback(() => { closeAllDrawers(); setOracleOpen(true); }, [closeAllDrawers]),
     closeAllDrawers,
     // Cooldown system exposure
     triggerCooldown: cooldownSystem.triggerCooldown,
@@ -222,6 +241,20 @@ export function PromptDrawerProvider({
             onGenerateStats={cooldownSystem.generateSessionStats}
             getRemainingTime={cooldownSystem.getRemainingTime}
             getEffectiveCooldown={cooldownSystem.getEffectiveCooldown}
+          />
+
+          <OracleDrawer
+            open={oracleOpen}
+            onOpenChange={setOracleOpen}
+            character={character}
+            currentHP={currentHP ?? character.level * 8 + 10}
+            maxHP={maxHP ?? character.level * 8 + 10}
+            equipment={equipment}
+            consumables={consumables}
+            cooldowns={cooldownSystem.cooldowns}
+            prestigeLevel={prestigeLevel}
+            prestigeAbilities={prestigeAbilities}
+            getRemainingTime={cooldownSystem.getRemainingTime}
           />
         </>
       )}

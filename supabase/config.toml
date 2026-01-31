@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.chronicle-sync]
 verify_jwt = false
+
+[functions.oracle-assistant]
+verify_jwt = false
