@@ -18,13 +18,11 @@ import { PrestigeAbilityDetails } from './PrestigeAbilityDetails';
 interface PrestigeTreeScreenProps {
   prestigeTree: UsePrestigeTreeReturn;
   prestigeLevel: number;
-  onPrestigePointSpent?: (cost: number) => void;
 }
 
 export function PrestigeTreeScreen({
   prestigeTree,
   prestigeLevel,
-  onPrestigePointSpent,
 }: PrestigeTreeScreenProps) {
   const isMobile = useIsMobile();
   const { toast } = useToast();
@@ -32,6 +30,7 @@ export function PrestigeTreeScreen({
   const [selectedBranch, setSelectedBranch] = useState<PrestigeBranch>('dual_wielding');
   const [selectedAbility, setSelectedAbility] = useState<PrestigeAbility | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isUnlocking, setIsUnlocking] = useState(false);
 
   const {
     isLegacyUnlocked,
@@ -51,8 +50,11 @@ export function PrestigeTreeScreen({
     setIsDetailsOpen(true);
   }, []);
 
-  // Handle ability unlock
+  // Handle ability unlock with double-click prevention
   const handleUnlock = useCallback((abilityId: string) => {
+    if (isUnlocking) return;
+    setIsUnlocking(true);
+    
     const result = unlockAbility(abilityId);
     
     if (result.success) {
@@ -62,11 +64,6 @@ export function PrestigeTreeScreen({
         description: `${ability?.name} is now available.`,
         className: "border-purple-500 bg-purple-500/10",
       });
-      
-      // Notify parent to deduct points from main prestige system
-      if (onPrestigePointSpent && ability) {
-        onPrestigePointSpent(ability.prestigeCost);
-      }
     } else {
       toast({
         title: "Cannot Unlock",
@@ -74,7 +71,9 @@ export function PrestigeTreeScreen({
         variant: "destructive",
       });
     }
-  }, [unlockAbility, prestigeTree, toast, onPrestigePointSpent]);
+    
+    setIsUnlocking(false);
+  }, [isUnlocking, unlockAbility, prestigeTree, toast]);
 
   // Show unlock gate if legacy tree is not unlocked
   if (!isLegacyUnlocked) {

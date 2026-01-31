@@ -937,12 +937,6 @@ const Index = () => {
           <PrestigeTreeScreen
             prestigeTree={prestigeTree}
             prestigeLevel={prestigeData.prestigeLevel}
-            onPrestigePointSpent={(cost) => {
-              // Deduct from main prestige point pool
-              for (let i = 0; i < cost; i++) {
-                spendPrestigePoint();
-              }
-            }}
           />
         </TabsContent>
       </Tabs>
