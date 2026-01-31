@@ -11,7 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useSwipe } from '@/hooks/use-swipe';
 import { cn } from '@/lib/utils';
-import { ArrowLeft, Star } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 
 interface AbilitiesScreenProps {
   character: Character;
@@ -133,33 +133,15 @@ export function AbilitiesScreen({
         </div>
         
         <div className={cn(
-          'flex items-center gap-2',
-          isMobile && 'w-full justify-center'
+          'text-right',
+          isMobile && 'w-full text-center'
         )}>
-          <span className="text-sm text-muted-foreground">Available:</span>
-          <span className="text-2xl font-bold text-yellow-400">
+          <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+            Available Ability Points
+          </div>
+          <div className="font-display font-bold text-2xl text-primary">
             {availablePoints}
-          </span>
-          {isMobile ? (
-            <span className="text-sm text-muted-foreground">pts</span>
-          ) : (
-            <div className="flex gap-1">
-              {Array.from({ length: Math.min(totalPoints, 25) }).map((_, i) => (
-                <Star
-                  key={i}
-                  className={cn(
-                    'w-4 h-4',
-                    i < availablePoints
-                      ? 'fill-yellow-400 text-yellow-400'
-                      : 'fill-muted text-muted-foreground'
-                  )}
-                />
-              ))}
-              {totalPoints > 25 && (
-                <span className="text-xs text-muted-foreground ml-1">+{totalPoints - 25}</span>
-              )}
-            </div>
-          )}
+          </div>
         </div>
       </header>
 
