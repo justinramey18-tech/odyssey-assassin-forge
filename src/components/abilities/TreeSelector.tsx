@@ -1,7 +1,6 @@
 import { AbilityTree } from '@/lib/types';
 import { TREE_VISUAL_CONFIG } from '@/lib/abilityTrees/colors';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { OnboardingTrigger } from '@/components/onboarding/OnboardingTrigger';
 import { cn } from '@/lib/utils';
 
 interface TreeSelectorProps {
@@ -22,7 +21,7 @@ export function TreeSelector({ selected, onChange, pointsByTree }: TreeSelectorP
             const Icon = config.icon;
             const points = pointsByTree[tree];
             
-            const trigger = (
+            return (
               <TabsTrigger
                 key={tree}
                 value={tree}
@@ -45,20 +44,6 @@ export function TreeSelector({ selected, onChange, pointsByTree }: TreeSelectorP
                 </span>
               </TabsTrigger>
             );
-
-            // Wrap warrior tab for onboarding
-            if (tree === 'warrior') {
-              return (
-                <OnboardingTrigger 
-                  key={tree}
-                  step="select_tree" 
-                  id="onboarding-warrior-tree"
-                >
-                  {trigger}
-                </OnboardingTrigger>
-              );
-            }
-            return trigger;
           })}
         </TabsList>
       </Tabs>
