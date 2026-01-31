@@ -51,7 +51,7 @@ export interface UsePrestigeReturn {
   prestigeProgress: number;
   xpToNextPrestige: number;
   awardPrestigeXP: (amount: number) => PrestigeXPResult;
-  spendPrestigePoint: () => { success: boolean; message?: string };
+  spendPrestigePoint: (cost?: number) => { success: boolean; message?: string };
   resetPrestigePoints: () => void;
   setPrestigeData: React.Dispatch<React.SetStateAction<PrestigeData>>;
 }
@@ -138,17 +138,18 @@ export function usePrestige(currentLevel: number): UsePrestigeReturn {
   }, [isMaxLevel, prestigeData.prestigeLevel, prestigeData.prestigeXP]);
 
   /**
-   * Spend a prestige point on ability upgrades
+   * Spend prestige points on ability upgrades
+   * @param cost - Number of points to spend (default: 1)
    */
-  const spendPrestigePoint = useCallback((): { success: boolean; message?: string } => {
-    if (prestigeData.availablePrestigePoints <= 0) {
-      return { success: false, message: 'No prestige points available' };
+  const spendPrestigePoint = useCallback((cost: number = 1): { success: boolean; message?: string } => {
+    if (prestigeData.availablePrestigePoints < cost) {
+      return { success: false, message: `Need ${cost} prestige points, only have ${prestigeData.availablePrestigePoints}` };
     }
 
     setPrestigeData(prev => ({
       ...prev,
-      spentPrestigePoints: prev.spentPrestigePoints + 1,
-      availablePrestigePoints: prev.availablePrestigePoints - 1,
+      spentPrestigePoints: prev.spentPrestigePoints + cost,
+      availablePrestigePoints: prev.availablePrestigePoints - cost,
     }));
 
     return { success: true };
