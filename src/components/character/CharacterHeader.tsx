@@ -1,4 +1,4 @@
-import { Character, getAbilityPointsForLevel, getTotalPointsSpent } from '@/lib/types';
+import { Character } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
 import { Badge } from '@/components/ui/badge';
 import { Skull, Shield, Swords, Target } from 'lucide-react';
@@ -9,17 +9,12 @@ interface CharacterHeaderProps {
   character: Character;
   currentXP: number;
   prestigeData?: PrestigeData;
+  availableAbilityPoints: number;
 }
 
-export function CharacterHeader({ character, currentXP, prestigeData }: CharacterHeaderProps) {
-  const totalPoints = getAbilityPointsForLevel(character.level);
-  const spentPoints = getTotalPointsSpent(character.abilities);
+export function CharacterHeader({ character, currentXP, prestigeData, availableAbilityPoints }: CharacterHeaderProps) {
   const isMaxLevel = character.level >= 20;
   const isPrestigeActive = isMaxLevel && prestigeData && prestigeData.prestigeLevel > 0;
-  
-  // Calculate total available points including prestige (unified pool)
-  const prestigePoints = prestigeData?.totalPrestigePoints ?? 0;
-  const totalWithPrestige = totalPoints + prestigePoints;
   
   // Calculate tree points
   const hunterPoints = character.abilities
@@ -69,7 +64,7 @@ export function CharacterHeader({ character, currentXP, prestigeData }: Characte
               Available Ability Points
             </div>
             <div className="font-display font-bold text-2xl text-primary">
-              {totalWithPrestige - spentPoints}
+              {availableAbilityPoints}
             </div>
           </div>
         </div>
