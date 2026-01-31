@@ -10,3 +10,6 @@ export * from './schools';
 
 // Path definitions
 export * from './paths';
+
+// Spell database
+export * from './spells';
