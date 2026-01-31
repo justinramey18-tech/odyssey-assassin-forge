@@ -139,7 +139,7 @@ export function XPTracker({
           <div className="flex items-center justify-between text-xs mb-1">
             <span className="text-muted-foreground font-body">Experience</span>
             <span className="font-display font-semibold">
-              <span className="text-primary">{xpInCurrentLevel.toLocaleString()}</span>
+              <span className="text-primary">{Math.max(0, xpInCurrentLevel).toLocaleString()}</span>
               <span className="text-muted-foreground"> / {xpNeededForLevel.toLocaleString()}</span>
             </span>
           </div>
