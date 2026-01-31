@@ -27,6 +27,8 @@ import { CombatFAB } from './CombatFAB';
 import { TurnSummaryPanel } from './TurnSummaryPanel';
 import { MobileAbilityList } from './MobileAbilityList';
 import { MobileItemsGrid } from './MobileItemsGrid';
+import { ConditionStrip } from '@/components/conditions';
+import { useConditions } from '@/hooks/use-conditions';
 
 // Tab order for swipe navigation
 const TAB_ORDER: CombatTab[] = ['attacks', 'stealth', 'abilities', 'items', 'summary'];
@@ -96,6 +98,9 @@ export function MobileCombatLayout({ character }: MobileCombatLayoutProps) {
   const [isYourTurn, setIsYourTurn] = useState(true);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
   const { rerollsDisabled } = useGameMode();
+  
+  // Condition system integration
+  const conditionSystem = useConditions({ personality: 'deadpool' });
   
   // Swipe navigation handlers
   const handleSwipeLeft = useCallback(() => {
@@ -399,6 +404,14 @@ export function MobileCombatLayout({ character }: MobileCombatLayoutProps) {
       
       {/* Main Content Area */}
       <main className="pt-16">
+        {/* Condition Strip (if any active) */}
+        {conditionSystem.allActive.length > 0 && (
+          <ConditionStrip
+            conditions={conditionSystem.allActive}
+            onRemove={(id) => conditionSystem.removeCondition(id)}
+          />
+        )}
+        
         {/* Situation Strip */}
         <SituationStrip
           conditions={conditions}
