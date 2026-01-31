@@ -18,6 +18,8 @@ import { useEquipmentStats } from '@/hooks/use-equipment-stats';
 import { useCooldowns } from '@/hooks/use-cooldowns';
 import { useConditions } from '@/hooks/use-conditions';
 import { Personality } from '@/components/oracle/types';
+import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
+import { getSpellById } from '@/lib/magic/spells';
 
 interface PromptDrawerContextValue {
   openInfinityDrawer: () => void;
@@ -72,6 +74,8 @@ interface PromptDrawerProviderProps {
   // Prestige for Oracle
   prestigeLevel?: number;
   prestigeAbilities?: string[];
+  // Spellcasting for concentration integration
+  spellcasting?: UseSpellcastingReturn;
 }
 
 export function PromptDrawerProvider({
@@ -88,6 +92,7 @@ export function PromptDrawerProvider({
   consumables = [],
   prestigeLevel = 0,
   prestigeAbilities = [],
+  spellcasting,
 }: PromptDrawerProviderProps) {
   const [infinityOpen, setInfinityOpen] = useState(false);
   const [abilitiesOpen, setAbilitiesOpen] = useState(false);
@@ -301,6 +306,15 @@ export function PromptDrawerProvider({
               setConditionsOpen(false);
               setOracleOpen(true);
             }}
+            concentrationSpell={
+              spellcasting?.state.concentratingOn
+                ? {
+                    id: spellcasting.state.concentratingOn,
+                    name: getSpellById(spellcasting.state.concentratingOn)?.name || 'Unknown Spell',
+                  }
+                : null
+            }
+            onBreakConcentration={spellcasting?.breakConcentration}
           />
         </>
       )}

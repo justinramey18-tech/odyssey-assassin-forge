@@ -780,6 +780,7 @@ const Index = () => {
         consumables={consumablesInventory}
         prestigeLevel={prestigeData.prestigeLevel}
         prestigeAbilities={prestigeTree.progress.unlockedAbilities}
+        spellcasting={spellcasting}
       >
         <HomeScreen 
           character={character}
@@ -834,6 +835,7 @@ const Index = () => {
       consumables={consumablesInventory}
       prestigeLevel={prestigeData.prestigeLevel}
       prestigeAbilities={prestigeTree.progress.unlockedAbilities}
+      spellcasting={spellcasting}
     >
       <div className="min-h-screen relative">
       {/* Builder Background Image - fixed behind everything */}

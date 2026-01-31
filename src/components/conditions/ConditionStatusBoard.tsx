@@ -18,6 +18,9 @@ import {
   Coffee,
   Moon,
   Activity,
+  Eye,
+  Wand2,
+  AlertTriangle,
 } from 'lucide-react';
 import { ActiveCondition } from '@/lib/conditions/types';
 import { ConditionCard } from './ConditionCard';
@@ -51,6 +54,12 @@ interface ConditionStatusBoardProps {
   // Oracle integration
   personality?: Personality;
   onAskOracle?: () => void;
+  // Concentration integration
+  concentrationSpell?: {
+    name: string;
+    id: string;
+  } | null;
+  onBreakConcentration?: () => void;
 }
 
 export function ConditionStatusBoard({
@@ -69,16 +78,23 @@ export function ConditionStatusBoard({
   onClearAll,
   personality = 'deadpool',
   onAskOracle,
+  concentrationSpell,
+  onBreakConcentration,
 }: ConditionStatusBoardProps) {
   const [showAddSheet, setShowAddSheet] = useState(false);
   
   const totalActive = activeConditions.length + activeBuffs.length;
   const criticalCount = activeConditions.filter(c => c.severity === 'critical').length;
   
-  // Quick stats text
-  const statusText = totalActive === 0
+  // Quick stats text - include concentration if active
+  const statusParts: string[] = [];
+  if (totalActive > 0) statusParts.push(`${totalActive} Active`);
+  if (criticalCount > 0) statusParts.push(`${criticalCount} Critical`);
+  if (concentrationSpell) statusParts.push('Concentrating');
+  
+  const statusText = statusParts.length === 0
     ? 'No active conditions'
-    : `${totalActive} Active${criticalCount > 0 ? ` · ${criticalCount} Critical` : ''}`;
+    : statusParts.join(' · ');
   
   return (
     <>
@@ -156,6 +172,53 @@ export function ConditionStatusBoard({
           {/* Scrollable Content */}
           <ScrollArea className="flex-1 p-4">
             <div className="space-y-6">
+              {/* Concentration Section - Priority Display */}
+              {concentrationSpell && (
+                <section>
+                  <h3 className="flex items-center gap-2 text-xs font-mono text-cyan-400 mb-3">
+                    <Eye className="w-4 h-4 animate-pulse" />
+                    CONCENTRATION
+                  </h3>
+                  <div className="p-4 rounded-xl border-2 border-cyan-500/50 bg-gradient-to-br from-cyan-500/10 to-blue-500/10 relative overflow-hidden">
+                    {/* Animated glow effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent animate-shimmer" />
+                    
+                    <div className="flex items-center justify-between relative z-10">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-cyan-500/30 flex items-center justify-center">
+                          <Wand2 className="w-5 h-5 text-cyan-400" />
+                        </div>
+                        <div>
+                          <h4 className="font-cinzel font-semibold text-cyan-300">
+                            {concentrationSpell.name}
+                          </h4>
+                          <p className="text-[10px] text-muted-foreground">
+                            Taking damage requires CON save
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/20 hover:text-cyan-300"
+                        onClick={onBreakConcentration}
+                      >
+                        Break
+                      </Button>
+                    </div>
+                    
+                    {/* Concentration Save Reminder */}
+                    <div className="mt-3 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                      <p className="text-[10px] text-amber-300">
+                        DC = max(10, damage ÷ 2) — Failure ends the spell
+                      </p>
+                    </div>
+                  </div>
+                </section>
+              )}
+              
               {/* Active Debuffs */}
               {activeConditions.length > 0 && (
                 <section>
@@ -182,29 +245,31 @@ export function ConditionStatusBoard({
                 </section>
               )}
               
-              {/* Active Buffs */}
-              {activeBuffs.length > 0 && (
+              {/* Active Buffs - Filter out concentration conditions to avoid duplication */}
+              {activeBuffs.filter(b => b.conditionId !== 'concentrating').length > 0 && (
                 <section>
                   <h3 className="flex items-center gap-2 text-xs font-mono text-green-400 mb-3">
                     <Sparkles className="w-4 h-4" />
                     ACTIVE BUFFS
                   </h3>
                   <div className="space-y-3">
-                    {activeBuffs.map(condition => (
-                      <ConditionCard
-                        key={condition.id}
-                        condition={condition}
-                        personality={personality}
-                        onRemove={() => onRemoveCondition(condition.id)}
-                        onAdjustDuration={(delta) => onAdjustDuration(condition.id, delta)}
-                      />
-                    ))}
+                    {activeBuffs
+                      .filter(b => b.conditionId !== 'concentrating')
+                      .map(condition => (
+                        <ConditionCard
+                          key={condition.id}
+                          condition={condition}
+                          personality={personality}
+                          onRemove={() => onRemoveCondition(condition.id)}
+                          onAdjustDuration={(delta) => onAdjustDuration(condition.id, delta)}
+                        />
+                      ))}
                   </div>
                 </section>
               )}
               
               {/* Empty State */}
-              {totalActive === 0 && (
+              {totalActive === 0 && !concentrationSpell && (
                 <div className="text-center py-12">
                   <Activity className="w-12 h-12 mx-auto text-muted-foreground/30 mb-4" />
                   <p className="text-sm text-muted-foreground">
