@@ -16,6 +16,7 @@ interface AbilityDetailsPanelProps {
   ability: Ability | null;
   currentTier: 0 | 1 | 2 | 3;
   characterLevel: number;
+  prestigePoints?: number;
   availablePoints: number;
   prerequisiteMet: boolean;
   equippedSlots: string[];
@@ -60,6 +61,7 @@ export function AbilityDetailsPanel({
   ability,
   currentTier,
   characterLevel,
+  prestigePoints = 0,
   availablePoints,
   prerequisiteMet,
   equippedSlots,
@@ -113,7 +115,7 @@ export function AbilityDetailsPanel({
     .filter(Boolean) as Ability[] | undefined;
 
   // Calculate available equip slots
-  const maxSlots = getActiveSlotsByLevel(characterLevel);
+  const maxSlots = getActiveSlotsByLevel(characterLevel, prestigePoints);
   const availableSlots = Array.from({ length: maxSlots }, (_, i) => i)
     .filter(slot => !equippedSlots[slot] || equippedSlots[slot] === ability.id);
 

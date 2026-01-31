@@ -15,10 +15,11 @@ import { Button } from '@/components/ui/button';
 interface CharacterStatsProps {
   character: Character;
   equipment?: CharacterEquipment;
+  prestigePoints?: number;
 }
 
-export function CharacterStatsContent({ character, equipment }: CharacterStatsProps) {
-  const activeSlots = getActiveSlotsByLevel(character.level);
+export function CharacterStatsContent({ character, equipment, prestigePoints = 0 }: CharacterStatsProps) {
+  const activeSlots = getActiveSlotsByLevel(character.level, prestigePoints);
   const xpForLevel = (level: number) => level * 1000;
   const currentXP = Math.floor(xpForLevel(character.level) * 0.65);
   const xpToNext = xpForLevel(character.level + 1) - xpForLevel(character.level);

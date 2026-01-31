@@ -16,6 +16,7 @@ import { ArrowLeft, Star } from 'lucide-react';
 interface AbilitiesScreenProps {
   character: Character;
   availablePoints: number;
+  prestigePoints?: number;
   onUpgradeAbility: (id: string) => void;
   onDowngradeAbility: (id: string) => void;
   onEquipAbility: (id: string, slot: number) => void;
@@ -27,6 +28,7 @@ const TREE_ORDER: AbilityTree[] = ['hunter', 'warrior', 'assassin'];
 export function AbilitiesScreen({
   character,
   availablePoints,
+  prestigePoints = 0,
   onUpgradeAbility,
   onDowngradeAbility,
   onEquipAbility,
@@ -218,6 +220,7 @@ export function AbilitiesScreen({
                 ability={selectedAbilityData || null}
                 currentTier={currentTier}
                 characterLevel={character.level}
+                prestigePoints={prestigePoints}
                 availablePoints={availablePoints}
                 prerequisiteMet={prerequisiteMet}
                 equippedSlots={character.equippedAbilities}
@@ -251,6 +254,7 @@ export function AbilitiesScreen({
               ability={selectedAbilityData || null}
               currentTier={currentTier}
               characterLevel={character.level}
+              prestigePoints={prestigePoints}
               availablePoints={availablePoints}
               prerequisiteMet={prerequisiteMet}
               equippedSlots={character.equippedAbilities}

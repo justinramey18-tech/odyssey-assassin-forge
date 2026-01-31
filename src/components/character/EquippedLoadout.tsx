@@ -28,11 +28,12 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 
 interface EquippedLoadoutProps {
   character: Character;
+  prestigePoints?: number;
   onEquip: (slotIndex: number, abilityId: string) => void;
   onUnequip: (slotIndex: number) => void;
 }
 
-export function EquippedLoadout({ character, onEquip, onUnequip }: EquippedLoadoutProps) {
+export function EquippedLoadout({ character, prestigePoints = 0, onEquip, onUnequip }: EquippedLoadoutProps) {
   const [showDiceModal, setShowDiceModal] = useState(false);
   const [currentRoll, setCurrentRoll] = useState<DiceRoll | null>(null);
   const [currentRPPrompt, setCurrentRPPrompt] = useState('');
@@ -48,7 +49,7 @@ export function EquippedLoadout({ character, onEquip, onUnequip }: EquippedLoado
     // Not within provider, cooldowns disabled
   }
 
-  const totalSlots = getActiveSlotsByLevel(character.level);
+  const totalSlots = getActiveSlotsByLevel(character.level, prestigePoints);
   
   // Get available active abilities (unlocked, not passive, not already equipped)
   const availableAbilities = character.abilities
@@ -233,7 +234,7 @@ export function EquippedLoadout({ character, onEquip, onUnequip }: EquippedLoado
         </div>
         
         <p className="text-[10px] text-muted-foreground font-body">
-          Tap an equipped ability to roll dice and generate an RP prompt. Slots increase at levels 5, 11, and 17.
+          Tap an equipped ability to roll dice and generate an RP prompt. 1 slot per level + 1 per prestige point.
         </p>
       </div>
 

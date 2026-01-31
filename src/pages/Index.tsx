@@ -316,7 +316,7 @@ const Index = () => {
       })
       .map(ca => ca.abilityId);
     
-    const maxSlots = getActiveSlotsByLevel(character.level + pendingLevelUps);
+    const maxSlots = getActiveSlotsByLevel(character.level + pendingLevelUps, prestigeData.totalPrestigePoints);
     
     // Auto-equip newly unlocked abilities if there's room
     setCharacter(prev => {
@@ -780,6 +780,7 @@ const Index = () => {
             <div className="mb-6 p-4 rounded-lg border border-border/50 bg-card/30">
               <EquippedLoadout
                 character={character}
+                prestigePoints={prestigeData.totalPrestigePoints}
                 onEquip={handleEquipAbility}
                 onUnequip={handleUnequipAbility}
               />
@@ -823,6 +824,7 @@ const Index = () => {
           <AbilitiesScreen
             character={character}
             availablePoints={remainingPoints}
+            prestigePoints={prestigeData.totalPrestigePoints}
             onUpgradeAbility={handleUpgradeAbility}
             onDowngradeAbility={handleDowngradeAbility}
             onEquipAbility={(id, slot) => {
@@ -879,7 +881,7 @@ const Index = () => {
 
         {/* Combat Tab Content */}
         <TabsContent value="combat" className="mt-0">
-          <CombatTabScreen character={character} />
+          <CombatTabScreen character={character} prestigePoints={prestigeData.totalPrestigePoints} />
         </TabsContent>
 
         {/* Consumables Tab Content */}
