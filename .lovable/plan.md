@@ -1,71 +1,130 @@
-# Unified XP/Leveling/Ability Points System
 
-## Status: ✅ IMPLEMENTED
 
-All changes from the approved plan have been implemented.
+# Make the Notepads Talk to Each Other
 
----
+## The Problem (Simple Terms)
 
-## Summary of Changes Made
+Right now there are two "notepads" that should be tracking the same thing, but they're not communicating:
 
-| File | Change | Status |
-|------|--------|--------|
-| `src/lib/types.ts` | New tiered ability points formula (5→74 points, Level 1-20) | ✅ Done |
-| `src/lib/prestige/config.ts` | Added `getPrestigePointsForLevel()` and `getTotalPrestigePointsForLevel()` | ✅ Done |
-| `src/hooks/use-prestige.ts` | Updated migration to recalculate points + use variable prestige rewards | ✅ Done |
-| `src/hooks/use-auto-save.ts` | Bumped version to 2 with migration logging | ✅ Done |
-| `src/lib/resetApp.ts` | Imports XP thresholds from xpSystem (DRY) | ✅ Done |
+- **Notepad A**: Tracks how many points you've spent (used to calculate "Available Ability Points")
+- **Notepad B**: Actually handles unlocking abilities in the Legacy tab
 
----
+When you unlock an ability, Notepad B writes it down but never tells Notepad A. So "Available Ability Points" stays stale until you refresh the page.
 
-## New Ability Points Formula
+## The Solution
 
-```
-Level 1: 5 points (starting)
-Level 2: +3 → 8 total
-Levels 3-5: +2 each → 14 total at Level 5
-Levels 6-10: +3 each → 29 total at Level 10
-Levels 11-15: +4 each → 49 total at Level 15
-Levels 16-20: +5 each → 74 total at Level 20
-```
+Connect the notepads with a simple callback - when Notepad B unlocks an ability, it immediately tells Notepad A "hey, deduct X points!"
 
 ---
 
-## New Prestige Points Formula
+## Technical Changes
 
-```
-Level 1: 3 points
-Levels 2-4: 2 points each
-Level 5: 3 points
-Levels 6-7: 2 points each
-Levels 8-9: 3 points each
-Level 10: 5 points
-Levels 11+: 3 points each
+### File: `src/pages/Index.tsx`
+
+**Change 1: Add a state variable to track Legacy tab spending**
+
+Around line 100, add:
+```typescript
+const [prestigeTreeSpentState, setPrestigeTreeSpentState] = useState(() => {
+  const stored = localStorage.getItem('odyssey-prestige-tree');
+  if (stored) {
+    try {
+      const progress = JSON.parse(stored);
+      return (progress.unlockedAbilities || []).reduce((sum, abilityId) => {
+        const ability = getPrestigeAbilityById(abilityId);
+        return sum + (ability?.prestigeCost ?? 0);
+      }, 0);
+    } catch { return 0; }
+  }
+  return 0;
+});
 ```
 
-Cumulative at Prestige 5: 12 points
-Cumulative at Prestige 10: 26 points
+**Change 2: Create the callback that connects the notepads**
+
+```typescript
+const handlePrestigeTreePointsSpent = useCallback((cost: number) => {
+  setPrestigeTreeSpentState(prev => prev + cost);
+}, []);
+```
+
+**Change 3: Use state-managed spending in calculations**
+
+Update line 126-129:
+```typescript
+const spentAbilityPoints = useMemo(() => {
+  const baseSpent = getTotalPointsSpent(character.abilities);
+  return baseSpent + prestigeTreeSpentState;  // Use reactive state instead
+}, [character.abilities, prestigeTreeSpentState]);
+```
+
+**Change 4: Add guard clause for negative values**
+
+Update line 131:
+```typescript
+const availableAbilityPoints = Math.max(0, totalAbilityPoints - spentAbilityPoints);
+```
+
+**Change 5: Use single hook instance with callback connected**
+
+Replace lines 110-140 (both hook instances) with one:
+```typescript
+const prestigeTree = usePrestigeTree(
+  character.abilities, 
+  prestigeData, 
+  availableAbilityPoints,
+  handlePrestigeTreePointsSpent,  // ← Connect the callback!
+  character.level
+);
+```
+
+**Change 6: Update reset handler**
+
+In `handleResetApp`, add:
+```typescript
+setPrestigeTreeSpentState(0);
+```
+
+**Change 7: Update all references**
+
+Replace `actualPrestigeTree` → `prestigeTree` throughout the file.
 
 ---
 
-## Migration Behavior
+## What Happens After the Fix
 
-1. **Character level points**: Auto-recalculate via `getAbilityPointsForLevel()` formula (no stored data to migrate)
-2. **Prestige points**: Recalculated from prestige level via `getTotalPrestigePointsForLevel()` on load
-3. **Spent points**: Preserved as-is (stored separately)
-4. **Save version**: Bumped to 2 with console logging for debugging
+```
+You click "Unlock for 3 Points"
+         ↓
+Legacy tab unlocks the ability
+         ↓
+Callback fires: "Hey, 3 points were spent!"
+         ↓
+Spending state updates: 10 → 7
+         ↓
+React recalculates: available = total - spent
+         ↓
+UI instantly shows new balance ✓
+```
+
+---
+
+## Files Modified
+
+| File | What Changes |
+|------|--------------|
+| `src/pages/Index.tsx` | Connect callback, consolidate to single hook, add guard clause |
+
+No changes needed to `use-prestige-tree.ts` - it already supports the callback!
 
 ---
 
 ## Testing Checklist
 
-- [ ] New character at Level 1 → 5 ability points
-- [ ] Level 5 character → 14 total points
-- [ ] Level 10 character → 29 total points
-- [ ] Level 20 character → 74 total points
-- [ ] Prestige 1 level-up → +3 points
-- [ ] Prestige 5 total → 12 points
-- [ ] Prestige 10 total → 26 points
-- [ ] Existing save loads with recalculated points
-- [ ] Console shows migration logs
-- [ ] Points persist after page refresh
+1. Open Legacy tab, note "Available Ability Points"
+2. Unlock an ability costing 3 points
+3. Verify the number drops by exactly 3 immediately (no refresh needed)
+4. Switch to Skills tab - verify same number shown
+5. Try to unlock something you can't afford - button should be disabled
+6. Refresh page - verify numbers persist correctly
+
