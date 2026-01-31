@@ -1,10 +1,15 @@
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Wand2, Lock, Sparkles } from 'lucide-react';
-import { MagicPath, PathConfig } from '@/lib/magic/types';
+import { Wand2, Lock, Sparkles, BookOpen, Zap, Settings } from 'lucide-react';
+import { MagicPath, PathConfig, SpellDefinition } from '@/lib/magic/types';
 import { PATH_LIST, getPathConfig } from '@/lib/magic/paths';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
+import { SpellbookGrid } from './SpellbookGrid';
+import { SpellDetailsSheet } from './SpellDetailsSheet';
+import { SpellSlotTracker } from './SpellSlotTracker';
 
 interface MagicScreenProps {
   characterLevel: number;
@@ -18,6 +23,8 @@ export function MagicScreen({
   spellcasting 
 }: MagicScreenProps) {
   const { state, hasPath, selectPath } = spellcasting;
+  const [selectedSpell, setSelectedSpell] = useState<SpellDefinition | null>(null);
+  const [activeTab, setActiveTab] = useState<'spellbook' | 'slots' | 'features'>('spellbook');
 
   // If no path selected, show path selection
   if (!hasPath) {
@@ -33,6 +40,31 @@ export function MagicScreen({
   // Path is selected - show main magic interface
   const pathConfig = getPathConfig(state.path!);
 
+  const handleSpellSelect = (spell: SpellDefinition) => {
+    setSelectedSpell(spell);
+  };
+
+  const handleCastSpell = () => {
+    if (!selectedSpell) return;
+    
+    if (selectedSpell.level === 0) {
+      // Cantrip - no slot needed
+      if (selectedSpell.concentration) {
+        spellcasting.startConcentration(selectedSpell.id);
+      }
+    } else {
+      // Use appropriate slot
+      const success = state.path === 'hexblade' && state.pactSlots
+        ? spellcasting.usePactSlot()
+        : spellcasting.useSlot(selectedSpell.level);
+      
+      if (success && selectedSpell.concentration) {
+        spellcasting.startConcentration(selectedSpell.id);
+      }
+    }
+    setSelectedSpell(null);
+  };
+
   return (
     <div className="min-h-screen pb-24">
       {/* Header */}
@@ -40,9 +72,9 @@ export function MagicScreen({
         <div className="flex items-center gap-3">
           <div className={cn(
             "w-12 h-12 rounded-full flex items-center justify-center",
-            `bg-${pathConfig.primaryColor}-600/30 border border-${pathConfig.primaryColor}-500/50`
+            "bg-indigo-600/30 border border-indigo-500/50"
           )}>
-            <Wand2 className={cn("w-6 h-6", pathConfig.accentColor)} />
+            <Wand2 className="w-6 h-6 text-indigo-400" />
           </div>
           <div>
             <h1 className="font-cinzel text-xl text-foreground">{pathConfig.name}</h1>
@@ -71,50 +103,119 @@ export function MagicScreen({
             <div className="text-[10px] text-muted-foreground uppercase">Slots</div>
           </div>
         </div>
+
+        {/* Compact Slot Display */}
+        <div className="mt-3 p-2 bg-background/30 rounded-lg">
+          <SpellSlotTracker
+            spellSlots={state.spellSlots}
+            pactSlots={state.pactSlots}
+            compact
+          />
+        </div>
       </div>
 
-      {/* Placeholder content - will be expanded in Phase 2 */}
-      <div className="p-4 space-y-4">
-        <Card className="bg-indigo-950/30 border-indigo-800/30">
-          <CardContent className="p-6 text-center">
-            <Sparkles className="w-12 h-12 mx-auto text-indigo-400 mb-4" />
-            <h2 className="font-cinzel text-lg mb-2">Spellbook Coming Soon</h2>
-            <p className="text-sm text-muted-foreground">
-              Phase 2 will add spell selection, slot tracking, and casting mechanics.
-            </p>
-          </CardContent>
-        </Card>
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="flex-1">
+        <TabsList className="w-full justify-start rounded-none border-b border-white/10 bg-transparent p-0">
+          <TabsTrigger 
+            value="spellbook" 
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-500 data-[state=active]:bg-transparent"
+          >
+            <BookOpen className="w-4 h-4 mr-2" />
+            Spellbook
+          </TabsTrigger>
+          <TabsTrigger 
+            value="slots"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-violet-500 data-[state=active]:bg-transparent"
+          >
+            <Zap className="w-4 h-4 mr-2" />
+            Slots
+          </TabsTrigger>
+          <TabsTrigger 
+            value="features"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-purple-500 data-[state=active]:bg-transparent"
+          >
+            <Settings className="w-4 h-4 mr-2" />
+            Features
+          </TabsTrigger>
+        </TabsList>
 
-        {/* Path Features Preview */}
-        <Card className="bg-background/40 border-white/10">
-          <CardContent className="p-4">
-            <h3 className="font-cinzel text-sm text-muted-foreground mb-3 uppercase tracking-wider">
-              Path Features
-            </h3>
-            <div className="space-y-2">
-              {pathConfig.features.map((feature) => (
-                <div 
-                  key={feature.id}
-                  className={cn(
-                    "p-3 rounded-lg",
-                    characterLevel >= feature.level 
-                      ? "bg-indigo-600/20 border border-indigo-500/30"
-                      : "bg-muted/20 border border-muted/20 opacity-50"
-                  )}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-medium text-sm">{feature.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      Level {feature.level}
-                    </span>
+        <TabsContent value="spellbook" className="mt-0 flex-1">
+          <SpellbookGrid
+            path={state.path!}
+            characterLevel={characterLevel}
+            knownSpells={state.knownSpells}
+            preparedSpells={state.preparedSpells}
+            favoriteSpells={state.favoriteSpells}
+            concentratingOn={state.concentratingOn}
+            onSpellSelect={handleSpellSelect}
+          />
+        </TabsContent>
+
+        <TabsContent value="slots" className="mt-0 p-4">
+          <Card className="bg-background/40 border-white/10">
+            <CardContent className="p-4">
+              <h3 className="font-cinzel text-sm text-muted-foreground mb-4 uppercase tracking-wider">
+                Spell Slot Management
+              </h3>
+              <SpellSlotTracker
+                spellSlots={state.spellSlots}
+                pactSlots={state.pactSlots}
+                onUseSlot={spellcasting.useSlot}
+                onRestoreSlot={spellcasting.restoreSlot}
+                onUsePactSlot={spellcasting.usePactSlot}
+                onRestorePactSlot={spellcasting.restorePactSlot}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="features" className="mt-0 p-4">
+          <Card className="bg-background/40 border-white/10">
+            <CardContent className="p-4">
+              <h3 className="font-cinzel text-sm text-muted-foreground mb-3 uppercase tracking-wider">
+                Path Features
+              </h3>
+              <div className="space-y-2">
+                {pathConfig.features.map((feature) => (
+                  <div 
+                    key={feature.id}
+                    className={cn(
+                      "p-3 rounded-lg",
+                      characterLevel >= feature.level 
+                        ? "bg-indigo-600/20 border border-indigo-500/30"
+                        : "bg-muted/20 border border-muted/20 opacity-50"
+                    )}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium text-sm">{feature.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        Level {feature.level}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{feature.description}</p>
                   </div>
-                  <p className="text-xs text-muted-foreground">{feature.description}</p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Spell Details Sheet */}
+      <SpellDetailsSheet
+        spell={selectedSpell}
+        isOpen={!!selectedSpell}
+        onClose={() => setSelectedSpell(null)}
+        isPrepared={selectedSpell ? state.preparedSpells.includes(selectedSpell.id) : false}
+        isFavorite={selectedSpell ? state.favoriteSpells.includes(selectedSpell.id) : false}
+        isConcentrating={selectedSpell ? state.concentratingOn === selectedSpell.id : false}
+        canCast={spellcasting.totalSlotsRemaining > 0}
+        onPrepare={() => selectedSpell && spellcasting.prepareSpell(selectedSpell.id)}
+        onUnprepare={() => selectedSpell && spellcasting.unprepareSpell(selectedSpell.id)}
+        onToggleFavorite={() => selectedSpell && spellcasting.toggleFavorite(selectedSpell.id)}
+        onCast={handleCastSpell}
+      />
     </div>
   );
 }
