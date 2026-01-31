@@ -31,25 +31,23 @@ export function ActionWheelButton({ characterName, characterLevel, isEmbedded = 
   if (!stonesAccessible) {
     return (
       <div className={containerClass}>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="lg"
-                disabled
-                className={cn(
-                  'w-14 h-14 rounded-full shadow-lg transition-all duration-300',
-                  'bg-muted/50 cursor-not-allowed opacity-60'
-                )}
-              >
-                <Lock className="w-6 h-6 text-muted-foreground" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Infinity Stones unlock at Level 20</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="lg"
+              disabled
+              className={cn(
+                'w-14 h-14 rounded-full shadow-lg transition-all duration-300',
+                'bg-muted/50 cursor-not-allowed opacity-60'
+              )}
+            >
+              <Lock className="w-6 h-6 text-muted-foreground" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Infinity Stones unlock at Level 20</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
     );
   }
