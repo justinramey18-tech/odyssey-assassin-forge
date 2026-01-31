@@ -74,6 +74,18 @@ function saveState(state: SpellcastingState): void {
 // HOOK
 // ============================================
 
+export interface SpellCastResult {
+  success: boolean;
+  spellId: string;
+  spellName: string;
+  castLevel: number;
+  isUpcast: boolean;
+  isCantrip: boolean;
+  usedPactSlot: boolean;
+  startedConcentration: boolean;
+  brokeConcentration: string | null;
+}
+
 export interface UseSpellcastingReturn {
   // State
   state: SpellcastingState;
@@ -101,6 +113,9 @@ export interface UseSpellcastingReturn {
   restoreSlot: (level: number) => void;
   usePactSlot: () => boolean;
   restorePactSlot: () => void;
+  
+  // Casting
+  castSpell: (spellId: string, spellName: string, baseLevel: number, castLevel: number, usePact: boolean, requiresConcentration: boolean) => SpellCastResult;
   
   // Concentration
   startConcentration: (spellId: string) => void;
@@ -330,7 +345,8 @@ export function useSpellcasting(characterLevel: number): UseSpellcastingReturn {
   }, [state.concentratingOn, toast]);
 
   const breakConcentration = useCallback(() => {
-    if (state.concentratingOn) {
+    const wasConcentrating = state.concentratingOn;
+    if (wasConcentrating) {
       toast({
         title: 'Concentration Ended',
         description: 'Your concentration spell has ended.',
@@ -342,7 +358,82 @@ export function useSpellcasting(characterLevel: number): UseSpellcastingReturn {
       concentratingOn: null,
       concentrationStartTime: undefined,
     }));
+    
+    return wasConcentrating;
   }, [state.concentratingOn, toast]);
+
+  // ============================================
+  // CASTING
+  // ============================================
+
+  const castSpell = useCallback((
+    spellId: string,
+    spellName: string,
+    baseLevel: number,
+    castLevel: number,
+    usePact: boolean,
+    requiresConcentration: boolean
+  ): SpellCastResult => {
+    const isCantrip = baseLevel === 0;
+    const isUpcast = castLevel > baseLevel;
+    let brokeConcentration: string | null = null;
+    let slotSuccess = true;
+
+    // Cantrips don't use slots
+    if (!isCantrip) {
+      if (usePact) {
+        slotSuccess = usePactSlot();
+      } else {
+        slotSuccess = useSlot(castLevel);
+      }
+    }
+
+    if (!slotSuccess) {
+      return {
+        success: false,
+        spellId,
+        spellName,
+        castLevel,
+        isUpcast,
+        isCantrip,
+        usedPactSlot: usePact,
+        startedConcentration: false,
+        brokeConcentration: null,
+      };
+    }
+
+    // Handle concentration
+    if (requiresConcentration) {
+      if (state.concentratingOn) {
+        brokeConcentration = state.concentratingOn;
+      }
+      startConcentration(spellId);
+    }
+
+    // Success toast
+    const levelLabel = isCantrip ? 'Cantrip' : 
+      castLevel === 1 ? '1st' : castLevel === 2 ? '2nd' : castLevel === 3 ? '3rd' : `${castLevel}th`;
+    
+    toast({
+      title: `✨ ${spellName} Cast!`,
+      description: isCantrip 
+        ? 'Cantrip cast at will.'
+        : `Cast at ${levelLabel} level${isUpcast ? ' (upcast)' : ''}.${requiresConcentration ? ' Concentrating.' : ''}`,
+      className: 'border-indigo-500 bg-indigo-500/10',
+    });
+
+    return {
+      success: true,
+      spellId,
+      spellName,
+      castLevel,
+      isUpcast,
+      isCantrip,
+      usedPactSlot: usePact,
+      startedConcentration: requiresConcentration,
+      brokeConcentration,
+    };
+  }, [state.concentratingOn, useSlot, usePactSlot, startConcentration, toast]);
 
   // ============================================
   // COMPONENTS
@@ -502,6 +593,7 @@ export function useSpellcasting(characterLevel: number): UseSpellcastingReturn {
     restoreSlot,
     usePactSlot,
     restorePactSlot,
+    castSpell,
     startConcentration,
     breakConcentration,
     addComponent,

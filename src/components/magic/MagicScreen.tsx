@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Wand2, Lock, Sparkles, BookOpen, Zap, Settings } from 'lucide-react';
+import { Wand2, Lock, Sparkles, BookOpen, Zap, Settings, Eye, X } from 'lucide-react';
 import { MagicPath, PathConfig, SpellDefinition } from '@/lib/magic/types';
 import { PATH_LIST, getPathConfig } from '@/lib/magic/paths';
+import { getSpellById } from '@/lib/magic/spells';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
 import { SpellbookGrid } from './SpellbookGrid';
 import { SpellDetailsSheet } from './SpellDetailsSheet';
+import { SpellCastSheet } from './SpellCastSheet';
 import { SpellSlotTracker } from './SpellSlotTracker';
 
 interface MagicScreenProps {
@@ -22,8 +24,9 @@ export function MagicScreen({
   characterName,
   spellcasting 
 }: MagicScreenProps) {
-  const { state, hasPath, selectPath } = spellcasting;
+  const { state, hasPath, selectPath, castSpell, breakConcentration } = spellcasting;
   const [selectedSpell, setSelectedSpell] = useState<SpellDefinition | null>(null);
+  const [castingSpell, setCastingSpell] = useState<SpellDefinition | null>(null);
   const [activeTab, setActiveTab] = useState<'spellbook' | 'slots' | 'features'>('spellbook');
 
   // If no path selected, show path selection
@@ -44,26 +47,32 @@ export function MagicScreen({
     setSelectedSpell(spell);
   };
 
-  const handleCastSpell = () => {
-    if (!selectedSpell) return;
-    
-    if (selectedSpell.level === 0) {
-      // Cantrip - no slot needed
-      if (selectedSpell.concentration) {
-        spellcasting.startConcentration(selectedSpell.id);
-      }
-    } else {
-      // Use appropriate slot
-      const success = state.path === 'hexblade' && state.pactSlots
-        ? spellcasting.usePactSlot()
-        : spellcasting.useSlot(selectedSpell.level);
-      
-      if (success && selectedSpell.concentration) {
-        spellcasting.startConcentration(selectedSpell.id);
-      }
+  const handleOpenCastSheet = () => {
+    if (selectedSpell) {
+      setCastingSpell(selectedSpell);
+      setSelectedSpell(null);
     }
-    setSelectedSpell(null);
   };
+
+  const handleCastSpell = (castLevel: number, usePact: boolean) => {
+    if (!castingSpell) return;
+    
+    castSpell(
+      castingSpell.id,
+      castingSpell.name,
+      castingSpell.level,
+      castLevel,
+      usePact,
+      castingSpell.concentration
+    );
+    
+    setCastingSpell(null);
+  };
+
+  // Get concentration spell name
+  const concentrationSpell = state.concentratingOn 
+    ? getSpellById(state.concentratingOn)
+    : null;
 
   return (
     <div className="min-h-screen pb-24">
@@ -103,6 +112,26 @@ export function MagicScreen({
             <div className="text-[10px] text-muted-foreground uppercase">Slots</div>
           </div>
         </div>
+
+        {/* Concentration Indicator */}
+        {concentrationSpell && (
+          <div className="mt-3 p-2 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Eye className="w-4 h-4 text-amber-400 animate-pulse" />
+              <span className="text-sm text-amber-200">
+                Concentrating: <span className="font-medium">{concentrationSpell.name}</span>
+              </span>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-6 px-2 text-amber-400 hover:text-amber-300 hover:bg-amber-500/20"
+              onClick={breakConcentration}
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
 
         {/* Compact Slot Display */}
         <div className="mt-3 p-2 bg-background/30 rounded-lg">
@@ -210,10 +239,25 @@ export function MagicScreen({
         isPrepared={selectedSpell ? state.preparedSpells.includes(selectedSpell.id) : false}
         isFavorite={selectedSpell ? state.favoriteSpells.includes(selectedSpell.id) : false}
         isConcentrating={selectedSpell ? state.concentratingOn === selectedSpell.id : false}
-        canCast={spellcasting.totalSlotsRemaining > 0}
+        canCast={spellcasting.totalSlotsRemaining > 0 || (selectedSpell?.level === 0)}
         onPrepare={() => selectedSpell && spellcasting.prepareSpell(selectedSpell.id)}
         onUnprepare={() => selectedSpell && spellcasting.unprepareSpell(selectedSpell.id)}
         onToggleFavorite={() => selectedSpell && spellcasting.toggleFavorite(selectedSpell.id)}
+        onCast={handleOpenCastSheet}
+      />
+
+      {/* Spell Cast Sheet */}
+      <SpellCastSheet
+        spell={castingSpell}
+        isOpen={!!castingSpell}
+        onClose={() => setCastingSpell(null)}
+        path={state.path!}
+        spellSlots={state.spellSlots}
+        pactSlots={state.pactSlots}
+        concentratingOn={state.concentratingOn}
+        spellAttackBonus={spellcasting.spellAttackBonus}
+        spellSaveDC={spellcasting.spellSaveDC}
+        characterName={characterName}
         onCast={handleCastSpell}
       />
     </div>
