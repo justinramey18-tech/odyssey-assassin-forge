@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Gem, Copy, Check, Shuffle } from 'lucide-react';
+import { Gem, Copy, Check, Shuffle, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { EdgeDrawer } from './EdgeDrawer';
@@ -135,8 +135,47 @@ export function InfinityStoneDrawer({
       setExpandedStone(stone.id);
     }
     
-    toast.success(`Random: ${randomPrompt.title}`, {
+    const intensity = getPromptIntensity(randomPrompt.id);
+    const intensityLabel = intensity ? intensityLevels.find(l => l.id === intensity)?.icon : '';
+    
+    toast.success(`${intensityLabel} ${randomPrompt.title}`, {
       description: 'Copied to clipboard!',
+    });
+  };
+
+  const surpriseMe = () => {
+    // Pick random intensity (excluding 'all')
+    const intensities: IntensityLevel[] = ['mild', 'moderate', 'extreme'];
+    const randomIntensity = intensities[Math.floor(Math.random() * intensities.length)];
+    
+    // Get all prompts with that intensity
+    const allPrompts = infinityStones.flatMap(stone => getPromptsForStone(stone.id));
+    const intensityPrompts = allPrompts.filter(p => getPromptIntensity(p.id) === randomIntensity);
+    
+    if (intensityPrompts.length === 0) {
+      toast.error('No prompts available');
+      return;
+    }
+    
+    // Pick random prompt
+    const randomPrompt = intensityPrompts[Math.floor(Math.random() * intensityPrompts.length)];
+    
+    // Update UI to show what was picked
+    setSelectedIntensity(randomIntensity);
+    
+    // Find which stone this prompt belongs to and expand it
+    const stone = infinityStones.find(s => s.categories.includes(randomPrompt.category));
+    if (stone) {
+      setExpandedStone(stone.id);
+    }
+    
+    // Copy to clipboard
+    copyToClipboard(randomPrompt);
+    
+    const intensityConfig = intensityLevels.find(l => l.id === randomIntensity);
+    
+    toast.success(`🎰 ${stone?.name} × ${intensityConfig?.icon} ${intensityConfig?.label}`, {
+      description: randomPrompt.title,
     });
   };
 
@@ -179,15 +218,25 @@ export function InfinityStoneDrawer({
             </div>
           </div>
 
-          {/* Random Prompt Button */}
-          <Button
-            onClick={pickRandomPrompt}
-            className="w-full gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white border-0"
-            size="sm"
-          >
-            <Shuffle className="w-4 h-4" />
-            Random {selectedIntensity !== 'all' ? intensityLevels.find(l => l.id === selectedIntensity)?.label : ''} Prompt
-          </Button>
+          {/* Random Prompt Buttons */}
+          <div className="flex gap-2">
+            <Button
+              onClick={pickRandomPrompt}
+              className="flex-1 gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white border-0"
+              size="sm"
+            >
+              <Shuffle className="w-4 h-4" />
+              Random {selectedIntensity !== 'all' ? intensityLevels.find(l => l.id === selectedIntensity)?.label : ''}
+            </Button>
+            <Button
+              onClick={surpriseMe}
+              className="gap-2 bg-gradient-to-r from-amber-500 via-red-500 to-purple-600 hover:from-amber-400 hover:via-red-400 hover:to-purple-500 text-white border-0 animate-pulse hover:animate-none"
+              size="sm"
+            >
+              <Sparkles className="w-4 h-4" />
+              🎰
+            </Button>
+          </div>
 
           <p className="text-xs text-muted-foreground">
             Tap a stone to reveal roleplay prompts for your AI DM
