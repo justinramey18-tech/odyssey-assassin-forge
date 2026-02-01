@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Copy, Check, Dices, Sparkles, Swords, Eye, MessageCircle, Wrench } from 'lucide-react';
+import { ArrowLeft, Copy, Check, Dices, Sparkles, Swords, Eye, MessageCircle, Wrench, Plus, Minus, Settings2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   DICE_CONFIG,
   DICE_ORDER,
@@ -28,9 +29,23 @@ interface DiceRollerScreenProps {
 interface RollResult {
   die: DieSize;
   result: number;
+  rawRoll: number;
+  modifier: number;
   timestamp: number;
   label?: string;
 }
+
+// Storage keys
+const MODIFIERS_STORAGE_KEY = 'odyssey-dice-modifiers';
+const PROFICIENCY_STORAGE_KEY = 'odyssey-proficiency-bonus';
+const PROFICIENT_SKILLS_KEY = 'odyssey-proficient-skills';
+const PROFICIENT_SAVES_KEY = 'odyssey-proficient-saves';
+
+type AbilityModifiers = Record<AbilityScore, number>;
+
+const DEFAULT_MODIFIERS: AbilityModifiers = {
+  str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0,
+};
 
 // Haptic feedback helper
 const triggerHaptic = (intensity: 'light' | 'medium' | 'heavy' = 'light') => {
@@ -48,9 +63,82 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedPrompt, setSelectedPrompt] = useState<AIPromptTemplate | null>(null);
   const [promptSheetOpen, setPromptSheetOpen] = useState(false);
+  
+  // Modifier state
+  const [abilityModifiers, setAbilityModifiers] = useState<AbilityModifiers>(DEFAULT_MODIFIERS);
+  const [proficiencyBonus, setProficiencyBonus] = useState(2);
+  const [proficientSkills, setProficientSkills] = useState<Set<string>>(new Set());
+  const [proficientSaves, setProficientSaves] = useState<Set<AbilityScore>>(new Set());
+  const [modifiersOpen, setModifiersOpen] = useState(false);
 
-  // Roll a die with animation
-  const rollDice = useCallback((die: DieSize, label?: string) => {
+  // Load saved modifiers on mount
+  useEffect(() => {
+    try {
+      const savedMods = localStorage.getItem(MODIFIERS_STORAGE_KEY);
+      if (savedMods) setAbilityModifiers(JSON.parse(savedMods));
+      
+      const savedProf = localStorage.getItem(PROFICIENCY_STORAGE_KEY);
+      if (savedProf) setProficiencyBonus(parseInt(savedProf, 10));
+      
+      const savedSkills = localStorage.getItem(PROFICIENT_SKILLS_KEY);
+      if (savedSkills) setProficientSkills(new Set(JSON.parse(savedSkills)));
+      
+      const savedSaves = localStorage.getItem(PROFICIENT_SAVES_KEY);
+      if (savedSaves) setProficientSaves(new Set(JSON.parse(savedSaves)));
+    } catch (e) {
+      console.error('Failed to load modifiers:', e);
+    }
+  }, []);
+
+  // Save modifiers when they change
+  useEffect(() => {
+    localStorage.setItem(MODIFIERS_STORAGE_KEY, JSON.stringify(abilityModifiers));
+  }, [abilityModifiers]);
+
+  useEffect(() => {
+    localStorage.setItem(PROFICIENCY_STORAGE_KEY, proficiencyBonus.toString());
+  }, [proficiencyBonus]);
+
+  useEffect(() => {
+    localStorage.setItem(PROFICIENT_SKILLS_KEY, JSON.stringify([...proficientSkills]));
+  }, [proficientSkills]);
+
+  useEffect(() => {
+    localStorage.setItem(PROFICIENT_SAVES_KEY, JSON.stringify([...proficientSaves]));
+  }, [proficientSaves]);
+
+  // Update ability modifier
+  const updateModifier = (ability: AbilityScore, delta: number) => {
+    triggerHaptic('light');
+    setAbilityModifiers(prev => ({
+      ...prev,
+      [ability]: Math.max(-10, Math.min(10, prev[ability] + delta)),
+    }));
+  };
+
+  // Toggle proficiency
+  const toggleSkillProficiency = (skillId: string) => {
+    triggerHaptic('light');
+    setProficientSkills(prev => {
+      const next = new Set(prev);
+      if (next.has(skillId)) next.delete(skillId);
+      else next.add(skillId);
+      return next;
+    });
+  };
+
+  const toggleSaveProficiency = (ability: AbilityScore) => {
+    triggerHaptic('light');
+    setProficientSaves(prev => {
+      const next = new Set(prev);
+      if (next.has(ability)) next.delete(ability);
+      else next.add(ability);
+      return next;
+    });
+  };
+
+  // Roll a die with animation and modifier
+  const rollDice = useCallback((die: DieSize, label?: string, modifier: number = 0) => {
     setIsRolling(true);
     triggerHaptic('medium');
 
@@ -61,19 +149,24 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
     
     const animate = setInterval(() => {
       iterations++;
+      const animRoll = Math.floor(Math.random() * sides) + 1;
       setCurrentRoll({
         die,
-        result: Math.floor(Math.random() * sides) + 1,
+        rawRoll: animRoll,
+        modifier,
+        result: animRoll + modifier,
         timestamp: Date.now(),
         label,
       });
 
       if (iterations >= maxIterations) {
         clearInterval(animate);
-        const finalResult = rollDie(sides);
+        const finalRawRoll = rollDie(sides);
         const newRoll: RollResult = {
           die,
-          result: finalResult,
+          rawRoll: finalRawRoll,
+          modifier,
+          result: finalRawRoll + modifier,
           timestamp: Date.now(),
           label,
         };
@@ -85,15 +178,23 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
     }, 50);
   }, []);
 
-  // Roll skill check (d20)
-  const rollSkill = useCallback((skillName: string, ability: AbilityScore) => {
-    rollDice('d20', `${skillName} (${ABILITY_SCORES[ability].abbr})`);
-  }, [rollDice]);
+  // Roll skill check (d20) with modifiers
+  const rollSkill = useCallback((skillId: string, skillName: string, ability: AbilityScore) => {
+    const abilityMod = abilityModifiers[ability];
+    const profBonus = proficientSkills.has(skillId) ? proficiencyBonus : 0;
+    const totalMod = abilityMod + profBonus;
+    const profIndicator = profBonus > 0 ? '●' : '';
+    rollDice('d20', `${profIndicator}${skillName} (${ABILITY_SCORES[ability].abbr})`, totalMod);
+  }, [rollDice, abilityModifiers, proficiencyBonus, proficientSkills]);
 
-  // Roll saving throw (d20)
+  // Roll saving throw (d20) with modifiers
   const rollSave = useCallback((ability: AbilityScore) => {
-    rollDice('d20', `${ABILITY_SCORES[ability].name} Save`);
-  }, [rollDice]);
+    const abilityMod = abilityModifiers[ability];
+    const profBonus = proficientSaves.has(ability) ? proficiencyBonus : 0;
+    const totalMod = abilityMod + profBonus;
+    const profIndicator = profBonus > 0 ? '●' : '';
+    rollDice('d20', `${profIndicator}${ABILITY_SCORES[ability].name} Save`, totalMod);
+  }, [rollDice, abilityModifiers, proficiencyBonus, proficientSaves]);
 
   // Copy to clipboard
   const copyToClipboard = useCallback(async (text: string, id: string) => {
@@ -111,12 +212,19 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
     }
   }, [toast]);
 
-  // Copy roll result
+  // Copy roll result with modifier breakdown
   const copyRollResult = useCallback(() => {
     if (!currentRoll) return;
-    const text = currentRoll.label 
-      ? `${currentRoll.label}: ${currentRoll.result} (${currentRoll.die})`
-      : `${currentRoll.die}: ${currentRoll.result}`;
+    let text: string;
+    if (currentRoll.label) {
+      if (currentRoll.modifier !== 0) {
+        text = `${currentRoll.label}: ${currentRoll.rawRoll} ${currentRoll.modifier >= 0 ? '+' : ''}${currentRoll.modifier} = ${currentRoll.result}`;
+      } else {
+        text = `${currentRoll.label}: ${currentRoll.result} (${currentRoll.die})`;
+      }
+    } else {
+      text = `${currentRoll.die}: ${currentRoll.result}`;
+    }
     copyToClipboard(text, 'roll-result');
   }, [currentRoll, copyToClipboard]);
 
@@ -139,9 +247,9 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
     setPromptSheetOpen(false);
   }, [selectedPrompt, currentRoll, copyToClipboard, toast]);
 
-  // Check if roll is critical
-  const isCritical = currentRoll?.die === 'd20' && currentRoll?.result === 20;
-  const isFumble = currentRoll?.die === 'd20' && currentRoll?.result === 1;
+  // Check if roll is critical (based on raw d20 roll, not total)
+  const isCritical = currentRoll?.die === 'd20' && currentRoll?.rawRoll === 20;
+  const isFumble = currentRoll?.die === 'd20' && currentRoll?.rawRoll === 1;
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -200,10 +308,17 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
                   </Badge>
                 )}
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span>{currentRoll.die.toUpperCase()}</span>
-                  {isCritical && <span className="text-tier-maxed font-bold">✦ CRITICAL! ✦</span>}
-                  {isFumble && <span className="text-destructive font-bold">✗ FUMBLE ✗</span>}
+                  {/* Show breakdown: raw roll + modifier = total */}
+                  {currentRoll.modifier !== 0 ? (
+                    <span className="font-mono">
+                      ({currentRoll.rawRoll}) {currentRoll.modifier >= 0 ? '+' : ''}{currentRoll.modifier} = {currentRoll.result}
+                    </span>
+                  ) : (
+                    <span>{currentRoll.die.toUpperCase()}: {currentRoll.rawRoll}</span>
+                  )}
                 </div>
+                {isCritical && <span className="text-tier-maxed font-bold text-sm">✦ NATURAL 20! ✦</span>}
+                {isFumble && <span className="text-destructive font-bold text-sm">✗ NATURAL 1 ✗</span>}
                 <Button
                   variant="outline"
                   size="sm"
@@ -289,17 +404,20 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
                   History
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                  {rollHistory.slice(0, 10).map((roll, i) => (
+                  {rollHistory.slice(0, 10).map((roll) => (
                     <Badge
                       key={roll.timestamp}
                       variant="outline"
                       className={cn(
-                        'font-mono',
-                        roll.die === 'd20' && roll.result === 20 && 'border-tier-maxed text-tier-maxed',
-                        roll.die === 'd20' && roll.result === 1 && 'border-destructive text-destructive',
+                        'font-mono text-xs',
+                        roll.die === 'd20' && roll.rawRoll === 20 && 'border-tier-maxed text-tier-maxed',
+                        roll.die === 'd20' && roll.rawRoll === 1 && 'border-destructive text-destructive',
                       )}
                     >
-                      {roll.die}: {roll.result}
+                      {roll.modifier !== 0 
+                        ? `${roll.rawRoll}${roll.modifier >= 0 ? '+' : ''}${roll.modifier}=${roll.result}`
+                        : `${roll.die}:${roll.result}`
+                      }
                     </Badge>
                   ))}
                 </div>
@@ -309,27 +427,135 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
 
           {/* Skills Tab */}
           <TabsContent value="skills" className="mt-0 space-y-4">
-            <div className="grid grid-cols-2 gap-2">
+            {/* Modifiers Panel */}
+            <Collapsible open={modifiersOpen} onOpenChange={setModifiersOpen}>
+              <CollapsibleTrigger asChild>
+                <Button variant="outline" className="w-full gap-2 justify-between">
+                  <span className="flex items-center gap-2">
+                    <Settings2 className="w-4 h-4" />
+                    <span className="font-medium">Modifiers</span>
+                  </span>
+                  <Badge variant="secondary">Prof +{proficiencyBonus}</Badge>
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-3 space-y-3">
+                {/* Proficiency Bonus */}
+                <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card/50">
+                  <span className="text-sm font-medium">Proficiency Bonus</span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => {
+                        triggerHaptic('light');
+                        setProficiencyBonus(p => Math.max(2, p - 1));
+                      }}
+                    >
+                      <Minus className="w-4 h-4" />
+                    </Button>
+                    <span className="w-8 text-center font-bold text-primary">+{proficiencyBonus}</span>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => {
+                        triggerHaptic('light');
+                        setProficiencyBonus(p => Math.min(6, p + 1));
+                      }}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Ability Modifiers */}
+                <div className="grid grid-cols-3 gap-2">
+                  {(Object.keys(ABILITY_SCORES) as AbilityScore[]).map((ability) => {
+                    const config = ABILITY_SCORES[ability];
+                    const mod = abilityModifiers[ability];
+                    return (
+                      <div
+                        key={ability}
+                        className="flex flex-col items-center p-2 rounded-lg border border-border bg-card/50"
+                      >
+                        <span className={cn('text-xs font-bold', config.color)}>{config.abbr}</span>
+                        <div className="flex items-center gap-1 mt-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => updateModifier(ability, -1)}
+                          >
+                            <Minus className="w-3 h-3" />
+                          </Button>
+                          <span className={cn('w-6 text-center text-sm font-bold', mod >= 0 ? 'text-green-400' : 'text-red-400')}>
+                            {mod >= 0 ? `+${mod}` : mod}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => updateModifier(ability, 1)}
+                          >
+                            <Plus className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Skills List */}
+            <div className="grid grid-cols-1 gap-2">
               {SKILLS.map((skill) => {
                 const abilityConfig = ABILITY_SCORES[skill.ability];
+                const abilityMod = abilityModifiers[skill.ability];
+                const isProficient = proficientSkills.has(skill.id);
+                const totalMod = abilityMod + (isProficient ? proficiencyBonus : 0);
                 return (
-                  <motion.button
+                  <div
                     key={skill.id}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => rollSkill(skill.name, skill.ability)}
-                    disabled={isRolling}
                     className={cn(
-                      'p-3 rounded-lg border border-border bg-card/50',
-                      'flex items-center gap-2 text-left',
-                      'hover:bg-card hover:border-primary/30 transition-all',
-                      'disabled:opacity-50',
+                      'flex items-center gap-2 p-2 rounded-lg border bg-card/50',
+                      isProficient ? 'border-primary/50' : 'border-border',
                     )}
                   >
-                    <Badge variant="outline" className={cn('text-[10px] shrink-0', abilityConfig.color)}>
-                      {abilityConfig.abbr}
-                    </Badge>
-                    <span className="text-sm font-medium truncate">{skill.name}</span>
-                  </motion.button>
+                    {/* Proficiency Toggle */}
+                    <button
+                      onClick={() => toggleSkillProficiency(skill.id)}
+                      className={cn(
+                        'w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0',
+                        isProficient 
+                          ? 'bg-primary border-primary text-primary-foreground' 
+                          : 'border-muted-foreground/50 hover:border-primary/50',
+                      )}
+                      aria-label={isProficient ? 'Remove proficiency' : 'Add proficiency'}
+                    >
+                      {isProficient && <Check className="w-3 h-3" />}
+                    </button>
+
+                    {/* Roll Button */}
+                    <motion.button
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => rollSkill(skill.id, skill.name, skill.ability)}
+                      disabled={isRolling}
+                      className="flex-1 flex items-center gap-2 text-left disabled:opacity-50"
+                    >
+                      <Badge variant="outline" className={cn('text-[10px] shrink-0', abilityConfig.color)}>
+                        {abilityConfig.abbr}
+                      </Badge>
+                      <span className="text-sm font-medium flex-1 truncate">{skill.name}</span>
+                      <span className={cn(
+                        'text-sm font-bold tabular-nums',
+                        totalMod >= 0 ? 'text-green-400' : 'text-red-400',
+                      )}>
+                        {totalMod >= 0 ? `+${totalMod}` : totalMod}
+                      </span>
+                    </motion.button>
+                  </div>
                 );
               })}
             </div>
@@ -337,30 +563,67 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
 
           {/* Saves Tab */}
           <TabsContent value="saves" className="mt-0 space-y-4">
+            {/* Info about modifiers */}
+            <div className="p-2 rounded-lg bg-muted/30 border border-border text-center">
+              <p className="text-xs text-muted-foreground">
+                Tap ● to toggle proficiency • Set modifiers in Skills tab
+              </p>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               {(Object.keys(ABILITY_SCORES) as AbilityScore[]).map((ability) => {
                 const config = ABILITY_SCORES[ability];
+                const abilityMod = abilityModifiers[ability];
+                const isProficient = proficientSaves.has(ability);
+                const totalMod = abilityMod + (isProficient ? proficiencyBonus : 0);
                 return (
-                  <motion.button
+                  <div
                     key={ability}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => rollSave(ability)}
-                    disabled={isRolling}
                     className={cn(
-                      'p-4 rounded-xl border-2 border-border bg-card/50',
-                      'flex flex-col items-center gap-2',
-                      'hover:bg-card hover:border-primary/30 transition-all',
-                      'disabled:opacity-50',
+                      'p-3 rounded-xl border-2 bg-card/50 flex flex-col items-center gap-2',
+                      isProficient ? 'border-primary/50' : 'border-border',
                     )}
                   >
-                    <span className={cn('text-2xl font-cinzel font-bold', config.color)}>
-                      {config.abbr}
-                    </span>
-                    <span className="text-xs text-muted-foreground">{config.name}</span>
-                    <Badge variant="outline" className="text-[10px]">
-                      Save
-                    </Badge>
-                  </motion.button>
+                    <div className="flex items-center gap-2">
+                      {/* Proficiency Toggle */}
+                      <button
+                        onClick={() => toggleSaveProficiency(ability)}
+                        className={cn(
+                          'w-4 h-4 rounded-full border-2 flex items-center justify-center',
+                          isProficient 
+                            ? 'bg-primary border-primary' 
+                            : 'border-muted-foreground/50 hover:border-primary/50',
+                        )}
+                        aria-label={isProficient ? 'Remove save proficiency' : 'Add save proficiency'}
+                      >
+                        {isProficient && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                      </button>
+                      <span className={cn('text-xl font-cinzel font-bold', config.color)}>
+                        {config.abbr}
+                      </span>
+                    </div>
+                    
+                    <span className="text-[10px] text-muted-foreground">{config.name}</span>
+                    
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => rollSave(ability)}
+                      disabled={isRolling}
+                      className={cn(
+                        'w-full py-2 rounded-lg border border-border bg-background/50',
+                        'hover:bg-background hover:border-primary/30 transition-all',
+                        'disabled:opacity-50 flex items-center justify-center gap-2',
+                      )}
+                    >
+                      <Badge variant="outline" className="text-[10px]">Save</Badge>
+                      <span className={cn(
+                        'text-sm font-bold tabular-nums',
+                        totalMod >= 0 ? 'text-green-400' : 'text-red-400',
+                      )}>
+                        {totalMod >= 0 ? `+${totalMod}` : totalMod}
+                      </span>
+                    </motion.button>
+                  </div>
                 );
               })}
             </div>
