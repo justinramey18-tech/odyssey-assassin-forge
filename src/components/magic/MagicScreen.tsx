@@ -13,6 +13,9 @@ import { SpellDetailsSheet } from './SpellDetailsSheet';
 import { SpellCastSheet } from './SpellCastSheet';
 import { SpellSlotTracker } from './SpellSlotTracker';
 
+// Background image
+import arcanaBackground from '@/assets/trees/arcana-wizards-mobile.jpg';
+
 interface MagicScreenProps {
   characterLevel: number;
   characterName: string;
@@ -75,9 +78,16 @@ export function MagicScreen({
     : null;
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="relative min-h-screen pb-24">
+      {/* Background Image */}
+      <div 
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat z-0"
+        style={{ backgroundImage: `url(${arcanaBackground})` }}
+      />
+      {/* Gradient Overlay for legibility */}
+      <div className="fixed inset-0 bg-gradient-to-b from-background/85 via-background/70 to-background/90 z-0" />
       {/* Header */}
-      <div className="p-4 border-b border-indigo-900/30 bg-gradient-to-r from-indigo-950/50 to-purple-950/50">
+      <div className="relative z-10 p-4 border-b border-indigo-900/30 bg-gradient-to-r from-indigo-950/70 to-purple-950/70 backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <div className={cn(
             "w-12 h-12 rounded-full flex items-center justify-center",
@@ -144,7 +154,7 @@ export function MagicScreen({
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="flex-1">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="relative z-10 flex-1">
         <TabsList className="w-full justify-start rounded-none border-b border-white/10 bg-transparent p-0">
           <TabsTrigger 
             value="spellbook" 
@@ -280,9 +290,16 @@ function PathSelectionScreen({
   onSelectPath 
 }: PathSelectionScreenProps) {
   return (
-    <div className="min-h-screen pb-24">
+    <div className="relative min-h-screen pb-24">
+      {/* Background Image */}
+      <div 
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat z-0"
+        style={{ backgroundImage: `url(${arcanaBackground})` }}
+      />
+      {/* Gradient Overlay for legibility */}
+      <div className="fixed inset-0 bg-gradient-to-b from-background/85 via-background/70 to-background/90 z-0" />
       {/* Header */}
-      <div className="p-6 text-center bg-gradient-to-b from-indigo-950/50 to-transparent">
+      <div className="relative z-10 p-6 text-center bg-gradient-to-b from-indigo-950/70 to-transparent backdrop-blur-sm">
         <Wand2 className="w-12 h-12 mx-auto text-indigo-400 mb-4" />
         <h1 className="font-cinzel text-2xl mb-2">Choose Your Arcane Path</h1>
         <p className="text-sm text-muted-foreground max-w-md mx-auto">
@@ -292,7 +309,7 @@ function PathSelectionScreen({
       </div>
 
       {/* Path Cards */}
-      <div className="p-4 grid gap-4">
+      <div className="relative z-10 p-4 grid gap-4">
         {PATH_LIST.map((path) => {
           const isLocked = (path.id === 'hexblade' ? characterLevel < 1 : characterLevel < 3);
           
