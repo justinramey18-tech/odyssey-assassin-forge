@@ -161,12 +161,27 @@ function buildSystemPrompt(): string {
 5. Identify conditions applied or removed
 6. Identify if a level-up occurred
 7. Match narrative events to achievement categories
+8. Identify items offered FOR SALE by merchants, shopkeepers, or vendors
 
 ## Achievement Categories
 ${achievementList}
 
 ## Known Consumables
 ${KNOWN_CONSUMABLES.join(', ')}
+
+## Shop Item Detection
+Look for items being SOLD by NPCs (merchants, shopkeepers, vendors). Key indicators:
+- Price mentions: "for X gold", "costs X gp", "selling for X", "price: X", "X gold pieces"
+- Commerce language: "offers", "selling", "for sale", "purchase", "buy"
+- Merchant context: "shop", "store", "vendor", "merchant", "trader", "market"
+
+For each shop item detected:
+- Extract the item name and cost in gold
+- Determine item_type: "consumable" (potions, scrolls, poisons) or "equipment" (weapons, armor, gear)
+- Determine category: weapon, armor, potion, poison, scroll, ring, amulet, helm, boots, etc.
+- If D&D mechanics are NOT stated in the log, GENERATE appropriate 5e stats based on item type/rarity
+- Estimate rarity from price: common(<50gp), uncommon(50-500gp), rare(500-5000gp), very_rare(5000-25000gp), legendary(25000+gp)
+- Generate a 1-2 sentence description AND 1-2 sentence lore if not present
 
 ## Response Format
 Return ONLY valid JSON with this structure:
@@ -177,7 +192,28 @@ Return ONLY valid JSON with this structure:
   "gold_changes": [{"amount": number, "action": "gained"|"spent", "source_text": "quoted text"}],
   "conditions": [{"name": "condition name", "action": "applied"|"removed", "source_text": "quoted text"}],
   "level_up": {"new_level": number, "source_text": "quoted text"} or null,
-  "achievements": [{"id": "achievement-id", "evidence": "key phrase matched", "confidence": "high"|"medium"|"low", "source_text": "quoted text"}]
+  "achievements": [{"id": "achievement-id", "evidence": "key phrase matched", "confidence": "high"|"medium"|"low", "source_text": "quoted text"}],
+  "shop_items": [
+    {
+      "name": "item name",
+      "item_type": "consumable"|"equipment"|"miscellaneous",
+      "category": "weapon|armor|potion|poison|scroll|ring|amulet|helm|boots|gloves|belt|cloak|etc",
+      "cost_gold": number,
+      "mechanics": {
+        "damage": "dice expression (for weapons)",
+        "ac": number (for armor),
+        "properties": ["Magical", "Finesse", etc],
+        "effect": "what it does (for consumables/magic items)",
+        "duration": "how long effect lasts",
+        "saving_throw": "DC and type if applicable"
+      },
+      "rarity": "common"|"uncommon"|"rare"|"very_rare"|"legendary",
+      "description": "1-2 sentence physical/functional description",
+      "lore": "1-2 sentence world/history flavor text",
+      "source_text": "quoted text from log",
+      "confidence": "high"|"medium"|"low"
+    }
+  ]
 }
 
 ## Rules
@@ -186,6 +222,8 @@ Return ONLY valid JSON with this structure:
 - Use "high" confidence for explicit mentions, "medium" for inferred, "low" for uncertain
 - Include the source_text as a short quote from the log (max 100 chars)
 - Achievement IDs must match the list above exactly
+- Shop items must be FOR SALE, not loot, gifts, or already-owned possessions
+- Generate D&D 5e-appropriate mechanics for shop items based on type and rarity
 - Do not include any text outside the JSON response`;
 }
 
@@ -342,12 +380,15 @@ serve(async (req) => {
       conditions: Array.isArray(parsedResult.conditions) ? parsedResult.conditions : [],
       level_up: parsedResult.level_up || null,
       achievements: Array.isArray(parsedResult.achievements) ? parsedResult.achievements : [],
+      shop_items: Array.isArray(parsedResult.shop_items) ? parsedResult.shop_items : [],
     };
 
     console.log("Successfully parsed session log:", {
       xp: validatedResult.xp_changes.length,
       hp: validatedResult.hp_changes.length,
       items: validatedResult.items.length,
+      gold: validatedResult.gold_changes.length,
+      shop: validatedResult.shop_items.length,
       achievements: validatedResult.achievements.length,
     });
 
