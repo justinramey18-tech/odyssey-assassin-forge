@@ -1,16 +1,19 @@
-import { useState } from 'react';
-import { Gem, Copy, Check, X } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Gem, Copy, Check, Shuffle } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { EdgeDrawer } from './EdgeDrawer';
 import { characterPrompts, CharacterPrompt } from '@/lib/characterPrompts';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+
+type IntensityLevel = 'all' | 'mild' | 'moderate' | 'extreme';
 
 // Infinity Stones configuration matching the gauntlet screen
 const infinityStones = [
@@ -58,6 +61,21 @@ const infinityStones = [
   },
 ];
 
+const intensityLevels: { id: IntensityLevel; label: string; icon: string; color: string }[] = [
+  { id: 'all', label: 'All', icon: '🎲', color: 'hsl(var(--muted-foreground))' },
+  { id: 'mild', label: 'Mild', icon: '🌱', color: '#22c55e' },
+  { id: 'moderate', label: 'Moderate', icon: '🔥', color: '#f97316' },
+  { id: 'extreme', label: 'Extreme', icon: '💥', color: '#ef4444' },
+];
+
+// Helper to detect intensity from prompt ID
+function getPromptIntensity(promptId: string): IntensityLevel | null {
+  if (promptId.includes('-mild-')) return 'mild';
+  if (promptId.includes('-moderate-')) return 'moderate';
+  if (promptId.includes('-extreme-')) return 'extreme';
+  return null; // Legacy prompts without intensity markers
+}
+
 interface InfinityStoneDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -71,6 +89,7 @@ export function InfinityStoneDrawer({
 }: InfinityStoneDrawerProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expandedStone, setExpandedStone] = useState<string | undefined>(undefined);
+  const [selectedIntensity, setSelectedIntensity] = useState<IntensityLevel>('all');
 
   const getPromptsForStone = (stoneId: string) => {
     const stone = infinityStones.find(s => s.id === stoneId);
@@ -78,12 +97,47 @@ export function InfinityStoneDrawer({
     return characterPrompts.filter(p => stone.categories.includes(p.category));
   };
 
+  // Filter prompts by intensity
+  const filterByIntensity = (prompts: CharacterPrompt[]) => {
+    if (selectedIntensity === 'all') return prompts;
+    return prompts.filter(p => {
+      const intensity = getPromptIntensity(p.id);
+      return intensity === selectedIntensity || intensity === null; // Include legacy prompts in 'all' only
+    });
+  };
+
+  // Get all prompts filtered by intensity for random selection
+  const allFilteredPrompts = useMemo(() => {
+    const allPrompts = infinityStones.flatMap(stone => getPromptsForStone(stone.id));
+    return filterByIntensity(allPrompts);
+  }, [selectedIntensity]);
+
   const copyToClipboard = async (prompt: CharacterPrompt) => {
     const processedText = prompt.prompt.replace(/\[Character Name\]/g, characterName || 'The Character');
     await navigator.clipboard.writeText(processedText);
     setCopiedId(prompt.id);
     toast.success('Prompt copied to clipboard!');
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const pickRandomPrompt = () => {
+    if (allFilteredPrompts.length === 0) {
+      toast.error('No prompts available for selected intensity');
+      return;
+    }
+    const randomIndex = Math.floor(Math.random() * allFilteredPrompts.length);
+    const randomPrompt = allFilteredPrompts[randomIndex];
+    copyToClipboard(randomPrompt);
+    
+    // Find which stone this prompt belongs to and expand it
+    const stone = infinityStones.find(s => s.categories.includes(randomPrompt.category));
+    if (stone) {
+      setExpandedStone(stone.id);
+    }
+    
+    toast.success(`Random: ${randomPrompt.title}`, {
+      description: 'Copied to clipboard!',
+    });
   };
 
   return (
@@ -96,8 +150,46 @@ export function InfinityStoneDrawer({
       accentColor="#eab308"
     >
       <ScrollArea className="h-[calc(100vh-120px)]">
-        <div className="space-y-2 pr-2">
-          <p className="text-xs text-muted-foreground mb-4">
+        <div className="space-y-3 pr-2">
+          {/* Intensity Level Selector */}
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">Filter by intensity:</p>
+            <div className="flex gap-1.5 flex-wrap">
+              {intensityLevels.map((level) => (
+                <button
+                  key={level.id}
+                  onClick={() => setSelectedIntensity(level.id)}
+                  className={cn(
+                    'flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium',
+                    'transition-all duration-200 border',
+                    selectedIntensity === level.id
+                      ? 'scale-105'
+                      : 'opacity-60 hover:opacity-100'
+                  )}
+                  style={{
+                    backgroundColor: selectedIntensity === level.id ? `${level.color}20` : 'transparent',
+                    borderColor: selectedIntensity === level.id ? level.color : 'hsl(var(--border))',
+                    color: selectedIntensity === level.id ? level.color : 'hsl(var(--muted-foreground))',
+                  }}
+                >
+                  <span>{level.icon}</span>
+                  <span>{level.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Random Prompt Button */}
+          <Button
+            onClick={pickRandomPrompt}
+            className="w-full gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white border-0"
+            size="sm"
+          >
+            <Shuffle className="w-4 h-4" />
+            Random {selectedIntensity !== 'all' ? intensityLevels.find(l => l.id === selectedIntensity)?.label : ''} Prompt
+          </Button>
+
+          <p className="text-xs text-muted-foreground">
             Tap a stone to reveal roleplay prompts for your AI DM
           </p>
 
@@ -109,8 +201,12 @@ export function InfinityStoneDrawer({
             className="w-full space-y-2"
           >
             {infinityStones.map((stone) => {
-              const prompts = getPromptsForStone(stone.id);
+              const allStonePrompts = getPromptsForStone(stone.id);
+              const prompts = filterByIntensity(allStonePrompts);
               const isExpanded = expandedStone === stone.id;
+              
+              // Skip stones with no prompts for current filter
+              if (prompts.length === 0) return null;
               
               return (
                 <AccordionItem 
@@ -169,6 +265,9 @@ export function InfinityStoneDrawer({
                   >
                     {prompts.map((prompt) => {
                       const isCopied = copiedId === prompt.id;
+                      const intensity = getPromptIntensity(prompt.id);
+                      const intensityConfig = intensity ? intensityLevels.find(l => l.id === intensity) : null;
+                      
                       return (
                         <button
                           key={prompt.id}
@@ -187,6 +286,17 @@ export function InfinityStoneDrawer({
                           )}>
                             {prompt.title}
                           </span>
+                          {intensityConfig && (
+                            <span 
+                              className="text-[10px] px-1.5 py-0.5 rounded shrink-0"
+                              style={{ 
+                                backgroundColor: `${intensityConfig.color}20`,
+                                color: intensityConfig.color,
+                              }}
+                            >
+                              {intensityConfig.icon}
+                            </span>
+                          )}
                           {isCopied ? (
                             <Check className="w-4 h-4 text-green-400 shrink-0" />
                           ) : (
