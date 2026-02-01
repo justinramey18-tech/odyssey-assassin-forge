@@ -12,7 +12,7 @@ import {
   BookOpen, Backpack, Trophy, Swords, 
   Scroll, Beaker, FileSearch, Star,
   Coffee, Moon, TrendingUp, Settings,
-  PanelLeft, Gem, Sparkles, Timer, MessageCircle, Activity
+  PanelLeft, Gem, Sparkles, Timer, MessageCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
@@ -250,7 +250,6 @@ export function HomeScreen({
   // Drawer menu options
   const drawerOptions = [
     { id: 'oracle', label: 'Oracle', icon: MessageCircle, color: 'text-red-400', action: drawerContext?.openOracleDrawer },
-    { id: 'conditions', label: 'Conditions', icon: Activity, color: 'text-amber-400', action: drawerContext?.openConditionsDrawer },
     { id: 'stats', label: 'Stats', icon: Heart, color: 'text-green-400', action: drawerContext?.openStatsDrawer },
     { id: 'setbonus', label: 'Set Bonus', icon: Sparkles, color: 'text-amber-400', action: drawerContext?.openSetBonusDrawer },
     { id: 'prompts', label: 'Prompts', icon: Gem, color: 'text-yellow-400', action: drawerContext?.openInfinityDrawer },
