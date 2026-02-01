@@ -59,6 +59,28 @@ export interface ParsedCombatEvent {
   sourceText: string;
 }
 
+// ===== SHOP ITEM FROM CHRONICLE =====
+
+export interface ParsedShopItem {
+  name: string;
+  itemType: 'equipment' | 'consumable' | 'miscellaneous';
+  category?: string;
+  costGold: number;
+  mechanics?: {
+    damage?: string;
+    ac?: number;
+    properties?: string[];
+    effect?: string;
+    duration?: string;
+    savingThrow?: string;
+  };
+  rarity?: string;
+  description?: string;
+  lore?: string;
+  sourceText: string;
+  confidence: ConfidenceLevel;
+}
+
 // ===== PARSE RESULT CONTAINER =====
 
 export interface ChronicleParseResult {
@@ -67,6 +89,7 @@ export interface ChronicleParseResult {
   itemChanges: ParsedItemChange[];
   achievementTriggers: ParsedAchievementTrigger[];
   goldChanges: ParsedGoldChange[];
+  shopItems: ParsedShopItem[];
   conditions: ParsedCondition[];
   combatEvents: ParsedCombatEvent[];
   levelUp: ParsedLevelUp | null;
@@ -77,7 +100,7 @@ export interface ChronicleParseResult {
 
 // ===== REVIEW AND APPROVAL TYPES =====
 
-export type ChangeCategory = 'xp' | 'achievement' | 'item' | 'levelUp';
+export type ChangeCategory = 'xp' | 'achievement' | 'item' | 'levelUp' | 'gold' | 'shop';
 
 export interface ReviewableChange {
   id: string;
@@ -87,13 +110,15 @@ export interface ReviewableChange {
   sourceText: string;
   approved: boolean;
   // Original data reference
-  data: ParsedXPChange | ParsedItemChange | ParsedAchievementTrigger | ParsedLevelUp;
+  data: ParsedXPChange | ParsedItemChange | ParsedAchievementTrigger | ParsedLevelUp | ParsedGoldChange | ParsedShopItem;
 }
 
 export interface ApprovedChanges {
   xp: ParsedXPChange[];
   achievements: ParsedAchievementTrigger[];
   items: ParsedItemChange[];
+  gold: ParsedGoldChange[];
+  shopItems: ParsedShopItem[];
   levelUp: ParsedLevelUp | null;
   totalApplied: number;
 }

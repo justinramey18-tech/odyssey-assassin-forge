@@ -164,6 +164,7 @@ export function parseLogOffline(input: string): ChronicleParseResult {
     itemChanges,
     achievementTriggers,
     goldChanges,
+    shopItems: [], // Offline parsing doesn't detect shop items (requires AI)
     conditions,
     combatEvents,
     levelUp,
@@ -348,6 +349,7 @@ export function parseAIResponse(response: unknown): ChronicleParseResult | null 
       itemChanges,
       achievementTriggers,
       goldChanges,
+      shopItems: [], // TODO: Parse shop_items from AI response when implemented
       conditions,
       combatEvents,
       levelUp,
