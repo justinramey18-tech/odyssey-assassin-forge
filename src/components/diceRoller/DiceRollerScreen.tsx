@@ -168,6 +168,7 @@ const MODIFIERS_STORAGE_KEY = 'odyssey-dice-modifiers';
 const PROFICIENCY_STORAGE_KEY = 'odyssey-proficiency-bonus';
 const PROFICIENT_SKILLS_KEY = 'odyssey-proficient-skills';
 const PROFICIENT_SAVES_KEY = 'odyssey-proficient-saves';
+const EXPERTISE_SKILLS_KEY = 'odyssey-expertise-skills';
 const ROLL_MODE_KEY = 'odyssey-roll-mode';
 
 type AbilityModifiers = Record<AbilityScore, number>;
@@ -198,6 +199,7 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
   const [proficiencyBonus, setProficiencyBonus] = useState(2);
   const [proficientSkills, setProficientSkills] = useState<Set<string>>(new Set());
   const [proficientSaves, setProficientSaves] = useState<Set<AbilityScore>>(new Set());
+  const [expertiseSkills, setExpertiseSkills] = useState<Set<string>>(new Set());
   const [modifiersOpen, setModifiersOpen] = useState(false);
   const [rollMode, setRollMode] = useState<RollMode>('normal');
   const [quickSetOpen, setQuickSetOpen] = useState(false);
@@ -224,6 +226,9 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
       const savedSaves = localStorage.getItem(PROFICIENT_SAVES_KEY);
       if (savedSaves) setProficientSaves(new Set(JSON.parse(savedSaves)));
       
+      const savedExpertise = localStorage.getItem(EXPERTISE_SKILLS_KEY);
+      if (savedExpertise) setExpertiseSkills(new Set(JSON.parse(savedExpertise)));
+      
       const savedRollMode = localStorage.getItem(ROLL_MODE_KEY);
       if (savedRollMode) setRollMode(savedRollMode as RollMode);
     } catch (e) {
@@ -249,6 +254,10 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
   }, [proficientSaves]);
 
   useEffect(() => {
+    localStorage.setItem(EXPERTISE_SKILLS_KEY, JSON.stringify([...expertiseSkills]));
+  }, [expertiseSkills]);
+
+  useEffect(() => {
     localStorage.setItem(ROLL_MODE_KEY, rollMode);
   }, [rollMode]);
 
@@ -261,10 +270,33 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
     }));
   };
 
-  // Toggle proficiency
+  // Toggle skill proficiency
   const toggleSkillProficiency = (skillId: string) => {
     triggerHaptic('light');
     setProficientSkills(prev => {
+      const next = new Set(prev);
+      if (next.has(skillId)) {
+        next.delete(skillId);
+        // Also remove expertise if removing proficiency
+        setExpertiseSkills(exp => {
+          const newExp = new Set(exp);
+          newExp.delete(skillId);
+          return newExp;
+        });
+      } else {
+        next.add(skillId);
+      }
+      return next;
+    });
+  };
+
+  // Toggle expertise (requires proficiency first)
+  const toggleExpertise = (skillId: string) => {
+    // Can only have expertise if proficient
+    if (!proficientSkills.has(skillId)) return;
+    
+    triggerHaptic('light');
+    setExpertiseSkills(prev => {
       const next = new Set(prev);
       if (next.has(skillId)) next.delete(skillId);
       else next.add(skillId);
@@ -498,14 +530,17 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
     }, 50);
   }, [rollMode]);
 
-  // Roll skill check (d20) with modifiers and roll mode
+  // Roll skill check (d20) with modifiers, expertise, and roll mode
   const rollSkill = useCallback((skillId: string, skillName: string, ability: AbilityScore) => {
     const abilityMod = abilityModifiers[ability];
-    const profBonus = proficientSkills.has(skillId) ? proficiencyBonus : 0;
+    const isProficient = proficientSkills.has(skillId);
+    const hasExpertise = expertiseSkills.has(skillId);
+    const profMultiplier = hasExpertise ? 2 : (isProficient ? 1 : 0);
+    const profBonus = proficiencyBonus * profMultiplier;
     const totalMod = abilityMod + profBonus;
-    const profIndicator = profBonus > 0 ? '●' : '';
-    rollDice('d20', `${profIndicator}${skillName} (${ABILITY_SCORES[ability].abbr})`, totalMod, true);
-  }, [rollDice, abilityModifiers, proficiencyBonus, proficientSkills]);
+    const indicator = hasExpertise ? '★' : (isProficient ? '●' : '');
+    rollDice('d20', `${indicator}${skillName} (${ABILITY_SCORES[ability].abbr})`, totalMod, true);
+  }, [rollDice, abilityModifiers, proficiencyBonus, proficientSkills, expertiseSkills]);
 
   // Roll saving throw (d20) with modifiers and roll mode
   const rollSave = useCallback((ability: AbilityScore) => {
@@ -1051,13 +1086,16 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
                 const abilityConfig = ABILITY_SCORES[skill.ability];
                 const abilityMod = abilityModifiers[skill.ability];
                 const isProficient = proficientSkills.has(skill.id);
-                const totalMod = abilityMod + (isProficient ? proficiencyBonus : 0);
+                const hasExpertise = expertiseSkills.has(skill.id);
+                const profMultiplier = hasExpertise ? 2 : (isProficient ? 1 : 0);
+                const profBonus = proficiencyBonus * profMultiplier;
+                const totalMod = abilityMod + profBonus;
                 return (
                   <div
                     key={skill.id}
                     className={cn(
                       'flex items-center gap-2 p-2 rounded-lg border bg-card/50',
-                      isProficient ? 'border-primary/50' : 'border-border',
+                      hasExpertise ? 'border-yellow-500/50' : isProficient ? 'border-primary/50' : 'border-border',
                     )}
                   >
                     {/* Proficiency Toggle */}
@@ -1074,6 +1112,24 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
                       {isProficient && <Check className="w-3 h-3" />}
                     </button>
 
+                    {/* Expertise Toggle (only visible if proficient) */}
+                    <button
+                      onClick={() => toggleExpertise(skill.id)}
+                      disabled={!isProficient}
+                      className={cn(
+                        'w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 text-xs font-bold transition-all',
+                        hasExpertise 
+                          ? 'bg-yellow-500 border-yellow-500 text-yellow-950' 
+                          : isProficient
+                            ? 'border-yellow-500/50 text-yellow-500/50 hover:border-yellow-500 hover:text-yellow-500'
+                            : 'border-muted-foreground/20 text-muted-foreground/20 cursor-not-allowed',
+                      )}
+                      aria-label={hasExpertise ? 'Remove expertise' : 'Add expertise'}
+                      title={isProficient ? (hasExpertise ? 'Remove expertise (×2 proficiency)' : 'Add expertise (×2 proficiency)') : 'Must be proficient first'}
+                    >
+                      ×2
+                    </button>
+
                     {/* Roll Button */}
                     <motion.button
                       whileTap={{ scale: 0.98 }}
@@ -1085,6 +1141,11 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
                         {abilityConfig.abbr}
                       </Badge>
                       <span className="text-sm font-medium flex-1 truncate">{skill.name}</span>
+                      {hasExpertise && (
+                        <Badge variant="outline" className="text-[9px] shrink-0 border-yellow-500/50 text-yellow-500">
+                          EXP
+                        </Badge>
+                      )}
                       <span className={cn(
                         'text-sm font-bold tabular-nums',
                         totalMod >= 0 ? 'text-green-400' : 'text-red-400',
@@ -1124,7 +1185,7 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
             {/* Info about modifiers */}
             <div className="p-2 rounded-lg bg-muted/30 border border-border text-center">
               <p className="text-xs text-muted-foreground">
-                Tap ● to toggle proficiency • Set modifiers in Skills tab
+                ● = proficiency • ×2 = expertise (Skills tab) • Set modifiers in Skills tab
               </p>
             </div>
 
