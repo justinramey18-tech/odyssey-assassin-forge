@@ -872,10 +872,11 @@ const Index = () => {
 
       {/* Category-based Navigation */}
       <div className="w-full flex flex-col">
-        {/* Assassin's Creed Styled Header Navigation - 4 Main Tabs */}
+        {/* Assassin's Creed Styled Header Navigation - 4 Main Tabs with Dropdowns */}
         <AssassinHeader 
           onHomeClick={() => setShowHomeScreen(true)}
           activeCategory={categoryNav.mainCategory}
+          activeSubTab={categoryNav.activeSubTab}
           onCategoryChange={(category) => {
             if (category === 'home') {
               setShowHomeScreen(true);
@@ -883,21 +884,9 @@ const Index = () => {
               categoryNav.setMainCategory(category);
             }
           }}
+          onSubTabChange={categoryNav.navigateToSubTab}
+          isLegacyUnlocked={prestigeTree.isLegacyUnlocked}
         />
-        
-        {/* Sub-tab Strip - swipeable navigation */}
-        {categoryNav.mainCategory !== 'home' && (
-          <SubTabStrip
-            category={categoryNav.mainCategory}
-            activeSubTab={categoryNav.activeSubTab}
-            onSubTabChange={categoryNav.navigateToSubTab}
-            onSwipeUp={categoryNav.swipeToNextSubTab}
-            onSwipeDown={categoryNav.swipeToPrevSubTab}
-            getNextLabel={categoryNav.getNextSubTabLabel}
-            getPrevLabel={categoryNav.getPrevSubTabLabel}
-            isLegacyUnlocked={prestigeTree.isLegacyUnlocked}
-          />
-        )}
 
         {/* Content Area - Conditional Rendering Based on Active Sub-Tab */}
         <div className="flex-1">
