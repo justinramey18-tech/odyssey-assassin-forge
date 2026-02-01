@@ -3,6 +3,7 @@ import { Ability, CharacterAbility, AbilityTree } from '@/lib/types';
 import { ABILITY_TREE_LAYOUT, TIER_LABELS, getNodePosition, getTierSeparatorY, getTreeAbilities } from '@/lib/abilityTrees/layout';
 import { TREE_VISUAL_CONFIG, getTreeColor } from '@/lib/abilityTrees/colors';
 import { getAbilityAccessibility, getTreeConnections } from '@/lib/abilityTrees/accessibility';
+import { getTreeBackground, getTreeFallbackGradient } from '@/lib/abilityTrees/backgrounds';
 import { AbilityNode } from './AbilityNode';
 import { ConnectionLines } from './ConnectionLine';
 import { TierSeparator } from './TierSeparator';
@@ -82,6 +83,20 @@ export function TreeColumn({
         className="relative flex-1 overflow-y-auto"
         style={{ minHeight: containerHeight }}
       >
+        {/* Background Image Layer */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center z-0 opacity-40"
+          style={{ 
+            backgroundImage: `url(${getTreeBackground(tree)})`,
+            background: getTreeFallbackGradient(tree),
+          }}
+        />
+        <div 
+          className="absolute inset-0 bg-cover bg-center z-0 opacity-40"
+          style={{ backgroundImage: `url(${getTreeBackground(tree)})` }}
+        />
+        {/* Gradient overlay for legibility */}
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/40 z-0" />
         {/* Connection Lines SVG */}
         <ConnectionLines
           tree={tree}
