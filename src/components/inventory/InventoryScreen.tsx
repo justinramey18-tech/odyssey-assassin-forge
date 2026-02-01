@@ -19,7 +19,7 @@ import { EquipmentList } from './EquipmentList';
 import { ItemDetailSheet } from './ItemDetailSheet';
 import { ComparisonSheet } from './ComparisonSheet';
 import { SetBonusPanel } from './SetBonusPanel';
-import { InventoryDrawer } from './InventoryDrawer';
+import { ItemSelectionScreen } from './ItemSelectionScreen';
 import { ActiveSetBonusDrawer } from '@/components/drawers/ActiveSetBonusDrawer';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -36,8 +36,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { AnimatePresence, motion } from 'framer-motion';
 
 export type ViewMode = 'compact' | 'expanded';
+export type ScreenMode = 'equipment' | 'selecting';
 
 interface InventoryScreenProps {
   characterName: string;
@@ -74,7 +76,7 @@ export function InventoryScreen({
   const [showItemDetail, setShowItemDetail] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
   const [compareItem, setCompareItem] = useState<EquipmentItem | null>(null);
-  const [showInventoryDrawer, setShowInventoryDrawer] = useState(false);
+  const [screenMode, setScreenMode] = useState<ScreenMode>('equipment');
   const [showSetBonusDrawer, setShowSetBonusDrawer] = useState(false);
 
   const isCompact = viewMode === 'compact';
@@ -104,9 +106,9 @@ export function InventoryScreen({
       setSelectedItem(item);
       setShowItemDetail(true);
     } else {
-      // Open inventory drawer to select item for empty slot
+      // Switch to inline selection mode for empty slot
       setSelectedSlot(slotType);
-      setShowInventoryDrawer(true);
+      setScreenMode('selecting');
     }
   }, [equipment.slots]);
 
@@ -130,7 +132,7 @@ export function InventoryScreen({
 
   const handleSwap = useCallback((slotType: EquipmentSlotType) => {
     setSelectedSlot(slotType);
-    setShowInventoryDrawer(true);
+    setScreenMode('selecting');
   }, []);
 
   const handleInfoTap = useCallback((slotType: EquipmentSlotType, item: EquipmentItem | null) => {
@@ -139,7 +141,7 @@ export function InventoryScreen({
     if (item) {
       setShowItemDetail(true);
     } else {
-      setShowInventoryDrawer(true);
+      setScreenMode('selecting');
     }
   }, []);
 
@@ -168,7 +170,7 @@ export function InventoryScreen({
       ],
     }));
     
-    setShowInventoryDrawer(false);
+    setScreenMode('equipment');
     setShowComparison(false);
     setSelectedSlot(null);
   }, [selectedSlot, equipment.slots]);
@@ -219,8 +221,8 @@ export function InventoryScreen({
 
   return (
     <div className="min-h-[calc(100vh-10vh)] relative flex flex-col overflow-hidden">
-      {/* Background Image Layer - Set Armor Art */}
-      {backgroundImage && (
+      {/* Background Image Layer - Set Armor Art (only show in equipment mode) */}
+      {screenMode === 'equipment' && backgroundImage && (
         <div 
           className="absolute inset-0 z-0"
           style={{
@@ -241,8 +243,8 @@ export function InventoryScreen({
         </div>
       )}
 
-      {/* Default background when no complete set */}
-      {!backgroundImage && (
+      {/* Default background when no complete set (only show in equipment mode) */}
+      {screenMode === 'equipment' && !backgroundImage && (
         <div className="absolute inset-0 z-0 bg-gradient-to-b from-muted/20 via-background to-background">
           <div className="absolute inset-0 flex items-center justify-center opacity-10">
             <User className="w-64 h-64 text-muted-foreground" />
@@ -250,170 +252,196 @@ export function InventoryScreen({
         </div>
       )}
 
-      {/* Title Header Row */}
-      <div className="relative z-10 flex items-center justify-between px-4 py-4 border-b border-border/50 bg-background/80 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <h1 className="font-cinzel text-2xl font-bold text-foreground">Gear Loadout</h1>
-          {completeSet && (
-            <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-amber-500/20 border border-amber-500/40">
-              <Sparkles className="w-3 h-3 text-amber-400" />
-              <span className="text-[10px] font-bold text-amber-400 uppercase">{completeSet.setInfo.name}</span>
-            </div>
-          )}
-        </div>
-        
-        <div className="flex items-center gap-1">
-          {/* Active Set Bonuses Button - Only show when sets are active */}
-          {activeSetBonuses.length > 0 && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8 relative"
-              onClick={() => setShowSetBonusDrawer(true)}
-            >
-              <Sparkles className="w-4 h-4 text-amber-400" />
-              <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-amber-500 rounded-full text-[9px] font-bold text-black flex items-center justify-center">
-                {activeSetBonuses.length}
-              </span>
-            </Button>
-          )}
-          
-          {/* View Mode Toggle */}
-          <Toggle
-            pressed={isCompact}
-            onPressedChange={(pressed) => setViewMode(pressed ? 'compact' : 'expanded')}
-            size="sm"
-            className="h-8 w-8 p-0"
-            aria-label="Toggle view mode"
-          >
-            {isCompact ? (
-              <Minimize2 className="w-4 h-4" />
-            ) : (
-              <Maximize2 className="w-4 h-4" />
-            )}
-          </Toggle>
-          
-          {/* Quick Equip Menu */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className={cn(
-                          "h-8 w-8",
-                          requiresGearUnlocks && "opacity-50 cursor-not-allowed"
-                        )}
-                        disabled={requiresGearUnlocks}
-                      >
-                        {requiresGearUnlocks ? (
-                          <Lock className="w-4 h-4 text-amber-500" />
-                        ) : (
-                          <Wand2 className="w-4 h-4 text-amber-400" />
-                        )}
-                      </Button>
-                    </DropdownMenuTrigger>
-                    {!requiresGearUnlocks && (
-                      <DropdownMenuContent align="end" className="w-64">
-                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                          Quick Equip Full Set
-                        </div>
-                        {legendarySetDefinitions.map(set => {
-                          const setLocked = isSetLocked(set.id, allLegendaryItems);
-                          return (
-                            <DropdownMenuItem
-                              key={set.id}
-                              onClick={() => !setLocked && handleQuickEquipSet(set.id)}
-                              disabled={setLocked}
-                              className={cn(
-                                "cursor-pointer",
-                                setLocked && "opacity-50 cursor-not-allowed"
-                              )}
-                            >
-                              {setLocked ? (
-                                <Lock className="w-3 h-3 text-amber-500" />
-                              ) : (
-                                <span className="text-amber-400">★</span>
-                              )}
-                              <span className="ml-2 truncate">{set.name}</span>
-                              {setLocked && (
-                                <span className="ml-auto text-[10px] text-amber-500">Locked</span>
-                              )}
-                            </DropdownMenuItem>
-                          );
-                        })}
-                      </DropdownMenuContent>
-                    )}
-                  </DropdownMenu>
-                </div>
-              </TooltipTrigger>
-              {requiresGearUnlocks && (
-                <TooltipContent side="bottom">
-                  <p className="text-xs">Quick Equip disabled in Honest Mode</p>
-                </TooltipContent>
-              )}
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      </div>
-
-      {/* Full Screen Equipment List Overlay */}
-      <div className="relative z-10 flex-1 flex flex-col overflow-hidden">
-        <ScrollArea className={cn("flex-1", isCompact ? "px-3 pt-2" : "px-4 pt-3")}>
-          <EquipmentList
-            equipment={equipment}
-            highlightedSlot={highlightedSlot}
-            onSlotTap={handleSlotTap}
-            onSlotLongPress={handleSlotLongPress}
-            onUnequip={handleUnequip}
-            onSwap={handleSwap}
-            onInfoTap={handleInfoTap}
-            onSlotHover={setHighlightedSlot}
-            viewMode={viewMode}
+      <AnimatePresence mode="wait">
+        {screenMode === 'selecting' && selectedSlot ? (
+          <ItemSelectionScreen
+            key="selecting"
+            slotType={selectedSlot}
+            inventory={equipment.inventory}
+            onSelectItem={handleEquipFromInventory}
+            onBack={() => {
+              setScreenMode('equipment');
+              setSelectedSlot(null);
+            }}
             isItemLocked={isItemLocked}
             getItemLockInfo={getItemLockInfo}
           />
-          
-          {/* Set Bonuses */}
-          <SetBonusPanel equipment={equipment} />
-          
-          {/* Bottom padding for stats bar */}
-          <div className={isCompact ? "h-16" : "h-20"} />
-        </ScrollArea>
-      </div>
+        ) : (
+          <motion.div 
+            key="equipment"
+            className="relative z-10 flex-1 flex flex-col"
+            initial={{ opacity: 0, x: -50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 50 }}
+            transition={{ duration: 0.2 }}
+          >
+            {/* Title Header Row */}
+            <div className="flex items-center justify-between px-4 py-4 border-b border-border/50 bg-background/80 backdrop-blur-md">
+              <div className="flex items-center gap-3">
+                <h1 className="font-cinzel text-2xl font-bold text-foreground">Gear Loadout</h1>
+                {completeSet && (
+                  <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-amber-500/20 border border-amber-500/40">
+                    <Sparkles className="w-3 h-3 text-amber-400" />
+                    <span className="text-[10px] font-bold text-amber-400 uppercase">{completeSet.setInfo.name}</span>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex items-center gap-1">
+                {/* Active Set Bonuses Button - Only show when sets are active */}
+                {activeSetBonuses.length > 0 && (
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 relative"
+                    onClick={() => setShowSetBonusDrawer(true)}
+                  >
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-amber-500 rounded-full text-[9px] font-bold text-black flex items-center justify-center">
+                      {activeSetBonuses.length}
+                    </span>
+                  </Button>
+                )}
+                
+                {/* View Mode Toggle */}
+                <Toggle
+                  pressed={isCompact}
+                  onPressedChange={(pressed) => setViewMode(pressed ? 'compact' : 'expanded')}
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  aria-label="Toggle view mode"
+                >
+                  {isCompact ? (
+                    <Minimize2 className="w-4 h-4" />
+                  ) : (
+                    <Maximize2 className="w-4 h-4" />
+                  )}
+                </Toggle>
+                
+                {/* Quick Equip Menu */}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className={cn(
+                                "h-8 w-8",
+                                requiresGearUnlocks && "opacity-50 cursor-not-allowed"
+                              )}
+                              disabled={requiresGearUnlocks}
+                            >
+                              {requiresGearUnlocks ? (
+                                <Lock className="w-4 h-4 text-amber-500" />
+                              ) : (
+                                <Wand2 className="w-4 h-4 text-amber-400" />
+                              )}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          {!requiresGearUnlocks && (
+                            <DropdownMenuContent align="end" className="w-64">
+                              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                                Quick Equip Full Set
+                              </div>
+                              {legendarySetDefinitions.map(set => {
+                                const setLocked = isSetLocked(set.id, allLegendaryItems);
+                                return (
+                                  <DropdownMenuItem
+                                    key={set.id}
+                                    onClick={() => !setLocked && handleQuickEquipSet(set.id)}
+                                    disabled={setLocked}
+                                    className={cn(
+                                      "cursor-pointer",
+                                      setLocked && "opacity-50 cursor-not-allowed"
+                                    )}
+                                  >
+                                    {setLocked ? (
+                                      <Lock className="w-3 h-3 text-amber-500" />
+                                    ) : (
+                                      <span className="text-amber-400">★</span>
+                                    )}
+                                    <span className="ml-2 truncate">{set.name}</span>
+                                    {setLocked && (
+                                      <span className="ml-auto text-[10px] text-amber-500">Locked</span>
+                                    )}
+                                  </DropdownMenuItem>
+                                );
+                              })}
+                            </DropdownMenuContent>
+                          )}
+                        </DropdownMenu>
+                      </div>
+                    </TooltipTrigger>
+                    {requiresGearUnlocks && (
+                      <TooltipContent side="bottom">
+                        <p className="text-xs">Quick Equip disabled in Honest Mode</p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            </div>
 
-      {/* Bottom Stats Bar */}
-      <footer className={cn(
-        "relative z-10 flex items-center justify-around border-t border-border/50 bg-background/80 backdrop-blur-md transition-all duration-300",
-        isCompact ? "px-3 py-2" : "px-4 py-3"
-      )}>
-        <div className="flex items-center gap-1.5">
-          <Shield className={cn("text-blue-400", isCompact ? "w-4 h-4" : "w-5 h-5")} />
-          <div className="text-center">
-            <p className={cn("font-bold", isCompact ? "text-sm" : "text-lg")}>{stats.totalAC}</p>
-            <p className={cn("text-muted-foreground uppercase", isCompact ? "text-[8px]" : "text-[10px]")}>AC</p>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-1.5">
-          <Sword className={cn("text-red-400", isCompact ? "w-4 h-4" : "w-5 h-5")} />
-          <div className="text-center">
-            <p className={cn("font-bold", isCompact ? "text-sm" : "text-lg")}>{stats.totalDamage}</p>
-            <p className={cn("text-muted-foreground uppercase", isCompact ? "text-[8px]" : "text-[10px]")}>Attack</p>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-1.5">
-          <Backpack className={cn("text-amber-400", isCompact ? "w-4 h-4" : "w-5 h-5")} />
-          <div className="text-center">
-            <p className={cn("font-bold", isCompact ? "text-sm" : "text-lg")}>{stats.totalWeight}</p>
-            <p className={cn("text-muted-foreground uppercase", isCompact ? "text-[8px]" : "text-[10px]")}>Weight</p>
-          </div>
-        </div>
-      </footer>
+            {/* Full Screen Equipment List */}
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <ScrollArea className={cn("flex-1", isCompact ? "px-3 pt-2" : "px-4 pt-3")}>
+                <EquipmentList
+                  equipment={equipment}
+                  highlightedSlot={highlightedSlot}
+                  onSlotTap={handleSlotTap}
+                  onSlotLongPress={handleSlotLongPress}
+                  onUnequip={handleUnequip}
+                  onSwap={handleSwap}
+                  onInfoTap={handleInfoTap}
+                  onSlotHover={setHighlightedSlot}
+                  viewMode={viewMode}
+                  isItemLocked={isItemLocked}
+                  getItemLockInfo={getItemLockInfo}
+                />
+                
+                {/* Set Bonuses */}
+                <SetBonusPanel equipment={equipment} />
+                
+                {/* Bottom padding for stats bar */}
+                <div className={isCompact ? "h-16" : "h-20"} />
+              </ScrollArea>
+            </div>
+
+            {/* Bottom Stats Bar */}
+            <footer className={cn(
+              "flex items-center justify-around border-t border-border/50 bg-background/80 backdrop-blur-md transition-all duration-300",
+              isCompact ? "px-3 py-2" : "px-4 py-3"
+            )}>
+              <div className="flex items-center gap-1.5">
+                <Shield className={cn("text-blue-400", isCompact ? "w-4 h-4" : "w-5 h-5")} />
+                <div className="text-center">
+                  <p className={cn("font-bold", isCompact ? "text-sm" : "text-lg")}>{stats.totalAC}</p>
+                  <p className={cn("text-muted-foreground uppercase", isCompact ? "text-[8px]" : "text-[10px]")}>AC</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-1.5">
+                <Sword className={cn("text-red-400", isCompact ? "w-4 h-4" : "w-5 h-5")} />
+                <div className="text-center">
+                  <p className={cn("font-bold", isCompact ? "text-sm" : "text-lg")}>{stats.totalDamage}</p>
+                  <p className={cn("text-muted-foreground uppercase", isCompact ? "text-[8px]" : "text-[10px]")}>Attack</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-1.5">
+                <Backpack className={cn("text-amber-400", isCompact ? "w-4 h-4" : "w-5 h-5")} />
+                <div className="text-center">
+                  <p className={cn("font-bold", isCompact ? "text-sm" : "text-lg")}>{stats.totalWeight}</p>
+                  <p className={cn("text-muted-foreground uppercase", isCompact ? "text-[8px]" : "text-[10px]")}>Weight</p>
+                </div>
+              </div>
+            </footer>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Item Detail Sheet */}
       <ItemDetailSheet
@@ -434,17 +462,6 @@ export function InventoryScreen({
         isOpen={showComparison}
         onClose={() => setShowComparison(false)}
         onEquipNew={handleEquipNew}
-      />
-
-      {/* Inventory Drawer */}
-      <InventoryDrawer
-        isOpen={showInventoryDrawer}
-        onClose={() => setShowInventoryDrawer(false)}
-        inventory={equipment.inventory}
-        slotType={selectedSlot}
-        onSelectItem={handleEquipFromInventory}
-        isItemLocked={isItemLocked}
-        getItemLockInfo={getItemLockInfo}
       />
 
       {/* Active Set Bonus Drawer */}
