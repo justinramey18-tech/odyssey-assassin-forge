@@ -1,623 +1,1403 @@
-
-
-# Enhanced Flexible Multi-Path Magic System: Maximum Utility, Integration & Immersion
-
-## Executive Summary
-
-A standalone spellcasting system that mirrors your existing architectural patterns (ability trees, prestige, conditions) while adding full D&D 5e spellcasting complexity. Designed for seamless integration with your Oracle, Combat HUD, Conditions, and Rest systems.
-
----
-
-## I. Enhanced Utility Features
-
-### 1. Spell Slots Visualization
-
-| Standard | Enhanced |
-|----------|----------|
-| Simple pip display | **Energy-ring visualization** inspired by `InfinityGauntletStyles.css` |
-| Manual tracking | **Auto-rest recovery** integrated with existing Short/Long Rest handlers |
-| Static UI | **Animated consumption** with school-colored energy effects |
-
-**Visual Design:**
-- Each spell level gets a row of "energy orbs" (similar to condition severity animations)
-- Consumed slots fade with a drain animation; recovered slots pulse with restoration glow
-- Warlock "Pact Slots" have distinct violet styling and recover on Short Rest
-
-### 2. Spellbook Management
-
-**Preparation Flow:**
-- Daily preparation limit based on path (e.g., Arcane Trickster: INT mod + 1/3 level)
-- Drag-and-drop spell ordering (mobile: tap-to-select, then tap destination)
-- Smart filtering: By school, level, concentration, ritual, prepared status
-- "Quick Prepare" suggestions based on Oracle analysis of current conditions/buffs
-
-**Spell Search:**
-- Fuzzy search by name, school, or effect keywords
-- "Recently Cast" section for quick access
-- "Favorited" spells pinned to top
-
-### 3. Component Tracking
-
-| Component Type | UI Element | Automation |
-|----------------|------------|------------|
-| **Verbal (V)** | Mic icon | Silence condition blocks casting |
-| **Somatic (S)** | Hand icon | Restrained condition blocks casting |
-| **Material (M)** | Pouch icon | Component inventory with quantities |
-| **M (consumed)** | Flame icon | Auto-deduct on cast |
-| **Focus** | Crystal icon | Bypasses non-consumed materials |
-
-**Component Pouch Widget:**
-- Collapsible inventory of material components
-- Auto-warning when casting a spell with insufficient materials
-- Integration with Consumables system for shared inventory logic
-
-### 4. Ritual Casting Mode
-
-- Toggle "Ritual" on eligible spells
-- UI shows extended casting time (10 minutes base)
-- No slot consumption, but cannot be rushed
-- Oracle personality comments:
-  - Thunderhead: "Ritual efficiency detected. 10-minute casting window initiated."
-  - JARVIS: "Ritual casting mode engaged, Sir. I'll notify you upon completion."
-  - Deadpool: "Ooh, ritual time! Sit back, relax, maybe do some stretches..."
-
----
-
-## II. Seamless UI Integration
-
-### 1. Navigation Tab: "Arcana"
-
-**Position:** Between "Abilities" and "Legacy" in `AssassinHeader.tsx`
-
-**Visual Treatment:**
-- Icon: `Wand2` (Lucide) with sparkle animation on active
-- Color: Indigo/magenta gradient (`from-indigo-600/30 to-purple-600/30`)
-- Active border: `border-indigo-500`
-- Glow animation matching other tabs (`animate-glow-pulse`)
-
-```
-[ Combat ] [ Skills ] [ Abilities ] [ ✨ Arcana ✨ ] [ Legacy ] [ Gear ]
-```
-
-### 2. Magic Screen Layout
-
-**Desktop:** 3-column layout
-- Left: Path selector + path abilities overview
-- Center: Spellbook grid with school-colored borders
-- Right: Spell details panel (matches `AbilityDetailsPanel` structure)
-
-**Mobile:** Single-column with bottom sheet details
-- Path tabs at top (styled like `BranchSelector` in Prestige)
-- Swipe between: Spellbook → Slots → Components
-- Bottom sheet for spell details (matches `PrestigeAbilityDetails`)
-
-### 3. Home Screen Integration
-
-**New Drawer Option:**
-- Add "Arcana" to `drawerOptions` in `HomeScreen.tsx`
-- Icon: `Sparkles` with `text-indigo-400`
-- Opens quick spell slot status and prepared spell list
-
-**Quick Stats Enhancement:**
-- Optional 4th stat card showing "Spell Slots" with mini energy ring
-- Tap opens Arcana drawer
-
-### 4. Combat HUD Integration
-
-**New Tab: "Spells"**
-- Position after "Abilities" in `TAB_ORDER`
-- Shows prepared spells with quick-cast buttons
-- Spell slot consumption inline
-- Concentration indicator in `ConditionStrip`
-
-**Quick Cast Flow:**
-1. Tap spell card
-2. Select slot level (if upcastable)
-3. Roll (if applicable)
-4. Auto-add concentration condition (if applicable)
-5. Generate narrative prompt with personality flavor
-
-**Combat Bottom Nav Enhancement:**
-- Add `Wand2` icon for Spells tab with badge showing remaining slots
-
----
-
-## III. Deepened Immersion
-
-### 1. Path Identity System
-
-Each magic path has a distinct **visual identity** and **personality flavor**:
-
-| Path | Visual Theme | Oracle Flavor | Unique Mechanic |
-|------|--------------|---------------|-----------------|
-| **Arcane Trickster** | Emerald/silver, illusory shimmer | "Your magical prestidigitation..." | Mage Hand Legerdemain prompts |
-| **Shadow Blade** | Deep purple/black, shadow tendrils | "The Shadowfell responds..." | Teleportation flavor text |
-| **Eldritch Knight** | Steel blue/amber, rune glow | "Your blade resonates with..." | Weapon bond effects |
-| **Hexblade** | Violet/crimson, eldritch energy | "Your patron whispers..." | Invocation selection |
-
-### 2. Personality-Voiced Spellcasting
-
-**Spell Cast Prompts** (integrated with Oracle personalities):
-
-| Event | Thunderhead | JARVIS | Deadpool |
-|-------|-------------|--------|----------|
-| **Spell success** | "Arcane probability: 94.7%. Execution: optimal." | "Excellent form, Sir. The weave responds beautifully." | "MAGIC MISSILE GO BRRRR! Three little blue darts of 'go away'!" |
-| **Concentration start** | "Mental bandwidth allocated. Monitoring stability." | "Concentration lock engaged. I shall monitor for disruptions." | "Okay, focusing now. Don't think about tacos. DON'T THINK ABOUT TACOS." |
-| **Concentration save** | "Neural stability: 78.3%. Probability of failure: 21.7%." | "Concentration check required, Sir. Current strain levels: elevated." | "Quick! Think about literally ANYTHING except dropping this spell!" |
-| **Slot exhausted** | "Arcane reserves depleted for this tier." | "I'm afraid that slot is... unavailable, Sir." | "Empty! Just like my bank account and emotional availability!" |
-
-### 3. Spell School Visual Language
-
-Borrow from `ConditionStyles.css` severity animations:
-
-| School | Color | Animation | Icon |
-|--------|-------|-----------|------|
-| **Abjuration** | Blue | Shield pulse | `Shield` |
-| **Conjuration** | Teal | Portal swirl | `Sparkles` |
-| **Divination** | Violet | Eye glow | `Eye` |
-| **Enchantment** | Pink | Heart beat | `Heart` |
-| **Evocation** | Orange/Red | Fire burst | `Flame` |
-| **Illusion** | Silver | Shimmer fade | `Ghost` |
-| **Necromancy** | Green/Black | Skull pulse | `Skull` |
-| **Transmutation** | Gold | Alchemical glow | `FlaskConical` |
-
-### 4. Concentration Integration with Conditions
-
-**Auto-Add "Concentrating" Buff:**
-- When casting concentration spell, auto-add to Condition Status Board
-- Duration: Matches spell duration
-- Visual: Distinct styling (blue glow, eye icon overlay)
-- Oracle context: Included in `activeBuffs` for tactical advice
-
-**Concentration Break Flow:**
-1. When damage taken, prompt for CON save
-2. DC = 10 or half damage (whichever higher)
-3. Quick buttons: [Passed] / [Failed]
-4. On failure: Auto-remove concentration buff + spell effect
-5. Personality-flavored toast notification
-
-### 5. Spell Prompt Generation
-
-Extend `generateRPPrompt` pattern to `generateSpellPrompt`:
-
-```typescript
-interface SpellPrompt {
-  spell: SpellDefinition;
-  castLevel: number;
-  characterName: string;
-  path: MagicPath;
-  roll?: DiceRoll; // For attack spells
-  saveDC?: number; // For save-based spells
-  targets?: string[];
-  personality: Personality;
-}
-```
-
-**Output Example (Deadpool personality, Magic Missile):**
-```markdown
-## Spell Cast: Magic Missile
-
-**Character:** Wade Wilson
-**Spell:** Magic Missile (1st Level Evocation)
-**Path:** Arcane Trickster — because why just stab when you can stab AND do magic?
-**Cast Level:** 1st (3 darts) | **Slot Used:** 1/3 remaining
-
----
-
-### The Moment
-
-Wade flicks his fingers like he's tossing invisible playing cards. Three glowing blue darts of pure force materialize, each one unerringly locked onto its target.
-
-*"Pew pew pew! These babies NEVER miss. Unlike my love life. And my fashion sense. And most of my life choices, really..."*
-
-**Damage:** 3 darts × (1d4+1) = [3, 2, 4] = **9 force damage** (auto-hit)
-
----
-
-### Scene Direction for AI DM
-
-The darts streak toward the target with perfect accuracy. Force magic doesn't care about cover or armor—describe the impact as pure kinetic punishment. The target staggers from the triple impact.
-
-**Narrative Hooks:**
-- Does the target realize they can't dodge these?
-- What's Wade's quip as the darts connect?
-
----
-
-*Cast: Magic Missile (1st) | Slots: 1/3 1st-level remaining*
-```
-
-### 6. Rest Integration
-
-**Short Rest (for Hexblade/Warlock path):**
-- Pact Slots fully recover
-- Other paths: No slot recovery
-- Toast with personality flavor
-
-**Long Rest (all paths):**
-- All spell slots recover
-- Prepared spells can be changed
-- Concentration effects end (with warning)
-- Toast: "Arcane reserves restored."
-
----
-
-## IV. Technical Architecture
-
-### New File Structure
-
-```
-src/lib/magic/
-├── types.ts                 # Core interfaces
-├── paths/
-│   ├── types.ts             # MagicPath, PathConfig
-│   ├── arcane-trickster.ts  # Path definition
-│   ├── shadow-blade.ts
-│   ├── eldritch-knight.ts
-│   ├── hexblade.ts
-│   └── index.ts
-├── spells/
-│   ├── types.ts             # SpellDefinition, SpellSlot
-│   ├── cantrips.ts
-│   ├── 1st-level.ts
-│   ├── 2nd-level.ts
-│   ├── 3rd-level.ts
-│   ├── 4th-level.ts
-│   └── index.ts
-├── components.ts            # Material component catalog
-├── schools.ts               # School visual config
-├── prompts.ts               # Spell RP prompt generator
-└── index.ts
-
-src/hooks/use-spellcasting.ts  # State management hook
-
-src/components/magic/
-├── MagicScreen.tsx          # Main tab component
-├── PathSelector.tsx         # Path selection tabs
-├── SpellbookGrid.tsx        # Spell display grid
-├── SpellCard.tsx            # Individual spell display
-├── SpellDetailsSheet.tsx    # Bottom sheet details
-├── SpellSlotTracker.tsx     # Slot visualization
-├── SpellCastSheet.tsx       # Casting modal with upcast
-├── ComponentPouch.tsx       # Material components inventory
-├── ConcentrationWidget.tsx  # Concentration status
-├── MagicStyles.css          # School-based animations
-└── index.ts
-
-src/components/combat/mobile/
-├── MobileSpellList.tsx      # Combat spell grid (new)
-└── SpellCastFAB.tsx         # Quick-cast button (new)
-```
-
-### Key Type Definitions
-
-```typescript
-// Magic Path
-type MagicPath = 'arcane_trickster' | 'shadow_blade' | 'eldritch_knight' | 'hexblade';
-
-interface PathConfig {
-  id: MagicPath;
-  name: string;
-  subtitle: string;
-  icon: LucideIcon;
-  primaryColor: string;
-  spellcastingAbility: 'INT' | 'CHA' | 'WIS';
-  spellListRestrictions?: SpellSchool[];
-  slotProgression: 'third' | 'half' | 'pact';
-  features: PathFeature[];
-}
-
-// Spell Definition
-interface SpellDefinition {
-  id: string;
-  name: string;
-  level: 0 | 1 | 2 | 3 | 4; // 0 = cantrip
-  school: SpellSchool;
-  castingTime: 'action' | 'bonus_action' | 'reaction' | 'ritual';
-  range: string;
-  components: {
-    verbal: boolean;
-    somatic: boolean;
-    material?: string;
-    materialConsumed?: boolean;
-    materialCost?: number;
-  };
-  duration: string;
-  concentration: boolean;
-  description: string;
-  upcastEffect?: string;
-  attackType?: 'melee' | 'ranged' | 'save';
-  saveStat?: 'STR' | 'DEX' | 'CON' | 'INT' | 'WIS' | 'CHA';
-  damageType?: string;
-  icon: string;
-  personalityQuips: {
-    thunderhead: string;
-    jarvis: string;
-    deadpool: string;
-  };
-}
-
-// Active Spellcasting State
-interface SpellcastingState {
-  path: MagicPath | null;
-  knownSpells: string[];       // Spell IDs
-  preparedSpells: string[];    // Subset of known
-  spellSlots: Record<number, { current: number; max: number }>;
-  pactSlots?: { current: number; max: number; level: number };
-  spellcastingAbility: 'INT' | 'CHA' | 'WIS';
-  proficiencyBonus: number;
-  materialComponents: Record<string, number>; // Component ID -> quantity
-  focusEquipped: boolean;
-  concentratingOn: string | null; // Spell ID
-}
-```
-
-### Files to Modify
-
-| File | Change |
-|------|--------|
-| `src/components/navigation/AssassinHeader.tsx` | Add "Arcana" tab with indigo styling |
-| `src/pages/Index.tsx` | Add `arcana` to tab types, integrate `useSpellcasting` hook, add `<MagicScreen />` |
-| `src/components/home/HomeScreen.tsx` | Add "Arcana" to `drawerOptions`, optional spell slot stat card |
-| `src/components/drawers/PromptDrawerProvider.tsx` | Add `arcanaOpen` state, pass spellcasting data to Oracle |
-| `src/components/oracle/types.ts` | Add `spellcasting` to `CharacterContext` |
-| `supabase/functions/oracle-assistant/index.ts` | Include spell slots, concentration, path in context |
-| `src/components/combat/mobile/MobileCombatLayout.tsx` | Add `spells` tab, integrate concentration with conditions |
-| `src/components/combat/mobile/CombatBottomNav.tsx` | Add spell tab with slot count badge |
-| `src/hooks/use-conditions.ts` | Add `addConcentrationCondition` helper |
-| `src/components/conditions/ConditionStatusBoard.tsx` | Special styling for concentration buffs |
-
----
-
-## V. Implementation Phases
-
-### Phase 1: Foundation (Types + Path Selection) ✅ COMPLETE
-- ✅ Created `src/lib/magic/types.ts` - Core type system with slot progression tables
-- ✅ Created `src/lib/magic/schools.ts` - School visual configurations  
-- ✅ Created `src/lib/magic/paths/` - All 4 path definitions (Arcane Trickster, Shadow Blade, Eldritch Knight, Hexblade)
-- ✅ Created `src/hooks/use-spellcasting.ts` - Full state management with localStorage persistence
-- ✅ Created `src/components/magic/MagicScreen.tsx` - Path selection and placeholder spellbook UI
-- ✅ Added "Arcana" tab to `AssassinHeader.tsx` with indigo styling
-- ✅ Integrated into `Index.tsx` with full tab routing
-
-### Phase 2: Spellbook Core
-- Build spell database (cantrips + 1st-2nd level for each path)
-- Create `MagicScreen.tsx` with path selector and spell grid
-- Implement spell details sheet
-- Add spell slot tracker visualization
-
-### Phase 3: Casting Flow
-- Build `SpellCastSheet.tsx` with upcast selection
-- Integrate concentration with Condition Status Board
-- Add component tracking
-- Create spell RP prompt generator with personality support
-
-### Phase 4: Combat + Oracle Integration
-- Add "Spells" tab to Combat HUD
-- Implement quick-cast flow
-- Update Oracle context with spellcasting state
-- Add spell-aware Oracle suggestions
-
-### Phase 5: Polish
-- Ritual casting mode
-- Full material component inventory
-- Spell search/filtering
-- Session statistics for Chronicle Sync
-
----
-
-## VI. Oracle Integration Summary
-
-**New Context Fields:**
-```typescript
-interface CharacterContext {
-  // ...existing fields...
-  spellcasting?: {
-    path: MagicPath;
-    pathName: string;
-    slotsRemaining: Record<number, number>;
-    preparedSpells: string[];
-    concentratingOn: string | null;
-    spellAttackBonus: number;
-    spellSaveDC: number;
-  };
-}
-```
-
-**Smart Suggestions:**
-- "You have 2 1st-level slots remaining. Consider Shield if you expect to be targeted."
-- "Warning: Casting a concentration spell will end your current Invisibility."
-- "Your spell save DC is 14. Against this target's likely WIS save, success probability is approximately 65%."
-
----
-
-## VII. Differentiation from Ability Trees
-
-| Aspect | Ability Trees | Magic System |
-|--------|---------------|--------------|
-| **Progression** | Tier 1→2→3 per ability | Spell level access via path progression |
-| **Resource** | Ability Points (permanent) | Spell Slots (per-rest) |
-| **Cost** | Points invested | Slots consumed per cast |
-| **Recovery** | N/A (permanent upgrades) | Short Rest (Pact) / Long Rest (all) |
-| **Customization** | Tree builds | Spell preparation |
-| **Combat** | Equipped loadout | Prepared spells + available slots |
-
-This maintains the fantasy of being a **martial class with magical augmentation**, not a full caster—you're still an Assassin who happens to have picked up some tricks.
-
----
-
-# Mobile-First Conditions System
+# Random Loot Generator - Mobile-First Implementation Plan
 
 ## Overview
-A D&D 5e status conditions system designed for fast combat tracking on mobile devices. Tracks debuffs (Poisoned, Stunned), buffs (Blessed, Hasted), and concentration spells with TTRPG-appropriate duration tracking.
+Create a **mobile-optimized** interactive Loot Generator feature with touch-friendly controls, swipe gestures, bottom sheet UI, and responsive animations optimized for small screens.
 
-## Critical Domain Logic Clarifications
+---
 
-### 1. Duration Mechanics: Rounds & Minutes
+## Mobile-First Design Philosophy
 
-**Round-based durations:**
-- Decrement by 1 each time `endTurn()` is called
-- Auto-remove when `durationValue` reaches 0
-- Toast notification: "Stunned wore off"
+### Key Principles
+- ✅ **Touch targets ≥ 44px** (Apple HIG standard)
+- ✅ **Thumb-zone optimized** (critical actions at bottom)
+- ✅ **Swipe gestures** for natural interactions
+- ✅ **Bottom sheet drawer** instead of side drawer
+- ✅ **Haptic feedback** on interactions (where supported)
+- ✅ **Single-column layouts** with generous spacing
+- ✅ **Large, readable text** (16px minimum)
+- ✅ **Progressive disclosure** (collapse/expand sections)
 
-**Minute-based durations:**
-- **10 rounds = 1 minute** (D&D 5e standard: 6 seconds/round)
-- Internal tracking uses `roundsElapsed` counter
-- Every 10th `endTurn()` call decrements minute-based conditions by 1
-- Display shows minutes remaining, not rounds
-- Example: "Blessed (2 min)" → after 10 turns → "Blessed (1 min)"
+---
+
+## Mobile UI/UX Flow
+
+```
+1. User taps "Loot" FAB or menu item
+   ↓
+2. Bottom sheet slides up (70% viewport height)
+   ↓
+3. Filter section at top (sticky)
+   - Horizontal scrollable chip buttons for loot types
+   - Segmented control for rarity (swipeable)
+   ↓
+4. Large "Generate" button (thumb-zone, bottom third)
+   ↓
+5. Shimmer animation (0.8s) with haptic pulse
+   ↓
+6. Result card slides up with spring animation
+   - Swipe down to dismiss
+   - Swipe left for "Add to Inventory"
+   - Swipe right for "Roll Again"
+   ↓
+7. Action buttons at bottom (fixed)
+   - Primary: Add to Inventory (green, 60% width)
+   - Secondary: Roll Again (outline, 40% width)
+```
+
+---
+
+## Mobile Component Architecture
+
+```
+MobileLootGenerator (Bottom Sheet)
+├── Sticky Header (drag handle + title)
+├── Filter Strip (horizontal scroll)
+│   ├── Loot Type Chips (multi-select)
+│   └── Rarity Selector (segmented, swipeable)
+├── Scroll Area (main content)
+│   ├── Generate Button (large, thumb-zone)
+│   ├── Result Card (swipeable)
+│   └── History Accordion (collapsible)
+└── Fixed Bottom Actions (when result visible)
+    ├── Add to Inventory (primary)
+    └── Roll Again (secondary)
+```
+
+---
+
+## Technical Implementation
+
+### **New Files to Create**
+
+#### 1. `src/lib/lootGenerator/types.ts`
+**Purpose**: Type definitions (same as desktop, but add mobile-specific)
 
 ```typescript
-interface ActiveCondition {
-  // ...existing fields
-  roundsElapsed: number; // Tracks rounds for minute conversion
+export type LootType = 'equipment' | 'potion' | 'poison' | 'scroll';
+export type LootRarity = 'common' | 'uncommon' | 'rare' | 'very_rare' | 'legendary';
+
+export interface LootGeneratorConfig {
+  types: LootType[];
+  maxRarity: LootRarity;
+  weightedDistribution: boolean;
 }
 
-const endTurn = () => {
-  setConditions(prev => prev.map(c => {
-    if (c.durationType === 'rounds') {
-      return { ...c, durationValue: c.durationValue - 1 };
-    }
-    if (c.durationType === 'minutes') {
-      const newRoundsElapsed = c.roundsElapsed + 1;
-      if (newRoundsElapsed >= 10) {
-        return { ...c, durationValue: c.durationValue - 1, roundsElapsed: 0 };
-      }
-      return { ...c, roundsElapsed: newRoundsElapsed };
-    }
-    return c;
-  }).filter(c => c.durationValue > 0 || c.durationType === 'save_ends' || c.durationType === 'indefinite'));
-};
+export interface LootResult {
+  id: string;
+  name: string;
+  type: LootType;
+  rarity: LootRarity;
+  description: string;
+  stats?: Record<string, any>;
+  effects?: string[];
+  enchantments?: string[];
+  icon?: string;
+  value?: number;
+}
+
+export interface LootHistory {
+  timestamp: number;
+  result: LootResult;
+}
+
+// Mobile-specific types
+export interface SwipeAction {
+  direction: 'left' | 'right' | 'down';
+  action: 'add' | 'reroll' | 'dismiss';
+  threshold: number;
+}
+
+export interface HapticPattern {
+  type: 'light' | 'medium' | 'heavy' | 'success' | 'error';
+  duration?: number;
+}
 ```
 
-### 2. Concentration Break Behavior
+---
 
-**Triggers for concentration break:**
-- Manual "Break Concentration" button tap
-- Taking damage (user confirms failed CON save)
-- Casting another concentration spell (auto-detected)
-- Incapacitated/Unconscious condition applied
-
-**Break flow:**
-1. Remove ALL conditions where `category === 'concentration'`
-2. Display prominent toast: "Concentration broken - [Spell Name] ended"
-3. If triggered by new concentration spell, apply new spell after break
-4. Log to `recentConditions` for quick re-apply option
+#### 2. `src/lib/lootGenerator/generator.ts`
+**Purpose**: Core generation logic (same as desktop version)
 
 ```typescript
-const breakConcentration = (reason?: string) => {
-  const concentrationSpells = conditions.filter(c => c.category === 'concentration');
-  
-  if (concentrationSpells.length === 0) return;
-  
-  const spellNames = concentrationSpells.map(c => c.name).join(', ');
-  
-  setConditions(prev => prev.filter(c => c.category !== 'concentration'));
-  
-  toast({
-    title: "Concentration Broken",
-    description: reason 
-      ? `${spellNames} ended - ${reason}`
-      : `${spellNames} ended`,
-    variant: "destructive",
-  });
+import { LootGeneratorConfig, LootResult, LootRarity } from './types';
+import { allEquipment } from '@/lib/inventory/utils';
+import { allConsumables } from '@/lib/consumables';
+
+const RARITY_WEIGHTS: Record<LootRarity, number> = {
+  common: 40,
+  uncommon: 30,
+  rare: 18,
+  very_rare: 9,
+  legendary: 3,
 };
 
-// Auto-break when adding new concentration
-const addCondition = (config: NewConditionInput) => {
-  if (config.category === 'concentration') {
-    const existingConcentration = conditions.find(c => c.category === 'concentration');
-    if (existingConcentration) {
-      breakConcentration(`Replaced by ${config.name}`);
-    }
+export function generateRandomLoot(config: LootGeneratorConfig): LootResult {
+  const rarity = getWeightedRarity(config.maxRarity);
+  const pool = getItemPool(config.types, rarity);
+  
+  if (pool.length === 0) {
+    throw new Error('No items match the selected criteria');
   }
-  // ...add new condition
-};
+  
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+export function getWeightedRarity(maxRarity: LootRarity): LootRarity {
+  const rarityOrder: LootRarity[] = ['common', 'uncommon', 'rare', 'very_rare', 'legendary'];
+  const maxIndex = rarityOrder.indexOf(maxRarity);
+  const availableRarities = rarityOrder.slice(0, maxIndex + 1);
+  const totalWeight = availableRarities.reduce((sum, r) => sum + RARITY_WEIGHTS[r], 0);
+  
+  let roll = Math.random() * totalWeight;
+  
+  for (const rarity of availableRarities) {
+    roll -= RARITY_WEIGHTS[rarity];
+    if (roll <= 0) return rarity;
+  }
+  
+  return maxRarity;
+}
+
+function getItemPool(types: LootType[], rarity: LootRarity): LootResult[] {
+  const pool: LootResult[] = [];
+  
+  if (types.includes('equipment')) {
+    const equipment = allEquipment
+      .filter(item => item.rarity === rarity)
+      .map(item => ({
+        id: item.id,
+        name: item.name,
+        type: 'equipment' as const,
+        rarity: item.rarity,
+        description: item.description || '',
+        stats: item.stats,
+        enchantments: item.enchantments,
+        icon: item.icon,
+        value: item.value,
+      }));
+    pool.push(...equipment);
+  }
+  
+  const consumableTypes = types.filter(t => ['potion', 'poison', 'scroll'].includes(t));
+  if (consumableTypes.length > 0) {
+    const consumables = allConsumables
+      .filter(item => 
+        consumableTypes.includes(item.type as LootType) &&
+        item.rarity === rarity
+      )
+      .map(item => ({
+        id: item.id,
+        name: item.name,
+        type: item.type as LootType,
+        rarity: item.rarity,
+        description: item.description,
+        effects: item.effects,
+        icon: item.icon,
+        value: item.value,
+      }));
+    pool.push(...consumables);
+  }
+  
+  return pool;
+}
+
+export function getRarityColor(rarity: LootRarity): string {
+  const colors: Record<LootRarity, string> = {
+    common: '#9CA3AF',
+    uncommon: '#10B981',
+    rare: '#3B82F6',
+    very_rare: '#A855F7',
+    legendary: '#F59E0B',
+  };
+  return colors[rarity];
+}
+
+export function getRarityLabel(rarity: LootRarity): string {
+  const labels: Record<LootRarity, string> = {
+    common: 'Common',
+    uncommon: 'Uncommon',
+    rare: 'Rare',
+    very_rare: 'Very Rare',
+    legendary: 'Legendary',
+  };
+  return labels[rarity];
+}
 ```
 
-### 3. Duplicate Condition Handling
+---
 
-**Policy: Refresh duration, don't stack**
-
-When adding a condition that already exists (matched by `conditionId`):
-1. Find existing instance
-2. Update `durationValue` to new value (refresh)
-3. Reset `roundsElapsed` to 0
-4. Update `source` if provided
-5. Show confirmation toast: "Poisoned refreshed (1 minute)"
-
-**Exception: Buffs that can stack** (future consideration)
-- Bardic Inspiration dice could stack with flag `stackable: true`
-- For MVP, no stacking - just refresh
+#### 3. `src/lib/lootGenerator/haptics.ts`
+**Purpose**: Haptic feedback utilities for mobile
 
 ```typescript
-const addCondition = (config: NewConditionInput) => {
-  const existingIndex = conditions.findIndex(c => c.conditionId === config.conditionId);
+import { HapticPattern } from './types';
+
+/**
+ * Trigger haptic feedback (mobile devices only)
+ */
+export function triggerHaptic(pattern: HapticPattern['type']) {
+  // Check if Vibration API is supported
+  if (!('vibrate' in navigator)) return;
   
-  if (existingIndex !== -1) {
-    // Refresh existing
-    setConditions(prev => prev.map((c, i) => 
-      i === existingIndex 
-        ? { 
-            ...c, 
-            durationValue: config.durationValue,
-            roundsElapsed: 0,
-            source: config.source ?? c.source,
-            appliedAt: Date.now()
-          }
-        : c
-    ));
+  const patterns: Record<HapticPattern['type'], number | number[]> = {
+    light: 10,
+    medium: 20,
+    heavy: 30,
+    success: [10, 50, 10],
+    error: [20, 100, 20],
+  };
+  
+  const vibrationPattern = patterns[pattern];
+  
+  if (Array.isArray(vibrationPattern)) {
+    navigator.vibrate(vibrationPattern);
+  } else {
+    navigator.vibrate(vibrationPattern);
+  }
+}
+
+/**
+ * Trigger haptic on button press
+ */
+export function hapticPress() {
+  triggerHaptic('light');
+}
+
+/**
+ * Trigger haptic on successful action
+ */
+export function hapticSuccess() {
+  triggerHaptic('success');
+}
+
+/**
+ * Trigger haptic on error
+ */
+export function hapticError() {
+  triggerHaptic('error');
+}
+```
+
+---
+
+#### 4. `src/lib/lootGenerator/index.ts`
+
+```typescript
+export * from './types';
+export * from './generator';
+export * from './haptics';
+```
+
+---
+
+#### 5. `src/components/loot/MobileLootResultCard.tsx`
+**Purpose**: Swipeable result card optimized for mobile
+
+```typescript
+import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
+import { LootResult } from '@/lib/lootGenerator';
+import { getRarityColor, getRarityLabel } from '@/lib/lootGenerator/generator';
+import { triggerHaptic } from '@/lib/lootGenerator/haptics';
+import { Badge } from '@/components/ui/badge';
+import { Sparkles, ArrowRight, ArrowLeft, ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface MobileLootResultCardProps {
+  result: LootResult;
+  onAddToInventory: () => void;
+  onRollAgain: () => void;
+  onDismiss: () => void;
+}
+
+export function MobileLootResultCard({ 
+  result, 
+  onAddToInventory, 
+  onRollAgain,
+  onDismiss 
+}: MobileLootResultCardProps) {
+  const rarityColor = getRarityColor(result.rarity);
+  
+  // Swipe gesture tracking
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  
+  // Visual feedback during swipe
+  const rotateZ = useTransform(x, [-200, 200], [-15, 15]);
+  const opacity = useTransform(x, [-200, -100, 0, 100, 200], [0.5, 0.8, 1, 0.8, 0.5]);
+  
+  // Handle swipe end
+  const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    const swipeThreshold = 100;
+    const velocityThreshold = 500;
     
+    // Swipe left → Add to Inventory
+    if (info.offset.x < -swipeThreshold || info.velocity.x < -velocityThreshold) {
+      triggerHaptic('success');
+      onAddToInventory();
+      return;
+    }
+    
+    // Swipe right → Roll Again
+    if (info.offset.x > swipeThreshold || info.velocity.x > velocityThreshold) {
+      triggerHaptic('medium');
+      onRollAgain();
+      return;
+    }
+    
+    // Swipe down → Dismiss
+    if (info.offset.y > swipeThreshold || info.velocity.y > velocityThreshold) {
+      triggerHaptic('light');
+      onDismiss();
+      return;
+    }
+  };
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9, y: 50 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.9, y: 50 }}
+      transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+      drag
+      dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+      dragElastic={0.7}
+      onDragEnd={handleDragEnd}
+      style={{ x, y, rotateZ, opacity }}
+      className="relative p-5 rounded-2xl border-2 bg-gradient-to-br from-slate-900 to-black touch-none"
+      style={{ 
+        borderColor: rarityColor,
+        boxShadow: `0 0 30px ${rarityColor}40`,
+      }}
+    >
+      {/* Swipe Indicators */}
+      <motion.div
+        className="absolute inset-0 flex items-center justify-start pl-6 pointer-events-none"
+        style={{ opacity: useTransform(x, [-200, -50, 0], [1, 0.5, 0]) }}
+      >
+        <div className="flex items-center gap-2 text-green-400">
+          <ArrowLeft className="w-6 h-6" />
+          <span className="font-bold text-sm">Add</span>
+        </div>
+      </motion.div>
+      
+      <motion.div
+        className="absolute inset-0 flex items-center justify-end pr-6 pointer-events-none"
+        style={{ opacity: useTransform(x, [0, 50, 200], [0, 0.5, 1]) }}
+      >
+        <div className="flex items-center gap-2 text-amber-400">
+          <span className="font-bold text-sm">Reroll</span>
+          <ArrowRight className="w-6 h-6" />
+        </div>
+      </motion.div>
+      
+      <motion.div
+        className="absolute inset-0 flex items-end justify-center pb-6 pointer-events-none"
+        style={{ opacity: useTransform(y, [0, 50, 200], [0, 0.5, 1]) }}
+      >
+        <div className="flex flex-col items-center gap-1 text-slate-400">
+          <ChevronDown className="w-6 h-6" />
+          <span className="font-bold text-xs">Dismiss</span>
+        </div>
+      </motion.div>
+      
+      {/* Card Content */}
+      <div className="relative z-10">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex-1">
+            {result.icon && (
+              <div 
+                className="w-14 h-14 rounded-xl flex items-center justify-center text-3xl mb-3"
+                style={{ backgroundColor: `${rarityColor}20` }}
+              >
+                {result.icon}
+              </div>
+            )}
+            <h3 className="text-xl font-cinzel font-bold mb-1" style={{ color: rarityColor }}>
+              {result.name}
+            </h3>
+            <p className="text-xs text-muted-foreground capitalize">
+              {result.type}
+            </p>
+          </div>
+          <Badge 
+            variant="outline"
+            className="text-xs font-bold shrink-0"
+            style={{ borderColor: rarityColor, color: rarityColor }}
+          >
+            {getRarityLabel(result.rarity)}
+          </Badge>
+        </div>
+        
+        {/* Description */}
+        <p className="text-sm text-foreground/80 mb-4 leading-relaxed line-clamp-3">
+          {result.description}
+        </p>
+        
+        {/* Stats (Equipment) - Compact for mobile */}
+        {result.stats && Object.keys(result.stats).length > 0 && (
+          <div className="mb-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+            <div className="flex flex-wrap gap-3 text-xs">
+              {Object.entries(result.stats).map(([key, value]) => (
+                <div key={key} className="flex items-center gap-1">
+                  <span className="text-muted-foreground capitalize">{key}:</span>
+                  <span className="font-bold">{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {/* Effects (Consumables) - Compact list */}
+        {result.effects && result.effects.length > 0 && (
+          <div className="mb-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="w-3 h-3 text-amber-400" />
+              <span className="text-xs font-semibold text-muted-foreground">Effects</span>
+            </div>
+            <ul className="space-y-1 text-xs">
+              {result.effects.slice(0, 3).map((effect, i) => (
+                <li key={i} className="text-foreground/80">• {effect}</li>
+              ))}
+              {result.effects.length > 3 && (
+                <li className="text-muted-foreground italic">+{result.effects.length - 3} more</li>
+              )}
+            </ul>
+          </div>
+        )}
+        
+        {/* Enchantments (Equipment) - Chips */}
+        {result.enchantments && result.enchantments.length > 0 && (
+          <div className="mb-3">
+            <div className="flex flex-wrap gap-1">
+              {result.enchantments.slice(0, 4).map((ench, i) => (
+                <Badge 
+                  key={i} 
+                  variant="outline" 
+                  className="text-[10px] border-purple-500/50 text-purple-300 px-2 py-0.5"
+                >
+                  {ench}
+                </Badge>
+              ))}
+              {result.enchantments.length > 4 && (
+                <Badge variant="outline" className="text-[10px] px-2 py-0.5">
+                  +{result.enchantments.length - 4}
+                </Badge>
+              )}
+            </div>
+          </div>
+        )}
+        
+        {/* Value */}
+        {result.value !== undefined && (
+          <div className="text-xs text-amber-400">
+            <span className="text-muted-foreground">Value:</span>{' '}
+            <span className="font-bold">{result.value} gp</span>
+          </div>
+        )}
+      </div>
+      
+      {/* Swipe hint (subtle) */}
+      <div className="absolute bottom-2 left-0 right-0 flex justify-center">
+        <div className="flex items-center gap-1 text-[10px] text-muted-foreground/50">
+          <span>Swipe to interact</span>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+```
+
+**Key Mobile Features**:
+- ✅ Drag gestures (left/right/down)
+- ✅ Visual feedback during swipe
+- ✅ Haptic feedback on actions
+- ✅ Compact layout (line-clamp descriptions)
+- ✅ Touch-friendly hit areas
+- ✅ Spring animations for natural feel
+
+---
+
+#### 6. `src/components/loot/MobileLootGenerator.tsx`
+**Purpose**: Main mobile bottom sheet UI
+
+```typescript
+import { useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { 
+  Sparkles, 
+  Sword, 
+  Droplet, 
+  Skull, 
+  ScrollText,
+  History,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
+import { 
+  LootType, 
+  LootRarity, 
+  LootResult, 
+  LootHistory,
+  generateRandomLoot,
+  getRarityLabel,
+  getRarityColor,
+  hapticPress,
+  hapticSuccess,
+} from '@/lib/lootGenerator';
+import { MobileLootResultCard } from './MobileLootResultCard';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+
+interface MobileLootGeneratorProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAddToInventory: (item: LootResult) => void;
+}
+
+const LOOT_TYPE_OPTIONS: { value: LootType; label: string; icon: React.ReactNode }[] = [
+  { value: 'equipment', label: 'Equipment', icon: <Sword className="w-4 h-4" /> },
+  { value: 'potion', label: 'Potions', icon: <Droplet className="w-4 h-4" /> },
+  { value: 'poison', label: 'Poisons', icon: <Skull className="w-4 h-4" /> },
+  { value: 'scroll', label: 'Scrolls', icon: <ScrollText className="w-4 h-4" /> },
+];
+
+const RARITY_OPTIONS: LootRarity[] = ['common', 'uncommon', 'rare', 'very_rare', 'legendary'];
+
+export function MobileLootGenerator({ open, onOpenChange, onAddToInventory }: MobileLootGeneratorProps) {
+  const { toast } = useToast();
+  
+  // Filter state
+  const [selectedTypes, setSelectedTypes] = useState<LootType[]>(['equipment', 'potion']);
+  const [maxRarity, setMaxRarity] = useState<LootRarity>('rare');
+  
+  // Result state
+  const [currentResult, setCurrentResult] = useState<LootResult | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [history, setHistory] = useState<LootHistory[]>([]);
+  const [historyExpanded, setHistoryExpanded] = useState(false);
+  
+  // Toggle loot type
+  const toggleType = (type: LootType) => {
+    hapticPress();
+    setSelectedTypes(prev => 
+      prev.includes(type) 
+        ? prev.filter(t => t !== type)
+        : [...prev, type]
+    );
+  };
+  
+  // Generate loot
+  const handleGenerate = useCallback(async () => {
+    if (selectedTypes.length === 0) {
+      toast({
+        title: 'No loot types selected',
+        description: 'Please select at least one loot type',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    hapticPress();
+    setIsGenerating(true);
+    setCurrentResult(null); // Clear previous result
+    
+    // Dramatic delay
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    try {
+      const result = generateRandomLoot({
+        types: selectedTypes,
+        maxRarity,
+        weightedDistribution: true,
+      });
+      
+      hapticSuccess();
+      setCurrentResult(result);
+      setHistory(prev => [
+        { timestamp: Date.now(), result },
+        ...prev.slice(0, 9),
+      ]);
+    } catch (error) {
+      toast({
+        title: 'Generation failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [selectedTypes, maxRarity, toast]);
+  
+  // Add to inventory
+  const handleAddToInventory = useCallback(() => {
+    if (!currentResult) return;
+    
+    hapticSuccess();
+    onAddToInventory(currentResult);
     toast({
-      title: `${config.name} refreshed`,
-      description: formatDuration(config.durationType, config.durationValue),
+      title: 'Item added',
+      description: `${currentResult.name} added to inventory`,
     });
-    return;
+    setCurrentResult(null); // Clear after adding
+  }, [currentResult, onAddToInventory, toast]);
+  
+  // Roll again
+  const handleRollAgain = useCallback(() => {
+    setCurrentResult(null);
+    handleGenerate();
+  }, [handleGenerate]);
+  
+  // Dismiss result
+  const handleDismiss = useCallback(() => {
+    setCurrentResult(null);
+  }, []);
+  
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent 
+        side="bottom" 
+        className="h-[85vh] rounded-t-3xl p-0"
+      >
+        <SheetHeader className="px-6 pt-6 pb-4 border-b">
+          <SheetTitle className="flex items-center gap-2 text-2xl">
+            <Sparkles className="w-6 h-6 text-amber-400" />
+            Loot Generator
+          </SheetTitle>
+        </SheetHeader>
+        
+        <ScrollArea className="h-[calc(85vh-80px)]">
+          <div className="px-6 py-4 space-y-6">
+            {/* Loot Type Selection - Horizontal Scroll */}
+            <div>
+              <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">
+                Loot Types
+              </h3>
+              <div className="flex gap-2 overflow-x-auto pb-2 -mx-6 px-6 scrollbar-hide">
+                {LOOT_TYPE_OPTIONS.map(option => (
+                  <Button
+                    key={option.value}
+                    variant={selectedTypes.includes(option.value) ? 'default' : 'outline'}
+                    onClick={() => toggleType(option.value)}
+                    className={cn(
+                      "flex-shrink-0 gap-2 h-12 px-5",
+                      selectedTypes.includes(option.value) && 
+                      "bg-amber-600 hover:bg-amber-500 text-white"
+                    )}
+                  >
+                    {option.icon}
+                    <span className="font-semibold">{option.label}</span>
+                  </Button>
+                ))}
+              </div>
+            </div>
+            
+            {/* Max Rarity Selection - Segmented Control */}
+            <div>
+              <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">
+                Maximum Rarity
+              </h3>
+              <div className="flex gap-2 overflow-x-auto pb-2 -mx-6 px-6 scrollbar-hide">
+                {RARITY_OPTIONS.map(rarity => {
+                  const color = getRarityColor(rarity);
+                  const isSelected = maxRarity === rarity;
+                  
+                  return (
+                    <Button
+                      key={rarity}
+                      variant={isSelected ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => {
+                        hapticPress();
+                        setMaxRarity(rarity);
+                      }}
+                      className={cn(
+                        "flex-shrink-0 h-10 px-4 font-semibold transition-all",
+                        isSelected && "shadow-lg"
+                      )}
+                      style={isSelected ? {
+                        backgroundColor: color,
+                        borderColor: color,
+                        color: '#fff',
+                      } : {
+                        borderColor: `${color}60`,
+                        color: color,
+                      }}
+                    >
+                      {getRarityLabel(rarity)}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+            
+            <Separator />
+            
+            {/* Generate Button - Large, Thumb-Zone */}
+            <Button
+              onClick={handleGenerate}
+              disabled={isGenerating || selectedTypes.length === 0}
+              className="w-full h-16 text-lg font-bold bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 shadow-lg active:scale-95 transition-transform"
+            >
+              {isGenerating ? (
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                >
+                  <Sparkles className="w-6 h-6" />
+                </motion.div>
+              ) : (
+                <>
+                  <Sparkles className="w-6 h-6 mr-2" />
+                  Generate Loot
+                </>
+              )}
+            </Button>
+            
+            {/* Result Display - Swipeable Card */}
+            <AnimatePresence mode="wait">
+              {currentResult && !isGenerating && (
+                <div className="py-4">
+                  <MobileLootResultCard
+                    key={currentResult.id}
+                    result={currentResult}
+                    onAddToInventory={handleAddToInventory}
+                    onRollAgain={handleRollAgain}
+                    onDismiss={handleDismiss}
+                  />
+                </div>
+              )}
+            </AnimatePresence>
+            
+            {/* Fixed Action Buttons (when result visible) */}
+            {currentResult && !isGenerating && (
+              <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background via-background to-transparent pointer-events-none">
+                <div className="flex gap-3 pointer-events-auto">
+                  <Button
+                    onClick={handleAddToInventory}
+                    className="flex-[3] h-14 text-base font-bold bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 shadow-lg active:scale-95 transition-transform"
+                  >
+                    Add to Inventory
+                  </Button>
+                  <Button
+                    onClick={handleRollAgain}
+                    variant="outline"
+                    className="flex-[2] h-14 text-base font-semibold border-2 active:scale-95 transition-transform"
+                  >
+                    Roll Again
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            {/* History Section - Collapsible */}
+            {history.length > 0 && (
+              <div className="pb-24">
+                <button
+                  onClick={() => {
+                    hapticPress();
+                    setHistoryExpanded(!historyExpanded);
+                  }}
+                  className="flex items-center justify-between w-full p-4 rounded-xl bg-slate-800/50 hover:
+                  className="flex items-center justify-between w-full p-4 rounded-xl bg-slate-800/50 hover:bg-slate-800 transition-colors active:scale-98"
+                >
+                  <div className="flex items-center gap-3">
+                    <History className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-base font-semibold">Roll History ({history.length})</span>
+                  </div>
+                  {historyExpanded ? 
+                    <ChevronUp className="w-5 h-5" /> : 
+                    <ChevronDown className="w-5 h-5" />
+                  }
+                </button>
+                
+                <AnimatePresence>
+                  {historyExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mt-3 space-y-2">
+                        {history.map((entry, i) => {
+                          const color = getRarityColor(entry.result.rarity);
+                          return (
+                            <motion.div
+                              key={entry.timestamp}
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: i * 0.05 }}
+                              className="p-4 rounded-xl bg-slate-900/50 border border-slate-800"
+                              style={{ borderLeftColor: color, borderLeftWidth: '4px' }}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    {entry.result.icon && (
+                                      <span className="text-xl">{entry.result.icon}</span>
+                                    )}
+                                    <h4 className="font-semibold text-sm truncate">
+                                      {entry.result.name}
+                                    </h4>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground capitalize">
+                                    {entry.result.type}
+                                  </p>
+                                </div>
+                                <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                  <span 
+                                    className="text-xs font-bold px-2 py-0.5 rounded-full border"
+                                    style={{ 
+                                      borderColor: color, 
+                                      color: color,
+                                      backgroundColor: `${color}15`
+                                    }}
+                                  >
+                                    {getRarityLabel(entry.result.rarity)}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {new Date(entry.timestamp).toLocaleTimeString([], { 
+                                      hour: '2-digit', 
+                                      minute: '2-digit' 
+                                    })}
+                                  </span>
+                                </div>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+      </SheetContent>
+    </Sheet>
+  );
+}
+```
+
+**Key Mobile Optimizations**:
+- ✅ Bottom sheet (85vh height)
+- ✅ Horizontal scrolling chips (no wrapping)
+- ✅ Large touch targets (h-12, h-14, h-16)
+- ✅ Fixed action buttons at bottom
+- ✅ Haptic feedback on all interactions
+- ✅ Active scale animations (press feedback)
+- ✅ Thumb-zone optimized layout
+
+---
+
+#### 7. `src/components/loot/index.ts`
+
+```typescript
+export * from './MobileLootGenerator';
+export * from './MobileLootResultCard';
+```
+
+---
+
+### **Existing Files to Modify**
+
+#### 1. `src/components/drawers/PromptDrawerProvider.tsx`
+
+**Add mobile-specific loot generator state:**
+
+```typescript
+import { MobileLootGenerator } from '@/components/loot';
+import { LootResult } from '@/lib/lootGenerator';
+
+interface PromptDrawerContextType {
+  // ... existing drawers
+  lootGeneratorOpen: boolean;
+  openLootGeneratorDrawer: () => void;
+  closeLootGeneratorDrawer: () => void;
+}
+
+export function PromptDrawerProvider({ children }: { children: React.ReactNode }) {
+  // ... existing state
+  const [lootGeneratorOpen, setLootGeneratorOpen] = useState(false);
+  
+  // ... existing functions
+  const openLootGeneratorDrawer = useCallback(() => {
+    setLootGeneratorOpen(true);
+  }, []);
+  
+  const closeLootGeneratorDrawer = useCallback(() => {
+    setLootGeneratorOpen(false);
+  }, []);
+  
+  // Handle adding loot to inventory
+  const handleAddLootToInventory = useCallback((item: LootResult) => {
+    // TODO: Integrate with character inventory system
+    // Example:
+    // if (item.type === 'equipment') {
+    //   addEquipmentToInventory(item);
+    // } else {
+    //   addConsumableToInventory(item);
+    // }
+    console.log('Adding to inventory:', item);
+  }, []);
+  
+  const value = {
+    // ... existing values
+    lootGeneratorOpen,
+    openLootGeneratorDrawer,
+    closeLootGeneratorDrawer,
+  };
+  
+  return (
+    <PromptDrawerContext.Provider value={value}>
+      {children}
+      
+      {/* ... existing drawers */}
+      
+      {/* Mobile Loot Generator */}
+      <MobileLootGenerator
+        open={lootGeneratorOpen}
+        onOpenChange={setLootGeneratorOpen}
+        onAddToInventory={handleAddLootToInventory}
+      />
+    </PromptDrawerContext.Provider>
+  );
+}
+```
+
+---
+
+#### 2. `src/components/home/HomeScreen.tsx`
+
+**Add loot generator to drawer menu (mobile-optimized):**
+
+```typescript
+import { Sparkles } from 'lucide-react';
+import { usePromptDrawer } from '@/components/drawers/PromptDrawerProvider';
+
+export function HomeScreen() {
+  const { openLootGeneratorDrawer } = usePromptDrawer();
+  
+  const drawerOptions = [
+    // ... existing options
+    {
+      id: 'loot',
+      label: 'Loot Generator',
+      icon: <Sparkles className="w-6 h-6" />,
+      onClick: () => openLootGeneratorDrawer(),
+      color: 'from-amber-600 to-amber-500',
+    },
+  ];
+  
+  return (
+    <div className="min-h-screen bg-background">
+      {/* ... existing content */}
+      
+      {/* Drawer Menu */}
+      <div className="grid grid-cols-2 gap-3 p-4">
+        {drawerOptions.map(option => (
+          <button
+            key={option.id}
+            onClick={option.onClick}
+            className={cn(
+              "flex flex-col items-center gap-3 p-6 rounded-2xl",
+              "bg-gradient-to-br border border-white/10",
+              "active:scale-95 transition-transform",
+              option.color || "from-slate-800 to-slate-900"
+            )}
+          >
+            {option.icon}
+            <span className="text-sm font-semibold">{option.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+#### 3. `src/components/ui/sheet.tsx` (if not exists)
+
+**Create mobile bottom sheet component:**
+
+```typescript
+import * as React from 'react';
+import * as SheetPrimitive from '@radix-ui/react-dialog';
+import { cn } from '@/lib/utils';
+import { X } from 'lucide-react';
+
+const Sheet = SheetPrimitive.Root;
+const SheetTrigger = SheetPrimitive.Trigger;
+const SheetClose = SheetPrimitive.Close;
+const SheetPortal = SheetPrimitive.Portal;
+
+const SheetOverlay = React.forwardRef<
+  React.ElementRef<typeof SheetPrimitive.Overlay>,
+  React.ComponentPropsWithoutRef<typeof SheetPrimitive.Overlay>
+>(({ className, ...props }, ref) => (
+  <SheetPrimitive.Overlay
+    className={cn(
+      'fixed inset-0 z-50 bg-black/80 backdrop-blur-sm',
+      'data-[state=open]:animate-in data-[state=closed]:animate-out',
+      'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+      className
+    )}
+    {...props}
+    ref={ref}
+  />
+));
+SheetOverlay.displayName = SheetPrimitive.Overlay.displayName;
+
+interface SheetContentProps
+  extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content> {
+  side?: 'top' | 'bottom' | 'left' | 'right';
+}
+
+const SheetContent = React.forwardRef<
+  React.ElementRef<typeof SheetPrimitive.Content>,
+  SheetContentProps
+>(({ side = 'bottom', className, children, ...props }, ref) => (
+  <SheetPortal>
+    <SheetOverlay />
+    <SheetPrimitive.Content
+      ref={ref}
+      className={cn(
+        'fixed z-50 bg-background shadow-lg transition ease-in-out',
+        'data-[state=open]:animate-in data-[state=closed]:animate-out',
+        side === 'bottom' && [
+          'inset-x-0 bottom-0 rounded-t-3xl',
+          'data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom',
+        ],
+        side === 'top' && [
+          'inset-x-0 top-0 rounded-b-3xl',
+          'data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top',
+        ],
+        side === 'left' && [
+          'inset-y-0 left-0 h-full w-3/4 rounded-r-3xl',
+          'data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left',
+        ],
+        side === 'right' && [
+          'inset-y-0 right-0 h-full w-3/4 rounded-l-3xl',
+          'data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right',
+        ],
+        className
+      )}
+      {...props}
+    >
+      {/* Drag Handle (for bottom sheets) */}
+      {side === 'bottom' && (
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-12 h-1.5 rounded-full bg-muted-foreground/30" />
+        </div>
+      )}
+      
+      {children}
+      
+      {/* Close Button */}
+      <SheetPrimitive.Close className="absolute right-4 top-4 rounded-full p-2 opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
+        <X className="h-5 w-5" />
+        <span className="sr-only">Close</span>
+      </SheetPrimitive.Close>
+    </SheetPrimitive.Content>
+  </SheetPortal>
+));
+SheetContent.displayName = SheetPrimitive.Content.displayName;
+
+const SheetHeader = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn('flex flex-col space-y-2', className)}
+    {...props}
+  />
+);
+SheetHeader.displayName = 'SheetHeader';
+
+const SheetTitle = React.forwardRef<
+  React.ElementRef<typeof SheetPrimitive.Title>,
+  React.ComponentPropsWithoutRef<typeof SheetPrimitive.Title>
+>(({ className, ...props }, ref) => (
+  <SheetPrimitive.Title
+    ref={ref}
+    className={cn('text-lg font-semibold text-foreground', className)}
+    {...props}
+  />
+));
+SheetTitle.displayName = SheetPrimitive.Title.displayName;
+
+export {
+  Sheet,
+  SheetTrigger,
+  SheetClose,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+};
+```
+
+---
+
+#### 4. `src/styles/globals.css`
+
+**Add mobile-specific utility classes:**
+
+```css
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
   
-  // Add new condition
-  // ...
-};
-```
-
-## Additional Production Safeguards
-
-### Undo/Rollback
-- 5-second "Undo" action on removal toasts
-- Stores last removed condition in `undoBuffer`
-- Tap undo → restore condition with original duration
-
-### Performance Cap
-- `MAX_ACTIVE_CONDITIONS = 15`
-- Warn at 12: "Consider clearing expired conditions"
-- Block at 15: "Remove a condition before adding more"
-
-### localStorage Error Handling
-```typescript
-const saveToStorage = (conditions: ActiveCondition[]) => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(conditions));
-  } catch (e) {
-    console.error('Failed to save conditions:', e);
-    toast({
-      title: "Save Warning",
-      description: "Conditions may not persist - storage full",
-      variant: "destructive",
-    });
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
+  
+  /* Active state scale (press feedback) */
+  .active\:scale-95:active {
+    transform: scale(0.95);
+  }
+  
+  .active\:scale-98:active {
+    transform: scale(0.98);
+  }
+  
+  /* Smooth transitions for mobile */
+  .transition-transform {
+    transition-property: transform;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+  }
+  
+  /* Safe area insets for notched devices */
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  /* Text truncation utilities */
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+/* Framer Motion animations */
+@keyframes slide-in-from-bottom {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-out-to-bottom {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+.animate-slide-in-from-bottom {
+  animation: slide-in-from-bottom 0.3s ease-out;
+}
+
+.animate-slide-out-to-bottom {
+  animation: slide-out-to-bottom 0.3s ease-in;
+}
+```
+
+---
+
+## Mobile-Specific Features Summary
+
+### Gesture Controls
+
+| Gesture | Action | Haptic Feedback |
+|---------|--------|-----------------|
+| **Swipe Left** on result card | Add to Inventory | Success (pattern) |
+| **Swipe Right** on result card | Roll Again | Medium pulse |
+| **Swipe Down** on result card | Dismiss | Light tap |
+| **Tap** on type/rarity button | Toggle selection | Light tap |
+| **Tap** on Generate button | Generate loot | Light tap → Success (on result) |
+| **Tap** on history item | (Future: View details) | Light tap |
+
+---
+
+### Touch Target Sizes
+
+| Element | Size | Meets Standard |
+|---------|------|----------------|
+| Type selection buttons | 48px (h-12) | ✅ Yes (44px+) |
+| Rarity buttons | 40px (h-10) | ⚠️ Close (acceptable for secondary) |
+| Generate button | 64px (h-16) | ✅ Yes (primary action) |
+| Action buttons (Add/Reroll) | 56px (h-14) | ✅ Yes |
+| History items | 48px+ | ✅ Yes |
+
+---
+
+### Performance Optimizations
+
+```typescript
+// Debounced swipe detection
+const handleDragEnd = useMemo(() => 
+  debounce((info: PanInfo) => {
+    // Swipe logic
+  }, 50),
+  []
+);
+
+// Memoized rarity color calculations
+const rarityColor = useMemo(() => 
+  getRarityColor(result.rarity),
+  [result.rarity]
+);
+
+// Lazy load history items
+const visibleHistory = useMemo(() => 
+  history.slice(0, historyExpanded ? 10 : 0),
+  [history, historyExpanded]
+);
+```
+
+---
+
+### Responsive Breakpoints
+
+```typescript
+// Tailwind config (if needed for tablet support)
+module.exports = {
+  theme: {
+    extend: {
+      screens: {
+        'xs': '375px',   // iPhone SE
+        'sm': '640px',   // Small tablets
+        'md': '768px',   // Tablets
+        'lg': '1024px',  // Desktop (hide mobile UI)
+      },
+    },
+  },
 };
 ```
 
-## File Structure (unchanged)
-```
-src/lib/conditions/     → types.ts, config.ts, index.ts
-src/hooks/              → use-conditions.ts
-src/components/conditions/ → ConditionDrawer, QuickBar, Card, AddSheet
+**Usage:**
+```typescript
+<div className="lg:hidden">
+  {/* Mobile-only loot generator */}
+  <MobileLootGenerator />
+</div>
+
+<div className="hidden lg:block">
+  {/* Desktop loot generator (future) */}
+  <DesktopLootGenerator />
+</div>
 ```
 
-## Implementation Order
-1. Types & Config with `roundsElapsed` field
-2. Hook with all 3 clarified behaviors
-3. Components with undo support
-4. Integration with Combat HUD and Oracle context
+---
 
+## Testing Checklist (Mobile)
+
+### Gestures
+- [ ] Swipe left on result → Adds to inventory
+- [ ] Swipe right on result → Rolls again
+- [ ] Swipe down on result → Dismisses card
+- [ ] Swipe threshold works (100px minimum)
+- [ ] Velocity-based swipes work (fast flicks)
+- [ ] Card returns to center if swipe incomplete
+
+### Touch Interactions
+- [ ] All buttons ≥44px touch target
+- [ ] Haptic feedback on every tap (if supported)
+- [ ] Active state animations (scale down on press)
+- [ ] No accidental double-taps
+- [ ] Horizontal scroll works smoothly (type/rarity chips)
+
+### Animations
+- [ ] Bottom sheet slides up smoothly
+- [ ] Result card spring animation feels natural
+- [ ] Generate button spinner rotates continuously
+- [ ] History expand/collapse is smooth
+- [ ] No jank or frame drops during animations
+
+### Layouts
+- [ ] Works on iPhone SE (375px width)
+- [ ] Works on standard phones (390-430px)
+- [ ] Works on tablets (768px+)
+- [ ] Safe area insets respected (notched devices)
+- [ ] Content doesn't get cut off by bottom nav
+
+### Edge Cases
+- [ ] No loot types selected → Error toast
+- [ ] Empty item pool → Error toast
+- [ ] Generate during previous generation → Button disabled
+- [ ] History > 10 items → Only shows last 10
+- [ ] Long item names → Truncate with ellipsis
+- [ ] Long descriptions → Line clamp to 3 lines
+
+---
+
+## File Summary (Mobile-First)
+
+| File | Action | Lines | Purpose |
+|------|--------|-------|---------|
+| `src/lib/lootGenerator/types.ts` | **Create** | ~100 | Type definitions + mobile types |
+| `src/lib/lootGenerator/generator.ts` | **Create** | ~150 | Core generation logic |
+| `src/lib/lootGenerator/haptics.ts` | **Create** | ~50 | Haptic feedback utilities |
+| `src/lib/lootGenerator/index.ts` | **Create** | ~5 | Module exports |
+| `src/components/loot/MobileLootResultCard.tsx` | **Create** | ~250 | Swipeable result card |
+| `src/components/loot/MobileLootGenerator.tsx` | **Create** | ~350 | Main bottom sheet UI |
+| `src/components/loot/index.ts` | **Create** | ~5 | Component exports |
+| `src/components/ui/sheet.tsx` | **Create** | ~150 | Bottom sheet primitive |
+| `src/components/drawers/PromptDrawerProvider.tsx` | **Modify** | +30 | Add loot generator state |
+| `src/components/home/HomeScreen.tsx` | **Modify** | +15 | Add menu option |
+| `src/styles/globals.css` | **Modify** | +60 | Mobile utility classes |
+
+**Total New Code**: ~1,100 lines  
+**Total Modified Code**: ~45 lines
+
+---
+
+## Progressive Enhancement Strategy
+
+### Phase 1: Core Mobile (MVP)
+- ✅ Bottom sheet UI
+- ✅ Basic generation
+- ✅ Swipe gestures
+- ✅ Haptic feedback
+
+### Phase 2: Polish
+- ⏳ History persistence (localStorage)
+- ⏳ Favorite items
+- ⏳ Share results (Web Share API)
+- ⏳ Sound effects (optional)
+
+### Phase 3: Desktop Support
+- ⏳ Side drawer for desktop
+- ⏳ Keyboard shortcuts
+- ⏳ Multi-column layout
+
+---
+
+**This mobile-first implementation prioritizes touch interactions, thumb-zone ergonomics, and natural gestures while maintaining the full feature set of the original plan.** 🎯📱
