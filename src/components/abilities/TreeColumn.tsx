@@ -77,34 +77,6 @@ export function TreeColumn({
         isMobile ? 'w-full' : 'flex-1 min-w-[300px]'
       )}
     >
-      {/* Tree Header */}
-      <div className={cn(
-        'flex items-center justify-between px-4 py-3 border-b',
-        `border-${treeConfig.primary}/20`,
-        `bg-gradient-to-r ${treeConfig.gradient}`
-      )}>
-        <div className="flex items-center gap-2">
-          <div className={cn(
-            'w-10 h-10 rounded-full flex items-center justify-center',
-            `bg-${treeConfig.primary}/20`
-          )}>
-            <Icon className={cn('w-5 h-5', `text-${treeConfig.primary}`)} />
-          </div>
-          <div>
-            <h3 className={cn('font-bold text-lg', `text-${treeConfig.primary}-foreground`)}>
-              {treeConfig.name}
-            </h3>
-            <p className="text-xs text-muted-foreground">{treeConfig.subtitle}</p>
-          </div>
-        </div>
-        <div className="text-sm text-muted-foreground">
-          <span className={cn('font-bold', `text-${treeConfig.primary}`)}>
-            {pointsInvested}
-          </span>
-          {' pts'}
-        </div>
-      </div>
-      
       {/* Ability Tree Container */}
       <div 
         className="relative flex-1 overflow-y-auto"
@@ -175,6 +147,34 @@ export function TreeColumn({
             </div>
           );
         })}
+      </div>
+      
+      {/* Tree Header - At Bottom */}
+      <div className={cn(
+        'flex items-center justify-between px-4 py-3 border-t',
+        `border-${treeConfig.primary}/20`,
+        `bg-gradient-to-t ${treeConfig.gradient}`
+      )}>
+        <div className="flex items-center gap-2">
+          <div className={cn(
+            'w-10 h-10 rounded-full flex items-center justify-center',
+            `bg-${treeConfig.primary}/20`
+          )}>
+            <Icon className={cn('w-5 h-5', `text-${treeConfig.primary}`)} />
+          </div>
+          <div>
+            <h3 className={cn('font-bold text-lg', `text-${treeConfig.primary}-foreground`)}>
+              {treeConfig.name}
+            </h3>
+            <p className="text-xs text-muted-foreground">{treeConfig.subtitle}</p>
+          </div>
+        </div>
+        <div className="text-sm text-muted-foreground">
+          <span className={cn('font-bold', `text-${treeConfig.primary}`)}>
+            {pointsInvested}
+          </span>
+          {' pts'}
+        </div>
       </div>
     </div>
   );
