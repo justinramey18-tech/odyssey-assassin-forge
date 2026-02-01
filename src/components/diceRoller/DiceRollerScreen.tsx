@@ -1,13 +1,13 @@
 import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Copy, Check, Dices, Sparkles, Swords, Eye, MessageCircle, Wrench, Plus, Minus, Settings2, ChevronUp, ChevronDown, Equal } from 'lucide-react';
+import { ArrowLeft, Copy, Check, Dices, Sparkles, Swords, Eye, MessageCircle, Wrench, Plus, Minus, Settings2, ChevronUp, ChevronDown, Equal, Wand2, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   DICE_CONFIG,
@@ -21,6 +21,30 @@ import {
   type AIPromptTemplate,
 } from '@/lib/diceRollerConfig';
 import { rollDie } from '@/lib/diceRoller';
+
+// Ability score presets
+interface AbilityPreset {
+  id: string;
+  name: string;
+  description: string;
+  scores: number[];
+}
+
+const ABILITY_PRESETS: AbilityPreset[] = [
+  { id: 'standard', name: 'Standard Array', description: 'Balanced default', scores: [15, 14, 13, 12, 10, 8] },
+  { id: 'heroic', name: 'Heroic Array', description: 'Higher stats', scores: [17, 15, 13, 12, 10, 8] },
+  { id: 'elite', name: 'Elite Array', description: 'Very strong', scores: [18, 16, 14, 12, 10, 8] },
+  { id: 'pointbuy_balanced', name: 'Point Buy: Balanced', description: '27 points, even spread', scores: [14, 14, 14, 12, 10, 8] },
+  { id: 'pointbuy_focused', name: 'Point Buy: Focused', description: '27 points, one high stat', scores: [15, 15, 15, 8, 8, 8] },
+  { id: 'pointbuy_specialist', name: 'Point Buy: Specialist', description: '27 points, SAD build', scores: [15, 14, 14, 10, 10, 8] },
+  { id: 'all_tens', name: 'Commoner', description: 'All 10s (no modifiers)', scores: [10, 10, 10, 10, 10, 10] },
+];
+
+// Convert ability score to modifier
+const scoreToModifier = (score: number): number => Math.floor((score - 10) / 2);
+
+// Ability order for assignment
+const ABILITY_ORDER: AbilityScore[] = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
 
 interface DiceRollerScreenProps {
   onBack: () => void;
@@ -79,6 +103,11 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
   const [proficientSaves, setProficientSaves] = useState<Set<AbilityScore>>(new Set());
   const [modifiersOpen, setModifiersOpen] = useState(false);
   const [rollMode, setRollMode] = useState<RollMode>('normal');
+  const [quickSetOpen, setQuickSetOpen] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState<AbilityPreset | null>(null);
+  const [scoreAssignments, setScoreAssignments] = useState<Record<AbilityScore, number | null>>({
+    str: null, dex: null, con: null, int: null, wis: null, cha: null,
+  });
 
   // Load saved modifiers on mount
   useEffect(() => {
@@ -161,6 +190,81 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
       if (prev === 'advantage') return 'disadvantage';
       return 'normal';
     });
+  };
+
+  // Quick-set: Select a preset
+  const handlePresetSelect = (preset: AbilityPreset) => {
+    triggerHaptic('light');
+    setSelectedPreset(preset);
+    // Reset assignments
+    setScoreAssignments({ str: null, dex: null, con: null, int: null, wis: null, cha: null });
+  };
+
+  // Quick-set: Assign a score to an ability
+  const assignScoreToAbility = (ability: AbilityScore, score: number) => {
+    triggerHaptic('light');
+    setScoreAssignments(prev => {
+      // If this ability already has this score, remove it
+      if (prev[ability] === score) {
+        return { ...prev, [ability]: null };
+      }
+      // Remove the score from any other ability that had it
+      const updated = { ...prev };
+      for (const key of Object.keys(updated) as AbilityScore[]) {
+        if (updated[key] === score) {
+          updated[key] = null;
+        }
+      }
+      updated[ability] = score;
+      return updated;
+    });
+  };
+
+  // Quick-set: Apply the assignments
+  const applyQuickSet = () => {
+    if (!selectedPreset) return;
+    
+    // Check all abilities are assigned
+    const allAssigned = ABILITY_ORDER.every(ability => scoreAssignments[ability] !== null);
+    if (!allAssigned) {
+      toast({
+        title: 'Incomplete Assignment',
+        description: 'Please assign all 6 scores to abilities',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Convert scores to modifiers and apply
+    const newModifiers: AbilityModifiers = { ...DEFAULT_MODIFIERS };
+    for (const ability of ABILITY_ORDER) {
+      const score = scoreAssignments[ability];
+      if (score !== null) {
+        newModifiers[ability] = scoreToModifier(score);
+      }
+    }
+    
+    setAbilityModifiers(newModifiers);
+    triggerHaptic('heavy');
+    toast({
+      title: 'Scores Applied!',
+      description: `${selectedPreset.name} modifiers have been set`,
+      className: 'border-primary bg-primary/10',
+    });
+    setQuickSetOpen(false);
+    setSelectedPreset(null);
+    setScoreAssignments({ str: null, dex: null, con: null, int: null, wis: null, cha: null });
+  };
+
+  // Quick-set: Auto-assign in order (for quick apply)
+  const autoAssignInOrder = () => {
+    if (!selectedPreset) return;
+    triggerHaptic('light');
+    const newAssignments: Record<AbilityScore, number | null> = { str: null, dex: null, con: null, int: null, wis: null, cha: null };
+    ABILITY_ORDER.forEach((ability, index) => {
+      newAssignments[ability] = selectedPreset.scores[index];
+    });
+    setScoreAssignments(newAssignments);
   };
 
   // Roll a die with animation and modifier
@@ -643,6 +747,16 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
                     );
                   })}
                 </div>
+
+                {/* Quick Set Button */}
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={() => setQuickSetOpen(true)}
+                >
+                  <Wand2 className="w-4 h-4" />
+                  Quick Set (Standard Array / Point Buy)
+                </Button>
               </CollapsibleContent>
             </Collapsible>
 
@@ -941,6 +1055,187 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
               </Button>
             </div>
           )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Quick Set Sheet */}
+      <Sheet open={quickSetOpen} onOpenChange={(open) => {
+        setQuickSetOpen(open);
+        if (!open) {
+          setSelectedPreset(null);
+          setScoreAssignments({ str: null, dex: null, con: null, int: null, wis: null, cha: null });
+        }
+      }}>
+        <SheetContent side="bottom" className="h-[85vh] max-h-[85vh] rounded-t-xl">
+          <div className="w-12 h-1 bg-muted rounded-full mx-auto mb-4" />
+          <SheetHeader className="mb-4">
+            <SheetTitle className="font-cinzel flex items-center gap-2">
+              <Wand2 className="w-5 h-5 text-primary" />
+              Quick Set Ability Scores
+            </SheetTitle>
+            <SheetDescription>
+              Choose a preset and assign scores to abilities
+            </SheetDescription>
+          </SheetHeader>
+
+          <ScrollArea className="h-[calc(85vh-180px)]">
+            <div className="space-y-4 pr-4">
+              {/* Preset Selection */}
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground">Select Preset</h3>
+                <div className="grid grid-cols-1 gap-2">
+                  {ABILITY_PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      onClick={() => handlePresetSelect(preset)}
+                      className={cn(
+                        'p-3 rounded-lg border text-left transition-all',
+                        selectedPreset?.id === preset.id
+                          ? 'border-primary bg-primary/10'
+                          : 'border-border bg-card/50 hover:border-primary/50'
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-sm">{preset.name}</p>
+                          <p className="text-xs text-muted-foreground">{preset.description}</p>
+                        </div>
+                        <div className="flex gap-1">
+                          {preset.scores.map((score, i) => (
+                            <Badge key={i} variant="outline" className="text-xs font-mono">
+                              {score}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Score Assignment */}
+              {selectedPreset && (
+                <div className="space-y-3 pt-2 border-t border-border">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium text-muted-foreground">Assign Scores to Abilities</h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={autoAssignInOrder}
+                      className="gap-1 text-xs"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      Auto-assign (STR→CHA)
+                    </Button>
+                  </div>
+
+                  {/* Available Scores */}
+                  <div className="flex flex-wrap gap-2 justify-center p-3 rounded-lg bg-muted/30 border border-border">
+                    <span className="text-xs text-muted-foreground w-full text-center mb-1">Available Scores</span>
+                    {selectedPreset.scores.map((score, i) => {
+                      const isAssigned = Object.values(scoreAssignments).includes(score);
+                      // Count how many times this score appears in the preset
+                      const countInPreset = selectedPreset.scores.filter(s => s === score).length;
+                      // Count how many times this score is assigned
+                      const countAssigned = Object.values(scoreAssignments).filter(s => s === score).length;
+                      // Check if this specific instance is assigned
+                      const instancesAssigned = selectedPreset.scores.slice(0, i + 1).filter(s => s === score).length;
+                      const thisInstanceAssigned = instancesAssigned <= countAssigned;
+                      
+                      return (
+                        <Badge
+                          key={i}
+                          variant={thisInstanceAssigned ? 'secondary' : 'default'}
+                          className={cn(
+                            'text-lg font-mono px-3 py-1',
+                            thisInstanceAssigned && 'opacity-40 line-through'
+                          )}
+                        >
+                          {score}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+
+                  {/* Ability Assignment Grid */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {ABILITY_ORDER.map((ability) => {
+                      const config = ABILITY_SCORES[ability];
+                      const assignedScore = scoreAssignments[ability];
+                      const modifier = assignedScore !== null ? scoreToModifier(assignedScore) : null;
+                      
+                      return (
+                        <div
+                          key={ability}
+                          className={cn(
+                            'p-3 rounded-lg border-2 transition-all',
+                            assignedScore !== null
+                              ? 'border-primary bg-primary/5'
+                              : 'border-border bg-card/50'
+                          )}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className={cn('text-sm font-bold', config.color)}>{config.name}</span>
+                            {assignedScore !== null && (
+                              <Badge variant="outline" className={cn(
+                                'font-mono',
+                                modifier !== null && modifier >= 0 ? 'text-green-400' : 'text-red-400'
+                              )}>
+                                {modifier !== null && modifier >= 0 ? `+${modifier}` : modifier}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {selectedPreset.scores.filter((v, i, a) => a.indexOf(v) === i).map((score) => {
+                              const isThisScoreAssignedHere = scoreAssignments[ability] === score;
+                              const isScoreUsedElsewhere = Object.entries(scoreAssignments).some(
+                                ([key, val]) => key !== ability && val === score
+                              );
+                              // Check if we have duplicate scores and one is still available
+                              const scoreCountInPreset = selectedPreset.scores.filter(s => s === score).length;
+                              const scoreCountAssigned = Object.values(scoreAssignments).filter(s => s === score).length;
+                              const hasAvailableDupe = scoreCountInPreset > scoreCountAssigned;
+                              
+                              const isDisabled = isScoreUsedElsewhere && !hasAvailableDupe && !isThisScoreAssignedHere;
+                              
+                              return (
+                                <button
+                                  key={score}
+                                  onClick={() => !isDisabled && assignScoreToAbility(ability, score)}
+                                  disabled={isDisabled}
+                                  className={cn(
+                                    'px-2 py-1 rounded text-sm font-mono transition-all',
+                                    isThisScoreAssignedHere
+                                      ? 'bg-primary text-primary-foreground'
+                                      : isDisabled
+                                        ? 'bg-muted text-muted-foreground/40 cursor-not-allowed'
+                                        : 'bg-muted hover:bg-muted/80 text-foreground'
+                                  )}
+                                >
+                                  {score}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Apply Button */}
+                  <Button
+                    onClick={applyQuickSet}
+                    className="w-full gap-2"
+                    size="lg"
+                    disabled={!ABILITY_ORDER.every(ability => scoreAssignments[ability] !== null)}
+                  >
+                    <Check className="w-5 h-5" />
+                    Apply Modifiers
+                  </Button>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
         </SheetContent>
       </Sheet>
     </div>
