@@ -1,35 +1,56 @@
 
-# Background Images for Legendary Star Map Constellations
+
+# Updated Background Images for Legendary Star Map Constellations
 
 ## Overview
-Generate 8 unique background images for each legendary equipment set's constellation star map. These backgrounds will enhance the visual theme of each set while maintaining legibility of the constellation nodes and UI elements.
+Generate 8 unique background images for each legendary equipment set's constellation star map, now featuring an Assassin's Creed assassin wearing thematically appropriate armor for each set.
 
 ---
 
-## Image Generation Plan
+## Revised Image Generation Prompts
 
-### Image Specifications
-- **Dimensions**: 9:16 portrait aspect ratio (mobile-first, ~1080x1920 or similar)
-- **Style**: Dark fantasy, cosmic/nebula atmosphere with set-specific color accents
-- **Opacity**: Images will be overlaid with gradients to ensure UI readability
-- **Format**: JPG for file size optimization
+### Prompt 1: merc-with-mouth-bg.jpg
+> "Dark cosmic nebula background, 9:16 portrait, an Assassin's Creed assassin wearing crimson red and black armor with Deadpool-inspired design elements, hood up, standing dramatically against shattered comic book panels floating in void, cracks in reality showing stars behind, deep red energy wisps, fourth-wall breaking visual metaphor, dark fantasy atmosphere, subtle red glow, cinematic lighting, back view or three-quarter view"
 
-### 8 Background Images to Generate
+### Prompt 2: chaotic-contracts-bg.jpg  
+> "Dark fantasy background, 9:16 portrait, an Assassin's Creed assassin wearing amber and burnt orange mercenary armor with chaos magic runes, hood up, surrounded by swirling chaos magic, burning parchment contracts floating around them, mercenary guild sigils glowing, chaotic energy vortex, atmospheric fog, warm orange glow accents on black, dramatic pose"
 
-| # | Set ID | Set Name | Theme/Prompt Concept | Dominant Colors |
-|---|--------|----------|---------------------|-----------------|
-| 1 | `merc-with-mouth` | The Merc with a Mouth's Regalia | Dark cosmic nebula with red energy, broken comic panels floating in space, fourth-wall cracks in reality | Red, crimson, black |
-| 2 | `chaotic-contracts` | Arsenal of Chaotic Contracts | Swirling chaos magic, scattered contract papers burning, mercenary guild symbols | Amber, orange, dark gold |
-| 3 | `regenerative-ridiculousness` | Regalia of Regenerative Ridiculousness | Green healing energy, cellular regeneration patterns, DNA helixes dissolving into mist | Green, emerald, teal |
-| 4 | `self-aware-arsenal` | The Mercenary's Self-Aware Arsenal | Purple cosmic awareness, floating speech bubbles, comic book physics effects | Purple, violet, magenta |
-| 5 | `violent-comedy` | Vestments of Violent Comedy | Dark comedy stage with spotlights, cartoon explosions frozen in time | Orange, pink, dark red |
-| 6 | `unkillable-merc` | The Unkillable Merc's Loadout | Blue immortal energy, souls unable to pass on, ethereal chains | Blue, cyan, steel gray |
-| 7 | `absolute-absurdity` | Arsenal of Absolute Absurdity | Reality-warping vortex, meta-textual floating game dice, probability waves | Blue, amber, cosmic purple |
-| 8 | `self-aware-slayer` | The Self-Aware Slayer's Kit | Golden narrative threads, script pages floating, story constellation patterns | Yellow, gold, warm white |
+### Prompt 3: regenerative-ridiculousness-bg.jpg
+> "Dark cosmic background, 9:16 portrait, an Assassin's Creed assassin wearing emerald green armor with organic cellular patterns and DNA helix motifs, hood up, green bioluminescent energy emanating from their form, healing factor visualization swirling around them, teal and green glow, organic cosmic aesthetic, regenerative energy tendrils"
+
+### Prompt 4: self-aware-arsenal-bg.jpg
+> "Dark surreal background, 9:16 portrait, an Assassin's Creed assassin wearing violet and magenta armor with meta-textual comic panel designs, hood up, purple cosmic awareness energy radiating from them, floating empty speech bubbles around, comic book panel borders floating in void, meta-reality aesthetic, philosophical space atmosphere"
+
+### Prompt 5: violent-comedy-bg.jpg
+> "Dark comedy stage background, 9:16 portrait, an Assassin's Creed assassin wearing theatrical orange and dark red armor with comedy/tragedy mask motifs, hood up, standing on a dark stage with dramatic spotlights, cartoon explosion effects frozen around them, dark humor aesthetic, pink accent lighting, theatrical curtains in shadows"
+
+### Prompt 6: unkillable-merc-bg.jpg
+> "Dark ethereal background, 9:16 portrait, an Assassin's Creed assassin wearing cyan and steel blue immortal armor with ethereal chain designs, hood up, blue immortal energy streams flowing through and around them, ghostly souls swirling, breaking free from ethereal chains, unable to die visualization, cosmic immortality theme, spectral glow"
+
+### Prompt 7: absolute-absurdity-bg.jpg
+> "Reality-warping cosmic background, 9:16 portrait, an Assassin's Creed assassin wearing blue and amber armor with impossible geometry patterns and dice motifs, hood up, probability waves distorting space around them, floating glowing D20 dice, meta-textual elements, reality bending around their form, absurdist cosmic void, surreal lighting"
+
+### Prompt 8: self-aware-slayer-bg.jpg
+> "Golden narrative thread background, 9:16 portrait, an Assassin's Creed assassin wearing warm gold and white armor with script page and quill designs, hood up, golden narrative threads weaving through and around them, floating glowing script pages, story constellation patterns in the sky, author's perspective cosmic view, warm golden light threading through darkness"
 
 ---
 
-## File Structure
+## Updated 8 Background Images Summary
+
+| # | Set ID | Assassin Armor Theme |
+|---|--------|---------------------|
+| 1 | `merc-with-mouth` | Crimson/black Deadpool-inspired assassin armor |
+| 2 | `chaotic-contracts` | Amber/orange mercenary armor with chaos runes |
+| 3 | `regenerative-ridiculousness` | Emerald green armor with cellular/DNA patterns |
+| 4 | `self-aware-arsenal` | Violet/magenta meta-textual comic armor |
+| 5 | `violent-comedy` | Orange/dark red theatrical armor with mask motifs |
+| 6 | `unkillable-merc` | Cyan/steel blue immortal armor with chain designs |
+| 7 | `absolute-absurdity` | Blue/amber armor with impossible geometry and dice |
+| 8 | `self-aware-slayer` | Gold/white armor with script and narrative elements |
+
+---
+
+## File Structure (Unchanged)
 
 New files to create in `src/assets/constellations/`:
 
@@ -47,7 +68,7 @@ src/assets/constellations/
 
 ---
 
-## Code Changes Required
+## Code Changes Required (Unchanged from Original Plan)
 
 ### 1. Create Background Config File
 **New file**: `src/lib/inventory/constellationBackgrounds.ts`
@@ -102,47 +123,21 @@ import { constellationBackgrounds } from '@/lib/inventory/constellationBackgroun
 
 ---
 
-## Image Generation Prompts
+## Implementation Steps
 
-### Prompt 1: merc-with-mouth-bg.jpg
-> "Dark cosmic nebula background, 9:16 portrait, deep crimson red energy wisps, shattered comic book panels floating in void, cracks in reality showing stars behind, fourth-wall breaking visual metaphor, no characters, dark fantasy atmosphere, subtle red glow, cinematic lighting"
-
-### Prompt 2: chaotic-contracts-bg.jpg  
-> "Dark fantasy background, 9:16 portrait, swirling amber and orange chaos magic, burning parchment contracts floating, mercenary guild sigils, chaotic energy vortex, no characters, atmospheric fog, warm orange glow accents on black"
-
-### Prompt 3: regenerative-ridiculousness-bg.jpg
-> "Dark cosmic background, 9:16 portrait, green bioluminescent energy, cellular regeneration patterns, DNA helix dissolving into emerald mist, healing factor visualization, no characters, teal and green glow, organic cosmic aesthetic"
-
-### Prompt 4: self-aware-arsenal-bg.jpg
-> "Dark surreal background, 9:16 portrait, purple cosmic awareness energy, floating empty speech bubbles, comic book panel borders floating in void, meta-reality aesthetic, violet and magenta glow, no characters, philosophical space"
-
-### Prompt 5: violent-comedy-bg.jpg
-> "Dark comedy stage background, 9:16 portrait, dramatic spotlights in darkness, cartoon explosion effects frozen in time, dark humor aesthetic, orange and pink accent lighting, theatrical curtains in shadows, no characters"
-
-### Prompt 6: unkillable-merc-bg.jpg
-> "Dark ethereal background, 9:16 portrait, blue immortal energy streams, ghostly souls swirling, ethereal chains breaking, unable to die visualization, cyan and steel blue glow, cosmic immortality theme, no characters"
-
-### Prompt 7: absolute-absurdity-bg.jpg
-> "Reality-warping cosmic background, 9:16 portrait, probability waves distorting space, floating D20 dice glowing, meta-textual elements, blue and amber energy clash, impossible geometry, no characters, absurdist cosmic void"
-
-### Prompt 8: self-aware-slayer-bg.jpg
-> "Golden narrative thread background, 9:16 portrait, floating script pages glowing, story constellation patterns, warm golden light threading through darkness, author's perspective cosmic view, yellow and warm white glow, no characters"
-
----
-
-## Technical Implementation Steps
-
-1. **Generate Images**: Use Lovable AI image generation (google/gemini-2.5-flash-image or google/gemini-3-pro-image-preview for higher quality) to create each background
+1. **Generate Images**: Use Lovable AI image generation (google/gemini-3-pro-image-preview for higher quality) to create each background with the themed assassin
 2. **Save Images**: Store in `src/assets/constellations/` directory
 3. **Create Config**: Add `constellationBackgrounds.ts` with image imports and mapping
 4. **Update Component**: Modify `SetConstellation` in `ConstellationMap.tsx` to display backgrounds
-5. **Test**: Verify each constellation map displays its themed background with proper opacity and overlay
+5. **Test**: Verify each constellation map displays its themed assassin background with proper opacity and overlay
 
 ---
 
 ## Visual Hierarchy Considerations
 
 - Background opacity: 20-35% to not overwhelm constellation nodes
+- Assassin figures positioned to not interfere with node placement (center or lower portions)
 - Gradient overlays ensure title and bonuses remain readable
-- Set-specific glow colors will complement the background themes
+- Set-specific glow colors will complement the assassin armor themes
 - Dark vignette edges maintain focus on center constellation
+
