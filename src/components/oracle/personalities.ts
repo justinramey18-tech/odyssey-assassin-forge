@@ -61,6 +61,21 @@ export const personalities: PersonalityConfig[] = [
       'Speak to me of hope in this dark hour',
     ],
   },
+  {
+    id: 'jarlaxle',
+    name: 'Jarlaxle Baenre',
+    subtitle: 'Leader of Bregan D\'aerthe',
+    icon: '🎩',
+    color: '#A855F7', // purple-500 for the flamboyant drow
+    bgGradient: 'from-purple-950/80 via-violet-900/60 to-slate-950/80',
+    borderColor: 'border-purple-500/50',
+    quickPrompts: [
+      'What would be the most... profitable approach?',
+      'How can I turn this situation to my advantage?',
+      'What secrets are my enemies hiding?',
+      'Entertain me with your most audacious plan',
+    ],
+  },
 ];
 
 export function getPersonalityConfig(id: string): PersonalityConfig {
