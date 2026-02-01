@@ -29,7 +29,6 @@ import { MobileAbilityList } from './MobileAbilityList';
 import { MobileItemsGrid } from './MobileItemsGrid';
 import { MobileSpellList } from './MobileSpellList';
 import { ConditionStrip } from '@/components/conditions';
-import { useConditions } from '@/hooks/use-conditions';
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
 import { usePromptDrawers } from '@/components/drawers';
 
@@ -103,11 +102,11 @@ export function MobileCombatLayout({ character, spellcasting }: MobileCombatLayo
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
   const { rerollsDisabled } = useGameMode();
   
-  // Access drawer context for opening conditions panel
+  // Access drawer context for opening conditions panel and shared condition system
   const drawerContext = usePromptDrawers();
   
-  // Condition system integration
-  const conditionSystem = useConditions({ personality: 'deadpool' });
+  // Use the shared condition system from the drawer provider
+  const conditionSystem = drawerContext.conditionSystem;
   
   // Swipe navigation handlers
   const handleSwipeLeft = useCallback(() => {
