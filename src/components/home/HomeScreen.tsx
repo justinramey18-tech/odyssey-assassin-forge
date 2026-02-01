@@ -22,6 +22,8 @@ import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { InstallBanner } from './InstallBanner';
 import { ClockWidget } from './ClockWidget';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
+import { AnimatedD20Trigger } from '@/components/diceRoller';
+import { DiceRollerScreen } from '@/components/diceRoller';
 import type { LucideIcon } from 'lucide-react';
 
 import tposeBackground from '@/assets/generated/deadpool-assassin-tpose-dive.jpg';
@@ -150,6 +152,7 @@ export function HomeScreen({
   const stats = useEquipmentStats(equipment);
   const multiplier = XP_PRESETS[xpPreset].multiplier;
   const [showDrawersMenu, setShowDrawersMenu] = useState(false);
+  const [showDiceRoller, setShowDiceRoller] = useState(false);
   
   // Get drawer context - wrapped in try/catch since we might be outside provider
   let drawerContext: ReturnType<typeof usePromptDrawers> | null = null;
@@ -336,21 +339,24 @@ export function HomeScreen({
             </div>
           </div>
           
-          <div className="flex items-center gap-1">
-            {onOpenSettings && (
-              <button 
-                onClick={() => {
-                  triggerHaptic('light');
-                  onOpenSettings();
-                }}
-                className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-                style={{ touchAction: 'manipulation' }}
-                aria-label="Open settings"
-              >
-                <Settings className="w-5 h-5 text-white/80" />
-              </button>
-            )}
-            <ClockWidget />
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-1">
+              {onOpenSettings && (
+                <button 
+                  onClick={() => {
+                    triggerHaptic('light');
+                    onOpenSettings();
+                  }}
+                  className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                  style={{ touchAction: 'manipulation' }}
+                  aria-label="Open settings"
+                >
+                  <Settings className="w-5 h-5 text-white/80" />
+                </button>
+              )}
+              <ClockWidget />
+            </div>
+            <AnimatedD20Trigger onClick={() => setShowDiceRoller(true)} />
           </div>
         </header>
 
@@ -605,6 +611,13 @@ export function HomeScreen({
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Dice Roller Overlay */}
+      {showDiceRoller && (
+        <div className="fixed inset-0 z-[60] bg-background">
+          <DiceRollerScreen onBack={() => setShowDiceRoller(false)} />
+        </div>
+      )}
     </BackgroundWrapper>
   );
 }
