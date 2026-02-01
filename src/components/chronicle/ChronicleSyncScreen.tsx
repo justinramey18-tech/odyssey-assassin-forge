@@ -240,6 +240,12 @@ export function ChronicleSyncScreen({
       items: approved
         .filter(c => c.category === 'item')
         .map(c => c.data as ApprovedChanges['items'][0]),
+      gold: approved
+        .filter(c => c.category === 'gold')
+        .map(c => c.data as ApprovedChanges['gold'][0]),
+      shopItems: approved
+        .filter(c => c.category === 'shop')
+        .map(c => c.data as ApprovedChanges['shopItems'][0]),
       levelUp: approved.find(c => c.category === 'levelUp')?.data as ApprovedChanges['levelUp'] || null,
       totalApplied: approved.length,
     };

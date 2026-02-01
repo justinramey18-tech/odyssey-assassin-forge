@@ -52,10 +52,12 @@ import {
   createInitialEquipment,
 } from '@/lib/inventory/index';
 import { MagicScreen } from '@/components/magic';
+import { ShopScreen } from '@/components/shop';
+import { useShop } from '@/hooks/use-shop';
+import { ParsedShopItem } from '@/lib/shop/types';
 import { useSpellcasting } from '@/hooks/use-spellcasting';
-
-
-
+import { Consumable } from '@/lib/consumables/types';
+import { EquipmentItem as ShopEquipmentItem } from '@/lib/inventory/types';
 const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -152,10 +154,13 @@ const Index = () => {
   });
   
   // Derived active tab for backward compatibility
-  const activeTab = categoryNav.activeSubTab as 'skills' | 'abilities' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle' | 'legacy' | 'arcana';
+  const activeTab = categoryNav.activeSubTab as 'skills' | 'abilities' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle' | 'legacy' | 'arcana' | 'shop';
   
   // Spellcasting system
   const spellcasting = useSpellcasting(character.level);
+  
+  // Shop system
+  const shop = useShop();
   
   // Shared equipment state for constellation view
   const [equipment, setEquipment] = useState<CharacterEquipment>(() => createInitialEquipment());
@@ -636,6 +641,37 @@ const Index = () => {
       }
     });
 
+    // Apply gold changes
+    if (changes.gold && changes.gold.length > 0) {
+      changes.gold.forEach(goldChange => {
+        if (goldChange.action === 'gained') {
+          shop.addGold(goldChange.amount);
+        } else {
+          shop.spendGold(goldChange.amount);
+        }
+      });
+      const netGold = changes.gold.reduce((sum, g) => 
+        sum + (g.action === 'gained' ? g.amount : -g.amount), 0
+      );
+      if (netGold !== 0) {
+        toast({
+          title: netGold > 0 ? "💰 Gold Gained!" : "💸 Gold Spent",
+          description: `${netGold > 0 ? '+' : ''}${netGold} GP`,
+          className: "border-amber-500 bg-amber-500/10",
+        });
+      }
+    }
+
+    // Apply shop items
+    if (changes.shopItems && changes.shopItems.length > 0) {
+      shop.addShopItems(changes.shopItems);
+      toast({
+        title: "🏪 Shop Updated!",
+        description: `${changes.shopItems.length} item(s) added to shop.`,
+        className: "border-yellow-500 bg-yellow-500/10",
+      });
+    }
+
     // Level-up from chronicle - auto-level (no modal)
     if (changes.levelUp && changes.levelUp.newLevel > character.level) {
       const newLevel = changes.levelUp.newLevel;
@@ -657,6 +693,48 @@ const Index = () => {
       className: "border-blue-500 bg-blue-500/10",
     });
   };
+
+  // Handle shop purchases - routes items to correct inventory
+  const handleShopPurchase = useCallback((itemId: string) => {
+    const result = shop.purchaseItem(itemId);
+    
+    if (!result.success) {
+      toast({
+        title: "Purchase Failed",
+        description: result.error,
+        variant: "destructive",
+      });
+      return result;
+    }
+    
+    // Route converted item to appropriate inventory
+    if (result.destinationType === 'consumable' && result.convertedItem) {
+      addConsumableItem(result.convertedItem as Consumable, 1);
+      toast({
+        title: "Item Purchased!",
+        description: `${result.itemName} added to Consumables. Remaining: ${result.remainingGold} GP`,
+        className: "border-yellow-500 bg-yellow-500/10",
+      });
+    } else if (result.destinationType === 'equipment' && result.convertedItem) {
+      setEquipment(prev => ({
+        ...prev,
+        inventory: [...prev.inventory, result.convertedItem as ShopEquipmentItem],
+      }));
+      toast({
+        title: "Item Purchased!",
+        description: `${result.itemName} added to Gear inventory. Remaining: ${result.remainingGold} GP`,
+        className: "border-yellow-500 bg-yellow-500/10",
+      });
+    } else {
+      // Miscellaneous - just show success
+      toast({
+        title: "Item Purchased!",
+        description: `Acquired item. Remaining: ${result.remainingGold} GP`,
+      });
+    }
+    
+    return result;
+  }, [shop, addConsumableItem, setEquipment, toast]);
 
   // Manual level up trigger (for milestone mode or testing)
   const handleManualLevelUp = () => {
@@ -714,6 +792,9 @@ const Index = () => {
       const defaultHP = { current: 8, max: 8, temp: 0 };
       setHpState(defaultHP);
       localStorage.removeItem('odyssey-hp-state');
+
+      // Reset Shop
+      shop.resetShop();
 
       // 2. Reset UI state
       categoryNav.navigateToSubTab('skills');
@@ -1042,6 +1123,17 @@ const Index = () => {
                 />
               </div>
             </BackgroundWrapper>
+          )}
+
+          {/* Shop Sub-Tab */}
+          {activeTab === 'shop' && (
+            <ShopScreen
+              currentGold={shop.currentGold}
+              shopItems={shop.shopItems}
+              purchaseHistory={shop.purchaseHistory}
+              onPurchase={handleShopPurchase}
+              onClearShop={shop.clearShop}
+            />
           )}
 
           {/* Gear Sub-Tab */}

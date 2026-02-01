@@ -1,4 +1,4 @@
-import { LucideIcon, Home, Swords, Backpack, Wrench, Crosshair, Zap, Wand2, Crown, FlaskConical, Sparkles, Trophy, BookOpen, Search, Cloud, Settings } from 'lucide-react';
+import { LucideIcon, Home, Swords, Backpack, Wrench, Crosshair, Zap, Wand2, Crown, FlaskConical, Sparkles, Trophy, BookOpen, Search, Cloud, Settings, Store } from 'lucide-react';
 
 export type MainCategory = 'home' | 'fighting' | 'inventory' | 'utility';
 
@@ -54,6 +54,7 @@ export const FIGHTING_TABS: SubTabConfig[] = [
 
 export const INVENTORY_TABS: SubTabConfig[] = [
   { id: 'consumables', label: 'Consumables', icon: FlaskConical, color: 'text-emerald-400', glowColor: 'bg-emerald-400' },
+  { id: 'shop', label: 'Shop', icon: Store, color: 'text-yellow-400', glowColor: 'bg-yellow-400' },
   { id: 'gear', label: 'Gear', icon: Backpack, color: 'text-amber-400', glowColor: 'bg-amber-400' },
   { id: 'stars', label: 'Stars', icon: Sparkles, color: 'text-cyan-400', glowColor: 'bg-cyan-400' },
   { id: 'feats', label: 'Feats', icon: Trophy, color: 'text-purple-400', glowColor: 'bg-purple-400' },
@@ -80,7 +81,7 @@ export function getSubTabsForCategory(category: MainCategory): SubTabConfig[] {
 }
 
 // Mapping for HomeScreen navigation cards
-export type NavigableTab = 'combat' | 'skills' | 'abilities' | 'arcana' | 'legacy' | 'consumables' | 'gear' | 'stars' | 'feats' | 'scribe' | 'chronicle';
+export type NavigableTab = 'combat' | 'skills' | 'abilities' | 'arcana' | 'legacy' | 'consumables' | 'shop' | 'gear' | 'stars' | 'feats' | 'scribe' | 'chronicle';
 
 export function getTabToCategoryMapping(tab: NavigableTab): { category: MainCategory; subTab: string } {
   // Fighting category tabs
@@ -88,7 +89,7 @@ export function getTabToCategoryMapping(tab: NavigableTab): { category: MainCate
     return { category: 'fighting', subTab: tab };
   }
   // Inventory category tabs
-  if (['consumables', 'gear', 'stars', 'feats'].includes(tab)) {
+  if (['consumables', 'shop', 'gear', 'stars', 'feats'].includes(tab)) {
     return { category: 'inventory', subTab: tab };
   }
   // Utility category tabs
