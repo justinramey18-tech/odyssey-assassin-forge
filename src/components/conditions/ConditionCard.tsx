@@ -1,6 +1,6 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Timer, Save, Hourglass, Infinity as InfinityIcon, Skull, Focus, LucideIcon } from 'lucide-react';
+import { X, Timer, Save, Hourglass, Infinity as InfinityIcon, Focus, LucideIcon, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getIconByName } from '@/lib/iconUtils';
 import {
@@ -8,14 +8,17 @@ import {
   formatDuration,
   SEVERITY_COLORS,
   CATEGORY_COLORS,
+  generateConditionPrompt,
 } from '@/lib/conditions';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 interface ConditionCardProps {
   condition: ActiveCondition;
   onRemove: (id: string) => void;
   onTap?: (condition: ActiveCondition) => void;
   compact?: boolean;
+  characterName?: string;
 }
 
 export function ConditionCard({
@@ -23,7 +26,10 @@ export function ConditionCard({
   onRemove,
   onTap,
   compact = false,
+  characterName,
 }: ConditionCardProps) {
+  const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
   const Icon = getIconByName(getIconForCondition(condition));
   const severityColors = SEVERITY_COLORS[condition.severity];
   const categoryColors = CATEGORY_COLORS[condition.category];
@@ -39,6 +45,38 @@ export function ConditionCard({
   const handleTap = useCallback(() => {
     onTap?.(condition);
   }, [condition, onTap]);
+
+  const handleCopyPrompt = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      
+      const prompt = generateConditionPrompt(
+        condition.conditionId,
+        condition.name,
+        condition.category,
+        condition.severity,
+        condition.source,
+        characterName
+      );
+      
+      navigator.clipboard.writeText(prompt).then(() => {
+        setCopied(true);
+        toast({
+          title: 'Prompt Copied',
+          description: `AI DM prompt for ${condition.name} copied to clipboard`,
+          duration: 2000,
+        });
+        setTimeout(() => setCopied(false), 2000);
+      }).catch(() => {
+        toast({
+          title: 'Copy Failed',
+          description: 'Unable to copy to clipboard',
+          variant: 'destructive',
+        });
+      });
+    },
+    [condition, characterName, toast]
+  );
 
   // Get duration icon based on type
   const DurationIcon = getDurationIcon(condition.durationType);
@@ -171,18 +209,40 @@ export function ConditionCard({
         )}
       </div>
 
-      {/* Remove button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={handleRemove}
-        className={cn(
-          'h-8 w-8 rounded-full flex-shrink-0',
-          'hover:bg-destructive/20 hover:text-destructive'
-        )}
-      >
-        <X className="w-4 h-4" />
-      </Button>
+      {/* Action buttons */}
+      <div className="flex items-center gap-1">
+        {/* Copy prompt button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleCopyPrompt}
+          className={cn(
+            'h-8 w-8 rounded-full flex-shrink-0',
+            'hover:bg-primary/20 hover:text-primary',
+            copied && 'text-emerald-400'
+          )}
+          title="Copy AI DM Prompt"
+        >
+          {copied ? (
+            <Check className="w-4 h-4" />
+          ) : (
+            <Copy className="w-4 h-4" />
+          )}
+        </Button>
+
+        {/* Remove button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleRemove}
+          className={cn(
+            'h-8 w-8 rounded-full flex-shrink-0',
+            'hover:bg-destructive/20 hover:text-destructive'
+          )}
+        >
+          <X className="w-4 h-4" />
+        </Button>
+      </div>
     </motion.div>
   );
 }
