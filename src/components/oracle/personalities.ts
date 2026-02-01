@@ -46,6 +46,21 @@ export const personalities: PersonalityConfig[] = [
       'What would YOU do in this situation?',
     ],
   },
+  {
+    id: 'gandalf',
+    name: 'Gandalf',
+    subtitle: 'The Grey Wanderer',
+    icon: '🧙',
+    color: '#9CA3AF', // gray-400 for the Grey
+    bgGradient: 'from-slate-800/80 via-stone-700/60 to-slate-950/80',
+    borderColor: 'border-slate-400/50',
+    quickPrompts: [
+      'What path should I take from here?',
+      'Is this truly a wise course of action?',
+      'What hidden dangers await me?',
+      'Speak to me of hope in this dark hour',
+    ],
+  },
 ];
 
 export function getPersonalityConfig(id: string): PersonalityConfig {

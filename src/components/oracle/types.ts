@@ -1,4 +1,4 @@
-export type Personality = 'thunderhead' | 'jarvis' | 'deadpool';
+export type Personality = 'thunderhead' | 'jarvis' | 'deadpool' | 'gandalf';
 
 export interface Message {
   id: string;
