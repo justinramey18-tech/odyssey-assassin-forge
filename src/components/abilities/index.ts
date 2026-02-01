@@ -4,3 +4,4 @@ export { AbilityDetailsPanel } from './AbilityDetailsPanel';
 export { TreeColumn } from './TreeColumn';
 export { TreeSelector } from './TreeSelector';
 export { ConnectionLine, ConnectionLines } from './ConnectionLine';
+export { TierSeparator } from './TierSeparator';

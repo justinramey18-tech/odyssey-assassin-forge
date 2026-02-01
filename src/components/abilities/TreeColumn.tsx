@@ -1,9 +1,11 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useCallback } from 'react';
 import { Ability, CharacterAbility, AbilityTree } from '@/lib/types';
-import { ABILITY_TREE_LAYOUT, getNodePosition, getTreeAbilities } from '@/lib/abilityTrees/layout';
-import { TREE_VISUAL_CONFIG } from '@/lib/abilityTrees/colors';
+import { ABILITY_TREE_LAYOUT, TIER_LABELS, getNodePosition, getTierSeparatorY, getTreeAbilities } from '@/lib/abilityTrees/layout';
+import { TREE_VISUAL_CONFIG, getTreeColor } from '@/lib/abilityTrees/colors';
+import { getAbilityAccessibility, getTreeConnections } from '@/lib/abilityTrees/accessibility';
 import { AbilityNode } from './AbilityNode';
 import { ConnectionLines } from './ConnectionLine';
+import { TierSeparator } from './TierSeparator';
 import { cn } from '@/lib/utils';
 
 interface TreeColumnProps {
@@ -49,57 +51,23 @@ export function TreeColumn({
     return map;
   }, [characterAbilities]);
   
-  // Derive connections from prerequisite relationships
-  const connections = useMemo(() => {
-    const conns: Array<{ from: string; to: string }> = [];
-    
-    treeAbilityIds.forEach(abilityId => {
-      const ability = abilities.find(a => a.id === abilityId);
-      if (ability?.prerequisite) {
-        conns.push({
-          from: ability.prerequisite.abilityId,
-          to: abilityId,
-        });
-      }
-    });
-    
-    // Add visual connections for tier progression (center column abilities)
-    const centerAbilities = treeAbilityIds.filter(id => {
-      const layout = ABILITY_TREE_LAYOUT[id];
-      return layout?.column === 1;
-    });
-    
-    for (let i = 0; i < centerAbilities.length - 1; i++) {
-      // Only add if no existing prerequisite connection
-      const alreadyConnected = conns.some(
-        c => c.from === centerAbilities[i] && c.to === centerAbilities[i + 1]
-      );
-      if (!alreadyConnected) {
-        conns.push({
-          from: centerAbilities[i],
-          to: centerAbilities[i + 1],
-        });
-      }
-    }
-    
-    return conns;
-  }, [treeAbilityIds, abilities]);
+  // Get connections from parent-child relationships (AC Odyssey style)
+  const connections = useMemo(() => getTreeConnections(tree), [tree]);
   
-  // Check if an ability is locked based on prerequisites and level
-  const isAbilityLocked = (ability: Ability): boolean => {
-    if (!ability.prerequisite) return false;
-    
-    const prereqTier = unlockedAbilities.get(ability.prerequisite.abilityId) || 0;
-    return prereqTier < ability.prerequisite.tier;
-  };
+  // Get accessibility for an ability using AC Odyssey logic
+  const getAccessibility = useCallback((abilityId: string) => {
+    return getAbilityAccessibility(abilityId, unlockedAbilities);
+  }, [unlockedAbilities]);
   
-  // Check if an ability is available to unlock
-  const isAbilityAvailable = (ability: Ability): boolean => {
-    const currentTier = unlockedAbilities.get(ability.id) || 0;
-    if (currentTier >= 3) return false; // Already maxed
-    
-    return !isAbilityLocked(ability);
-  };
+  // Tier separators (between tiers 2-5 and their lower neighbors)
+  const tierSeparators = useMemo(() => 
+    [2, 3, 4, 5].map(tier => ({
+      tier,
+      label: TIER_LABELS[tier],
+      yPosition: getTierSeparatorY(tier, isMobile),
+    })),
+    [isMobile]
+  );
 
   return (
     <div 
@@ -152,6 +120,17 @@ export function TreeColumn({
           containerHeight={containerHeight}
         />
         
+        {/* Tier Separators */}
+        {tierSeparators.map(({ tier, label, yPosition }) => (
+          <TierSeparator
+            key={`sep-${tier}`}
+            label={label}
+            yPosition={yPosition}
+            treeColor={getTreeColor(tree)}
+            isMobile={isMobile}
+          />
+        ))}
+        
         {/* Ability Nodes */}
         {treeAbilityIds.map(abilityId => {
           const ability = abilities.find(a => a.id === abilityId);
@@ -161,8 +140,7 @@ export function TreeColumn({
           
           const position = getNodePosition(tree, layout.tier, layout.column, isMobile, containerWidth);
           const currentTier = (unlockedAbilities.get(abilityId) || 0) as 0 | 1 | 2 | 3;
-          const isLocked = isAbilityLocked(ability);
-          const isAvailable = isAbilityAvailable(ability);
+          const accessibility = getAccessibility(abilityId);
           
           const nodeSize = isMobile ? 64 : 80;
           
@@ -178,8 +156,7 @@ export function TreeColumn({
               <AbilityNode
                 ability={ability}
                 currentTier={currentTier}
-                isLocked={isLocked}
-                isAvailable={isAvailable}
+                isAccessible={accessibility.isAccessible}
                 isSelected={selectedAbilityId === abilityId}
                 isMobile={isMobile}
                 onSelect={() => onSelectAbility(abilityId)}

@@ -6,6 +6,52 @@ export interface TreeNodePosition {
   column: 0 | 1 | 2; // Left, Center, Right within tier
 }
 
+// ═══════════════════════════════════════════════════════════════
+// AC ODYSSEY STYLE PARENT-CHILD CONNECTIONS
+// Empty array = Foundation tier, always accessible
+// Multiple parents = Converge point, ALL parents required
+// ═══════════════════════════════════════════════════════════════
+export const ABILITY_CONNECTIONS: Record<string, string[]> = {
+  // Hunter tree
+  'archery_master': [],
+  'predator_shot': [],
+  'multi_shot': ['archery_master'],
+  'hunters_instinct': ['predator_shot'],
+  'devastating_shot': ['multi_shot'],
+  'arrow_retrieval': ['hunters_instinct'],
+  'ghost_arrows': ['devastating_shot', 'arrow_retrieval'], // Converge - ALL required
+  'rain_of_destruction': ['ghost_arrows'],
+  
+  // Warrior tree
+  'weapon_master': [],
+  'shield_breaker': [],
+  'battlecry': ['weapon_master'],
+  'warriors_resilience': ['shield_breaker'],
+  'ring_of_chaos': ['battlecry'],
+  'second_wind_mastery': ['warriors_resilience'],
+  'hero_strike': ['ring_of_chaos', 'second_wind_mastery'], // Converge
+  'spartan_rage': ['hero_strike'],
+  
+  // Assassin tree
+  'shadow_dancer': [],
+  'shadow_step': [],
+  'critical_assassination': ['shadow_dancer'],
+  'poison_tolerance': ['shadow_step'],
+  'venomous_attacks': ['critical_assassination'],
+  'sixth_sense': ['poison_tolerance'],
+  'vanish': ['venomous_attacks', 'sixth_sense'], // Converge
+  'deaths_veil': ['vanish'],
+};
+
+// Tier power labels for visual separators
+export const TIER_LABELS: Record<number, string> = {
+  1: 'Foundation',
+  2: 'Basic',
+  3: 'Advanced',
+  4: 'Expert',
+  5: 'Ultimate',
+};
+
 // Grid positioning for all 24 abilities organized into 5 tiers per tree
 export const ABILITY_TREE_LAYOUT: Record<string, TreeNodePosition> = {
   // ═══════════════════════════════════════════════════════════════
@@ -91,6 +137,7 @@ export function getAbilitiesByTier(tree: AbilityTree): Map<number, string[]> {
 }
 
 // Calculate node position in pixels
+// INVERTED: Tier 5 at top (small y), Tier 1 at bottom (large y)
 export function getNodePosition(
   tree: AbilityTree,
   tier: number,
@@ -110,9 +157,35 @@ export function getNodePosition(
   };
   
   const x = columnPositions[column as 0 | 1 | 2] || containerWidth / 2;
-  const y = (tier - 1) * tierSpacing + padding + nodeSize / 2;
+  
+  // INVERT: Tier 5 at top (y=small), Tier 1 at bottom (y=large)
+  const invertedTier = 6 - tier; // 5→1, 4→2, 3→3, 2→4, 1→5
+  const y = (invertedTier - 1) * tierSpacing + padding + nodeSize / 2;
   
   return { x, y };
+}
+
+// Get Y position for tier separator line (between tiers)
+export function getTierSeparatorY(
+  tier: number, // The tier ABOVE the line
+  isMobile: boolean
+): number {
+  const tierSpacing = isMobile ? 100 : 120;
+  const padding = isMobile ? 40 : 60;
+  const nodeSize = isMobile ? 64 : 80;
+  
+  // After inversion: tier 5 at top, tier 1 at bottom
+  // Separator for tier N goes between tier N and tier N-1
+  // Position it halfway between the two tier rows
+  const invertedTier = 6 - tier;
+  return (invertedTier - 0.5) * tierSpacing + padding + nodeSize / 2;
+}
+
+// Get children of an ability
+export function getAbilityChildren(abilityId: string): string[] {
+  return Object.entries(ABILITY_CONNECTIONS)
+    .filter(([_, parents]) => parents.includes(abilityId))
+    .map(([childId]) => childId);
 }
 
 // Generate SVG path for connection lines

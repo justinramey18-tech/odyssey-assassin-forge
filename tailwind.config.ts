@@ -156,6 +156,29 @@ export default {
           "50%": { transform: "scale(1.1)" },
           "100%": { transform: "scale(1)" },
         },
+        // Enhanced unlock flash animation for AC Odyssey style
+        "ability-unlock-flash": {
+          "0%": { 
+            transform: "scale(1)", 
+            boxShadow: "0 0 0 0 currentColor",
+            filter: "brightness(1)"
+          },
+          "25%": { 
+            transform: "scale(1.25)", 
+            boxShadow: "0 0 40px 10px currentColor",
+            filter: "brightness(2)"
+          },
+          "50%": { 
+            transform: "scale(1.15)", 
+            boxShadow: "0 0 30px 6px currentColor",
+            filter: "brightness(1.5)"
+          },
+          "100%": { 
+            transform: "scale(1)", 
+            boxShadow: "0 0 15px 3px currentColor",
+            filter: "brightness(1)"
+          },
+        },
         // Tab icon animations
         "tab-crosshair": {
           "0%, 100%": { transform: "rotate(0deg) scale(1)" },
@@ -217,6 +240,7 @@ export default {
         "connection-flow": "connection-flow 1s linear infinite",
         "ability-pulse-mobile": "ability-pulse-mobile 3s ease-in-out infinite",
         "ability-unlock-mobile": "ability-unlock-mobile 0.3s ease-out",
+        "ability-unlock-flash": "ability-unlock-flash 0.6s ease-out",
         "badge-pulse": "badge-pulse 2s ease-in-out infinite",
       },
     },
