@@ -444,3 +444,180 @@ interface CharacterContext {
 
 This maintains the fantasy of being a **martial class with magical augmentation**, not a full caster—you're still an Assassin who happens to have picked up some tricks.
 
+---
+
+# Mobile-First Conditions System
+
+## Overview
+A D&D 5e status conditions system designed for fast combat tracking on mobile devices. Tracks debuffs (Poisoned, Stunned), buffs (Blessed, Hasted), and concentration spells with TTRPG-appropriate duration tracking.
+
+## Critical Domain Logic Clarifications
+
+### 1. Duration Mechanics: Rounds & Minutes
+
+**Round-based durations:**
+- Decrement by 1 each time `endTurn()` is called
+- Auto-remove when `durationValue` reaches 0
+- Toast notification: "Stunned wore off"
+
+**Minute-based durations:**
+- **10 rounds = 1 minute** (D&D 5e standard: 6 seconds/round)
+- Internal tracking uses `roundsElapsed` counter
+- Every 10th `endTurn()` call decrements minute-based conditions by 1
+- Display shows minutes remaining, not rounds
+- Example: "Blessed (2 min)" → after 10 turns → "Blessed (1 min)"
+
+```typescript
+interface ActiveCondition {
+  // ...existing fields
+  roundsElapsed: number; // Tracks rounds for minute conversion
+}
+
+const endTurn = () => {
+  setConditions(prev => prev.map(c => {
+    if (c.durationType === 'rounds') {
+      return { ...c, durationValue: c.durationValue - 1 };
+    }
+    if (c.durationType === 'minutes') {
+      const newRoundsElapsed = c.roundsElapsed + 1;
+      if (newRoundsElapsed >= 10) {
+        return { ...c, durationValue: c.durationValue - 1, roundsElapsed: 0 };
+      }
+      return { ...c, roundsElapsed: newRoundsElapsed };
+    }
+    return c;
+  }).filter(c => c.durationValue > 0 || c.durationType === 'save_ends' || c.durationType === 'indefinite'));
+};
+```
+
+### 2. Concentration Break Behavior
+
+**Triggers for concentration break:**
+- Manual "Break Concentration" button tap
+- Taking damage (user confirms failed CON save)
+- Casting another concentration spell (auto-detected)
+- Incapacitated/Unconscious condition applied
+
+**Break flow:**
+1. Remove ALL conditions where `category === 'concentration'`
+2. Display prominent toast: "Concentration broken - [Spell Name] ended"
+3. If triggered by new concentration spell, apply new spell after break
+4. Log to `recentConditions` for quick re-apply option
+
+```typescript
+const breakConcentration = (reason?: string) => {
+  const concentrationSpells = conditions.filter(c => c.category === 'concentration');
+  
+  if (concentrationSpells.length === 0) return;
+  
+  const spellNames = concentrationSpells.map(c => c.name).join(', ');
+  
+  setConditions(prev => prev.filter(c => c.category !== 'concentration'));
+  
+  toast({
+    title: "Concentration Broken",
+    description: reason 
+      ? `${spellNames} ended - ${reason}`
+      : `${spellNames} ended`,
+    variant: "destructive",
+  });
+};
+
+// Auto-break when adding new concentration
+const addCondition = (config: NewConditionInput) => {
+  if (config.category === 'concentration') {
+    const existingConcentration = conditions.find(c => c.category === 'concentration');
+    if (existingConcentration) {
+      breakConcentration(`Replaced by ${config.name}`);
+    }
+  }
+  // ...add new condition
+};
+```
+
+### 3. Duplicate Condition Handling
+
+**Policy: Refresh duration, don't stack**
+
+When adding a condition that already exists (matched by `conditionId`):
+1. Find existing instance
+2. Update `durationValue` to new value (refresh)
+3. Reset `roundsElapsed` to 0
+4. Update `source` if provided
+5. Show confirmation toast: "Poisoned refreshed (1 minute)"
+
+**Exception: Buffs that can stack** (future consideration)
+- Bardic Inspiration dice could stack with flag `stackable: true`
+- For MVP, no stacking - just refresh
+
+```typescript
+const addCondition = (config: NewConditionInput) => {
+  const existingIndex = conditions.findIndex(c => c.conditionId === config.conditionId);
+  
+  if (existingIndex !== -1) {
+    // Refresh existing
+    setConditions(prev => prev.map((c, i) => 
+      i === existingIndex 
+        ? { 
+            ...c, 
+            durationValue: config.durationValue,
+            roundsElapsed: 0,
+            source: config.source ?? c.source,
+            appliedAt: Date.now()
+          }
+        : c
+    ));
+    
+    toast({
+      title: `${config.name} refreshed`,
+      description: formatDuration(config.durationType, config.durationValue),
+    });
+    return;
+  }
+  
+  // Add new condition
+  // ...
+};
+```
+
+## Additional Production Safeguards
+
+### Undo/Rollback
+- 5-second "Undo" action on removal toasts
+- Stores last removed condition in `undoBuffer`
+- Tap undo → restore condition with original duration
+
+### Performance Cap
+- `MAX_ACTIVE_CONDITIONS = 15`
+- Warn at 12: "Consider clearing expired conditions"
+- Block at 15: "Remove a condition before adding more"
+
+### localStorage Error Handling
+```typescript
+const saveToStorage = (conditions: ActiveCondition[]) => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(conditions));
+  } catch (e) {
+    console.error('Failed to save conditions:', e);
+    toast({
+      title: "Save Warning",
+      description: "Conditions may not persist - storage full",
+      variant: "destructive",
+    });
+  }
+};
+```
+
+## File Structure (unchanged)
+```
+src/lib/conditions/     → types.ts, config.ts, index.ts
+src/hooks/              → use-conditions.ts
+src/components/conditions/ → ConditionDrawer, QuickBar, Card, AddSheet
+```
+
+## Implementation Order
+1. Types & Config with `roundsElapsed` field
+2. Hook with all 3 clarified behaviors
+3. Components with undo support
+4. Integration with Combat HUD and Oracle context
+
