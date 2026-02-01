@@ -1,182 +1,184 @@
 
-# Move Tree Header to Bottom & Auto-Scroll to Foundation
 
-## Problem
-1. The tree header ("Hunter | Ranged & Awareness") is currently at the **top** of each tree column
-2. With the inverted tree layout (Foundation at bottom, Ultimate at top), users should see the Foundation nodes first
-3. The default scroll position shows the top of the tree (Ultimate abilities) instead of the bottom (Foundation abilities)
+# Generate Theme-Appropriate Skill Tree Backgrounds
 
-## Solution
-1. Move the tree header to render **below** the ability nodes container (at the bottom of the column)
-2. Add a `useEffect` to auto-scroll to the bottom of the ScrollArea when the component mounts or the tree changes
-3. Add an extra "Foundation" tier separator below Tier 1 nodes for visual consistency
+## Overview
+Create three unique AI-generated background images for each skill tree (Hunter, Warrior, Assassin), designed mobile-first with portrait orientation to match the inverted tree layout.
 
 ---
 
-## Files to Modify
+## Image Specifications
+
+### Dimensions (Mobile-First)
+- **Primary**: 720 x 1280 px (9:16 portrait)
+- **Output Format**: WEBP for optimal performance
+- **Style**: Dark fantasy, atmospheric, suitable for UI overlay
+
+### Visual Themes Per Tree
+
+| Tree | Color Theme | Scene Description |
+|------|-------------|-------------------|
+| **Hunter** | Forest greens, ethereal teal | Moonlit ancient forest, mist between towering trees, glowing bioluminescent plants, bow and arrows motif, owl silhouettes |
+| **Warrior** | Crimson reds, blood orange | Greek colosseum at dusk, burning braziers, stone columns with battle scars, shield and sword silhouettes, war drums atmosphere |
+| **Assassin** | Deep purple, shadow black | Shadowy rooftop cityscape, crescent moon, smoke/fog, hidden blades imagery, hooded figure silhouette, poison vials |
+
+---
+
+## Implementation Plan
+
+### 1. Create Edge Function for Image Generation
+
+**File**: `supabase/functions/generate-tree-backgrounds/index.ts`
+
+```typescript
+// Use Lovable AI API (google/gemini-2.5-flash-image) 
+// Generate 3 images with specific prompts per tree
+// Upload to Supabase Storage bucket
+// Return public URLs
+```
+
+### 2. AI Prompts (Detailed)
+
+**Hunter Tree:**
+```
+Dark fantasy forest scene at night, portrait orientation, deep green and teal color palette. 
+Ancient massive trees with twisted roots, soft moonlight filtering through dense canopy. 
+Ethereal mist swirling at the base, bioluminescent mushrooms and glowing fireflies. 
+Subtle owl silhouettes perched on branches. 
+Atmospheric and mysterious, suitable for UI overlay.
+Dark edges fading to black for text legibility.
+Style: concept art, painterly, AC Odyssey aesthetic.
+```
+
+**Warrior Tree:**
+```
+Dark fantasy Greek arena at sunset, portrait orientation, crimson and blood red color palette.
+Ancient stone colosseum with cracked pillars and battle-worn architecture.
+Burning braziers casting orange-red glow, smoke rising.
+Dramatic clouds, war banners, crossed swords and shields carved in stone.
+Intense and powerful atmosphere.
+Dark vignette edges for UI overlay.
+Style: concept art, painterly, God of War aesthetic.
+```
+
+**Assassin Tree:**
+```
+Dark fantasy shadowy cityscape at night, portrait orientation, deep purple and black color palette.
+Rooftops with ancient Middle Eastern architecture, crescent moon through clouds.
+Swirling shadows and smoke, subtle purple magical energy.
+Hooded figure silhouette in distance, hidden blade motif subtly integrated.
+Mysterious and dangerous atmosphere.
+Heavy dark vignette for UI overlay.
+Style: concept art, painterly, Assassin's Creed aesthetic.
+```
+
+### 3. Storage Setup
+
+**Create Supabase Storage bucket**: `tree-backgrounds`
+- Public access for CDN delivery
+- Store generated images with paths:
+  - `hunter-tree-mobile.webp`
+  - `warrior-tree-mobile.webp`
+  - `assassin-tree-mobile.webp`
+
+### 4. Update TreeColumn Component
+
+**File**: `src/components/abilities/TreeColumn.tsx`
+
+Add background image layer behind ability nodes:
+```typescript
+// Import background URLs from config or directly
+const treeBackgrounds: Record<AbilityTree, string> = {
+  hunter: 'https://[storage-url]/tree-backgrounds/hunter-tree-mobile.webp',
+  warrior: 'https://[storage-url]/tree-backgrounds/warrior-tree-mobile.webp',
+  assassin: 'https://[storage-url]/tree-backgrounds/assassin-tree-mobile.webp',
+};
+
+// Add background layer in JSX
+<div 
+  className="absolute inset-0 bg-cover bg-center z-0"
+  style={{ backgroundImage: `url(${treeBackgrounds[tree]})` }}
+/>
+<div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent z-0" />
+```
+
+### 5. Create Background Config File
+
+**File**: `src/lib/abilityTrees/backgrounds.ts`
+
+```typescript
+import { AbilityTree } from '@/lib/types';
+
+export const TREE_BACKGROUNDS: Record<AbilityTree, {
+  mobile: string;
+  desktop?: string;
+  fallbackGradient: string;
+}> = {
+  hunter: {
+    mobile: '/tree-backgrounds/hunter-tree-mobile.webp',
+    fallbackGradient: 'linear-gradient(180deg, hsl(140 30% 8%) 0%, hsl(140 20% 4%) 100%)',
+  },
+  warrior: {
+    mobile: '/tree-backgrounds/warrior-tree-mobile.webp',
+    fallbackGradient: 'linear-gradient(180deg, hsl(0 30% 10%) 0%, hsl(0 20% 5%) 100%)',
+  },
+  assassin: {
+    mobile: '/tree-backgrounds/assassin-tree-mobile.webp',
+    fallbackGradient: 'linear-gradient(180deg, hsl(270 30% 10%) 0%, hsl(270 20% 5%) 100%)',
+  },
+};
+```
+
+---
+
+## Files to Create/Modify
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/components/abilities/TreeColumn.tsx` | MODIFY | Move header to bottom of component |
-| `src/components/abilities/AbilitiesScreen.tsx` | MODIFY | Add scrollRef and auto-scroll to bottom on mount/tree change |
-| `src/lib/abilityTrees/layout.ts` | MODIFY | Add Foundation separator position helper |
+| `supabase/functions/generate-tree-backgrounds/index.ts` | CREATE | Edge function to generate and store images |
+| `src/lib/abilityTrees/backgrounds.ts` | CREATE | Background URL configuration |
+| `src/components/abilities/TreeColumn.tsx` | MODIFY | Add background image layer |
+| `src/components/abilities/AbilitiesScreen.tsx` | MODIFY | Pass background context if needed |
 
 ---
 
-## Detailed Changes
+## Execution Steps
 
-### 1. `src/components/abilities/TreeColumn.tsx`
-
-**Move the Tree Header from top to bottom:**
-
-Current structure:
-```
-<div> (container)
-  <div> (Tree Header - TOP) ← MOVE THIS
-  <div> (Ability Tree Container)
-</div>
-```
-
-New structure:
-```
-<div> (container)
-  <div> (Ability Tree Container)
-  <div> (Tree Header - BOTTOM) ← MOVED HERE
-</div>
-```
-
-**Changes:**
-- Move the header `div` (lines 81-106) to after the ability tree container (after line 178)
-- Change header styling from `border-b` to `border-t` (top border instead of bottom)
-- Reverse the gradient direction from `from-X/20 via-transparent to-transparent` to flow upward
-
-### 2. `src/components/abilities/AbilitiesScreen.tsx`
-
-**Add auto-scroll to bottom functionality:**
-
-```typescript
-// Add ref for ScrollArea
-const scrollRef = useRef<HTMLDivElement>(null);
-
-// Add useEffect to scroll to bottom on mount and tree change
-useEffect(() => {
-  // Small delay to ensure content is rendered
-  const timer = setTimeout(() => {
-    if (scrollRef.current) {
-      const viewport = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
-      if (viewport) {
-        viewport.scrollTop = viewport.scrollHeight;
-      }
-    }
-  }, 50);
-  return () => clearTimeout(timer);
-}, [selectedTree]); // Re-scroll when tree changes
-```
-
-**For mobile (line 167):**
-```typescript
-<ScrollArea ref={scrollRef} className="h-full">
-```
-
-**For desktop (line 185):**
-```typescript
-// Create individual refs for each tree
-const hunterScrollRef = useRef<HTMLDivElement>(null);
-const warriorScrollRef = useRef<HTMLDivElement>(null);
-const assassinScrollRef = useRef<HTMLDivElement>(null);
-
-// Scroll all three on mount
-useEffect(() => {
-  const timer = setTimeout(() => {
-    [hunterScrollRef, warriorScrollRef, assassinScrollRef].forEach(ref => {
-      if (ref.current) {
-        const viewport = ref.current.querySelector('[data-radix-scroll-area-viewport]');
-        if (viewport) {
-          viewport.scrollTop = viewport.scrollHeight;
-        }
-      }
-    });
-  }, 50);
-  return () => clearTimeout(timer);
-}, []);
-```
-
-### 3. `src/lib/abilityTrees/layout.ts`
-
-**Add Foundation separator (optional, for visual consistency):**
-
-Update `TIER_LABELS` to include a "Foundation" label that appears below Tier 1:
-```typescript
-// Already exists, but add position helper for Foundation separator BELOW tier 1
-export function getFoundationSeparatorY(isMobile: boolean): number {
-  const tierSpacing = isMobile ? 100 : 120;
-  const padding = isMobile ? 40 : 60;
-  const nodeSize = isMobile ? 64 : 80;
-  
-  // Position below tier 1 (which is now at the bottom due to inversion)
-  // Tier 1 has invertedTier = 5, so y = 4 * tierSpacing + padding + nodeSize/2
-  // Foundation separator goes below that
-  return 5 * tierSpacing + padding + nodeSize / 2 + 30; // 30px below tier 1
-}
-```
+1. **Create Storage Bucket**: Set up `tree-backgrounds` bucket in Supabase Storage
+2. **Build Edge Function**: Create image generation function using Lovable AI API
+3. **Generate Images**: Call the edge function to create all 3 backgrounds
+4. **Update Components**: Integrate backgrounds into TreeColumn
+5. **Add Fallbacks**: CSS gradient fallbacks while images load
 
 ---
 
-## Visual Result
+## Image Generation API Usage
 
-### Before (Current)
+Using `google/gemini-2.5-flash-image` via Lovable AI Gateway:
+```typescript
+const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    model: 'google/gemini-2.5-flash-image',
+    messages: [{ role: 'user', content: prompt }],
+    modalities: ['image', 'text'],
+  }),
+});
 ```
-┌──────────────────────────────┐
-│ HUNTER | Ranged & Awareness  │ ← Header at TOP
-├──────────────────────────────┤
-│ 🌧️ Rain of Destruction       │ ← User sees Ultimate first
-│    (locked)                  │
-│ ── ULTIMATE ──────────────── │
-│         ...                  │
-│    (must scroll down)        │
-│ 🏹 Archery    👁️ Predator    │ ← Foundation at BOTTOM
-│    Master       Shot         │
-└──────────────────────────────┘
-```
-
-### After (New)
-```
-┌──────────────────────────────┐
-│    (scroll up to see more)   │
-│ 🌧️ Rain of Destruction       │
-│ ── ULTIMATE ──────────────── │
-│         ...                  │
-│ 🏹 Archery    👁️ Predator    │ ← User sees Foundation first
-│    Master       Shot         │
-│ ── FOUNDATION ─────────────  │
-├──────────────────────────────┤
-│ HUNTER | Ranged & Awareness  │ ← Header at BOTTOM (visible with Foundation)
-└──────────────────────────────┘
-```
-
----
-
-## Technical Notes
-
-1. **ScrollArea Auto-Scroll**: The Radix ScrollArea component uses a viewport element with `data-radix-scroll-area-viewport` attribute. We query for this to set `scrollTop = scrollHeight`.
-
-2. **Timing**: A small `setTimeout(50ms)` ensures the content has rendered before scrolling.
-
-3. **Tree Change on Mobile**: When user swipes between trees, the scroll should also reset to bottom for the new tree.
-
-4. **Header Styling Adjustments**:
-   - Change `border-b` → `border-t` 
-   - Gradient should fade upward into the tree
-   - Keep same content structure (icon, name, subtitle, points)
 
 ---
 
 ## Testing Checklist
 
-- [ ] On mobile: View defaults to bottom of tree (Foundation nodes visible)
-- [ ] On mobile: Swiping between trees resets scroll to bottom
-- [ ] On desktop: All three trees scroll to bottom on load
-- [ ] Tree header appears below Foundation nodes
-- [ ] Header styling looks correct with top border
-- [ ] Foundation tier separator label is visible below tier 1 nodes
-- [ ] Scroll up reveals Ultimate abilities at top
+- [ ] Hunter background generates with green forest theme
+- [ ] Warrior background generates with red arena theme
+- [ ] Assassin background generates with purple shadow theme
+- [ ] Images load correctly in TreeColumn on mobile
+- [ ] Fallback gradients display while images load
+- [ ] UI elements (nodes, lines, text) remain legible over backgrounds
+- [ ] Performance acceptable on mobile devices (image size < 200KB each)
+
