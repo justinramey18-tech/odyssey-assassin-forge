@@ -31,6 +31,7 @@ import { MobileSpellList } from './MobileSpellList';
 import { ConditionStrip } from '@/components/conditions';
 import { useConditions } from '@/hooks/use-conditions';
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
+import { usePromptDrawers } from '@/components/drawers';
 
 // Tab order for swipe navigation
 const TAB_ORDER: CombatTab[] = ['attacks', 'stealth', 'abilities', 'spells', 'items', 'summary'];
@@ -101,6 +102,9 @@ export function MobileCombatLayout({ character, spellcasting }: MobileCombatLayo
   const [isYourTurn, setIsYourTurn] = useState(true);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
   const { rerollsDisabled } = useGameMode();
+  
+  // Access drawer context for opening conditions panel
+  const drawerContext = usePromptDrawers();
   
   // Condition system integration
   const conditionSystem = useConditions({ personality: 'deadpool' });
@@ -425,12 +429,27 @@ export function MobileCombatLayout({ character, spellcasting }: MobileCombatLayo
       
       {/* Main Content Area */}
       <main className="pt-16">
-        {/* Condition Strip (if any active) */}
-        {conditionSystem.allActive.length > 0 && (
-          <ConditionStrip
-            conditions={conditionSystem.allActive}
-            onRemove={(id) => conditionSystem.removeCondition(id)}
-          />
+        {/* Condition Strip (if any active) - tap to open full panel */}
+        {conditionSystem.allActive.length > 0 ? (
+          <button
+            onClick={() => drawerContext?.openConditionsDrawer()}
+            className="w-full text-left"
+          >
+            <ConditionStrip
+              conditions={conditionSystem.allActive}
+              onRemove={(id) => conditionSystem.removeCondition(id)}
+              onTap={() => drawerContext?.openConditionsDrawer()}
+            />
+          </button>
+        ) : (
+          /* Quick add button when no conditions */
+          <button
+            onClick={() => drawerContext?.openConditionsDrawer()}
+            className="w-full flex items-center justify-center gap-2 py-2 bg-black/20 border-b border-white/10 text-muted-foreground text-xs hover:bg-black/30 transition-colors"
+          >
+            <span className="text-amber-400">+</span>
+            <span>Tap to add conditions</span>
+          </button>
         )}
         
         {/* Situation Strip */}
