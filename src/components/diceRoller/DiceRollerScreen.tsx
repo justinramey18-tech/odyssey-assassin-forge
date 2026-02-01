@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Copy, Check, Dices, Sparkles, Swords, Eye, MessageCircle, Wrench, Plus, Minus, Settings2 } from 'lucide-react';
+import { ArrowLeft, Copy, Check, Dices, Sparkles, Swords, Eye, MessageCircle, Wrench, Plus, Minus, Settings2, ChevronUp, ChevronDown, Equal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,9 @@ interface DiceRollerScreenProps {
   onBack: () => void;
 }
 
+// Roll mode for advantage/disadvantage
+type RollMode = 'normal' | 'advantage' | 'disadvantage';
+
 interface RollResult {
   die: DieSize;
   result: number;
@@ -33,6 +36,10 @@ interface RollResult {
   modifier: number;
   timestamp: number;
   label?: string;
+  // For advantage/disadvantage tracking
+  rollMode?: RollMode;
+  allRolls?: number[]; // Both d20 rolls when using adv/disadv
+  droppedRoll?: number; // The roll that wasn't used
 }
 
 // Storage keys
@@ -40,6 +47,7 @@ const MODIFIERS_STORAGE_KEY = 'odyssey-dice-modifiers';
 const PROFICIENCY_STORAGE_KEY = 'odyssey-proficiency-bonus';
 const PROFICIENT_SKILLS_KEY = 'odyssey-proficient-skills';
 const PROFICIENT_SAVES_KEY = 'odyssey-proficient-saves';
+const ROLL_MODE_KEY = 'odyssey-roll-mode';
 
 type AbilityModifiers = Record<AbilityScore, number>;
 
@@ -70,6 +78,7 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
   const [proficientSkills, setProficientSkills] = useState<Set<string>>(new Set());
   const [proficientSaves, setProficientSaves] = useState<Set<AbilityScore>>(new Set());
   const [modifiersOpen, setModifiersOpen] = useState(false);
+  const [rollMode, setRollMode] = useState<RollMode>('normal');
 
   // Load saved modifiers on mount
   useEffect(() => {
@@ -85,6 +94,9 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
       
       const savedSaves = localStorage.getItem(PROFICIENT_SAVES_KEY);
       if (savedSaves) setProficientSaves(new Set(JSON.parse(savedSaves)));
+      
+      const savedRollMode = localStorage.getItem(ROLL_MODE_KEY);
+      if (savedRollMode) setRollMode(savedRollMode as RollMode);
     } catch (e) {
       console.error('Failed to load modifiers:', e);
     }
@@ -106,6 +118,10 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
   useEffect(() => {
     localStorage.setItem(PROFICIENT_SAVES_KEY, JSON.stringify([...proficientSaves]));
   }, [proficientSaves]);
+
+  useEffect(() => {
+    localStorage.setItem(ROLL_MODE_KEY, rollMode);
+  }, [rollMode]);
 
   // Update ability modifier
   const updateModifier = (ability: AbilityScore, delta: number) => {
@@ -137,15 +153,28 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
     });
   };
 
+  // Cycle through roll modes
+  const cycleRollMode = () => {
+    triggerHaptic('light');
+    setRollMode(prev => {
+      if (prev === 'normal') return 'advantage';
+      if (prev === 'advantage') return 'disadvantage';
+      return 'normal';
+    });
+  };
+
   // Roll a die with animation and modifier
-  const rollDice = useCallback((die: DieSize, label?: string, modifier: number = 0) => {
+  const rollDice = useCallback((die: DieSize, label?: string, modifier: number = 0, useRollMode: boolean = false) => {
     setIsRolling(true);
     triggerHaptic('medium');
 
-    // Animate through random numbers
     const sides = DICE_CONFIG[die].sides;
     let iterations = 0;
     const maxIterations = 10;
+    
+    // Determine if we should use advantage/disadvantage (only for d20)
+    const effectiveMode = (useRollMode && die === 'd20') ? rollMode : 'normal';
+    const rollCount = effectiveMode !== 'normal' ? 2 : 1;
     
     const animate = setInterval(() => {
       iterations++;
@@ -157,11 +186,32 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
         result: animRoll + modifier,
         timestamp: Date.now(),
         label,
+        rollMode: effectiveMode,
       });
 
       if (iterations >= maxIterations) {
         clearInterval(animate);
-        const finalRawRoll = rollDie(sides);
+        
+        // Roll the dice
+        const allRolls: number[] = [];
+        for (let i = 0; i < rollCount; i++) {
+          allRolls.push(rollDie(sides));
+        }
+        
+        // Determine final roll based on mode
+        let finalRawRoll: number;
+        let droppedRoll: number | undefined;
+        
+        if (effectiveMode === 'advantage') {
+          finalRawRoll = Math.max(...allRolls);
+          droppedRoll = Math.min(...allRolls);
+        } else if (effectiveMode === 'disadvantage') {
+          finalRawRoll = Math.min(...allRolls);
+          droppedRoll = Math.max(...allRolls);
+        } else {
+          finalRawRoll = allRolls[0];
+        }
+        
         const newRoll: RollResult = {
           die,
           rawRoll: finalRawRoll,
@@ -169,6 +219,9 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
           result: finalRawRoll + modifier,
           timestamp: Date.now(),
           label,
+          rollMode: effectiveMode,
+          allRolls: rollCount > 1 ? allRolls : undefined,
+          droppedRoll,
         };
         setCurrentRoll(newRoll);
         setRollHistory(prev => [newRoll, ...prev.slice(0, 19)]);
@@ -176,24 +229,24 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
         triggerHaptic('heavy');
       }
     }, 50);
-  }, []);
+  }, [rollMode]);
 
-  // Roll skill check (d20) with modifiers
+  // Roll skill check (d20) with modifiers and roll mode
   const rollSkill = useCallback((skillId: string, skillName: string, ability: AbilityScore) => {
     const abilityMod = abilityModifiers[ability];
     const profBonus = proficientSkills.has(skillId) ? proficiencyBonus : 0;
     const totalMod = abilityMod + profBonus;
     const profIndicator = profBonus > 0 ? '●' : '';
-    rollDice('d20', `${profIndicator}${skillName} (${ABILITY_SCORES[ability].abbr})`, totalMod);
+    rollDice('d20', `${profIndicator}${skillName} (${ABILITY_SCORES[ability].abbr})`, totalMod, true);
   }, [rollDice, abilityModifiers, proficiencyBonus, proficientSkills]);
 
-  // Roll saving throw (d20) with modifiers
+  // Roll saving throw (d20) with modifiers and roll mode
   const rollSave = useCallback((ability: AbilityScore) => {
     const abilityMod = abilityModifiers[ability];
     const profBonus = proficientSaves.has(ability) ? proficiencyBonus : 0;
     const totalMod = abilityMod + profBonus;
     const profIndicator = profBonus > 0 ? '●' : '';
-    rollDice('d20', `${profIndicator}${ABILITY_SCORES[ability].name} Save`, totalMod);
+    rollDice('d20', `${profIndicator}${ABILITY_SCORES[ability].name} Save`, totalMod, true);
   }, [rollDice, abilityModifiers, proficiencyBonus, proficientSaves]);
 
   // Copy to clipboard
@@ -216,14 +269,27 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
   const copyRollResult = useCallback(() => {
     if (!currentRoll) return;
     let text: string;
+    
+    // Build roll mode prefix
+    const modePrefix = currentRoll.rollMode === 'advantage' 
+      ? '(ADV) ' 
+      : currentRoll.rollMode === 'disadvantage' 
+        ? '(DIS) ' 
+        : '';
+    
+    // Build rolls display for adv/disadv
+    const rollsDisplay = currentRoll.allRolls 
+      ? `[${currentRoll.allRolls.join(', ')}] → ${currentRoll.rawRoll}`
+      : currentRoll.rawRoll.toString();
+    
     if (currentRoll.label) {
       if (currentRoll.modifier !== 0) {
-        text = `${currentRoll.label}: ${currentRoll.rawRoll} ${currentRoll.modifier >= 0 ? '+' : ''}${currentRoll.modifier} = ${currentRoll.result}`;
+        text = `${modePrefix}${currentRoll.label}: ${rollsDisplay} ${currentRoll.modifier >= 0 ? '+' : ''}${currentRoll.modifier} = ${currentRoll.result}`;
       } else {
-        text = `${currentRoll.label}: ${currentRoll.result} (${currentRoll.die})`;
+        text = `${modePrefix}${currentRoll.label}: ${rollsDisplay} (${currentRoll.die})`;
       }
     } else {
-      text = `${currentRoll.die}: ${currentRoll.result}`;
+      text = `${modePrefix}${currentRoll.die}: ${currentRoll.result}`;
     }
     copyToClipboard(text, 'roll-result');
   }, [currentRoll, copyToClipboard]);
@@ -307,14 +373,34 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
                     {currentRoll.label}
                   </Badge>
                 )}
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="flex flex-col items-center gap-1 text-sm text-muted-foreground">
+                  {/* Show advantage/disadvantage rolls */}
+                  {currentRoll.allRolls && currentRoll.allRolls.length > 1 && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className={cn(
+                        'font-mono px-2 py-0.5 rounded',
+                        currentRoll.rollMode === 'advantage' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                      )}>
+                        {currentRoll.rollMode === 'advantage' ? 'ADV' : 'DIS'}
+                      </span>
+                      <span className="font-mono">
+                        {currentRoll.allRolls.map((r, i) => (
+                          <span key={i} className={cn(
+                            r === currentRoll.rawRoll ? 'text-foreground font-bold' : 'text-muted-foreground/50 line-through'
+                          )}>
+                            {i > 0 && ' / '}{r}
+                          </span>
+                        ))}
+                      </span>
+                    </div>
+                  )}
                   {/* Show breakdown: raw roll + modifier = total */}
                   {currentRoll.modifier !== 0 ? (
                     <span className="font-mono">
                       ({currentRoll.rawRoll}) {currentRoll.modifier >= 0 ? '+' : ''}{currentRoll.modifier} = {currentRoll.result}
                     </span>
                   ) : (
-                    <span>{currentRoll.die.toUpperCase()}: {currentRoll.rawRoll}</span>
+                    !currentRoll.allRolls && <span>{currentRoll.die.toUpperCase()}: {currentRoll.rawRoll}</span>
                   )}
                 </div>
                 {isCritical && <span className="text-tier-maxed font-bold text-sm">✦ NATURAL 20! ✦</span>}
@@ -373,14 +459,58 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
         <ScrollArea className="flex-1 px-4 py-4">
           {/* Dice Tab */}
           <TabsContent value="dice" className="mt-0 space-y-4">
+            {/* Roll Mode Toggle for d20 */}
+            <div className="flex items-center justify-center gap-2 p-2 rounded-lg bg-muted/30 border border-border">
+              <span className="text-xs text-muted-foreground mr-2">d20 Mode:</span>
+              <div className="flex rounded-lg border border-border overflow-hidden">
+                <button
+                  onClick={() => { triggerHaptic('light'); setRollMode('normal'); }}
+                  className={cn(
+                    'px-3 py-1.5 text-xs font-medium transition-all flex items-center gap-1',
+                    rollMode === 'normal' 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'bg-card/50 text-muted-foreground hover:bg-card'
+                  )}
+                >
+                  <Equal className="w-3 h-3" />
+                  Normal
+                </button>
+                <button
+                  onClick={() => { triggerHaptic('light'); setRollMode('advantage'); }}
+                  className={cn(
+                    'px-3 py-1.5 text-xs font-medium transition-all flex items-center gap-1 border-x border-border',
+                    rollMode === 'advantage' 
+                      ? 'bg-green-600 text-white' 
+                      : 'bg-card/50 text-muted-foreground hover:bg-card'
+                  )}
+                >
+                  <ChevronUp className="w-3 h-3" />
+                  Adv
+                </button>
+                <button
+                  onClick={() => { triggerHaptic('light'); setRollMode('disadvantage'); }}
+                  className={cn(
+                    'px-3 py-1.5 text-xs font-medium transition-all flex items-center gap-1',
+                    rollMode === 'disadvantage' 
+                      ? 'bg-red-600 text-white' 
+                      : 'bg-card/50 text-muted-foreground hover:bg-card'
+                  )}
+                >
+                  <ChevronDown className="w-3 h-3" />
+                  Dis
+                </button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-4 gap-3">
               {DICE_ORDER.map((die) => {
                 const config = DICE_CONFIG[die];
+                const isD20 = die === 'd20';
                 return (
                   <motion.button
                     key={die}
                     whileTap={{ scale: 0.9 }}
-                    onClick={() => rollDice(die)}
+                    onClick={() => rollDice(die, undefined, 0, isD20)}
                     disabled={isRolling}
                     className={cn(
                       'aspect-square rounded-xl border-2 border-border bg-card/50',
@@ -388,10 +518,18 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
                       'hover:bg-card hover:border-primary/50 transition-all',
                       'disabled:opacity-50 disabled:cursor-not-allowed',
                       config.color,
+                      // Highlight d20 when adv/disadv is active
+                      isD20 && rollMode === 'advantage' && 'border-green-500/50 bg-green-500/10',
+                      isD20 && rollMode === 'disadvantage' && 'border-red-500/50 bg-red-500/10',
                     )}
                   >
                     <span className="text-2xl font-cinzel font-bold uppercase">{die}</span>
-                    <span className="text-[10px] text-muted-foreground">1-{config.sides}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {isD20 && rollMode !== 'normal' 
+                        ? (rollMode === 'advantage' ? '2d20 ↑' : '2d20 ↓')
+                        : `1-${config.sides}`
+                      }
+                    </span>
                   </motion.button>
                 );
               })}
@@ -508,6 +646,27 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
               </CollapsibleContent>
             </Collapsible>
 
+            {/* Roll Mode Indicator */}
+            <div className="flex items-center justify-center">
+              <button
+                onClick={cycleRollMode}
+                className={cn(
+                  'flex items-center gap-2 px-4 py-2 rounded-full border transition-all',
+                  rollMode === 'normal' && 'border-border bg-card/50 text-muted-foreground',
+                  rollMode === 'advantage' && 'border-green-500 bg-green-500/20 text-green-400',
+                  rollMode === 'disadvantage' && 'border-red-500 bg-red-500/20 text-red-400',
+                )}
+              >
+                {rollMode === 'normal' && <Equal className="w-4 h-4" />}
+                {rollMode === 'advantage' && <ChevronUp className="w-4 h-4" />}
+                {rollMode === 'disadvantage' && <ChevronDown className="w-4 h-4" />}
+                <span className="text-sm font-medium capitalize">
+                  {rollMode === 'normal' ? 'Normal Roll' : rollMode}
+                </span>
+                <span className="text-xs opacity-60">(tap to cycle)</span>
+              </button>
+            </div>
+
             {/* Skills List */}
             <div className="grid grid-cols-1 gap-2">
               {SKILLS.map((skill) => {
@@ -563,6 +722,27 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
 
           {/* Saves Tab */}
           <TabsContent value="saves" className="mt-0 space-y-4">
+            {/* Roll Mode Indicator */}
+            <div className="flex items-center justify-center">
+              <button
+                onClick={cycleRollMode}
+                className={cn(
+                  'flex items-center gap-2 px-4 py-2 rounded-full border transition-all',
+                  rollMode === 'normal' && 'border-border bg-card/50 text-muted-foreground',
+                  rollMode === 'advantage' && 'border-green-500 bg-green-500/20 text-green-400',
+                  rollMode === 'disadvantage' && 'border-red-500 bg-red-500/20 text-red-400',
+                )}
+              >
+                {rollMode === 'normal' && <Equal className="w-4 h-4" />}
+                {rollMode === 'advantage' && <ChevronUp className="w-4 h-4" />}
+                {rollMode === 'disadvantage' && <ChevronDown className="w-4 h-4" />}
+                <span className="text-sm font-medium capitalize">
+                  {rollMode === 'normal' ? 'Normal Roll' : rollMode}
+                </span>
+                <span className="text-xs opacity-60">(tap to cycle)</span>
+              </button>
+            </div>
+
             {/* Info about modifiers */}
             <div className="p-2 rounded-lg bg-muted/30 border border-border text-center">
               <p className="text-xs text-muted-foreground">
