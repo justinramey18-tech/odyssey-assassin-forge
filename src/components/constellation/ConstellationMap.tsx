@@ -6,6 +6,7 @@ import { getIconByName } from '@/lib/iconUtils';
 import { itemPrerequisites, Achievement } from '@/lib/achievements';
 import { useGearLock } from '@/hooks/use-gear-lock';
 import { useGameMode } from '@/hooks/use-game-mode';
+import { constellationBackgrounds } from '@/lib/inventory/constellationBackgrounds';
 
 interface ConstellationMapProps {
   equippedItems: EquipmentItem[];
@@ -93,15 +94,30 @@ function SetConstellation({ setInfo, setItems, equippedSetItems, achievements, i
   return (
     <div 
       className={cn(
-        "relative flex-shrink-0 w-[320px] h-[500px] mx-4 rounded-xl border-2 transition-all duration-500",
+        "relative flex-shrink-0 w-[320px] h-[500px] mx-4 rounded-xl border-2 transition-all duration-500 overflow-hidden",
         isActive ? "scale-100 opacity-100" : "scale-95 opacity-60"
       )}
       style={{
-        background: `radial-gradient(ellipse at center, ${bgGlowColor} 0%, transparent 70%)`,
         borderColor: glowColor,
         boxShadow: isActive ? `0 0 40px ${glowColor}, inset 0 0 60px ${bgGlowColor}` : 'none',
       }}
     >
+      {/* Background Image Layer */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center opacity-30"
+        style={{ 
+          backgroundImage: `url(${constellationBackgrounds[setInfo.id]})`,
+        }}
+      />
+      {/* Gradient overlay for legibility */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80" />
+      {/* Set glow overlay */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: `radial-gradient(ellipse at center, ${bgGlowColor} 0%, transparent 70%)`,
+        }}
+      />
       {/* Set Title */}
       <div className="absolute top-0 left-0 right-0 text-center pt-4 px-2">
         <h3 className="font-cinzel text-sm font-bold uppercase tracking-wider" style={{ color: glowColor }}>
