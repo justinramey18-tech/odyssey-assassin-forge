@@ -4,6 +4,7 @@ import { allAbilities, getAbilityById } from '@/lib/abilities';
 import { TREE_VISUAL_CONFIG } from '@/lib/abilityTrees/colors';
 import { TreeColumn } from './TreeColumn';
 import { TreeSelector } from './TreeSelector';
+import { TreeBottomBar } from './TreeBottomBar';
 import { AbilityDetailsPanel } from './AbilityDetailsPanel';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -184,14 +185,8 @@ export function AbilitiesScreen({
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
         {isMobile ? (
-          // Mobile Layout: Single tree with selector and swipe
-          <div className="flex flex-col flex-1">
-            <TreeSelector
-              selected={selectedTree}
-              onChange={setSelectedTree}
-              pointsByTree={pointsByTree}
-            />
-            
+          // Mobile Layout: Single tree with swipe (bottom bar for navigation)
+          <div className="flex flex-col flex-1 pb-20">            
             <div 
               {...swipeHandlers}
               className="flex-1 overflow-hidden relative"
@@ -212,6 +207,13 @@ export function AbilitiesScreen({
                 />
               </ScrollArea>
             </div>
+            
+            {/* Bottom Tree Selector Bar */}
+            <TreeBottomBar
+              selected={selectedTree}
+              onChange={setSelectedTree}
+              pointsByTree={pointsByTree}
+            />
           </div>
         ) : (
           // Desktop Layout: All three trees + details panel
