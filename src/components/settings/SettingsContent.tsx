@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Check, Copy, RefreshCw, Camera, Star, Lock, RotateCcw, AlertTriangle, HelpCircle } from 'lucide-react';
+import { Check, Copy, RefreshCw, Camera, Star, Lock, RotateCcw, AlertTriangle, HelpCircle, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
@@ -195,8 +195,73 @@ export function SettingsContent({
   const [copiedSnapshot, setCopiedSnapshot] = useState(false);
   const [showDynamic, setShowDynamic] = useState(true);
   const [showResetDialog, setShowResetDialog] = useState(false);
+  const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
   
   const { prestigeRespecDisabled } = useGameMode();
+
+  // Check for service worker updates
+  const handleCheckForUpdates = async () => {
+    setIsCheckingForUpdates(true);
+    
+    try {
+      if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.getRegistration();
+        
+        if (registration) {
+          // Force check for updates
+          await registration.update();
+          
+          // Check if there's a waiting worker (new version available)
+          if (registration.waiting) {
+            // Tell the waiting service worker to take control
+            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+            
+            toast.success('Update found! Refreshing app...', {
+              description: 'The app will reload with the latest version.',
+              duration: 2000,
+            });
+            
+            // Reload after a short delay
+            setTimeout(() => {
+              window.location.reload();
+            }, 1500);
+          } else if (registration.installing) {
+            toast.info('Update installing...', {
+              description: 'A new version is being installed. Please wait.',
+            });
+            
+            // Listen for the installing worker to become active
+            registration.installing.addEventListener('statechange', (e) => {
+              const sw = e.target as ServiceWorker;
+              if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+                sw.postMessage({ type: 'SKIP_WAITING' });
+                setTimeout(() => window.location.reload(), 1500);
+              }
+            });
+          } else {
+            toast.success('You have the latest version!', {
+              description: 'No updates available at this time.',
+            });
+          }
+        } else {
+          toast.info('No service worker registered', {
+            description: 'Updates are handled automatically on page refresh.',
+          });
+        }
+      } else {
+        toast.info('Updates not supported', {
+          description: 'Your browser does not support automatic updates. Try refreshing the page.',
+        });
+      }
+    } catch (error) {
+      console.error('[Settings] Update check failed:', error);
+      toast.error('Update check failed', {
+        description: 'Please try refreshing the page manually.',
+      });
+    } finally {
+      setIsCheckingForUpdates(false);
+    }
+  };
 
   const hasDynamicData = !!dynamicGuide;
   const hasPrestigePoints = prestigeData && prestigeData.totalPrestigePoints > 0;
@@ -523,6 +588,44 @@ export function SettingsContent({
             </div>
           </div>
         )}
+
+        <Separator className="bg-border/30" />
+
+        {/* App Updates Section */}
+        <div className="p-4 rounded-lg border border-primary/30 bg-primary/5 space-y-3">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-primary/20 shrink-0">
+              <Download className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1">
+              <h4 className="font-display font-semibold text-primary">
+                App Updates
+              </h4>
+              <p className="text-xs text-muted-foreground mt-1">
+                Check for and install the latest version of the app.
+              </p>
+            </div>
+          </div>
+          
+          <Button
+            variant="outline"
+            onClick={handleCheckForUpdates}
+            disabled={isCheckingForUpdates}
+            className="w-full gap-2 h-12 border-primary/30 hover:bg-primary/10"
+          >
+            {isCheckingForUpdates ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                Checking for updates...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-4 h-4" />
+                Check for Updates
+              </>
+            )}
+          </Button>
+        </div>
 
         <Separator className="bg-border/30" />
 
