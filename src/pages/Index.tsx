@@ -24,16 +24,15 @@ import { ChronicleSyncScreen } from '@/components/chronicle';
 import { PromptDrawerProvider } from '@/components/drawers';
 
 import { AbilitiesScreen } from '@/components/abilities';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { Swords, Backpack, Trophy, Sparkles, Home, BookOpen, ChevronUp, Crosshair, Lock, Cloud } from 'lucide-react';
+import { ChevronUp, Lock } from 'lucide-react';
 import skillsBackgroundImage from '@/assets/skills-background-deadpool.jpg';
 import builderBackground from '@/assets/builder-background.jpg';
 import { SettingsModal } from '@/components/settings/SettingsModal';
 import { CloudSaveModal } from '@/components/settings/CloudSaveModal';
-import { AssassinHeader } from '@/components/navigation/AssassinHeader';
+import { AssassinHeader, SubTabStrip, MainCategory, getTabToCategoryMapping } from '@/components/navigation';
 import { CombatTabScreen } from '@/components/combat/CombatTabScreen';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
+import { useCategoryNavigation } from '@/hooks/use-category-navigation';
 import { useToast } from '@/hooks/use-toast';
 import { useGameMode } from '@/hooks/use-game-mode';
 import { usePrestige } from '@/hooks/use-prestige';
@@ -79,7 +78,6 @@ const Index = () => {
   const [showHomeScreen, setShowHomeScreen] = useState(true); // Home is default after wizard
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showCloudSaveModal, setShowCloudSaveModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'skills' | 'abilities' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle' | 'legacy' | 'arcana'>('skills');
   const [character, setCharacter] = useState<Character>({
     name: '',
     level: 1,
@@ -145,6 +143,16 @@ const Index = () => {
     handlePrestigeTreePointsSpent,
     character.level
   );
+  
+  // Category navigation system
+  const categoryNav = useCategoryNavigation({
+    isLegacyUnlocked: prestigeTree.isLegacyUnlocked,
+    onSettingsClick: () => setShowSettingsModal(true),
+    onCloudClick: () => setShowCloudSaveModal(true),
+  });
+  
+  // Derived active tab for backward compatibility
+  const activeTab = categoryNav.activeSubTab as 'skills' | 'abilities' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle' | 'legacy' | 'arcana';
   
   // Spellcasting system
   const spellcasting = useSpellcasting(character.level);
@@ -708,7 +716,7 @@ const Index = () => {
       localStorage.removeItem('odyssey-hp-state');
 
       // 2. Reset UI state
-      setActiveTab('skills');
+      categoryNav.navigateToSubTab('skills');
       setShowHomeScreen(false);
       setShowWizard(true);
 
@@ -791,7 +799,9 @@ const Index = () => {
           onBack={() => setShowWizard(true)}
           onNavigateToTab={(tab) => {
             setShowHomeScreen(false);
-            setActiveTab(tab as typeof activeTab);
+            const mapping = getTabToCategoryMapping(tab as any);
+            categoryNav.setMainCategory(mapping.category);
+            categoryNav.navigateToSubTab(mapping.subTab);
           }}
           onShortRest={handleShortRest}
           onLongRest={handleLongRest}
@@ -860,24 +870,244 @@ const Index = () => {
         onDeathSavesChange={handleDeathSavesChange}
       />
 
-      {/* Tab Navigation */}
-      <Tabs value={activeTab} onValueChange={(v) => {
-        // Handle special tabs that trigger actions instead of navigation
-        if (v === 'home') {
-          setShowHomeScreen(true);
-          return;
-        }
-        setActiveTab(v as 'skills' | 'abilities' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle' | 'legacy' | 'arcana');
-      }} className="w-full flex flex-col">
-        {/* Assassin's Creed Styled Header Navigation */}
+      {/* Category-based Navigation */}
+      <div className="w-full flex flex-col">
+        {/* Assassin's Creed Styled Header Navigation - 4 Main Tabs */}
         <AssassinHeader 
           onHomeClick={() => setShowHomeScreen(true)}
-          onSettingsClick={() => setShowSettingsModal(true)}
-          onCloudSaveClick={() => setShowCloudSaveModal(true)}
-          isLegacyUnlocked={prestigeTree.isLegacyUnlocked}
-          legacyProgress={prestigeTree.unlockProgress}
+          activeCategory={categoryNav.mainCategory}
+          onCategoryChange={(category) => {
+            if (category === 'home') {
+              setShowHomeScreen(true);
+            } else {
+              categoryNav.setMainCategory(category);
+            }
+          }}
         />
         
+        {/* Sub-tab Strip - swipeable navigation */}
+        {categoryNav.mainCategory !== 'home' && (
+          <SubTabStrip
+            category={categoryNav.mainCategory}
+            activeSubTab={categoryNav.activeSubTab}
+            onSubTabChange={categoryNav.navigateToSubTab}
+            onSwipeUp={categoryNav.swipeToNextSubTab}
+            onSwipeDown={categoryNav.swipeToPrevSubTab}
+            getNextLabel={categoryNav.getNextSubTabLabel}
+            getPrevLabel={categoryNav.getPrevSubTabLabel}
+            isLegacyUnlocked={prestigeTree.isLegacyUnlocked}
+          />
+        )}
+
+        {/* Content Area - Conditional Rendering Based on Active Sub-Tab */}
+        <div className="flex-1">
+          {/* FIGHTING CATEGORY */}
+          {/* Combat Sub-Tab */}
+          {activeTab === 'combat' && (
+            <CombatTabScreen 
+              character={character} 
+              prestigePoints={prestigeData.totalPrestigePoints}
+              spellcasting={spellcasting}
+            />
+          )}
+
+          {/* Skills Sub-Tab */}
+          {activeTab === 'skills' && (
+            <BackgroundWrapper 
+              imagePath={skillsBackgroundImage} 
+              overlayOpacity={65} 
+              tintColor="purple" 
+              tintOpacity={20}
+              backgroundSize="contain"
+              className="min-h-[calc(100vh-10vh)]"
+            >
+              <div className="container max-w-2xl mx-auto px-4 py-4 relative z-10">
+                {/* XP Tracker */}
+                <div className="mb-6 p-4 rounded-lg border border-primary/30 bg-gradient-to-b from-primary/5 to-transparent">
+                  <XPTracker
+                    currentLevel={character.level}
+                    currentXP={currentXP}
+                    achievements={achievements}
+                    onAddXP={handleAddXP}
+                    prestigeData={prestigeData}
+                    nextPrestigeXPRequired={nextPrestigeXPRequired}
+                  />
+                </div>
+
+                {/* Equipped Loadout */}
+                <div className="mb-6 p-4 rounded-lg border border-border/50 bg-card/30">
+                  <EquippedLoadout
+                    character={character}
+                    prestigePoints={prestigeData.totalPrestigePoints}
+                    onEquip={handleEquipAbility}
+                    onUnequip={handleUnequipAbility}
+                  />
+                </div>
+
+                {/* Manual Level Up Button */}
+                {character.level < 20 && !requiresOrganicLevelUp && (
+                  <button
+                    onClick={handleManualLevelUp}
+                    className="w-full py-3 px-4 rounded-lg border-2 border-dashed border-primary/30 hover:border-primary/50 bg-primary/5 hover:bg-primary/10 transition-all flex items-center justify-center gap-2 group"
+                  >
+                    <ChevronUp className="w-5 h-5 text-primary group-hover:animate-bounce" />
+                    <span className="font-display text-sm text-primary">Trigger Level Up</span>
+                    <ChevronUp className="w-5 h-5 text-primary group-hover:animate-bounce" />
+                  </button>
+                )}
+                
+                {/* Honest Mode indicator for organic level up */}
+                {character.level < 20 && requiresOrganicLevelUp && (
+                  <div className="w-full py-3 px-4 rounded-lg border-2 border-dashed border-muted/40 bg-muted/5 flex items-center justify-center gap-2 opacity-60">
+                    <Lock className="w-4 h-4 text-muted-foreground" />
+                    <span className="font-display text-sm text-muted-foreground">Organic Leveling Mode</span>
+                  </div>
+                )}
+
+                {/* Info about ability spending */}
+                <div className="mt-6 p-4 rounded-lg bg-muted/20 border border-muted/30">
+                  <p className="text-xs text-muted-foreground text-center font-body">
+                    💡 Go to the <strong>Abilities</strong> tab to spend your {availableAbilityPoints} available ability points.
+                    {requiresOrganicLevelUp 
+                      ? ' In Honest Mode, levels are gained organically through XP.'
+                      : ' Add XP to level up, or use the button above for milestone progression.'}
+                  </p>
+                </div>
+              </div>
+            </BackgroundWrapper>
+          )}
+
+          {/* Abilities Sub-Tab */}
+          {activeTab === 'abilities' && (
+            <AbilitiesScreen
+              character={character}
+              availablePoints={availableAbilityPoints}
+              prestigePoints={prestigeData.totalPrestigePoints}
+              onUpgradeAbility={handleUpgradeAbility}
+              onDowngradeAbility={handleDowngradeAbility}
+              onEquipAbility={(id, slot) => {
+                setCharacter(prev => {
+                  const newEquipped = [...prev.equippedAbilities];
+                  newEquipped[slot] = id;
+                  return { ...prev, equippedAbilities: newEquipped };
+                });
+              }}
+              onBack={() => categoryNav.navigateToSubTab('combat')}
+            />
+          )}
+
+          {/* Arcana Sub-Tab */}
+          {activeTab === 'arcana' && (
+            <BackgroundWrapper 
+              imagePath={builderBackground} 
+              overlayOpacity={70} 
+              tintColor="indigo" 
+              tintOpacity={15}
+              className="min-h-[calc(100vh-10vh)]"
+            >
+              <MagicScreen
+                characterLevel={character.level}
+                characterName={character.name}
+                spellcasting={spellcasting}
+              />
+            </BackgroundWrapper>
+          )}
+
+          {/* Legacy Sub-Tab - Drizzt's Legacy Prestige Tree */}
+          {activeTab === 'legacy' && (
+            <PrestigeTreeScreen
+              prestigeTree={prestigeTree}
+              prestigeLevel={prestigeData.prestigeLevel}
+              availableAbilityPoints={availableAbilityPoints}
+            />
+          )}
+
+          {/* INVENTORY CATEGORY */}
+          {/* Consumables Sub-Tab */}
+          {activeTab === 'consumables' && (
+            <BackgroundWrapper 
+              imagePath={builderBackground} 
+              overlayOpacity={70} 
+              tintColor="green" 
+              tintOpacity={15}
+              className="min-h-[calc(100vh-10vh)]"
+            >
+              <div className="container max-w-4xl mx-auto px-4 py-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h1 className="font-cinzel text-2xl text-foreground">
+                    Consumables Inventory
+                  </h1>
+                  <AddConsumableDrawer 
+                    onAddItem={addConsumableItem}
+                    getItemCount={getConsumableCount}
+                  />
+                </div>
+                <ConsumablesInventoryWidget 
+                  inventory={consumablesInventory}
+                  characterName={character.name}
+                  onUseItem={(id) => useConsumableItem(id)}
+                  onAdjustQuantity={(id, delta) => {
+                    const currentQty = getConsumableCount(id);
+                    setConsumableQuantity(id, currentQty + delta);
+                  }}
+                />
+              </div>
+            </BackgroundWrapper>
+          )}
+
+          {/* Gear Sub-Tab */}
+          {activeTab === 'gear' && (
+            <InventoryScreen
+              characterName={character.name}
+              level={character.level}
+              onBack={() => categoryNav.navigateToSubTab('consumables')}
+              equipment={equipment}
+              onEquipmentChange={setEquipment}
+              achievements={achievements}
+            />
+          )}
+
+          {/* Stars Sub-Tab */}
+          {activeTab === 'stars' && (
+            <ConstellationScreen
+              characterName={character.name}
+              equippedItems={Object.values(equipment.slots).filter(Boolean) as EquipmentItem[]}
+              achievements={achievements}
+              onBack={() => categoryNav.navigateToSubTab('gear')}
+            />
+          )}
+
+          {/* Feats Sub-Tab */}
+          {activeTab === 'feats' && (
+            <AchievementsScreen
+              characterName={character.name}
+              achievements={achievements}
+              onAchievementsChange={setAchievements}
+              onBack={() => categoryNav.navigateToSubTab('gear')}
+              onAwardXP={handleAddXP}
+            />
+          )}
+
+          {/* UTILITY CATEGORY */}
+          {/* Scribe Sub-Tab */}
+          {activeTab === 'scribe' && (
+            <NarrativeForgeScreen
+              characterName={character.name}
+              onBack={() => categoryNav.navigateToSubTab('scribe')}
+            />
+          )}
+
+          {/* Chronicle Sub-Tab */}
+          {activeTab === 'chronicle' && (
+            <ChronicleSyncScreen
+              characterName={character.name}
+              characterLevel={character.level}
+              onApplyChanges={handleApplyChronicleChanges}
+              onBack={() => categoryNav.navigateToSubTab('scribe')}
+            />
+          )}
+        </div>
+
         {/* Cloud Save Modal */}
         <CloudSaveModal
           open={showCloudSaveModal}
@@ -914,211 +1144,7 @@ const Index = () => {
             charisma: aggregatedStats.charisma,
           }}
         />
-
-        {/* Skills Tab Content */}
-        <TabsContent value="skills" className="mt-0 pb-4">
-          <BackgroundWrapper 
-            imagePath={skillsBackgroundImage} 
-            overlayOpacity={65} 
-            tintColor="purple" 
-            tintOpacity={20}
-            backgroundSize="contain"
-            className="min-h-[calc(100vh-10vh)]"
-          >
-          {/* Content */}
-          <div className="container max-w-2xl mx-auto px-4 py-4 relative z-10">
-            {/* XP Tracker */}
-            <div className="mb-6 p-4 rounded-lg border border-primary/30 bg-gradient-to-b from-primary/5 to-transparent">
-              <XPTracker
-                currentLevel={character.level}
-                currentXP={currentXP}
-                achievements={achievements}
-                onAddXP={handleAddXP}
-                prestigeData={prestigeData}
-                nextPrestigeXPRequired={nextPrestigeXPRequired}
-              />
-            </div>
-
-            {/* Equipped Loadout */}
-            <div className="mb-6 p-4 rounded-lg border border-border/50 bg-card/30">
-              <EquippedLoadout
-                character={character}
-                prestigePoints={prestigeData.totalPrestigePoints}
-                onEquip={handleEquipAbility}
-                onUnequip={handleUnequipAbility}
-              />
-            </div>
-
-            {/* Manual Level Up Button */}
-            {character.level < 20 && !requiresOrganicLevelUp && (
-              <button
-                onClick={handleManualLevelUp}
-                className="w-full py-3 px-4 rounded-lg border-2 border-dashed border-primary/30 hover:border-primary/50 bg-primary/5 hover:bg-primary/10 transition-all flex items-center justify-center gap-2 group"
-              >
-                <ChevronUp className="w-5 h-5 text-primary group-hover:animate-bounce" />
-                <span className="font-display text-sm text-primary">Trigger Level Up</span>
-                <ChevronUp className="w-5 h-5 text-primary group-hover:animate-bounce" />
-              </button>
-            )}
-            
-            {/* Honest Mode indicator for organic level up */}
-            {character.level < 20 && requiresOrganicLevelUp && (
-              <div className="w-full py-3 px-4 rounded-lg border-2 border-dashed border-muted/40 bg-muted/5 flex items-center justify-center gap-2 opacity-60">
-                <Lock className="w-4 h-4 text-muted-foreground" />
-                <span className="font-display text-sm text-muted-foreground">Organic Leveling Mode</span>
-              </div>
-            )}
-
-            {/* Info about ability spending */}
-            <div className="mt-6 p-4 rounded-lg bg-muted/20 border border-muted/30">
-              <p className="text-xs text-muted-foreground text-center font-body">
-                💡 Go to the <strong>Abilities</strong> tab to spend your {availableAbilityPoints} available ability points.
-                {requiresOrganicLevelUp 
-                  ? ' In Honest Mode, levels are gained organically through XP.'
-                  : ' Add XP to level up, or use the button above for milestone progression.'}
-              </p>
-            </div>
-          </div>
-          </BackgroundWrapper>
-        </TabsContent>
-
-        {/* Abilities Tab Content */}
-        <TabsContent value="abilities" className="mt-0">
-          <AbilitiesScreen
-            character={character}
-            availablePoints={availableAbilityPoints}
-            prestigePoints={prestigeData.totalPrestigePoints}
-            onUpgradeAbility={handleUpgradeAbility}
-            onDowngradeAbility={handleDowngradeAbility}
-            onEquipAbility={(id, slot) => {
-              setCharacter(prev => {
-                const newEquipped = [...prev.equippedAbilities];
-                newEquipped[slot] = id;
-                return { ...prev, equippedAbilities: newEquipped };
-              });
-            }}
-            onBack={() => setActiveTab('skills')}
-          />
-        </TabsContent>
-
-        {/* Gear Tab Content */}
-        <TabsContent value="gear" className="mt-0">
-          <InventoryScreen
-            characterName={character.name}
-            level={character.level}
-            onBack={() => setActiveTab('skills')}
-            equipment={equipment}
-            onEquipmentChange={setEquipment}
-            achievements={achievements}
-          />
-        </TabsContent>
-
-        {/* Feats Tab Content */}
-        <TabsContent value="feats" className="mt-0">
-          <AchievementsScreen
-            characterName={character.name}
-            achievements={achievements}
-            onAchievementsChange={setAchievements}
-            onBack={() => setActiveTab('skills')}
-            onAwardXP={handleAddXP}
-          />
-        </TabsContent>
-
-        {/* Stars Tab Content */}
-        <TabsContent value="stars" className="mt-0">
-          <ConstellationScreen
-            characterName={character.name}
-            equippedItems={Object.values(equipment.slots).filter(Boolean) as EquipmentItem[]}
-            achievements={achievements}
-            onBack={() => setActiveTab('skills')}
-          />
-        </TabsContent>
-
-        {/* Scribe Tab Content */}
-        <TabsContent value="scribe" className="mt-0">
-          <NarrativeForgeScreen
-            characterName={character.name}
-            onBack={() => setActiveTab('skills')}
-          />
-        </TabsContent>
-
-        {/* Combat Tab Content */}
-        <TabsContent value="combat" className="mt-0">
-          <CombatTabScreen 
-            character={character} 
-            prestigePoints={prestigeData.totalPrestigePoints}
-            spellcasting={spellcasting}
-          />
-        </TabsContent>
-
-        {/* Consumables Tab Content */}
-        <TabsContent value="consumables" className="mt-0">
-          <BackgroundWrapper 
-            imagePath={builderBackground} 
-            overlayOpacity={70} 
-            tintColor="green" 
-            tintOpacity={15}
-            className="min-h-[calc(100vh-10vh)]"
-          >
-            <div className="container max-w-4xl mx-auto px-4 py-6">
-              <div className="flex items-center justify-between mb-6">
-                <h1 className="font-cinzel text-2xl text-foreground">
-                  Consumables Inventory
-                </h1>
-                <AddConsumableDrawer 
-                  onAddItem={addConsumableItem}
-                  getItemCount={getConsumableCount}
-                />
-              </div>
-              <ConsumablesInventoryWidget 
-                inventory={consumablesInventory}
-                characterName={character.name}
-                onUseItem={(id) => useConsumableItem(id)}
-                onAdjustQuantity={(id, delta) => {
-                  const currentQty = getConsumableCount(id);
-                  setConsumableQuantity(id, currentQty + delta);
-                }}
-              />
-            </div>
-          </BackgroundWrapper>
-        </TabsContent>
-
-        {/* Chronicle Tab Content */}
-        <TabsContent value="chronicle" className="mt-0">
-          <ChronicleSyncScreen
-            characterName={character.name}
-            characterLevel={character.level}
-            onApplyChanges={handleApplyChronicleChanges}
-            onBack={() => setActiveTab('skills')}
-          />
-        </TabsContent>
-
-        {/* Legacy Tab Content - Drizzt's Legacy Prestige Tree */}
-        <TabsContent value="legacy" className="mt-0">
-          <PrestigeTreeScreen
-            prestigeTree={prestigeTree}
-            prestigeLevel={prestigeData.prestigeLevel}
-            availableAbilityPoints={availableAbilityPoints}
-          />
-        </TabsContent>
-
-        {/* Arcana Tab Content - Magic System */}
-        <TabsContent value="arcana" className="mt-0">
-          <BackgroundWrapper 
-            imagePath={builderBackground} 
-            overlayOpacity={70} 
-            tintColor="indigo" 
-            tintOpacity={15}
-            className="min-h-[calc(100vh-10vh)]"
-          >
-            <MagicScreen
-              characterLevel={character.level}
-              characterName={character.name}
-              spellcasting={spellcasting}
-            />
-          </BackgroundWrapper>
-        </TabsContent>
-      </Tabs>
+      </div>
 
       {/* Floating Action Wheel - visible on skills/feats tabs */}
       {(activeTab === 'skills' || activeTab === 'feats') && (
