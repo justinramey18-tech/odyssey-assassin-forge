@@ -1,10 +1,11 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Copy, Check, Dices, Sparkles, Swords, Eye, MessageCircle, Wrench, Plus, Minus, Settings2, ChevronUp, ChevronDown, Equal, Wand2, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Copy, Check, Dices, Sparkles, Swords, Eye, MessageCircle, Wrench, Plus, Minus, Settings2, ChevronUp, ChevronDown, Equal, Wand2, RotateCcw, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
@@ -64,7 +65,103 @@ interface RollResult {
   rollMode?: RollMode;
   allRolls?: number[]; // Both d20 rolls when using adv/disadv
   droppedRoll?: number; // The roll that wasn't used
+  // For custom expressions
+  isCustom?: boolean;
+  customBreakdown?: string;
 }
+
+// Custom dice expression types
+interface DiceTerm {
+  count: number;
+  sides: number;
+  rolls: number[];
+  total: number;
+}
+
+interface ParsedExpression {
+  terms: DiceTerm[];
+  modifier: number;
+  total: number;
+  breakdown: string;
+  expression: string;
+}
+
+// Parse dice expression like "2d6+1d8+4" or "4d6-2"
+const parseDiceExpression = (expr: string): ParsedExpression | null => {
+  // Normalize input: remove spaces, lowercase
+  const normalized = expr.replace(/\s+/g, '').toLowerCase();
+  
+  if (!normalized) return null;
+  
+  // Validate basic format - only allow dice, numbers, +, -
+  if (!/^[\dd+-]+$/.test(normalized)) return null;
+  
+  // Split into tokens while preserving + and -
+  const tokens = normalized.match(/[+-]?(\d+d\d+|\d+)/g);
+  if (!tokens) return null;
+  
+  const terms: DiceTerm[] = [];
+  let modifier = 0;
+  
+  for (const token of tokens) {
+    // Check if it's a dice expression (XdY)
+    const diceMatch = token.match(/^([+-])?(\d+)d(\d+)$/);
+    if (diceMatch) {
+      const sign = diceMatch[1] === '-' ? -1 : 1;
+      const count = parseInt(diceMatch[2], 10);
+      const sides = parseInt(diceMatch[3], 10);
+      
+      // Validate reasonable values
+      if (count < 1 || count > 100 || sides < 1 || sides > 1000) {
+        return null;
+      }
+      
+      // Roll the dice
+      const rolls: number[] = [];
+      for (let i = 0; i < count; i++) {
+        rolls.push(Math.floor(Math.random() * sides) + 1);
+      }
+      const total = rolls.reduce((sum, r) => sum + r, 0) * sign;
+      
+      terms.push({ count: count * sign, sides, rolls, total });
+    } else {
+      // It's a flat modifier
+      const modMatch = token.match(/^([+-])?(\d+)$/);
+      if (modMatch) {
+        const sign = modMatch[1] === '-' ? -1 : 1;
+        const value = parseInt(modMatch[2], 10);
+        modifier += value * sign;
+      }
+    }
+  }
+  
+  if (terms.length === 0 && modifier === 0) return null;
+  
+  // Calculate total
+  const diceTotal = terms.reduce((sum, t) => sum + t.total, 0);
+  const total = diceTotal + modifier;
+  
+  // Build breakdown string
+  const breakdownParts: string[] = [];
+  for (const term of terms) {
+    const prefix = breakdownParts.length > 0 && term.count > 0 ? '+' : '';
+    const countStr = Math.abs(term.count);
+    const sign = term.count < 0 ? '-' : prefix;
+    breakdownParts.push(`${sign}${countStr}d${term.sides}[${term.rolls.join(',')}]`);
+  }
+  if (modifier !== 0) {
+    const modSign = modifier > 0 ? (breakdownParts.length > 0 ? '+' : '') : '';
+    breakdownParts.push(`${modSign}${modifier}`);
+  }
+  
+  return {
+    terms,
+    modifier,
+    total,
+    breakdown: breakdownParts.join(''),
+    expression: normalized,
+  };
+};
 
 // Storage keys
 const MODIFIERS_STORAGE_KEY = 'odyssey-dice-modifiers';
@@ -108,6 +205,9 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
   const [scoreAssignments, setScoreAssignments] = useState<Record<AbilityScore, number | null>>({
     str: null, dex: null, con: null, int: null, wis: null, cha: null,
   });
+  const [customExpression, setCustomExpression] = useState('');
+  const [customResult, setCustomResult] = useState<ParsedExpression | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Load saved modifiers on mount
   useEffect(() => {
@@ -266,6 +366,69 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
     });
     setScoreAssignments(newAssignments);
   };
+
+  // Roll custom dice expression
+  const rollCustomExpression = useCallback(() => {
+    if (!customExpression.trim()) return;
+    
+    setIsRolling(true);
+    triggerHaptic('medium');
+    
+    // Animate briefly
+    let iterations = 0;
+    const maxIterations = 8;
+    
+    const animate = setInterval(() => {
+      iterations++;
+      // Show random numbers during animation
+      const animResult = Math.floor(Math.random() * 20) + 1;
+      setCustomResult({
+        terms: [],
+        modifier: 0,
+        total: animResult,
+        breakdown: '...',
+        expression: customExpression,
+      });
+      
+      if (iterations >= maxIterations) {
+        clearInterval(animate);
+        
+        const parsed = parseDiceExpression(customExpression);
+        if (!parsed) {
+          setIsRolling(false);
+          setCustomResult(null);
+          toast({
+            title: 'Invalid Expression',
+            description: 'Use format like 2d6+4 or 1d20+1d8-2',
+            variant: 'destructive',
+          });
+          return;
+        }
+        
+        setCustomResult(parsed);
+        
+        // Also add to current roll for AI prompts
+        const customRoll: RollResult = {
+          die: 'd20', // Placeholder
+          rawRoll: parsed.total,
+          modifier: 0,
+          result: parsed.total,
+          timestamp: Date.now(),
+          label: `Custom: ${parsed.expression}`,
+          isCustom: true,
+          customBreakdown: parsed.breakdown,
+        };
+        setCurrentRoll(customRoll);
+        setRollHistory(prev => [customRoll, ...prev.slice(0, 19)]);
+        
+        setIsRolling(false);
+        triggerHaptic('heavy');
+      }
+    }, 50);
+  }, [customExpression, toast]);
+
+  // Quick expression buttons
+  const QUICK_EXPRESSIONS = ['2d6', '1d8+4', '4d6', '2d10+5', '8d6', '1d20+5'];
 
   // Roll a die with animation and modifier
   const rollDice = useCallback((die: DieSize, label?: string, modifier: number = 0, useRollMode: boolean = false) => {
@@ -639,6 +802,104 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
               })}
             </div>
 
+            {/* Custom Dice Expression */}
+            <div className="space-y-3 p-3 rounded-lg border border-border bg-card/30">
+              <h3 className="text-xs font-cinzel text-muted-foreground uppercase tracking-wider">
+                Custom Expression
+              </h3>
+              
+              {/* Input and Roll Button */}
+              <div className="flex gap-2">
+                <Input
+                  ref={inputRef}
+                  type="text"
+                  placeholder="e.g. 2d6+4 or 4d8+2d6"
+                  value={customExpression}
+                  onChange={(e) => setCustomExpression(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      rollCustomExpression();
+                    }
+                  }}
+                  className="flex-1 font-mono text-sm"
+                  disabled={isRolling}
+                />
+                <Button
+                  onClick={rollCustomExpression}
+                  disabled={isRolling || !customExpression.trim()}
+                  size="icon"
+                  className="shrink-0"
+                >
+                  <Play className="w-4 h-4" />
+                </Button>
+              </div>
+              
+              {/* Quick Expression Buttons */}
+              <div className="flex flex-wrap gap-1.5">
+                {QUICK_EXPRESSIONS.map((expr) => (
+                  <button
+                    key={expr}
+                    onClick={() => {
+                      setCustomExpression(expr);
+                      triggerHaptic('light');
+                    }}
+                    className={cn(
+                      'px-2 py-1 rounded text-xs font-mono transition-all',
+                      'bg-muted hover:bg-muted/80 text-foreground',
+                      customExpression === expr && 'bg-primary text-primary-foreground'
+                    )}
+                  >
+                    {expr}
+                  </button>
+                ))}
+              </div>
+              
+              {/* Custom Result Display */}
+              <AnimatePresence mode="wait">
+                {customResult && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="p-3 rounded-lg bg-primary/10 border border-primary/30"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl font-cinzel font-bold text-primary">
+                            {customResult.total}
+                          </span>
+                          <Badge variant="outline" className="font-mono text-xs">
+                            {customResult.expression}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground font-mono mt-1 break-all">
+                          {customResult.breakdown} = {customResult.total}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const text = `${customResult.expression}: ${customResult.breakdown} = ${customResult.total}`;
+                          navigator.clipboard.writeText(text);
+                          triggerHaptic('light');
+                          toast({
+                            title: 'Copied!',
+                            description: text,
+                            className: 'border-primary bg-primary/10',
+                          });
+                        }}
+                        className="shrink-0"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             {/* Roll History */}
             {rollHistory.length > 0 && (
               <div className="space-y-2">
@@ -652,13 +913,16 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
                       variant="outline"
                       className={cn(
                         'font-mono text-xs',
-                        roll.die === 'd20' && roll.rawRoll === 20 && 'border-tier-maxed text-tier-maxed',
-                        roll.die === 'd20' && roll.rawRoll === 1 && 'border-destructive text-destructive',
+                        roll.die === 'd20' && roll.rawRoll === 20 && !roll.isCustom && 'border-tier-maxed text-tier-maxed',
+                        roll.die === 'd20' && roll.rawRoll === 1 && !roll.isCustom && 'border-destructive text-destructive',
+                        roll.isCustom && 'border-primary/50 text-primary',
                       )}
                     >
-                      {roll.modifier !== 0 
-                        ? `${roll.rawRoll}${roll.modifier >= 0 ? '+' : ''}${roll.modifier}=${roll.result}`
-                        : `${roll.die}:${roll.result}`
+                      {roll.isCustom 
+                        ? `${roll.label?.replace('Custom: ', '')}=${roll.result}`
+                        : roll.modifier !== 0 
+                          ? `${roll.rawRoll}${roll.modifier >= 0 ? '+' : ''}${roll.modifier}=${roll.result}`
+                          : `${roll.die}:${roll.result}`
                       }
                     </Badge>
                   ))}
