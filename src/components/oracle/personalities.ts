@@ -76,6 +76,21 @@ export const personalities: PersonalityConfig[] = [
       'Entertain me with your most audacious plan',
     ],
   },
+  {
+    id: 'investigator',
+    name: 'The Investigator',
+    subtitle: 'Type 5 · INFP-T',
+    icon: '🔍',
+    color: '#14B8A6', // teal-500 for the thoughtful analyst
+    bgGradient: 'from-teal-950/80 via-emerald-900/60 to-slate-950/80',
+    borderColor: 'border-teal-500/50',
+    quickPrompts: [
+      'What am I not seeing in this situation?',
+      'Help me think through all the possibilities',
+      'What does my intuition say about this?',
+      'I need to understand the deeper meaning here',
+    ],
+  },
 ];
 
 export function getPersonalityConfig(id: string): PersonalityConfig {
