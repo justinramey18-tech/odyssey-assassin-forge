@@ -9,6 +9,7 @@ interface MobilePrestigeHeaderProps {
   totalUnlocked: number;
   pointsSpent: number;
   availablePoints?: number;
+  className?: string;
 }
 
 export function MobilePrestigeHeader({
@@ -16,9 +17,10 @@ export function MobilePrestigeHeader({
   totalUnlocked,
   pointsSpent,
   availablePoints,
+  className,
 }: MobilePrestigeHeaderProps) {
   return (
-    <div className="relative overflow-hidden">
+    <div className={cn("relative overflow-hidden", className)}>
       {/* Background gradient */}
       <div 
         className="absolute inset-0 opacity-20"

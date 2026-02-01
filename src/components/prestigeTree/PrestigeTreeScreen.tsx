@@ -17,6 +17,9 @@ import { PrestigeAbilityDetails } from './PrestigeAbilityDetails';
 import { MobilePrestigeHeader } from './MobilePrestigeHeader';
 import { MobileBranchView } from './MobileBranchView';
 
+// Background image
+import drizztBackground from '@/assets/trees/legacy-drizzt-mobile.jpg';
+
 interface PrestigeTreeScreenProps {
   prestigeTree: UsePrestigeTreeReturn;
   prestigeLevel: number;
@@ -98,17 +101,25 @@ export function PrestigeTreeScreen({
   // Mobile Layout
   if (isMobile) {
     return (
-      <div className="flex flex-col h-full bg-gradient-to-b from-purple-950/20 to-black/40">
+      <div className="relative flex flex-col h-full">
+        {/* Background Image */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
+          style={{ backgroundImage: `url(${drizztBackground})` }}
+        />
+        {/* Gradient Overlay for legibility */}
+        <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/60 to-background/90 z-0" />
         {/* Compact Mobile Header */}
         <MobilePrestigeHeader
           prestigeLevel={prestigeLevel}
           totalUnlocked={prestigeTree.progress.unlockedAbilities.length}
           pointsSpent={spentOnTree}
           availablePoints={availableAbilityPoints}
+          className="relative z-10"
         />
 
         {/* Branch Selector Tabs */}
-        <div className="px-3 py-2 border-b border-purple-900/30">
+        <div className="relative z-10 px-3 py-2 border-b border-purple-900/30 bg-background/40 backdrop-blur-sm">
           <BranchSelector
             selectedBranch={selectedBranch}
             onSelectBranch={setSelectedBranch}
@@ -117,7 +128,7 @@ export function PrestigeTreeScreen({
         </div>
 
         {/* Branch Content - Scrollable */}
-        <ScrollArea className="flex-1">
+        <ScrollArea className="relative z-10 flex-1">
           <div className="p-4 pb-24">
             <MobileBranchView
               branch={selectedBranch}
@@ -147,7 +158,14 @@ export function PrestigeTreeScreen({
 
   // Desktop Layout
   return (
-    <div className="flex flex-col h-full bg-gradient-to-b from-purple-950/20 to-black/40">
+    <div className="relative flex flex-col h-full">
+      {/* Background Image */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
+        style={{ backgroundImage: `url(${drizztBackground})` }}
+      />
+      {/* Gradient Overlay for legibility */}
+      <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/60 to-background/90 z-0" />
       {/* Central Node - Desktop */}
       <DrizztCentralNode
         prestigeLevel={prestigeLevel}
@@ -155,11 +173,11 @@ export function PrestigeTreeScreen({
         pointsSpentOnTree={spentOnTree}
         availablePoints={availableAbilityPoints}
         isMobile={isMobile}
-        className="border-b border-purple-900/30"
+        className="relative z-10 border-b border-purple-900/30 bg-background/40 backdrop-blur-sm"
       />
 
       {/* Main Content Area - Desktop Grid */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="relative z-10 flex-1">
         <div className="grid grid-cols-2 gap-4 p-6">
           {BRANCH_ORDER.map((branch) => (
             <PrestigeBranchColumn
@@ -171,7 +189,7 @@ export function PrestigeTreeScreen({
               isMobile={isMobile}
               isTierUnlockedForBranch={isTierUnlockedForBranch}
               getTierUnlockProgress={getTierUnlockProgress}
-              className="border border-purple-900/20 rounded-xl bg-black/20"
+              className="border border-purple-900/20 rounded-xl bg-black/30 backdrop-blur-sm"
             />
           ))}
         </div>
