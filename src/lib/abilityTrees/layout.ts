@@ -188,6 +188,17 @@ export function getAbilityChildren(abilityId: string): string[] {
     .map(([childId]) => childId);
 }
 
+// Get Y position for Foundation separator (below tier 1 nodes)
+export function getFoundationSeparatorY(isMobile: boolean): number {
+  const tierSpacing = isMobile ? 100 : 120;
+  const padding = isMobile ? 40 : 60;
+  const nodeSize = isMobile ? 64 : 80;
+  
+  // Tier 1 has invertedTier = 5, positioned at y = 4 * tierSpacing + padding + nodeSize/2
+  // Foundation separator goes 30px below tier 1
+  return 5 * tierSpacing + padding + nodeSize / 2 + 30;
+}
+
 // Generate SVG path for connection lines
 export function getConnectionPath(
   from: { x: number; y: number },

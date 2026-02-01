@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Character, CharacterAbility, AbilityTree, getAbilityPointsForLevel, getTotalPointsSpent, getPointsSpentInTree } from '@/lib/types';
 import { allAbilities, getAbilityById } from '@/lib/abilities';
 import { TREE_VISUAL_CONFIG } from '@/lib/abilityTrees/colors';
@@ -38,6 +38,42 @@ export function AbilitiesScreen({
   const [selectedTree, setSelectedTree] = useState<AbilityTree>('hunter');
   const [selectedAbility, setSelectedAbility] = useState<string | null>(null);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
+  
+  // Refs for auto-scroll to bottom (Foundation nodes)
+  const mobileScrollRef = useRef<HTMLDivElement>(null);
+  const hunterScrollRef = useRef<HTMLDivElement>(null);
+  const warriorScrollRef = useRef<HTMLDivElement>(null);
+  const assassinScrollRef = useRef<HTMLDivElement>(null);
+  
+  // Auto-scroll to bottom on mount and tree change (mobile)
+  useEffect(() => {
+    if (!isMobile) return;
+    const timer = setTimeout(() => {
+      if (mobileScrollRef.current) {
+        const viewport = mobileScrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
+        if (viewport) {
+          viewport.scrollTop = viewport.scrollHeight;
+        }
+      }
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [selectedTree, isMobile]);
+  
+  // Auto-scroll all desktop trees to bottom on mount
+  useEffect(() => {
+    if (isMobile) return;
+    const timer = setTimeout(() => {
+      [hunterScrollRef, warriorScrollRef, assassinScrollRef].forEach(ref => {
+        if (ref.current) {
+          const viewport = ref.current.querySelector('[data-radix-scroll-area-viewport]');
+          if (viewport) {
+            viewport.scrollTop = viewport.scrollHeight;
+          }
+        }
+      });
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [isMobile]);
 
   // Calculate points spent per tree
   const pointsByTree = useMemo(() => ({
@@ -164,7 +200,7 @@ export function AbilitiesScreen({
                 transition: slideDirection ? 'transform 0.3s ease-out' : undefined,
               }}
             >
-              <ScrollArea className="h-full">
+              <ScrollArea ref={mobileScrollRef} className="h-full">
                 <TreeColumn
                   tree={selectedTree}
                   abilities={allAbilities}
@@ -181,8 +217,10 @@ export function AbilitiesScreen({
           // Desktop Layout: All three trees + details panel
           <>
             <div className="flex flex-1 overflow-x-auto">
-              {TREE_ORDER.map(tree => (
-                <ScrollArea key={tree} className="flex-1 border-r border-border/30 last:border-r-0">
+              {TREE_ORDER.map((tree, index) => {
+                const scrollRef = index === 0 ? hunterScrollRef : index === 1 ? warriorScrollRef : assassinScrollRef;
+                return (
+                <ScrollArea key={tree} ref={scrollRef} className="flex-1 border-r border-border/30 last:border-r-0">
                   <TreeColumn
                     tree={tree}
                     abilities={allAbilities}
@@ -193,7 +231,8 @@ export function AbilitiesScreen({
                     onSelectAbility={setSelectedAbility}
                   />
                 </ScrollArea>
-              ))}
+              );
+              })}
             </div>
             
             {/* Desktop Details Sidebar */}
