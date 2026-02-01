@@ -38,11 +38,13 @@ interface PromptDrawerContextValue {
   formatRemainingTime: (seconds: number) => string;
   resetShortRestCooldowns: () => void;
   resetAllCooldowns: () => void;
-  // Condition system exposure
+  // Condition system exposure - full access
   conditionsShortRest: () => void;
   conditionsLongRest: () => void;
   tickConditionRounds: (rounds?: number) => void;
   hasCriticalCondition: boolean;
+  // Full condition system for Combat HUD
+  conditionSystem: ReturnType<typeof useConditions>;
 }
 
 const PromptDrawerContext = createContext<PromptDrawerContextValue | null>(null);
@@ -206,6 +208,8 @@ export function PromptDrawerProvider({
     conditionsLongRest: conditionSystem.longRest,
     tickConditionRounds: conditionSystem.tickRounds,
     hasCriticalCondition: conditionSystem.hasCriticalCondition,
+    // Full condition system for Combat HUD
+    conditionSystem,
   };
 
   return (
