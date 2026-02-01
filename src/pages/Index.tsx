@@ -1049,7 +1049,6 @@ const Index = () => {
             <InventoryScreen
               characterName={character.name}
               level={character.level}
-              onBack={() => categoryNav.navigateToSubTab('consumables')}
               equipment={equipment}
               onEquipmentChange={setEquipment}
               achievements={achievements}
@@ -1062,7 +1061,6 @@ const Index = () => {
               characterName={character.name}
               equippedItems={Object.values(equipment.slots).filter(Boolean) as EquipmentItem[]}
               achievements={achievements}
-              onBack={() => categoryNav.navigateToSubTab('gear')}
             />
           )}
 
@@ -1072,7 +1070,6 @@ const Index = () => {
               characterName={character.name}
               achievements={achievements}
               onAchievementsChange={setAchievements}
-              onBack={() => categoryNav.navigateToSubTab('gear')}
               onAwardXP={handleAddXP}
             />
           )}

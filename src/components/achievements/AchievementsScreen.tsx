@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { ArrowLeft, Trophy, Star, Download, Upload, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Trophy, Star, Download, Upload, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { 
   Achievement, 
   achievementCategories,
@@ -58,7 +58,6 @@ interface AchievementsScreenProps {
   characterName: string;
   achievements: Achievement[];
   onAchievementsChange: (achievements: Achievement[]) => void;
-  onBack: () => void;
   onAwardXP?: (amount: number, source: string) => void;
 }
 
@@ -66,7 +65,6 @@ export function AchievementsScreen({
   characterName, 
   achievements, 
   onAchievementsChange, 
-  onBack,
   onAwardXP,
 }: AchievementsScreenProps) {
   const { toast } = useToast();
@@ -302,17 +300,11 @@ export function AchievementsScreen({
       overlayOpacity={60} 
       tintColor="purple" 
       tintOpacity={15}
-      className="fixed inset-0 z-50 flex flex-col"
+      className="min-h-[calc(100vh-10vh)] flex flex-col"
     >
-      {/* Header */}
-      <header className="relative z-10 flex items-center justify-between px-4 py-3 border-b border-purple-900/50 bg-background/80 backdrop-blur-sm">
-        <button 
-          onClick={onBack}
-          className="p-2 -ml-2 rounded-lg hover:bg-muted transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <h1 className="font-bold">Feats</h1>
+      {/* Title Header Row */}
+      <div className="relative z-10 flex items-center justify-between px-4 py-4 border-b border-purple-900/50 bg-background/80 backdrop-blur-sm">
+        <h1 className="font-cinzel text-2xl font-bold text-foreground">Feats & Achievements</h1>
         <div className="flex gap-1">
           <Button variant="ghost" size="icon" onClick={handleImport}>
             <Upload className="w-5 h-5" />
@@ -321,7 +313,7 @@ export function AchievementsScreen({
             <Download className="w-5 h-5" />
           </Button>
         </div>
-      </header>
+      </div>
 
       {/* Stats Summary */}
       <div className="relative z-10 px-4 py-4 border-b border-purple-900/30 bg-background/60 backdrop-blur-sm">
