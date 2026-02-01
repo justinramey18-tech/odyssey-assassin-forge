@@ -7,7 +7,8 @@ import {
   ChevronUp,
   Target,
   Pencil,
-  Save
+  Save,
+  Activity
 } from 'lucide-react';
 import { 
   COMBAT_CONDITIONS, 
@@ -21,6 +22,8 @@ import {
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet';
+import { ConditionQuickBar } from '@/components/conditions';
+import { usePromptDrawers } from '@/components/drawers';
 
 interface SituationStripProps {
   conditions: string[];
@@ -37,6 +40,16 @@ export function SituationStrip({
 }: SituationStripProps) {
   const [showScenarioPicker, setShowScenarioPicker] = useState(false);
   const [selectedScenario, setSelectedScenario] = useState<string>('standard');
+  
+  // Access drawer context for conditions system
+  let drawerContext: ReturnType<typeof usePromptDrawers> | null = null;
+  try {
+    drawerContext = usePromptDrawers();
+  } catch {
+    // Not inside PromptDrawerProvider
+  }
+  
+  const conditionsSystem = drawerContext?.conditions;
 
   const handleScenarioSelect = (scenario: CombatScenario) => {
     setSelectedScenario(scenario.id);
@@ -133,6 +146,32 @@ export function SituationStrip({
             />
           ))}
         </div>
+
+        {/* Status Conditions Quick Bar (debuffs/buffs from conditions system) */}
+        {conditionsSystem && (
+          <div className="pt-2 border-t border-red-900/20">
+            <div className="flex items-center gap-2 mb-2">
+              <Activity className="w-3.5 h-3.5 text-rose-400" />
+              <span className="text-[10px] font-mono text-rose-400 uppercase tracking-wider">
+                Status Effects
+              </span>
+              {conditionsSystem.activeCount > 0 && (
+                <span className="text-[10px] bg-rose-500/20 text-rose-400 px-1.5 py-0.5 rounded-full">
+                  {conditionsSystem.activeCount}
+                </span>
+              )}
+            </div>
+            <ConditionQuickBar
+              conditions={conditionsSystem.conditions}
+              recentConditions={conditionsSystem.recentConditions}
+              onAddCondition={conditionsSystem.addCondition}
+              onRemoveCondition={conditionsSystem.removeCondition}
+              onOpenDrawer={drawerContext?.openConditionsDrawer ?? (() => {})}
+              undoBuffer={conditionsSystem.undoBuffer}
+              onUndo={conditionsSystem.undoRemove}
+            />
+          </div>
+        )}
       </div>
 
       {/* Scenario Picker Bottom Sheet */}
