@@ -1,5 +1,6 @@
 // Types
 export * from './types';
+export * from './prompts';
 
 // Configuration
 export {
