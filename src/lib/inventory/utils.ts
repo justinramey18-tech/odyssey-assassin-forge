@@ -3,12 +3,23 @@ import { EquipmentSlotType, EquipmentItem, CharacterEquipment, SetInfo } from '.
 import { sampleEquipment, baseSetDefinitions } from './baseItems';
 import { allLegendaryItems } from './legendaryItems';
 import { legendarySetDefinitions } from './legendarySets';
+import { allCustomArmor, customArmorSetDefinitions } from './customArmor';
+import { allCustomWeapons } from './customWeapons';
 
 // Combine all equipment items
-export const allEquipment: EquipmentItem[] = [...sampleEquipment, ...allLegendaryItems];
+export const allEquipment: EquipmentItem[] = [
+  ...sampleEquipment,
+  ...allLegendaryItems,
+  ...allCustomArmor,
+  ...allCustomWeapons,
+];
 
 // Combine all set definitions
-export const setDefinitions: SetInfo[] = [...baseSetDefinitions, ...legendarySetDefinitions];
+export const setDefinitions: SetInfo[] = [
+  ...baseSetDefinitions,
+  ...legendarySetDefinitions,
+  ...customArmorSetDefinitions,
+];
 
 // Calculate total stats from equipment
 export function calculateTotalStats(slots: Record<EquipmentSlotType, EquipmentItem | null>): {
