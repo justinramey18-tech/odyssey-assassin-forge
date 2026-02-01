@@ -472,6 +472,454 @@ export const characterPrompts: CharacterPrompt[] = [
     prompt: "Give me three distinct paths forward. Label them A, B, C. I'll pick one without knowing consequences. Present clear choices with hidden outcomes, make each equally interesting but different, no wrong answers just different stories.",
     icon: '📚',
   },
+  // ==========================================
+  // INFINITY STONE ESCALATION PROMPTS
+  // 10 prompts per stone: Mild → Moderate → World-Breaking
+  // ==========================================
+
+  // ─────────────────────────────────────────
+  // SOUL STONE - Emotional & Social (Orange)
+  // ─────────────────────────────────────────
+  {
+    id: 'soul-mild-1',
+    category: 'Emotional',
+    title: 'Fleeting Sentiment',
+    prompt: 'For a brief moment, let [Character Name] feel an unexpected emotion—nostalgia for a place they\'ve never been, fondness for a stranger\'s laugh, or melancholy at a sunset. It passes quickly, but it was real.',
+    icon: '🌅',
+  },
+  {
+    id: 'soul-mild-2',
+    category: 'Social',
+    title: 'Unexpected Kindness',
+    prompt: 'Have [Character Name] perform a small, unexpected act of kindness—paying for a stranger\'s meal, returning a dropped item, or offering genuine encouragement. No ulterior motive. Just... nice.',
+    icon: '💝',
+  },
+  {
+    id: 'soul-mild-3',
+    category: 'Emotional',
+    title: 'Memory Echo',
+    prompt: 'A sensory detail—a smell, a song, a texture—triggers a vivid memory from [Character Name]\'s past. It\'s not traumatic, just... human. Let them sit with it for a moment.',
+    icon: '🎵',
+  },
+  {
+    id: 'soul-moderate-1',
+    category: 'Social',
+    title: 'Truth in Jest',
+    prompt: 'During a casual conversation, have [Character Name] accidentally reveal something deeply true about themselves while making a joke. Everyone laughs, but one person noticed. Make it matter later.',
+    icon: '🎭',
+  },
+  {
+    id: 'soul-moderate-2',
+    category: 'Emotional',
+    title: 'The Weight of Names',
+    prompt: 'Someone says a name that means something to [Character Name]—a former ally, a victim, someone they failed. They don\'t react visibly. But internally, describe the avalanche.',
+    icon: '⚖️',
+  },
+  {
+    id: 'soul-moderate-3',
+    category: 'Social',
+    title: 'Unearned Forgiveness',
+    prompt: 'An NPC [Character Name] wronged offers genuine, unconditional forgiveness. No catch, no manipulation. Just grace. Make [Character Name] deal with that—it\'s harder than punishment.',
+    icon: '🕊️',
+  },
+  {
+    id: 'soul-moderate-4',
+    category: 'Emotional',
+    title: 'Inherited Grief',
+    prompt: 'Have [Character Name] encounter someone mourning a loss caused by their actions—not directly confronting them, just grieving nearby. They don\'t know who [Character Name] is. Yet.',
+    icon: '🥀',
+  },
+  {
+    id: 'soul-extreme-1',
+    category: 'Social',
+    title: 'Soul Recognition',
+    prompt: 'An NPC looks at [Character Name] and says, "I know what you\'ve done. All of it. And I still see someone worth saving." No explanation how they know. Just devastating acceptance.',
+    icon: '👁️',
+  },
+  {
+    id: 'soul-extreme-2',
+    category: 'Emotional',
+    title: 'The Ghost of Who They Were',
+    prompt: '[Character Name] encounters someone they saved long ago—now living the life they\'ll never have. A family, peace, normalcy. Make them watch happiness they made possible but can never possess.',
+    icon: '👻',
+  },
+  {
+    id: 'soul-extreme-3',
+    category: 'Emotional',
+    title: 'Breaking the Mask',
+    prompt: 'In a moment of crisis, all of [Character Name]\'s defenses fail. No jokes. No deflection. Just raw, honest emotion pouring out—rage, grief, fear, loneliness. Everyone sees. Make them deal with being truly known.',
+    icon: '💔',
+  },
+
+  // ─────────────────────────────────────────
+  // REALITY STONE - World Interaction (Red)
+  // ─────────────────────────────────────────
+  {
+    id: 'reality-mild-1',
+    category: 'World',
+    title: 'Small Consequences',
+    prompt: 'Have [Character Name] encounter a minor consequence of a past action—a merchant remembers their name, a wall still has that stain, a child tells the story of "the stranger." The world remembers.',
+    icon: '🌱',
+  },
+  {
+    id: 'reality-mild-2',
+    category: 'World',
+    title: 'Ripple Recognition',
+    prompt: 'An NPC mentions a change in their life that traces back to [Character Name]\'s actions three sessions ago. They have no idea who caused it. Neither does [Character Name], at first.',
+    icon: '💧',
+  },
+  {
+    id: 'reality-mild-3',
+    category: 'World',
+    title: 'Background Narrative',
+    prompt: 'While [Character Name] focuses on their mission, describe life happening around them—a proposal, an argument, a goodbye at the docks. The world doesn\'t revolve around them. Remind them.',
+    icon: '🎬',
+  },
+  {
+    id: 'reality-moderate-1',
+    category: 'World',
+    title: 'The Law of Names',
+    prompt: '[Character Name]\'s reputation arrives before they do. An innkeeper\'s demeanor shifts when they hear the name—but which version of the legend? Hero? Monster? Something worse: complicated.',
+    icon: '📜',
+  },
+  {
+    id: 'reality-moderate-2',
+    category: 'World',
+    title: 'Collateral Calculation',
+    prompt: 'Present a tactical situation where success requires environmental destruction—a home, a shrine, someone\'s livelihood. Make [Character Name] choose efficiency vs. the world they leave behind.',
+    icon: '🏚️',
+  },
+  {
+    id: 'reality-moderate-3',
+    category: 'World',
+    title: 'Power Vacuum',
+    prompt: 'The villain [Character Name] defeated left a void. Show them what filled it—something worse, something unexpected, or maybe nothing at all, which is its own kind of terrible.',
+    icon: '🕳️',
+  },
+  {
+    id: 'reality-moderate-4',
+    category: 'World',
+    title: 'The Cost of Heroism',
+    prompt: 'A town [Character Name] saved is now dependent on heroes. They stopped solving their own problems. Show the unintended weakness created by good intentions.',
+    icon: '🏰',
+  },
+  {
+    id: 'reality-extreme-1',
+    category: 'World',
+    title: 'Butterfly Apocalypse',
+    prompt: 'Reveal that a small, seemingly insignificant choice [Character Name] made long ago has cascaded into something world-altering. A war, a plague, a shift in divine attention. They caused this. Accidentally.',
+    icon: '🦋',
+  },
+  {
+    id: 'reality-extreme-2',
+    category: 'World',
+    title: 'Reality Fracture',
+    prompt: 'The world briefly... glitches. Physics hiccups, an NPC says something impossible, time stutters. [Character Name] is the only one who notices. The universe is paying attention to them now. It shouldn\'t be.',
+    icon: '⚡',
+  },
+  {
+    id: 'reality-extreme-3',
+    category: 'World',
+    title: 'The Weight of Existence',
+    prompt: '[Character Name] realizes they\'ve become a fixed point in reality—events bend around them, prophecies name them, gods argue about their fate. The world no longer ignores them. They\'ve become too real.',
+    icon: '🌍',
+  },
+
+  // ─────────────────────────────────────────
+  // POWER STONE - Combat & Force (Purple)
+  // ─────────────────────────────────────────
+  {
+    id: 'power-mild-1',
+    category: 'Combat',
+    title: 'Controlled Violence',
+    prompt: 'Have [Character Name] demonstrate precise, efficient lethality—not showing off, just... professional. Let enemies recognize they\'re facing someone who treats killing as a craft.',
+    icon: '🎯',
+  },
+  {
+    id: 'power-mild-2',
+    category: 'Combat',
+    title: 'Merciful Strike',
+    prompt: '[Character Name] defeats an enemy with minimal harm when they could have killed easily. Describe the restraint as its own kind of terrifying—this is someone choosing not to destroy.',
+    icon: '✋',
+  },
+  {
+    id: 'power-mild-3',
+    category: 'Combat',
+    title: 'Warrior\'s Recognition',
+    prompt: 'A skilled opponent acknowledges [Character Name]\'s ability mid-combat—a nod, a genuine compliment on technique. Even enemies can respect excellence.',
+    icon: '⚔️',
+  },
+  {
+    id: 'power-moderate-1',
+    category: 'Combat',
+    title: 'The Turning Point',
+    prompt: 'A fight that seemed even suddenly isn\'t. [Character Name] stops holding back—or reveals they were holding back all along. Describe the moment everything shifts. Make it visceral.',
+    icon: '🔥',
+  },
+  {
+    id: 'power-moderate-2',
+    category: 'Combat',
+    title: 'Overwhelming Force',
+    prompt: '[Character Name] utterly dismantles an opponent who thought they were a threat. Not cruelly—just completely. Show the psychological impact on witnesses.',
+    icon: '💀',
+  },
+  {
+    id: 'power-moderate-3',
+    category: 'Combat',
+    title: 'Collateral Carnage',
+    prompt: 'A combat encounter\'s conclusion reveals the aftermath—broken terrain, traumatized bystanders, structural damage. Victory has a body count beyond the targets.',
+    icon: '💥',
+  },
+  {
+    id: 'power-moderate-4',
+    category: 'Combat',
+    title: 'Predator\'s Patience',
+    prompt: 'Instead of engaging immediately, have [Character Name] stalk their target—watching patterns, identifying weaknesses, savoring anticipation. The violence is secondary to the hunt.',
+    icon: '🐆',
+  },
+  {
+    id: 'power-extreme-1',
+    category: 'Combat',
+    title: 'Legendary Violence',
+    prompt: '[Character Name] does something in combat that will be told as a story for generations. A kill so impossible, so dramatic, so perfectly executed that witnesses question reality.',
+    icon: '⭐',
+  },
+  {
+    id: 'power-extreme-2',
+    category: 'Combat',
+    title: 'Force of Nature',
+    prompt: 'For one battle, [Character Name] fights as if possessed by something greater—speed beyond mortal, strength that cracks stone, presence that makes lesser beings flee. They become the storm.',
+    icon: '🌪️',
+  },
+  {
+    id: 'power-extreme-3',
+    category: 'Combat',
+    title: 'The Last One Standing',
+    prompt: 'Against impossible odds—an army, a monster, a force that should not be survivable—[Character Name] survives. Describe the cost. The injuries. The silence after. They won. At what price?',
+    icon: '🏆',
+  },
+
+  // ─────────────────────────────────────────
+  // TIME STONE - Meta & Fourth Wall (Green)
+  // ─────────────────────────────────────────
+  {
+    id: 'time-mild-1',
+    category: 'Meta Requests',
+    title: 'Déjà Vu Moment',
+    prompt: '[Character Name] experiences déjà vu—haven\'t they done this before? Same room, same conversation, same choices. Play it for comedy, but let a flicker of unease show.',
+    icon: '🔄',
+  },
+  {
+    id: 'time-mild-2',
+    category: 'Meta Requests',
+    title: 'Genre Awareness Light',
+    prompt: 'Let [Character Name] make a comment that acknowledges story tropes without fully breaking the wall—"I\'ve got a bad feeling about this" or "That\'s too convenient to be coincidence."',
+    icon: '📖',
+  },
+  {
+    id: 'time-mild-3',
+    category: 'Meta Requests',
+    title: 'Narrative Convenience',
+    prompt: 'Something works out a little too perfectly. [Character Name] notices—the right key in the right pocket, the villain monologuing just long enough. They don\'t comment. They just... notice.',
+    icon: '🍀',
+  },
+  {
+    id: 'time-moderate-1',
+    category: 'Meta Requests',
+    title: 'Time Loop Awareness',
+    prompt: '[Character Name] suddenly knows information they shouldn\'t—things that haven\'t happened yet, paths not taken. Maybe it\'s instinct. Maybe they remember a timeline that didn\'t survive.',
+    icon: '⏰',
+  },
+  {
+    id: 'time-moderate-2',
+    category: 'Meta Requests',
+    title: 'The Pause Between Moments',
+    prompt: 'Time slows. In the space between heartbeats, [Character Name] perceives everything—blade trajectories, escape routes, the fear in their enemy\'s eyes. Then time resumes. Use this perception.',
+    icon: '⏸️',
+  },
+  {
+    id: 'time-moderate-3',
+    category: 'Meta Requests',
+    title: 'Retcon Echo',
+    prompt: 'Something in [Character Name]\'s backstory shifts—a detail changes, a memory updates. They remember both versions. Neither feels false. Reality is... flexible today.',
+    icon: '📝',
+  },
+  {
+    id: 'time-moderate-4',
+    category: 'Meta Requests',
+    title: 'Plot Armor Recognition',
+    prompt: '[Character Name] survives something unsurvivable and knows it. For a moment, they feel the weight of narrative protection—and question whether their choices actually matter.',
+    icon: '🛡️',
+  },
+  {
+    id: 'time-extreme-1',
+    category: 'Meta Requests',
+    title: 'Break the Fourth Wall',
+    prompt: '[Character Name] looks directly at the audience—players, DM, cosmic observers—and addresses them. Just once. Briefly. Then continues as if nothing happened. No one else noticed. Did they?',
+    icon: '👁️',
+  },
+  {
+    id: 'time-extreme-2',
+    category: 'Meta Requests',
+    title: 'Rejected Timeline',
+    prompt: 'Show [Character Name] a version of events that was "written" but abandoned—a death they avoided, a choice they didn\'t make, a story that ended differently. It almost happened. It could still.',
+    icon: '📚',
+  },
+  {
+    id: 'time-extreme-3',
+    category: 'Meta Requests',
+    title: 'Conversation with the Author',
+    prompt: '[Character Name] meets an entity that claims to be writing their story. It offers one change—any change—to their past, present, or future. What do they ask for? What does it cost?',
+    icon: '✍️',
+  },
+
+  // ─────────────────────────────────────────
+  // MIND STONE - Investigation & Insight (Yellow)
+  // ─────────────────────────────────────────
+  {
+    id: 'mind-mild-1',
+    category: 'Investigation',
+    title: 'Reading the Room',
+    prompt: '[Character Name] notices the subtle things—a nervous glance, a too-firm handshake, the way someone positions themselves near exits. Describe what they deduce without asking.',
+    icon: '🔍',
+  },
+  {
+    id: 'mind-mild-2',
+    category: 'Investigation',
+    title: 'Pattern Recognition',
+    prompt: 'Details click into place—a symbol repeated in different locations, behaviors that mirror each other, timing that can\'t be coincidence. [Character Name] sees the pattern. What does it mean?',
+    icon: '🧩',
+  },
+  {
+    id: 'mind-mild-3',
+    category: 'Investigation',
+    title: 'Gut Instinct',
+    prompt: 'Something feels wrong. [Character Name] can\'t articulate why—no evidence, no logic. Just certainty. Trust the instinct. Let it guide them somewhere unexpected.',
+    icon: '⚡',
+  },
+  {
+    id: 'mind-moderate-1',
+    category: 'Investigation',
+    title: 'Reading Between Lives',
+    prompt: '[Character Name] pieces together someone\'s entire story from physical details—calluses that reveal profession, scars that tell history, posture that speaks of training or trauma. They know this person without asking.',
+    icon: '📖',
+  },
+  {
+    id: 'mind-moderate-2',
+    category: 'Investigation',
+    title: 'The Missing Piece',
+    prompt: 'A mystery that seemed solved wasn\'t. [Character Name] realizes everyone missed something—including them. The answer was there all along. How did they miss it? Why does that terrify them?',
+    icon: '🕳️',
+  },
+  {
+    id: 'mind-moderate-3',
+    category: 'Investigation',
+    title: 'Predictive Profiling',
+    prompt: '[Character Name] anticipates their target\'s next three moves before they make them—where they\'ll go, who they\'ll contact, what they\'ll do when cornered. Be right. Make it unsettling.',
+    icon: '🎯',
+  },
+  {
+    id: 'mind-moderate-4',
+    category: 'Investigation',
+    title: 'Unwanted Understanding',
+    prompt: '[Character Name] understands their enemy too well—their motivations, their pain, their logic. It makes sense. That\'s the problem. Understanding is not the same as forgiving.',
+    icon: '🧠',
+  },
+  {
+    id: 'mind-extreme-1',
+    category: 'Investigation',
+    title: 'Sherlock Cascade',
+    prompt: 'In a single overwhelming moment, [Character Name] perceives everything—every connection, every motive, every lie in the room. Information floods in faster than they can process. They see the truth. All of it. Too much.',
+    icon: '💡',
+  },
+  {
+    id: 'mind-extreme-2',
+    category: 'Investigation',
+    title: 'The Conspiracy Beneath',
+    prompt: '[Character Name]\'s investigation reveals something bigger—everything connects. The random events weren\'t random. The coincidences were orchestrated. Someone has been watching. Planning. Waiting.',
+    icon: '🕸️',
+  },
+  {
+    id: 'mind-extreme-3',
+    category: 'Investigation',
+    title: 'Mind Palace Moment',
+    prompt: '[Character Name] enters a mental state beyond normal cognition—reconstructing events in perfect detail, simulating conversations, walking through possibilities. They solve the unsolvable. But what did it cost them mentally?',
+    icon: '🏛️',
+  },
+
+  // ─────────────────────────────────────────
+  // SPACE STONE - Voice, Tone & Narrative (Blue)
+  // ─────────────────────────────────────────
+  {
+    id: 'space-mild-1',
+    category: 'Voice & Tone',
+    title: 'Signature Line',
+    prompt: 'Give [Character Name] a moment to deliver a line that defines them—sardonic, sincere, or surprisingly profound. Something that could be quoted. Make it matter.',
+    icon: '💬',
+  },
+  {
+    id: 'space-mild-2',
+    category: 'Narrative',
+    title: 'Establishing Shot',
+    prompt: 'Describe [Character Name]\'s entrance to a new location with cinematic framing—what does the environment reveal about them? How does space itself react to their presence?',
+    icon: '🎬',
+  },
+  {
+    id: 'space-mild-3',
+    category: 'Voice & Tone',
+    title: 'Tone Shift',
+    prompt: 'Shift the scene\'s emotional register through [Character Name]\'s perspective—a dark moment finds dark humor, a comedic scene finds unexpected weight. They set the tone.',
+    icon: '🎭',
+  },
+  {
+    id: 'space-moderate-1',
+    category: 'Narrative',
+    title: 'Parallel Narratives',
+    prompt: 'Cut between [Character Name]\'s actions and something happening elsewhere that mirrors or contrasts them—a birth as they bring death, a celebration as they mourn. Meaning emerges from juxtaposition.',
+    icon: '⚖️',
+  },
+  {
+    id: 'space-moderate-2',
+    category: 'Voice & Tone',
+    title: 'Monologue Moment',
+    prompt: 'Give [Character Name] an uninterrupted moment to voice their philosophy—to an enemy, an ally, or themselves. No interruptions. Let them define who they are in their own words.',
+    icon: '🎤',
+  },
+  {
+    id: 'space-moderate-3',
+    category: 'Narrative',
+    title: 'Flashback Integration',
+    prompt: 'A current event triggers a seamless flashback—past and present bleeding together, informing each other. What happened before explains what\'s happening now. Connect them.',
+    icon: '⏪',
+  },
+  {
+    id: 'space-moderate-4',
+    category: 'Voice & Tone',
+    title: 'Silence Speaks',
+    prompt: 'Remove dialogue from a scene. Let [Character Name] communicate through action, expression, and presence alone. What do they say without speaking? What can\'t be said?',
+    icon: '🤫',
+  },
+  {
+    id: 'space-extreme-1',
+    category: 'Narrative',
+    title: 'Unreliable Reality',
+    prompt: 'Narrate the scene from [Character Name]\'s subjective perspective—their biases, fears, and desires shaping what they perceive. Then crack it open. Show what\'s actually happening.',
+    icon: '🪞',
+  },
+  {
+    id: 'space-extreme-2',
+    category: 'Voice & Tone',
+    title: 'The Defining Moment',
+    prompt: 'This is the scene that will be remembered. The moment that defines [Character Name] forever—heroic, tragic, or transcendent. Frame it with the weight it deserves. Make it unforgettable.',
+    icon: '⭐',
+  },
+  {
+    id: 'space-extreme-3',
+    category: 'Narrative',
+    title: 'Story Becomes Legend',
+    prompt: 'Show how [Character Name]\'s current actions will be told in the future—embellished, distorted, deified. The legend forming in real-time around them. Truth and myth braiding together.',
+    icon: '📜',
+  },
 ];
 
 export const promptCategories = [
