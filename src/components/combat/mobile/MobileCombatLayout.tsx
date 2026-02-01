@@ -133,7 +133,7 @@ export function MobileCombatLayout({ character, spellcasting }: MobileCombatLayo
   
   // Situation state
   const [conditions, setConditions] = useState<string[]>([]);
-  const [situationCollapsed, setSituationCollapsed] = useState(false);
+  const [situationCollapsed, setSituationCollapsed] = useState(true);
   
   // Action economy state
   const [actionEconomy, setActionEconomy] = useState<ActionEconomy>({
