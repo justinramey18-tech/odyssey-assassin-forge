@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { Ability, AbilityTree } from '@/lib/types';
+import { useMemo, useState, useEffect, useRef } from 'react';
+import { Ability } from '@/lib/types';
 import { TREE_VISUAL_CONFIG } from '@/lib/abilityTrees/colors';
 import { cn } from '@/lib/utils';
 import * as LucideIcons from 'lucide-react';
@@ -8,8 +8,7 @@ import { Shield } from 'lucide-react';
 interface AbilityNodeProps {
   ability: Ability;
   currentTier: 0 | 1 | 2 | 3;
-  isLocked: boolean;
-  isAvailable: boolean;
+  isAccessible: boolean;  // AC Odyssey style: true if parent(s) unlocked or foundation
   isSelected: boolean;
   isMobile: boolean;
   onSelect: () => void;
@@ -32,13 +31,25 @@ const tierToRoman = (tier: number): string => {
 export function AbilityNode({
   ability,
   currentTier,
-  isLocked,
-  isAvailable,
+  isAccessible,
   isSelected,
   isMobile,
   onSelect,
 }: AbilityNodeProps) {
   const treeConfig = TREE_VISUAL_CONFIG[ability.tree];
+  
+  // Track unlock animation (0 → 1 transition)
+  const [justUnlocked, setJustUnlocked] = useState(false);
+  const prevTierRef = useRef(currentTier);
+  
+  useEffect(() => {
+    if (prevTierRef.current === 0 && currentTier === 1) {
+      setJustUnlocked(true);
+      const timer = setTimeout(() => setJustUnlocked(false), 600);
+      return () => clearTimeout(timer);
+    }
+    prevTierRef.current = currentTier;
+  }, [currentTier]);
   
   // Get the icon component dynamically
   const IconComponent = useMemo(() => {
@@ -51,7 +62,7 @@ export function AbilityNode({
 
   const handleClick = () => {
     if (isMobile) {
-      if (isLocked) {
+      if (!isAccessible && currentTier === 0) {
         triggerHaptic('light');
       } else if (currentTier === 0) {
         triggerHaptic('medium');
@@ -71,21 +82,36 @@ export function AbilityNode({
 
   // Determine visual state classes
   const stateClasses = useMemo(() => {
-    if (isLocked) {
+    // Unlock flash animation (takes priority)
+    if (justUnlocked) {
+      return cn(
+        `border-${treeConfig.primary}`,
+        'animate-ability-unlock-flash'
+      );
+    }
+    
+    // Not accessible and not unlocked - locked state
+    if (!isAccessible && currentTier === 0) {
       return 'opacity-40 grayscale border-dashed border-muted-foreground/30';
     }
-    if (currentTier === 0 && isAvailable) {
+    
+    // Accessible but not yet unlocked - pulsing ready state
+    if (isAccessible && currentTier === 0) {
       return cn(
         `border-${treeConfig.primary}`,
         isMobile ? 'animate-ability-pulse-mobile' : 'animate-ability-pulse'
       );
     }
+    
+    // Tier 1 - unlocked, basic glow
     if (currentTier === 1) {
       return cn(
         `border-${treeConfig.primary}`,
         isMobile ? 'shadow-[0_0_10px]' : 'shadow-[0_0_15px]'
       );
     }
+    
+    // Tier 2 - enhanced glow
     if (currentTier === 2) {
       return cn(
         `border-${treeConfig.primary}`,
@@ -94,6 +120,8 @@ export function AbilityNode({
           : 'shadow-[0_0_25px] shadow-current'
       );
     }
+    
+    // Tier 3 - maxed, golden glow
     if (currentTier === 3) {
       return cn(
         'border-yellow-400',
@@ -102,19 +130,27 @@ export function AbilityNode({
           : 'shadow-[0_0_30px_hsl(var(--tier-maxed))] animate-tier-glow'
       );
     }
+    
     return `border-${treeConfig.primary}/50`;
-  }, [isLocked, currentTier, isAvailable, treeConfig.primary, isMobile]);
+  }, [justUnlocked, isAccessible, currentTier, treeConfig.primary, isMobile]);
 
   // Node size based on device
   const sizeClasses = isMobile 
     ? 'w-16 h-16 min-w-[48px] min-h-[48px]' 
     : 'w-20 h-20';
 
+  // Determine accessibility label
+  const accessibilityLabel = useMemo(() => {
+    if (!isAccessible && currentTier === 0) return 'Locked';
+    if (isAccessible && currentTier === 0) return 'Available';
+    return 'Unlocked';
+  }, [isAccessible, currentTier]);
+
   return (
     <div
       role="button"
       tabIndex={0}
-      aria-label={`${ability.name}, Tier ${currentTier} of 3, ${isLocked ? 'Locked' : isAvailable ? 'Available' : 'Unlocked'}`}
+      aria-label={`${ability.name}, Tier ${currentTier} of 3, ${accessibilityLabel}`}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       style={{ touchAction: 'manipulation' }}
@@ -125,7 +161,7 @@ export function AbilityNode({
         sizeClasses,
         stateClasses,
         isSelected && 'ring-2 ring-white/50 scale-105',
-        !isLocked && 'hover:scale-110',
+        !(!isAccessible && currentTier === 0) && 'hover:scale-110',
         // Tree-specific text color for glow
         `text-${treeConfig.primary}`,
         // Focus ring color
@@ -148,7 +184,7 @@ export function AbilityNode({
         className={cn(
           'relative z-10 transition-colors',
           isMobile ? 'w-7 h-7' : 'w-9 h-9',
-          isLocked && 'text-muted-foreground',
+          (!isAccessible && currentTier === 0) && 'text-muted-foreground',
           currentTier > 0 && `text-${treeConfig.primary}`,
           currentTier === 3 && 'text-yellow-400'
         )}
