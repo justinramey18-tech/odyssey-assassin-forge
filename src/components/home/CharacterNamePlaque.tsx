@@ -12,43 +12,41 @@ export function CharacterNamePlaque({ name, level }: CharacterNamePlaqueProps) {
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="flex flex-col items-center"
+      className="px-4"
     >
-      {/* 3D Plaque Container */}
+      {/* Full-width thin plaque */}
       <div 
         className={cn(
-          "bg-plaque relative px-8 py-4 rounded-lg",
-          "border-2 border-primary/30"
+          "bg-plaque relative px-4 py-2 rounded-lg w-full",
+          "border border-primary/30",
+          "flex items-center justify-center gap-3"
         )}
       >
         {/* Decorative Corner Accents */}
-        <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-primary/60 rounded-tl-lg" />
-        <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-primary/60 rounded-tr-lg" />
-        <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-primary/60 rounded-bl-lg" />
-        <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-primary/60 rounded-br-lg" />
+        <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-primary/60 rounded-tl-lg" />
+        <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-primary/60 rounded-tr-lg" />
+        <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-primary/60 rounded-bl-lg" />
+        <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-primary/60 rounded-br-lg" />
         
-        {/* Character Name */}
+        {/* Character Name & Level - Single Line */}
         <h1 
           className={cn(
-            "font-cinzel font-bold text-xl uppercase tracking-widest text-center",
+            "font-cinzel font-bold text-lg uppercase tracking-widest",
             "text-foreground text-3d-plaque"
           )}
         >
           {name || 'Mercenary'}
         </h1>
         
-        {/* Level Badge */}
-        <div className="flex justify-center mt-2">
-          <div 
-            className={cn(
-              "px-4 py-1 rounded-full",
-              "bg-primary/20 border border-primary/40",
-              "text-primary font-cinzel font-semibold text-sm uppercase tracking-wider"
-            )}
-          >
-            Level {level}
-          </div>
-        </div>
+        <span className="text-primary/40">•</span>
+        
+        <span 
+          className={cn(
+            "text-primary font-cinzel font-semibold text-sm uppercase tracking-wider"
+          )}
+        >
+          Level {level}
+        </span>
       </div>
     </motion.div>
   );
