@@ -69,9 +69,11 @@ interface PromptDrawerProviderProps {
   onAddXP?: (amount: number, source: string) => void;
   // Equipment for set bonus drawer
   equipment?: CharacterEquipment;
-  // HP props for Oracle
+  // HP props for Oracle and Stats
   currentHP?: number;
   maxHP?: number;
+  tempHP?: number;
+  onHPChange?: (current: number, temp: number) => void;
   // Consumables for Oracle
   consumables?: ConsumableItem[];
   // Prestige for Oracle
@@ -99,6 +101,8 @@ export function PromptDrawerProvider({
   equipment,
   currentHP,
   maxHP,
+  tempHP = 0,
+  onHPChange,
   consumables = [],
   prestigeLevel = 0,
   prestigeAbilities = [],
@@ -269,6 +273,10 @@ export function PromptDrawerProvider({
             currentXP={currentXP}
             xpPreset={xpPreset}
             onAddXP={onAddXP}
+            currentHP={currentHP}
+            maxHP={maxHP}
+            tempHP={tempHP}
+            onHPChange={onHPChange}
             equipmentStats={equipment ? equipmentStats : undefined}
             baseScores={baseScores}
             getScoreBreakdown={getScoreBreakdown}

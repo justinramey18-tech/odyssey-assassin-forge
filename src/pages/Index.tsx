@@ -877,6 +877,8 @@ const Index = () => {
         equipment={equipment}
         currentHP={hpState.current}
         maxHP={hpState.max}
+        tempHP={hpState.temp}
+        onHPChange={(current, temp) => handleHPChange(current, hpState.max, temp)}
         consumables={consumablesInventory}
         prestigeLevel={prestigeData.prestigeLevel}
         prestigeAbilities={prestigeTree.progress.unlockedAbilities}
@@ -956,6 +958,8 @@ const Index = () => {
       equipment={equipment}
       currentHP={hpState.current}
       maxHP={hpState.max}
+      tempHP={hpState.temp}
+      onHPChange={(current, temp) => handleHPChange(current, hpState.max, temp)}
       consumables={consumablesInventory}
       prestigeLevel={prestigeData.prestigeLevel}
       prestigeAbilities={prestigeTree.progress.unlockedAbilities}
