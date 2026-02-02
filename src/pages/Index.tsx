@@ -925,6 +925,7 @@ const Index = () => {
           customBackground={customBackground.customBackground}
           onCustomBackgroundUpload={customBackground.handleImageUpload}
           onCustomBackgroundClear={customBackground.clearCustomBackground}
+          prestigeData={prestigeData}
         />
         
         {/* Settings Modal */}

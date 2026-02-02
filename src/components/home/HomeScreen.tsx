@@ -27,6 +27,9 @@ import { AvailablePointsWidget } from './AvailablePointsWidget';
 import { EnlargedD20Section } from './EnlargedD20Section';
 import { PrimaryNavigationCards } from './PrimaryNavigationCards';
 import { BackgroundUploadButton } from './BackgroundUploadButton';
+import { XPProgressBar } from './XPProgressBar';
+import { PrestigeData } from '@/lib/prestige';
+import { PRESTIGE_CONFIG } from '@/lib/prestige/config';
 
 import homeBackground from '@/assets/home-background-new.jpg';
 
@@ -71,6 +74,8 @@ interface HomeScreenProps {
   customBackground?: string | null;
   onCustomBackgroundUpload?: (file: File) => Promise<void>;
   onCustomBackgroundClear?: () => void;
+  // Prestige data for XP bar
+  prestigeData?: PrestigeData;
 }
 
 // Haptic feedback helper
@@ -105,6 +110,7 @@ export function HomeScreen({
   customBackground,
   onCustomBackgroundUpload,
   onCustomBackgroundClear,
+  prestigeData,
 }: HomeScreenProps) {
   const isMobile = useIsMobile();
   const stats = useEquipmentStats(equipment);
@@ -339,6 +345,15 @@ export function HomeScreen({
               ac={stats.totalAC}
               initiative={initiativeModifier}
               onInitiativeClick={handleInitiativeRoll}
+            />
+
+            {/* XP Progress Bar - Synced with Skills Tab */}
+            <XPProgressBar
+              currentLevel={character.level}
+              currentXP={currentXP}
+              prestigeData={prestigeData}
+              nextPrestigeXPRequired={PRESTIGE_CONFIG.XP_PER_PRESTIGE_LEVEL}
+              onClick={() => onNavigateToTab('skills')}
             />
 
             {/* Live Status Indicator Row - Centered below AC/Init */}
