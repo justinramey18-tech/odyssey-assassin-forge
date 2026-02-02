@@ -132,6 +132,33 @@ export function ChronicleSyncScreen({
       });
     }
     
+    // Gold changes
+    result.goldChanges.forEach((gold, i) => {
+      const icon = gold.action === 'gained' ? '💰' : '💸';
+      changes.push({
+        id: `gold-${i}`,
+        category: 'gold',
+        description: `${icon} ${gold.action === 'gained' ? '+' : '-'}${gold.amount} GP`,
+        confidence: 'high',
+        sourceText: gold.sourceText,
+        approved: true,
+        data: gold,
+      });
+    });
+    
+    // Shop items
+    result.shopItems.forEach((item, i) => {
+      changes.push({
+        id: `shop-${i}`,
+        category: 'shop',
+        description: `🏪 ${item.name} (${item.costGold} GP)`,
+        confidence: item.confidence,
+        sourceText: item.sourceText,
+        approved: true,
+        data: item,
+      });
+    });
+    
     return changes;
   }, [characterLevel]);
 
@@ -459,7 +486,7 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Summary Stats */}
-              <div className="grid grid-cols-4 gap-3 text-center">
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
                 <div className="bg-yellow-500/10 rounded-lg p-2 border border-yellow-500/20">
                   <div className="text-lg font-bold text-yellow-400">+{summary.totalXP}</div>
                   <div className="text-xs text-muted-foreground">XP</div>
@@ -475,6 +502,16 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
                 <div className="bg-amber-500/10 rounded-lg p-2 border border-amber-500/20">
                   <div className="text-lg font-bold text-amber-400">{summary.hasLevelUp ? '⬆️' : '-'}</div>
                   <div className="text-xs text-muted-foreground">Level</div>
+                </div>
+                <div className="bg-yellow-600/10 rounded-lg p-2 border border-yellow-600/20">
+                  <div className="text-lg font-bold text-yellow-500">
+                    {summary.totalGold.gained > 0 ? `+${summary.totalGold.gained}` : '-'}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Gold</div>
+                </div>
+                <div className="bg-emerald-500/10 rounded-lg p-2 border border-emerald-500/20">
+                  <div className="text-lg font-bold text-emerald-400">{summary.totalShopItems}</div>
+                  <div className="text-xs text-muted-foreground">Shop</div>
                 </div>
               </div>
 
