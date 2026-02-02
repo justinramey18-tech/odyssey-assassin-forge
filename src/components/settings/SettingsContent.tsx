@@ -31,8 +31,12 @@ const FAQ_ITEMS = [
     category: "Getting Started",
     questions: [
       {
+        q: "How do I navigate the app?",
+        a: "The Home Screen is your hub. Use the 'Quick Menus' card to access drawers (Oracle, Conditions, Stats, etc.) or tap 'The Main HUD' for combat. The third card changes based on what needs your attention.",
+      },
+      {
         q: "How do I unlock abilities?",
-        a: "Navigate to the Skills tab and tap on any ability node. Each ability has 3 tiers - spend 1 point per tier to unlock. You earn ability points as you level up.",
+        a: "Go to the Abilities tab from Home or via Quick Menus. Tap any ability node to view details and spend points. Each ability has 3 tiers - 1 point per tier.",
       },
       {
         q: "What are the three skill trees?",
@@ -40,7 +44,28 @@ const FAQ_ITEMS = [
       },
       {
         q: "How do I level up?",
-        a: "Gain XP through gameplay sessions with your GM. When you have enough XP for the next level, tap the level-up notification on your character header.",
+        a: "Gain XP through gameplay. When ready, the 'Level Up!' button in the Home footer glows and pulses. Tap it to advance.",
+      },
+    ],
+  },
+  {
+    category: "Home Screen",
+    questions: [
+      {
+        q: "What are the status badges at the top?",
+        a: "They show real-time info: active conditions (tap to manage), ready cooldowns (tap to view timers), concentration status when casting, and expiring shop items with countdown.",
+      },
+      {
+        q: "What does the health bar show?",
+        a: "Your current HP with color-coded urgency (green → amber → red). Temp HP appears as a cyan overlay. AC and Initiative are shown below.",
+      },
+      {
+        q: "What's the 'Available Points' widget?",
+        a: "When you have unspent ability points, this amber glowing widget appears. Tap 'Spend Now' to go directly to the Abilities tab.",
+      },
+      {
+        q: "How do I roll dice?",
+        a: "Tap the large D20 in the center of the Home Screen to open the full dice roller with multiple dice types and modifiers.",
       },
     ],
   },
@@ -53,15 +78,15 @@ const FAQ_ITEMS = [
       },
       {
         q: "How do ability loadout slots work?",
-        a: "You can equip active abilities to loadout slots for quick access during combat. The number of slots increases with your level. Go to an ability's detail panel and tap 'Equip to Loadout'.",
+        a: "Equip active abilities to loadout slots for quick access during combat. The number of slots increases with your level. Open an ability's detail panel and tap 'Equip to Loadout'.",
       },
       {
         q: "What do the tier levels mean?",
-        a: "Each ability has 3 tiers (I, II, III). Higher tiers provide stronger effects. Tier III is the maximum 'Mastered' state, shown with a golden glow.",
+        a: "Each ability has 3 tiers (I, II, III). Higher tiers provide stronger effects. Tier III is the 'Mastered' state, shown with a golden glow.",
       },
       {
         q: "Can I refund ability points?",
-        a: "Yes! Tap on an unlocked ability and use the 'Refund Tier' button to get your point back. This allows you to experiment with different builds.",
+        a: "Yes! Tap an unlocked ability and use 'Refund Tier' to reclaim your point. This lets you experiment with different builds.",
       },
     ],
   },
@@ -70,15 +95,15 @@ const FAQ_ITEMS = [
     questions: [
       {
         q: "What is Drizzt's Legacy?",
-        a: "It's an advanced prestige tree that unlocks powerful abilities. You gain access as you progress and earn prestige levels through extended gameplay.",
+        a: "An advanced prestige tree with powerful abilities. Unlock access as you progress and earn prestige levels through extended gameplay.",
       },
       {
         q: "How do I unlock Legacy abilities?",
-        a: "Legacy abilities use the same unified ability points as regular skills. Spend points on any branch that interests you, but some require prerequisites.",
+        a: "Legacy abilities use unified ability points like regular skills. Spend points on any branch, though some have prerequisites.",
       },
       {
         q: "What are the Legacy branches?",
-        a: "There are multiple branches representing different aspects of Drizzt's legacy: Shadow, Hunter, Protector, Blademaster, and Survivor. Each offers unique abilities.",
+        a: "Five branches representing Drizzt's aspects: Shadow, Hunter, Protector, Blademaster, and Survivor. Each offers unique abilities.",
       },
     ],
   },
@@ -87,45 +112,49 @@ const FAQ_ITEMS = [
     questions: [
       {
         q: "How do I equip items?",
-        a: "Go to the Gear tab and tap on an equipment slot. Select an item from your inventory to equip it. Different slots accept different item types.",
+        a: "Go to the Gear tab and tap an equipment slot. Select an item from your inventory. Different slots accept different item types.",
       },
       {
         q: "What are Set Bonuses?",
-        a: "Some items belong to legendary sets. Equipping multiple pieces from the same set unlocks powerful bonus effects. Check the Set Bonus panel for details.",
+        a: "Legendary sets grant bonus effects when you equip multiple pieces. Check the Set Bonus panel (via Quick Menus → Set Bonus) for details.",
       },
       {
         q: "How do I unlock better gear?",
-        a: "Legendary items and sets unlock as you reach higher levels. Check the Gear tab to see what's available at your current level.",
+        a: "Legendary items unlock at higher levels. Check the Gear tab to see what's available at your current level.",
       },
     ],
   },
   {
-    category: "AI GM Integration",
+    category: "Oracle & AI",
     questions: [
+      {
+        q: "What is the Oracle?",
+        a: "An AI assistant accessible via Quick Menus → Oracle. It's character-aware and can answer questions about your build, suggest tactics, or roleplay as various personalities.",
+      },
+      {
+        q: "What personalities can the Oracle use?",
+        a: "Choose from The Thunderhead (omniscient), JARVIS (formal), Deadpool (chaotic), Gandalf (wizard), Jarlaxle (mercenary), or The Investigator (analytical).",
+      },
       {
         q: "How do I sync with my AI GM?",
-        a: "Go to Settings → Set Up tab. Use 'Generate Current State Summary' to copy your character's current build, then paste it into your AI GM chat.",
-      },
-      {
-        q: "What's the difference between Full Guide and Build Only?",
-        a: "'Full Guide' includes system rules plus your build. 'Build Only' is a quick snapshot of your current abilities and gear for mid-session updates.",
-      },
-      {
-        q: "How often should I sync?",
-        a: "Sync at the start of each session and after major changes (leveling up, new abilities, gear changes). Use 'State Snapshot' for quick updates.",
+        a: "Go to Settings → Set Up tab. Use 'Generate State Summary' to copy your character's current build, then paste it into your AI GM chat.",
       },
     ],
   },
   {
-    category: "Game Modes",
+    category: "Rests & Resources",
     questions: [
       {
-        q: "What is Honest Mode?",
-        a: "Honest Mode disables certain convenience features like respeccing, making your choices permanent. It's for players who want a more committed experience.",
+        q: "What's the difference between Short and Long Rest?",
+        a: "Short Rest is a quick tap to recover some resources. Long Rest requires holding the button for 0.8 seconds to prevent accidents - it fully restores HP and resets all cooldowns.",
       },
       {
-        q: "Can I change Game Mode later?",
-        a: "Yes, you can toggle game modes in Settings → Game Mode. Some restrictions apply to prevent abuse of the system.",
+        q: "How do cooldowns work?",
+        a: "Some abilities have cooldowns (per-rest or time-based). View them via the status badge or Quick Menus → Timers. They reset on the appropriate rest type.",
+      },
+      {
+        q: "What are conditions?",
+        a: "Status effects like Poisoned, Frightened, or Concentrating. Manage them via the Conditions badge or Quick Menus → Conditions drawer.",
       },
     ],
   },
@@ -134,15 +163,15 @@ const FAQ_ITEMS = [
     questions: [
       {
         q: "Is my progress saved automatically?",
-        a: "Yes! Your character data, abilities, and equipment are saved to your browser automatically. Use Cloud Save for backup across devices.",
+        a: "Yes! Character data, abilities, and equipment save to your browser automatically. Use Cloud Save for backup across devices.",
       },
       {
         q: "How do I use Cloud Save?",
-        a: "Sign in with your account and enable Cloud Save. Your progress will sync across devices and be protected from data loss.",
+        a: "Sign in with your account and enable Cloud Save. Your progress syncs across devices and is protected from data loss.",
       },
       {
         q: "How do I reset everything?",
-        a: "Go to Settings → Character tab and scroll to the Danger Zone. Use 'Reset Entire App' to start fresh. Warning: This is permanent!",
+        a: "Go to Settings → Character tab → Danger Zone. Use 'Reset Entire App' to start fresh. Warning: This is permanent!",
       },
     ],
   },

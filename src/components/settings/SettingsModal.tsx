@@ -20,6 +20,7 @@ interface SettingsModalProps {
   onEditCharacter: () => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  initialTab?: SettingsTab;
   prestigeData?: {
     totalPrestigePoints: number;
     prestigeLevel: number;
@@ -40,6 +41,7 @@ export function SettingsModal({
   onEditCharacter, 
   open: controlledOpen, 
   onOpenChange,
+  initialTab,
   prestigeData,
   onPrestigeRespec,
   onResetComplete,
@@ -65,10 +67,15 @@ export function SettingsModal({
   const open = isControlled ? controlledOpen : internalOpen;
   const setOpen = isControlled ? (onOpenChange ?? (() => {})) : setInternalOpen;
 
-  // Reset to menu when modal opens
+  // Reset to menu when modal opens, or go directly to initialTab if provided
   const handleOpenChange = (newOpen: boolean) => {
     if (newOpen) {
-      setShowContent(false);
+      if (initialTab) {
+        setActiveTab(initialTab);
+        setShowContent(true);
+      } else {
+        setShowContent(false);
+      }
     }
     setOpen(newOpen);
   };
