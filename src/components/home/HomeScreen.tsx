@@ -26,9 +26,7 @@ import { AnimatedD20Trigger } from '@/components/diceRoller';
 import { DiceRollerScreen } from '@/components/diceRoller';
 import type { LucideIcon } from 'lucide-react';
 
-import tposeBackground from '@/assets/generated/deadpool-assassin-tpose-dive.jpg';
-import tposeBackgroundMobile from '@/assets/generated/deadpool-assassin-tpose-dive-mobile.jpg';
-import assassinLogo from '@/assets/assassin-logo.png';
+import homeBackground from '@/assets/home-background-new.jpg';
 
 // Navigable tab types
 type NavigableTab = 
@@ -272,26 +270,15 @@ export function HomeScreen({
 
   return (
     <BackgroundWrapper
-      imagePath={isMobile ? tposeBackgroundMobile : tposeBackground}
-      overlayOpacity={50}
-      tintColor="red"
-      tintOpacity={10}
+      imagePath={homeBackground}
+      overlayOpacity={45}
+      tintColor="cyan"
+      tintOpacity={8}
       fixed={true}
       backgroundSize="contain"
       backgroundPosition="center center"
       className="fixed inset-0 z-50"
     >
-      {/* Centered Assassin Logo Watermark */}
-      <div 
-        className="fixed inset-0 flex items-center justify-center pointer-events-none z-0"
-        aria-hidden="true"
-      >
-        <img 
-          src={assassinLogo} 
-          alt="" 
-          className="w-[20vh] h-[20vh] opacity-35 object-contain"
-        />
-      </div>
 
       <div className="flex flex-col h-screen overflow-hidden relative z-10">
         {/* Install Banner */}
