@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Heart, Shield, Zap } from 'lucide-react';
+import { Heart, Shield, Zap, Dices } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface DynamicHealthBarProps {
@@ -9,6 +9,7 @@ interface DynamicHealthBarProps {
   ac: number;
   initiative: number;
   onTap?: () => void;
+  onInitiativeClick?: () => void;
 }
 
 export function DynamicHealthBar({
@@ -18,6 +19,7 @@ export function DynamicHealthBar({
   ac,
   initiative,
   onTap,
+  onInitiativeClick,
 }: DynamicHealthBarProps) {
   const hpPercentage = Math.max(0, Math.min(100, (currentHP / maxHP) * 100));
   
@@ -45,6 +47,13 @@ export function DynamicHealthBar({
     if (isCritical) return 'text-rose-400';
     if (isInjured) return 'text-amber-400';
     return 'text-emerald-400';
+  };
+
+  // Haptic feedback helper
+  const triggerHaptic = () => {
+    if ('vibrate' in navigator) {
+      navigator.vibrate(15);
+    }
   };
 
   return (
@@ -142,18 +151,28 @@ export function DynamicHealthBar({
           </span>
         </div>
         
-        {/* Initiative Badge */}
-        <div 
+        {/* Initiative Badge - Now Clickable */}
+        <button
+          onClick={() => {
+            triggerHaptic();
+            onInitiativeClick?.();
+          }}
           className={cn(
             "flex items-center gap-2 px-4 py-2 rounded-lg",
-            "bg-black/40 border border-yellow-500/30 backdrop-blur-sm"
+            "bg-black/40 border border-yellow-500/30 backdrop-blur-sm",
+            "hover:bg-yellow-500/10 hover:border-yellow-500/50",
+            "active:scale-95 transition-all duration-150",
+            "group cursor-pointer"
           )}
+          style={{ touchAction: 'manipulation' }}
+          aria-label="Roll initiative"
         >
           <Zap className="w-4 h-4 text-yellow-400" />
           <span className="font-cinzel font-bold text-yellow-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
             Init: {initiative >= 0 ? `+${initiative}` : initiative}
           </span>
-        </div>
+          <Dices className="w-3.5 h-3.5 text-yellow-400/60 group-hover:text-yellow-400 transition-colors" />
+        </button>
       </div>
     </motion.div>
   );

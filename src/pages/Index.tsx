@@ -916,6 +916,7 @@ const Index = () => {
           maxHP={hpState.max}
           tempHP={hpState.temp}
           shopItems={shop.shopItems}
+          initiativeModifier={abilityScores.finalModifiers.dexterity}
         />
         
         {/* Settings Modal */}
