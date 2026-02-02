@@ -59,6 +59,7 @@ import { ParsedShopItem } from '@/lib/shop/types';
 import { useSpellcasting } from '@/hooks/use-spellcasting';
 import { Consumable } from '@/lib/consumables/types';
 import { EquipmentItem as ShopEquipmentItem } from '@/lib/inventory/types';
+import { useCustomBackground } from '@/hooks/use-custom-background';
 const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -164,6 +165,8 @@ const Index = () => {
   // Shop system
   const shop = useShop();
   
+  // Custom home background
+  const customBackground = useCustomBackground();
   // Shared equipment state for constellation view
   const [equipment, setEquipment] = useState<CharacterEquipment>(() => createInitialEquipment());
   
@@ -917,6 +920,9 @@ const Index = () => {
           tempHP={hpState.temp}
           shopItems={shop.shopItems}
           initiativeModifier={abilityScores.finalModifiers.dexterity}
+          customBackground={customBackground.customBackground}
+          onCustomBackgroundUpload={customBackground.handleImageUpload}
+          onCustomBackgroundClear={customBackground.clearCustomBackground}
         />
         
         {/* Settings Modal */}
