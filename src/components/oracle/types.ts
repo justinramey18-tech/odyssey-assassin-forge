@@ -24,6 +24,15 @@ export interface CharacterContext {
   };
   prestigeLevel: number;
   prestigeAbilities: string[];
+  // Ability Scores
+  abilityScores?: {
+    strength: { base: number; modifier: number; final: number };
+    dexterity: { base: number; modifier: number; final: number };
+    constitution: { base: number; modifier: number; final: number };
+    intelligence: { base: number; modifier: number; final: number };
+    wisdom: { base: number; modifier: number; final: number };
+    charisma: { base: number; modifier: number; final: number };
+  };
   // Condition tracking
   activeConditions?: Array<{
     name: string;

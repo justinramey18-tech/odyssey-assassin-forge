@@ -37,6 +37,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useGameMode } from '@/hooks/use-game-mode';
 import { usePrestige } from '@/hooks/use-prestige';
 import { useEquipmentStats } from '@/hooks/use-equipment-stats';
+import { useAbilityScores } from '@/hooks/use-ability-scores';
 import { useAutoSave, loadAutoSave, SaveData, serializeConsumables } from '@/hooks/use-auto-save';
 import { useConsumables } from '@/hooks/use-consumables';
 import { ConsumablesInventoryWidget, AddConsumableDrawer } from '@/components/consumables';
@@ -217,6 +218,11 @@ const Index = () => {
   // Aggregated equipment stats for GM guide
   const aggregatedStats = useEquipmentStats(equipment);
   
+  // Ability Scores system (centralized stat management with gear sync)
+  const abilityScores = useAbilityScores({
+    equipmentStats: aggregatedStats,
+  });
+  
   // Shared achievements state
   const [achievements, setAchievements] = useState<Achievement[]>(
     () => achievementCategories.map(a => ({ ...a }))
@@ -252,7 +258,8 @@ const Index = () => {
       prestigeLevel: prestigeData.prestigeLevel,
       totalPrestigePoints: prestigeData.totalPrestigePoints,
     },
-  }), [character, equipment, achievements, consumablesInventory, currentXP, xpPreset, prestigeData]);
+    abilityScores: abilityScores.baseScores,
+  }), [character, equipment, achievements, consumablesInventory, currentXP, xpPreset, prestigeData, abilityScores.baseScores]);
 
   // Auto-save (only when not in wizard)
   useAutoSave(saveData, !showWizard);
@@ -871,6 +878,12 @@ const Index = () => {
         prestigeLevel={prestigeData.prestigeLevel}
         prestigeAbilities={prestigeTree.progress.unlockedAbilities}
         spellcasting={spellcasting}
+        baseScores={abilityScores.baseScores}
+        getScoreBreakdown={abilityScores.getScoreBreakdown}
+        onIncrementScore={abilityScores.incrementScore}
+        onDecrementScore={abilityScores.decrementScore}
+        onRandomizeScores={abilityScores.randomizeScores}
+        onApplyScores={abilityScores.applyScores}
       >
         <HomeScreen 
           character={character}
@@ -940,6 +953,12 @@ const Index = () => {
       prestigeLevel={prestigeData.prestigeLevel}
       prestigeAbilities={prestigeTree.progress.unlockedAbilities}
       spellcasting={spellcasting}
+      baseScores={abilityScores.baseScores}
+      getScoreBreakdown={abilityScores.getScoreBreakdown}
+      onIncrementScore={abilityScores.incrementScore}
+      onDecrementScore={abilityScores.decrementScore}
+      onRandomizeScores={abilityScores.randomizeScores}
+      onApplyScores={abilityScores.applyScores}
     >
       <div className="min-h-screen relative">
       {/* Builder Background Image - fixed behind everything */}

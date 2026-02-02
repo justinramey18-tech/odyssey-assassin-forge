@@ -19,6 +19,7 @@ import { useCooldowns } from '@/hooks/use-cooldowns';
 import { useConditions, UseConditionsReturn } from '@/hooks/use-conditions';
 import { Personality } from '@/components/oracle/types';
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
+import { AbilityName, BaseAbilityScores, AbilityScoreBreakdown } from '@/lib/abilityScores/types';
 
 interface PromptDrawerContextValue {
   openInfinityDrawer: () => void;
@@ -78,6 +79,13 @@ interface PromptDrawerProviderProps {
   prestigeAbilities?: string[];
   // Spellcasting
   spellcasting?: UseSpellcastingReturn;
+  // Ability Scores
+  baseScores?: BaseAbilityScores;
+  getScoreBreakdown?: (ability: AbilityName) => AbilityScoreBreakdown;
+  onIncrementScore?: (ability: AbilityName) => void;
+  onDecrementScore?: (ability: AbilityName) => void;
+  onRandomizeScores?: () => number[];
+  onApplyScores?: (scores: BaseAbilityScores) => void;
 }
 
 export function PromptDrawerProvider({
@@ -95,6 +103,13 @@ export function PromptDrawerProvider({
   prestigeLevel = 0,
   prestigeAbilities = [],
   spellcasting,
+  // Ability Scores
+  baseScores,
+  getScoreBreakdown,
+  onIncrementScore,
+  onDecrementScore,
+  onRandomizeScores,
+  onApplyScores,
 }: PromptDrawerProviderProps) {
   const [infinityOpen, setInfinityOpen] = useState(false);
   const [abilitiesOpen, setAbilitiesOpen] = useState(false);
@@ -255,6 +270,12 @@ export function PromptDrawerProvider({
             xpPreset={xpPreset}
             onAddXP={onAddXP}
             equipmentStats={equipment ? equipmentStats : undefined}
+            baseScores={baseScores}
+            getScoreBreakdown={getScoreBreakdown}
+            onIncrementScore={onIncrementScore}
+            onDecrementScore={onDecrementScore}
+            onRandomizeScores={onRandomizeScores}
+            onApplyScores={onApplyScores}
           />
 
           <ScribeDrawer

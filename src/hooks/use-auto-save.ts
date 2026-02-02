@@ -21,6 +21,14 @@ export interface SaveData {
     prestigeLevel: number;
     totalPrestigePoints: number;
   };
+  abilityScores?: {
+    strength: number;
+    dexterity: number;
+    constitution: number;
+    intelligence: number;
+    wisdom: number;
+    charisma: number;
+  };
   savedAt: string;
   version: number;
 }

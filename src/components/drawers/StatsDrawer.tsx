@@ -16,6 +16,12 @@ import {
   XPPreset,
 } from '@/lib/xpSystem';
 import { AggregatedStats } from '@/hooks/use-equipment-stats';
+import { AbilityScoresPanel } from '@/components/character/AbilityScoresPanel';
+import { 
+  AbilityName, 
+  BaseAbilityScores,
+  AbilityScoreBreakdown,
+} from '@/lib/abilityScores/types';
 
 interface StatsDrawerProps {
   open: boolean;
@@ -32,6 +38,13 @@ interface StatsDrawerProps {
   onHPChange?: (current: number, temp: number) => void;
   // Equipment stats
   equipmentStats?: AggregatedStats;
+  // Ability Scores
+  baseScores?: BaseAbilityScores;
+  getScoreBreakdown?: (ability: AbilityName) => AbilityScoreBreakdown;
+  onIncrementScore?: (ability: AbilityName) => void;
+  onDecrementScore?: (ability: AbilityName) => void;
+  onRandomizeScores?: () => number[];
+  onApplyScores?: (scores: BaseAbilityScores) => void;
 }
 
 export function StatsDrawer({ 
@@ -47,6 +60,13 @@ export function StatsDrawer({
   tempHP: propTempHP,
   onHPChange,
   equipmentStats,
+  // Ability Scores
+  baseScores,
+  getScoreBreakdown,
+  onIncrementScore,
+  onDecrementScore,
+  onRandomizeScores,
+  onApplyScores,
 }: StatsDrawerProps) {
   // Local HP state (with default values based on level)
   const defaultMaxHP = 8 + (level - 1) * 5; // Simple formula: 8 + 5 per level
@@ -168,6 +188,18 @@ export function StatsDrawer({
     >
       <ScrollArea className="h-[calc(100vh-120px)]">
         <div className="space-y-6 pr-2">
+          {/* Ability Scores Section - At the top */}
+          {baseScores && getScoreBreakdown && onIncrementScore && onDecrementScore && onRandomizeScores && onApplyScores && (
+            <AbilityScoresPanel
+              baseScores={baseScores}
+              getScoreBreakdown={getScoreBreakdown}
+              onIncrementScore={onIncrementScore}
+              onDecrementScore={onDecrementScore}
+              onRandomizeScores={onRandomizeScores}
+              onApplyScores={onApplyScores}
+            />
+          )}
+          
           {/* Equipment Stats Section */}
           {equipmentStats && (
             <div className="space-y-3">
