@@ -13,7 +13,7 @@ interface AssassinHeaderProps {
   activeCategory: MainCategory;
   activeSubTab: string;
   onCategoryChange: (category: MainCategory) => void;
-  onSubTabChange: (subTab: string) => void;
+  onSubTabChange: (subTab: string, category?: MainCategory) => void;
   isLegacyUnlocked?: boolean;
 }
 
@@ -50,7 +50,8 @@ export function AssassinHeader({
     if (category !== activeCategory) {
       onCategoryChange(category);
     }
-    onSubTabChange(subTabId);
+    // Pass the target category explicitly to avoid stale state issues
+    onSubTabChange(subTabId, category);
   };
 
   const getActiveSubTabLabel = (category: MainCategory): string => {
