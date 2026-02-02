@@ -188,18 +188,6 @@ export function StatsDrawer({
     >
       <ScrollArea className="h-[calc(100vh-120px)]">
         <div className="space-y-6 pr-2">
-          {/* Ability Scores Section - At the top */}
-          {baseScores && getScoreBreakdown && onIncrementScore && onDecrementScore && onRandomizeScores && onApplyScores && (
-            <AbilityScoresPanel
-              baseScores={baseScores}
-              getScoreBreakdown={getScoreBreakdown}
-              onIncrementScore={onIncrementScore}
-              onDecrementScore={onDecrementScore}
-              onRandomizeScores={onRandomizeScores}
-              onApplyScores={onApplyScores}
-            />
-          )}
-          
           {/* Equipment Stats Section */}
           {equipmentStats && (
             <div className="space-y-3">
@@ -448,6 +436,18 @@ export function StatsDrawer({
               </Button>
             </div>
           </div>
+
+          {/* Ability Scores Section - At the bottom */}
+          {baseScores && getScoreBreakdown && onIncrementScore && onDecrementScore && onRandomizeScores && onApplyScores && (
+            <AbilityScoresPanel
+              baseScores={baseScores}
+              getScoreBreakdown={getScoreBreakdown}
+              onIncrementScore={onIncrementScore}
+              onDecrementScore={onDecrementScore}
+              onRandomizeScores={onRandomizeScores}
+              onApplyScores={onApplyScores}
+            />
+          )}
         </div>
       </ScrollArea>
     </EdgeDrawer>
