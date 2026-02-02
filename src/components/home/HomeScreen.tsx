@@ -330,91 +330,93 @@ export function HomeScreen({
               onClick={() => setShowDiceRoller(true)} 
             />
 
-            {/* Primary Navigation Cards */}
-            <PrimaryNavigationCards
-              onQuickMenusClick={() => {
-                triggerHaptic('light');
-                setShowDrawersMenu(true);
-              }}
-              onCombatClick={() => {
-                triggerHaptic('light');
-                onNavigateToTab('combat');
-              }}
-              onContextualClick={handleContextualCardClick}
-              achievements={achievements}
-              hasChronicleUndo={hasChronicleUndo}
-              hasNewShopItems={hasNewShopItems}
-            />
+            {/* Quick Actions (moved from footer) */}
+            <div className="px-4 py-2">
+              <div className="grid grid-cols-3 gap-3 max-w-md mx-auto">
+                {/* Short Rest */}
+                <button
+                  className={cn(transparentButtonBase, "py-3 flex flex-col items-center gap-1 text-white")}
+                  onClick={() => handleQuickAction('shortRest')}
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <Coffee className="w-5 h-5 text-amber-400" />
+                  <span className="text-xs font-cinzel drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Short Rest</span>
+                </button>
+                
+                {/* Long Rest (Hold to activate) */}
+                <button
+                  className={cn(
+                    transparentButtonBase, 
+                    "py-3 flex flex-col items-center gap-1 text-white relative overflow-hidden"
+                  )}
+                  onTouchStart={handleLongRestStart}
+                  onTouchEnd={handleLongRestEnd}
+                  onTouchCancel={handleLongRestEnd}
+                  onMouseDown={handleLongRestStart}
+                  onMouseUp={handleLongRestEnd}
+                  onMouseLeave={handleLongRestEnd}
+                  style={{ touchAction: 'manipulation' }}
+                  aria-label="Hold for Long Rest"
+                >
+                  {/* Progress Overlay */}
+                  <div 
+                    className="absolute inset-0 bg-blue-500/30 transition-all"
+                    style={{ width: `${longRestProgress}%` }}
+                  />
+                  <Moon className="w-5 h-5 text-blue-400 relative z-10" />
+                  <span className="text-xs font-cinzel drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)] relative z-10">
+                    {longRestProgress > 0 ? 'Hold...' : 'Long Rest'}
+                  </span>
+                </button>
+                
+                {/* Level Up */}
+                {canLevelUp ? (
+                  <button
+                    className={cn(
+                      transparentButtonBase, 
+                      "py-3 flex flex-col items-center gap-1 text-white",
+                      "border-primary/50 shadow-[0_0_15px_rgba(var(--primary),0.3)] animate-pulse"
+                    )}
+                    onClick={() => handleQuickAction('levelUp')}
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    <TrendingUp className="w-5 h-5 text-primary" />
+                    <span className="text-xs font-cinzel drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Level Up</span>
+                  </button>
+                ) : (
+                  <div
+                    className={cn(transparentButtonBase, "py-3 flex flex-col items-center gap-1 opacity-40 cursor-not-allowed")}
+                  >
+                    <TrendingUp className="w-5 h-5 text-white/50" />
+                    <span className="text-xs font-cinzel text-white/50 drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]">Level Up</span>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Quick Actions Footer */}
+        {/* Primary Navigation Cards Footer */}
         <motion.footer 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.9, duration: 0.3 }}
           className="border-t border-white/10 p-4"
         >
-          <div className="grid grid-cols-3 gap-3 max-w-md mx-auto">
-            {/* Short Rest */}
-            <button
-              className={cn(transparentButtonBase, "py-3 flex flex-col items-center gap-1 text-white")}
-              onClick={() => handleQuickAction('shortRest')}
-              style={{ touchAction: 'manipulation' }}
-            >
-              <Coffee className="w-5 h-5 text-amber-400" />
-              <span className="text-xs font-cinzel drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Short Rest</span>
-            </button>
-            
-            {/* Long Rest (Hold to activate) */}
-            <button
-              className={cn(
-                transparentButtonBase, 
-                "py-3 flex flex-col items-center gap-1 text-white relative overflow-hidden"
-              )}
-              onTouchStart={handleLongRestStart}
-              onTouchEnd={handleLongRestEnd}
-              onTouchCancel={handleLongRestEnd}
-              onMouseDown={handleLongRestStart}
-              onMouseUp={handleLongRestEnd}
-              onMouseLeave={handleLongRestEnd}
-              style={{ touchAction: 'manipulation' }}
-              aria-label="Hold for Long Rest"
-            >
-              {/* Progress Overlay */}
-              <div 
-                className="absolute inset-0 bg-blue-500/30 transition-all"
-                style={{ width: `${longRestProgress}%` }}
-              />
-              <Moon className="w-5 h-5 text-blue-400 relative z-10" />
-              <span className="text-xs font-cinzel drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)] relative z-10">
-                {longRestProgress > 0 ? 'Hold...' : 'Long Rest'}
-              </span>
-            </button>
-            
-            {/* Level Up */}
-            {canLevelUp ? (
-              <button
-                className={cn(
-                  transparentButtonBase, 
-                  "py-3 flex flex-col items-center gap-1 text-white",
-                  "border-primary/50 shadow-[0_0_15px_rgba(var(--primary),0.3)] animate-pulse"
-                )}
-                onClick={() => handleQuickAction('levelUp')}
-                style={{ touchAction: 'manipulation' }}
-              >
-                <TrendingUp className="w-5 h-5 text-primary" />
-                <span className="text-xs font-cinzel drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Level Up</span>
-              </button>
-            ) : (
-              <div
-                className={cn(transparentButtonBase, "py-3 flex flex-col items-center gap-1 opacity-40 cursor-not-allowed")}
-              >
-                <TrendingUp className="w-5 h-5 text-white/50" />
-                <span className="text-xs font-cinzel text-white/50 drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]">Level Up</span>
-              </div>
-            )}
-          </div>
+          <PrimaryNavigationCards
+            onQuickMenusClick={() => {
+              triggerHaptic('light');
+              setShowDrawersMenu(true);
+            }}
+            onCombatClick={() => {
+              triggerHaptic('light');
+              onNavigateToTab('combat');
+            }}
+            onContextualClick={handleContextualCardClick}
+            achievements={achievements}
+            hasChronicleUndo={hasChronicleUndo}
+            hasNewShopItems={hasNewShopItems}
+          />
         </motion.footer>
       </div>
 
