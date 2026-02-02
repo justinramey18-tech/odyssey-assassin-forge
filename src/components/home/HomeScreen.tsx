@@ -1,30 +1,31 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Character, getAbilityPointsForLevel, getTotalPointsSpent } from '@/lib/types';
 import { CharacterEquipment } from '@/lib/inventory';
 import { Achievement } from '@/lib/achievements';
 import { XPPreset, getXPForLevel, getLevelProgress, XP_PRESETS } from '@/lib/xpSystem';
+import { ShopItem } from '@/lib/shop/types';
 import { useEquipmentStats } from '@/hooks/use-equipment-stats';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { 
-  ArrowLeft, Heart, Shield, Zap, 
-  BookOpen, Backpack, Trophy, Swords, 
-  Scroll, Beaker, FileSearch, Star,
-  Coffee, Moon, TrendingUp, Settings,
-  PanelLeft, Gem, Sparkles, Timer, MessageCircle, Activity
+  ArrowLeft, Settings, Coffee, Moon, TrendingUp,
+  BookOpen, Sparkles, Timer, MessageCircle, Activity, Heart, Gem, Zap, PanelLeft
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { InstallBanner } from './InstallBanner';
 import { ClockWidget } from './ClockWidget';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
-import { AnimatedD20Trigger } from '@/components/diceRoller';
 import { DiceRollerScreen } from '@/components/diceRoller';
-import type { LucideIcon } from 'lucide-react';
+
+// New redesigned components
+import { CharacterNamePlaque } from './CharacterNamePlaque';
+import { StatusIndicatorRow } from './StatusIndicatorRow';
+import { DynamicHealthBar } from './DynamicHealthBar';
+import { AvailablePointsWidget } from './AvailablePointsWidget';
+import { EnlargedD20Section } from './EnlargedD20Section';
+import { PrimaryNavigationCards } from './PrimaryNavigationCards';
 
 import homeBackground from '@/assets/home-background-new.jpg';
 
@@ -38,10 +39,8 @@ type NavigableTab =
   | 'scribe' 
   | 'combat' 
   | 'consumables' 
-  | 'chronicle';
-
-// Card types for navigation
-type CardType = 'navigation' | 'drawers';
+  | 'chronicle'
+  | 'shop';
 
 interface HomeScreenProps {
   character: Character;
@@ -62,40 +61,9 @@ interface HomeScreenProps {
   currentHP?: number;
   maxHP?: number;
   tempHP?: number;
+  // Shop items for status indicators
+  shopItems?: ShopItem[];
 }
-
-interface NavigationCardData {
-  id: NavigableTab | 'drawers';
-  label: string;
-  description: string;
-  icon: LucideIcon;
-  color: string;
-  type: CardType;
-}
-
-// Navigation card configuration - ordered by user preference
-const navigationCards: NavigationCardData[] = [
-  { id: 'drawers', label: 'Drawers', description: 'Quick-access panels', 
-    icon: PanelLeft, color: 'text-cyan-400', type: 'drawers' },
-  { id: 'combat', label: 'Combat', description: 'Battle tracker', 
-    icon: Swords, color: 'text-red-400', type: 'navigation' },
-  { id: 'consumables', label: 'Items', description: 'Potions & scrolls', 
-    icon: Beaker, color: 'text-green-400', type: 'navigation' },
-  { id: 'abilities', label: 'Abilities', description: 'Unlock & upgrade', 
-    icon: Zap, color: 'text-violet-400', type: 'navigation' },
-  { id: 'gear', label: 'Gear', description: 'Equipment & inventory', 
-    icon: Backpack, color: 'text-amber-400', type: 'navigation' },
-  { id: 'stars', label: 'Stars', description: 'Constellation view', 
-    icon: Star, color: 'text-purple-400', type: 'navigation' },
-  { id: 'feats', label: 'Feats', description: 'Achievements & progress', 
-    icon: Trophy, color: 'text-yellow-400', type: 'navigation' },
-  { id: 'skills', label: 'Skills', description: 'Proficiencies & checks', 
-    icon: BookOpen, color: 'text-blue-400', type: 'navigation' },
-  { id: 'chronicle', label: 'Chronicle', description: 'Session log sync', 
-    icon: FileSearch, color: 'text-blue-300', type: 'navigation' },
-  { id: 'scribe', label: 'Scribe', description: 'AI narrative tools', 
-    icon: Scroll, color: 'text-orange-400', type: 'navigation' },
-];
 
 // Haptic feedback helper
 const triggerHaptic = (intensity: 'light' | 'medium' | 'heavy' = 'light') => {
@@ -105,29 +73,7 @@ const triggerHaptic = (intensity: 'light' | 'medium' | 'heavy' = 'light') => {
   }
 };
 
-// Animation variants
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.05,
-      delayChildren: 0.1,
-    },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { 
-    opacity: 1, 
-    y: 0,
-    transition: { duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] as const }
-  },
-};
-
-// Transparent card styles
-const transparentCardBase = "border border-white/20 rounded-lg bg-transparent hover:bg-white/5 transition-all duration-200";
+// Transparent button style
 const transparentButtonBase = "border border-white/30 rounded-lg bg-transparent hover:bg-white/10 hover:border-white/50 transition-all duration-300";
 
 export function HomeScreen({ 
@@ -145,6 +91,7 @@ export function HomeScreen({
   currentHP: propCurrentHP,
   maxHP: propMaxHP,
   tempHP: propTempHP = 0,
+  shopItems = [],
 }: HomeScreenProps) {
   const isMobile = useIsMobile();
   const stats = useEquipmentStats(equipment);
@@ -152,86 +99,61 @@ export function HomeScreen({
   const [showDrawersMenu, setShowDrawersMenu] = useState(false);
   const [showDiceRoller, setShowDiceRoller] = useState(false);
   
-  // Get drawer context - wrapped in try/catch since we might be outside provider
+  // Long Rest hold state
+  const [longRestProgress, setLongRestProgress] = useState(0);
+  const longRestTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const LONG_REST_HOLD_DURATION = 800; // 0.8 seconds
+  
+  // Get drawer context
   let drawerContext: ReturnType<typeof usePromptDrawers> | null = null;
   try {
     drawerContext = usePromptDrawers();
   } catch {
-    // Not inside PromptDrawerProvider - drawers won't be available
+    // Not inside PromptDrawerProvider
   }
 
   // XP calculations
   const nextLevelXP = getXPForLevel(character.level + 1, multiplier);
-  const currentLevelXP = getXPForLevel(character.level, multiplier);
-  const xpProgress = character.level >= 20 ? 100 : getLevelProgress(character.level, currentXP, multiplier);
   const canLevelUp = character.level < 20 && currentXP >= nextLevelXP;
-
-  // Badge calculation logic
-  const getBadge = (tabId: string): string | number | undefined => {
-    switch (tabId) {
-      case 'abilities':
-        const available = getAbilityPointsForLevel(character.level) - 
-          getTotalPointsSpent(character.abilities);
-        return available > 0 ? available : undefined;
-      
-      case 'feats':
-        const unclaimed = achievements.filter(
-          a => a.currentValue >= a.maxValue && !a.claimedMilestones?.includes(100)
-        ).length;
-        return unclaimed > 0 ? unclaimed : undefined;
-      
-      case 'chronicle':
-        const hasUndo = localStorage.getItem('odyssey-chronicle-undo');
-        return hasUndo ? '!' : undefined;
-      
-      default:
-        return undefined;
-    }
-  };
 
   // Calculate HP values
   const defaultMaxHP = character.level * 8 + 10;
   const maxHP = propMaxHP ?? defaultMaxHP;
   const currentHP = propCurrentHP ?? maxHP;
   const tempHP = propTempHP;
-  const hpPercentage = Math.max(0, Math.min(100, (currentHP / maxHP) * 100));
+
+  // Available ability points
+  const availableAbilityPoints = useMemo(() => {
+    return Math.max(0, getAbilityPointsForLevel(character.level) - getTotalPointsSpent(character.abilities));
+  }, [character.level, character.abilities]);
+
+  // Check for chronicle undo
+  const hasChronicleUndo = !!localStorage.getItem('odyssey-chronicle-undo');
   
-  // HP color based on percentage
-  const getHPColor = () => {
-    if (hpPercentage > 50) return 'text-emerald-400';
-    if (hpPercentage > 25) return 'text-amber-400';
-    return 'text-rose-400';
-  };
+  // Check for new shop items (items added in last 10 minutes)
+  const hasNewShopItems = useMemo(() => {
+    const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
+    return shopItems.some(item => new Date(item.detectedAt).getTime() > tenMinutesAgo);
+  }, [shopItems]);
 
-  // Quick stats configuration
-  const quickStats = useMemo(() => [
-    {
-      label: 'HP',
-      value: `${currentHP}/${maxHP}`,
-      subValue: tempHP > 0 ? `+${tempHP}` : undefined,
-      icon: Heart,
-      color: getHPColor(),
-      hasBar: true,
-      barPercent: hpPercentage,
-    },
-    {
-      label: 'AC',
-      value: stats.totalAC.toString(),
-      icon: Shield,
-      color: 'text-blue-400',
-    },
-    {
-      label: 'Init',
-      value: stats.dexterity >= 0 ? `+${stats.dexterity}` : stats.dexterity.toString(),
-      icon: Zap,
-      color: 'text-yellow-400',
-    },
-  ], [currentHP, maxHP, tempHP, hpPercentage, stats]);
+  // Get conditions data from drawer context
+  const activeConditionCount = drawerContext?.conditions.activeCount ?? 0;
+  const mostSevereCondition = useMemo(() => {
+    if (!drawerContext) return null;
+    const debuffs = drawerContext.conditions.debuffs;
+    if (debuffs.length === 0) return null;
+    // Get the first debuff name
+    const firstDebuff = debuffs[0];
+    return { name: firstDebuff?.name ?? 'Unknown', severity: 'moderate' as const };
+  }, [drawerContext?.conditions.debuffs]);
+  
+  const hasConcentration = drawerContext?.conditions.hasConcentration ?? false;
+  const concentrationSpell = drawerContext?.conditions.concentrationSpell;
+  const concentrationSpellName = concentrationSpell?.name ?? null;
 
-  const handleCardClick = (cardId: NavigableTab) => {
-    triggerHaptic('light');
-    onNavigateToTab(cardId);
-  };
+  // Cooldown summary
+  const readyCooldownCount = drawerContext?.cooldownSummary.readyCount ?? 0;
+  const coolingCooldownCount = drawerContext?.cooldownSummary.coolingCount ?? 0;
 
   const handleQuickAction = (action: 'shortRest' | 'longRest' | 'levelUp') => {
     triggerHaptic('medium');
@@ -247,6 +169,35 @@ export function HomeScreen({
         break;
     }
   };
+
+  // Long Rest hold handlers
+  const handleLongRestStart = useCallback(() => {
+    setLongRestProgress(0);
+    const startTime = Date.now();
+    
+    longRestTimerRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min((elapsed / LONG_REST_HOLD_DURATION) * 100, 100);
+      setLongRestProgress(progress);
+      
+      if (elapsed >= LONG_REST_HOLD_DURATION) {
+        if (longRestTimerRef.current) {
+          clearInterval(longRestTimerRef.current);
+          longRestTimerRef.current = null;
+        }
+        handleQuickAction('longRest');
+        setLongRestProgress(0);
+      }
+    }, 50);
+  }, []);
+
+  const handleLongRestEnd = useCallback(() => {
+    if (longRestTimerRef.current) {
+      clearInterval(longRestTimerRef.current);
+      longRestTimerRef.current = null;
+    }
+    setLongRestProgress(0);
+  }, []);
 
   // Drawer menu options
   const drawerOptions = [
@@ -268,6 +219,15 @@ export function HomeScreen({
     }
   };
 
+  const handleContextualCardClick = (cardId: string) => {
+    triggerHaptic('light');
+    if (cardId === 'shop') {
+      onNavigateToTab('consumables'); // Shop is part of consumables/inventory
+    } else {
+      onNavigateToTab(cardId as NavigableTab);
+    }
+  };
+
   return (
     <BackgroundWrapper
       imagePath={homeBackground}
@@ -279,247 +239,117 @@ export function HomeScreen({
       backgroundPosition="center center"
       className="fixed inset-0 z-50"
     >
-
       <div className="flex flex-col h-screen overflow-hidden relative z-10">
         {/* Install Banner */}
         <InstallBanner />
 
-        {/* Header */}
-        <header className="flex items-center gap-4 px-4 py-3 border-b border-white/10">
+        {/* Minimal Utilities Header */}
+        <motion.header 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+          className="flex items-center justify-between px-4 py-3 border-b border-white/10"
+        >
           <button 
             onClick={onReturnToBuilder}
             className="p-2 -ml-2 rounded-lg hover:bg-white/10 transition-colors"
             style={{ touchAction: 'manipulation' }}
+            aria-label="Return to builder"
           >
             <ArrowLeft className="w-5 h-5 text-white" />
           </button>
           
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <Avatar className="w-12 h-12 border-2 border-primary shrink-0">
-              <AvatarFallback className="text-lg font-bold bg-primary/20 text-white font-cinzel">
-                {character.name.substring(0, 2).toUpperCase() || 'DP'}
-              </AvatarFallback>
-            </Avatar>
-            
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <h1 className="font-cinzel font-bold text-lg truncate text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                  {character.name || 'Mercenary'}
-                </h1>
-                <Badge variant="secondary" className="shrink-0 bg-white/20 text-white border-none font-cinzel">
-                  Lv.{character.level}
-                </Badge>
-              </div>
-              
-              {/* XP Progress */}
-              <div className="mt-1 space-y-0.5">
-                <Progress value={xpProgress} className="h-1.5" />
-                <div className="flex justify-between text-[10px] text-white/70 drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]">
-                  <span>{currentXP.toLocaleString()} XP</span>
-                  <span>
-                    {character.level >= 20 
-                      ? 'MAX' 
-                      : `${nextLevelXP.toLocaleString()} XP`}
-                  </span>
-                </div>
-              </div>
-            </div>
+          <div className="flex items-center gap-1">
+            {onOpenSettings && (
+              <button 
+                onClick={() => {
+                  triggerHaptic('light');
+                  onOpenSettings();
+                }}
+                className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                style={{ touchAction: 'manipulation' }}
+                aria-label="Open settings"
+              >
+                <Settings className="w-5 h-5 text-white/80" />
+              </button>
+            )}
+            <ClockWidget />
           </div>
-          
-          <div className="flex flex-col items-end gap-2">
-            <div className="flex items-center gap-1">
-              {onOpenSettings && (
-                <button 
-                  onClick={() => {
-                    triggerHaptic('light');
-                    onOpenSettings();
-                  }}
-                  className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-                  style={{ touchAction: 'manipulation' }}
-                  aria-label="Open settings"
-                >
-                  <Settings className="w-5 h-5 text-white/80" />
-                </button>
-              )}
-              <ClockWidget />
-            </div>
-            <AnimatedD20Trigger onClick={() => setShowDiceRoller(true)} />
-          </div>
-        </header>
+        </motion.header>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-auto p-4 space-y-4">
-          {/* Quick Stats Row */}
-          <motion.div 
-            className="grid grid-cols-3 gap-3"
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            {quickStats.map((stat) => (
-              <motion.div key={stat.label} variants={itemVariants}>
-                <div className={cn(transparentCardBase, "p-3 flex flex-col items-center gap-1.5")}>
-                  <div className="p-2 rounded-full bg-white/10">
-                    <stat.icon className={cn("w-4 h-4", stat.color)} />
-                  </div>
-                  <div className="flex items-baseline gap-1">
-                    <p className={cn("text-lg font-cinzel font-bold drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]", stat.color)}>
-                      {stat.value}
-                    </p>
-                    {'subValue' in stat && stat.subValue && (
-                      <span className="text-xs text-sky-400 font-medium">{stat.subValue}</span>
-                    )}
-                  </div>
-                  {'hasBar' in stat && stat.hasBar && (
-                    <div className="w-full h-1.5 rounded-full bg-white/20 overflow-hidden">
-                      <div 
-                        className={cn("h-full transition-all", 
-                          stat.barPercent! > 50 ? 'bg-emerald-500' : 
-                          stat.barPercent! > 25 ? 'bg-amber-500' : 'bg-rose-500'
-                        )}
-                        style={{ width: `${stat.barPercent}%` }}
-                      />
-                    </div>
-                  )}
-                  <p className="text-[10px] text-white/70 uppercase tracking-widest font-cinzel drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]">
-                    {stat.label}
-                  </p>
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
+        <div className="flex-1 overflow-auto">
+          <div className="flex flex-col gap-4 py-4">
+            {/* Character Name Plaque */}
+            <CharacterNamePlaque 
+              name={character.name} 
+              level={character.level} 
+            />
 
-          {/* Navigation Grid */}
-          <motion.div 
-            className={cn(
-              "grid gap-3",
-              "grid-cols-2",
-              "md:grid-cols-3",
-              "lg:grid-cols-4"
-            )}
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            {navigationCards.map((card) => {
-              const badge = card.type === 'navigation' ? getBadge(card.id) : undefined;
-              const IconComponent = card.icon;
-              
-              // Handle Drawers card specially
-              if (card.type === 'drawers') {
-                if (!drawerContext) return null;
-                
-                return (
-                  <motion.div key={card.id} variants={itemVariants}>
-                    <button
-                      className={cn(
-                        transparentButtonBase,
-                        "cursor-pointer min-h-[120px] p-4 w-full",
-                        "flex flex-col items-center justify-center text-center gap-2",
-                        "border-cyan-500/30 hover:border-cyan-400/50"
-                      )}
-                      onClick={() => {
-                        triggerHaptic('light');
-                        setShowDrawersMenu(true);
-                      }}
-                      style={{ touchAction: 'manipulation' }}
-                      aria-label="Open quick-access drawers menu"
-                    >
-                      <div className="relative">
-                        <div className={cn(
-                          "rounded-full flex items-center justify-center bg-white/10",
-                          isMobile ? "w-12 h-12" : "w-14 h-14"
-                        )}>
-                          <IconComponent className={cn(
-                            card.color,
-                            isMobile ? "w-6 h-6" : "w-7 h-7"
-                          )} />
-                        </div>
-                      </div>
-                      
-                      <h3 
-                        className={cn(
-                          "font-cinzel font-semibold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]",
-                          isMobile ? "text-sm" : "text-base"
-                        )}
-                      >
-                        {card.label}
-                      </h3>
-                      
-                      {!isMobile && (
-                        <p className="text-xs text-white/70 drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]">
-                          {card.description}
-                        </p>
-                      )}
-                    </button>
-                  </motion.div>
-                );
-              }
-              
-              // Regular navigation cards
-              return (
-                <motion.div key={card.id} variants={itemVariants}>
-                  <button
-                    className={cn(
-                      transparentButtonBase,
-                      "cursor-pointer min-h-[120px] p-4 w-full",
-                      "flex flex-col items-center justify-center text-center gap-2"
-                    )}
-                    onClick={() => handleCardClick(card.id as NavigableTab)}
-                    style={{ touchAction: 'manipulation' }}
-                    aria-label={`Navigate to ${card.label}. ${card.description}${
-                      badge ? `. ${badge} notifications.` : ''
-                    }`}
-                  >
-                    {/* Icon with badge */}
-                    <div className="relative">
-                      <div className={cn(
-                        "rounded-full flex items-center justify-center bg-white/10",
-                        isMobile ? "w-12 h-12" : "w-14 h-14"
-                      )}>
-                        <IconComponent className={cn(
-                          card.color,
-                          isMobile ? "w-6 h-6" : "w-7 h-7"
-                        )} />
-                      </div>
-                      
-                      {/* Notification Badge */}
-                      {badge !== undefined && (
-                        <Badge 
-                          variant="destructive" 
-                          className="absolute -top-1 -right-1 w-5 h-5 p-0 flex items-center justify-center text-xs animate-badge-pulse"
-                        >
-                          {badge}
-                        </Badge>
-                      )}
-                    </div>
-                    
-                    {/* Label */}
-                    <h3 
-                      className={cn(
-                        "font-cinzel font-semibold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]",
-                        isMobile ? "text-sm" : "text-base"
-                      )}
-                    >
-                      {card.label}
-                    </h3>
-                    
-                    {/* Description (Desktop only) */}
-                    {!isMobile && (
-                      <p className="text-xs text-white/70 drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]">
-                        {card.description}
-                      </p>
-                    )}
-                  </button>
-                </motion.div>
-              );
-            })}
-          </motion.div>
+            {/* Live Status Indicator Row */}
+            <StatusIndicatorRow
+              activeConditionCount={activeConditionCount}
+              mostSevereCondition={mostSevereCondition}
+              hasConcentration={hasConcentration}
+              concentrationSpellName={concentrationSpellName}
+              readyCooldownCount={readyCooldownCount}
+              coolingCooldownCount={coolingCooldownCount}
+              shopItems={shopItems}
+              onConditionsClick={() => drawerContext?.openConditionsDrawer()}
+              onCooldownsClick={() => drawerContext?.openCooldownDrawer()}
+              onShopClick={() => onNavigateToTab('consumables')}
+            />
+
+            {/* Dynamic Health Bar */}
+            <DynamicHealthBar
+              currentHP={currentHP}
+              maxHP={maxHP}
+              tempHP={tempHP}
+              ac={stats.totalAC}
+              initiative={stats.dexterity}
+            />
+
+            {/* Available Points Widget (Conditional) */}
+            <AvailablePointsWidget
+              availablePoints={availableAbilityPoints}
+              onSpendClick={() => {
+                triggerHaptic('light');
+                onNavigateToTab('abilities');
+              }}
+            />
+
+            {/* Enlarged D20 Section */}
+            <EnlargedD20Section 
+              onClick={() => setShowDiceRoller(true)} 
+            />
+
+            {/* Primary Navigation Cards */}
+            <PrimaryNavigationCards
+              onQuickMenusClick={() => {
+                triggerHaptic('light');
+                setShowDrawersMenu(true);
+              }}
+              onCombatClick={() => {
+                triggerHaptic('light');
+                onNavigateToTab('combat');
+              }}
+              onContextualClick={handleContextualCardClick}
+              achievements={achievements}
+              hasChronicleUndo={hasChronicleUndo}
+              hasNewShopItems={hasNewShopItems}
+            />
+          </div>
         </div>
 
         {/* Quick Actions Footer */}
-        <footer className="border-t border-white/10 p-4">
+        <motion.footer 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.9, duration: 0.3 }}
+          className="border-t border-white/10 p-4"
+        >
           <div className="grid grid-cols-3 gap-3 max-w-md mx-auto">
+            {/* Short Rest */}
             <button
               className={cn(transparentButtonBase, "py-3 flex flex-col items-center gap-1 text-white")}
               onClick={() => handleQuickAction('shortRest')}
@@ -529,15 +359,33 @@ export function HomeScreen({
               <span className="text-xs font-cinzel drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Short Rest</span>
             </button>
             
+            {/* Long Rest (Hold to activate) */}
             <button
-              className={cn(transparentButtonBase, "py-3 flex flex-col items-center gap-1 text-white")}
-              onClick={() => handleQuickAction('longRest')}
+              className={cn(
+                transparentButtonBase, 
+                "py-3 flex flex-col items-center gap-1 text-white relative overflow-hidden"
+              )}
+              onTouchStart={handleLongRestStart}
+              onTouchEnd={handleLongRestEnd}
+              onTouchCancel={handleLongRestEnd}
+              onMouseDown={handleLongRestStart}
+              onMouseUp={handleLongRestEnd}
+              onMouseLeave={handleLongRestEnd}
               style={{ touchAction: 'manipulation' }}
+              aria-label="Hold for Long Rest"
             >
-              <Moon className="w-5 h-5 text-blue-400" />
-              <span className="text-xs font-cinzel drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Long Rest</span>
+              {/* Progress Overlay */}
+              <div 
+                className="absolute inset-0 bg-blue-500/30 transition-all"
+                style={{ width: `${longRestProgress}%` }}
+              />
+              <Moon className="w-5 h-5 text-blue-400 relative z-10" />
+              <span className="text-xs font-cinzel drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)] relative z-10">
+                {longRestProgress > 0 ? 'Hold...' : 'Long Rest'}
+              </span>
             </button>
             
+            {/* Level Up */}
             {canLevelUp ? (
               <button
                 className={cn(
@@ -553,14 +401,14 @@ export function HomeScreen({
               </button>
             ) : (
               <div
-                className={cn(transparentCardBase, "py-3 flex flex-col items-center gap-1 opacity-40 cursor-not-allowed")}
+                className={cn(transparentButtonBase, "py-3 flex flex-col items-center gap-1 opacity-40 cursor-not-allowed")}
               >
                 <TrendingUp className="w-5 h-5 text-white/50" />
                 <span className="text-xs font-cinzel text-white/50 drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]">Level Up</span>
               </div>
             )}
           </div>
-        </footer>
+        </motion.footer>
       </div>
 
       {/* Drawers Quick-Access Sheet */}

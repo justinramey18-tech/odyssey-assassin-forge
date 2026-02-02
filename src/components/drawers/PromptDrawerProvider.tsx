@@ -38,6 +38,11 @@ interface PromptDrawerContextValue {
   formatRemainingTime: (seconds: number) => string;
   resetShortRestCooldowns: () => void;
   resetAllCooldowns: () => void;
+  // Cooldown summary for Home Screen status indicators
+  cooldownSummary: {
+    readyCount: number;
+    coolingCount: number;
+  };
   // Conditions system exposure
   conditions: UseConditionsReturn;
 }
@@ -179,6 +184,23 @@ export function PromptDrawerProvider({
     setInfinityOpen(true);
   }, [isInfinityLocked, character.level, closeAllDrawers]);
 
+  // Compute cooldown summary for status indicators
+  const cooldownSummary = useMemo(() => {
+    let readyCount = 0;
+    let coolingCount = 0;
+    
+    cooldownSystem.cooldowns.forEach((cooldown) => {
+      if (cooldown.isOnCooldown) {
+        coolingCount++;
+      } else if (cooldown.lastUsed) {
+        // Only count as "ready" if it was previously triggered
+        readyCount++;
+      }
+    });
+    
+    return { readyCount, coolingCount };
+  }, [cooldownSystem.cooldowns]);
+
   const contextValue: PromptDrawerContextValue = {
     openInfinityDrawer: handleOpenInfinityDrawer,
     openAbilitiesDrawer: useCallback(() => { closeAllDrawers(); setAbilitiesOpen(true); }, [closeAllDrawers]),
@@ -197,6 +219,8 @@ export function PromptDrawerProvider({
     formatRemainingTime: cooldownSystem.formatRemainingTime,
     resetShortRestCooldowns: cooldownSystem.resetShortRestCooldowns,
     resetAllCooldowns: cooldownSystem.resetAllCooldowns,
+    // Cooldown summary for Home Screen
+    cooldownSummary,
     // Conditions system exposure
     conditions: conditionsSystem,
   };
