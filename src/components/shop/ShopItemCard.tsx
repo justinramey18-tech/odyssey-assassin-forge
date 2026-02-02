@@ -14,6 +14,24 @@ import {
   Skull,
   ChevronDown,
   ChevronUp,
+  Axe,
+  Crosshair,
+  Wand2,
+  Gem,
+  Shirt,
+  Footprints,
+  Eye,
+  Flame,
+  Droplet,
+  Heart,
+  Zap,
+  Moon,
+  Wind,
+  Package,
+  CircleDot,
+  Glasses,
+  Crown,
+  type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -24,6 +42,78 @@ interface ShopItemCardProps {
   currentGold: number;
   onPurchase: (itemId: string) => void;
   isPurchasing?: boolean;
+}
+
+// Category to icon mapping
+const CATEGORY_ICONS: Record<string, { icon: LucideIcon; color: string }> = {
+  // Weapons
+  weapon: { icon: Sword, color: 'text-red-400' },
+  sword: { icon: Sword, color: 'text-red-400' },
+  blade: { icon: Sword, color: 'text-red-400' },
+  dagger: { icon: Crosshair, color: 'text-red-400' },
+  axe: { icon: Axe, color: 'text-orange-400' },
+  bow: { icon: Crosshair, color: 'text-amber-400' },
+  crossbow: { icon: Crosshair, color: 'text-amber-400' },
+  staff: { icon: Wand2, color: 'text-purple-400' },
+  wand: { icon: Wand2, color: 'text-violet-400' },
+  
+  // Armor & Equipment
+  armor: { icon: Shield, color: 'text-blue-400' },
+  shield: { icon: Shield, color: 'text-blue-400' },
+  helm: { icon: Crown, color: 'text-blue-300' },
+  helmet: { icon: Crown, color: 'text-blue-300' },
+  cloak: { icon: Wind, color: 'text-cyan-400' },
+  boots: { icon: Footprints, color: 'text-amber-300' },
+  gloves: { icon: Zap, color: 'text-yellow-400' },
+  ring: { icon: CircleDot, color: 'text-purple-400' },
+  amulet: { icon: Gem, color: 'text-emerald-400' },
+  necklace: { icon: Gem, color: 'text-emerald-400' },
+  robe: { icon: Shirt, color: 'text-indigo-400' },
+  vest: { icon: Shirt, color: 'text-stone-400' },
+  
+  // Consumables
+  potion: { icon: Beaker, color: 'text-emerald-400' },
+  elixir: { icon: Droplet, color: 'text-cyan-400' },
+  poison: { icon: Skull, color: 'text-green-500' },
+  scroll: { icon: ScrollText, color: 'text-amber-300' },
+  oil: { icon: Flame, color: 'text-orange-400' },
+  food: { icon: Heart, color: 'text-pink-400' },
+  
+  // Special
+  gem: { icon: Gem, color: 'text-purple-400' },
+  crystal: { icon: Gem, color: 'text-cyan-300' },
+  orb: { icon: Moon, color: 'text-violet-400' },
+  eye: { icon: Eye, color: 'text-amber-400' },
+  glasses: { icon: Glasses, color: 'text-blue-300' },
+  goggles: { icon: Glasses, color: 'text-amber-300' },
+  
+  // Fallbacks
+  consumable: { icon: Beaker, color: 'text-emerald-400' },
+  equipment: { icon: Sword, color: 'text-blue-400' },
+  miscellaneous: { icon: Package, color: 'text-muted-foreground' },
+};
+
+function getCategoryIcon(item: ShopItem): { icon: LucideIcon; color: string } {
+  // Check category first (more specific)
+  if (item.category) {
+    const categoryLower = item.category.toLowerCase();
+    for (const [key, value] of Object.entries(CATEGORY_ICONS)) {
+      if (categoryLower.includes(key)) {
+        return value;
+      }
+    }
+  }
+  
+  // Check item name for keywords
+  const nameLower = item.name.toLowerCase();
+  for (const [key, value] of Object.entries(CATEGORY_ICONS)) {
+    if (nameLower.includes(key)) {
+      return value;
+    }
+  }
+  
+  // Fallback to item type
+  return CATEGORY_ICONS[item.itemType] || CATEGORY_ICONS.miscellaneous;
 }
 
 export function ShopItemCard({ 
@@ -38,24 +128,12 @@ export function ShopItemCard({
   const canAfford = currentGold >= item.costGold;
   const deficit = item.costGold - currentGold;
   const rarityConfig = shopRarityConfig[item.rarity] || shopRarityConfig.common;
-  
-  // Get item type icon
-  const getTypeIcon = () => {
-    if (item.itemType === 'consumable') {
-      if (item.category?.includes('poison')) return <Skull className="w-4 h-4" />;
-      if (item.category?.includes('scroll')) return <ScrollText className="w-4 h-4" />;
-      return <Beaker className="w-4 h-4" />;
-    }
-    if (item.category?.includes('armor') || item.category?.includes('shield')) {
-      return <Shield className="w-4 h-4" />;
-    }
-    return <Sword className="w-4 h-4" />;
-  };
+  const categoryIcon = getCategoryIcon(item);
+  const IconComponent = categoryIcon.icon;
 
   const handlePurchase = () => {
     if (!canAfford || isPurchasing) return;
     setIsExiting(true);
-    // Delay actual purchase to show animation
     setTimeout(() => {
       onPurchase(item.id);
     }, 300);
@@ -85,12 +163,20 @@ export function ShopItemCard({
           {/* Header */}
           <div className="relative p-4 border-b border-border/30">
             <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
+                {/* Large Category Icon */}
                 <div className={cn(
-                  "p-2 rounded-lg",
+                  "relative p-3 rounded-xl",
                   rarityConfig.bgColor,
+                  "border",
+                  rarityConfig.borderColor,
                 )}>
-                  {getTypeIcon()}
+                  <IconComponent className={cn("w-6 h-6", categoryIcon.color)} />
+                  {/* Subtle glow behind icon */}
+                  <div className={cn(
+                    "absolute inset-0 rounded-xl blur-sm opacity-50 -z-10",
+                    rarityConfig.bgColor,
+                  )} />
                 </div>
                 <div>
                   <h3 className={cn(
@@ -99,13 +185,20 @@ export function ShopItemCard({
                   )}>
                     {item.name}
                   </h3>
-                  <span className={cn(
-                    "text-xs uppercase tracking-wider",
-                    rarityConfig.color,
-                    "opacity-70",
-                  )}>
-                    {rarityConfig.label}
-                  </span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className={cn(
+                      "text-xs uppercase tracking-wider",
+                      rarityConfig.color,
+                      "opacity-70",
+                    )}>
+                      {rarityConfig.label}
+                    </span>
+                    {item.category && (
+                      <span className="text-[10px] text-muted-foreground capitalize">
+                        • {item.category}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
               
