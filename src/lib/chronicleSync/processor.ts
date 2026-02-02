@@ -9,6 +9,7 @@ import {
   ParsedHPChange, 
   ParsedItemChange,
   ParsedGoldChange,
+  ParsedShopItem,
   ParsedCondition,
   ParsedCombatEvent,
   ParsedLevelUp,
@@ -343,13 +344,34 @@ export function parseAIResponse(response: unknown): ChronicleParseResult | null 
       }
     }
     
+    // Parse shop items
+    const shopItems: ParsedShopItem[] = [];
+    if (Array.isArray(data.shop_items)) {
+      for (const item of data.shop_items) {
+        if (typeof item.name === 'string' && typeof item.cost_gold === 'number') {
+          shopItems.push({
+            name: item.name,
+            itemType: item.item_type || 'miscellaneous',
+            category: item.category,
+            costGold: item.cost_gold,
+            mechanics: item.mechanics || {},
+            rarity: item.rarity || 'common',
+            description: item.description || '',
+            lore: item.lore || '',
+            sourceText: String(item.source_text || '').slice(0, 100),
+            confidence: validateConfidence(item.confidence),
+          });
+        }
+      }
+    }
+    
     return {
       xpChanges,
       hpChanges,
       itemChanges,
       achievementTriggers,
       goldChanges,
-      shopItems: [], // TODO: Parse shop_items from AI response when implemented
+      shopItems,
       conditions,
       combatEvents,
       levelUp,
@@ -381,6 +403,7 @@ export function calculateChangeSummary(result: ChronicleParseResult): {
   totalHP: { damage: number; healing: number };
   totalGold: { gained: number; spent: number };
   totalConditions: number;
+  totalShopItems: number;
 } {
   const totalXP = result.xpChanges.reduce((sum, xp) => sum + xp.amount, 0);
   const totalItems = result.itemChanges.length;
@@ -406,6 +429,7 @@ export function calculateChangeSummary(result: ChronicleParseResult): {
   };
   
   const totalConditions = result.conditions.length;
+  const totalShopItems = result.shopItems.length;
   
   return {
     totalXP,
@@ -415,5 +439,6 @@ export function calculateChangeSummary(result: ChronicleParseResult): {
     totalHP,
     totalGold,
     totalConditions,
+    totalShopItems,
   };
 }
