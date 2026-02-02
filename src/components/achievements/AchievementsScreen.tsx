@@ -303,52 +303,52 @@ export function AchievementsScreen({
       className="min-h-[calc(100vh-10vh)] flex flex-col"
     >
       {/* Title Header Row */}
-      <div className="relative z-10 flex items-center justify-between px-4 py-4 border-b border-purple-900/50 bg-background/80 backdrop-blur-sm">
-        <h1 className="font-cinzel text-2xl font-bold text-foreground">Feats & Achievements</h1>
+      <div className="relative z-10 flex items-center justify-between px-4 py-4 border-b border-purple-900/50 bg-black/70 backdrop-blur-md">
+        <h1 className="font-cinzel text-2xl font-bold text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Feats & Achievements</h1>
         <div className="flex gap-1">
-          <Button variant="ghost" size="icon" onClick={handleImport}>
+          <Button variant="ghost" size="icon" onClick={handleImport} className="text-foreground drop-shadow-lg">
             <Upload className="w-5 h-5" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={handleExport}>
+          <Button variant="ghost" size="icon" onClick={handleExport} className="text-foreground drop-shadow-lg">
             <Download className="w-5 h-5" />
           </Button>
         </div>
       </div>
 
       {/* Stats Summary */}
-      <div className="relative z-10 px-4 py-4 border-b border-purple-900/30 bg-background/60 backdrop-blur-sm">
+      <div className="relative z-10 px-4 py-4 border-b border-purple-900/30 bg-black/60 backdrop-blur-md">
         <div className="grid grid-cols-3 gap-4">
           <div className="text-center">
-            <div className="flex items-center justify-center gap-1.5 text-amber-400 mb-1">
+            <div className="flex items-center justify-center gap-1.5 text-amber-400 mb-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
               <Trophy className="w-4 h-4" />
               <span className="text-lg font-bold">{completedCount}</span>
             </div>
-            <p className="text-[10px] text-muted-foreground uppercase">Mastered</p>
+            <p className="text-[10px] text-foreground/80 uppercase font-medium drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">Mastered</p>
           </div>
           <div className="text-center">
-            <div className="flex items-center justify-center gap-1.5 text-primary mb-1">
+            <div className="flex items-center justify-center gap-1.5 text-primary mb-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
               <Star className="w-4 h-4" />
               <span className="text-lg font-bold">{unlockedLegendaryCount}</span>
             </div>
-            <p className="text-[10px] text-muted-foreground uppercase">Legendaries</p>
+            <p className="text-[10px] text-foreground/80 uppercase font-medium drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">Legendaries</p>
           </div>
           <div className="text-center">
-            <div className="text-lg font-bold text-foreground mb-1">
+            <div className="text-lg font-bold text-foreground mb-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
               {Math.round((totalProgress / totalMax) * 100)}%
             </div>
-            <p className="text-[10px] text-muted-foreground uppercase">Overall</p>
+            <p className="text-[10px] text-foreground/80 uppercase font-medium drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">Overall</p>
           </div>
         </div>
       </div>
 
       {/* Set Navigation Header */}
-      <div className="relative z-10 px-4 py-3 bg-background/40 backdrop-blur-sm border-b border-purple-900/20">
+      <div className="relative z-10 px-4 py-3 bg-black/50 backdrop-blur-md border-b border-purple-900/20">
         <div className="flex items-center justify-between">
           <button
             onClick={handlePanRight}
             disabled={currentSetIndex === 0}
             className={cn(
-              "p-2 rounded-lg transition-all",
+              "p-2 rounded-lg transition-all text-foreground drop-shadow-lg",
               currentSetIndex === 0 
                 ? "opacity-30 cursor-not-allowed" 
                 : "hover:bg-purple-500/20 active:scale-95"
@@ -358,10 +358,10 @@ export function AchievementsScreen({
           </button>
           
           <div className="flex-1 text-center">
-            <h2 className="font-display font-bold text-sm uppercase tracking-wider text-purple-300">
+            <h2 className="font-display font-bold text-sm uppercase tracking-wider text-purple-200 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
               {SET_GROUPS[currentSet].name}
             </h2>
-            <p className="text-[10px] text-muted-foreground mt-0.5">
+            <p className="text-[10px] text-foreground/70 mt-0.5 font-medium drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
               Set {currentSetIndex + 1} of {SET_ORDER.length} · {setProgress.percent}% complete
             </p>
           </div>
@@ -370,7 +370,7 @@ export function AchievementsScreen({
             onClick={handlePanLeft}
             disabled={currentSetIndex >= SET_ORDER.length - 1}
             className={cn(
-              "p-2 rounded-lg transition-all",
+              "p-2 rounded-lg transition-all text-foreground drop-shadow-lg",
               currentSetIndex >= SET_ORDER.length - 1
                 ? "opacity-30 cursor-not-allowed" 
                 : "hover:bg-purple-500/20 active:scale-95"
@@ -412,7 +412,7 @@ export function AchievementsScreen({
               currentAchievementIndex > 0 && "hover:bg-purple-500/20 active:scale-95"
             )}
           >
-            <ChevronUp className="w-5 h-5 text-purple-300" />
+            <ChevronUp className="w-5 h-5 text-purple-200 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]" />
           </button>
         </div>
 

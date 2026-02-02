@@ -40,10 +40,10 @@ export function AchievementCard({ achievement, onIncrement, onDecrement, expande
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <div 
         className={cn(
-          "relative rounded-lg border transition-all overflow-hidden",
+          "relative rounded-lg border transition-all overflow-hidden backdrop-blur-md",
           isComplete 
-            ? "bg-gradient-to-r from-amber-500/10 to-amber-400/5 border-amber-500/50" 
-            : "bg-card/50 border-border/50 hover:border-primary/30"
+            ? "bg-gradient-to-r from-amber-500/20 to-amber-400/10 border-amber-500/50" 
+            : "bg-black/60 border-border/50 hover:border-primary/30"
         )}
       >
         {/* Collapsible Header */}
@@ -61,14 +61,14 @@ export function AchievementCard({ achievement, onIncrement, onDecrement, expande
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
                 <h3 className={cn(
-                  "font-semibold text-sm leading-tight truncate",
-                  isComplete && "text-amber-400"
+                  "font-semibold text-sm leading-tight truncate drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]",
+                  isComplete ? "text-amber-400" : "text-foreground"
                 )}>
                   {achievement.name}
                 </h3>
                 <span className={cn(
-                  "text-xs font-medium shrink-0",
-                  isComplete ? "text-amber-400" : "text-muted-foreground"
+                  "text-xs font-bold shrink-0 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]",
+                  isComplete ? "text-amber-400" : "text-foreground/90"
                 )}>
                   {achievement.currentValue}/{achievement.maxValue}
                 </span>
@@ -107,13 +107,13 @@ export function AchievementCard({ achievement, onIncrement, onDecrement, expande
         <CollapsibleContent>
           <div className="px-3 pb-3 pt-1 border-t border-border/30">
             {/* Description */}
-            <p className="text-xs text-muted-foreground mb-3">
+            <p className="text-xs text-foreground/80 mb-3 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] font-medium">
               {achievement.description}
             </p>
 
             {/* Milestone Progress Markers */}
             <div className="mb-3">
-              <div className="flex justify-between text-[10px] text-muted-foreground mb-1.5">
+              <div className="flex justify-between text-[10px] text-foreground/70 mb-1.5 font-medium drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
                 <span>Milestones</span>
                 <span>{Math.round(progress)}% Complete</span>
               </div>
@@ -165,14 +165,14 @@ export function AchievementCard({ achievement, onIncrement, onDecrement, expande
                   return (
                     <div key={milestone} className="text-center" style={{ width: '25%' }}>
                       <div className={cn(
-                        "text-[9px] font-medium",
-                        isClaimed ? "text-primary" : isReached ? "text-primary/70" : "text-muted-foreground/50"
+                        "text-[9px] font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]",
+                        isClaimed ? "text-primary" : isReached ? "text-primary/80" : "text-foreground/50"
                       )}>
                         {milestone}%
                       </div>
                       <div className={cn(
-                        "text-[8px] flex items-center justify-center gap-0.5",
-                        isClaimed ? "text-primary" : "text-muted-foreground/50"
+                        "text-[8px] flex items-center justify-center gap-0.5 font-medium drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]",
+                        isClaimed ? "text-primary" : "text-foreground/50"
                       )}>
                         <Zap className="w-2.5 h-2.5" />
                         {MILESTONE_XP_REWARDS[milestone]}
@@ -185,12 +185,12 @@ export function AchievementCard({ achievement, onIncrement, onDecrement, expande
             
             {/* Next milestone info */}
             {nextMilestone && !isComplete && (
-              <div className="bg-muted/30 rounded-md p-2 mb-3">
+              <div className="bg-black/40 rounded-md p-2 mb-3 border border-primary/20">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-muted-foreground">
-                    Next: <span className="text-foreground font-medium">{nextMilestone.valueNeeded - achievement.currentValue}</span> more for {nextMilestone.percent}%
+                  <span className="text-[10px] text-foreground/80 font-medium drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                    Next: <span className="text-foreground font-bold">{nextMilestone.valueNeeded - achievement.currentValue}</span> more for {nextMilestone.percent}%
                   </span>
-                  <span className="text-[10px] text-primary flex items-center gap-0.5 font-medium">
+                  <span className="text-[10px] text-primary flex items-center gap-0.5 font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
                     <Zap className="w-3 h-3" />
                     +{MILESTONE_XP_REWARDS[nextMilestone.percent]} XP
                   </span>
@@ -203,7 +203,7 @@ export function AchievementCard({ achievement, onIncrement, onDecrement, expande
               <Button
                 variant="outline"
                 size="icon"
-                className="h-9 w-9"
+                className="h-9 w-9 border-foreground/30"
                 onClick={(e) => {
                   e.stopPropagation();
                   onDecrement(achievement.id);
@@ -212,13 +212,13 @@ export function AchievementCard({ achievement, onIncrement, onDecrement, expande
               >
                 <Minus className="w-4 h-4" />
               </Button>
-              <span className="font-mono text-xl font-bold min-w-[4rem] text-center">
+              <span className="font-mono text-xl font-bold min-w-[4rem] text-center text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                 {achievement.currentValue}
               </span>
               <Button
                 variant="outline"
                 size="icon"
-                className="h-9 w-9"
+                className="h-9 w-9 border-foreground/30"
                 onClick={(e) => {
                   e.stopPropagation();
                   onIncrement(achievement.id);
