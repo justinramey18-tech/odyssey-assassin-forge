@@ -4,6 +4,7 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { Achievement } from '@/lib/achievements';
 import type { ViewMode } from './InventoryScreen';
+import type { EquipmentImages } from '@/hooks/use-equipment-images';
 
 interface EquipmentListProps {
   equipment: CharacterEquipment;
@@ -23,6 +24,10 @@ interface EquipmentListProps {
     requiredValue?: number;
     currentValue?: number;
   };
+  // Custom image support
+  equipmentImages?: EquipmentImages;
+  onImageUpload?: (slotType: EquipmentSlotType, file: File) => void;
+  onImageClear?: (slotType: EquipmentSlotType) => void;
 }
 
 export function EquipmentList({
@@ -37,6 +42,9 @@ export function EquipmentList({
   viewMode = 'compact',
   isItemLocked,
   getItemLockInfo,
+  equipmentImages,
+  onImageUpload,
+  onImageClear,
 }: EquipmentListProps) {
   const isCompact = viewMode === 'compact';
   const armorSlots = equipmentSlotDefinitions.filter(s => s.category === 'armor');
@@ -69,6 +77,9 @@ export function EquipmentList({
               onSwipeRight={() => onSwap(slot.type)}
               onInfoTap={() => onInfoTap(slot.type, item)}
               viewMode={viewMode}
+              customImage={equipmentImages?.[slot.type]}
+              onImageUpload={(file) => onImageUpload?.(slot.type, file)}
+              onImageClear={() => onImageClear?.(slot.type)}
             />
           </div>
         );
