@@ -1132,6 +1132,7 @@ const Index = () => {
               shopItems={shop.shopItems}
               purchaseHistory={shop.purchaseHistory}
               onPurchase={handleShopPurchase}
+              onAddItem={(item) => shop.addShopItems([item])}
               onClearShop={shop.clearShop}
             />
           )}

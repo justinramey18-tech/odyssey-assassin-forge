@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 import { GoldBalanceWidget } from './GoldBalanceWidget';
 import { ShopItemCard } from './ShopItemCard';
-import { ShopItem, PurchaseRecord } from '@/lib/shop/types';
+import { AddItemDrawer } from './AddItemDrawer';
+import { ShopItem, ParsedShopItem, PurchaseRecord } from '@/lib/shop/types';
 import { Consumable } from '@/lib/consumables/types';
 import { EquipmentItem } from '@/lib/inventory/types';
 import builderBackground from '@/assets/builder-background.jpg';
@@ -23,6 +24,7 @@ interface ShopScreenProps {
     destinationType?: 'consumable' | 'equipment' | 'miscellaneous';
     error?: string;
   };
+  onAddItem: (item: ParsedShopItem) => void;
   onClearShop: () => void;
 }
 
@@ -31,6 +33,7 @@ export function ShopScreen({
   shopItems,
   purchaseHistory,
   onPurchase,
+  onAddItem,
   onClearShop,
 }: ShopScreenProps) {
   const [activeView, setActiveView] = useState<'items' | 'history'>('items');
@@ -87,17 +90,21 @@ export function ShopScreen({
             History ({purchaseHistory.length})
           </Button>
           
-          {shopItems.length > 0 && activeView === 'items' && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClearShop}
-              className="ml-auto text-muted-foreground hover:text-destructive"
-            >
-              <Trash2 className="w-4 h-4 mr-1" />
-              Clear
-            </Button>
-          )}
+          <div className="flex items-center gap-2 ml-auto">
+            <AddItemDrawer onAddItem={onAddItem} />
+            
+            {shopItems.length > 0 && activeView === 'items' && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onClearShop}
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="w-4 h-4 mr-1" />
+                Clear
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Items View */}
