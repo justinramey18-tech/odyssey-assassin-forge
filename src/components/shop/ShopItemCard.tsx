@@ -1,6 +1,6 @@
 // Shop Item Card - Individual item display with purchase button
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Coins, 
@@ -36,11 +36,13 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ShopItem, shopRarityConfig } from '@/lib/shop/types';
+import { ItemExpirationTimer } from './ItemExpirationTimer';
 
 interface ShopItemCardProps {
   item: ShopItem;
   currentGold: number;
   onPurchase: (itemId: string) => void;
+  onExpired: (itemId: string) => void;
   isPurchasing?: boolean;
 }
 
@@ -120,6 +122,7 @@ export function ShopItemCard({
   item, 
   currentGold, 
   onPurchase,
+  onExpired,
   isPurchasing = false,
 }: ShopItemCardProps) {
   const [showLore, setShowLore] = useState(false);
@@ -138,6 +141,13 @@ export function ShopItemCard({
       onPurchase(item.id);
     }, 300);
   };
+
+  const handleExpired = useCallback(() => {
+    setIsExiting(true);
+    setTimeout(() => {
+      onExpired(item.id);
+    }, 300);
+  }, [item.id, onExpired]);
 
   return (
     <AnimatePresence>
@@ -202,13 +212,19 @@ export function ShopItemCard({
                 </div>
               </div>
               
-              {/* AI Generated indicator */}
-              {(item.aiGenerated.mechanics || item.aiGenerated.description) && (
-                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                  <Sparkles className="w-3 h-3 text-violet-400" />
-                  <span>AI</span>
-                </div>
-              )}
+              {/* Timer and AI indicator */}
+              <div className="flex flex-col items-end gap-1.5">
+                <ItemExpirationTimer 
+                  expiresAt={item.expiresAt} 
+                  onExpired={handleExpired}
+                />
+                {(item.aiGenerated.mechanics || item.aiGenerated.description) && (
+                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <Sparkles className="w-3 h-3 text-violet-400" />
+                    <span>AI</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

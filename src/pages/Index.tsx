@@ -1132,6 +1132,7 @@ const Index = () => {
               shopItems={shop.shopItems}
               purchaseHistory={shop.purchaseHistory}
               onPurchase={handleShopPurchase}
+              onRemoveItem={shop.removeShopItem}
               onAddItem={(item) => shop.addShopItems([item])}
               onAdjustGold={shop.addGold}
               onSetGold={shop.setGold}
