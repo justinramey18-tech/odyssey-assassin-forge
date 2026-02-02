@@ -25,6 +25,8 @@ interface ShopScreenProps {
     error?: string;
   };
   onAddItem: (item: ParsedShopItem) => void;
+  onAdjustGold: (amount: number) => void;
+  onSetGold: (amount: number) => void;
   onClearShop: () => void;
 }
 
@@ -34,6 +36,8 @@ export function ShopScreen({
   purchaseHistory,
   onPurchase,
   onAddItem,
+  onAdjustGold,
+  onSetGold,
   onClearShop,
 }: ShopScreenProps) {
   const [activeView, setActiveView] = useState<'items' | 'history'>('items');
@@ -66,7 +70,11 @@ export function ShopScreen({
             </h1>
           </div>
           
-          <GoldBalanceWidget currentGold={currentGold} />
+          <GoldBalanceWidget 
+            currentGold={currentGold} 
+            onAdjustGold={onAdjustGold}
+            onSetGold={onSetGold}
+          />
         </div>
 
         {/* View Toggle */}
