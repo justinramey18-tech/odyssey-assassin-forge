@@ -79,6 +79,7 @@ const Index = () => {
   });
   const [showHomeScreen, setShowHomeScreen] = useState(true); // Home is default after wizard
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<'game' | 'setup' | 'faq' | 'character' | 'tools' | undefined>(undefined);
   const [showCloudSaveModal, setShowCloudSaveModal] = useState(false);
   const [character, setCharacter] = useState<Character>({
     name: '',
@@ -890,7 +891,14 @@ const Index = () => {
           onXPPresetChange={setXPPreset}
           onManualLevelUp={handleManualLevelUp}
           onReturnToBuilder={() => setShowHomeScreen(false)}
-          onOpenSettings={() => setShowSettingsModal(true)}
+          onOpenSettings={() => {
+            setSettingsInitialTab(undefined);
+            setShowSettingsModal(true);
+          }}
+          onOpenFAQ={() => {
+            setSettingsInitialTab('faq');
+            setShowSettingsModal(true);
+          }}
           currentHP={hpState.current}
           maxHP={hpState.max}
           tempHP={hpState.temp}
@@ -902,7 +910,11 @@ const Index = () => {
           characterName={character.name} 
           onEditCharacter={() => setShowWizard(true)}
           open={showSettingsModal}
-          onOpenChange={setShowSettingsModal}
+          onOpenChange={(open) => {
+            setShowSettingsModal(open);
+            if (!open) setSettingsInitialTab(undefined);
+          }}
+          initialTab={settingsInitialTab}
           prestigeData={{
             totalPrestigePoints: prestigeData.totalPrestigePoints,
             prestigeLevel: prestigeData.prestigeLevel,
@@ -1204,7 +1216,11 @@ const Index = () => {
           characterName={character.name} 
           onEditCharacter={() => setShowWizard(true)}
           open={showSettingsModal}
-          onOpenChange={setShowSettingsModal}
+          onOpenChange={(open) => {
+            setShowSettingsModal(open);
+            if (!open) setSettingsInitialTab(undefined);
+          }}
+          initialTab={settingsInitialTab}
           prestigeData={{
             totalPrestigePoints: prestigeData.totalPrestigePoints,
             prestigeLevel: prestigeData.prestigeLevel,
