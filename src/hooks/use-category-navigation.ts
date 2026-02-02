@@ -124,8 +124,8 @@ export function useCategoryNavigation(
     setMainCategoryState(category);
   }, []);
 
-  // Navigate to a specific sub-tab
-  const navigateToSubTab = useCallback((subTabId: string) => {
+  // Navigate to a specific sub-tab (optionally with explicit category)
+  const navigateToSubTab = useCallback((subTabId: string, targetCategory?: MainCategory) => {
     // Handle special cases (settings, cloud trigger modals)
     if (subTabId === 'settings' && onSettingsClick) {
       onSettingsClick();
@@ -141,8 +141,11 @@ export function useCategoryNavigation(
       return; // Don't navigate if locked
     }
 
-    // Update the appropriate sub-tab state
-    switch (mainCategory) {
+    // Use explicit category if provided, otherwise use current mainCategory
+    const category = targetCategory ?? mainCategory;
+
+    // Update the appropriate sub-tab state based on target category
+    switch (category) {
       case 'fighting':
         if (FIGHTING_TABS.some(t => t.id === subTabId)) {
           setFightingSubTab(subTabId);
