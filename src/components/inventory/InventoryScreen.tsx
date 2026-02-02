@@ -14,7 +14,9 @@ import {
 } from '@/lib/inventory/index';
 import { setImages } from '@/lib/inventory/setImages';
 import { useGearLock } from '@/hooks/use-gear-lock';
+import { useEquipmentImages } from '@/hooks/use-equipment-images';
 import { achievementCategories, Achievement } from '@/lib/achievements';
+import { toast } from 'sonner';
 import { EquipmentList } from './EquipmentList';
 import { ItemDetailSheet } from './ItemDetailSheet';
 import { ComparisonSheet } from './ComparisonSheet';
@@ -66,6 +68,27 @@ export function InventoryScreen({
     getItemLockInfo, 
     isSetLocked 
   } = useGearLock(achievements);
+  
+  // Custom equipment images
+  const { 
+    images: equipmentImages, 
+    handleImageUpload: uploadEquipmentImage, 
+    clearSlotImage 
+  } = useEquipmentImages();
+
+  const handleEquipmentImageUpload = useCallback(async (slotType: EquipmentSlotType, file: File) => {
+    try {
+      await uploadEquipmentImage(slotType, file);
+      toast.success('Image uploaded!');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to upload image');
+    }
+  }, [uploadEquipmentImage]);
+
+  const handleEquipmentImageClear = useCallback((slotType: EquipmentSlotType) => {
+    clearSlotImage(slotType);
+    toast.success('Image removed');
+  }, [clearSlotImage]);
   
   // Use external equipment if provided, otherwise use internal state
   const equipment = externalEquipment ?? internalEquipment;
@@ -400,6 +423,9 @@ export function InventoryScreen({
                   viewMode={viewMode}
                   isItemLocked={isItemLocked}
                   getItemLockInfo={getItemLockInfo}
+                  equipmentImages={equipmentImages}
+                  onImageUpload={handleEquipmentImageUpload}
+                  onImageClear={handleEquipmentImageClear}
                 />
                 
                 {/* Set Bonuses */}

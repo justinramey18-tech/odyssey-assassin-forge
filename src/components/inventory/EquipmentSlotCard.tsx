@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Info, X, Star, RotateCcw, Lock } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Info, X, Star, RotateCcw, Lock, ImagePlus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EquipmentItem, EquipmentSlotType, rarityConfig } from '@/lib/inventory/index';
 import { getIconByName } from '@/lib/iconUtils';
@@ -24,6 +24,10 @@ interface EquipmentSlotCardProps {
   onSwipeRight?: () => void;
   onInfoTap?: () => void;
   viewMode?: ViewMode;
+  // Custom image support
+  customImage?: string | null;
+  onImageUpload?: (file: File) => void;
+  onImageClear?: () => void;
 }
 
 export function EquipmentSlotCard({
@@ -40,11 +44,15 @@ export function EquipmentSlotCard({
   onSwipeRight,
   onInfoTap,
   viewMode = 'compact',
+  customImage,
+  onImageUpload,
+  onImageClear,
 }: EquipmentSlotCardProps) {
   const isCompact = viewMode === 'compact';
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number; time: number } | null>(null);
   const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const IconComponent = getIconByName(icon);
   const ItemIcon = item ? getIconByName(item.icon) : null;
@@ -104,6 +112,26 @@ export function EquipmentSlotCard({
     return Array.from({ length: count }).map((_, i) => (
       <Star key={i} className="w-2.5 h-2.5 fill-current" />
     ));
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && onImageUpload) {
+      onImageUpload(file);
+    }
+    // Reset input so same file can be selected again
+    e.target.value = '';
+  };
+
+  const handleImageButtonClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (customImage) {
+      // If image exists, clear it
+      onImageClear?.();
+    } else {
+      // Otherwise, trigger file input
+      fileInputRef.current?.click();
+    }
   };
 
   return (
@@ -210,15 +238,48 @@ export function EquipmentSlotCard({
 
         {/* Content Area */}
         <div className={isCompact ? "p-2" : "p-3"}>
+          {/* Hidden file input for image upload */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          
           {item ? (
             <div className={cn("flex items-start", isCompact ? "gap-2" : "gap-3")}>
-              {/* Item Icon */}
-              <div className={cn(
-                "rounded flex items-center justify-center border-2 shrink-0 bg-black/30",
-                rarity?.borderClass?.replace('border-l-', 'border-') || "border-border",
-                isCompact ? "w-10 h-10" : "w-14 h-14"
-              )}>
-                {ItemIcon && <ItemIcon className={cn(rarity?.color, "drop-shadow-lg", isCompact ? "w-5 h-5" : "w-8 h-8")} />}
+              {/* Item Icon / Custom Image */}
+              <div 
+                className={cn(
+                  "relative rounded flex items-center justify-center border-2 shrink-0 overflow-hidden group cursor-pointer",
+                  customImage ? "bg-transparent" : "bg-black/30",
+                  rarity?.borderClass?.replace('border-l-', 'border-') || "border-border",
+                  isCompact ? "w-10 h-10" : "w-14 h-14"
+                )}
+                onClick={handleImageButtonClick}
+              >
+                {customImage ? (
+                  <>
+                    <img 
+                      src={customImage} 
+                      alt={item.name}
+                      className="w-full h-full object-cover"
+                    />
+                    {/* Overlay on hover */}
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <Trash2 className="w-4 h-4 text-red-400" />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {ItemIcon && <ItemIcon className={cn(rarity?.color, "drop-shadow-lg", isCompact ? "w-5 h-5" : "w-8 h-8")} />}
+                    {/* Upload hint on hover */}
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <ImagePlus className="w-4 h-4 text-primary" />
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Item Details */}
