@@ -26,6 +26,7 @@ import { DynamicHealthBar } from './DynamicHealthBar';
 import { AvailablePointsWidget } from './AvailablePointsWidget';
 import { EnlargedD20Section } from './EnlargedD20Section';
 import { PrimaryNavigationCards } from './PrimaryNavigationCards';
+import { BackgroundUploadButton } from './BackgroundUploadButton';
 
 import homeBackground from '@/assets/home-background-new.jpg';
 
@@ -66,6 +67,10 @@ interface HomeScreenProps {
   shopItems?: ShopItem[];
   // Initiative modifier (synced from ability scores)
   initiativeModifier?: number;
+  // Custom background support
+  customBackground?: string | null;
+  onCustomBackgroundUpload?: (file: File) => Promise<void>;
+  onCustomBackgroundClear?: () => void;
 }
 
 // Haptic feedback helper
@@ -97,6 +102,9 @@ export function HomeScreen({
   tempHP: propTempHP = 0,
   shopItems = [],
   initiativeModifier = 0,
+  customBackground,
+  onCustomBackgroundUpload,
+  onCustomBackgroundClear,
 }: HomeScreenProps) {
   const isMobile = useIsMobile();
   const stats = useEquipmentStats(equipment);
@@ -253,12 +261,12 @@ export function HomeScreen({
 
   return (
     <BackgroundWrapper
-      imagePath={homeBackground}
-      overlayOpacity={45}
+      imagePath={customBackground || homeBackground}
+      overlayOpacity={customBackground ? 55 : 45}
       tintColor="cyan"
       tintOpacity={8}
       fixed={true}
-      backgroundSize="contain"
+      backgroundSize={customBackground ? 'cover' : 'contain'}
       backgroundPosition="center center"
       className="fixed inset-0 z-50"
     >
@@ -276,6 +284,15 @@ export function HomeScreen({
           <ClockWidget />
           
           <div className="flex items-center gap-1">
+            {/* Custom Background Upload Button */}
+            {onCustomBackgroundUpload && onCustomBackgroundClear && (
+              <BackgroundUploadButton
+                hasCustomBackground={!!customBackground}
+                onUpload={onCustomBackgroundUpload}
+                onClear={onCustomBackgroundClear}
+              />
+            )}
+            
             {onOpenFAQ && (
               <button 
                 onClick={() => {
