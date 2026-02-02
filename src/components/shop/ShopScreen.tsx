@@ -12,7 +12,7 @@ import { AddItemDrawer } from './AddItemDrawer';
 import { ShopItem, ParsedShopItem, PurchaseRecord } from '@/lib/shop/types';
 import { Consumable } from '@/lib/consumables/types';
 import { EquipmentItem } from '@/lib/inventory/types';
-import builderBackground from '@/assets/builder-background.jpg';
+import shopBackground from '@/assets/shop-background.jpg';
 
 interface ShopScreenProps {
   currentGold: number;
@@ -54,10 +54,11 @@ export function ShopScreen({
 
   return (
     <BackgroundWrapper 
-      imagePath={builderBackground} 
-      overlayOpacity={75} 
+      imagePath={shopBackground} 
+      overlayOpacity={70} 
       tintColor="amber" 
-      tintOpacity={10}
+      tintOpacity={15}
+      backgroundPosition="top center"
       className="min-h-[calc(100vh-10vh)]"
     >
       <div className="container max-w-4xl mx-auto px-4 py-6">
