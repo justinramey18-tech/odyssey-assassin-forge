@@ -250,31 +250,21 @@ export function HomeScreen({
           transition={{ duration: 0.3 }}
           className="flex items-center justify-between px-4 py-3 border-b border-white/10"
         >
-          <button 
-            onClick={onReturnToBuilder}
-            className="p-2 -ml-2 rounded-lg hover:bg-white/10 transition-colors"
-            style={{ touchAction: 'manipulation' }}
-            aria-label="Return to builder"
-          >
-            <ArrowLeft className="w-5 h-5 text-white" />
-          </button>
+          <ClockWidget />
           
-          <div className="flex items-center gap-1">
-            {onOpenSettings && (
-              <button 
-                onClick={() => {
-                  triggerHaptic('light');
-                  onOpenSettings();
-                }}
-                className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-                style={{ touchAction: 'manipulation' }}
-                aria-label="Open settings"
-              >
-                <Settings className="w-5 h-5 text-white/80" />
-              </button>
-            )}
-            <ClockWidget />
-          </div>
+          {onOpenSettings && (
+            <button 
+              onClick={() => {
+                triggerHaptic('light');
+                onOpenSettings();
+              }}
+              className="p-2 -mr-2 rounded-lg hover:bg-white/10 transition-colors"
+              style={{ touchAction: 'manipulation' }}
+              aria-label="Open settings"
+            >
+              <Settings className="w-5 h-5 text-white/80" />
+            </button>
+          )}
         </motion.header>
 
         {/* Scrollable Content */}
