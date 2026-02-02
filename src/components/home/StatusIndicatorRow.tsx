@@ -108,7 +108,7 @@ export function StatusIndicatorRow({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ delay: 0.35, duration: 0.3 }}
-      className="flex gap-2 px-4 overflow-x-auto scrollbar-hide"
+      className="flex justify-center gap-2 px-4 overflow-x-auto scrollbar-hide"
       style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
     >
       {/* Conditions Badge */}

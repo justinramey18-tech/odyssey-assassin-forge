@@ -308,13 +308,23 @@ export function HomeScreen({
         {/* Scrollable Content */}
         <div className="flex-1 overflow-auto">
           <div className="flex flex-col gap-4 py-4">
-            {/* Character Name Plaque */}
+            {/* Character Name Plaque - Full width thin bar */}
             <CharacterNamePlaque 
               name={character.name} 
               level={character.level} 
             />
 
-            {/* Live Status Indicator Row */}
+            {/* Dynamic Health Bar */}
+            <DynamicHealthBar
+              currentHP={currentHP}
+              maxHP={maxHP}
+              tempHP={tempHP}
+              ac={stats.totalAC}
+              initiative={initiativeModifier}
+              onInitiativeClick={handleInitiativeRoll}
+            />
+
+            {/* Live Status Indicator Row - Centered below AC/Init */}
             <StatusIndicatorRow
               activeConditionCount={activeConditionCount}
               mostSevereCondition={mostSevereCondition}
@@ -326,16 +336,6 @@ export function HomeScreen({
               onConditionsClick={() => drawerContext?.openConditionsDrawer()}
               onCooldownsClick={() => drawerContext?.openCooldownDrawer()}
               onShopClick={() => onNavigateToTab('consumables')}
-            />
-
-            {/* Dynamic Health Bar */}
-            <DynamicHealthBar
-              currentHP={currentHP}
-              maxHP={maxHP}
-              tempHP={tempHP}
-              ac={stats.totalAC}
-              initiative={initiativeModifier}
-              onInitiativeClick={handleInitiativeRoll}
             />
 
             {/* Initiative Roll Result Toast */}
