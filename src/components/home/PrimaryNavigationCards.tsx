@@ -94,14 +94,14 @@ export function PrimaryNavigationCards({
   }, [achievements, hasChronicleUndo, hasNewShopItems]);
 
   const cardVariants = {
-    hidden: { opacity: 0, y: 30 },
+    hidden: { opacity: 0, y: 80 },
     visible: (i: number) => ({
       opacity: 1,
       y: 0,
       transition: { 
-        delay: 0.6 + i * 0.1, 
-        duration: 0.4,
-        ease: [0.25, 0.46, 0.45, 0.94] as const
+        delay: 1.0 + i * 0.1, 
+        duration: 0.5,
+        ease: [0.22, 1, 0.36, 1] as const // smooth ease-out
       }
     })
   };
