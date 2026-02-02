@@ -63,10 +63,16 @@ export function useShop() {
     return state.currentGold >= cost;
   }, [state.currentGold]);
 
+  // 10-minute expiration timer for shop items
+  const SHOP_ITEM_EXPIRATION_MS = 10 * 60 * 1000; // 10 minutes
+
   // Add items to shop (from Chronicle Sync parsing)
   const addShopItems = useCallback((parsedItems: ParsedShopItem[]) => {
+    const now = Date.now();
+    const expiresAt = new Date(now + SHOP_ITEM_EXPIRATION_MS).toISOString();
+    
     const newItems: ShopItem[] = parsedItems.map(item => ({
-      id: `shop-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `shop-${now}-${Math.random().toString(36).substr(2, 9)}`,
       name: item.name,
       itemType: item.itemType,
       category: item.category,
@@ -77,6 +83,7 @@ export function useShop() {
       costGold: item.costGold,
       sourceText: item.sourceText,
       detectedAt: new Date().toISOString(),
+      expiresAt,
       aiGenerated: {
         mechanics: !item.mechanics,
         description: !item.description,
@@ -89,6 +96,31 @@ export function useShop() {
       ...prev,
       items: [...prev.items, ...newItems],
     }));
+  }, []);
+
+  // Remove expired items on mount and periodically
+  useEffect(() => {
+    const cleanupExpired = () => {
+      setState(prev => {
+        const now = Date.now();
+        const validItems = prev.items.filter(item => {
+          const expiryTime = new Date(item.expiresAt).getTime();
+          return expiryTime > now;
+        });
+        
+        if (validItems.length !== prev.items.length) {
+          return { ...prev, items: validItems };
+        }
+        return prev;
+      });
+    };
+
+    // Clean up on mount
+    cleanupExpired();
+
+    // Check every 30 seconds for expired items
+    const interval = setInterval(cleanupExpired, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   // Get item by ID

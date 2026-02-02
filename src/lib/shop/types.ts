@@ -26,6 +26,7 @@ export interface ShopItem {
   costGold: number;
   sourceText: string;
   detectedAt: string;
+  expiresAt: string; // ISO timestamp when item expires
   
   // Track what was AI-generated vs extracted
   aiGenerated: {

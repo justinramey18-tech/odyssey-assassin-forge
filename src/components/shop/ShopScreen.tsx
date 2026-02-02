@@ -24,6 +24,7 @@ interface ShopScreenProps {
     destinationType?: 'consumable' | 'equipment' | 'miscellaneous';
     error?: string;
   };
+  onRemoveItem: (itemId: string) => void;
   onAddItem: (item: ParsedShopItem) => void;
   onAdjustGold: (amount: number) => void;
   onSetGold: (amount: number) => void;
@@ -35,6 +36,7 @@ export function ShopScreen({
   shopItems,
   purchaseHistory,
   onPurchase,
+  onRemoveItem,
   onAddItem,
   onAdjustGold,
   onSetGold,
@@ -130,6 +132,7 @@ export function ShopScreen({
                       item={item}
                       currentGold={currentGold}
                       onPurchase={handlePurchase}
+                      onExpired={onRemoveItem}
                       isPurchasing={purchasingId === item.id}
                     />
                   ))}
