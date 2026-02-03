@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback } from 'react';
-import { Check, Copy, RefreshCw, Camera, Star, Lock, RotateCcw, AlertTriangle, HelpCircle, Download, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Check, Copy, RefreshCw, Camera, Star, Lock, RotateCcw, AlertTriangle, HelpCircle, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
@@ -22,7 +22,6 @@ import { GMGuidePrompts } from './GMGuidePrompts';
 import { DiceOddsMode } from '@/lib/diceOdds';
 import { GameModeSettings as GameModeSettingsType } from '@/lib/gameModes';
 import { useGameMode } from '@/hooks/use-game-mode';
-import { usePan } from '@/hooks/use-pan';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { SettingsTab } from './MobileSettingsTabs';
@@ -178,391 +177,6 @@ const FAQ_ITEMS = [
     ],
   },
 ];
-
-// Setup Tab Section definitions for panning
-const SETUP_SECTIONS = [
-  { id: 'sync', label: 'AI GM Sync', icon: '🔗' },
-  { id: 'prompts', label: 'GM Prompts', icon: '📝' },
-  { id: 'preview', label: 'Data Preview', icon: '👁️' },
-  { id: 'legacy', label: 'Legacy View', icon: '📜' },
-] as const;
-
-type SetupSection = typeof SETUP_SECTIONS[number]['id'];
-
-// Pannable Setup Tab Component
-interface SetupTabWithPanningProps {
-  hasDynamicData: boolean;
-  stateSummary: string | null;
-  dynamicGuide: string | null;
-  fullGuide: string;
-  copiedSnapshot: boolean;
-  copiedStatic: boolean;
-  copiedDynamic: boolean;
-  showDynamic: boolean;
-  setShowDynamic: (value: boolean) => void;
-  handleCopySnapshot: () => void;
-  handleCopyFullGuide: () => void;
-  handleCopyDynamicOnly: () => void;
-}
-
-function SetupTabWithPanning({
-  hasDynamicData,
-  stateSummary,
-  dynamicGuide,
-  fullGuide,
-  copiedSnapshot,
-  copiedStatic,
-  copiedDynamic,
-  showDynamic,
-  setShowDynamic,
-  handleCopySnapshot,
-  handleCopyFullGuide,
-  handleCopyDynamicOnly,
-}: SetupTabWithPanningProps) {
-  const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
-  const [slideDirection, setSlideDirection] = useState<'left' | 'right' | 'up' | 'down' | null>(null);
-
-  const handlePanLeft = useCallback(() => {
-    if (currentSectionIndex < SETUP_SECTIONS.length - 1) {
-      setSlideDirection('left');
-      setCurrentSectionIndex(prev => prev + 1);
-      setTimeout(() => setSlideDirection(null), 300);
-    }
-  }, [currentSectionIndex]);
-
-  const handlePanRight = useCallback(() => {
-    if (currentSectionIndex > 0) {
-      setSlideDirection('right');
-      setCurrentSectionIndex(prev => prev - 1);
-      setTimeout(() => setSlideDirection(null), 300);
-    }
-  }, [currentSectionIndex]);
-
-  // Up/Down for vertical navigation between sections
-  const handlePanUp = useCallback(() => {
-    if (currentSectionIndex < SETUP_SECTIONS.length - 1) {
-      setSlideDirection('up');
-      setCurrentSectionIndex(prev => prev + 1);
-      setTimeout(() => setSlideDirection(null), 300);
-    }
-  }, [currentSectionIndex]);
-
-  const handlePanDown = useCallback(() => {
-    if (currentSectionIndex > 0) {
-      setSlideDirection('down');
-      setCurrentSectionIndex(prev => prev - 1);
-      setTimeout(() => setSlideDirection(null), 300);
-    }
-  }, [currentSectionIndex]);
-
-  const { handlers: panHandlers, panOffset, panning } = usePan(
-    {
-      onPanLeft: handlePanLeft,
-      onPanRight: handlePanRight,
-      onPanUp: handlePanUp,
-      onPanDown: handlePanDown,
-    },
-    { threshold: 60, velocityThreshold: 0.4 }
-  );
-
-  const currentSection = SETUP_SECTIONS[currentSectionIndex];
-
-  const renderSectionContent = () => {
-    switch (currentSection.id) {
-      case 'sync':
-        return (
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-cinzel font-semibold text-base">AI GM Sync</h3>
-              <p className="text-xs text-muted-foreground">
-                Copy your character data to sync with your AI Dungeon Master
-              </p>
-            </div>
-
-            {hasDynamicData && (
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={handleCopySnapshot}
-                className={cn(
-                  "w-full gap-2 border-2 h-14",
-                  copiedSnapshot 
-                    ? "border-green-500/50 bg-green-500/10 text-green-400" 
-                    : "border-amber-500/50 bg-amber-500/5 hover:bg-amber-500/10 text-amber-400"
-                )}
-              >
-                {copiedSnapshot ? (
-                  <>
-                    <Check className="w-5 h-5" />
-                    Snapshot Copied!
-                  </>
-                ) : (
-                  <>
-                    <Camera className="w-5 h-5" />
-                    Generate State Summary
-                  </>
-                )}
-              </Button>
-            )}
-
-            <div className="flex gap-2">
-              <Button
-                variant="default"
-                onClick={handleCopyFullGuide}
-                className="gap-2 flex-1 h-12"
-              >
-                {copiedStatic ? (
-                  <>
-                    <Check className="w-4 h-4 text-green-300" />
-                    Copied!
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-4 h-4" />
-                    Full Guide
-                  </>
-                )}
-              </Button>
-              
-              {hasDynamicData && (
-                <Button
-                  variant="outline"
-                  onClick={handleCopyDynamicOnly}
-                  className="gap-2 flex-1 h-12"
-                >
-                  {copiedDynamic ? (
-                    <>
-                      <Check className="w-4 h-4 text-green-500" />
-                      Copied!
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="w-4 h-4" />
-                      Build Only
-                    </>
-                  )}
-                </Button>
-              )}
-            </div>
-          </div>
-        );
-
-      case 'prompts':
-        return (
-          <div className="h-full flex flex-col">
-            <GMGuidePrompts className="flex-1" />
-          </div>
-        );
-
-      case 'preview':
-        return (
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-cinzel font-semibold text-base">Data Preview</h3>
-              <p className="text-xs text-muted-foreground">
-                Preview your character state before copying
-              </p>
-            </div>
-
-            {hasDynamicData && stateSummary && (
-              <div className="space-y-2">
-                <Badge variant="outline" className="text-xs bg-amber-500/10 border-amber-500/30 text-amber-400">
-                  📋 State Snapshot
-                </Badge>
-                <pre className="p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 text-xs font-mono whitespace-pre-wrap max-h-[45vh] overflow-y-auto leading-relaxed">
-                  {stateSummary}
-                </pre>
-              </div>
-            )}
-
-            {!hasDynamicData && (
-              <div className="text-center py-8 text-muted-foreground">
-                <p className="text-sm">No character data available</p>
-                <p className="text-xs mt-1">Configure your character to see the preview</p>
-              </div>
-            )}
-          </div>
-        );
-
-      case 'legacy':
-        return (
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-cinzel font-semibold text-base">Legacy View</h3>
-              <p className="text-xs text-muted-foreground">
-                Raw data views for advanced users
-              </p>
-            </div>
-
-            {hasDynamicData && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={showDynamic ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setShowDynamic(true)}
-                  className="flex-1 h-9 text-xs"
-                >
-                  Current Build
-                </Button>
-                <Button
-                  variant={!showDynamic ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setShowDynamic(false)}
-                  className="flex-1 h-9 text-xs"
-                >
-                  System Rules
-                </Button>
-              </div>
-            )}
-
-            {showDynamic && hasDynamicData && (
-              <div className="space-y-2">
-                <Badge variant="outline" className="text-xs bg-primary/10 border-primary/30 text-primary">
-                  Live Character Data
-                </Badge>
-                <pre className="p-3 rounded-lg border border-primary/30 bg-primary/5 text-xs font-mono whitespace-pre-wrap max-h-[40vh] overflow-y-auto leading-relaxed">
-                  {dynamicGuide}
-                </pre>
-              </div>
-            )}
-
-            {(!showDynamic || !hasDynamicData) && (
-              <div className="space-y-2">
-                <Badge variant="outline" className="text-xs">
-                  System Reference (Full)
-                </Badge>
-                <pre className="p-3 rounded-lg border border-border/50 bg-muted/30 text-xs font-mono whitespace-pre-wrap max-h-[40vh] overflow-y-auto leading-relaxed">
-                  {fullGuide}
-                </pre>
-              </div>
-            )}
-          </div>
-        );
-    }
-  };
-
-  return (
-    <div className="flex flex-col h-full max-h-[70vh]">
-      {/* Section Navigation Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-border/30 shrink-0">
-        <button
-          onClick={handlePanRight}
-          disabled={currentSectionIndex === 0}
-          className={cn(
-            "p-2 rounded-lg transition-all",
-            currentSectionIndex === 0 
-              ? "opacity-30 cursor-not-allowed" 
-              : "hover:bg-primary/10 active:scale-95"
-          )}
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-        
-        <div className="flex-1 text-center">
-          <div className="flex items-center justify-center gap-2">
-            <span className="text-lg">{currentSection.icon}</span>
-            <h3 className="font-cinzel font-semibold text-sm">{currentSection.label}</h3>
-          </div>
-          <p className="text-[10px] text-muted-foreground mt-0.5">
-            Section {currentSectionIndex + 1} of {SETUP_SECTIONS.length}
-          </p>
-        </div>
-        
-        <button
-          onClick={handlePanLeft}
-          disabled={currentSectionIndex >= SETUP_SECTIONS.length - 1}
-          className={cn(
-            "p-2 rounded-lg transition-all",
-            currentSectionIndex >= SETUP_SECTIONS.length - 1
-              ? "opacity-30 cursor-not-allowed" 
-              : "hover:bg-primary/10 active:scale-95"
-          )}
-        >
-          <ChevronRight className="w-5 h-5" />
-        </button>
-      </div>
-
-      {/* Vertical Navigation Indicators */}
-      <div className="flex justify-center py-2 shrink-0">
-        <button
-          onClick={handlePanDown}
-          disabled={currentSectionIndex === 0}
-          className={cn(
-            "p-1 rounded-lg transition-all",
-            currentSectionIndex > 0 
-              ? "opacity-100 hover:bg-primary/10 active:scale-95" 
-              : "opacity-30 cursor-not-allowed"
-          )}
-        >
-          <ChevronUp className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Pannable Content Area */}
-      <div 
-        {...panHandlers}
-        className={cn(
-          "flex-1 overflow-y-auto transition-all duration-300",
-          panning && "transition-none"
-        )}
-        style={{
-          transform: `translate(${panOffset.x}px, ${panOffset.y}px)`,
-        }}
-      >
-        <div className={cn(
-          "pb-6 transition-all duration-300",
-          slideDirection === 'left' && "animate-slide-left",
-          slideDirection === 'right' && "animate-slide-right",
-          slideDirection === 'up' && "animate-slide-up",
-          slideDirection === 'down' && "animate-slide-down",
-        )}>
-          {renderSectionContent()}
-        </div>
-      </div>
-
-      {/* Down Navigation Indicator */}
-      <div className="flex justify-center py-2 shrink-0">
-        <button
-          onClick={handlePanUp}
-          disabled={currentSectionIndex >= SETUP_SECTIONS.length - 1}
-          className={cn(
-            "p-1 rounded-lg transition-all",
-            currentSectionIndex < SETUP_SECTIONS.length - 1
-              ? "opacity-100 hover:bg-primary/10 active:scale-95" 
-              : "opacity-30 cursor-not-allowed"
-          )}
-        >
-          <ChevronDown className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Section Dots */}
-      <div className="flex justify-center gap-1.5 pb-2 shrink-0">
-        {SETUP_SECTIONS.map((section, idx) => (
-          <button
-            key={section.id}
-            onClick={() => {
-              setSlideDirection(idx > currentSectionIndex ? 'left' : 'right');
-              setCurrentSectionIndex(idx);
-              setTimeout(() => setSlideDirection(null), 300);
-            }}
-            className={cn(
-              "w-2 h-2 rounded-full transition-all",
-              idx === currentSectionIndex 
-                ? "bg-primary scale-125" 
-                : "bg-muted-foreground/30 hover:bg-muted-foreground/50"
-            )}
-            title={section.label}
-          />
-        ))}
-      </div>
-
-      <p className="text-[10px] text-muted-foreground text-center pb-2 shrink-0">
-        💡 Swipe or use arrows to navigate sections
-      </p>
-    </div>
-  );
-}
 
 interface SettingsContentProps {
   activeTab: SettingsTab;
@@ -750,23 +364,161 @@ export function SettingsContent({
     );
   }
 
-  // Setup Tab - With 4-directional panning
+  // Setup Tab - Simple scrollable version
   if (activeTab === 'setup') {
     return (
-      <SetupTabWithPanning
-        hasDynamicData={hasDynamicData}
-        stateSummary={stateSummary}
-        dynamicGuide={dynamicGuide}
-        fullGuide={fullGuide}
-        copiedSnapshot={copiedSnapshot}
-        copiedStatic={copiedStatic}
-        copiedDynamic={copiedDynamic}
-        showDynamic={showDynamic}
-        setShowDynamic={setShowDynamic}
-        handleCopySnapshot={handleCopySnapshot}
-        handleCopyFullGuide={handleCopyFullGuide}
-        handleCopyDynamicOnly={handleCopyDynamicOnly}
-      />
+      <div className="flex-1 overflow-y-auto max-h-[70vh]">
+        <div className="space-y-4 pb-6">
+        <div>
+          <h3 className="font-cinzel font-semibold text-base">AI GM Sync</h3>
+          <p className="text-xs text-muted-foreground">
+            Copy your character data to sync with your AI Dungeon Master
+          </p>
+        </div>
+
+        {/* State Snapshot Button - Prominent */}
+        {hasDynamicData && (
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={handleCopySnapshot}
+            className={cn(
+              "w-full gap-2 border-2 h-14",
+              copiedSnapshot 
+                ? "border-green-500/50 bg-green-500/10 text-green-400" 
+                : "border-amber-500/50 bg-amber-500/5 hover:bg-amber-500/10 text-amber-400"
+            )}
+          >
+            {copiedSnapshot ? (
+              <>
+                <Check className="w-5 h-5" />
+                Snapshot Copied!
+              </>
+            ) : (
+              <>
+                <Camera className="w-5 h-5" />
+                Generate State Summary
+              </>
+            )}
+          </Button>
+        )}
+
+        {/* Copy Buttons for Full/Build Only */}
+        <div className="flex gap-2">
+          <Button
+            variant="default"
+            onClick={handleCopyFullGuide}
+            className="gap-2 flex-1 h-12"
+          >
+            {copiedStatic ? (
+              <>
+                <Check className="w-4 h-4 text-green-300" />
+                Copied!
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4" />
+                Full Guide
+              </>
+            )}
+          </Button>
+          
+          {hasDynamicData && (
+            <Button
+              variant="outline"
+              onClick={handleCopyDynamicOnly}
+              className="gap-2 flex-1 h-12"
+            >
+              {copiedDynamic ? (
+                <>
+                  <Check className="w-4 h-4 text-green-500" />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4" />
+                  Build Only
+                </>
+              )}
+            </Button>
+          )}
+        </div>
+
+        {/* Snapshot Preview */}
+        {hasDynamicData && stateSummary && (
+          <div className="space-y-2">
+            <Badge variant="outline" className="text-xs bg-amber-500/10 border-amber-500/30 text-amber-400">
+              📋 State Snapshot Preview
+            </Badge>
+            <pre className="p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 text-xs font-mono whitespace-pre-wrap max-h-[25vh] overflow-y-auto leading-relaxed">
+              {stateSummary}
+            </pre>
+          </div>
+        )}
+
+        <Separator className="bg-border/30" />
+
+        {/* Modular GM Guide Prompts */}
+        <GMGuidePrompts />
+
+        <Separator className="bg-border/30" />
+
+        {/* Toggle between dynamic and static (legacy view) */}
+        {hasDynamicData && (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground font-medium">Legacy View</p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant={showDynamic ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setShowDynamic(true)}
+                className="flex-1 h-9 text-xs"
+              >
+                Current Build
+              </Button>
+              <Button
+                variant={!showDynamic ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setShowDynamic(false)}
+                className="flex-1 h-9 text-xs"
+              >
+                System Rules
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Dynamic Build Section */}
+        {showDynamic && hasDynamicData && (
+          <div className="space-y-2">
+            <Badge variant="outline" className="text-xs bg-primary/10 border-primary/30 text-primary">
+              Live Character Data
+            </Badge>
+            <pre className="p-3 rounded-lg border border-primary/30 bg-primary/5 text-xs font-mono whitespace-pre-wrap max-h-[25vh] overflow-y-auto leading-relaxed">
+              {dynamicGuide}
+            </pre>
+          </div>
+        )}
+
+        {/* Static System Rules Section */}
+        {(!showDynamic || !hasDynamicData) && (
+          <div className="space-y-2">
+            <Badge variant="outline" className="text-xs">
+              System Reference (Full)
+            </Badge>
+            <pre className="p-3 rounded-lg border border-border/50 bg-muted/30 text-xs font-mono whitespace-pre-wrap max-h-[25vh] overflow-y-auto leading-relaxed">
+              {fullGuide}
+            </pre>
+          </div>
+        )}
+
+        <p className="text-xs text-muted-foreground text-center">
+          {hasDynamicData 
+            ? '💡 Use modular prompts above for selective AI DM integration'
+            : '💡 Configure your character to enable build snapshots'}
+        </p>
+        </div>
+      </div>
     );
   }
 
