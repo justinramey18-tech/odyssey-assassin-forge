@@ -38,6 +38,7 @@ import { CharacterEquipment, EquipmentSlotType } from '@/lib/inventory/types';
 import { getEquippedWeapons, convertToWeaponAttack } from '@/lib/combat/weaponConverter';
 import { Reaction, DEFAULT_REACTIONS, REACTIONS_STORAGE_KEY } from '@/lib/combat/reactions';
 import { useEquipmentImages } from '@/hooks/use-equipment-images';
+import { useAbilityImages } from '@/hooks/use-ability-images';
 
 // Tab order for swipe navigation
 const TAB_ORDER: CombatTab[] = ['attacks', 'stealth', 'abilities', 'reactions', 'spells', 'items', 'summary'];
@@ -116,6 +117,9 @@ export function MobileCombatLayout({ character, spellcasting, equipment, onNavig
   
   // Equipment custom images for weapon cards
   const { images: equipmentImages } = useEquipmentImages();
+  
+  // Ability custom images for ability cards
+  const { images: abilityImages } = useAbilityImages();
   // Cooldown system integration
   const cooldownSystem = useCooldowns({
     characterAbilities: character.abilities,
@@ -474,6 +478,7 @@ export function MobileCombatLayout({ character, spellcasting, equipment, onNavig
             characterName={character.name}
             weapons={weaponsMap}
             cooldownState={cooldownStateMap}
+            abilityImages={abilityImages}
             onUseAbility={handleEnhancedAbilityUse}
             onTriggerCooldown={cooldownSystem.triggerCooldown}
             emptyMessage="No stealth abilities unlocked"
@@ -487,6 +492,7 @@ export function MobileCombatLayout({ character, spellcasting, equipment, onNavig
             characterName={character.name}
             weapons={weaponsMap}
             cooldownState={cooldownStateMap}
+            abilityImages={abilityImages}
             onUseAbility={handleEnhancedAbilityUse}
             onTriggerCooldown={cooldownSystem.triggerCooldown}
             emptyMessage="No special abilities unlocked"

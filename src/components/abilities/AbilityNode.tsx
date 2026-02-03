@@ -11,6 +11,7 @@ interface AbilityNodeProps {
   isAccessible: boolean;  // AC Odyssey style: true if parent(s) unlocked or foundation
   isSelected: boolean;
   isMobile: boolean;
+  customImage?: string | null;
   onSelect: () => void;
 }
 
@@ -34,6 +35,7 @@ export function AbilityNode({
   isAccessible,
   isSelected,
   isMobile,
+  customImage,
   onSelect,
 }: AbilityNodeProps) {
   const treeConfig = TREE_VISUAL_CONFIG[ability.tree];
@@ -179,16 +181,24 @@ export function AbilityNode({
         />
       )}
 
-      {/* Icon */}
-      <IconComponent 
-        className={cn(
-          'relative z-10 transition-colors',
-          isMobile ? 'w-7 h-7' : 'w-9 h-9',
-          (!isAccessible && currentTier === 0) && 'text-muted-foreground',
-          currentTier > 0 && `text-${treeConfig.primary}`,
-          currentTier === 3 && 'text-yellow-400'
-        )}
-      />
+      {/* Custom Image or Icon */}
+      {customImage ? (
+        <img
+          src={customImage}
+          alt={ability.name}
+          className="absolute inset-0 w-full h-full rounded-full object-cover z-10"
+        />
+      ) : (
+        <IconComponent 
+          className={cn(
+            'relative z-10 transition-colors',
+            isMobile ? 'w-7 h-7' : 'w-9 h-9',
+            (!isAccessible && currentTier === 0) && 'text-muted-foreground',
+            currentTier > 0 && `text-${treeConfig.primary}`,
+            currentTier === 3 && 'text-yellow-400'
+          )}
+        />
+      )}
 
       {/* Tier badge - positioned inside at top-right */}
       {currentTier > 0 && (

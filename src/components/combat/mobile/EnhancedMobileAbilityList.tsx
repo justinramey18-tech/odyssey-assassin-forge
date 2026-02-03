@@ -28,6 +28,7 @@ interface EnhancedMobileAbilityListProps {
     remaining: number;
     total: number;
   }>;
+  abilityImages?: Record<string, string>;
   onUseAbility: (
     ability: Ability & { tier: 1 | 2 | 3 },
     roll: DiceRoll,
@@ -44,6 +45,7 @@ export function EnhancedMobileAbilityList({
   characterName,
   weapons,
   cooldownState,
+  abilityImages = {},
   onUseAbility,
   onTriggerCooldown,
   emptyMessage = "No abilities unlocked",
@@ -210,6 +212,7 @@ export function EnhancedMobileAbilityList({
                   remaining: cdState.remaining,
                   total: cdState.total,
                 } : undefined}
+                customImage={abilityImages[ability.id]}
                 onUse={onUseAbility}
                 onTriggerCooldown={onTriggerCooldown}
               />

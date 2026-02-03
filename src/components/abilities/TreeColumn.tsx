@@ -16,6 +16,7 @@ interface TreeColumnProps {
   selectedAbilityId: string | null;
   isMobile: boolean;
   pointsInvested: number;
+  abilityImages?: Record<string, string>;
   onSelectAbility: (id: string) => void;
 }
 
@@ -26,6 +27,7 @@ export function TreeColumn({
   selectedAbilityId,
   isMobile,
   pointsInvested,
+  abilityImages = {},
   onSelectAbility,
 }: TreeColumnProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -146,6 +148,7 @@ export function TreeColumn({
                 isAccessible={accessibility.isAccessible}
                 isSelected={selectedAbilityId === abilityId}
                 isMobile={isMobile}
+                customImage={abilityImages[abilityId]}
                 onSelect={() => onSelectAbility(abilityId)}
               />
               

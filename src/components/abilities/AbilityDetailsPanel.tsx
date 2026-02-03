@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Ability, AbilityTree, getActiveSlotsByLevel } from '@/lib/types';
 import { TREE_VISUAL_CONFIG } from '@/lib/abilityTrees/colors';
 import { allAbilities, getAbilityById } from '@/lib/abilities';
@@ -8,7 +8,8 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import * as LucideIcons from 'lucide-react';
-import { Lock, Zap, Clock, RotateCcw, Shield, Sparkles, AlertTriangle } from 'lucide-react';
+import { Lock, Zap, Clock, RotateCcw, Shield, Sparkles, AlertTriangle, ImagePlus, Trash2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface AbilityDetailsPanelProps {
   ability: Ability | null;
@@ -18,6 +19,9 @@ interface AbilityDetailsPanelProps {
   availablePoints: number;
   prerequisiteMet: boolean;
   equippedSlots: string[];
+  customImage?: string | null;
+  onImageUpload?: (file: File) => Promise<void>;
+  onImageClear?: () => void;
   onUpgrade: () => void;
   onDowngrade: () => void;
   onEquip: (slot: number) => void;
@@ -63,6 +67,9 @@ export function AbilityDetailsPanel({
   availablePoints,
   prerequisiteMet,
   equippedSlots,
+  customImage,
+  onImageUpload,
+  onImageClear,
   onUpgrade,
   onDowngrade,
   onEquip,
@@ -70,6 +77,9 @@ export function AbilityDetailsPanel({
   isMobile,
 }: AbilityDetailsPanelProps) {
   const [showConfirm, setShowConfirm] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   if (!ability) {
     return (
@@ -125,24 +135,96 @@ export function AbilityDetailsPanel({
     }
   };
 
+  const handleImageClick = () => {
+    if (customImage) {
+      // Show clear option when image exists
+      onImageClear?.();
+    } else {
+      // Open file picker when no image
+      fileInputRef.current?.click();
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !onImageUpload) return;
+    
+    try {
+      await onImageUpload(file);
+      toast({
+        title: "Image uploaded",
+        description: `Custom image set for ${ability.name}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Upload failed",
+        description: error instanceof Error ? error.message : "Failed to upload image",
+        variant: "destructive",
+      });
+    }
+    
+    // Reset input so the same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className={cn(
       'flex flex-col gap-4',
       isMobile ? 'p-4' : 'p-6'
     )}>
+      {/* Hidden file input for image upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+
       {/* Header */}
       <div className="flex items-start gap-4">
-        <div className={cn(
-          'rounded-full flex items-center justify-center shrink-0',
-          `bg-${treeConfig.primary}/20`,
-          isMobile ? 'w-14 h-14' : 'w-16 h-16'
-        )}>
-          <IconComponent className={cn(
-            'text-current',
-            `text-${treeConfig.primary}`,
-            isMobile ? 'w-7 h-7' : 'w-8 h-8'
-          )} />
-        </div>
+        <button
+          onClick={handleImageClick}
+          onMouseEnter={() => setIsHovering(true)}
+          onMouseLeave={() => setIsHovering(false)}
+          className={cn(
+            'rounded-full flex items-center justify-center shrink-0 relative overflow-hidden cursor-pointer transition-all',
+            `bg-${treeConfig.primary}/20`,
+            isMobile ? 'w-14 h-14' : 'w-16 h-16',
+            'hover:ring-2 hover:ring-primary/50'
+          )}
+        >
+          {customImage ? (
+            <>
+              <img
+                src={customImage}
+                alt={ability.name}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+              {isHovering && (
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                  <Trash2 className="w-5 h-5 text-red-400" />
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <IconComponent className={cn(
+                'text-current',
+                `text-${treeConfig.primary}`,
+                isMobile ? 'w-7 h-7' : 'w-8 h-8',
+                isHovering && 'opacity-30'
+              )} />
+              {isHovering && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <ImagePlus className={cn('w-5 h-5', `text-${treeConfig.primary}`)} />
+                </div>
+              )}
+            </>
+          )}
+        </button>
         <div className="flex-1 min-w-0">
           <h2 className={cn(
             'font-bold truncate',

@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useSwipe } from '@/hooks/use-swipe';
+import { useAbilityImages } from '@/hooks/use-ability-images';
 import { cn } from '@/lib/utils';
 import { ArrowLeft } from 'lucide-react';
 
@@ -39,6 +40,9 @@ export function AbilitiesScreen({
   const [selectedTree, setSelectedTree] = useState<AbilityTree>('hunter');
   const [selectedAbility, setSelectedAbility] = useState<string | null>(null);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
+  
+  // Custom ability images hook
+  const { images: abilityImages, handleImageUpload, clearAbilityImage } = useAbilityImages();
   
   // Refs for auto-scroll to bottom (Foundation nodes)
   const mobileScrollRef = useRef<HTMLDivElement>(null);
@@ -147,6 +151,20 @@ export function AbilitiesScreen({
       onEquipAbility(selectedAbility, slot);
     }
   };
+  
+  // Handle image upload for selected ability
+  const handleSelectedAbilityImageUpload = useCallback(async (file: File) => {
+    if (selectedAbility) {
+      await handleImageUpload(selectedAbility, file);
+    }
+  }, [selectedAbility, handleImageUpload]);
+  
+  // Handle image clear for selected ability
+  const handleSelectedAbilityImageClear = useCallback(() => {
+    if (selectedAbility) {
+      clearAbilityImage(selectedAbility);
+    }
+  }, [selectedAbility, clearAbilityImage]);
 
   return (
     <div className="flex flex-col h-full min-h-screen bg-background">
@@ -203,6 +221,7 @@ export function AbilitiesScreen({
                   selectedAbilityId={selectedAbility}
                   isMobile={true}
                   pointsInvested={pointsByTree[selectedTree]}
+                  abilityImages={abilityImages}
                   onSelectAbility={setSelectedAbility}
                 />
               </ScrollArea>
@@ -230,6 +249,7 @@ export function AbilitiesScreen({
                     selectedAbilityId={selectedAbility}
                     isMobile={false}
                     pointsInvested={pointsByTree[tree]}
+                    abilityImages={abilityImages}
                     onSelectAbility={setSelectedAbility}
                   />
                 </ScrollArea>
@@ -247,6 +267,9 @@ export function AbilitiesScreen({
                 availablePoints={availablePoints}
                 prerequisiteMet={prerequisiteMet}
                 equippedSlots={character.equippedAbilities}
+                customImage={selectedAbility ? abilityImages[selectedAbility] : null}
+                onImageUpload={handleSelectedAbilityImageUpload}
+                onImageClear={handleSelectedAbilityImageClear}
                 onUpgrade={handleUpgrade}
                 onDowngrade={handleDowngrade}
                 onEquip={handleEquip}
@@ -281,6 +304,9 @@ export function AbilitiesScreen({
               availablePoints={availablePoints}
               prerequisiteMet={prerequisiteMet}
               equippedSlots={character.equippedAbilities}
+              customImage={selectedAbility ? abilityImages[selectedAbility] : null}
+              onImageUpload={handleSelectedAbilityImageUpload}
+              onImageClear={handleSelectedAbilityImageClear}
               onUpgrade={handleUpgrade}
               onDowngrade={handleDowngrade}
               onEquip={handleEquip}
