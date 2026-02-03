@@ -88,40 +88,42 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
           </Button>
         </div>
 
-        {/* Category Filter - Horizontal scroll on mobile */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
-          <Button
-            variant={activeCategory === 'all' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setActiveCategory('all')}
-            className={cn(
-              "h-7 text-xs px-2.5 shrink-0",
-              activeCategory === 'all' 
-                ? "bg-primary text-primary-foreground" 
-                : "hover:bg-muted"
-            )}
-          >
-            <Filter className="w-3 h-3 mr-1" />
-            All
-          </Button>
-          {PROMPT_CATEGORIES.map((cat) => (
+        {/* Category Filter - Horizontal scroll */}
+        <ScrollArea className="w-full whitespace-nowrap">
+          <div className="flex gap-1.5 pb-2 px-0.5">
             <Button
-              key={cat.id}
-              variant={activeCategory === cat.id ? 'default' : 'ghost'}
+              variant={activeCategory === 'all' ? 'default' : 'ghost'}
               size="sm"
-              onClick={() => setActiveCategory(cat.id)}
+              onClick={() => setActiveCategory('all')}
               className={cn(
                 "h-7 text-xs px-2.5 shrink-0",
-                activeCategory === cat.id 
+                activeCategory === 'all' 
                   ? "bg-primary text-primary-foreground" 
                   : "hover:bg-muted"
               )}
             >
-              <span className="mr-1">{cat.icon}</span>
-              {cat.label}
+              <Filter className="w-3 h-3 mr-1" />
+              All
             </Button>
-          ))}
-        </div>
+            {PROMPT_CATEGORIES.map((cat) => (
+              <Button
+                key={cat.id}
+                variant={activeCategory === cat.id ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setActiveCategory(cat.id)}
+                className={cn(
+                  "h-7 text-xs px-2.5 shrink-0",
+                  activeCategory === cat.id 
+                    ? "bg-primary text-primary-foreground" 
+                    : "hover:bg-muted"
+                )}
+              >
+                <span className="mr-1">{cat.icon}</span>
+                {cat.label}
+              </Button>
+            ))}
+          </div>
+        </ScrollArea>
       </div>
 
       {/* Prompt List - Mobile optimized cards */}
