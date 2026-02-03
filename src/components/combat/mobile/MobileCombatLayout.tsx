@@ -364,6 +364,26 @@ export function MobileCombatLayout({ character, spellcasting, equipment, onNavig
     }
   }, [turnActions]);
   
+  // Remove action by description (for undo from items)
+  const handleRemoveActionByDescription = useCallback((description: string) => {
+    setTurnActions(prev => {
+      const index = prev.findIndex(a => a.description === description);
+      if (index === -1) return prev;
+      
+      const action = prev[index];
+      
+      // Update action economy
+      setActionEconomy(prevEcon => ({
+        ...prevEcon,
+        actionUsed: action.type === 'action' ? false : prevEcon.actionUsed,
+        bonusActionUsed: action.type === 'bonus' ? false : prevEcon.bonusActionUsed,
+        reactionUsed: action.type === 'reaction' ? false : prevEcon.reactionUsed,
+      }));
+      
+      return prev.filter((_, i) => i !== index);
+    });
+  }, []);
+  
   // FAB actions
   const handleQuickRoll = () => {
     const roll = rollDice('d20', 1);
@@ -505,6 +525,7 @@ export function MobileCombatLayout({ character, spellcasting, equipment, onNavig
         return (
           <MobileItemsGrid
             onAddToTurn={handleAddToTurn}
+            onRemoveFromTurn={handleRemoveActionByDescription}
             onNavigateToConsumables={onNavigateToConsumables}
           />
         );
