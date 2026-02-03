@@ -34,6 +34,7 @@ interface AbilityTabsProps {
   conditions: string[];
   attackBonus: number;
   damageBonus: number;
+  equippedWeapons?: WeaponAttack[];
   onAbilityUse: (ability: Ability, tier: 1 | 2 | 3, roll: DiceRoll, prompt: string) => void;
   onWeaponRoll: (
     rollType: 'normal' | 'sneak' | 'assassinate',
@@ -49,6 +50,7 @@ export function AbilityTabs({
   conditions,
   attackBonus,
   damageBonus,
+  equippedWeapons,
   onAbilityUse,
   onWeaponRoll,
   onAddToTurn,
@@ -59,6 +61,9 @@ export function AbilityTabs({
 
   const sneakAttackDice = getSneakAttackDice(character.level);
   const hasPoisonedWeapon = conditions.includes('poisonedWeapon');
+  
+  // Use equipped weapons from gear, fallback to defaults
+  const weapons = equippedWeapons && equippedWeapons.length > 0 ? equippedWeapons : DEFAULT_WEAPONS;
 
   // Get unlocked abilities
   const unlockedAbilities = character.abilities
@@ -165,9 +170,9 @@ export function AbilityTabs({
             </p>
           </div>
 
-          {/* Weapon Cards */}
+          {/* Weapon Cards - From Equipped Gear */}
           <div className="space-y-2">
-            {DEFAULT_WEAPONS.map(weapon => (
+            {weapons.map(weapon => (
               <WeaponCard
                 key={weapon.id}
                 weapon={weapon}
@@ -179,6 +184,14 @@ export function AbilityTabs({
                 onRoll={onWeaponRoll}
               />
             ))}
+            {weapons.length === 0 && (
+              <div className="text-center py-4 text-muted-foreground text-sm font-mono">
+                NO WEAPONS EQUIPPED
+                <div className="text-[10px] mt-1 text-red-400">
+                  "Maybe equip something in the Gear tab, genius."
+                </div>
+              </div>
+            )}
           </div>
         </TabsContent>
 
