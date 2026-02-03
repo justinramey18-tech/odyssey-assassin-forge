@@ -230,20 +230,60 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
               </div>
             </div>
             
-            <div className="flex items-center gap-4">
-              <Label htmlFor="narrativeStyle" className="text-sm shrink-0">Narrative Style:</Label>
+            <div className="space-y-2">
+              <Label htmlFor="narrativeStyle" className="text-sm">Narrative Style:</Label>
               <Select 
                 value={options.narrativeStyle} 
                 onValueChange={(v) => setOptions(prev => ({ ...prev, narrativeStyle: v as ProcessingOptions['narrativeStyle'] }))}
               >
-                <SelectTrigger id="narrativeStyle" className="w-40">
+                <SelectTrigger id="narrativeStyle" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="fantasy">Fantasy</SelectItem>
-                  <SelectItem value="noir">Noir</SelectItem>
-                  <SelectItem value="literary">Literary</SelectItem>
-                  <SelectItem value="action">Action</SelectItem>
+                  <SelectItem value="fantasy">
+                    <span className="font-medium">Fantasy</span>
+                    <span className="text-xs text-muted-foreground ml-2">— Epic high fantasy prose</span>
+                  </SelectItem>
+                  <SelectItem value="noir">
+                    <span className="font-medium">Noir</span>
+                    <span className="text-xs text-muted-foreground ml-2">— Dark, gritty detective style</span>
+                  </SelectItem>
+                  <SelectItem value="literary">
+                    <span className="font-medium">Literary</span>
+                    <span className="text-xs text-muted-foreground ml-2">— Elegant, refined prose</span>
+                  </SelectItem>
+                  <SelectItem value="action">
+                    <span className="font-medium">Action</span>
+                    <span className="text-xs text-muted-foreground ml-2">— Fast-paced, punchy writing</span>
+                  </SelectItem>
+                  <SelectItem value="salvatore">
+                    <span className="font-medium">R.A. Salvatore</span>
+                    <span className="text-xs text-muted-foreground ml-2">— Warrior poetry & named blade techniques</span>
+                  </SelectItem>
+                  <SelectItem value="deadpool">
+                    <span className="font-medium">Deadpool</span>
+                    <span className="text-xs text-muted-foreground ml-2">— Fourth-wall-breaking meta chaos</span>
+                  </SelectItem>
+                  <SelectItem value="dark_comedy">
+                    <span className="font-medium">Dark Comedy</span>
+                    <span className="text-xs text-muted-foreground ml-2">— Gallows humor & sardonic wit</span>
+                  </SelectItem>
+                  <SelectItem value="subtle_absurdity">
+                    <span className="font-medium">Subtle Absurdity</span>
+                    <span className="text-xs text-muted-foreground ml-2">— Kafkaesque deadpan surrealism</span>
+                  </SelectItem>
+                  <SelectItem value="lovecraftian">
+                    <span className="font-medium">Lovecraftian Horror</span>
+                    <span className="text-xs text-muted-foreground ml-2">— Cosmic dread & sanity erosion</span>
+                  </SelectItem>
+                  <SelectItem value="gonzo">
+                    <span className="font-medium">Gonzo Journalism</span>
+                    <span className="text-xs text-muted-foreground ml-2">— Hunter S. Thompson's savage reporting</span>
+                  </SelectItem>
+                  <SelectItem value="hemingway">
+                    <span className="font-medium">Hemingway Minimalist</span>
+                    <span className="text-xs text-muted-foreground ml-2">— Brutal efficiency, short sentences</span>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>

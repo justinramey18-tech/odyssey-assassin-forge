@@ -1,12 +1,25 @@
 // Offline logic-based TTRPG text processor
 // Transforms game chat history into prose narrative without AI
 
+export type NarrativeStyle = 
+  | 'fantasy' 
+  | 'noir' 
+  | 'literary' 
+  | 'action'
+  | 'salvatore'
+  | 'deadpool'
+  | 'dark_comedy'
+  | 'subtle_absurdity'
+  | 'lovecraftian'
+  | 'gonzo'
+  | 'hemingway';
+
 export interface ProcessingOptions {
   removeRolls: boolean;
   removeStats: boolean;
   removeMechanics: boolean;
   enhanceDescriptions: boolean;
-  narrativeStyle: 'fantasy' | 'noir' | 'literary' | 'action';
+  narrativeStyle: NarrativeStyle;
 }
 
 export const defaultProcessingOptions: ProcessingOptions = {
@@ -103,6 +116,76 @@ const styleEnhancements: Record<string, Record<string, string>> = {
     'casts a spell': 'unleashes raw power',
     'moves': 'bursts into motion',
     'searches': 'scans the area',
+  },
+  salvatore: {
+    'attacks': 'weaves the Hunter\'s dance',
+    'hits': 'the blade bites deep, a silver kiss of death',
+    'misses': 'the feint fails—a lesson learned in blood',
+    'deals damage': 'finds the gap in the guard with deadly precision',
+    'takes damage': 'staggers but remains standing, warrior\'s pride unbroken',
+    'casts a spell': 'calls upon ancient pact, the forest answering',
+    'moves': 'flows like water between stones',
+    'searches': 'reads the shadows as only a ranger can',
+  },
+  deadpool: {
+    'attacks': 'goes full murder-hobo (it\'s in the job description)',
+    'hits': '*THWACK!* (That\'s gonna need a montage to heal)',
+    'misses': 'whiffs harder than my last movie—wait, which timeline is this?',
+    'deals damage': 'delivers some good old-fashioned violence (FX budget: $12)',
+    'takes damage': 'gets stabbed again (on brand, honestly)',
+    'casts a spell': 'does the sparkly-hands thing (nailed it)',
+    'moves': '*PARKOUR!* (narrator: they did not parkour)',
+    'searches': 'looks around for anything useful (or sharp)',
+  },
+  dark_comedy: {
+    'attacks': 'makes a decision that will haunt future therapy sessions',
+    'hits': 'succeeds in a way that will complicate everything later',
+    'misses': 'fails upward into a worse situation',
+    'deals damage': 'inflicts wounds that insurance won\'t cover',
+    'takes damage': 'experiences rapid career reassessment',
+    'casts a spell': 'tampers with forces that really should have a warning label',
+    'moves': 'shambles toward destiny with the confidence of the doomed',
+    'searches': 'looks for hope (finds disappointment)',
+  },
+  subtle_absurdity: {
+    'attacks': 'initiates standard violence protocol',
+    'hits': 'achieves the statistically expected perforation',
+    'misses': 'the sword declines to participate',
+    'deals damage': 'processes damage paperwork in triplicate',
+    'takes damage': 'experiences involuntary status change to "perforated"',
+    'casts a spell': 'submits Form 27-B: Arcane Manifestation Request',
+    'moves': 'relocates in accordance with spatial regulations',
+    'searches': 'audits the environment for irregularities',
+  },
+  lovecraftian: {
+    'attacks': 'strikes at that which should not be struck',
+    'hits': 'the blade finds purchase in geometry that *writhes*',
+    'misses': 'the weapon passes through angles the mind rejects',
+    'deals damage': 'wounds something that bleeds *wrongly*',
+    'takes damage': 'feels sanity fray at the edges',
+    'casts a spell': 'invokes syllables that corrode sanity itself',
+    'moves': 'traverses space in ways that *bend* understanding',
+    'searches': 'perceives that which mortals were not meant to see',
+  },
+  gonzo: {
+    'attacks': 'Jesus, here we go—pure savage instinct',
+    'hits': 'BAM! Right in the teeth, beautiful chaos',
+    'misses': 'swung like a maniac but the universe said no',
+    'deals damage': 'delivers a righteous beating',
+    'takes damage': 'takes a hit that\'ll make a great story later',
+    'casts a spell': 'pulls some weird wizard shit out of the bag',
+    'moves': 'hauled ass like the devil himself was on the clock',
+    'searches': 'scours the scene with paranoid intensity',
+  },
+  hemingway: {
+    'attacks': 'swung',
+    'hits': 'hit hard',
+    'misses': 'missed',
+    'deals damage': 'hurt them',
+    'takes damage': 'took the blow',
+    'casts a spell': 'cast the spell',
+    'moves': 'moved',
+    'searches': 'looked',
   },
 };
 
