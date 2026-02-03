@@ -1139,6 +1139,9 @@ const Index = () => {
                 characterLevel={character.level}
                 characterName={character.name}
                 spellcasting={spellcasting}
+                conModifier={abilityScores.getScoreBreakdown('constitution').modifier}
+                proficiencyBonus={spellcasting.state.proficiencyBonus}
+                isProficientInConSaves={false}
               />
             </BackgroundWrapper>
           )}

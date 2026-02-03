@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Wand2, Lock, Sparkles, BookOpen, Zap, Settings, Eye, X, RefreshCw } from 'lucide-react';
+import { Wand2, Lock, Sparkles, BookOpen, Zap, Settings, Eye, X, RefreshCw, Package } from 'lucide-react';
 import { MagicPath, PathConfig, SpellDefinition } from '@/lib/magic/types';
 import { PATH_LIST, getPathConfig } from '@/lib/magic/paths';
 import { getSpellById } from '@/lib/magic/spells';
@@ -12,6 +12,8 @@ import { SpellbookGrid } from './SpellbookGrid';
 import { SpellDetailsSheet } from './SpellDetailsSheet';
 import { SpellCastSheet } from './SpellCastSheet';
 import { SpellSlotTracker } from './SpellSlotTracker';
+import { MaterialComponentsPanel } from './MaterialComponentsPanel';
+import { ConcentrationCheckPanel } from './ConcentrationCheckPanel';
 
 // Background image
 import arcanaBackground from '@/assets/trees/arcana-wizards-mobile.jpg';
@@ -20,17 +22,36 @@ interface MagicScreenProps {
   characterLevel: number;
   characterName: string;
   spellcasting: UseSpellcastingReturn;
+  /** CON modifier for concentration checks */
+  conModifier?: number;
+  /** Proficiency bonus for saves */
+  proficiencyBonus?: number;
+  /** Whether proficient in CON saves */
+  isProficientInConSaves?: boolean;
 }
 
 export function MagicScreen({ 
   characterLevel, 
   characterName,
-  spellcasting 
+  spellcasting,
+  conModifier = 0,
+  proficiencyBonus = 2,
+  isProficientInConSaves = false,
 }: MagicScreenProps) {
-  const { state, hasPath, selectPath, clearPath, castSpell, breakConcentration } = spellcasting;
+  const { 
+    state, 
+    hasPath, 
+    selectPath, 
+    clearPath, 
+    castSpell, 
+    breakConcentration,
+    addComponent,
+    useComponent,
+    toggleFocus,
+  } = spellcasting;
   const [selectedSpell, setSelectedSpell] = useState<SpellDefinition | null>(null);
   const [castingSpell, setCastingSpell] = useState<SpellDefinition | null>(null);
-  const [activeTab, setActiveTab] = useState<'spellbook' | 'slots' | 'features'>('spellbook');
+  const [activeTab, setActiveTab] = useState<'spellbook' | 'slots' | 'components' | 'features'>('spellbook');
 
   // If no path selected, show path selection
   if (!hasPath) {
@@ -138,23 +159,16 @@ export function MagicScreen({
           </div>
         </div>
 
-        {/* Concentration Indicator */}
+        {/* Concentration Check Panel */}
         {concentrationSpell && (
-          <div className="mt-3 p-2 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Eye className="w-4 h-4 text-amber-400 animate-pulse" />
-              <span className="text-sm text-amber-200">
-                Concentrating: <span className="font-medium">{concentrationSpell.name}</span>
-              </span>
-            </div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-6 px-2 text-amber-400 hover:text-amber-300 hover:bg-amber-500/20"
-              onClick={breakConcentration}
-            >
-              <X className="w-4 h-4" />
-            </Button>
+          <div className="mt-3">
+            <ConcentrationCheckPanel
+              concentratingSpellName={concentrationSpell.name}
+              conModifier={conModifier}
+              proficiencyBonus={proficiencyBonus}
+              isProficientInConSaves={isProficientInConSaves}
+              onBreakConcentration={breakConcentration}
+            />
           </div>
         )}
 
@@ -170,27 +184,34 @@ export function MagicScreen({
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="relative z-10 flex-1">
-        <TabsList className="w-full justify-start rounded-none border-b border-white/10 bg-transparent p-0">
+        <TabsList className="w-full justify-start rounded-none border-b border-white/10 bg-transparent p-0 overflow-x-auto">
           <TabsTrigger 
             value="spellbook" 
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-500 data-[state=active]:bg-transparent"
           >
-            <BookOpen className="w-4 h-4 mr-2" />
-            Spellbook
+            <BookOpen className="w-4 h-4 mr-1" />
+            <span className="hidden sm:inline">Spellbook</span>
           </TabsTrigger>
           <TabsTrigger 
             value="slots"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-violet-500 data-[state=active]:bg-transparent"
           >
-            <Zap className="w-4 h-4 mr-2" />
-            Slots
+            <Zap className="w-4 h-4 mr-1" />
+            <span className="hidden sm:inline">Slots</span>
+          </TabsTrigger>
+          <TabsTrigger 
+            value="components"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-amber-500 data-[state=active]:bg-transparent"
+          >
+            <Package className="w-4 h-4 mr-1" />
+            <span className="hidden sm:inline">Components</span>
           </TabsTrigger>
           <TabsTrigger 
             value="features"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-purple-500 data-[state=active]:bg-transparent"
           >
-            <Settings className="w-4 h-4 mr-2" />
-            Features
+            <Settings className="w-4 h-4 mr-1" />
+            <span className="hidden sm:inline">Features</span>
           </TabsTrigger>
         </TabsList>
 
@@ -223,6 +244,18 @@ export function MagicScreen({
                 />
               </CardContent>
             </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="components" className="mt-0 flex-1 overflow-y-auto">
+          <div className="p-4 pb-24">
+            <MaterialComponentsPanel
+              components={state.materialComponents}
+              focusEquipped={state.focusEquipped}
+              onAddComponent={addComponent}
+              onUseComponent={useComponent}
+              onToggleFocus={toggleFocus}
+            />
           </div>
         </TabsContent>
 
