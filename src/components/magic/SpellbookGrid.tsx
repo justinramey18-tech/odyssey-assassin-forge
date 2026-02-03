@@ -208,6 +208,7 @@ export function SpellbookGrid({
                       isPrepared={preparedSpells.includes(spell.id) || spell.level === 0}
                       isFavorite={favoriteSpells.includes(spell.id)}
                       isConcentrating={concentratingOn === spell.id}
+                      characterLevel={characterLevel}
                       onClick={() => onSpellSelect(spell)}
                     />
                   ))}

@@ -1,13 +1,20 @@
 
 # Full D&D 5e Magic System Compliance - Implementation Plan
 
-## What This Upgrade Adds
+## Current Status
+**Phase A: Core Mechanics** - ✅ COMPLETE
 
-This is a major enhancement to your Arcana system that will make spellcasting fully match the official D&D 5e rules. Think of it as upgrading from a basic calculator to a complete accounting system for your magic.
+### Completed in Phase A:
+- ✅ Auto-calculate proficiency bonus from character level
+- ✅ Connect ability scores to spellcasting modifier (INT/WIS/CHA based on path)
+- ✅ Add preparation limits (ability mod + spellcaster level)
+- ✅ Display prepared spell count in Arcana header (X/Y format)
+- ✅ Implement cantrip damage scaling at levels 5, 11, and 17
+- ✅ Show scaled damage on spell cards and detail sheets
 
 ---
 
-## Part 1: Connecting Your Stats to Your Spells
+## What This Upgrade Adds
 
 ### What Changes
 Right now, your spell attack bonus and save DC are set manually. After this update, they'll automatically calculate from your actual character stats.
