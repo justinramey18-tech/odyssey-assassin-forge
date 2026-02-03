@@ -605,15 +605,6 @@ export function MobileCombatLayout({ character, spellcasting, equipment, onNavig
         </div>
       </main>
       
-      {/* FAB */}
-      <CombatFAB
-        activeTab={activeTab}
-        onQuickRoll={handleQuickRoll}
-        onQuickAttack={handleQuickAttack}
-        onQuickHide={handleQuickHide}
-        onCopySummary={handleCopySummary}
-      />
-      
       {/* Bottom Navigation */}
       <CombatBottomNav
         activeTab={activeTab}
