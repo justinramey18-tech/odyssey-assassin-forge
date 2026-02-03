@@ -470,6 +470,7 @@ export function MobileCombatLayout({ character, spellcasting, equipment }: Mobil
       case 'reactions':
         return (
           <MobileReactionsList
+            reactionUsed={actionEconomy.reactionUsed}
             onUseReaction={(reaction) => {
               // Mark reaction as used
               setActionEconomy(prev => ({ ...prev, reactionUsed: true }));
