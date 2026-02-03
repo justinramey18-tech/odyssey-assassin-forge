@@ -18,6 +18,7 @@ import {
 import { DiceOddsWidget } from './DiceOddsWidget';
 import { GameModeSettings } from './GameModeSettings';
 import { XPProgressionWidget, XPProgressionMode } from './XPProgressionWidget';
+import { GMGuidePrompts } from './GMGuidePrompts';
 import { DiceOddsMode } from '@/lib/diceOdds';
 import { GameModeSettings as GameModeSettingsType } from '@/lib/gameModes';
 import { useGameMode } from '@/hooks/use-game-mode';
@@ -399,7 +400,7 @@ export function SettingsContent({
           </Button>
         )}
 
-        {/* Copy Buttons */}
+        {/* Copy Buttons for Full/Build Only */}
         <div className="flex gap-2">
           <Button
             variant="default"
@@ -446,7 +447,7 @@ export function SettingsContent({
             <Badge variant="outline" className="text-xs bg-amber-500/10 border-amber-500/30 text-amber-400">
               📋 State Snapshot Preview
             </Badge>
-            <pre className="p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 text-xs font-mono whitespace-pre-wrap max-h-[30vh] overflow-y-auto leading-relaxed">
+            <pre className="p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 text-xs font-mono whitespace-pre-wrap max-h-[25vh] overflow-y-auto leading-relaxed">
               {stateSummary}
             </pre>
           </div>
@@ -454,25 +455,33 @@ export function SettingsContent({
 
         <Separator className="bg-border/30" />
 
-        {/* Toggle between dynamic and static */}
+        {/* Modular GM Guide Prompts - NEW */}
+        <GMGuidePrompts />
+
+        <Separator className="bg-border/30" />
+
+        {/* Toggle between dynamic and static (legacy view) */}
         {hasDynamicData && (
-          <div className="flex items-center gap-2">
-            <Button
-              variant={showDynamic ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setShowDynamic(true)}
-              className="flex-1 h-10"
-            >
-              Current Build
-            </Button>
-            <Button
-              variant={!showDynamic ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setShowDynamic(false)}
-              className="flex-1 h-10"
-            >
-              System Rules
-            </Button>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground font-medium">Legacy View</p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant={showDynamic ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setShowDynamic(true)}
+                className="flex-1 h-9 text-xs"
+              >
+                Current Build
+              </Button>
+              <Button
+                variant={!showDynamic ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setShowDynamic(false)}
+                className="flex-1 h-9 text-xs"
+              >
+                System Rules
+              </Button>
+            </div>
           </div>
         )}
 
@@ -482,7 +491,7 @@ export function SettingsContent({
             <Badge variant="outline" className="text-xs bg-primary/10 border-primary/30 text-primary">
               Live Character Data
             </Badge>
-            <pre className="p-3 rounded-lg border border-primary/30 bg-primary/5 text-xs font-mono whitespace-pre-wrap max-h-[35vh] overflow-y-auto leading-relaxed">
+            <pre className="p-3 rounded-lg border border-primary/30 bg-primary/5 text-xs font-mono whitespace-pre-wrap max-h-[25vh] overflow-y-auto leading-relaxed">
               {dynamicGuide}
             </pre>
           </div>
@@ -492,9 +501,9 @@ export function SettingsContent({
         {(!showDynamic || !hasDynamicData) && (
           <div className="space-y-2">
             <Badge variant="outline" className="text-xs">
-              System Reference
+              System Reference (Full)
             </Badge>
-            <pre className="p-3 rounded-lg border border-border/50 bg-muted/30 text-xs font-mono whitespace-pre-wrap max-h-[35vh] overflow-y-auto leading-relaxed">
+            <pre className="p-3 rounded-lg border border-border/50 bg-muted/30 text-xs font-mono whitespace-pre-wrap max-h-[25vh] overflow-y-auto leading-relaxed">
               {fullGuide}
             </pre>
           </div>
@@ -502,7 +511,7 @@ export function SettingsContent({
 
         <p className="text-xs text-muted-foreground text-center">
           {hasDynamicData 
-            ? '💡 "Full Guide" includes your build + system rules'
+            ? '💡 Use modular prompts above for selective AI DM integration'
             : '💡 Configure your character to enable build snapshots'}
         </p>
       </div>
