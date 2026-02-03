@@ -114,9 +114,9 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
           </Button>
         </div>
 
-        {/* Category Filter - Swipeable with navigation */}
+        {/* Category Filter - Single active category with navigation */}
         <div 
-          className="flex items-center gap-1 w-full"
+          className="flex items-center justify-center gap-2 w-full"
           {...swipeHandlers}
         >
           {/* Left chevron */}
@@ -124,55 +124,31 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
             variant="ghost"
             size="icon"
             onClick={handleSwipeRight}
-            className="h-7 w-7 shrink-0 touch-manipulation"
+            className="h-8 w-8 shrink-0 touch-manipulation"
             aria-label="Previous category"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-5 h-5" />
           </Button>
 
-          {/* Swipeable category area */}
+          {/* Active category display */}
           <div 
-            className="flex-1 overflow-hidden"
+            className="flex-1 flex items-center justify-center"
             style={{
               transform: swiping ? `translateX(${swipeOffset}px)` : 'translateX(0)',
               transition: swiping ? 'none' : 'transform 0.2s ease-out'
             }}
           >
-            <ScrollArea className="w-full whitespace-nowrap">
-              <div className="flex gap-1.5 pb-2 px-0.5">
-                <Button
-                  variant={activeCategory === 'all' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setActiveCategory('all')}
-                  className={cn(
-                    "h-7 text-xs px-2.5 shrink-0",
-                    activeCategory === 'all' 
-                      ? "bg-primary text-primary-foreground" 
-                      : "hover:bg-muted"
-                  )}
-                >
-                  <Filter className="w-3 h-3 mr-1" />
-                  All
-                </Button>
-                {PROMPT_CATEGORIES.map((cat) => (
-                  <Button
-                    key={cat.id}
-                    variant={activeCategory === cat.id ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setActiveCategory(cat.id)}
-                    className={cn(
-                      "h-7 text-xs px-2.5 shrink-0",
-                      activeCategory === cat.id 
-                        ? "bg-primary text-primary-foreground" 
-                        : "hover:bg-muted"
-                    )}
-                  >
-                    <span className="mr-1">{cat.icon}</span>
-                    {cat.label}
-                  </Button>
-                ))}
-              </div>
-            </ScrollArea>
+            <div className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
+              <span className="text-base">
+                {activeCategory === 'all' ? '🔍' : allCategories[currentIndex]?.icon}
+              </span>
+              <span className="font-semibold text-sm text-foreground">
+                {allCategories[currentIndex]?.label}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {currentIndex + 1}/{allCategories.length}
+              </span>
+            </div>
           </div>
 
           {/* Right chevron */}
@@ -180,18 +156,11 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
             variant="ghost"
             size="icon"
             onClick={handleSwipeLeft}
-            className="h-7 w-7 shrink-0 touch-manipulation"
+            className="h-8 w-8 shrink-0 touch-manipulation"
             aria-label="Next category"
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-5 h-5" />
           </Button>
-        </div>
-
-        {/* Category position indicator */}
-        <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground">
-          <span className="font-medium">{allCategories[currentIndex]?.label}</span>
-          <span>•</span>
-          <span>{currentIndex + 1}/{allCategories.length}</span>
         </div>
       </div>
 
