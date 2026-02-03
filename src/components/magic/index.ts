@@ -8,3 +8,5 @@ export { SpellSlotTracker } from './SpellSlotTracker';
 export { MaterialComponentsPanel } from './MaterialComponentsPanel';
 export { ConcentrationCheckPanel } from './ConcentrationCheckPanel';
 export { ActiveSpellsPanel } from './ActiveSpellsPanel';
+export { SpellStatusIcons } from './SpellStatusIcons';
+export { RangeIndicator, RangeIndicatorCompact } from './RangeIndicator';

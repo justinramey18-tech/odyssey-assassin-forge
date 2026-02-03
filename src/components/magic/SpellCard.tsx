@@ -2,8 +2,11 @@ import { cn } from '@/lib/utils';
 import { SpellDefinition } from '@/lib/magic/types';
 import { getSchoolConfig } from '@/lib/magic/schools';
 import { getSpellLevelLabel, getCastingTimeLabel, getComponentsLabel } from '@/lib/magic/spells';
-import { scaleCantrip } from '@/lib/magic/calculations';
-import { Star, Clock, Target, Eye } from 'lucide-react';
+import { scaleCantrip, getCantripScaling } from '@/lib/magic/calculations';
+import { getSpellLevelTheme } from '@/lib/magic/rangeUtils';
+import { SpellStatusIcons } from './SpellStatusIcons';
+import { RangeIndicatorCompact } from './RangeIndicator';
+import { Star, Clock, Target, Eye, Mic, Hand, Package } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
 
@@ -27,6 +30,7 @@ export function SpellCard({
   characterLevel = 1,
 }: SpellCardProps) {
   const schoolConfig = getSchoolConfig(spell.school);
+  const levelTheme = getSpellLevelTheme(spell.level);
   
   // Get the icon component safely
   const iconLookup = LucideIcons as unknown as Record<string, LucideIcon>;
@@ -36,6 +40,10 @@ export function SpellCard({
   const displayDamage = spell.level === 0 
     ? scaleCantrip(spell.damageFormula, characterLevel)
     : spell.damageFormula;
+  
+  const cantripScaling = spell.level === 0 && spell.damageFormula 
+    ? getCantripScaling(1, 'd10', characterLevel) 
+    : null;
 
   if (compact) {
     return (
@@ -75,16 +83,9 @@ export function SpellCard({
       className={cn(
         "relative flex flex-col p-3 rounded-xl transition-all text-left",
         "border-2 hover:scale-[1.02] active:scale-[0.98]",
-        // School-colored border
-        spell.school === 'abjuration' && "border-blue-500/40 hover:border-blue-400/60",
-        spell.school === 'conjuration' && "border-teal-500/40 hover:border-teal-400/60",
-        spell.school === 'divination' && "border-violet-500/40 hover:border-violet-400/60",
-        spell.school === 'enchantment' && "border-pink-500/40 hover:border-pink-400/60",
-        spell.school === 'evocation' && "border-orange-500/40 hover:border-orange-400/60",
-        spell.school === 'illusion' && "border-slate-400/40 hover:border-slate-300/60",
-        spell.school === 'necromancy' && "border-green-500/40 hover:border-green-400/60",
-        spell.school === 'transmutation' && "border-amber-500/40 hover:border-amber-400/60",
-        // Background
+        // Level-based border coloring
+        levelTheme.borderColor,
+        // Background with subtle gradient
         "bg-gradient-to-br from-background/80 to-background/40",
         isPrepared && "ring-2 ring-indigo-500/60",
         isConcentrating && "ring-2 ring-amber-500 animate-pulse"
@@ -99,10 +100,15 @@ export function SpellCard({
       <div className="flex items-start gap-3 mb-2">
         <div className={cn(
           "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
-          "bg-gradient-to-br",
+          "bg-gradient-to-br relative overflow-hidden",
           schoolConfig.bgGradient
         )}>
           <IconComponent className={cn("w-5 h-5", schoolConfig.color)} />
+          {/* School watermark */}
+          <div className={cn(
+            "absolute inset-0 opacity-10",
+            "bg-gradient-to-br from-white/20 to-transparent"
+          )} />
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="font-cinzel text-sm font-medium leading-tight">
@@ -116,29 +122,28 @@ export function SpellCard({
             )}>
               {spell.school}
             </span>
-            <span className="text-[10px] text-muted-foreground">
+            <span className={cn("text-[10px]", levelTheme.textColor)}>
               {getSpellLevelLabel(spell.level)}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Quick Info */}
+      {/* Status Icons Row */}
+      <SpellStatusIcons 
+        spell={spell} 
+        characterLevel={characterLevel}
+        size="sm"
+        className="mb-2"
+      />
+
+      {/* Quick Info with Range Indicator */}
       <div className="flex items-center gap-3 text-[10px] text-muted-foreground mb-2">
         <div className="flex items-center gap-1">
           <Clock className="w-3 h-3" />
           <span>{getCastingTimeLabel(spell.castingTime)}</span>
         </div>
-        <div className="flex items-center gap-1">
-          <Target className="w-3 h-3" />
-          <span>{spell.range}</span>
-        </div>
-        {spell.concentration && (
-          <div className="flex items-center gap-1 text-amber-400">
-            <Eye className="w-3 h-3" />
-            <span>Conc.</span>
-          </div>
-        )}
+        <RangeIndicatorCompact range={spell.range} />
       </div>
 
       {/* Description preview */}
@@ -146,23 +151,61 @@ export function SpellCard({
         {spell.description}
       </p>
 
+      {/* Bottom Bar with Components and Damage */}
       <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between">
-        <span className="text-[10px] text-muted-foreground font-mono">
-          {getComponentsLabel(spell.components)}
-        </span>
-        {displayDamage && (
-          <span className="text-[10px] font-mono text-orange-400">
-            {displayDamage} {spell.damageType}
-            {spell.level === 0 && characterLevel >= 5 && (
-              <span className="text-[8px] text-orange-300/60 ml-1">(scaled)</span>
-            )}
-          </span>
-        )}
-        {spell.ritual && (
-          <span className="text-[10px] text-violet-400 font-medium">
-            Ritual
-          </span>
-        )}
+        {/* Component Icons */}
+        <div className="flex items-center gap-1">
+          {spell.components.verbal && (
+            <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center" title="Verbal">
+              <Mic className="w-2.5 h-2.5 text-blue-400" />
+            </div>
+          )}
+          {spell.components.somatic && (
+            <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center" title="Somatic">
+              <Hand className="w-2.5 h-2.5 text-green-400" />
+            </div>
+          )}
+          {spell.components.material && (
+            <div className={cn(
+              "w-5 h-5 rounded-full flex items-center justify-center",
+              spell.components.materialCost ? "bg-amber-500/20" : "bg-purple-500/20"
+            )} title={spell.components.material}>
+              <Package className={cn(
+                "w-2.5 h-2.5",
+                spell.components.materialCost ? "text-amber-400" : "text-purple-400"
+              )} />
+            </div>
+          )}
+        </div>
+        
+        {/* Damage/Healing Display */}
+        <div className="flex items-center gap-2">
+          {displayDamage && (
+            <div className="flex items-center gap-1 px-2 py-0.5 bg-orange-500/20 rounded-full">
+              <span className="text-[11px] font-mono text-orange-400 font-bold">
+                {displayDamage}
+              </span>
+              <span className="text-[9px] text-orange-300/80">
+                {spell.damageType}
+              </span>
+              {spell.level === 0 && characterLevel >= 5 && cantripScaling && (
+                <span className="text-[8px] text-purple-400 ml-0.5">↑</span>
+              )}
+            </div>
+          )}
+          {spell.healingFormula && (
+            <div className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/20 rounded-full">
+              <span className="text-[11px] font-mono text-emerald-400 font-bold">
+                {spell.healingFormula}
+              </span>
+            </div>
+          )}
+          {spell.ritual && !displayDamage && !spell.healingFormula && (
+            <span className="text-[10px] text-violet-400 font-medium">
+              Ritual
+            </span>
+          )}
+        </div>
       </div>
     </button>
   );

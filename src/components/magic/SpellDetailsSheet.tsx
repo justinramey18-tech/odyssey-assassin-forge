@@ -3,13 +3,17 @@ import { SpellDefinition } from '@/lib/magic/types';
 import { getSchoolConfig } from '@/lib/magic/schools';
 import { getSpellLevelLabel, getCastingTimeLabel, getComponentsLabel } from '@/lib/magic/spells';
 import { scaleCantrip, getCantripScaling } from '@/lib/magic/calculations';
+import { getSpellLevelTheme } from '@/lib/magic/rangeUtils';
+import { RangeIndicator } from './RangeIndicator';
+import { SpellStatusIcons } from './SpellStatusIcons';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Star, Clock, Target, Eye, Mic, Hand, Package, 
-  Zap, Swords, Shield, Copy, Check, TrendingUp 
+  Zap, Swords, Shield, Copy, Check, TrendingUp,
+  Crosshair, ShieldAlert
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
@@ -53,6 +57,7 @@ export function SpellDetailsSheet({
   if (!spell) return null;
 
   const schoolConfig = getSchoolConfig(spell.school);
+  const levelTheme = getSpellLevelTheme(spell.level);
   const iconLookup = LucideIcons as unknown as Record<string, LucideIcon>;
   const IconComponent = iconLookup[spell.iconName] || LucideIcons.Sparkles;
 
@@ -144,6 +149,46 @@ ${spell.description}${spell.higherLevels ? `\n\n**At Higher Levels:** ${spell.hi
             </div>
           )}
 
+          {/* Status Icons */}
+          <SpellStatusIcons 
+            spell={spell} 
+            characterLevel={characterLevel}
+            showLabels
+            size="md"
+            className="mb-4"
+          />
+
+          {/* Attack/Save Info Banner */}
+          {(spell.attackType === 'melee' || spell.attackType === 'ranged') && (
+            <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center gap-3">
+              <Crosshair className="w-5 h-5 text-red-400" />
+              <div>
+                <div className="text-sm font-medium text-red-300">
+                  {spell.attackType === 'melee' ? 'Melee Spell Attack' : 'Ranged Spell Attack'}
+                </div>
+                <div className="text-xs text-muted-foreground">Roll d20 + Spell Attack vs target AC</div>
+              </div>
+            </div>
+          )}
+          
+          {spell.attackType === 'save' && spell.saveStat && (
+            <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center gap-3">
+              <ShieldAlert className="w-5 h-5 text-amber-400" />
+              <div>
+                <div className="text-sm font-medium text-amber-300">
+                  {spell.saveStat} Saving Throw
+                </div>
+                <div className="text-xs text-muted-foreground">Target makes {spell.saveStat} save vs your Spell DC</div>
+              </div>
+            </div>
+          )}
+
+          {/* Range & Area Display */}
+          <div className="mb-4">
+            <div className="text-xs text-muted-foreground uppercase font-medium mb-2">Range & Area</div>
+            <RangeIndicator range={spell.range} size="md" />
+          </div>
+
           {/* Quick Stats */}
           <div className="grid grid-cols-2 gap-3 mb-4">
             <div className="p-3 rounded-lg bg-muted/30">
@@ -155,24 +200,10 @@ ${spell.description}${spell.higherLevels ? `\n\n**At Higher Levels:** ${spell.hi
             </div>
             <div className="p-3 rounded-lg bg-muted/30">
               <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <Target className="w-4 h-4" />
-                <span className="text-xs uppercase">Range</span>
-              </div>
-              <span className="font-medium text-sm">{spell.range}</span>
-            </div>
-            <div className="p-3 rounded-lg bg-muted/30">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
                 <Shield className="w-4 h-4" />
                 <span className="text-xs uppercase">Duration</span>
               </div>
               <span className="font-medium text-sm">{spell.duration}</span>
-            </div>
-            <div className="p-3 rounded-lg bg-muted/30">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <Package className="w-4 h-4" />
-                <span className="text-xs uppercase">Components</span>
-              </div>
-              <span className="font-medium text-sm font-mono">{getComponentsLabel(spell.components)}</span>
             </div>
           </div>
 

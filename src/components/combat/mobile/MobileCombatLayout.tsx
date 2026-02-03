@@ -32,6 +32,7 @@ import { EnhancedMobileAbilityList } from './EnhancedMobileAbilityList';
 import { MobileItemsGrid } from './MobileItemsGrid';
 import { MobileSpellList } from './MobileSpellList';
 import { MobileReactionsList } from './MobileReactionsList';
+import { QuickCastPanel } from './QuickCastPanel';
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
 import { usePromptDrawers } from '@/components/drawers';
 import { CharacterEquipment, EquipmentSlotType } from '@/lib/inventory/types';
@@ -430,6 +431,21 @@ export function MobileCombatLayout({ character, spellcasting, equipment, onNavig
         return (
           <div className="flex-1 overflow-y-auto">
             <div className="p-4 pb-24 space-y-3">
+              {/* Quick Cast Panel - Magic Integration */}
+              {spellcasting && spellcasting.state.path && (
+                <QuickCastPanel
+                  spellcasting={spellcasting}
+                  characterName={character.name}
+                  characterLevel={character.level}
+                  onCast={(result) => {
+                    if (result.success) {
+                      handleAddToTurn('action', `Cast ${result.spellName}`);
+                      setLastAction(`${result.spellName.toUpperCase()} CAST`);
+                    }
+                  }}
+                />
+              )}
+              
               {/* Sneak Attack Status */}
               <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-xl">
                 <div className="flex items-center justify-between mb-1">
