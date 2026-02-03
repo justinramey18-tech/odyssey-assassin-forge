@@ -50,6 +50,7 @@ interface CombatAbilityCardProps {
     remaining: number; // seconds
     total: number; // seconds
   };
+  customImage?: string | null;
   onUse: (ability: Ability & { tier: 1 | 2 | 3 }, roll: DiceRoll, prompt: string, combinedDamage: string) => void;
   onTriggerCooldown?: (abilityId: string) => void;
 }
@@ -59,6 +60,7 @@ export function CombatAbilityCard({
   characterName,
   weapons,
   cooldownState,
+  customImage,
   onUse,
   onTriggerCooldown,
 }: CombatAbilityCardProps) {
@@ -228,13 +230,19 @@ ${ability.synergies?.length
         onClick={() => setIsExpanded(true)}
         disabled={isPassive}
         className={cn(
-          "w-full flex items-center gap-3 p-4 bg-card border border-muted/30 border-l-4 rounded-xl",
+          "w-full flex items-center gap-3 p-4 bg-card border border-muted/30 rounded-xl",
           "active:scale-[0.99] transition-all",
-          treeColors[ability.tree],
+          !customImage && `border-l-4 ${treeColors[ability.tree]}`,
           isPassive && "opacity-60",
           isOnCooldown && "opacity-50"
         )}
       >
+        {/* Custom image indicator or tree color border */}
+        {customImage && (
+          <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0">
+            <img src={customImage} alt={ability.name} className="w-full h-full object-cover" />
+          </div>
+        )}
         <div className="flex-1 text-left">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold">{ability.name}</span>
@@ -295,13 +303,19 @@ ${ability.synergies?.length
   // Expanded card
   return (
     <div className={cn(
-      "bg-card border border-l-4 rounded-xl overflow-hidden",
-      treeColors[ability.tree],
+      "bg-card border rounded-xl overflow-hidden",
+      !customImage && `border-l-4 ${treeColors[ability.tree]}`,
       `bg-gradient-to-r ${treeGradients[ability.tree]}`
     )}>
       {/* Header */}
       <div className="p-4 flex items-center justify-between border-b border-muted/20">
-        <div className="flex-1">
+        <div className="flex items-center gap-3 flex-1">
+          {customImage && (
+            <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0">
+              <img src={customImage} alt={ability.name} className="w-full h-full object-cover" />
+            </div>
+          )}
+          <div>
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-bold text-lg">{ability.name}</span>
             <Badge variant="outline" className="text-[9px] capitalize">
@@ -311,6 +325,7 @@ ${ability.synergies?.length
           <p className="text-xs text-muted-foreground mt-1">
             {ability.tierEffects.find(t => t.tier === ability.tier)?.description || 'No description'}
           </p>
+          </div>
         </div>
         <Button
           variant="ghost"
