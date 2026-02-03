@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Settings, ArrowLeft } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
@@ -13,6 +13,8 @@ import { generateDynamicGMGuide, generateCurrentStateSummary, STATIC_GM_GUIDE, C
 import { Character, Ability } from '@/lib/types';
 import { EquipmentItem, EquipmentSlotType } from '@/lib/inventory/types';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useEquipmentImages } from '@/hooks/use-equipment-images';
+import { useAbilityImages } from '@/hooks/use-ability-images';
 import { cn } from '@/lib/utils';
 
 interface SettingsModalProps {
@@ -62,6 +64,18 @@ export function SettingsModal({
   const [xpProgressionMode, setXPProgressionMode] = useState<XPProgressionMode>(() => loadXPProgressionMode());
 
   const isMobile = useIsMobile();
+  
+  // Custom images hooks for bulk clear
+  const equipmentImages = useEquipmentImages();
+  const abilityImages = useAbilityImages();
+  
+  const equipmentImageCount = Object.keys(equipmentImages.images).length;
+  const abilityImageCount = Object.keys(abilityImages.images).length;
+  
+  const handleClearAllCustomImages = useCallback(() => {
+    equipmentImages.clearAllImages();
+    abilityImages.clearAllImages();
+  }, [equipmentImages, abilityImages]);
 
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : internalOpen;
@@ -191,10 +205,13 @@ export function SettingsModal({
                   onXPProgressionChange={handleXPProgressionChange}
                   diceOddsMode={diceOddsMode}
                   onDiceOddsChange={handleDiceOddsChange}
-                  dynamicGuide={dynamicGuide}
-                  stateSummary={stateSummary}
-                  fullGuide={fullGuide}
-                />
+                dynamicGuide={dynamicGuide}
+                stateSummary={stateSummary}
+                fullGuide={fullGuide}
+                equipmentImageCount={equipmentImageCount}
+                abilityImageCount={abilityImageCount}
+                onClearAllCustomImages={handleClearAllCustomImages}
+              />
               ) : (
                 <MobileSettingsTabs
                   activeTab={activeTab}
@@ -247,6 +264,9 @@ export function SettingsModal({
                 dynamicGuide={dynamicGuide}
                 stateSummary={stateSummary}
                 fullGuide={fullGuide}
+                equipmentImageCount={equipmentImageCount}
+                abilityImageCount={abilityImageCount}
+                onClearAllCustomImages={handleClearAllCustomImages}
               />
             </div>
           </ScrollArea>

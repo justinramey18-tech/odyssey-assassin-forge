@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Check, Copy, RefreshCw, Camera, Star, Lock, RotateCcw, AlertTriangle, HelpCircle, Download } from 'lucide-react';
+import { Check, Copy, RefreshCw, Camera, Star, Lock, RotateCcw, AlertTriangle, HelpCircle, Download, ImageOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
@@ -201,6 +201,10 @@ interface SettingsContentProps {
   dynamicGuide: string | null;
   stateSummary: string | null;
   fullGuide: string;
+  // Custom images
+  equipmentImageCount?: number;
+  abilityImageCount?: number;
+  onClearAllCustomImages?: () => void;
 }
 
 export function SettingsContent({
@@ -219,12 +223,16 @@ export function SettingsContent({
   dynamicGuide,
   stateSummary,
   fullGuide,
+  equipmentImageCount = 0,
+  abilityImageCount = 0,
+  onClearAllCustomImages,
 }: SettingsContentProps) {
   const [copiedStatic, setCopiedStatic] = useState(false);
   const [copiedDynamic, setCopiedDynamic] = useState(false);
   const [copiedSnapshot, setCopiedSnapshot] = useState(false);
   const [showDynamic, setShowDynamic] = useState(true);
   const [showResetDialog, setShowResetDialog] = useState(false);
+  const [showClearImagesDialog, setShowClearImagesDialog] = useState(false);
   const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
   
   const { prestigeRespecDisabled } = useGameMode();
@@ -295,6 +303,8 @@ export function SettingsContent({
 
   const hasDynamicData = !!dynamicGuide;
   const hasPrestigePoints = prestigeData && prestigeData.totalPrestigePoints > 0;
+  const totalCustomImages = equipmentImageCount + abilityImageCount;
+  const hasCustomImages = totalCustomImages > 0;
 
   const handleCopyFullGuide = async () => {
     try {
@@ -722,6 +732,95 @@ export function SettingsContent({
         </div>
 
         <Separator className="bg-border/30" />
+
+        {/* Clear Custom Images */}
+        {hasCustomImages && (
+          <>
+            <div className="p-4 rounded-lg border border-amber-500/30 bg-amber-500/5 space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-amber-500/20 shrink-0">
+                  <ImageOff className="w-5 h-5 text-amber-400" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-display font-semibold text-amber-400">
+                    Custom Images
+                  </h4>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {equipmentImageCount > 0 && `${equipmentImageCount} equipment`}
+                    {equipmentImageCount > 0 && abilityImageCount > 0 && ' + '}
+                    {abilityImageCount > 0 && `${abilityImageCount} ability`}
+                    {' '}image{totalCustomImages !== 1 ? 's' : ''} stored
+                  </p>
+                </div>
+              </div>
+              
+              <AlertDialog open={showClearImagesDialog} onOpenChange={setShowClearImagesDialog}>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2 h-12 border-amber-500/30 hover:bg-amber-500/10 text-amber-400"
+                  >
+                    <ImageOff className="w-4 h-4" />
+                    Clear All Custom Images
+                  </Button>
+                </AlertDialogTrigger>
+                
+                <AlertDialogContent className="max-w-[90vw] sm:max-w-md">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2 text-amber-400">
+                      <ImageOff className="w-5 h-5" />
+                      Clear All Custom Images?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription asChild>
+                      <div className="space-y-3 pt-2">
+                        <p className="text-sm">
+                          This will remove all uploaded images from:
+                        </p>
+                        
+                        <div className="bg-muted/50 rounded-md p-3 space-y-2">
+                          {equipmentImageCount > 0 && (
+                            <p className="text-sm text-foreground flex items-center gap-2">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                              {equipmentImageCount} equipment slot{equipmentImageCount !== 1 ? 's' : ''}
+                            </p>
+                          )}
+                          {abilityImageCount > 0 && (
+                            <p className="text-sm text-foreground flex items-center gap-2">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                              {abilityImageCount} ability node{abilityImageCount !== 1 ? 's' : ''}
+                            </p>
+                          )}
+                        </div>
+
+                        <p className="text-xs text-muted-foreground">
+                          Default icons will be restored. Your character data is not affected.
+                        </p>
+                      </div>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  
+                  <AlertDialogFooter className="gap-2 flex-col sm:flex-row">
+                    <AlertDialogCancel className="w-full sm:w-auto">
+                      Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => {
+                        onClearAllCustomImages?.();
+                        setShowClearImagesDialog(false);
+                        toast.success('All custom images cleared');
+                      }}
+                      className="w-full sm:w-auto bg-amber-600 text-white hover:bg-amber-500"
+                    >
+                      Clear All Images
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+            
+            <Separator className="bg-border/30" />
+          </>
+        )}
 
         {/* Danger Zone */}
         <div className="border-2 border-destructive/50 rounded-lg p-4 bg-destructive/5 space-y-4">
