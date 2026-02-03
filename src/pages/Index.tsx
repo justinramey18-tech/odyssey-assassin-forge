@@ -232,7 +232,7 @@ const Index = () => {
   });
   
   // Spellcasting system (uses ability scores for auto-calculation)
-  const spellcasting = useSpellcasting(character.level, {
+  const spellcasting = useSpellcasting(character.level, character.name, {
     abilityScores: {
       intelligence: abilityScores.finalScores.intelligence,
       wisdom: abilityScores.finalScores.wisdom,

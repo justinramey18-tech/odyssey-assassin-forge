@@ -16,3 +16,6 @@ export * from './spells';
 
 // Calculations (proficiency, preparation, scaling)
 export * from './calculations';
+
+// Duration tracking
+export * from './durations';

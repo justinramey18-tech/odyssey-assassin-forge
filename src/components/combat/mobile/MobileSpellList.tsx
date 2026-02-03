@@ -112,7 +112,8 @@ export function MobileSpellList({
       castingSpell.level,
       castLevel,
       usePact,
-      castingSpell.concentration
+      castingSpell.concentration,
+      castingSpell.duration
     );
     
     onCast({ spellName: castingSpell.name, success: result.success });
