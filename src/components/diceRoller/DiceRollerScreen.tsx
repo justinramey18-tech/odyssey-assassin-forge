@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Copy, Check, Dices, Sparkles, Swords, Eye, MessageCircle, Wrench, Plus, Minus, Settings2, ChevronUp, ChevronDown, Equal, Wand2, RotateCcw, Play } from 'lucide-react';
+import { ArrowLeft, Copy, Check, Dices, Sparkles, Swords, Eye, MessageCircle, Wrench, Plus, Minus, Settings2, ChevronUp, ChevronDown, Equal, Wand2, RotateCcw, Play, SlidersHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,8 @@ import {
   type AIPromptTemplate,
 } from '@/lib/diceRollerConfig';
 import { rollDie } from '@/lib/diceRoller';
+import { DiceOddsWidget } from '@/components/settings/DiceOddsWidget';
+import { DiceOddsMode, loadDiceOddsMode, saveDiceOddsMode } from '@/lib/diceOdds';
 
 // Ability score presets
 interface AbilityPreset {
@@ -210,6 +212,15 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
   const [customExpression, setCustomExpression] = useState('');
   const [customResult, setCustomResult] = useState<ParsedExpression | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  
+  // Dice odds mode (synced with settings)
+  const [diceOddsMode, setDiceOddsMode] = useState<DiceOddsMode>(() => loadDiceOddsMode());
+  
+  // Handle dice odds change
+  const handleDiceOddsChange = useCallback((mode: DiceOddsMode) => {
+    setDiceOddsMode(mode);
+    saveDiceOddsMode(mode);
+  }, []);
 
   // Load saved modifiers on mount
   useEffect(() => {
@@ -738,8 +749,8 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
       </div>
 
       {/* Tabbed Content */}
-      <Tabs defaultValue="dice" className="flex-1 flex flex-col">
-        <TabsList className="grid grid-cols-4 mx-4 mt-4">
+      <Tabs defaultValue="dice" className="flex-1 flex flex-col min-h-0">
+        <TabsList className="grid grid-cols-5 mx-4 mt-4 shrink-0">
           <TabsTrigger value="dice" className="gap-1 text-xs">
             <Dices className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Dice</span>
@@ -756,11 +767,16 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
             <MessageCircle className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">AI DM</span>
           </TabsTrigger>
+          <TabsTrigger value="tools" className="gap-1 text-xs">
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Tools</span>
+          </TabsTrigger>
         </TabsList>
 
-        <ScrollArea className="flex-1 px-4 py-4">
-          {/* Dice Tab */}
-          <TabsContent value="dice" className="mt-0 space-y-4">
+        {/* Dice Tab */}
+        <TabsContent value="dice" className="mt-0 flex-1 overflow-hidden">
+          <ScrollArea className="h-full px-4 py-4">
+            <div className="space-y-4 pb-8">
             {/* Roll Mode Toggle for d20 */}
             <div className="flex items-center justify-center gap-2 p-2 rounded-lg bg-muted/30 border border-border">
               <span className="text-xs text-muted-foreground mr-2">d20 Mode:</span>
@@ -964,10 +980,14 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
                 </div>
               </div>
             )}
-          </TabsContent>
+            </div>
+          </ScrollArea>
+        </TabsContent>
 
-          {/* Skills Tab */}
-          <TabsContent value="skills" className="mt-0 space-y-4">
+        {/* Skills Tab */}
+        <TabsContent value="skills" className="mt-0 flex-1 overflow-hidden">
+          <ScrollArea className="h-full px-4 py-4">
+            <div className="space-y-4 pb-8">
             {/* Modifiers Panel */}
             <Collapsible open={modifiersOpen} onOpenChange={setModifiersOpen}>
               <CollapsibleTrigger asChild>
@@ -1157,10 +1177,14 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
                 );
               })}
             </div>
-          </TabsContent>
+            </div>
+          </ScrollArea>
+        </TabsContent>
 
-          {/* Saves Tab */}
-          <TabsContent value="saves" className="mt-0 space-y-4">
+        {/* Saves Tab */}
+        <TabsContent value="saves" className="mt-0 flex-1 overflow-hidden">
+          <ScrollArea className="h-full px-4 py-4">
+            <div className="space-y-4 pb-8">
             {/* Roll Mode Indicator */}
             <div className="flex items-center justify-center">
               <button
@@ -1246,10 +1270,14 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
                 );
               })}
             </div>
-          </TabsContent>
+            </div>
+          </ScrollArea>
+        </TabsContent>
 
-          {/* AI Prompts Tab */}
-          <TabsContent value="prompts" className="mt-0 space-y-4">
+        {/* AI Prompts Tab */}
+        <TabsContent value="prompts" className="mt-0 flex-1 overflow-hidden">
+          <ScrollArea className="h-full px-4 py-4">
+            <div className="space-y-4 pb-8">
             {!currentRoll && (
               <div className="p-4 rounded-lg bg-muted/50 border border-border text-center">
                 <Sparkles className="w-6 h-6 mx-auto mb-2 text-yellow-400" />
@@ -1334,8 +1362,26 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
                 ))}
               </div>
             </div>
-          </TabsContent>
-        </ScrollArea>
+            </div>
+          </ScrollArea>
+        </TabsContent>
+
+        {/* Tools Tab */}
+        <TabsContent value="tools" className="mt-0 flex-1 overflow-hidden">
+          <ScrollArea className="h-full px-4 py-4">
+            <div className="space-y-6 pb-8">
+              {/* Dice Odds Widget */}
+              <DiceOddsWidget value={diceOddsMode} onChange={handleDiceOddsChange} />
+              
+              {/* Info note */}
+              <div className="p-3 rounded-lg bg-muted/30 border border-border">
+                <p className="text-xs text-muted-foreground text-center">
+                  These settings sync with your character's Dice Tools in Settings
+                </p>
+              </div>
+            </div>
+          </ScrollArea>
+        </TabsContent>
       </Tabs>
 
       {/* Prompt Detail Sheet */}
