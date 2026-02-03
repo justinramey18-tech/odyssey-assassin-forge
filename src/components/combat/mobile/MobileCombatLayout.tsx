@@ -30,6 +30,8 @@ import { MobileItemsGrid } from './MobileItemsGrid';
 import { MobileSpellList } from './MobileSpellList';
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
 import { usePromptDrawers } from '@/components/drawers';
+import { CharacterEquipment } from '@/lib/inventory/types';
+import { getEquippedWeapons } from '@/lib/combat/weaponConverter';
 
 // Tab order for swipe navigation
 const TAB_ORDER: CombatTab[] = ['attacks', 'stealth', 'abilities', 'spells', 'items', 'summary'];
@@ -91,9 +93,10 @@ function calculateModifiers(character: Character): CombatModifiers {
 interface MobileCombatLayoutProps {
   character: Character;
   spellcasting?: UseSpellcastingReturn;
+  equipment?: CharacterEquipment;
 }
 
-export function MobileCombatLayout({ character, spellcasting }: MobileCombatLayoutProps) {
+export function MobileCombatLayout({ character, spellcasting, equipment }: MobileCombatLayoutProps) {
   // Navigation state
   const [activeTab, setActiveTab] = useState<CombatTab>('attacks');
   const [round, setRound] = useState(1);
@@ -188,6 +191,13 @@ export function MobileCombatLayout({ character, spellcasting }: MobileCombatLayo
   
   const sneakAttackDice = getSneakAttackDice(character.level);
   const hasPoisonedWeapon = conditions.includes('poisonedWeapon');
+  
+  // Convert equipped weapons from gear - use fallback to default weapons if none equipped
+  const equippedWeapons = useMemo(() => {
+    if (!equipment) return DEFAULT_WEAPONS;
+    const weapons = getEquippedWeapons(equipment.slots);
+    return weapons.length > 0 ? weapons : DEFAULT_WEAPONS;
+  }, [equipment]);
   
   // Add action to turn summary
   const handleAddToTurn = useCallback((
@@ -327,8 +337,8 @@ export function MobileCombatLayout({ character, spellcasting }: MobileCombatLayo
               </p>
             </div>
             
-            {/* Weapon Cards */}
-            {DEFAULT_WEAPONS.map(weapon => (
+            {/* Weapon Cards - From Equipped Gear */}
+            {equippedWeapons.map(weapon => (
               <MobileWeaponCard
                 key={weapon.id}
                 weapon={weapon}
@@ -344,6 +354,14 @@ export function MobileCombatLayout({ character, spellcasting }: MobileCombatLayo
                 onRoll={handleWeaponRoll}
               />
             ))}
+            {equippedWeapons.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                <p className="text-sm">No weapons equipped</p>
+                <p className="text-[10px] text-red-400 mt-1 italic">
+                  "Maybe equip something in the Gear tab, genius."
+                </p>
+              </div>
+            )}
           </div>
         );
       
@@ -480,7 +498,7 @@ export function MobileCombatLayout({ character, spellcasting }: MobileCombatLayo
         activeTab={activeTab}
         onTabChange={setActiveTab}
         abilityCounts={{
-          attacks: DEFAULT_WEAPONS.length,
+          attacks: equippedWeapons.length,
           stealth: stealthAbilities.length,
           abilities: specialAbilities.length,
           spells: spellcasting?.state.preparedSpells.length ?? 0,

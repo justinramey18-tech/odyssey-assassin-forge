@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Character, Ability, getActiveSlotsByLevel } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
 import { cn } from '@/lib/utils';
@@ -17,6 +17,7 @@ import {
   TurnAction,
   WeaponAttack,
   COMBAT_CONDITIONS,
+  DEFAULT_WEAPONS,
 } from '@/lib/combat/combatTypes';
 import { DiceRoll } from '@/lib/diceRoller';
 import { Activity, Skull } from 'lucide-react';
@@ -25,11 +26,14 @@ import './mobile/MobileCombatStyles.css';
 import { useGameMode } from '@/hooks/use-game-mode';
 import combatBackground from '@/assets/combat-background.jpg';
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
+import { CharacterEquipment } from '@/lib/inventory/types';
+import { getEquippedWeapons } from '@/lib/combat/weaponConverter';
 
 interface CombatTabScreenProps {
   character: Character;
   prestigePoints?: number;
   spellcasting?: UseSpellcastingReturn;
+  equipment?: CharacterEquipment;
 }
 
 // Combat modifier calculations
@@ -92,7 +96,7 @@ function calculateModifiers(character: Character): CombatModifiers {
   };
 }
 
-export function CombatTabScreen({ character, prestigePoints = 0, spellcasting }: CombatTabScreenProps) {
+export function CombatTabScreen({ character, prestigePoints = 0, spellcasting, equipment }: CombatTabScreenProps) {
   const isMobile = useIsMobile();
   const { rerollsDisabled } = useGameMode();
   
@@ -248,9 +252,16 @@ export function CombatTabScreen({ character, prestigePoints = 0, spellcasting }:
     }
   }, [turnActions]);
   
+  // Convert equipped weapons from gear - use fallback to default weapons if none equipped
+  const equippedWeapons = useMemo(() => {
+    if (!equipment) return DEFAULT_WEAPONS;
+    const weapons = getEquippedWeapons(equipment.slots);
+    return weapons.length > 0 ? weapons : DEFAULT_WEAPONS;
+  }, [equipment]);
+
   // Use mobile layout for smaller screens
   if (isMobile) {
-    return <MobileCombatLayout character={character} spellcasting={spellcasting} />;
+    return <MobileCombatLayout character={character} spellcasting={spellcasting} equipment={equipment} />;
   }
   return (
     <BackgroundWrapper 
@@ -309,6 +320,7 @@ export function CombatTabScreen({ character, prestigePoints = 0, spellcasting }:
             conditions={conditions}
             attackBonus={modifiers.attackBonus}
             damageBonus={modifiers.damageBonus}
+            equippedWeapons={equippedWeapons}
             onAbilityUse={handleAbilityUse}
             onWeaponRoll={handleWeaponRoll}
             onAddToTurn={handleAddToTurn}

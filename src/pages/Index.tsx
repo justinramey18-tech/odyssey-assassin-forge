@@ -1022,6 +1022,7 @@ const Index = () => {
               character={character} 
               prestigePoints={prestigeData.totalPrestigePoints}
               spellcasting={spellcasting}
+              equipment={equipment}
             />
           )}
 
