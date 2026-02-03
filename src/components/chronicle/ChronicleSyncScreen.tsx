@@ -664,9 +664,16 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
           <p className="font-semibold text-foreground/70">Tips:</p>
           <ul className="list-disc list-inside space-y-1 opacity-70">
             <li>Paste session logs from Discord, Roll20, Foundry, or AI chat games</li>
-            <li>Pattern Match is faster but AI Parse handles narrative text better</li>
-            <li>Review changes before applying - low confidence items are auto-rejected</li>
-            <li>HP, gold, and conditions are detected but must be applied manually</li>
+            <li>Pattern Match is faster but Smart Parse handles narrative text better</li>
+            <li>Review changes before applying — low confidence items are auto-rejected</li>
+            <li>HP, gold, conditions, and rests are detected with auto-apply options</li>
+          </ul>
+          <p className="font-semibold text-foreground/70 mt-3">Detected Patterns:</p>
+          <ul className="list-disc list-inside space-y-1 opacity-70">
+            <li>XP gains, level ups, item acquisitions, achievement triggers</li>
+            <li>Spell slot usage, death saving throws, short/long rests</li>
+            <li>Skill checks, saving throws, initiative rolls, inspiration</li>
+            <li>Gold transactions, damage/healing, condition changes</li>
           </ul>
         </div>
       </div>
