@@ -19,3 +19,6 @@ export * from './calculations';
 
 // Duration tracking
 export * from './durations';
+
+// Range and area utilities
+export * from './rangeUtils';

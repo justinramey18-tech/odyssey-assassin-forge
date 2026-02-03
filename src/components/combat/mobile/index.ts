@@ -12,4 +12,5 @@ export { CombatAbilityCard } from './CombatAbilityCard';
 export { MobileItemsGrid } from './MobileItemsGrid';
 export { MobileSpellList } from './MobileSpellList';
 export { MobileReactionsList } from './MobileReactionsList';
+export { QuickCastPanel } from './QuickCastPanel';
 export { MobileCombatLayout } from './MobileCombatLayout';
