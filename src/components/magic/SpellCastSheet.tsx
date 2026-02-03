@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { SpellDefinition, MagicPath, SpellSlotLevel, PactSlots } from '@/lib/magic/types';
 import { getSchoolConfig } from '@/lib/magic/schools';
@@ -47,27 +47,27 @@ export function SpellCastSheet({
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
-  // Reset selection when spell changes
-  useMemo(() => {
+  // Reset selection when spell changes - must use useEffect for side effects
+  useEffect(() => {
     if (spell) {
       setSelectedLevel(spell.level);
       setUsePactSlot(path === 'hexblade' && !!pactSlots && pactSlots.current > 0);
     }
   }, [spell, path, pactSlots]);
 
-  if (!spell) return null;
-
-  const schoolConfig = getSchoolConfig(spell.school);
+  // All hooks must be called before early returns - compute derived values
+  const schoolConfig = spell ? getSchoolConfig(spell.school) : null;
   const iconLookup = LucideIcons as unknown as Record<string, LucideIcon>;
-  const IconComponent = iconLookup[spell.iconName] || LucideIcons.Sparkles;
+  const IconComponent = spell ? (iconLookup[spell.iconName] || LucideIcons.Sparkles) : LucideIcons.Sparkles;
 
-  const isCantrip = spell.level === 0;
-  const isRitual = spell.ritual;
-  const requiresConcentration = spell.concentration;
+  const isCantrip = spell?.level === 0;
+  const isRitual = spell?.ritual;
+  const requiresConcentration = spell?.concentration;
   const willBreakConcentration = requiresConcentration && concentratingOn !== null;
 
   // Available slot levels for upcasting
   const availableSlotLevels = useMemo(() => {
+    if (!spell) return [];
     const levels: { level: number; available: number; max: number }[] = [];
     
     for (let lvl = spell.level; lvl <= 5; lvl++) {
@@ -78,7 +78,10 @@ export function SpellCastSheet({
     }
     
     return levels;
-  }, [spell.level, spellSlots]);
+  }, [spell, spellSlots]);
+
+  // Early return AFTER all hooks
+  if (!spell) return null;
 
   // Check if can cast at selected level
   const canCastAtLevel = (level: number): boolean => {
