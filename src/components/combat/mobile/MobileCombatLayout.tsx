@@ -400,43 +400,45 @@ export function MobileCombatLayout({ character, spellcasting, equipment }: Mobil
     switch (activeTab) {
       case 'attacks':
         return (
-          <div className="p-4 pb-24 space-y-3">
-            {/* Sneak Attack Status */}
-            <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-xl">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-mono text-green-400">SNEAK ATTACK</span>
-                <span className="text-lg font-bold text-green-300">{sneakAttackDice}</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Once per turn with advantage OR ally within 5ft (no disadvantage)
-              </p>
-            </div>
-            
-            {/* Weapon Cards - From Equipped Gear */}
-            {equippedWeapons.map(weapon => (
-              <MobileWeaponCard
-                key={weapon.id}
-                weapon={weapon}
-                level={character.level}
-                attackBonus={modifiers.attackBonus}
-                damageBonus={modifiers.damageBonus}
-                conditions={conditions}
-                hasPoisonedWeapon={hasPoisonedWeapon}
-                isExpanded={expandedWeaponId === weapon.id}
-                onToggleExpand={() => setExpandedWeaponId(
-                  expandedWeaponId === weapon.id ? null : weapon.id
-                )}
-                onRoll={handleWeaponRoll}
-              />
-            ))}
-            {equippedWeapons.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                <p className="text-sm">No weapons equipped</p>
-                <p className="text-[10px] text-red-400 mt-1 italic">
-                  "Maybe equip something in the Gear tab, genius."
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-4 pb-24 space-y-3">
+              {/* Sneak Attack Status */}
+              <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-xl">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-mono text-green-400">SNEAK ATTACK</span>
+                  <span className="text-lg font-bold text-green-300">{sneakAttackDice}</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Once per turn with advantage OR ally within 5ft (no disadvantage)
                 </p>
               </div>
-            )}
+              
+              {/* Weapon Cards - From Equipped Gear */}
+              {equippedWeapons.map(weapon => (
+                <MobileWeaponCard
+                  key={weapon.id}
+                  weapon={weapon}
+                  level={character.level}
+                  attackBonus={modifiers.attackBonus}
+                  damageBonus={modifiers.damageBonus}
+                  conditions={conditions}
+                  hasPoisonedWeapon={hasPoisonedWeapon}
+                  isExpanded={expandedWeaponId === weapon.id}
+                  onToggleExpand={() => setExpandedWeaponId(
+                    expandedWeaponId === weapon.id ? null : weapon.id
+                  )}
+                  onRoll={handleWeaponRoll}
+                />
+              ))}
+              {equippedWeapons.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p className="text-sm">No weapons equipped</p>
+                  <p className="text-[10px] text-red-400 mt-1 italic">
+                    "Maybe equip something in the Gear tab, genius."
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         );
       

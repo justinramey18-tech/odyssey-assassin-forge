@@ -110,7 +110,8 @@ export function EnhancedMobileAbilityList({
   }
 
   return (
-    <div className="p-4 pb-24 space-y-4">
+    <div className="flex-1 overflow-y-auto">
+      <div className="p-4 pb-24 space-y-4">
       {/* Synergy Summary */}
       <div className="grid grid-cols-3 gap-2">
         <SynergySummaryCard
@@ -216,6 +217,7 @@ export function EnhancedMobileAbilityList({
           })}
         </div>
       )}
+      </div>
     </div>
   );
 }

@@ -126,7 +126,8 @@ export function MobileSpellList({
   }, [preparedSpells]);
 
   return (
-    <div className="p-4 pb-24 space-y-3">
+    <div className="flex-1 overflow-y-auto">
+      <div className="p-4 pb-24 space-y-3">
       {/* Quick Stats Bar */}
       <div className="flex items-center gap-2 p-2 bg-indigo-500/10 border border-indigo-500/30 rounded-xl">
         <div className="flex-1 grid grid-cols-3 gap-2 text-center">
@@ -264,6 +265,7 @@ export function MobileSpellList({
         characterName={characterName}
         onCast={handleCast}
       />
+      </div>
     </div>
   );
 }
