@@ -204,6 +204,8 @@ interface SettingsContentProps {
   // Custom images
   equipmentImageCount?: number;
   abilityImageCount?: number;
+  onClearEquipmentImages?: () => void;
+  onClearAbilityImages?: () => void;
   onClearAllCustomImages?: () => void;
 }
 
@@ -225,6 +227,8 @@ export function SettingsContent({
   fullGuide,
   equipmentImageCount = 0,
   abilityImageCount = 0,
+  onClearEquipmentImages,
+  onClearAbilityImages,
   onClearAllCustomImages,
 }: SettingsContentProps) {
   const [copiedStatic, setCopiedStatic] = useState(false);
@@ -746,76 +750,115 @@ export function SettingsContent({
                     Custom Images
                   </h4>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {equipmentImageCount > 0 && `${equipmentImageCount} equipment`}
-                    {equipmentImageCount > 0 && abilityImageCount > 0 && ' + '}
-                    {abilityImageCount > 0 && `${abilityImageCount} ability`}
-                    {' '}image{totalCustomImages !== 1 ? 's' : ''} stored
+                    {totalCustomImages} image{totalCustomImages !== 1 ? 's' : ''} stored
                   </p>
                 </div>
               </div>
               
-              <AlertDialog open={showClearImagesDialog} onOpenChange={setShowClearImagesDialog}>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full gap-2 h-12 border-amber-500/30 hover:bg-amber-500/10 text-amber-400"
-                  >
-                    <ImageOff className="w-4 h-4" />
-                    Clear All Custom Images
-                  </Button>
-                </AlertDialogTrigger>
+              {/* Individual category rows with clear buttons */}
+              <div className="space-y-2 mt-3">
+                {equipmentImageCount > 0 && (
+                  <div className="flex items-center justify-between p-2 rounded-md bg-muted/30">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-cyan-400" />
+                      <span className="text-sm">{equipmentImageCount} equipment slot{equipmentImageCount !== 1 ? 's' : ''}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        onClearEquipmentImages?.();
+                        toast.success(`Cleared ${equipmentImageCount} equipment image${equipmentImageCount !== 1 ? 's' : ''}`);
+                      }}
+                      className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                )}
                 
-                <AlertDialogContent className="max-w-[90vw] sm:max-w-md">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle className="flex items-center gap-2 text-amber-400">
-                      <ImageOff className="w-5 h-5" />
-                      Clear All Custom Images?
-                    </AlertDialogTitle>
-                    <AlertDialogDescription asChild>
-                      <div className="space-y-3 pt-2">
-                        <p className="text-sm">
-                          This will remove all uploaded images from:
-                        </p>
-                        
-                        <div className="bg-muted/50 rounded-md p-3 space-y-2">
-                          {equipmentImageCount > 0 && (
+                {abilityImageCount > 0 && (
+                  <div className="flex items-center justify-between p-2 rounded-md bg-muted/30">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-purple-400" />
+                      <span className="text-sm">{abilityImageCount} ability node{abilityImageCount !== 1 ? 's' : ''}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        onClearAbilityImages?.();
+                        toast.success(`Cleared ${abilityImageCount} ability image${abilityImageCount !== 1 ? 's' : ''}`);
+                      }}
+                      className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                )}
+              </div>
+              
+              {/* Clear All button - only show if both types exist */}
+              {equipmentImageCount > 0 && abilityImageCount > 0 && (
+                <AlertDialog open={showClearImagesDialog} onOpenChange={setShowClearImagesDialog}>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full gap-2 h-10 mt-3 border-amber-500/30 hover:bg-amber-500/10 text-amber-400"
+                    >
+                      <ImageOff className="w-4 h-4" />
+                      Clear All ({totalCustomImages})
+                    </Button>
+                  </AlertDialogTrigger>
+                  
+                  <AlertDialogContent className="max-w-[90vw] sm:max-w-md">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="flex items-center gap-2 text-amber-400">
+                        <ImageOff className="w-5 h-5" />
+                        Clear All Custom Images?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription asChild>
+                        <div className="space-y-3 pt-2">
+                          <p className="text-sm">
+                            This will remove all uploaded images from:
+                          </p>
+                          
+                          <div className="bg-muted/50 rounded-md p-3 space-y-2">
                             <p className="text-sm text-foreground flex items-center gap-2">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
                               {equipmentImageCount} equipment slot{equipmentImageCount !== 1 ? 's' : ''}
                             </p>
-                          )}
-                          {abilityImageCount > 0 && (
                             <p className="text-sm text-foreground flex items-center gap-2">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
                               {abilityImageCount} ability node{abilityImageCount !== 1 ? 's' : ''}
                             </p>
-                          )}
-                        </div>
+                          </div>
 
-                        <p className="text-xs text-muted-foreground">
-                          Default icons will be restored. Your character data is not affected.
-                        </p>
-                      </div>
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  
-                  <AlertDialogFooter className="gap-2 flex-col sm:flex-row">
-                    <AlertDialogCancel className="w-full sm:w-auto">
-                      Cancel
-                    </AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => {
-                        onClearAllCustomImages?.();
-                        setShowClearImagesDialog(false);
-                        toast.success('All custom images cleared');
-                      }}
-                      className="w-full sm:w-auto bg-amber-600 text-white hover:bg-amber-500"
-                    >
-                      Clear All Images
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                          <p className="text-xs text-muted-foreground">
+                            Default icons will be restored. Your character data is not affected.
+                          </p>
+                        </div>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    
+                    <AlertDialogFooter className="gap-2 flex-col sm:flex-row">
+                      <AlertDialogCancel className="w-full sm:w-auto">
+                        Cancel
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => {
+                          onClearAllCustomImages?.();
+                          setShowClearImagesDialog(false);
+                          toast.success('All custom images cleared');
+                        }}
+                        className="w-full sm:w-auto bg-amber-600 text-white hover:bg-amber-500"
+                      >
+                        Clear All Images
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </div>
             
             <Separator className="bg-border/30" />
