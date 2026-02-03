@@ -1,73 +1,67 @@
 
-# Add Swipe Navigation to GM Prompts Category Tabs
 
-## Overview
-Add left/right swipe gestures to the category filter tabs in the **Modular GM Prompts** section, allowing users to cycle through categories (All → Core → Abilities → Gear → Systems → Advanced) with horizontal swipes.
+# Custom Ability Images - Implementation Plan
 
-## Current State
-- The GM Prompts component (`GMGuidePrompts.tsx`) has 6 category tabs: All, Core, Abilities, Gear, Systems, Advanced
-- Categories are rendered as buttons inside a horizontal `ScrollArea`
-- The `activeCategory` state tracks the currently selected filter
-- A `useSwipe` hook already exists in the codebase for handling swipe gestures
+## What We're Building
+Allow you to upload personal images to any ability node in your skill trees. These images will also automatically appear on the matching ability cards in the Combat tab - just like how your weapon images already sync between Gear and Combat.
 
-## Implementation Plan
+---
 
-### File: `src/components/settings/GMGuidePrompts.tsx`
+## How It Will Work
 
-**1. Add swipe hook integration**
-- Import the existing `useSwipe` hook
-- Create a combined categories array: `['all', ...PROMPT_CATEGORIES.map(c => c.id)]`
-- Calculate current index from `activeCategory`
-- Implement `handleSwipeLeft` (next category) and `handleSwipeRight` (previous category) with wrap-around
+### Uploading an Image
+1. Tap on any ability node in the skill tree
+2. The details panel opens on the right
+3. Tap the icon/image area at the top of the panel
+4. Choose a photo from your device
+5. The image instantly appears on that ability node
 
-**2. Attach swipe handlers to the category filter area**
-- Wrap the category filter section with swipe touch handlers
-- Add visual feedback during swipe (subtle transform based on `swipeOffset`)
+### Seeing It Everywhere
+- **Skill Trees:** Your custom image fills the circular node
+- **Combat Tab:** The same image shows up on that ability's card
+- **Real-time sync:** Changes appear immediately in both places
 
-**3. Add navigation arrow buttons (optional desktop enhancement)**
-- Add ChevronLeft/ChevronRight buttons on either side of the tabs
-- Show on both mobile (as touch targets) and desktop (as click targets)
+### Removing an Image
+- Tap the image area again
+- A trash icon appears
+- Tap to remove and go back to the default icon
 
-**4. Add category indicator dots or label**
-- Show current position in the category cycle (e.g., "2 of 6")
-- Provide visual confirmation of navigation
+---
 
-## Technical Details
+## What Gets Created/Changed
 
-```typescript
-// Combined categories array
-const allCategories = useMemo(() => [
-  { id: 'all', label: 'All', icon: '🔍' },
-  ...PROMPT_CATEGORIES
-], []);
+### New Piece
+**Image Storage System** - A behind-the-scenes system (similar to the one already used for weapons) that:
+- Saves your ability images to your device's local storage
+- Remembers them between sessions
+- Limits each image to 2MB to keep things running smoothly
 
-// Current index calculation
-const currentIndex = allCategories.findIndex(c => c.id === activeCategory);
+### Updated Screens
 
-// Swipe handlers with wrap-around
-const handleSwipeLeft = useCallback(() => {
-  const nextIndex = (currentIndex + 1) % allCategories.length;
-  setActiveCategory(allCategories[nextIndex].id);
-}, [currentIndex, allCategories]);
+**Abilities Tab:**
+- The circular ability nodes can now display your custom images
+- The details panel gets an upload button in the header area
+- Tier badges (I, II, III) stay visible on top of your images
 
-const handleSwipeRight = useCallback(() => {
-  const prevIndex = (currentIndex - 1 + allCategories.length) % allCategories.length;
-  setActiveCategory(allCategories[prevIndex].id);
-}, [currentIndex, allCategories]);
+**Combat Tab:**
+- Ability cards show your custom images in the icon area
+- Falls back to the colored border style when no image exists
 
-const { handlers, swipeOffset, swiping } = useSwipe(handleSwipeLeft, handleSwipeRight);
-```
+---
 
-## UI Enhancement
-- Add left/right chevron buttons flanking the category tabs
-- Show position indicator (e.g., "Core • 2/6")
-- Apply subtle horizontal transform during swipe for tactile feedback
+## Files Involved
 
-## Files to Modify
-- `src/components/settings/GMGuidePrompts.tsx` - Add swipe logic and navigation controls
+| What | Purpose |
+|------|---------|
+| New image storage hook | Saves/loads images from device storage |
+| Ability nodes | Display custom images in the circles |
+| Ability details panel | Add upload/remove buttons |
+| Abilities screen | Connect everything together |
+| Combat ability cards | Show the same images in Combat |
+| Combat layout | Wire up the image sync |
 
-## Expected Behavior
-1. **Swipe left**: Move to next category (All → Core → Abilities → Gear → Systems → Advanced → All...)
-2. **Swipe right**: Move to previous category (reverse order)
-3. **Tap chevrons**: Same as swipe but via button press
-4. **Visual feedback**: Categories smoothly animate on change, current position shown
+---
+
+## End Result
+Upload an image to "Predator Sense" in your skill tree → it instantly appears on the Predator Sense card in Combat → images persist even after closing the app.
+
