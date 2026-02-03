@@ -13,3 +13,6 @@ export * from './paths';
 
 // Spell database
 export * from './spells';
+
+// Calculations (proficiency, preparation, scaling)
+export * from './calculations';

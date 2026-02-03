@@ -3,13 +3,14 @@ import { cn } from '@/lib/utils';
 import { SpellDefinition, MagicPath, SpellSlotLevel, PactSlots } from '@/lib/magic/types';
 import { getSchoolConfig } from '@/lib/magic/schools';
 import { getSpellLevelLabel, getCastingTimeLabel, getComponentsLabel } from '@/lib/magic/spells';
+import { scaleCantrip } from '@/lib/magic/calculations';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Wand2, Eye, Zap, AlertTriangle, ArrowUp, 
-  Sparkles, Copy, Check, Clock
+  Sparkles, Copy, Check, Clock, TrendingUp
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
@@ -26,6 +27,7 @@ interface SpellCastSheetProps {
   spellAttackBonus: number;
   spellSaveDC: number;
   characterName: string;
+  characterLevel?: number;
   onCast: (spellLevel: number, usePact: boolean) => void;
 }
 
@@ -40,6 +42,7 @@ export function SpellCastSheet({
   spellAttackBonus,
   spellSaveDC,
   characterName,
+  characterLevel = 1,
   onCast,
 }: SpellCastSheetProps) {
   const [selectedLevel, setSelectedLevel] = useState<number | null>(null);
@@ -238,6 +241,15 @@ ${isUpcast && spell.higherLevels ? `**Upcast Bonus:** ${spell.higherLevels}` : '
               <p className="text-xs text-emerald-300/80 mt-1">
                 Cantrips can be cast at will without consuming spell slots.
               </p>
+              {spell?.damageFormula && characterLevel >= 5 && (
+                <div className="mt-2 flex items-center gap-2 text-xs text-purple-300">
+                  <TrendingUp className="w-3 h-3" />
+                  <span>
+                    Scaled damage: {scaleCantrip(spell.damageFormula, characterLevel)} 
+                    {characterLevel >= 17 ? ' (max)' : ''}
+                  </span>
+                </div>
+              )}
             </div>
           )}
 

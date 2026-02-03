@@ -12,6 +12,13 @@ import {
 } from '@/lib/magic/types';
 import { getPathConfig, getPathProgression } from '@/lib/magic/paths';
 import { getSpellById } from '@/lib/magic/spells';
+import { 
+  getProficiencyBonus, 
+  getSpellPreparationInfo, 
+  SpellPreparationInfo,
+  scaleCantrip,
+  getConcentrationCheckDC,
+} from '@/lib/magic/calculations';
 import { useToast } from '@/hooks/use-toast';
 
 // ============================================
@@ -120,6 +127,15 @@ export interface SpellCastResult {
   brokeConcentration: string | null;
 }
 
+export interface UseSpellcastingOptions {
+  /** Character's ability scores (to auto-calculate modifier) */
+  abilityScores?: {
+    intelligence: number;
+    wisdom: number;
+    charisma: number;
+  };
+}
+
 export interface UseSpellcastingReturn {
   // State
   state: SpellcastingState;
@@ -130,6 +146,17 @@ export interface UseSpellcastingReturn {
   hasPath: boolean;
   isPathUnlocked: boolean;
   totalSlotsRemaining: number;
+  
+  // Preparation info (5e compliant)
+  preparationInfo: SpellPreparationInfo | null;
+  currentPreparedCount: number;
+  canPrepareMore: boolean;
+  
+  // Cantrip scaling helper
+  getScaledCantripDamage: (baseDamage: string | undefined) => string | undefined;
+  
+  // Concentration check
+  getConcentrationDC: (damageTaken: number) => number;
   
   // Path management
   selectPath: (path: MagicPath) => void;
@@ -165,7 +192,7 @@ export interface UseSpellcastingReturn {
   onShortRest: () => void;
   onLongRest: () => void;
   
-  // Stats update
+  // Stats update (manual override)
   updateAbilityModifier: (mod: number) => void;
   updateProficiencyBonus: (bonus: number) => void;
   
@@ -176,7 +203,11 @@ export interface UseSpellcastingReturn {
   refreshSlotsForLevel: (characterLevel: number) => void;
 }
 
-export function useSpellcasting(characterLevel: number): UseSpellcastingReturn {
+export function useSpellcasting(
+  characterLevel: number,
+  options: UseSpellcastingOptions = {}
+): UseSpellcastingReturn {
+  const { abilityScores } = options;
   const [state, setState] = useState<SpellcastingState>(loadState);
   const { toast } = useToast();
 
@@ -184,6 +215,40 @@ export function useSpellcasting(characterLevel: number): UseSpellcastingReturn {
   useEffect(() => {
     saveState(state);
   }, [state]);
+
+  // Auto-sync proficiency bonus based on character level
+  useEffect(() => {
+    const calculatedProficiency = getProficiencyBonus(characterLevel);
+    if (calculatedProficiency !== state.proficiencyBonus) {
+      setState(prev => ({ ...prev, proficiencyBonus: calculatedProficiency }));
+    }
+  }, [characterLevel, state.proficiencyBonus]);
+
+  // Auto-sync ability modifier from ability scores
+  useEffect(() => {
+    if (!abilityScores || !state.path) return;
+    
+    const pathConfig = getPathConfig(state.path);
+    let relevantScore = 10;
+    
+    switch (pathConfig.spellcastingAbility) {
+      case 'INT':
+        relevantScore = abilityScores.intelligence;
+        break;
+      case 'WIS':
+        relevantScore = abilityScores.wisdom;
+        break;
+      case 'CHA':
+        relevantScore = abilityScores.charisma;
+        break;
+    }
+    
+    // Calculate modifier: floor((score - 10) / 2)
+    const newModifier = Math.floor((relevantScore - 10) / 2);
+    if (newModifier !== state.abilityModifier) {
+      setState(prev => ({ ...prev, abilityModifier: newModifier }));
+    }
+  }, [abilityScores, state.path, state.abilityModifier]);
 
   // Derived calculations
   const spellAttackBonus = useMemo(() => 
@@ -209,6 +274,34 @@ export function useSpellcasting(characterLevel: number): UseSpellcastingReturn {
     }
     return total;
   }, [state.spellSlots, state.pactSlots]);
+
+  // Preparation info (5e compliant)
+  const preparationInfo = useMemo((): SpellPreparationInfo | null => {
+    if (!state.path) return null;
+    return getSpellPreparationInfo(state.path, characterLevel, state.abilityModifier);
+  }, [state.path, characterLevel, state.abilityModifier]);
+
+  // Count non-cantrip prepared spells
+  const currentPreparedCount = useMemo(() => {
+    return state.preparedSpells.filter(id => {
+      const spell = getSpellById(id);
+      return spell && spell.level > 0;
+    }).length;
+  }, [state.preparedSpells]);
+
+  const canPrepareMore = preparationInfo 
+    ? currentPreparedCount < preparationInfo.maxPreparedSpells 
+    : true;
+
+  // Cantrip scaling helper
+  const getScaledCantripDamage = useCallback((baseDamage: string | undefined): string | undefined => {
+    return scaleCantrip(baseDamage, characterLevel);
+  }, [characterLevel]);
+
+  // Concentration check DC calculator
+  const getConcentrationDC = useCallback((damageTaken: number): number => {
+    return getConcentrationCheckDC(damageTaken);
+  }, []);
 
   // ============================================
   // PATH MANAGEMENT
@@ -661,6 +754,11 @@ export function useSpellcasting(characterLevel: number): UseSpellcastingReturn {
     hasPath,
     isPathUnlocked,
     totalSlotsRemaining,
+    preparationInfo,
+    currentPreparedCount,
+    canPrepareMore,
+    getScaledCantripDamage,
+    getConcentrationDC,
     selectPath,
     unlockPath,
     clearPath,

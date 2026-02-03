@@ -164,8 +164,8 @@ const Index = () => {
     categoryNav.navigateToSubTab('consumables', 'inventory');
   }, [categoryNav]);
   
-  // Spellcasting system
-  const spellcasting = useSpellcasting(character.level);
+  // Spellcasting system - moved after abilityScores for dependency
+  // (see definition after abilityScores below)
   
   // Shop system
   const shop = useShop();
@@ -229,6 +229,15 @@ const Index = () => {
   // Ability Scores system (centralized stat management with gear sync)
   const abilityScores = useAbilityScores({
     equipmentStats: aggregatedStats,
+  });
+  
+  // Spellcasting system (uses ability scores for auto-calculation)
+  const spellcasting = useSpellcasting(character.level, {
+    abilityScores: {
+      intelligence: abilityScores.finalScores.intelligence,
+      wisdom: abilityScores.finalScores.wisdom,
+      charisma: abilityScores.finalScores.charisma,
+    },
   });
   
   // Shared achievements state

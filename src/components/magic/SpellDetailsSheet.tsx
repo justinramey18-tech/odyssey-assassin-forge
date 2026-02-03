@@ -2,13 +2,14 @@ import { cn } from '@/lib/utils';
 import { SpellDefinition } from '@/lib/magic/types';
 import { getSchoolConfig } from '@/lib/magic/schools';
 import { getSpellLevelLabel, getCastingTimeLabel, getComponentsLabel } from '@/lib/magic/spells';
+import { scaleCantrip, getCantripScaling } from '@/lib/magic/calculations';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Star, Clock, Target, Eye, Mic, Hand, Package, 
-  Zap, Swords, Shield, Copy, Check 
+  Zap, Swords, Shield, Copy, Check, TrendingUp 
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
@@ -23,6 +24,8 @@ interface SpellDetailsSheetProps {
   isFavorite: boolean;
   isConcentrating: boolean;
   canCast: boolean;
+  canPrepareMore?: boolean;
+  characterLevel?: number;
   onPrepare: () => void;
   onUnprepare: () => void;
   onToggleFavorite: () => void;
@@ -37,6 +40,8 @@ export function SpellDetailsSheet({
   isFavorite,
   isConcentrating,
   canCast,
+  canPrepareMore = true,
+  characterLevel = 1,
   onPrepare,
   onUnprepare,
   onToggleFavorite,
@@ -50,6 +55,13 @@ export function SpellDetailsSheet({
   const schoolConfig = getSchoolConfig(spell.school);
   const iconLookup = LucideIcons as unknown as Record<string, LucideIcon>;
   const IconComponent = iconLookup[spell.iconName] || LucideIcons.Sparkles;
+
+  // Calculate scaled damage for cantrips
+  const isCantrip = spell.level === 0;
+  const scaledDamage = isCantrip ? scaleCantrip(spell.damageFormula, characterLevel) : spell.damageFormula;
+  const cantripScaling = isCantrip && spell.damageFormula 
+    ? getCantripScaling(1, 'd10', characterLevel) 
+    : null;
 
   const handleCopyPrompt = async () => {
     const prompt = `**Spell: ${spell.name}**
@@ -211,13 +223,33 @@ ${spell.description}${spell.higherLevels ? `\n\n**At Higher Levels:** ${spell.hi
                 {spell.attackType === 'melee' ? 'Melee Attack' : spell.attackType === 'ranged' ? 'Ranged Attack' : 'Save'}
               </Badge>
             )}
-            {spell.damageFormula && (
+            {scaledDamage && (
               <Badge className="bg-orange-600/30 text-orange-300 border-orange-500/50">
                 <Zap className="w-3 h-3 mr-1" />
-                {spell.damageFormula} {spell.damageType}
+                {scaledDamage} {spell.damageType}
+                {isCantrip && characterLevel >= 5 && (
+                  <TrendingUp className="w-3 h-3 ml-1" />
+                )}
               </Badge>
             )}
           </div>
+
+          {/* Cantrip Scaling Info */}
+          {isCantrip && scaledDamage && cantripScaling && (
+            <div className="mb-4 p-3 rounded-lg bg-purple-500/10 border border-purple-500/30">
+              <div className="flex items-center gap-2 mb-1">
+                <TrendingUp className="w-4 h-4 text-purple-400" />
+                <span className="text-sm font-semibold text-purple-300">Cantrip Scaling</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {characterLevel >= 17 
+                  ? 'Maximum scaling reached (×4 dice)' 
+                  : cantripScaling.nextScalingLevel 
+                    ? `Scales at level ${cantripScaling.nextScalingLevel}` 
+                    : 'Base damage'}
+              </p>
+            </div>
+          )}
 
           {/* Description */}
           <div className="mb-4">
@@ -262,8 +294,9 @@ ${spell.description}${spell.higherLevels ? `\n\n**At Higher Levels:** ${spell.hi
                 variant={isPrepared ? "outline" : "default"}
                 className="flex-1"
                 onClick={isPrepared ? onUnprepare : onPrepare}
+                disabled={!isPrepared && !canPrepareMore}
               >
-                {isPrepared ? 'Unprepare' : 'Prepare'}
+                {isPrepared ? 'Unprepare' : (canPrepareMore ? 'Prepare' : 'At Limit')}
               </Button>
             )}
             <Button

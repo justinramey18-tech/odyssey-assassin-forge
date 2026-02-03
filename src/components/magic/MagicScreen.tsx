@@ -111,7 +111,7 @@ export function MagicScreen({
         </div>
         
         {/* Quick Stats */}
-        <div className="mt-4 grid grid-cols-3 gap-2">
+        <div className="mt-4 grid grid-cols-4 gap-2">
           <div className="bg-background/40 rounded-lg p-2 text-center">
             <div className="text-lg font-bold text-indigo-400">
               +{spellcasting.spellAttackBonus}
@@ -129,6 +129,12 @@ export function MagicScreen({
               {spellcasting.totalSlotsRemaining}
             </div>
             <div className="text-[10px] text-muted-foreground uppercase">Slots</div>
+          </div>
+          <div className="bg-background/40 rounded-lg p-2 text-center">
+            <div className={`text-lg font-bold ${spellcasting.canPrepareMore ? 'text-emerald-400' : 'text-amber-400'}`}>
+              {spellcasting.currentPreparedCount}/{spellcasting.preparationInfo?.maxPreparedSpells ?? '—'}
+            </div>
+            <div className="text-[10px] text-muted-foreground uppercase">Prepared</div>
           </div>
         </div>
 
@@ -263,6 +269,8 @@ export function MagicScreen({
         isFavorite={selectedSpell ? state.favoriteSpells.includes(selectedSpell.id) : false}
         isConcentrating={selectedSpell ? state.concentratingOn === selectedSpell.id : false}
         canCast={spellcasting.totalSlotsRemaining > 0 || (selectedSpell?.level === 0)}
+        canPrepareMore={spellcasting.canPrepareMore}
+        characterLevel={characterLevel}
         onPrepare={() => selectedSpell && spellcasting.prepareSpell(selectedSpell.id)}
         onUnprepare={() => selectedSpell && spellcasting.unprepareSpell(selectedSpell.id)}
         onToggleFavorite={() => selectedSpell && spellcasting.toggleFavorite(selectedSpell.id)}
@@ -281,6 +289,7 @@ export function MagicScreen({
         spellAttackBonus={spellcasting.spellAttackBonus}
         spellSaveDC={spellcasting.spellSaveDC}
         characterName={characterName}
+        characterLevel={characterLevel}
         onCast={handleCastSpell}
       />
     </div>

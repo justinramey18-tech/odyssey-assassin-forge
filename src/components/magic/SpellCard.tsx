@@ -2,6 +2,7 @@ import { cn } from '@/lib/utils';
 import { SpellDefinition } from '@/lib/magic/types';
 import { getSchoolConfig } from '@/lib/magic/schools';
 import { getSpellLevelLabel, getCastingTimeLabel, getComponentsLabel } from '@/lib/magic/spells';
+import { scaleCantrip } from '@/lib/magic/calculations';
 import { Star, Clock, Target, Eye } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
@@ -13,6 +14,7 @@ interface SpellCardProps {
   isConcentrating?: boolean;
   onClick?: () => void;
   compact?: boolean;
+  characterLevel?: number;
 }
 
 export function SpellCard({
@@ -22,12 +24,18 @@ export function SpellCard({
   isConcentrating = false,
   onClick,
   compact = false,
+  characterLevel = 1,
 }: SpellCardProps) {
   const schoolConfig = getSchoolConfig(spell.school);
   
   // Get the icon component safely
   const iconLookup = LucideIcons as unknown as Record<string, LucideIcon>;
   const IconComponent = iconLookup[spell.iconName] || LucideIcons.Sparkles;
+
+  // Scale cantrip damage if applicable
+  const displayDamage = spell.level === 0 
+    ? scaleCantrip(spell.damageFormula, characterLevel)
+    : spell.damageFormula;
 
   if (compact) {
     return (
@@ -138,14 +146,16 @@ export function SpellCard({
         {spell.description}
       </p>
 
-      {/* Components */}
       <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between">
         <span className="text-[10px] text-muted-foreground font-mono">
           {getComponentsLabel(spell.components)}
         </span>
-        {spell.damageFormula && (
+        {displayDamage && (
           <span className="text-[10px] font-mono text-orange-400">
-            {spell.damageFormula} {spell.damageType}
+            {displayDamage} {spell.damageType}
+            {spell.level === 0 && characterLevel >= 5 && (
+              <span className="text-[8px] text-orange-300/60 ml-1">(scaled)</span>
+            )}
           </span>
         )}
         {spell.ritual && (
