@@ -1,14 +1,13 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Check, Copy, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Layers, Filter } from 'lucide-react';
+import { Check, Copy, ChevronLeft, ChevronRight, Layers } from 'lucide-react';
 import { useSwipe } from '@/hooks/use-swipe';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { GM_GUIDE_PROMPTS, GMGuidePrompt, getCombinedGMGuide, PROMPT_CATEGORIES, getPromptsByCategory } from '@/lib/gmGuidePrompts';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 interface GMGuidePromptsProps {
   className?: string;
@@ -19,9 +18,8 @@ type CategoryFilter = GMGuidePrompt['category'] | 'all';
 export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedPrompt, setSelectedPrompt] = useState<GMGuidePrompt | null>(null);
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>('all');
-  const isMobile = useIsMobile();
 
   // Combined categories array for swipe navigation
   const allCategories = useMemo(() => [
@@ -76,8 +74,8 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
     }
   };
 
-  const toggleExpand = (id: string) => {
-    setExpandedId(expandedId === id ? null : id);
+  const handlePromptClick = (prompt: GMGuidePrompt) => {
+    setSelectedPrompt(prompt);
   };
 
   return (
@@ -88,7 +86,7 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
           <div className="min-w-0 flex-1">
             <h4 className="font-cinzel font-semibold text-sm truncate">Modular GM Prompts</h4>
             <p className="text-xs text-muted-foreground">
-              {filteredPrompts.length} prompts • Tap to copy
+              {filteredPrompts.length} prompts • Tap to view
             </p>
           </div>
           <Button
@@ -164,96 +162,32 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
         </div>
       </div>
 
-      {/* Prompt List - Mobile optimized cards */}
+      {/* Prompt List - Clickable cards */}
       <ScrollArea className="flex-1 w-full max-w-full">
         <div className="space-y-2 py-3 w-full max-w-full">
           {filteredPrompts.map((prompt) => (
-            <Collapsible
+            <button
               key={prompt.id}
-              open={expandedId === prompt.id}
-              onOpenChange={() => toggleExpand(prompt.id)}
+              onClick={() => handlePromptClick(prompt)}
+              className={cn(
+                "w-full text-left border rounded-lg transition-all duration-200",
+                "border-border/50 bg-card/30 hover:bg-card/60 active:bg-card/80",
+                "focus:outline-none focus:ring-2 focus:ring-primary/50"
+              )}
             >
-              <div className={cn(
-                "border rounded-lg transition-all duration-200 w-full max-w-full",
-                expandedId === prompt.id 
-                  ? "border-primary/50 bg-primary/5" 
-                  : "border-border/50 bg-card/30 active:bg-card/60"
-              )}>
-                {/* Card Header - Touch friendly */}
-                <div className="flex items-center gap-2 p-2.5 min-h-[52px] w-full min-w-0">
-                  <span className="text-lg shrink-0">{prompt.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <h5 className="font-semibold text-sm truncate">{prompt.title}</h5>
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0 opacity-60">
-                        {PROMPT_CATEGORIES.find(c => c.id === prompt.category)?.label}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground truncate">{prompt.description}</p>
+              <div className="flex items-center gap-2 p-2.5 min-h-[52px] w-full min-w-0">
+                <span className="text-lg shrink-0">{prompt.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <h5 className="font-semibold text-sm truncate">{prompt.title}</h5>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0 opacity-60">
+                      {PROMPT_CATEGORIES.find(c => c.id === prompt.category)?.label}
+                    </Badge>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className={cn(
-                        "h-9 w-9 touch-manipulation",
-                        copiedId === prompt.id && "text-green-400"
-                      )}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCopyPrompt(prompt);
-                      }}
-                    >
-                      {copiedId === prompt.id ? (
-                        <Check className="w-4 h-4" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
-                    </Button>
-                    <CollapsibleTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-9 w-9 touch-manipulation">
-                        {expandedId === prompt.id ? (
-                          <ChevronUp className="w-4 h-4" />
-                        ) : (
-                          <ChevronDown className="w-4 h-4" />
-                        )}
-                      </Button>
-                    </CollapsibleTrigger>
-                  </div>
+                  <p className="text-xs text-muted-foreground truncate">{prompt.description}</p>
                 </div>
-
-                {/* Expandable Content */}
-                <CollapsibleContent>
-                  <div className="px-2.5 pb-2.5 pt-0 w-full max-w-full min-w-0">
-                    <pre className={cn(
-                      "p-2.5 rounded-lg border border-border/30 bg-muted/30 w-full",
-                      "text-[11px] font-mono whitespace-pre-wrap break-words leading-relaxed",
-                      "max-h-[40vh] overflow-y-auto overflow-x-hidden"
-                    )}>
-                      {prompt.content}
-                    </pre>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="w-full mt-2 gap-2 h-10 touch-manipulation"
-                      onClick={() => handleCopyPrompt(prompt)}
-                    >
-                      {copiedId === prompt.id ? (
-                        <>
-                          <Check className="w-4 h-4" />
-                          Copied!
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-4 h-4" />
-                          Copy This Prompt
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </CollapsibleContent>
               </div>
-            </Collapsible>
+            </button>
           ))}
         </div>
       </ScrollArea>
@@ -269,7 +203,7 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
                 "text-xs hover:bg-primary/10 active:bg-primary/20",
                 "transition-colors touch-manipulation"
               )}
-              onClick={() => handleCopyPrompt(prompt)}
+              onClick={() => handlePromptClick(prompt)}
               title={prompt.title}
             >
               {copiedId === prompt.id ? (
@@ -289,7 +223,7 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
                 "text-xs hover:bg-primary/10 active:bg-primary/20",
                 "transition-colors touch-manipulation"
               )}
-              onClick={() => handleCopyPrompt(prompt)}
+              onClick={() => handlePromptClick(prompt)}
               title={prompt.title}
             >
               {copiedId === prompt.id ? (
@@ -301,9 +235,61 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
           ))}
         </div>
         <p className="text-[10px] text-muted-foreground text-center mt-2">
-          💡 Tap icons to quick-copy
+          💡 Tap icons to view prompt
         </p>
       </div>
+
+      {/* Prompt Detail Sheet */}
+      <Sheet open={!!selectedPrompt} onOpenChange={(open) => !open && setSelectedPrompt(null)}>
+        <SheetContent side="bottom" className="h-[70vh] rounded-t-2xl">
+          {selectedPrompt && (
+            <>
+              <SheetHeader className="pb-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">{selectedPrompt.icon}</span>
+                  <div>
+                    <SheetTitle className="text-left">{selectedPrompt.title}</SheetTitle>
+                    <p className="text-sm text-muted-foreground">{selectedPrompt.description}</p>
+                  </div>
+                </div>
+              </SheetHeader>
+              
+              <ScrollArea className="flex-1 h-[calc(70vh-180px)]">
+                <pre className={cn(
+                  "p-3 rounded-lg border border-border/30 bg-muted/30 w-full",
+                  "text-xs font-mono whitespace-pre-wrap break-words leading-relaxed"
+                )}>
+                  {selectedPrompt.content}
+                </pre>
+              </ScrollArea>
+
+              <div className="pt-4 mt-auto">
+                <Button
+                  variant="default"
+                  size="lg"
+                  className="w-full gap-2 h-12 touch-manipulation"
+                  onClick={() => {
+                    handleCopyPrompt(selectedPrompt);
+                    setSelectedPrompt(null);
+                  }}
+                >
+                  {copiedId === selectedPrompt.id ? (
+                    <>
+                      <Check className="w-5 h-5" />
+                      Copied to Clipboard!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-5 h-5" />
+                      Copy to Clipboard
+                    </>
+                  )}
+                </Button>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
