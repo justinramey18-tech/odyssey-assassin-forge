@@ -55,7 +55,7 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
   };
 
   return (
-    <div className={cn("flex flex-col h-full w-full max-w-full min-w-0 overflow-x-hidden", className)}>
+    <div className={cn("flex flex-col h-full w-full max-w-full min-w-0 overflow-hidden", className)}>
       {/* Header - Compact on mobile */}
       <div className="flex flex-col gap-2 pb-3 border-b border-border/30 shrink-0 w-full max-w-full">
         <div className="flex items-center justify-between gap-2 w-full min-w-0">
