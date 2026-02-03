@@ -4,7 +4,7 @@ import { EquipmentItem, EquipmentSlotType } from '@/lib/inventory/types';
 import { legendarySetDefinitions } from '@/lib/inventory/legendarySets';
 import { prestigeAbilities } from '@/lib/prestigeTree/abilities';
 import { PrestigeTreeProgress } from '@/lib/prestigeTree/types';
-
+import { getCombinedGMGuide } from '@/lib/gmGuidePrompts';
 export interface CharacterBuildData {
   character: Character;
   abilities: Ability[];
@@ -1271,3 +1271,6 @@ This character sheet emphasizes **player agency** and **mechanical depth**. Your
 ═══════════════════════════════════════════════════════════════════════════════
 END OF GUIDE (~29,000 characters)
 ═══════════════════════════════════════════════════════════════════════════════`;
+
+// Export the modular guide as the new full guide
+export const MODULAR_GM_GUIDE = getCombinedGMGuide();
