@@ -9,4 +9,5 @@ export { TurnSummaryPanel } from './TurnSummaryPanel';
 export { MobileAbilityList } from './MobileAbilityList';
 export { MobileItemsGrid } from './MobileItemsGrid';
 export { MobileSpellList } from './MobileSpellList';
+export { MobileReactionsList } from './MobileReactionsList';
 export { MobileCombatLayout } from './MobileCombatLayout';

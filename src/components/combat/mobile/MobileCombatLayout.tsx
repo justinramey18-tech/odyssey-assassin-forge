@@ -28,13 +28,15 @@ import { TurnSummaryPanel } from './TurnSummaryPanel';
 import { MobileAbilityList } from './MobileAbilityList';
 import { MobileItemsGrid } from './MobileItemsGrid';
 import { MobileSpellList } from './MobileSpellList';
+import { MobileReactionsList } from './MobileReactionsList';
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
 import { usePromptDrawers } from '@/components/drawers';
 import { CharacterEquipment } from '@/lib/inventory/types';
 import { getEquippedWeapons } from '@/lib/combat/weaponConverter';
+import { Reaction, DEFAULT_REACTIONS, REACTIONS_STORAGE_KEY } from '@/lib/combat/reactions';
 
 // Tab order for swipe navigation
-const TAB_ORDER: CombatTab[] = ['attacks', 'stealth', 'abilities', 'spells', 'items', 'summary'];
+const TAB_ORDER: CombatTab[] = ['attacks', 'stealth', 'abilities', 'reactions', 'spells', 'items', 'summary'];
 
 // Combat modifier calculations
 interface CombatModifiers {
@@ -384,6 +386,18 @@ export function MobileCombatLayout({ character, spellcasting, equipment }: Mobil
           />
         );
       
+      case 'reactions':
+        return (
+          <MobileReactionsList
+            onUseReaction={(reaction) => {
+              // Mark reaction as used
+              setActionEconomy(prev => ({ ...prev, reactionUsed: true }));
+              setLastAction(`⚡ ${reaction.name.toUpperCase()}`);
+              handleAddToTurn('reaction', reaction.name);
+            }}
+          />
+        );
+      
       case 'spells':
         return spellcasting ? (
           <MobileSpellList
@@ -501,6 +515,15 @@ export function MobileCombatLayout({ character, spellcasting, equipment }: Mobil
           attacks: equippedWeapons.length,
           stealth: stealthAbilities.length,
           abilities: specialAbilities.length,
+          reactions: (() => {
+            try {
+              const saved = localStorage.getItem(REACTIONS_STORAGE_KEY);
+              const reactions: Reaction[] = saved ? JSON.parse(saved) : DEFAULT_REACTIONS;
+              return reactions.filter(r => r.isEnabled).length;
+            } catch {
+              return DEFAULT_REACTIONS.filter(r => r.isEnabled).length;
+            }
+          })(),
           spells: spellcasting?.state.preparedSpells.length ?? 0,
           items: 4,
         }}
