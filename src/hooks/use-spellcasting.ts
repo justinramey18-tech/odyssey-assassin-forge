@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   SpellcastingState,
   MagicPath,
@@ -19,13 +19,20 @@ import {
   scaleCantrip,
   getConcentrationCheckDC,
 } from '@/lib/magic/calculations';
+import {
+  ActiveSpellEffect,
+  createActiveSpellEffect,
+  filterActiveSpells,
+  getExpiredSpells,
+} from '@/lib/magic/durations';
 import { useToast } from '@/hooks/use-toast';
 
 // ============================================
-// LOCAL STORAGE KEY
+// LOCAL STORAGE KEYS
 // ============================================
 
 const STORAGE_KEY = 'odyssey-spellcasting';
+const ACTIVE_SPELLS_KEY = 'odyssey-active-spells';
 
 // ============================================
 // DEFAULT STATE
@@ -51,6 +58,28 @@ function getDefaultState(): SpellcastingState {
     spellsCastToday: 0,
     totalSpellsCast: 0,
   };
+}
+
+function loadActiveSpells(): ActiveSpellEffect[] {
+  try {
+    const stored = localStorage.getItem(ACTIVE_SPELLS_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      // Filter out expired spells on load
+      return filterActiveSpells(parsed, Date.now());
+    }
+  } catch (e) {
+    console.error('[Spellcasting] Failed to load active spells:', e);
+  }
+  return [];
+}
+
+function saveActiveSpells(effects: ActiveSpellEffect[]): void {
+  try {
+    localStorage.setItem(ACTIVE_SPELLS_KEY, JSON.stringify(effects));
+  } catch (e) {
+    console.error('[Spellcasting] Failed to save active spells:', e);
+  }
 }
 
 // ============================================
@@ -140,6 +169,9 @@ export interface UseSpellcastingReturn {
   // State
   state: SpellcastingState;
   
+  // Active spell effects (duration tracking)
+  activeSpells: ActiveSpellEffect[];
+  
   // Derived values
   spellAttackBonus: number;
   spellSaveDC: number;
@@ -177,7 +209,10 @@ export interface UseSpellcastingReturn {
   restorePactSlot: () => void;
   
   // Casting
-  castSpell: (spellId: string, spellName: string, baseLevel: number, castLevel: number, usePact: boolean, requiresConcentration: boolean) => SpellCastResult;
+  castSpell: (spellId: string, spellName: string, baseLevel: number, castLevel: number, usePact: boolean, requiresConcentration: boolean, duration: string) => SpellCastResult;
+  
+  // Active spell management
+  dismissActiveSpell: (effectId: string) => void;
   
   // Concentration
   startConcentration: (spellId: string) => void;
@@ -206,16 +241,62 @@ export interface UseSpellcastingReturn {
 
 export function useSpellcasting(
   characterLevel: number,
+  characterName: string = 'Character',
   options: UseSpellcastingOptions = {}
 ): UseSpellcastingReturn {
   const { abilityScores } = options;
   const [state, setState] = useState<SpellcastingState>(loadState);
+  const [activeSpells, setActiveSpells] = useState<ActiveSpellEffect[]>(loadActiveSpells);
   const { toast } = useToast();
+  const expirationCheckRef = useRef<NodeJS.Timeout | null>(null);
 
   // Persist state changes
   useEffect(() => {
     saveState(state);
   }, [state]);
+
+  // Persist active spells
+  useEffect(() => {
+    saveActiveSpells(activeSpells);
+  }, [activeSpells]);
+
+  // Check for expired spells every second
+  useEffect(() => {
+    const checkExpired = () => {
+      const now = Date.now();
+      const expired = getExpiredSpells(activeSpells, now);
+      
+      if (expired.length > 0) {
+        // Notify about expired spells
+        expired.forEach(e => {
+          toast({
+            title: `⏱️ ${e.spellName} Ended`,
+            description: 'The spell duration has expired.',
+            className: 'border-amber-500 bg-amber-500/10',
+          });
+          
+          // If it was a concentration spell, clear concentration
+          if (e.isConcentration && state.concentratingOn === e.spellId) {
+            setState(prev => ({
+              ...prev,
+              concentratingOn: null,
+              concentrationStartTime: undefined,
+            }));
+          }
+        });
+        
+        // Filter out expired
+        setActiveSpells(prev => filterActiveSpells(prev, now));
+      }
+    };
+
+    expirationCheckRef.current = setInterval(checkExpired, 1000);
+    return () => {
+      if (expirationCheckRef.current) {
+        clearInterval(expirationCheckRef.current);
+      }
+    };
+  }, [activeSpells, state.concentratingOn, toast]);
 
   // Auto-sync proficiency bonus based on character level
   useEffect(() => {
@@ -545,7 +626,8 @@ export function useSpellcasting(
     baseLevel: number,
     castLevel: number,
     usePact: boolean,
-    requiresConcentration: boolean
+    requiresConcentration: boolean,
+    duration: string = 'Instantaneous'
   ): SpellCastResult => {
     const isCantrip = baseLevel === 0;
     const isUpcast = castLevel > baseLevel;
@@ -579,8 +661,24 @@ export function useSpellcasting(
     if (requiresConcentration) {
       if (state.concentratingOn) {
         brokeConcentration = state.concentratingOn;
+        // Remove old concentration spell from active effects
+        setActiveSpells(prev => prev.filter(e => e.spellId !== state.concentratingOn));
       }
       startConcentration(spellId);
+    }
+
+    // Add to active spell effects (if not instantaneous)
+    const activeEffect = createActiveSpellEffect(
+      spellId,
+      spellName,
+      duration,
+      castLevel,
+      requiresConcentration,
+      characterName
+    );
+    
+    if (activeEffect) {
+      setActiveSpells(prev => [...prev, activeEffect]);
     }
 
     // Success toast
@@ -606,7 +704,21 @@ export function useSpellcasting(
       startedConcentration: requiresConcentration,
       brokeConcentration,
     };
-  }, [state.concentratingOn, useSlot, usePactSlot, startConcentration, toast]);
+  }, [state.concentratingOn, characterName, useSlot, usePactSlot, startConcentration, toast]);
+
+  // Dismiss an active spell effect manually
+  const dismissActiveSpell = useCallback((effectId: string) => {
+    setActiveSpells(prev => {
+      const effect = prev.find(e => e.id === effectId);
+      if (effect) {
+        toast({
+          title: `${effect.spellName} Dismissed`,
+          description: 'The spell effect has ended.',
+        });
+      }
+      return prev.filter(e => e.id !== effectId);
+    });
+  }, [toast]);
 
   // ============================================
   // COMPONENTS
@@ -681,6 +793,10 @@ export function useSpellcasting(
   }, [toast]);
 
   const onLongRest = useCallback(() => {
+    // Clear all active spell effects
+    const activeCount = activeSpells.length;
+    setActiveSpells([]);
+    
     setState(prev => {
       // Restore all spell slots to max
       const restoredSlots: Record<number, SpellSlotLevel> = {};
@@ -695,7 +811,9 @@ export function useSpellcasting(
 
       toast({
         title: '☀️ Arcane Reserves Restored',
-        description: 'All spell slots have been recovered.',
+        description: activeCount > 0 
+          ? `All spell slots recovered. ${activeCount} active spell${activeCount > 1 ? 's' : ''} ended.`
+          : 'All spell slots have been recovered.',
         className: 'border-indigo-500 bg-indigo-500/10',
       });
 
@@ -708,7 +826,7 @@ export function useSpellcasting(
         concentrationStartTime: undefined,
       };
     });
-  }, [toast]);
+  }, [activeSpells.length, toast]);
 
   // ============================================
   // STATS UPDATE
@@ -758,6 +876,7 @@ export function useSpellcasting(
 
   return {
     state,
+    activeSpells,
     spellAttackBonus,
     spellSaveDC,
     hasPath,
@@ -781,6 +900,7 @@ export function useSpellcasting(
     usePactSlot,
     restorePactSlot,
     castSpell,
+    dismissActiveSpell,
     startConcentration,
     breakConcentration,
     addComponent,

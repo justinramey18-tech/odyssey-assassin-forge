@@ -4,6 +4,7 @@
 ## Current Status
 **Phase A: Core Mechanics** - ✅ COMPLETE
 **Phase B: Resource Management** - ✅ COMPLETE
+**Phase C: Duration & Tracking** - ✅ COMPLETE
 
 ### Completed in Phase A:
 - ✅ Auto-calculate proficiency bonus from character level
@@ -21,6 +22,16 @@
 - ✅ DC calculation: MAX(10, damage/2)
 - ✅ Visual success/fail states with Natural 20/1 handling
 - ✅ New "Components" tab in Arcana screen
+
+### Completed in Phase C:
+- ✅ Active Spells Panel with collapsible UI showing all active spell effects
+- ✅ Real-time countdown timers with color-coded urgency (green/amber/red)
+- ✅ Duration parsing from spell strings (rounds, minutes, hours, concentration)
+- ✅ Automatic spell expiration with toast notifications
+- ✅ Manual spell dismissal with quick-end button
+- ✅ Long Rest clears all active spells and concentration
+- ✅ Concentration spells automatically tracked with eye icon
+- ✅ Progress bar visualization showing remaining duration
 
 ---
 

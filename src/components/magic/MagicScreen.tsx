@@ -14,6 +14,7 @@ import { SpellCastSheet } from './SpellCastSheet';
 import { SpellSlotTracker } from './SpellSlotTracker';
 import { MaterialComponentsPanel } from './MaterialComponentsPanel';
 import { ConcentrationCheckPanel } from './ConcentrationCheckPanel';
+import { ActiveSpellsPanel } from './ActiveSpellsPanel';
 
 // Background image
 import arcanaBackground from '@/assets/trees/arcana-wizards-mobile.jpg';
@@ -40,10 +41,12 @@ export function MagicScreen({
 }: MagicScreenProps) {
   const { 
     state, 
+    activeSpells,
     hasPath, 
     selectPath, 
     clearPath, 
     castSpell, 
+    dismissActiveSpell,
     breakConcentration,
     addComponent,
     useComponent,
@@ -87,7 +90,8 @@ export function MagicScreen({
       castingSpell.level,
       castLevel,
       usePact,
-      castingSpell.concentration
+      castingSpell.concentration,
+      castingSpell.duration
     );
     
     setCastingSpell(null);
@@ -180,6 +184,18 @@ export function MagicScreen({
             compact
           />
         </div>
+
+        {/* Active Spells Panel */}
+        {activeSpells.length > 0 && (
+          <div className="mt-3">
+            <ActiveSpellsPanel
+              activeSpells={activeSpells}
+              onDismissSpell={dismissActiveSpell}
+              onBreakConcentration={breakConcentration}
+              concentratingOn={state.concentratingOn}
+            />
+          </div>
+        )}
       </div>
 
       {/* Tabs */}
