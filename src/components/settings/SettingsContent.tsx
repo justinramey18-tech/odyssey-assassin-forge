@@ -367,14 +367,14 @@ export function SettingsContent({
   // Setup Tab - Simple scrollable version
   if (activeTab === 'setup') {
     return (
-      <div className="flex-1 overflow-y-auto max-h-[70vh]">
-        <div className="space-y-4 pb-6">
-        <div>
-          <h3 className="font-cinzel font-semibold text-base">AI GM Sync</h3>
-          <p className="text-xs text-muted-foreground">
-            Copy your character data to sync with your AI Dungeon Master
-          </p>
-        </div>
+      <div className="flex-1 overflow-y-auto overflow-x-hidden max-h-[70vh] w-full">
+        <div className="space-y-4 pb-6 w-full max-w-full">
+          <div className="min-w-0">
+            <h3 className="font-cinzel font-semibold text-base">AI GM Sync</h3>
+            <p className="text-xs text-muted-foreground break-words">
+              Copy your character data to sync with your AI Dungeon Master
+            </p>
+          </div>
 
         {/* State Snapshot Button - Prominent */}
         {hasDynamicData && (
@@ -446,11 +446,11 @@ export function SettingsContent({
 
         {/* Snapshot Preview */}
         {hasDynamicData && stateSummary && (
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-0 max-w-full">
             <Badge variant="outline" className="text-xs bg-amber-500/10 border-amber-500/30 text-amber-400">
               📋 State Snapshot Preview
             </Badge>
-            <pre className="p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 text-xs font-mono whitespace-pre-wrap max-h-[25vh] overflow-y-auto leading-relaxed">
+            <pre className="p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 text-xs font-mono whitespace-pre-wrap break-words max-h-[25vh] overflow-y-auto overflow-x-hidden leading-relaxed w-full">
               {stateSummary}
             </pre>
           </div>
