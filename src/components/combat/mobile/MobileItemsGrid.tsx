@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,7 @@ import {
   ScrollText,
   Plus,
   Minus,
+  Zap,
   Copy,
   Check,
   Sparkles,
@@ -71,8 +72,8 @@ export function MobileItemsGrid({ onAddToTurn, onNavigateToConsumables }: Mobile
     return 'action';
   };
 
-  // Handle using an item
-  const handleUseItem = (item: InventoryItem) => {
+  // Handle using an item (from detail sheet or quick use)
+  const handleUseItem = useCallback((item: InventoryItem, closeSheet: boolean = false) => {
     const success = useItem(item.consumable.id, 1);
     if (success) {
       const actionType = getActionType(item.consumable);
@@ -82,12 +83,20 @@ export function MobileItemsGrid({ onAddToTurn, onNavigateToConsumables }: Mobile
         description: item.consumable.effect,
         className: "border-cyan-500/50 bg-cyan-500/10",
       });
-      // Update selected item quantity
-      setSelectedItem(prev => 
-        prev ? { ...prev, quantity: prev.quantity - 1 } : null
-      );
+      // Update selected item quantity in sheet
+      if (!closeSheet) {
+        setSelectedItem(prev => 
+          prev ? { ...prev, quantity: prev.quantity - 1 } : null
+        );
+      }
     }
-  };
+  }, [useItem, onAddToTurn, toast]);
+
+  // Quick use from grid (no sheet open)
+  const handleQuickUse = useCallback((e: React.MouseEvent, item: InventoryItem) => {
+    e.stopPropagation(); // Don't open detail sheet
+    handleUseItem(item, true);
+  }, [handleUseItem]);
 
   // Copy AI DM prompt
   const handleCopyPrompt = async (consumable: Consumable) => {
@@ -225,32 +234,28 @@ export function MobileItemsGrid({ onAddToTurn, onNavigateToConsumables }: Mobile
                     {rarity.label}
                   </Badge>
                   
-                  {/* Quantity controls */}
-                  <div className="flex items-center gap-2 mt-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const newQty = item.quantity - 1;
-                        setItemQuantity(item.consumable.id, newQty);
-                      }}
-                      disabled={item.quantity === 0}
-                      className="w-8 h-8 rounded-lg bg-muted/30 flex items-center justify-center active:scale-95 disabled:opacity-40"
-                    >
-                      <Minus className="w-4 h-4" />
-                    </button>
-                    <span className="w-8 text-center font-mono font-bold">
-                      {item.quantity}
+                  {/* Quantity display */}
+                  <div className="flex items-center gap-1 mt-2">
+                    <span className="text-sm font-mono font-bold">
+                      ×{item.quantity}
                     </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setItemQuantity(item.consumable.id, item.quantity + 1);
-                      }}
-                      className="w-8 h-8 rounded-lg bg-muted/30 flex items-center justify-center active:scale-95"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
                   </div>
+
+                  {/* Quick Use Button */}
+                  <Button
+                    size="sm"
+                    onClick={(e) => handleQuickUse(e, item)}
+                    disabled={item.quantity === 0}
+                    className={cn(
+                      "w-full mt-2 h-8 text-xs gap-1",
+                      item.consumable.type === 'potion' && "bg-rose-600 hover:bg-rose-500",
+                      item.consumable.type === 'poison' && "bg-green-600 hover:bg-green-500",
+                      item.consumable.type === 'scroll' && "bg-sky-600 hover:bg-sky-500",
+                    )}
+                  >
+                    <Zap className="w-3 h-3" />
+                    Use
+                  </Button>
                 </button>
               );
             })}
@@ -360,7 +365,7 @@ export function MobileItemsGrid({ onAddToTurn, onNavigateToConsumables }: Mobile
                 {/* Action buttons */}
                 <div className="flex gap-2">
                   <Button
-                    onClick={() => handleUseItem(selectedItem)}
+                    onClick={() => handleUseItem(selectedItem, false)}
                     disabled={getCurrentQuantity(selectedItem.consumable.id) === 0}
                     className="flex-1 h-14 text-lg bg-cyan-600 hover:bg-cyan-500"
                   >
