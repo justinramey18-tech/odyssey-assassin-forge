@@ -79,7 +79,7 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
   };
 
   return (
-    <div className={cn("flex flex-col h-full w-full max-w-full min-w-0 overflow-hidden", className)}>
+    <div className={cn("flex flex-col w-full max-w-full min-w-0", className)}>
       {/* Header - Compact on mobile */}
       <div className="flex flex-col gap-2 pb-3 border-b border-border/30 shrink-0 w-full max-w-full">
         <div className="flex items-center justify-between gap-2 w-full min-w-0">
@@ -162,8 +162,8 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
         </div>
       </div>
 
-      {/* Prompt List - Clickable cards */}
-      <ScrollArea className="flex-1 w-full max-w-full">
+      {/* Prompt List - Clickable cards with max height */}
+      <div className="max-h-[40vh] overflow-y-auto w-full max-w-full overscroll-contain">
         <div className="space-y-2 py-3 w-full max-w-full">
           {filteredPrompts.map((prompt) => (
             <button
@@ -190,7 +190,7 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
             </button>
           ))}
         </div>
-      </ScrollArea>
+      </div>
 
       {/* Quick-Copy Footer - Grid for mobile */}
       <div className="pt-3 border-t border-border/30 shrink-0 w-full max-w-full">
