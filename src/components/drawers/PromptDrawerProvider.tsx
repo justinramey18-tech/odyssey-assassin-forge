@@ -88,6 +88,8 @@ interface PromptDrawerProviderProps {
   onDecrementScore?: (ability: AbilityName) => void;
   onRandomizeScores?: () => number[];
   onApplyScores?: (scores: BaseAbilityScores) => void;
+  // Constitution modifier for HP calculation
+  constitutionModifier?: number;
 }
 
 export function PromptDrawerProvider({
@@ -114,6 +116,7 @@ export function PromptDrawerProvider({
   onDecrementScore,
   onRandomizeScores,
   onApplyScores,
+  constitutionModifier = 0,
 }: PromptDrawerProviderProps) {
   const [infinityOpen, setInfinityOpen] = useState(false);
   const [abilitiesOpen, setAbilitiesOpen] = useState(false);
@@ -278,6 +281,8 @@ export function PromptDrawerProvider({
             tempHP={tempHP}
             onHPChange={onHPChange}
             equipmentStats={equipment ? equipmentStats : undefined}
+            constitutionModifier={constitutionModifier}
+            prestigeLevel={prestigeLevel}
             baseScores={baseScores}
             getScoreBreakdown={getScoreBreakdown}
             onIncrementScore={onIncrementScore}

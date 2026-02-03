@@ -47,6 +47,8 @@ import { PrestigeTreeScreen } from '@/components/prestigeTree';
 import { usePrestigeTree } from '@/hooks/use-prestige-tree';
 import { getPrestigeAbilityById } from '@/lib/prestigeTree/abilities';
 import { resetAllAppData, repairXPData } from '@/lib/resetApp';
+import { calculateMaxHP } from '@/lib/hpCalculation';
+import { scoreToModifier } from '@/lib/abilityScores/types';
 import { 
   CharacterEquipment, 
   EquipmentItem,
@@ -176,19 +178,18 @@ const Index = () => {
   const [equipment, setEquipment] = useState<CharacterEquipment>(() => createInitialEquipment());
   
   // HP State Management (persisted to localStorage)
+  // Note: max HP is now calculated dynamically, but we still store it for persistence
   const [hpState, setHpState] = useState<{ current: number; max: number; temp: number }>(() => {
     const stored = localStorage.getItem('odyssey-hp-state');
     if (stored) {
       try {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        return parsed;
       } catch {
-        // Default HP formula: 8 + 5 per level
-        const defaultMax = 8 + (character.level - 1) * 5;
-        return { current: defaultMax, max: defaultMax, temp: 0 };
+        return { current: 8, max: 8, temp: 0 };
       }
     }
-    const defaultMax = 8 + (character.level - 1) * 5;
-    return { current: defaultMax, max: defaultMax, temp: 0 };
+    return { current: 8, max: 8, temp: 0 };
   });
 
   // Death Saves State (persisted to localStorage)
@@ -231,6 +232,12 @@ const Index = () => {
     equipmentStats: aggregatedStats,
   });
   
+  // Calculate max HP dynamically based on level, constitution, and prestige
+  const calculatedMaxHP = useMemo(() => {
+    const conMod = scoreToModifier(abilityScores.finalScores.constitution);
+    return calculateMaxHP(character.level, conMod, prestigeData.prestigeLevel);
+  }, [character.level, abilityScores.finalScores.constitution, prestigeData.prestigeLevel]);
+  
   // Spellcasting system (uses ability scores for auto-calculation)
   const spellcasting = useSpellcasting(character.level, character.name, {
     abilityScores: {
@@ -256,6 +263,35 @@ const Index = () => {
   
   const { toast } = useToast();
   const { requiresOrganicLevelUp, requiresGearUnlocks, rerollsDisabled, infinityStonesLocked } = useGameMode();
+  
+  // Auto-update max HP when calculation changes (level up, CON change, prestige)
+  useEffect(() => {
+    if (calculatedMaxHP !== hpState.max) {
+      const hpDiff = calculatedMaxHP - hpState.max;
+      // When max HP increases, also increase current HP by the same amount
+      // (e.g., leveling up should give you more HP immediately)
+      const newCurrent = hpDiff > 0 
+        ? Math.min(calculatedMaxHP, hpState.current + hpDiff)
+        : Math.min(calculatedMaxHP, hpState.current); // Cap at new max if it decreased
+      
+      const newState = { 
+        current: newCurrent, 
+        max: calculatedMaxHP, 
+        temp: hpState.temp 
+      };
+      setHpState(newState);
+      localStorage.setItem('odyssey-hp-state', JSON.stringify(newState));
+      
+      // Show toast for significant changes (not on initial load)
+      if (hpState.max > 8 && hpDiff !== 0) {
+        toast({
+          title: hpDiff > 0 ? "❤️ Max HP Increased!" : "💔 Max HP Decreased",
+          description: `Max HP: ${hpState.max} → ${calculatedMaxHP} (${hpDiff > 0 ? '+' : ''}${hpDiff})`,
+          className: hpDiff > 0 ? "border-emerald-500 bg-emerald-500/10" : "border-rose-500 bg-rose-500/10",
+        });
+      }
+    }
+  }, [calculatedMaxHP, hpState.max, hpState.current, hpState.temp, toast]);
 
   // Legacy spentPoints for compatibility
   const spentPoints = getTotalPointsSpent(character.abilities);
@@ -942,6 +978,7 @@ const Index = () => {
         onDecrementScore={abilityScores.decrementScore}
         onRandomizeScores={abilityScores.randomizeScores}
         onApplyScores={abilityScores.applyScores}
+        constitutionModifier={abilityScores.finalModifiers.constitution}
       >
         <HomeScreen 
           character={character}
@@ -1024,6 +1061,7 @@ const Index = () => {
       onDecrementScore={abilityScores.decrementScore}
       onRandomizeScores={abilityScores.randomizeScores}
       onApplyScores={abilityScores.applyScores}
+      constitutionModifier={abilityScores.finalModifiers.constitution}
     >
       <div className="min-h-screen relative">
       {/* Builder Background Image - fixed behind everything */}
