@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Wand2, Lock, Sparkles, BookOpen, Zap, Settings, Eye, X } from 'lucide-react';
+import { Wand2, Lock, Sparkles, BookOpen, Zap, Settings, Eye, X, RefreshCw } from 'lucide-react';
 import { MagicPath, PathConfig, SpellDefinition } from '@/lib/magic/types';
 import { PATH_LIST, getPathConfig } from '@/lib/magic/paths';
 import { getSpellById } from '@/lib/magic/spells';
@@ -27,7 +27,7 @@ export function MagicScreen({
   characterName,
   spellcasting 
 }: MagicScreenProps) {
-  const { state, hasPath, selectPath, castSpell, breakConcentration } = spellcasting;
+  const { state, hasPath, selectPath, clearPath, castSpell, breakConcentration } = spellcasting;
   const [selectedSpell, setSelectedSpell] = useState<SpellDefinition | null>(null);
   const [castingSpell, setCastingSpell] = useState<SpellDefinition | null>(null);
   const [activeTab, setActiveTab] = useState<'spellbook' | 'slots' | 'features'>('spellbook');
@@ -95,10 +95,19 @@ export function MagicScreen({
           )}>
             <Wand2 className="w-6 h-6 text-indigo-400" />
           </div>
-          <div>
+          <div className="flex-1">
             <h1 className="font-cinzel text-xl text-foreground">{pathConfig.name}</h1>
             <p className="text-xs text-muted-foreground">{pathConfig.subtitle}</p>
           </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-indigo-400 hover:bg-indigo-500/20"
+            onClick={clearPath}
+          >
+            <RefreshCw className="w-4 h-4 mr-1" />
+            <span className="text-xs">Change</span>
+          </Button>
         </div>
         
         {/* Quick Stats */}
