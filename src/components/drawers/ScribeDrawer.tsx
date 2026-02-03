@@ -8,13 +8,20 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { processTextOffline, ProcessingOptions } from '@/lib/narrativeProcessor';
 
-type GenreStyle = 'fantasy' | 'noir' | 'literary' | 'action';
+import type { NarrativeStyle } from '@/lib/narrativeProcessor';
 
-const GENRE_STYLES: Record<GenreStyle, { name: string; description: string }> = {
+const GENRE_STYLES: Record<NarrativeStyle, { name: string; description: string }> = {
   fantasy: { name: 'Fantasy', description: 'Epic high fantasy prose' },
   noir: { name: 'Noir', description: 'Dark, gritty detective style' },
   literary: { name: 'Literary', description: 'Elegant, refined prose' },
   action: { name: 'Action', description: 'Fast-paced, punchy writing' },
+  salvatore: { name: 'R.A. Salvatore', description: 'Warrior poetry & blade techniques' },
+  deadpool: { name: 'Deadpool', description: 'Fourth-wall-breaking chaos' },
+  dark_comedy: { name: 'Dark Comedy', description: 'Gallows humor & sardonic wit' },
+  subtle_absurdity: { name: 'Subtle Absurdity', description: 'Kafkaesque deadpan' },
+  lovecraftian: { name: 'Lovecraftian', description: 'Cosmic dread & sanity erosion' },
+  gonzo: { name: 'Gonzo', description: 'Hunter S. Thompson style' },
+  hemingway: { name: 'Hemingway', description: 'Brutal minimalism' },
 };
 
 interface ScribeDrawerProps {
@@ -30,7 +37,7 @@ export function ScribeDrawer({
 }: ScribeDrawerProps) {
   const [inputText, setInputText] = useState('');
   const [outputText, setOutputText] = useState('');
-  const [selectedGenre, setSelectedGenre] = useState<GenreStyle>('fantasy');
+  const [selectedGenre, setSelectedGenre] = useState<NarrativeStyle>('fantasy');
   const [copied, setCopied] = useState(false);
 
   const handleProcess = () => {
@@ -66,7 +73,7 @@ export function ScribeDrawer({
   };
 
   const genreButtons = Object.entries(GENRE_STYLES).map(([key, config]) => ({
-    id: key as GenreStyle,
+    id: key as NarrativeStyle,
     name: config.name,
     description: config.description,
   }));

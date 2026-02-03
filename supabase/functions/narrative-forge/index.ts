@@ -47,7 +47,11 @@ async function authenticateRequest(req: Request): Promise<{ userId: string } | {
 const MAX_TEXT_LENGTH = 15000;
 const MIN_TEXT_LENGTH = 10;
 const MAX_CHARACTER_NAME_LENGTH = 100;
-const VALID_STYLES = ['fantasy', 'noir', 'literary', 'action'] as const;
+const VALID_STYLES = [
+  'fantasy', 'noir', 'literary', 'action',
+  'salvatore', 'deadpool', 'dark_comedy', 'subtle_absurdity',
+  'lovecraftian', 'gonzo', 'hemingway'
+] as const;
 
 type ValidStyle = typeof VALID_STYLES[number];
 
@@ -180,6 +184,168 @@ const styleGuides: Record<ValidStyle, string> = {
   action: `Write in a fast-paced, cinematic action style. Short paragraphs, punchy verbs, and 
     visceral impact. Think action movie - explosions, quips, and momentum. Every sentence should 
     drive forward with energy and intensity.`,
+
+  salvatore: `Write in the style of R.A. Salvatore, author of The Legend of Drizzt.
+
+CORE PRINCIPLES:
+- Combat is a DANCE with rhythm and poetry - describe it blow-by-blow with fluid choreography
+- Weapons have NAMES and PERSONALITIES (reference their history, enchantments)
+- Inner monologue reveals philosophical warrior code during external battle
+- Deep focus on bonds of friendship, loyalty, and honor
+- Action flows with emotional stakes - every fight has meaning
+
+MANDATORY ELEMENTS:
+- Name fighting techniques ("the Hunter's dance," "the double-thrust-low")
+- Use simile for weapon movement (blade "sang," "whispered," "screamed")
+- Include internal conflict during external battle
+- Reference character relationships in combat context
+- Poetic sentence rhythm with action beats
+
+FORBIDDEN:
+- Generic "he attacked" phrasing
+- Combat without emotional context
+- Ignoring weapon/armor significance
+- Cynicism about heroism`,
+
+  deadpool: `Write in Deadpool's fourth-wall-breaking style.
+
+CORE PRINCIPLES:
+- CONSTANT fourth-wall breaks addressing "you" (the reader)
+- Pop culture references even when anachronistic
+- Self-aware mockery of fantasy tropes and D&D mechanics
+- Parenthetical asides interrupt serious moments
+- Violence described in cartoonishly graphic detail
+- Inappropriate humor at the worst possible timing
+
+MANDATORY ELEMENTS:
+- Direct reader address at least once per paragraph
+- (Parenthetical commentary on the action like this)
+- Reference to "the writer," "the DM," or "plot armor"
+- Movie/comic/meme references
+- Acknowledge dice rolls or game mechanics meta-textually
+- Visual sound effects: THWACK, SLICE, BOOM, etc.
+
+FORBIDDEN:
+- Playing anything completely straight without commentary
+- Serious emotional moments without undercutting
+- Ignoring the absurdity of D&D mechanics`,
+
+  dark_comedy: `Write in a dark comedy style - tragedy played for laughs.
+
+CORE PRINCIPLES:
+- SARDONIC NARRATOR voice with cosmic detachment
+- Tragedy described with UNDERSTATED dryness
+- Murphy's Law as narrative engine - everything gets worse
+- Characters make terrible choices, narrated matter-of-factly
+- Death/failure treated with gallows humor timing
+- Tone: Douglas Adams meets Lemony Snicket meets Terry Pratchett's Death
+
+MANDATORY ELEMENTS:
+- Narrator commentary on the futility/irony of actions
+- Understated phrasing for horrible events ("mildly inconvenient" death)
+- Foreshadowing of doom delivered casually
+- Cosmic indifference to character suffering
+- Dry wit in sentence structure
+
+FORBIDDEN:
+- Slapstick or silly comedy (this is DARK comedy)
+- Happy outcomes without ironic cost
+- Sympathetic narrator tone`,
+
+  subtle_absurdity: `Write in a subtly absurd style - Kafka meets D&D.
+
+CORE PRINCIPLES:
+- BUREAUCRATIC/CLINICAL language for impossible events
+- Deadpan delivery with ZERO acknowledgment of weirdness
+- Mundane reactions to cosmic horror and magic
+- Characters treat the bizarre as routine administrative procedure
+- Forms, protocols, and regulations for the impossible
+
+MANDATORY ELEMENTS:
+- Formal/technical language for magic and violence
+- No exclamation points or emotional language
+- Treat physics violations as clerical matters
+- Reference forms, protocols, or regulations for the impossible
+- Understatement to the point of absurdity
+
+FORBIDDEN:
+- Acknowledging anything is strange
+- Emotional reactions
+- Colorful adjectives
+- Excitement or urgency in tone`,
+
+  lovecraftian: `Write in Lovecraftian cosmic horror style.
+
+CORE PRINCIPLES:
+- COSMIC DREAD and insignificance of mortals
+- Knowledge itself is CORRUPTING and MADDENING
+- Entities described through what they're NOT (indescribable, non-Euclidean)
+- Escalating paranoia and sanity erosion
+- Archaic prose with subordinate clauses and antiquated vocabulary
+- Existential terror > physical danger
+
+MANDATORY ELEMENTS:
+- Archaic language: "eldritch," "blasphemous," "cyclopean," "gibbous," "squamous"
+- Describe entities as "defying geometry" or "beyond comprehension"
+- Sanity/mental state deterioration noted
+- References to forbidden knowledge or ancient texts
+- Atmosphere of WRONGNESS pervading descriptions
+- Long, winding sentences with subordinate clauses
+
+FORBIDDEN:
+- Direct, clear descriptions of monsters
+- Heroic confidence or triumph
+- Modern casual language
+- Physical combat without psychological cost`,
+
+  gonzo: `Write in Hunter S. Thompson's Gonzo Journalism style.
+
+CORE PRINCIPLES:
+- STREAM-OF-CONSCIOUSNESS frantic energy
+- Unreliable narrator admitting to altered states
+- Savage social commentary embedded in chaos
+- Tangents that spiral into philosophy/paranoia
+- "Too weird to live, too rare to die" energy
+- Present-tense immediacy with visceral detail
+
+MANDATORY ELEMENTS:
+- First-person perspective (adapt even third-person to this voice)
+- References to exhaustion, sensory overload, or altered consciousness
+- Sudden philosophical tangents mid-action
+- Savage descriptors for people/creatures
+- Paranoid observations about power structures
+- Sentence fragments. Rapid fire. Like this.
+
+FORBIDDEN:
+- Calm, measured prose
+- Objective third-person distance
+- Lack of personal voice
+- Pretending the narrator is reliable`,
+
+  hemingway: `Write in Ernest Hemingway's minimalist style.
+
+CORE PRINCIPLES:
+- SHORT, DECLARATIVE SENTENCES (subject-verb-object)
+- NO ADVERBS (never "quickly ran" - just "ran")
+- Iceberg theory: SUBTEXT over text (90% unsaid)
+- Understated emotion (show through action, not description)
+- Focus on PHYSICAL, CONCRETE details
+- "True sentences" - every word earns its place
+
+MANDATORY ELEMENTS:
+- Sentences averaging 10 words or fewer
+- Action verbs without modifiers
+- Emotional weight conveyed through what's NOT said
+- Dialogue without attributions when possible ("he said" only)
+- Physical sensations over abstract feelings
+- Repetition for emphasis (not variety)
+
+FORBIDDEN:
+- Adverbs (-ly words)
+- Flowery adjectives
+- Explaining emotions directly
+- Complex subordinate clauses
+- Metaphors (unless stark and simple)`,
 };
 
 Deno.serve(async (req) => {
