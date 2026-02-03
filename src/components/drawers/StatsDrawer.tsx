@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Heart, Sparkles, Plus, Minus, Shield, Zap, Swords, Weight, Target, Eye, Save, Move, Gem } from 'lucide-react';
+import { Heart, Sparkles, Plus, Minus, Shield, Zap, Swords, Weight, Target, Eye, Save, Move, Gem, Info, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { EdgeDrawer } from './EdgeDrawer';
@@ -22,6 +22,7 @@ import {
   BaseAbilityScores,
   AbilityScoreBreakdown,
 } from '@/lib/abilityScores/types';
+import { getHPBreakdown, HP_CONFIG } from '@/lib/hpCalculation';
 
 interface StatsDrawerProps {
   open: boolean;
@@ -36,6 +37,9 @@ interface StatsDrawerProps {
   maxHP?: number;
   tempHP?: number;
   onHPChange?: (current: number, temp: number) => void;
+  // HP calculation inputs
+  constitutionModifier?: number;
+  prestigeLevel?: number;
   // Equipment stats
   equipmentStats?: AggregatedStats;
   // Ability Scores
@@ -60,6 +64,8 @@ export function StatsDrawer({
   tempHP: propTempHP,
   onHPChange,
   equipmentStats,
+  constitutionModifier = 0,
+  prestigeLevel = 0,
   // Ability Scores
   baseScores,
   getScoreBreakdown,
@@ -75,10 +81,14 @@ export function StatsDrawer({
   const [localTempHP, setLocalTempHP] = useState(propTempHP ?? 0);
   const [customXP, setCustomXP] = useState('');
   const [hpDelta, setHpDelta] = useState('');
+  const [showHPBreakdown, setShowHPBreakdown] = useState(false);
 
   const currentHP = propCurrentHP ?? localCurrentHP;
   const maxHP = propMaxHP ?? localMaxHP;
   const tempHP = propTempHP ?? localTempHP;
+  
+  // Get HP breakdown for display
+  const hpBreakdown = getHPBreakdown(level, constitutionModifier, prestigeLevel);
 
   const multiplier = XP_PRESETS[xpPreset].multiplier;
   const xpProgress = getLevelProgress(level, currentXP, multiplier);
@@ -315,12 +325,25 @@ export function StatsDrawer({
                   {currentHP}
                   <span className="text-sm font-normal text-muted-foreground">/{maxHP}</span>
                 </span>
-                {tempHP > 0 && (
-                  <span className="flex items-center gap-1 text-sm text-cyan-400">
-                    <Shield className="w-4 h-4" />
-                    +{tempHP}
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {tempHP > 0 && (
+                    <span className="flex items-center gap-1 text-sm text-cyan-400">
+                      <Shield className="w-4 h-4" />
+                      +{tempHP}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => setShowHPBreakdown(!showHPBreakdown)}
+                    className="p-1 rounded hover:bg-white/10 transition-colors"
+                    title="Show HP breakdown"
+                  >
+                    {showHPBreakdown ? (
+                      <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <Info className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </button>
+                </div>
               </div>
               <Progress 
                 value={hpPercentage} 
@@ -329,6 +352,49 @@ export function StatsDrawer({
                   ['--progress-background' as string]: hpColor,
                 }}
               />
+              
+              {/* HP Breakdown - collapsible */}
+              {showHPBreakdown && (
+                <div className="mt-3 pt-3 border-t border-white/10 space-y-2">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+                    HP Breakdown ({HP_CONFIG.HIT_DIE})
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex justify-between px-2 py-1 rounded bg-white/5">
+                      <span className="text-muted-foreground">Base (Lvl 1)</span>
+                      <span className="font-mono">{hpBreakdown.baseHP}</span>
+                    </div>
+                    {level > 1 && (
+                      <div className="flex justify-between px-2 py-1 rounded bg-white/5">
+                        <span className="text-muted-foreground">Levels 2-{level}</span>
+                        <span className="font-mono">+{hpBreakdown.levelHP}</span>
+                      </div>
+                    )}
+                    <div className={cn(
+                      "flex justify-between px-2 py-1 rounded",
+                      hpBreakdown.constitutionHP >= 0 ? "bg-orange-500/10" : "bg-rose-500/10"
+                    )}>
+                      <span className="text-orange-400">CON ({constitutionModifier >= 0 ? '+' : ''}{constitutionModifier})</span>
+                      <span className={cn(
+                        "font-mono",
+                        hpBreakdown.constitutionHP >= 0 ? "text-orange-400" : "text-rose-400"
+                      )}>
+                        {hpBreakdown.constitutionHP >= 0 ? '+' : ''}{hpBreakdown.constitutionHP}
+                      </span>
+                    </div>
+                    {prestigeLevel > 0 && (
+                      <div className="flex justify-between px-2 py-1 rounded bg-amber-500/10">
+                        <span className="text-amber-400">Prestige ({prestigeLevel})</span>
+                        <span className="font-mono text-amber-400">+{hpBreakdown.prestigeHP}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex justify-between px-2 py-1.5 rounded bg-white/10 font-semibold text-sm mt-2">
+                    <span>Total Max HP</span>
+                    <span className="font-mono" style={{ color: hpColor }}>{hpBreakdown.totalHP}</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* HP Controls */}
