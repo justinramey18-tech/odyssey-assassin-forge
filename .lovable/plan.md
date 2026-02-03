@@ -3,6 +3,7 @@
 
 ## Current Status
 **Phase A: Core Mechanics** - ✅ COMPLETE
+**Phase B: Resource Management** - ✅ COMPLETE
 
 ### Completed in Phase A:
 - ✅ Auto-calculate proficiency bonus from character level
@@ -11,6 +12,15 @@
 - ✅ Display prepared spell count in Arcana header (X/Y format)
 - ✅ Implement cantrip damage scaling at levels 5, 11, and 17
 - ✅ Show scaled damage on spell cards and detail sheets
+
+### Completed in Phase B:
+- ✅ Material component inventory panel with 12 common D&D 5e components
+- ✅ Custom component creation with name, cost, consumed flag
+- ✅ Spellcasting Focus toggle that bypasses non-costly materials
+- ✅ Concentration Check panel with damage buttons and dice rolling
+- ✅ DC calculation: MAX(10, damage/2)
+- ✅ Visual success/fail states with Natural 20/1 handling
+- ✅ New "Components" tab in Arcana screen
 
 ---
 

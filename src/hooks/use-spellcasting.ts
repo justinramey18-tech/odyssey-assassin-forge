@@ -186,6 +186,7 @@ export interface UseSpellcastingReturn {
   // Component management
   addComponent: (componentId: string, quantity: number) => void;
   useComponent: (componentId: string, quantity: number) => boolean;
+  removeComponent: (componentId: string) => void;
   toggleFocus: () => void;
   
   // Rest recovery
@@ -646,6 +647,14 @@ export function useSpellcasting(
     setState(prev => ({ ...prev, focusEquipped: !prev.focusEquipped }));
   }, []);
 
+  const removeComponent = useCallback((componentId: string) => {
+    setState(prev => {
+      const newComponents = { ...prev.materialComponents };
+      delete newComponents[componentId];
+      return { ...prev, materialComponents: newComponents };
+    });
+  }, []);
+
   // ============================================
   // REST RECOVERY
   // ============================================
@@ -776,6 +785,7 @@ export function useSpellcasting(
     breakConcentration,
     addComponent,
     useComponent,
+    removeComponent,
     toggleFocus,
     onShortRest,
     onLongRest,
