@@ -367,8 +367,8 @@ export function SettingsContent({
   // Setup Tab - Simple scrollable version
   if (activeTab === 'setup') {
     return (
-      <div className="flex-1 overflow-y-auto overflow-x-hidden max-h-[70vh] w-full">
-        <div className="space-y-4 pb-6 w-full max-w-full">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden max-h-[70vh] w-full max-w-full min-w-0">
+        <div className="space-y-4 pb-6 w-full max-w-full min-w-0 overflow-hidden">
           <div className="min-w-0">
             <h3 className="font-cinzel font-semibold text-base">AI GM Sync</h3>
             <p className="text-xs text-muted-foreground break-words">

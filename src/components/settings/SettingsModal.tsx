@@ -148,8 +148,8 @@ export function SettingsModal({
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={handleOpenChange}>
-        <DrawerContent className="h-[90vh] max-h-[90vh]">
-          <DrawerHeader className="border-b border-border/50 pb-3">
+        <DrawerContent className="h-[90vh] max-h-[90vh] overflow-x-hidden">
+          <DrawerHeader className="border-b border-border/50 pb-3 shrink-0">
             {showContent ? (
               <div className="flex items-center gap-3">
                 <Button
@@ -175,8 +175,8 @@ export function SettingsModal({
             )}
           </DrawerHeader>
 
-          <ScrollArea className="flex-1 h-[calc(90vh-80px)]">
-            <div className="p-4">
+          <div className="flex-1 overflow-x-hidden overflow-y-auto">
+            <div className="p-4 w-full max-w-full">
               {showContent ? (
                 <SettingsContent
                   activeTab={activeTab}
@@ -202,7 +202,7 @@ export function SettingsModal({
                 />
               )}
             </div>
-          </ScrollArea>
+          </div>
         </DrawerContent>
       </Drawer>
     );
