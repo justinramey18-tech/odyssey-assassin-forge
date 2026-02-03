@@ -55,11 +55,11 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
   };
 
   return (
-    <div className={cn("flex flex-col h-full", className)}>
+    <div className={cn("flex flex-col h-full w-full max-w-full min-w-0 overflow-x-hidden", className)}>
       {/* Header - Compact on mobile */}
-      <div className="flex flex-col gap-2 pb-3 border-b border-border/30 shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="min-w-0">
+      <div className="flex flex-col gap-2 pb-3 border-b border-border/30 shrink-0 w-full max-w-full">
+        <div className="flex items-center justify-between gap-2 w-full min-w-0">
+          <div className="min-w-0 flex-1">
             <h4 className="font-cinzel font-semibold text-sm truncate">Modular GM Prompts</h4>
             <p className="text-xs text-muted-foreground">
               {filteredPrompts.length} prompts • Tap to copy
@@ -127,8 +127,8 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
       </div>
 
       {/* Prompt List - Mobile optimized cards */}
-      <ScrollArea className="flex-1 -mx-1 px-1">
-        <div className="space-y-2 py-3">
+      <ScrollArea className="flex-1 w-full max-w-full">
+        <div className="space-y-2 py-3 w-full max-w-full">
           {filteredPrompts.map((prompt) => (
             <Collapsible
               key={prompt.id}
@@ -136,13 +136,13 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
               onOpenChange={() => toggleExpand(prompt.id)}
             >
               <div className={cn(
-                "border rounded-lg transition-all duration-200",
+                "border rounded-lg transition-all duration-200 w-full max-w-full",
                 expandedId === prompt.id 
                   ? "border-primary/50 bg-primary/5" 
                   : "border-border/50 bg-card/30 active:bg-card/60"
               )}>
                 {/* Card Header - Touch friendly */}
-                <div className="flex items-center gap-2 p-2.5 min-h-[52px]">
+                <div className="flex items-center gap-2 p-2.5 min-h-[52px] w-full min-w-0">
                   <span className="text-lg shrink-0">{prompt.icon}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
@@ -186,11 +186,11 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
 
                 {/* Expandable Content */}
                 <CollapsibleContent>
-                  <div className="px-2.5 pb-2.5 pt-0">
+                  <div className="px-2.5 pb-2.5 pt-0 w-full max-w-full min-w-0">
                     <pre className={cn(
-                      "p-2.5 rounded-lg border border-border/30 bg-muted/30",
-                      "text-[11px] font-mono whitespace-pre-wrap leading-relaxed",
-                      "max-h-[40vh] overflow-y-auto"
+                      "p-2.5 rounded-lg border border-border/30 bg-muted/30 w-full",
+                      "text-[11px] font-mono whitespace-pre-wrap break-words leading-relaxed",
+                      "max-h-[40vh] overflow-y-auto overflow-x-hidden"
                     )}>
                       {prompt.content}
                     </pre>
@@ -221,38 +221,44 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
       </ScrollArea>
 
       {/* Quick-Copy Footer - Grid for mobile */}
-      <div className="pt-3 border-t border-border/30 shrink-0">
-        <div className="grid grid-cols-10 gap-1 mb-2">
+      <div className="pt-3 border-t border-border/30 shrink-0 w-full max-w-full">
+        <div className="grid grid-cols-10 gap-0.5 mb-2 w-full">
           {GM_GUIDE_PROMPTS.slice(0, 10).map((prompt) => (
             <button
               key={prompt.id}
               className={cn(
                 "aspect-square rounded-md flex items-center justify-center",
-                "text-sm hover:bg-primary/10 active:bg-primary/20",
-                "transition-colors touch-manipulation",
-                copiedId === prompt.id && "bg-green-500/20"
+                "text-xs hover:bg-primary/10 active:bg-primary/20",
+                "transition-colors touch-manipulation"
               )}
               onClick={() => handleCopyPrompt(prompt)}
               title={prompt.title}
             >
-              {prompt.icon}
+              {copiedId === prompt.id ? (
+                <Check className="w-3 h-3 text-green-400" />
+              ) : (
+                prompt.icon
+              )}
             </button>
           ))}
         </div>
-        <div className="grid grid-cols-10 gap-1">
+        <div className="grid grid-cols-10 gap-0.5 w-full">
           {GM_GUIDE_PROMPTS.slice(10, 20).map((prompt) => (
             <button
               key={prompt.id}
               className={cn(
                 "aspect-square rounded-md flex items-center justify-center",
-                "text-sm hover:bg-primary/10 active:bg-primary/20",
-                "transition-colors touch-manipulation",
-                copiedId === prompt.id && "bg-green-500/20"
+                "text-xs hover:bg-primary/10 active:bg-primary/20",
+                "transition-colors touch-manipulation"
               )}
               onClick={() => handleCopyPrompt(prompt)}
               title={prompt.title}
             >
-              {prompt.icon}
+              {copiedId === prompt.id ? (
+                <Check className="w-3 h-3 text-green-400" />
+              ) : (
+                prompt.icon
+              )}
             </button>
           ))}
         </div>
