@@ -367,8 +367,8 @@ export function SettingsContent({
   // Setup Tab - Simple scrollable version with sticky headers
   if (activeTab === 'setup') {
     return (
-      <div className="flex-1 overflow-y-auto overflow-x-hidden max-h-[70vh] w-full max-w-full min-w-0">
-        <div className="pb-6 w-full max-w-full min-w-0 overflow-hidden">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden max-h-[70vh] w-full max-w-full min-w-0 overscroll-contain">
+        <div className="pb-8 w-full max-w-full min-w-0 overflow-hidden">
           
           {/* Section 1: AI GM Sync */}
           <div className="mb-4">
