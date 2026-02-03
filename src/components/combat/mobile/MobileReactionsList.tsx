@@ -64,9 +64,10 @@ const CATEGORY_COLORS: Record<ReactionCategory, string> = {
 
 interface MobileReactionsListProps {
   onUseReaction: (reaction: Reaction) => void;
+  reactionUsed?: boolean;
 }
 
-export function MobileReactionsList({ onUseReaction }: MobileReactionsListProps) {
+export function MobileReactionsList({ onUseReaction, reactionUsed = false }: MobileReactionsListProps) {
   const { toast } = useToast();
   const [reactions, setReactions] = useState<Reaction[]>(() => {
     try {
@@ -159,6 +160,15 @@ export function MobileReactionsList({ onUseReaction }: MobileReactionsListProps)
 
   // Use a reaction (mark as used this round)
   const handleUseReaction = useCallback((reaction: Reaction) => {
+    if (reactionUsed) {
+      toast({
+        title: "Reaction Already Used",
+        description: "You've already used your reaction this round.",
+        variant: "destructive",
+        duration: 2000,
+      });
+      return;
+    }
     onUseReaction(reaction);
     toast({
       title: `⚡ ${reaction.name}`,
@@ -166,7 +176,7 @@ export function MobileReactionsList({ onUseReaction }: MobileReactionsListProps)
       className: "border-cyan-500/50 bg-cyan-500/10",
       duration: 3000,
     });
-  }, [onUseReaction, toast]);
+  }, [onUseReaction, reactionUsed, toast]);
 
   // Add custom reaction
   const handleAddCustom = useCallback((newReaction: Omit<Reaction, 'id' | 'isCustom'>) => {
@@ -287,6 +297,19 @@ export function MobileReactionsList({ onUseReaction }: MobileReactionsListProps)
         )}
       </div>
 
+      {/* Reaction Used Banner */}
+      {reactionUsed && !isConfigMode && (
+        <div className="mx-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center gap-3">
+          <div className="p-2 bg-amber-500/20 rounded-full">
+            <Zap className="w-4 h-4 text-amber-400" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-amber-300">Reaction Used</p>
+            <p className="text-[11px] text-muted-foreground">Wait for your next turn to react again</p>
+          </div>
+        </div>
+      )}
+
       {/* Reactions list */}
       <div className="flex-1 overflow-auto p-3 pb-24 space-y-2">
         {filteredReactions.length === 0 ? (
@@ -310,6 +333,7 @@ export function MobileReactionsList({ onUseReaction }: MobileReactionsListProps)
               reaction={reaction}
               isExpanded={expandedIds.has(reaction.id)}
               isConfigMode={isConfigMode}
+              reactionUsed={reactionUsed}
               onToggleExpand={() => toggleExpanded(reaction.id)}
               onToggleEnabled={() => toggleReaction(reaction.id)}
               onUse={() => handleUseReaction(reaction)}
@@ -407,6 +431,7 @@ function ReactionCard({
   reaction,
   isExpanded,
   isConfigMode,
+  reactionUsed,
   onToggleExpand,
   onToggleEnabled,
   onUse,
@@ -417,6 +442,7 @@ function ReactionCard({
   reaction: Reaction;
   isExpanded: boolean;
   isConfigMode: boolean;
+  reactionUsed?: boolean;
   onToggleExpand: () => void;
   onToggleEnabled: () => void;
   onUse: () => void;
@@ -522,10 +548,16 @@ function ReactionCard({
                   variant="default"
                   size="sm"
                   onClick={onUse}
-                  className="flex-1 h-10 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/50"
+                  disabled={reactionUsed}
+                  className={cn(
+                    "flex-1 h-10 border",
+                    reactionUsed 
+                      ? "bg-muted/20 text-muted-foreground border-muted/30 cursor-not-allowed" 
+                      : "bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border-cyan-500/50"
+                  )}
                 >
                   <Zap className="w-4 h-4 mr-1" />
-                  Use Reaction
+                  {reactionUsed ? "Used This Round" : "Use Reaction"}
                 </Button>
                 <Button
                   variant="outline"
