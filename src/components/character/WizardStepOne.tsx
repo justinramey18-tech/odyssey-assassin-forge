@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -6,23 +6,32 @@ import { Slider } from '@/components/ui/slider';
 import { getAbilityPointsForLevel } from '@/lib/types';
 import { DiceOddsMode, loadDiceOddsMode } from '@/lib/diceOdds';
 import { DiceOddsWidget } from '@/components/settings/DiceOddsWidget';
-import { Skull, ChevronRight, Settings } from 'lucide-react';
+import { calculateMaxHP, getHPBreakdown } from '@/lib/hpCalculation';
+import { Skull, ChevronRight, Settings, Heart, Info } from 'lucide-react';
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import wizardBackground from '@/assets/wizard-background.jpg';
 
 interface WizardStepOneProps {
   initialName: string;
   initialLevel: number;
-  onComplete: (name: string, level: number) => void;
+  initialConstitution?: number;
+  onComplete: (name: string, level: number, constitution: number) => void;
 }
 
-export function WizardStepOne({ initialName, initialLevel, onComplete }: WizardStepOneProps) {
+export function WizardStepOne({ initialName, initialLevel, initialConstitution = 10, onComplete }: WizardStepOneProps) {
   const [name, setName] = useState(initialName);
   const [level, setLevel] = useState(initialLevel);
+  const [constitution, setConstitution] = useState(initialConstitution);
   const [diceOddsMode, setDiceOddsMode] = useState<DiceOddsMode>('fair');
   const [showSettings, setShowSettings] = useState(false);
 
@@ -31,11 +40,15 @@ export function WizardStepOne({ initialName, initialLevel, onComplete }: WizardS
   }, []);
 
   const abilityPoints = getAbilityPointsForLevel(level);
+  
+  // Calculate CON modifier and HP
+  const constitutionModifier = useMemo(() => Math.floor((constitution - 10) / 2), [constitution]);
+  const hpBreakdown = useMemo(() => getHPBreakdown(level, constitutionModifier, 0), [level, constitutionModifier]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (name.trim()) {
-      onComplete(name.trim(), level);
+      onComplete(name.trim(), level, constitution);
     }
   };
 
@@ -108,18 +121,84 @@ export function WizardStepOne({ initialName, initialLevel, onComplete }: WizardS
             </div>
           </div>
 
-          {/* Points Preview */}
-          <div className="bg-background/30 rounded-md p-4 border border-border/50">
-            <div className="text-center">
-              <p className="text-xs font-display uppercase tracking-wider text-muted-foreground mb-1">
-                Available Ability Points
-              </p>
-              <p className="text-4xl font-display font-bold text-primary glow-gold">
-                {abilityPoints}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1 font-body">
-                To allocate across Hunter, Warrior & Assassin trees
-              </p>
+          {/* Constitution Score */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <Label className="text-sm font-display uppercase tracking-wider text-muted-foreground">
+                Constitution
+              </Label>
+              <span className="text-2xl font-display font-bold text-primary">
+                {constitution}
+                <span className="text-sm text-muted-foreground ml-2">
+                  ({constitutionModifier >= 0 ? '+' : ''}{constitutionModifier})
+                </span>
+              </span>
+            </div>
+            <Slider
+              value={[constitution]}
+              onValueChange={(vals) => setConstitution(vals[0])}
+              min={3}
+              max={20}
+              step={1}
+              className="py-2"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground font-body">
+              <span>3</span>
+              <span>8</span>
+              <span>10</span>
+              <span>15</span>
+              <span>20</span>
+            </div>
+          </div>
+
+          {/* Stats Preview Grid */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* Ability Points */}
+            <div className="bg-background/30 rounded-md p-4 border border-border/50">
+              <div className="text-center">
+                <p className="text-xs font-display uppercase tracking-wider text-muted-foreground mb-1">
+                  Ability Points
+                </p>
+                <p className="text-3xl font-display font-bold text-primary glow-gold">
+                  {abilityPoints}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-1 font-body">
+                  For skill trees
+                </p>
+              </div>
+            </div>
+
+            {/* Starting HP */}
+            <div className="bg-background/30 rounded-md p-4 border border-border/50">
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <Heart className="w-3 h-3 text-destructive" />
+                  <p className="text-xs font-display uppercase tracking-wider text-muted-foreground">
+                    Starting HP
+                  </p>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[200px]">
+                        <div className="text-xs space-y-1">
+                          <p className="font-semibold">HP Breakdown:</p>
+                          <p>Base (d8): {hpBreakdown.baseHP}</p>
+                          {hpBreakdown.levelHP > 0 && <p>Level bonus: +{hpBreakdown.levelHP}</p>}
+                          <p>CON bonus: {hpBreakdown.constitutionHP >= 0 ? '+' : ''}{hpBreakdown.constitutionHP}</p>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <p className="text-3xl font-display font-bold text-destructive">
+                  {hpBreakdown.totalHP}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-1 font-body">
+                  Hit Points
+                </p>
+              </div>
             </div>
           </div>
 

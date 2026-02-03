@@ -358,7 +358,7 @@ const Index = () => {
     return map;
   }, [character.abilities]);
 
-  const handleBasicInfoComplete = (name: string, level: number) => {
+  const handleBasicInfoComplete = (name: string, level: number, constitution: number) => {
     setCharacter(prev => ({
       ...prev,
       name,
@@ -367,6 +367,13 @@ const Index = () => {
     // Set XP to match level
     const xpForLevel = getXPForLevel(level, XP_PRESETS[xpPreset].multiplier);
     setCurrentXP(xpForLevel);
+    
+    // Apply the constitution score from wizard
+    abilityScores.applyScores({
+      ...abilityScores.baseScores,
+      constitution,
+    });
+    
     setShowWizard(false);
   };
 
