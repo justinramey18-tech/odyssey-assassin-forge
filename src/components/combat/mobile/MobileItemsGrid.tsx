@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,7 @@ import {
   Check,
   Sparkles,
   PackageOpen,
+  Undo2,
 } from 'lucide-react';
 import {
   Sheet,
@@ -39,17 +40,31 @@ const TYPE_ICONS: Record<ConsumableType, React.ElementType> = {
   scroll: ScrollText,
 };
 
+// Undo history entry
+interface UndoEntry {
+  consumable: Consumable;
+  actionType: 'action' | 'bonus';
+  timestamp: number;
+}
+
+const UNDO_TIMEOUT_MS = 10000; // 10 seconds to undo
+
 interface MobileItemsGridProps {
   onAddToTurn: (actionType: 'action' | 'bonus' | 'reaction', description: string, roll?: string) => void;
+  onRemoveFromTurn?: (description: string) => void;
   onNavigateToConsumables?: () => void;
 }
 
-export function MobileItemsGrid({ onAddToTurn, onNavigateToConsumables }: MobileItemsGridProps) {
-  const { toast } = useToast();
-  const { inventory, useItem, setItemQuantity, isLoaded } = useConsumables();
+export function MobileItemsGrid({ onAddToTurn, onRemoveFromTurn, onNavigateToConsumables }: MobileItemsGridProps) {
+  const { toast, dismiss } = useToast();
+  const { inventory, useItem, addItem, setItemQuantity, isLoaded } = useConsumables();
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [activeFilter, setActiveFilter] = useState<ConsumableType | 'all'>('all');
   const [copied, setCopied] = useState(false);
+  
+  // Undo state
+  const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
+  const undoTimeoutRef = useRef<Record<string, NodeJS.Timeout>>({});
 
   // Filter inventory by type
   const filteredInventory = useMemo(() => {
@@ -72,17 +87,75 @@ export function MobileItemsGrid({ onAddToTurn, onNavigateToConsumables }: Mobile
     return 'action';
   };
 
+  // Undo a used item
+  const handleUndo = useCallback((entry: UndoEntry) => {
+    // Add item back to inventory
+    addItem(entry.consumable, 1);
+    
+    // Remove from undo stack
+    setUndoStack(prev => prev.filter(e => e.timestamp !== entry.timestamp));
+    
+    // Clear timeout if exists
+    if (undoTimeoutRef.current[entry.timestamp]) {
+      clearTimeout(undoTimeoutRef.current[entry.timestamp]);
+      delete undoTimeoutRef.current[entry.timestamp];
+    }
+    
+    // Remove from turn log if callback provided
+    if (onRemoveFromTurn) {
+      onRemoveFromTurn(`Use ${entry.consumable.name}`);
+    }
+    
+    toast({
+      title: "Undo Successful",
+      description: `${entry.consumable.name} restored to inventory`,
+      className: "border-amber-500/50 bg-amber-500/10",
+    });
+  }, [addItem, onRemoveFromTurn, toast]);
+
   // Handle using an item (from detail sheet or quick use)
   const handleUseItem = useCallback((item: InventoryItem, closeSheet: boolean = false) => {
     const success = useItem(item.consumable.id, 1);
     if (success) {
       const actionType = getActionType(item.consumable);
       onAddToTurn(actionType, `Use ${item.consumable.name}`);
+      
+      // Create undo entry
+      const entry: UndoEntry = {
+        consumable: item.consumable,
+        actionType,
+        timestamp: Date.now(),
+      };
+      
+      setUndoStack(prev => [...prev, entry]);
+      
+      // Set timeout to remove from undo stack
+      undoTimeoutRef.current[entry.timestamp] = setTimeout(() => {
+        setUndoStack(prev => prev.filter(e => e.timestamp !== entry.timestamp));
+        delete undoTimeoutRef.current[entry.timestamp];
+      }, UNDO_TIMEOUT_MS);
+      
+      // Show toast with undo action
       toast({
         title: `${item.consumable.name} Used`,
-        description: item.consumable.effect,
+        description: (
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs">{item.consumable.effect}</span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 gap-1 text-xs border-amber-500/50 text-amber-400 hover:bg-amber-500/20"
+              onClick={() => handleUndo(entry)}
+            >
+              <Undo2 className="w-3 h-3" />
+              Undo
+            </Button>
+          </div>
+        ),
         className: "border-cyan-500/50 bg-cyan-500/10",
+        duration: UNDO_TIMEOUT_MS,
       });
+      
       // Update selected item quantity in sheet
       if (!closeSheet) {
         setSelectedItem(prev => 
@@ -90,7 +163,7 @@ export function MobileItemsGrid({ onAddToTurn, onNavigateToConsumables }: Mobile
         );
       }
     }
-  }, [useItem, onAddToTurn, toast]);
+  }, [useItem, onAddToTurn, toast, handleUndo]);
 
   // Quick use from grid (no sheet open)
   const handleQuickUse = useCallback((e: React.MouseEvent, item: InventoryItem) => {
