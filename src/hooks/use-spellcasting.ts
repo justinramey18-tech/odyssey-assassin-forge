@@ -100,6 +100,7 @@ export interface UseSpellcastingReturn {
   // Path management
   selectPath: (path: MagicPath) => void;
   unlockPath: () => void;
+  clearPath: () => void;
   
   // Spell management
   learnSpell: (spellId: string) => void;
@@ -206,6 +207,14 @@ export function useSpellcasting(characterLevel: number): UseSpellcastingReturn {
 
   const unlockPath = useCallback(() => {
     setState(prev => ({ ...prev, pathUnlocked: true }));
+  }, []);
+
+  const clearPath = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      path: null,
+      pathUnlocked: false,
+    }));
   }, []);
 
   // ============================================
@@ -584,6 +593,7 @@ export function useSpellcasting(characterLevel: number): UseSpellcastingReturn {
     totalSlotsRemaining,
     selectPath,
     unlockPath,
+    clearPath,
     learnSpell,
     forgetSpell,
     prepareSpell,
