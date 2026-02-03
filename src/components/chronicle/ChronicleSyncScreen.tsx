@@ -5,7 +5,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { 
   ArrowLeft, Search, Cpu, Cog, Loader2, AlertTriangle, 
   FileText, CheckCircle, Info, ListChecks, Undo2, BookOpen,
-  BarChart3, Cloud, CloudOff, History
+  BarChart3, Cloud, CloudOff, History, FolderOpen
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -40,6 +40,7 @@ import { ReviewModal } from './ReviewModal';
 import { DisplayOnlyAlerts } from './DisplayOnlyAlerts';
 import { AnalyticsDashboard } from './AnalyticsDashboard';
 import { AutoApplyPanel } from './AutoApplyPanel';
+import { CampaignManagerScreen } from '@/components/campaign';
 import combatBackground from '@/assets/combat-background.jpg';
 
 interface ChronicleSyncScreenProps {
@@ -79,7 +80,7 @@ export function ChronicleSyncScreen({
   const [processingMode, setProcessingMode] = useState<'ai' | 'offline'>('offline');
   const [processProgress, setProcessProgress] = useState<ProcessProgress | null>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'parse' | 'analytics'>('parse');
+  const [activeTab, setActiveTab] = useState<'parse' | 'analytics' | 'campaigns'>('parse');
   const { toast } = useToast();
   
   // Chronicle history hook for session persistence and analytics
@@ -366,20 +367,36 @@ export function ChronicleSyncScreen({
             )}
           </div>
           
-          <button 
-            onClick={() => setActiveTab(activeTab === 'parse' ? 'analytics' : 'parse')}
-            className="p-2 -mr-2 rounded-lg hover:bg-muted transition-colors"
-          >
-            {activeTab === 'parse' ? (
-              <BarChart3 className="w-5 h-5 text-purple-400" />
-            ) : (
-              <FileText className="w-5 h-5 text-blue-400" />
-            )}
-          </button>
+          <div className="flex items-center gap-1">
+            <button 
+              onClick={() => setActiveTab('campaigns')}
+              className="p-2 rounded-lg hover:bg-muted transition-colors"
+              title="Campaigns"
+            >
+              <FolderOpen className={`w-5 h-5 ${activeTab === 'campaigns' ? 'text-cyan-400' : 'text-muted-foreground'}`} />
+            </button>
+            <button 
+              onClick={() => setActiveTab(activeTab === 'parse' ? 'analytics' : 'parse')}
+              className="p-2 -mr-2 rounded-lg hover:bg-muted transition-colors"
+            >
+              {activeTab === 'parse' ? (
+                <BarChart3 className="w-5 h-5 text-purple-400" />
+              ) : activeTab === 'analytics' ? (
+                <FileText className="w-5 h-5 text-blue-400" />
+              ) : (
+                <FileText className="w-5 h-5 text-blue-400" />
+              )}
+            </button>
+          </div>
         </div>
         
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-[2px] bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
       </header>
+
+      {/* Campaigns View */}
+      {activeTab === 'campaigns' && (
+        <CampaignManagerScreen onBack={() => setActiveTab('parse')} />
+      )}
 
       {/* Analytics View */}
       {activeTab === 'analytics' && (
