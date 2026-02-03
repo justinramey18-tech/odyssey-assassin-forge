@@ -11,6 +11,7 @@ import {
   getSpellSaveDC,
 } from '@/lib/magic/types';
 import { getPathConfig, getPathProgression } from '@/lib/magic/paths';
+import { getSpellById } from '@/lib/magic/spells';
 import { useToast } from '@/hooks/use-toast';
 
 // ============================================
@@ -68,6 +69,39 @@ function saveState(state: SpellcastingState): void {
   } catch (e) {
     console.error('[Spellcasting] Failed to save state:', e);
   }
+}
+
+// ============================================
+// SPELL COMPATIBILITY HELPER
+// ============================================
+
+/**
+ * Check if a spell is compatible with a given path
+ * A spell is compatible if:
+ * 1. It has no pathRestrictions, OR the path is in pathRestrictions
+ * 2. It's a cantrip (always transferable) OR the path has no school restrictions OR the spell's school is in the path's allowed schools
+ */
+function isSpellCompatibleWithPath(spellId: string, path: MagicPath): boolean {
+  const spell = getSpellById(spellId);
+  if (!spell) return false;
+  
+  // Check path restrictions on the spell
+  if (spell.pathRestrictions && !spell.pathRestrictions.includes(path)) {
+    return false;
+  }
+  
+  // Cantrips are generally transferable
+  if (spell.level === 0) return true;
+  
+  // Check if the spell's school is allowed by the path
+  const pathConfig = getPathConfig(path);
+  if (pathConfig.spellListRestrictions && pathConfig.spellListRestrictions.length > 0) {
+    // Path has school restrictions - spell must be from an allowed school
+    return pathConfig.spellListRestrictions.includes(spell.school);
+  }
+  
+  // No school restrictions on the path - spell is compatible
+  return true;
 }
 
 // ============================================
@@ -189,18 +223,54 @@ export function useSpellcasting(characterLevel: number): UseSpellcastingReturn {
       ? getPactSlotsForLevel(characterLevel) 
       : undefined;
 
-    setState(prev => ({
-      ...prev,
-      path,
-      pathUnlocked: true,
-      spellcastingAbility: pathConfig.spellcastingAbility,
-      spellSlots: slots,
-      pactSlots,
-    }));
+    setState(prev => {
+      // Filter spells to keep only those compatible with the new path
+      const compatibleKnown = prev.knownSpells.filter(id => isSpellCompatibleWithPath(id, path));
+      const compatiblePrepared = prev.preparedSpells.filter(id => isSpellCompatibleWithPath(id, path));
+      const compatibleFavorites = prev.favoriteSpells.filter(id => isSpellCompatibleWithPath(id, path));
+      
+      // Count how many spells were preserved
+      const keptCount = compatibleKnown.length;
+      const lostCount = prev.knownSpells.length - keptCount;
+      
+      return {
+        ...prev,
+        path,
+        pathUnlocked: true,
+        spellcastingAbility: pathConfig.spellcastingAbility,
+        spellSlots: slots,
+        pactSlots,
+        knownSpells: compatibleKnown,
+        preparedSpells: compatiblePrepared,
+        favoriteSpells: compatibleFavorites,
+        // Clear concentration when switching paths
+        concentratingOn: null,
+        concentrationStartTime: undefined,
+        // Store counts for toast message
+        _keptCount: keptCount,
+        _lostCount: lostCount,
+      };
+    });
+
+    // Get counts after state update for toast
+    const prevState = loadState();
+    const keptCount = prevState.knownSpells.filter(id => isSpellCompatibleWithPath(id, path)).length;
+    const lostCount = prevState.knownSpells.length - keptCount;
+
+    let description = pathConfig.flavorText;
+    if (prevState.knownSpells.length > 0) {
+      if (keptCount > 0 && lostCount > 0) {
+        description = `${keptCount} compatible spell${keptCount !== 1 ? 's' : ''} preserved. ${lostCount} incompatible spell${lostCount !== 1 ? 's' : ''} removed.`;
+      } else if (keptCount > 0) {
+        description = `All ${keptCount} spell${keptCount !== 1 ? 's' : ''} are compatible and preserved!`;
+      } else if (lostCount > 0) {
+        description = `${lostCount} spell${lostCount !== 1 ? 's were' : ' was'} not compatible with this path.`;
+      }
+    }
 
     toast({
       title: `✨ ${pathConfig.name} Unlocked`,
-      description: pathConfig.flavorText,
+      description,
       className: 'border-indigo-500 bg-indigo-500/10',
     });
   }, [characterLevel, toast]);
