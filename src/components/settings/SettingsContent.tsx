@@ -364,159 +364,208 @@ export function SettingsContent({
     );
   }
 
-  // Setup Tab - Simple scrollable version
+  // Setup Tab - Simple scrollable version with sticky headers
   if (activeTab === 'setup') {
     return (
       <div className="flex-1 overflow-y-auto overflow-x-hidden max-h-[70vh] w-full max-w-full min-w-0">
-        <div className="space-y-4 pb-6 w-full max-w-full min-w-0 overflow-hidden">
-          <div className="min-w-0">
-            <h3 className="font-cinzel font-semibold text-base">AI GM Sync</h3>
-            <p className="text-xs text-muted-foreground break-words">
-              Copy your character data to sync with your AI Dungeon Master
-            </p>
-          </div>
-
-        {/* State Snapshot Button - Prominent */}
-        {hasDynamicData && (
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={handleCopySnapshot}
-            className={cn(
-              "w-full gap-2 border-2 h-14",
-              copiedSnapshot 
-                ? "border-green-500/50 bg-green-500/10 text-green-400" 
-                : "border-amber-500/50 bg-amber-500/5 hover:bg-amber-500/10 text-amber-400"
-            )}
-          >
-            {copiedSnapshot ? (
-              <>
-                <Check className="w-5 h-5" />
-                Snapshot Copied!
-              </>
-            ) : (
-              <>
-                <Camera className="w-5 h-5" />
-                Generate State Summary
-              </>
-            )}
-          </Button>
-        )}
-
-        {/* Copy Buttons for Full/Build Only */}
-        <div className="flex gap-2">
-          <Button
-            variant="default"
-            onClick={handleCopyFullGuide}
-            className="gap-2 flex-1 h-12"
-          >
-            {copiedStatic ? (
-              <>
-                <Check className="w-4 h-4 text-green-300" />
-                Copied!
-              </>
-            ) : (
-              <>
-                <Copy className="w-4 h-4" />
-                Full Guide
-              </>
-            )}
-          </Button>
+        <div className="pb-6 w-full max-w-full min-w-0 overflow-hidden">
           
-          {hasDynamicData && (
-            <Button
-              variant="outline"
-              onClick={handleCopyDynamicOnly}
-              className="gap-2 flex-1 h-12"
-            >
-              {copiedDynamic ? (
-                <>
-                  <Check className="w-4 h-4 text-green-500" />
-                  Copied!
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="w-4 h-4" />
-                  Build Only
-                </>
+          {/* Section 1: AI GM Sync */}
+          <div className="mb-4">
+            <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm py-2 -mx-1 px-1 border-b border-border/30 mb-3">
+              <div className="flex items-center gap-2">
+                <Camera className="w-4 h-4 text-amber-400" />
+                <h3 className="font-cinzel font-semibold text-sm">AI GM Sync</h3>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Copy character data for your AI Dungeon Master
+              </p>
+            </div>
+            
+            <div className="space-y-3">
+              {/* State Snapshot Button - Prominent */}
+              {hasDynamicData && (
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={handleCopySnapshot}
+                  className={cn(
+                    "w-full gap-2 border-2 h-14",
+                    copiedSnapshot 
+                      ? "border-green-500/50 bg-green-500/10 text-green-400" 
+                      : "border-amber-500/50 bg-amber-500/5 hover:bg-amber-500/10 text-amber-400"
+                  )}
+                >
+                  {copiedSnapshot ? (
+                    <>
+                      <Check className="w-5 h-5" />
+                      Snapshot Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Camera className="w-5 h-5" />
+                      Generate State Summary
+                    </>
+                  )}
+                </Button>
               )}
-            </Button>
-          )}
-        </div>
 
-        {/* Snapshot Preview */}
-        {hasDynamicData && stateSummary && (
-          <div className="space-y-2 min-w-0 max-w-full">
-            <Badge variant="outline" className="text-xs bg-amber-500/10 border-amber-500/30 text-amber-400">
-              📋 State Snapshot Preview
-            </Badge>
-            <pre className="p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 text-xs font-mono whitespace-pre-wrap break-words max-h-[25vh] overflow-y-auto overflow-x-hidden leading-relaxed w-full">
-              {stateSummary}
-            </pre>
-          </div>
-        )}
+              {/* Copy Buttons for Full/Build Only */}
+              <div className="flex gap-2">
+                <Button
+                  variant="default"
+                  onClick={handleCopyFullGuide}
+                  className="gap-2 flex-1 h-12"
+                >
+                  {copiedStatic ? (
+                    <>
+                      <Check className="w-4 h-4 text-green-300" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" />
+                      Full Guide
+                    </>
+                  )}
+                </Button>
+                
+                {hasDynamicData && (
+                  <Button
+                    variant="outline"
+                    onClick={handleCopyDynamicOnly}
+                    className="gap-2 flex-1 h-12"
+                  >
+                    {copiedDynamic ? (
+                      <>
+                        <Check className="w-4 h-4 text-green-500" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-4 h-4" />
+                        Build Only
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
 
-        <Separator className="bg-border/30" />
-
-        {/* Modular GM Guide Prompts */}
-        <GMGuidePrompts />
-
-        <Separator className="bg-border/30" />
-
-        {/* Toggle between dynamic and static (legacy view) */}
-        {hasDynamicData && (
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground font-medium">Legacy View</p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant={showDynamic ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setShowDynamic(true)}
-                className="flex-1 h-9 text-xs"
-              >
-                Current Build
-              </Button>
-              <Button
-                variant={!showDynamic ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setShowDynamic(false)}
-                className="flex-1 h-9 text-xs"
-              >
-                System Rules
-              </Button>
+              {/* Snapshot Preview */}
+              {hasDynamicData && stateSummary && (
+                <div className="space-y-2 min-w-0 max-w-full">
+                  <Badge variant="outline" className="text-xs bg-amber-500/10 border-amber-500/30 text-amber-400">
+                    📋 State Snapshot Preview
+                  </Badge>
+                  <pre className="p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 text-xs font-mono whitespace-pre-wrap break-words max-h-[25vh] overflow-y-auto overflow-x-hidden leading-relaxed w-full">
+                    {stateSummary}
+                  </pre>
+                </div>
+              )}
             </div>
           </div>
-        )}
 
-        {/* Dynamic Build Section */}
-        {showDynamic && hasDynamicData && (
-          <div className="space-y-2">
-            <Badge variant="outline" className="text-xs bg-primary/10 border-primary/30 text-primary">
-              Live Character Data
-            </Badge>
-            <pre className="p-3 rounded-lg border border-primary/30 bg-primary/5 text-xs font-mono whitespace-pre-wrap max-h-[25vh] overflow-y-auto leading-relaxed">
-              {dynamicGuide}
-            </pre>
+          {/* Section 2: Modular GM Prompts */}
+          <div className="mb-4">
+            <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm py-2 -mx-1 px-1 border-b border-border/30 mb-3">
+              <div className="flex items-center gap-2">
+                <Copy className="w-4 h-4 text-primary" />
+                <h3 className="font-cinzel font-semibold text-sm">Modular GM Prompts</h3>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                20 copyable prompts for selective AI integration
+              </p>
+            </div>
+            
+            <GMGuidePrompts />
           </div>
-        )}
 
-        {/* Static System Rules Section */}
-        {(!showDynamic || !hasDynamicData) && (
-          <div className="space-y-2">
-            <Badge variant="outline" className="text-xs">
-              System Reference (Full)
-            </Badge>
-            <pre className="p-3 rounded-lg border border-border/50 bg-muted/30 text-xs font-mono whitespace-pre-wrap max-h-[25vh] overflow-y-auto leading-relaxed">
-              {fullGuide}
-            </pre>
-          </div>
-        )}
+          {/* Section 3: Legacy View */}
+          {hasDynamicData && (
+            <div className="mb-4">
+              <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm py-2 -mx-1 px-1 border-b border-border/30 mb-3">
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="w-4 h-4 text-muted-foreground" />
+                  <h3 className="font-cinzel font-semibold text-sm">Legacy View</h3>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Full-text character build and system rules
+                </p>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant={showDynamic ? 'secondary' : 'ghost'}
+                    size="sm"
+                    onClick={() => setShowDynamic(true)}
+                    className="flex-1 h-9 text-xs"
+                  >
+                    Current Build
+                  </Button>
+                  <Button
+                    variant={!showDynamic ? 'secondary' : 'ghost'}
+                    size="sm"
+                    onClick={() => setShowDynamic(false)}
+                    className="flex-1 h-9 text-xs"
+                  >
+                    System Rules
+                  </Button>
+                </div>
 
-        <p className="text-xs text-muted-foreground text-center">
-          {hasDynamicData 
-            ? '💡 Use modular prompts above for selective AI DM integration'
-            : '💡 Configure your character to enable build snapshots'}
-        </p>
+                {/* Dynamic Build Section */}
+                {showDynamic && (
+                  <div className="space-y-2">
+                    <Badge variant="outline" className="text-xs bg-primary/10 border-primary/30 text-primary">
+                      Live Character Data
+                    </Badge>
+                    <pre className="p-3 rounded-lg border border-primary/30 bg-primary/5 text-xs font-mono whitespace-pre-wrap max-h-[25vh] overflow-y-auto leading-relaxed">
+                      {dynamicGuide}
+                    </pre>
+                  </div>
+                )}
+
+                {/* Static System Rules Section */}
+                {!showDynamic && (
+                  <div className="space-y-2">
+                    <Badge variant="outline" className="text-xs">
+                      System Reference (Full)
+                    </Badge>
+                    <pre className="p-3 rounded-lg border border-border/50 bg-muted/30 text-xs font-mono whitespace-pre-wrap max-h-[25vh] overflow-y-auto leading-relaxed">
+                      {fullGuide}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Static System Rules when no dynamic data */}
+          {!hasDynamicData && (
+            <div className="mb-4">
+              <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm py-2 -mx-1 px-1 border-b border-border/30 mb-3">
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="w-4 h-4 text-muted-foreground" />
+                  <h3 className="font-cinzel font-semibold text-sm">System Reference</h3>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Badge variant="outline" className="text-xs">
+                  System Reference (Full)
+                </Badge>
+                <pre className="p-3 rounded-lg border border-border/50 bg-muted/30 text-xs font-mono whitespace-pre-wrap max-h-[25vh] overflow-y-auto leading-relaxed">
+                  {fullGuide}
+                </pre>
+              </div>
+            </div>
+          )}
+
+          <p className="text-xs text-muted-foreground text-center pt-2">
+            {hasDynamicData 
+              ? '💡 Use modular prompts above for selective AI DM integration'
+              : '💡 Configure your character to enable build snapshots'}
+          </p>
         </div>
       </div>
     );
