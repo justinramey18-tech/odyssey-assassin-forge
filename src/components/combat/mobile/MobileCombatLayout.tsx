@@ -16,6 +16,8 @@ import { generateRPPrompt } from '@/lib/rpPromptGenerator';
 import { DiceRollModal } from '@/components/character/DiceRollModal';
 import { useSwipe } from '@/hooks/use-swipe';
 import { useGameMode } from '@/hooks/use-game-mode';
+import { useCooldowns } from '@/hooks/use-cooldowns';
+import { COOLDOWN_CONFIGS, calculateEffectiveCooldown } from '@/lib/cooldowns/config';
 
 // Mobile components
 import { CombatBottomNav, CombatTab } from './CombatBottomNav';
@@ -26,13 +28,14 @@ import { MobileWeaponCard } from './MobileWeaponCard';
 import { CombatFAB } from './CombatFAB';
 import { TurnSummaryPanel } from './TurnSummaryPanel';
 import { MobileAbilityList } from './MobileAbilityList';
+import { EnhancedMobileAbilityList } from './EnhancedMobileAbilityList';
 import { MobileItemsGrid } from './MobileItemsGrid';
 import { MobileSpellList } from './MobileSpellList';
 import { MobileReactionsList } from './MobileReactionsList';
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
 import { usePromptDrawers } from '@/components/drawers';
 import { CharacterEquipment } from '@/lib/inventory/types';
-import { getEquippedWeapons } from '@/lib/combat/weaponConverter';
+import { getEquippedWeapons, convertToWeaponAttack } from '@/lib/combat/weaponConverter';
 import { Reaction, DEFAULT_REACTIONS, REACTIONS_STORAGE_KEY } from '@/lib/combat/reactions';
 
 // Tab order for swipe navigation
@@ -104,10 +107,17 @@ export function MobileCombatLayout({ character, spellcasting, equipment }: Mobil
   const [round, setRound] = useState(1);
   const [isYourTurn, setIsYourTurn] = useState(true);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
-  const { rerollsDisabled } = useGameMode();
+  const { rerollsDisabled, isHonestMode, enforceCooldowns } = useGameMode();
   
   // Access drawer context
   const drawerContext = usePromptDrawers();
+  
+  // Cooldown system integration
+  const cooldownSystem = useCooldowns({
+    characterAbilities: character.abilities,
+    isHonestMode,
+    enforceCooldowns,
+  });
   
   // Swipe navigation handlers
   const handleSwipeLeft = useCallback(() => {
@@ -201,6 +211,46 @@ export function MobileCombatLayout({ character, spellcasting, equipment }: Mobil
     return weapons.length > 0 ? weapons : DEFAULT_WEAPONS;
   }, [equipment]);
   
+  // Create weapons map for ability synergy (Hunter→Ranged, Warrior→Primary, Assassin→Secondary)
+  const weaponsMap = useMemo(() => {
+    if (!equipment) {
+      return {
+        primary: DEFAULT_WEAPONS.find(w => w.id === 'shortsword') ?? null,
+        secondary: DEFAULT_WEAPONS.find(w => w.id === 'dagger') ?? null,
+        ranged: DEFAULT_WEAPONS.find(w => w.id === 'shortbow') ?? null,
+      };
+    }
+    
+    return {
+      primary: equipment.slots.primary_weapon 
+        ? convertToWeaponAttack(equipment.slots.primary_weapon) 
+        : null,
+      secondary: equipment.slots.secondary_weapon 
+        ? convertToWeaponAttack(equipment.slots.secondary_weapon) 
+        : null,
+      ranged: equipment.slots.ranged_weapon 
+        ? convertToWeaponAttack(equipment.slots.ranged_weapon) 
+        : null,
+    };
+  }, [equipment]);
+  
+  // Build cooldown state map for abilities
+  const cooldownStateMap = useMemo(() => {
+    const map = new Map<string, { isOnCooldown: boolean; remaining: number; total: number }>();
+    
+    unlockedAbilities.forEach(ability => {
+      const config = COOLDOWN_CONFIGS[ability.id];
+      if (config && !config.isPassive) {
+        const isOnCooldown = cooldownSystem.isOnCooldown(ability.id);
+        const remaining = cooldownSystem.getRemainingTime(ability.id);
+        const total = cooldownSystem.getEffectiveCooldown(ability.id);
+        map.set(ability.id, { isOnCooldown, remaining, total });
+      }
+    });
+    
+    return map;
+  }, [unlockedAbilities, cooldownSystem]);
+  
   // Add action to turn summary
   const handleAddToTurn = useCallback((
     actionType: 'action' | 'bonus' | 'reaction',
@@ -220,7 +270,7 @@ export function MobileCombatLayout({ character, spellcasting, equipment }: Mobil
     ]);
   }, []);
   
-  // Handle ability use
+  // Handle ability use (legacy for stealth tab)
   const handleAbilityUse = useCallback((
     ability: Ability & { tier: 1 | 2 | 3 }
   ) => {
@@ -235,10 +285,33 @@ export function MobileCombatLayout({ character, spellcasting, equipment }: Mobil
     setShowDiceModal(true);
     setLastAction(`${ability.name.toUpperCase()} ACTIVATED`);
     
+    // Trigger cooldown
+    cooldownSystem.triggerCooldown(ability.id);
+    
     const actionType = ability.actionType === 'bonus_action' ? 'bonus' : 
                        ability.actionType === 'reaction' ? 'reaction' : 'action';
     handleAddToTurn(actionType, ability.name, `${count}${die}`);
-  }, [character.name, handleAddToTurn]);
+  }, [character.name, handleAddToTurn, cooldownSystem]);
+  
+  // Handle enhanced ability use (with weapon synergy + combined damage)
+  const handleEnhancedAbilityUse = useCallback((
+    ability: Ability & { tier: 1 | 2 | 3 },
+    roll: DiceRoll,
+    prompt: string,
+    combinedDamage: string
+  ) => {
+    setActiveAbility(ability);
+    setActiveTier(ability.tier);
+    setDiceRoll(roll);
+    setDicePrompt(prompt);
+    setShowDiceModal(true);
+    setLastAction(`${ability.name.toUpperCase()} + ${combinedDamage}`);
+    
+    const actionType = ability.actionType === 'bonus_action' ? 'bonus' : 
+                       ability.actionType === 'reaction' ? 'reaction' : 'action';
+    const { die, count } = getAbilityDice(ability.tier);
+    handleAddToTurn(actionType, `${ability.name} (${combinedDamage})`, `${count}${die}`);
+  }, [handleAddToTurn]);
   
   // Handle weapon roll
   const handleWeaponRoll = useCallback((
@@ -369,18 +442,26 @@ export function MobileCombatLayout({ character, spellcasting, equipment }: Mobil
       
       case 'stealth':
         return (
-          <MobileAbilityList
+          <EnhancedMobileAbilityList
             abilities={stealthAbilities}
-            onUseAbility={handleAbilityUse}
+            characterName={character.name}
+            weapons={weaponsMap}
+            cooldownState={cooldownStateMap}
+            onUseAbility={handleEnhancedAbilityUse}
+            onTriggerCooldown={cooldownSystem.triggerCooldown}
             emptyMessage="No stealth abilities unlocked"
           />
         );
       
       case 'abilities':
         return (
-          <MobileAbilityList
+          <EnhancedMobileAbilityList
             abilities={specialAbilities}
-            onUseAbility={handleAbilityUse}
+            characterName={character.name}
+            weapons={weaponsMap}
+            cooldownState={cooldownStateMap}
+            onUseAbility={handleEnhancedAbilityUse}
+            onTriggerCooldown={cooldownSystem.triggerCooldown}
             emptyMessage="No special abilities unlocked"
             showFilters
           />

@@ -7,6 +7,8 @@ export { MobileWeaponCard } from './MobileWeaponCard';
 export { CombatFAB } from './CombatFAB';
 export { TurnSummaryPanel } from './TurnSummaryPanel';
 export { MobileAbilityList } from './MobileAbilityList';
+export { EnhancedMobileAbilityList } from './EnhancedMobileAbilityList';
+export { CombatAbilityCard } from './CombatAbilityCard';
 export { MobileItemsGrid } from './MobileItemsGrid';
 export { MobileSpellList } from './MobileSpellList';
 export { MobileReactionsList } from './MobileReactionsList';
