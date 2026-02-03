@@ -72,6 +72,14 @@ export function SettingsModal({
   const equipmentImageCount = Object.keys(equipmentImages.images).length;
   const abilityImageCount = Object.keys(abilityImages.images).length;
   
+  const handleClearEquipmentImages = useCallback(() => {
+    equipmentImages.clearAllImages();
+  }, [equipmentImages]);
+
+  const handleClearAbilityImages = useCallback(() => {
+    abilityImages.clearAllImages();
+  }, [abilityImages]);
+
   const handleClearAllCustomImages = useCallback(() => {
     equipmentImages.clearAllImages();
     abilityImages.clearAllImages();
@@ -205,12 +213,14 @@ export function SettingsModal({
                   onXPProgressionChange={handleXPProgressionChange}
                   diceOddsMode={diceOddsMode}
                   onDiceOddsChange={handleDiceOddsChange}
-                dynamicGuide={dynamicGuide}
-                stateSummary={stateSummary}
-                fullGuide={fullGuide}
-                equipmentImageCount={equipmentImageCount}
-                abilityImageCount={abilityImageCount}
-                onClearAllCustomImages={handleClearAllCustomImages}
+                  dynamicGuide={dynamicGuide}
+                  stateSummary={stateSummary}
+                  fullGuide={fullGuide}
+                  equipmentImageCount={equipmentImageCount}
+                  abilityImageCount={abilityImageCount}
+                  onClearEquipmentImages={handleClearEquipmentImages}
+                  onClearAbilityImages={handleClearAbilityImages}
+                  onClearAllCustomImages={handleClearAllCustomImages}
               />
               ) : (
                 <MobileSettingsTabs
@@ -266,6 +276,8 @@ export function SettingsModal({
                 fullGuide={fullGuide}
                 equipmentImageCount={equipmentImageCount}
                 abilityImageCount={abilityImageCount}
+                onClearEquipmentImages={handleClearEquipmentImages}
+                onClearAbilityImages={handleClearAbilityImages}
                 onClearAllCustomImages={handleClearAllCustomImages}
               />
             </div>
