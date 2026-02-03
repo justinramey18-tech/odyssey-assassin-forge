@@ -611,6 +611,45 @@ const Index = () => {
     });
   };
 
+  // Chronicle auto-apply handlers
+  const handleChronicleGold = useCallback((netChange: number) => {
+    shop.addGold(netChange);
+    toast({
+      title: netChange > 0 ? "💰 Gold Added" : "💸 Gold Spent",
+      description: `${netChange > 0 ? '+' : ''}${netChange} GP applied from session log.`,
+      className: "border-yellow-500/30 bg-yellow-500/10",
+    });
+  }, [shop, toast]);
+
+  const handleChronicleHP = useCallback((change: number, type: 'damage' | 'healing') => {
+    const newHP = type === 'damage' 
+      ? Math.max(0, hpState.current + change) 
+      : Math.min(hpState.max, hpState.current + change);
+    handleHPChange(newHP, hpState.max, hpState.temp);
+    toast({
+      title: type === 'damage' ? "💔 Damage Applied" : "💚 Healing Applied",
+      description: `${Math.abs(change)} HP ${type === 'damage' ? 'damage taken' : 'restored'}.`,
+    });
+  }, [hpState, handleHPChange, toast]);
+
+  const handleChronicleConditions = useCallback((toAdd: string[], toRemove: string[]) => {
+    // Conditions are currently display-only, just show toast
+    if (toAdd.length > 0 || toRemove.length > 0) {
+      toast({
+        title: "⚡ Conditions Updated",
+        description: `Added: ${toAdd.join(', ') || 'none'} | Removed: ${toRemove.join(', ') || 'none'}`,
+      });
+    }
+  }, [toast]);
+
+  const handleChronicleRest = useCallback((type: 'short' | 'long') => {
+    if (type === 'long') {
+      handleLongRest();
+    } else {
+      handleShortRest();
+    }
+  }, [handleShortRest, handleLongRest]);
+
   // Chronicle Sync change handler
   const handleApplyChronicleChanges = (changes: ApprovedChanges) => {
     // Create undo snapshot before applying changes
@@ -1247,7 +1286,15 @@ const Index = () => {
             <ChronicleSyncScreen
               characterName={character.name}
               characterLevel={character.level}
+              currentGold={shop.currentGold}
+              currentHP={hpState.current}
+              maxHP={hpState.max}
+              activeConditions={[]}
               onApplyChanges={handleApplyChronicleChanges}
+              onApplyGold={handleChronicleGold}
+              onApplyHP={handleChronicleHP}
+              onApplyConditions={handleChronicleConditions}
+              onApplyRest={handleChronicleRest}
               onBack={() => categoryNav.navigateToSubTab('scribe')}
             />
           )}

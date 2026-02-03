@@ -1,10 +1,11 @@
 // Chronicle Sync Main Screen
-// Session log parsing and change application interface
+// Session log parsing and change application interface with analytics
 
 import { useState, useCallback, useMemo } from 'react';
 import { 
   ArrowLeft, Search, Cpu, Cog, Loader2, AlertTriangle, 
-  FileText, CheckCircle, Info, ListChecks, Undo2, BookOpen
+  FileText, CheckCircle, Info, ListChecks, Undo2, BookOpen,
+  BarChart3, Cloud, CloudOff, History
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,7 +15,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useChronicleHistory } from '@/hooks/use-chronicle-history';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -27,18 +30,30 @@ import {
   UndoSnapshot,
   UNDO_EXPIRATION_MS,
 } from '@/lib/chronicleSync/types';
+import { ChronicleSession } from '@/lib/chronicleSync/enhancedTypes';
 import { parseLogOffline, parseAIResponse, calculateChangeSummary } from '@/lib/chronicleSync/processor';
-import { SAMPLE_LOGS, SAMPLE_LOG_DESCRIPTIONS, SampleLogKey, getSampleLogKeys } from '@/lib/chronicleSync/sampleLogs';
+import { parseEnhancedPatterns, computeEnhancedAnalytics } from '@/lib/chronicleSync/enhancedPatterns';
+import { SAMPLE_LOGS, SampleLogKey, getSampleLogKeys } from '@/lib/chronicleSync/sampleLogs';
 import { hasActionableChanges, hasDisplayOnlyChanges } from '@/lib/chronicleSync/validation';
 import { ParseResultCard } from './ParseResultCard';
 import { ReviewModal } from './ReviewModal';
 import { DisplayOnlyAlerts } from './DisplayOnlyAlerts';
+import { AnalyticsDashboard } from './AnalyticsDashboard';
+import { AutoApplyPanel } from './AutoApplyPanel';
 import combatBackground from '@/assets/combat-background.jpg';
 
 interface ChronicleSyncScreenProps {
   characterName: string;
   characterLevel: number;
+  currentGold: number;
+  currentHP: number;
+  maxHP: number;
+  activeConditions: string[];
   onApplyChanges: (changes: ApprovedChanges) => void;
+  onApplyGold: (netChange: number) => void;
+  onApplyHP: (change: number, type: 'damage' | 'healing') => void;
+  onApplyConditions: (toAdd: string[], toRemove: string[]) => void;
+  onApplyRest: (type: 'short' | 'long') => void;
   onBack: () => void;
 }
 
@@ -47,7 +62,15 @@ const UNDO_STORAGE_KEY = 'odyssey-chronicle-undo';
 export function ChronicleSyncScreen({ 
   characterName, 
   characterLevel,
-  onApplyChanges, 
+  currentGold,
+  currentHP,
+  maxHP,
+  activeConditions,
+  onApplyChanges,
+  onApplyGold,
+  onApplyHP,
+  onApplyConditions,
+  onApplyRest,
   onBack 
 }: ChronicleSyncScreenProps) {
   const [inputText, setInputText] = useState('');
@@ -56,7 +79,21 @@ export function ChronicleSyncScreen({
   const [processingMode, setProcessingMode] = useState<'ai' | 'offline'>('offline');
   const [processProgress, setProcessProgress] = useState<ProcessProgress | null>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'parse' | 'analytics'>('parse');
   const { toast } = useToast();
+  
+  // Chronicle history hook for session persistence and analytics
+  const { 
+    sessions, 
+    analytics, 
+    loading: historyLoading, 
+    syncing, 
+    isCloudEnabled,
+    addSession 
+  } = useChronicleHistory();
+  
+  // Enhanced pattern results
+  const [enhancedResults, setEnhancedResults] = useState<ReturnType<typeof parseEnhancedPatterns> | null>(null);
 
   // Check for undo availability
   const undoSnapshot = useMemo(() => {
@@ -322,14 +359,40 @@ export function ChronicleSyncScreen({
             <h1 className="font-cinzel font-bold text-lg uppercase tracking-wider text-blue-400">
               Chronicle Sync
             </h1>
+            {isCloudEnabled && (
+              <Badge variant="outline" className="text-[10px] gap-1 bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
+                <Cloud className="w-3 h-3" /> Synced
+              </Badge>
+            )}
           </div>
           
-          <div className="w-9" />
+          <button 
+            onClick={() => setActiveTab(activeTab === 'parse' ? 'analytics' : 'parse')}
+            className="p-2 -mr-2 rounded-lg hover:bg-muted transition-colors"
+          >
+            {activeTab === 'parse' ? (
+              <BarChart3 className="w-5 h-5 text-purple-400" />
+            ) : (
+              <FileText className="w-5 h-5 text-blue-400" />
+            )}
+          </button>
         </div>
         
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-[2px] bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
       </header>
 
+      {/* Analytics View */}
+      {activeTab === 'analytics' && (
+        <div className="relative z-10 max-w-4xl mx-auto px-4 py-6">
+          <AnalyticsDashboard 
+            analytics={analytics} 
+            sessions={sessions}
+          />
+        </div>
+      )}
+
+      {/* Parse View */}
+      {activeTab === 'parse' && (
       <div className="relative z-10 max-w-4xl mx-auto px-4 py-6 space-y-6">
         {/* Mode Selection */}
         <Tabs value={processingMode} onValueChange={(v) => setProcessingMode(v as 'ai' | 'offline')}>
@@ -607,6 +670,7 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
           </ul>
         </div>
       </div>
+      )}
 
       {/* Review Modal */}
       <ReviewModal

@@ -14,6 +14,81 @@ export type Database = {
   }
   public: {
     Tables: {
+      campaign_analytics: {
+        Row: {
+          created_at: string
+          death_save_failures: number
+          death_save_successes: number
+          id: string
+          spell_slots_used_by_level: Json | null
+          total_critical_hits: number
+          total_damage_dealt: number
+          total_damage_taken: number
+          total_deaths: number
+          total_gold_earned: number
+          total_gold_spent: number
+          total_healing_received: number
+          total_items_acquired: number
+          total_items_consumed: number
+          total_kills: number
+          total_long_rests: number
+          total_sessions_imported: number
+          total_short_rests: number
+          total_spells_cast: number
+          total_xp_earned: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          death_save_failures?: number
+          death_save_successes?: number
+          id?: string
+          spell_slots_used_by_level?: Json | null
+          total_critical_hits?: number
+          total_damage_dealt?: number
+          total_damage_taken?: number
+          total_deaths?: number
+          total_gold_earned?: number
+          total_gold_spent?: number
+          total_healing_received?: number
+          total_items_acquired?: number
+          total_items_consumed?: number
+          total_kills?: number
+          total_long_rests?: number
+          total_sessions_imported?: number
+          total_short_rests?: number
+          total_spells_cast?: number
+          total_xp_earned?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          death_save_failures?: number
+          death_save_successes?: number
+          id?: string
+          spell_slots_used_by_level?: Json | null
+          total_critical_hits?: number
+          total_damage_dealt?: number
+          total_damage_taken?: number
+          total_deaths?: number
+          total_gold_earned?: number
+          total_gold_spent?: number
+          total_healing_received?: number
+          total_items_acquired?: number
+          total_items_consumed?: number
+          total_kills?: number
+          total_long_rests?: number
+          total_sessions_imported?: number
+          total_short_rests?: number
+          total_spells_cast?: number
+          total_xp_earned?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       character_saves: {
         Row: {
           achievements_data: Json | null
@@ -53,6 +128,93 @@ export type Database = {
           updated_at?: string
           user_id?: string
           xp_data?: Json | null
+        }
+        Relationships: []
+      }
+      chronicle_sessions: {
+        Row: {
+          achievements_triggered: number
+          changes_applied: number
+          combat_rounds: number
+          conditions_applied: string[] | null
+          created_at: string
+          critical_hits: number
+          damage_dealt: number
+          damage_taken: number
+          death_saves: Json | null
+          full_parse_result: Json | null
+          gold_gained: number
+          gold_spent: number
+          healing_received: number
+          id: string
+          input_hash: string
+          input_preview: string
+          items_acquired: number
+          items_consumed: number
+          kills: number
+          parse_mode: string
+          parsed_at: string
+          rests_taken: Json | null
+          session_name: string
+          spell_slots_used: Json | null
+          user_id: string
+          xp_total: number
+        }
+        Insert: {
+          achievements_triggered?: number
+          changes_applied?: number
+          combat_rounds?: number
+          conditions_applied?: string[] | null
+          created_at?: string
+          critical_hits?: number
+          damage_dealt?: number
+          damage_taken?: number
+          death_saves?: Json | null
+          full_parse_result?: Json | null
+          gold_gained?: number
+          gold_spent?: number
+          healing_received?: number
+          id?: string
+          input_hash: string
+          input_preview: string
+          items_acquired?: number
+          items_consumed?: number
+          kills?: number
+          parse_mode?: string
+          parsed_at?: string
+          rests_taken?: Json | null
+          session_name?: string
+          spell_slots_used?: Json | null
+          user_id: string
+          xp_total?: number
+        }
+        Update: {
+          achievements_triggered?: number
+          changes_applied?: number
+          combat_rounds?: number
+          conditions_applied?: string[] | null
+          created_at?: string
+          critical_hits?: number
+          damage_dealt?: number
+          damage_taken?: number
+          death_saves?: Json | null
+          full_parse_result?: Json | null
+          gold_gained?: number
+          gold_spent?: number
+          healing_received?: number
+          id?: string
+          input_hash?: string
+          input_preview?: string
+          items_acquired?: number
+          items_consumed?: number
+          kills?: number
+          parse_mode?: string
+          parsed_at?: string
+          rests_taken?: Json | null
+          session_name?: string
+          spell_slots_used?: Json | null
+          user_id?: string
+          xp_total?: number
         }
         Relationships: []
       }
