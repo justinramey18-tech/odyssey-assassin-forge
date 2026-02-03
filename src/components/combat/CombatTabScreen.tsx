@@ -34,6 +34,7 @@ interface CombatTabScreenProps {
   prestigePoints?: number;
   spellcasting?: UseSpellcastingReturn;
   equipment?: CharacterEquipment;
+  onNavigateToConsumables?: () => void;
 }
 
 // Combat modifier calculations
@@ -96,7 +97,7 @@ function calculateModifiers(character: Character): CombatModifiers {
   };
 }
 
-export function CombatTabScreen({ character, prestigePoints = 0, spellcasting, equipment }: CombatTabScreenProps) {
+export function CombatTabScreen({ character, prestigePoints = 0, spellcasting, equipment, onNavigateToConsumables }: CombatTabScreenProps) {
   const isMobile = useIsMobile();
   const { rerollsDisabled } = useGameMode();
   
@@ -261,7 +262,7 @@ export function CombatTabScreen({ character, prestigePoints = 0, spellcasting, e
 
   // Use mobile layout for smaller screens
   if (isMobile) {
-    return <MobileCombatLayout character={character} spellcasting={spellcasting} equipment={equipment} />;
+    return <MobileCombatLayout character={character} spellcasting={spellcasting} equipment={equipment} onNavigateToConsumables={onNavigateToConsumables} />;
   }
   return (
     <BackgroundWrapper 

@@ -159,6 +159,11 @@ const Index = () => {
   // Derived active tab for backward compatibility
   const activeTab = categoryNav.activeSubTab as 'skills' | 'abilities' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle' | 'legacy' | 'arcana' | 'shop';
   
+  // Handler to navigate to consumables tab from combat items
+  const handleNavigateToConsumables = useCallback(() => {
+    categoryNav.navigateToSubTab('consumables', 'inventory');
+  }, [categoryNav]);
+  
   // Spellcasting system
   const spellcasting = useSpellcasting(character.level);
   
@@ -1023,6 +1028,7 @@ const Index = () => {
               prestigePoints={prestigeData.totalPrestigePoints}
               spellcasting={spellcasting}
               equipment={equipment}
+              onNavigateToConsumables={handleNavigateToConsumables}
             />
           )}
 

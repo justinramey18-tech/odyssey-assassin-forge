@@ -99,9 +99,10 @@ interface MobileCombatLayoutProps {
   character: Character;
   spellcasting?: UseSpellcastingReturn;
   equipment?: CharacterEquipment;
+  onNavigateToConsumables?: () => void;
 }
 
-export function MobileCombatLayout({ character, spellcasting, equipment }: MobileCombatLayoutProps) {
+export function MobileCombatLayout({ character, spellcasting, equipment, onNavigateToConsumables }: MobileCombatLayoutProps) {
   // Navigation state
   const [activeTab, setActiveTab] = useState<CombatTab>('attacks');
   const [round, setRound] = useState(1);
@@ -504,6 +505,7 @@ export function MobileCombatLayout({ character, spellcasting, equipment }: Mobil
         return (
           <MobileItemsGrid
             onAddToTurn={handleAddToTurn}
+            onNavigateToConsumables={onNavigateToConsumables}
           />
         );
       

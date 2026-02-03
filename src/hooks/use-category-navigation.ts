@@ -27,7 +27,7 @@ interface UseCategoryNavigationReturn {
   mainCategory: MainCategory;
   activeSubTab: string;
   setMainCategory: (category: MainCategory) => void;
-  navigateToSubTab: (subTabId: string) => void;
+  navigateToSubTab: (subTabId: string, targetCategory?: MainCategory) => void;
   swipeToNextSubTab: () => void;
   swipeToPrevSubTab: () => void;
   getCurrentSubTabs: () => SubTabConfig[];
@@ -143,6 +143,11 @@ export function useCategoryNavigation(
 
     // Use explicit category if provided, otherwise use current mainCategory
     const category = targetCategory ?? mainCategory;
+    
+    // If switching to a different category, update the main category as well
+    if (targetCategory && targetCategory !== mainCategory) {
+      setMainCategoryState(targetCategory);
+    }
 
     // Update the appropriate sub-tab state based on target category
     switch (category) {
