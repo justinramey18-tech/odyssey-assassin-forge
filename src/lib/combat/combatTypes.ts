@@ -36,6 +36,7 @@ export interface WeaponAttack {
   properties: string[];
   isFinesse: boolean;
   isRanged: boolean;
+  slotType?: 'primary_weapon' | 'secondary_weapon' | 'ranged_weapon';
 }
 
 export interface TurnAction {
