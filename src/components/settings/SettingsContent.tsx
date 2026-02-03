@@ -354,10 +354,12 @@ export function SettingsContent({
   // Game Mode Tab
   if (activeTab === 'game') {
     return (
-      <div className="space-y-6">
-        <GameModeSettings settings={gameModeSettings} onChange={onGameModeChange} />
-        <Separator className="bg-border/30" />
-        <XPProgressionWidget value={xpProgressionMode} onChange={onXPProgressionChange} />
+      <div className="flex-1 overflow-y-auto max-h-[70vh]">
+        <div className="space-y-6 pb-6">
+          <GameModeSettings settings={gameModeSettings} onChange={onGameModeChange} />
+          <Separator className="bg-border/30" />
+          <XPProgressionWidget value={xpProgressionMode} onChange={onXPProgressionChange} />
+        </div>
       </div>
     );
   }
@@ -365,7 +367,8 @@ export function SettingsContent({
   // Setup Tab
   if (activeTab === 'setup') {
     return (
-      <div className="space-y-4">
+      <div className="flex-1 overflow-y-auto max-h-[70vh]">
+        <div className="space-y-4 pb-6">
         <div>
           <h3 className="font-cinzel font-semibold text-base">AI GM Sync</h3>
           <p className="text-xs text-muted-foreground">
@@ -514,6 +517,7 @@ export function SettingsContent({
             ? '💡 Use modular prompts above for selective AI DM integration'
             : '💡 Configure your character to enable build snapshots'}
         </p>
+        </div>
       </div>
     );
   }
@@ -521,41 +525,43 @@ export function SettingsContent({
   // FAQ Tab
   if (activeTab === 'faq') {
     return (
-      <div className="space-y-4">
-        <div>
-          <h3 className="font-cinzel font-semibold text-base flex items-center gap-2">
-            <HelpCircle className="w-4 h-4 text-primary" />
-            Help & FAQ
-          </h3>
-          <p className="text-xs text-muted-foreground mt-1">
-            Answers to common questions
-          </p>
-        </div>
+      <div className="flex-1 overflow-y-auto max-h-[70vh]">
+        <div className="space-y-4 pb-6">
+          <div>
+            <h3 className="font-cinzel font-semibold text-base flex items-center gap-2">
+              <HelpCircle className="w-4 h-4 text-primary" />
+              Help & FAQ
+            </h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Answers to common questions
+            </p>
+          </div>
 
-        <div className="space-y-4">
-          {FAQ_ITEMS.map((category, catIdx) => (
-            <div key={catIdx} className="space-y-2">
-              <Badge variant="secondary" className="text-xs">
-                {category.category}
-              </Badge>
-              <Accordion type="single" collapsible className="space-y-1">
-                {category.questions.map((item, qIdx) => (
-                  <AccordionItem 
-                    key={qIdx} 
-                    value={`${catIdx}-${qIdx}`}
-                    className="border border-border/30 rounded-lg px-3 bg-muted/20"
-                  >
-                    <AccordionTrigger className="text-sm text-left py-3 hover:no-underline">
-                      {item.q}
-                    </AccordionTrigger>
-                    <AccordionContent className="text-sm text-muted-foreground pb-3">
-                      {item.a}
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-            </div>
-          ))}
+          <div className="space-y-4">
+            {FAQ_ITEMS.map((category, catIdx) => (
+              <div key={catIdx} className="space-y-2">
+                <Badge variant="secondary" className="text-xs">
+                  {category.category}
+                </Badge>
+                <Accordion type="single" collapsible className="space-y-1">
+                  {category.questions.map((item, qIdx) => (
+                    <AccordionItem 
+                      key={qIdx} 
+                      value={`${catIdx}-${qIdx}`}
+                      className="border border-border/30 rounded-lg px-3 bg-muted/20"
+                    >
+                      <AccordionTrigger className="text-sm text-left py-3 hover:no-underline">
+                        {item.q}
+                      </AccordionTrigger>
+                      <AccordionContent className="text-sm text-muted-foreground pb-3">
+                        {item.a}
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -564,7 +570,8 @@ export function SettingsContent({
   // Character Tab
   if (activeTab === 'character') {
     return (
-      <div className="space-y-4">
+      <div className="flex-1 overflow-y-auto max-h-[70vh]">
+        <div className="space-y-4 pb-6">
         {/* Character Card */}
         <div className="p-4 rounded-lg border border-border/50 bg-card/50">
           <div className="flex items-center justify-between gap-4">
@@ -755,6 +762,7 @@ export function SettingsContent({
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+        </div>
         </div>
       </div>
     );

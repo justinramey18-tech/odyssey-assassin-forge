@@ -130,7 +130,8 @@ export function MobileItemsGrid({ onAddToTurn }: MobileItemsGridProps) {
 
   return (
     <>
-      <div className="p-4 pb-24 space-y-4">
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-4 pb-24 space-y-4">
         {/* Filter Pills */}
         <div className="flex gap-2 overflow-x-auto pb-1">
           <FilterPill
@@ -243,6 +244,7 @@ export function MobileItemsGrid({ onAddToTurn }: MobileItemsGridProps) {
             })}
           </div>
         )}
+        </div>
       </div>
 
       {/* Item Detail Sheet */}

@@ -86,7 +86,7 @@ export function TurnSummaryPanel({
   };
 
   return (
-    <div className="flex-1 flex flex-col p-4 pb-24">
+    <div className="flex-1 flex flex-col p-4 pb-24 overflow-y-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">

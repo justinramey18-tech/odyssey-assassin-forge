@@ -191,53 +191,57 @@ export function MagicScreen({
           />
         </TabsContent>
 
-        <TabsContent value="slots" className="mt-0 p-4">
-          <Card className="bg-background/40 border-white/10">
-            <CardContent className="p-4">
-              <h3 className="font-cinzel text-sm text-muted-foreground mb-4 uppercase tracking-wider">
-                Spell Slot Management
-              </h3>
-              <SpellSlotTracker
-                spellSlots={state.spellSlots}
-                pactSlots={state.pactSlots}
-                onUseSlot={spellcasting.useSlot}
-                onRestoreSlot={spellcasting.restoreSlot}
-                onUsePactSlot={spellcasting.usePactSlot}
-                onRestorePactSlot={spellcasting.restorePactSlot}
-              />
-            </CardContent>
-          </Card>
+        <TabsContent value="slots" className="mt-0 flex-1 overflow-y-auto">
+          <div className="p-4 pb-24">
+            <Card className="bg-background/40 border-white/10">
+              <CardContent className="p-4">
+                <h3 className="font-cinzel text-sm text-muted-foreground mb-4 uppercase tracking-wider">
+                  Spell Slot Management
+                </h3>
+                <SpellSlotTracker
+                  spellSlots={state.spellSlots}
+                  pactSlots={state.pactSlots}
+                  onUseSlot={spellcasting.useSlot}
+                  onRestoreSlot={spellcasting.restoreSlot}
+                  onUsePactSlot={spellcasting.usePactSlot}
+                  onRestorePactSlot={spellcasting.restorePactSlot}
+                />
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
-        <TabsContent value="features" className="mt-0 p-4">
-          <Card className="bg-background/40 border-white/10">
-            <CardContent className="p-4">
-              <h3 className="font-cinzel text-sm text-muted-foreground mb-3 uppercase tracking-wider">
-                Path Features
-              </h3>
-              <div className="space-y-2">
-                {pathConfig.features.map((feature) => (
-                  <div 
-                    key={feature.id}
-                    className={cn(
-                      "p-3 rounded-lg",
-                      characterLevel >= feature.level 
-                        ? "bg-indigo-600/20 border border-indigo-500/30"
-                        : "bg-muted/20 border border-muted/20 opacity-50"
-                    )}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-medium text-sm">{feature.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        Level {feature.level}
-                      </span>
+        <TabsContent value="features" className="mt-0 flex-1 overflow-y-auto">
+          <div className="p-4 pb-24">
+            <Card className="bg-background/40 border-white/10">
+              <CardContent className="p-4">
+                <h3 className="font-cinzel text-sm text-muted-foreground mb-3 uppercase tracking-wider">
+                  Path Features
+                </h3>
+                <div className="space-y-2">
+                  {pathConfig.features.map((feature) => (
+                    <div 
+                      key={feature.id}
+                      className={cn(
+                        "p-3 rounded-lg",
+                        characterLevel >= feature.level 
+                          ? "bg-indigo-600/20 border border-indigo-500/30"
+                          : "bg-muted/20 border border-muted/20 opacity-50"
+                      )}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-medium text-sm">{feature.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          Level {feature.level}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{feature.description}</p>
                     </div>
-                    <p className="text-xs text-muted-foreground">{feature.description}</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 
