@@ -35,6 +35,7 @@ interface MobileWeaponCardProps {
     rollResult: DiceRoll,
     damageBreakdown: string
   ) => void;
+  customImage?: string | null;
 }
 
 export function MobileWeaponCard({
@@ -47,6 +48,7 @@ export function MobileWeaponCard({
   isExpanded,
   onToggleExpand,
   onRoll,
+  customImage,
 }: MobileWeaponCardProps) {
   const [applyCritical, setApplyCritical] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -103,8 +105,12 @@ export function MobileWeaponCard({
         className="w-full p-4 bg-card border border-muted/30 rounded-xl flex items-center justify-between active:scale-[0.99] transition-transform"
       >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
-            <Sword className="w-5 h-5 text-red-400" />
+          <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center overflow-hidden">
+            {customImage ? (
+              <img src={customImage} alt={weapon.name} className="w-full h-full object-cover" />
+            ) : (
+              <Sword className="w-5 h-5 text-red-400" />
+            )}
           </div>
           <div className="text-left">
             <div className="font-semibold">{weapon.name}</div>
@@ -128,11 +134,14 @@ export function MobileWeaponCard({
   // Expanded card
   return (
     <div className="bg-card border border-red-500/50 rounded-xl overflow-hidden">
-      {/* Header */}
       <div className="p-4 flex items-center justify-between border-b border-muted/20">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
-            <Sword className="w-5 h-5 text-red-400" />
+          <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center overflow-hidden">
+            {customImage ? (
+              <img src={customImage} alt={weapon.name} className="w-full h-full object-cover" />
+            ) : (
+              <Sword className="w-5 h-5 text-red-400" />
+            )}
           </div>
           <div>
             <div className="font-semibold">{weapon.name}</div>

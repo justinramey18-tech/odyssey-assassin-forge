@@ -34,9 +34,10 @@ import { MobileSpellList } from './MobileSpellList';
 import { MobileReactionsList } from './MobileReactionsList';
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
 import { usePromptDrawers } from '@/components/drawers';
-import { CharacterEquipment } from '@/lib/inventory/types';
+import { CharacterEquipment, EquipmentSlotType } from '@/lib/inventory/types';
 import { getEquippedWeapons, convertToWeaponAttack } from '@/lib/combat/weaponConverter';
 import { Reaction, DEFAULT_REACTIONS, REACTIONS_STORAGE_KEY } from '@/lib/combat/reactions';
+import { useEquipmentImages } from '@/hooks/use-equipment-images';
 
 // Tab order for swipe navigation
 const TAB_ORDER: CombatTab[] = ['attacks', 'stealth', 'abilities', 'reactions', 'spells', 'items', 'summary'];
@@ -113,6 +114,8 @@ export function MobileCombatLayout({ character, spellcasting, equipment, onNavig
   // Access drawer context
   const drawerContext = usePromptDrawers();
   
+  // Equipment custom images for weapon cards
+  const { images: equipmentImages } = useEquipmentImages();
   // Cooldown system integration
   const cooldownSystem = useCooldowns({
     characterAbilities: character.abilities,
@@ -449,6 +452,7 @@ export function MobileCombatLayout({ character, spellcasting, equipment, onNavig
                     expandedWeaponId === weapon.id ? null : weapon.id
                   )}
                   onRoll={handleWeaponRoll}
+                  customImage={weapon.slotType ? equipmentImages[weapon.slotType] : undefined}
                 />
               ))}
               {equippedWeapons.length === 0 && (

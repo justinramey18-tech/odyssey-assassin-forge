@@ -91,6 +91,7 @@ export function convertToWeaponAttack(item: EquipmentItem): WeaponAttack {
     properties,
     isFinesse: parsedProps.isFinesse,
     isRanged: parsedProps.isRanged,
+    slotType: item.slotType as 'primary_weapon' | 'secondary_weapon' | 'ranged_weapon',
   };
 }
 
