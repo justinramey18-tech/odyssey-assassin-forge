@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react';
-import { Check, Copy, ChevronDown, ChevronUp, Layers, Filter } from 'lucide-react';
+import { useState, useMemo, useCallback } from 'react';
+import { Check, Copy, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Layers, Filter } from 'lucide-react';
+import { useSwipe } from '@/hooks/use-swipe';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -21,6 +22,31 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>('all');
   const isMobile = useIsMobile();
+
+  // Combined categories array for swipe navigation
+  const allCategories = useMemo(() => [
+    { id: 'all' as const, label: 'All', icon: '🔍' },
+    ...PROMPT_CATEGORIES
+  ], []);
+
+  // Current category index
+  const currentIndex = useMemo(() => 
+    allCategories.findIndex(c => c.id === activeCategory),
+    [allCategories, activeCategory]
+  );
+
+  // Swipe handlers with wrap-around
+  const handleSwipeLeft = useCallback(() => {
+    const nextIndex = (currentIndex + 1) % allCategories.length;
+    setActiveCategory(allCategories[nextIndex].id);
+  }, [currentIndex, allCategories]);
+
+  const handleSwipeRight = useCallback(() => {
+    const prevIndex = (currentIndex - 1 + allCategories.length) % allCategories.length;
+    setActiveCategory(allCategories[prevIndex].id);
+  }, [currentIndex, allCategories]);
+
+  const { handlers: swipeHandlers, swipeOffset, swiping } = useSwipe(handleSwipeLeft, handleSwipeRight);
 
   const filteredPrompts = useMemo(() => {
     if (activeCategory === 'all') return GM_GUIDE_PROMPTS;
@@ -88,42 +114,85 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
           </Button>
         </div>
 
-        {/* Category Filter - Horizontal scroll */}
-        <ScrollArea className="w-full whitespace-nowrap">
-          <div className="flex gap-1.5 pb-2 px-0.5">
-            <Button
-              variant={activeCategory === 'all' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setActiveCategory('all')}
-              className={cn(
-                "h-7 text-xs px-2.5 shrink-0",
-                activeCategory === 'all' 
-                  ? "bg-primary text-primary-foreground" 
-                  : "hover:bg-muted"
-              )}
-            >
-              <Filter className="w-3 h-3 mr-1" />
-              All
-            </Button>
-            {PROMPT_CATEGORIES.map((cat) => (
-              <Button
-                key={cat.id}
-                variant={activeCategory === cat.id ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setActiveCategory(cat.id)}
-                className={cn(
-                  "h-7 text-xs px-2.5 shrink-0",
-                  activeCategory === cat.id 
-                    ? "bg-primary text-primary-foreground" 
-                    : "hover:bg-muted"
-                )}
-              >
-                <span className="mr-1">{cat.icon}</span>
-                {cat.label}
-              </Button>
-            ))}
+        {/* Category Filter - Swipeable with navigation */}
+        <div 
+          className="flex items-center gap-1 w-full"
+          {...swipeHandlers}
+        >
+          {/* Left chevron */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleSwipeRight}
+            className="h-7 w-7 shrink-0 touch-manipulation"
+            aria-label="Previous category"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+
+          {/* Swipeable category area */}
+          <div 
+            className="flex-1 overflow-hidden"
+            style={{
+              transform: swiping ? `translateX(${swipeOffset}px)` : 'translateX(0)',
+              transition: swiping ? 'none' : 'transform 0.2s ease-out'
+            }}
+          >
+            <ScrollArea className="w-full whitespace-nowrap">
+              <div className="flex gap-1.5 pb-2 px-0.5">
+                <Button
+                  variant={activeCategory === 'all' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setActiveCategory('all')}
+                  className={cn(
+                    "h-7 text-xs px-2.5 shrink-0",
+                    activeCategory === 'all' 
+                      ? "bg-primary text-primary-foreground" 
+                      : "hover:bg-muted"
+                  )}
+                >
+                  <Filter className="w-3 h-3 mr-1" />
+                  All
+                </Button>
+                {PROMPT_CATEGORIES.map((cat) => (
+                  <Button
+                    key={cat.id}
+                    variant={activeCategory === cat.id ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setActiveCategory(cat.id)}
+                    className={cn(
+                      "h-7 text-xs px-2.5 shrink-0",
+                      activeCategory === cat.id 
+                        ? "bg-primary text-primary-foreground" 
+                        : "hover:bg-muted"
+                    )}
+                  >
+                    <span className="mr-1">{cat.icon}</span>
+                    {cat.label}
+                  </Button>
+                ))}
+              </div>
+            </ScrollArea>
           </div>
-        </ScrollArea>
+
+          {/* Right chevron */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleSwipeLeft}
+            className="h-7 w-7 shrink-0 touch-manipulation"
+            aria-label="Next category"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+
+        {/* Category position indicator */}
+        <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground">
+          <span className="font-medium">{allCategories[currentIndex]?.label}</span>
+          <span>•</span>
+          <span>{currentIndex + 1}/{allCategories.length}</span>
+        </div>
       </div>
 
       {/* Prompt List - Mobile optimized cards */}
