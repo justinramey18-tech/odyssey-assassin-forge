@@ -40,9 +40,10 @@ const TYPE_ICONS: Record<ConsumableType, React.ElementType> = {
 
 interface MobileItemsGridProps {
   onAddToTurn: (actionType: 'action' | 'bonus' | 'reaction', description: string, roll?: string) => void;
+  onNavigateToConsumables?: () => void;
 }
 
-export function MobileItemsGrid({ onAddToTurn }: MobileItemsGridProps) {
+export function MobileItemsGrid({ onAddToTurn, onNavigateToConsumables }: MobileItemsGridProps) {
   const { toast } = useToast();
   const { inventory, useItem, setItemQuantity, isLoaded } = useConsumables();
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
@@ -176,6 +177,17 @@ export function MobileItemsGrid({ onAddToTurn }: MobileItemsGridProps) {
             <p className="text-[11px] text-cyan-400 mt-2 italic">
               "Add consumables from the Consumables tab, genius."
             </p>
+            {onNavigateToConsumables && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-4 gap-2"
+                onClick={onNavigateToConsumables}
+              >
+                <Plus className="w-4 h-4" />
+                Go to Consumables
+              </Button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3">
