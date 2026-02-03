@@ -1,4 +1,4 @@
-// GM Guide Modular Prompts - 10 individually copyable prompts for AI DM integration
+// GM Guide Modular Prompts - 20 individually copyable prompts for AI DM integration
 // Each prompt covers a specific aspect of the Odyssey Assassin app
 
 export interface GMGuidePrompt {
@@ -6,20 +6,22 @@ export interface GMGuidePrompt {
   title: string;
   icon: string;
   description: string;
+  category: 'core' | 'abilities' | 'gear' | 'systems' | 'advanced';
   content: string;
 }
 
 export const GM_GUIDE_PROMPTS: GMGuidePrompt[] = [
   // ═══════════════════════════════════════════════════════════════════════════
-  // PROMPT 1: CORE OVERVIEW & CHARACTER IDENTITY
+  // CATEGORY: CORE (1-4)
   // ═══════════════════════════════════════════════════════════════════════════
   {
     id: 'core-overview',
     title: 'Core Overview',
     icon: '🎭',
-    description: 'App overview, character identity, and roleplay guidance',
+    category: 'core',
+    description: 'App purpose and communication protocol',
     content: `# ODYSSEY ASSASSIN - CORE OVERVIEW
-Version 3.1 | AI GM Integration Guide
+Version 3.2 | AI GM Integration Guide
 
 ═══════════════════════════════════════════════════════════════════════════════
 PURPOSE & CONTEXT
@@ -30,6 +32,39 @@ You are GMing for a player using "Odyssey Assassin"—a custom D&D 5e digital ch
 **Your Role**: Interpret the player's mechanical reports within the fiction. The app tracks everything; you provide the world, enemies, and story.
 
 **Core Philosophy**: Player agency, mechanical depth, and narrative integration. Every ability has both mechanical effects AND roleplay prompts for immersive narration.
+
+═══════════════════════════════════════════════════════════════════════════════
+COMMUNICATION PROTOCOL
+═══════════════════════════════════════════════════════════════════════════════
+
+**What the Player Reports**:
+- Current HP / Max HP / Temp HP
+- Active abilities in loadout (up to 5 slots)
+- Equipped gear and active set bonuses
+- Roll results with natural d20 values
+- Active conditions and situational modifiers
+- Feat progress when relevant
+- Prestige abilities unlocked (if applicable)
+- Consumables used (potions, scrolls, poisons)
+
+**What You Provide**:
+- Enemy stats and behaviors (hidden from player)
+- Environmental descriptions and hazards
+- DC values for skill checks
+- Narrative consequences of actions
+- XP rewards (if tracking)
+- Loot and treasure descriptions
+- Feat-worthy moment acknowledgments
+- Confirmation of ability effects`,
+  },
+
+  {
+    id: 'character-identity',
+    title: 'Character Identity',
+    icon: '🃏',
+    category: 'core',
+    description: 'Deadpool-inspired roleplay personality',
+    content: `# ODYSSEY ASSASSIN - CHARACTER IDENTITY
 
 ═══════════════════════════════════════════════════════════════════════════════
 CHARACTER PERSONALITY (DEADPOOL-INSPIRED)
@@ -57,39 +92,32 @@ This character is a **chaotic neutral assassin** with anti-hero qualities:
 - Let the character's fourth-wall awareness create dramatic irony
 
 ═══════════════════════════════════════════════════════════════════════════════
-COMMUNICATION PROTOCOL
+VOICE & TONE EXAMPLES
 ═══════════════════════════════════════════════════════════════════════════════
 
-**What the Player Reports**:
-- Current HP / Max HP / Temp HP
-- Active abilities in loadout (up to 5 slots)
-- Equipped gear and active set bonuses
-- Roll results with natural d20 values
-- Active conditions and situational modifiers
-- Feat progress when relevant
-- Prestige abilities unlocked (if applicable)
-- Consumables used (potions, scrolls, poisons)
+**Combat Quips**:
+- "Is it just me, or did that guy look like he was about to monologue?"
+- "Ooh, a critical hit! That's gonna leave a mark. And by mark, I mean corpse."
+- "You know what's funnier than stabbing? Stabbing while making eye contact."
 
-**What You Provide**:
-- Enemy stats and behaviors (hidden from player)
-- Environmental descriptions and hazards
-- DC values for skill checks
-- Narrative consequences of actions
-- XP rewards (if tracking)
-- Loot and treasure descriptions
-- Feat-worthy moment acknowledgments ("That's a [Feat Name] moment!")
-- Confirmation of ability effects`,
+**Meta-Commentary**:
+- "This seems like a trap. Narratively speaking, I mean. Definitely a trap."
+- "Oh look, a mysterious stranger in a tavern. Never seen that before."
+- "I feel like I've done this exact dungeon before. Déjà vu's a killer."
+
+**Serious Moments** (yes, they happen):
+- Fourth-wall breaks can acknowledge genuine stakes
+- Comedy masks real vulnerability
+- The jokes stop when friends are in true danger`,
   },
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // PROMPT 2: PROGRESSION & ABILITY POINTS
-  // ═══════════════════════════════════════════════════════════════════════════
   {
-    id: 'progression',
-    title: 'Progression System',
+    id: 'progression-xp',
+    title: 'XP & Leveling',
     icon: '📈',
-    description: 'Leveling, XP, ability points, and slot progression',
-    content: `# ODYSSEY ASSASSIN - PROGRESSION SYSTEM
+    category: 'core',
+    description: 'Level progression and XP system',
+    content: `# ODYSSEY ASSASSIN - XP & LEVELING
 
 ═══════════════════════════════════════════════════════════════════════════════
 LEVEL & XP SYSTEM
@@ -98,19 +126,73 @@ LEVEL & XP SYSTEM
 | Attribute | Value |
 |-----------|-------|
 | Max Base Level | 20 |
-| Total Ability Points | 25 by level 20 |
 | XP Modes | Standard, Accelerated (75%), Relaxed (125%) |
 
-**Ability Points by Level**:
-| Level | Cumulative Points | Notes |
-|-------|-------------------|-------|
-| 1 | 1 | Starting point |
-| 4 | 5 | +1 bonus at 4 |
-| 8 | 10 | +1 bonus at 8 |
-| 12 | 15 | +1 bonus at 12 |
-| 16 | 20 | +1 bonus at 16 |
-| 19 | 24 | +1 bonus at 19 |
-| 20 | 25 | Final point |
+**Standard D&D 5e XP Thresholds**:
+| Level | XP Required |
+|-------|-------------|
+| 1→2 | 300 |
+| 2→3 | 900 |
+| 3→4 | 2,700 |
+| 4→5 | 6,500 |
+| 5→6 | 14,000 |
+| 6→7 | 23,000 |
+| 7→8 | 34,000 |
+| 8→9 | 48,000 |
+| 9→10 | 64,000 |
+| 10→11 | 85,000 |
+| 11→12 | 100,000 |
+| 12→13 | 120,000 |
+| 13→14 | 140,000 |
+| 14→15 | 165,000 |
+| 15→16 | 195,000 |
+| 16→17 | 225,000 |
+| 17→18 | 265,000 |
+| 18→19 | 305,000 |
+| 19→20 | 355,000 |
+
+═══════════════════════════════════════════════════════════════════════════════
+SNEAK ATTACK PROGRESSION
+═══════════════════════════════════════════════════════════════════════════════
+
+| Level | Dice |
+|-------|------|
+| 1-2 | 1d6 |
+| 3-4 | 2d6 |
+| 5-6 | 3d6 |
+| 7-8 | 4d6 |
+| 9-10 | 5d6 |
+| 11-12 | 6d6 |
+| 13-14 | 7d6 |
+| 15-16 | 8d6 |
+| 17-18 | 9d6 |
+| 19-20 | 10d6 |
+
+**Triggers**: Advantage on attack roll OR an ally within 5ft of target (no disadvantage)
+**Frequency**: Once per turn`,
+  },
+
+  {
+    id: 'ability-points',
+    title: 'Ability Points',
+    icon: '⭐',
+    category: 'core',
+    description: 'Point allocation and tier system',
+    content: `# ODYSSEY ASSASSIN - ABILITY POINTS
+
+═══════════════════════════════════════════════════════════════════════════════
+UNIFIED ABILITY POINT SYSTEM
+═══════════════════════════════════════════════════════════════════════════════
+
+**Points by Level** (Tiered Cumulative Formula):
+| Level | Points Added | Total |
+|-------|--------------|-------|
+| 1 | 5 | 5 |
+| 2 | 3 | 8 |
+| 3-5 | 2/level | 14 |
+| 6-10 | 3/level | 29 |
+| 11-15 | 4/level | 49 |
+| 16-20 | 5/level | 74 |
 
 **Active Ability Slots by Level**:
 | Level Range | Slots |
@@ -135,44 +217,33 @@ Each ability has 3 tiers (1 point per tier):
 **Narrative Impact by Tier**:
 - Tier 1: Competent execution, foundational skill
 - Tier 2: Impressive display, notable mastery
-- Tier 3: Legendary feat, awe-inspiring power (golden glow on the app)
+- Tier 3: Legendary feat, awe-inspiring power (golden glow in app)
 
 ═══════════════════════════════════════════════════════════════════════════════
-SNEAK ATTACK PROGRESSION
+SPENDING LIMITS
 ═══════════════════════════════════════════════════════════════════════════════
 
-| Level | Dice |
-|-------|------|
-| 1-2 | 1d6 |
-| 3-4 | 2d6 |
-| 5-6 | 3d6 |
-| 7-8 | 4d6 |
-| 9-10 | 5d6 |
-| 11-12 | 6d6 |
-| 13-14 | 7d6 |
-| 15-16 | 8d6 |
-| 17-18 | 9d6 |
-| 19-20 | 10d6 |
-
-**Triggers**: Advantage on attack roll OR an ally within 5ft of target (no disadvantage)
-**Frequency**: Once per turn`,
+- Unified pool: Level-based + Prestige-based points
+- Can spend in any tree (Hunter, Warrior, Assassin) or prestige tree
+- Each ability requires sequential tier unlocking (must have T1 for T2, T2 for T3)`,
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // PROMPT 3: HUNTER TREE ABILITIES
+  // CATEGORY: ABILITIES (5-10)
   // ═══════════════════════════════════════════════════════════════════════════
   {
     id: 'hunter-tree',
     title: 'Hunter Tree',
     icon: '🏹',
-    description: 'Ranged combat, traps, tracking, and tactical abilities',
+    category: 'abilities',
+    description: 'Ranged combat and tactical abilities',
     content: `# ODYSSEY ASSASSIN - HUNTER TREE
 
 ═══════════════════════════════════════════════════════════════════════════════
 🏹 HUNTER TREE (Ranged/Tactical)
 ═══════════════════════════════════════════════════════════════════════════════
 
-*Theme: Precision archery, traps, beast companions, environmental awareness*
+*Theme: Precision archery, traps, awareness, environmental mastery*
 
 **ACTIVE ABILITIES**:
 
@@ -192,7 +263,7 @@ SNEAK ATTACK PROGRESSION
 - T1: Mark target 1 min, attacks have advantage
 - T2: Target cannot benefit from invisibility
 - T3: Marked target takes +2d6 damage from attacks
-*Narrate: Hunter's focus locks onto prey, senses heightened to preternatural levels*
+*Narrate: Hunter's focus locks onto prey, senses heightened*
 
 **4. Ghost Arrows** (Bonus Action, Short Rest, Lv9+)
 - T1: Arrows become ethereal 1 min, pass through barriers
@@ -204,48 +275,21 @@ SNEAK ATTACK PROGRESSION
 - T1: 20ft radius, DEX save or 4d8 piercing
 - T2: 6d8 damage, failed saves halve movement
 - T3: 8d8 damage, area becomes difficult terrain
-*Narrate: The sky darkens with arrows, a storm of steel descending*
+*Narrate: The sky darkens with arrows, a storm of steel*
 
 **PASSIVE ABILITIES**:
 
-**6. Archery Master**
-- T1: +1 to ranged attack rolls
-- T2: +2 attack, +1 damage
-- T3: +2 attack, +2 damage
-*Always active when using ranged weapons*
-
-**7. Hunter's Instinct**
-- T1: Advantage on Perception to spot hidden creatures
-- T2: Blindsight 10ft
-- T3: Blindsight 30ft, cannot be surprised
-*Narrate: Heightened senses, the world reveals its secrets*
-
-**8. Arrow Retrieval**
-- T1: Retrieve 50% ammunition after combat
-- T2: Retrieve 75%, can retrieve from corpses as bonus action
-- T3: 100% retrieval, arrows magically return
-*Utility for resource management*
-
-═══════════════════════════════════════════════════════════════════════════════
-HUNTER BUILD NARRATIVE GUIDANCE
-═══════════════════════════════════════════════════════════════════════════════
-
-When the player uses Hunter abilities, emphasize:
-- Tactical positioning and environmental awareness
-- Precise aim and calculated shots
-- Patience and predatory instinct
-- Reading the battlefield like a map
-- The silence before the strike`,
+**6. Archery Master**: +1/+2/+2 attack, +0/+1/+2 damage
+**7. Hunter's Instinct**: Perception advantage → Blindsight 10ft → 30ft + can't be surprised
+**8. Arrow Retrieval**: 50% → 75% → 100% ammo recovery`,
   },
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // PROMPT 4: WARRIOR TREE ABILITIES
-  // ═══════════════════════════════════════════════════════════════════════════
   {
     id: 'warrior-tree',
     title: 'Warrior Tree',
     icon: '⚔️',
-    description: 'Melee combat, tanking, crowd control, and berserker abilities',
+    category: 'abilities',
+    description: 'Melee combat and tanking abilities',
     content: `# ODYSSEY ASSASSIN - WARRIOR TREE
 
 ═══════════════════════════════════════════════════════════════════════════════
@@ -260,18 +304,18 @@ When the player uses Hunter abilities, emphasize:
 - T1: All creatures within 5ft DEX save or 2d6 slashing
 - T2: 3d6 damage, failed saves pushed 5ft
 - T3: 4d6 damage, radius increases to 10ft
-*Narrate: A devastating spinning strike, blade carving through all within reach*
+*Narrate: A devastating spinning strike, blade carving through all*
 
 **2. Shield Breaker** (Action, At-Will)
 - T1: Strike ignores shield AC bonuses
 - T2: Target cannot use shield until end of next turn
 - T3: Non-magical shields are destroyed
-*Narrate: A precision strike targeting the shield itself, finding weakness*
+*Narrate: A precision strike targeting the shield itself*
 
 **3. Battlecry** (Bonus Action, Short Rest, Lv9+)
 - T1: Allies within 30ft gain +1d4 to next attack
 - T2: +1d6 bonus, allies gain temp HP = your level
-- T3: +1d8 bonus, enemies must WIS save or be frightened
+- T3: +1d8 bonus, enemies WIS save or frightened
 *Narrate: A rallying shout that echoes across the battlefield*
 
 **4. Spartan Rage** (Bonus Action, Long Rest)
@@ -282,50 +326,23 @@ When the player uses Hunter abilities, emphasize:
 
 **5. Hero Strike** (Action, Short Rest, Lv9+)
 - T1: Weapon damage + 3d10
-- T2: Weapon + 5d10, target staggered (disadvantage next attack)
-- T3: Weapon + 7d10, this attack automatically hits
-*Narrate: A devastating blow worthy of legend, time seeming to slow*
+- T2: Weapon + 5d10, target staggered
+- T3: Weapon + 7d10, auto-hit
+*Narrate: A devastating blow worthy of legend*
 
 **PASSIVE ABILITIES**:
 
-**6. Weapon Master**
-- T1: +1 to melee attack rolls
-- T2: +2 attack, +1 damage
-- T3: +2 attack, +2 damage, crit range 19-20
-*Always active with melee weapons*
-
-**7. Warrior's Resilience**
-- T1: +1 AC in medium/heavy armor
-- T2: +2 AC, reduce crits to normal hits
-- T3: Reduce incoming damage by proficiency bonus
-*Narrate: Battle-hardened endurance, shrugging off lesser blows*
-
-**8. Second Wind Mastery**
-- T1: Second Wind heals +1d10
-- T2: Heals +2d10, removes one condition
-- T3: Gain extra Second Wind use per short rest
-*Enhanced recovery in the thick of combat*
-
-═══════════════════════════════════════════════════════════════════════════════
-WARRIOR BUILD NARRATIVE GUIDANCE
-═══════════════════════════════════════════════════════════════════════════════
-
-When the player uses Warrior abilities, emphasize:
-- Raw power and intimidating presence
-- Battlefield control and crowd management
-- Berserker fury and martial prowess
-- Standing firm when others would fall
-- The weight of each devastating strike`,
+**6. Weapon Master**: +1/+2/+2 attack, +0/+1/+2 damage, T3: crit 19-20
+**7. Warrior's Resilience**: +1/+2 AC, reduce crits, reduce damage by prof
+**8. Second Wind Mastery**: +1d10/+2d10 heal, remove condition, extra use`,
   },
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // PROMPT 5: ASSASSIN TREE ABILITIES
-  // ═══════════════════════════════════════════════════════════════════════════
   {
     id: 'assassin-tree',
     title: 'Assassin Tree',
     icon: '🗡️',
-    description: 'Stealth, critical strikes, poison, and shadow abilities',
+    category: 'abilities',
+    description: 'Stealth, poison, and shadow abilities',
     content: `# ODYSSEY ASSASSIN - ASSASSIN TREE
 
 ═══════════════════════════════════════════════════════════════════════════════
@@ -346,13 +363,13 @@ When the player uses Warrior abilities, emphasize:
 - T1: Teleport 30ft to dim light/darkness
 - T2: 60ft range, advantage on next attack
 - T3: Pass through solid objects, leave shadow decoy
-*Narrate: Dissolving into shadow, reforming elsewhere in an instant*
+*Narrate: Dissolving into shadow, reforming elsewhere*
 
 **3. Venomous Attacks** (Bonus Action, Short Rest)
 - T1: Coat weapon 1 min, +1d6 poison on hit
 - T2: +2d6 poison, CON save or poisoned 1 round
 - T3: +3d6 poison, poisoned targets have disadvantage on all saves
-*Narrate: The blade gleams with toxic coating, death by degrees*
+*Narrate: The blade gleams with toxic coating*
 
 **4. Vanish** (Bonus Action, Short Rest)
 - T1: Invisible until end of next turn or attack
@@ -361,51 +378,387 @@ When the player uses Warrior abilities, emphasize:
 *Narrate: Fading from existence, a ghost among the living*
 
 **5. Death's Veil** (Reaction, Long Rest, Lv9+)
-- T1: When dropping to 0 HP, instead drop to 1 and become invisible
+- T1: When dropping to 0 HP, drop to 1 and become invisible
 - T2: Also teleport 30ft when activating
 - T3: Regain half max HP instead of dropping to 1
 *Narrate: Death's embrace reaches out—but finds only shadow*
 
 **PASSIVE ABILITIES**:
 
-**6. Shadow Dancer**
-- T1: +5ft movement, Hide as bonus action
-- T2: +10ft movement, move through enemies as difficult terrain
-- T3: +15ft movement, move through walls if ending outside
-*Narrate: Movement like flowing water, existing between moments*
+**6. Shadow Dancer**: +5/+10/+15 movement, Hide bonus action, move through enemies/walls
+**7. Poison Tolerance**: Resistance → Immunity → Heal from poison
+**8. Sixth Sense** (Lv15+): +2/+5 Initiative, can't be surprised, always act first`,
+  },
 
-**7. Poison Tolerance**
-- T1: Resistance to poison, advantage vs poisoned
-- T2: Immunity to poison damage and poisoned condition
-- T3: When poisoned, instead heal 1d10 HP
-*The assassin's constant exposure creates immunity*
-
-**8. Sixth Sense** (Lv15+)
-- T1: +2 Initiative, cannot be surprised
-- T2: +5 Initiative, act normally on surprise rounds
-- T3: Always act first in initiative, immune to divination
-*Narrate: Preternatural awareness of danger before it manifests*
+  {
+    id: 'prestige-dual-wielding',
+    title: 'Dual Wielding Branch',
+    icon: '⚔️',
+    category: 'abilities',
+    description: 'Drizzt\'s scimitar mastery abilities',
+    content: `# DRIZZT'S LEGACY - DUAL WIELDING BRANCH
 
 ═══════════════════════════════════════════════════════════════════════════════
-ASSASSIN BUILD NARRATIVE GUIDANCE
+🗡️ DUAL WIELDING (Scimitar Mastery)
 ═══════════════════════════════════════════════════════════════════════════════
 
-When the player uses Assassin abilities, emphasize:
-- Shadow manipulation and surgical precision
-- Stealth, deception, and lethal finesse
-- The silence of the kill
-- Existing between moments, unseen and deadly
-- Poison as both art form and science`,
+*Theme: Drizzt's famous fighting style with Icingdeath and Twinkle*
+
+**TIER 1 - FOUNDATION**:
+
+**Scimitar Mastery** (2 pts)
+- +2 attack with scimitars, ignore the Two-Weapon Fighting penalty
+
+**Twin Blade Grip** (2 pts)
+- Off-hand scimitar attack as bonus action deals full damage
+
+**Icingdeath Bond** (3 pts)
+- +1d4 cold damage, fire resistance while wielding
+
+**Twinkle Bond** (3 pts)
+- +1d4 radiant damage, danger sense (advantage vs traps)
+
+**TIER 2 - INTERMEDIATE** (Prestige 5+):
+
+**Dance of Blades** (4 pts)
+- +1 AC when dual-wielding, +2 if both are scimitars
+
+**Whirlwind Assault** (5 pts)
+- 1/short rest: Attack all adjacent enemies with both weapons
+
+**Perfect Parry** (4 pts)
+- Reaction: Deflect ranged attack targeting you (DEX save)
+
+**Riposte Mastery** (4 pts)
+- Successful parry grants immediate counter-attack
+
+**TIER 3 - ADVANCED** (Prestige 8-15+):
+
+**Form of the Crow** (8 pts)
+- Legendary stance: +10 movement, advantage DEX saves, AoO disadvantage against you
+
+**Blade Echo** (8 pts)
+- Both scimitars hit same target twice (quadruple damage potential)
+
+**Legacy of Lolth's Nemesis** (12 pts)
+- 1/day: Declare an attack as auto-crit before rolling
+
+**Symphony of Steel** (10 pts)
+- Once per long rest: Four attacks in one action`,
+  },
+
+  {
+    id: 'prestige-guenhwyvar',
+    title: 'Guenhwyvar Branch',
+    icon: '🐆',
+    category: 'abilities',
+    description: 'Astral panther companion abilities',
+    content: `# DRIZZT'S LEGACY - GUENHWYVAR BRANCH
+
+═══════════════════════════════════════════════════════════════════════════════
+🐆 GUENHWYVAR (Astral Companion)
+═══════════════════════════════════════════════════════════════════════════════
+
+*Theme: Drizzt's magical panther companion from the Astral Plane*
+
+**TIER 1 - FOUNDATION**:
+
+**Call Guenhwyvar** (3 pts)
+- Summon astral panther for 12 hours, 1/day
+- Stats: AC 15, HP 60, Speed 50ft
+
+**Panther Bond** (2 pts)
+- Telepathic communication within 1 mile
+
+**Shared Senses** (4 pts)
+- See through Guenhwyvar's eyes as an action
+
+**Hunter's Companion** (3 pts)
+- Guenhwyvar can take the Help action as bonus action
+
+**TIER 2 - INTERMEDIATE** (Prestige 5+):
+
+**Astral Stalker** (4 pts)
+- Guenhwyvar can become invisible 1/short rest
+
+**Pounce Mastery** (5 pts)
+- On charge, target must make STR save or be knocked prone
+
+**Coordinated Strike** (4 pts)
+- When you hit, Guenhwyvar can make opportunity attack
+
+**Spirit Regeneration** (4 pts)
+- Guenhwyvar regains 2d10 HP at start of your turn
+
+**TIER 3 - ADVANCED** (Prestige 8-15+):
+
+**Guenhwyvar Ascension** (8 pts)
+- Two attacks per turn, +2d6 force damage each
+
+**Avatar of the Panther** (10 pts)
+- 1/long rest: Swap positions with Guenhwyvar as reaction
+
+**Astral Form** (8 pts)
+- Guenhwyvar can phase through solid objects
+
+**Legendary Bond** (10 pts)
+- Guenhwyvar has legendary resistances (3/day)`,
+  },
+
+  {
+    id: 'prestige-drow-monk',
+    title: 'Drow & Monk Branches',
+    icon: '👁️',
+    category: 'abilities',
+    description: 'Shadow magic and spiritual discipline',
+    content: `# DRIZZT'S LEGACY - DROW & MONK BRANCHES
+
+═══════════════════════════════════════════════════════════════════════════════
+👁️ DROW ABILITIES (Shadow Magic)
+═══════════════════════════════════════════════════════════════════════════════
+
+**TIER 1**: Superior Darkvision (120ft), Dancing Lights, Faerie Fire
+**TIER 2**: Darkness Veil (see through your own darkness), Levitate
+**TIER 3**: Lolth's Endurance (auto-succeed death save 1/day), Drow Lord's Authority (frighten lower CR)
+
+**Key Abilities**:
+- **Superior Darkvision** (2 pts): 120ft, see through magical darkness
+- **Darkness Veil** (5 pts): Cast Darkness 1/day, you see through it
+- **Underdark Survivor** (3 pts): Advantage on saves vs poison, disease
+- **Lolth's Endurance** (10 pts): Auto-succeed one death save/day
+- **Drow Lord's Authority** (10 pts): Lower CR creatures frightened on sight
+
+═══════════════════════════════════════════════════════════════════════════════
+🔥 MONK ABILITIES (Spiritual Discipline)
+═══════════════════════════════════════════════════════════════════════════════
+
+*From Melee-Magthere training*
+
+**TIER 1**: Monastic Discipline, Deflect Missiles, Unarmored Defense
+**TIER 2**: Stunning Strike, Slow Fall, Step of the Wind
+**TIER 3**: Diamond Soul (all save proficiency), Perfect Consciousness (truesight)
+
+**Key Abilities**:
+- **Monastic Discipline** (2 pts): +1d6 magical unarmed damage
+- **Deflect Missiles** (3 pts): Reduce ranged damage by 1d10+DEX+level
+- **Stunning Strike** (5 pts): CON save or stunned on melee hit
+- **Slow Fall** (3 pts): Reduce fall damage by 5x level
+- **Diamond Soul** (8 pts): Proficiency in all saving throws
+- **Perfect Consciousness** (10 pts): Truesight 120ft, always act first in initiative`,
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // PROMPT 6: COMBAT MECHANICS & ACTION ECONOMY
+  // CATEGORY: GEAR (11-14)
+  // ═══════════════════════════════════════════════════════════════════════════
+  {
+    id: 'equipment-slots',
+    title: 'Equipment Slots',
+    icon: '🎒',
+    category: 'gear',
+    description: 'All 11 gear slots and their functions',
+    content: `# ODYSSEY ASSASSIN - EQUIPMENT SLOTS
+
+═══════════════════════════════════════════════════════════════════════════════
+EQUIPMENT SLOTS (11 Total)
+═══════════════════════════════════════════════════════════════════════════════
+
+| Slot | Primary Function | Narrative Focus |
+|------|------------------|-----------------|
+| Head | Perception, awareness, mental effects | Sensory descriptions |
+| Chest | Defense, health, regeneration | Physical presence |
+| Arms | Attack, manipulation, crafting | Precision and force |
+| Waist | Utility, storage, resource management | Tactical advantage |
+| Legs | Movement, agility, positioning | Kinetic energy |
+| Primary Weapon | Main melee weapon | Combat style |
+| Secondary Weapon | Off-hand weapon or shield | Defense/versatility |
+| Ranged Weapon | Bow, crossbow, throwing weapons | Precision strikes |
+| Amulet | Magical enhancement (saves/abilities) | Mystical protection |
+| Ring 1 | Magical enhancement (stats/effects) | Subtle power |
+| Ring 2 | Magical enhancement (stats/effects) | Subtle power |
+
+═══════════════════════════════════════════════════════════════════════════════
+GEAR NARRATION BY SLOT
+═══════════════════════════════════════════════════════════════════════════════
+
+**Head Slot**: Focus on what they perceive, how their vision shifts
+*"Your Mask of Perpetual Commentary whispers a quip as you scan the room..."*
+
+**Chest Slot**: Emphasize physical presence, defense, vitality
+*"The armor pulses with regenerative energy, wounds closing before they form..."*
+
+**Legs Slot**: Movement and kinetic energy
+*"Your greaves crackle with momentum, each step covering impossible distance..."*
+
+**Weapons**: Attack impact and combat style
+*"Icingdeath trails frost as your blade arcs toward the enemy..."*
+
+**Accessories**: Magical enhancement and ambient effects
+*"The amulet thrums with protective energy as danger approaches..."*`,
+  },
+
+  {
+    id: 'legendary-sets',
+    title: 'Legendary Sets',
+    icon: '👑',
+    category: 'gear',
+    description: 'The 8 legendary gear sets and bonuses',
+    content: `# ODYSSEY ASSASSIN - LEGENDARY SETS
+
+═══════════════════════════════════════════════════════════════════════════════
+THE 8 LEGENDARY SETS
+═══════════════════════════════════════════════════════════════════════════════
+
+Each set has 8 pieces with thematic bonuses unlocked at thresholds:
+
+**Set Bonus Thresholds**:
+- 2 pieces: Minor passive bonus
+- 3 pieces: Moderate ability enhancement
+- 5 pieces: Significant power boost
+- 8 pieces: Ultimate set effect (build-defining)
+
+═══════════════════════════════════════════════════════════════════════════════
+SET DESCRIPTIONS
+═══════════════════════════════════════════════════════════════════════════════
+
+**1. Merc with a Mouth** 🎭
+- Theme: Fourth-wall breaking, comedic chaos
+- 8pc: Reality-bending quips affect gameplay
+
+**2. Unkillable Merc** 💀
+- Theme: Regeneration and survivability
+- 8pc: Cannot die from HP damage once per day
+
+**3. Self-Aware Slayer** 🎬
+- Theme: Meta-narrative manipulation
+- 8pc: Reroll any roll by "editing the script"
+
+**4. Chaotic Contracts** 💰
+- Theme: Mercenary work and gold generation
+- 8pc: Bonus gold and loot from contracts
+
+**5. Violent Comedy** 🃏
+- Theme: Damage through humor
+- 8pc: Jokes deal psychic damage to enemies
+
+**6. Regenerative Ridiculousness** 🧬
+- Theme: Healing and resurrection
+- 8pc: Automatic stabilization and regeneration
+
+**7. Absolute Absurdity** 🌀
+- Theme: Reality-breaking effects
+- 8pc: Once/day, declare something absurd as true
+
+**8. Self-Aware Arsenal** ⚔️
+- Theme: Weapon-focused mastery
+- 8pc: Weapons gain sentience and bonus abilities`,
+  },
+
+  {
+    id: 'gear-unlocks',
+    title: 'Gear Unlock System',
+    icon: '🔓',
+    category: 'gear',
+    description: 'How feats unlock legendary gear',
+    content: `# ODYSSEY ASSASSIN - GEAR UNLOCK SYSTEM
+
+═══════════════════════════════════════════════════════════════════════════════
+FEAT-BASED UNLOCKS
+═══════════════════════════════════════════════════════════════════════════════
+
+Legendary gear is LOCKED until related FEATS (achievements) are completed.
+
+**Player Reports**:
+- **LOCKED (Progress: X/Y)**: Cannot be used yet
+- **UNLOCKED**: Available to equip
+- **EQUIPPED**: Currently worn/wielded
+
+**Your Role**: 
+- Only reference EQUIPPED items in narration
+- Acknowledge progress toward locked items when relevant
+- Celebrate unlocks as narrative moments
+
+═══════════════════════════════════════════════════════════════════════════════
+UNLOCK FLOW
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Player performs feat-worthy action in play
+2. GM acknowledges: "That's a [Feat Name] moment!"
+3. Player increments progress in app
+4. At 100%, gear becomes available
+5. Describe gear manifesting/being discovered in-world
+
+═══════════════════════════════════════════════════════════════════════════════
+EXAMPLE FEAT → GEAR CONNECTIONS
+═══════════════════════════════════════════════════════════════════════════════
+
+| Feat | Unlocks |
+|------|---------|
+| Delivering Post-Kill One-Liners (200) | Merc with a Mouth pieces |
+| Surviving After 0 HP (50) | Unkillable Merc pieces |
+| Breaking the Fourth Wall (100) | Self-Aware Slayer pieces |
+| Completing Contracts (100) | Chaotic Contracts pieces |
+| Defusing Tension with Humor (100) | Violent Comedy pieces |
+| Coming Back from Death (20) | Regenerative Ridiculousness pieces |
+| Predicting Plot Twists (50) | Absolute Absurdity pieces |
+| Overkill Strikes (100) | Self-Aware Arsenal pieces |`,
+  },
+
+  {
+    id: 'set-narration',
+    title: 'Set Bonus Narration',
+    icon: '✨',
+    category: 'gear',
+    description: 'How to narrate set bonuses by threshold',
+    content: `# ODYSSEY ASSASSIN - SET BONUS NARRATION
+
+═══════════════════════════════════════════════════════════════════════════════
+NARRATION BY THRESHOLD
+═══════════════════════════════════════════════════════════════════════════════
+
+**2-Piece Effects**: Subtle, ambient
+- Minor visual flourishes
+- Faint glows or auras
+- Whispered magical sounds
+*"A faint red glow pulses at the edges of your armor..."*
+
+**3-Piece Effects**: Noticeable, consistent
+- Regular visual effects during actions
+- Enemies may comment on strange gear
+- Clear magical enhancement visible
+*"The set resonates as you move, leaving afterimages..."*
+
+**5-Piece Effects**: Dramatic, impactful
+- Signature visual manifestations
+- Effects that change how you're perceived
+- Clear power increase visible to all
+*"Reality flickers around you as the set's power builds..."*
+
+**8-Piece Effects**: Reality-altering, legendary
+- Major narrative effects
+- NPCs recognize legendary power
+- Campaign-affecting manifestations
+*"The complete set transforms you—reality itself bends to your presence..."*
+
+═══════════════════════════════════════════════════════════════════════════════
+NARRATIVE INTEGRATION TIPS
+═══════════════════════════════════════════════════════════════════════════════
+
+1. **Reference the Set Name**: "The Merc with a Mouth's power surges..."
+2. **Theme Consistency**: Match narration to set's theme
+3. **Progressive Intensity**: Higher thresholds = more dramatic effects
+4. **Combat Integration**: Let bonuses affect tactical descriptions
+5. **NPC Reactions**: Enemies should react to legendary gear`,
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CATEGORY: SYSTEMS (15-17)
   // ═══════════════════════════════════════════════════════════════════════════
   {
     id: 'combat-mechanics',
     title: 'Combat Mechanics',
     icon: '⚡',
-    description: 'Action economy, dice system, conditions, and combat flow',
+    category: 'systems',
+    description: 'Action economy and dice system',
     content: `# ODYSSEY ASSASSIN - COMBAT MECHANICS
 
 ═══════════════════════════════════════════════════════════════════════════════
@@ -414,31 +767,30 @@ ACTION ECONOMY (Per Turn)
 
 | Action Type | Count | Examples |
 |-------------|-------|----------|
-| Action | 1 | Attack, Cast Spell, Dash, Dodge, Use Ability |
-| Bonus Action | 1 | Off-hand attack, Quick ability, Cunning Action |
-| Reaction | 1 | Attack of Opportunity, Counter, Parry |
-| Movement | 30ft base | Can split before/after actions |
-| Free Action | Unlimited | Speak, drop item, simple gesture |
-| Object Interaction | 1 | Draw weapon, open door, pick up item |
+| Action | 1 | Attack, Cast Spell, Dash, Dodge |
+| Bonus Action | 1 | Off-hand attack, Quick ability |
+| Reaction | 1 | AoO, Counter, Parry |
+| Movement | 30ft base | Can split before/after |
+| Free Action | Unlimited | Speak, drop item |
+| Object Interaction | 1 | Draw weapon, open door |
 
 **Usage Types**:
-- **At-Will**: Unlimited use, no resource cost
-- **Short Rest**: Recharges after 1-hour rest
-- **Long Rest**: Recharges after 8-hour rest
+- **At-Will**: Unlimited use
+- **Short Rest**: Recharges after 1 hour
+- **Long Rest**: Recharges after 8 hours
 - **Per Turn**: Only once per turn
 
 ═══════════════════════════════════════════════════════════════════════════════
-DICE SYSTEM & CRITICAL MECHANICS
+DICE & CRITICAL MECHANICS
 ═══════════════════════════════════════════════════════════════════════════════
 
-**Roll Format**: Player reports "[Ability] roll: [Total] (natural [d20])"
-*Example*: "Stealth check: 23 (natural 18)"
+**Roll Format**: "[Ability] roll: [Total] (natural [d20])"
 
 **Critical Thresholds**:
 | Result | Effect |
 |--------|--------|
-| Natural 1 | Critical failure - auto miss, potential complication |
-| Natural 20 | Critical success - auto hit, double damage dice |
+| Natural 1 | Auto miss, potential complication |
+| Natural 20 | Auto hit, double damage dice |
 
 **Expanded Crit**: Some abilities (Weapon Master T3) expand to 19-20.
 
@@ -450,7 +802,16 @@ DICE SYSTEM & CRITICAL MECHANICS
 | Medium | 15 |
 | Hard | 20 |
 | Very Hard | 25 |
-| Nearly Impossible | 30 |
+| Nearly Impossible | 30 |`,
+  },
+
+  {
+    id: 'conditions-status',
+    title: 'Conditions & Status',
+    icon: '🩹',
+    category: 'systems',
+    description: 'Status effects and situational modifiers',
+    content: `# ODYSSEY ASSASSIN - CONDITIONS & STATUS
 
 ═══════════════════════════════════════════════════════════════════════════════
 STATUS CONDITIONS
@@ -458,18 +819,18 @@ STATUS CONDITIONS
 
 | Condition | Effect |
 |-----------|--------|
-| Blinded | Auto-fail sight checks, disadvantage on attacks, advantage against |
-| Charmed | Can't attack charmer, charmer advantage on social |
+| Blinded | Auto-fail sight checks, attack disadvantage, attacked with advantage |
+| Charmed | Can't attack charmer, charmer has social advantage |
 | Frightened | Disadvantage while source visible, can't approach |
 | Grappled | Speed 0 |
 | Incapacitated | Can't take actions or reactions |
-| Invisible | Attacks advantage, attacks against disadvantage |
-| Paralyzed | Incapacitated, auto-fail STR/DEX, melee crits |
+| Invisible | Attack advantage, attacks against have disadvantage |
+| Paralyzed | Incapacitated, auto-fail STR/DEX, melee auto-crits |
 | Poisoned | Disadvantage on attacks and ability checks |
-| Prone | Disadvantage on attacks, melee advantage, ranged disadvantage |
-| Restrained | Speed 0, disadvantage on attacks/DEX saves |
+| Prone | Attack disadvantage, melee advantage against, ranged disadvantage against |
+| Restrained | Speed 0, attack/DEX save disadvantage |
 | Stunned | Incapacitated, auto-fail STR/DEX |
-| Unconscious | Drop items, fall prone, auto-fail STR/DEX, melee crits |
+| Unconscious | Drop items, prone, auto-fail STR/DEX, melee auto-crits |
 
 ═══════════════════════════════════════════════════════════════════════════════
 SITUATIONAL MODIFIERS
@@ -477,377 +838,223 @@ SITUATIONAL MODIFIERS
 
 | Situation | Effect |
 |-----------|--------|
-| High Ground | +2 to ranged attacks |
-| Flanking | Advantage on melee attacks |
+| High Ground | +2 ranged attacks |
+| Flanking | Advantage on melee |
 | In Stealth | Advantage on first attack |
-| Cover (Half) | +2 AC vs ranged |
-| Cover (3/4) | +5 AC vs ranged |
-| Cover (Full) | Cannot be targeted directly |
-| Difficult Terrain | Movement costs double |
+| Cover (Half) | +2 AC |
+| Cover (3/4) | +5 AC |
+| Cover (Full) | Untargetable |
+| Difficult Terrain | Double movement cost |
 
 ═══════════════════════════════════════════════════════════════════════════════
 DEATH & RECOVERY
 ═══════════════════════════════════════════════════════════════════════════════
 
 - **Death Saves**: 3 successes = stabilize, 3 failures = death
-- **Natural 1**: Counts as 2 failures
-- **Natural 20**: Regain 1 HP, wake up
-- **Damage at 0 HP**: 1 death save failure (or 2 if crit)
-- **Short Rest**: 1 hour, recover some abilities, spend Hit Dice
-- **Long Rest**: 8 hours, recover all abilities, HP, half Hit Dice`,
+- **Natural 1**: 2 failures | **Natural 20**: Wake at 1 HP
+- **Damage at 0 HP**: 1 failure (2 if crit)`,
   },
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // PROMPT 7: LEGENDARY GEAR & SET BONUSES
-  // ═══════════════════════════════════════════════════════════════════════════
-  {
-    id: 'gear-sets',
-    title: 'Gear & Set Bonuses',
-    icon: '🛡️',
-    description: 'Equipment slots, legendary sets, and gear unlock system',
-    content: `# ODYSSEY ASSASSIN - LEGENDARY GEAR SYSTEM
-
-═══════════════════════════════════════════════════════════════════════════════
-EQUIPMENT SLOTS (11 Total)
-═══════════════════════════════════════════════════════════════════════════════
-
-| Slot | Primary Function |
-|------|------------------|
-| Head | Perception, awareness, mental effects |
-| Chest | Defense, health, regeneration |
-| Arms | Attack, manipulation, crafting |
-| Waist | Utility, storage, resource management |
-| Legs | Movement, agility, positioning |
-| Primary Weapon | Main melee weapon |
-| Secondary Weapon | Off-hand weapon or shield |
-| Ranged Weapon | Bow, crossbow, throwing weapons |
-| Amulet | Magical enhancement (saves/abilities) |
-| Ring 1 | Magical enhancement (stats/effects) |
-| Ring 2 | Magical enhancement (stats/effects) |
-
-═══════════════════════════════════════════════════════════════════════════════
-THE 8 LEGENDARY SETS
-═══════════════════════════════════════════════════════════════════════════════
-
-Each set has 8 pieces with thematic bonuses:
-
-**Set Bonus Thresholds**:
-- 2 pieces: Minor passive bonus
-- 3 pieces: Moderate ability enhancement
-- 5 pieces: Significant power boost
-- 8 pieces: Ultimate set effect (build-defining)
-
-**The Sets**:
-1. **Merc with a Mouth** - Fourth-wall breaking, comedic chaos
-2. **Unkillable Merc** - Regeneration and survivability
-3. **Self-Aware Slayer** - Meta-narrative manipulation
-4. **Chaotic Contracts** - Mercenary work and gold generation
-5. **Violent Comedy** - Damage through humor
-6. **Regenerative Ridiculousness** - Healing and resurrection
-7. **Absolute Absurdity** - Reality-breaking effects
-8. **Self-Aware Arsenal** - Weapon-focused mastery
-
-═══════════════════════════════════════════════════════════════════════════════
-GEAR UNLOCK SYSTEM (FEATS)
-═══════════════════════════════════════════════════════════════════════════════
-
-Legendary gear is LOCKED until related FEATS (achievements) are completed.
-
-**Player Reports**:
-- **LOCKED (Progress: X/Y)**: Cannot be used yet
-- **UNLOCKED**: Available to equip
-- **EQUIPPED**: Currently worn/wielded
-
-**Your Role**: Only reference EQUIPPED items in narration. Acknowledge progress toward locked items when relevant to encourage the player.
-
-═══════════════════════════════════════════════════════════════════════════════
-GEAR NARRATION BY SLOT
-═══════════════════════════════════════════════════════════════════════════════
-
-**Head Slot**: Sensory details—what they perceive, how their vision or awareness shifts
-*"Your Mask of Perpetual Commentary whispers a quip as you scan the room..."*
-
-**Chest Slot**: Physical presence, defense, and vitality
-*"The armor pulses with regenerative energy, wounds closing before they fully form..."*
-
-**Legs Slot**: Movement and kinetic energy
-*"Your greaves crackle with momentum, each step covering impossible distance..."*
-
-**Weapons**: Attack impact and combat style
-*"Icingdeath trails frost as your blade arcs toward the enemy..."*
-
-**Accessories**: Magical enhancement and ambient effects
-*"The amulet thrums with protective energy as danger approaches..."*
-
-═══════════════════════════════════════════════════════════════════════════════
-SET BONUS FLAVOR BY THRESHOLD
-═══════════════════════════════════════════════════════════════════════════════
-
-- **2-piece**: Subtle effects, minor flourishes
-- **3-piece**: Noticeable enhancements, described side effects
-- **5-piece**: Dramatic manifestations, signature moves
-- **8-piece**: Reality-altering effects, legendary displays`,
-  },
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // PROMPT 8: FEATS & ACHIEVEMENTS
-  // ═══════════════════════════════════════════════════════════════════════════
   {
     id: 'feats-achievements',
     title: 'Feats & Achievements',
     icon: '🏆',
-    description: 'Achievement categories, tracking, and narrative hooks',
-    content: `# ODYSSEY ASSASSIN - FEAT/ACHIEVEMENT SYSTEM
+    category: 'systems',
+    description: 'Achievement tracking and rewards',
+    content: `# ODYSSEY ASSASSIN - FEATS & ACHIEVEMENTS
 
 ═══════════════════════════════════════════════════════════════════════════════
 OVERVIEW
 ═══════════════════════════════════════════════════════════════════════════════
 
-Feats track in-game accomplishments. When the player performs feat-worthy actions, they increment progress. Reaching milestones (25%, 50%, 75%, 100%) grants XP rewards and unlocks legendary gear.
+40 total feats across 8 categories (5 per legendary set).
+Milestones at 25%, 50%, 75%, 100% grant XP rewards.
+100% completion unlocks corresponding legendary gear.
 
 ═══════════════════════════════════════════════════════════════════════════════
-COMBAT FEATS
+FEAT CATEGORIES
 ═══════════════════════════════════════════════════════════════════════════════
 
-| Feat | Trigger | Max |
-|------|---------|-----|
-| Distracting Enemies with Dialogue | Talk during combat to create openings | 100 |
-| Surviving After 0 HP | Death saves, clutch heals, regeneration | 50 |
-| Overkill Strikes | Deal 2x+ lethal damage | 100 |
-| Firing Shots Without Missing | Consecutive hits | 1000 |
-| Counterattacking After Being Hit | Successful ripostes | 100 |
+**COMBAT FEATS**:
+- Distracting Enemies with Dialogue (100)
+- Surviving After 0 HP (50)
+- Overkill Strikes (100)
+- Firing Shots Without Missing (1000)
+- Counterattacking After Being Hit (100)
+
+**ROLEPLAY FEATS**:
+- Delivering Post-Kill One-Liners (200)
+- Breaking the Fourth Wall (100)
+- Befriending Enemies (50)
+- Dramatic Entrances (50)
+- Defusing Tension with Humor (100)
+
+**META-NARRATIVE FEATS**:
+- Predicting Plot Twists (50)
+- Recognizing Narrative Tropes (50)
+- Perceiving Meta-Narrative Elements (30)
+- Influencing Story Outcomes (50)
+
+**SURVIVAL FEATS**:
+- Healing from 0 to Full HP (30)
+- Surviving Lethal Damage (50)
+- Coming Back from Death (20)
+- Escaping at the Last Second (50)
+- Surviving Impossible Odds (30)
 
 ═══════════════════════════════════════════════════════════════════════════════
-ROLEPLAY FEATS
+GM ROLE
 ═══════════════════════════════════════════════════════════════════════════════
 
-| Feat | Trigger | Max |
-|------|---------|-----|
-| Delivering Post-Kill One-Liners | Quips after kills | 200 |
-| Breaking the Fourth Wall | Meta-humor, genre awareness | 100 |
-| Befriending Enemies | Diplomacy with hostiles | 50 |
-| Dramatic Entrances | Theatrical battle arrivals | 50 |
-| Defusing Tension with Humor | Comedy in serious moments | 100 |
+**Acknowledge feat-worthy moments!**
 
-═══════════════════════════════════════════════════════════════════════════════
-META-NARRATIVE FEATS
-═══════════════════════════════════════════════════════════════════════════════
-
-| Feat | Trigger | Max |
-|------|---------|-----|
-| Predicting Plot Twists | Correctly calling story beats | 50 |
-| Recognizing Narrative Tropes | Genre awareness moments | 50 |
-| Perceiving Meta-Narrative Elements | Noticing story structure | 30 |
-| Influencing Story Outcomes | Player agency moments | 50 |
-
-═══════════════════════════════════════════════════════════════════════════════
-SURVIVAL FEATS
-═══════════════════════════════════════════════════════════════════════════════
-
-| Feat | Trigger | Max |
-|------|---------|-----|
-| Healing from 0 to Full HP | Single session full recovery | 30 |
-| Surviving Lethal Damage | Avoid death from killing blow | 50 |
-| Coming Back from Death | Resurrection or death save recovery | 20 |
-| Escaping at the Last Second | Narrow escapes | 50 |
-| Surviving Impossible Odds | Against overwhelming enemies | 30 |
-
-═══════════════════════════════════════════════════════════════════════════════
-YOUR ROLE AS GM
-═══════════════════════════════════════════════════════════════════════════════
-
-**Acknowledge Feat-Worthy Moments**: When the player does something feat-worthy, call it out!
-
-**Examples**:
-- Player delivers witty quip after kill → "That's definitely a 'Delivering Post-Kill One-Liners' moment!"
-- Player survives at 1 HP → "Surviving After 0 HP feat progress!"
-- Player predicts the villain's plan → "Predicting Plot Twists achieved!"
-- Player makes a dramatic entrance → "That's a Dramatic Entrances moment for sure!"
-
-This prompts them to track progress on their app, reinforcing the gameplay loop.
-
-═══════════════════════════════════════════════════════════════════════════════
-FEAT UNLOCK REWARDS
-═══════════════════════════════════════════════════════════════════════════════
-
-**Milestones**: 25% → 50% → 75% → 100%
-**Rewards**: XP bonuses + legendary gear unlocks at 100%
-
-When a player unlocks new gear through completing a feat, describe it manifesting or being discovered in-world as a narrative reward.`,
+Examples:
+- Witty quip after kill → "Delivering Post-Kill One-Liners!"
+- Survives at 1 HP → "Surviving After 0 HP progress!"
+- Predicts villain's plan → "Predicting Plot Twists achieved!"`,
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // PROMPT 9: PRESTIGE & DRIZZT'S LEGACY
+  // CATEGORY: ADVANCED (18-20)
   // ═══════════════════════════════════════════════════════════════════════════
   {
-    id: 'prestige-legacy',
-    title: 'Prestige & Legacy',
-    icon: '👑',
-    description: 'Post-level-20 progression and Drizzt\'s Legacy skill tree',
-    content: `# ODYSSEY ASSASSIN - PRESTIGE & DRIZZT'S LEGACY
+    id: 'consumables',
+    title: 'Consumables',
+    icon: '🧪',
+    category: 'advanced',
+    description: 'Potions, poisons, and scrolls',
+    content: `# ODYSSEY ASSASSIN - CONSUMABLES
 
 ═══════════════════════════════════════════════════════════════════════════════
-POST-LEVEL 20 PRESTIGE SYSTEM
+POTIONS
 ═══════════════════════════════════════════════════════════════════════════════
 
-After Level 20, players enter the Prestige system:
-
-- **Prestige XP**: Earned from challenging encounters and achievements
-- **Prestige Levels**: 1-50, each granting 1 Prestige Point
-- **Prestige Points**: Spent on Drizzt's Legacy abilities
-
-**Unlock Requirement for Legacy**: Master ALL 24 base abilities to Tier 3
-
-═══════════════════════════════════════════════════════════════════════════════
-DRIZZT'S LEGACY - FOUR BRANCHES
-═══════════════════════════════════════════════════════════════════════════════
-
-**🗡️ DUAL WIELDING BRANCH (Scimitar Mastery)**
-*12 abilities themed around Drizzt's famous fighting style with Icingdeath and Twinkle*
-
-Tier 1 (Foundation):
-- Scimitar Mastery (2 pts): +2 attack with scimitars
-- Twin Blade Grip (2 pts): Bonus action off-hand attack
-- Icingdeath Bond (3 pts): +1d4 cold damage, fire resistance
-- Twinkle Bond (3 pts): +1d4 radiant damage, danger sense
-
-Tier 2 (Intermediate, Prestige 5+):
-- Dance of Blades (4 pts): +1 AC when dual-wielding
-- Whirlwind Assault (5 pts): Spin attack hitting all adjacent
-- Perfect Parry (4 pts): Deflect ranged attacks
-- Riposte Mastery (4 pts): Counter-attack after parry
-
-Tier 3 (Advanced, Prestige 8-15+):
-- Form of the Crow (8 pts): Legendary stance, +10 movement, advantage DEX saves
-- Blade Echo (8 pts): Both scimitars hit same target twice
-- Legacy of Lolth's Nemesis (12 pts): Once/day auto-crit
-- Symphony of Steel (10 pts): Four attacks in one action
+| Potion | Effect | Action |
+|--------|--------|--------|
+| Healing | 2d4+2 HP | Bonus |
+| Greater Healing | 4d4+4 HP | Bonus |
+| Superior Healing | 8d4+8 HP | Bonus |
+| Supreme Healing | 10d4+20 HP | Bonus |
+| Invisibility | Invisible 1 hour | Action |
+| Speed | Hasted 1 minute | Action |
+| Flying | 60ft fly 1 hour | Action |
+| Fire Resistance | Resist fire 1 hour | Action |
+| Giant Strength | STR 21-29 for 1 hour | Action |
+| Heroism | 10 temp HP, immune frightened 1 hour | Action |
 
 ═══════════════════════════════════════════════════════════════════════════════
-
-**🐆 GUENHWYVAR BRANCH (Astral Companion)**
-*12 abilities for Drizzt's magical panther companion*
-
-Key Abilities:
-- Call Guenhwyvar (3 pts): Summon astral panther
-- Shared Senses (4 pts): See through Guenhwyvar's eyes
-- Guenhwyvar Ascension (8 pts): Two attacks, +2d6 force damage
-- Avatar of the Panther (10 pts): Position swap teleportation
-
+POISONS
 ═══════════════════════════════════════════════════════════════════════════════
 
-**👁️ DROW ABILITIES BRANCH (Shadow Magic)**
-*12 abilities from drow heritage and Underdark magic*
-
-Key Abilities:
-- Superior Darkvision (2 pts): 120ft, see through magical darkness
-- Darkness Veil (5 pts): Cast Darkness 1/day, you see through it
-- Lolth's Endurance (10 pts): Auto-succeed one death save/day
-- Drow Lord's Authority (10 pts): Lower CR creatures frightened on sight
-
-═══════════════════════════════════════════════════════════════════════════════
-
-**🔥 MONK ABILITIES BRANCH (Spiritual Discipline)**
-*12 abilities from Melee-Magthere training*
-
-Key Abilities:
-- Monastic Discipline (2 pts): +1d6 magical unarmed
-- Stunning Strike (5 pts): CON save or stunned
-- Diamond Soul (8 pts): Proficiency in all saves
-- Perfect Consciousness (10 pts): Truesight 120ft, always act first
+| Poison | Damage | DC | Duration |
+|--------|--------|-----|----------|
+| Basic Poison | +1d4 | 10 | 1 minute |
+| Serpent Venom | +3d6 | 11 | 1 minute |
+| Drow Poison | Sleep | 13 | 1 hour |
+| Wyvern Poison | +7d6 | 15 | - |
+| Purple Worm | +12d6 | 19 | - |
+| Midnight Tears | +9d6 at midnight | 17 | Until midnight |
 
 ═══════════════════════════════════════════════════════════════════════════════
-USING PRESTIGE ABILITIES IN PLAY
+SCROLLS
 ═══════════════════════════════════════════════════════════════════════════════
 
-When the player uses a prestige ability, they may share:
-1. **AI Prompt**: Narrative description for your narration
-2. **Mechanical Context**: Exact rules in [brackets]
+One-time spell use. Player reports:
+- Spell name and level
+- Save DC if applicable
+- Effect description
 
-**Example**:
-Player: "I use Form of the Crow"
-*Prompt*: "I shift into the Form of the Crow, a legendary stance as swift and elusive as shadow itself."
-*Mechanics*: [Bonus action. Advantage on DEX saves, +10 movement, AoO against you have disadvantage. 1 minute, short rest recharge.]
-
-Use the prompt for flavor, respect the mechanics for resolution.`,
+Trust the player's spell knowledge; they have the full text in-app.`,
   },
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // PROMPT 10: CONSUMABLES, INFINITY STONES & ADVANCED OPTIONS
-  // ═══════════════════════════════════════════════════════════════════════════
   {
-    id: 'consumables-advanced',
-    title: 'Consumables & Special',
+    id: 'infinity-stones',
+    title: 'Infinity Stones',
     icon: '💎',
-    description: 'Potions, poisons, scrolls, Infinity Stones, and optional content',
-    content: `# ODYSSEY ASSASSIN - CONSUMABLES & SPECIAL FEATURES
+    category: 'advanced',
+    description: 'Optional endgame artifacts',
+    content: `# ODYSSEY ASSASSIN - INFINITY STONES
 
 ═══════════════════════════════════════════════════════════════════════════════
-CONSUMABLES
+THE SIX STONES (Optional Endgame Artifacts)
 ═══════════════════════════════════════════════════════════════════════════════
-
-**POTIONS**:
-| Potion | Effect |
-|--------|--------|
-| Healing | 2d4+2 HP |
-| Greater Healing | 4d4+4 HP |
-| Superior Healing | 8d4+8 HP |
-| Invisibility | Invisible 1 hour |
-| Speed | Hasted 1 minute |
-| Flying | 60ft flying speed 1 hour |
-| Fire Resistance | Resist fire 1 hour |
-
-**POISONS**:
-| Poison | Effect |
-|--------|--------|
-| Basic Poison | +1d4 poison, CON save or poisoned |
-| Serpent Venom | +3d6 poison, DC 11 |
-| Wyvern Poison | +7d6 poison, DC 15 |
-| Purple Worm Poison | +12d6 poison, DC 19 |
-
-**SCROLLS**: One-time spell use. Player reports spell name and save DC.
-
-═══════════════════════════════════════════════════════════════════════════════
-INFINITY STONES (Optional Endgame Artifacts)
-═══════════════════════════════════════════════════════════════════════════════
-
-If the campaign includes Infinity Stones, each grants reality-bending abilities:
 
 | Stone | Domain | Typical Effects |
 |-------|--------|-----------------|
-| **Power** | Raw Force | Amplified damage, energy blasts, enhanced strength |
-| **Space** | Location | Teleportation, portals, dimensional manipulation |
-| **Time** | Temporal | Action economy tricks, time stop, age manipulation |
-| **Reality** | Matter | Environment alteration, illusions made real, transmutation |
-| **Soul** | Life/Death | Resurrection, soul manipulation, life force control |
-| **Mind** | Psychic | Telepathy, mind control, memory manipulation |
+| **Power** (Purple) | Raw Force | Amplified damage, energy blasts, enhanced strength |
+| **Space** (Blue) | Location | Teleportation, portals, dimensional manipulation |
+| **Time** (Green) | Temporal | Action economy tricks, time stop, age manipulation |
+| **Reality** (Red) | Matter | Environment alteration, illusions made real |
+| **Soul** (Orange) | Life/Death | Resurrection, soul manipulation, life force |
+| **Mind** (Yellow) | Psychic | Telepathy, mind control, memory manipulation |
 
-**Narrative Weight**: Treat with appropriate gravity—these are campaign-defining artifacts that reshape reality.
+═══════════════════════════════════════════════════════════════════════════════
+INTENSITY LEVELS
+═══════════════════════════════════════════════════════════════════════════════
 
-The app includes 60 unique Infinity Stone prompts across three intensity levels:
-- **Mild**: Subtle reality bends, minor advantages
-- **Moderate**: Significant power displays, tactical advantages
-- **World-Breaking**: Reality-altering effects with major consequences
+The app includes 60 unique prompts across three levels:
+
+**Mild**: Subtle reality bends
+- Minor advantages, flavor effects
+- No major mechanical impact
+*"The Space Stone flickers, and you're 10 feet closer..."*
+
+**Moderate**: Significant power displays
+- Clear tactical advantages
+- Notable but bounded effects
+*"Time slows as the green gem pulses—you act twice this round..."*
+
+**World-Breaking**: Reality-altering effects
+- Major campaign consequences
+- Use sparingly, with weight
+*"Reality tears open at your command—the battlefield reshapes..."*
+
+═══════════════════════════════════════════════════════════════════════════════
+GM GUIDANCE
+═══════════════════════════════════════════════════════════════════════════════
+
+- Treat with appropriate gravity
+- Campaign-defining artifacts
+- Balance power with narrative consequence
+- Not every campaign includes these`,
+  },
+
+  {
+    id: 'oracle-scribe',
+    title: 'Oracle & Scribe',
+    icon: '📜',
+    category: 'advanced',
+    description: 'In-app AI tools and session processing',
+    content: `# ODYSSEY ASSASSIN - ORACLE & SCRIBE
 
 ═══════════════════════════════════════════════════════════════════════════════
 THE ORACLE (In-App AI Assistant)
 ═══════════════════════════════════════════════════════════════════════════════
 
-The app includes an AI assistant with multiple personalities:
-- **The Thunderhead** (Blue/Omniscient) - All-knowing advisor
-- **JARVIS** (Cyan/Formal) - Technical assistant
-- **Deadpool** (Red/Chaotic) - Fourth-wall breaking chaos
-- **Gandalf** (Grey/Wizard) - Wise counsel
-- **Jarlaxle Baenre** (Purple/Mercenary) - Cunning advisor
-- **The Investigator** (Teal/Analytical) - Logical analysis
+AI assistant with multiple personalities:
 
-The Oracle is character-aware and can answer questions about the build, suggest tactics, or roleplay. Players may reference Oracle conversations.
+| Personality | Color | Style |
+|-------------|-------|-------|
+| **The Thunderhead** | Blue | Omniscient, all-knowing advisor |
+| **JARVIS** | Cyan | Formal, technical assistant |
+| **Deadpool** | Red | Fourth-wall breaking chaos |
+| **Gandalf** | Grey | Wise counsel, cryptic guidance |
+| **Jarlaxle Baenre** | Purple | Cunning, mercenary advice |
+| **The Investigator** | Teal | Logical, analytical |
+
+**Uses**:
+- Answer questions about the build
+- Suggest tactics for encounters
+- Roleplay in-character
+- Players may reference Oracle conversations
 
 ═══════════════════════════════════════════════════════════════════════════════
-NARRATIVE FORGE (Session Log Processing)
+NARRATIVE FORGE (Scribe Feature)
 ═══════════════════════════════════════════════════════════════════════════════
 
-The app includes a "Scribe" feature that transforms TTRPG chat logs into novel-style prose in four genres:
+Transforms TTRPG session logs into novel-style prose:
+
+**Genres**:
 - **Fantasy**: Rich, evocative epic style
 - **Noir**: Hardboiled, cynical, shadows
 - **Literary**: Psychological depth, thematic
@@ -856,39 +1063,22 @@ The app includes a "Scribe" feature that transforms TTRPG chat logs into novel-s
 Players may share processed narratives as session recaps.
 
 ═══════════════════════════════════════════════════════════════════════════════
-COOLDOWN TRACKING
+COOLDOWN & CONDITION TRACKING
 ═══════════════════════════════════════════════════════════════════════════════
 
-Abilities have cooldown types:
-- **At-Will**: Always available
-- **Short Rest**: Unavailable until 1-hour rest
-- **Long Rest**: Unavailable until 8-hour rest
+The app automatically tracks:
+- **Cooldowns**: At-Will / Short Rest / Long Rest
+- **Conditions**: Visual badges for active effects
+- **Resources**: Spell slots, consumables, uses
 
-The app tracks this automatically. Trust player reports on availability.
-
-═══════════════════════════════════════════════════════════════════════════════
-CONDITION MANAGEMENT
-═══════════════════════════════════════════════════════════════════════════════
-
-The app tracks active conditions (Poisoned, Frightened, Concentrating, etc.) with visual badges. Players will report active conditions at the start of relevant actions.
-
-═══════════════════════════════════════════════════════════════════════════════
-QUICK REFERENCE
-═══════════════════════════════════════════════════════════════════════════════
-
-**Roll Interpretation**:
-- Natural 1: Miss + potential fumble
-- Below AC: Miss, describe deflection
-- Meets/beats AC: Hit
-- Natural 20: Critical hit, double dice
-
-**Skill Check Interpretation**:
-- Below DC: Failure, complication
-- Meets DC: Success, basic result
-- +5 over DC: Success with bonus
-- +10 over DC: Exceptional success`,
+Trust player reports on ability availability.`,
   },
 ];
+
+// Get prompts by category
+export function getPromptsByCategory(category: GMGuidePrompt['category']): GMGuidePrompt[] {
+  return GM_GUIDE_PROMPTS.filter(p => p.category === category);
+}
 
 // Helper to get all prompts combined (for full guide copy)
 export function getCombinedGMGuide(): string {
@@ -899,3 +1089,12 @@ export function getCombinedGMGuide(): string {
 export function getGMPromptById(id: string): GMGuidePrompt | undefined {
   return GM_GUIDE_PROMPTS.find(p => p.id === id);
 }
+
+// Category metadata for UI
+export const PROMPT_CATEGORIES = [
+  { id: 'core' as const, label: 'Core', icon: '🎯', description: 'Essential overview' },
+  { id: 'abilities' as const, label: 'Abilities', icon: '⚡', description: 'Skill trees' },
+  { id: 'gear' as const, label: 'Gear', icon: '🛡️', description: 'Equipment & sets' },
+  { id: 'systems' as const, label: 'Systems', icon: '⚙️', description: 'Mechanics' },
+  { id: 'advanced' as const, label: 'Advanced', icon: '💎', description: 'Special features' },
+];
