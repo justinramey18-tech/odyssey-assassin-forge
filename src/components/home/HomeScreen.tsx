@@ -503,6 +503,18 @@ export function HomeScreen({
               onNavigateToTab('combat');
             }}
             onContextualClick={handleContextualCardClick}
+            onChronicleClick={() => {
+              triggerHaptic('light');
+              onNavigateToTab('chronicle');
+            }}
+            onScribeClick={() => {
+              triggerHaptic('light');
+              onNavigateToTab('scribe');
+            }}
+            onOracleClick={() => {
+              triggerHaptic('light');
+              drawerContext?.openOracleDrawer?.();
+            }}
             achievements={achievements}
             hasChronicleUndo={hasChronicleUndo}
             hasNewShopItems={hasNewShopItems}
