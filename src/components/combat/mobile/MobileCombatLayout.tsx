@@ -11,7 +11,7 @@ import {
   DEFAULT_WEAPONS,
   getSneakAttackDice,
 } from '@/lib/combat/combatTypes';
-import { ActiveConditionInfo } from '@/lib/combat/promptContext';
+import { ActiveConditionInfo, SetBonusInfo } from '@/lib/combat/promptContext';
 import { DiceRoll, rollDice, getAbilityDice } from '@/lib/diceRoller';
 import { generateRPPrompt } from '@/lib/rpPromptGenerator';
 import { DiceRollModal } from '@/components/character/DiceRollModal';
@@ -65,6 +65,10 @@ interface MobileCombatLayoutProps {
   actionEconomyState?: UseActionEconomyReturn;
   // Global D&D conditions (from useConditions)
   globalConditions?: ActiveConditionInfo[];
+  // Set bonuses (from equipment stats)
+  activeSetBonuses?: SetBonusInfo[];
+  // Concentration spell (from spellcasting)
+  concentrationSpell?: string | null;
 }
 
 export function MobileCombatLayout({ 
@@ -79,6 +83,8 @@ export function MobileCombatLayout({
   tempHP,
   actionEconomyState,
   globalConditions = [],
+  activeSetBonuses = [],
+  concentrationSpell,
 }: MobileCombatLayoutProps) {
   // Navigation state
   const [activeTab, setActiveTab] = useState<CombatTab>('attacks');
@@ -498,6 +504,8 @@ export function MobileCombatLayout({
             cooldownState={cooldownStateMap}
             abilityImages={abilityImages}
             activeConditions={globalConditions}
+            activeSetBonuses={activeSetBonuses}
+            concentrationSpell={concentrationSpell}
             onUseAbility={handleEnhancedAbilityUse}
             onTriggerCooldown={cooldownSystem.triggerCooldown}
             emptyMessage="No stealth abilities unlocked"
@@ -513,6 +521,8 @@ export function MobileCombatLayout({
             cooldownState={cooldownStateMap}
             abilityImages={abilityImages}
             activeConditions={globalConditions}
+            activeSetBonuses={activeSetBonuses}
+            concentrationSpell={concentrationSpell}
             onUseAbility={handleEnhancedAbilityUse}
             onTriggerCooldown={cooldownSystem.triggerCooldown}
             emptyMessage="No special abilities unlocked"

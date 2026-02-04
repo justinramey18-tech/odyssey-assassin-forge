@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Ability, AbilityTree } from '@/lib/types';
 import { WeaponAttack } from '@/lib/combat/combatTypes';
-import { ActiveConditionInfo } from '@/lib/combat/promptContext';
+import { ActiveConditionInfo, SetBonusInfo } from '@/lib/combat/promptContext';
 import { DiceRoll } from '@/lib/diceRoller';
 import { CombatAbilityCard } from './CombatAbilityCard';
 import {
@@ -31,6 +31,8 @@ interface EnhancedMobileAbilityListProps {
   }>;
   abilityImages?: Record<string, string>;
   activeConditions?: ActiveConditionInfo[];
+  activeSetBonuses?: SetBonusInfo[];
+  concentrationSpell?: string | null;
   onUseAbility: (
     ability: Ability & { tier: 1 | 2 | 3 },
     roll: DiceRoll,
@@ -49,6 +51,8 @@ export function EnhancedMobileAbilityList({
   cooldownState,
   abilityImages = {},
   activeConditions = [],
+  activeSetBonuses = [],
+  concentrationSpell,
   onUseAbility,
   onTriggerCooldown,
   emptyMessage = "No abilities unlocked",
@@ -217,6 +221,8 @@ export function EnhancedMobileAbilityList({
                 } : undefined}
                 customImage={abilityImages[ability.id]}
                 activeConditions={activeConditions}
+                activeSetBonuses={activeSetBonuses}
+                concentrationSpell={concentrationSpell}
                 onUse={onUseAbility}
                 onTriggerCooldown={onTriggerCooldown}
               />
