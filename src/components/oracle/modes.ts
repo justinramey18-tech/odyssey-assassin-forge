@@ -7,6 +7,12 @@ export const oracleModes: OracleModeConfig[] = [
     icon: '💬',
     description: 'Natural conversation',
     color: '#8B5CF6', // violet
+    quickPrompts: [
+      'What should I know about my situation?',
+      'Help me understand my options',
+      'Any advice for me right now?',
+      'Tell me about my abilities',
+    ],
   },
   {
     id: 'plan',
@@ -14,6 +20,12 @@ export const oracleModes: OracleModeConfig[] = [
     icon: '🎯',
     description: 'Collaborative 1-4 sentences',
     color: '#10B981', // emerald
+    quickPrompts: [
+      "What's my first move?",
+      'Help me plan my turn',
+      'What should I prioritize?',
+      'Next step?',
+    ],
   },
   {
     id: 'choice',
@@ -21,6 +33,12 @@ export const oracleModes: OracleModeConfig[] = [
     icon: '🎲',
     description: 'Generate 4-6 options',
     color: '#F59E0B', // amber
+    quickPrompts: [
+      'What are my combat options?',
+      'Give me roleplay choices',
+      'Ways to approach this encounter?',
+      'Creative solutions I could try?',
+    ],
   },
   {
     id: 'analyze',
@@ -28,6 +46,12 @@ export const oracleModes: OracleModeConfig[] = [
     icon: '🔬',
     description: 'Deep tactical analysis',
     color: '#3B82F6', // blue
+    quickPrompts: [
+      'Analyze my current build',
+      'Break down this combat scenario',
+      'What are my strengths and weaknesses?',
+      'Optimal ability rotation?',
+    ],
   },
   {
     id: 'quick',
@@ -35,6 +59,12 @@ export const oracleModes: OracleModeConfig[] = [
     icon: '⚡',
     description: 'Brief 1-2 sentence answers',
     color: '#EF4444', // red
+    quickPrompts: [
+      'Best action this turn?',
+      'Should I retreat?',
+      'Use a potion now?',
+      'Attack or defend?',
+    ],
   },
 ];
 

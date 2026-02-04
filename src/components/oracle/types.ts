@@ -17,6 +17,7 @@ export interface OracleModeConfig {
   icon: string;
   description: string;
   color: string;
+  quickPrompts: string[];
 }
 
 export interface CharacterContext {
