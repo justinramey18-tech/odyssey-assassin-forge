@@ -6,6 +6,7 @@ const corsHeaders = {
 };
 
 type Personality = 'thunderhead' | 'jarvis' | 'deadpool' | 'gandalf' | 'jarlaxle' | 'investigator';
+type OracleMode = 'chat' | 'plan' | 'choice' | 'analyze' | 'quick';
 
 interface CharacterContext {
   name: string;
@@ -53,6 +54,7 @@ interface OracleRequest {
   messages: Array<{ role: 'user' | 'assistant'; content: string }>;
   personality: Personality;
   characterContext: CharacterContext;
+  mode?: OracleMode;
 }
 
 function buildContextSummary(ctx: CharacterContext): string {
@@ -350,13 +352,69 @@ Balance analytical depth with emotional intelligence. Offer thorough analysis wh
   }
 }
 
+function getModePromptModifier(mode: OracleMode): string {
+  switch (mode) {
+    case 'plan':
+      return `
+
+RESPONSE MODE: COLLABORATIVE PLANNING
+- Respond in ONLY 1-4 concise sentences
+- Ask clarifying questions to collaborate on the plan
+- Don't write out entire strategies - work together step by step
+- Focus on the immediate next step or decision
+- Invite the user's input and preferences
+- Be a planning partner, not a lecturer`;
+
+    case 'choice':
+      return `
+
+RESPONSE MODE: CHOICE GENERATION
+- Present exactly 4-6 distinct options for the player
+- Number each option clearly (1, 2, 3, etc.)
+- Each option should be 1-2 sentences max
+- Include a mix of safe, risky, and creative approaches
+- Don't recommend one over another - let the player decide
+- Format: Brief title + short description for each option`;
+
+    case 'analyze':
+      return `
+
+RESPONSE MODE: DEEP ANALYSIS
+- Provide thorough tactical analysis
+- Consider multiple angles: offense, defense, resource management, positioning
+- Reference specific abilities, stats, and items by name
+- Calculate rough odds or outcomes when relevant
+- Structure with clear sections if needed
+- Be comprehensive but organized`;
+
+    case 'quick':
+      return `
+
+RESPONSE MODE: QUICK RESPONSE
+- Answer in ONLY 1-2 sentences maximum
+- Be direct and actionable
+- Skip explanations - just give the answer
+- No preamble or follow-up questions
+- Punchy and immediate`;
+
+    case 'chat':
+    default:
+      return `
+
+RESPONSE MODE: NATURAL CONVERSATION
+- Respond naturally without length constraints
+- Balance helpfulness with personality
+- Engage conversationally`;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { messages, personality, characterContext }: OracleRequest = await req.json();
+    const { messages, personality, characterContext, mode = 'chat' }: OracleRequest = await req.json();
     
     if (!messages || !personality || !characterContext) {
       return new Response(
@@ -374,9 +432,19 @@ serve(async (req) => {
       );
     }
 
-    const systemPrompt = getPersonalityPrompt(personality, characterContext);
+    // Combine personality prompt with mode modifier
+    const personalityPrompt = getPersonalityPrompt(personality, characterContext);
+    const modeModifier = getModePromptModifier(mode);
+    const systemPrompt = personalityPrompt + modeModifier;
 
-    console.log(`Oracle request: personality=${personality}, character=${characterContext.name}, messages=${messages.length}`);
+    console.log(`Oracle request: personality=${personality}, mode=${mode}, character=${characterContext.name}, messages=${messages.length}`);
+
+    // Adjust max_tokens based on mode
+    let maxTokens = 1024;
+    if (mode === 'quick') maxTokens = 150;
+    else if (mode === 'plan') maxTokens = 300;
+    else if (mode === 'choice') maxTokens = 600;
+    else if (mode === 'analyze') maxTokens = 1500;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -391,7 +459,7 @@ serve(async (req) => {
           ...messages,
         ],
         stream: true,
-        max_tokens: 1024,
+        max_tokens: maxTokens,
         temperature: personality === 'deadpool' ? 0.9 : 0.7,
       }),
     });

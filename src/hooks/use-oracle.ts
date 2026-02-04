@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { Message, Personality, CharacterContext } from '@/components/oracle/types';
+import { Message, Personality, CharacterContext, OracleMode } from '@/components/oracle/types';
 import { toast } from 'sonner';
 
 const ORACLE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/oracle-assistant`;
@@ -12,6 +12,7 @@ export function useOracle({ characterContext }: UseOracleOptions) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [personality, setPersonality] = useState<Personality>('deadpool');
+  const [mode, setMode] = useState<OracleMode>('chat');
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const sendMessage = useCallback(async (content: string) => {
@@ -50,6 +51,7 @@ export function useOracle({ characterContext }: UseOracleOptions) {
           messages: apiMessages,
           personality,
           characterContext,
+          mode,
         }),
         signal: abortControllerRef.current.signal,
       });
@@ -77,6 +79,7 @@ export function useOracle({ characterContext }: UseOracleOptions) {
           content: '',
           timestamp: new Date(),
           personality,
+          mode,
         },
       ]);
 
@@ -164,7 +167,7 @@ export function useOracle({ characterContext }: UseOracleOptions) {
       setIsLoading(false);
       abortControllerRef.current = null;
     }
-  }, [messages, personality, characterContext, isLoading]);
+  }, [messages, personality, characterContext, isLoading, mode]);
 
   const cancelRequest = useCallback(() => {
     if (abortControllerRef.current) {
@@ -179,17 +182,21 @@ export function useOracle({ characterContext }: UseOracleOptions) {
 
   const switchPersonality = useCallback((newPersonality: Personality) => {
     setPersonality(newPersonality);
-    // Optionally clear messages when switching
-    // setMessages([]);
+  }, []);
+
+  const switchMode = useCallback((newMode: OracleMode) => {
+    setMode(newMode);
   }, []);
 
   return {
     messages,
     isLoading,
     personality,
+    mode,
     sendMessage,
     cancelRequest,
     clearMessages,
     switchPersonality,
+    switchMode,
   };
 }
