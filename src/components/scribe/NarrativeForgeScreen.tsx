@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { ArrowLeft, Wand2, Cog, Copy, Check, Loader2, BookOpen, Cpu, Info, Save, Plus, FileText, Trash2, Eye } from 'lucide-react';
+import { ArrowLeft, Wand2, Cog, Copy, Check, Loader2, BookOpen, Cpu, Info, Save, Plus, FileText, Trash2, Eye, Pencil, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,6 +46,8 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
   const [showPreview, setShowPreview] = useState(false);
   const [savedStory, setSavedStory] = useState<SavedStory | null>(null);
   const [storyViewerOpen, setStoryViewerOpen] = useState(false);
+  const [isEditingStory, setIsEditingStory] = useState(false);
+  const [editedContent, setEditedContent] = useState('');
   const { toast } = useToast();
 
   // Load saved story from localStorage on mount
@@ -128,11 +130,48 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
 
   const handleDeleteStory = useCallback(() => {
     persistStory(null);
+    setIsEditingStory(false);
     toast({
       title: "Story Deleted",
       description: "Your saved story has been removed.",
     });
   }, [persistStory, toast]);
+
+  const handleStartEditing = useCallback(() => {
+    if (savedStory) {
+      setEditedContent(savedStory.content);
+      setIsEditingStory(true);
+    }
+  }, [savedStory]);
+
+  const handleCancelEditing = useCallback(() => {
+    setIsEditingStory(false);
+    setEditedContent('');
+  }, []);
+
+  const handleSaveEdits = useCallback(() => {
+    if (!savedStory || !editedContent.trim()) {
+      toast({
+        title: "Cannot save empty story",
+        description: "Please add some content before saving.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const updatedStory: SavedStory = {
+      ...savedStory,
+      content: editedContent,
+      lastUpdated: new Date().toISOString(),
+    };
+
+    persistStory(updatedStory);
+    setIsEditingStory(false);
+    toast({
+      title: "Story Updated",
+      description: "Your changes have been saved.",
+    });
+  }, [savedStory, editedContent, persistStory, toast]);
 
   const handleCopyStory = useCallback(async () => {
     if (!savedStory?.content) return;
@@ -280,55 +319,101 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
                     <span className="capitalize">{savedStory.style} style</span>
                   </div>
                   
-                  <ScrollArea className="h-[calc(100vh-250px)] pr-4">
-                    <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap font-serif leading-relaxed">
-                      {savedStory.content}
-                    </div>
-                  </ScrollArea>
+                  {isEditingStory ? (
+                    <>
+                      <Textarea
+                        value={editedContent}
+                        onChange={(e) => setEditedContent(e.target.value)}
+                        className="h-[calc(100vh-300px)] resize-none font-serif text-sm leading-relaxed bg-background/50 border-amber-900/30 focus:border-amber-500/50"
+                        placeholder="Edit your story..."
+                      />
+                      <div className="text-xs text-muted-foreground text-right">
+                        {editedContent.split(/\s+/).filter(Boolean).length} words
+                      </div>
+                    </>
+                  ) : (
+                    <ScrollArea className="h-[calc(100vh-250px)] pr-4">
+                      <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap font-serif leading-relaxed">
+                        {savedStory.content}
+                      </div>
+                    </ScrollArea>
+                  )}
                   
                   <div className="flex gap-2 pt-4 border-t border-border/50">
-                    <Button
-                      onClick={handleCopyStory}
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 gap-2"
-                    >
-                      <Copy className="w-4 h-4" />
-                      Copy All
-                    </Button>
-                    
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
+                    {isEditingStory ? (
+                      <>
                         <Button
+                          onClick={handleSaveEdits}
+                          size="sm"
+                          className="flex-1 gap-2 bg-amber-600 hover:bg-amber-700"
+                        >
+                          <Save className="w-4 h-4" />
+                          Save Changes
+                        </Button>
+                        <Button
+                          onClick={handleCancelEditing}
                           variant="outline"
                           size="sm"
-                          className="gap-2 text-destructive hover:text-destructive"
+                          className="gap-2"
                         >
-                          <Trash2 className="w-4 h-4" />
-                          Delete
+                          <X className="w-4 h-4" />
+                          Cancel
                         </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Saved Story?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will permanently delete your saved story. This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => {
-                              handleDeleteStory();
-                              setStoryViewerOpen(false);
-                            }}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          onClick={handleStartEditing}
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 gap-2 text-amber-400 hover:text-amber-300 border-amber-900/50 hover:border-amber-500/50"
+                        >
+                          <Pencil className="w-4 h-4" />
+                          Edit
+                        </Button>
+                        <Button
+                          onClick={handleCopyStory}
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 gap-2"
+                        >
+                          <Copy className="w-4 h-4" />
+                          Copy All
+                        </Button>
+                        
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-2 text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Saved Story?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently delete your saved story. This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => {
+                                  handleDeleteStory();
+                                  setStoryViewerOpen(false);
+                                }}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </>
+                    )}
                   </div>
                 </div>
               ) : (
