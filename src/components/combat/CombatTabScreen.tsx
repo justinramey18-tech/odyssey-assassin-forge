@@ -20,6 +20,7 @@ import {
   COMBAT_CONDITIONS,
   DEFAULT_WEAPONS,
 } from '@/lib/combat/combatTypes';
+import { ActiveConditionInfo } from '@/lib/combat/promptContext';
 import { DiceRoll } from '@/lib/diceRoller';
 import { Activity, Skull } from 'lucide-react';
 import './CombatHUDStyles.css';
@@ -48,6 +49,8 @@ interface CombatTabScreenProps {
   tempHP?: number;
   // Action economy (synced from Index.tsx)
   actionEconomyState?: UseActionEconomyReturn;
+  // Global D&D conditions (from useConditions)
+  globalConditions?: ActiveConditionInfo[];
 }
 
 export function CombatTabScreen({ 
@@ -62,6 +65,7 @@ export function CombatTabScreen({
   maxHP,
   tempHP,
   actionEconomyState,
+  globalConditions = [],
 }: CombatTabScreenProps) {
   const isMobile = useIsMobile();
   const { rerollsDisabled } = useGameMode();
@@ -244,6 +248,7 @@ export function CombatTabScreen({
         maxHP={maxHP}
         tempHP={tempHP}
         actionEconomyState={actionEconomyState}
+        globalConditions={globalConditions}
       />
     );
   }

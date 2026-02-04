@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Ability, AbilityTree } from '@/lib/types';
 import { WeaponAttack } from '@/lib/combat/combatTypes';
+import { ActiveConditionInfo } from '@/lib/combat/promptContext';
 import { getAbilityDice, rollDice, DiceRoll } from '@/lib/diceRoller';
 import { CooldownProgress } from '@/components/cooldowns/CooldownProgress';
 import { COOLDOWN_CONFIGS } from '@/lib/cooldowns/config';
@@ -52,6 +53,7 @@ interface CombatAbilityCardProps {
     total: number; // seconds
   };
   customImage?: string | null;
+  activeConditions?: ActiveConditionInfo[];
   onUse: (ability: Ability & { tier: 1 | 2 | 3 }, roll: DiceRoll, prompt: string, combinedDamage: string) => void;
   onTriggerCooldown?: (abilityId: string) => void;
 }
@@ -62,6 +64,7 @@ export function CombatAbilityCard({
   weapons,
   cooldownState,
   customImage,
+  activeConditions = [],
   onUse,
   onTriggerCooldown,
 }: CombatAbilityCardProps) {
@@ -128,13 +131,35 @@ export function CombatAbilityCard({
 **Properties:** ${synergyWeapon.properties.join(', ') || 'Standard'}`;
     }
 
+    // Build conditions section if any active
+    let conditionsSection = '';
+    if (activeConditions.length > 0) {
+      const conditionNarratives: Record<string, string> = {
+        'Poisoned': 'suffering from poison, movements sluggish',
+        'Frightened': 'gripped by fear, fighting desperately',
+        'Blinded': 'striking blind, relying on instinct',
+        'Stunned': 'reeling, struggling to act',
+        'Prone': 'fighting from the ground',
+        'Invisible': 'unseen, a phantom in combat',
+        'Haste': 'moving with supernatural speed',
+        'Blessed': 'guided by divine favor',
+      };
+      
+      const conditionLines = activeConditions.map(c => {
+        const narrative = conditionNarratives[c.name] || `affected by ${c.name.toLowerCase()}`;
+        return `- **${c.name}** (${c.duration}): ${narrative}`;
+      }).join('\n');
+      
+      conditionsSection = `\n### Active Conditions\n${conditionLines}\n`;
+    }
+
     const rawPrompt = `## ${theme.emoji} ${theme.title}: ${ability.name.toUpperCase()}
 
 **Character:** ${characterName || 'The Assassin'}
 **Action Type:** ${actionTypeEmoji[ability.actionType]} ${ability.actionType.replace('_', ' ').toUpperCase()}
 **Ability Tier:** ${ability.tier}/3
 ${weaponSection}
-
+${conditionsSection}
 ---
 
 ### Roll Result
@@ -168,6 +193,9 @@ ${isCrit
 ${ability.synergies?.length 
   ? `\n### Synergy Potential\nThis ability synergizes with: ${ability.synergies.join(', ')}` 
   : ''}
+${activeConditions.length > 0 
+  ? `\n### Condition Effects\nConsider how ${activeConditions.map(c => c.name).join(', ')} affects this ability's execution.`
+  : ''}
 
 ---
 
@@ -177,7 +205,7 @@ ${ability.synergies?.length
 *Roll: ${roll.total} | Ability: ${ability.name} (T${ability.tier}) | Damage: ${combinedDamage}*`;
 
     return applyTimePrefix(rawPrompt);
-  }, [ability, characterName, count, die, synergyWeapon, getCombinedDamage]);
+  }, [ability, characterName, count, die, synergyWeapon, getCombinedDamage, activeConditions]);
 
   // Handle ability use
   const handleUse = useCallback(() => {
