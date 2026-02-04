@@ -4,8 +4,10 @@ import {
   Menu, 
   RotateCcw, 
   Settings,
-  Skull,
-  Activity
+  Activity,
+  Heart,
+  Shield,
+  Swords
 } from 'lucide-react';
 
 interface CombatTopBarProps {
@@ -15,6 +17,12 @@ interface CombatTopBarProps {
   onResetTurn: () => void;
   onMenuOpen: () => void;
   onSettingsOpen: () => void;
+  // New stats props
+  currentHP?: number;
+  maxHP?: number;
+  tempHP?: number;
+  ac?: number;
+  attackBonus?: number;
 }
 
 export function CombatTopBar({
@@ -24,16 +32,27 @@ export function CombatTopBar({
   onResetTurn,
   onMenuOpen,
   onSettingsOpen,
+  currentHP,
+  maxHP,
+  tempHP = 0,
+  ac,
+  attackBonus,
 }: CombatTopBarProps) {
+  // Calculate HP percentage for color coding
+  const hpPercent = maxHP ? ((currentHP ?? maxHP) / maxHP) * 100 : 100;
+  const hpColor = hpPercent > 50 ? 'text-emerald-400' : hpPercent > 25 ? 'text-amber-400' : 'text-rose-400';
+  const isDown = (currentHP ?? 1) <= 0;
+  
   return (
-    <header className="fixed top-0 left-0 right-0 h-16 bg-background/95 backdrop-blur-sm border-b border-red-900/30 z-50 safe-area-top">
-      <div className="flex items-center justify-between h-full px-4">
+    <header className="fixed top-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-b border-red-900/30 z-50 safe-area-top">
+      {/* Main row */}
+      <div className="flex items-center justify-between h-14 px-3">
         {/* Left: Menu */}
         <Button
           variant="ghost"
           size="icon"
           onClick={onMenuOpen}
-          className="h-10 w-10 border border-red-900/40"
+          className="h-9 w-9 border border-red-900/40"
         >
           <Menu className="h-5 w-5 text-red-400" />
         </Button>
@@ -41,11 +60,9 @@ export function CombatTopBar({
         {/* Center: Round & Status */}
         <div className="flex flex-col items-center">
           <div className="flex items-center gap-2 text-sm">
-            <span className="font-mono text-muted-foreground">Round</span>
-            <span className="font-bold text-red-400">{round}</span>
-            <span className="text-muted-foreground">|</span>
+            <span className="font-mono text-muted-foreground text-xs">R{round}</span>
             <span className={cn(
-              "font-semibold",
+              "font-semibold text-xs",
               isYourTurn ? "text-green-400" : "text-muted-foreground"
             )}>
               {isYourTurn ? "Your Turn" : "Waiting..."}
@@ -53,30 +70,73 @@ export function CombatTopBar({
           </div>
           <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
             <Activity className="w-3 h-3 text-red-500 animate-pulse" />
-            <span className="truncate max-w-[150px]">{lastAction}</span>
+            <span className="truncate max-w-[120px]">{lastAction}</span>
           </div>
         </div>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon"
             onClick={onResetTurn}
-            className="h-10 w-10 border border-red-900/40"
+            className="h-9 w-9 border border-red-900/40"
           >
-            <RotateCcw className="h-5 w-5 text-red-400" />
+            <RotateCcw className="h-4 w-4 text-red-400" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
             onClick={onSettingsOpen}
-            className="h-10 w-10 border border-muted/30"
+            className="h-9 w-9 border border-muted/30"
           >
-            <Settings className="h-5 w-5 text-muted-foreground" />
+            <Settings className="h-4 w-4 text-muted-foreground" />
           </Button>
         </div>
       </div>
+      
+      {/* Stats row - HP, AC, ATK */}
+      {(currentHP !== undefined || ac !== undefined) && (
+        <div className="flex items-center justify-center gap-4 px-3 pb-2 border-t border-red-900/20">
+          {/* HP Display */}
+          {currentHP !== undefined && maxHP !== undefined && (
+            <div className={cn(
+              "flex items-center gap-1.5 px-2 py-1 rounded-md",
+              isDown ? "bg-rose-500/20 animate-pulse" : "bg-background/50"
+            )}>
+              <Heart className={cn("w-4 h-4", hpColor, isDown && "text-rose-500")} />
+              <span className={cn("font-mono font-bold text-sm", hpColor)}>
+                {isDown ? 'DOWN' : currentHP}
+              </span>
+              {!isDown && (
+                <>
+                  <span className="text-muted-foreground text-xs">/</span>
+                  <span className="text-muted-foreground text-xs font-mono">{maxHP}</span>
+                </>
+              )}
+              {tempHP > 0 && (
+                <span className="text-cyan-400 text-xs font-mono">+{tempHP}</span>
+              )}
+            </div>
+          )}
+          
+          {/* AC Display */}
+          {ac !== undefined && (
+            <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-background/50">
+              <Shield className="w-4 h-4 text-cyan-400" />
+              <span className="font-mono font-bold text-sm text-cyan-400">{ac}</span>
+            </div>
+          )}
+          
+          {/* Attack Bonus Display */}
+          {attackBonus !== undefined && (
+            <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-background/50">
+              <Swords className="w-4 h-4 text-red-400" />
+              <span className="font-mono font-bold text-sm text-red-400">+{attackBonus}</span>
+            </div>
+          )}
+        </div>
+      )}
     </header>
   );
 }

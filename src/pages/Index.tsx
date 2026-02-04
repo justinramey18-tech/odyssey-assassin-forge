@@ -1122,6 +1122,11 @@ const Index = () => {
               spellcasting={spellcasting}
               equipment={equipment}
               onNavigateToConsumables={handleNavigateToConsumables}
+              equipmentStats={aggregatedStats}
+              abilityModifiers={abilityScores.finalModifiers}
+              currentHP={hpState.current}
+              maxHP={hpState.max}
+              tempHP={hpState.temp}
             />
           )}
 

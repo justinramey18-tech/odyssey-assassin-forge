@@ -11,6 +11,7 @@ import { QuickReferenceSidebar } from './QuickReferenceSidebar';
 import { DiceRollModal } from '@/components/character/DiceRollModal';
 import { MobileCombatLayout } from './mobile/MobileCombatLayout';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
+import { useCombatStats } from '@/hooks/use-combat-stats';
 import { 
   ActionEconomy, 
   ActiveEffect,
@@ -28,6 +29,8 @@ import combatBackground from '@/assets/combat-background.jpg';
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
 import { CharacterEquipment } from '@/lib/inventory/types';
 import { getEquippedWeapons } from '@/lib/combat/weaponConverter';
+import { AggregatedStats } from '@/hooks/use-equipment-stats';
+import { BaseAbilityScores } from '@/lib/abilityScores/types';
 
 interface CombatTabScreenProps {
   character: Character;
@@ -35,72 +38,37 @@ interface CombatTabScreenProps {
   spellcasting?: UseSpellcastingReturn;
   equipment?: CharacterEquipment;
   onNavigateToConsumables?: () => void;
+  // New synced props
+  equipmentStats?: AggregatedStats;
+  abilityModifiers?: BaseAbilityScores;
+  // HP state
+  currentHP?: number;
+  maxHP?: number;
+  tempHP?: number;
 }
 
-// Combat modifier calculations
-interface CombatModifiers {
-  attackBonus: number;
-  damageBonus: number;
-  acBonus: number;
-  initiativeBonus: number;
-  saveDC: number;
-}
-
-function calculateModifiers(character: Character): CombatModifiers {
-  let attackBonus = 0;
-  let damageBonus = 0;
-  let acBonus = 0;
-  let initiativeBonus = 0;
-  
-  // Base proficiency bonus by level
-  const proficiencyBonus = Math.ceil(character.level / 4) + 1;
-  
-  // Check for passive ability bonuses
-  character.abilities.forEach(ca => {
-    if (ca.currentTier === 0) return;
-    const ability = allAbilities.find(a => a.id === ca.abilityId);
-    if (!ability || ability.type !== 'passive') return;
-    
-    // Archery Master
-    if (ability.id === 'archery_master') {
-      if (ca.currentTier >= 1) attackBonus += 1;
-      if (ca.currentTier >= 2) { attackBonus += 1; damageBonus += 1; }
-      if (ca.currentTier >= 3) damageBonus += 1;
-    }
-    
-    // Weapon Master
-    if (ability.id === 'weapon_master') {
-      if (ca.currentTier >= 1) attackBonus += 1;
-      if (ca.currentTier >= 2) { attackBonus += 1; damageBonus += 1; }
-      if (ca.currentTier >= 3) damageBonus += 1;
-    }
-    
-    // Warrior's Resilience
-    if (ability.id === 'warriors_resilience') {
-      if (ca.currentTier >= 1) acBonus += 1;
-      if (ca.currentTier >= 2) acBonus += 1;
-    }
-    
-    // Sixth Sense
-    if (ability.id === 'sixth_sense') {
-      if (ca.currentTier >= 1) initiativeBonus += 2;
-      if (ca.currentTier >= 2) initiativeBonus += 3;
-    }
-  });
-  
-  return {
-    attackBonus: attackBonus + proficiencyBonus,
-    damageBonus,
-    acBonus: 10 + acBonus, // Base AC
-    initiativeBonus,
-    saveDC: 8 + proficiencyBonus,
-  };
-}
-
-export function CombatTabScreen({ character, prestigePoints = 0, spellcasting, equipment, onNavigateToConsumables }: CombatTabScreenProps) {
+export function CombatTabScreen({ 
+  character, 
+  prestigePoints = 0, 
+  spellcasting, 
+  equipment, 
+  onNavigateToConsumables,
+  equipmentStats,
+  abilityModifiers,
+  currentHP,
+  maxHP,
+  tempHP,
+}: CombatTabScreenProps) {
   const isMobile = useIsMobile();
   const { rerollsDisabled } = useGameMode();
   
+  // Use unified combat stats hook
+  const combatStats = useCombatStats({
+    character,
+    equipmentStats,
+    abilityModifiers,
+  });
+
   // All hooks must be called before any conditional returns
   // Situation state
   const [conditions, setConditions] = useState<string[]>([]);
@@ -135,8 +103,6 @@ export function CombatTabScreen({ character, prestigePoints = 0, spellcasting, e
   
   // Last action for status bar
   const [lastAction, setLastAction] = useState('SYSTEMS READY');
-  
-  const modifiers = calculateModifiers(character);
   
   // Count abilities by action type for economy tracker
   const unlockedAbilities = character.abilities
@@ -203,8 +169,8 @@ export function CombatTabScreen({ character, prestigePoints = 0, spellcasting, e
         : weapon.name;
     
     const rollFormula = roll.rolls.length > 1 
-      ? `2d20kh1+${modifiers.attackBonus}` 
-      : `1d20+${modifiers.attackBonus}`;
+      ? `2d20kh1+${combatStats.attackBonus}` 
+      : `1d20+${combatStats.attackBonus}`;
     
     setCurrentRoll({
       name: rollName,
@@ -221,7 +187,7 @@ export function CombatTabScreen({ character, prestigePoints = 0, spellcasting, e
     
     // Add to turn summary
     handleAddToTurn('action', `${weapon.name} attack${rollType !== 'normal' ? ` (${rollType})` : ''}`, rollFormula);
-  }, [modifiers.attackBonus, activeConditionLabels, character.name, handleAddToTurn]);
+  }, [combatStats.attackBonus, activeConditionLabels, character.name, handleAddToTurn]);
   
   // Clear turn
   const handleClearTurn = useCallback(() => {
@@ -262,7 +228,19 @@ export function CombatTabScreen({ character, prestigePoints = 0, spellcasting, e
 
   // Use mobile layout for smaller screens
   if (isMobile) {
-    return <MobileCombatLayout character={character} spellcasting={spellcasting} equipment={equipment} onNavigateToConsumables={onNavigateToConsumables} />;
+    return (
+      <MobileCombatLayout 
+        character={character} 
+        spellcasting={spellcasting} 
+        equipment={equipment} 
+        onNavigateToConsumables={onNavigateToConsumables}
+        equipmentStats={equipmentStats}
+        abilityModifiers={abilityModifiers}
+        currentHP={currentHP}
+        maxHP={maxHP}
+        tempHP={tempHP}
+      />
+    );
   }
   return (
     <BackgroundWrapper 
@@ -289,7 +267,7 @@ export function CombatTabScreen({ character, prestigePoints = 0, spellcasting, e
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-mono text-muted-foreground">
-            AC {modifiers.acBonus} | ATK +{modifiers.attackBonus} | DMG +{modifiers.damageBonus}
+            AC {combatStats.ac} | ATK +{combatStats.attackBonus} | DMG +{combatStats.damageBonus}
           </span>
           <Skull className="w-3 h-3 text-red-500" />
         </div>
@@ -319,8 +297,8 @@ export function CombatTabScreen({ character, prestigePoints = 0, spellcasting, e
           <AbilityTabs
             character={character}
             conditions={conditions}
-            attackBonus={modifiers.attackBonus}
-            damageBonus={modifiers.damageBonus}
+            attackBonus={combatStats.attackBonus}
+            damageBonus={combatStats.damageBonus}
             equippedWeapons={equippedWeapons}
             onAbilityUse={handleAbilityUse}
             onWeaponRoll={handleWeaponRoll}
