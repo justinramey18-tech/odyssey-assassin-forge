@@ -1,4 +1,4 @@
-import { Heart, Timer, Package, Wand2, Eye } from 'lucide-react';
+import { Heart, Timer, Package, Wand2, Eye, Coins } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CharacterContext } from './types';
 
@@ -32,6 +32,10 @@ export function ContextChipBar({ context, onChipClick, disabled }: ContextChipBa
   const isConcentrating = !!spell?.concentratingOn;
   const slotsRemaining = spell?.totalSlotsRemaining ?? 0;
 
+  // Loot context
+  const loot = context.loot;
+  const hasLoot = loot && loot.items.length > 0;
+
   const chips: ChipData[] = [
     {
       icon: Heart,
@@ -55,6 +59,17 @@ export function ContextChipBar({ context, onChipClick, disabled }: ContextChipBa
       subtext: consumableCount > 0 ? 'tap for advice' : 'none',
     },
   ];
+
+  // Add loot chip if character has found loot
+  if (hasLoot) {
+    chips.push({
+      icon: Coins,
+      label: `${loot.items.length} Loot`,
+      color: 'text-amber-400',
+      query: 'What\'s the most valuable or useful loot I have? Should I sell any of it or keep something for later?',
+      subtext: `${loot.totalValue}gp value`,
+    });
+  }
 
   // Add spells chip if character has spellcasting
   if (hasSpells) {
