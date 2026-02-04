@@ -1,4 +1,5 @@
 // Combat Tab Types
+import { applyTimePrefix } from '../fourthWallTime';
 
 export interface CombatScenario {
   id: string;
@@ -188,18 +189,33 @@ export function formatRollForAI(
 }
 
 // Format turn summary
-export function formatTurnSummary(actions: TurnAction[]): string {
+export function formatTurnSummary(
+  actions: TurnAction[],
+  characterName?: string,
+  currentHP?: number,
+  maxHP?: number
+): string {
   const lines: string[] = [];
+  
+  // Add character context header if provided
+  if (characterName) {
+    const hpInfo = currentHP !== undefined && maxHP !== undefined 
+      ? ` (${currentHP}/${maxHP} HP)` 
+      : '';
+    lines.push(`## Turn Summary: ${characterName}${hpInfo}`);
+    lines.push('---');
+  }
   
   const action = actions.find(a => a.type === 'action');
   const bonus = actions.find(a => a.type === 'bonus');
   const reaction = actions.find(a => a.type === 'reaction');
   const movement = actions.find(a => a.type === 'movement');
   
-  if (action) lines.push(`ACTION: ${action.description}${action.roll ? ` (${action.roll})` : ''}`);
-  if (bonus) lines.push(`BONUS ACTION: ${bonus.description}${bonus.roll ? ` (${bonus.roll})` : ''}`);
-  if (reaction) lines.push(`REACTION: ${reaction.description}${reaction.roll ? ` (${reaction.roll})` : ''}`);
-  if (movement) lines.push(`MOVEMENT: ${movement.description}`);
+  if (action) lines.push(`**ACTION:** ${action.description}${action.roll ? ` (${action.roll})` : ''}`);
+  if (bonus) lines.push(`**BONUS ACTION:** ${bonus.description}${bonus.roll ? ` (${bonus.roll})` : ''}`);
+  if (reaction) lines.push(`**REACTION:** ${reaction.description}${reaction.roll ? ` (${reaction.roll})` : ''}`);
+  if (movement) lines.push(`**MOVEMENT:** ${movement.description}`);
   
-  return lines.join('\n');
+  const summary = lines.join('\n');
+  return applyTimePrefix(summary);
 }

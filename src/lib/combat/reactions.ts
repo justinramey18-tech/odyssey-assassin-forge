@@ -1,5 +1,6 @@
 // D&D 5e Reactions Configuration
 // Organized by category for intuitive combat flow
+import { applyTimePrefix } from '../fourthWallTime';
 
 export type ReactionCategory = 
   | 'defensive' 
@@ -508,7 +509,7 @@ export function countEnabledByCategory(reactions: Reaction[]): Record<ReactionCa
 
 // Generate clipboard-ready prompt for a reaction
 export function generateReactionClipboard(reaction: Reaction): string {
-  return `**${reaction.name}** (${reaction.source})
+  const rawPrompt = `**${reaction.name}** (${reaction.source})
   
 **Trigger:** ${reaction.trigger}
 
@@ -517,4 +518,6 @@ export function generateReactionClipboard(reaction: Reaction): string {
 ---
 
 ${reaction.dmPrompt}`;
+
+  return applyTimePrefix(rawPrompt);
 }

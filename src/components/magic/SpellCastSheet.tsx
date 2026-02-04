@@ -4,6 +4,7 @@ import { SpellDefinition, MagicPath, SpellSlotLevel, PactSlots } from '@/lib/mag
 import { getSchoolConfig } from '@/lib/magic/schools';
 import { getSpellLevelLabel, getCastingTimeLabel, getComponentsLabel } from '@/lib/magic/spells';
 import { scaleCantrip } from '@/lib/magic/calculations';
+import { applyTimePrefix } from '@/lib/fourthWallTime';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -134,7 +135,7 @@ export function SpellCastSheet({
     const isUpcast = castLevel > spell.level;
     const upcastDamage = getUpcastDamage(spell.level, castLevel);
     
-    const prompt = `## Spell Cast: ${spell.name}
+    const rawPrompt = `## Spell Cast: ${spell.name}
 
 **Caster:** ${characterName}
 **Spell:** ${spell.name} (${getSpellLevelLabel(spell.level)} ${spell.school})
@@ -164,6 +165,8 @@ ${isUpcast && spell.higherLevels ? `**Upcast Bonus:** ${spell.higherLevels}` : '
 ---
 
 *Please narrate the casting and effects of this spell in the current combat/roleplay context.*`;
+
+    const prompt = applyTimePrefix(rawPrompt);
 
     try {
       await navigator.clipboard.writeText(prompt);
