@@ -17,6 +17,7 @@ import { DiceRollModal } from '@/components/character/DiceRollModal';
 import { useSwipe } from '@/hooks/use-swipe';
 import { useGameMode } from '@/hooks/use-game-mode';
 import { useCooldowns } from '@/hooks/use-cooldowns';
+import { useCombatStats } from '@/hooks/use-combat-stats';
 import { COOLDOWN_CONFIGS, calculateEffectiveCooldown } from '@/lib/cooldowns/config';
 
 // Mobile components
@@ -40,78 +41,50 @@ import { getEquippedWeapons, convertToWeaponAttack } from '@/lib/combat/weaponCo
 import { Reaction, DEFAULT_REACTIONS, REACTIONS_STORAGE_KEY } from '@/lib/combat/reactions';
 import { useEquipmentImages } from '@/hooks/use-equipment-images';
 import { useAbilityImages } from '@/hooks/use-ability-images';
+import { AggregatedStats } from '@/hooks/use-equipment-stats';
+import { BaseAbilityScores } from '@/lib/abilityScores/types';
 
 // Tab order for swipe navigation
 const TAB_ORDER: CombatTab[] = ['attacks', 'stealth', 'abilities', 'reactions', 'spells', 'items', 'summary'];
-
-// Combat modifier calculations
-interface CombatModifiers {
-  attackBonus: number;
-  damageBonus: number;
-  acBonus: number;
-  initiativeBonus: number;
-  saveDC: number;
-}
-
-function calculateModifiers(character: Character): CombatModifiers {
-  let attackBonus = 0;
-  let damageBonus = 0;
-  let acBonus = 0;
-  let initiativeBonus = 0;
-  
-  const proficiencyBonus = Math.ceil(character.level / 4) + 1;
-  
-  character.abilities.forEach(ca => {
-    if (ca.currentTier === 0) return;
-    const ability = allAbilities.find(a => a.id === ca.abilityId);
-    if (!ability || ability.type !== 'passive') return;
-    
-    if (ability.id === 'archery_master') {
-      if (ca.currentTier >= 1) attackBonus += 1;
-      if (ca.currentTier >= 2) { attackBonus += 1; damageBonus += 1; }
-      if (ca.currentTier >= 3) damageBonus += 1;
-    }
-    
-    if (ability.id === 'weapon_master') {
-      if (ca.currentTier >= 1) attackBonus += 1;
-      if (ca.currentTier >= 2) { attackBonus += 1; damageBonus += 1; }
-      if (ca.currentTier >= 3) damageBonus += 1;
-    }
-    
-    if (ability.id === 'warriors_resilience') {
-      if (ca.currentTier >= 1) acBonus += 1;
-      if (ca.currentTier >= 2) acBonus += 1;
-    }
-    
-    if (ability.id === 'sixth_sense') {
-      if (ca.currentTier >= 1) initiativeBonus += 2;
-      if (ca.currentTier >= 2) initiativeBonus += 3;
-    }
-  });
-  
-  return {
-    attackBonus: attackBonus + proficiencyBonus,
-    damageBonus,
-    acBonus: 10 + acBonus,
-    initiativeBonus,
-    saveDC: 8 + proficiencyBonus,
-  };
-}
 
 interface MobileCombatLayoutProps {
   character: Character;
   spellcasting?: UseSpellcastingReturn;
   equipment?: CharacterEquipment;
   onNavigateToConsumables?: () => void;
+  // New synced props
+  equipmentStats?: AggregatedStats;
+  abilityModifiers?: BaseAbilityScores;
+  // HP state
+  currentHP?: number;
+  maxHP?: number;
+  tempHP?: number;
 }
 
-export function MobileCombatLayout({ character, spellcasting, equipment, onNavigateToConsumables }: MobileCombatLayoutProps) {
+export function MobileCombatLayout({ 
+  character, 
+  spellcasting, 
+  equipment, 
+  onNavigateToConsumables,
+  equipmentStats,
+  abilityModifiers,
+  currentHP,
+  maxHP,
+  tempHP,
+}: MobileCombatLayoutProps) {
   // Navigation state
   const [activeTab, setActiveTab] = useState<CombatTab>('attacks');
   const [round, setRound] = useState(1);
   const [isYourTurn, setIsYourTurn] = useState(true);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
   const { rerollsDisabled, isHonestMode, enforceCooldowns } = useGameMode();
+  
+  // Use unified combat stats hook
+  const combatStats = useCombatStats({
+    character,
+    equipmentStats,
+    abilityModifiers,
+  });
   
   // Access drawer context
   const drawerContext = usePromptDrawers();
@@ -183,8 +156,6 @@ export function MobileCombatLayout({ character, spellcasting, equipment, onNavig
   
   // UI state
   const [lastAction, setLastAction] = useState('SYSTEMS READY');
-  
-  const modifiers = calculateModifiers(character);
   
   // Count abilities by type
   const unlockedAbilities = character.abilities
@@ -403,7 +374,7 @@ export function MobileCombatLayout({ character, spellcasting, equipment, onNavig
   
   const handleQuickAttack = () => {
     const weapon = DEFAULT_WEAPONS[0];
-    const roll = rollDice('d20', 1, modifiers.attackBonus);
+    const roll = rollDice('d20', 1, combatStats.attackBonus);
     handleWeaponRoll('normal', weapon, roll, weapon.damage);
   };
   
@@ -463,8 +434,8 @@ export function MobileCombatLayout({ character, spellcasting, equipment, onNavig
                   key={weapon.id}
                   weapon={weapon}
                   level={character.level}
-                  attackBonus={modifiers.attackBonus}
-                  damageBonus={modifiers.damageBonus}
+                  attackBonus={combatStats.attackBonus}
+                  damageBonus={combatStats.damageBonus}
                   conditions={conditions}
                   hasPoisonedWeapon={hasPoisonedWeapon}
                   isExpanded={expandedWeaponId === weapon.id}
@@ -577,7 +548,7 @@ export function MobileCombatLayout({ character, spellcasting, equipment, onNavig
   
   return (
     <div className="min-h-screen bg-background">
-      {/* Top Bar */}
+      {/* Top Bar with HP and Stats */}
       <CombatTopBar
         round={round}
         isYourTurn={isYourTurn}
@@ -585,10 +556,15 @@ export function MobileCombatLayout({ character, spellcasting, equipment, onNavig
         onResetTurn={handleResetTurn}
         onMenuOpen={() => {}}
         onSettingsOpen={() => {}}
+        currentHP={currentHP}
+        maxHP={maxHP}
+        tempHP={tempHP}
+        ac={combatStats.ac}
+        attackBonus={combatStats.attackBonus}
       />
       
       {/* Main Content Area */}
-      <main className="pt-16">
+      <main className="pt-[88px]">
         
         {/* Situation Strip */}
         <SituationStrip
