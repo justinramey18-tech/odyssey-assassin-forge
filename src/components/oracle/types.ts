@@ -1,11 +1,22 @@
 export type Personality = 'thunderhead' | 'jarvis' | 'deadpool' | 'gandalf' | 'jarlaxle' | 'investigator';
 
+export type OracleMode = 'chat' | 'plan' | 'choice' | 'analyze' | 'quick';
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
   personality?: Personality;
+  mode?: OracleMode;
+}
+
+export interface OracleModeConfig {
+  id: OracleMode;
+  name: string;
+  icon: string;
+  description: string;
+  color: string;
 }
 
 export interface CharacterContext {

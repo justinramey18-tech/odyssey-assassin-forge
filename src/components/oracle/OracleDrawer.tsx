@@ -13,6 +13,7 @@ import { LootItem } from '@/lib/loot/types';
 import { allAbilities } from '@/lib/abilities';
 import { getPersonalityConfig } from './personalities';
 import { PersonalitySelector } from './PersonalitySelector';
+import { ModeSelector } from './ModeSelector';
 import { ContextChipBar } from './ContextChipBar';
 import { MessageList } from './MessageList';
 import { QuickPromptBar } from './QuickPromptBar';
@@ -226,10 +227,12 @@ export function OracleDrawer({
     messages,
     isLoading,
     personality,
+    mode,
     sendMessage,
     cancelRequest,
     clearMessages,
     switchPersonality,
+    switchMode,
   } = useOracle({ characterContext });
 
   const config = getPersonalityConfig(personality);
@@ -293,6 +296,13 @@ export function OracleDrawer({
         <PersonalitySelector
           selected={personality}
           onSelect={switchPersonality}
+          disabled={isLoading}
+        />
+
+        {/* Mode Selector */}
+        <ModeSelector
+          selected={mode}
+          onSelect={switchMode}
           disabled={isLoading}
         />
 
