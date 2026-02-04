@@ -1,7 +1,7 @@
 // Converts equipped gear items to WeaponAttack combat objects
 import { EquipmentItem, EquipmentSlotType } from '@/lib/inventory/types';
 import { WeaponAttack } from './combatTypes';
-import { finalizePrompt } from './promptContext';
+import { finalizePrompt, ActiveConditionInfo } from './promptContext';
 
 // Weapon slot types that should appear in combat
 const WEAPON_SLOTS: EquipmentSlotType[] = ['primary_weapon', 'secondary_weapon', 'ranged_weapon'];
@@ -115,7 +115,8 @@ export function getEquippedWeapons(
 }
 
 /**
- * Generates an AI DM prompt for a weapon attack
+ * Generates an AI DM prompt for a weapon attack.
+ * Optionally accepts active conditions to include in the narrative.
  */
 export function generateWeaponDMPrompt(
   weapon: WeaponAttack,
@@ -124,9 +125,10 @@ export function generateWeaponDMPrompt(
   isCrit: boolean,
   isFumble: boolean,
   damage: string,
-  characterName: string
+  characterName: string,
+  activeConditions?: ActiveConditionInfo[]
 ): string {
-  const prompt = generateWeaponDMPromptRaw(weapon, rollType, rollResult, isCrit, isFumble, damage, characterName);
+  const prompt = generateWeaponDMPromptRaw(weapon, rollType, rollResult, isCrit, isFumble, damage, characterName, activeConditions);
   return finalizePrompt(prompt);
 }
 
@@ -141,7 +143,8 @@ function generateWeaponDMPromptRaw(
   isCrit: boolean,
   isFumble: boolean,
   damage: string,
-  characterName: string
+  characterName: string,
+  activeConditions?: ActiveConditionInfo[]
 ): string {
   const attackType = rollType === 'assassinate'
     ? '💀 ASSASSINATION ATTEMPT' 
@@ -163,6 +166,14 @@ function generateWeaponDMPromptRaw(
     ? `A projectile from ${weapon.name} streaks toward the target.`
     : `${weapon.name} arcs through the air toward the enemy.`;
 
+  // Build conditions section if any active
+  const conditionSection = activeConditions && activeConditions.length > 0
+    ? `### Active Conditions\n${activeConditions.map(c => {
+        const narrative = getConditionNarrative(c.name);
+        return `- **${c.name}** (${c.duration}): ${narrative}`;
+      }).join('\n')}\n\n`
+    : '';
+
   return `## ${attackType}
 
 **Character:** ${characterName || 'The Assassin'}
@@ -173,7 +184,7 @@ function generateWeaponDMPromptRaw(
 
 ---
 
-### Scene Description
+${conditionSection}### Scene Description
 ${weaponFlavor}
 
 ${resultDescription}
@@ -191,7 +202,35 @@ The extra damage represents surgical precision.
 - What is the target's immediate reaction?
 ${isCrit ? '- Describe the critical hit with dramatic, cinematic flair.' : ''}
 ${isFumble ? '- What comedic or dramatic mishap occurs?' : ''}
+${activeConditions && activeConditions.length > 0 ? `- How do the active conditions (${activeConditions.map(c => c.name).join(', ')}) affect the attack's execution?` : ''}
 
 ---
 *Roll: ${rollResult} | Weapon: ${weapon.name} | Damage: ${damage}*`;
+}
+
+/**
+ * Returns a narrative description for a D&D condition name.
+ */
+function getConditionNarrative(conditionName: string): string {
+  const narratives: Record<string, string> = {
+    'Poisoned': 'suffering from poison, movements sluggish and attacks imprecise',
+    'Frightened': 'gripped by supernatural fear, fighting with desperate energy',
+    'Blinded': 'striking blind, relying on hearing and instinct',
+    'Deafened': 'in eerie silence, unable to hear ally warnings or enemy movements',
+    'Charmed': 'magically compelled, judgement clouded',
+    'Stunned': 'reeling from a devastating blow, struggling to act',
+    'Paralyzed': 'frozen in place by magical or physical restraint',
+    'Incapacitated': 'unable to take actions, vulnerable',
+    'Restrained': 'movement restricted, struggling against bonds',
+    'Prone': 'knocked to the ground, scrambling to rise',
+    'Invisible': 'unseen by enemies, moving like a phantom',
+    'Exhaustion': 'bone-weary, every action a struggle',
+    'Concentration': 'maintaining magical focus while fighting',
+    'Haste': 'moving with supernatural speed and precision',
+    'Blessed': 'blessed by divine favor, attacks guided by holy power',
+    'Inspired': 'bolstered by bardic inspiration, confidence surging',
+    'Rage': 'consumed by primal fury, shrugging off pain',
+  };
+  
+  return narratives[conditionName] || `affected by ${conditionName.toLowerCase()}`;
 }

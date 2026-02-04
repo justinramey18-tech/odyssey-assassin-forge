@@ -2,6 +2,7 @@
 // Single source of truth for context passed to all AI DM prompt generators
 
 import { applyTimePrefix } from '../fourthWallTime';
+import { ActiveCondition, formatDuration } from '../conditions';
 
 export interface ActiveConditionInfo {
   name: string;
@@ -44,6 +45,17 @@ export interface CombatPromptContext {
   
   // Equipment context
   activeSetBonuses: SetBonusInfo[];
+}
+
+/**
+ * Converts ActiveCondition array from useConditions hook to ActiveConditionInfo format.
+ * Use this when building CombatPromptContext from hook state.
+ */
+export function convertConditionsToPromptFormat(conditions: ActiveCondition[]): ActiveConditionInfo[] {
+  return conditions.map(c => ({
+    name: c.name,
+    duration: formatDuration(c.durationType, c.durationValue),
+  }));
 }
 
 /**

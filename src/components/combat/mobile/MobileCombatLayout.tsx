@@ -11,6 +11,7 @@ import {
   DEFAULT_WEAPONS,
   getSneakAttackDice,
 } from '@/lib/combat/combatTypes';
+import { ActiveConditionInfo } from '@/lib/combat/promptContext';
 import { DiceRoll, rollDice, getAbilityDice } from '@/lib/diceRoller';
 import { generateRPPrompt } from '@/lib/rpPromptGenerator';
 import { DiceRollModal } from '@/components/character/DiceRollModal';
@@ -62,6 +63,8 @@ interface MobileCombatLayoutProps {
   tempHP?: number;
   // Action economy (synced from Index.tsx)
   actionEconomyState?: UseActionEconomyReturn;
+  // Global D&D conditions (from useConditions)
+  globalConditions?: ActiveConditionInfo[];
 }
 
 export function MobileCombatLayout({ 
@@ -75,6 +78,7 @@ export function MobileCombatLayout({
   maxHP,
   tempHP,
   actionEconomyState,
+  globalConditions = [],
 }: MobileCombatLayoutProps) {
   // Navigation state
   const [activeTab, setActiveTab] = useState<CombatTab>('attacks');
@@ -493,6 +497,7 @@ export function MobileCombatLayout({
             weapons={weaponsMap}
             cooldownState={cooldownStateMap}
             abilityImages={abilityImages}
+            activeConditions={globalConditions}
             onUseAbility={handleEnhancedAbilityUse}
             onTriggerCooldown={cooldownSystem.triggerCooldown}
             emptyMessage="No stealth abilities unlocked"
@@ -507,6 +512,7 @@ export function MobileCombatLayout({
             weapons={weaponsMap}
             cooldownState={cooldownStateMap}
             abilityImages={abilityImages}
+            activeConditions={globalConditions}
             onUseAbility={handleEnhancedAbilityUse}
             onTriggerCooldown={cooldownSystem.triggerCooldown}
             emptyMessage="No special abilities unlocked"

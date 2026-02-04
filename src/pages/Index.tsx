@@ -31,6 +31,7 @@ import { SettingsModal } from '@/components/settings/SettingsModal';
 import { CloudSaveModal } from '@/components/settings/CloudSaveModal';
 import { AssassinHeader, SubTabStrip, MainCategory, getTabToCategoryMapping } from '@/components/navigation';
 import { CombatTabScreen } from '@/components/combat/CombatTabScreen';
+import { convertConditionsToPromptFormat } from '@/lib/combat/promptContext';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 import { useCategoryNavigation } from '@/hooks/use-category-navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -1164,6 +1165,7 @@ const Index = () => {
               maxHP={hpState.max}
               tempHP={hpState.temp}
               actionEconomyState={actionEconomy}
+              globalConditions={convertConditionsToPromptFormat(conditions.conditions)}
             />
           )}
 
