@@ -20,7 +20,7 @@ import {
   COMBAT_CONDITIONS,
   DEFAULT_WEAPONS,
 } from '@/lib/combat/combatTypes';
-import { ActiveConditionInfo } from '@/lib/combat/promptContext';
+import { ActiveConditionInfo, SetBonusInfo } from '@/lib/combat/promptContext';
 import { DiceRoll } from '@/lib/diceRoller';
 import { Activity, Skull } from 'lucide-react';
 import './CombatHUDStyles.css';
@@ -51,6 +51,10 @@ interface CombatTabScreenProps {
   actionEconomyState?: UseActionEconomyReturn;
   // Global D&D conditions (from useConditions)
   globalConditions?: ActiveConditionInfo[];
+  // Set bonuses (from equipment stats)
+  activeSetBonuses?: SetBonusInfo[];
+  // Concentration spell (from spellcasting)
+  concentrationSpell?: string | null;
 }
 
 export function CombatTabScreen({ 
@@ -66,6 +70,8 @@ export function CombatTabScreen({
   tempHP,
   actionEconomyState,
   globalConditions = [],
+  activeSetBonuses = [],
+  concentrationSpell,
 }: CombatTabScreenProps) {
   const isMobile = useIsMobile();
   const { rerollsDisabled } = useGameMode();
@@ -249,6 +255,8 @@ export function CombatTabScreen({
         tempHP={tempHP}
         actionEconomyState={actionEconomyState}
         globalConditions={globalConditions}
+        activeSetBonuses={activeSetBonuses}
+        concentrationSpell={concentrationSpell}
       />
     );
   }

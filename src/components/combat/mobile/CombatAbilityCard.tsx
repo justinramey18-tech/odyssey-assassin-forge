@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Ability, AbilityTree } from '@/lib/types';
 import { WeaponAttack } from '@/lib/combat/combatTypes';
-import { ActiveConditionInfo } from '@/lib/combat/promptContext';
+import { ActiveConditionInfo, SetBonusInfo } from '@/lib/combat/promptContext';
 import { getAbilityDice, rollDice, DiceRoll } from '@/lib/diceRoller';
 import { CooldownProgress } from '@/components/cooldowns/CooldownProgress';
 import { COOLDOWN_CONFIGS } from '@/lib/cooldowns/config';
@@ -54,6 +54,8 @@ interface CombatAbilityCardProps {
   };
   customImage?: string | null;
   activeConditions?: ActiveConditionInfo[];
+  activeSetBonuses?: SetBonusInfo[];
+  concentrationSpell?: string | null;
   onUse: (ability: Ability & { tier: 1 | 2 | 3 }, roll: DiceRoll, prompt: string, combinedDamage: string) => void;
   onTriggerCooldown?: (abilityId: string) => void;
 }
@@ -65,6 +67,8 @@ export function CombatAbilityCard({
   cooldownState,
   customImage,
   activeConditions = [],
+  activeSetBonuses = [],
+  concentrationSpell,
   onUse,
   onTriggerCooldown,
 }: CombatAbilityCardProps) {
@@ -153,13 +157,28 @@ export function CombatAbilityCard({
       conditionsSection = `\n### Active Conditions\n${conditionLines}\n`;
     }
 
+    // Build set bonuses section
+    let setBonusSection = '';
+    if (activeSetBonuses.length > 0) {
+      const bonusLines = activeSetBonuses.map(s => 
+        `- **${s.name}** (${s.count}/${s.maxPieces}): ${s.effect}`
+      ).join('\n');
+      setBonusSection = `\n### Active Set Bonuses\n${bonusLines}\n`;
+    }
+
+    // Build concentration warning
+    let concentrationSection = '';
+    if (concentrationSpell) {
+      concentrationSection = `\n### ⚡ Concentration Active\n**Maintaining:** ${concentrationSpell}\n*Warning: Taking damage requires a Constitution save to maintain concentration.*\n`;
+    }
+
     const rawPrompt = `## ${theme.emoji} ${theme.title}: ${ability.name.toUpperCase()}
 
 **Character:** ${characterName || 'The Assassin'}
 **Action Type:** ${actionTypeEmoji[ability.actionType]} ${ability.actionType.replace('_', ' ').toUpperCase()}
 **Ability Tier:** ${ability.tier}/3
 ${weaponSection}
-${conditionsSection}
+${conditionsSection}${setBonusSection}${concentrationSection}
 ---
 
 ### Roll Result
@@ -196,6 +215,9 @@ ${ability.synergies?.length
 ${activeConditions.length > 0 
   ? `\n### Condition Effects\nConsider how ${activeConditions.map(c => c.name).join(', ')} affects this ability's execution.`
   : ''}
+${activeSetBonuses.length > 0 
+  ? `\n### Set Bonus Effects\nThe ${activeSetBonuses.map(s => s.name).join(', ')} set effects may enhance this ability.`
+  : ''}
 
 ---
 
@@ -205,7 +227,7 @@ ${activeConditions.length > 0
 *Roll: ${roll.total} | Ability: ${ability.name} (T${ability.tier}) | Damage: ${combinedDamage}*`;
 
     return applyTimePrefix(rawPrompt);
-  }, [ability, characterName, count, die, synergyWeapon, getCombinedDamage, activeConditions]);
+  }, [ability, characterName, count, die, synergyWeapon, getCombinedDamage, activeConditions, activeSetBonuses, concentrationSpell]);
 
   // Handle ability use
   const handleUse = useCallback(() => {

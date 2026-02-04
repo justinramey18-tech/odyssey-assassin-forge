@@ -59,6 +59,20 @@ export function convertConditionsToPromptFormat(conditions: ActiveCondition[]): 
 }
 
 /**
+ * Converts equipment stats' activeSetBonuses to SetBonusInfo format for prompts.
+ */
+export function convertSetBonusesToPromptFormat(
+  setData: { setName: string; bonus: string; piecesActive: number; piecesTotal: number }[]
+): SetBonusInfo[] {
+  return setData.map(s => ({
+    name: s.setName,
+    count: s.piecesActive,
+    maxPieces: s.piecesTotal,
+    effect: s.bonus,
+  }));
+}
+
+/**
  * Creates a default empty combat prompt context.
  * Use this as a starting point when building context.
  */
