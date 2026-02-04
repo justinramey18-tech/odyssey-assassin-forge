@@ -7,6 +7,7 @@ import { WeaponAttack } from '@/lib/combat/combatTypes';
 import { getAbilityDice, rollDice, DiceRoll } from '@/lib/diceRoller';
 import { CooldownProgress } from '@/components/cooldowns/CooldownProgress';
 import { COOLDOWN_CONFIGS } from '@/lib/cooldowns/config';
+import { applyTimePrefix } from '@/lib/fourthWallTime';
 import {
   Dices,
   ChevronDown,
@@ -127,7 +128,7 @@ export function CombatAbilityCard({
 **Properties:** ${synergyWeapon.properties.join(', ') || 'Standard'}`;
     }
 
-    return `## ${theme.emoji} ${theme.title}: ${ability.name.toUpperCase()}
+    const rawPrompt = `## ${theme.emoji} ${theme.title}: ${ability.name.toUpperCase()}
 
 **Character:** ${characterName || 'The Assassin'}
 **Action Type:** ${actionTypeEmoji[ability.actionType]} ${ability.actionType.replace('_', ' ').toUpperCase()}
@@ -174,6 +175,8 @@ ${ability.synergies?.length
 
 ---
 *Roll: ${roll.total} | Ability: ${ability.name} (T${ability.tier}) | Damage: ${combinedDamage}*`;
+
+    return applyTimePrefix(rawPrompt);
   }, [ability, characterName, count, die, synergyWeapon, getCombinedDamage]);
 
   // Handle ability use

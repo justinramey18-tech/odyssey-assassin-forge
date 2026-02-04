@@ -194,11 +194,11 @@ Accept optional combat context parameter
 
 | Phase | Description | Status |
 |-------|-------------|--------|
-| 1 | Create Unified Context | ⬜ Not Started |
-| 2 | 4th Wall Time Fixes | ⬜ Not Started |
+| 1 | Create Unified Context | ✅ Done |
+| 2 | 4th Wall Time Fixes | ✅ Done |
 | 3 | Global Conditions | ⬜ Not Started |
 | 4 | Set Bonus Context | ⬜ Not Started |
 | 5 | Concentration Context | ⬜ Not Started |
-| 6 | Turn Summary Enhancement | ⬜ Not Started |
-| 7 | Reaction Prompts | ⬜ Not Started |
+| 6 | Turn Summary Enhancement | ✅ Done |
+| 7 | Reaction Prompts | ✅ Done |
 | 8 | Consumable Prompts | ⬜ Not Started |

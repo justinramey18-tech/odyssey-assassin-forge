@@ -1,6 +1,7 @@
 // Converts equipped gear items to WeaponAttack combat objects
 import { EquipmentItem, EquipmentSlotType } from '@/lib/inventory/types';
 import { WeaponAttack } from './combatTypes';
+import { finalizePrompt } from './promptContext';
 
 // Weapon slot types that should appear in combat
 const WEAPON_SLOTS: EquipmentSlotType[] = ['primary_weapon', 'secondary_weapon', 'ranged_weapon'];
@@ -125,7 +126,24 @@ export function generateWeaponDMPrompt(
   damage: string,
   characterName: string
 ): string {
-  const attackType = rollType === 'assassinate' 
+  const prompt = generateWeaponDMPromptRaw(weapon, rollType, rollResult, isCrit, isFumble, damage, characterName);
+  return finalizePrompt(prompt);
+}
+
+/**
+ * Internal function that generates the raw prompt without time prefix.
+ * Use generateWeaponDMPrompt for external calls.
+ */
+function generateWeaponDMPromptRaw(
+  weapon: WeaponAttack,
+  rollType: 'normal' | 'sneak' | 'assassinate',
+  rollResult: number,
+  isCrit: boolean,
+  isFumble: boolean,
+  damage: string,
+  characterName: string
+): string {
+  const attackType = rollType === 'assassinate'
     ? '💀 ASSASSINATION ATTEMPT' 
     : rollType === 'sneak' 
       ? '🗡️ SNEAK ATTACK'
