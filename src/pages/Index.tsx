@@ -1030,6 +1030,8 @@ const Index = () => {
         onRandomizeScores={abilityScores.randomizeScores}
         onApplyScores={abilityScores.applyScores}
         constitutionModifier={abilityScores.finalModifiers.constitution}
+        lootItems={loot.lootItems}
+        totalLootValue={loot.totalLootValue}
       >
         <HomeScreen 
           character={character}
@@ -1113,6 +1115,8 @@ const Index = () => {
       onRandomizeScores={abilityScores.randomizeScores}
       onApplyScores={abilityScores.applyScores}
       constitutionModifier={abilityScores.finalModifiers.constitution}
+      lootItems={loot.lootItems}
+      totalLootValue={loot.totalLootValue}
     >
       <div className="min-h-screen relative">
       {/* Builder Background Image - fixed behind everything */}

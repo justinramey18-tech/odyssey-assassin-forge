@@ -9,6 +9,7 @@ import { Character } from '@/lib/types';
 import { CharacterEquipment, EquipmentSlot } from '@/lib/inventory/types';
 import { InventoryItem as ConsumableItem } from '@/lib/consumables/types';
 import { AbilityCooldownState } from '@/lib/cooldowns/types';
+import { LootItem } from '@/lib/loot/types';
 import { allAbilities } from '@/lib/abilities';
 import { getPersonalityConfig } from './personalities';
 import { PersonalitySelector } from './PersonalitySelector';
@@ -46,6 +47,9 @@ interface OracleDrawerProps {
   }>;
   // Spellcasting context
   spellcasting?: UseSpellcastingReturn;
+  // Loot inventory context
+  lootItems?: LootItem[];
+  totalLootValue?: number;
 }
 
 export function OracleDrawer({
@@ -63,6 +67,8 @@ export function OracleDrawer({
   activeConditions = [],
   activeBuffs = [],
   spellcasting,
+  lootItems = [],
+  totalLootValue = 0,
 }: OracleDrawerProps) {
   const [inputValue, setInputValue] = useState('');
 
@@ -179,6 +185,20 @@ export function OracleDrawer({
       };
     }
 
+    // Build loot context
+    const lootContext: CharacterContext['loot'] = lootItems.length > 0 ? {
+      items: lootItems.map(item => ({
+        name: item.name,
+        category: item.category,
+        rarity: item.rarity,
+        goldValue: item.goldValue,
+        hasDiceMechanics: item.hasDiceMechanics,
+      })),
+      totalValue: totalLootValue,
+      usableCount: lootItems.filter(i => i.category === 'usable').length,
+      diceMechanicsCount: lootItems.filter(i => i.hasDiceMechanics).length,
+    } : undefined;
+
     return {
       name: character.name,
       level: character.level,
@@ -198,8 +218,9 @@ export function OracleDrawer({
       activeConditions,
       activeBuffs,
       spellcasting: spellcastingContext,
+      loot: lootContext,
     };
-  }, [character, currentHP, maxHP, equipment, consumables, cooldowns, prestigeLevel, prestigeAbilities, getRemainingTime, activeConditions, activeBuffs, spellcasting]);
+  }, [character, currentHP, maxHP, equipment, consumables, cooldowns, prestigeLevel, prestigeAbilities, getRemainingTime, activeConditions, activeBuffs, spellcasting, lootItems, totalLootValue]);
 
   const {
     messages,

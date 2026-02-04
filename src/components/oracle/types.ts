@@ -57,6 +57,19 @@ export interface CharacterContext {
     slots: Array<{ level: number; current: number; max: number }>;
     pactSlots?: { current: number; max: number; level: number };
   };
+  // Loot inventory context
+  loot?: {
+    items: Array<{
+      name: string;
+      category: string;
+      rarity: string;
+      goldValue: number;
+      hasDiceMechanics: boolean;
+    }>;
+    totalValue: number;
+    usableCount: number;
+    diceMechanicsCount: number;
+  };
 }
 
 export interface PersonalityConfig {
