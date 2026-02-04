@@ -324,6 +324,7 @@ export function OracleDrawer({
         {messages.length === 0 && (
           <QuickPromptBar
             personality={personality}
+            mode={mode}
             onPromptClick={handlePromptClick}
             disabled={isLoading}
           />
