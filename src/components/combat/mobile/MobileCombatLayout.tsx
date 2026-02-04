@@ -562,11 +562,26 @@ export function MobileCombatLayout({
         );
       
       case 'items':
+        // Convert set bonuses to the format expected by MobileItemsGrid
+        const activeSetForItems = activeSetBonuses.length > 0 ? {
+          name: activeSetBonuses[0].name,
+          effect: activeSetBonuses[0].effect,
+        } : undefined;
+        
+        // Convert concentration spell to format expected by MobileItemsGrid
+        const concentrationForItems = concentrationSpell ? {
+          name: concentrationSpell,
+          level: undefined, // Level available in activeSpells if needed
+        } : undefined;
+        
         return (
           <MobileItemsGrid
             onAddToTurn={handleAddToTurn}
             onRemoveFromTurn={handleRemoveActionByDescription}
             onNavigateToConsumables={onNavigateToConsumables}
+            globalConditions={globalConditions}
+            activeSetBonus={activeSetForItems}
+            concentrationSpell={concentrationForItems}
           />
         );
       

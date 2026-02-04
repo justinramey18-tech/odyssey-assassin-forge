@@ -148,15 +148,17 @@ Replace static `dmPrompt` with dynamic generation
 
 ## Phase 8: Connect Consumable Prompts (Issue #7)
 
-### Task 8.1: Update `generateConsumablePrompt()` signature
-Accept optional combat context parameter
+### Task 8.1: Update `generateConsumablePrompt()` signature ✅
+Accept optional combat context parameter (`ConsumableCombatContext`)
 
-### Task 8.2: When called from Combat Items tab
-- Pass current combat state
-- Include weapon name if applying poison
-- Include active conditions
+### Task 8.2: When called from Combat Items tab ✅
+- Pass current combat state (conditions, set bonus, concentration)
+- Include narrative hooks for each context element
+- Potions: conditions affect drinking narrative, set bonus resonates with potion energy
+- Poisons: conditions affect application, set bonus enhances lethal aesthetic
+- Scrolls: concentration warning if casting concentration spell from scroll
 
-**Status:** [ ] Not Started
+**Status:** ✅ Done
 
 ---
 
@@ -201,4 +203,4 @@ Accept optional combat context parameter
 | 5 | Concentration Context | ✅ Done |
 | 6 | Turn Summary Enhancement | ✅ Done |
 | 7 | Reaction Prompts | ✅ Done |
-| 8 | Consumable Prompts | ⬜ Not Started |
+| 8 | Consumable Prompts | ✅ Done |
