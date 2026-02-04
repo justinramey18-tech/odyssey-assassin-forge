@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Character, CharacterAbility, getAbilityPointsForLevel, getTotalPointsSpent, getActiveSlotsByLevel } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
@@ -62,6 +62,8 @@ import { useSpellcasting } from '@/hooks/use-spellcasting';
 import { Consumable } from '@/lib/consumables/types';
 import { EquipmentItem as ShopEquipmentItem } from '@/lib/inventory/types';
 import { useCustomBackground } from '@/hooks/use-custom-background';
+import { useActionEconomy } from '@/hooks/use-action-economy';
+import { useConditions } from '@/hooks/use-conditions';
 const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -174,6 +176,10 @@ const Index = () => {
   
   // Custom home background
   const customBackground = useCustomBackground();
+  
+  // Action economy (combat turn tracking with persistence)
+  const actionEconomy = useActionEconomy();
+  
   // Shared equipment state for constellation view
   const [equipment, setEquipment] = useState<CharacterEquipment>(() => createInitialEquipment());
   
@@ -245,6 +251,18 @@ const Index = () => {
       wisdom: abilityScores.finalScores.wisdom,
       charisma: abilityScores.finalScores.charisma,
     },
+  });
+  
+  // Conditions system with concentration sync to spellcasting
+  // Using a ref pattern to avoid stale closure issues
+  const spellcastingRef = useRef(spellcasting);
+  spellcastingRef.current = spellcasting;
+  
+  const conditions = useConditions({
+    onConcentrationBroken: useCallback((_spellName: string, _reason?: string) => {
+      // Sync with spellcasting's concentration state
+      spellcastingRef.current.breakConcentration();
+    }, []),
   });
   
   // Shared achievements state
@@ -626,6 +644,15 @@ const Index = () => {
     
     setHpState(prev => ({ ...prev, current: newCurrentHP }));
     
+    // Reset action economy (combat would have ended for short rest)
+    actionEconomy.onShortRest();
+    
+    // Clear short-rest conditions
+    conditions.shortRest();
+    
+    // Restore pact slots
+    spellcasting.onShortRest();
+    
     toast({
       title: "☕ Short Rest Complete",
       description: actualHealed > 0 
@@ -644,6 +671,15 @@ const Index = () => {
       current: prev.max,
       temp: 0 // Temp HP doesn't persist through long rest
     }));
+    
+    // Reset action economy
+    actionEconomy.onLongRest();
+    
+    // Clear long-rest conditions
+    conditions.longRest();
+    
+    // Restore all spell slots
+    spellcasting.onLongRest();
     
     toast({
       title: "🌙 Long Rest Complete", 
@@ -1127,6 +1163,7 @@ const Index = () => {
               currentHP={hpState.current}
               maxHP={hpState.max}
               tempHP={hpState.temp}
+              actionEconomyState={actionEconomy}
             />
           )}
 
