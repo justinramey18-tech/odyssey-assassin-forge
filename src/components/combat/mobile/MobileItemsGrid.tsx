@@ -14,6 +14,8 @@ import {
   Sparkles,
   PackageOpen,
   Undo2,
+  Package,
+  Dices,
 } from 'lucide-react';
 import {
   Sheet,
@@ -32,6 +34,7 @@ import {
   ConsumableType,
 } from '@/lib/consumables/types';
 import { generateConsumablePrompt, ConsumableCombatContext } from '@/lib/consumables/prompts';
+import { LootItem, lootRarityConfig } from '@/lib/loot/types';
 
 // Icon mapping for consumable types
 const TYPE_ICONS: Record<ConsumableType, React.ElementType> = {
@@ -57,15 +60,20 @@ interface MobileItemsGridProps {
   globalConditions?: Array<{ name: string; duration?: string }>;
   activeSetBonus?: { name: string; effect: string };
   concentrationSpell?: { name: string; level?: number };
+  // Loot items with dice mechanics
+  lootItemsWithDice?: LootItem[];
+  onUseLootItem?: (item: LootItem) => void;
 }
 
-export function MobileItemsGrid({ 
+export function MobileItemsGrid({
   onAddToTurn, 
   onRemoveFromTurn, 
   onNavigateToConsumables,
   globalConditions,
   activeSetBonus,
   concentrationSpell,
+  lootItemsWithDice = [],
+  onUseLootItem,
 }: MobileItemsGridProps) {
   const { toast, dismiss } = useToast();
   const { inventory, useItem, addItem, setItemQuantity, isLoaded } = useConsumables();
@@ -350,6 +358,68 @@ export function MobileItemsGrid({
                 </button>
               );
             })}
+          </div>
+        )}
+
+        {/* Loot Items with Dice Mechanics */}
+        {lootItemsWithDice.length > 0 && (
+          <div className="mt-6 pt-4 border-t border-border/30">
+            <div className="flex items-center gap-2 mb-3">
+              <Package className="w-4 h-4 text-purple-400" />
+              <span className="text-sm font-semibold text-purple-400">Loot Items</span>
+              <Badge variant="secondary" className="text-[10px]">
+                {lootItemsWithDice.length} with dice
+              </Badge>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {lootItemsWithDice.map(item => {
+                const rarity = lootRarityConfig[item.rarity];
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => onUseLootItem?.(item)}
+                    className={cn(
+                      "flex flex-col items-center p-4 bg-card border border-l-4 rounded-xl transition-all active:scale-[0.98]",
+                      rarity.borderColor
+                    )}
+                  >
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-2 bg-purple-500/20 text-purple-400">
+                      <Dices className="w-6 h-6" />
+                    </div>
+                    <span className="text-sm font-semibold text-center line-clamp-2">
+                      {item.name}
+                    </span>
+                    <Badge 
+                      variant="outline" 
+                      className={cn("text-[9px] mt-1", rarity.color, rarity.borderColor)}
+                    >
+                      {rarity.label}
+                    </Badge>
+                    {item.mechanics?.diceRoll && (
+                      <span className="text-[10px] text-cyan-400 mt-1 font-mono">
+                        {item.mechanics.diceRoll}
+                      </span>
+                    )}
+                    {item.mechanics?.damage && (
+                      <span className="text-[10px] text-red-400 mt-1 font-mono">
+                        {item.mechanics.damage}
+                      </span>
+                    )}
+                    <Button
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onUseLootItem?.(item);
+                      }}
+                      className="w-full mt-2 h-8 text-xs gap-1 bg-purple-600 hover:bg-purple-500"
+                    >
+                      <Zap className="w-3 h-3" />
+                      Use
+                    </Button>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
         </div>
