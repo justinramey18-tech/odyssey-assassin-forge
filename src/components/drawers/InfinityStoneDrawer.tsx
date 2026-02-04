@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { EdgeDrawer } from './EdgeDrawer';
 import { characterPrompts, CharacterPrompt } from '@/lib/characterPrompts';
+import { applyTimePrefix } from '@/lib/fourthWallTime';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import {
@@ -113,8 +114,10 @@ export function InfinityStoneDrawer({
   }, [selectedIntensity]);
 
   const copyToClipboard = async (prompt: CharacterPrompt) => {
+    // Replace character name placeholder and apply 4th Wall Time prefix
     const processedText = prompt.prompt.replace(/\[Character Name\]/g, characterName || 'The Character');
-    await navigator.clipboard.writeText(processedText);
+    const finalText = applyTimePrefix(processedText);
+    await navigator.clipboard.writeText(finalText);
     setCopiedId(prompt.id);
     toast.success('Prompt copied to clipboard!');
     setTimeout(() => setCopiedId(null), 2000);

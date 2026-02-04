@@ -755,7 +755,7 @@ export const FAQ_ITEMS: FAQCategory[] = [
       },
       {
         q: "What are Infinity Stone prompts?",
-        a: "60 unique roleplay scenarios organized by stone (Power, Space, Reality, Soul, Time, Mind) and intensity (Mild, Moderate, World-Breaking).",
+        a: "90+ unique roleplay scenarios organized by stone (Power, Space, Reality, Soul, Time, Mind) and intensity (Mild, Moderate, World-Breaking). The Soul Stone features 40 emotional and social prompts.",
       },
       {
         q: "What does 'Surprise Me' do?",
