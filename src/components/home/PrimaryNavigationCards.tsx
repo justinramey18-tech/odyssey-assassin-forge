@@ -204,31 +204,31 @@ export function PrimaryNavigationCards({
         <p className="text-[9px] text-white/60">{contextualCard.description}</p>
       </motion.button>
 
-      {/* Row 2: Chronicle, Scribe, Oracle */}
+      {/* Row 2: Oracle, Scribe, Chronicle */}
 
-      {/* Card 4: Chronicle */}
+      {/* Card 4: Oracle */}
       <motion.button
         custom={3}
         variants={cardVariants}
         initial="hidden"
         animate="visible"
-        onClick={onChronicleClick}
+        onClick={onOracleClick}
         className={cn(
           cardBase,
-          "border-blue-500/40 hover:border-blue-400/60",
-          "hover:shadow-[0_0_15px_rgba(59,130,246,0.2)]"
+          "border-purple-500/40 hover:border-purple-400/60",
+          "hover:shadow-[0_0_15px_rgba(168,85,247,0.2)]"
         )}
         style={{ touchAction: 'manipulation' }}
-        aria-label="Open Chronicle sync"
+        aria-label="Open Oracle assistant"
       >
-        <CornerAccents colorClass="border-blue-500/60" />
-        <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
-          <Search className="w-5 h-5 text-blue-400" />
+        <CornerAccents colorClass="border-purple-500/60" />
+        <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+          <MessageCircle className="w-5 h-5 text-purple-400" />
         </div>
         <h3 className="font-cinzel font-bold text-xs text-white uppercase tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-          Chronicle
+          Oracle
         </h3>
-        <p className="text-[9px] text-white/60">Sync</p>
+        <p className="text-[9px] text-white/60">AI Guide</p>
       </motion.button>
 
       {/* Card 5: Scribe */}
@@ -256,29 +256,29 @@ export function PrimaryNavigationCards({
         <p className="text-[9px] text-white/60">Narrative</p>
       </motion.button>
 
-      {/* Card 6: Oracle */}
+      {/* Card 6: Chronicle */}
       <motion.button
         custom={5}
         variants={cardVariants}
         initial="hidden"
         animate="visible"
-        onClick={onOracleClick}
+        onClick={onChronicleClick}
         className={cn(
           cardBase,
-          "border-purple-500/40 hover:border-purple-400/60",
-          "hover:shadow-[0_0_15px_rgba(168,85,247,0.2)]"
+          "border-blue-500/40 hover:border-blue-400/60",
+          "hover:shadow-[0_0_15px_rgba(59,130,246,0.2)]"
         )}
         style={{ touchAction: 'manipulation' }}
-        aria-label="Open Oracle assistant"
+        aria-label="Open Chronicle sync"
       >
-        <CornerAccents colorClass="border-purple-500/60" />
-        <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
-          <MessageCircle className="w-5 h-5 text-purple-400" />
+        <CornerAccents colorClass="border-blue-500/60" />
+        <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+          <Search className="w-5 h-5 text-blue-400" />
         </div>
         <h3 className="font-cinzel font-bold text-xs text-white uppercase tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-          Oracle
+          Chronicle
         </h3>
-        <p className="text-[9px] text-white/60">AI Chat</p>
+        <p className="text-[9px] text-white/60">Sync</p>
       </motion.button>
     </div>
   );
