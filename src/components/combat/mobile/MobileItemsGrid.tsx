@@ -31,7 +31,7 @@ import {
   typeConfig,
   ConsumableType,
 } from '@/lib/consumables/types';
-import { generateConsumablePrompt } from '@/lib/consumables/prompts';
+import { generateConsumablePrompt, ConsumableCombatContext } from '@/lib/consumables/prompts';
 
 // Icon mapping for consumable types
 const TYPE_ICONS: Record<ConsumableType, React.ElementType> = {
@@ -53,9 +53,20 @@ interface MobileItemsGridProps {
   onAddToTurn: (actionType: 'action' | 'bonus' | 'reaction', description: string, roll?: string) => void;
   onRemoveFromTurn?: (description: string) => void;
   onNavigateToConsumables?: () => void;
+  // Combat context for enriched prompts
+  globalConditions?: Array<{ name: string; duration?: string }>;
+  activeSetBonus?: { name: string; effect: string };
+  concentrationSpell?: { name: string; level?: number };
 }
 
-export function MobileItemsGrid({ onAddToTurn, onRemoveFromTurn, onNavigateToConsumables }: MobileItemsGridProps) {
+export function MobileItemsGrid({ 
+  onAddToTurn, 
+  onRemoveFromTurn, 
+  onNavigateToConsumables,
+  globalConditions,
+  activeSetBonus,
+  concentrationSpell,
+}: MobileItemsGridProps) {
   const { toast, dismiss } = useToast();
   const { inventory, useItem, addItem, setItemQuantity, isLoaded } = useConsumables();
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
@@ -171,9 +182,16 @@ export function MobileItemsGrid({ onAddToTurn, onRemoveFromTurn, onNavigateToCon
     handleUseItem(item, true);
   }, [handleUseItem]);
 
-  // Copy AI DM prompt
+  // Copy AI DM prompt with combat context
   const handleCopyPrompt = async (consumable: Consumable) => {
-    const prompt = generateConsumablePrompt(consumable);
+    // Build combat context - map to ConsumableCombatContext format
+    const combatContext: ConsumableCombatContext = {
+      conditions: globalConditions,
+      setBonus: activeSetBonus,
+      concentrationSpell: concentrationSpell,
+    };
+    
+    const prompt = generateConsumablePrompt(consumable, 'The Assassin', combatContext);
     await navigator.clipboard.writeText(prompt);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
