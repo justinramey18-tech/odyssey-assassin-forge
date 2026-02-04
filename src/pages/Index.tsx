@@ -57,7 +57,10 @@ import {
 } from '@/lib/inventory/index';
 import { MagicScreen } from '@/components/magic';
 import { ShopScreen } from '@/components/shop';
+import { LootScreen } from '@/components/loot';
+import { generateLootUsePrompt } from '@/lib/loot/prompts';
 import { useShop } from '@/hooks/use-shop';
+import { useLoot } from '@/hooks/use-loot';
 import { ParsedShopItem } from '@/lib/shop/types';
 import { useSpellcasting } from '@/hooks/use-spellcasting';
 import { Consumable } from '@/lib/consumables/types';
@@ -162,7 +165,7 @@ const Index = () => {
   });
   
   // Derived active tab for backward compatibility
-  const activeTab = categoryNav.activeSubTab as 'skills' | 'abilities' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle' | 'legacy' | 'arcana' | 'shop';
+  const activeTab = categoryNav.activeSubTab as 'skills' | 'abilities' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle' | 'legacy' | 'arcana' | 'shop' | 'loot';
   
   // Handler to navigate to consumables tab from combat items
   const handleNavigateToConsumables = useCallback(() => {
@@ -174,6 +177,9 @@ const Index = () => {
   
   // Shop system
   const shop = useShop();
+  
+  // Loot system
+  const loot = useLoot();
   
   // Custom home background
   const customBackground = useCustomBackground();
@@ -940,7 +946,8 @@ const Index = () => {
       // Reset Shop
       shop.resetShop();
 
-      // 2. Reset UI state
+      // Reset Loot
+      loot.resetLoot();
       categoryNav.navigateToSubTab('skills');
       setShowHomeScreen(false);
       setShowWizard(true);
@@ -1168,6 +1175,24 @@ const Index = () => {
               globalConditions={convertConditionsToPromptFormat(conditions.conditions)}
               activeSetBonuses={convertSetBonusesToPromptFormat(aggregatedStats.activeSetBonuses)}
               concentrationSpell={spellcasting.state.concentratingOn}
+              lootItemsWithDice={loot.itemsWithDiceMechanics}
+              onUseLootItem={(item) => {
+                // Generate and copy AI prompt for loot use
+                const prompt = generateLootUsePrompt(item, {
+                  characterName: character.name,
+                  currentHP: hpState.current,
+                  maxHP: hpState.max,
+                  conditions: convertConditionsToPromptFormat(conditions.conditions),
+                  activeSetBonus: convertSetBonusesToPromptFormat(aggregatedStats.activeSetBonuses)[0],
+                  storyContext: item.sourceText,
+                });
+                navigator.clipboard.writeText(prompt);
+                toast({
+                  title: `⚡ Using ${item.name}`,
+                  description: "AI DM prompt copied to clipboard",
+                  className: "border-cyan-500/50 bg-cyan-500/10",
+                });
+              }}
             />
           )}
 
@@ -1330,6 +1355,24 @@ const Index = () => {
               onAdjustGold={shop.addGold}
               onSetGold={shop.setGold}
               onClearShop={shop.clearShop}
+            />
+          )}
+
+          {/* Loot Sub-Tab */}
+          {activeTab === 'loot' && (
+            <LootScreen
+              lootItems={loot.lootItems}
+              soldHistory={loot.soldHistory}
+              onAddLoot={loot.addLootItems}
+              onDeleteLoot={loot.deleteLootItem}
+              onSellLoot={loot.sellLootItem}
+              onAddGold={shop.addGold}
+              characterName={character.name}
+              currentHP={hpState.current}
+              maxHP={hpState.max}
+              conditions={convertConditionsToPromptFormat(conditions.conditions)}
+              activeSetBonus={convertSetBonusesToPromptFormat(aggregatedStats.activeSetBonuses)[0]}
+              totalLootValue={loot.totalLootValue}
             />
           )}
 

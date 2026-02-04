@@ -69,6 +69,9 @@ interface MobileCombatLayoutProps {
   activeSetBonuses?: SetBonusInfo[];
   // Concentration spell (from spellcasting)
   concentrationSpell?: string | null;
+  // Loot items with dice mechanics (from useLoot)
+  lootItemsWithDice?: import('@/lib/loot/types').LootItem[];
+  onUseLootItem?: (item: import('@/lib/loot/types').LootItem) => void;
 }
 
 export function MobileCombatLayout({ 
@@ -85,6 +88,8 @@ export function MobileCombatLayout({
   globalConditions = [],
   activeSetBonuses = [],
   concentrationSpell,
+  lootItemsWithDice = [],
+  onUseLootItem,
 }: MobileCombatLayoutProps) {
   // Navigation state
   const [activeTab, setActiveTab] = useState<CombatTab>('attacks');
@@ -582,6 +587,8 @@ export function MobileCombatLayout({
             globalConditions={globalConditions}
             activeSetBonus={activeSetForItems}
             concentrationSpell={concentrationForItems}
+            lootItemsWithDice={lootItemsWithDice}
+            onUseLootItem={onUseLootItem}
           />
         );
       

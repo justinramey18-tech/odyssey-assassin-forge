@@ -55,6 +55,9 @@ interface CombatTabScreenProps {
   activeSetBonuses?: SetBonusInfo[];
   // Concentration spell (from spellcasting)
   concentrationSpell?: string | null;
+  // Loot items with dice mechanics
+  lootItemsWithDice?: import('@/lib/loot/types').LootItem[];
+  onUseLootItem?: (item: import('@/lib/loot/types').LootItem) => void;
 }
 
 export function CombatTabScreen({ 
@@ -72,6 +75,8 @@ export function CombatTabScreen({
   globalConditions = [],
   activeSetBonuses = [],
   concentrationSpell,
+  lootItemsWithDice = [],
+  onUseLootItem,
 }: CombatTabScreenProps) {
   const isMobile = useIsMobile();
   const { rerollsDisabled } = useGameMode();
@@ -257,6 +262,8 @@ export function CombatTabScreen({
         globalConditions={globalConditions}
         activeSetBonuses={activeSetBonuses}
         concentrationSpell={concentrationSpell}
+        lootItemsWithDice={lootItemsWithDice}
+        onUseLootItem={onUseLootItem}
       />
     );
   }
