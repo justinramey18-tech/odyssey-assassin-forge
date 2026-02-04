@@ -43,6 +43,7 @@ import { useEquipmentImages } from '@/hooks/use-equipment-images';
 import { useAbilityImages } from '@/hooks/use-ability-images';
 import { AggregatedStats } from '@/hooks/use-equipment-stats';
 import { BaseAbilityScores } from '@/lib/abilityScores/types';
+import { UseActionEconomyReturn } from '@/hooks/use-action-economy';
 
 // Tab order for swipe navigation
 const TAB_ORDER: CombatTab[] = ['attacks', 'stealth', 'abilities', 'reactions', 'spells', 'items', 'summary'];
@@ -59,6 +60,8 @@ interface MobileCombatLayoutProps {
   currentHP?: number;
   maxHP?: number;
   tempHP?: number;
+  // Action economy (synced from Index.tsx)
+  actionEconomyState?: UseActionEconomyReturn;
 }
 
 export function MobileCombatLayout({ 
@@ -71,6 +74,7 @@ export function MobileCombatLayout({
   currentHP,
   maxHP,
   tempHP,
+  actionEconomyState,
 }: MobileCombatLayoutProps) {
   // Navigation state
   const [activeTab, setActiveTab] = useState<CombatTab>('attacks');
@@ -132,17 +136,20 @@ export function MobileCombatLayout({
   const [conditions, setConditions] = useState<string[]>([]);
   const [situationCollapsed, setSituationCollapsed] = useState(true);
   
-  // Action economy state
-  const [actionEconomy, setActionEconomy] = useState<ActionEconomy>({
+  // Action economy state (use prop if provided, otherwise fallback to local state)
+  const [localActionEconomy, setLocalActionEconomy] = useState<ActionEconomy>({
     actionUsed: false,
     bonusActionUsed: false,
     reactionUsed: false,
     movementUsed: 0,
     maxMovement: 30,
   });
+  const [localTurnActions, setLocalTurnActions] = useState<TurnAction[]>([]);
   
-  // Turn actions for summary
-  const [turnActions, setTurnActions] = useState<TurnAction[]>([]);
+  // Use synced action economy from props if available
+  const actionEconomy = actionEconomyState?.economy ?? localActionEconomy;
+  const setActionEconomy = actionEconomyState?.setEconomy ?? setLocalActionEconomy;
+  const turnActions = actionEconomyState?.turnActions ?? localTurnActions;
   
   // Expanded weapon card (accordion behavior)
   const [expandedWeaponId, setExpandedWeaponId] = useState<string | null>(null);
@@ -237,18 +244,23 @@ export function MobileCombatLayout({
     description: string,
     roll?: string
   ) => {
-    setActionEconomy(prev => ({
-      ...prev,
-      actionUsed: actionType === 'action' ? true : prev.actionUsed,
-      bonusActionUsed: actionType === 'bonus' ? true : prev.bonusActionUsed,
-      reactionUsed: actionType === 'reaction' ? true : prev.reactionUsed,
-    }));
-    
-    setTurnActions(prev => [
-      ...prev.filter(a => a.type !== actionType),
-      { type: actionType, description, roll }
-    ]);
-  }, []);
+    // Use synced action economy if available
+    if (actionEconomyState) {
+      actionEconomyState.addTurnAction({ type: actionType, description, roll });
+    } else {
+      setActionEconomy(prev => ({
+        ...prev,
+        actionUsed: actionType === 'action' ? true : prev.actionUsed,
+        bonusActionUsed: actionType === 'bonus' ? true : prev.bonusActionUsed,
+        reactionUsed: actionType === 'reaction' ? true : prev.reactionUsed,
+      }));
+      
+      setLocalTurnActions(prev => [
+        ...prev.filter(a => a.type !== actionType),
+        { type: actionType, description, roll }
+      ]);
+    }
+  }, [actionEconomyState, setActionEconomy]);
   
   // Handle ability use (legacy for stealth tab)
   const handleAbilityUse = useCallback((
@@ -317,51 +329,66 @@ export function MobileCombatLayout({
   
   // Reset turn
   const handleResetTurn = useCallback(() => {
-    setTurnActions([]);
-    setActionEconomy({
-      actionUsed: false,
-      bonusActionUsed: false,
-      reactionUsed: false,
-      movementUsed: 0,
-      maxMovement: 30,
-    });
+    if (actionEconomyState) {
+      actionEconomyState.resetTurn();
+    } else {
+      setLocalTurnActions([]);
+      setActionEconomy({
+        actionUsed: false,
+        bonusActionUsed: false,
+        reactionUsed: false,
+        movementUsed: 0,
+        maxMovement: 30,
+      });
+    }
     setLastAction('TURN RESET');
-  }, []);
+  }, [actionEconomyState, setActionEconomy]);
   
   // Remove action
   const handleRemoveAction = useCallback((index: number) => {
-    const action = turnActions[index];
-    setTurnActions(prev => prev.filter((_, i) => i !== index));
-    
-    if (action) {
-      setActionEconomy(prev => ({
-        ...prev,
-        actionUsed: action.type === 'action' ? false : prev.actionUsed,
-        bonusActionUsed: action.type === 'bonus' ? false : prev.bonusActionUsed,
-        reactionUsed: action.type === 'reaction' ? false : prev.reactionUsed,
-      }));
+    if (actionEconomyState) {
+      actionEconomyState.removeTurnAction(index);
+    } else {
+      const action = turnActions[index];
+      setLocalTurnActions(prev => prev.filter((_, i) => i !== index));
+      
+      if (action) {
+        setActionEconomy(prev => ({
+          ...prev,
+          actionUsed: action.type === 'action' ? false : prev.actionUsed,
+          bonusActionUsed: action.type === 'bonus' ? false : prev.bonusActionUsed,
+          reactionUsed: action.type === 'reaction' ? false : prev.reactionUsed,
+        }));
+      }
     }
-  }, [turnActions]);
+  }, [actionEconomyState, turnActions, setActionEconomy]);
   
   // Remove action by description (for undo from items)
   const handleRemoveActionByDescription = useCallback((description: string) => {
-    setTurnActions(prev => {
-      const index = prev.findIndex(a => a.description === description);
-      if (index === -1) return prev;
-      
-      const action = prev[index];
-      
-      // Update action economy
-      setActionEconomy(prevEcon => ({
-        ...prevEcon,
-        actionUsed: action.type === 'action' ? false : prevEcon.actionUsed,
-        bonusActionUsed: action.type === 'bonus' ? false : prevEcon.bonusActionUsed,
-        reactionUsed: action.type === 'reaction' ? false : prevEcon.reactionUsed,
-      }));
-      
-      return prev.filter((_, i) => i !== index);
-    });
-  }, []);
+    if (actionEconomyState) {
+      const index = turnActions.findIndex(a => a.description === description);
+      if (index !== -1) {
+        actionEconomyState.removeTurnAction(index);
+      }
+    } else {
+      setLocalTurnActions(prev => {
+        const index = prev.findIndex(a => a.description === description);
+        if (index === -1) return prev;
+        
+        const action = prev[index];
+        
+        // Update action economy
+        setActionEconomy(prevEcon => ({
+          ...prevEcon,
+          actionUsed: action.type === 'action' ? false : prevEcon.actionUsed,
+          bonusActionUsed: action.type === 'bonus' ? false : prevEcon.bonusActionUsed,
+          reactionUsed: action.type === 'reaction' ? false : prevEcon.reactionUsed,
+        }));
+        
+        return prev.filter((_, i) => i !== index);
+      });
+    }
+  }, [actionEconomyState, turnActions, setActionEconomy]);
   
   // FAB actions
   const handleQuickRoll = () => {
@@ -536,10 +563,14 @@ export function MobileCombatLayout({
             onRemoveAction={handleRemoveAction}
             onClearTurn={handleResetTurn}
             onSetMovement={(desc) => {
-              setTurnActions(prev => [
-                ...prev.filter(a => a.type !== 'movement'),
-                { type: 'movement', description: desc }
-              ]);
+              if (actionEconomyState) {
+                actionEconomyState.addTurnAction({ type: 'movement', description: desc });
+              } else {
+                setLocalTurnActions(prev => [
+                  ...prev.filter(a => a.type !== 'movement'),
+                  { type: 'movement', description: desc }
+                ]);
+              }
             }}
           />
         );

@@ -31,6 +31,7 @@ import { CharacterEquipment } from '@/lib/inventory/types';
 import { getEquippedWeapons } from '@/lib/combat/weaponConverter';
 import { AggregatedStats } from '@/hooks/use-equipment-stats';
 import { BaseAbilityScores } from '@/lib/abilityScores/types';
+import { UseActionEconomyReturn } from '@/hooks/use-action-economy';
 
 interface CombatTabScreenProps {
   character: Character;
@@ -45,6 +46,8 @@ interface CombatTabScreenProps {
   currentHP?: number;
   maxHP?: number;
   tempHP?: number;
+  // Action economy (synced from Index.tsx)
+  actionEconomyState?: UseActionEconomyReturn;
 }
 
 export function CombatTabScreen({ 
@@ -58,6 +61,7 @@ export function CombatTabScreen({
   currentHP,
   maxHP,
   tempHP,
+  actionEconomyState,
 }: CombatTabScreenProps) {
   const isMobile = useIsMobile();
   const { rerollsDisabled } = useGameMode();
@@ -239,6 +243,7 @@ export function CombatTabScreen({
         currentHP={currentHP}
         maxHP={maxHP}
         tempHP={tempHP}
+        actionEconomyState={actionEconomyState}
       />
     );
   }

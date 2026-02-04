@@ -57,6 +57,11 @@ const saveState = (state: ConditionsState): void => {
   }
 };
 
+export interface UseConditionsOptions {
+  /** Callback when concentration is broken - used to sync with spellcasting */
+  onConcentrationBroken?: (spellName: string, reason?: string) => void;
+}
+
 export interface UseConditionsReturn {
   // State
   conditions: ActiveCondition[];
@@ -97,7 +102,8 @@ export interface UseConditionsReturn {
   getConditionById: (id: string) => ActiveCondition | undefined;
 }
 
-export function useConditions(): UseConditionsReturn {
+export function useConditions(options: UseConditionsOptions = {}): UseConditionsReturn {
+  const { onConcentrationBroken } = options;
   const [state, setState] = useState<ConditionsState>(loadState);
   const [undoBuffer, setUndoBuffer] = useState<ActiveCondition | null>(null);
 
@@ -429,6 +435,11 @@ export function useConditions(): UseConditionsReturn {
       conditions: prev.conditions.filter(c => c.category !== 'concentration'),
     }));
 
+    // Notify spellcasting system to sync concentration state
+    concentrationSpells.forEach(spell => {
+      onConcentrationBroken?.(spell.name, reason);
+    });
+
     toast({
       title: "Concentration Broken",
       description: reason
@@ -436,7 +447,7 @@ export function useConditions(): UseConditionsReturn {
         : `${spellNames} ended`,
       variant: "destructive",
     });
-  }, [state.conditions]);
+  }, [state.conditions, onConcentrationBroken]);
 
   // ============================================
   // Undo Support
