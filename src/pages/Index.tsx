@@ -91,6 +91,7 @@ const Index = () => {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<'game' | 'setup' | 'faq' | 'character' | 'tools' | undefined>(undefined);
   const [showCloudSaveModal, setShowCloudSaveModal] = useState(false);
+  const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string | null>(null);
   const [character, setCharacter] = useState<Character>({
     name: '',
     level: 1,
@@ -368,6 +369,8 @@ const Index = () => {
     setAchievements(data.achievements);
     setCurrentXP(data.xp.currentXP);
     setXPPreset(data.xp.xpPreset as XPPreset);
+    // Track when this was loaded from cloud
+    setLastCloudSyncTime(data.savedAt);
     // Note: Prestige data is managed by usePrestige hook via localStorage
     setShowWizard(false);
   };
@@ -1069,6 +1072,8 @@ const Index = () => {
           onCustomBackgroundUpload={customBackground.handleImageUpload}
           onCustomBackgroundClear={customBackground.clearCustomBackground}
           prestigeData={prestigeData}
+          lastCloudSyncTime={lastCloudSyncTime}
+          onCloudSyncClick={() => setShowCloudSaveModal(true)}
         />
         
         {/* Settings Modal */}
