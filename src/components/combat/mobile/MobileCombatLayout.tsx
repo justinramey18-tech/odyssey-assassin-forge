@@ -773,7 +773,7 @@ export function MobileCombatLayout({
         {/* Tab Content - Scrollable area takes remaining space */}
         <div 
           {...swipeHandlers}
-          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain pb-24"
+          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain pb-32"
           style={{ 
             touchAction: 'pan-y pinch-zoom',
             WebkitOverflowScrolling: 'touch',
