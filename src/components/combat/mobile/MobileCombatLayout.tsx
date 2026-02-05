@@ -11,7 +11,7 @@ import {
   DEFAULT_WEAPONS,
   getSneakAttackDice,
 } from '@/lib/combat/combatTypes';
-import { ActiveConditionInfo, SetBonusInfo } from '@/lib/combat/promptContext';
+import { ActiveConditionInfo, SetBonusInfo, TargetPromptInfo, formatTargetForPrompt } from '@/lib/combat/promptContext';
 import { DiceRoll, rollDice, getAbilityDice } from '@/lib/diceRoller';
 import { generateRPPrompt } from '@/lib/rpPromptGenerator';
 import { DiceRollModal } from '@/components/character/DiceRollModal';
@@ -39,7 +39,9 @@ import { MobileSpellList } from './MobileSpellList';
 import { MobileReactionsList } from './MobileReactionsList';
 import { QuickCastPanel } from './QuickCastPanel';
 import { TurnWizardPanel } from './TurnWizardPanel';
+import { TargetTrackerPanel } from './TargetTrackerPanel';
 import { useCombatLog } from '@/hooks/use-combat-log';
+import { useTargets } from '@/hooks/use-targets';
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
 import { usePromptDrawers } from '@/components/drawers';
 import { CharacterEquipment, EquipmentSlotType } from '@/lib/inventory/types';
@@ -122,6 +124,10 @@ export function MobileCombatLayout({
   
   // Combat log for AI DM prompts
   const combatLog = useCombatLog();
+  
+  // Target/Enemy Tracker for combat
+  const targetTracker = useTargets();
+  const [targetTrackerCollapsed, setTargetTrackerCollapsed] = useState(true);
   
   // Cooldown system integration
   const cooldownSystem = useCooldowns({
@@ -374,7 +380,12 @@ export function MobileCombatLayout({
         ? `${weapon.name} + Sneak Attack`
         : weapon.name;
     
-    const prompt = generateWeaponPrompt(rollType, weapon, roll, damage, character.name);
+    // Include current target in prompt
+    const currentTargetForPrompt = targetTracker.getTargetForPrompt();
+    const prompt = generateWeaponPrompt(rollType, weapon, roll, damage, character.name, currentTargetForPrompt);
+    
+    // Add target name to action if available
+    const targetSuffix = currentTargetForPrompt ? ` vs. ${currentTargetForPrompt.name}` : '';
     
     setDiceRoll(roll);
     setDicePrompt(prompt);
@@ -382,10 +393,10 @@ export function MobileCombatLayout({
     setShowDiceModal(true);
     setLastAction(`${rollName.toUpperCase()} ROLL`);
     
-    // Log to combat log
+    // Log to combat log (include target name)
     combatLog.addEntry({
       actionType: 'weapon',
-      actionName: rollName,
+      actionName: `${rollName}${targetSuffix}`,
       prompt,
       roll: {
         total: roll.total,
@@ -397,8 +408,8 @@ export function MobileCombatLayout({
       damage,
     });
     
-    handleAddToTurn('action', `${weapon.name} attack${rollType !== 'normal' ? ` (${rollType})` : ''}`);
-  }, [character.name, handleAddToTurn, combatLog]);
+    handleAddToTurn('action', `${weapon.name} attack${rollType !== 'normal' ? ` (${rollType})` : ''}${targetSuffix}`);
+  }, [character.name, handleAddToTurn, combatLog, targetTracker]);
   
   // Reset turn
   const handleResetTurn = useCallback(() => {
@@ -577,6 +588,7 @@ export function MobileCombatLayout({
                           activeConditions={globalConditions}
                           activeSetBonuses={activeSetBonuses}
                           concentrationSpell={concentrationSpell}
+                          currentTarget={targetTracker.getTargetForPrompt()}
                           onUse={handleEnhancedAbilityUse}
                           onTriggerCooldown={cooldownSystem.triggerCooldown}
                         />
@@ -651,6 +663,7 @@ export function MobileCombatLayout({
                           activeConditions={globalConditions}
                           activeSetBonuses={activeSetBonuses}
                           concentrationSpell={concentrationSpell}
+                          currentTarget={targetTracker.getTargetForPrompt()}
                           onUse={(ability, roll, prompt, combinedDamage) => {
                             handleEnhancedAbilityUse(ability, roll, prompt, combinedDamage);
                             // Mark reaction as used if it's a reaction ability
@@ -783,6 +796,13 @@ export function MobileCombatLayout({
           onCollapsedChange={setSituationCollapsed}
         />
         
+        {/* Target/Enemy Tracker */}
+        <TargetTrackerPanel
+          targets={targetTracker}
+          isCollapsed={targetTrackerCollapsed}
+          onCollapsedChange={setTargetTrackerCollapsed}
+        />
+        
         {/* Action Economy Bar */}
         <ActionEconomyBar
           economy={actionEconomy}
@@ -897,7 +917,8 @@ function generateWeaponPrompt(
   weapon: WeaponAttack,
   roll: DiceRoll,
   damage: string,
-  characterName: string
+  characterName: string,
+  target?: TargetPromptInfo | null
 ): string {
   const isCrit = roll.rolls.includes(20);
   const isFumble = roll.rolls.includes(1);
@@ -917,6 +938,9 @@ function generateWeaponPrompt(
   ];
   const quip = quips[Math.floor(Math.random() * quips.length)];
   
+  // Format target section if target is provided
+  const targetSection = target ? formatTargetForPrompt(target) : '';
+  
   return `## ${title}
 
 **Character:** ${characterName || 'The Merc'}
@@ -924,7 +948,7 @@ function generateWeaponPrompt(
 **Roll:** ${hasAdvantage ? '2d20kh1' : '1d20'}+${roll.modifier} = [${roll.rolls.join(', ')}] = **${roll.total}**
 ${isCrit ? '\n🎯 **NATURAL 20! CRITICAL HIT!**' : ''}
 ${isFumble ? '\n💀 **NATURAL 1! CRITICAL MISS!**' : ''}
-
+${targetSection ? `\n${targetSection}\n` : ''}
 **Damage on Hit:** ${damage}
 
 *"${quip}"*`;
