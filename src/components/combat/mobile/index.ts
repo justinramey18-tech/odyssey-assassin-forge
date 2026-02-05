@@ -4,6 +4,7 @@ export { CombatTopBar } from './CombatTopBar';
 export { SituationStrip } from './SituationStrip';
 export { ActionEconomyBar } from './ActionEconomyBar';
 export { MobileWeaponCard } from './MobileWeaponCard';
+export { OffhandAttackCard } from './OffhandAttackCard';
 export { CombatFAB } from './CombatFAB';
 export { TurnSummaryPanel } from './TurnSummaryPanel';
 export { CombatLogPanel } from './CombatLogPanel';
