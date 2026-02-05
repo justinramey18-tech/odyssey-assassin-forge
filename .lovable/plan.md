@@ -1,81 +1,154 @@
-# Codebase Cleanup Plan: Remove Unused Files
+# Target/Enemy Tracker Implementation ✅ COMPLETED + ENHANCED
 
 ## Overview
-This plan documents unused files identified for deletion to reduce bundle size and code complexity.
+✅ **IMPLEMENTED** - Target/Enemy Tracker system with enhanced features:
+- Creature types, sizes, conditions, resistances, vulnerabilities, immunities
+- Damage history tracking
+- Clone enemy functionality
+- Per-enemy condition management
+- Bulk import support
+- Enhanced AI DM prompt integration with all new fields
 
 ---
 
-## Phase 1: Unused Components (2 files)
+## Implemented Features
 
-### 1.1 `src/components/combat/CombatHUDScreen.tsx`
-- **Lines**: 504
-- **Status**: ✅ Safe to delete
-- **Reason**: Replaced by `CombatTabScreen.tsx`. Not imported anywhere in the codebase.
-- **Bundle savings**: ~15KB unminified
+### Phase 1: Core Features ✅
+- Enemy data model with HP, AC, notes
+- localStorage persistence
+- CRUD operations
+- Target selection
+- Damage/healing tracking
+- Maximum 10 enemies
 
-### 1.2 `src/components/NavLink.tsx`
-- **Lines**: 28
-- **Status**: ✅ Safe to delete
-- **Reason**: Custom React Router wrapper that is never imported.
-- **Bundle savings**: ~1KB
-
----
-
-## Phase 2: Redundant Re-export (1 file)
-
-### 2.1 `src/components/ui/use-toast.ts`
-- **Lines**: 3
-- **Status**: ✅ Safe to delete
-- **Reason**: Simply re-exports from `src/hooks/use-toast.ts`. All imports should use the hooks directory directly.
-- **Action required**: Before deleting, update any imports from `@/components/ui/use-toast` to `@/hooks/use-toast`
+### Phase 2: Enhanced Enemy Tracker ✅
+| Feature | Status |
+|---------|--------|
+| **Creature Type Tags** | ✅ 14 D&D types (Beast, Humanoid, Undead, etc.) |
+| **Creature Size** | ✅ Tiny through Gargantuan |
+| **Resistances/Vulnerabilities/Immunities** | ✅ 13 damage types with quick toggles |
+| **Condition Tracking** | ✅ 14 conditions per-enemy (Prone, Poisoned, etc.) |
+| **Damage History** | ✅ Tracked with type, source, timestamp |
+| **Quick Clone** | ✅ Duplicate an enemy with incrementing name |
+| **Clear Defeated** | ✅ Remove only defeated enemies |
 
 ---
 
-## Phase 3: Unused Image Assets (11 files, ~25-30MB)
+## Files Created
 
-### Generated images (not referenced):
-| File | Path | Safe to Delete |
-|------|------|----------------|
-| deadpool-assassin-hero.jpg | src/assets/generated/ | ✅ |
-| deadpool-assassin-hero-v2.jpg | src/assets/generated/ | ✅ |
-| deadpool-assassin-hero-v3.jpg | src/assets/generated/ | ✅ |
-| deadpool-assassin-hero-v4.jpg | src/assets/generated/ | ✅ |
-| deadpool-assassin-hero-v5.jpg | src/assets/generated/ | ✅ |
-| deadpool-assassin-hero-v6.jpg | src/assets/generated/ | ✅ |
-| deadpool-assassin-leap-of-faith.jpg | src/assets/generated/ | ✅ |
-| deadpool-assassin-swan-dive.jpg | src/assets/generated/ | ✅ |
+| File | Purpose |
+|------|---------|
+| `src/lib/combat/targetTypes.ts` | Enemy model with enhanced fields |
+| `src/lib/combat/creatureTypes.ts` | Creature types, sizes, damage types, conditions |
+| `src/hooks/use-targets.ts` | Target management hook with all CRUD operations |
+| `src/components/combat/mobile/TargetTrackerPanel.tsx` | Main UI component |
+| `src/components/combat/mobile/AddEnemySheet.tsx` | Add enemy sheet with type/size/resistance pickers |
+| `src/components/combat/mobile/EnemyCard.tsx` | Enemy card with conditions, damage modifiers display |
 
-### Root assets (not referenced):
-| File | Path | Safe to Delete |
-|------|------|----------------|
-| skills-background.jpg | src/assets/ | ✅ |
-| home-assassins-wide.jpg | src/assets/ | ✅ |
-| home-background.jpg | src/assets/ | ✅ |
+## Files Modified
 
----
-
-## Execution Order
-
-1. **Search for imports** - Verify no files import the components
-2. **Update toast imports** - Change any `@/components/ui/use-toast` → `@/hooks/use-toast`
-3. **Delete components** - Remove CombatHUDScreen.tsx and NavLink.tsx
-4. **Delete re-export** - Remove use-toast.ts from components/ui
-5. **Delete images** - Remove all 11 unused image files
-6. **Verify build** - Run build to confirm no broken imports
+| File | Changes |
+|------|---------|
+| `src/lib/combat/promptContext.ts` | Enhanced `formatTargetForPrompt()` with type, conditions, damage modifiers |
+| `src/components/combat/mobile/MobileCombatLayout.tsx` | Integrated hook, passed target to all components |
+| `src/components/combat/mobile/CombatAbilityCard.tsx` | Added target prop for prompt generation |
+| `src/components/combat/mobile/EnhancedMobileAbilityList.tsx` | Passed target to ability cards |
+| `src/components/combat/mobile/index.ts` | Exported new components |
+| `vite.config.ts` | Fixed PWA file size limit (5MB) |
 
 ---
 
-## Summary
+## Enhanced API
 
-| Category | Files | Est. Savings |
-|----------|-------|--------------|
-| Components | 2 | ~16KB |
-| Re-exports | 1 | <1KB |
-| Images | 11 | ~25-30MB |
-| **Total** | **14 files** | **~25-30MB** |
+```typescript
+interface UseTargetsReturn {
+  // State
+  enemies: Enemy[];
+  currentTarget: Enemy | null;
+  currentTargetId: string | null;
+  
+  // Actions
+  addEnemy: (input: NewEnemyInput) => boolean;
+  removeEnemy: (id: string) => void;
+  updateEnemy: (id: string, updates: Partial<Enemy>) => void;
+  setCurrentTarget: (id: string | null) => void;
+  cloneEnemy: (id: string) => boolean;
+  
+  // Combat helpers
+  dealDamage: (id: string, amount: number, damageType?: DamageType, source?: string) => void;
+  healEnemy: (id: string, amount: number, source?: string) => void;
+  
+  // Condition management
+  addCondition: (id: string, condition: EnemyCondition) => void;
+  removeCondition: (id: string, condition: EnemyCondition) => void;
+  toggleCondition: (id: string, condition: EnemyCondition) => void;
+  
+  // Bulk operations
+  importEnemies: (enemies: NewEnemyInput[]) => number;
+  
+  // Computed
+  enemyCount: number;
+  defeatedCount: number;
+  activeEnemies: Enemy[];
+  
+  // Utility
+  clearAll: () => void;
+  clearDefeated: () => void;
+  getTargetForPrompt: () => TargetPromptInfo | null;
+}
+```
 
 ---
 
-## Status: Ready for Execution
+## Enhanced Enemy Model
 
-Say "Execute cleanup plan" to proceed with deletions.
+```typescript
+interface Enemy {
+  id: string;
+  name: string;
+  currentHP: number;
+  maxHP: number;
+  ac: number;
+  notes?: string;
+  createdAt: number;
+  
+  // Enhanced fields
+  creatureType?: CreatureType;
+  size?: CreatureSize;
+  initiative?: number;
+  conditions: EnemyCondition[];
+  resistances: DamageType[];
+  vulnerabilities: DamageType[];
+  immunities: DamageType[];
+  damageHistory: DamageHistoryEntry[];
+}
+```
+
+---
+
+## AI DM Prompt Output (Enhanced)
+
+```markdown
+### 🎯 Target
+**Enemy:** Orc Warlord
+**Type:** Medium Humanoid
+**AC:** 16 | **HP:** 45/60 (bloodied)
+**Conditions:** Prone, Frightened
+**Damage Modifiers:** Resistant: fire | Vulnerable: radiant
+*The orc warlord is visibly wounded and bloodied, fighting with desperation.*
+**Intel:** Pack tactics, great axe
+```
+
+---
+
+## Future Improvements (Not Implemented)
+
+### Chronicle Sync Integration
+- Parse enemies from session logs
+- Auto-populate tracker from AI detection
+- Update enemy status from kill detection
+
+### Additional Features
+- Swipe to dismiss gesture
+- Save as template for re-use
+- Initiative order sorting

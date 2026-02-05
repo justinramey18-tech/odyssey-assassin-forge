@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, ArrowLeft, Shield, Cloud } from 'lucide-react';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
-import homeBackground from '@/assets/home-background-new.jpg';
+import homeBackground from '@/assets/home-background.jpg';
 
 const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
