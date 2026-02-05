@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Character, Ability } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
 import { cn } from '@/lib/utils';
@@ -12,6 +12,7 @@ import {
   getSneakAttackDice,
 } from '@/lib/combat/combatTypes';
 import { ActiveConditionInfo, SetBonusInfo, TargetPromptInfo, formatTargetForPrompt } from '@/lib/combat/promptContext';
+import { loadCombatSettings, COMBAT_SETTINGS_CHANGE_EVENT, CombatSettings } from '@/lib/combat/combatSettings';
 import { DiceRoll, rollDice, getAbilityDice } from '@/lib/diceRoller';
 import { generateRPPrompt } from '@/lib/rpPromptGenerator';
 import { DiceRollModal } from '@/components/character/DiceRollModal';
@@ -142,6 +143,19 @@ export function MobileCombatLayout({
     isHonestMode,
     enforceCooldowns,
   });
+  
+  // Combat settings (Two-Weapon Fighting style, etc.)
+  const [combatSettings, setCombatSettings] = useState<CombatSettings>(() => loadCombatSettings());
+  
+  // Listen for combat settings changes
+  useEffect(() => {
+    const handleChange = (e: Event) => {
+      const customEvent = e as CustomEvent<CombatSettings>;
+      setCombatSettings(customEvent.detail);
+    };
+    window.addEventListener(COMBAT_SETTINGS_CHANGE_EVENT, handleChange);
+    return () => window.removeEventListener(COMBAT_SETTINGS_CHANGE_EVENT, handleChange);
+  }, []);
   
   // Swipe navigation handlers
   const handleSwipeLeft = useCallback(() => {
@@ -621,6 +635,7 @@ export function MobileCombatLayout({
                   primaryWeapon={weaponsMap.primary}
                   level={character.level}
                   attackBonus={combatStats.attackBonus}
+                  hasTwoWeaponFightingStyle={combatSettings.hasTwoWeaponFightingStyle}
                   damageBonus={combatStats.damageBonus}
                   conditions={conditions}
                   hasPoisonedWeapon={hasPoisonedWeapon}
