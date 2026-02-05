@@ -59,6 +59,21 @@ export interface ParsedCombatEvent {
   sourceText: string;
 }
 
+// ===== PARSED ENEMY =====
+
+export interface ParsedEnemy {
+  name: string;
+  quantity: number;
+  ac?: number;
+  estimatedHP?: number;
+  creatureType?: string;
+  size?: string;
+  notes?: string;
+  status: 'active' | 'defeated' | 'fled';
+  sourceText: string;
+  confidence: ConfidenceLevel;
+}
+
 // ===== SHOP ITEM FROM CHRONICLE =====
 
 export interface ParsedShopItem {
@@ -92,6 +107,7 @@ export interface ChronicleParseResult {
   shopItems: ParsedShopItem[];
   conditions: ParsedCondition[];
   combatEvents: ParsedCombatEvent[];
+  enemies: ParsedEnemy[];
   levelUp: ParsedLevelUp | null;
   parseMode: 'ai' | 'offline';
   parsedAt: string;

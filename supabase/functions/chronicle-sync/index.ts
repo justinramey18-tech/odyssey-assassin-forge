@@ -162,6 +162,7 @@ function buildSystemPrompt(): string {
 6. Identify if a level-up occurred
 7. Match narrative events to achievement categories
 8. Identify items offered FOR SALE by merchants, shopkeepers, or vendors
+9. Identify enemies/monsters encountered in combat
 
 ## Achievement Categories
 ${achievementList}
@@ -182,6 +183,16 @@ For each shop item detected:
 - If D&D mechanics are NOT stated in the log, GENERATE appropriate 5e stats based on item type/rarity
 - Estimate rarity from price: common(<50gp), uncommon(50-500gp), rare(500-5000gp), very_rare(5000-25000gp), legendary(25000+gp)
 - Generate a 1-2 sentence description AND 1-2 sentence lore if not present
+
+## Enemy Detection
+Identify all enemies/monsters the party fought or encountered:
+- Extract name, quantity (e.g., "3 goblins" = quantity 3)
+- Extract AC if mentioned (e.g., "AC 16", "armor class of 18")
+- Estimate HP if mentioned or based on creature type
+- Identify creature_type: aberration, beast, celestial, construct, dragon, elemental, fey, fiend, giant, humanoid, monstrosity, ooze, plant, undead
+- Identify size: tiny, small, medium, large, huge, gargantuan
+- Track status: "active" (still fighting), "defeated" (killed/incapacitated), "fled" (escaped)
+- Include any notable characteristics in notes
 
 ## Response Format
 Return ONLY valid JSON with this structure:
@@ -213,6 +224,20 @@ Return ONLY valid JSON with this structure:
       "source_text": "quoted text from log",
       "confidence": "high"|"medium"|"low"
     }
+  ],
+  "enemies": [
+    {
+      "name": "creature name",
+      "quantity": number,
+      "ac": number or null,
+      "estimated_hp": number or null,
+      "creature_type": "humanoid"|"beast"|"undead"|"dragon"|etc or null,
+      "size": "medium"|"large"|etc or null,
+      "notes": "wielding greataxe, spellcaster, etc" or null,
+      "status": "active"|"defeated"|"fled",
+      "source_text": "quoted text from log",
+      "confidence": "high"|"medium"|"low"
+    }
   ]
 }
 
@@ -224,6 +249,8 @@ Return ONLY valid JSON with this structure:
 - Achievement IDs must match the list above exactly
 - Shop items must be FOR SALE, not loot, gifts, or already-owned possessions
 - Generate D&D 5e-appropriate mechanics for shop items based on type and rarity
+- For enemies, infer creature_type and size from the creature name when not explicitly stated
+- Mark enemies as "defeated" if they were killed, slain, or otherwise neutralized
 - Do not include any text outside the JSON response`;
 }
 
@@ -381,6 +408,7 @@ serve(async (req) => {
       level_up: parsedResult.level_up || null,
       achievements: Array.isArray(parsedResult.achievements) ? parsedResult.achievements : [],
       shop_items: Array.isArray(parsedResult.shop_items) ? parsedResult.shop_items : [],
+      enemies: Array.isArray(parsedResult.enemies) ? parsedResult.enemies : [],
     };
 
     console.log("Successfully parsed session log:", {
@@ -390,6 +418,7 @@ serve(async (req) => {
       gold: validatedResult.gold_changes.length,
       shop: validatedResult.shop_items.length,
       achievements: validatedResult.achievements.length,
+      enemies: validatedResult.enemies.length,
     });
 
     return new Response(
