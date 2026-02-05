@@ -1451,6 +1451,7 @@ const Index = () => {
               onAddEnemies={targets.importEnemies}
               onUpdateEnemy={targets.updateEnemy}
               onClearDefeated={targets.clearDefeated}
+              onRefreshEnemies={targets.refreshFromStorage}
               onBack={() => categoryNav.navigateToSubTab('scribe')}
             />
           )}

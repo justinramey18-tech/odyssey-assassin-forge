@@ -37,6 +37,7 @@ interface EnemiesDetectedPanelProps {
   onAddEnemies: (enemies: NewEnemyInput[]) => number;
   onUpdateEnemy: (id: string, updates: Partial<Enemy>) => void;
   onClearDefeated: () => void;
+  onRefreshEnemies?: () => void;
 }
 
 interface EnemyApprovalState {
@@ -53,6 +54,7 @@ export function EnemiesDetectedPanel({
   onAddEnemies,
   onUpdateEnemy,
   onClearDefeated,
+  onRefreshEnemies,
 }: EnemiesDetectedPanelProps) {
   const [expanded, setExpanded] = useState(true);
   const [applied, setApplied] = useState(false);
@@ -220,12 +222,23 @@ export function EnemiesDetectedPanel({
                 >
                   Select Active Only
                 </Button>
+                {onRefreshEnemies && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onRefreshEnemies}
+                    className="text-xs h-7"
+                  >
+                    <RefreshCw className="w-3 h-3 mr-1" />
+                    Refresh from Tracker
+                  </Button>
+                )}
                 {defeatedCount > 0 && existingEnemies.some(e => e.currentHP <= 0) && (
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handleClearDefeated}
-                    className="text-xs h-7 text-zinc-400 border-zinc-600"
+                    className="text-xs h-7 text-muted-foreground border-muted"
                   >
                     <Trash2 className="w-3 h-3 mr-1" />
                     Clear Defeated in Tracker
