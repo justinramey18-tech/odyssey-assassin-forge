@@ -40,6 +40,44 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* Padding utilities for safe areas */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Combat content area - accounts for all fixed elements */
+.combat-content-area {
+  /* TopBar (88px) + QuickChips (44px) + ActionEconomy (80px) = 212px top */
+  /* FloatingTracker (72px) + BottomNav (72px) = 144px bottom */
+  min-height: calc(100vh - 212px - 144px);
+  max-height: calc(100vh - 212px - 144px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-padding-bottom: 144px;
+}
+
+/* Scroll container with proper bottom padding */
+.combat-scroll-container {
+  padding-bottom: calc(144px + env(safe-area-inset-bottom, 0px));
+  overscroll-behavior: contain;
+}
+
+/* Prevent scroll chaining */
+.overscroll-contain {
+  overscroll-behavior: contain;
+}
+
+/* Minimum touch target size (44px as per Apple HIG) */
+.touch-target-44 {
+  min-width: 44px;
+  min-height: 44px;
+}
+
 /* Slide up animation for speed dial */
 @keyframes slide-up {
   from {

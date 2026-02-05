@@ -1,8 +1,11 @@
 // Mobile Combat Components Index
-export { CombatBottomNav, type CombatTab } from './CombatBottomNav';
+export { CombatBottomNav, SubTabPills, type CombatTab, type CombatSubTab, type ActionsSubTab } from './CombatBottomNav';
 export { CombatTopBar } from './CombatTopBar';
 export { SituationStrip } from './SituationStrip';
 export { ActionEconomyBar } from './ActionEconomyBar';
+export { FloatingTurnTracker } from './FloatingTurnTracker';
+export { QuickSituationChips } from './QuickSituationChips';
+export { TurnGuidanceHint } from './TurnGuidanceHint';
 export { MobileWeaponCard } from './MobileWeaponCard';
 export { CombatFAB } from './CombatFAB';
 export { TurnSummaryPanel } from './TurnSummaryPanel';
