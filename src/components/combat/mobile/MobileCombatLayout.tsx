@@ -736,9 +736,20 @@ export function MobileCombatLayout({
         attackBonus={combatStats.attackBonus}
       />
       
-      {/* Main Content Area - Flex container for scrollable content */}
-      <main className="flex-1 flex flex-col min-h-0 pt-[120px]">
-        
+      {/* Main Content Area - Single scrollable container for everything below header */}
+      <main 
+        {...swipeHandlers}
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain pt-[120px] pb-40"
+        style={{ 
+          touchAction: 'pan-y pinch-zoom',
+          WebkitOverflowScrolling: 'touch',
+        }}
+        onScroll={(e) => {
+          setIsScrolling(true);
+          clearTimeout((window as any).scrollTimeout);
+          (window as any).scrollTimeout = setTimeout(() => setIsScrolling(false), 150);
+        }}
+      >
         {/* Inline Action Economy (below header, above situation chips) */}
         <InlineActionEconomy
           economy={actionEconomy}
@@ -770,33 +781,19 @@ export function MobileCombatLayout({
           />
         )}
         
-        {/* Tab Content - Scrollable area takes remaining space */}
+        {/* Tab Content with swipe animation */}
         <div 
-          {...swipeHandlers}
-          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain pb-32"
-          style={{ 
-            touchAction: 'pan-y pinch-zoom',
-            WebkitOverflowScrolling: 'touch',
-          }}
-          onScroll={(e) => {
-            setIsScrolling(true);
-            clearTimeout((window as any).scrollTimeout);
-            (window as any).scrollTimeout = setTimeout(() => setIsScrolling(false), 150);
+          className={cn(
+            "transition-transform duration-300 ease-out",
+            slideDirection === 'left' && "animate-slide-in-from-right",
+            slideDirection === 'right' && "animate-slide-in-from-left"
+          )}
+          style={{
+            transform: swiping ? `translateX(${swipeOffset}px)` : undefined,
+            transition: swiping ? 'none' : undefined,
           }}
         >
-          <div 
-            className={cn(
-              "transition-transform duration-300 ease-out",
-              slideDirection === 'left' && "animate-slide-in-from-right",
-              slideDirection === 'right' && "animate-slide-in-from-left"
-            )}
-            style={{
-              transform: swiping ? `translateX(${swipeOffset}px)` : undefined,
-              transition: swiping ? 'none' : undefined,
-            }}
-          >
-            {renderTabContent()}
-          </div>
+          {renderTabContent()}
         </div>
       </main>
       
