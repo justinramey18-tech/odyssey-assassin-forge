@@ -39,7 +39,10 @@ export function TargetTrackerPanel({
     setCurrentTarget,
     dealDamage,
     healEnemy,
+    cloneEnemy,
+    toggleCondition,
     clearAll,
+    clearDefeated,
     enemyCount,
     defeatedCount,
     activeEnemies,
@@ -180,6 +183,8 @@ export function TargetTrackerPanel({
                 onHeal={(amount) => healEnemy(enemy.id, amount)}
                 onRemove={() => removeEnemy(enemy.id)}
                 onUpdate={(updates) => updateEnemy(enemy.id, updates)}
+                onClone={() => cloneEnemy(enemy.id)}
+                onToggleCondition={(condition) => toggleCondition(enemy.id, condition)}
               />
             ))}
           </div>
@@ -205,8 +210,21 @@ export function TargetTrackerPanel({
           {enemyCount > 0 && (
             <Button
               variant="outline"
+              onClick={clearDefeated}
+              disabled={defeatedCount === 0}
+              className="h-12 px-4 border-muted/40 text-muted-foreground hover:bg-muted/10"
+              title="Clear defeated"
+            >
+              💀
+            </Button>
+          )}
+          
+          {enemyCount > 0 && (
+            <Button
+              variant="outline"
               onClick={clearAll}
               className="h-12 px-4 border-red-500/40 text-red-400 hover:bg-red-500/10"
+              title="Clear all"
             >
               <Trash2 className="w-4 h-4" />
             </Button>
