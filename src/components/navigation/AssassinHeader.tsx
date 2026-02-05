@@ -72,7 +72,7 @@ export function AssassinHeader({
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full h-[10vh] min-h-[70px] max-h-[100px] bg-gradient-to-b from-black via-background/98 to-background/90 backdrop-blur-md">
+    <header className="sticky top-0 z-50 w-full bg-gradient-to-b from-black via-background/98 to-background/90 backdrop-blur-md">
       {/* Assassin's Creed Top Border Art */}
       <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-red-500 to-transparent" />
       <div className="absolute top-[3px] left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-red-400/50 to-transparent" />
@@ -89,31 +89,9 @@ export function AssassinHeader({
         <div className="absolute top-[8px] right-[8px] w-4 h-4 border-t-2 border-r-2 border-red-400/60" />
       </div>
       
-      {/* Bottom decorative border with angular accent */}
-      <div className="absolute bottom-0 left-0 right-0">
-        <div className="h-[2px] bg-gradient-to-r from-transparent via-red-900/80 to-transparent" />
-        {/* Center diamond accent */}
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-3 overflow-hidden">
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-4 bg-red-500/40 rotate-45 border border-red-400/60" />
-        </div>
-      </div>
-      
-      {/* Main navigation content - Character switcher + 4 Main Tabs with Dropdowns */}
-      <div className="h-full w-full flex items-center justify-between px-2">
-        {/* Left: Character Quick Switcher */}
-        <div className="flex-shrink-0">
-          {onLoadSave && onCloudClick && (
-            <CharacterQuickSwitcher
-              currentCharacterName={currentCharacterName}
-              currentCharacterLevel={currentCharacterLevel}
-              onLoadSave={onLoadSave}
-              onCloudClick={onCloudClick}
-            />
-          )}
-        </div>
-        
-        {/* Center: Navigation Tabs */}
-        <div className="h-full flex bg-transparent p-0 rounded-none gap-1">
+      {/* Main Navigation Row - 4 tabs only */}
+      <div className="h-[60px] w-full flex items-center justify-center px-2">
+        <div className="flex bg-transparent p-0 rounded-none gap-1">
           {categories.map(({ value, config }) => {
             const Icon = config.icon;
             const isActive = value === activeCategory;
@@ -127,7 +105,7 @@ export function AssassinHeader({
                   key={value}
                   onClick={handleHomeClick}
                   className={cn(
-                    "group h-full flex flex-col items-center justify-center gap-1",
+                    "group h-[56px] flex flex-col items-center justify-center gap-1",
                     "px-4 min-w-[70px] rounded-none",
                     "border-x border-red-900/20",
                     "font-cinzel uppercase tracking-wider text-[10px]",
@@ -148,7 +126,7 @@ export function AssassinHeader({
                 <DropdownMenuTrigger asChild>
                   <button
                     className={cn(
-                      "group h-full flex flex-col items-center justify-center gap-0.5",
+                      "group h-[56px] flex flex-col items-center justify-center gap-0.5",
                       "px-3 min-w-[80px] rounded-none",
                       "border-x border-red-900/20",
                       "font-cinzel uppercase tracking-wider text-[9px]",
@@ -244,10 +222,28 @@ export function AssassinHeader({
             );
           })}
         </div>
-        
-        {/* Right: Spacer to balance layout */}
-        <div className="flex-shrink-0 w-[80px]" />
       </div>
+      
+      {/* Bottom decorative border with angular accent */}
+      <div className="absolute bottom-0 left-0 right-0">
+        <div className="h-[2px] bg-gradient-to-r from-transparent via-red-900/80 to-transparent" />
+        {/* Center diamond accent */}
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-3 overflow-hidden">
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-4 bg-red-500/40 rotate-45 border border-red-400/60" />
+        </div>
+      </div>
+      
+      {/* Character Quick Switcher Row - Below tabs */}
+      {onLoadSave && onCloudClick && (
+        <div className="w-full flex items-center justify-center py-2 border-t border-red-900/20 bg-background/50">
+          <CharacterQuickSwitcher
+            currentCharacterName={currentCharacterName}
+            currentCharacterLevel={currentCharacterLevel}
+            onLoadSave={onLoadSave}
+            onCloudClick={onCloudClick}
+          />
+        </div>
+      )}
       
       {/* Decorative side tribal marks */}
       <div className="absolute top-1/2 left-2 -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-transparent via-red-500/30 to-transparent pointer-events-none" />
