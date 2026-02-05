@@ -411,6 +411,7 @@ export function calculateChangeSummary(result: ChronicleParseResult): {
   totalGold: { gained: number; spent: number };
   totalConditions: number;
   totalShopItems: number;
+  totalEnemies: { active: number; defeated: number };
 } {
   const totalXP = result.xpChanges.reduce((sum, xp) => sum + xp.amount, 0);
   const totalItems = result.itemChanges.length;
@@ -438,6 +439,16 @@ export function calculateChangeSummary(result: ChronicleParseResult): {
   const totalConditions = result.conditions.length;
   const totalShopItems = result.shopItems.length;
   
+  // Enemy totals
+  const totalEnemies = {
+    active: result.enemies
+      .filter(e => e.status === 'active')
+      .reduce((sum, e) => sum + e.quantity, 0),
+    defeated: result.enemies
+      .filter(e => e.status === 'defeated')
+      .reduce((sum, e) => sum + e.quantity, 0),
+  };
+  
   return {
     totalXP,
     totalItems,
@@ -447,5 +458,6 @@ export function calculateChangeSummary(result: ChronicleParseResult): {
     totalGold,
     totalConditions,
     totalShopItems,
+    totalEnemies,
   };
 }
