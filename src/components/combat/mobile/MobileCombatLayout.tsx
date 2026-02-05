@@ -636,6 +636,7 @@ export function MobileCombatLayout({
                   level={character.level}
                   attackBonus={combatStats.attackBonus}
                   hasTwoWeaponFightingStyle={combatSettings.hasTwoWeaponFightingStyle}
+                  hasDualWielderFeat={combatSettings.hasDualWielderFeat}
                   damageBonus={combatStats.damageBonus}
                   conditions={conditions}
                   hasPoisonedWeapon={hasPoisonedWeapon}
