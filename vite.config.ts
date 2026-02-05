@@ -49,7 +49,9 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp,woff,woff2}"],
+        globPatterns: ["**/*.{js,css,html,ico,svg,woff,woff2}"],
+        // Exclude large images from precache - they'll be loaded on demand
+        globIgnores: ["**/assets/*-background*.jpg", "**/assets/generated/**", "**/assets/sets/**", "**/assets/constellations/**", "**/assets/trees/**"],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3 MB limit
         runtimeCaching: [
           {
