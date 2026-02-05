@@ -4,6 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   Sheet,
   SheetContent,
   SheetHeader,
@@ -22,9 +28,14 @@ import {
   ChevronUp,
   Swords,
   Edit2,
+  Sparkles,
 } from 'lucide-react';
 import { UseInitiativeReturn, InitiativeCombatant } from '@/hooks/use-initiative';
 import { Enemy } from '@/lib/combat/targetTypes';
+import { 
+  rollInitiativeWithEstimate, 
+  CREATURE_DEX_LABELS 
+} from '@/lib/combat/initiativeUtils';
 
 interface InitiativeTrackerProps {
   initiative: UseInitiativeReturn;
@@ -69,20 +80,20 @@ export function InitiativeTracker({
     rollPlayerInitiative(dexModifier);
   }, [rollPlayerInitiative, dexModifier]);
 
-  // Roll initiative for an enemy
-  const handleRollEnemyInitiative = useCallback((enemyId: string, modifier: number = 0) => {
-    const roll = Math.floor(Math.random() * 20) + 1 + modifier;
-    onUpdateEnemyInitiative(enemyId, roll);
+  // Roll initiative for an enemy with creature type estimate
+  const handleRollEnemyInitiative = useCallback((enemy: Enemy) => {
+    const result = rollInitiativeWithEstimate(enemy.creatureType);
+    onUpdateEnemyInitiative(enemy.id, result.total);
   }, [onUpdateEnemyInitiative]);
 
-  // Roll all unset initiatives
-  const handleRollAll = useCallback(() => {
+  // Roll all unset initiatives with smart DEX estimates
+  const handleRollAllSmart = useCallback(() => {
     if (playerInitiative === null) {
       rollPlayerInitiative(dexModifier);
     }
     enemies.forEach(enemy => {
       if (enemy.initiative === undefined && enemy.currentHP > 0) {
-        handleRollEnemyInitiative(enemy.id);
+        handleRollEnemyInitiative(enemy);
       }
     });
   }, [playerInitiative, enemies, rollPlayerInitiative, dexModifier, handleRollEnemyInitiative]);
@@ -159,15 +170,25 @@ export function InitiativeTracker({
           <div className="flex items-center gap-2">
             {!combatStarted ? (
               <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleRollAll}
-                  className="h-7 text-xs gap-1"
-                >
-                  <Dices className="w-3 h-3" />
-                  Roll All
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleRollAllSmart}
+                        className="h-7 text-xs gap-1"
+                      >
+                        <Sparkles className="w-3 h-3 text-primary" />
+                        <Dices className="w-3 h-3" />
+                        Roll All
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-[200px]">
+                      <p className="text-xs">Uses creature type to estimate DEX modifiers for more realistic rolls</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <Button
                   variant="default"
                   size="sm"
@@ -247,17 +268,32 @@ export function InitiativeTracker({
           {enemies
             .filter(e => e.initiative === undefined && e.currentHP > 0)
             .map(enemy => (
-              <button
-                key={enemy.id}
-                onClick={() => handleRollEnemyInitiative(enemy.id)}
-                className="shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-muted/50 bg-muted/5 hover:bg-muted/10 transition-colors"
-              >
-                <Skull className="w-4 h-4 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground truncate max-w-[80px]">
-                  {enemy.name}
-                </span>
-                <Dices className="w-3 h-3 text-muted-foreground" />
-              </button>
+              <TooltipProvider key={enemy.id}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => handleRollEnemyInitiative(enemy)}
+                      className="shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-muted/50 bg-muted/5 hover:bg-muted/10 transition-colors"
+                    >
+                      <Skull className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground truncate max-w-[80px]">
+                        {enemy.name}
+                      </span>
+                      {enemy.creatureType && (
+                        <Sparkles className="w-2.5 h-2.5 text-primary/60" />
+                      )}
+                      <Dices className="w-3 h-3 text-muted-foreground" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p className="text-xs">
+                      {enemy.creatureType 
+                        ? `DEX estimate: ${CREATURE_DEX_LABELS[enemy.creatureType]}`
+                        : 'No creature type set (+0 DEX)'}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             ))}
 
           {/* Turn Navigation - Right */}
