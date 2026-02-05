@@ -29,6 +29,55 @@ interface GameModeSettingsProps {
   onChange: (settings: GameModeSettingsType) => void;
 }
 
+// Reusable toggle component for combat settings
+function CombatSettingToggle({
+  id,
+  settingKey,
+  checked,
+  onToggle,
+}: {
+  id: string;
+  settingKey: keyof CombatSettings;
+  checked: boolean;
+  onToggle: (key: keyof CombatSettings, checked: boolean) => void;
+}) {
+  const { label, description } = getCombatSettingDescription(settingKey);
+  
+  return (
+    <div
+      className={cn(
+        'p-3 rounded-lg border transition-all',
+        checked
+          ? 'border-amber-500/50 bg-amber-500/5'
+          : 'border-border/30 bg-card/30'
+      )}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <Label
+            htmlFor={id}
+            className={cn(
+              'text-sm font-medium cursor-pointer',
+              checked ? 'text-amber-400' : 'text-foreground'
+            )}
+          >
+            {label}
+          </Label>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {description}
+          </p>
+        </div>
+        <Switch
+          id={id}
+          checked={checked}
+          onCheckedChange={(c) => onToggle(settingKey, c)}
+          className="data-[state=checked]:bg-amber-500"
+        />
+      </div>
+    </div>
+  );
+}
+
 export function GameModeSettings({ settings, onChange }: GameModeSettingsProps) {
   const isHonestMode = settings.mode === 'honest';
   const isInfinityPool = settings.mode === 'infinityPool';
@@ -177,73 +226,56 @@ export function GameModeSettings({ settings, onChange }: GameModeSettingsProps) 
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <Swords className="w-4 h-4 text-amber-400" />
-          <span className="text-sm font-medium text-amber-400">Combat Features</span>
+          <span className="text-sm font-medium text-amber-400">Combat Features & Feats</span>
         </div>
         
-        <div
-          className={cn(
-            'p-3 rounded-lg border transition-all',
-            combatSettings.hasTwoWeaponFightingStyle
-              ? 'border-amber-500/50 bg-amber-500/5'
-              : 'border-border/30 bg-card/30'
-          )}
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <Label
-                htmlFor="two-weapon-fighting"
-                className={cn(
-                  'text-sm font-medium cursor-pointer',
-                  combatSettings.hasTwoWeaponFightingStyle ? 'text-amber-400' : 'text-foreground'
-                )}
-              >
-                {getCombatSettingDescription('hasTwoWeaponFightingStyle').label}
-              </Label>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {getCombatSettingDescription('hasTwoWeaponFightingStyle').description}
-              </p>
-            </div>
-            <Switch
-              id="two-weapon-fighting"
-              checked={combatSettings.hasTwoWeaponFightingStyle}
-              onCheckedChange={(checked) => handleCombatSettingToggle('hasTwoWeaponFightingStyle', checked)}
-              className="data-[state=checked]:bg-amber-500"
-            />
-          </div>
-        </div>
+        {/* Two-Weapon Fighting Style */}
+        <CombatSettingToggle
+          id="two-weapon-fighting"
+          settingKey="hasTwoWeaponFightingStyle"
+          checked={combatSettings.hasTwoWeaponFightingStyle}
+          onToggle={handleCombatSettingToggle}
+        />
 
         {/* Dual Wielder Feat */}
-        <div
-          className={cn(
-            'p-3 rounded-lg border transition-all',
-            combatSettings.hasDualWielderFeat
-              ? 'border-amber-500/50 bg-amber-500/5'
-              : 'border-border/30 bg-card/30'
-          )}
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <Label
-                htmlFor="dual-wielder-feat"
-                className={cn(
-                  'text-sm font-medium cursor-pointer',
-                  combatSettings.hasDualWielderFeat ? 'text-amber-400' : 'text-foreground'
-                )}
-              >
-                {getCombatSettingDescription('hasDualWielderFeat').label}
-              </Label>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {getCombatSettingDescription('hasDualWielderFeat').description}
-              </p>
-            </div>
-            <Switch
-              id="dual-wielder-feat"
-              checked={combatSettings.hasDualWielderFeat}
-              onCheckedChange={(checked) => handleCombatSettingToggle('hasDualWielderFeat', checked)}
-              className="data-[state=checked]:bg-amber-500"
-            />
-          </div>
-        </div>
+        <CombatSettingToggle
+          id="dual-wielder-feat"
+          settingKey="hasDualWielderFeat"
+          checked={combatSettings.hasDualWielderFeat}
+          onToggle={handleCombatSettingToggle}
+        />
+
+        {/* Great Weapon Master */}
+        <CombatSettingToggle
+          id="great-weapon-master"
+          settingKey="hasGreatWeaponMaster"
+          checked={combatSettings.hasGreatWeaponMaster}
+          onToggle={handleCombatSettingToggle}
+        />
+
+        {/* Sharpshooter */}
+        <CombatSettingToggle
+          id="sharpshooter"
+          settingKey="hasSharpshooter"
+          checked={combatSettings.hasSharpshooter}
+          onToggle={handleCombatSettingToggle}
+        />
+
+        {/* Sentinel */}
+        <CombatSettingToggle
+          id="sentinel"
+          settingKey="hasSentinel"
+          checked={combatSettings.hasSentinel}
+          onToggle={handleCombatSettingToggle}
+        />
+
+        {/* Polearm Master */}
+        <CombatSettingToggle
+          id="polearm-master"
+          settingKey="hasPolearmMaster"
+          checked={combatSettings.hasPolearmMaster}
+          onToggle={handleCombatSettingToggle}
+        />
       </div>
 
       {/* 4th Wall Time Setting */}

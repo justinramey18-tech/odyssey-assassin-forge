@@ -6,6 +6,14 @@ export interface CombatSettings {
   hasTwoWeaponFightingStyle: boolean;
   /** Dual Wielder Feat: Allows two-weapon fighting with non-Light weapons */
   hasDualWielderFeat: boolean;
+  /** Great Weapon Master Feat: -5 attack, +10 damage with heavy weapons */
+  hasGreatWeaponMaster: boolean;
+  /** Sharpshooter Feat: -5 attack, +10 damage with ranged weapons */
+  hasSharpshooter: boolean;
+  /** Sentinel Feat: Opportunity attacks reduce speed to 0 */
+  hasSentinel: boolean;
+  /** Polearm Master Feat: Bonus action attack with butt end, opportunity attacks at reach */
+  hasPolearmMaster: boolean;
 }
 
 const STORAGE_KEY = 'odyssey-combat-settings';
@@ -13,6 +21,10 @@ const STORAGE_KEY = 'odyssey-combat-settings';
 const DEFAULT_SETTINGS: CombatSettings = {
   hasTwoWeaponFightingStyle: false,
   hasDualWielderFeat: false,
+  hasGreatWeaponMaster: false,
+  hasSharpshooter: false,
+  hasSentinel: false,
+  hasPolearmMaster: false,
 };
 
 // Custom event for same-tab synchronization
@@ -51,12 +63,55 @@ export function getCombatSettingDescription(key: keyof CombatSettings): { label:
   const descriptions: Record<keyof CombatSettings, { label: string; description: string }> = {
     hasTwoWeaponFightingStyle: {
       label: 'Two-Weapon Fighting Style',
-      description: 'Add your ability modifier to the damage of offhand attacks. Requires the Fighting Style class feature.',
+      description: 'Add your ability modifier to the damage of offhand attacks.',
     },
     hasDualWielderFeat: {
-      label: 'Dual Wielder Feat',
-      description: 'You can use two-weapon fighting with any one-handed melee weapons, not just Light weapons. Also grants +1 AC while dual wielding.',
+      label: 'Dual Wielder',
+      description: 'Two-weapon fighting with any one-handed melee weapons. +1 AC while dual wielding.',
+    },
+    hasGreatWeaponMaster: {
+      label: 'Great Weapon Master',
+      description: 'Take -5 to attack for +10 damage with Heavy weapons. Bonus action attack on crit/kill.',
+    },
+    hasSharpshooter: {
+      label: 'Sharpshooter',
+      description: 'Take -5 to attack for +10 damage with ranged weapons. Ignore cover and long range penalty.',
+    },
+    hasSentinel: {
+      label: 'Sentinel',
+      description: 'Opportunity attacks reduce speed to 0. Attack creatures that attack allies within 5ft.',
+    },
+    hasPolearmMaster: {
+      label: 'Polearm Master',
+      description: 'Bonus action attack with butt end (1d4). Opportunity attacks when enemies enter reach.',
     },
   };
   return descriptions[key];
+}
+
+// Helper to check if a feat applies to a weapon
+export function isFeatApplicable(
+  feat: 'greatWeaponMaster' | 'sharpshooter' | 'polearmMaster',
+  weaponProperties: string[],
+  isRanged: boolean
+): boolean {
+  const propsLower = weaponProperties.map(p => p.toLowerCase());
+  
+  switch (feat) {
+    case 'greatWeaponMaster':
+      return propsLower.some(p => p.includes('heavy') || p.includes('two-handed'));
+    case 'sharpshooter':
+      return isRanged;
+    case 'polearmMaster':
+      return propsLower.some(p => 
+        p.includes('reach') || 
+        p.includes('glaive') || 
+        p.includes('halberd') || 
+        p.includes('pike') ||
+        p.includes('quarterstaff') ||
+        p.includes('spear')
+      );
+    default:
+      return false;
+  }
 }
