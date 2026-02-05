@@ -7,6 +7,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ChevronDown, Lock } from 'lucide-react';
+import { CharacterQuickSwitcher } from './CharacterQuickSwitcher';
+import { SaveData } from '@/hooks/use-auto-save';
 
 interface AssassinHeaderProps {
   onHomeClick: () => void;
@@ -15,6 +17,11 @@ interface AssassinHeaderProps {
   onCategoryChange: (category: MainCategory) => void;
   onSubTabChange: (subTab: string, category?: MainCategory) => void;
   isLegacyUnlocked?: boolean;
+  // Character quick-switcher props
+  currentCharacterName?: string;
+  currentCharacterLevel?: number;
+  onLoadSave?: (data: SaveData) => void;
+  onCloudClick?: () => void;
 }
 
 // Haptic feedback helper
@@ -32,6 +39,10 @@ export function AssassinHeader({
   onCategoryChange,
   onSubTabChange,
   isLegacyUnlocked = false,
+  currentCharacterName = '',
+  currentCharacterLevel = 1,
+  onLoadSave,
+  onCloudClick,
 }: AssassinHeaderProps) {
   const categories: { value: MainCategory; config: typeof CATEGORY_CONFIG['home'] }[] = [
     { value: 'home', config: CATEGORY_CONFIG.home },
@@ -87,8 +98,21 @@ export function AssassinHeader({
         </div>
       </div>
       
-      {/* Main navigation content - 4 Main Tabs with Dropdowns */}
-      <div className="h-full w-full flex items-center justify-center px-2">
+      {/* Main navigation content - Character switcher + 4 Main Tabs with Dropdowns */}
+      <div className="h-full w-full flex items-center justify-between px-2">
+        {/* Left: Character Quick Switcher */}
+        <div className="flex-shrink-0">
+          {onLoadSave && onCloudClick && (
+            <CharacterQuickSwitcher
+              currentCharacterName={currentCharacterName}
+              currentCharacterLevel={currentCharacterLevel}
+              onLoadSave={onLoadSave}
+              onCloudClick={onCloudClick}
+            />
+          )}
+        </div>
+        
+        {/* Center: Navigation Tabs */}
         <div className="h-full flex bg-transparent p-0 rounded-none gap-1">
           {categories.map(({ value, config }) => {
             const Icon = config.icon;
@@ -220,6 +244,9 @@ export function AssassinHeader({
             );
           })}
         </div>
+        
+        {/* Right: Spacer to balance layout */}
+        <div className="flex-shrink-0 w-[80px]" />
       </div>
       
       {/* Decorative side tribal marks */}

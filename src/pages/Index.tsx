@@ -1157,6 +1157,10 @@ const Index = () => {
           }}
           onSubTabChange={categoryNav.navigateToSubTab}
           isLegacyUnlocked={prestigeTree.isLegacyUnlocked}
+          currentCharacterName={character.name}
+          currentCharacterLevel={character.level}
+          onLoadSave={handleLoadCloudSave}
+          onCloudClick={() => setShowCloudSaveModal(true)}
         />
 
         {/* Content Area - Conditional Rendering Based on Active Sub-Tab */}
