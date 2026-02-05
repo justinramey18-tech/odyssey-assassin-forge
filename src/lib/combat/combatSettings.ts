@@ -4,12 +4,15 @@
 export interface CombatSettings {
   /** Two-Weapon Fighting Style: Adds ability modifier to offhand damage */
   hasTwoWeaponFightingStyle: boolean;
+  /** Dual Wielder Feat: Allows two-weapon fighting with non-Light weapons */
+  hasDualWielderFeat: boolean;
 }
 
 const STORAGE_KEY = 'odyssey-combat-settings';
 
 const DEFAULT_SETTINGS: CombatSettings = {
   hasTwoWeaponFightingStyle: false,
+  hasDualWielderFeat: false,
 };
 
 // Custom event for same-tab synchronization
@@ -49,6 +52,10 @@ export function getCombatSettingDescription(key: keyof CombatSettings): { label:
     hasTwoWeaponFightingStyle: {
       label: 'Two-Weapon Fighting Style',
       description: 'Add your ability modifier to the damage of offhand attacks. Requires the Fighting Style class feature.',
+    },
+    hasDualWielderFeat: {
+      label: 'Dual Wielder Feat',
+      description: 'You can use two-weapon fighting with any one-handed melee weapons, not just Light weapons. Also grants +1 AC while dual wielding.',
     },
   };
   return descriptions[key];

@@ -22,6 +22,8 @@ interface OffhandAttackCardProps {
   attackBonus: number;
   /** For Two-Weapon Fighting style - add ability mod to offhand damage */
   hasTwoWeaponFightingStyle?: boolean;
+  /** For Dual Wielder feat - allows non-Light weapons */
+  hasDualWielderFeat?: boolean;
   damageBonus: number;
   conditions: string[];
   hasPoisonedWeapon: boolean;
@@ -39,20 +41,44 @@ interface OffhandAttackCardProps {
 /**
  * Checks if two-weapon fighting is legal:
  * - Both weapons must have the "Light" property
- * - Or character has Dual Wielder feat (not tracked here, assume Light)
+ * - OR character has Dual Wielder feat (bypasses Light requirement for one-handed melee)
  */
-function canUseOffhand(primary: WeaponAttack | null, secondary: WeaponAttack): {
+function canUseOffhand(
+  primary: WeaponAttack | null, 
+  secondary: WeaponAttack,
+  hasDualWielderFeat: boolean = false
+): {
   allowed: boolean;
   reason: string;
 } {
-  const secondaryIsLight = secondary.properties.some(p => 
-    p.toLowerCase().includes('light')
-  );
-  
   if (!primary) {
     return { allowed: false, reason: 'Need primary weapon attack first' };
   }
   
+  // Dual Wielder feat bypasses the Light requirement
+  if (hasDualWielderFeat) {
+    // Check both weapons are one-handed melee (not two-handed or ranged)
+    const primaryIsTwoHanded = primary.properties.some(p => 
+      p.toLowerCase().includes('two-handed') || p.toLowerCase().includes('heavy')
+    );
+    const secondaryIsTwoHanded = secondary.properties.some(p => 
+      p.toLowerCase().includes('two-handed') || p.toLowerCase().includes('heavy')
+    );
+    
+    if (primaryIsTwoHanded) {
+      return { allowed: false, reason: 'Primary weapon is two-handed' };
+    }
+    if (secondaryIsTwoHanded) {
+      return { allowed: false, reason: 'Offhand weapon is two-handed' };
+    }
+    
+    return { allowed: true, reason: 'Dual Wielder feat active (+1 AC)' };
+  }
+  
+  // Standard two-weapon fighting: both need Light
+  const secondaryIsLight = secondary.properties.some(p => 
+    p.toLowerCase().includes('light')
+  );
   const primaryIsLight = primary.properties.some(p => 
     p.toLowerCase().includes('light')
   );
@@ -74,6 +100,7 @@ export function OffhandAttackCard({
   level,
   attackBonus,
   hasTwoWeaponFightingStyle = false,
+  hasDualWielderFeat = false,
   damageBonus,
   conditions,
   hasPoisonedWeapon,
@@ -86,7 +113,7 @@ export function OffhandAttackCard({
   const [applyCritical, setApplyCritical] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const eligibility = canUseOffhand(primaryWeapon, secondaryWeapon);
+  const eligibility = canUseOffhand(primaryWeapon, secondaryWeapon, hasDualWielderFeat);
   const sneakAttackDice = getSneakAttackDice(level);
   const sneakEligibility = isSneakAttackEligible(conditions, secondaryWeapon);
   

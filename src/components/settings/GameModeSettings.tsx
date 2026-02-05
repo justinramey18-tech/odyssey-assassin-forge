@@ -211,6 +211,39 @@ export function GameModeSettings({ settings, onChange }: GameModeSettingsProps) 
             />
           </div>
         </div>
+
+        {/* Dual Wielder Feat */}
+        <div
+          className={cn(
+            'p-3 rounded-lg border transition-all',
+            combatSettings.hasDualWielderFeat
+              ? 'border-amber-500/50 bg-amber-500/5'
+              : 'border-border/30 bg-card/30'
+          )}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <Label
+                htmlFor="dual-wielder-feat"
+                className={cn(
+                  'text-sm font-medium cursor-pointer',
+                  combatSettings.hasDualWielderFeat ? 'text-amber-400' : 'text-foreground'
+                )}
+              >
+                {getCombatSettingDescription('hasDualWielderFeat').label}
+              </Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {getCombatSettingDescription('hasDualWielderFeat').description}
+              </p>
+            </div>
+            <Switch
+              id="dual-wielder-feat"
+              checked={combatSettings.hasDualWielderFeat}
+              onCheckedChange={(checked) => handleCombatSettingToggle('hasDualWielderFeat', checked)}
+              className="data-[state=checked]:bg-amber-500"
+            />
+          </div>
+        </div>
       </div>
 
       {/* 4th Wall Time Setting */}
