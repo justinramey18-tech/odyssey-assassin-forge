@@ -152,15 +152,19 @@ function MobileAbilityCard({
     passive: 'bg-green-500/20 text-green-300',
   };
 
+  const isPassive = ability.type === 'passive';
+  
   return (
-    <button
-      onClick={onUse}
-      disabled={ability.type === 'passive'}
+    <div
+      role="button"
+      tabIndex={isPassive ? -1 : 0}
+      onClick={() => !isPassive && onUse()}
+      onKeyDown={(e) => e.key === 'Enter' && !isPassive && onUse()}
       className={cn(
-        "w-full flex items-center gap-3 p-4 bg-card border border-muted/30 border-l-4 rounded-xl",
+        "w-full flex items-center gap-3 p-4 bg-card border border-muted/30 border-l-4 rounded-xl cursor-pointer touch-manipulation",
         "active:scale-[0.99] transition-all",
         treeColors[ability.tree],
-        ability.type === 'passive' && "opacity-60"
+        isPassive && "opacity-60 cursor-default"
       )}
     >
       <div className="flex-1 text-left">
@@ -183,7 +187,7 @@ function MobileAbilityCard({
         </div>
       </div>
       
-      {ability.type !== 'passive' && (
+      {!isPassive && (
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 px-3 py-1.5 bg-red-500/20 rounded-lg text-sm text-red-300">
             <Dices className="w-4 h-4" />
@@ -193,10 +197,10 @@ function MobileAbilityCard({
         </div>
       )}
       
-      {ability.type === 'passive' && (
+      {isPassive && (
         <div className="w-3 h-3 rounded-full bg-green-500/50" />
       )}
-    </button>
+    </div>
   );
 }
 

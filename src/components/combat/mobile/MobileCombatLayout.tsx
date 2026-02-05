@@ -780,9 +780,8 @@ export function MobileCombatLayout({
           />
         )}
         
-        {/* Tab Content with swipe animation - swipe handlers only on this inner div */}
+        {/* Tab Content with animation */}
         <div 
-          {...swipeHandlers}
           className={cn(
             "transition-transform duration-300 ease-out min-h-[50vh]",
             slideDirection === 'left' && "animate-slide-in-from-right",
@@ -791,7 +790,6 @@ export function MobileCombatLayout({
           style={{
             transform: swiping ? `translateX(${swipeOffset}px)` : undefined,
             transition: swiping ? 'none' : undefined,
-            touchAction: 'pan-y pan-x',
           }}
         >
           {renderTabContent()}
