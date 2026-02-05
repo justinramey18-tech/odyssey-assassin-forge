@@ -31,11 +31,11 @@ export function CombatFAB({
   // Determine primary action based on active tab
   const getPrimaryAction = () => {
     switch (activeTab) {
-      case 'attacks':
+      case 'combat':
         return { icon: Sword, action: onQuickAttack, label: 'Quick Attack' };
-      case 'stealth':
+      case 'actions':
         return { icon: Eye, action: onQuickHide, label: 'Quick Hide' };
-      case 'summary':
+      case 'log':
         return { icon: Copy, action: onCopySummary, label: 'Copy Summary' };
       default:
         return { icon: Dices, action: onQuickRoll, label: 'Quick Roll' };
