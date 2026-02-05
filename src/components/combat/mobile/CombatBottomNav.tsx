@@ -9,7 +9,7 @@ import {
   Zap,
 } from 'lucide-react';
 
-export type CombatTab = 'attacks' | 'stealth' | 'abilities' | 'reactions' | 'spells' | 'items' | 'summary';
+export type CombatTab = 'attacks' | 'stealth' | 'abilities' | 'reactions' | 'spells' | 'items' | 'summary' | 'log';
 
 interface CombatBottomNavProps {
   activeTab: CombatTab;
@@ -21,6 +21,7 @@ interface CombatBottomNavProps {
     reactions?: number;
     spells?: number;
     items: number;
+    log?: number;
   };
 }
 
@@ -31,7 +32,7 @@ const tabs = [
   { id: 'reactions' as CombatTab, label: 'REACT', icon: Zap, color: 'text-cyan-400' },
   { id: 'spells' as CombatTab, label: 'MAGIC', icon: Wand2, color: 'text-indigo-400' },
   { id: 'items' as CombatTab, label: 'ITEMS', icon: Backpack, color: 'text-green-400' },
-  { id: 'summary' as CombatTab, label: 'LOG', icon: FileText, color: 'text-slate-400' },
+  { id: 'log' as CombatTab, label: 'LOG', icon: FileText, color: 'text-primary' },
 ];
 
 export function CombatBottomNav({ 
