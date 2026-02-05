@@ -3,6 +3,7 @@
 
 import { applyTimePrefix } from '../fourthWallTime';
 import { ActiveCondition, formatDuration } from '../conditions';
+import { TargetPromptInfo, getHealthStatus } from './targetTypes';
 
 export interface ActiveConditionInfo {
   name: string;
@@ -15,6 +16,9 @@ export interface SetBonusInfo {
   maxPieces: number;
   effect: string;
 }
+
+// Re-export for convenience
+export type { TargetPromptInfo };
 
 /**
  * Unified context for generating AI DM prompts in combat.
@@ -45,6 +49,9 @@ export interface CombatPromptContext {
   
   // Equipment context
   activeSetBonuses: SetBonusInfo[];
+  
+  // Current target (enemy being attacked)
+  currentTarget: TargetPromptInfo | null;
 }
 
 /**
@@ -89,6 +96,7 @@ export function createEmptyCombatPromptContext(): CombatPromptContext {
     spellSaveDC: 10,
     spellAttackBonus: 0,
     activeSetBonuses: [],
+    currentTarget: null,
   };
 }
 
@@ -168,6 +176,26 @@ export function formatSetBonuses(context: CombatPromptContext): string {
 }
 
 /**
+ * Formats current target for narrative inclusion in prompts.
+ */
+export function formatTargetForPrompt(target: TargetPromptInfo | null): string {
+  if (!target) return '';
+  
+  const healthStatus = getHealthStatus(target.currentHP, target.maxHP);
+  
+  let section = `### 🎯 Target
+**Enemy:** ${target.name} (AC ${target.ac})
+**HP Status:** ${target.currentHP}/${target.maxHP} (${healthStatus.label.toLowerCase()})
+*The ${target.name.toLowerCase()} ${healthStatus.narrative}.*`;
+  
+  if (target.notes) {
+    section += `\n**Intel:** ${target.notes}`;
+  }
+  
+  return section;
+}
+
+/**
  * Wraps a prompt with the 4th Wall Time prefix if enabled.
  * This should be called as the final step when generating any AI DM prompt.
  */
@@ -203,6 +231,12 @@ export function generateContextHeader(context: CombatPromptContext): string {
   if (context.combatModifiers.length > 0) {
     const modifierLabels = context.combatModifiers.join(', ');
     parts.push(`**Combat Modifiers:** ${modifierLabels}`);
+  }
+  
+  // Current target (brief)
+  if (context.currentTarget) {
+    const targetHealth = getHealthStatus(context.currentTarget.currentHP, context.currentTarget.maxHP);
+    parts.push(`**Target:** ${context.currentTarget.name} (AC ${context.currentTarget.ac}, ${targetHealth.label})`);
   }
   
   return parts.join(' | ');

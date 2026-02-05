@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Ability, AbilityTree } from '@/lib/types';
 import { WeaponAttack } from '@/lib/combat/combatTypes';
-import { ActiveConditionInfo, SetBonusInfo } from '@/lib/combat/promptContext';
+import { ActiveConditionInfo, SetBonusInfo, TargetPromptInfo, formatTargetForPrompt } from '@/lib/combat/promptContext';
 import { getAbilityDice, rollDice, DiceRoll } from '@/lib/diceRoller';
 import { CooldownProgress } from '@/components/cooldowns/CooldownProgress';
 import { COOLDOWN_CONFIGS } from '@/lib/cooldowns/config';
@@ -56,6 +56,7 @@ interface CombatAbilityCardProps {
   activeConditions?: ActiveConditionInfo[];
   activeSetBonuses?: SetBonusInfo[];
   concentrationSpell?: string | null;
+  currentTarget?: TargetPromptInfo | null;
   onUse: (ability: Ability & { tier: 1 | 2 | 3 }, roll: DiceRoll, prompt: string, combinedDamage: string) => void;
   onTriggerCooldown?: (abilityId: string) => void;
 }
@@ -69,6 +70,7 @@ export function CombatAbilityCard({
   activeConditions = [],
   activeSetBonuses = [],
   concentrationSpell,
+  currentTarget,
   onUse,
   onTriggerCooldown,
 }: CombatAbilityCardProps) {
@@ -172,13 +174,16 @@ export function CombatAbilityCard({
       concentrationSection = `\n### ⚡ Concentration Active\n**Maintaining:** ${concentrationSpell}\n*Warning: Taking damage requires a Constitution save to maintain concentration.*\n`;
     }
 
+    // Build target section
+    const targetSection = currentTarget ? formatTargetForPrompt(currentTarget) : '';
+
     const rawPrompt = `## ${theme.emoji} ${theme.title}: ${ability.name.toUpperCase()}
 
 **Character:** ${characterName || 'The Assassin'}
 **Action Type:** ${actionTypeEmoji[ability.actionType]} ${ability.actionType.replace('_', ' ').toUpperCase()}
 **Ability Tier:** ${ability.tier}/3
 ${weaponSection}
-${conditionsSection}${setBonusSection}${concentrationSection}
+${targetSection ? `\n${targetSection}\n` : ''}${conditionsSection}${setBonusSection}${concentrationSection}
 ---
 
 ### Roll Result
@@ -227,7 +232,7 @@ ${activeSetBonuses.length > 0
 *Roll: ${roll.total} | Ability: ${ability.name} (T${ability.tier}) | Damage: ${combinedDamage}*`;
 
     return applyTimePrefix(rawPrompt);
-  }, [ability, characterName, count, die, synergyWeapon, getCombinedDamage, activeConditions, activeSetBonuses, concentrationSpell]);
+  }, [ability, characterName, count, die, synergyWeapon, getCombinedDamage, activeConditions, activeSetBonuses, concentrationSpell, currentTarget]);
 
   // Handle ability use
   const handleUse = useCallback(() => {
