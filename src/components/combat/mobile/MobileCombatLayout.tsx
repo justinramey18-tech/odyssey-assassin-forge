@@ -29,12 +29,14 @@ import { ActionEconomyBar } from './ActionEconomyBar';
 import { MobileWeaponCard } from './MobileWeaponCard';
 import { CombatFAB } from './CombatFAB';
 import { TurnSummaryPanel } from './TurnSummaryPanel';
+import { CombatLogPanel } from './CombatLogPanel';
 import { MobileAbilityList } from './MobileAbilityList';
 import { EnhancedMobileAbilityList } from './EnhancedMobileAbilityList';
 import { MobileItemsGrid } from './MobileItemsGrid';
 import { MobileSpellList } from './MobileSpellList';
 import { MobileReactionsList } from './MobileReactionsList';
 import { QuickCastPanel } from './QuickCastPanel';
+import { useCombatLog } from '@/hooks/use-combat-log';
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
 import { usePromptDrawers } from '@/components/drawers';
 import { CharacterEquipment, EquipmentSlotType } from '@/lib/inventory/types';
@@ -47,7 +49,7 @@ import { BaseAbilityScores } from '@/lib/abilityScores/types';
 import { UseActionEconomyReturn } from '@/hooks/use-action-economy';
 
 // Tab order for swipe navigation
-const TAB_ORDER: CombatTab[] = ['attacks', 'stealth', 'abilities', 'reactions', 'spells', 'items', 'summary'];
+const TAB_ORDER: CombatTab[] = ['attacks', 'stealth', 'abilities', 'reactions', 'spells', 'items', 'log'];
 
 interface MobileCombatLayoutProps {
   character: Character;
@@ -113,6 +115,10 @@ export function MobileCombatLayout({
   
   // Ability custom images for ability cards
   const { images: abilityImages } = useAbilityImages();
+  
+  // Combat log for AI DM prompts
+  const combatLog = useCombatLog();
+  
   // Cooldown system integration
   const cooldownSystem = useCooldowns({
     characterAbilities: character.abilities,
@@ -292,13 +298,28 @@ export function MobileCombatLayout({
     setShowDiceModal(true);
     setLastAction(`${ability.name.toUpperCase()} ACTIVATED`);
     
+    // Log to combat log
+    combatLog.addEntry({
+      actionType: 'ability',
+      actionName: ability.name,
+      prompt,
+      roll: {
+        total: roll.total,
+        rolls: roll.rolls,
+        modifier: roll.modifier,
+        isCrit: roll.rolls.includes(20),
+        isFumble: roll.rolls.includes(1),
+      },
+      damage: `${count}${die}`,
+    });
+    
     // Trigger cooldown
     cooldownSystem.triggerCooldown(ability.id);
     
     const actionType = ability.actionType === 'bonus_action' ? 'bonus' : 
                        ability.actionType === 'reaction' ? 'reaction' : 'action';
     handleAddToTurn(actionType, ability.name, `${count}${die}`);
-  }, [character.name, handleAddToTurn, cooldownSystem]);
+  }, [character.name, handleAddToTurn, cooldownSystem, combatLog]);
   
   // Handle enhanced ability use (with weapon synergy + combined damage)
   const handleEnhancedAbilityUse = useCallback((
@@ -314,11 +335,26 @@ export function MobileCombatLayout({
     setShowDiceModal(true);
     setLastAction(`${ability.name.toUpperCase()} + ${combinedDamage}`);
     
+    // Log to combat log
+    combatLog.addEntry({
+      actionType: 'ability',
+      actionName: `${ability.name} + Weapon`,
+      prompt,
+      roll: {
+        total: roll.total,
+        rolls: roll.rolls,
+        modifier: roll.modifier,
+        isCrit: roll.rolls.includes(20),
+        isFumble: roll.rolls.includes(1),
+      },
+      damage: combinedDamage,
+    });
+    
     const actionType = ability.actionType === 'bonus_action' ? 'bonus' : 
                        ability.actionType === 'reaction' ? 'reaction' : 'action';
     const { die, count } = getAbilityDice(ability.tier);
     handleAddToTurn(actionType, `${ability.name} (${combinedDamage})`, `${count}${die}`);
-  }, [handleAddToTurn]);
+  }, [handleAddToTurn, combatLog]);
   
   // Handle weapon roll
   const handleWeaponRoll = useCallback((
@@ -333,14 +369,31 @@ export function MobileCombatLayout({
         ? `${weapon.name} + Sneak Attack`
         : weapon.name;
     
+    const prompt = generateWeaponPrompt(rollType, weapon, roll, damage, character.name);
+    
     setDiceRoll(roll);
-    setDicePrompt(generateWeaponPrompt(rollType, weapon, roll, damage, character.name));
+    setDicePrompt(prompt);
     setActiveAbility(null);
     setShowDiceModal(true);
     setLastAction(`${rollName.toUpperCase()} ROLL`);
     
+    // Log to combat log
+    combatLog.addEntry({
+      actionType: 'weapon',
+      actionName: rollName,
+      prompt,
+      roll: {
+        total: roll.total,
+        rolls: roll.rolls,
+        modifier: roll.modifier,
+        isCrit: roll.rolls.includes(20),
+        isFumble: roll.rolls.includes(1),
+      },
+      damage,
+    });
+    
     handleAddToTurn('action', `${weapon.name} attack${rollType !== 'normal' ? ` (${rollType})` : ''}`);
-  }, [character.name, handleAddToTurn]);
+  }, [character.name, handleAddToTurn, combatLog]);
   
   // Reset turn
   const handleResetTurn = useCallback(() => {
@@ -544,6 +597,13 @@ export function MobileCombatLayout({
               setActionEconomy(prev => ({ ...prev, reactionUsed: true }));
               setLastAction(`⚡ ${reaction.name.toUpperCase()}`);
               handleAddToTurn('reaction', reaction.name);
+              
+              // Log to combat log using dmPrompt
+              combatLog.addEntry({
+                actionType: 'reaction',
+                actionName: reaction.name,
+                prompt: reaction.dmPrompt || `## ⚡ REACTION: ${reaction.name.toUpperCase()}\n\n**Character:** ${character.name}\n**Trigger:** ${reaction.trigger}\n\n### Effect\n${reaction.effect}\n\n---\n\n*Narrate how ${character.name} instinctively responds with ${reaction.name}.*`,
+              });
             }}
           />
         );
@@ -557,6 +617,13 @@ export function MobileCombatLayout({
               if (result.success) {
                 setLastAction(`${result.spellName.toUpperCase()} CAST`);
                 handleAddToTurn('action', `Cast ${result.spellName}`);
+                
+                // Log spell to combat log
+                combatLog.addEntry({
+                  actionType: 'spell',
+                  actionName: result.spellName,
+                  prompt: `## 🔮 SPELL CAST: ${result.spellName.toUpperCase()}\n\n**Character:** ${character.name}\n\n---\n\n*Narrate ${character.name} casting ${result.spellName}.*`,
+                });
               }
             }}
           />
@@ -610,6 +677,15 @@ export function MobileCombatLayout({
                 ]);
               }
             }}
+          />
+        );
+      
+      case 'log':
+        return (
+          <CombatLogPanel
+            entries={combatLog.entries}
+            onClearLog={combatLog.clearLog}
+            onRemoveEntry={combatLog.removeEntry}
           />
         );
     }
@@ -695,6 +771,7 @@ export function MobileCombatLayout({
           })(),
           spells: spellcasting?.state.preparedSpells.length ?? 0,
           items: 4,
+          log: combatLog.entryCount,
         }}
       />
       

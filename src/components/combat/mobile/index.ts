@@ -6,6 +6,7 @@ export { ActionEconomyBar } from './ActionEconomyBar';
 export { MobileWeaponCard } from './MobileWeaponCard';
 export { CombatFAB } from './CombatFAB';
 export { TurnSummaryPanel } from './TurnSummaryPanel';
+export { CombatLogPanel } from './CombatLogPanel';
 export { MobileAbilityList } from './MobileAbilityList';
 export { EnhancedMobileAbilityList } from './EnhancedMobileAbilityList';
 export { CombatAbilityCard } from './CombatAbilityCard';
