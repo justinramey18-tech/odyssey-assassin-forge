@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, Infinity, Info, Clock } from 'lucide-react';
+import { Shield, Infinity, Info, Clock, Swords } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
@@ -16,6 +16,13 @@ import {
   save4thWallTimeSetting,
   FOURTH_WALL_TIME_CHANGE_EVENT,
 } from '@/lib/fourthWallTime';
+import {
+  CombatSettings,
+  loadCombatSettings,
+  saveCombatSettings,
+  getCombatSettingDescription,
+  COMBAT_SETTINGS_CHANGE_EVENT,
+} from '@/lib/combat/combatSettings';
 
 interface GameModeSettingsProps {
   settings: GameModeSettingsType;
@@ -26,6 +33,7 @@ export function GameModeSettings({ settings, onChange }: GameModeSettingsProps) 
   const isHonestMode = settings.mode === 'honest';
   const isInfinityPool = settings.mode === 'infinityPool';
   const [fourthWallTime, setFourthWallTime] = useState(() => load4thWallTimeSetting());
+  const [combatSettings, setCombatSettings] = useState<CombatSettings>(() => loadCombatSettings());
 
   // Listen for external changes to 4th Wall Time setting
   useEffect(() => {
@@ -35,6 +43,16 @@ export function GameModeSettings({ settings, onChange }: GameModeSettingsProps) 
     };
     window.addEventListener(FOURTH_WALL_TIME_CHANGE_EVENT, handleChange);
     return () => window.removeEventListener(FOURTH_WALL_TIME_CHANGE_EVENT, handleChange);
+  }, []);
+
+  // Listen for external changes to Combat Settings
+  useEffect(() => {
+    const handleChange = (e: Event) => {
+      const customEvent = e as CustomEvent<CombatSettings>;
+      setCombatSettings(customEvent.detail);
+    };
+    window.addEventListener(COMBAT_SETTINGS_CHANGE_EVENT, handleChange);
+    return () => window.removeEventListener(COMBAT_SETTINGS_CHANGE_EVENT, handleChange);
   }, []);
 
   const handleModeToggle = (mode: 'honest' | 'infinityPool') => {
@@ -54,6 +72,12 @@ export function GameModeSettings({ settings, onChange }: GameModeSettingsProps) 
   const handleFourthWallTimeToggle = (checked: boolean) => {
     setFourthWallTime(checked);
     save4thWallTimeSetting(checked);
+  };
+
+  const handleCombatSettingToggle = (key: keyof CombatSettings, checked: boolean) => {
+    const newSettings = { ...combatSettings, [key]: checked };
+    setCombatSettings(newSettings);
+    saveCombatSettings(newSettings);
   };
 
   return (
@@ -148,6 +172,46 @@ export function GameModeSettings({ settings, onChange }: GameModeSettingsProps) 
       </div>
 
       <Separator />
+
+      {/* Combat Features */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Swords className="w-4 h-4 text-amber-400" />
+          <span className="text-sm font-medium text-amber-400">Combat Features</span>
+        </div>
+        
+        <div
+          className={cn(
+            'p-3 rounded-lg border transition-all',
+            combatSettings.hasTwoWeaponFightingStyle
+              ? 'border-amber-500/50 bg-amber-500/5'
+              : 'border-border/30 bg-card/30'
+          )}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <Label
+                htmlFor="two-weapon-fighting"
+                className={cn(
+                  'text-sm font-medium cursor-pointer',
+                  combatSettings.hasTwoWeaponFightingStyle ? 'text-amber-400' : 'text-foreground'
+                )}
+              >
+                {getCombatSettingDescription('hasTwoWeaponFightingStyle').label}
+              </Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {getCombatSettingDescription('hasTwoWeaponFightingStyle').description}
+              </p>
+            </div>
+            <Switch
+              id="two-weapon-fighting"
+              checked={combatSettings.hasTwoWeaponFightingStyle}
+              onCheckedChange={(checked) => handleCombatSettingToggle('hasTwoWeaponFightingStyle', checked)}
+              className="data-[state=checked]:bg-amber-500"
+            />
+          </div>
+        </div>
+      </div>
 
       {/* 4th Wall Time Setting */}
       <div className="space-y-3">
