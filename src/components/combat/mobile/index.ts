@@ -1,9 +1,10 @@
-// Mobile Combat Components Index - UX Overhaul v2
+// Mobile Combat Components Index - UX Overhaul v3
 export { CombatBottomNav, SubTabPills, type CombatTab, type CombatSubTab, type ActionsSubTab } from './CombatBottomNav';
 export { CombatTopBar } from './CombatTopBar';
 export { SituationStrip } from './SituationStrip';
 export { ActionEconomyBar } from './ActionEconomyBar';
 export { FloatingTurnTracker } from './FloatingTurnTracker';
+export { InlineActionEconomy } from './InlineActionEconomy';
 export { QuickSituationChips } from './QuickSituationChips';
 export { TurnGuidanceHint } from './TurnGuidanceHint';
 export { MobileWeaponCard } from './MobileWeaponCard';
