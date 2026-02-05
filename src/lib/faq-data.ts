@@ -161,6 +161,38 @@ export const FAQ_ITEMS: FAQCategory[] = [
         q: "How do Reactions work?",
         a: "The React tab shows available reactions (opportunity attacks, defensive abilities, etc.). Reactions can be used once per round outside your turn.",
       },
+      {
+        q: "What is Offhand (Two-Weapon Fighting)?",
+        a: "When wielding a Light weapon in each hand, you can make an offhand bonus action attack with your secondary weapon. By default, you don't add your ability modifier to damage. Enable 'Two-Weapon Fighting Style' in Settings to add it.",
+      },
+      {
+        q: "Where do I configure combat feats and fighting styles?",
+        a: "Go to Settings → Game tab → Combat Features & Feats section. Toggle on any feats or fighting styles your character has, such as Two-Weapon Fighting, Dual Wielder, Great Weapon Master, or Sharpshooter.",
+      },
+      {
+        q: "What is Two-Weapon Fighting Style?",
+        a: "A fighting style that adds your ability modifier to offhand attack damage. Enable it in Settings → Game → Combat Features if your character has this class feature.",
+      },
+      {
+        q: "What does Dual Wielder feat do?",
+        a: "Allows two-weapon fighting with any one-handed melee weapons (not just Light weapons) and grants +1 AC while dual wielding. Enable in Settings → Game → Combat Features.",
+      },
+      {
+        q: "What is Great Weapon Master?",
+        a: "A feat that lets you take -5 to attack rolls for +10 damage when using Heavy weapons. Also grants a bonus action attack on critical hits or kills. Enable in Settings → Game → Combat Features.",
+      },
+      {
+        q: "What is Sharpshooter?",
+        a: "A feat that lets you take -5 to attack rolls for +10 damage with ranged weapons. Also ignores cover bonuses and long range penalties. Enable in Settings → Game → Combat Features.",
+      },
+      {
+        q: "What is Sentinel?",
+        a: "A feat that makes your opportunity attacks reduce the target's speed to 0 and lets you attack creatures that attack allies within 5ft of you. Enable in Settings → Game → Combat Features.",
+      },
+      {
+        q: "What is Polearm Master?",
+        a: "A feat that grants a bonus action attack with the butt end of your polearm (1d4 damage) and lets you make opportunity attacks when enemies enter your reach. Enable in Settings → Game → Combat Features.",
+      },
     ],
   },
   {
