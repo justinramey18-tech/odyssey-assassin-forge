@@ -3,26 +3,40 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import { Enemy, getHealthStatus } from '@/lib/combat/targetTypes';
+import { 
+  Enemy, 
+  getHealthStatus, 
+  formatCreatureTypeSize,
+  EnemyCondition,
+  DamageType,
+} from '@/lib/combat/targetTypes';
+import {
+  CREATURE_TYPE_ICONS,
+  ENEMY_CONDITION_INFO,
+  DAMAGE_TYPE_LABELS,
+} from '@/lib/combat/creatureTypes';
 import {
   Target,
   Skull,
   Shield,
-  Heart,
   Minus,
   Plus,
   X,
-  Check,
+  Copy,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 interface EnemyCardProps {
   enemy: Enemy;
   isCurrentTarget: boolean;
   onSelect: () => void;
-  onDealDamage: (amount: number) => void;
+  onDealDamage: (amount: number, damageType?: DamageType) => void;
   onHeal: (amount: number) => void;
   onRemove: () => void;
   onUpdate: (updates: Partial<Enemy>) => void;
+  onClone: () => void;
+  onToggleCondition: (condition: EnemyCondition) => void;
 }
 
 export function EnemyCard({
@@ -33,13 +47,17 @@ export function EnemyCard({
   onHeal,
   onRemove,
   onUpdate,
+  onClone,
+  onToggleCondition,
 }: EnemyCardProps) {
   const [damageInput, setDamageInput] = useState('');
-  const [showDamageControls, setShowDamageControls] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   
   const healthStatus = getHealthStatus(enemy.currentHP, enemy.maxHP);
   const hpPercent = enemy.maxHP > 0 ? (enemy.currentHP / enemy.maxHP) * 100 : 0;
   const isDefeated = enemy.currentHP <= 0;
+  const typeIcon = enemy.creatureType ? CREATURE_TYPE_ICONS[enemy.creatureType] : null;
+  const typeSizeLabel = formatCreatureTypeSize(enemy.creatureType, enemy.size);
 
   const handleDamage = () => {
     const amount = parseInt(damageInput, 10);
@@ -91,6 +109,8 @@ export function EnemyCard({
             <Skull className="w-4 h-4 text-slate-500" />
           ) : isCurrentTarget ? (
             <Target className="w-4 h-4 text-red-400" />
+          ) : typeIcon ? (
+            <span className="text-sm">{typeIcon}</span>
           ) : (
             <div className="w-2 h-2 rounded-full bg-muted-foreground" />
           )}
@@ -98,7 +118,7 @@ export function EnemyCard({
 
         {/* Enemy info */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className={cn(
               "font-semibold truncate",
               isDefeated && "line-through text-muted-foreground"
@@ -111,6 +131,13 @@ export function EnemyCard({
               </span>
             )}
           </div>
+          
+          {/* Type/Size label */}
+          {typeSizeLabel && (
+            <div className="text-[10px] text-muted-foreground mt-0.5">
+              {typeSizeLabel}
+            </div>
+          )}
           
           {/* HP Bar */}
           <div className="mt-1.5 flex items-center gap-2">
@@ -134,6 +161,24 @@ export function EnemyCard({
               {enemy.currentHP}/{enemy.maxHP}
             </span>
           </div>
+
+          {/* Active conditions */}
+          {enemy.conditions.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {enemy.conditions.map(condition => {
+                const info = ENEMY_CONDITION_INFO[condition];
+                return (
+                  <span
+                    key={condition}
+                    className="text-[10px] bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded-full"
+                    title={info.effect}
+                  >
+                    {info.emoji} {info.label}
+                  </span>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* AC Badge */}
@@ -192,24 +237,108 @@ export function EnemyCard({
               Heal
             </Button>
           </div>
-          
-          {/* Notes display */}
-          {enemy.notes && (
-            <p className="text-[11px] text-muted-foreground italic px-1">
-              📝 {enemy.notes}
-            </p>
+
+          {/* Resistances/Vulnerabilities display */}
+          {(enemy.resistances.length > 0 || enemy.vulnerabilities.length > 0 || enemy.immunities.length > 0) && (
+            <div className="flex flex-wrap gap-1.5 text-[10px]">
+              {enemy.resistances.map(r => (
+                <span key={`r-${r}`} className="bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded">
+                  {DAMAGE_TYPE_LABELS[r].emoji} R
+                </span>
+              ))}
+              {enemy.vulnerabilities.map(v => (
+                <span key={`v-${v}`} className="bg-red-500/20 text-red-300 px-1.5 py-0.5 rounded">
+                  {DAMAGE_TYPE_LABELS[v].emoji} V
+                </span>
+              ))}
+              {enemy.immunities.map(i => (
+                <span key={`i-${i}`} className="bg-slate-500/30 text-slate-300 px-1.5 py-0.5 rounded">
+                  {DAMAGE_TYPE_LABELS[i].emoji} I
+                </span>
+              ))}
+            </div>
           )}
-          
-          {/* Remove button */}
+
+          {/* Expand details toggle */}
           <Button
             variant="ghost"
             size="sm"
-            onClick={onRemove}
-            className="w-full h-8 text-xs text-muted-foreground hover:text-destructive"
+            onClick={() => setShowDetails(!showDetails)}
+            className="w-full h-7 text-xs text-muted-foreground"
           >
-            <X className="w-3 h-3 mr-1" />
-            Remove from Combat
+            {showDetails ? (
+              <>
+                <ChevronUp className="w-3 h-3 mr-1" />
+                Hide Details
+              </>
+            ) : (
+              <>
+                <ChevronDown className="w-3 h-3 mr-1" />
+                Conditions & More
+              </>
+            )}
           </Button>
+
+          {/* Expanded details */}
+          {showDetails && (
+            <div className="space-y-2 pt-1">
+              {/* Condition toggles */}
+              <div className="space-y-1">
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                  Toggle Conditions
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {(['prone', 'frightened', 'poisoned', 'stunned', 'blinded', 'restrained', 'grappled', 'paralyzed'] as EnemyCondition[]).map(condition => {
+                    const info = ENEMY_CONDITION_INFO[condition];
+                    const isActive = enemy.conditions.includes(condition);
+                    return (
+                      <button
+                        key={condition}
+                        onClick={() => onToggleCondition(condition)}
+                        className={cn(
+                          "text-[10px] px-2 py-1 rounded-full border transition-all",
+                          isActive
+                            ? "bg-purple-500/30 border-purple-500/50 text-purple-200"
+                            : "bg-muted/20 border-muted/30 text-muted-foreground hover:border-muted/50"
+                        )}
+                      >
+                        {info.emoji} {info.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              
+              {/* Notes display */}
+              {enemy.notes && (
+                <p className="text-[11px] text-muted-foreground italic px-1">
+                  📝 {enemy.notes}
+                </p>
+              )}
+              
+              {/* Actions */}
+              <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onClone}
+                  className="flex-1 h-8 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  <Copy className="w-3 h-3 mr-1" />
+                  Clone
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onRemove}
+                  className="flex-1 h-8 text-xs text-muted-foreground hover:text-destructive"
+                >
+                  <X className="w-3 h-3 mr-1" />
+                  Remove
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

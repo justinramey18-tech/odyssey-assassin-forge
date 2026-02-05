@@ -3,7 +3,13 @@
 
 import { applyTimePrefix } from '../fourthWallTime';
 import { ActiveCondition, formatDuration } from '../conditions';
-import { TargetPromptInfo, getHealthStatus } from './targetTypes';
+import { 
+  TargetPromptInfo, 
+  getHealthStatus, 
+  formatCreatureTypeSize, 
+  formatConditionsForPrompt as formatTargetConditions,
+  formatDamageModifiers,
+} from './targetTypes';
 
 export interface ActiveConditionInfo {
   name: string;
@@ -182,11 +188,33 @@ export function formatTargetForPrompt(target: TargetPromptInfo | null): string {
   if (!target) return '';
   
   const healthStatus = getHealthStatus(target.currentHP, target.maxHP);
+  const typeSizeLabel = formatCreatureTypeSize(target.creatureType, target.size);
   
   let section = `### 🎯 Target
-**Enemy:** ${target.name} (AC ${target.ac})
-**HP Status:** ${target.currentHP}/${target.maxHP} (${healthStatus.label.toLowerCase()})
-*The ${target.name.toLowerCase()} ${healthStatus.narrative}.*`;
+**Enemy:** ${target.name}`;
+
+  if (typeSizeLabel) {
+    section += `\n**Type:** ${typeSizeLabel}`;
+  }
+
+  section += `\n**AC:** ${target.ac} | **HP:** ${target.currentHP}/${target.maxHP} (${healthStatus.label.toLowerCase()})`;
+  
+  // Add conditions if any
+  if (target.conditions && target.conditions.length > 0) {
+    section += `\n**Conditions:** ${formatTargetConditions(target.conditions)}`;
+  }
+  
+  // Add damage modifiers if any
+  const damageModifiers = formatDamageModifiers(
+    target.resistances || [], 
+    target.vulnerabilities || [], 
+    target.immunities || []
+  );
+  if (damageModifiers) {
+    section += `\n**Damage Modifiers:** ${damageModifiers}`;
+  }
+  
+  section += `\n*The ${target.name.toLowerCase()} ${healthStatus.narrative}.*`;
   
   if (target.notes) {
     section += `\n**Intel:** ${target.notes}`;
@@ -233,10 +261,17 @@ export function generateContextHeader(context: CombatPromptContext): string {
     parts.push(`**Combat Modifiers:** ${modifierLabels}`);
   }
   
-  // Current target (brief)
+  // Current target (enhanced)
   if (context.currentTarget) {
     const targetHealth = getHealthStatus(context.currentTarget.currentHP, context.currentTarget.maxHP);
-    parts.push(`**Target:** ${context.currentTarget.name} (AC ${context.currentTarget.ac}, ${targetHealth.label})`);
+    const typeSizeLabel = formatCreatureTypeSize(context.currentTarget.creatureType, context.currentTarget.size);
+    let targetStr = `**Target:** ${context.currentTarget.name}`;
+    if (typeSizeLabel) targetStr += ` (${typeSizeLabel})`;
+    targetStr += ` (AC ${context.currentTarget.ac}, ${targetHealth.label})`;
+    if (context.currentTarget.conditions && context.currentTarget.conditions.length > 0) {
+      targetStr += ` [${formatTargetConditions(context.currentTarget.conditions)}]`;
+    }
+    parts.push(targetStr);
   }
   
   return parts.join(' | ');
