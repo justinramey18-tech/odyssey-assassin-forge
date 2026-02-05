@@ -62,6 +62,7 @@ interface ChronicleSyncScreenProps {
   onAddEnemies: (enemies: NewEnemyInput[]) => number;
   onUpdateEnemy: (id: string, updates: Partial<Enemy>) => void;
   onClearDefeated: () => void;
+  onRefreshEnemies?: () => void;
   onBack: () => void;
 }
 
@@ -83,6 +84,7 @@ export function ChronicleSyncScreen({
   onAddEnemies,
   onUpdateEnemy,
   onClearDefeated,
+  onRefreshEnemies,
   onBack 
 }: ChronicleSyncScreenProps) {
   const [inputText, setInputText] = useState('');
@@ -669,6 +671,7 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
                   onAddEnemies={onAddEnemies}
                   onUpdateEnemy={onUpdateEnemy}
                   onClearDefeated={onClearDefeated}
+                  onRefreshEnemies={onRefreshEnemies}
                 />
               )}
 

@@ -102,6 +102,7 @@ export interface UseTargetsReturn {
   clearAll: () => void;
   clearDefeated: () => void;
   getTargetForPrompt: () => TargetPromptInfo | null;
+  refreshFromStorage: () => void;
 }
 
 export function useTargets(): UseTargetsReturn {
@@ -437,5 +438,8 @@ export function useTargets(): UseTargetsReturn {
     clearAll,
     clearDefeated,
     getTargetForPrompt,
+    refreshFromStorage: useCallback(() => {
+      setState(loadFromStorage());
+    }, []),
   };
 }
