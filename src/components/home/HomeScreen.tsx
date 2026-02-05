@@ -25,6 +25,7 @@ import { StatusIndicatorRow } from './StatusIndicatorRow';
 import { DynamicHealthBar } from './DynamicHealthBar';
 import { AvailablePointsWidget } from './AvailablePointsWidget';
 import { EnlargedD20Section } from './EnlargedD20Section';
+import { CloudSyncStatusWidget } from './CloudSyncStatusWidget';
 import { PrimaryNavigationCards } from './PrimaryNavigationCards';
 import { BackgroundUploadButton } from './BackgroundUploadButton';
 import { XPProgressBar } from './XPProgressBar';
@@ -76,6 +77,10 @@ interface HomeScreenProps {
   onCustomBackgroundClear?: () => void;
   // Prestige data for XP bar
   prestigeData?: PrestigeData;
+  // Cloud sync props
+  lastCloudSyncTime?: string | null;
+  isCloudSyncing?: boolean;
+  onCloudSyncClick?: () => void;
 }
 
 // Haptic feedback helper
@@ -111,6 +116,9 @@ export function HomeScreen({
   onCustomBackgroundUpload,
   onCustomBackgroundClear,
   prestigeData,
+  lastCloudSyncTime,
+  isCloudSyncing = false,
+  onCloudSyncClick,
 }: HomeScreenProps) {
   const isMobile = useIsMobile();
   const stats = useEquipmentStats(equipment);
@@ -335,6 +343,15 @@ export function HomeScreen({
             <CharacterNamePlaque 
               name={character.name} 
               level={character.level} 
+            />
+
+            {/* Cloud Sync Status Widget */}
+            <CloudSyncStatusWidget
+              characterName={character.name}
+              characterLevel={character.level}
+              lastSyncTime={lastCloudSyncTime}
+              isSyncing={isCloudSyncing}
+              onClick={onCloudSyncClick}
             />
 
             {/* Dynamic Health Bar */}
