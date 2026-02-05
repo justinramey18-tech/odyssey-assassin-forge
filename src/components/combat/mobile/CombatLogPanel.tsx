@@ -23,12 +23,14 @@ interface CombatLogPanelProps {
   entries: CombatLogEntry[];
   onClearLog: () => void;
   onRemoveEntry: (id: string) => void;
+  onSmartPrompt?: () => void;
 }
 
 export function CombatLogPanel({
   entries,
   onClearLog,
   onRemoveEntry,
+  onSmartPrompt,
 }: CombatLogPanelProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -114,6 +116,16 @@ export function CombatLogPanel({
         </div>
         {entries.length > 0 && (
           <div className="flex items-center gap-2">
+            {/* AI Smart Prompt Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onSmartPrompt}
+              className="h-8 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-500/40 text-cyan-300 hover:from-cyan-500/30 hover:to-purple-500/30"
+            >
+              <Sparkles className="w-4 h-4 mr-1" />
+              AI
+            </Button>
             <Button
               variant="ghost"
               size="sm"
