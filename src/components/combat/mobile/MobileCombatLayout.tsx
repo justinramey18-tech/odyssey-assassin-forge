@@ -40,8 +40,10 @@ import { MobileReactionsList } from './MobileReactionsList';
 import { QuickCastPanel } from './QuickCastPanel';
 import { TurnWizardPanel } from './TurnWizardPanel';
 import { TargetTrackerPanel } from './TargetTrackerPanel';
+import { InitiativeTracker } from './InitiativeTracker';
 import { useCombatLog } from '@/hooks/use-combat-log';
 import { useTargets } from '@/hooks/use-targets';
+import { useInitiative } from '@/hooks/use-initiative';
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
 import { usePromptDrawers } from '@/components/drawers';
 import { CharacterEquipment, EquipmentSlotType } from '@/lib/inventory/types';
@@ -128,6 +130,10 @@ export function MobileCombatLayout({
   // Target/Enemy Tracker for combat
   const targetTracker = useTargets();
   const [targetTrackerCollapsed, setTargetTrackerCollapsed] = useState(true);
+  
+  // Initiative tracking
+  const initiativeTracker = useInitiative(targetTracker.enemies);
+  const [initiativeCollapsed, setInitiativeCollapsed] = useState(true);
   
   // Cooldown system integration
   const cooldownSystem = useCooldowns({
@@ -772,8 +778,8 @@ export function MobileCombatLayout({
     <div className="min-h-screen bg-background">
       {/* Top Bar with HP and Stats */}
       <CombatTopBar
-        round={round}
-        isYourTurn={isYourTurn}
+        round={initiativeTracker.combatStarted ? initiativeTracker.roundNumber : round}
+        isYourTurn={initiativeTracker.combatStarted ? initiativeTracker.isPlayerTurn : isYourTurn}
         lastAction={lastAction}
         onResetTurn={handleResetTurn}
         onMenuOpen={() => {}}
@@ -803,6 +809,18 @@ export function MobileCombatLayout({
           onCollapsedChange={setTargetTrackerCollapsed}
         />
         
+        {/* Initiative Tracker */}
+        <InitiativeTracker
+          initiative={initiativeTracker}
+          enemies={targetTracker.enemies}
+          onUpdateEnemyInitiative={(id, initiative) => {
+            targetTracker.updateEnemy(id, { initiative });
+          }}
+          dexModifier={abilityModifiers?.dexterity ?? 0}
+          isCollapsed={initiativeCollapsed}
+          onCollapsedChange={setInitiativeCollapsed}
+        />
+        
         {/* Action Economy Bar */}
         <ActionEconomyBar
           economy={actionEconomy}
@@ -810,17 +828,25 @@ export function MobileCombatLayout({
           actionCount={actionCount}
           bonusCount={bonusCount}
           reactionCount={reactionCount}
-          round={round}
+          round={initiativeTracker.combatStarted ? initiativeTracker.roundNumber : round}
           onEndTurn={() => {
-            // End turn: reset economy, advance round
+            // End turn: reset economy, advance to next turn in initiative
             handleResetTurn();
-            setRound(prev => prev + 1);
+            if (initiativeTracker.combatStarted) {
+              initiativeTracker.nextTurn();
+            } else {
+              setRound(prev => prev + 1);
+            }
             setLastAction('TURN ENDED');
           }}
           onEndTurnWithSynthesis={() => {
             // End turn with AI synthesis: open the smart prompt sheet
             handleResetTurn();
-            setRound(prev => prev + 1);
+            if (initiativeTracker.combatStarted) {
+              initiativeTracker.nextTurn();
+            } else {
+              setRound(prev => prev + 1);
+            }
             setLastAction('TURN SYNCED');
             setShowSmartPromptSheet(true);
           }}
