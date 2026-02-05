@@ -22,12 +22,10 @@ import { useCombatStats } from '@/hooks/use-combat-stats';
 import { COOLDOWN_CONFIGS, calculateEffectiveCooldown } from '@/lib/cooldowns/config';
 
 // Mobile components
-import { CombatBottomNav, CombatTab, SubTabPills, CombatSubTab, ActionsSubTab } from './CombatBottomNav';
+import { CombatBottomNav, CombatTab } from './CombatBottomNav';
 import { CombatTopBar } from './CombatTopBar';
 import { SituationStrip } from './SituationStrip';
-import { InlineActionEconomy } from './InlineActionEconomy';
-import { QuickSituationChips } from './QuickSituationChips';
-import { TurnGuidanceHint } from './TurnGuidanceHint';
+import { ActionEconomyBar } from './ActionEconomyBar';
 import { MobileWeaponCard } from './MobileWeaponCard';
 import { CombatFAB } from './CombatFAB';
 import { TurnSummaryPanel } from './TurnSummaryPanel';
@@ -51,8 +49,8 @@ import { AggregatedStats } from '@/hooks/use-equipment-stats';
 import { BaseAbilityScores } from '@/lib/abilityScores/types';
 import { UseActionEconomyReturn } from '@/hooks/use-action-economy';
 
-// Tab order for swipe navigation (consolidated 5 tabs)
-const TAB_ORDER: CombatTab[] = ['combat', 'actions', 'spells', 'items', 'log'];
+// Tab order for swipe navigation
+const TAB_ORDER: CombatTab[] = ['attacks', 'stealth', 'abilities', 'reactions', 'spells', 'items', 'log'];
 
 interface MobileCombatLayoutProps {
   character: Character;
@@ -97,13 +95,10 @@ export function MobileCombatLayout({
   onUseLootItem,
 }: MobileCombatLayoutProps) {
   // Navigation state
-  const [activeTab, setActiveTab] = useState<CombatTab>('combat');
-  const [combatSubTab, setCombatSubTab] = useState<CombatSubTab>('attacks');
-  const [actionsSubTab, setActionsSubTab] = useState<ActionsSubTab>('abilities');
+  const [activeTab, setActiveTab] = useState<CombatTab>('attacks');
   const [round, setRound] = useState(1);
   const [isYourTurn, setIsYourTurn] = useState(true);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
-  const [isScrolling, setIsScrolling] = useState(false);
   const { rerollsDisabled, isHonestMode, enforceCooldowns } = useGameMode();
   
   // Use unified combat stats hook
@@ -138,6 +133,7 @@ export function MobileCombatLayout({
     if (currentIndex < TAB_ORDER.length - 1) {
       setSlideDirection('left');
       setActiveTab(TAB_ORDER[currentIndex + 1]);
+      // Reset animation after it completes
       setTimeout(() => setSlideDirection(null), 300);
     }
   }, [activeTab]);
@@ -147,6 +143,7 @@ export function MobileCombatLayout({
     if (currentIndex > 0) {
       setSlideDirection('right');
       setActiveTab(TAB_ORDER[currentIndex - 1]);
+      // Reset animation after it completes
       setTimeout(() => setSlideDirection(null), 300);
     }
   }, [activeTab]);
@@ -157,25 +154,9 @@ export function MobileCombatLayout({
     { threshold: 60, velocityThreshold: 0.4 }
   );
   
-  // Situation state - extracted for quick chips
+  // Situation state
   const [conditions, setConditions] = useState<string[]>([]);
   const [situationCollapsed, setSituationCollapsed] = useState(true);
-  
-  // Quick chip state (derived from conditions)
-  const isHidden = conditions.includes('hidden');
-  const hasAdvantage = conditions.includes('advantage');
-  const nearAlly = conditions.includes('nearAlly');
-  
-  const toggleQuickCondition = useCallback((conditionId: string) => {
-    setConditions(prev => 
-      prev.includes(conditionId) 
-        ? prev.filter(c => c !== conditionId)
-        : [...prev, conditionId]
-    );
-  }, []);
-  
-  // Sneak attack eligibility
-  const sneakAttackEligible = hasAdvantage || nearAlly || isHidden;
   
   // Action economy state (use prop if provided, otherwise fallback to local state)
   const [localActionEconomy, setLocalActionEconomy] = useState<ActionEconomy>({
@@ -286,6 +267,7 @@ export function MobileCombatLayout({
     description: string,
     roll?: string
   ) => {
+    // Use synced action economy if available
     if (actionEconomyState) {
       actionEconomyState.addTurnAction({ type: actionType, description, roll });
     } else {
@@ -318,6 +300,7 @@ export function MobileCombatLayout({
     setShowDiceModal(true);
     setLastAction(`${ability.name.toUpperCase()} ACTIVATED`);
     
+    // Log to combat log
     combatLog.addEntry({
       actionType: 'ability',
       actionName: ability.name,
@@ -332,6 +315,7 @@ export function MobileCombatLayout({
       damage: `${count}${die}`,
     });
     
+    // Trigger cooldown
     cooldownSystem.triggerCooldown(ability.id);
     
     const actionType = ability.actionType === 'bonus_action' ? 'bonus' : 
@@ -353,6 +337,7 @@ export function MobileCombatLayout({
     setShowDiceModal(true);
     setLastAction(`${ability.name.toUpperCase()} + ${combinedDamage}`);
     
+    // Log to combat log
     combatLog.addEntry({
       actionType: 'ability',
       actionName: `${ability.name} + Weapon`,
@@ -394,6 +379,7 @@ export function MobileCombatLayout({
     setShowDiceModal(true);
     setLastAction(`${rollName.toUpperCase()} ROLL`);
     
+    // Log to combat log
     combatLog.addEntry({
       actionType: 'weapon',
       actionName: rollName,
@@ -411,7 +397,7 @@ export function MobileCombatLayout({
     handleAddToTurn('action', `${weapon.name} attack${rollType !== 'normal' ? ` (${rollType})` : ''}`);
   }, [character.name, handleAddToTurn, combatLog]);
   
-  // Reset turn / End turn
+  // Reset turn
   const handleResetTurn = useCallback(() => {
     if (actionEconomyState) {
       actionEconomyState.resetTurn();
@@ -427,20 +413,6 @@ export function MobileCombatLayout({
     }
     setLastAction('TURN RESET');
   }, [actionEconomyState, setActionEconomy]);
-
-  // End turn with round advancement
-  const handleEndTurn = useCallback(() => {
-    handleResetTurn();
-    setRound(prev => prev + 1);
-    setLastAction(`ROUND ${round + 1} STARTED`);
-    if (navigator.vibrate) navigator.vibrate(30);
-  }, [handleResetTurn, round]);
-
-  // End turn with AI synthesis
-  const handleEndTurnWithSynthesis = useCallback(() => {
-    setShowSmartPromptSheet(true);
-    handleEndTurn();
-  }, [handleEndTurn]);
   
   // Remove action
   const handleRemoveAction = useCallback((index: number) => {
@@ -475,6 +447,7 @@ export function MobileCombatLayout({
         
         const action = prev[index];
         
+        // Update action economy
         setActionEconomy(prevEcon => ({
           ...prevEcon,
           actionUsed: action.type === 'action' ? false : prevEcon.actionUsed,
@@ -487,192 +460,175 @@ export function MobileCombatLayout({
     }
   }, [actionEconomyState, turnActions, setActionEconomy]);
   
-  // Handle tab navigation from guidance
-  const handleNavigateToTab = useCallback((tab: string) => {
-    if (tab === 'attacks' || tab === 'stealth') {
-      setActiveTab('combat');
-      setCombatSubTab(tab as CombatSubTab);
-    } else if (tab === 'abilities' || tab === 'reactions') {
-      setActiveTab('actions');
-      setActionsSubTab(tab as ActionsSubTab);
-    } else if (tab === 'spells' || tab === 'items' || tab === 'log') {
-      setActiveTab(tab as CombatTab);
-    }
-  }, []);
+  // FAB actions
+  const handleQuickRoll = () => {
+    const roll = rollDice('d20', 1);
+    setDiceRoll(roll);
+    setDicePrompt('Quick d20 roll');
+    setActiveAbility(null);
+    setShowDiceModal(true);
+  };
   
-  // Render tab content with sub-tabs
+  const handleQuickAttack = () => {
+    const weapon = DEFAULT_WEAPONS[0];
+    const roll = rollDice('d20', 1, combatStats.attackBonus);
+    handleWeaponRoll('normal', weapon, roll, weapon.damage);
+  };
+  
+  const handleQuickHide = () => {
+    const roll = rollDice('d20', 1, 11); // Stealth +11
+    setDiceRoll(roll);
+    setDicePrompt('Stealth Check to Hide');
+    setActiveAbility(null);
+    setShowDiceModal(true);
+    handleAddToTurn('bonus', 'Hide (Stealth +11)');
+  };
+  
+  const handleCopySummary = async () => {
+    const summary = turnActions.map(a => 
+      `${a.type.toUpperCase()}: ${a.description}${a.roll ? ` (${a.roll})` : ''}`
+    ).join('\n');
+    await navigator.clipboard.writeText(summary);
+    setLastAction('SUMMARY COPIED');
+  };
+  
+  // Render tab content
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'combat':
+      case 'attacks':
         return (
-          <div className="flex-1 overflow-y-auto overscroll-contain combat-scroll-container">
-            {/* Sub-tab pills */}
-            <SubTabPills<CombatSubTab>
-              tabs={[
-                { id: 'attacks', label: 'Attacks' },
-                { id: 'stealth', label: 'Stealth' },
-              ]}
-              activeTab={combatSubTab}
-              onTabChange={setCombatSubTab}
-            />
-            
-            {combatSubTab === 'attacks' ? (
-              <div className="p-4 space-y-3">
-                {/* Quick Cast Panel */}
-                {spellcasting && spellcasting.state.path && (
-                  <QuickCastPanel
-                    spellcasting={spellcasting}
-                    characterName={character.name}
-                    characterLevel={character.level}
-                    onCast={(result) => {
-                      if (result.success) {
-                        handleAddToTurn('action', `Cast ${result.spellName}`);
-                        setLastAction(`${result.spellName.toUpperCase()} CAST`);
-                      }
-                    }}
-                  />
-                )}
-                
-                {/* Sneak Attack Status */}
-                <div className={cn(
-                  "p-3 rounded-xl border",
-                  sneakAttackEligible 
-                    ? "bg-green-500/20 border-green-500/40" 
-                    : "bg-muted/10 border-muted/20"
-                )}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className={cn(
-                      "text-xs font-mono",
-                      sneakAttackEligible ? "text-green-400" : "text-muted-foreground"
-                    )}>
-                      SNEAK ATTACK {sneakAttackEligible ? '✓' : '○'}
-                    </span>
-                    <span className={cn(
-                      "text-lg font-bold",
-                      sneakAttackEligible ? "text-green-300" : "text-muted-foreground"
-                    )}>
-                      {sneakAttackDice}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    {sneakAttackEligible 
-                      ? 'Eligible! Advantage, ally nearby, or hidden.'
-                      : 'Need advantage OR ally within 5ft (no disadvantage)'}
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-4 pb-24 space-y-3">
+              {/* Quick Cast Panel - Magic Integration */}
+              {spellcasting && spellcasting.state.path && (
+                <QuickCastPanel
+                  spellcasting={spellcasting}
+                  characterName={character.name}
+                  characterLevel={character.level}
+                  onCast={(result) => {
+                    if (result.success) {
+                      handleAddToTurn('action', `Cast ${result.spellName}`);
+                      setLastAction(`${result.spellName.toUpperCase()} CAST`);
+                    }
+                  }}
+                />
+              )}
+              
+              {/* Sneak Attack Status */}
+              <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-xl">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-mono text-green-400">SNEAK ATTACK</span>
+                  <span className="text-lg font-bold text-green-300">{sneakAttackDice}</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Once per turn with advantage OR ally within 5ft (no disadvantage)
+                </p>
+              </div>
+              
+              {/* Weapon Cards - From Equipped Gear */}
+              {equippedWeapons.map(weapon => (
+                <MobileWeaponCard
+                  key={weapon.id}
+                  weapon={weapon}
+                  level={character.level}
+                  attackBonus={combatStats.attackBonus}
+                  damageBonus={combatStats.damageBonus}
+                  conditions={conditions}
+                  hasPoisonedWeapon={hasPoisonedWeapon}
+                  isExpanded={expandedWeaponId === weapon.id}
+                  onToggleExpand={() => setExpandedWeaponId(
+                    expandedWeaponId === weapon.id ? null : weapon.id
+                  )}
+                  onRoll={handleWeaponRoll}
+                  customImage={weapon.slotType ? equipmentImages[weapon.slotType] : undefined}
+                />
+              ))}
+              {equippedWeapons.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p className="text-sm">No weapons equipped</p>
+                  <p className="text-[10px] text-red-400 mt-1 italic">
+                    "Maybe equip something in the Gear tab, genius."
                   </p>
                 </div>
-                
-                {/* Weapon Cards */}
-                {equippedWeapons.map(weapon => (
-                  <MobileWeaponCard
-                    key={weapon.id}
-                    weapon={weapon}
-                    level={character.level}
-                    attackBonus={combatStats.attackBonus}
-                    damageBonus={combatStats.damageBonus}
-                    conditions={conditions}
-                    hasPoisonedWeapon={hasPoisonedWeapon}
-                    isExpanded={expandedWeaponId === weapon.id}
-                    onToggleExpand={() => setExpandedWeaponId(
-                      expandedWeaponId === weapon.id ? null : weapon.id
-                    )}
-                    onRoll={handleWeaponRoll}
-                    customImage={weapon.slotType ? equipmentImages[weapon.slotType] : undefined}
-                  />
-                ))}
-                {equippedWeapons.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <p className="text-sm">No weapons equipped</p>
-                    <p className="text-[10px] text-red-400 mt-1 italic">
-                      "Maybe equip something in the Gear tab, genius."
-                    </p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <EnhancedMobileAbilityList
-                abilities={stealthAbilities}
-                characterName={character.name}
-                weapons={weaponsMap}
-                cooldownState={cooldownStateMap}
-                abilityImages={abilityImages}
-                activeConditions={globalConditions}
-                activeSetBonuses={activeSetBonuses}
-                concentrationSpell={concentrationSpell}
-                onUseAbility={handleEnhancedAbilityUse}
-                onTriggerCooldown={cooldownSystem.triggerCooldown}
-                emptyMessage="No stealth abilities unlocked"
-              />
-            )}
+              )}
+            </div>
           </div>
         );
       
-      case 'actions':
+      case 'stealth':
         return (
-          <div className="flex-1 overflow-y-auto overscroll-contain combat-scroll-container">
-            {/* Sub-tab pills */}
-            <SubTabPills<ActionsSubTab>
-              tabs={[
-                { id: 'abilities', label: 'Abilities' },
-                { id: 'reactions', label: 'Reactions' },
-              ]}
-              activeTab={actionsSubTab}
-              onTabChange={setActionsSubTab}
-            />
-            
-            {actionsSubTab === 'abilities' ? (
-              <EnhancedMobileAbilityList
-                abilities={specialAbilities}
-                characterName={character.name}
-                weapons={weaponsMap}
-                cooldownState={cooldownStateMap}
-                abilityImages={abilityImages}
-                activeConditions={globalConditions}
-                activeSetBonuses={activeSetBonuses}
-                concentrationSpell={concentrationSpell}
-                onUseAbility={handleEnhancedAbilityUse}
-                onTriggerCooldown={cooldownSystem.triggerCooldown}
-                emptyMessage="No special abilities unlocked"
-                showFilters
-              />
-            ) : (
-              <MobileReactionsList
-                reactionUsed={actionEconomy.reactionUsed}
-                onUseReaction={(reaction) => {
-                  setActionEconomy(prev => ({ ...prev, reactionUsed: true }));
-                  setLastAction(`⚡ ${reaction.name.toUpperCase()}`);
-                  handleAddToTurn('reaction', reaction.name);
-                  
-                  combatLog.addEntry({
-                    actionType: 'reaction',
-                    actionName: reaction.name,
-                    prompt: reaction.dmPrompt || `## ⚡ REACTION: ${reaction.name.toUpperCase()}\n\n**Character:** ${character.name}\n**Trigger:** ${reaction.trigger}\n\n### Effect\n${reaction.effect}\n\n---\n\n*Narrate how ${character.name} instinctively responds with ${reaction.name}.*`,
-                  });
-                }}
-              />
-            )}
-          </div>
+          <EnhancedMobileAbilityList
+            abilities={stealthAbilities}
+            characterName={character.name}
+            weapons={weaponsMap}
+            cooldownState={cooldownStateMap}
+            abilityImages={abilityImages}
+            activeConditions={globalConditions}
+            activeSetBonuses={activeSetBonuses}
+            concentrationSpell={concentrationSpell}
+            onUseAbility={handleEnhancedAbilityUse}
+            onTriggerCooldown={cooldownSystem.triggerCooldown}
+            emptyMessage="No stealth abilities unlocked"
+          />
+        );
+      
+      case 'abilities':
+        return (
+          <EnhancedMobileAbilityList
+            abilities={specialAbilities}
+            characterName={character.name}
+            weapons={weaponsMap}
+            cooldownState={cooldownStateMap}
+            abilityImages={abilityImages}
+            activeConditions={globalConditions}
+            activeSetBonuses={activeSetBonuses}
+            concentrationSpell={concentrationSpell}
+            onUseAbility={handleEnhancedAbilityUse}
+            onTriggerCooldown={cooldownSystem.triggerCooldown}
+            emptyMessage="No special abilities unlocked"
+            showFilters
+          />
+        );
+      
+      case 'reactions':
+        return (
+          <MobileReactionsList
+            reactionUsed={actionEconomy.reactionUsed}
+            onUseReaction={(reaction) => {
+              // Mark reaction as used
+              setActionEconomy(prev => ({ ...prev, reactionUsed: true }));
+              setLastAction(`⚡ ${reaction.name.toUpperCase()}`);
+              handleAddToTurn('reaction', reaction.name);
+              
+              // Log to combat log using dmPrompt
+              combatLog.addEntry({
+                actionType: 'reaction',
+                actionName: reaction.name,
+                prompt: reaction.dmPrompt || `## ⚡ REACTION: ${reaction.name.toUpperCase()}\n\n**Character:** ${character.name}\n**Trigger:** ${reaction.trigger}\n\n### Effect\n${reaction.effect}\n\n---\n\n*Narrate how ${character.name} instinctively responds with ${reaction.name}.*`,
+              });
+            }}
+          />
         );
       
       case 'spells':
         return spellcasting ? (
-          <div className="flex-1 overflow-y-auto overscroll-contain combat-scroll-container">
-            <MobileSpellList
-              spellcasting={spellcasting}
-              characterName={character.name}
-              onCast={(result) => {
-                if (result.success) {
-                  setLastAction(`${result.spellName.toUpperCase()} CAST`);
-                  handleAddToTurn('action', `Cast ${result.spellName}`);
-                  
-                  combatLog.addEntry({
-                    actionType: 'spell',
-                    actionName: result.spellName,
-                    prompt: `## 🔮 SPELL CAST: ${result.spellName.toUpperCase()}\n\n**Character:** ${character.name}\n\n---\n\n*Narrate ${character.name} casting ${result.spellName}.*`,
-                  });
-                }
-              }}
-            />
-          </div>
+          <MobileSpellList
+            spellcasting={spellcasting}
+            characterName={character.name}
+            onCast={(result) => {
+              if (result.success) {
+                setLastAction(`${result.spellName.toUpperCase()} CAST`);
+                handleAddToTurn('action', `Cast ${result.spellName}`);
+                
+                // Log spell to combat log
+                combatLog.addEntry({
+                  actionType: 'spell',
+                  actionName: result.spellName,
+                  prompt: `## 🔮 SPELL CAST: ${result.spellName.toUpperCase()}\n\n**Character:** ${character.name}\n\n---\n\n*Narrate ${character.name} casting ${result.spellName}.*`,
+                });
+              }
+            }}
+          />
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-center py-16 px-4">
             <p className="text-muted-foreground">Spellcasting not available</p>
@@ -680,47 +636,66 @@ export function MobileCombatLayout({
         );
       
       case 'items':
+        // Convert set bonuses to the format expected by MobileItemsGrid
         const activeSetForItems = activeSetBonuses.length > 0 ? {
           name: activeSetBonuses[0].name,
           effect: activeSetBonuses[0].effect,
         } : undefined;
         
+        // Convert concentration spell to format expected by MobileItemsGrid
         const concentrationForItems = concentrationSpell ? {
           name: concentrationSpell,
-          level: undefined,
+          level: undefined, // Level available in activeSpells if needed
         } : undefined;
         
         return (
-          <div className="flex-1 overflow-y-auto overscroll-contain combat-scroll-container">
-            <MobileItemsGrid
-              onAddToTurn={handleAddToTurn}
-              onRemoveFromTurn={handleRemoveActionByDescription}
-              onNavigateToConsumables={onNavigateToConsumables}
-              globalConditions={globalConditions}
-              activeSetBonus={activeSetForItems}
-              concentrationSpell={concentrationForItems}
-              lootItemsWithDice={lootItemsWithDice}
-              onUseLootItem={onUseLootItem}
-            />
-          </div>
+          <MobileItemsGrid
+            onAddToTurn={handleAddToTurn}
+            onRemoveFromTurn={handleRemoveActionByDescription}
+            onNavigateToConsumables={onNavigateToConsumables}
+            globalConditions={globalConditions}
+            activeSetBonus={activeSetForItems}
+            concentrationSpell={concentrationForItems}
+            lootItemsWithDice={lootItemsWithDice}
+            onUseLootItem={onUseLootItem}
+          />
+        );
+      
+      case 'summary':
+        return (
+          <TurnSummaryPanel
+            turnActions={turnActions}
+            movementUsed={actionEconomy.movementUsed}
+            maxMovement={actionEconomy.maxMovement}
+            onRemoveAction={handleRemoveAction}
+            onClearTurn={handleResetTurn}
+            onSetMovement={(desc) => {
+              if (actionEconomyState) {
+                actionEconomyState.addTurnAction({ type: 'movement', description: desc });
+              } else {
+                setLocalTurnActions(prev => [
+                  ...prev.filter(a => a.type !== 'movement'),
+                  { type: 'movement', description: desc }
+                ]);
+              }
+            }}
+          />
         );
       
       case 'log':
         return (
-          <div className="flex-1 overflow-y-auto overscroll-contain combat-scroll-container">
-            <CombatLogPanel
-              entries={combatLog.entries}
-              onClearLog={combatLog.clearLog}
-              onRemoveEntry={combatLog.removeEntry}
-              onSmartPrompt={() => setShowSmartPromptSheet(true)}
-            />
-          </div>
+          <CombatLogPanel
+            entries={combatLog.entries}
+            onClearLog={combatLog.clearLog}
+            onRemoveEntry={combatLog.removeEntry}
+            onSmartPrompt={() => setShowSmartPromptSheet(true)}
+          />
         );
     }
   };
   
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
+    <div className="min-h-screen bg-background">
       {/* Top Bar with HP and Stats */}
       <CombatTopBar
         round={round}
@@ -736,78 +711,51 @@ export function MobileCombatLayout({
         attackBonus={combatStats.attackBonus}
       />
       
-      {/* Main Content Area - Single scrollable container for everything below header */}
-      <main 
-        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain pt-[120px] pb-40"
-        style={{ 
-          touchAction: 'pan-y pinch-zoom',
-          WebkitOverflowScrolling: 'touch',
-        }}
-        onScroll={(e) => {
-          setIsScrolling(true);
-          clearTimeout((window as any).scrollTimeout);
-          (window as any).scrollTimeout = setTimeout(() => setIsScrolling(false), 150);
-        }}
-      >
-        {/* Inline Action Economy (below header, above situation chips) */}
-        <InlineActionEconomy
+      {/* Main Content Area */}
+      <main className="pt-[88px]">
+        
+        {/* Situation Strip */}
+        <SituationStrip
+          conditions={conditions}
+          onConditionsChange={setConditions}
+          isCollapsed={situationCollapsed}
+          onCollapsedChange={setSituationCollapsed}
+        />
+        
+        {/* Action Economy Bar */}
+        <ActionEconomyBar
           economy={actionEconomy}
           onEconomyChange={setActionEconomy}
-          round={round}
-          onEndTurn={handleEndTurn}
-          onEndTurnWithSynthesis={handleEndTurnWithSynthesis}
+          actionCount={actionCount}
+          bonusCount={bonusCount}
+          reactionCount={reactionCount}
         />
         
-        {/* Quick Situation Chips (below action economy) */}
-        <QuickSituationChips
-          isHidden={isHidden}
-          hasAdvantage={hasAdvantage}
-          nearAlly={nearAlly}
-          onToggleHidden={() => toggleQuickCondition('hidden')}
-          onToggleAdvantage={() => toggleQuickCondition('advantage')}
-          onToggleNearAlly={() => toggleQuickCondition('nearAlly')}
-          onExpandSituationStrip={() => setSituationCollapsed(false)}
-          sneakAttackEligible={sneakAttackEligible}
-        />
-        
-        {/* Expandable Situation Strip (full panel) */}
-        {!situationCollapsed && (
-          <SituationStrip
-            conditions={conditions}
-            onConditionsChange={setConditions}
-            isCollapsed={situationCollapsed}
-            onCollapsedChange={setSituationCollapsed}
-          />
-        )}
-        
-        {/* Tab Content with animation */}
+        {/* Tab Content - Swipeable */}
         <div 
-          className={cn(
-            "transition-transform duration-300 ease-out min-h-[50vh]",
-            slideDirection === 'left' && "animate-slide-in-from-right",
-            slideDirection === 'right' && "animate-slide-in-from-left"
-          )}
-          style={{
-            transform: swiping ? `translateX(${swipeOffset}px)` : undefined,
-            transition: swiping ? 'none' : undefined,
+          {...swipeHandlers}
+          className="overflow-auto touch-pan-y"
+          style={{ 
+            touchAction: 'pan-y pinch-zoom',
           }}
         >
-          {renderTabContent()}
+          <div 
+            className={cn(
+              "transition-transform duration-300 ease-out",
+              slideDirection === 'left' && "animate-slide-in-from-right",
+              slideDirection === 'right' && "animate-slide-in-from-left"
+            )}
+            style={{
+              transform: swiping ? `translateX(${swipeOffset}px)` : undefined,
+              transition: swiping ? 'none' : undefined,
+            }}
+          >
+            {renderTabContent()}
+          </div>
         </div>
       </main>
       
-      {/* Smart Turn Guidance */}
-      <TurnGuidanceHint
-        economy={actionEconomy}
-        unlockedAbilities={unlockedAbilities}
-        isHidden={isHidden}
-        hasAdvantage={hasAdvantage}
-        nearAlly={nearAlly}
-        cooldownStateMap={cooldownStateMap}
-        onNavigateToTab={handleNavigateToTab}
-      />
-      
-      {/* Bottom Navigation (5 consolidated tabs) */}
+      {/* Bottom Navigation */}
       <CombatBottomNav
         activeTab={activeTab}
         onTabChange={setActiveTab}

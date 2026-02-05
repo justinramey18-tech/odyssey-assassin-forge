@@ -97,15 +97,12 @@ export function MobileWeaponCard({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Collapsed card - using div with onClick instead of button to not interfere with touch scrolling
+  // Collapsed card
   if (!isExpanded) {
     return (
-      <div
-        role="button"
-        tabIndex={0}
+      <button
         onClick={onToggleExpand}
-        onKeyDown={(e) => e.key === 'Enter' && onToggleExpand()}
-        className="w-full p-4 bg-card border border-muted/30 rounded-xl flex items-center justify-between active:scale-[0.99] transition-transform cursor-pointer touch-manipulation"
+        className="w-full p-4 bg-card border border-muted/30 rounded-xl flex items-center justify-between active:scale-[0.99] transition-transform"
       >
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center overflow-hidden">
@@ -130,7 +127,7 @@ export function MobileWeaponCard({
           )}
           <ChevronDown className="w-5 h-5 text-muted-foreground" />
         </div>
-      </div>
+      </button>
     );
   }
 

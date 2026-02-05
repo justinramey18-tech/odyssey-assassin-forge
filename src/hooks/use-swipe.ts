@@ -38,19 +38,13 @@ export function useSwipe(
     const diffX = touch.clientX - swipeState.current.startX;
     const diffY = touch.clientY - swipeState.current.startY;
     
-    // If the gesture is more vertical than horizontal, abort swipe tracking entirely
-    // and let the browser handle native scrolling
-    if (Math.abs(diffY) > Math.abs(diffX)) {
-      // Reset swipe state so we don't interfere with scroll
-      swipeState.current = null;
-      setSwiping(false);
-      setSwipeOffset(0);
+    // Only track horizontal swipes (ignore if mostly vertical)
+    if (Math.abs(diffY) > Math.abs(diffX) * 0.5) {
       return;
     }
     
-    // Only prevent default for clearly horizontal swipes (ratio > 2:1 horizontal)
-    // This allows vertical scrolling to work normally
-    if (Math.abs(diffX) > 20 && Math.abs(diffX) > Math.abs(diffY) * 2) {
+    // Prevent default to stop scroll while swiping horizontally
+    if (Math.abs(diffX) > 10) {
       e.preventDefault();
     }
     

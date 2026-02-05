@@ -49,9 +49,7 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,svg,woff,woff2}"],
-        // Exclude large images from precache - they'll be loaded on demand
-        globIgnores: ["**/assets/*-background*.jpg", "**/assets/generated/**", "**/assets/sets/**", "**/assets/constellations/**", "**/assets/trees/**"],
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp,woff,woff2}"],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3 MB limit
         runtimeCaching: [
           {
@@ -84,17 +82,5 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
-  },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-tabs'],
-          motion: ['framer-motion'],
-        },
-      },
-    },
-    chunkSizeWarningLimit: 1000,
   },
 }));

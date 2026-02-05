@@ -305,13 +305,10 @@ function MobileSpellCard({
   };
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
       onClick={onTap}
-      onKeyDown={(e) => e.key === 'Enter' && onTap()}
       className={cn(
-        "w-full flex items-center gap-3 p-4 bg-card border border-muted/30 border-l-4 rounded-xl cursor-pointer touch-manipulation",
+        "w-full flex items-center gap-3 p-4 bg-card border border-muted/30 border-l-4 rounded-xl",
         "active:scale-[0.99] transition-all",
         schoolBorderColors[spell.school] || 'border-l-indigo-500',
         !hasAvailableSlot && "opacity-50",
@@ -357,7 +354,7 @@ function MobileSpellCard({
         )}
         <ChevronRight className="w-5 h-5 text-muted-foreground" />
       </div>
-    </div>
+    </button>
   );
 }
 

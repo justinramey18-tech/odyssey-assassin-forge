@@ -279,16 +279,14 @@ ${activeSetBonuses.length > 0
   // Collapsed card
   if (!isExpanded) {
     return (
-      <div
-        role="button"
-        tabIndex={isPassive ? -1 : 0}
-        onClick={() => !isPassive && setIsExpanded(true)}
-        onKeyDown={(e) => e.key === 'Enter' && !isPassive && setIsExpanded(true)}
+      <button
+        onClick={() => setIsExpanded(true)}
+        disabled={isPassive}
         className={cn(
-          "w-full flex items-center gap-3 p-4 bg-card border border-muted/30 rounded-xl cursor-pointer touch-manipulation",
+          "w-full flex items-center gap-3 p-4 bg-card border border-muted/30 rounded-xl",
           "active:scale-[0.99] transition-all",
           !customImage && `border-l-4 ${treeColors[ability.tree]}`,
-          isPassive && "opacity-60 cursor-default",
+          isPassive && "opacity-60",
           isOnCooldown && "opacity-50"
         )}
       >
@@ -351,7 +349,7 @@ ${activeSetBonuses.length > 0
         {isPassive && (
           <div className="w-3 h-3 rounded-full bg-green-500/50" />
         )}
-      </div>
+      </button>
     );
   }
 
