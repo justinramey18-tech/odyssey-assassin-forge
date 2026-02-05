@@ -13,19 +13,6 @@ Consolidated 7 combat tabs into 5 for better mobile UX.
 | **ITEMS** | Consumables & loot | Backpack | Green |
 | **LOG** | Combat history | FileText | Primary |
 
-## Implementation Details
-
-### COMBAT Tab
-- Shows Sneak Attack status at top
-- Weapon cards from equipped gear
-- Stealth/Assassin abilities below (with section divider)
-
-### ACTIONS Tab  
-- Filter chips: All | ⚔️ Action | ⚡ Bonus | 🛡️ Reaction
-- Mixed ability list with action type indicators
-- Reaction abilities highlighted with cyan left border
-- Built-in reactions from MobileReactionsList included
-
 ---
 
 # End Turn Button - COMPLETED ✅
@@ -38,13 +25,32 @@ Added prominent "End Turn" button to the Action Economy Bar.
 - Visual progress indicator during hold
 - Shows current round number (R1, R2, etc.)
 
-## Technical Changes
-- Updated `ActionEconomyBar.tsx` with new `round`, `onEndTurn`, `onEndTurnWithSynthesis` props
-- Added hold-to-activate progress animation using pointer events
-- Integrated with existing `handleResetTurn` and `SmartPromptSheet`
+---
 
-## Files Modified
-- `CombatBottomNav.tsx` - Updated tab type and definitions
-- `MobileCombatLayout.tsx` - Updated TAB_ORDER, renderTabContent, filter state, End Turn handlers
-- `CombatFAB.tsx` - Updated tab-based action switching
-- `ActionEconomyBar.tsx` - Added End Turn button with hold-to-synthesize
+# Turn Wizard - COMPLETED ✅
+
+Added smart contextual guidance panel that suggests optimal next actions.
+
+## Features
+- **Context-aware suggestions** based on:
+  - Unused action types (Action, Bonus, Reaction)
+  - Current conditions (Hidden, Invisible, Poisoned, etc.)
+  - HP percentage (low HP triggers defensive suggestions)
+  - Abilities off cooldown (ready to use)
+  - Equipped weapons availability
+
+## Suggestion Priority System
+- **High**: Critical opportunities (Strike from Shadows when hidden, Critical HP warnings)
+- **Medium**: Standard action suggestions (Attack, ready abilities)
+- **Low**: Utility reminders (Reaction ready, Turn complete)
+
+## UI
+- Collapsible panel between Action Economy Bar and tab content
+- Shows up to 3 suggestions at a time
+- Tappable suggestions navigate to relevant tab
+- "HIDE" button to dismiss for the session
+
+## Files Created/Modified
+- Created `TurnWizardPanel.tsx` - Smart suggestion component
+- Updated `MobileCombatLayout.tsx` - Integrated Turn Wizard
+- Updated `index.ts` - Added export
