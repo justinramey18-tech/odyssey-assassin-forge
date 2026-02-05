@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { 
   Sword, 
   Zap, 
   Shield, 
-  Footprints 
+  Footprints,
+  Flag,
+  Sparkles,
 } from 'lucide-react';
 import { ActionEconomy } from '@/lib/combat/combatTypes';
 import {
@@ -21,6 +23,9 @@ interface ActionEconomyBarProps {
   actionCount: number;
   bonusCount: number;
   reactionCount: number;
+  round: number;
+  onEndTurn: () => void;
+  onEndTurnWithSynthesis?: () => void;
 }
 
 export function ActionEconomyBar({
@@ -29,8 +34,15 @@ export function ActionEconomyBar({
   actionCount,
   bonusCount,
   reactionCount,
+  round,
+  onEndTurn,
+  onEndTurnWithSynthesis,
 }: ActionEconomyBarProps) {
   const [showMovementPicker, setShowMovementPicker] = useState(false);
+  const [holdProgress, setHoldProgress] = useState(0);
+  const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const holdIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isHoldingRef = useRef(false);
 
   const toggleAction = () => {
     onEconomyChange({ ...economy, actionUsed: !economy.actionUsed });
@@ -47,6 +59,67 @@ export function ActionEconomyBar({
   const setMovement = (value: number) => {
     onEconomyChange({ ...economy, movementUsed: value });
     setShowMovementPicker(false);
+  };
+
+  // Hold-to-synthesize logic
+  const startHold = useCallback(() => {
+    if (!onEndTurnWithSynthesis) return;
+    
+    isHoldingRef.current = true;
+    setHoldProgress(0);
+    
+    // Start progress animation
+    holdIntervalRef.current = setInterval(() => {
+      setHoldProgress(prev => {
+        if (prev >= 100) {
+          // Trigger synthesis
+          if (holdIntervalRef.current) clearInterval(holdIntervalRef.current);
+          if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+          onEndTurnWithSynthesis();
+          isHoldingRef.current = false;
+          return 0;
+        }
+        return prev + 5; // 20 steps over 1 second
+      });
+    }, 50);
+  }, [onEndTurnWithSynthesis]);
+
+  const endHold = useCallback(() => {
+    isHoldingRef.current = false;
+    if (holdIntervalRef.current) clearInterval(holdIntervalRef.current);
+    if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+    
+    // If not fully held, trigger normal end turn
+    if (holdProgress < 100 && holdProgress > 0) {
+      setHoldProgress(0);
+    } else if (holdProgress === 0) {
+      // Quick tap - just end turn
+      onEndTurn();
+    }
+    setHoldProgress(0);
+  }, [holdProgress, onEndTurn]);
+
+  // Cleanup on unmount
+  const handlePointerDown = () => {
+    if (onEndTurnWithSynthesis) {
+      startHold();
+    }
+  };
+
+  const handlePointerUp = () => {
+    if (onEndTurnWithSynthesis) {
+      endHold();
+    } else {
+      onEndTurn();
+    }
+  };
+
+  const handlePointerLeave = () => {
+    if (isHoldingRef.current) {
+      if (holdIntervalRef.current) clearInterval(holdIntervalRef.current);
+      setHoldProgress(0);
+      isHoldingRef.current = false;
+    }
   };
 
   return (
@@ -81,7 +154,7 @@ export function ActionEconomyBar({
         {/* Reaction */}
         <ActionSegment
           icon={<Shield className="w-5 h-5" />}
-          label="REACTION"
+          label="REACT"
           used={economy.reactionUsed}
           onToggle={toggleReaction}
           count={reactionCount}
@@ -95,20 +168,57 @@ export function ActionEconomyBar({
         <button
           onClick={() => setShowMovementPicker(true)}
           className={cn(
-            "flex-1 flex flex-col items-center justify-center gap-1 transition-all active:scale-95",
+            "flex-1 flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95",
             economy.movementUsed >= economy.maxMovement
               ? "bg-muted/20 opacity-60"
               : "bg-green-500/10"
           )}
         >
           <Footprints className={cn(
-            "w-5 h-5",
+            "w-4 h-4",
             economy.movementUsed >= economy.maxMovement ? "text-muted-foreground" : "text-green-400"
           )} />
-          <span className="text-lg font-mono font-bold">
+          <span className="text-sm font-mono font-bold">
             {economy.movementUsed}/{economy.maxMovement}
           </span>
-          <span className="text-[9px] font-mono text-muted-foreground">MOVEMENT</span>
+          <span className="text-[8px] font-mono text-muted-foreground">MOVE</span>
+        </button>
+
+        {/* Divider */}
+        <div className="w-px bg-red-900/30" />
+
+        {/* End Turn Button */}
+        <button
+          onPointerDown={handlePointerDown}
+          onPointerUp={handlePointerUp}
+          onPointerLeave={handlePointerLeave}
+          onPointerCancel={handlePointerLeave}
+          className={cn(
+            "relative flex-1 flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 overflow-hidden",
+            "bg-gradient-to-b from-primary/20 to-primary/10 border-l border-primary/30"
+          )}
+        >
+          {/* Hold progress overlay */}
+          {holdProgress > 0 && (
+            <div 
+              className="absolute inset-0 bg-gradient-to-t from-indigo-500/40 to-indigo-400/20 transition-all"
+              style={{ height: `${holdProgress}%` }}
+            />
+          )}
+          
+          <div className="relative z-10 flex flex-col items-center gap-0.5">
+            {holdProgress > 0 ? (
+              <Sparkles className="w-5 h-5 text-indigo-400 animate-pulse" />
+            ) : (
+              <Flag className="w-5 h-5 text-primary" />
+            )}
+            <span className="text-[10px] font-mono font-bold text-primary">
+              {holdProgress > 0 ? 'AI SYNC' : 'END'}
+            </span>
+            <span className="text-[8px] font-mono text-muted-foreground">
+              {holdProgress > 0 ? `${Math.round(holdProgress)}%` : `R${round}`}
+            </span>
+          </div>
         </button>
       </div>
 
@@ -189,7 +299,7 @@ function ActionSegment({
     <button
       onClick={onToggle}
       className={cn(
-        "flex-1 flex flex-col items-center justify-center gap-1 transition-all active:scale-95",
+        "flex-1 flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95",
         used ? colorSet.used : colorSet.active
       )}
     >
@@ -197,8 +307,8 @@ function ActionSegment({
         {icon}
         {count > 0 && !used && (
           <span className={cn(
-            "absolute -top-1 -right-2 min-w-[16px] h-4 px-1 flex items-center justify-center",
-            "text-[10px] font-bold rounded-full",
+            "absolute -top-1 -right-2 min-w-[14px] h-3.5 px-0.5 flex items-center justify-center",
+            "text-[9px] font-bold rounded-full",
             colorSet.badge
           )}>
             {count}
@@ -206,12 +316,12 @@ function ActionSegment({
         )}
       </div>
       <span className={cn(
-        "text-[10px] font-mono",
+        "text-[9px] font-mono",
         used && "line-through"
       )}>
         {label}
       </span>
-      <span className="text-[9px] text-muted-foreground">
+      <span className="text-[8px] text-muted-foreground">
         {used ? 'USED' : 'READY'}
       </span>
     </button>
