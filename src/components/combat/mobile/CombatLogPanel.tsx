@@ -33,10 +33,32 @@ export function CombatLogPanel({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  const [copiedAll, setCopiedAll] = useState(false);
+
   const copyPrompt = async (entry: CombatLogEntry) => {
     await navigator.clipboard.writeText(entry.prompt);
     setCopiedId(entry.id);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const copyAllPrompts = async () => {
+    if (entries.length === 0) return;
+    
+    // Build narrative sequence from oldest to newest
+    const narrative = [...entries]
+      .reverse()
+      .map((entry, index) => {
+        const header = `## ${index + 1}. ${entry.actionName.toUpperCase()}`;
+        const meta = `*${entry.actionType} action${entry.roll ? ` • Roll: ${entry.roll.total}${entry.roll.isCrit ? ' (CRITICAL!)' : ''}${entry.roll.isFumble ? ' (FUMBLE!)' : ''}` : ''}${entry.damage ? ` • ${entry.damage}` : ''}*`;
+        return `${header}\n${meta}\n\n${entry.prompt}`;
+      })
+      .join('\n\n---\n\n');
+
+    const fullText = `# COMBAT LOG NARRATIVE\n*${entries.length} actions recorded*\n\n---\n\n${narrative}`;
+    
+    await navigator.clipboard.writeText(fullText);
+    setCopiedAll(true);
+    setTimeout(() => setCopiedAll(false), 2000);
   };
 
   const getActionIcon = (type: CombatLogEntry['actionType']) => {
@@ -91,15 +113,38 @@ export function CombatLogPanel({
           <span className="text-xs text-muted-foreground">({entries.length})</span>
         </div>
         {entries.length > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClearLog}
-            className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-          >
-            <Trash2 className="w-4 h-4 mr-1" />
-            Clear
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={copyAllPrompts}
+              className={cn(
+                "h-8 text-primary hover:bg-primary/10",
+                copiedAll && "text-green-400"
+              )}
+            >
+              {copiedAll ? (
+                <>
+                  <Check className="w-4 h-4 mr-1" />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4 mr-1" />
+                  Copy All
+                </>
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClearLog}
+              className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+            >
+              <Trash2 className="w-4 h-4 mr-1" />
+              Clear
+            </Button>
+          </div>
         )}
       </div>
 
