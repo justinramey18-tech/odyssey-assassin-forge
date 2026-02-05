@@ -738,7 +738,6 @@ export function MobileCombatLayout({
       
       {/* Main Content Area - Single scrollable container for everything below header */}
       <main 
-        {...swipeHandlers}
         className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain pt-[120px] pb-40"
         style={{ 
           touchAction: 'pan-y pinch-zoom',
@@ -781,16 +780,18 @@ export function MobileCombatLayout({
           />
         )}
         
-        {/* Tab Content with swipe animation */}
+        {/* Tab Content with swipe animation - swipe handlers only on this inner div */}
         <div 
+          {...swipeHandlers}
           className={cn(
-            "transition-transform duration-300 ease-out",
+            "transition-transform duration-300 ease-out min-h-[50vh]",
             slideDirection === 'left' && "animate-slide-in-from-right",
             slideDirection === 'right' && "animate-slide-in-from-left"
           )}
           style={{
             transform: swiping ? `translateX(${swipeOffset}px)` : undefined,
             transition: swiping ? 'none' : undefined,
+            touchAction: 'pan-y pan-x',
           }}
         >
           {renderTabContent()}
