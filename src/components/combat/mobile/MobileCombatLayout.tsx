@@ -43,6 +43,7 @@ import { QuickCastPanel } from './QuickCastPanel';
 import { TurnWizardPanel } from './TurnWizardPanel';
 import { TargetTrackerPanel } from './TargetTrackerPanel';
 import { InitiativeTracker } from './InitiativeTracker';
+import { CombatDiceRoller } from './CombatDiceRoller';
 import { useCombatLog } from '@/hooks/use-combat-log';
 import { useTargets } from '@/hooks/use-targets';
 import { useInitiative } from '@/hooks/use-initiative';
@@ -875,6 +876,9 @@ export function MobileCombatLayout({
           isCollapsed={situationCollapsed}
           onCollapsedChange={setSituationCollapsed}
         />
+        
+        {/* Compact Dice Roller Widget */}
+        <CombatDiceRoller />
         
         {/* Target/Enemy Tracker */}
         <TargetTrackerPanel
