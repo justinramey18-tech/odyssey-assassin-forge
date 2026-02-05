@@ -27,6 +27,7 @@ import { CombatTopBar } from './CombatTopBar';
 import { SituationStrip } from './SituationStrip';
 import { ActionEconomyBar } from './ActionEconomyBar';
 import { MobileWeaponCard } from './MobileWeaponCard';
+import { OffhandAttackCard } from './OffhandAttackCard';
 import { CombatFAB } from './CombatFAB';
 import { TurnSummaryPanel } from './TurnSummaryPanel';
 import { CombatLogPanel } from './CombatLogPanel';
@@ -416,6 +417,46 @@ export function MobileCombatLayout({
     
     handleAddToTurn('action', `${weapon.name} attack${rollType !== 'normal' ? ` (${rollType})` : ''}${targetSuffix}`);
   }, [character.name, handleAddToTurn, combatLog, targetTracker]);
+
+  // Handle offhand attack (bonus action with secondary weapon)
+  const handleOffhandRoll = useCallback((
+    weapon: WeaponAttack,
+    roll: DiceRoll,
+    damage: string,
+    isOffhand: true
+  ) => {
+    const rollName = `Offhand (${weapon.name})`;
+    
+    // Include current target in prompt
+    const currentTargetForPrompt = targetTracker.getTargetForPrompt();
+    const prompt = generateWeaponPrompt('normal', weapon, roll, damage, character.name, currentTargetForPrompt, true);
+    
+    // Add target name to action if available
+    const targetSuffix = currentTargetForPrompt ? ` vs. ${currentTargetForPrompt.name}` : '';
+    
+    setDiceRoll(roll);
+    setDicePrompt(prompt);
+    setActiveAbility(null);
+    setShowDiceModal(true);
+    setLastAction(`OFFHAND ATTACK`);
+    
+    // Log to combat log
+    combatLog.addEntry({
+      actionType: 'weapon',
+      actionName: `${rollName}${targetSuffix}`,
+      prompt,
+      roll: {
+        total: roll.total,
+        rolls: roll.rolls,
+        modifier: roll.modifier,
+        isCrit: roll.rolls.includes(20),
+        isFumble: roll.rolls.includes(1),
+      },
+      damage,
+    });
+    
+    handleAddToTurn('bonus', `Offhand attack${targetSuffix}`);
+  }, [character.name, handleAddToTurn, combatLog, targetTracker]);
   
   // Reset turn
   const handleResetTurn = useCallback(() => {
@@ -572,6 +613,23 @@ export function MobileCombatLayout({
                   </div>
                 )}
               </div>
+              
+              {/* Offhand Attack (Two-Weapon Fighting) */}
+              {weaponsMap.secondary && (
+                <OffhandAttackCard
+                  secondaryWeapon={weaponsMap.secondary}
+                  primaryWeapon={weaponsMap.primary}
+                  level={character.level}
+                  attackBonus={combatStats.attackBonus}
+                  damageBonus={combatStats.damageBonus}
+                  conditions={conditions}
+                  hasPoisonedWeapon={hasPoisonedWeapon}
+                  bonusActionUsed={actionEconomy.bonusActionUsed}
+                  onRoll={handleOffhandRoll}
+                  onUseBonus={() => actionEconomyState?.useBonus?.() ?? setActionEconomy({...actionEconomy, bonusActionUsed: true})}
+                  customImage={equipmentImages.secondary_weapon}
+                />
+              )}
               
               {/* Stealth Abilities Section */}
               {stealthAbilities.length > 0 && (
@@ -944,38 +1002,49 @@ function generateWeaponPrompt(
   roll: DiceRoll,
   damage: string,
   characterName: string,
-  target?: TargetPromptInfo | null
+  target?: TargetPromptInfo | null,
+  isOffhand?: boolean
 ): string {
   const isCrit = roll.rolls.includes(20);
   const isFumble = roll.rolls.includes(1);
   const hasAdvantage = roll.rolls.length > 1;
   
-  let title = rollType === 'assassinate' 
-    ? '💀 ASSASSINATION ATTEMPT' 
-    : rollType === 'sneak' 
-      ? '🗡️ SNEAK ATTACK'
-      : '⚔️ ATTACK';
+  let title = isOffhand
+    ? '⚡ OFFHAND ATTACK'
+    : rollType === 'assassinate' 
+      ? '💀 ASSASSINATION ATTEMPT' 
+      : rollType === 'sneak' 
+        ? '🗡️ SNEAK ATTACK'
+        : '⚔️ ATTACK';
   
-  const quips = [
-    "Maximum effort!",
-    "Nailed it. Add it to my highlight reel.",
-    "Did you see that?!",
-    "Chimichangas for everyone!",
-  ];
+  const quips = isOffhand
+    ? [
+        "Left hand doesn't know what the right hand is doing... but both are stabbing!",
+        "Dual wielding: because one sword is for amateurs.",
+        "Two weapons, twice the pain!",
+        "Ambidextrous AND dangerous!",
+      ]
+    : [
+        "Maximum effort!",
+        "Nailed it. Add it to my highlight reel.",
+        "Did you see that?!",
+        "Chimichangas for everyone!",
+      ];
   const quip = quips[Math.floor(Math.random() * quips.length)];
   
   // Format target section if target is provided
   const targetSection = target ? formatTargetForPrompt(target) : '';
   
+  const offhandNote = isOffhand ? '\n**Note:** Offhand attack (bonus action) - no ability modifier to damage unless you have the Two-Weapon Fighting style.\n' : '';
+  
   return `## ${title}
 
 **Character:** ${characterName || 'The Merc'}
-**Weapon:** ${weapon.name}
+**Weapon:** ${weapon.name}${isOffhand ? ' (Offhand)' : ''}
 **Roll:** ${hasAdvantage ? '2d20kh1' : '1d20'}+${roll.modifier} = [${roll.rolls.join(', ')}] = **${roll.total}**
 ${isCrit ? '\n🎯 **NATURAL 20! CRITICAL HIT!**' : ''}
 ${isFumble ? '\n💀 **NATURAL 1! CRITICAL MISS!**' : ''}
 ${targetSection ? `\n${targetSection}\n` : ''}
-**Damage on Hit:** ${damage}
-
+**Damage on Hit:** ${damage}${offhandNote}
 *"${quip}"*`;
 }
