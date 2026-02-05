@@ -17,6 +17,7 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetDescription,
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 
@@ -196,6 +197,7 @@ export function FloatingTurnTracker({
           <div className="w-12 h-1 bg-muted rounded-full mx-auto mb-4" />
           <SheetHeader>
             <SheetTitle className="font-cinzel text-green-400">Movement Used</SheetTitle>
+            <SheetDescription className="sr-only">Select how much movement you've used this turn</SheetDescription>
           </SheetHeader>
           <div className="grid grid-cols-4 gap-3 mt-6">
             {[0, 5, 10, 15, 20, 25, 30, economy.maxMovement].filter((v, i, arr) => arr.indexOf(v) === i).map(value => (
@@ -226,6 +228,7 @@ export function FloatingTurnTracker({
           <div className="w-12 h-1 bg-muted rounded-full mx-auto mb-4" />
           <SheetHeader>
             <SheetTitle className="font-cinzel text-red-400">End Turn - Round {round}</SheetTitle>
+            <SheetDescription className="sr-only">Choose how to end your turn</SheetDescription>
           </SheetHeader>
           <div className="space-y-3 mt-6">
             <Button
