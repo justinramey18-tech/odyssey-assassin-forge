@@ -33,6 +33,7 @@ import { CombatLogPanel } from './CombatLogPanel';
 import { SmartPromptSheet } from './SmartPromptSheet';
 import { MobileAbilityList } from './MobileAbilityList';
 import { EnhancedMobileAbilityList } from './EnhancedMobileAbilityList';
+import { CombatAbilityCard } from './CombatAbilityCard';
 import { MobileItemsGrid } from './MobileItemsGrid';
 import { MobileSpellList } from './MobileSpellList';
 import { MobileReactionsList } from './MobileReactionsList';
@@ -49,8 +50,8 @@ import { AggregatedStats } from '@/hooks/use-equipment-stats';
 import { BaseAbilityScores } from '@/lib/abilityScores/types';
 import { UseActionEconomyReturn } from '@/hooks/use-action-economy';
 
-// Tab order for swipe navigation
-const TAB_ORDER: CombatTab[] = ['attacks', 'stealth', 'abilities', 'reactions', 'spells', 'items', 'log'];
+// Tab order for swipe navigation (consolidated 5-tab layout)
+const TAB_ORDER: CombatTab[] = ['combat', 'actions', 'spells', 'items', 'log'];
 
 interface MobileCombatLayoutProps {
   character: Character;
@@ -95,7 +96,8 @@ export function MobileCombatLayout({
   onUseLootItem,
 }: MobileCombatLayoutProps) {
   // Navigation state
-  const [activeTab, setActiveTab] = useState<CombatTab>('attacks');
+  const [activeTab, setActiveTab] = useState<CombatTab>('combat');
+  const [actionsFilter, setActionsFilter] = useState<'all' | 'action' | 'bonus_action' | 'reaction'>('all');
   const [round, setRound] = useState(1);
   const [isYourTurn, setIsYourTurn] = useState(true);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
@@ -495,10 +497,11 @@ export function MobileCombatLayout({
   // Render tab content
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'attacks':
+      case 'combat':
+        // Combined Attacks + Stealth
         return (
           <div className="flex-1 overflow-y-auto">
-            <div className="p-4 pb-24 space-y-3">
+            <div className="p-4 pb-24 space-y-4">
               {/* Quick Cast Panel - Magic Integration */}
               {spellcasting && spellcasting.state.path && (
                 <QuickCastPanel
@@ -525,89 +528,168 @@ export function MobileCombatLayout({
                 </p>
               </div>
               
-              {/* Weapon Cards - From Equipped Gear */}
-              {equippedWeapons.map(weapon => (
-                <MobileWeaponCard
-                  key={weapon.id}
-                  weapon={weapon}
-                  level={character.level}
-                  attackBonus={combatStats.attackBonus}
-                  damageBonus={combatStats.damageBonus}
-                  conditions={conditions}
-                  hasPoisonedWeapon={hasPoisonedWeapon}
-                  isExpanded={expandedWeaponId === weapon.id}
-                  onToggleExpand={() => setExpandedWeaponId(
-                    expandedWeaponId === weapon.id ? null : weapon.id
-                  )}
-                  onRoll={handleWeaponRoll}
-                  customImage={weapon.slotType ? equipmentImages[weapon.slotType] : undefined}
-                />
-              ))}
-              {equippedWeapons.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p className="text-sm">No weapons equipped</p>
-                  <p className="text-[10px] text-red-400 mt-1 italic">
-                    "Maybe equip something in the Gear tab, genius."
-                  </p>
+              {/* Weapon Cards Section */}
+              <div className="space-y-3">
+                <h3 className="text-xs font-mono text-red-400 uppercase tracking-wide">⚔️ Weapons</h3>
+                {equippedWeapons.map(weapon => (
+                  <MobileWeaponCard
+                    key={weapon.id}
+                    weapon={weapon}
+                    level={character.level}
+                    attackBonus={combatStats.attackBonus}
+                    damageBonus={combatStats.damageBonus}
+                    conditions={conditions}
+                    hasPoisonedWeapon={hasPoisonedWeapon}
+                    isExpanded={expandedWeaponId === weapon.id}
+                    onToggleExpand={() => setExpandedWeaponId(
+                      expandedWeaponId === weapon.id ? null : weapon.id
+                    )}
+                    onRoll={handleWeaponRoll}
+                    customImage={weapon.slotType ? equipmentImages[weapon.slotType] : undefined}
+                  />
+                ))}
+                {equippedWeapons.length === 0 && (
+                  <div className="text-center py-4 text-muted-foreground">
+                    <p className="text-sm">No weapons equipped</p>
+                  </div>
+                )}
+              </div>
+              
+              {/* Stealth Abilities Section */}
+              {stealthAbilities.length > 0 && (
+                <div className="space-y-3 pt-2 border-t border-muted/20">
+                  <h3 className="text-xs font-mono text-purple-400 uppercase tracking-wide">🌙 Stealth & Assassin</h3>
+                  {stealthAbilities.map(ability => {
+                    const cdState = cooldownStateMap.get(ability.id);
+                    return (
+                      <div key={ability.id}>
+                        <CombatAbilityCard
+                          ability={ability}
+                          characterName={character.name}
+                          weapons={weaponsMap}
+                          cooldownState={cdState ? {
+                            isOnCooldown: cdState.isOnCooldown,
+                            remaining: cdState.remaining,
+                            total: cdState.total,
+                          } : undefined}
+                          customImage={abilityImages[ability.id]}
+                          activeConditions={globalConditions}
+                          activeSetBonuses={activeSetBonuses}
+                          concentrationSpell={concentrationSpell}
+                          onUse={handleEnhancedAbilityUse}
+                          onTriggerCooldown={cooldownSystem.triggerCooldown}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
           </div>
         );
       
-      case 'stealth':
+      case 'actions':
+        // Combined Abilities + Reactions with filter
+        const filteredAbilities = actionsFilter === 'all' 
+          ? [...specialAbilities, ...unlockedAbilities.filter(a => a.actionType === 'reaction')]
+          : actionsFilter === 'reaction'
+            ? unlockedAbilities.filter(a => a.actionType === 'reaction')
+            : specialAbilities.filter(a => a.actionType === actionsFilter);
+        
         return (
-          <EnhancedMobileAbilityList
-            abilities={stealthAbilities}
-            characterName={character.name}
-            weapons={weaponsMap}
-            cooldownState={cooldownStateMap}
-            abilityImages={abilityImages}
-            activeConditions={globalConditions}
-            activeSetBonuses={activeSetBonuses}
-            concentrationSpell={concentrationSpell}
-            onUseAbility={handleEnhancedAbilityUse}
-            onTriggerCooldown={cooldownSystem.triggerCooldown}
-            emptyMessage="No stealth abilities unlocked"
-          />
-        );
-      
-      case 'abilities':
-        return (
-          <EnhancedMobileAbilityList
-            abilities={specialAbilities}
-            characterName={character.name}
-            weapons={weaponsMap}
-            cooldownState={cooldownStateMap}
-            abilityImages={abilityImages}
-            activeConditions={globalConditions}
-            activeSetBonuses={activeSetBonuses}
-            concentrationSpell={concentrationSpell}
-            onUseAbility={handleEnhancedAbilityUse}
-            onTriggerCooldown={cooldownSystem.triggerCooldown}
-            emptyMessage="No special abilities unlocked"
-            showFilters
-          />
-        );
-      
-      case 'reactions':
-        return (
-          <MobileReactionsList
-            reactionUsed={actionEconomy.reactionUsed}
-            onUseReaction={(reaction) => {
-              // Mark reaction as used
-              setActionEconomy(prev => ({ ...prev, reactionUsed: true }));
-              setLastAction(`⚡ ${reaction.name.toUpperCase()}`);
-              handleAddToTurn('reaction', reaction.name);
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-4 pb-24 space-y-4">
+              {/* Filter Chips */}
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {(['all', 'action', 'bonus_action', 'reaction'] as const).map(filter => (
+                  <button
+                    key={filter}
+                    onClick={() => setActionsFilter(filter)}
+                    className={cn(
+                      "flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-mono whitespace-nowrap transition-all active:scale-95",
+                      actionsFilter === filter
+                        ? "bg-amber-500/20 text-amber-300 border border-amber-500/50"
+                        : "bg-muted/20 text-muted-foreground border border-muted/30"
+                    )}
+                  >
+                    {filter === 'all' ? 'All' : 
+                     filter === 'action' ? '⚔️ Action' : 
+                     filter === 'bonus_action' ? '⚡ Bonus' : 
+                     '🛡️ Reaction'}
+                  </button>
+                ))}
+              </div>
               
-              // Log to combat log using dmPrompt
-              combatLog.addEntry({
-                actionType: 'reaction',
-                actionName: reaction.name,
-                prompt: reaction.dmPrompt || `## ⚡ REACTION: ${reaction.name.toUpperCase()}\n\n**Character:** ${character.name}\n**Trigger:** ${reaction.trigger}\n\n### Effect\n${reaction.effect}\n\n---\n\n*Narrate how ${character.name} instinctively responds with ${reaction.name}.*`,
-              });
-            }}
-          />
+              {/* Reaction Spent Warning */}
+              {actionsFilter === 'reaction' && actionEconomy.reactionUsed && (
+                <div className="p-2 bg-red-500/10 border border-red-500/30 rounded-lg text-center">
+                  <span className="text-xs text-red-400 font-mono">⚠️ REACTION USED THIS ROUND</span>
+                </div>
+              )}
+              
+              {/* Abilities List */}
+              {filteredAbilities.length > 0 ? (
+                <div className="space-y-3">
+                  {filteredAbilities.map(ability => {
+                    const cdState = cooldownStateMap.get(ability.id);
+                    const isReaction = ability.actionType === 'reaction';
+                    return (
+                      <div key={ability.id} className={cn(
+                        isReaction && "border-l-2 border-cyan-500 pl-2"
+                      )}>
+                        <CombatAbilityCard
+                          ability={ability}
+                          characterName={character.name}
+                          weapons={weaponsMap}
+                          cooldownState={cdState ? {
+                            isOnCooldown: cdState.isOnCooldown,
+                            remaining: cdState.remaining,
+                            total: cdState.total,
+                          } : undefined}
+                          customImage={abilityImages[ability.id]}
+                          activeConditions={globalConditions}
+                          activeSetBonuses={activeSetBonuses}
+                          concentrationSpell={concentrationSpell}
+                          onUse={(ability, roll, prompt, combinedDamage) => {
+                            handleEnhancedAbilityUse(ability, roll, prompt, combinedDamage);
+                            // Mark reaction as used if it's a reaction ability
+                            if (ability.actionType === 'reaction') {
+                              setActionEconomy(prev => ({ ...prev, reactionUsed: true }));
+                            }
+                          }}
+                          onTriggerCooldown={cooldownSystem.triggerCooldown}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No {actionsFilter === 'all' ? 'abilities' : actionsFilter.replace('_', ' ') + 's'} unlocked</p>
+                </div>
+              )}
+              
+              {/* Built-in Reactions (from MobileReactionsList) */}
+              {(actionsFilter === 'all' || actionsFilter === 'reaction') && (
+                <div className="pt-2 border-t border-muted/20">
+                  <MobileReactionsList
+                    reactionUsed={actionEconomy.reactionUsed}
+                    onUseReaction={(reaction) => {
+                      setActionEconomy(prev => ({ ...prev, reactionUsed: true }));
+                      setLastAction(`⚡ ${reaction.name.toUpperCase()}`);
+                      handleAddToTurn('reaction', reaction.name);
+                      
+                      combatLog.addEntry({
+                        actionType: 'reaction',
+                        actionName: reaction.name,
+                        prompt: reaction.dmPrompt || `## ⚡ REACTION: ${reaction.name.toUpperCase()}\n\n**Character:** ${character.name}\n**Trigger:** ${reaction.trigger}\n\n### Effect\n${reaction.effect}\n\n---\n\n*Narrate how ${character.name} instinctively responds with ${reaction.name}.*`,
+                      });
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
         );
       
       case 'spells':
@@ -620,7 +702,6 @@ export function MobileCombatLayout({
                 setLastAction(`${result.spellName.toUpperCase()} CAST`);
                 handleAddToTurn('action', `Cast ${result.spellName}`);
                 
-                // Log spell to combat log
                 combatLog.addEntry({
                   actionType: 'spell',
                   actionName: result.spellName,
@@ -645,7 +726,7 @@ export function MobileCombatLayout({
         // Convert concentration spell to format expected by MobileItemsGrid
         const concentrationForItems = concentrationSpell ? {
           name: concentrationSpell,
-          level: undefined, // Level available in activeSpells if needed
+          level: undefined,
         } : undefined;
         
         return (
@@ -658,27 +739,6 @@ export function MobileCombatLayout({
             concentrationSpell={concentrationForItems}
             lootItemsWithDice={lootItemsWithDice}
             onUseLootItem={onUseLootItem}
-          />
-        );
-      
-      case 'summary':
-        return (
-          <TurnSummaryPanel
-            turnActions={turnActions}
-            movementUsed={actionEconomy.movementUsed}
-            maxMovement={actionEconomy.maxMovement}
-            onRemoveAction={handleRemoveAction}
-            onClearTurn={handleResetTurn}
-            onSetMovement={(desc) => {
-              if (actionEconomyState) {
-                actionEconomyState.addTurnAction({ type: 'movement', description: desc });
-              } else {
-                setLocalTurnActions(prev => [
-                  ...prev.filter(a => a.type !== 'movement'),
-                  { type: 'movement', description: desc }
-                ]);
-              }
-            }}
           />
         );
       
@@ -760,18 +820,8 @@ export function MobileCombatLayout({
         activeTab={activeTab}
         onTabChange={setActiveTab}
         abilityCounts={{
-          attacks: equippedWeapons.length,
-          stealth: stealthAbilities.length,
-          abilities: specialAbilities.length,
-          reactions: (() => {
-            try {
-              const saved = localStorage.getItem(REACTIONS_STORAGE_KEY);
-              const reactions: Reaction[] = saved ? JSON.parse(saved) : DEFAULT_REACTIONS;
-              return reactions.filter(r => r.isEnabled).length;
-            } catch {
-              return DEFAULT_REACTIONS.filter(r => r.isEnabled).length;
-            }
-          })(),
+          combat: equippedWeapons.length + stealthAbilities.length,
+          actions: specialAbilities.length + unlockedAbilities.filter(a => a.actionType === 'reaction').length,
           spells: spellcasting?.state.preparedSpells.length ?? 0,
           items: 4,
           log: combatLog.entryCount,

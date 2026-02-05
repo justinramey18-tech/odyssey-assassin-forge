@@ -1,24 +1,20 @@
 import { cn } from '@/lib/utils';
 import { 
-  Sword, 
-  Moon, 
-  Sparkles, 
+  Crosshair,
+  Zap,
+  Wand2,
   Backpack, 
   FileText,
-  Wand2,
-  Zap,
 } from 'lucide-react';
 
-export type CombatTab = 'attacks' | 'stealth' | 'abilities' | 'reactions' | 'spells' | 'items' | 'summary' | 'log';
+export type CombatTab = 'combat' | 'actions' | 'spells' | 'items' | 'log';
 
 interface CombatBottomNavProps {
   activeTab: CombatTab;
   onTabChange: (tab: CombatTab) => void;
   abilityCounts?: {
-    attacks: number;
-    stealth: number;
-    abilities: number;
-    reactions?: number;
+    combat: number;
+    actions: number;
     spells?: number;
     items: number;
     log?: number;
@@ -26,10 +22,8 @@ interface CombatBottomNavProps {
 }
 
 const tabs = [
-  { id: 'attacks' as CombatTab, label: 'ATK', icon: Sword, color: 'text-red-400' },
-  { id: 'stealth' as CombatTab, label: 'HIDE', icon: Moon, color: 'text-purple-400' },
-  { id: 'abilities' as CombatTab, label: 'SKILL', icon: Sparkles, color: 'text-amber-400' },
-  { id: 'reactions' as CombatTab, label: 'REACT', icon: Zap, color: 'text-cyan-400' },
+  { id: 'combat' as CombatTab, label: 'COMBAT', icon: Crosshair, color: 'text-red-400' },
+  { id: 'actions' as CombatTab, label: 'ACTIONS', icon: Zap, color: 'text-amber-400' },
   { id: 'spells' as CombatTab, label: 'MAGIC', icon: Wand2, color: 'text-indigo-400' },
   { id: 'items' as CombatTab, label: 'ITEMS', icon: Backpack, color: 'text-green-400' },
   { id: 'log' as CombatTab, label: 'LOG', icon: FileText, color: 'text-primary' },
