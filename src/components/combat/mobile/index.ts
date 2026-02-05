@@ -15,4 +15,5 @@ export { MobileItemsGrid } from './MobileItemsGrid';
 export { MobileSpellList } from './MobileSpellList';
 export { MobileReactionsList } from './MobileReactionsList';
 export { QuickCastPanel } from './QuickCastPanel';
+export { TurnWizardPanel } from './TurnWizardPanel';
 export { MobileCombatLayout } from './MobileCombatLayout';

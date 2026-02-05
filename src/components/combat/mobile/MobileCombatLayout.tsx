@@ -38,6 +38,7 @@ import { MobileItemsGrid } from './MobileItemsGrid';
 import { MobileSpellList } from './MobileSpellList';
 import { MobileReactionsList } from './MobileReactionsList';
 import { QuickCastPanel } from './QuickCastPanel';
+import { TurnWizardPanel } from './TurnWizardPanel';
 import { useCombatLog } from '@/hooks/use-combat-log';
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
 import { usePromptDrawers } from '@/components/drawers';
@@ -802,6 +803,30 @@ export function MobileCombatLayout({
             setRound(prev => prev + 1);
             setLastAction('TURN SYNCED');
             setShowSmartPromptSheet(true);
+          }}
+        />
+        
+        {/* Turn Wizard - Smart Suggestions */}
+        <TurnWizardPanel
+          economy={actionEconomy}
+          conditions={conditions}
+          unlockedAbilities={unlockedAbilities}
+          cooldownState={cooldownStateMap}
+          hasWeapons={equippedWeapons.length > 0}
+          currentHP={currentHP}
+          maxHP={maxHP}
+          sneakAttackAvailable={conditions.includes('ally_adjacent')}
+          onSuggestAttack={() => {
+            setActiveTab('combat');
+            setLastAction('WIZARD: ATTACK');
+          }}
+          onSuggestHide={() => {
+            setActiveTab('combat');
+            handleQuickHide();
+          }}
+          onSuggestAbility={(ability) => {
+            setActiveTab('actions');
+            setLastAction(`WIZARD: ${ability.name.toUpperCase()}`);
           }}
         />
         
