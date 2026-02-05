@@ -789,6 +789,20 @@ export function MobileCombatLayout({
           actionCount={actionCount}
           bonusCount={bonusCount}
           reactionCount={reactionCount}
+          round={round}
+          onEndTurn={() => {
+            // End turn: reset economy, advance round
+            handleResetTurn();
+            setRound(prev => prev + 1);
+            setLastAction('TURN ENDED');
+          }}
+          onEndTurnWithSynthesis={() => {
+            // End turn with AI synthesis: open the smart prompt sheet
+            handleResetTurn();
+            setRound(prev => prev + 1);
+            setLastAction('TURN SYNCED');
+            setShowSmartPromptSheet(true);
+          }}
         />
         
         {/* Tab Content - Swipeable */}
