@@ -8,6 +8,9 @@ export interface CloudSave {
   save_name: string;
   updated_at: string;
   created_at: string;
+  // Character preview data
+  character_name?: string;
+  character_level?: number;
 }
 
 export function useCloudSave(userId: string | undefined) {
@@ -22,12 +25,26 @@ export function useCloudSave(userId: string | undefined) {
     try {
       const { data, error } = await supabase
         .from('character_saves')
-        .select('id, save_name, updated_at, created_at')
+        .select('id, save_name, updated_at, created_at, character_data')
         .eq('user_id', userId)
         .order('updated_at', { ascending: false });
       
       if (error) throw error;
-      setCloudSaves(data || []);
+      
+      // Extract character preview info from character_data
+      const savesWithPreview: CloudSave[] = (data || []).map(save => {
+        const charData = save.character_data as Record<string, unknown> | null;
+        return {
+          id: save.id,
+          save_name: save.save_name,
+          updated_at: save.updated_at,
+          created_at: save.created_at,
+          character_name: charData?.name as string | undefined,
+          character_level: charData?.level as number | undefined,
+        };
+      });
+      
+      setCloudSaves(savesWithPreview);
     } catch (error) {
       console.error('[CloudSave] Failed to fetch saves:', error);
     } finally {
@@ -37,20 +54,13 @@ export function useCloudSave(userId: string | undefined) {
 
   const saveToCloud = useCallback(async (
     saveData: Omit<SaveData, 'savedAt' | 'version'>,
-    saveName: string = 'Main Character'
+    saveName: string = 'Main Character',
+    saveId?: string // Optional: update specific save by ID
   ) => {
     if (!userId) return { error: new Error('Not authenticated') };
     
     setSaving(true);
     try {
-      // Check if save exists
-      const { data: existing } = await supabase
-        .from('character_saves')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('save_name', saveName)
-        .maybeSingle();
-      
       // Prepare data for database (cast to Json type)
       const dbData = {
         character_data: JSON.parse(JSON.stringify(saveData.character)) as Json,
@@ -62,12 +72,14 @@ export function useCloudSave(userId: string | undefined) {
       };
       
       let result;
-      if (existing) {
-        // Update existing save
+      
+      if (saveId) {
+        // Update existing save by ID
         result = await supabase
           .from('character_saves')
-          .update(dbData)
-          .eq('id', existing.id)
+          .update({ ...dbData, save_name: saveName })
+          .eq('id', saveId)
+          .eq('user_id', userId)
           .select()
           .single();
       } else {
@@ -94,6 +106,26 @@ export function useCloudSave(userId: string | undefined) {
       return { data: null, error };
     } finally {
       setSaving(false);
+    }
+  }, [userId, fetchSaves]);
+
+  const renameSave = useCallback(async (saveId: string, newName: string) => {
+    if (!userId) return { error: new Error('Not authenticated') };
+    
+    try {
+      const { error } = await supabase
+        .from('character_saves')
+        .update({ save_name: newName })
+        .eq('id', saveId)
+        .eq('user_id', userId);
+      
+      if (error) throw error;
+      
+      await fetchSaves();
+      return { error: null };
+    } catch (error) {
+      console.error('[CloudSave] Failed to rename:', error);
+      return { error };
     }
   }, [userId, fetchSaves]);
 
@@ -163,5 +195,6 @@ export function useCloudSave(userId: string | undefined) {
     saveToCloud,
     loadFromCloud,
     deleteCloudSave,
+    renameSave,
   };
 }

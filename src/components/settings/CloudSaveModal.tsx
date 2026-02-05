@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Cloud, Download, Upload, Trash2, Loader2, LogIn, LogOut, Check, AlertCircle } from 'lucide-react';
+import { Cloud, Download, Upload, Trash2, Loader2, LogIn, LogOut, Check, AlertCircle, Plus, Edit2, User, Sparkles } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
@@ -19,25 +20,48 @@ interface CloudSaveModalProps {
   onLoadSave: (data: SaveData) => void;
 }
 
+type ModalView = 'list' | 'save-new' | 'rename';
+
 export function CloudSaveModal({ open, onOpenChange, currentData, onLoadSave }: CloudSaveModalProps) {
   const navigate = useNavigate();
   const { user, isAuthenticated, signOut, loading: authLoading } = useAuth();
-  const { saving, loading, cloudSaves, fetchSaves, saveToCloud, loadFromCloud, deleteCloudSave } = useCloudSave(user?.id);
+  const { saving, loading, cloudSaves, fetchSaves, saveToCloud, loadFromCloud, deleteCloudSave, renameSave } = useCloudSave(user?.id);
   
+  const [view, setView] = useState<ModalView>('list');
+  const [newSaveName, setNewSaveName] = useState('');
+  const [editingSave, setEditingSave] = useState<CloudSave | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [selectedSave, setSelectedSave] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && isAuthenticated) {
       fetchSaves();
+      setView('list');
+      setNewSaveName('');
+      setEditingSave(null);
+      setConfirmDelete(null);
+      setSelectedSave(null);
     }
   }, [open, isAuthenticated, fetchSaves]);
 
-  const handleSave = async () => {
-    const result = await saveToCloud(currentData);
+  const handleSaveNew = async () => {
+    const name = newSaveName.trim() || `${currentData.character.name || 'Character'} - ${new Date().toLocaleDateString()}`;
+    const result = await saveToCloud(currentData, name);
     if (result.error) {
       toast.error('Failed to save to cloud');
     } else {
-      toast.success('Saved to cloud!');
+      toast.success(`Saved "${name}" to cloud!`);
+      setView('list');
+      setNewSaveName('');
+    }
+  };
+
+  const handleOverwrite = async (save: CloudSave) => {
+    const result = await saveToCloud(currentData, save.save_name, save.id);
+    if (result.error) {
+      toast.error('Failed to update save');
+    } else {
+      toast.success(`Updated "${save.save_name}"`);
     }
   };
 
@@ -62,13 +86,37 @@ export function CloudSaveModal({ open, onOpenChange, currentData, onLoadSave }: 
     }
   };
 
+  const handleRename = async () => {
+    if (!editingSave || !newSaveName.trim()) return;
+    const result = await renameSave(editingSave.id, newSaveName.trim());
+    if (result.error) {
+      toast.error('Failed to rename save');
+    } else {
+      toast.success('Save renamed');
+      setView('list');
+      setEditingSave(null);
+      setNewSaveName('');
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut();
     toast.success('Signed out');
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString();
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
   };
 
   if (authLoading) {
@@ -93,8 +141,8 @@ export function CloudSaveModal({ open, onOpenChange, currentData, onLoadSave }: 
           </DialogTitle>
           <DialogDescription>
             {isAuthenticated 
-              ? 'Sync your character data across devices' 
-              : 'Sign in to enable cloud saves'}
+              ? 'Manage your characters across all devices' 
+              : 'Sign in to sync characters across devices'}
           </DialogDescription>
         </DialogHeader>
 
@@ -105,7 +153,7 @@ export function CloudSaveModal({ open, onOpenChange, currentData, onLoadSave }: 
                 <Cloud className="w-8 h-8 text-primary" />
               </div>
               <p className="text-sm text-muted-foreground">
-                Create an account to save your character to the cloud and access it from any device.
+                Create an account to save multiple characters and access them from any device.
               </p>
             </div>
             
@@ -131,8 +179,8 @@ export function CloudSaveModal({ open, onOpenChange, currentData, onLoadSave }: 
                   </span>
                 </div>
                 <div>
-                  <p className="text-sm font-medium">{user?.email}</p>
-                  <p className="text-xs text-muted-foreground">Signed in</p>
+                  <p className="text-sm font-medium truncate max-w-[180px]">{user?.email}</p>
+                  <p className="text-xs text-muted-foreground">{cloudSaves.length} character{cloudSaves.length !== 1 ? 's' : ''} saved</p>
                 </div>
               </div>
               <Button variant="ghost" size="sm" onClick={handleSignOut}>
@@ -140,117 +188,216 @@ export function CloudSaveModal({ open, onOpenChange, currentData, onLoadSave }: 
               </Button>
             </div>
 
-            {/* Save Button */}
-            <Button 
-              className="w-full gap-2" 
-              onClick={handleSave}
-              disabled={saving}
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Upload className="w-4 h-4" />
-                  Save Current Character to Cloud
-                </>
-              )}
-            </Button>
-
-            <Separator />
-
-            {/* Saves List */}
-            <div>
-              <h4 className="text-sm font-medium mb-2">Your Saves</h4>
-              
-              {loading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            {/* View: Save New Character */}
+            {view === 'save-new' && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => setView('list')}>
+                    ← Back
+                  </Button>
+                  <span className="text-sm font-medium">Save New Character</span>
                 </div>
-              ) : cloudSaves.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Cloud className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No cloud saves yet</p>
-                </div>
-              ) : (
-                <ScrollArea className="h-[200px]">
-                  <div className="space-y-2">
-                    {cloudSaves.map((save) => (
-                      <div 
-                        key={save.id}
-                        className={cn(
-                          "p-3 rounded-lg border transition-colors",
-                          confirmDelete === save.id 
-                            ? "border-destructive/50 bg-destructive/10" 
-                            : "border-border/50 bg-muted/20 hover:bg-muted/40"
-                        )}
-                      >
-                        {confirmDelete === save.id ? (
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-destructive">
-                              <AlertCircle className="w-4 h-4" />
-                              <span className="text-sm">Delete this save?</span>
-                            </div>
-                            <div className="flex gap-2">
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => setConfirmDelete(null)}
-                              >
-                                Cancel
-                              </Button>
-                              <Button 
-                                variant="destructive" 
-                                size="sm"
-                                onClick={() => handleDelete(save.id)}
-                              >
-                                Delete
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm font-medium">{save.save_name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {formatDate(save.updated_at)}
-                              </p>
-                            </div>
-                            <div className="flex gap-1">
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => handleLoad(save)}
-                                disabled={loading}
-                              >
-                                <Download className="w-4 h-4" />
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                className="h-8 w-8 text-destructive hover:text-destructive"
-                                onClick={() => setConfirmDelete(save.id)}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                
+                <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <User className="w-4 h-4 text-primary" />
+                    <span className="font-medium">{currentData.character.name || 'Unnamed'}</span>
+                    <Badge variant="outline" className="text-xs">Lvl {currentData.character.level}</Badge>
                   </div>
-                </ScrollArea>
-              )}
-            </div>
+                  <p className="text-xs text-muted-foreground">This character will be saved to the cloud</p>
+                </div>
+                
+                <Input
+                  placeholder="Save name (optional)"
+                  value={newSaveName}
+                  onChange={(e) => setNewSaveName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSaveNew()}
+                />
+                
+                <Button className="w-full gap-2" onClick={handleSaveNew} disabled={saving}>
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                  Save to Cloud
+                </Button>
+              </div>
+            )}
 
-            {/* Auto-save indicator */}
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Check className="w-3 h-3 text-green-500" />
-              Local auto-save is always active
-            </div>
+            {/* View: Rename */}
+            {view === 'rename' && editingSave && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => { setView('list'); setEditingSave(null); }}>
+                    ← Back
+                  </Button>
+                  <span className="text-sm font-medium">Rename Save</span>
+                </div>
+                
+                <Input
+                  placeholder="New name"
+                  value={newSaveName}
+                  onChange={(e) => setNewSaveName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleRename()}
+                  autoFocus
+                />
+                
+                <Button className="w-full" onClick={handleRename} disabled={!newSaveName.trim()}>
+                  Save Name
+                </Button>
+              </div>
+            )}
+
+            {/* View: List */}
+            {view === 'list' && (
+              <>
+                {/* Action Buttons */}
+                <Button 
+                  className="w-full gap-2" 
+                  onClick={() => setView('save-new')}
+                >
+                  <Plus className="w-4 h-4" />
+                  Save Current Character
+                </Button>
+
+                <Separator />
+
+                {/* Saves List */}
+                <div>
+                  <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-primary" />
+                    Your Characters
+                  </h4>
+                  
+                  {loading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : cloudSaves.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Cloud className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">No characters saved yet</p>
+                      <p className="text-xs mt-1">Save your current character to get started!</p>
+                    </div>
+                  ) : (
+                    <ScrollArea className="h-[240px]">
+                      <div className="space-y-2 pr-2">
+                        {cloudSaves.map((save) => (
+                          <div 
+                            key={save.id}
+                            className={cn(
+                              "p-3 rounded-lg border transition-all",
+                              confirmDelete === save.id 
+                                ? "border-destructive/50 bg-destructive/10" 
+                                : selectedSave === save.id
+                                ? "border-primary/50 bg-primary/5"
+                                : "border-border/50 bg-muted/20 hover:bg-muted/40"
+                            )}
+                            onClick={() => setSelectedSave(selectedSave === save.id ? null : save.id)}
+                          >
+                            {confirmDelete === save.id ? (
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-destructive">
+                                  <AlertCircle className="w-4 h-4" />
+                                  <span className="text-sm">Delete?</span>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }}
+                                  >
+                                    Cancel
+                                  </Button>
+                                  <Button 
+                                    variant="destructive" 
+                                    size="sm"
+                                    onClick={(e) => { e.stopPropagation(); handleDelete(save.id); }}
+                                  >
+                                    Delete
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium text-sm">{save.save_name}</span>
+                                  </div>
+                                  <span className="text-xs text-muted-foreground">{formatDate(save.updated_at)}</span>
+                                </div>
+                                
+                                <div className="flex items-center gap-2 mb-2">
+                                  {save.character_name && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      {save.character_name}
+                                    </Badge>
+                                  )}
+                                  {save.character_level && (
+                                    <Badge variant="outline" className="text-xs">
+                                      Lvl {save.character_level}
+                                    </Badge>
+                                  )}
+                                </div>
+                                
+                                {selectedSave === save.id && (
+                                  <div className="flex gap-1 mt-2 pt-2 border-t border-border/30">
+                                    <Button 
+                                      variant="default"
+                                      size="sm"
+                                      className="flex-1 gap-1"
+                                      onClick={(e) => { e.stopPropagation(); handleLoad(save); }}
+                                      disabled={loading}
+                                    >
+                                      <Download className="w-3 h-3" />
+                                      Load
+                                    </Button>
+                                    <Button 
+                                      variant="secondary"
+                                      size="sm"
+                                      className="flex-1 gap-1"
+                                      onClick={(e) => { e.stopPropagation(); handleOverwrite(save); }}
+                                      disabled={saving}
+                                    >
+                                      <Upload className="w-3 h-3" />
+                                      Overwrite
+                                    </Button>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={(e) => { 
+                                        e.stopPropagation(); 
+                                        setEditingSave(save); 
+                                        setNewSaveName(save.save_name);
+                                        setView('rename'); 
+                                      }}
+                                    >
+                                      <Edit2 className="w-3 h-3" />
+                                    </Button>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon"
+                                      className="h-8 w-8 text-destructive hover:text-destructive"
+                                      onClick={(e) => { e.stopPropagation(); setConfirmDelete(save.id); }}
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </Button>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  )}
+                </div>
+
+                {/* Auto-save indicator */}
+                <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2">
+                  <Check className="w-3 h-3 text-emerald-500" />
+                  Local auto-save is always active
+                </div>
+              </>
+            )}
           </div>
         )}
       </DialogContent>
