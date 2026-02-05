@@ -68,6 +68,8 @@ import { EquipmentItem as ShopEquipmentItem } from '@/lib/inventory/types';
 import { useCustomBackground } from '@/hooks/use-custom-background';
 import { useActionEconomy } from '@/hooks/use-action-economy';
 import { useConditions } from '@/hooks/use-conditions';
+import { useTargets } from '@/hooks/use-targets';
+
 const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -187,6 +189,9 @@ const Index = () => {
   
   // Action economy (combat turn tracking with persistence)
   const actionEconomy = useActionEconomy();
+  
+  // Target/Enemy tracker (combat)
+  const targets = useTargets();
   
   // Shared equipment state for constellation view
   const [equipment, setEquipment] = useState<CharacterEquipment>(() => createInitialEquipment());
@@ -1442,6 +1447,10 @@ const Index = () => {
               onApplyHP={handleChronicleHP}
               onApplyConditions={handleChronicleConditions}
               onApplyRest={handleChronicleRest}
+              existingEnemies={targets.enemies}
+              onAddEnemies={targets.importEnemies}
+              onUpdateEnemy={targets.updateEnemy}
+              onClearDefeated={targets.clearDefeated}
               onBack={() => categoryNav.navigateToSubTab('scribe')}
             />
           )}

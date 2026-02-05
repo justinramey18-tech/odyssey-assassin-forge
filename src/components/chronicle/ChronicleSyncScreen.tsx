@@ -40,7 +40,9 @@ import { ReviewModal } from './ReviewModal';
 import { DisplayOnlyAlerts } from './DisplayOnlyAlerts';
 import { AnalyticsDashboard } from './AnalyticsDashboard';
 import { AutoApplyPanel } from './AutoApplyPanel';
+import { EnemiesDetectedPanel } from './EnemiesDetectedPanel';
 import { CampaignManagerScreen } from '@/components/campaign';
+import { Enemy, NewEnemyInput } from '@/lib/combat/targetTypes';
 import combatBackground from '@/assets/combat-background.jpg';
 
 interface ChronicleSyncScreenProps {
@@ -55,6 +57,11 @@ interface ChronicleSyncScreenProps {
   onApplyHP: (change: number, type: 'damage' | 'healing') => void;
   onApplyConditions: (toAdd: string[], toRemove: string[]) => void;
   onApplyRest: (type: 'short' | 'long') => void;
+  // Target tracker integration
+  existingEnemies: Enemy[];
+  onAddEnemies: (enemies: NewEnemyInput[]) => number;
+  onUpdateEnemy: (id: string, updates: Partial<Enemy>) => void;
+  onClearDefeated: () => void;
   onBack: () => void;
 }
 
@@ -72,6 +79,10 @@ export function ChronicleSyncScreen({
   onApplyHP,
   onApplyConditions,
   onApplyRest,
+  existingEnemies,
+  onAddEnemies,
+  onUpdateEnemy,
+  onClearDefeated,
   onBack 
 }: ChronicleSyncScreenProps) {
   const [inputText, setInputText] = useState('');
@@ -225,9 +236,12 @@ export function ChronicleSyncScreen({
         
         setProcessProgress({ stage: 'complete', message: 'Complete!', progress: 100 });
         
+        const summary = calculateChangeSummary(result);
+        const enemyCount = summary.totalEnemies.active + summary.totalEnemies.defeated;
+        
         toast({
           title: "Parsing complete",
-          description: `Found ${calculateChangeSummary(result).totalXP} XP, ${result.itemChanges.length} items, ${result.achievementTriggers.length} achievements`,
+          description: `Found ${summary.totalXP} XP, ${result.itemChanges.length} items${enemyCount > 0 ? `, ${enemyCount} enemies` : ''}`,
         });
       } else {
         // AI parsing
@@ -566,7 +580,7 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Summary Stats */}
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
+              <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 text-center">
                 <div className="bg-yellow-500/10 rounded-lg p-2 border border-yellow-500/20">
                   <div className="text-lg font-bold text-yellow-400">+{summary.totalXP}</div>
                   <div className="text-xs text-muted-foreground">XP</div>
@@ -592,6 +606,14 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
                 <div className="bg-emerald-500/10 rounded-lg p-2 border border-emerald-500/20">
                   <div className="text-lg font-bold text-emerald-400">{summary.totalShopItems}</div>
                   <div className="text-xs text-muted-foreground">Shop</div>
+                </div>
+                <div className="bg-red-500/10 rounded-lg p-2 border border-red-500/20">
+                  <div className="text-lg font-bold text-red-400">
+                    {summary.totalEnemies.active + summary.totalEnemies.defeated > 0 
+                      ? summary.totalEnemies.active + summary.totalEnemies.defeated 
+                      : '-'}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Enemies</div>
                 </div>
               </div>
 
@@ -636,6 +658,17 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
                   hpChanges={parseResult.hpChanges}
                   goldChanges={parseResult.goldChanges}
                   conditions={parseResult.conditions}
+                />
+              )}
+
+              {/* Enemies Detected Section */}
+              {parseResult.enemies && parseResult.enemies.length > 0 && (
+                <EnemiesDetectedPanel
+                  enemies={parseResult.enemies}
+                  existingEnemies={existingEnemies}
+                  onAddEnemies={onAddEnemies}
+                  onUpdateEnemy={onUpdateEnemy}
+                  onClearDefeated={onClearDefeated}
                 />
               )}
 
@@ -691,6 +724,7 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
             <li>Spell slot usage, death saving throws, short/long rests</li>
             <li>Skill checks, saving throws, initiative rolls, inspiration</li>
             <li>Gold transactions, damage/healing, condition changes</li>
+            <li><strong>Enemies:</strong> Names, quantities, AC, HP, creature types, defeated status</li>
           </ul>
         </div>
       </div>
