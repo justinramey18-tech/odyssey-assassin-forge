@@ -613,23 +613,35 @@ export const FAQ_ITEMS: FAQCategory[] = [
     questions: [
       {
         q: "How does saving work?",
-        a: "Your character automatically saves to browser localStorage. This persists between sessions but is device-specific.",
+        a: "Your character automatically saves to browser localStorage every second after changes. If you're signed in, your data also auto-syncs to the cloud every 30 seconds (or 2 minutes if idle), ensuring cross-device access.",
+      },
+      {
+        q: "What is Auto-Save?",
+        a: "Auto-save runs automatically in the background. Local saves happen ~1 second after any change. Cloud saves happen ~30 seconds after changes if you're signed in. No manual action required.",
+      },
+      {
+        q: "What is the Cloud Sync Status widget?",
+        a: "On the Home Screen, below your character name, you'll see a widget showing your sync status: 'Synced [time ago]' (green), 'Syncing...' (cyan), 'Not synced' (amber), or 'Local only' (gray if not signed in). Tap it to open Cloud Save management.",
       },
       {
         q: "What is Cloud Save?",
-        a: "Utility → Cloud lets you sign in with an account to sync progress across devices. Your data backs up to the cloud and restores on any device.",
+        a: "Cloud Save lets you sign in with an account to sync progress across devices. Your data backs up to the cloud automatically when signed in and restores on any device.",
       },
       {
         q: "How do I enable Cloud Save?",
-        a: "Go to Utility → Cloud. Sign in or create an account. Enable sync. Your data uploads automatically.",
+        a: "Go to Utility → Cloud or tap the Cloud Sync widget on the Home Screen. Sign in or create an account. Once signed in, auto-sync begins immediately.",
       },
       {
         q: "Can I have multiple characters?",
-        a: "Cloud Save supports multiple save slots. Create different characters and switch between them.",
+        a: "Yes! Cloud Save supports multiple save slots. Create different characters and switch between them using the character quick-switcher in the header or the full Cloud Save modal.",
       },
       {
         q: "What data is synced?",
-        a: "Character info, abilities, equipment, consumables, achievements, prestige, XP, and settings. Custom images are stored separately.",
+        a: "Character info, abilities, equipment, consumables, achievements, prestige, XP, ability scores, and settings. Custom images are stored separately.",
+      },
+      {
+        q: "When does cloud sync happen?",
+        a: "Cloud syncs trigger: 1) ~30 seconds after data changes, 2) Every 2 minutes if there are pending changes, 3) When you close/leave the page (best-effort), 4) When you manually open the Cloud Save modal.",
       },
     ],
   },

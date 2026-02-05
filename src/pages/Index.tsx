@@ -39,7 +39,8 @@ import { useGameMode } from '@/hooks/use-game-mode';
 import { usePrestige } from '@/hooks/use-prestige';
 import { useEquipmentStats } from '@/hooks/use-equipment-stats';
 import { useAbilityScores } from '@/hooks/use-ability-scores';
-import { useAutoSave, loadAutoSave, SaveData, serializeConsumables } from '@/hooks/use-auto-save';
+import { loadAutoSave, SaveData, serializeConsumables } from '@/hooks/use-auto-save';
+import { useAutoCloudSync } from '@/hooks/use-auto-cloud-sync';
 import { useConsumables } from '@/hooks/use-consumables';
 import { ConsumablesInventoryWidget, AddConsumableDrawer } from '@/components/consumables';
 import { getConsumableById } from '@/lib/consumables';
@@ -345,8 +346,15 @@ const Index = () => {
     abilityScores: abilityScores.baseScores,
   }), [character, equipment, achievements, consumablesInventory, currentXP, xpPreset, prestigeData, abilityScores.baseScores]);
 
-  // Auto-save (only when not in wizard)
-  useAutoSave(saveData, !showWizard);
+  // Auto-save locally AND to cloud when authenticated (only when not in wizard)
+  const autoSync = useAutoCloudSync(saveData, !showWizard);
+  
+  // Update lastCloudSyncTime from auto-sync
+  useEffect(() => {
+    if (autoSync.lastCloudSyncTime && autoSync.lastCloudSyncTime !== lastCloudSyncTime) {
+      setLastCloudSyncTime(autoSync.lastCloudSyncTime);
+    }
+  }, [autoSync.lastCloudSyncTime, lastCloudSyncTime]);
 
   // Load auto-save on mount with XP repair
   useEffect(() => {
@@ -1077,7 +1085,8 @@ const Index = () => {
           onCustomBackgroundUpload={customBackground.handleImageUpload}
           onCustomBackgroundClear={customBackground.clearCustomBackground}
           prestigeData={prestigeData}
-          lastCloudSyncTime={lastCloudSyncTime}
+          lastCloudSyncTime={autoSync.lastCloudSyncTime || lastCloudSyncTime}
+          isCloudSyncing={autoSync.isSyncing}
           onCloudSyncClick={() => setShowCloudSaveModal(true)}
         />
         
