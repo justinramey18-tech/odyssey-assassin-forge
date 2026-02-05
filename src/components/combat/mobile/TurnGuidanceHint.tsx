@@ -16,6 +16,7 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetDescription,
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 
@@ -213,6 +214,7 @@ export function TurnGuidanceHint({
               <Lightbulb className="w-5 h-5" />
               Turn Suggestions
             </SheetTitle>
+            <SheetDescription className="sr-only">Suggested actions for your turn</SheetDescription>
           </SheetHeader>
           
           <div className="space-y-3 mt-4 max-h-[40vh] overflow-y-auto overscroll-contain">
