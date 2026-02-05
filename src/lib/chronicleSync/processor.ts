@@ -26,6 +26,7 @@ import {
   parseLevelUpMatches,
   parseConditionMatches,
 } from './patterns';
+import { parseEnemyMatches } from './patterns/enemies';
 import { matchAchievements, buildAchievementTriggers } from './achievementMatcher';
 import { findBestConsumableMatch, parseItemQuantity } from './fuzzyMatch';
 
@@ -159,6 +160,10 @@ export function parseLogOffline(input: string): ChronicleParseResult {
   const achievementMatches = matchAchievements(input);
   const achievementTriggers = buildAchievementTriggers(achievementMatches);
   
+  // Parse enemies from the log
+  const enemies = parseEnemyMatches(input);
+  
+  
   return {
     xpChanges,
     hpChanges,
@@ -168,6 +173,7 @@ export function parseLogOffline(input: string): ChronicleParseResult {
     shopItems: [], // Offline parsing doesn't detect shop items (requires AI)
     conditions,
     combatEvents,
+    enemies,
     levelUp,
     parseMode: 'offline',
     parsedAt: new Date().toISOString(),
@@ -374,6 +380,7 @@ export function parseAIResponse(response: unknown): ChronicleParseResult | null 
       shopItems,
       conditions,
       combatEvents,
+      enemies: [], // Will be populated from AI response or offline parsing
       levelUp,
       parseMode: 'ai',
       parsedAt: new Date().toISOString(),
