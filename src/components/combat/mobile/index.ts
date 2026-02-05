@@ -21,4 +21,5 @@ export { TargetTrackerPanel } from './TargetTrackerPanel';
 export { InitiativeTracker } from './InitiativeTracker';
 export { AddEnemySheet } from './AddEnemySheet';
 export { EnemyCard } from './EnemyCard';
+export { CombatDiceRoller } from './CombatDiceRoller';
 export { MobileCombatLayout } from './MobileCombatLayout';
