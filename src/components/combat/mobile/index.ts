@@ -1,4 +1,4 @@
-// Mobile Combat Components Index
+// Mobile Combat Components Index - UX Overhaul v2
 export { CombatBottomNav, SubTabPills, type CombatTab, type CombatSubTab, type ActionsSubTab } from './CombatBottomNav';
 export { CombatTopBar } from './CombatTopBar';
 export { SituationStrip } from './SituationStrip';
