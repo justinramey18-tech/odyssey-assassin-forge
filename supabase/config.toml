@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.oracle-assistant]
 verify_jwt = false
+
+[functions.combat-log-synthesize]
+verify_jwt = false

@@ -7,6 +7,7 @@ export { MobileWeaponCard } from './MobileWeaponCard';
 export { CombatFAB } from './CombatFAB';
 export { TurnSummaryPanel } from './TurnSummaryPanel';
 export { CombatLogPanel } from './CombatLogPanel';
+export { SmartPromptSheet } from './SmartPromptSheet';
 export { MobileAbilityList } from './MobileAbilityList';
 export { EnhancedMobileAbilityList } from './EnhancedMobileAbilityList';
 export { CombatAbilityCard } from './CombatAbilityCard';

@@ -30,6 +30,7 @@ import { MobileWeaponCard } from './MobileWeaponCard';
 import { CombatFAB } from './CombatFAB';
 import { TurnSummaryPanel } from './TurnSummaryPanel';
 import { CombatLogPanel } from './CombatLogPanel';
+import { SmartPromptSheet } from './SmartPromptSheet';
 import { MobileAbilityList } from './MobileAbilityList';
 import { EnhancedMobileAbilityList } from './EnhancedMobileAbilityList';
 import { MobileItemsGrid } from './MobileItemsGrid';
@@ -184,6 +185,7 @@ export function MobileCombatLayout({
   
   // UI state
   const [lastAction, setLastAction] = useState('SYSTEMS READY');
+  const [showSmartPromptSheet, setShowSmartPromptSheet] = useState(false);
   
   // Count abilities by type
   const unlockedAbilities = character.abilities
@@ -686,6 +688,7 @@ export function MobileCombatLayout({
             entries={combatLog.entries}
             onClearLog={combatLog.clearLog}
             onRemoveEntry={combatLog.removeEntry}
+            onSmartPrompt={() => setShowSmartPromptSheet(true)}
           />
         );
     }
@@ -787,6 +790,14 @@ export function MobileCombatLayout({
           rerollDisabled={rerollsDisabled}
         />
       )}
+      
+      {/* AI Smart Prompt Sheet */}
+      <SmartPromptSheet
+        open={showSmartPromptSheet}
+        onOpenChange={setShowSmartPromptSheet}
+        entries={combatLog.entries}
+        characterName={character.name}
+      />
     </div>
   );
 }
