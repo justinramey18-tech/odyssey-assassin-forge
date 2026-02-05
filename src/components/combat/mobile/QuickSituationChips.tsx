@@ -29,7 +29,7 @@ export function QuickSituationChips({
   sneakAttackEligible = false,
 }: QuickSituationChipsProps) {
   return (
-    <div className="sticky top-[calc(env(safe-area-inset-top)+7.5rem)] z-30 bg-background/95 backdrop-blur-sm border-b border-red-900/20 px-3 py-2">
+    <div className="bg-background/95 backdrop-blur-sm border-b border-red-900/20 px-3 py-2">
       <div className="flex items-center gap-2">
         {/* Hidden chip */}
         <SituationChip

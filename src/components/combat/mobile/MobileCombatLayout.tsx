@@ -25,7 +25,7 @@ import { COOLDOWN_CONFIGS, calculateEffectiveCooldown } from '@/lib/cooldowns/co
 import { CombatBottomNav, CombatTab, SubTabPills, CombatSubTab, ActionsSubTab } from './CombatBottomNav';
 import { CombatTopBar } from './CombatTopBar';
 import { SituationStrip } from './SituationStrip';
-import { FloatingTurnTracker } from './FloatingTurnTracker';
+import { InlineActionEconomy } from './InlineActionEconomy';
 import { QuickSituationChips } from './QuickSituationChips';
 import { TurnGuidanceHint } from './TurnGuidanceHint';
 import { MobileWeaponCard } from './MobileWeaponCard';
@@ -739,7 +739,16 @@ export function MobileCombatLayout({
       {/* Main Content Area - Flex container for scrollable content */}
       <main className="flex-1 flex flex-col min-h-0 pt-[120px]">
         
-        {/* Quick Situation Chips (always visible) */}
+        {/* Inline Action Economy (below header, above situation chips) */}
+        <InlineActionEconomy
+          economy={actionEconomy}
+          onEconomyChange={setActionEconomy}
+          round={round}
+          onEndTurn={handleEndTurn}
+          onEndTurnWithSynthesis={handleEndTurnWithSynthesis}
+        />
+        
+        {/* Quick Situation Chips (below action economy) */}
         <QuickSituationChips
           isHidden={isHidden}
           hasAdvantage={hasAdvantage}
@@ -764,7 +773,7 @@ export function MobileCombatLayout({
         {/* Tab Content - Scrollable area takes remaining space */}
         <div 
           {...swipeHandlers}
-          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain pb-40"
+          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain pb-24"
           style={{ 
             touchAction: 'pan-y pinch-zoom',
             WebkitOverflowScrolling: 'touch',
@@ -800,16 +809,6 @@ export function MobileCombatLayout({
         nearAlly={nearAlly}
         cooldownStateMap={cooldownStateMap}
         onNavigateToTab={handleNavigateToTab}
-      />
-      
-      {/* Floating Turn Tracker (always visible above bottom nav) */}
-      <FloatingTurnTracker
-        economy={actionEconomy}
-        onEconomyChange={setActionEconomy}
-        round={round}
-        onEndTurn={handleEndTurn}
-        onEndTurnWithSynthesis={handleEndTurnWithSynthesis}
-        isScrolling={isScrolling}
       />
       
       {/* Bottom Navigation (5 consolidated tabs) */}
