@@ -4,6 +4,7 @@ import {
   Menu, Cloud, Loader2, LogIn, User, Settings, Trash2, 
   Coins, Wand2, Package, Heart, Swords, Sparkles, Edit3, Check, X
 } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -88,6 +89,7 @@ export function CharacterSavesDrawer({
   onLoadSave,
   onOpenCloudSettings,
 }: CharacterSavesDrawerProps) {
+  const isMobile = useIsMobile();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { loading, cloudSaves, fetchSaves, loadFromCloud, deleteCloudSave, renameSave } = useCloudSave(user?.id);
   
@@ -312,9 +314,9 @@ export function CharacterSavesDrawer({
                                 </div>
                               </div>
 
-                              {/* Action buttons - shown on hover */}
+                              {/* Action buttons - shown on hover (desktop) or always (mobile) */}
                               <AnimatePresence>
-                                {hoveredId === save.id && (
+                                {(isMobile || hoveredId === save.id) && (
                                   <motion.div
                                     initial={{ opacity: 0, scale: 0.9 }}
                                     animate={{ opacity: 1, scale: 1 }}
