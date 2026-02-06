@@ -534,18 +534,89 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     }
   }, []);
 
-  // Handle loading cloud save
-  const handleLoadCloudSave = (data: SaveData) => {
+  // Handle loading cloud save - RESTORES ALL CHARACTER STATE
+  const handleLoadCloudSave = useCallback((data: SaveData) => {
+    console.log('[CloudSave] Loading character:', data.character.name);
+    
+    // 1. Core character data
     setCharacter(data.character);
     setEquipment(data.equipment);
     setAchievements(data.achievements);
+    
+    // 2. XP system
     setCurrentXP(data.xp.currentXP);
     setXPPreset(data.xp.xpPreset as XPPreset);
+    
+    // 3. Prestige data - update localStorage AND state via hook
+    if (data.prestige) {
+      const prestigeState = {
+        prestigeLevel: data.prestige.prestigeLevel ?? 0,
+        prestigeXP: data.prestige.prestigeXP ?? 0,
+        totalPrestigePoints: data.prestige.totalPrestigePoints ?? 0,
+      };
+      localStorage.setItem('odyssey-prestige-data', JSON.stringify(prestigeState));
+      setPrestigeData(prestigeState);
+      
+      // Update prestige tree spent state to recalculate from loaded abilities
+      const treeSpent = (data.character.abilities || []).reduce((sum: number, ca: CharacterAbility) => {
+        // Only count prestige tree abilities
+        if (ca.abilityId.startsWith('prestige_')) {
+          const ability = getPrestigeAbilityById(ca.abilityId);
+          return sum + (ability?.prestigeCost ?? 0);
+        }
+        return sum;
+      }, 0);
+      setPrestigeTreeSpentState(treeSpent);
+      console.log('[CloudSave] Loaded prestige:', prestigeState);
+    }
+    
+    // 4. Consumables - update localStorage (hook will sync on next render)
+    if (data.consumables && Array.isArray(data.consumables)) {
+      localStorage.setItem('odyssey-consumables-inventory', JSON.stringify(data.consumables));
+      console.log('[CloudSave] Loaded consumables:', data.consumables.length, 'items');
+    }
+    
+    // 5. Ability scores - use hook's applyScores method
+    if (data.abilityScores) {
+      abilityScores.applyScores(data.abilityScores);
+      console.log('[CloudSave] Loaded ability scores');
+    }
+    
+    // 6. Calculate and restore HP based on loaded constitution and level
+    // We need to recalculate max HP from the loaded data
+    if (data.abilityScores) {
+      const loadedConMod = scoreToModifier(data.abilityScores.constitution);
+      const loadedPrestigeLevel = data.prestige?.prestigeLevel ?? 0;
+      const newMaxHP = calculateMaxHP(data.character.level, loadedConMod, loadedPrestigeLevel);
+      const newHPState = { current: newMaxHP, max: newMaxHP, temp: 0 };
+      setHpState(newHPState);
+      localStorage.setItem('odyssey-hp-state', JSON.stringify(newHPState));
+      console.log('[CloudSave] Reset HP to max:', newMaxHP);
+    }
+    
+    // 7. Reset death saves
+    setDeathSaves({ successes: 0, failures: 0 });
+    localStorage.setItem('odyssey-death-saves', JSON.stringify({ successes: 0, failures: 0 }));
+    
     // Track when this was loaded from cloud
     setLastCloudSyncTime(data.savedAt);
-    // Note: Prestige data is managed by usePrestige hook via localStorage
+    
+    // Exit wizard if showing
     setShowWizard(false);
-  };
+    
+    // Force a page reload to ensure all localStorage-dependent hooks reinitialize
+    // This is the most reliable way to ensure all state is synchronized
+    toast({
+      title: "✅ Character Loaded!",
+      description: `${data.character.name} (Level ${data.character.level}) loaded from cloud`,
+      className: "border-primary bg-primary/10",
+    });
+    
+    // Small delay to allow toast to show, then reload to sync all hooks
+    setTimeout(() => {
+      window.location.reload();
+    }, 500);
+  }, [abilityScores.applyScores, setPrestigeData, toast]);
 
   // Calculate unlocked abilities map for drawer
   const unlockedAbilities = useMemo(() => {
