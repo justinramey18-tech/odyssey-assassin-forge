@@ -414,6 +414,7 @@ export function CombatTutorialOverlay({ onComplete, onDismiss }: CombatTutorialO
 export function useCombatTutorial() {
   const [showTutorial, setShowTutorial] = useState(false);
   const [hasChecked, setHasChecked] = useState(false);
+  const [showHelpPulse, setShowHelpPulse] = useState(false);
 
   // Check if tutorial has been seen on mount
   useEffect(() => {
@@ -432,6 +433,16 @@ export function useCombatTutorial() {
     setHasChecked(true);
   }, []);
 
+  // Auto-dismiss the pulse after 8 seconds
+  useEffect(() => {
+    if (showHelpPulse) {
+      const timer = setTimeout(() => {
+        setShowHelpPulse(false);
+      }, 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [showHelpPulse]);
+
   // Mark tutorial as complete
   const completeTutorial = useCallback(() => {
     try {
@@ -441,6 +452,8 @@ export function useCombatTutorial() {
     }
     setShowTutorial(false);
     setHasChecked(true);
+    // Show pulse on help button to remind user they can replay
+    setShowHelpPulse(true);
   }, []);
 
   // Dismiss tutorial without completing
@@ -452,6 +465,8 @@ export function useCombatTutorial() {
     }
     setShowTutorial(false);
     setHasChecked(true);
+    // Show pulse on help button to remind user they can replay
+    setShowHelpPulse(true);
   }, []);
 
   // Reset tutorial (for testing or settings)
@@ -462,19 +477,28 @@ export function useCombatTutorial() {
       console.error('Failed to reset tutorial:', e);
     }
     setHasChecked(false);
+    setShowHelpPulse(false);
   }, []);
 
   // Manually trigger tutorial
   const triggerTutorial = useCallback(() => {
     setShowTutorial(true);
+    setShowHelpPulse(false);
+  }, []);
+
+  // Dismiss the pulse (e.g., when user clicks help button)
+  const dismissHelpPulse = useCallback(() => {
+    setShowHelpPulse(false);
   }, []);
 
   return {
     showTutorial,
     hasChecked,
+    showHelpPulse,
     completeTutorial,
     dismissTutorial,
     resetTutorial,
     triggerTutorial,
+    dismissHelpPulse,
   };
 }

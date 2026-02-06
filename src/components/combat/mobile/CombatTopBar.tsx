@@ -25,6 +25,7 @@ interface CombatTopBarProps {
   onMenuOpen: () => void;
   onSettingsOpen: () => void;
   onReplayTutorial?: () => void;
+  showHelpPulse?: boolean;
   // New stats props
   currentHP?: number;
   maxHP?: number;
@@ -41,6 +42,7 @@ export function CombatTopBar({
   onMenuOpen,
   onSettingsOpen,
   onReplayTutorial,
+  showHelpPulse,
   currentHP,
   maxHP,
   tempHP = 0,
@@ -101,9 +103,15 @@ export function CombatTopBar({
                     variant="ghost"
                     size="icon"
                     onClick={onReplayTutorial}
-                    className="h-9 w-9 border border-primary/30 hover:border-primary/50 hover:bg-primary/10"
+                    className={cn(
+                      "h-9 w-9 border border-primary/30 hover:border-primary/50 hover:bg-primary/10 relative",
+                      showHelpPulse && "animate-help-pulse"
+                    )}
                   >
                     <HelpCircle className="h-4 w-4 text-primary" />
+                    {showHelpPulse && (
+                      <span className="absolute inset-0 rounded-md border-2 border-primary animate-ping opacity-75" />
+                    )}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
