@@ -8,7 +8,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { WeaponCard } from './WeaponCard';
 import { 
-  DEFAULT_WEAPONS, 
+  DEFAULT_WEAPONS,
+  UNARMED_STRIKE,
   WeaponAttack,
   getSneakAttackDice 
 } from '@/lib/combat/combatTypes';
@@ -68,7 +69,9 @@ export function AbilityTabs({
   const hasPoisonedWeapon = conditions.includes('poisonedWeapon');
   
   // Use equipped weapons from gear, fallback to defaults
-  const weapons = equippedWeapons && equippedWeapons.length > 0 ? equippedWeapons : DEFAULT_WEAPONS;
+  // Always include unarmed strike as an option
+  const equippedOrDefault = equippedWeapons && equippedWeapons.length > 0 ? equippedWeapons : DEFAULT_WEAPONS;
+  const weapons = [...equippedOrDefault, UNARMED_STRIKE];
 
   // Get unlocked abilities (including homebrew)
   const unlockedAbilities = useMemo(() => {

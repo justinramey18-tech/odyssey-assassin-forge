@@ -76,6 +76,18 @@ export const COMBAT_CONDITIONS: CombatCondition[] = [
   { id: 'poisonedWeapon', label: 'Poisoned Weapon', tooltip: 'Weapon coated with poison', mechanical: 'Extra poison damage on hit' },
 ];
 
+// Unarmed strike - always available
+export const UNARMED_STRIKE: WeaponAttack = {
+  id: 'unarmed_strike',
+  name: 'Unarmed Strike',
+  attackBonus: 0,
+  damage: '1',
+  damageType: 'bludgeoning',
+  properties: ['Natural'],
+  isFinesse: false,
+  isRanged: false,
+};
+
 // Default weapons for assassin
 export const DEFAULT_WEAPONS: WeaponAttack[] = [
   {
