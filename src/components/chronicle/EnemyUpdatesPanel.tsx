@@ -86,7 +86,7 @@ export function EnemyUpdatesPanel({
     })));
   }, []);
 
-  // Apply approved updates
+  // Apply approved updates (with resistance/vulnerability adjustments)
   const handleApply = useCallback(() => {
     const approved = approvalStates.filter(s => s.approved && s.matchedEnemy);
     let appliedCount = 0;
@@ -97,7 +97,23 @@ export function EnemyUpdatesPanel({
       switch (update.updateType) {
         case 'damage':
           if (update.amount) {
-            onApplyDamage(matchedEnemy.id, update.amount, update.damageType);
+            // Calculate adjusted damage based on resistances/vulnerabilities
+            let finalDamage = update.amount;
+            const damageType = update.damageType;
+            
+            if (damageType) {
+              if (matchedEnemy.immunities?.includes(damageType)) {
+                finalDamage = 0;
+              } else if (matchedEnemy.resistances?.includes(damageType)) {
+                finalDamage = Math.floor(update.amount / 2);
+              } else if (matchedEnemy.vulnerabilities?.includes(damageType)) {
+                finalDamage = update.amount * 2;
+              }
+            }
+            
+            if (finalDamage > 0) {
+              onApplyDamage(matchedEnemy.id, finalDamage, update.damageType);
+            }
             appliedCount++;
           }
           break;
@@ -278,16 +294,60 @@ function UpdateApprovalCard({ state, onToggle }: UpdateApprovalCardProps) {
     }
   }, [update]);
 
+  // Calculate adjusted damage based on resistances/vulnerabilities/immunities
+  const adjustedDamage = useMemo(() => {
+    if (update.updateType !== 'damage' || !update.amount || !matchedEnemy) {
+      return { amount: update.amount || 0, modifier: null as 'resistant' | 'vulnerable' | 'immune' | null };
+    }
+
+    const damageType = update.damageType;
+    if (!damageType) {
+      return { amount: update.amount, modifier: null };
+    }
+
+    // Check immunities first (takes precedence)
+    if (matchedEnemy.immunities?.includes(damageType)) {
+      return { amount: 0, modifier: 'immune' as const };
+    }
+
+    // Check resistances (halve damage)
+    if (matchedEnemy.resistances?.includes(damageType)) {
+      return { amount: Math.floor(update.amount / 2), modifier: 'resistant' as const };
+    }
+
+    // Check vulnerabilities (double damage)
+    if (matchedEnemy.vulnerabilities?.includes(damageType)) {
+      return { amount: update.amount * 2, modifier: 'vulnerable' as const };
+    }
+
+    return { amount: update.amount, modifier: null };
+  }, [update, matchedEnemy]);
+
   const effectPreview = useMemo(() => {
     if (!matchedEnemy) return null;
 
     switch (update.updateType) {
       case 'damage':
         if (!update.amount) return null;
-        const newHP = Math.max(0, matchedEnemy.currentHP - update.amount);
+        const newHP = Math.max(0, matchedEnemy.currentHP - adjustedDamage.amount);
         return (
-          <span className="text-xs">
+          <span className="text-xs flex items-center gap-1">
             {matchedEnemy.currentHP} → <span className={cn(newHP <= 0 ? 'text-red-400' : 'text-amber-400')}>{newHP}</span> HP
+            {adjustedDamage.modifier && (
+              <Badge 
+                variant="outline" 
+                className={cn(
+                  "text-[9px] px-1 py-0 h-4",
+                  adjustedDamage.modifier === 'resistant' && "border-blue-500/50 text-blue-400 bg-blue-500/10",
+                  adjustedDamage.modifier === 'vulnerable' && "border-orange-500/50 text-orange-400 bg-orange-500/10",
+                  adjustedDamage.modifier === 'immune' && "border-zinc-500/50 text-zinc-400 bg-zinc-500/10"
+                )}
+              >
+                {adjustedDamage.modifier === 'resistant' && '½'}
+                {adjustedDamage.modifier === 'vulnerable' && '×2'}
+                {adjustedDamage.modifier === 'immune' && 'IMMUNE'}
+              </Badge>
+            )}
           </span>
         );
       case 'healing':
@@ -307,7 +367,7 @@ function UpdateApprovalCard({ state, onToggle }: UpdateApprovalCardProps) {
       default:
         return null;
     }
-  }, [update, matchedEnemy]);
+  }, [update, matchedEnemy, adjustedDamage]);
 
   return (
     <div className={cn(
