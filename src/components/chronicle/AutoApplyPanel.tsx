@@ -96,7 +96,7 @@ export function AutoApplyPanel({
   onApplyInspiration,
 }: AutoApplyPanelProps) {
   const [config, setConfig] = useState<AutoApplyConfig>(loadConfig);
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false); // Start collapsed to show preview
   const [applied, setApplied] = useState<Partial<Record<keyof AutoApplyConfig, boolean>>>({});
 
   // Calculate pending changes
@@ -317,6 +317,83 @@ export function AutoApplyPanel({
     }
   }, [config, pendingChanges, applied, handleApplyGold, handleApplyHP, handleApplyConditions, handleApplyRest, handleApplyDeathSaves, handleApplySpellSlots, handleApplyTempHP, handleApplyInspiration, onApplyDeathSaves, onApplySpellSlots, onApplyTempHP, onApplyInspiration]);
 
+  // Build compact summary items (must be before early return)
+  const summaryItems = useMemo(() => {
+    const items: { icon: React.ReactNode; label: string; colorClass: string }[] = [];
+    
+    if (pendingChanges.netGold !== 0) {
+      items.push({
+        icon: <Coins className="w-3 h-3" />,
+        label: pendingChanges.netGold > 0 ? `+${pendingChanges.netGold}g` : `${pendingChanges.netGold}g`,
+        colorClass: 'border-amber-500/30 bg-amber-500/10 text-amber-300',
+      });
+    }
+    
+    if (pendingChanges.damage > 0 || pendingChanges.healing > 0) {
+      const hpLabel = pendingChanges.netHP >= 0 ? `+${pendingChanges.netHP}` : `${pendingChanges.netHP}`;
+      items.push({
+        icon: <Heart className="w-3 h-3" />,
+        label: `${hpLabel} HP`,
+        colorClass: pendingChanges.netHP >= 0 
+          ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+          : 'border-rose-500/30 bg-rose-500/10 text-rose-300',
+      });
+    }
+    
+    if (pendingChanges.conditionsToAdd.length > 0 || pendingChanges.conditionsToRemove.length > 0) {
+      const count = pendingChanges.conditionsToAdd.length + pendingChanges.conditionsToRemove.length;
+      items.push({
+        icon: <AlertCircle className="w-3 h-3" />,
+        label: `${count} cond`,
+        colorClass: 'border-purple-500/30 bg-purple-500/10 text-purple-300',
+      });
+    }
+    
+    if (pendingChanges.shortRests > 0 || pendingChanges.longRests > 0) {
+      items.push({
+        icon: <Moon className="w-3 h-3" />,
+        label: pendingChanges.longRests > 0 ? 'Long' : 'Short',
+        colorClass: 'border-indigo-500/30 bg-indigo-500/10 text-indigo-300',
+      });
+    }
+    
+    if (pendingChanges.detectedDeathSaves.length > 0) {
+      items.push({
+        icon: <Skull className="w-3 h-3" />,
+        label: pendingChanges.hasNat20 ? 'Nat20!' : `${pendingChanges.deathSaveSuccesses}✓ ${pendingChanges.deathSaveFailures}✗`,
+        colorClass: pendingChanges.hasNat20 
+          ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+          : 'border-rose-500/30 bg-rose-500/10 text-rose-300',
+      });
+    }
+    
+    if (pendingChanges.totalSlotsUsed > 0) {
+      items.push({
+        icon: <Sparkles className="w-3 h-3" />,
+        label: `${pendingChanges.totalSlotsUsed} slots`,
+        colorClass: 'border-blue-500/30 bg-blue-500/10 text-blue-300',
+      });
+    }
+    
+    if (pendingChanges.maxTempHPDetected > 0) {
+      items.push({
+        icon: <Shield className="w-3 h-3" />,
+        label: `+${pendingChanges.maxTempHPDetected} temp`,
+        colorClass: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-300',
+      });
+    }
+    
+    if (pendingChanges.inspirationEvents.length > 0) {
+      items.push({
+        icon: <Star className="w-3 h-3" />,
+        label: pendingChanges.inspirationGained > 0 ? '+Insp' : '-Insp',
+        colorClass: 'border-yellow-500/30 bg-yellow-500/10 text-yellow-300',
+      });
+    }
+    
+    return items;
+  }, [pendingChanges]);
+
   if (!pendingChanges.hasAnyChanges) {
     return null;
   }
@@ -326,12 +403,33 @@ export function AutoApplyPanel({
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <CardHeader className="pb-2">
           <CollapsibleTrigger asChild>
-            <button className="flex items-center justify-between w-full">
-              <CardTitle className="text-sm font-medium flex items-center gap-2 text-cyan-400">
-                <Zap className="w-4 h-4" />
-                Smart Auto-Apply
-              </CardTitle>
-              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            <button className="flex flex-col w-full gap-2 text-left">
+              <div className="flex items-center justify-between w-full">
+                <CardTitle className="text-sm font-medium flex items-center gap-2 text-cyan-400">
+                  <Zap className="w-4 h-4" />
+                  Smart Auto-Apply
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-cyan-500/20 text-cyan-300">
+                    {summaryItems.length}
+                  </Badge>
+                </CardTitle>
+                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+              </div>
+              
+              {/* Compact preview when collapsed */}
+              {!isOpen && summaryItems.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 w-full">
+                  {summaryItems.map((item, idx) => (
+                    <Badge
+                      key={idx}
+                      variant="outline"
+                      className={`text-[10px] px-1.5 py-0.5 h-5 flex items-center gap-1 ${item.colorClass}`}
+                    >
+                      {item.icon}
+                      {item.label}
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </button>
           </CollapsibleTrigger>
         </CardHeader>
