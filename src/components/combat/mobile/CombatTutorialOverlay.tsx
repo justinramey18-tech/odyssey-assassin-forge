@@ -218,6 +218,37 @@ export function CombatTutorialOverlay({ onComplete, onDismiss }: CombatTutorialO
 
   const highlightStyles = getHighlightStyles();
 
+  // Calculate highlight rectangle for cutout
+  const getHighlightRect = () => {
+    if (!highlightStyles) return null;
+    
+    const rect = {
+      x: highlightStyles.left === '16px' ? 16 : highlightStyles.left === '0' ? 0 : 16,
+      y: highlightStyles.top ? parseInt(highlightStyles.top as string) : 0,
+      width: 358, // 390 - 32 for 16px padding on each side (mobile viewport)
+      height: parseInt(highlightStyles.height as string) || 60,
+      rx: 8,
+    };
+    
+    // Handle bottom-positioned elements
+    if (highlightStyles.bottom === '0') {
+      rect.y = 788; // 844 - 56 for bottom nav
+      rect.x = 0;
+      rect.width = 390;
+      rect.rx = 0;
+    }
+    
+    // Handle full-width elements
+    if (highlightStyles.left === '0' && highlightStyles.right === '0') {
+      rect.x = 0;
+      rect.width = 390;
+    }
+    
+    return rect;
+  };
+
+  const highlightRect = getHighlightRect();
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -225,24 +256,53 @@ export function CombatTutorialOverlay({ onComplete, onDismiss }: CombatTutorialO
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-[100] pointer-events-auto"
     >
-      {/* Dark overlay with cutout */}
-      <div className="absolute inset-0 bg-black/80" />
+      {/* Dark overlay with cutout using SVG mask */}
+      <svg className="absolute inset-0 w-full h-full">
+        <defs>
+          <mask id="tutorial-cutout-mask">
+            {/* White = visible (dark overlay shows) */}
+            <rect x="0" y="0" width="100%" height="100%" fill="white" />
+            {/* Black = invisible (cutout - content shows through) */}
+            {highlightRect && (
+              <motion.rect
+                key={step.highlight}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                x={highlightRect.x}
+                y={highlightRect.y}
+                width={highlightRect.width}
+                height={highlightRect.height}
+                rx={highlightRect.rx}
+                fill="black"
+              />
+            )}
+          </mask>
+        </defs>
+        <rect
+          x="0"
+          y="0"
+          width="100%"
+          height="100%"
+          fill="rgba(0, 0, 0, 0.85)"
+          mask="url(#tutorial-cutout-mask)"
+        />
+      </svg>
 
-      {/* Highlight zone (if applicable) */}
+      {/* Highlight border glow (separate from mask) */}
       <AnimatePresence mode="wait">
         {highlightStyles && (
           <motion.div
             key={step.highlight}
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
+            exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.2 }}
-            className="absolute rounded-lg"
+            className="absolute rounded-lg pointer-events-none"
             style={{
               ...highlightStyles,
-              boxShadow: '0 0 0 4px hsl(var(--primary)), 0 0 20px hsl(var(--primary) / 0.5)',
+              boxShadow: '0 0 0 3px hsl(var(--primary)), 0 0 30px hsl(var(--primary) / 0.6), inset 0 0 20px hsl(var(--primary) / 0.1)',
               background: 'transparent',
-              pointerEvents: 'none',
             }}
           />
         )}
