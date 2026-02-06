@@ -44,13 +44,6 @@ import { TurnWizardPanel } from './TurnWizardPanel';
 import { TargetTrackerPanel } from './TargetTrackerPanel';
 import { InitiativeTracker } from './InitiativeTracker';
 import { CombatDiceRoller } from './CombatDiceRoller';
-// New Tactical HUD components
-import { TacticalHUDOverlay } from './TacticalHUDOverlay';
-import { InitiativeTimeline } from './InitiativeTimeline';
-import { GestureDock } from './GestureDock';
-import { VitalsStrip } from './VitalsStrip';
-import { TacticalActionEconomy } from './TacticalActionEconomy';
-import './TacticalHUDStyles.css';
 import { useCombatLog } from '@/hooks/use-combat-log';
 import { useTargets } from '@/hooks/use-targets';
 import { useInitiative } from '@/hooks/use-initiative';
@@ -857,44 +850,26 @@ export function MobileCombatLayout({
   };
   
   return (
-    <div className="fixed inset-0 flex flex-col bg-background z-40 tactical-glow">
-      {/* Tactical HUD Overlay - Scanlines & Brackets */}
-      <TacticalHUDOverlay />
-      
-      {/* Initiative Timeline Header */}
-      <InitiativeTimeline
-        initiativeOrder={initiativeTracker.initiativeOrder}
-        currentTurnId={initiativeTracker.currentTurnId}
-        roundNumber={initiativeTracker.combatStarted ? initiativeTracker.roundNumber : round}
-        isPlayerTurn={initiativeTracker.combatStarted ? initiativeTracker.isPlayerTurn : isYourTurn}
-        combatStarted={initiativeTracker.combatStarted}
-        onGoToTurn={initiativeTracker.goToTurn}
-        className="shrink-0"
-      />
-      
-      {/* Vitals Strip - HP, AC, ATK */}
-      <VitalsStrip
-        currentHP={currentHP ?? maxHP ?? 50}
-        maxHP={maxHP ?? 50}
+    <div className="min-h-screen bg-background">
+      {/* Top Bar with HP and Stats */}
+      <CombatTopBar
+        round={initiativeTracker.combatStarted ? initiativeTracker.roundNumber : round}
+        isYourTurn={initiativeTracker.combatStarted ? initiativeTracker.isPlayerTurn : isYourTurn}
+        lastAction={lastAction}
+        onResetTurn={handleResetTurn}
+        onMenuOpen={() => {}}
+        onSettingsOpen={() => {}}
+        currentHP={currentHP}
+        maxHP={maxHP}
         tempHP={tempHP}
         ac={combatStats.ac}
         attackBonus={combatStats.attackBonus}
-        className="shrink-0"
       />
       
-      {/* Tactical Action Economy */}
-      <TacticalActionEconomy
-        economy={actionEconomy}
-        onUseAction={() => setActionEconomy({ ...actionEconomy, actionUsed: true })}
-        onUseBonus={() => setActionEconomy({ ...actionEconomy, bonusActionUsed: true })}
-        onUseReaction={() => setActionEconomy({ ...actionEconomy, reactionUsed: true })}
-        className="shrink-0"
-      />
-      
-      {/* Main Content Area - Fills remaining space */}
-      <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain relative z-10">
+      {/* Main Content Area */}
+      <main className="pt-[88px]">
         
-        {/* Situation Strip (Collapsible) */}
+        {/* Situation Strip */}
         <SituationStrip
           conditions={conditions}
           onConditionsChange={setConditions}
@@ -905,26 +880,55 @@ export function MobileCombatLayout({
         {/* Compact Dice Roller Widget */}
         <CombatDiceRoller />
         
-        {/* Target/Enemy Tracker (Collapsible) */}
+        {/* Target/Enemy Tracker */}
         <TargetTrackerPanel
           targets={targetTracker}
           isCollapsed={targetTrackerCollapsed}
           onCollapsedChange={setTargetTrackerCollapsed}
         />
         
-        {/* Initiative Tracker - Setup Mode (Collapsible) */}
-        {!initiativeTracker.combatStarted && (
-          <InitiativeTracker
-            initiative={initiativeTracker}
-            enemies={targetTracker.enemies}
-            onUpdateEnemyInitiative={(id, initiative) => {
-              targetTracker.updateEnemy(id, { initiative });
-            }}
-            dexModifier={abilityModifiers?.dexterity ?? 0}
-            isCollapsed={initiativeCollapsed}
-            onCollapsedChange={setInitiativeCollapsed}
-          />
-        )}
+        {/* Initiative Tracker */}
+        <InitiativeTracker
+          initiative={initiativeTracker}
+          enemies={targetTracker.enemies}
+          onUpdateEnemyInitiative={(id, initiative) => {
+            targetTracker.updateEnemy(id, { initiative });
+          }}
+          dexModifier={abilityModifiers?.dexterity ?? 0}
+          isCollapsed={initiativeCollapsed}
+          onCollapsedChange={setInitiativeCollapsed}
+        />
+        
+        {/* Action Economy Bar */}
+        <ActionEconomyBar
+          economy={actionEconomy}
+          onEconomyChange={setActionEconomy}
+          actionCount={actionCount}
+          bonusCount={bonusCount}
+          reactionCount={reactionCount}
+          round={initiativeTracker.combatStarted ? initiativeTracker.roundNumber : round}
+          onEndTurn={() => {
+            // End turn: reset economy, advance to next turn in initiative
+            handleResetTurn();
+            if (initiativeTracker.combatStarted) {
+              initiativeTracker.nextTurn();
+            } else {
+              setRound(prev => prev + 1);
+            }
+            setLastAction('TURN ENDED');
+          }}
+          onEndTurnWithSynthesis={() => {
+            // End turn with AI synthesis: open the smart prompt sheet
+            handleResetTurn();
+            if (initiativeTracker.combatStarted) {
+              initiativeTracker.nextTurn();
+            } else {
+              setRound(prev => prev + 1);
+            }
+            setLastAction('TURN SYNCED');
+            setShowSmartPromptSheet(true);
+          }}
+        />
         
         {/* Turn Wizard - Smart Suggestions */}
         <TurnWizardPanel
@@ -950,18 +954,17 @@ export function MobileCombatLayout({
           }}
         />
         
-        {/* Tab Content - Swipeable with proper padding for bottom nav */}
+        {/* Tab Content - Swipeable */}
         <div 
           {...swipeHandlers}
-          className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y pb-12"
+          className="overflow-auto touch-pan-y"
           style={{ 
             touchAction: 'pan-y pinch-zoom',
-            WebkitOverflowScrolling: 'touch',
           }}
         >
           <div 
             className={cn(
-              "transition-transform duration-300 ease-out px-2",
+              "transition-transform duration-300 ease-out",
               slideDirection === 'left' && "animate-slide-in-from-right",
               slideDirection === 'right' && "animate-slide-in-from-left"
             )}
@@ -975,8 +978,8 @@ export function MobileCombatLayout({
         </div>
       </main>
       
-      {/* Gesture Dock Navigation */}
-      <GestureDock
+      {/* Bottom Navigation */}
+      <CombatBottomNav
         activeTab={activeTab}
         onTabChange={setActiveTab}
         abilityCounts={{
