@@ -284,6 +284,7 @@ export function MobileCombatLayout({
   }, [equipment]);
   
   // Build cooldown state map for abilities
+  // IMPORTANT: Depend on cooldownSystem.cooldowns to react to real-time cooldown ticks
   const cooldownStateMap = useMemo(() => {
     const map = new Map<string, { isOnCooldown: boolean; remaining: number; total: number }>();
     
@@ -298,7 +299,7 @@ export function MobileCombatLayout({
     });
     
     return map;
-  }, [unlockedAbilities, cooldownSystem]);
+  }, [unlockedAbilities, cooldownSystem.cooldowns, cooldownSystem.isOnCooldown, cooldownSystem.getRemainingTime, cooldownSystem.getEffectiveCooldown]);
   
   // Build cooling abilities list for Action Economy bar warnings
   const coolingAbilitiesForBar = useMemo(() => {
