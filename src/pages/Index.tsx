@@ -487,29 +487,64 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
   // Legacy spentPoints for compatibility
   const spentPoints = getTotalPointsSpent(character.abilities);
 
-  // Data for auto-save (includes HP state and death saves for cloud persistence)
-  const saveData = useMemo(() => ({
-    character,
-    equipment,
-    achievements,
-    consumables: serializeConsumables(consumablesInventory),
-    xp: {
-      currentXP,
-      xpPreset,
-    },
-    prestige: {
-      prestigeXP: prestigeData.prestigeXP,
-      prestigeLevel: prestigeData.prestigeLevel,
-      totalPrestigePoints: prestigeData.totalPrestigePoints,
-    },
-    abilityScores: abilityScores.baseScores,
-    hpState: {
-      current: hpState.current,
-      max: hpState.max,
-      temp: hpState.temp,
-    },
-    deathSaves,
-  }), [character, equipment, achievements, consumablesInventory, currentXP, xpPreset, prestigeData, abilityScores.baseScores, hpState, deathSaves]);
+  // Data for auto-save (comprehensive character backup for cloud persistence)
+  const saveData = useMemo(() => {
+    // Load proficiencies/expertise from localStorage (they're managed by DiceRollerScreen)
+    const proficientSkills = JSON.parse(localStorage.getItem('odyssey-proficient-skills') || '[]');
+    const proficientSaves = JSON.parse(localStorage.getItem('odyssey-proficient-saves') || '[]');
+    const expertiseSkills = JSON.parse(localStorage.getItem('odyssey-expertise-skills') || '[]');
+    const combatSettings = JSON.parse(localStorage.getItem('odyssey-combat-settings') || '{}');
+    
+    return {
+      character,
+      equipment,
+      achievements,
+      consumables: serializeConsumables(consumablesInventory),
+      xp: {
+        currentXP,
+        xpPreset,
+      },
+      prestige: {
+        prestigeXP: prestigeData.prestigeXP,
+        prestigeLevel: prestigeData.prestigeLevel,
+        totalPrestigePoints: prestigeData.totalPrestigePoints,
+      },
+      abilityScores: abilityScores.baseScores,
+      hpState: {
+        current: hpState.current,
+        max: hpState.max,
+        temp: hpState.temp,
+      },
+      deathSaves,
+      // NEW: Spellcasting state (magic path, slots, spells)
+      spellcasting: spellcasting.state,
+      // NEW: Prestige skill tree progress (Drizzt's Legacy)
+      prestigeTree: prestigeTree.progress,
+      // NEW: Shop gold balance
+      shopGold: shop.currentGold,
+      // NEW: Loot items and sold history
+      loot: {
+        items: loot.lootItems,
+        soldHistory: loot.soldHistory,
+      },
+      // NEW: Proficiencies (skills and saves)
+      proficiencies: {
+        skills: proficientSkills,
+        saves: proficientSaves,
+      },
+      // NEW: Expertise skills (double proficiency)
+      expertise: expertiseSkills,
+      // NEW: D&D Inspiration
+      inspiration: hasInspiration,
+      // NEW: Combat settings (feat toggles)
+      combatSettings,
+    };
+  }, [
+    character, equipment, achievements, consumablesInventory, 
+    currentXP, xpPreset, prestigeData, abilityScores.baseScores, 
+    hpState, deathSaves, spellcasting.state, prestigeTree.progress,
+    shop.currentGold, loot.lootItems, loot.soldHistory, hasInspiration
+  ]);
 
   // Auto-save locally AND to cloud when authenticated (only when not in wizard)
   const autoSync = useAutoCloudSync(saveData, !showWizard);
@@ -613,6 +648,58 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     } else {
       setDeathSaves({ successes: 0, failures: 0 });
       localStorage.setItem('odyssey-death-saves', JSON.stringify({ successes: 0, failures: 0 }));
+    }
+    
+    // 8. Restore spellcasting state (magic path, slots, spells)
+    if (data.spellcasting) {
+      localStorage.setItem('odyssey-spellcasting', JSON.stringify(data.spellcasting));
+      console.log('[CloudSave] Restored spellcasting:', data.spellcasting.path);
+    }
+    
+    // 9. Restore prestige tree progress (Drizzt's Legacy)
+    if (data.prestigeTree) {
+      localStorage.setItem('odyssey-prestige-tree', JSON.stringify(data.prestigeTree));
+      console.log('[CloudSave] Restored prestige tree:', data.prestigeTree.unlockedAbilities?.length, 'abilities');
+    }
+    
+    // 10. Restore shop gold balance
+    if (data.shopGold !== undefined) {
+      const shopState = JSON.parse(localStorage.getItem('odyssey-shop') || '{"currentGold":0,"items":[],"purchaseHistory":[]}');
+      shopState.currentGold = data.shopGold;
+      localStorage.setItem('odyssey-shop', JSON.stringify(shopState));
+      console.log('[CloudSave] Restored shop gold:', data.shopGold);
+    }
+    
+    // 11. Restore loot items and sold history
+    if (data.loot) {
+      localStorage.setItem('odyssey-loot', JSON.stringify(data.loot));
+      console.log('[CloudSave] Restored loot:', data.loot.items?.length, 'items');
+    }
+    
+    // 12. Restore proficiencies (skills and saves)
+    if (data.proficiencies) {
+      localStorage.setItem('odyssey-proficient-skills', JSON.stringify(data.proficiencies.skills || []));
+      localStorage.setItem('odyssey-proficient-saves', JSON.stringify(data.proficiencies.saves || []));
+      console.log('[CloudSave] Restored proficiencies');
+    }
+    
+    // 13. Restore expertise skills
+    if (data.expertise) {
+      localStorage.setItem('odyssey-expertise-skills', JSON.stringify(data.expertise));
+      console.log('[CloudSave] Restored expertise:', data.expertise.length, 'skills');
+    }
+    
+    // 14. Restore inspiration
+    if (data.inspiration !== undefined) {
+      setHasInspiration(data.inspiration);
+      localStorage.setItem('odyssey-inspiration', data.inspiration.toString());
+      console.log('[CloudSave] Restored inspiration:', data.inspiration);
+    }
+    
+    // 15. Restore combat settings (feat toggles)
+    if (data.combatSettings) {
+      localStorage.setItem('odyssey-combat-settings', JSON.stringify(data.combatSettings));
+      console.log('[CloudSave] Restored combat settings');
     }
     
     // Track when this was loaded from cloud

@@ -3,6 +3,10 @@ import { Character } from '@/lib/types';
 import { CharacterEquipment } from '@/lib/inventory/types';
 import { Achievement } from '@/lib/achievements';
 import { InventoryItem } from '@/lib/consumables/types';
+import { SpellcastingState } from '@/lib/magic/types';
+import { PrestigeTreeProgress } from '@/lib/prestigeTree/types';
+import { LootState } from '@/lib/loot/types';
+import { CombatSettings } from '@/lib/combat/combatSettings';
 
 const STORAGE_KEY = 'odyssey-character-autosave';
 const DEBOUNCE_MS = 1000; // Save 1 second after last change
@@ -38,6 +42,25 @@ export interface SaveData {
     successes: number;
     failures: number;
   };
+  // Spellcasting state (magic path, slots, spells)
+  spellcasting?: SpellcastingState;
+  // Prestige skill tree progress (Drizzt's Legacy)
+  prestigeTree?: PrestigeTreeProgress;
+  // Shop gold balance
+  shopGold?: number;
+  // Loot items and sold history
+  loot?: LootState;
+  // Proficiencies (skills and saves)
+  proficiencies?: {
+    skills: string[];
+    saves: string[];
+  };
+  // Expertise skills (double proficiency)
+  expertise?: string[];
+  // D&D Inspiration
+  inspiration?: boolean;
+  // Combat settings (feat toggles)
+  combatSettings?: CombatSettings;
   savedAt: string;
   version: number;
 }
