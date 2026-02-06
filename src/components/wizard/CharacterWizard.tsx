@@ -300,11 +300,29 @@ export function CharacterWizard({
           />
         );
       case 2:
-        return <GameModeStep state={state} onUpdate={handleGameModeUpdate} />;
+        return (
+          <GameModeStep 
+            state={state} 
+            onUpdate={handleGameModeUpdate}
+            validation={currentValidation}
+          />
+        );
       case 3:
-        return <MagicPathStep state={state} onUpdate={handleMagicPathUpdate} />;
+        return (
+          <MagicPathStep 
+            state={state} 
+            onUpdate={handleMagicPathUpdate}
+            validation={currentValidation}
+          />
+        );
       case 4:
-        return <SkillTreePreviewStep state={state} onUpdate={handleSkillTreeUpdate} />;
+        return (
+          <SkillTreePreviewStep 
+            state={state} 
+            onUpdate={handleSkillTreeUpdate}
+            validation={currentValidation}
+          />
+        );
       case 5:
         return (
           <EquipmentStep 

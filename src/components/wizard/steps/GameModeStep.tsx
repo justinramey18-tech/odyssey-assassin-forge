@@ -10,7 +10,7 @@ import {
   getRuleDescription,
 } from '@/lib/gameModes';
 import { DICE_ODDS_CONFIGS, DiceOddsMode } from '@/lib/diceOdds';
-import { WizardState, XP_PRESETS, XPPreset } from '../types';
+import { WizardState, XP_PRESETS, XPPreset, StepValidation } from '../types';
 import { cn } from '@/lib/utils';
 import { 
   Infinity, 
@@ -28,11 +28,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { ValidationFeedback } from '../ValidationFeedback';
 import wizardBackground from '@/assets/wizard-background.jpg';
 
 interface GameModeStepProps {
   state: WizardState;
   onUpdate: (updates: Partial<Pick<WizardState, 'gameMode' | 'honestModeRules' | 'xpPreset' | 'diceOddsMode'>>) => void;
+  validation?: StepValidation;
 }
 
 const XP_PRESET_ICONS: Record<XPPreset, React.ComponentType<{ className?: string }>> = {
@@ -42,7 +44,7 @@ const XP_PRESET_ICONS: Record<XPPreset, React.ComponentType<{ className?: string
   milestone: Milestone,
 };
 
-export function GameModeStep({ state, onUpdate }: GameModeStepProps) {
+export function GameModeStep({ state, onUpdate, validation }: GameModeStepProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const handleModeChange = (mode: 'honest' | 'infinityPool') => {
@@ -230,6 +232,11 @@ export function GameModeStep({ state, onUpdate }: GameModeStepProps) {
                 })}
               </CollapsibleContent>
             </Collapsible>
+          )}
+
+          {/* Validation Feedback */}
+          {validation && (validation.warnings.length > 0 || validation.errors.length > 0) && (
+            <ValidationFeedback validation={validation} compact className="mt-3" />
           )}
         </div>
       </div>

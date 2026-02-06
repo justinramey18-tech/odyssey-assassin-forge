@@ -1,15 +1,17 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { WizardState } from '../types';
+import { WizardState, StepValidation } from '../types';
 import { AbilityTree, getAbilityPointsForLevel } from '@/lib/types';
 import { TREE_VISUAL_CONFIG } from '@/lib/abilityTrees/colors';
 import { Target, Swords, Eye, Sparkles, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ValidationFeedback } from '../ValidationFeedback';
 import wizardBackground from '@/assets/wizard-background.jpg';
 
 interface SkillTreePreviewStepProps {
   state: WizardState;
   onUpdate: (updates: Partial<Pick<WizardState, 'starterAbilities'>>) => void;
+  validation?: StepValidation;
 }
 
 // Tree lore and synergies
@@ -42,7 +44,7 @@ const TREE_ICONS: Record<AbilityTree, React.ReactNode> = {
   assassin: <Eye className="w-6 h-6" />,
 };
 
-export function SkillTreePreviewStep({ state }: SkillTreePreviewStepProps) {
+export function SkillTreePreviewStep({ state, onUpdate, validation }: SkillTreePreviewStepProps) {
   const { level } = state;
 
   // Calculate available points at this level
@@ -100,6 +102,11 @@ export function SkillTreePreviewStep({ state }: SkillTreePreviewStepProps) {
             </p>
           </div>
         </div>
+
+        {/* Validation Feedback */}
+        {validation && (validation.warnings.length > 0 || validation.errors.length > 0) && (
+          <ValidationFeedback validation={validation} compact className="mt-4" />
+        )}
       </div>
     </div>
   );

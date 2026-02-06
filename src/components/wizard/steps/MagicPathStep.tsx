@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { WizardState } from '../types';
+import { WizardState, StepValidation } from '../types';
 import { MagicPath, PathConfig } from '@/lib/magic/types';
 import { MAGIC_PATHS, isPathAvailable } from '@/lib/magic/paths';
 import { 
@@ -15,11 +15,13 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { scoreToModifier } from '@/lib/abilityScores/types';
+import { ValidationFeedback } from '../ValidationFeedback';
 import wizardBackground from '@/assets/wizard-background.jpg';
 
 interface MagicPathStepProps {
   state: WizardState;
   onUpdate: (updates: Partial<Pick<WizardState, 'selectedPath'>>) => void;
+  validation?: StepValidation;
 }
 
 // Map path IDs to icons
@@ -60,7 +62,7 @@ const PATH_COLORS: Record<MagicPath | 'none', { bg: string; border: string; glow
   },
 };
 
-export function MagicPathStep({ state, onUpdate }: MagicPathStepProps) {
+export function MagicPathStep({ state, onUpdate, validation }: MagicPathStepProps) {
   const { level, abilityScores, selectedPath } = state;
 
   // Calculate spell modifiers for preview
@@ -177,6 +179,11 @@ export function MagicPathStep({ state, onUpdate }: MagicPathStepProps) {
               : modifiers.wis
             }
           />
+        )}
+
+        {/* Validation Feedback */}
+        {validation && (validation.warnings.length > 0 || validation.errors.length > 0) && (
+          <ValidationFeedback validation={validation} compact className="mt-4" />
         )}
       </div>
     </div>
