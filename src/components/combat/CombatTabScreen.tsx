@@ -58,6 +58,10 @@ interface CombatTabScreenProps {
   // Loot items with dice mechanics
   lootItemsWithDice?: import('@/lib/loot/types').LootItem[];
   onUseLootItem?: (item: import('@/lib/loot/types').LootItem) => void;
+  // Death saves state
+  deathSaves?: { successes: number; failures: number };
+  onDeathSavesChange?: (saves: { successes: number; failures: number }) => void;
+  onRegainHP?: (amount: number) => void;
 }
 
 export function CombatTabScreen({ 
@@ -77,6 +81,9 @@ export function CombatTabScreen({
   concentrationSpell,
   lootItemsWithDice = [],
   onUseLootItem,
+  deathSaves,
+  onDeathSavesChange,
+  onRegainHP,
 }: CombatTabScreenProps) {
   const isMobile = useIsMobile();
   const { rerollsDisabled } = useGameMode();
@@ -264,6 +271,9 @@ export function CombatTabScreen({
         concentrationSpell={concentrationSpell}
         lootItemsWithDice={lootItemsWithDice}
         onUseLootItem={onUseLootItem}
+        deathSaves={deathSaves}
+        onDeathSavesChange={onDeathSavesChange}
+        onRegainHP={onRegainHP}
       />
     );
   }

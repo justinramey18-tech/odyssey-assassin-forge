@@ -1303,6 +1303,12 @@ const Index = () => {
                   className: "border-cyan-500/50 bg-cyan-500/10",
                 });
               }}
+              deathSaves={deathSaves}
+              onDeathSavesChange={handleDeathSavesChange}
+              onRegainHP={(amount) => {
+                // Regain HP from death saves (nat 20)
+                handleHPChange(Math.min(amount, hpState.max), hpState.max, hpState.temp);
+              }}
             />
           )}
 

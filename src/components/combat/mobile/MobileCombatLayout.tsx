@@ -44,6 +44,7 @@ import { TurnWizardPanel } from './TurnWizardPanel';
 import { TargetTrackerPanel } from './TargetTrackerPanel';
 import { InitiativeTracker } from './InitiativeTracker';
 import { CombatDiceRoller } from './CombatDiceRoller';
+import { DeathSavesTracker } from '@/components/character/DeathSavesTracker';
 import { useCombatLog } from '@/hooks/use-combat-log';
 import { useTargets } from '@/hooks/use-targets';
 import { useInitiative } from '@/hooks/use-initiative';
@@ -84,6 +85,10 @@ interface MobileCombatLayoutProps {
   // Loot items with dice mechanics (from useLoot)
   lootItemsWithDice?: import('@/lib/loot/types').LootItem[];
   onUseLootItem?: (item: import('@/lib/loot/types').LootItem) => void;
+  // Death saves state
+  deathSaves?: { successes: number; failures: number };
+  onDeathSavesChange?: (saves: { successes: number; failures: number }) => void;
+  onRegainHP?: (amount: number) => void;
 }
 
 export function MobileCombatLayout({ 
@@ -102,6 +107,9 @@ export function MobileCombatLayout({
   concentrationSpell,
   lootItemsWithDice = [],
   onUseLootItem,
+  deathSaves,
+  onDeathSavesChange,
+  onRegainHP,
 }: MobileCombatLayoutProps) {
   // Navigation state
   const [activeTab, setActiveTab] = useState<CombatTab>('combat');
@@ -576,6 +584,14 @@ export function MobileCombatLayout({
         return (
           <div className="flex-1 overflow-y-auto">
             <div className="p-4 pb-24 space-y-4">
+              {/* Death Saves Panel - appears when HP is 0 */}
+              {currentHP === 0 && deathSaves && onDeathSavesChange && onRegainHP && (
+                <DeathSavesTracker
+                  deathSaves={deathSaves}
+                  onDeathSavesChange={onDeathSavesChange}
+                  onRegainHP={onRegainHP}
+                />
+              )}
               {/* Quick Cast Panel - Magic Integration */}
               {spellcasting && spellcasting.state.path && (
                 <QuickCastPanel
