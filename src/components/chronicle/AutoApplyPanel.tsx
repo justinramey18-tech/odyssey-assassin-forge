@@ -4,7 +4,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { 
   Zap, Coins, Heart, AlertCircle, Moon, Skull, Sparkles, Shield, Star,
-  Check, X, ChevronDown, Settings2
+  Check, X, ChevronDown, Settings2, Swords
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -21,6 +21,9 @@ import {
 } from '@/lib/chronicleSync/enhancedTypes';
 import { ChronicleParseResult, ParsedGoldChange, ParsedHPChange, ParsedCondition } from '@/lib/chronicleSync/types';
 import { ParsedRestEvent, ParsedDeathSave } from '@/lib/chronicleSync/enhancedTypes';
+import { InitiativeMatch, InitiativeEntry } from '@/lib/chronicleSync/patterns/initiative';
+import { similarityScore } from '@/lib/chronicleSync/fuzzyMatch';
+import { Enemy } from '@/lib/combat/targetTypes';
 
 interface DeathSavesState {
   successes: number;
@@ -31,6 +34,12 @@ interface SpellSlotState {
   [level: number]: { current: number; max: number };
 }
 
+interface InitiativeToApply {
+  playerInitiative: number | null;
+  enemyInitiatives: { enemyId: string; enemyName: string; roll: number; matchedName: string }[];
+  unmatchedRolls: { name: string; roll: number }[];
+}
+
 interface AutoApplyPanelProps {
   parseResult: ChronicleParseResult;
   enhancedResults?: {
@@ -39,6 +48,7 @@ interface AutoApplyPanelProps {
     spellSlotUsage: ParsedSpellSlotUsage[];
     tempHPGains: ParsedTempHP[];
     inspirationEvents: ParsedInspiration[];
+    initiativeRolls?: InitiativeMatch[];
   };
   currentGold: number;
   currentHP: number;
@@ -48,6 +58,9 @@ interface AutoApplyPanelProps {
   activeConditions: string[];
   deathSaves?: DeathSavesState;
   spellSlots?: SpellSlotState;
+  // Initiative state
+  playerInitiative?: number | null;
+  enemies?: Enemy[];
   onApplyGold: (netChange: number) => void;
   onApplyHP: (change: number, type: 'damage' | 'healing') => void;
   onApplyConditions: (toAdd: string[], toRemove: string[]) => void;
@@ -57,6 +70,8 @@ interface AutoApplyPanelProps {
   onApplySpellSlots?: (slotsToExpend: Record<number, number>) => void;
   onApplyTempHP?: (amount: number) => void;
   onApplyInspiration?: (hasInspiration: boolean) => void;
+  onApplyPlayerInitiative?: (value: number) => void;
+  onApplyEnemyInitiative?: (enemyId: string, value: number) => void;
 }
 
 // Load/save config from localStorage
@@ -65,13 +80,74 @@ function loadConfig(): AutoApplyConfig {
     const stored = localStorage.getItem(CHRONICLE_AUTO_APPLY_KEY);
     if (stored) return JSON.parse(stored);
   } catch {}
-  return { gold: true, hp: true, conditions: true, restRecovery: true, deathSaves: true, spellSlots: true, tempHP: true, inspiration: true };
+  return { gold: true, hp: true, conditions: true, restRecovery: true, deathSaves: true, spellSlots: true, tempHP: true, inspiration: true, initiative: true };
 }
 
 function saveConfig(config: AutoApplyConfig) {
   try {
     localStorage.setItem(CHRONICLE_AUTO_APPLY_KEY, JSON.stringify(config));
   } catch {}
+}
+
+// Match detected initiative rolls to existing enemies using fuzzy matching
+function matchInitiativeToEnemies(
+  initiativeRolls: InitiativeMatch[],
+  enemies: Enemy[],
+  playerInitiative: number | null
+): InitiativeToApply {
+  const result: InitiativeToApply = {
+    playerInitiative: null,
+    enemyInitiatives: [],
+    unmatchedRolls: [],
+  };
+
+  for (const match of initiativeRolls) {
+    // Check for single player initiative roll (no named combatants)
+    if (match.singleRoll !== undefined && match.rolls.length === 0) {
+      // This is likely the player's initiative if no player initiative set
+      if (playerInitiative === null || playerInitiative !== match.singleRoll) {
+        result.playerInitiative = match.singleRoll;
+      }
+      continue;
+    }
+
+    // Process named rolls
+    for (const roll of match.rolls) {
+      // Check if this might be the player
+      const nameLower = roll.name.toLowerCase();
+      if (nameLower === 'you' || nameLower === 'player' || nameLower === 'me') {
+        if (playerInitiative === null || playerInitiative !== roll.roll) {
+          result.playerInitiative = roll.roll;
+        }
+        continue;
+      }
+
+      // Try to match to an enemy
+      let bestMatch: { enemy: Enemy; score: number } | null = null;
+      for (const enemy of enemies) {
+        const score = similarityScore(roll.name, enemy.name);
+        if (score > 0.6 && (!bestMatch || score > bestMatch.score)) {
+          bestMatch = { enemy, score };
+        }
+      }
+
+      if (bestMatch) {
+        // Only add if enemy doesn't already have this initiative value
+        if (bestMatch.enemy.initiative !== roll.roll) {
+          result.enemyInitiatives.push({
+            enemyId: bestMatch.enemy.id,
+            enemyName: bestMatch.enemy.name,
+            roll: roll.roll,
+            matchedName: roll.name,
+          });
+        }
+      } else {
+        result.unmatchedRolls.push({ name: roll.name, roll: roll.roll });
+      }
+    }
+  }
+
+  return result;
 }
 
 export function AutoApplyPanel({
@@ -85,6 +161,8 @@ export function AutoApplyPanel({
   activeConditions,
   deathSaves,
   spellSlots,
+  playerInitiative,
+  enemies = [],
   onApplyGold,
   onApplyHP,
   onApplyConditions,
@@ -94,6 +172,8 @@ export function AutoApplyPanel({
   onApplySpellSlots,
   onApplyTempHP,
   onApplyInspiration,
+  onApplyPlayerInitiative,
+  onApplyEnemyInitiative,
 }: AutoApplyPanelProps) {
   const [config, setConfig] = useState<AutoApplyConfig>(loadConfig);
   const [isOpen, setIsOpen] = useState(false); // Start collapsed to show preview
@@ -173,6 +253,12 @@ export function AutoApplyPanel({
       ? inspirationNetChange >= 0 // Keep if net is non-negative
       : inspirationGained > 0; // Gain if at least one gained
 
+    // Initiative detection
+    const initiativeRolls = enhancedResults?.initiativeRolls || [];
+    const initiativeToApply = matchInitiativeToEnemies(initiativeRolls, enemies, playerInitiative ?? null);
+    const hasInitiativeChanges = initiativeToApply.playerInitiative !== null || 
+      initiativeToApply.enemyInitiatives.length > 0;
+
     return {
       netGold,
       goldGained,
@@ -197,12 +283,15 @@ export function AutoApplyPanel({
       inspirationGained,
       inspirationUsed,
       inspirationFinalState,
+      initiativeToApply,
+      hasInitiativeChanges,
       hasAnyChanges: netGold !== 0 || damage > 0 || healing > 0 || 
         conditionsToAdd.length > 0 || conditionsToRemove.length > 0 ||
         shortRests > 0 || longRests > 0 || detectedDeathSaves.length > 0 ||
-        totalSlotsUsed > 0 || maxTempHPDetected > 0 || inspirationEvents.length > 0,
+        totalSlotsUsed > 0 || maxTempHPDetected > 0 || inspirationEvents.length > 0 ||
+        hasInitiativeChanges,
     };
-  }, [parseResult, enhancedResults, activeConditions, currentInspiration]);
+  }, [parseResult, enhancedResults, activeConditions, currentInspiration, enemies, playerInitiative]);
 
   // Update config
   const updateConfig = useCallback((key: keyof AutoApplyConfig, value: boolean) => {
@@ -285,6 +374,24 @@ export function AutoApplyPanel({
     setApplied(prev => ({ ...prev, inspiration: true }));
   }, [pendingChanges.inspirationEvents, pendingChanges.inspirationFinalState, onApplyInspiration]);
 
+  const handleApplyInitiative = useCallback(() => {
+    if (!pendingChanges.hasInitiativeChanges) return;
+    
+    // Apply player initiative
+    if (pendingChanges.initiativeToApply.playerInitiative !== null && onApplyPlayerInitiative) {
+      onApplyPlayerInitiative(pendingChanges.initiativeToApply.playerInitiative);
+    }
+    
+    // Apply enemy initiatives
+    if (onApplyEnemyInitiative) {
+      pendingChanges.initiativeToApply.enemyInitiatives.forEach(({ enemyId, roll }) => {
+        onApplyEnemyInitiative(enemyId, roll);
+      });
+    }
+    
+    setApplied(prev => ({ ...prev, initiative: true }));
+  }, [pendingChanges.hasInitiativeChanges, pendingChanges.initiativeToApply, onApplyPlayerInitiative, onApplyEnemyInitiative]);
+
   // Apply all enabled
   const handleApplyAll = useCallback(() => {
     if (config.gold && pendingChanges.netGold !== 0 && !applied.gold) {
@@ -315,7 +422,11 @@ export function AutoApplyPanel({
     if (config.inspiration && pendingChanges.inspirationEvents.length > 0 && !applied.inspiration && onApplyInspiration) {
       handleApplyInspiration();
     }
-  }, [config, pendingChanges, applied, handleApplyGold, handleApplyHP, handleApplyConditions, handleApplyRest, handleApplyDeathSaves, handleApplySpellSlots, handleApplyTempHP, handleApplyInspiration, onApplyDeathSaves, onApplySpellSlots, onApplyTempHP, onApplyInspiration]);
+    // Initiative
+    if (config.initiative && pendingChanges.hasInitiativeChanges && !applied.initiative && (onApplyPlayerInitiative || onApplyEnemyInitiative)) {
+      handleApplyInitiative();
+    }
+  }, [config, pendingChanges, applied, handleApplyGold, handleApplyHP, handleApplyConditions, handleApplyRest, handleApplyDeathSaves, handleApplySpellSlots, handleApplyTempHP, handleApplyInspiration, handleApplyInitiative, onApplyDeathSaves, onApplySpellSlots, onApplyTempHP, onApplyInspiration, onApplyPlayerInitiative, onApplyEnemyInitiative]);
 
   // Build compact summary items (must be before early return)
   const summaryItems = useMemo(() => {
@@ -388,6 +499,24 @@ export function AutoApplyPanel({
         icon: <Star className="w-3 h-3" />,
         label: pendingChanges.inspirationGained > 0 ? '+Insp' : '-Insp',
         colorClass: 'border-yellow-500/30 bg-yellow-500/10 text-yellow-300',
+      });
+    }
+    
+    if (pendingChanges.hasInitiativeChanges) {
+      const playerInit = pendingChanges.initiativeToApply.playerInitiative;
+      const enemyCount = pendingChanges.initiativeToApply.enemyInitiatives.length;
+      let label = '';
+      if (playerInit !== null && enemyCount > 0) {
+        label = `Init ${playerInit} +${enemyCount}`;
+      } else if (playerInit !== null) {
+        label = `Init ${playerInit}`;
+      } else {
+        label = `${enemyCount} enemy init`;
+      }
+      items.push({
+        icon: <Swords className="w-3 h-3" />,
+        label,
+        colorClass: 'border-orange-500/30 bg-orange-500/10 text-orange-300',
       });
     }
     
@@ -618,6 +747,47 @@ export function AutoApplyPanel({
                 applied={applied.inspiration}
                 onApply={handleApplyInspiration}
                 color="yellow"
+              />
+            )}
+
+            {/* Initiative */}
+            {pendingChanges.hasInitiativeChanges && (onApplyPlayerInitiative || onApplyEnemyInitiative) && (
+              <AutoApplyRow
+                icon={<Swords className="w-4 h-4 text-orange-400" />}
+                label="Initiative"
+                description={
+                  <>
+                    {pendingChanges.initiativeToApply.playerInitiative !== null && (
+                      <span className="text-orange-300">You: {pendingChanges.initiativeToApply.playerInitiative}</span>
+                    )}
+                    {pendingChanges.initiativeToApply.playerInitiative !== null && 
+                     pendingChanges.initiativeToApply.enemyInitiatives.length > 0 && ', '}
+                    {pendingChanges.initiativeToApply.enemyInitiatives.length > 0 && (
+                      <span className="text-muted-foreground">
+                        {pendingChanges.initiativeToApply.enemyInitiatives.map(e => 
+                          `${e.enemyName}: ${e.roll}`
+                        ).join(', ')}
+                      </span>
+                    )}
+                    {pendingChanges.initiativeToApply.unmatchedRolls.length > 0 && (
+                      <span className="text-muted-foreground/60 ml-1">
+                        ({pendingChanges.initiativeToApply.unmatchedRolls.length} unmatched)
+                      </span>
+                    )}
+                  </>
+                }
+                preview={
+                  pendingChanges.initiativeToApply.playerInitiative !== null
+                    ? playerInitiative !== null 
+                      ? `${playerInitiative} → ${pendingChanges.initiativeToApply.playerInitiative}`
+                      : `You: ${pendingChanges.initiativeToApply.playerInitiative}`
+                    : `${pendingChanges.initiativeToApply.enemyInitiatives.length} enemies`
+                }
+                enabled={config.initiative}
+                onToggle={(v) => updateConfig('initiative', v)}
+                applied={applied.initiative}
+                onApply={handleApplyInitiative}
+                color="orange"
               />
             )}
 

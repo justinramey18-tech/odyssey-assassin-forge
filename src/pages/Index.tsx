@@ -1595,6 +1595,7 @@ const Index = () => {
               activeConditions={[]}
               deathSaves={deathSaves}
               spellSlots={spellcasting.state.spellSlots}
+              playerInitiative={initiative.playerInitiative}
               onApplyChanges={handleApplyChronicleChanges}
               onApplyGold={handleChronicleGold}
               onApplyHP={handleChronicleHP}
@@ -1637,6 +1638,21 @@ const Index = () => {
                   description: newState 
                     ? "You have inspiration! Use it to gain advantage on a roll."
                     : "Inspiration spent - make that roll count!",
+                });
+              }}
+              onApplyPlayerInitiative={(value) => {
+                initiative.setPlayerInitiative(value);
+                toast({
+                  title: "⚔️ Initiative Set",
+                  description: `Your initiative: ${value}`,
+                });
+              }}
+              onApplyEnemyInitiative={(enemyId, value) => {
+                targets.updateEnemy(enemyId, { initiative: value });
+                const enemy = targets.enemies.find(e => e.id === enemyId);
+                toast({
+                  title: "⚔️ Enemy Initiative Set",
+                  description: `${enemy?.name || 'Enemy'}: ${value}`,
                 });
               }}
               existingEnemies={targets.enemies}

@@ -134,6 +134,7 @@ export interface AutoApplyConfig {
   spellSlots: boolean;
   tempHP: boolean;
   inspiration: boolean;
+  initiative: boolean;
 }
 
 export interface AutoApplyResult {
