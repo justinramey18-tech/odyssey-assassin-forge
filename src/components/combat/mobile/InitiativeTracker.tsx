@@ -29,6 +29,7 @@ import {
   Swords,
   Edit2,
   Sparkles,
+  HelpCircle,
 } from 'lucide-react';
 import { UseInitiativeReturn, InitiativeCombatant } from '@/hooks/use-initiative';
 import { Enemy } from '@/lib/combat/targetTypes';
@@ -36,6 +37,7 @@ import {
   rollInitiativeWithEstimate, 
   CREATURE_DEX_LABELS 
 } from '@/lib/combat/initiativeUtils';
+import { CombatPrimerDrawer } from './CombatPrimerDrawer';
 
 interface InitiativeTrackerProps {
   initiative: UseInitiativeReturn;
@@ -44,6 +46,7 @@ interface InitiativeTrackerProps {
   dexModifier?: number;
   isCollapsed?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
+  characterLevel?: number;
 }
 
 export function InitiativeTracker({
@@ -53,8 +56,10 @@ export function InitiativeTracker({
   dexModifier = 0,
   isCollapsed = false,
   onCollapsedChange,
+  characterLevel = 1,
 }: InitiativeTrackerProps) {
   const [showEditSheet, setShowEditSheet] = useState(false);
+  const [showPrimerDrawer, setShowPrimerDrawer] = useState(false);
   const [editingEnemyId, setEditingEnemyId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
 
@@ -158,14 +163,24 @@ export function InitiativeTracker({
       <div className="bg-background/95 backdrop-blur-sm border-b border-primary/30">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-2 border-b border-muted/20">
-          <button
-            onClick={() => onCollapsedChange?.(true)}
-            className="flex items-center gap-2"
-          >
-            <Swords className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold">Initiative</span>
-            <ChevronUp className="w-4 h-4 text-muted-foreground" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onCollapsedChange?.(true)}
+              className="flex items-center gap-2"
+            >
+              <Swords className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold">Initiative</span>
+              <ChevronUp className="w-4 h-4 text-muted-foreground" />
+            </button>
+            {/* Pulsing help icon */}
+            <button
+              onClick={() => setShowPrimerDrawer(true)}
+              className="w-6 h-6 rounded-full flex items-center justify-center bg-primary/10 border border-primary/30 hover:bg-primary/20 transition-colors animate-pulse"
+              aria-label="Combat help"
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-primary" />
+            </button>
+          </div>
           
           <div className="flex items-center gap-2">
             {!combatStarted ? (
@@ -243,14 +258,24 @@ export function InitiativeTracker({
 
           {/* Player Initiative */}
           {playerInitiative === null ? (
-            <button
-              onClick={handleRollPlayerInitiative}
-              className="shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-primary/50 bg-primary/5 hover:bg-primary/10 transition-colors"
-            >
-              <User className="w-4 h-4 text-primary" />
-              <span className="text-xs text-primary">Roll Initiative</span>
-              <span className="text-[10px] text-muted-foreground">+{dexModifier}</span>
-            </button>
+            <div className="shrink-0 flex items-center gap-1">
+              <button
+                onClick={handleRollPlayerInitiative}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-primary/50 bg-primary/5 hover:bg-primary/10 transition-colors"
+              >
+                <User className="w-4 h-4 text-primary" />
+                <span className="text-xs text-primary">Roll Initiative</span>
+                <span className="text-[10px] text-muted-foreground">+{dexModifier}</span>
+              </button>
+              {/* Help Icon with pulse animation */}
+              <button
+                onClick={() => setShowPrimerDrawer(true)}
+                className="w-8 h-8 rounded-full flex items-center justify-center bg-primary/10 border border-primary/30 hover:bg-primary/20 transition-colors animate-pulse"
+                aria-label="Combat help"
+              >
+                <HelpCircle className="w-4 h-4 text-primary" />
+              </button>
+            </div>
           ) : null}
 
           {/* Combatants */}
@@ -331,6 +356,13 @@ export function InitiativeTracker({
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Combat Primer Drawer */}
+      <CombatPrimerDrawer
+        open={showPrimerDrawer}
+        onOpenChange={setShowPrimerDrawer}
+        characterLevel={characterLevel}
+      />
     </>
   );
 }
