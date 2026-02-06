@@ -4,7 +4,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { 
   Zap, Coins, Heart, AlertCircle, Moon, Skull, Sparkles, Shield, Star,
-  Check, X, ChevronDown, Settings2, Swords, RotateCw
+  Check, X, ChevronDown, Settings2, Swords, RotateCw, Target
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -40,6 +40,13 @@ interface InitiativeToApply {
   unmatchedRolls: { name: string; roll: number }[];
 }
 
+// Kill detection matching result
+interface KillToApply {
+  killEvent: { targetName: string; sourceText: string };
+  matchedEnemy: Enemy | null;
+  confidence: number;
+}
+
 interface AutoApplyPanelProps {
   parseResult: ChronicleParseResult;
   enhancedResults?: {
@@ -50,6 +57,7 @@ interface AutoApplyPanelProps {
     inspirationEvents: ParsedInspiration[];
     initiativeRolls?: InitiativeMatch[];
     combatRounds?: { roundNumber: number; sourceText: string }[];
+    kills?: { targetName: string; sourceText: string }[];
   };
   currentGold: number;
   currentHP: number;
@@ -75,6 +83,7 @@ interface AutoApplyPanelProps {
   onApplyPlayerInitiative?: (value: number) => void;
   onApplyEnemyInitiative?: (enemyId: string, value: number) => void;
   onApplyRoundNumber?: (round: number) => void;
+  onDefeatEnemy?: (enemyId: string) => void;
 }
 
 // Load/save config from localStorage
@@ -83,7 +92,7 @@ function loadConfig(): AutoApplyConfig {
     const stored = localStorage.getItem(CHRONICLE_AUTO_APPLY_KEY);
     if (stored) return JSON.parse(stored);
   } catch {}
-  return { gold: true, hp: true, conditions: true, restRecovery: true, deathSaves: true, spellSlots: true, tempHP: true, inspiration: true, initiative: true, round: true };
+  return { gold: true, hp: true, conditions: true, restRecovery: true, deathSaves: true, spellSlots: true, tempHP: true, inspiration: true, initiative: true, round: true, kills: true };
 }
 
 function saveConfig(config: AutoApplyConfig) {
@@ -179,6 +188,7 @@ export function AutoApplyPanel({
   onApplyPlayerInitiative,
   onApplyEnemyInitiative,
   onApplyRoundNumber,
+  onDefeatEnemy,
 }: AutoApplyPanelProps) {
   const [config, setConfig] = useState<AutoApplyConfig>(loadConfig);
   const [isOpen, setIsOpen] = useState(false); // Start collapsed to show preview
@@ -271,6 +281,34 @@ export function AutoApplyPanel({
       : 0;
     const hasRoundChange = highestRound > 0 && highestRound !== currentRound;
 
+    // Kill detection - match kill events to existing enemies using fuzzy matching
+    const killEvents = enhancedResults?.kills || [];
+    const killsToApply: KillToApply[] = [];
+    
+    for (const kill of killEvents) {
+      // Find the best matching enemy that is still alive
+      let bestMatch: { enemy: Enemy; score: number } | null = null;
+      
+      for (const enemy of enemies) {
+        // Skip already defeated enemies
+        if (enemy.currentHP <= 0) continue;
+        
+        const score = similarityScore(kill.targetName, enemy.name);
+        if (score > 0.5 && (!bestMatch || score > bestMatch.score)) {
+          bestMatch = { enemy, score };
+        }
+      }
+      
+      killsToApply.push({
+        killEvent: kill,
+        matchedEnemy: bestMatch?.enemy || null,
+        confidence: bestMatch?.score || 0,
+      });
+    }
+    
+    const matchedKills = killsToApply.filter(k => k.matchedEnemy !== null);
+    const hasKillChanges = matchedKills.length > 0;
+
     return {
       netGold,
       goldGained,
@@ -300,11 +338,14 @@ export function AutoApplyPanel({
       combatRounds,
       highestRound,
       hasRoundChange,
+      killsToApply,
+      matchedKills,
+      hasKillChanges,
       hasAnyChanges: netGold !== 0 || damage > 0 || healing > 0 || 
         conditionsToAdd.length > 0 || conditionsToRemove.length > 0 ||
         shortRests > 0 || longRests > 0 || detectedDeathSaves.length > 0 ||
         totalSlotsUsed > 0 || maxTempHPDetected > 0 || inspirationEvents.length > 0 ||
-        hasInitiativeChanges || hasRoundChange,
+        hasInitiativeChanges || hasRoundChange || hasKillChanges,
     };
   }, [parseResult, enhancedResults, activeConditions, currentInspiration, enemies, playerInitiative, currentRound]);
 
@@ -413,6 +454,19 @@ export function AutoApplyPanel({
     setApplied(prev => ({ ...prev, round: true }));
   }, [pendingChanges.hasRoundChange, pendingChanges.highestRound, onApplyRoundNumber]);
 
+  const handleApplyKills = useCallback(() => {
+    if (!onDefeatEnemy || !pendingChanges.hasKillChanges) return;
+    
+    // Defeat all matched enemies
+    pendingChanges.matchedKills.forEach(({ matchedEnemy }) => {
+      if (matchedEnemy) {
+        onDefeatEnemy(matchedEnemy.id);
+      }
+    });
+    
+    setApplied(prev => ({ ...prev, kills: true }));
+  }, [pendingChanges.hasKillChanges, pendingChanges.matchedKills, onDefeatEnemy]);
+
   // Apply all enabled
   const handleApplyAll = useCallback(() => {
     if (config.gold && pendingChanges.netGold !== 0 && !applied.gold) {
@@ -451,7 +505,11 @@ export function AutoApplyPanel({
     if (pendingChanges.hasRoundChange && !applied.round && onApplyRoundNumber) {
       handleApplyRound();
     }
-  }, [config, pendingChanges, applied, handleApplyGold, handleApplyHP, handleApplyConditions, handleApplyRest, handleApplyDeathSaves, handleApplySpellSlots, handleApplyTempHP, handleApplyInspiration, handleApplyInitiative, handleApplyRound, onApplyDeathSaves, onApplySpellSlots, onApplyTempHP, onApplyInspiration, onApplyPlayerInitiative, onApplyEnemyInitiative, onApplyRoundNumber]);
+    // Kills
+    if (pendingChanges.hasKillChanges && !applied.kills && onDefeatEnemy) {
+      handleApplyKills();
+    }
+  }, [config, pendingChanges, applied, handleApplyGold, handleApplyHP, handleApplyConditions, handleApplyRest, handleApplyDeathSaves, handleApplySpellSlots, handleApplyTempHP, handleApplyInspiration, handleApplyInitiative, handleApplyRound, handleApplyKills, onApplyDeathSaves, onApplySpellSlots, onApplyTempHP, onApplyInspiration, onApplyPlayerInitiative, onApplyEnemyInitiative, onApplyRoundNumber, onDefeatEnemy]);
 
   // Build compact summary items (must be before early return)
   const summaryItems = useMemo(() => {
@@ -550,6 +608,14 @@ export function AutoApplyPanel({
         icon: <RotateCw className="w-3 h-3" />,
         label: `Rd ${pendingChanges.highestRound}`,
         colorClass: 'border-violet-500/30 bg-violet-500/10 text-violet-300',
+      });
+    }
+    
+    if (pendingChanges.hasKillChanges) {
+      items.push({
+        icon: <Target className="w-3 h-3" />,
+        label: `${pendingChanges.matchedKills.length} kill${pendingChanges.matchedKills.length !== 1 ? 's' : ''}`,
+        colorClass: 'border-red-500/30 bg-red-500/10 text-red-300',
       });
     }
     
@@ -836,6 +902,23 @@ export function AutoApplyPanel({
                 applied={applied.round}
                 onApply={handleApplyRound}
                 color="violet"
+              />
+            )}
+
+            {/* Kill Detection */}
+            {pendingChanges.hasKillChanges && onDefeatEnemy && (
+              <AutoApplyRow
+                icon={<Target className="w-4 h-4 text-red-400" />}
+                label="Defeated Enemies"
+                description={pendingChanges.matchedKills.map(k => 
+                  `"${k.killEvent.targetName}" → ${k.matchedEnemy?.name}`
+                ).join(', ')}
+                preview={`${pendingChanges.matchedKills.length} defeated`}
+                enabled={config.kills}
+                onToggle={(v) => updateConfig('kills', v)}
+                applied={applied.kills}
+                onApply={handleApplyKills}
+                color="red"
               />
             )}
 

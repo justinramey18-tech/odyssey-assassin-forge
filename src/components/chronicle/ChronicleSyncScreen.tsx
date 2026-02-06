@@ -725,6 +725,7 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
                     inspirationEvents: enhancedResults.inspirationEvents,
                     initiativeRolls: enhancedResults.initiativeRolls,
                     combatRounds: enhancedResults.combatRounds,
+                    kills: enhancedResults.kills,
                   } : undefined}
                   currentGold={currentGold}
                   currentHP={currentHP}
@@ -749,6 +750,7 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
                   onApplyPlayerInitiative={onApplyPlayerInitiative}
                   onApplyEnemyInitiative={onApplyEnemyInitiative}
                   onApplyRoundNumber={onApplyRoundNumber}
+                  onDefeatEnemy={onDefeatEnemy}
                 />
               )}
 
