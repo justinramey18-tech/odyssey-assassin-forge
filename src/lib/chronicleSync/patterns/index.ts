@@ -21,7 +21,7 @@ import { parseDeathSaveMatches, DeathSaveMatch } from './deathSaves';
 import { parseSkillCheckMatches, parseSavingThrowMatches, SkillCheckMatch, SavingThrowMatch } from './checks';
 import { parseInitiativeMatches, InitiativeMatch } from './initiative';
 import { parseInspirationMatches, InspirationMatch } from './inspiration';
-import { parseEnemyMatches, ParsedEnemy } from './enemies';
+import { parseEnemyMatches, ParsedEnemy, detectEnemies } from './enemies';
 import { parseAllEnemyUpdates, ParsedEnemyUpdate } from './enemyUpdates';
 
 export interface EnhancedPatternResults {
