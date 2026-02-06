@@ -7,15 +7,45 @@ const ALL_STORAGE_KEYS = [
   // Core character data
   'odyssey-character-autosave',
   'odyssey-consumables-inventory',
+  'odyssey-ability-scores',
+  'odyssey-hp-state',
+  'odyssey-death-saves',
   
   // Progression systems
   'odyssey-prestige-data',
   'odyssey-prestige-tree',
   'odyssey-xp-progression',
   
+  // Magic system
+  'odyssey-spellcasting',
+  'odyssey-active-spells',
+  
+  // Combat system
+  'odyssey-combat-log',
+  'odyssey-combat-settings',
+  'odyssey-action-economy',
+  'odyssey-turn-actions',
+  'odyssey-targets',
+  'odyssey-initiative',
+  
+  // Conditions system
+  'odyssey-conditions-state',
+  
   // Cooldowns
   'odyssey-cooldown-state',
   'odyssey-cooldown-settings',
+  
+  // Dice roller
+  'odyssey-dice-modifiers',
+  'odyssey-proficiency-bonus',
+  'odyssey-proficient-skills',
+  'odyssey-proficient-saves',
+  
+  // Inventory & Equipment
+  'odyssey-loot',
+  'odyssey-shop',
+  'odyssey-equipment-custom-images',
+  'odyssey-gear-locks',
   
   // Game settings
   'odyssey-game-mode',
@@ -23,12 +53,23 @@ const ALL_STORAGE_KEYS = [
   'odyssey-assassin-dice-odds',
   'floating-overlay-settings',
   
-  // Onboarding
+  // Navigation & UI
+  'odyssey-category-navigation',
+  'odyssey-custom-home-background',
+  
+  // Onboarding & Wizard
   'odyssey-onboarding-v2',
   'odyssey-intro-seen',
+  'odyssey-wizard-progress',
   
-  // Chronicle sync
+  // Chronicle sync & Campaigns
   'odyssey-chronicle-undo',
+  'odyssey-chronicle-campaigns',
+  'odyssey-chronicle-folders',
+  
+  // AI / Synthesis
+  'odyssey-combat-synthesis-mode',
+  'odyssey-combat-chaos-level',
   
   // PWA
   'pwa-banner-dismissed',
