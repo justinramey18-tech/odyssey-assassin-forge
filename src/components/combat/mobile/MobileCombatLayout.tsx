@@ -13,6 +13,8 @@ import {
 } from '@/lib/combat/combatTypes';
 import { ActiveConditionInfo, SetBonusInfo, TargetPromptInfo, formatTargetForPrompt } from '@/lib/combat/promptContext';
 import { loadCombatSettings, COMBAT_SETTINGS_CHANGE_EVENT, CombatSettings } from '@/lib/combat/combatSettings';
+import { ExecutedAttack } from '@/lib/combat/attackQueue';
+import { generateMultiAttackPrompt, generateQueuedAttackPrompt } from '@/lib/combat/attackQueuePrompts';
 import { DiceRoll, rollDice, getAbilityDice, isCriticalHit, isCriticalMiss, inferRollMode } from '@/lib/diceRoller';
 import { generateRPPrompt } from '@/lib/rpPromptGenerator';
 import { DiceRollModal } from '@/components/character/DiceRollModal';
@@ -21,6 +23,7 @@ import { useGameMode } from '@/hooks/use-game-mode';
 import { useCooldowns } from '@/hooks/use-cooldowns';
 import { useCombatStats } from '@/hooks/use-combat-stats';
 import { useAbilityCustomization } from '@/hooks/use-ability-customization';
+import { useAttackQueue } from '@/hooks/use-attack-queue';
 import { applyOverrides, homebrewToAbility } from '@/lib/abilityCustomization/utils';
 import { COOLDOWN_CONFIGS, calculateEffectiveCooldown } from '@/lib/cooldowns/config';
 
@@ -44,6 +47,7 @@ import { MobileReactionsList } from './MobileReactionsList';
 import { QuickCastPanel } from './QuickCastPanel';
 import { TurnWizardPanel } from './TurnWizardPanel';
 import { TargetTrackerPanel } from './TargetTrackerPanel';
+import { AttackQueuePanel } from './AttackQueuePanel';
 import { InitiativeTracker } from './InitiativeTracker';
 import { CombatDiceRoller } from './CombatDiceRoller';
 import { DeathSavesTracker } from '@/components/character/DeathSavesTracker';
@@ -143,6 +147,9 @@ export function MobileCombatLayout({
   // Target/Enemy Tracker for combat
   const targetTracker = useTargets();
   const [targetTrackerCollapsed, setTargetTrackerCollapsed] = useState(true);
+  
+  // Attack Queue system
+  const attackQueue = useAttackQueue(targetTracker.enemies);
   
   // Initiative tracking
   const initiativeTracker = useInitiative(targetTracker.enemies);
@@ -539,6 +546,113 @@ export function MobileCombatLayout({
     handleAddToTurn('bonus', `Offhand attack${targetSuffix}`);
   }, [character.name, handleAddToTurn, combatLog, targetTracker]);
   
+  // Handle queueing an attack
+  const handleQueueAttack = useCallback((
+    weapon: WeaponAttack,
+    rollType: 'normal' | 'sneak' | 'assassinate',
+    targetId: string | null,
+    targetName: string | null,
+    isOffhand = false
+  ) => {
+    attackQueue.addToQueue(weapon, rollType, targetId, targetName, isOffhand);
+  }, [attackQueue]);
+  
+  // Execute all queued attacks
+  const handleExecuteQueue = useCallback(() => {
+    if (attackQueue.isEmpty) return;
+    
+    const hasAdvantage = conditions.includes('advantage') || conditions.includes('hidden');
+    const hasDisadvantage = conditions.includes('disadvantage');
+    
+    let rollCount = 1;
+    if (hasAdvantage && !hasDisadvantage) rollCount = 2;
+    else if (hasDisadvantage && !hasAdvantage) rollCount = 2;
+    
+    const executedAttacks: ExecutedAttack[] = [];
+    
+    // Roll all attacks in the queue
+    for (const queuedAttack of attackQueue.sortedQueue) {
+      const totalAttackBonus = combatStats.attackBonus + queuedAttack.weapon.attackBonus;
+      const roll = rollDice('d20', rollCount, totalAttackBonus);
+      
+      let damage = queuedAttack.weapon.damage;
+      if (!queuedAttack.isOffhand || combatSettings.hasTwoWeaponFightingStyle) {
+        if (combatStats.damageBonus > 0) damage += `+${combatStats.damageBonus}`;
+      }
+      
+      if (queuedAttack.rollType === 'sneak' || queuedAttack.rollType === 'assassinate') {
+        damage += `+${getSneakAttackDice(character.level)}`;
+      }
+      
+      if (hasPoisonedWeapon) {
+        damage += '+2d6 poison';
+      }
+      
+      if (queuedAttack.rollType === 'assassinate') {
+        damage = `(${damage}) x2 dice [CRIT]`;
+      }
+      
+      // Get target info if available
+      const targetInfo = queuedAttack.targetId 
+        ? targetTracker.enemies.find(e => e.id === queuedAttack.targetId)
+        : null;
+      
+      const executed: ExecutedAttack = {
+        ...queuedAttack,
+        roll,
+        damageBreakdown: damage,
+        attackBonus: totalAttackBonus,
+        targetInfo: targetInfo ? {
+          name: targetInfo.name,
+          ac: targetInfo.ac,
+          currentHP: targetInfo.currentHP,
+          maxHP: targetInfo.maxHP,
+          notes: targetInfo.notes,
+          creatureType: targetInfo.creatureType,
+          size: targetInfo.size,
+          conditions: targetInfo.conditions,
+          resistances: targetInfo.resistances,
+          vulnerabilities: targetInfo.vulnerabilities,
+          immunities: targetInfo.immunities,
+        } : null,
+      };
+      
+      executedAttacks.push(executed);
+      
+      // Log each attack to combat log
+      const rollMode = inferRollMode(roll.rolls, roll.total, roll.modifier);
+      const singlePrompt = generateQueuedAttackPrompt(executed, character.name);
+      combatLog.addEntry({
+        actionType: 'weapon',
+        actionName: `${queuedAttack.weapon.name}${queuedAttack.targetName ? ` → ${queuedAttack.targetName}` : ''}`,
+        prompt: singlePrompt,
+        roll: {
+          total: roll.total,
+          rolls: roll.rolls,
+          modifier: roll.modifier,
+          isCrit: isCriticalHit(roll.rolls, rollMode, roll.die),
+          isFumble: isCriticalMiss(roll.rolls, rollMode, roll.die),
+        },
+        damage,
+      });
+      
+      // Add to turn summary
+      const actionType = queuedAttack.isOffhand ? 'bonus' : 'action';
+      handleAddToTurn(actionType, `${queuedAttack.weapon.name}${queuedAttack.targetName ? ` vs. ${queuedAttack.targetName}` : ''}`);
+    }
+    
+    // Generate combined prompt and show modal
+    const combinedPrompt = generateMultiAttackPrompt(executedAttacks, character.name);
+    setDiceRoll(executedAttacks[executedAttacks.length - 1].roll);
+    setDicePrompt(combinedPrompt);
+    setActiveAbility(null);
+    setShowDiceModal(true);
+    setLastAction(`${executedAttacks.length} ATTACKS EXECUTED`);
+    
+    // Clear the queue
+    attackQueue.clearQueue();
+  }, [attackQueue, conditions, combatStats, combatSettings.hasTwoWeaponFightingStyle, character.level, character.name, hasPoisonedWeapon, targetTracker.enemies, combatLog, handleAddToTurn]);
+  
   // Reset turn
   const handleResetTurn = useCallback(() => {
     if (actionEconomyState) {
@@ -676,9 +790,21 @@ export function MobileCombatLayout({
                 </p>
               </div>
               
+              {/* Attack Queue Panel */}
+              <AttackQueuePanel
+                queue={attackQueue.sortedQueue}
+                enemies={targetTracker.enemies}
+                actionEconomy={attackQueue.actionEconomy}
+                onRemove={attackQueue.removeFromQueue}
+                onReorder={attackQueue.reorderAttack}
+                onUpdateTarget={attackQueue.updateAttackTarget}
+                onExecute={handleExecuteQueue}
+                onClear={attackQueue.clearQueue}
+              />
+              
               {/* Weapon Cards Section */}
               <div className="space-y-3">
-                <h3 className="text-xs font-mono text-red-400 uppercase tracking-wide">⚔️ Weapons</h3>
+                <h3 className="text-xs font-mono text-destructive uppercase tracking-wide">⚔️ Weapons</h3>
                 {equippedWeapons.map(weapon => (
                   <MobileWeaponCard
                     key={weapon.id}
@@ -694,6 +820,9 @@ export function MobileCombatLayout({
                     )}
                     onRoll={handleWeaponRoll}
                     customImage={weapon.slotType ? equipmentImages[weapon.slotType] : undefined}
+                    enemies={targetTracker.enemies}
+                    selectedTargetId={attackQueue.defaultTargetId}
+                    onQueueAttack={handleQueueAttack}
                   />
                 ))}
                 {equippedWeapons.length === 0 && (

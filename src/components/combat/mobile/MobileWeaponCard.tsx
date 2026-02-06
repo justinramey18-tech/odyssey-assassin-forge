@@ -8,6 +8,7 @@ import {
   isSneakAttackEligible,
   isAssassinateAvailable 
 } from '@/lib/combat/combatTypes';
+import { Enemy } from '@/lib/combat/targetTypes';
 import { rollDice, DiceRoll } from '@/lib/diceRoller';
 import { 
   Sword, 
@@ -17,7 +18,8 @@ import {
   Target,
   X,
   Copy,
-  Check
+  Check,
+  ListPlus,
 } from 'lucide-react';
 
 interface MobileWeaponCardProps {
@@ -36,6 +38,16 @@ interface MobileWeaponCardProps {
     damageBreakdown: string
   ) => void;
   customImage?: string | null;
+  // Attack Queue props
+  enemies?: Enemy[];
+  selectedTargetId?: string | null;
+  onQueueAttack?: (
+    weapon: WeaponAttack,
+    rollType: 'normal' | 'sneak' | 'assassinate',
+    targetId: string | null,
+    targetName: string | null
+  ) => void;
+  queueMode?: boolean;
 }
 
 export function MobileWeaponCard({
@@ -49,9 +61,15 @@ export function MobileWeaponCard({
   onToggleExpand,
   onRoll,
   customImage,
+  enemies = [],
+  selectedTargetId = null,
+  onQueueAttack,
+  queueMode = false,
 }: MobileWeaponCardProps) {
   const [applyCritical, setApplyCritical] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [localTargetId, setLocalTargetId] = useState<string | null>(selectedTargetId);
+  const [showQueueSuccess, setShowQueueSuccess] = useState(false);
 
   const totalAttackBonus = attackBonus + weapon.attackBonus;
   const sneakAttackDice = getSneakAttackDice(level);
@@ -60,6 +78,10 @@ export function MobileWeaponCard({
 
   const baseDamage = weapon.damage;
   const damageModifier = damageBonus > 0 ? `+${damageBonus}` : '';
+  
+  // Get the selected enemy for target name
+  const activeEnemies = enemies.filter(e => e.currentHP > 0);
+  const selectedEnemy = activeEnemies.find(e => e.id === localTargetId);
 
   const handleRoll = (type: 'normal' | 'sneak' | 'assassinate') => {
     const hasAdvantage = conditions.includes('advantage') || conditions.includes('hidden');
@@ -88,6 +110,16 @@ export function MobileWeaponCard({
     }
 
     onRoll(type, weapon, roll, damage);
+  };
+  
+  const handleQueue = (type: 'normal' | 'sneak' | 'assassinate') => {
+    if (!onQueueAttack) return;
+    
+    onQueueAttack(weapon, type, localTargetId, selectedEnemy?.name || null);
+    
+    // Visual feedback
+    setShowQueueSuccess(true);
+    setTimeout(() => setShowQueueSuccess(false), 1000);
   };
 
   const copyRollInfo = async () => {
@@ -166,59 +198,137 @@ export function MobileWeaponCard({
 
       {/* Action Buttons - Full Width Touch Targets */}
       <div className="p-4 space-y-3">
-        {/* Normal Attack */}
-        <Button
-          onClick={() => handleRoll('normal')}
-          variant="ghost"
-          className="w-full h-14 flex items-center justify-between px-4 border border-muted/40 hover:bg-muted/20"
-        >
-          <div className="flex items-center gap-3">
-            <Crosshair className="w-5 h-5 text-red-400" />
-            <span>Normal Attack</span>
+        {/* Target Selector (when enemies exist) */}
+        {activeEnemies.length > 0 && (
+          <div className="p-2 bg-muted/10 border border-muted/20 rounded-lg">
+            <div className="text-[10px] text-muted-foreground font-mono mb-2">🎯 TARGET</div>
+            <div className="flex gap-1.5 flex-wrap">
+              <button
+                onClick={() => setLocalTargetId(null)}
+                className={cn(
+                  "px-2 py-1 rounded-full text-xs font-mono transition-all",
+                  localTargetId === null
+                    ? "bg-muted/50 text-foreground ring-1 ring-muted"
+                    : "bg-muted/20 text-muted-foreground hover:bg-muted/30"
+                )}
+              >
+                Any
+              </button>
+              {activeEnemies.map(enemy => (
+                <button
+                  key={enemy.id}
+                  onClick={() => setLocalTargetId(enemy.id)}
+                  className={cn(
+                    "px-2 py-1 rounded-full text-xs font-mono transition-all flex items-center gap-1",
+                    localTargetId === enemy.id
+                      ? "bg-destructive/30 text-destructive-foreground ring-1 ring-destructive/50"
+                      : "bg-muted/20 text-muted-foreground hover:bg-muted/30"
+                  )}
+                >
+                  <Target className="w-3 h-3" />
+                  {enemy.name}
+                </button>
+              ))}
+            </div>
           </div>
-          <span className="font-mono text-sm text-muted-foreground">
-            d20+{totalAttackBonus} | {baseDamage}{damageModifier}
-          </span>
-        </Button>
+        )}
+        
+        {/* Queue Success Indicator */}
+        {showQueueSuccess && (
+          <div className="p-2 bg-green-500/20 border border-green-500/30 rounded-lg text-center">
+            <span className="text-xs text-green-300 font-mono">✓ Added to queue!</span>
+          </div>
+        )}
+        
+        {/* Normal Attack */}
+        <div className="flex gap-2">
+          <Button
+            onClick={() => handleRoll('normal')}
+            variant="ghost"
+            className="flex-1 h-14 flex items-center justify-between px-4 border border-muted/40 hover:bg-muted/20"
+          >
+            <div className="flex items-center gap-3">
+              <Crosshair className="w-5 h-5 text-destructive" />
+              <span>Attack</span>
+            </div>
+            <span className="font-mono text-sm text-muted-foreground">
+              d20+{totalAttackBonus}
+            </span>
+          </Button>
+          {onQueueAttack && (
+            <Button
+              onClick={() => handleQueue('normal')}
+              variant="outline"
+              className="h-14 px-3 border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+              title="Add to queue"
+            >
+              <ListPlus className="w-5 h-5" />
+            </Button>
+          )}
+        </div>
 
         {/* Sneak Attack */}
-        <Button
-          onClick={() => handleRoll('sneak')}
-          disabled={!sneakEligibility.eligible}
-          variant="ghost"
-          className={cn(
-            "w-full h-14 flex items-center justify-between px-4 border",
-            sneakEligibility.eligible
-              ? "border-green-500/50 bg-green-500/10 hover:bg-green-500/20 text-green-300"
-              : "border-muted/30 opacity-50"
+        <div className="flex gap-2">
+          <Button
+            onClick={() => handleRoll('sneak')}
+            disabled={!sneakEligibility.eligible}
+            variant="ghost"
+            className={cn(
+              "flex-1 h-14 flex items-center justify-between px-4 border",
+              sneakEligibility.eligible
+                ? "border-green-500/50 bg-green-500/10 hover:bg-green-500/20 text-green-300"
+                : "border-muted/30 opacity-50"
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <Target className="w-5 h-5" />
+              <span>+ Sneak Attack</span>
+            </div>
+            <span className="font-mono text-sm">
+              {sneakEligibility.eligible 
+                ? `+${sneakAttackDice}` 
+                : sneakEligibility.reason}
+            </span>
+          </Button>
+          {onQueueAttack && sneakEligibility.eligible && (
+            <Button
+              onClick={() => handleQueue('sneak')}
+              variant="outline"
+              className="h-14 px-3 border-green-500/40 text-green-400 hover:bg-green-500/10"
+              title="Queue sneak attack"
+            >
+              <ListPlus className="w-5 h-5" />
+            </Button>
           )}
-        >
-          <div className="flex items-center gap-3">
-            <Target className="w-5 h-5" />
-            <span>+ Sneak Attack</span>
-          </div>
-          <span className="font-mono text-sm">
-            {sneakEligibility.eligible 
-              ? `+${sneakAttackDice}` 
-              : sneakEligibility.reason}
-          </span>
-        </Button>
+        </div>
 
         {/* Assassinate - Only when available */}
         {assassinateAvailable && (
-          <Button
-            onClick={() => handleRoll('assassinate')}
-            className="w-full h-16 flex flex-col items-center justify-center gap-1 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 border border-red-400/50"
-          >
-            <div className="flex items-center gap-2">
-              <Skull className="w-5 h-5" />
-              <span className="font-cinzel text-lg tracking-wide">ASSASSINATE</span>
-              <Skull className="w-5 h-5" />
-            </div>
-            <span className="text-[11px] opacity-80 font-mono">
-              Auto-Crit • {baseDamage}+{sneakAttackDice} x2
-            </span>
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => handleRoll('assassinate')}
+              className="flex-1 h-16 flex flex-col items-center justify-center gap-1 bg-gradient-to-r from-destructive to-destructive/80 hover:from-destructive/90 hover:to-destructive/70 border border-destructive/50"
+            >
+              <div className="flex items-center gap-2">
+                <Skull className="w-5 h-5" />
+                <span className="font-cinzel text-lg tracking-wide">ASSASSINATE</span>
+                <Skull className="w-5 h-5" />
+              </div>
+              <span className="text-[11px] opacity-80 font-mono">
+                Auto-Crit • {baseDamage}+{sneakAttackDice} x2
+              </span>
+            </Button>
+            {onQueueAttack && (
+              <Button
+                onClick={() => handleQueue('assassinate')}
+                variant="outline"
+                className="h-16 px-3 border-destructive/40 text-destructive hover:bg-destructive/10"
+                title="Queue assassinate"
+              >
+                <ListPlus className="w-5 h-5" />
+              </Button>
+            )}
+          </div>
         )}
 
         {/* Damage Builder */}
@@ -264,7 +374,7 @@ export function MobileWeaponCard({
           ) : (
             <Copy className="w-4 h-4 mr-2" />
           )}
-          {copied ? 'Copied!' : 'Roll & Copy to Clipboard'}
+          {copied ? 'Copied!' : 'Copy Roll Info'}
         </Button>
       </div>
     </div>

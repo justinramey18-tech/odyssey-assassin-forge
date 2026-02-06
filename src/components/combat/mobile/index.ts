@@ -18,6 +18,8 @@ export { MobileReactionsList } from './MobileReactionsList';
 export { QuickCastPanel } from './QuickCastPanel';
 export { TurnWizardPanel } from './TurnWizardPanel';
 export { TargetTrackerPanel } from './TargetTrackerPanel';
+export { AttackQueuePanel } from './AttackQueuePanel';
+export { TargetSelector, InlineTargetSelector } from './TargetSelector';
 export { InitiativeTracker } from './InitiativeTracker';
 export { AddEnemySheet } from './AddEnemySheet';
 export { EnemyCard } from './EnemyCard';
