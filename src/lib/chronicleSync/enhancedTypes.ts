@@ -118,6 +118,7 @@ export interface AutoApplyConfig {
   conditions: boolean;
   restRecovery: boolean;
   deathSaves: boolean;
+  spellSlots: boolean;
 }
 
 export interface AutoApplyResult {

@@ -3,7 +3,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { 
-  Zap, Coins, Heart, AlertCircle, Moon, Skull,
+  Zap, Coins, Heart, AlertCircle, Moon, Skull, Sparkles,
   Check, X, ChevronDown, Settings2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +15,7 @@ import {
   AutoApplyConfig, 
   AutoApplyResult,
   CHRONICLE_AUTO_APPLY_KEY,
+  ParsedSpellSlotUsage,
 } from '@/lib/chronicleSync/enhancedTypes';
 import { ChronicleParseResult, ParsedGoldChange, ParsedHPChange, ParsedCondition } from '@/lib/chronicleSync/types';
 import { ParsedRestEvent, ParsedDeathSave } from '@/lib/chronicleSync/enhancedTypes';
@@ -24,23 +25,30 @@ interface DeathSavesState {
   failures: number;
 }
 
+interface SpellSlotState {
+  [level: number]: { current: number; max: number };
+}
+
 interface AutoApplyPanelProps {
   parseResult: ChronicleParseResult;
   enhancedResults?: {
     restEvents: ParsedRestEvent[];
     deathSaves: ParsedDeathSave[];
+    spellSlotUsage: ParsedSpellSlotUsage[];
   };
   currentGold: number;
   currentHP: number;
   maxHP: number;
   activeConditions: string[];
   deathSaves?: DeathSavesState;
+  spellSlots?: SpellSlotState;
   onApplyGold: (netChange: number) => void;
   onApplyHP: (change: number, type: 'damage' | 'healing') => void;
   onApplyConditions: (toAdd: string[], toRemove: string[]) => void;
   onApplyRest: (type: 'short' | 'long') => void;
   onApplyDeathSaves?: (saves: DeathSavesState) => void;
   onRegainHP?: (amount: number) => void;
+  onApplySpellSlots?: (slotsToExpend: Record<number, number>) => void;
 }
 
 // Load/save config from localStorage
@@ -49,7 +57,7 @@ function loadConfig(): AutoApplyConfig {
     const stored = localStorage.getItem(CHRONICLE_AUTO_APPLY_KEY);
     if (stored) return JSON.parse(stored);
   } catch {}
-  return { gold: true, hp: true, conditions: true, restRecovery: true, deathSaves: true };
+  return { gold: true, hp: true, conditions: true, restRecovery: true, deathSaves: true, spellSlots: true };
 }
 
 function saveConfig(config: AutoApplyConfig) {
@@ -66,12 +74,14 @@ export function AutoApplyPanel({
   maxHP,
   activeConditions,
   deathSaves,
+  spellSlots,
   onApplyGold,
   onApplyHP,
   onApplyConditions,
   onApplyRest,
   onApplyDeathSaves,
   onRegainHP,
+  onApplySpellSlots,
 }: AutoApplyPanelProps) {
   const [config, setConfig] = useState<AutoApplyConfig>(loadConfig);
   const [isOpen, setIsOpen] = useState(true);
@@ -125,6 +135,14 @@ export function AutoApplyPanel({
     // Check for nat 20 (regain 1 HP)
     const hasNat20 = detectedDeathSaves.some(ds => ds.type === 'critical_success');
 
+    // Spell slot usage aggregation
+    const spellSlotUsage = enhancedResults?.spellSlotUsage || [];
+    const slotsByLevel: Record<number, number> = {};
+    spellSlotUsage.forEach(usage => {
+      slotsByLevel[usage.level] = (slotsByLevel[usage.level] || 0) + 1;
+    });
+    const totalSlotsUsed = Object.values(slotsByLevel).reduce((sum, count) => sum + count, 0);
+
     return {
       netGold,
       goldGained,
@@ -140,9 +158,13 @@ export function AutoApplyPanel({
       deathSaveFailures: totalFailures,
       hasNat20,
       detectedDeathSaves,
+      slotsByLevel,
+      totalSlotsUsed,
+      spellSlotUsage,
       hasAnyChanges: netGold !== 0 || damage > 0 || healing > 0 || 
         conditionsToAdd.length > 0 || conditionsToRemove.length > 0 ||
-        shortRests > 0 || longRests > 0 || detectedDeathSaves.length > 0,
+        shortRests > 0 || longRests > 0 || detectedDeathSaves.length > 0 ||
+        totalSlotsUsed > 0,
     };
   }, [parseResult, enhancedResults, activeConditions]);
 
@@ -209,6 +231,12 @@ export function AutoApplyPanel({
     setApplied(prev => ({ ...prev, deathSaves: true }));
   }, [pendingChanges, deathSaves, onApplyDeathSaves, onRegainHP]);
 
+  const handleApplySpellSlots = useCallback(() => {
+    if (!onApplySpellSlots || pendingChanges.totalSlotsUsed === 0) return;
+    onApplySpellSlots(pendingChanges.slotsByLevel);
+    setApplied(prev => ({ ...prev, spellSlots: true }));
+  }, [pendingChanges.slotsByLevel, pendingChanges.totalSlotsUsed, onApplySpellSlots]);
+
   // Apply all enabled
   const handleApplyAll = useCallback(() => {
     if (config.gold && pendingChanges.netGold !== 0 && !applied.gold) {
@@ -227,7 +255,11 @@ export function AutoApplyPanel({
     if (pendingChanges.detectedDeathSaves.length > 0 && !applied.deathSaves && onApplyDeathSaves) {
       handleApplyDeathSaves();
     }
-  }, [config, pendingChanges, applied, handleApplyGold, handleApplyHP, handleApplyConditions, handleApplyRest, handleApplyDeathSaves, onApplyDeathSaves]);
+    // Spell slots
+    if (config.spellSlots && pendingChanges.totalSlotsUsed > 0 && !applied.spellSlots && onApplySpellSlots) {
+      handleApplySpellSlots();
+    }
+  }, [config, pendingChanges, applied, handleApplyGold, handleApplyHP, handleApplyConditions, handleApplyRest, handleApplyDeathSaves, handleApplySpellSlots, onApplyDeathSaves, onApplySpellSlots]);
 
   if (!pendingChanges.hasAnyChanges) {
     return null;
@@ -352,6 +384,36 @@ export function AutoApplyPanel({
                 applied={applied.deathSaves}
                 onApply={handleApplyDeathSaves}
                 color="rose"
+              />
+            )}
+
+            {/* Spell Slots */}
+            {pendingChanges.totalSlotsUsed > 0 && onApplySpellSlots && (
+              <AutoApplyRow
+                icon={<Sparkles className="w-4 h-4 text-indigo-400" />}
+                label="Spell Slots"
+                description={
+                  Object.entries(pendingChanges.slotsByLevel)
+                    .sort(([a], [b]) => Number(a) - Number(b))
+                    .map(([level, count]) => `${count}× L${level}`)
+                    .join(', ')
+                }
+                preview={
+                  spellSlots 
+                    ? Object.entries(pendingChanges.slotsByLevel)
+                        .map(([level, count]) => {
+                          const slot = spellSlots[Number(level)];
+                          if (!slot) return `L${level}: -${count}`;
+                          return `L${level}: ${slot.current}→${Math.max(0, slot.current - count)}`;
+                        })
+                        .join(', ')
+                    : `${pendingChanges.totalSlotsUsed} slot(s) used`
+                }
+                enabled={config.spellSlots}
+                onToggle={(v) => updateConfig('spellSlots', v)}
+                applied={applied.spellSlots}
+                onApply={handleApplySpellSlots}
+                color="indigo"
               />
             )}
 
