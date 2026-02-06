@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Ability } from '@/lib/types';
-import { DiceRoll, formatRollResult } from '@/lib/diceRoller';
+import { DiceRoll, formatRollResult, isCriticalHit, isCriticalMiss, inferRollMode } from '@/lib/diceRoller';
 import {
   Dialog,
   DialogContent,
@@ -64,8 +64,15 @@ export function DiceRollModal({
     accentClass: 'bg-red-900/20 border-red-500/30',
   };
 
-  const isCritical = roll.rolls.includes(parseInt(roll.die.slice(1)));
-  const isFumble = roll.rolls.every(r => r === 1);
+  // For d20s, use proper 5e crit rules; for other dice, use max value check
+  const maxDieValue = parseInt(roll.die.slice(1));
+  const rollMode = inferRollMode(roll.rolls, roll.total, roll.modifier);
+  const isCritical = roll.die === 'd20' 
+    ? isCriticalHit(roll.rolls, rollMode, roll.die)
+    : roll.rolls.some(r => r === maxDieValue);
+  const isFumble = roll.die === 'd20'
+    ? isCriticalMiss(roll.rolls, rollMode, roll.die)
+    : roll.rolls.every(r => r === 1);
 
   const handleCopy = async () => {
     try {

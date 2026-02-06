@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Ability, AbilityTree } from '@/lib/types';
 import { WeaponAttack } from '@/lib/combat/combatTypes';
 import { ActiveConditionInfo, SetBonusInfo, TargetPromptInfo, formatTargetForPrompt } from '@/lib/combat/promptContext';
-import { getAbilityDice, rollDice, DiceRoll } from '@/lib/diceRoller';
+import { getAbilityDice, rollDice, DiceRoll, isCriticalHit, isCriticalMiss, inferRollMode } from '@/lib/diceRoller';
 import { CooldownProgress } from '@/components/cooldowns/CooldownProgress';
 import { COOLDOWN_CONFIGS } from '@/lib/cooldowns/config';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
@@ -107,8 +107,9 @@ export function CombatAbilityCard({
 
   // Generate full AI DM prompt
   const generateAbilityPrompt = useCallback((roll: DiceRoll): string => {
-    const isCrit = roll.rolls.includes(20);
-    const isFumble = roll.rolls.includes(1);
+    const rollMode = inferRollMode(roll.rolls, roll.total, roll.modifier);
+    const isCrit = isCriticalHit(roll.rolls, rollMode, roll.die);
+    const isFumble = isCriticalMiss(roll.rolls, rollMode, roll.die);
     const tierEffect = ability.tierEffects.find(t => t.tier === ability.tier);
     const combinedDamage = getCombinedDamage();
     

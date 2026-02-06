@@ -13,7 +13,7 @@ import {
 } from '@/lib/combat/combatTypes';
 import { ActiveConditionInfo, SetBonusInfo, TargetPromptInfo, formatTargetForPrompt } from '@/lib/combat/promptContext';
 import { loadCombatSettings, COMBAT_SETTINGS_CHANGE_EVENT, CombatSettings } from '@/lib/combat/combatSettings';
-import { DiceRoll, rollDice, getAbilityDice } from '@/lib/diceRoller';
+import { DiceRoll, rollDice, getAbilityDice, isCriticalHit, isCriticalMiss, inferRollMode } from '@/lib/diceRoller';
 import { generateRPPrompt } from '@/lib/rpPromptGenerator';
 import { DiceRollModal } from '@/components/character/DiceRollModal';
 import { useSwipe } from '@/hooks/use-swipe';
@@ -394,6 +394,7 @@ export function MobileCombatLayout({
     setLastAction(`${ability.name.toUpperCase()} ACTIVATED`);
     
     // Log to combat log
+    const logRollMode = inferRollMode(roll.rolls, roll.total, roll.modifier);
     combatLog.addEntry({
       actionType: 'ability',
       actionName: ability.name,
@@ -402,8 +403,8 @@ export function MobileCombatLayout({
         total: roll.total,
         rolls: roll.rolls,
         modifier: roll.modifier,
-        isCrit: roll.rolls.includes(20),
-        isFumble: roll.rolls.includes(1),
+        isCrit: isCriticalHit(roll.rolls, logRollMode, roll.die),
+        isFumble: isCriticalMiss(roll.rolls, logRollMode, roll.die),
       },
       damage: `${count}${die}`,
     });
@@ -431,6 +432,7 @@ export function MobileCombatLayout({
     setLastAction(`${ability.name.toUpperCase()} + ${combinedDamage}`);
     
     // Log to combat log
+    const enhancedRollMode = inferRollMode(roll.rolls, roll.total, roll.modifier);
     combatLog.addEntry({
       actionType: 'ability',
       actionName: `${ability.name} + Weapon`,
@@ -439,8 +441,8 @@ export function MobileCombatLayout({
         total: roll.total,
         rolls: roll.rolls,
         modifier: roll.modifier,
-        isCrit: roll.rolls.includes(20),
-        isFumble: roll.rolls.includes(1),
+        isCrit: isCriticalHit(roll.rolls, enhancedRollMode, roll.die),
+        isFumble: isCriticalMiss(roll.rolls, enhancedRollMode, roll.die),
       },
       damage: combinedDamage,
     });
@@ -478,6 +480,7 @@ export function MobileCombatLayout({
     setLastAction(`${rollName.toUpperCase()} ROLL`);
     
     // Log to combat log (include target name)
+    const weaponRollMode = inferRollMode(roll.rolls, roll.total, roll.modifier);
     combatLog.addEntry({
       actionType: 'weapon',
       actionName: `${rollName}${targetSuffix}`,
@@ -486,8 +489,8 @@ export function MobileCombatLayout({
         total: roll.total,
         rolls: roll.rolls,
         modifier: roll.modifier,
-        isCrit: roll.rolls.includes(20),
-        isFumble: roll.rolls.includes(1),
+        isCrit: isCriticalHit(roll.rolls, weaponRollMode, roll.die),
+        isFumble: isCriticalMiss(roll.rolls, weaponRollMode, roll.die),
       },
       damage,
     });
@@ -518,6 +521,7 @@ export function MobileCombatLayout({
     setLastAction(`OFFHAND ATTACK`);
     
     // Log to combat log
+    const offhandRollMode = inferRollMode(roll.rolls, roll.total, roll.modifier);
     combatLog.addEntry({
       actionType: 'weapon',
       actionName: `${rollName}${targetSuffix}`,
@@ -526,8 +530,8 @@ export function MobileCombatLayout({
         total: roll.total,
         rolls: roll.rolls,
         modifier: roll.modifier,
-        isCrit: roll.rolls.includes(20),
-        isFumble: roll.rolls.includes(1),
+        isCrit: isCriticalHit(roll.rolls, offhandRollMode, roll.die),
+        isFumble: isCriticalMiss(roll.rolls, offhandRollMode, roll.die),
       },
       damage,
     });

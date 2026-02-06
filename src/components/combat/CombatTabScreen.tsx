@@ -21,7 +21,7 @@ import {
   DEFAULT_WEAPONS,
 } from '@/lib/combat/combatTypes';
 import { ActiveConditionInfo, SetBonusInfo } from '@/lib/combat/promptContext';
-import { DiceRoll } from '@/lib/diceRoller';
+import { DiceRoll, isCriticalHit, isCriticalMiss, inferRollMode } from '@/lib/diceRoller';
 import { Activity, Skull } from 'lucide-react';
 import './CombatHUDStyles.css';
 import './mobile/MobileCombatStyles.css';
@@ -381,8 +381,9 @@ function generateWeaponPrompt(
   damage: string,
   characterName: string
 ): string {
-  const isCrit = roll.rolls.includes(20);
-  const isFumble = roll.rolls.includes(1);
+  const rollMode = inferRollMode(roll.rolls, roll.total, roll.modifier);
+  const isCrit = isCriticalHit(roll.rolls, rollMode, roll.die);
+  const isFumble = isCriticalMiss(roll.rolls, rollMode, roll.die);
   const hasAdvantage = roll.rolls.length > 1;
   
   let title = rollType === 'assassinate' 
