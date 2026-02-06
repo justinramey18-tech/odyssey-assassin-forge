@@ -1,7 +1,8 @@
 // Enhanced Chronicle Sync Detection Patterns
-// Rest cycles, spell slots, death saves, combat rounds, temp HP
+// Rest cycles, spell slots, death saves, combat rounds, temp HP, inspiration
 
 import { PatternMatch, parseTempHPMatches } from './patterns';
+import { parseInspirationMatches } from './patterns/inspiration';
 import { 
   ParsedRestEvent, 
   ParsedSpellSlotUsage, 
@@ -9,6 +10,7 @@ import {
   ParsedCombatRound,
   ParsedKillEvent,
   ParsedTempHP,
+  ParsedInspiration,
 } from './enhancedTypes';
 
 // ===== REST PATTERNS =====
@@ -314,6 +316,19 @@ export function parseTempHPGains(text: string): ParsedTempHP[] {
   }));
 }
 
+// ===== INSPIRATION PARSING =====
+
+export function parseInspirationEvents(text: string): ParsedInspiration[] {
+  const matches = parseInspirationMatches(text);
+  return matches
+    .filter(m => m.inspirationType === 'granted' || m.inspirationType === 'used')
+    .map(match => ({
+      type: (match.inspirationType === 'granted' ? 'gained' : 'used') as 'gained' | 'used',
+      sourceText: match.fullMatch,
+      context: match.context,
+    }));
+}
+
 // ===== COMBINED ENHANCED PARSING =====
 
 export interface EnhancedPatternResults {
@@ -323,6 +338,7 @@ export interface EnhancedPatternResults {
   combatRounds: ParsedCombatRound[];
   kills: ParsedKillEvent[];
   tempHPGains: ParsedTempHP[];
+  inspirationEvents: ParsedInspiration[];
 }
 
 export function parseEnhancedPatterns(text: string): EnhancedPatternResults {
@@ -333,6 +349,7 @@ export function parseEnhancedPatterns(text: string): EnhancedPatternResults {
     combatRounds: parseCombatRounds(text),
     kills: parseKillEvents(text),
     tempHPGains: parseTempHPGains(text),
+    inspirationEvents: parseInspirationEvents(text),
   };
 }
 
