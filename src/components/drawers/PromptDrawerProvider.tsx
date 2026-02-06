@@ -14,6 +14,9 @@ import { XPPreset } from '@/lib/xpSystem';
 import { CharacterEquipment } from '@/lib/inventory/types';
 import { InventoryItem as ConsumableItem } from '@/lib/consumables/types';
 import { LootItem } from '@/lib/loot/types';
+import { CombatLogEntry } from '@/hooks/use-combat-log';
+import { Enemy } from '@/lib/combat/targetTypes';
+import { ActionEconomy } from '@/lib/combat/combatTypes';
 import { useGameMode, shouldShowInfinityStones } from '@/hooks/use-game-mode';
 import { useEquipmentStats } from '@/hooks/use-equipment-stats';
 import { useCooldowns } from '@/hooks/use-cooldowns';
@@ -94,6 +97,16 @@ interface PromptDrawerProviderProps {
   // Loot for Oracle
   lootItems?: LootItem[];
   totalLootValue?: number;
+  // Combat context for Oracle tactical advice
+  combatContext?: {
+    isInCombat: boolean;
+    roundNumber: number;
+    isPlayerTurn: boolean;
+    economy: ActionEconomy;
+    currentTarget: Enemy | null;
+    enemies: Enemy[];
+    recentLogEntries: CombatLogEntry[];
+  };
 }
 
 export function PromptDrawerProvider({
@@ -123,6 +136,7 @@ export function PromptDrawerProvider({
   constitutionModifier = 0,
   lootItems = [],
   totalLootValue = 0,
+  combatContext,
 }: PromptDrawerProviderProps) {
   const [infinityOpen, setInfinityOpen] = useState(false);
   const [abilitiesOpen, setAbilitiesOpen] = useState(false);
@@ -343,6 +357,7 @@ export function PromptDrawerProvider({
             spellcasting={spellcasting}
             lootItems={lootItems}
             totalLootValue={totalLootValue}
+            combatContext={combatContext}
           />
 
           <ConditionDrawer

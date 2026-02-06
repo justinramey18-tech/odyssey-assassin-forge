@@ -82,6 +82,46 @@ export interface CharacterContext {
     usableCount: number;
     diceMechanicsCount: number;
   };
+  // Combat context - real-time tactical awareness
+  combat?: {
+    isInCombat: boolean;
+    roundNumber: number;
+    isPlayerTurn: boolean;
+    // Action economy
+    actionUsed: boolean;
+    bonusActionUsed: boolean;
+    reactionUsed: boolean;
+    movementUsed: number;
+    maxMovement: number;
+    // Current target
+    currentTarget: {
+      name: string;
+      ac: number;
+      currentHP: number;
+      maxHP: number;
+      conditions: string[];
+      resistances: string[];
+      vulnerabilities: string[];
+      immunities: string[];
+    } | null;
+    // Active enemies
+    enemies: Array<{
+      name: string;
+      currentHP: number;
+      maxHP: number;
+      isDefeated: boolean;
+      conditions: string[];
+    }>;
+    // Recent combat log entries (last 5)
+    recentActions: Array<{
+      actionType: string;
+      actionName: string;
+      timestamp: string;
+      damage?: string;
+      wasHit?: boolean;
+      wasCrit?: boolean;
+    }>;
+  };
 }
 
 export interface PersonalityConfig {
