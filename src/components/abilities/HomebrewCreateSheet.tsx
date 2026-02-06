@@ -33,9 +33,16 @@ import {
   Crosshair,
   Sword,
   Skull,
+  Bot,
+  Lightbulb,
+  RefreshCw,
+  Zap,
+  MessageSquare,
+  CheckCircle2,
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useHomebrewAssistant } from '@/hooks/use-homebrew-assistant';
 
 interface HomebrewCreateSheetProps {
   open: boolean;
@@ -72,6 +79,7 @@ export function HomebrewCreateSheet({
   onSave,
 }: HomebrewCreateSheetProps) {
   const { toast } = useToast();
+  const assistant = useHomebrewAssistant();
   
   // Form state
   const [name, setName] = useState('');
@@ -92,6 +100,10 @@ export function HomebrewCreateSheet({
   const [cooldownMinutes, setCooldownMinutes] = useState<number | ''>(0);
   const [notes, setNotes] = useState('');
   const [minLevel, setMinLevel] = useState<number | ''>(1);
+  
+  // AI assistant state
+  const [suggestedNames, setSuggestedNames] = useState<string[]>([]);
+  const [balanceFeedback, setBalanceFeedback] = useState<string | null>(null);
 
   // Reset form when sheet opens with new tree
   const resetForm = useCallback(() => {
@@ -113,7 +125,141 @@ export function HomebrewCreateSheet({
     setCooldownMinutes(0);
     setNotes('');
     setMinLevel(1);
+    setSuggestedNames([]);
+    setBalanceFeedback(null);
   }, [defaultTree]);
+
+  // AI Assistant handlers
+  const handleSuggestNames = async () => {
+    const names = await assistant.suggestNames({ tree, type });
+    if (names.length > 0) {
+      setSuggestedNames(names);
+    }
+  };
+
+  const handleGenerateFull = async () => {
+    const suggestion = await assistant.suggestFullAbility({ tree, type });
+    if (suggestion) {
+      setName(suggestion.name || '');
+      setTier1Desc(suggestion.tier1 || '');
+      setTier2Desc(suggestion.tier2 || '');
+      setTier3Desc(suggestion.tier3 || '');
+      if (suggestion.actionType) {
+        setActionType(suggestion.actionType as ActionType);
+      }
+      if (suggestion.usageType) {
+        setUsageType(suggestion.usageType as UsageType);
+      }
+      if (suggestion.cooldown !== undefined) {
+        setCooldownMinutes(suggestion.cooldown);
+      }
+      if (suggestion.notes) {
+        setNotes(suggestion.notes);
+      }
+      // Parse dice if provided
+      if (suggestion.dice) {
+        const parseDice = (diceStr?: string): { count: number | ''; die: DieType | '' } => {
+          if (!diceStr) return { count: '', die: '' };
+          const match = diceStr.match(/(\d+)d(\d+)/);
+          if (match) {
+            const dieVal = parseInt(match[2]);
+            const validDice: DieType[] = [4, 6, 8, 10, 12, 20];
+            if (validDice.includes(dieVal as DieType)) {
+              return { count: parseInt(match[1]), die: dieVal as DieType };
+            }
+          }
+          return { count: '', die: '' };
+        };
+        const t1 = parseDice(suggestion.dice.tier1);
+        const t2 = parseDice(suggestion.dice.tier2);
+        const t3 = parseDice(suggestion.dice.tier3);
+        if (t1.count !== '') setTier1DiceCount(t1.count);
+        if (t1.die !== '') setTier1Die(t1.die);
+        if (t2.count !== '') setTier2DiceCount(t2.count);
+        if (t2.die !== '') setTier2Die(t2.die);
+        if (t3.count !== '') setTier3DiceCount(t3.count);
+        if (t3.die !== '') setTier3Die(t3.die);
+      }
+      toast({
+        title: 'AI Generated!',
+        description: `Created "${suggestion.name}" - review and customize it.`,
+        className: 'border-primary bg-primary/10',
+      });
+    }
+  };
+
+  const handleSuggestDescriptions = async () => {
+    if (!name.trim()) {
+      toast({
+        title: 'Name Required',
+        description: 'Enter an ability name first so the AI can generate matching descriptions.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    const descriptions = await assistant.suggestDescriptions({ 
+      tree, 
+      type, 
+      currentName: name 
+    });
+    if (descriptions) {
+      setTier1Desc(descriptions.tier1);
+      setTier2Desc(descriptions.tier2);
+      setTier3Desc(descriptions.tier3);
+      toast({
+        title: 'Descriptions Generated!',
+        description: 'AI created tier effects based on your ability name.',
+        className: 'border-primary bg-primary/10',
+      });
+    }
+  };
+
+  const handleGetBalanceFeedback = async () => {
+    if (!name.trim() || !tier1Desc.trim()) {
+      toast({
+        title: 'More Info Needed',
+        description: 'Add a name and at least Tier 1 description for balance review.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    const feedback = await assistant.getBalanceFeedback({ 
+      tree, 
+      type, 
+      currentName: name,
+      currentDescription: `Tier 1: ${tier1Desc}. Tier 2: ${tier2Desc}. Tier 3: ${tier3Desc}`
+    });
+    if (feedback) {
+      setBalanceFeedback(feedback);
+    }
+  };
+
+  const handleEnhanceDescriptions = async () => {
+    if (!tier1Desc.trim()) {
+      toast({
+        title: 'Descriptions Required',
+        description: 'Add at least a Tier 1 description to enhance.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    const enhanced = await assistant.enhanceDescriptions({ 
+      tree, 
+      type, 
+      currentName: name,
+      currentDescription: `Tier 1: ${tier1Desc}. Tier 2: ${tier2Desc}. Tier 3: ${tier3Desc}`
+    });
+    if (enhanced) {
+      setTier1Desc(enhanced.tier1);
+      setTier2Desc(enhanced.tier2);
+      setTier3Desc(enhanced.tier3);
+      toast({
+        title: 'Descriptions Enhanced!',
+        description: 'AI polished your tier effects.',
+        className: 'border-primary bg-primary/10',
+      });
+    }
+  };
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
@@ -242,6 +388,61 @@ export function HomebrewCreateSheet({
           <ScrollArea className="flex-1 pr-4">
             {/* BASICS TAB */}
             <TabsContent value="basics" className="space-y-4 mt-0">
+              {/* AI ASSISTANT PANEL */}
+              <div className="rounded-lg border border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 p-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Bot className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-semibold text-primary">AI Homebrew Assistant</span>
+                  {assistant.isLoading && (
+                    <RefreshCw className="w-3 h-3 animate-spin text-primary/70 ml-auto" />
+                  )}
+                </div>
+                
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleGenerateFull}
+                    disabled={assistant.isLoading}
+                    className="text-xs h-7 border-primary/40 hover:bg-primary/10"
+                  >
+                    <Zap className="w-3 h-3 mr-1" />
+                    Generate Full Ability
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSuggestNames}
+                    disabled={assistant.isLoading}
+                    className="text-xs h-7 border-primary/40 hover:bg-primary/10"
+                  >
+                    <Lightbulb className="w-3 h-3 mr-1" />
+                    Suggest Names
+                  </Button>
+                </div>
+                
+                {/* Name suggestions */}
+                {suggestedNames.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-muted-foreground">Tap to use:</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {suggestedNames.map((suggestedName, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setName(suggestedName);
+                            setSuggestedNames([]);
+                          }}
+                          className="px-2 py-1 text-xs rounded-md bg-primary/20 hover:bg-primary/30 text-primary-foreground transition-colors"
+                        >
+                          {suggestedName}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Ability Name */}
               <div className="space-y-2">
                 <Label htmlFor="homebrewName">Ability Name *</Label>
@@ -362,7 +563,63 @@ export function HomebrewCreateSheet({
 
             {/* EFFECTS TAB */}
             <TabsContent value="effects" className="space-y-4 mt-0">
-              <p className="text-xs text-muted-foreground mb-4">
+              {/* AI Assist for Effects */}
+              <div className="flex flex-wrap gap-2 pb-2 border-b border-muted/30">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSuggestDescriptions}
+                  disabled={assistant.isLoading || !name.trim()}
+                  className="text-xs h-7 border-primary/40 hover:bg-primary/10"
+                >
+                  <Bot className="w-3 h-3 mr-1" />
+                  AI Generate Descriptions
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleEnhanceDescriptions}
+                  disabled={assistant.isLoading || !tier1Desc.trim()}
+                  className="text-xs h-7 border-primary/40 hover:bg-primary/10"
+                >
+                  <Sparkles className="w-3 h-3 mr-1" />
+                  Enhance
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGetBalanceFeedback}
+                  disabled={assistant.isLoading || !name.trim() || !tier1Desc.trim()}
+                  className="text-xs h-7 border-primary/40 hover:bg-primary/10"
+                >
+                  <MessageSquare className="w-3 h-3 mr-1" />
+                  Balance Check
+                </Button>
+                {assistant.isLoading && (
+                  <RefreshCw className="w-4 h-4 animate-spin text-primary/70 ml-auto self-center" />
+                )}
+              </div>
+
+              {/* Balance Feedback */}
+              {balanceFeedback && (
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-primary" />
+                      <span className="text-xs font-semibold text-primary">Balance Feedback</span>
+                    </div>
+                    <button
+                      onClick={() => setBalanceFeedback(null)}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                  <p className="text-sm text-foreground/90">{balanceFeedback}</p>
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground">
                 Describe what your ability does at each tier. At least Tier 1 is required.
               </p>
 
