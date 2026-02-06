@@ -61,6 +61,23 @@ export function useCloudSave(userId: string | undefined) {
     
     setSaving(true);
     try {
+      // Prepare extended data (all the new fields)
+      const extendedData = {
+        abilityScores: saveData.abilityScores,
+        hpState: saveData.hpState,
+        deathSaves: saveData.deathSaves,
+        spellcasting: saveData.spellcasting,
+        activeSpells: saveData.activeSpells,
+        prestigeTree: saveData.prestigeTree,
+        shopGold: saveData.shopGold,
+        loot: saveData.loot,
+        proficiencies: saveData.proficiencies,
+        expertise: saveData.expertise,
+        inspiration: saveData.inspiration,
+        combatSettings: saveData.combatSettings,
+        conditions: saveData.conditions,
+      };
+      
       // Prepare data for database (cast to Json type)
       const dbData = {
         character_data: JSON.parse(JSON.stringify(saveData.character)) as Json,
@@ -69,6 +86,7 @@ export function useCloudSave(userId: string | undefined) {
         consumables_data: JSON.parse(JSON.stringify(saveData.consumables)) as Json,
         prestige_data: JSON.parse(JSON.stringify(saveData.prestige)) as Json,
         xp_data: JSON.parse(JSON.stringify(saveData.xp)) as Json,
+        extended_data: JSON.parse(JSON.stringify(extendedData)) as Json,
       };
       
       let result;
@@ -144,6 +162,9 @@ export function useCloudSave(userId: string | undefined) {
       if (error) throw error;
       if (!data) return null;
       
+      // Parse extended data
+      const extendedData = (data.extended_data as Record<string, unknown>) || {};
+      
       // Convert database format to SaveData format
       const saveData: SaveData = {
         character: data.character_data as unknown as SaveData['character'],
@@ -152,6 +173,20 @@ export function useCloudSave(userId: string | undefined) {
         consumables: data.consumables_data as unknown as SaveData['consumables'],
         xp: data.xp_data as unknown as SaveData['xp'],
         prestige: data.prestige_data as unknown as SaveData['prestige'],
+        // Extended data fields
+        abilityScores: extendedData.abilityScores as SaveData['abilityScores'],
+        hpState: extendedData.hpState as SaveData['hpState'],
+        deathSaves: extendedData.deathSaves as SaveData['deathSaves'],
+        spellcasting: extendedData.spellcasting as SaveData['spellcasting'],
+        activeSpells: extendedData.activeSpells as SaveData['activeSpells'],
+        prestigeTree: extendedData.prestigeTree as SaveData['prestigeTree'],
+        shopGold: extendedData.shopGold as SaveData['shopGold'],
+        loot: extendedData.loot as SaveData['loot'],
+        proficiencies: extendedData.proficiencies as SaveData['proficiencies'],
+        expertise: extendedData.expertise as SaveData['expertise'],
+        inspiration: extendedData.inspiration as SaveData['inspiration'],
+        combatSettings: extendedData.combatSettings as SaveData['combatSettings'],
+        conditions: extendedData.conditions as SaveData['conditions'],
         savedAt: data.updated_at,
         version: 1,
       };
