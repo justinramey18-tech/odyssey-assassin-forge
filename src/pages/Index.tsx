@@ -57,6 +57,7 @@ import { getPrestigeAbilityById } from '@/lib/prestigeTree/abilities';
 import { resetAllAppData, repairXPData } from '@/lib/resetApp';
 import { calculateMaxHP } from '@/lib/hpCalculation';
 import { scoreToModifier } from '@/lib/abilityScores/types';
+import { getConcentrationCheckDC } from '@/lib/magic/calculations';
 import { 
   CharacterEquipment, 
   EquipmentItem,
@@ -327,19 +328,6 @@ const Index = () => {
     return { successes: 0, failures: 0 };
   });
 
-  // HP change handler with localStorage persistence
-  const handleHPChange = useCallback((current: number, max: number, temp: number) => {
-    const newState = { current, max, temp };
-    setHpState(newState);
-    localStorage.setItem('odyssey-hp-state', JSON.stringify(newState));
-    
-    // Reset death saves when regaining HP from 0
-    if (current > 0 && deathSaves.successes + deathSaves.failures > 0) {
-      setDeathSaves({ successes: 0, failures: 0 });
-      localStorage.setItem('odyssey-death-saves', JSON.stringify({ successes: 0, failures: 0 }));
-    }
-  }, [deathSaves]);
-
   // Death saves change handler with localStorage persistence
   const handleDeathSavesChange = useCallback((saves: { successes: number; failures: number }) => {
     setDeathSaves(saves);
@@ -377,9 +365,15 @@ const Index = () => {
   });
   
   // Conditions system with concentration sync to spellcasting
-  // Using a ref pattern to avoid stale closure issues
+  // Using refs to avoid stale closure issues in callbacks
   const spellcastingRef = useRef(spellcasting);
   spellcastingRef.current = spellcasting;
+  
+  const abilityScoresRef = useRef(abilityScores);
+  abilityScoresRef.current = abilityScores;
+  
+  const combatStatsRef = useRef(combatStats);
+  combatStatsRef.current = combatStats;
   
   const conditions = useConditions({
     onConcentrationBroken: useCallback((_spellName: string, _reason?: string) => {
@@ -408,6 +402,59 @@ const Index = () => {
   const { toast } = useToast();
   const { requiresOrganicLevelUp, requiresGearUnlocks, rerollsDisabled, infinityStonesLocked } = useGameMode();
   
+  // HP change handler with localStorage persistence and concentration check
+  const handleHPChange = useCallback((current: number, max: number, temp: number) => {
+    const previousTotal = hpState.current + hpState.temp;
+    const newTotal = current + temp;
+    const damageTaken = previousTotal - newTotal;
+    
+    const newState = { current, max, temp };
+    setHpState(newState);
+    localStorage.setItem('odyssey-hp-state', JSON.stringify(newState));
+    
+    // Reset death saves when regaining HP from 0
+    if (current > 0 && deathSaves.successes + deathSaves.failures > 0) {
+      setDeathSaves({ successes: 0, failures: 0 });
+      localStorage.setItem('odyssey-death-saves', JSON.stringify({ successes: 0, failures: 0 }));
+    }
+    
+    // Trigger concentration check if damage was taken while concentrating
+    if (damageTaken > 0 && spellcastingRef.current.state.concentratingOn) {
+      const dc = getConcentrationCheckDC(damageTaken);
+      const conMod = abilityScoresRef.current?.finalModifiers?.constitution ?? 0;
+      const profBonus = combatStatsRef.current?.proficiencyBonus ?? 2;
+      const totalBonus = conMod + profBonus;
+      const spellName = spellcastingRef.current.state.concentratingOn;
+      
+      // Generate AI DM prompt for concentration save
+      const prompt = `🔮 **CONCENTRATION CHECK**
+
+${character.name} takes **${damageTaken} damage** while concentrating on **${spellName}**!
+
+**Constitution Saving Throw Required**
+- DC: **${dc}** (half damage or 10, whichever is higher)
+- Modifier: +${totalBonus} (CON ${conMod >= 0 ? '+' + conMod : conMod} + Proficiency +${profBonus})
+
+*Roll a d20 + ${totalBonus} against DC ${dc} to maintain concentration.*
+${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
+      
+      // Copy prompt to clipboard
+      navigator.clipboard.writeText(prompt).catch(() => {});
+      
+      toast({
+        title: `🔮 Concentration Check Required!`,
+        description: (
+          <div className="space-y-1">
+            <p className="text-sm">{damageTaken} damage while concentrating on <span className="font-semibold text-primary">{spellName}</span></p>
+            <p className="text-xs text-muted-foreground">DC {dc} Constitution save (d20 + {totalBonus})</p>
+            <p className="text-xs text-primary/80 mt-1">✓ AI prompt copied to clipboard</p>
+          </div>
+        ),
+        className: 'border-primary bg-primary/10',
+        duration: 8000,
+      });
+    }
+  }, [deathSaves, hpState, character.name, toast]);
   // Auto-update max HP when calculation changes (level up, CON change, prestige)
   useEffect(() => {
     if (calculatedMaxHP !== hpState.max) {
