@@ -196,38 +196,25 @@ export function AnalyticsDashboard({
               value={analytics.totalDeaths}
               color="gray"
             />
+            {/* Death Saves - always show if any occurred */}
+            {(analytics.deathSaveSuccesses > 0 || analytics.deathSaveFailures > 0) && (
+              <>
+                <StatCard
+                  icon={<Heart className="w-5 h-5 text-emerald-400" />}
+                  label="Death Saves ✓"
+                  value={analytics.deathSaveSuccesses}
+                  subValue={`${stats.deathSaveSuccessRate}% rate`}
+                  color="emerald"
+                />
+                <StatCard
+                  icon={<Skull className="w-5 h-5 text-rose-400" />}
+                  label="Death Saves ✗"
+                  value={analytics.deathSaveFailures}
+                  color="rose"
+                />
+              </>
+            )}
           </div>
-
-          {/* Death Saves */}
-          {(analytics.deathSaveSuccesses > 0 || analytics.deathSaveFailures > 0) && (
-            <Card className="border-rose-900/30 bg-card/50">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Skull className="w-4 h-4 text-rose-400" />
-                  Death Saving Throws
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-4">
-                  <div className="flex-1">
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="text-emerald-400">{analytics.deathSaveSuccesses} Successes</span>
-                      <span className="text-rose-400">{analytics.deathSaveFailures} Failures</span>
-                    </div>
-                    <div className="h-3 bg-rose-500/20 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all"
-                        style={{ width: `${stats.deathSaveSuccessRate}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div className="text-2xl font-bold text-foreground">
-                    {stats.deathSaveSuccessRate}%
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </TabsContent>
 
         {/* History Tab */}
