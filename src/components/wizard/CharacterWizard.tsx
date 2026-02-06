@@ -292,7 +292,13 @@ export function CharacterWizard({
       case 0:
         return <IdentityStep state={state} onUpdate={handleIdentityUpdate} />;
       case 1:
-        return <AbilityScoresStep state={state} onUpdate={handleAbilityScoresUpdate} />;
+        return (
+          <AbilityScoresStep 
+            state={state} 
+            onUpdate={handleAbilityScoresUpdate} 
+            validation={currentValidation}
+          />
+        );
       case 2:
         return <GameModeStep state={state} onUpdate={handleGameModeUpdate} />;
       case 3:
@@ -300,7 +306,13 @@ export function CharacterWizard({
       case 4:
         return <SkillTreePreviewStep state={state} onUpdate={handleSkillTreeUpdate} />;
       case 5:
-        return <EquipmentStep state={state} onUpdate={handleEquipmentUpdate} />;
+        return (
+          <EquipmentStep 
+            state={state} 
+            onUpdate={handleEquipmentUpdate}
+            validation={currentValidation}
+          />
+        );
       case 6:
         return (
           <SummaryStep 
