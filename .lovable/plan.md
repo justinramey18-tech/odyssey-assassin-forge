@@ -1,630 +1,263 @@
-# Simplified Implementation Plan: Two-Phase Enemy Detection Enhancement
 
-## Executive Summary
-This simplified plan minimizes risk by implementing enemy detection improvements in just two focused phases: **Core Detection** and **Integration & Testing**.
+# Attack Queue System with Multi-Target Support
 
----
-
-## Phase 1: Core Detection Enhancements
-
-### Goal
-Add initiative order and damage event detection to existing `enemies.ts` file with minimal architectural changes.
-
-### Files Modified
-- `src/lib/chronicleSync/patterns/enemies.ts` (ENHANCED, not refactored)
+## Overview
+This plan adds an **Attack Queue** system to the Combat tab that allows players to:
+1. Select specific enemies as targets for each attack
+2. Queue multiple attacks on the same enemy
+3. Queue attacks on multiple different enemies with an ordering mechanism
+4. Generate AI DM prompts that include the selected target(s) for each attack
 
 ---
 
-### **Implementation: Enhanced enemies.ts**
+## Technical Architecture
 
-```typescript
-// ============================================================================
-// EXISTING CODE (Keep as-is for backward compatibility)
-// ============================================================================
+### Core Concept: Attack Queue
 
-// ... existing patterns and functions remain unchanged ...
+Instead of single-shot attacks, players will build an "Attack Queue" containing ordered attacks, each with an assigned target. When ready, they can execute the entire queue to generate a combined AI prompt.
 
-// ============================================================================
-// NEW CODE: Enhanced Detection Functions
-// ============================================================================
-
-/**
- * Detects enemies from Initiative Order blocks
- * Example: "Initiative Order:\n1. Player (You)\n2. Goblin #2"
- */
-function parseInitiativeOrderEnemies(text: string, playerName?: string): string[] {
-  const enemies: string[] = [];
-  
-  // Find "Initiative Order:" blocks
-  const orderBlockPattern = /initiative\s+order:?\s*\n((?:(?:\d+\.|\*|-|•)\s+[^\n]+\n?)+)/gim;
-  let blockMatch;
-  
-  while ((blockMatch = orderBlockPattern.exec(text)) !== null) {
-    const orderBlock = blockMatch[1];
-    
-    // Parse each numbered entry: "1. Name" or "1. Name - notes"
-    const entryPattern = /^(?:\d+\.|\*|-|•)\s+(.+?)(?:\s*[-–—]\s*(.*))?$/gm;
-    let entryMatch;
-    
-    while ((entryMatch = entryPattern.exec(orderBlock)) !== null) {
-      let name = entryMatch[1].trim();
-      
-      // Skip player entries
-      if (isPlayerEntry(name, playerName)) continue;
-      
-      // Clean the name
-      const cleanName = cleanEnemyName(name);
-      
-      if (isValidEnemyName(cleanName)) {
-        enemies.push(cleanName);
-      }
-    }
-  }
-  
-  return enemies;
-}
-
-/**
- * Detects enemies from damage events
- * Example: "Goblin deals 12 damage" or "You deal 20 damage to Goblin"
- */
-function parseDamageEventEnemies(text: string, playerName?: string): string[] {
-  const enemies: string[] = [];
-  
-  const damagePatterns = [
-    // "Goblin deals 12 damage to you"
-    /([\p{Lu}][\p{L}\s'#\d-]+?)\s+(?:deals?|inflicts?|does)\s+\d+\s*(?:damage|hp)/giu,
-    
-    // "You take 8 damage from Goblin"
-    /(?:take|took|suffer)\s+\d+\s*(?:damage|hp)\s+from\s+(?:the\s+)?([\p{Lu}][\p{L}\s'#\d-]+)/giu,
-    
-    // "Goblin takes 18 damage"
-    /([\p{Lu}][\p{L}\s'#\d-]+?)\s+takes?\s+\d+\s*(?:damage|hp)/giu,
-    
-    // "You deal 20 damage to Goblin"
-    /(?:deal|dealt|inflict)\s+\d+\s*(?:damage|hp)\s+to\s+(?:the\s+)?([\p{Lu}][\p{L}\s'#\d-]+)/giu,
-    
-    // "hitting Goblin for 25 damage"
-    /hitting\s+(?:the\s+)?([\p{Lu}][\p{L}\s'#\d-]+?)\s+for\s+\d+\s*(?:damage|hp)/giu,
-  ];
-  
-  for (const pattern of damagePatterns) {
-    let match;
-    pattern.lastIndex = 0;
-    
-    while ((match = pattern.exec(text)) !== null) {
-      const name = match[1].trim();
-      
-      // Skip player references
-      if (isPlayerEntry(name, playerName)) continue;
-      
-      const cleanName = cleanEnemyName(name);
-      
-      if (isValidEnemyName(cleanName)) {
-        enemies.push(cleanName);
-      }
-    }
-  }
-  
-  return enemies;
-}
-
-/**
- * Detects enemies from turn references
- * Example: "Goblin's turn"
- */
-function parseTurnReferenceEnemies(text: string, playerName?: string): string[] {
-  const enemies: string[] = [];
-  
-  const turnPattern = /([\p{Lu}][\p{L}\s'#\d-]+?)(?:'s|')\s+turn/giu;
-  let match;
-  
-  while ((match = turnPattern.exec(text)) !== null) {
-    const name = match[1].trim();
-    
-    if (isPlayerEntry(name, playerName)) continue;
-    
-    const cleanName = cleanEnemyName(name);
-    
-    if (isValidEnemyName(cleanName)) {
-      enemies.push(cleanName);
-    }
-  }
-  
-  return enemies;
-}
-
-/**
- * Detects enemies from combat actions
- * Example: "Goblin attacks you" or "You attack Goblin"
- */
-function parseCombatActionEnemies(text: string, playerName?: string): string[] {
-  const enemies: string[] = [];
-  
-  const combatPatterns = [
-    // "Goblin attacks you"
-    /([\p{Lu}][\p{L}\s'#\d-]+?)\s+(?:attacks?|strikes?|hits?|shoots?)/giu,
-    
-    // "You attack the Goblin"
-    /(?:attack|strike|hit|shoot)\s+(?:the\s+)?([\p{Lu}][\p{L}\s'#\d-]+)/giu,
-    
-    // "fighting the Goblin"
-    /(?:fighting|battling|facing)\s+(?:the\s+)?([\p{Lu}][\p{L}\s'#\d-]+)/giu,
-  ];
-  
-  for (const pattern of combatPatterns) {
-    let match;
-    pattern.lastIndex = 0;
-    
-    while ((match = pattern.exec(text)) !== null) {
-      const name = match[1].trim();
-      
-      if (isPlayerEntry(name, playerName)) continue;
-      
-      const cleanName = cleanEnemyName(name);
-      
-      if (isValidEnemyName(cleanName)) {
-        enemies.push(cleanName);
-      }
-    }
-  }
-  
-  return enemies;
-}
-
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-/**
- * Checks if a name refers to the player
- */
-function isPlayerEntry(name: string, playerName?: string): boolean {
-  const playerMarkers = [
-    /\(you\)/i,
-    /\(player\)/i,
-    /\(pc\)/i,
-    /^(?:you|your|yourself)$/i,
-  ];
-  
-  // Check for explicit markers
-  if (playerMarkers.some(marker => marker.test(name))) {
-    return true;
-  }
-  
-  // Check against known player name
-  if (playerName && name.toLowerCase().includes(playerName.toLowerCase())) {
-    return true;
-  }
-  
-  return false;
-}
-
-/**
- * Cleans enemy name by removing articles, punctuation, etc.
- */
-function cleanEnemyName(name: string): string {
-  return name
-    .replace(/^(?:the|a|an)\s+/i, '')
-    .replace(/\s*(?:attacks?|strikes?|hits?)\s*$/i, '')
-    .replace(/[,;:.!?]+$/, '')
-    .replace(/\s*\([^)]*(?:you|player|pc)[^)]*\)/gi, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-/**
- * Removes instance numbers for grouping (#2 -> base name)
- */
-function removeInstanceNumber(name: string): string {
-  return name.replace(/\s*#\d+$/, '').trim();
-}
-
-/**
- * Validates if a name is a legitimate enemy name
- */
-function isValidEnemyName(name: string): boolean {
-  // Must have minimum length
-  if (name.length < 2) return false;
-  
-  // Must start with uppercase
-  if (!/^[\p{Lu}]/u.test(name)) return false;
-  
-  // Filter out common false positives
-  const falsePositives = [
-    /^(?:the|a|an|you|your|turn|round|initiative|damage|attack|roll)$/i,
-    /^(?:str|dex|con|int|wis|cha|hp|ac|dc)$/i,
-    /^\d+d\d+$/i, // Dice notation
-  ];
-  
-  if (falsePositives.some(pattern => pattern.test(name))) {
-    return false;
-  }
-  
-  // Must contain at least one letter
-  if (!/[\p{L}]/u.test(name)) return false;
-  
-  // Should not be excessively long
-  if (name.length > 50) return false;
-  
-  return true;
-}
-
-/**
- * Removes duplicates and groups enemy variants
- */
-function deduplicateEnemies(enemies: string[]): string[] {
-  const seen = new Set<string>();
-  const unique: string[] = [];
-  
-  for (const enemy of enemies) {
-    const baseKey = removeInstanceNumber(enemy).toLowerCase();
-    
-    if (!seen.has(baseKey)) {
-      seen.add(baseKey);
-      unique.push(removeInstanceNumber(enemy));
-    }
-  }
-  
-  return unique;
-}
-
-// ============================================================================
-// MAIN EXPORT: Enhanced Detection Function
-// ============================================================================
-
-/**
- * Enhanced enemy detection using multiple strategies
- * @param text - The text to parse
- * @param playerName - Optional player character name for filtering
- * @returns Array of unique enemy names
- */
-export function detectEnemies(text: string, playerName?: string): string[] {
-  const allEnemies: string[] = [];
-  
-  // Strategy 1: Initiative Order (Highest priority)
-  allEnemies.push(...parseInitiativeOrderEnemies(text, playerName));
-  
-  // Strategy 2: Damage Events (High priority)
-  allEnemies.push(...parseDamageEventEnemies(text, playerName));
-  
-  // Strategy 3: Turn References (Medium priority)
-  allEnemies.push(...parseTurnReferenceEnemies(text, playerName));
-  
-  // Strategy 4: Combat Actions (Medium priority)
-  allEnemies.push(...parseCombatActionEnemies(text, playerName));
-  
-  // Deduplicate and return
-  return deduplicateEnemies(allEnemies);
-}
-
-/**
- * Legacy export for backward compatibility
- */
-export function parseEnemyMatches(text: string): string[] {
-  return detectEnemies(text);
-}
+```text
+┌─────────────────────────────────────────────┐
+│             ATTACK QUEUE                    │
+├─────────────────────────────────────────────┤
+│ 1. Shortsword → Goblin #1        [×] [▲▼]  │
+│ 2. Shortsword + Sneak → Goblin #1 [×] [▲▼]  │
+│ 3. Dagger (offhand) → Orc        [×] [▲▼]  │
+├─────────────────────────────────────────────┤
+│    [Clear Queue]    [Execute Attacks]       │
+└─────────────────────────────────────────────┘
 ```
 
 ---
 
-## Phase 2: Integration & Testing
+## Files to Create/Modify
 
-### Goal
-Integrate enhanced detection into the main parser and validate with comprehensive tests.
+### 1. New Type Definitions
+**File:** `src/lib/combat/attackQueue.ts` (NEW)
 
-### Files Modified
-- `src/lib/chronicleSync/parser.ts` (MINOR UPDATE)
-- `tests/enemyDetection.test.ts` (NEW)
+```typescript
+interface QueuedAttack {
+  id: string;
+  weapon: WeaponAttack;
+  rollType: 'normal' | 'sneak' | 'assassinate';
+  targetId: string | null;      // Enemy ID or null for "no specific target"
+  targetName: string | null;    // Cached name for display
+  order: number;                // Position in queue
+  isOffhand?: boolean;
+}
+
+interface AttackQueueState {
+  attacks: QueuedAttack[];
+  selectedTargetId: string | null;  // Currently selected target for next attack
+}
+```
+
+### 2. Attack Queue Hook
+**File:** `src/hooks/use-attack-queue.ts` (NEW)
+
+Manages the attack queue state with functions:
+- `addToQueue(weapon, rollType, targetId, isOffhand?)` - Add attack to queue
+- `removeFromQueue(id)` - Remove specific attack
+- `reorderAttack(id, direction: 'up' | 'down')` - Change attack order
+- `setDefaultTarget(targetId)` - Set default target for new attacks
+- `clearQueue()` - Clear all queued attacks
+- `executeQueue()` - Process all attacks and return combined prompt data
+- Persists to localStorage for session continuity
+
+### 3. Target Selection UI Component
+**File:** `src/components/combat/mobile/TargetSelector.tsx` (NEW)
+
+A compact, mobile-friendly target selection component:
+- Displays as a row of chips/pills showing active enemies
+- Current target highlighted with ring/glow
+- Tap to select, shows "(No Target)" option
+- Displays enemy HP status via color coding
+
+```text
+┌────────────────────────────────────────────┐
+│ 🎯 TARGET: [None] [Goblin #1✓] [Orc] [Troll] │
+└────────────────────────────────────────────┘
+```
+
+### 4. Attack Queue Panel
+**File:** `src/components/combat/mobile/AttackQueuePanel.tsx` (NEW)
+
+Visual queue management component:
+- Lists all queued attacks with target assignments
+- Drag handles or up/down buttons for reordering
+- Delete button per entry
+- "Execute All" button to process queue
+- Shows estimated total damage
+- Collapsible for space efficiency
+
+### 5. Modify MobileWeaponCard
+**File:** `src/components/combat/mobile/MobileWeaponCard.tsx`
+
+**Changes:**
+- Add "Queue Attack" mode alongside "Execute Immediately" mode
+- Add target selector dropdown/chip row when queueing
+- New prop: `onQueueAttack` callback
+- New prop: `currentTargetId` for pre-selection
+- Visual indication when attack is queued
+
+### 6. Modify MobileCombatLayout
+**File:** `src/components/combat/mobile/MobileCombatLayout.tsx`
+
+**Changes:**
+- Integrate `useAttackQueue` hook
+- Add `AttackQueuePanel` to the Combat tab
+- Wire up target selection state
+- Pass target context to weapon cards
+- Handle queue execution flow
+
+### 7. Enhanced Prompt Generation
+**File:** `src/lib/combat/attackQueuePrompts.ts` (NEW)
+
+New function to generate multi-attack prompts:
+
+```typescript
+function generateMultiAttackPrompt(
+  attacks: ExecutedAttack[],
+  characterName: string,
+  enemies: Enemy[]
+): string
+```
+
+Output format includes all attacks with their targets:
+```markdown
+## ⚔️ MULTI-ATTACK SEQUENCE
+
+**Character:** Σκιά
+**Total Attacks:** 3
 
 ---
 
-### **Implementation: Updated parser.ts**
+### Attack 1: Shortsword → Goblin #1
+**Roll:** 1d20+7 = [18] = **25**
+**Damage on Hit:** 1d6+4 piercing
+🎯 Target: Goblin #1 (AC 13, Bloodied - 12/25 HP)
 
-```typescript
-import { detectEnemies } from './patterns/enemies';
+---
 
-// ... existing code ...
+### Attack 2: Shortsword + Sneak Attack → Goblin #1
+**Roll:** 2d20kh1+7 = [19, 8] = **26**
+**Damage on Hit:** 1d6+4+4d6 piercing
+🎯 Target: Goblin #1 (AC 13, Bloodied)
+*Sneak Attack applied - ally within 5ft*
 
-export interface ChronicleParseOptions {
-  playerName?: string;
-  // ... other existing options ...
-}
+---
 
-export function parseChronicleLog(
-  text: string,
-  options: ChronicleParseOptions = {}
-): ChronicleParseResult {
-  const { playerName } = options;
-  
-  // ... existing parsing logic ...
-  
-  // Enhanced enemy detection with player name filtering
-  const enemies = detectEnemies(text, playerName);
-  
-  return {
-    // ... existing fields ...
-    enemies,
-    // ... existing fields ...
-  };
-}
+### Attack 3: Dagger (Offhand) → Orc
+**Roll:** 1d20+7 = [14] = **21**
+**Damage on Hit:** 1d4 piercing
+🎯 Target: Orc (AC 14, Healthy - 30/30 HP)
+*Offhand attack - no ability modifier to damage*
+
+---
+
+### Narration Guide
+Σκιά unleashes a flurry of strikes, first focusing on Goblin #1 with two devastating attacks, then spinning to catch the Orc off-guard with a quick dagger slash.
 ```
 
 ---
 
-### **Implementation: Test Suite**
+## UI/UX Design
 
-```typescript
-// tests/enemyDetection.test.ts
+### Target Selection Flow
 
-import { detectEnemies } from '../src/lib/chronicleSync/patterns/enemies';
+1. **Default Target**: When an enemy is set as "current target" in the Target Tracker, it auto-populates as the default for new attacks
+2. **Override**: Player can tap a different enemy chip to override for specific attacks
+3. **No Target**: "(Any)" option for unspecified targets
 
-describe('Enemy Detection', () => {
-  describe('Initiative Order Detection', () => {
-    it('should detect enemies from initiative order', () => {
-      const text = `
-Initiative Order:
-1. Σκιά (You) - Surprise Round taken.
-2. Isu Sentinel #2 - Currently searching/panicking.
-3. Isu Sentinel #3 - Active.
-      `;
-      
-      const enemies = detectEnemies(text, 'Σκιά');
-      
-      expect(enemies).toContain('Isu Sentinel');
-      expect(enemies).not.toContain('Σκιά');
-    });
-    
-    it('should handle bullet points and dashes', () => {
-      const text = `
-Initiative Order:
-• Player (You)
-• Goblin #1
-- Orc Warrior
-      `;
-      
-      const enemies = detectEnemies(text);
-      
-      expect(enemies).toContain('Goblin');
-      expect(enemies).toContain('Orc Warrior');
-    });
-    
-    it('should filter out player markers', () => {
-      const text = `
-Initiative Order:
-1. Hero (You)
-2. Goblin
-3. Your Character (PC)
-4. Orc
-      `;
-      
-      const enemies = detectEnemies(text);
-      
-      expect(enemies).toEqual(['Goblin', 'Orc']);
-    });
-  });
-  
-  describe('Damage Event Detection', () => {
-    it('should detect enemies dealing damage', () => {
-      const text = 'The Goblin deals 12 damage to you.';
-      const enemies = detectEnemies(text);
-      
-      expect(enemies).toContain('Goblin');
-    });
-    
-    it('should detect enemies taking damage', () => {
-      const text = 'You deal 20 damage to the Orc Warrior.';
-      const enemies = detectEnemies(text);
-      
-      expect(enemies).toContain('Orc Warrior');
-    });
-    
-    it('should handle "takes damage" format', () => {
-      const text = 'The Dragon takes 45 damage from your fireball.';
-      const enemies = detectEnemies(text);
-      
-      expect(enemies).toContain('Dragon');
-    });
-  });
-  
-  describe('Turn Reference Detection', () => {
-    it('should detect enemies from turn references', () => {
-      const text = "It's the Goblin's turn.";
-      const enemies = detectEnemies(text);
-      
-      expect(enemies).toContain('Goblin');
-    });
-    
-    it('should filter out player turns', () => {
-      const text = "It's your turn. Then Goblin's turn.";
-      const enemies = detectEnemies(text);
-      
-      expect(enemies).toEqual(['Goblin']);
-    });
-  });
-  
-  describe('Combat Action Detection', () => {
-    it('should detect enemies attacking', () => {
-      const text = 'The Orc attacks you with its greataxe.';
-      const enemies = detectEnemies(text);
-      
-      expect(enemies).toContain('Orc');
-    });
-    
-    it('should detect enemies being attacked', () => {
-      const text = 'You strike the Troll with your sword.';
-      const enemies = detectEnemies(text);
-      
-      expect(enemies).toContain('Troll');
-    });
-    
-    it('should detect "fighting" references', () => {
-      const text = 'You are fighting the Shadow Demon.';
-      const enemies = detectEnemies(text);
-      
-      expect(enemies).toContain('Shadow Demon');
-    });
-  });
-  
-  describe('Unicode Support', () => {
-    it('should handle Greek characters', () => {
-      const text = `
-Initiative Order:
-1. Σκιά (You)
-2. Δράκος
-      `;
-      
-      const enemies = detectEnemies(text, 'Σκιά');
-      
-      expect(enemies).toContain('Δράκος');
-      expect(enemies).not.toContain('Σκιά');
-    });
-    
-    it('should handle Cyrillic characters', () => {
-      const text = 'You attack the Дракон.';
-      const enemies = detectEnemies(text);
-      
-      expect(enemies).toContain('Дракон');
-    });
-  });
-  
-  describe('Deduplication', () => {
-    it('should deduplicate same enemy mentioned multiple times', () => {
-      const text = `
-Initiative Order:
-1. You
-2. Goblin #1
-3. Goblin #2
+### Queue Management
 
-Goblin #1 attacks you.
-You hit Goblin #2.
-      `;
-      
-      const enemies = detectEnemies(text);
-      
-      expect(enemies).toEqual(['Goblin']);
-      expect(enemies.length).toBe(1);
-    });
-    
-    it('should preserve different enemy types', () => {
-      const text = `
-Initiative Order:
-1. You
-2. Goblin
-3. Orc
-4. Troll
-      `;
-      
-      const enemies = detectEnemies(text);
-      
-      expect(enemies).toHaveLength(3);
-      expect(enemies).toContain('Goblin');
-      expect(enemies).toContain('Orc');
-      expect(enemies).toContain('Troll');
-    });
-  });
-  
-  describe('False Positive Filtering', () => {
-    it('should filter out game terms', () => {
-      const text = 'Roll initiative. Attack hits. Damage is 10.';
-      const enemies = detectEnemies(text);
-      
-      expect(enemies).toHaveLength(0);
-    });
-    
-    it('should filter out ability scores', () => {
-      const text = 'Make a Dexterity save. Your Strength is 16.';
-      const enemies = detectEnemies(text);
-      
-      expect(enemies).toHaveLength(0);
-    });
-    
-    it('should filter out dice notation', () => {
-      const text = 'Roll 2d6 for damage.';
-      const enemies = detectEnemies(text);
-      
-      expect(enemies).toHaveLength(0);
-    });
-  });
-  
-  describe('Edge Cases', () => {
-    it('should handle empty text', () => {
-      const enemies = detectEnemies('');
-      expect(enemies).toEqual([]);
-    });
-    
-    it('should handle text with no enemies', () => {
-      const text = 'You walk through the forest peacefully.';
-      const enemies = detectEnemies(text);
-      
-      expect(enemies).toEqual([]);
-    });
-    
-    it('should handle very long enemy names', () => {
-      const text = 'You fight the Ancient Red Dragon of the Mountain Peak.';
-      const enemies = detectEnemies(text);
-      
-      expect(enemies.length).toBeGreaterThan(0);
-    });
-  });
-});
-```
+1. **Add to Queue**: Tap weapon → select target → tap "Queue Attack" button
+2. **Quick Add**: If default target set, weapon tap can auto-queue
+3. **Reorder**: Up/Down arrows or drag handles
+4. **Execute**: "Execute All" processes queue, generates combined prompt, clears queue
+
+### Visual States
+
+- **Empty Queue**: Collapsed, shows "No attacks queued"
+- **Has Attacks**: Expanded, shows list with reorder controls
+- **Executing**: Brief loading state, then shows DiceRollModal with combined results
 
 ---
 
-## Implementation Checklist
+## Integration Points
 
-### Phase 1: Core Detection
-- [ ] Add helper functions to `enemies.ts`
-  - [ ] `isPlayerEntry()`
-  - [ ] `cleanEnemyName()`
-  - [ ] `removeInstanceNumber()`
-  - [ ] `isValidEnemyName()`
-  - [ ] `deduplicateEnemies()`
-- [ ] Add detection functions
-  - [ ] `parseInitiativeOrderEnemies()`
-  - [ ] `parseDamageEventEnemies()`
-  - [ ] `parseTurnReferenceEnemies()`
-  - [ ] `parseCombatActionEnemies()`
-- [ ] Update main export `detectEnemies()`
-- [ ] Maintain backward compatibility with `parseEnemyMatches()`
+### Combat Log
+Each executed attack in the queue gets its own combat log entry with target information.
 
-### Phase 2: Integration & Testing
-- [ ] Update `parser.ts` to pass `playerName` option
-- [ ] Create comprehensive test suite
-  - [ ] Initiative order tests
-  - [ ] Damage event tests
-  - [ ] Turn reference tests
-  - [ ] Combat action tests
-  - [ ] Unicode support tests
-  - [ ] Deduplication tests
-  - [ ] False positive tests
-  - [ ] Edge case tests
-- [ ] Run tests and fix any issues
-- [ ] Update documentation
+### Turn Summary
+Queue execution adds all attacks to turn summary at once.
+
+### Action Economy
+Queue execution respects action economy:
+- First attack uses Action
+- Offhand attacks use Bonus Action
+- System warns if queue exceeds available actions
 
 ---
 
-## Risk Mitigation
+## Settings Option
 
-1. **Backward Compatibility**: Keep existing function signatures intact
-2. **Minimal Changes**: Only modify one main file (`enemies.ts`)
-3. **Incremental Testing**: Test each detection function independently
-4. **Fallback**: Original patterns remain as fallback if new ones fail
-5. **Opt-in Enhancement**: Player name filtering is optional
+Add toggle in Combat Settings:
+- **"Enable Attack Queue"**: Default ON
+- When OFF, weapons work as they do today (immediate execution)
 
 ---
 
-## Expected Improvements
+## Implementation Phases
 
-After implementation, the parser will correctly detect:
+### Phase 1: Core Infrastructure
+1. Create `attackQueue.ts` types
+2. Create `use-attack-queue.ts` hook
+3. Create `TargetSelector.tsx` component
 
-✅ Enemies in initiative order blocks  
-✅ Enemies from damage events  
-✅ Enemies from turn references  
-✅ Enemies with instance numbers (#1, #2, etc.)  
-✅ Unicode character names (Greek, Cyrillic, etc.)  
-✅ Filtered player references  
-✅ Deduplicated enemy instances  
+### Phase 2: Queue UI
+1. Create `AttackQueuePanel.tsx`
+2. Modify `MobileWeaponCard.tsx` to support queueing
 
-**Detection Rate**: Expected to increase from ~60% to ~95% in typical AI DM logs.
+### Phase 3: Integration
+1. Integrate into `MobileCombatLayout.tsx`
+2. Create `attackQueuePrompts.ts` for multi-attack prompts
+3. Wire up combat log and turn summary
+
+### Phase 4: Polish
+1. Add animations for queue add/remove
+2. Add action economy validation
+3. Add settings toggle
+4. Test end-to-end on mobile
+
+---
+
+## Edge Cases
+
+1. **Enemy Defeated Mid-Queue**: If a target is defeated, remaining attacks on that target show warning but still execute (AI DM can narrate the overkill or miss)
+
+2. **No Enemies Tracked**: Queue still works, attacks have no assigned target (uses generic "the enemy" in prompts)
+
+3. **Queue Limit**: Max 10 attacks in queue to prevent UI overflow
+
+4. **Session Persistence**: Queue persists to localStorage so refreshing doesn't lose queued attacks
+
+---
+
+## Backward Compatibility
+
+- Existing immediate-attack flow remains available
+- Users can toggle between "Queue Mode" and "Immediate Mode"
+- Default behavior can be set in Combat Settings
+
+---
+
+## Testing Criteria
+
+1. Queue multiple attacks on same enemy - verify prompt shows all attacks
+2. Queue attacks on different enemies - verify ordering reflected in prompt
+3. Reorder attacks - verify prompt order matches
+4. Execute queue - verify combat log entries, turn summary updates
+5. Test on mobile viewport - verify touch targets are accessible
+6. Test with no enemies tracked - verify graceful fallback
+7. Test action economy warnings when over-queueing
