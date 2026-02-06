@@ -31,7 +31,9 @@ export function generateRPPrompt(
 ): string {
   const tierEffect = ability.tierEffects.find(e => e.tier === tier)?.description || '';
   const isHighRoll = roll.total >= (roll.count * parseInt(roll.die.slice(1)) * 0.7);
-  const isCritical = roll.rolls.includes(parseInt(roll.die.slice(1)));
+  // For ability dice (d6/d8/d10), max roll on ANY die = crit, ALL 1s = fumble
+  const maxDieValue = parseInt(roll.die.slice(1));
+  const isCritical = roll.rolls.some(r => r === maxDieValue);
   const isFumble = roll.rolls.every(r => r === 1);
   
   const rollQuality = isCritical ? 'CRITICAL SUCCESS' : isFumble ? 'CRITICAL FAILURE' : isHighRoll ? 'Strong Success' : 'Standard Result';
