@@ -850,8 +850,8 @@ export function MobileCombatLayout({
   };
   
   return (
-    <div className="min-h-screen bg-background">
-      {/* Top Bar with HP and Stats */}
+    <div className="fixed inset-0 flex flex-col bg-background z-40">
+      {/* Top Bar with HP and Stats - Fixed */}
       <CombatTopBar
         round={initiativeTracker.combatStarted ? initiativeTracker.roundNumber : round}
         isYourTurn={initiativeTracker.combatStarted ? initiativeTracker.isPlayerTurn : isYourTurn}
@@ -866,8 +866,8 @@ export function MobileCombatLayout({
         attackBonus={combatStats.attackBonus}
       />
       
-      {/* Main Content Area */}
-      <main className="pt-[88px]">
+      {/* Main Content Area - Fills remaining space */}
+      <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
         
         {/* Situation Strip */}
         <SituationStrip
@@ -954,17 +954,18 @@ export function MobileCombatLayout({
           }}
         />
         
-        {/* Tab Content - Swipeable */}
+        {/* Tab Content - Swipeable with proper padding for bottom nav */}
         <div 
           {...swipeHandlers}
-          className="overflow-auto touch-pan-y"
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y pb-20"
           style={{ 
             touchAction: 'pan-y pinch-zoom',
+            WebkitOverflowScrolling: 'touch',
           }}
         >
           <div 
             className={cn(
-              "transition-transform duration-300 ease-out",
+              "transition-transform duration-300 ease-out px-2",
               slideDirection === 'left' && "animate-slide-in-from-right",
               slideDirection === 'right' && "animate-slide-in-from-left"
             )}
@@ -978,18 +979,20 @@ export function MobileCombatLayout({
         </div>
       </main>
       
-      {/* Bottom Navigation */}
-      <CombatBottomNav
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        abilityCounts={{
-          combat: equippedWeapons.length + stealthAbilities.length,
-          actions: specialAbilities.length + unlockedAbilities.filter(a => a.actionType === 'reaction').length,
-          spells: spellcasting?.state.preparedSpells.length ?? 0,
-          items: 4,
-          log: combatLog.entryCount,
-        }}
-      />
+      {/* Bottom Navigation - Fixed at bottom */}
+      <div className="shrink-0 safe-area-bottom">
+        <CombatBottomNav
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          abilityCounts={{
+            combat: equippedWeapons.length + stealthAbilities.length,
+            actions: specialAbilities.length + unlockedAbilities.filter(a => a.actionType === 'reaction').length,
+            spells: spellcasting?.state.preparedSpells.length ?? 0,
+            items: 4,
+            log: combatLog.entryCount,
+          }}
+        />
+      </div>
       
       {/* Dice Roll Modal */}
       {diceRoll && (

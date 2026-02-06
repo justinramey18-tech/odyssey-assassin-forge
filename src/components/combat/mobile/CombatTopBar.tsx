@@ -44,7 +44,7 @@ export function CombatTopBar({
   const isDown = (currentHP ?? 1) <= 0;
   
   return (
-    <header className="fixed top-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-b border-red-900/30 z-50 safe-area-top">
+    <header className="shrink-0 bg-background/95 backdrop-blur-sm border-b border-red-900/30 safe-area-top">
       {/* Main row */}
       <div className="flex items-center justify-between h-14 px-3">
         {/* Left: Menu */}
