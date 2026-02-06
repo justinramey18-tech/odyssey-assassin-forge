@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
-import { Cloud, Download, Upload, Trash2, Loader2, LogIn, LogOut, Check, AlertCircle, Plus, Edit2, User, Sparkles } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Cloud, Download, Upload, Trash2, Loader2, LogIn, LogOut, Check, AlertCircle, Plus, Edit2, User, Sparkles, Package, Coins, Wand2, Shield, Heart, Swords } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/hooks/use-auth';
 import { useCloudSave, CloudSave } from '@/hooks/use-cloud-save';
 import { SaveData } from '@/hooks/use-auto-save';
@@ -18,6 +19,19 @@ interface CloudSaveModalProps {
   onOpenChange: (open: boolean) => void;
   currentData: Omit<SaveData, 'savedAt' | 'version'>;
   onLoadSave: (data: SaveData) => void;
+}
+
+interface SaveSummary {
+  level: number;
+  gold: number;
+  spellsKnown: number;
+  activeSpells: number;
+  conditions: number;
+  lootItems: number;
+  consumables: number;
+  achievements: number;
+  proficiencies: number;
+  hasInspiration: boolean;
 }
 
 type ModalView = 'list' | 'save-new' | 'rename';
@@ -43,6 +57,22 @@ export function CloudSaveModal({ open, onOpenChange, currentData, onLoadSave }: 
       setSelectedSave(null);
     }
   }, [open, isAuthenticated, fetchSaves]);
+
+  // Calculate save summary from currentData
+  const saveSummary = useMemo((): SaveSummary => {
+    return {
+      level: currentData.character?.level ?? 1,
+      gold: currentData.shopGold ?? 0,
+      spellsKnown: currentData.spellcasting?.knownSpells?.length ?? 0,
+      activeSpells: currentData.activeSpells?.length ?? 0,
+      conditions: currentData.conditions?.conditions?.length ?? 0,
+      lootItems: currentData.loot?.items?.length ?? 0,
+      consumables: currentData.consumables?.reduce((sum, c) => sum + c.quantity, 0) ?? 0,
+      achievements: currentData.achievements?.filter(a => (a.claimedMilestones?.length ?? 0) > 0)?.length ?? 0,
+      proficiencies: (currentData.proficiencies?.skills?.length ?? 0) + (currentData.proficiencies?.saves?.length ?? 0),
+      hasInspiration: currentData.inspiration ?? false,
+    };
+  }, [currentData]);
 
   const handleSaveNew = async () => {
     const name = newSaveName.trim() || `${currentData.character.name || 'Character'} - ${new Date().toLocaleDateString()}`;
@@ -213,6 +243,83 @@ export function CloudSaveModal({ open, onOpenChange, currentData, onLoadSave }: 
                   onChange={(e) => setNewSaveName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSaveNew()}
                 />
+
+                {/* Save Summary */}
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/50 space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                    <Package className="w-3 h-3" />
+                    Data to be saved:
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                    <TooltipProvider delayDuration={200}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center gap-1.5">
+                            <Coins className="w-3 h-3 text-primary" />
+                            <span>{saveSummary.gold.toLocaleString()} gold</span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">Shop gold balance</TooltipContent>
+                      </Tooltip>
+                      
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center gap-1.5">
+                            <Wand2 className="w-3 h-3 text-accent" />
+                            <span>{saveSummary.spellsKnown} spells</span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">Known spells in spellbook</TooltipContent>
+                      </Tooltip>
+                      
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center gap-1.5">
+                            <Package className="w-3 h-3 text-secondary-foreground" />
+                            <span>{saveSummary.lootItems} loot items</span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">Items in loot inventory</TooltipContent>
+                      </Tooltip>
+                      
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center gap-1.5">
+                            <Heart className="w-3 h-3 text-destructive" />
+                            <span>{saveSummary.consumables} consumables</span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">Potions & consumable items</TooltipContent>
+                      </Tooltip>
+                      
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center gap-1.5">
+                            <Shield className="w-3 h-3 text-muted-foreground" />
+                            <span>{saveSummary.proficiencies} proficiencies</span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">Skill & save proficiencies</TooltipContent>
+                      </Tooltip>
+                      
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center gap-1.5">
+                            <Swords className="w-3 h-3 text-primary/80" />
+                            <span>{saveSummary.conditions} conditions</span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">Active buffs/debuffs</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  {saveSummary.hasInspiration && (
+                    <div className="flex items-center gap-1.5 text-xs text-primary">
+                      <Sparkles className="w-3 h-3" />
+                      <span>Has Inspiration</span>
+                    </div>
+                  )}
+                </div>
                 
                 <Button className="w-full gap-2" onClick={handleSaveNew} disabled={saving}>
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
@@ -393,7 +500,7 @@ export function CloudSaveModal({ open, onOpenChange, currentData, onLoadSave }: 
 
                 {/* Auto-save indicator */}
                 <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2">
-                  <Check className="w-3 h-3 text-emerald-500" />
+                  <Check className="w-3 h-3 text-secondary-foreground" />
                   Local auto-save is always active
                 </div>
               </>
