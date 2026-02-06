@@ -9,10 +9,11 @@ import { Badge } from '@/components/ui/badge';
 import { WeaponCard } from './WeaponCard';
 import { 
   DEFAULT_WEAPONS,
-  UNARMED_STRIKE,
+  getUnarmedStrike,
   WeaponAttack,
   getSneakAttackDice 
 } from '@/lib/combat/combatTypes';
+import { loadCombatSettings } from '@/lib/combat/combatSettings';
 import { rollDice, getAbilityDice, DiceRoll } from '@/lib/diceRoller';
 import { generateRPPrompt } from '@/lib/rpPromptGenerator';
 import { useAbilityCustomization } from '@/hooks/use-ability-customization';
@@ -69,9 +70,11 @@ export function AbilityTabs({
   const hasPoisonedWeapon = conditions.includes('poisonedWeapon');
   
   // Use equipped weapons from gear, fallback to defaults
-  // Always include unarmed strike as an option
+  // Always include unarmed strike as an option (with Martial Arts scaling if enabled)
+  const combatSettings = loadCombatSettings();
+  const unarmedStrike = getUnarmedStrike(character.level, combatSettings.hasMonkMartialArts);
   const equippedOrDefault = equippedWeapons && equippedWeapons.length > 0 ? equippedWeapons : DEFAULT_WEAPONS;
-  const weapons = [...equippedOrDefault, UNARMED_STRIKE];
+  const weapons = [...equippedOrDefault, unarmedStrike];
 
   // Get unlocked abilities (including homebrew)
   const unlockedAbilities = useMemo(() => {

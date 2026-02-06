@@ -88,6 +88,37 @@ export const UNARMED_STRIKE: WeaponAttack = {
   isRanged: false,
 };
 
+/**
+ * Get Monk Martial Arts die based on level.
+ * - Levels 1-4: 1d4
+ * - Levels 5-10: 1d6
+ * - Levels 11-16: 1d8
+ * - Levels 17+: 1d10
+ */
+export function getMartialArtsDie(level: number): string {
+  if (level >= 17) return '1d10';
+  if (level >= 11) return '1d8';
+  if (level >= 5) return '1d6';
+  return '1d4';
+}
+
+/**
+ * Get unarmed strike with Martial Arts scaling applied
+ */
+export function getUnarmedStrike(level: number, hasMartialArts: boolean): WeaponAttack {
+  if (!hasMartialArts) {
+    return UNARMED_STRIKE;
+  }
+  
+  return {
+    ...UNARMED_STRIKE,
+    name: 'Unarmed Strike (Martial Arts)',
+    damage: getMartialArtsDie(level),
+    properties: ['Martial Arts', 'Finesse'],
+    isFinesse: true, // Martial Arts allows DEX for unarmed strikes
+  };
+}
+
 // Default weapons for assassin
 export const DEFAULT_WEAPONS: WeaponAttack[] = [
   {
