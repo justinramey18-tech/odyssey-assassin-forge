@@ -444,6 +444,48 @@ export function CloudSaveModal({ open, onOpenChange, currentData, onLoadSave }: 
                                   )}
                                 </div>
                                 
+                                {/* Data preview - show on hover or when selected */}
+                                {save.preview && (
+                                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
+                                    {save.preview.gold !== undefined && save.preview.gold > 0 && (
+                                      <span className="flex items-center gap-0.5">
+                                        <Coins className="w-2.5 h-2.5 text-primary" />
+                                        {save.preview.gold.toLocaleString()}g
+                                      </span>
+                                    )}
+                                    {save.preview.spellsKnown !== undefined && save.preview.spellsKnown > 0 && (
+                                      <span className="flex items-center gap-0.5">
+                                        <Wand2 className="w-2.5 h-2.5 text-accent" />
+                                        {save.preview.spellsKnown} spells
+                                      </span>
+                                    )}
+                                    {save.preview.lootItems !== undefined && save.preview.lootItems > 0 && (
+                                      <span className="flex items-center gap-0.5">
+                                        <Package className="w-2.5 h-2.5 text-secondary-foreground" />
+                                        {save.preview.lootItems} loot
+                                      </span>
+                                    )}
+                                    {save.preview.consumables !== undefined && save.preview.consumables > 0 && (
+                                      <span className="flex items-center gap-0.5">
+                                        <Heart className="w-2.5 h-2.5 text-destructive" />
+                                        {save.preview.consumables}
+                                      </span>
+                                    )}
+                                    {save.preview.conditions !== undefined && save.preview.conditions > 0 && (
+                                      <span className="flex items-center gap-0.5">
+                                        <Swords className="w-2.5 h-2.5 text-primary/80" />
+                                        {save.preview.conditions}
+                                      </span>
+                                    )}
+                                    {save.preview.hasInspiration && (
+                                      <span className="flex items-center gap-0.5 text-primary">
+                                        <Sparkles className="w-2.5 h-2.5" />
+                                        Insp
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                                
                                 {selectedSave === save.id && (
                                   <div className="flex gap-1 mt-2 pt-2 border-t border-border/30">
                                     <Button 
