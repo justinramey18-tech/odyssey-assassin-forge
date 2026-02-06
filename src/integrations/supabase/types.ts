@@ -96,6 +96,7 @@ export type Database = {
           consumables_data: Json | null
           created_at: string
           equipment_data: Json | null
+          extended_data: Json | null
           id: string
           prestige_data: Json | null
           save_name: string
@@ -109,6 +110,7 @@ export type Database = {
           consumables_data?: Json | null
           created_at?: string
           equipment_data?: Json | null
+          extended_data?: Json | null
           id?: string
           prestige_data?: Json | null
           save_name?: string
@@ -122,6 +124,7 @@ export type Database = {
           consumables_data?: Json | null
           created_at?: string
           equipment_data?: Json | null
+          extended_data?: Json | null
           id?: string
           prestige_data?: Json | null
           save_name?: string
