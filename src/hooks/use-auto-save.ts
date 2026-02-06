@@ -9,6 +9,7 @@ import { PrestigeTreeProgress } from '@/lib/prestigeTree/types';
 import { LootState } from '@/lib/loot/types';
 import { CombatSettings } from '@/lib/combat/combatSettings';
 import { ConditionsState } from '@/lib/conditions/types';
+import { CooldownSaveState } from '@/lib/cooldowns/types';
 
 const STORAGE_KEY = 'odyssey-character-autosave';
 const DEBOUNCE_MS = 1000; // Save 1 second after last change
@@ -67,6 +68,8 @@ export interface SaveData {
   combatSettings?: CombatSettings;
   // Conditions state (buffs/debuffs/concentration)
   conditions?: ConditionsState;
+  // Cooldown state (ability timers and session)
+  cooldownState?: CooldownSaveState;
   savedAt: string;
   version: number;
 }

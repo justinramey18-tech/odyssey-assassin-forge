@@ -494,6 +494,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     const proficientSaves = JSON.parse(localStorage.getItem('odyssey-proficient-saves') || '[]');
     const expertiseSkills = JSON.parse(localStorage.getItem('odyssey-expertise-skills') || '[]');
     const combatSettings = JSON.parse(localStorage.getItem('odyssey-combat-settings') || '{}');
+    // Load cooldown state from localStorage
+    const cooldownState = JSON.parse(localStorage.getItem('odyssey-cooldown-state') || 'null');
     
     return {
       character,
@@ -545,6 +547,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         conditions: conditions.conditions,
         recentConditions: conditions.recentConditions,
       },
+      // Cooldown state (ability timers and session)
+      cooldownState: cooldownState,
     };
   }, [
     character, equipment, achievements, consumablesInventory, 
@@ -720,6 +724,12 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     if (data.conditions) {
       localStorage.setItem('odyssey-conditions-state', JSON.stringify(data.conditions));
       console.log('[CloudSave] Restored conditions:', data.conditions.conditions?.length, 'active');
+    }
+    
+    // 18. Restore cooldown state (ability timers and session)
+    if (data.cooldownState) {
+      localStorage.setItem('odyssey-cooldown-state', JSON.stringify(data.cooldownState));
+      console.log('[CloudSave] Restored cooldown state');
     }
     
     // Track when this was loaded from cloud
