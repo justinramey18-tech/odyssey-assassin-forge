@@ -9,7 +9,7 @@ import {
   calculatePendingLevelUps,
   getXPForLevel,
 } from '@/lib/xpSystem';
-import { WizardStepOne } from '@/components/character/WizardStepOne';
+import { CharacterWizard, WizardState } from '@/components/wizard';
 import { CharacterHeader } from '@/components/character/CharacterHeader';
 import { EquippedLoadout } from '@/components/character/EquippedLoadout';
 import { ActionWheelButton } from '@/components/character/ActionWheelButton';
@@ -399,24 +399,98 @@ const Index = () => {
     return map;
   }, [character.abilities]);
 
-  const handleBasicInfoComplete = (name: string, level: number, constitution: number) => {
+  const handleWizardComplete = useCallback((wizardState: WizardState) => {
+    // 1. Set character basics
     setCharacter(prev => ({
       ...prev,
-      name,
-      level,
+      name: wizardState.name,
+      level: wizardState.level,
+      // Merge starter abilities if any were selected
+      abilities: wizardState.starterAbilities.length > 0
+        ? prev.abilities.map(a => {
+            const starter = wizardState.starterAbilities.find(sa => sa.abilityId === a.abilityId);
+            return starter ? { ...a, currentTier: starter.currentTier } : a;
+          })
+        : prev.abilities,
     }));
-    // Set XP to match level
-    const xpForLevel = getXPForLevel(level, XP_PRESETS[xpPreset].multiplier);
+    
+    // 2. Set XP to match level (using the wizard's XP preset)
+    const presetMultiplier = wizardState.xpPreset === 'standard' ? 1.0 
+      : wizardState.xpPreset === 'fastTrack' ? 0.5 
+      : wizardState.xpPreset === 'epicJourney' ? 2.0 
+      : 0; // milestone
+    const xpForLevel = getXPForLevel(wizardState.level, presetMultiplier);
     setCurrentXP(xpForLevel);
     
-    // Apply the constitution score from wizard
-    abilityScores.applyScores({
-      ...abilityScores.baseScores,
-      constitution,
+    // 3. Set XP preset (map wizard preset to app preset)
+    const appXpPreset = wizardState.xpPreset === 'fastTrack' ? 'fast' 
+      : wizardState.xpPreset === 'epicJourney' ? 'slow' 
+      : wizardState.xpPreset === 'milestone' ? 'milestone' 
+      : 'standard';
+    setXPPreset(appXpPreset as XPPreset);
+    
+    // 4. Apply all ability scores from wizard
+    abilityScores.applyScores(wizardState.abilityScores);
+    
+    // 5. Save game mode settings
+    localStorage.setItem('odyssey-game-mode', JSON.stringify({
+      mode: wizardState.gameMode,
+      honestModeRules: wizardState.honestModeRules,
+    }));
+    
+    // 6. Save dice odds mode
+    localStorage.setItem('odyssey-dice-odds-mode', wizardState.diceOddsMode);
+    
+    // 7. Apply magic path if selected
+    if (wizardState.selectedPath) {
+      spellcasting.selectPath(wizardState.selectedPath);
+    }
+    
+    // 8. Apply equipment if preset was selected
+    if (wizardState.equipment && wizardState.selectedPresetId) {
+      setEquipment(wizardState.equipment);
+    }
+    
+    // 9. Clear wizard progress from localStorage
+    localStorage.removeItem('odyssey-wizard-progress');
+    
+    // 10. Show success toast
+    toast({
+      title: `⚔️ ${wizardState.name} Created!`,
+      description: `Level ${wizardState.level} Assassin ready for adventure.`,
+      className: 'border-primary bg-primary/10',
     });
     
     setShowWizard(false);
-  };
+  }, [abilityScores, spellcasting, toast]);
+  
+  // Quick start handler - bypasses full wizard with defaults
+  const handleQuickStart = useCallback((wizardState: WizardState) => {
+    // Same as complete but simplified - user only entered name
+    setCharacter(prev => ({
+      ...prev,
+      name: wizardState.name,
+      level: wizardState.level,
+    }));
+    
+    // Apply quick start ability scores
+    abilityScores.applyScores(wizardState.abilityScores);
+    
+    // Set default XP
+    setCurrentXP(0);
+    setXPPreset('standard');
+    
+    // Clear wizard progress
+    localStorage.removeItem('odyssey-wizard-progress');
+    
+    toast({
+      title: `⚔️ ${wizardState.name} Created!`,
+      description: "Quick Start character ready. Customize in the builder.",
+      className: 'border-primary bg-primary/10',
+    });
+    
+    setShowWizard(false);
+  }, [abilityScores, toast]);
 
   const handleAddXP = (amount: number, source: string) => {
     const multiplier = XP_PRESETS[xpPreset].multiplier;
@@ -998,13 +1072,11 @@ const Index = () => {
   // Show wizard on first load
   if (showWizard) {
     return (
-      <div className="min-h-screen bg-background">
-        <WizardStepOne
-          initialName={character.name}
-          initialLevel={character.level}
-          onComplete={handleBasicInfoComplete}
-        />
-      </div>
+      <CharacterWizard
+        onComplete={handleWizardComplete}
+        onQuickStart={handleQuickStart}
+        onLoadCloud={() => setShowCloudSaveModal(true)}
+      />
     );
   }
 
