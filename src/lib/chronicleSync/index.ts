@@ -19,6 +19,7 @@ export {
   parseInitiativeMatches,
   parseInspirationMatches,
   parseEnemyMatches,
+  detectEnemies,
   parseAllEnemyUpdates,
   parseEnhancedPatterns as parseAllEnhancedPatterns,
   countActiveEnemies,
