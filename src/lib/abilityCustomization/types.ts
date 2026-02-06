@@ -36,6 +36,28 @@ export interface AbilityOverride {
 }
 
 /**
+ * Attack type for homebrew abilities - determines which weapon is used in AI prompts
+ */
+export type HomebrewAttackType = 
+  | 'none'           // No weapon involved (default)
+  | 'unarmed'        // Unarmed strike
+  | 'primary'        // Primary weapon slot
+  | 'secondary'      // Secondary weapon slot
+  | 'ranged'         // Ranged weapon slot
+  | 'any_melee'      // Any melee weapon
+  | 'any_weapon';    // Any equipped weapon
+
+export const ATTACK_TYPE_OPTIONS: { value: HomebrewAttackType; label: string; description: string }[] = [
+  { value: 'none', label: 'None', description: 'No weapon involved' },
+  { value: 'unarmed', label: 'Unarmed', description: 'Unarmed strike or natural weapons' },
+  { value: 'primary', label: 'Primary Weapon', description: 'Uses equipped primary weapon' },
+  { value: 'secondary', label: 'Secondary Weapon', description: 'Uses equipped secondary weapon' },
+  { value: 'ranged', label: 'Ranged Weapon', description: 'Uses equipped ranged weapon' },
+  { value: 'any_melee', label: 'Any Melee', description: 'Uses any melee weapon' },
+  { value: 'any_weapon', label: 'Any Weapon', description: 'Uses any equipped weapon' },
+];
+
+/**
  * Fully custom homebrew ability created by the player
  */
 export interface HomebrewAbility {
@@ -47,6 +69,8 @@ export interface HomebrewAbility {
   actionType: ActionType;
   usageType: UsageType;
   tierEffects: TierEffect[];
+  // Attack type for AI prompt context
+  attackType?: HomebrewAttackType;
   // Dice for active abilities
   dice?: {
     tier1?: { count: number; die: number };

@@ -2,7 +2,7 @@
 // Merges custom overrides with base abilities
 
 import { Ability, TierEffect } from '@/lib/types';
-import { AbilityOverride, HomebrewAbility, AbilityCustomizationState } from './types';
+import { AbilityOverride, HomebrewAbility, AbilityCustomizationState, HomebrewAttackType } from './types';
 
 /**
  * Apply custom overrides to a base ability
@@ -67,7 +67,7 @@ export function applyOverrides(
  */
 export function homebrewToAbility(
   homebrew: HomebrewAbility
-): Ability & { isHomebrew: true; customDice?: HomebrewAbility['dice']; customCooldownMinutes: number } {
+): Ability & { isHomebrew: true; customDice?: HomebrewAbility['dice']; customCooldownMinutes: number; attackType?: HomebrewAttackType } {
   return {
     id: homebrew.id,
     name: homebrew.name,
@@ -82,6 +82,7 @@ export function homebrewToAbility(
     isHomebrew: true,
     customDice: homebrew.dice,
     customCooldownMinutes: homebrew.cooldownMinutes,
+    attackType: homebrew.attackType,
   };
 }
 
