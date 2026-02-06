@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { getAbilityPointsForLevel } from '@/lib/types';
-import { Skull, User, Shield, Swords, Crosshair, Ghost, Flame, Zap, Moon, Sun, Star, Crown } from 'lucide-react';
+import { Skull, User, Shield, Swords, Crosshair, Ghost, Flame, Zap, Moon, Sun, Star, Crown, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import wizardBackground from '@/assets/wizard-background.jpg';
 import { WizardState, PortraitIcon, PORTRAIT_ICONS } from '../types';
@@ -29,24 +30,32 @@ const ICON_COMPONENTS: Record<PortraitIcon, React.ComponentType<{ className?: st
   Crown,
 };
 
+// Name validation regex
+const NAME_REGEX = /^[a-zA-Z][a-zA-Z0-9\s'-]*$/;
+
 export function IdentityStep({ state, onUpdate }: IdentityStepProps) {
-  const [nameError, setNameError] = useState<string | null>(null);
+  const [touched, setTouched] = useState(false);
   
   const abilityPoints = getAbilityPointsForLevel(state.level);
 
+  // Real-time validation
+  const nameError = useMemo(() => {
+    const trimmed = state.name.trim();
+    if (!touched && trimmed.length === 0) return null; // Don't show error before user interacts
+    if (trimmed.length === 0) return 'Character name is required';
+    if (trimmed.length < 2) return 'Name must be at least 2 characters';
+    if (trimmed.length > 30) return 'Name must be 30 characters or less';
+    if (!NAME_REGEX.test(trimmed)) return 'Name must start with a letter and can only contain letters, numbers, spaces, apostrophes, and hyphens';
+    return null;
+  }, [state.name, touched]);
+
   const handleNameChange = (value: string) => {
-    // Validate name (2-30 chars, alphanumeric + apostrophe/hyphen/space)
-    const trimmed = value.trim();
-    if (trimmed.length > 0 && trimmed.length < 2) {
-      setNameError('Name must be at least 2 characters');
-    } else if (trimmed.length > 30) {
-      setNameError('Name must be 30 characters or less');
-    } else if (trimmed && !/^[a-zA-Z][a-zA-Z0-9\s'-]*$/.test(trimmed)) {
-      setNameError('Name can only contain letters, numbers, spaces, apostrophes, and hyphens');
-    } else {
-      setNameError(null);
-    }
+    if (!touched) setTouched(true);
     onUpdate({ name: value });
+  };
+
+  const handleNameBlur = () => {
+    setTouched(true);
   };
 
   return (
@@ -88,16 +97,27 @@ export function IdentityStep({ state, onUpdate }: IdentityStepProps) {
               type="text"
               value={state.name}
               onChange={(e) => handleNameChange(e.target.value)}
+              onBlur={handleNameBlur}
               placeholder="Enter your assassin's name..."
               className={cn(
                 "bg-background/50 border-border focus:border-primary font-body",
-                nameError && "border-destructive focus:border-destructive"
+                nameError && touched && "border-destructive focus:border-destructive"
               )}
               maxLength={30}
             />
-            {nameError && (
-              <p className="text-xs text-destructive">{nameError}</p>
-            )}
+            <AnimatePresence mode="wait">
+              {nameError && touched && (
+                <motion.p
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -5 }}
+                  className="text-xs text-destructive flex items-center gap-1 mt-1"
+                >
+                  <AlertCircle className="w-3 h-3" />
+                  {nameError}
+                </motion.p>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Level Slider */}
