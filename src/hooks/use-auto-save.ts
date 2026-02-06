@@ -29,6 +29,15 @@ export interface SaveData {
     wisdom: number;
     charisma: number;
   };
+  hpState?: {
+    current: number;
+    max: number;
+    temp: number;
+  };
+  deathSaves?: {
+    successes: number;
+    failures: number;
+  };
   savedAt: string;
   version: number;
 }
