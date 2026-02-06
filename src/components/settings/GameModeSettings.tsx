@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, Infinity, Info, Clock, Swords } from 'lucide-react';
+import { Shield, Infinity, Info, Clock, Swords, Bell } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
@@ -313,6 +313,46 @@ export function GameModeSettings({ settings, onChange }: GameModeSettingsProps) 
               checked={fourthWallTime}
               onCheckedChange={handleFourthWallTimeToggle}
               className="data-[state=checked]:bg-cyan-500"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Notifications Section */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Bell className="w-4 h-4 text-purple-400" />
+          <span className="text-sm font-medium text-purple-400">Notifications</span>
+        </div>
+        
+        <div
+          className={cn(
+            'p-3 rounded-lg border transition-all',
+            combatSettings.showRoundNotifications
+              ? 'border-purple-500/50 bg-purple-500/5'
+              : 'border-border/30 bg-card/30'
+          )}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <Label
+                htmlFor="round-notifications"
+                className={cn(
+                  'text-sm font-medium cursor-pointer',
+                  combatSettings.showRoundNotifications ? 'text-purple-400' : 'text-foreground'
+                )}
+              >
+                Round Advance Notifications
+              </Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Show toast notifications when combat rounds advance. Disable if you find them distracting.
+              </p>
+            </div>
+            <Switch
+              id="round-notifications"
+              checked={combatSettings.showRoundNotifications !== false}
+              onCheckedChange={(checked) => handleCombatSettingToggle('showRoundNotifications', checked)}
+              className="data-[state=checked]:bg-purple-500"
             />
           </div>
         </div>

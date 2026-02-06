@@ -227,6 +227,14 @@ const Index = () => {
       console.log(`[Initiative] Round ${newRound} started - ticking conditions`);
       const result = conditionsEndTurnRef.current();
       
+      // Check if round notifications are enabled
+      const combatSettings = JSON.parse(localStorage.getItem('odyssey-combat-settings') || '{}');
+      const showNotifications = combatSettings.showRoundNotifications !== false; // Default to true
+      
+      if (!showNotifications) {
+        return; // Skip notifications if disabled
+      }
+      
       // Show round advance toast with condition changes
       if (result && (result.expired.length > 0 || result.tickedDown.length > 0)) {
         const parts: string[] = [];
