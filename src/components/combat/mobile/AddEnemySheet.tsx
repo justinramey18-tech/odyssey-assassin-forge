@@ -122,8 +122,8 @@ export function AddEnemySheet({
 
   const canAddMore = currentEnemyCount < maxEnemies;
 
-  // Common damage types for quick toggle
-  const COMMON_DAMAGE_TYPES: DamageType[] = ['fire', 'cold', 'lightning', 'poison', 'necrotic', 'radiant'];
+  // All damage types for selection
+  const ALL_DAMAGE_TYPES = DAMAGE_TYPES;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -311,7 +311,7 @@ export function AddEnemySheet({
                       Resistances
                     </label>
                     <div className="flex flex-wrap gap-1">
-                      {COMMON_DAMAGE_TYPES.map(type => {
+                    {ALL_DAMAGE_TYPES.map(type => {
                         const isActive = resistances.includes(type);
                         const info = DAMAGE_TYPE_LABELS[type];
                         return (
@@ -339,7 +339,7 @@ export function AddEnemySheet({
                       Vulnerabilities
                     </label>
                     <div className="flex flex-wrap gap-1">
-                      {COMMON_DAMAGE_TYPES.map(type => {
+                    {ALL_DAMAGE_TYPES.map(type => {
                         const isActive = vulnerabilities.includes(type);
                         const info = DAMAGE_TYPE_LABELS[type];
                         return (
@@ -366,7 +366,7 @@ export function AddEnemySheet({
                       Immunities
                     </label>
                     <div className="flex flex-wrap gap-1">
-                      {COMMON_DAMAGE_TYPES.map(type => {
+                      {ALL_DAMAGE_TYPES.map(type => {
                         const isActive = immunities.includes(type);
                         const info = DAMAGE_TYPE_LABELS[type];
                         return (
