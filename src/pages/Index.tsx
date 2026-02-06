@@ -1540,11 +1540,16 @@ const Index = () => {
               currentHP={hpState.current}
               maxHP={hpState.max}
               activeConditions={[]}
+              deathSaves={deathSaves}
               onApplyChanges={handleApplyChronicleChanges}
               onApplyGold={handleChronicleGold}
               onApplyHP={handleChronicleHP}
               onApplyConditions={handleChronicleConditions}
               onApplyRest={handleChronicleRest}
+              onApplyDeathSaves={handleDeathSavesChange}
+              onRegainHP={(amount) => {
+                handleHPChange(Math.min(hpState.current + amount, hpState.max), hpState.max, hpState.temp);
+              }}
               existingEnemies={targets.enemies}
               onAddEnemies={targets.importEnemies}
               onUpdateEnemy={targets.updateEnemy}

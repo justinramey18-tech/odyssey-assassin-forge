@@ -117,6 +117,7 @@ export interface AutoApplyConfig {
   hp: boolean;
   conditions: boolean;
   restRecovery: boolean;
+  deathSaves: boolean;
 }
 
 export interface AutoApplyResult {
