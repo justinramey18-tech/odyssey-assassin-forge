@@ -6,9 +6,10 @@ import { cn } from '@/lib/utils';
 import { Plus, Minus, Lock, Info, HelpCircle, Target, Crosshair, Eye, Sparkles, CloudRain, Award, Radar, Undo2, Flame, ShieldOff, Megaphone, Zap, Swords, Sword, Shield, Heart, Skull, Footprints, Droplets, EyeOff, Ghost, Moon, FlaskConical, Brain, Dices } from 'lucide-react';
 import { AbilityDetailModal } from './AbilityDetailModal';
 import { DiceRollModal } from './DiceRollModal';
-import { rollDice, getAbilityDice, DiceRoll } from '@/lib/diceRoller';
+import { rollDice, getAbilityDice, DiceRoll, DieType } from '@/lib/diceRoller';
 import { generateRPPrompt } from '@/lib/rpPromptGenerator';
 import { useGameMode } from '@/hooks/use-game-mode';
+import { AbilityOverride } from '@/lib/abilityCustomization/types';
 
 // Icon map for dynamic icon rendering
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -18,8 +19,15 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   HelpCircle,
 };
 
+// Extended ability type with customization fields
+type CustomizedAbility = Ability & {
+  customDice?: AbilityOverride['customDice'];
+  isCustomized?: boolean;
+  isHomebrew?: boolean;
+};
+
 interface AbilityCardProps {
-  ability: Ability;
+  ability: CustomizedAbility;
   currentTier: 0 | 1 | 2 | 3;
   canUpgrade: boolean;
   characterLevel: number;
@@ -96,9 +104,23 @@ export function AbilityCard({
     }
   };
 
+  // Get dice for ability, using custom dice if available
+  const getDiceForTier = (tier: 1 | 2 | 3): { die: DieType; count: number } => {
+    const customDice = ability.customDice;
+    if (customDice) {
+      const tierKey = `tier${tier}` as 'tier1' | 'tier2' | 'tier3';
+      const custom = customDice[tierKey];
+      if (custom) {
+        return { die: `d${custom.die}` as DieType, count: custom.count };
+      }
+    }
+    // Fall back to default dice
+    return getAbilityDice(tier);
+  };
+
   const performDiceRoll = () => {
     const tier = currentTier as 1 | 2 | 3;
-    const { die, count } = getAbilityDice(tier);
+    const { die, count } = getDiceForTier(tier);
     const roll = rollDice(die, count);
     const prompt = generateRPPrompt(ability, tier, roll, characterName);
     
@@ -109,7 +131,7 @@ export function AbilityCard({
 
   const handleReroll = () => {
     const tier = currentTier as 1 | 2 | 3;
-    const { die, count } = getAbilityDice(tier);
+    const { die, count } = getDiceForTier(tier);
     const roll = rollDice(die, count);
     const prompt = generateRPPrompt(ability, tier, roll, characterName);
     
