@@ -4,7 +4,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { 
   Zap, Coins, Heart, AlertCircle, Moon, Skull, Sparkles, Shield, Star,
-  Check, X, ChevronDown, Settings2, Swords
+  Check, X, ChevronDown, Settings2, Swords, RotateCw
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -49,6 +49,7 @@ interface AutoApplyPanelProps {
     tempHPGains: ParsedTempHP[];
     inspirationEvents: ParsedInspiration[];
     initiativeRolls?: InitiativeMatch[];
+    combatRounds?: { roundNumber: number; sourceText: string }[];
   };
   currentGold: number;
   currentHP: number;
@@ -60,6 +61,7 @@ interface AutoApplyPanelProps {
   spellSlots?: SpellSlotState;
   // Initiative state
   playerInitiative?: number | null;
+  currentRound?: number;
   enemies?: Enemy[];
   onApplyGold: (netChange: number) => void;
   onApplyHP: (change: number, type: 'damage' | 'healing') => void;
@@ -72,6 +74,7 @@ interface AutoApplyPanelProps {
   onApplyInspiration?: (hasInspiration: boolean) => void;
   onApplyPlayerInitiative?: (value: number) => void;
   onApplyEnemyInitiative?: (enemyId: string, value: number) => void;
+  onApplyRoundNumber?: (round: number) => void;
 }
 
 // Load/save config from localStorage
@@ -80,7 +83,7 @@ function loadConfig(): AutoApplyConfig {
     const stored = localStorage.getItem(CHRONICLE_AUTO_APPLY_KEY);
     if (stored) return JSON.parse(stored);
   } catch {}
-  return { gold: true, hp: true, conditions: true, restRecovery: true, deathSaves: true, spellSlots: true, tempHP: true, inspiration: true, initiative: true };
+  return { gold: true, hp: true, conditions: true, restRecovery: true, deathSaves: true, spellSlots: true, tempHP: true, inspiration: true, initiative: true, round: true };
 }
 
 function saveConfig(config: AutoApplyConfig) {
@@ -162,6 +165,7 @@ export function AutoApplyPanel({
   deathSaves,
   spellSlots,
   playerInitiative,
+  currentRound = 1,
   enemies = [],
   onApplyGold,
   onApplyHP,
@@ -174,6 +178,7 @@ export function AutoApplyPanel({
   onApplyInspiration,
   onApplyPlayerInitiative,
   onApplyEnemyInitiative,
+  onApplyRoundNumber,
 }: AutoApplyPanelProps) {
   const [config, setConfig] = useState<AutoApplyConfig>(loadConfig);
   const [isOpen, setIsOpen] = useState(false); // Start collapsed to show preview
@@ -259,6 +264,13 @@ export function AutoApplyPanel({
     const hasInitiativeChanges = initiativeToApply.playerInitiative !== null || 
       initiativeToApply.enemyInitiatives.length > 0;
 
+    // Combat round detection - get the highest round mentioned
+    const combatRounds = enhancedResults?.combatRounds || [];
+    const highestRound = combatRounds.length > 0
+      ? Math.max(...combatRounds.map(r => r.roundNumber))
+      : 0;
+    const hasRoundChange = highestRound > 0 && highestRound !== currentRound;
+
     return {
       netGold,
       goldGained,
@@ -285,13 +297,16 @@ export function AutoApplyPanel({
       inspirationFinalState,
       initiativeToApply,
       hasInitiativeChanges,
+      combatRounds,
+      highestRound,
+      hasRoundChange,
       hasAnyChanges: netGold !== 0 || damage > 0 || healing > 0 || 
         conditionsToAdd.length > 0 || conditionsToRemove.length > 0 ||
         shortRests > 0 || longRests > 0 || detectedDeathSaves.length > 0 ||
         totalSlotsUsed > 0 || maxTempHPDetected > 0 || inspirationEvents.length > 0 ||
-        hasInitiativeChanges,
+        hasInitiativeChanges || hasRoundChange,
     };
-  }, [parseResult, enhancedResults, activeConditions, currentInspiration, enemies, playerInitiative]);
+  }, [parseResult, enhancedResults, activeConditions, currentInspiration, enemies, playerInitiative, currentRound]);
 
   // Update config
   const updateConfig = useCallback((key: keyof AutoApplyConfig, value: boolean) => {
@@ -392,6 +407,12 @@ export function AutoApplyPanel({
     setApplied(prev => ({ ...prev, initiative: true }));
   }, [pendingChanges.hasInitiativeChanges, pendingChanges.initiativeToApply, onApplyPlayerInitiative, onApplyEnemyInitiative]);
 
+  const handleApplyRound = useCallback(() => {
+    if (!onApplyRoundNumber || !pendingChanges.hasRoundChange) return;
+    onApplyRoundNumber(pendingChanges.highestRound);
+    setApplied(prev => ({ ...prev, round: true }));
+  }, [pendingChanges.hasRoundChange, pendingChanges.highestRound, onApplyRoundNumber]);
+
   // Apply all enabled
   const handleApplyAll = useCallback(() => {
     if (config.gold && pendingChanges.netGold !== 0 && !applied.gold) {
@@ -426,7 +447,11 @@ export function AutoApplyPanel({
     if (config.initiative && pendingChanges.hasInitiativeChanges && !applied.initiative && (onApplyPlayerInitiative || onApplyEnemyInitiative)) {
       handleApplyInitiative();
     }
-  }, [config, pendingChanges, applied, handleApplyGold, handleApplyHP, handleApplyConditions, handleApplyRest, handleApplyDeathSaves, handleApplySpellSlots, handleApplyTempHP, handleApplyInspiration, handleApplyInitiative, onApplyDeathSaves, onApplySpellSlots, onApplyTempHP, onApplyInspiration, onApplyPlayerInitiative, onApplyEnemyInitiative]);
+    // Combat round
+    if (pendingChanges.hasRoundChange && !applied.round && onApplyRoundNumber) {
+      handleApplyRound();
+    }
+  }, [config, pendingChanges, applied, handleApplyGold, handleApplyHP, handleApplyConditions, handleApplyRest, handleApplyDeathSaves, handleApplySpellSlots, handleApplyTempHP, handleApplyInspiration, handleApplyInitiative, handleApplyRound, onApplyDeathSaves, onApplySpellSlots, onApplyTempHP, onApplyInspiration, onApplyPlayerInitiative, onApplyEnemyInitiative, onApplyRoundNumber]);
 
   // Build compact summary items (must be before early return)
   const summaryItems = useMemo(() => {
@@ -517,6 +542,14 @@ export function AutoApplyPanel({
         icon: <Swords className="w-3 h-3" />,
         label,
         colorClass: 'border-orange-500/30 bg-orange-500/10 text-orange-300',
+      });
+    }
+    
+    if (pendingChanges.hasRoundChange) {
+      items.push({
+        icon: <RotateCw className="w-3 h-3" />,
+        label: `Rd ${pendingChanges.highestRound}`,
+        colorClass: 'border-violet-500/30 bg-violet-500/10 text-violet-300',
       });
     }
     
@@ -788,6 +821,21 @@ export function AutoApplyPanel({
                 applied={applied.initiative}
                 onApply={handleApplyInitiative}
                 color="orange"
+              />
+            )}
+
+            {/* Combat Round */}
+            {pendingChanges.hasRoundChange && onApplyRoundNumber && (
+              <AutoApplyRow
+                icon={<RotateCw className="w-4 h-4 text-violet-400" />}
+                label="Combat Round"
+                description={`Detected round ${pendingChanges.highestRound} in session log`}
+                preview={`Rd ${currentRound} → ${pendingChanges.highestRound}`}
+                enabled={config.round}
+                onToggle={(v) => updateConfig('round', v)}
+                applied={applied.round}
+                onApply={handleApplyRound}
+                color="violet"
               />
             )}
 
