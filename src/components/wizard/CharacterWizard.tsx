@@ -7,6 +7,9 @@ import { WizardNavigation, WizardNavigationCompact } from './WizardNavigation';
 import { IdentityStep } from './steps/IdentityStep';
 import { AbilityScoresStep } from './steps/AbilityScoresStep';
 import { GameModeStep } from './steps/GameModeStep';
+import { MagicPathStep } from './steps/MagicPathStep';
+import { SkillTreePreviewStep } from './steps/SkillTreePreviewStep';
+import { EquipmentStep } from './steps/EquipmentStep';
 import { SummaryStep } from './steps/SummaryStep';
 import { WizardState, QUICK_START_DEFAULTS } from './types';
 import { Button } from '@/components/ui/button';
@@ -22,8 +25,8 @@ interface CharacterWizardProps {
 
 type WizardMode = 'choice' | 'wizard';
 
-// Total steps currently implemented (will be 7 when all steps are added)
-const IMPLEMENTED_STEPS = 4; // identity, abilityScores, gameMode, summary
+// Total steps: identity(0), abilityScores(1), gameMode(2), magicPath(3), skillTrees(4), equipment(5), summary(6)
+const IMPLEMENTED_STEPS = 7;
 
 export function CharacterWizard({ 
   onComplete, 
@@ -130,6 +133,27 @@ export function CharacterWizard({
     }
     if (updates.diceOddsMode !== undefined) {
       wizard.setDiceOdds(updates.diceOddsMode);
+    }
+  }, [wizard]);
+
+  // Magic path update handler
+  const handleMagicPathUpdate = useCallback((updates: Partial<Pick<WizardState, 'selectedPath'>>) => {
+    if (updates.selectedPath !== undefined) {
+      wizard.setMagicPath(updates.selectedPath);
+    }
+  }, [wizard]);
+
+  // Skill tree update handler (placeholder - abilities selected in-app)
+  const handleSkillTreeUpdate = useCallback((updates: Partial<Pick<WizardState, 'starterAbilities'>>) => {
+    if (updates.starterAbilities !== undefined) {
+      wizard.setStarterAbilities(updates.starterAbilities);
+    }
+  }, [wizard]);
+
+  // Equipment update handler
+  const handleEquipmentUpdate = useCallback((updates: Partial<Pick<WizardState, 'equipment' | 'selectedPresetId'>>) => {
+    if (updates.equipment !== undefined && updates.selectedPresetId !== undefined) {
+      wizard.setEquipment(updates.equipment, updates.selectedPresetId);
     }
   }, [wizard]);
 
@@ -272,6 +296,12 @@ export function CharacterWizard({
       case 2:
         return <GameModeStep state={state} onUpdate={handleGameModeUpdate} />;
       case 3:
+        return <MagicPathStep state={state} onUpdate={handleMagicPathUpdate} />;
+      case 4:
+        return <SkillTreePreviewStep state={state} onUpdate={handleSkillTreeUpdate} />;
+      case 5:
+        return <EquipmentStep state={state} onUpdate={handleEquipmentUpdate} />;
+      case 6:
         return (
           <SummaryStep 
             state={state} 
@@ -319,8 +349,8 @@ export function CharacterWizard({
         </AnimatePresence>
       </div>
 
-      {/* Navigation Footer (not shown on summary step - it has its own button) */}
-      {state.currentStep !== 3 && (
+      {/* Navigation Footer (not shown on summary step 6 - it has its own button) */}
+      {state.currentStep !== 6 && (
         <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-sm border-t border-border">
           <div className="max-w-lg mx-auto px-4 py-3">
             {isMobile ? (

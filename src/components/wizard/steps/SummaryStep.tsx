@@ -7,13 +7,15 @@ import {
   modifierToString,
 } from '@/lib/abilityScores/types';
 import { getAbilityPointsForLevel } from '@/lib/types';
-import { calculateMaxHP, getHPBreakdown } from '@/lib/hpCalculation';
-import { XP_PRESETS, WizardState, WIZARD_STEP_LABELS, WizardStep } from '../types';
+import { getHPBreakdown } from '@/lib/hpCalculation';
+import { XP_PRESETS, WizardState } from '../types';
 import { DICE_ODDS_CONFIGS } from '@/lib/diceOdds';
+import { MAGIC_PATHS } from '@/lib/magic/paths';
+import { getPresetById } from '../presets/equipment-presets';
 import { cn } from '@/lib/utils';
 import { 
   Skull, User, Shield, Swords, Crosshair, Ghost, Flame, Zap, Moon, Sun, Star, Crown,
-  Heart, Sparkles, Edit2, Infinity, CheckCircle2,
+  Heart, Sparkles, Edit2, Infinity, CheckCircle2, Wand2, Package, Target,
 } from 'lucide-react';
 import wizardBackground from '@/assets/wizard-background.jpg';
 import { PortraitIcon } from '../types';
@@ -168,30 +170,61 @@ export function SummaryStep({ state, onEditStep, onComplete }: SummaryStepProps)
             </div>
           </SummarySection>
 
-          {/* Magic Path Placeholder */}
+          {/* Magic Path */}
           <SummarySection title="Magic Path" stepIndex={3} onEdit={onEditStep}>
-            <p className="text-sm text-muted-foreground italic">
-              {state.selectedPath ? state.selectedPath : 'No magic path selected (pure martial)'}
-            </p>
+            <div className="flex items-center gap-2">
+              <Wand2 className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm text-foreground">
+                {state.selectedPath 
+                  ? MAGIC_PATHS[state.selectedPath].name 
+                  : 'No Magic (Pure Martial)'}
+              </span>
+              {state.selectedPath && (
+                <span className="text-xs text-muted-foreground px-2 py-0.5 rounded bg-muted/30">
+                  {MAGIC_PATHS[state.selectedPath].spellcastingAbility}
+                </span>
+              )}
+            </div>
           </SummarySection>
 
-          {/* Skill Trees Placeholder */}
+          {/* Skill Trees */}
           <SummarySection title="Skill Trees" stepIndex={4} onEdit={onEditStep}>
-            <p className="text-sm text-muted-foreground italic">
-              {state.starterAbilities.length > 0 
-                ? `${state.starterAbilities.length} starter abilities selected`
-                : 'No starter abilities selected (allocate in-app)'}
-            </p>
+            <div className="flex items-center gap-2">
+              <Target className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm text-foreground">
+                {state.starterAbilities.length > 0 
+                  ? `${state.starterAbilities.length} starter abilities selected`
+                  : 'Allocate points after creation'}
+              </span>
+              <span className="text-xs text-primary px-2 py-0.5 rounded bg-primary/10">
+                {abilityPoints} pts available
+              </span>
+            </div>
           </SummarySection>
 
-          {/* Equipment Placeholder */}
+          {/* Equipment */}
           <SummarySection title="Equipment" stepIndex={5} onEdit={onEditStep}>
-            <p className="text-sm text-muted-foreground italic">
-              {state.selectedPresetId 
-                ? `Preset: ${state.selectedPresetId}`
-                : 'Default equipment (customize in-app)'}
-            </p>
-          </SummarySection>
+            {(() => {
+              const preset = state.selectedPresetId ? getPresetById(state.selectedPresetId) : null;
+              return (
+                <div className="flex items-center gap-2">
+                  <Package className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-foreground">
+                    {preset ? preset.name : 'Default Equipment'}
+                  </span>
+                  {preset && preset.id !== 'custom' && (
+                    <>
+                      <span className="text-xs text-muted-foreground px-2 py-0.5 rounded bg-muted/30">
+                        AC {preset.totalAC}
+                      </span>
+                      <span className="text-xs text-muted-foreground px-2 py-0.5 rounded bg-muted/30">
+                        {preset.primaryDamage}
+                      </span>
+                    </>
+                  )}
+                </div>
+              );
+            })()}</SummarySection>
 
           {/* Begin Adventure Button */}
           <Button
