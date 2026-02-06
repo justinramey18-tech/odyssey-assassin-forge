@@ -43,6 +43,7 @@ export function AddConditionSheet({
   const [source, setSource] = useState('');
   const [saveType, setSaveType] = useState<SaveType | undefined>(undefined);
   const [saveDC, setSaveDC] = useState<number | undefined>(undefined);
+  const [spellLevel, setSpellLevel] = useState<number | undefined>(undefined);
 
   // Filter conditions by search
   const filteredDebuffs = useMemo(
@@ -70,6 +71,7 @@ export function AddConditionSheet({
         setSource('');
         setSaveType(undefined);
         setSaveDC(undefined);
+        setSpellLevel(undefined);
       }
       onOpenChange(newOpen);
     },
@@ -100,6 +102,7 @@ export function AddConditionSheet({
       source: source || undefined,
       saveType,
       saveDC,
+      spellLevel: selectedCondition.category === 'concentration' ? spellLevel : undefined,
     };
 
     const success = onAdd(input);
@@ -113,6 +116,7 @@ export function AddConditionSheet({
     source,
     saveType,
     saveDC,
+    spellLevel,
     onAdd,
     handleOpenChange,
   ]);
@@ -279,6 +283,34 @@ export function AddConditionSheet({
                   onChange={e => setSource(e.target.value)}
                 />
               </div>
+
+              {/* Spell Level - only for concentration spells */}
+              {selectedCondition.category === 'concentration' && (
+                <div className="space-y-2">
+                  <Label>Spell Slot Level (optional)</Label>
+                  <select
+                    value={spellLevel || ''}
+                    onChange={e =>
+                      setSpellLevel(parseInt(e.target.value) || undefined)
+                    }
+                    className="w-full h-10 px-3 rounded-md border bg-background"
+                  >
+                    <option value="">Not specified</option>
+                    <option value="1">1st Level</option>
+                    <option value="2">2nd Level</option>
+                    <option value="3">3rd Level</option>
+                    <option value="4">4th Level</option>
+                    <option value="5">5th Level</option>
+                    <option value="6">6th Level</option>
+                    <option value="7">7th Level</option>
+                    <option value="8">8th Level</option>
+                    <option value="9">9th Level</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    Shows in round summary when this spell ticks down
+                  </p>
+                </div>
+              )}
 
               {/* Save DC */}
               {selectedCondition.suggestedSave && (

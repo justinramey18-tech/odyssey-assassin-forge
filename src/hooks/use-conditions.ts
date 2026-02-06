@@ -229,6 +229,7 @@ export function useConditions(options: UseConditionsOptions = {}): UseConditions
       saveDC: input.saveDC,
       appliedAt: Date.now(),
       notes: input.notes,
+      spellLevel: input.spellLevel,
     };
 
     setState(prev => ({
@@ -309,7 +310,9 @@ export function useConditions(options: UseConditionsOptions = {}): UseConditions
               expiredConditions.push(c.name);
               return null; // Mark for removal
             }
-            tickedDownConditions.push(`${c.name} (${newValue})`);
+            // Include spell level for concentration spells
+            const slotInfo = c.category === 'concentration' && c.spellLevel ? ` [L${c.spellLevel}]` : '';
+            tickedDownConditions.push(`${c.name}${slotInfo} (${newValue})`);
             return { ...c, durationValue: newValue };
           }
 
@@ -322,7 +325,9 @@ export function useConditions(options: UseConditionsOptions = {}): UseConditions
                 expiredConditions.push(c.name);
                 return null; // Mark for removal
               }
-              tickedDownConditions.push(`${c.name} (${newValue}m)`);
+              // Include spell level for concentration spells
+              const slotInfo = c.category === 'concentration' && c.spellLevel ? ` [L${c.spellLevel}]` : '';
+              tickedDownConditions.push(`${c.name}${slotInfo} (${newValue}m)`);
               return { ...c, durationValue: newValue, roundsElapsed: 0 };
             }
             // Don't add to tickedDown for partial minute progress
