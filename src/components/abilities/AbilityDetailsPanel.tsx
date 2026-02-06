@@ -6,6 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import * as LucideIcons from 'lucide-react';
 import { Lock, Zap, Clock, RotateCcw, Shield, Sparkles, AlertTriangle, ImagePlus, Trash2, Pencil } from 'lucide-react';
@@ -36,6 +47,7 @@ interface AbilityDetailsPanelProps {
   onImageUpload?: (file: File) => Promise<void>;
   onImageClear?: () => void;
   onEdit?: () => void;
+  onDelete?: () => void;
   onUpgrade: () => void;
   onDowngrade: () => void;
   onEquip: (slot: number) => void;
@@ -86,6 +98,7 @@ export function AbilityDetailsPanel({
   onImageUpload,
   onImageClear,
   onEdit,
+  onDelete,
   onUpgrade,
   onDowngrade,
   onEquip,
@@ -259,6 +272,37 @@ export function AbilityDetailsPanel({
                 <Pencil className="w-4 h-4" />
                 {!isMobile && <span className="ml-1">Edit</span>}
               </Button>
+            )}
+            {ability.isHomebrew && onDelete && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="shrink-0 h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    {!isMobile && <span className="ml-1">Delete</span>}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Homebrew Ability?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete <strong>"{ability.name}"</strong>? This action cannot be undone. Any invested points will be refunded.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={onDelete}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
           </div>
           <div className="flex flex-wrap gap-2 mt-1">

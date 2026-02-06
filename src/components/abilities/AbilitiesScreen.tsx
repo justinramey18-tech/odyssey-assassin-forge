@@ -262,6 +262,16 @@ export function AbilitiesScreen({
     setSelectedAbility(null); // Deselect since it no longer exists
   }, [customization]);
 
+  // Handle delete from details panel (for homebrew abilities)
+  const handleDeleteFromDetails = useCallback(() => {
+    if (selectedAbility) {
+      const homebrew = customization.state.homebrewAbilities.find(h => h.id === selectedAbility);
+      if (homebrew) {
+        handleDeleteHomebrew(homebrew.id);
+      }
+    }
+  }, [selectedAbility, customization.state.homebrewAbilities, handleDeleteHomebrew]);
+
   // Handle create sheet close - reset editing state
   const handleCreateSheetOpenChange = useCallback((open: boolean) => {
     setCreateSheetOpen(open);
@@ -391,6 +401,7 @@ export function AbilitiesScreen({
                 onImageUpload={handleSelectedAbilityImageUpload}
                 onImageClear={handleSelectedAbilityImageClear}
                 onEdit={handleEditClick}
+                onDelete={selectedHomebrewAbility ? handleDeleteFromDetails : undefined}
                 onUpgrade={handleUpgrade}
                 onDowngrade={handleDowngrade}
                 onEquip={handleEquip}
@@ -430,6 +441,7 @@ export function AbilitiesScreen({
               onImageUpload={handleSelectedAbilityImageUpload}
               onImageClear={handleSelectedAbilityImageClear}
               onEdit={handleEditClick}
+              onDelete={selectedHomebrewAbility ? handleDeleteFromDetails : undefined}
               onUpgrade={handleUpgrade}
               onDowngrade={handleDowngrade}
               onEquip={handleEquip}
