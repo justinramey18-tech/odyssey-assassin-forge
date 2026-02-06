@@ -300,6 +300,32 @@ export function MobileCombatLayout({
     return map;
   }, [unlockedAbilities, cooldownSystem]);
   
+  // Build cooling abilities list for Action Economy bar warnings
+  const coolingAbilitiesForBar = useMemo(() => {
+    const cooling: Array<{
+      abilityId: string;
+      name: string;
+      remaining: number;
+      actionType: 'action' | 'bonus_action' | 'reaction';
+    }> = [];
+    
+    unlockedAbilities.forEach(ability => {
+      const cdState = cooldownStateMap.get(ability.id);
+      // Only include non-passive abilities that are cooling
+      const actionType = ability.actionType || 'action';
+      if (cdState?.isOnCooldown && cdState.remaining > 0 && actionType !== 'passive') {
+        cooling.push({
+          abilityId: ability.id,
+          name: ability.name,
+          remaining: cdState.remaining,
+          actionType: actionType as 'action' | 'bonus_action' | 'reaction',
+        });
+      }
+    });
+    
+    return cooling;
+  }, [unlockedAbilities, cooldownStateMap]);
+  
   // Add action to turn summary
   const handleAddToTurn = useCallback((
     actionType: 'action' | 'bonus' | 'reaction',
@@ -923,6 +949,7 @@ export function MobileCombatLayout({
           bonusCount={bonusCount}
           reactionCount={reactionCount}
           round={initiativeTracker.combatStarted ? initiativeTracker.roundNumber : round}
+          coolingAbilities={coolingAbilitiesForBar}
           onEndTurn={() => {
             // End turn: reset economy, advance to next turn in initiative
             handleResetTurn();
