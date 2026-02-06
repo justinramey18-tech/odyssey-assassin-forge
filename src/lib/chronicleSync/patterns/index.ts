@@ -12,6 +12,7 @@ export * from './checks';
 export * from './initiative';
 export * from './inspiration';
 export * from './enemies';
+export * from './enemyUpdates';
 
 // Convenience aggregate parser
 import { parseSpellSlotMatches, SpellSlotMatch } from './spellSlots';
@@ -21,6 +22,7 @@ import { parseSkillCheckMatches, parseSavingThrowMatches, SkillCheckMatch, Savin
 import { parseInitiativeMatches, InitiativeMatch } from './initiative';
 import { parseInspirationMatches, InspirationMatch } from './inspiration';
 import { parseEnemyMatches, ParsedEnemy } from './enemies';
+import { parseAllEnemyUpdates, ParsedEnemyUpdate } from './enemyUpdates';
 
 export interface EnhancedPatternResults {
   spellSlots: SpellSlotMatch[];
@@ -32,6 +34,7 @@ export interface EnhancedPatternResults {
   initiative: InitiativeMatch[];
   inspiration: InspirationMatch[];
   enemies: ParsedEnemy[];
+  enemyUpdates: ParsedEnemyUpdate[];
 }
 
 /**
@@ -49,5 +52,6 @@ export function parseEnhancedPatterns(text: string): EnhancedPatternResults {
     initiative: parseInitiativeMatches(text),
     inspiration: parseInspirationMatches(text),
     enemies: parseEnemyMatches(text),
+    enemyUpdates: parseAllEnemyUpdates(text),
   };
 }

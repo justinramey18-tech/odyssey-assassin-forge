@@ -1495,6 +1495,10 @@ const Index = () => {
               onUpdateEnemy={targets.updateEnemy}
               onClearDefeated={targets.clearDefeated}
               onRefreshEnemies={targets.refreshFromStorage}
+              onApplyEnemyDamage={targets.dealDamage}
+              onApplyEnemyHealing={targets.healEnemy}
+              onToggleEnemyCondition={targets.toggleCondition}
+              onDefeatEnemy={(id) => targets.updateEnemy(id, { currentHP: 0 })}
               onBack={() => categoryNav.navigateToSubTab('scribe')}
             />
           )}

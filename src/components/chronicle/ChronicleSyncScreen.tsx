@@ -41,8 +41,10 @@ import { DisplayOnlyAlerts } from './DisplayOnlyAlerts';
 import { AnalyticsDashboard } from './AnalyticsDashboard';
 import { AutoApplyPanel } from './AutoApplyPanel';
 import { EnemiesDetectedPanel } from './EnemiesDetectedPanel';
+import { EnemyUpdatesPanel } from './EnemyUpdatesPanel';
 import { CampaignManagerScreen } from '@/components/campaign';
-import { Enemy, NewEnemyInput } from '@/lib/combat/targetTypes';
+import { Enemy, NewEnemyInput, DamageType, EnemyCondition } from '@/lib/combat/targetTypes';
+import { parseAllEnemyUpdates, ParsedEnemyUpdate } from '@/lib/chronicleSync/patterns/enemyUpdates';
 import combatBackground from '@/assets/combat-background.jpg';
 
 interface ChronicleSyncScreenProps {
@@ -63,6 +65,11 @@ interface ChronicleSyncScreenProps {
   onUpdateEnemy: (id: string, updates: Partial<Enemy>) => void;
   onClearDefeated: () => void;
   onRefreshEnemies?: () => void;
+  // Enemy update handlers for real-time stat sync
+  onApplyEnemyDamage: (enemyId: string, amount: number, damageType?: DamageType) => void;
+  onApplyEnemyHealing: (enemyId: string, amount: number) => void;
+  onToggleEnemyCondition: (enemyId: string, condition: EnemyCondition) => void;
+  onDefeatEnemy: (enemyId: string) => void;
   onBack: () => void;
 }
 
@@ -85,6 +92,10 @@ export function ChronicleSyncScreen({
   onUpdateEnemy,
   onClearDefeated,
   onRefreshEnemies,
+  onApplyEnemyDamage,
+  onApplyEnemyHealing,
+  onToggleEnemyCondition,
+  onDefeatEnemy,
   onBack 
 }: ChronicleSyncScreenProps) {
   const [inputText, setInputText] = useState('');
@@ -108,6 +119,9 @@ export function ChronicleSyncScreen({
   
   // Enhanced pattern results
   const [enhancedResults, setEnhancedResults] = useState<ReturnType<typeof parseEnhancedPatterns> | null>(null);
+  
+  // Enemy updates detected from session log
+  const [enemyUpdates, setEnemyUpdates] = useState<ParsedEnemyUpdate[]>([]);
 
   // Check for undo availability
   const undoSnapshot = useMemo(() => {
@@ -236,6 +250,10 @@ export function ChronicleSyncScreen({
         setParseResult(result);
         setReviewableChanges(buildReviewableChanges(result));
         
+        // Parse enemy updates (damage, healing, conditions)
+        const detectedEnemyUpdates = parseAllEnemyUpdates(inputText);
+        setEnemyUpdates(detectedEnemyUpdates);
+        
         setProcessProgress({ stage: 'complete', message: 'Complete!', progress: 100 });
         
         const summary = calculateChangeSummary(result);
@@ -268,6 +286,8 @@ export function ChronicleSyncScreen({
           const result = parseLogOffline(inputText);
           setParseResult(result);
           setReviewableChanges(buildReviewableChanges(result));
+          // Also parse enemy updates in fallback mode
+          setEnemyUpdates(parseAllEnemyUpdates(inputText));
         } else {
           setProcessProgress({ stage: 'parsing', message: 'Processing response...', progress: 70 });
           
@@ -277,6 +297,8 @@ export function ChronicleSyncScreen({
           result.inputLength = inputText.length;
           setParseResult(result);
           setReviewableChanges(buildReviewableChanges(result));
+          // Parse enemy updates for AI mode as well
+          setEnemyUpdates(parseAllEnemyUpdates(inputText));
           
           toast({
             title: "AI parsing complete",
@@ -337,6 +359,7 @@ export function ChronicleSyncScreen({
     // Clear parse state
     setParseResult(null);
     setReviewableChanges([]);
+    setEnemyUpdates([]);
     setInputText('');
   }, [reviewableChanges, onApplyChanges, toast]);
 
@@ -345,6 +368,7 @@ export function ChronicleSyncScreen({
     setInputText(SAMPLE_LOGS[key]);
     setParseResult(null);
     setReviewableChanges([]);
+    setEnemyUpdates([]);
   };
 
   const summary = parseResult ? calculateChangeSummary(parseResult) : null;
@@ -675,6 +699,18 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
                 />
               )}
 
+              {/* Enemy Updates Section (damage, healing, conditions) */}
+              {enemyUpdates.length > 0 && (
+                <EnemyUpdatesPanel
+                  updates={enemyUpdates}
+                  existingEnemies={existingEnemies}
+                  onApplyDamage={onApplyEnemyDamage}
+                  onApplyHealing={onApplyEnemyHealing}
+                  onToggleCondition={onToggleEnemyCondition}
+                  onDefeatEnemy={onDefeatEnemy}
+                />
+              )}
+
               {/* Action Buttons */}
               <div className="flex gap-3 pt-2">
                 <Button
@@ -728,6 +764,7 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
             <li>Skill checks, saving throws, initiative rolls, inspiration</li>
             <li>Gold transactions, damage/healing, condition changes</li>
             <li><strong>Enemies:</strong> Names, quantities, AC, HP, creature types, defeated status</li>
+            <li><strong>Enemy Updates:</strong> Real-time damage, healing, and condition changes applied to tracked enemies</li>
           </ul>
         </div>
       </div>
