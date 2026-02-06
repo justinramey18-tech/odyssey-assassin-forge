@@ -7,6 +7,7 @@ import { TreeSelector } from './TreeSelector';
 import { TreeBottomBar } from './TreeBottomBar';
 import { AbilityDetailsPanel } from './AbilityDetailsPanel';
 import { AbilityEditSheet } from './AbilityEditSheet';
+import { HomebrewCreateSheet } from './HomebrewCreateSheet';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -15,8 +16,9 @@ import { useSwipe } from '@/hooks/use-swipe';
 import { useAbilityImages } from '@/hooks/use-ability-images';
 import { useAbilityCustomization } from '@/hooks/use-ability-customization';
 import { applyOverrides } from '@/lib/abilityCustomization/utils';
+import { HomebrewAbility } from '@/lib/abilityCustomization/types';
 import { cn } from '@/lib/utils';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Plus } from 'lucide-react';
 
 interface AbilitiesScreenProps {
   character: Character;
@@ -44,6 +46,7 @@ export function AbilitiesScreen({
   const [selectedAbility, setSelectedAbility] = useState<string | null>(null);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
   const [editSheetOpen, setEditSheetOpen] = useState(false);
+  const [createSheetOpen, setCreateSheetOpen] = useState(false);
   
   // Custom ability images hook
   const { images: abilityImages, handleImageUpload, clearAbilityImage } = useAbilityImages();
@@ -200,6 +203,11 @@ export function AbilitiesScreen({
     }
   }, [selectedAbility, customization]);
 
+  // Handle homebrew creation
+  const handleCreateHomebrew = useCallback((homebrew: Omit<HomebrewAbility, 'id' | 'createdAt' | 'updatedAt'>) => {
+    customization.addHomebrew(homebrew);
+  }, [customization]);
+
   return (
     <div className="flex flex-col h-full min-h-screen bg-background">
       {/* Header */}
@@ -222,14 +230,27 @@ export function AbilitiesScreen({
         </div>
         
         <div className={cn(
-          'text-right',
-          isMobile && 'w-full text-center'
+          'flex items-center gap-3',
+          isMobile && 'w-full justify-between'
         )}>
-          <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
-            Available Ability Points
-          </div>
-          <div className="font-display font-bold text-2xl text-primary">
-            {Math.max(0, availablePoints)}
+          {/* Create Ability Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCreateSheetOpen(true)}
+            className="border-primary/50 text-primary hover:bg-primary/10"
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            {isMobile ? 'Create' : 'Create Ability'}
+          </Button>
+          
+          <div className="text-right">
+            <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+              Available Points
+            </div>
+            <div className="font-display font-bold text-2xl text-primary">
+              {Math.max(0, availablePoints)}
+            </div>
           </div>
         </div>
       </header>
@@ -366,6 +387,14 @@ export function AbilitiesScreen({
           onReset={handleResetCustomization}
         />
       )}
+
+      {/* Homebrew Create Sheet */}
+      <HomebrewCreateSheet
+        open={createSheetOpen}
+        onOpenChange={setCreateSheetOpen}
+        defaultTree={selectedTree}
+        onSave={handleCreateHomebrew}
+      />
     </div>
   );
 }
