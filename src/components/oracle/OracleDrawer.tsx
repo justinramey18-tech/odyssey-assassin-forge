@@ -20,6 +20,19 @@ import { QuickPromptBar } from './QuickPromptBar';
 import { CharacterContext } from './types';
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
 import { getSpellById } from '@/lib/magic/spells';
+import { CombatLogEntry } from '@/hooks/use-combat-log';
+import { Enemy } from '@/lib/combat/targetTypes';
+import { ActionEconomy } from '@/lib/combat/combatTypes';
+
+interface CombatContextInput {
+  isInCombat: boolean;
+  roundNumber: number;
+  isPlayerTurn: boolean;
+  economy: ActionEconomy;
+  currentTarget: Enemy | null;
+  enemies: Enemy[];
+  recentLogEntries: CombatLogEntry[];
+}
 
 interface OracleDrawerProps {
   open: boolean;
@@ -51,6 +64,8 @@ interface OracleDrawerProps {
   // Loot inventory context
   lootItems?: LootItem[];
   totalLootValue?: number;
+  // Combat context
+  combatContext?: CombatContextInput;
 }
 
 export function OracleDrawer({
@@ -70,6 +85,7 @@ export function OracleDrawer({
   spellcasting,
   lootItems = [],
   totalLootValue = 0,
+  combatContext,
 }: OracleDrawerProps) {
   const [inputValue, setInputValue] = useState('');
 
@@ -200,6 +216,46 @@ export function OracleDrawer({
       diceMechanicsCount: lootItems.filter(i => i.hasDiceMechanics).length,
     } : undefined;
 
+    // Build combat context for tactical awareness
+    let combatContextData: CharacterContext['combat'] = undefined;
+    if (combatContext?.isInCombat) {
+      combatContextData = {
+        isInCombat: combatContext.isInCombat,
+        roundNumber: combatContext.roundNumber,
+        isPlayerTurn: combatContext.isPlayerTurn,
+        actionUsed: combatContext.economy.actionUsed,
+        bonusActionUsed: combatContext.economy.bonusActionUsed,
+        reactionUsed: combatContext.economy.reactionUsed,
+        movementUsed: combatContext.economy.movementUsed,
+        maxMovement: combatContext.economy.maxMovement,
+        currentTarget: combatContext.currentTarget ? {
+          name: combatContext.currentTarget.name,
+          ac: combatContext.currentTarget.ac,
+          currentHP: combatContext.currentTarget.currentHP,
+          maxHP: combatContext.currentTarget.maxHP,
+          conditions: combatContext.currentTarget.conditions || [],
+          resistances: combatContext.currentTarget.resistances || [],
+          vulnerabilities: combatContext.currentTarget.vulnerabilities || [],
+          immunities: combatContext.currentTarget.immunities || [],
+        } : null,
+        enemies: combatContext.enemies.map(e => ({
+          name: e.name,
+          currentHP: e.currentHP,
+          maxHP: e.maxHP,
+          isDefeated: e.currentHP <= 0,
+          conditions: e.conditions || [],
+        })),
+        recentActions: combatContext.recentLogEntries.slice(0, 5).map(entry => ({
+          actionType: entry.actionType,
+          actionName: entry.actionName,
+          timestamp: entry.timestamp.toISOString(),
+          damage: entry.damage,
+          wasHit: entry.roll ? entry.roll.total > 0 : undefined,
+          wasCrit: entry.roll?.isCrit,
+        })),
+      };
+    }
+
     return {
       name: character.name,
       level: character.level,
@@ -220,8 +276,9 @@ export function OracleDrawer({
       activeBuffs,
       spellcasting: spellcastingContext,
       loot: lootContext,
+      combat: combatContextData,
     };
-  }, [character, currentHP, maxHP, equipment, consumables, cooldowns, prestigeLevel, prestigeAbilities, getRemainingTime, activeConditions, activeBuffs, spellcasting, lootItems, totalLootValue]);
+  }, [character, currentHP, maxHP, equipment, consumables, cooldowns, prestigeLevel, prestigeAbilities, getRemainingTime, activeConditions, activeBuffs, spellcasting, lootItems, totalLootValue, combatContext]);
 
   const {
     messages,

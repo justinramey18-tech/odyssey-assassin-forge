@@ -48,6 +48,42 @@ interface CharacterContext {
     slots: Array<{ level: number; current: number; max: number }>;
     pactSlots?: { current: number; max: number; level: number };
   };
+  // Combat context - real-time tactical awareness
+  combat?: {
+    isInCombat: boolean;
+    roundNumber: number;
+    isPlayerTurn: boolean;
+    actionUsed: boolean;
+    bonusActionUsed: boolean;
+    reactionUsed: boolean;
+    movementUsed: number;
+    maxMovement: number;
+    currentTarget: {
+      name: string;
+      ac: number;
+      currentHP: number;
+      maxHP: number;
+      conditions: string[];
+      resistances: string[];
+      vulnerabilities: string[];
+      immunities: string[];
+    } | null;
+    enemies: Array<{
+      name: string;
+      currentHP: number;
+      maxHP: number;
+      isDefeated: boolean;
+      conditions: string[];
+    }>;
+    recentActions: Array<{
+      actionType: string;
+      actionName: string;
+      timestamp: string;
+      damage?: string;
+      wasHit?: boolean;
+      wasCrit?: boolean;
+    }>;
+  };
 }
 
 interface OracleRequest {
@@ -161,6 +197,75 @@ function buildContextSummary(ctx: CharacterContext): string {
     // Prepared spells
     if (spell.preparedSpells.length > 0) {
       lines.push(`   Prepared Spells: ${spell.preparedSpells.join(', ')}`);
+    }
+  }
+  
+  // Add combat context for tactical awareness
+  if (ctx.combat?.isInCombat) {
+    const combat = ctx.combat;
+    lines.push(`\n⚔️ ACTIVE COMBAT - Round ${combat.roundNumber}`);
+    
+    // Whose turn
+    if (combat.isPlayerTurn) {
+      lines.push(`   🎯 IT'S YOUR TURN!`);
+    } else {
+      lines.push(`   ⏳ Waiting for your turn...`);
+    }
+    
+    // Action Economy
+    const actionStatus: string[] = [];
+    if (!combat.actionUsed) actionStatus.push('Action ✓');
+    else actionStatus.push('Action ✗');
+    if (!combat.bonusActionUsed) actionStatus.push('Bonus ✓');
+    else actionStatus.push('Bonus ✗');
+    if (!combat.reactionUsed) actionStatus.push('Reaction ✓');
+    else actionStatus.push('Reaction ✗');
+    const movementLeft = combat.maxMovement - combat.movementUsed;
+    actionStatus.push(`Movement: ${movementLeft}/${combat.maxMovement}ft`);
+    lines.push(`   Action Economy: ${actionStatus.join(' | ')}`);
+    
+    // Current target
+    if (combat.currentTarget) {
+      const target = combat.currentTarget;
+      const targetHPPct = target.maxHP > 0 ? Math.round((target.currentHP / target.maxHP) * 100) : 0;
+      const healthLabel = targetHPPct >= 75 ? 'healthy' : targetHPPct >= 50 ? 'bloodied' : targetHPPct >= 25 ? 'badly hurt' : targetHPPct > 0 ? 'near death' : 'defeated';
+      lines.push(`   🎯 TARGET: ${target.name} (AC ${target.ac}, ${target.currentHP}/${target.maxHP} HP - ${healthLabel})`);
+      
+      if (target.conditions.length > 0) {
+        lines.push(`      Conditions: ${target.conditions.join(', ')}`);
+      }
+      if (target.resistances.length > 0) {
+        lines.push(`      Resistances: ${target.resistances.join(', ')}`);
+      }
+      if (target.vulnerabilities.length > 0) {
+        lines.push(`      Vulnerabilities: ${target.vulnerabilities.join(', ')}`);
+      }
+      if (target.immunities.length > 0) {
+        lines.push(`      Immunities: ${target.immunities.join(', ')}`);
+      }
+    }
+    
+    // All enemies overview
+    const activeEnemies = combat.enemies.filter(e => !e.isDefeated);
+    const defeatedCount = combat.enemies.length - activeEnemies.length;
+    if (activeEnemies.length > 0) {
+      const enemyList = activeEnemies.map(e => {
+        const pct = e.maxHP > 0 ? Math.round((e.currentHP / e.maxHP) * 100) : 0;
+        const status = pct >= 75 ? '' : pct >= 50 ? '🩸' : pct >= 25 ? '🩸🩸' : '💀';
+        return `${e.name} ${status}`;
+      }).join(', ');
+      lines.push(`   Enemies (${activeEnemies.length} active${defeatedCount > 0 ? `, ${defeatedCount} defeated` : ''}): ${enemyList}`);
+    }
+    
+    // Recent actions for context
+    if (combat.recentActions.length > 0) {
+      lines.push(`   Recent Actions:`);
+      combat.recentActions.slice(0, 3).forEach(action => {
+        let actionDesc = `      - ${action.actionName} (${action.actionType})`;
+        if (action.damage) actionDesc += ` → ${action.damage}`;
+        if (action.wasCrit) actionDesc += ' 💥 CRIT!';
+        lines.push(actionDesc);
+      });
     }
   }
   

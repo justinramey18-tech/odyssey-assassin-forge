@@ -76,6 +76,8 @@ import { useCustomBackground } from '@/hooks/use-custom-background';
 import { useActionEconomy } from '@/hooks/use-action-economy';
 import { useConditions } from '@/hooks/use-conditions';
 import { useTargets } from '@/hooks/use-targets';
+import { useCombatLog } from '@/hooks/use-combat-log';
+import { useInitiative } from '@/hooks/use-initiative';
 
 const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -199,6 +201,34 @@ const Index = () => {
   
   // Target/Enemy tracker (combat)
   const targets = useTargets();
+  
+  // Combat log (action history for AI synthesis)
+  const combatLog = useCombatLog();
+  
+  // Initiative tracker (depends on targets.enemies)
+  const initiative = useInitiative(targets.enemies);
+  
+  // Build combat context for Oracle tactical awareness
+  const combatContext = useMemo(() => {
+    const isInCombat = initiative.combatStarted || targets.enemies.length > 0;
+    return {
+      isInCombat,
+      roundNumber: initiative.roundNumber,
+      isPlayerTurn: initiative.isPlayerTurn,
+      economy: actionEconomy.economy,
+      currentTarget: targets.currentTarget,
+      enemies: targets.enemies,
+      recentLogEntries: combatLog.entries.slice(0, 5),
+    };
+  }, [
+    initiative.combatStarted,
+    initiative.roundNumber,
+    initiative.isPlayerTurn,
+    actionEconomy.economy,
+    targets.currentTarget,
+    targets.enemies,
+    combatLog.entries,
+  ]);
   
   // Shared equipment state for constellation view
   const [equipment, setEquipment] = useState<CharacterEquipment>(() => createInitialEquipment());
@@ -1082,6 +1112,7 @@ const Index = () => {
         constitutionModifier={abilityScores.finalModifiers.constitution}
         lootItems={loot.lootItems}
         totalLootValue={loot.totalLootValue}
+        combatContext={combatContext}
       >
         <HomeScreen 
           character={character}
@@ -1167,10 +1198,11 @@ const Index = () => {
       onDecrementScore={abilityScores.decrementScore}
       onRandomizeScores={abilityScores.randomizeScores}
       onApplyScores={abilityScores.applyScores}
-      constitutionModifier={abilityScores.finalModifiers.constitution}
-      lootItems={loot.lootItems}
-      totalLootValue={loot.totalLootValue}
-    >
+        constitutionModifier={abilityScores.finalModifiers.constitution}
+        lootItems={loot.lootItems}
+        totalLootValue={loot.totalLootValue}
+        combatContext={combatContext}
+      >
       <div className="min-h-screen relative">
       {/* Builder Background Image - fixed behind everything */}
       <div 
