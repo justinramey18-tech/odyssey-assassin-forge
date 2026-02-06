@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
-import { Gamepad2, FileText, HelpCircle, User, Dices, ChevronRight } from 'lucide-react';
+import { Gamepad2, FileText, HelpCircle, User, Dices, Wand2, ChevronRight } from 'lucide-react';
 
-export type SettingsTab = 'game' | 'setup' | 'faq' | 'character' | 'tools';
+export type SettingsTab = 'game' | 'setup' | 'faq' | 'character' | 'tools' | 'customizations';
 
 interface TabConfig {
   id: SettingsTab;
@@ -25,6 +25,13 @@ const tabs: TabConfig[] = [
     icon: FileText, 
     description: 'Sync with your GM',
     color: 'text-amber-400'
+  },
+  { 
+    id: 'customizations', 
+    label: 'Customizations', 
+    icon: Wand2, 
+    description: 'Homebrew abilities',
+    color: 'text-violet-400'
   },
   { 
     id: 'faq', 
