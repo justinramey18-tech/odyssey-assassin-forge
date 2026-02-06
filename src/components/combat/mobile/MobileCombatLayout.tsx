@@ -20,6 +20,8 @@ import { useSwipe } from '@/hooks/use-swipe';
 import { useGameMode } from '@/hooks/use-game-mode';
 import { useCooldowns } from '@/hooks/use-cooldowns';
 import { useCombatStats } from '@/hooks/use-combat-stats';
+import { useAbilityCustomization } from '@/hooks/use-ability-customization';
+import { applyOverrides } from '@/lib/abilityCustomization/utils';
 import { COOLDOWN_CONFIGS, calculateEffectiveCooldown } from '@/lib/cooldowns/config';
 
 // Mobile components
@@ -226,14 +228,25 @@ export function MobileCombatLayout({
   const [lastAction, setLastAction] = useState('SYSTEMS READY');
   const [showSmartPromptSheet, setShowSmartPromptSheet] = useState(false);
   
-  // Count abilities by type
-  const unlockedAbilities = character.abilities
-    .filter(ca => ca.currentTier > 0)
-    .map(ca => ({
-      ...allAbilities.find(a => a.id === ca.abilityId)!,
-      tier: ca.currentTier as 1 | 2 | 3,
-    }))
-    .filter(Boolean);
+  // Ability customization hook
+  const abilityCustomization = useAbilityCustomization();
+  
+  // Count abilities by type - apply customizations
+  const unlockedAbilities = useMemo(() => {
+    return character.abilities
+      .filter(ca => ca.currentTier > 0)
+      .map(ca => {
+        const baseAbility = allAbilities.find(a => a.id === ca.abilityId);
+        if (!baseAbility) return null;
+        const override = abilityCustomization.getOverride(ca.abilityId);
+        const customized = applyOverrides(baseAbility, override);
+        return {
+          ...customized,
+          tier: ca.currentTier as 1 | 2 | 3,
+        };
+      })
+      .filter(Boolean) as (Ability & { tier: 1 | 2 | 3; isCustomized?: boolean })[];
+  }, [character.abilities, abilityCustomization.state.overrides]);
   
   const stealthAbilities = unlockedAbilities.filter(a => 
     a.tree === 'assassin' || 
