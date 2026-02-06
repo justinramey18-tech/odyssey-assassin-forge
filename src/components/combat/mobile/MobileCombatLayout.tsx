@@ -862,6 +862,7 @@ export function MobileCombatLayout({
         onResetTurn={handleResetTurn}
         onMenuOpen={() => {}}
         onSettingsOpen={() => {}}
+        onReplayTutorial={combatTutorial.triggerTutorial}
         currentHP={currentHP}
         maxHP={maxHP}
         tempHP={tempHP}
