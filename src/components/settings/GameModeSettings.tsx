@@ -276,6 +276,14 @@ export function GameModeSettings({ settings, onChange }: GameModeSettingsProps) 
           checked={combatSettings.hasPolearmMaster}
           onToggle={handleCombatSettingToggle}
         />
+
+        {/* Monk Martial Arts */}
+        <CombatSettingToggle
+          id="monk-martial-arts"
+          settingKey="hasMonkMartialArts"
+          checked={combatSettings.hasMonkMartialArts}
+          onToggle={handleCombatSettingToggle}
+        />
       </div>
 
       {/* 4th Wall Time Setting */}

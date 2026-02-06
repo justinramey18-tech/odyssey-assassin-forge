@@ -14,6 +14,8 @@ export interface CombatSettings {
   hasSentinel: boolean;
   /** Polearm Master Feat: Bonus action attack with butt end, opportunity attacks at reach */
   hasPolearmMaster: boolean;
+  /** Monk Martial Arts: Scales unarmed strike damage by level */
+  hasMonkMartialArts: boolean;
   /** Show round advance notifications in combat */
   showRoundNotifications: boolean;
 }
@@ -27,6 +29,7 @@ const DEFAULT_SETTINGS: CombatSettings = {
   hasSharpshooter: false,
   hasSentinel: false,
   hasPolearmMaster: false,
+  hasMonkMartialArts: false,
   showRoundNotifications: true, // On by default
 };
 
@@ -87,6 +90,10 @@ export function getCombatSettingDescription(key: keyof CombatSettings): { label:
     hasPolearmMaster: {
       label: 'Polearm Master',
       description: 'Bonus action attack with butt end (1d4). Opportunity attacks when enemies enter reach.',
+    },
+    hasMonkMartialArts: {
+      label: 'Monk Martial Arts',
+      description: 'Unarmed strikes scale by level: 1d4 (1-4), 1d6 (5-10), 1d8 (11-16), 1d10 (17+). Use DEX for attacks.',
     },
     showRoundNotifications: {
       label: 'Round Advance Notifications',
