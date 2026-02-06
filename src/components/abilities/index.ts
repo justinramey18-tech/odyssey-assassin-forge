@@ -2,6 +2,7 @@ export { AbilitiesScreen } from './AbilitiesScreen';
 export { AbilityNode } from './AbilityNode';
 export { AbilityDetailsPanel } from './AbilityDetailsPanel';
 export { AbilityEditSheet } from './AbilityEditSheet';
+export { HomebrewCreateSheet } from './HomebrewCreateSheet';
 export { TreeColumn } from './TreeColumn';
 export { TreeSelector } from './TreeSelector';
 export { TreeBottomBar } from './TreeBottomBar';
