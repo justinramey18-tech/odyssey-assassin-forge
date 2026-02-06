@@ -1,8 +1,11 @@
+import { useMemo } from 'react';
 import { Character, getAbilityPointsForLevel, getTotalPointsSpent, getPointsSpentInTree, getActiveSlotsByLevel } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
 import { CharacterEquipment, EquipmentItem, legendarySetDefinitions } from '@/lib/inventory';
 import { Achievement } from '@/lib/achievements';
 import { useEquipmentStats } from '@/hooks/use-equipment-stats';
+import { useAbilityCustomization } from '@/hooks/use-ability-customization';
+import { homebrewToAbility } from '@/lib/abilityCustomization/utils';
 import { 
   User, Heart, Shield, Zap, Target, 
   Trophy, Package, Star, Sparkles, Moon, Sun,
@@ -240,16 +243,28 @@ export function SkillsOverviewContent({ character, onNavigate }: SkillsOverviewP
   const totalPoints = getAbilityPointsForLevel(character.level);
   const spentPoints = getTotalPointsSpent(character.abilities);
   
+  // Ability customization for homebrew support
+  const abilityCustomization = useAbilityCustomization();
+  
   const treePoints = {
     hunter: getPointsSpentInTree(character.abilities, allAbilities, 'hunter'),
     warrior: getPointsSpentInTree(character.abilities, allAbilities, 'warrior'),
     assassin: getPointsSpentInTree(character.abilities, allAbilities, 'assassin'),
   };
 
-  const equippedAbilities = character.equippedAbilities
-    .filter(Boolean)
-    .map(id => allAbilities.find(a => a.id === id))
-    .filter(Boolean);
+  const equippedAbilities = useMemo(() => {
+    return character.equippedAbilities
+      .filter(Boolean)
+      .map(id => {
+        // Check if homebrew
+        if (id.startsWith('homebrew_')) {
+          const homebrew = abilityCustomization.state.homebrewAbilities.find(h => h.id === id);
+          return homebrew ? homebrewToAbility(homebrew) : null;
+        }
+        return allAbilities.find(a => a.id === id) ?? null;
+      })
+      .filter(Boolean);
+  }, [character.equippedAbilities, abilityCustomization.state.homebrewAbilities]);
 
   return (
     <div className="space-y-4">

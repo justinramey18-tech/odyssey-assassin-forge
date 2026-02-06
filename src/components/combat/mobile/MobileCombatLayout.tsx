@@ -21,7 +21,7 @@ import { useGameMode } from '@/hooks/use-game-mode';
 import { useCooldowns } from '@/hooks/use-cooldowns';
 import { useCombatStats } from '@/hooks/use-combat-stats';
 import { useAbilityCustomization } from '@/hooks/use-ability-customization';
-import { applyOverrides } from '@/lib/abilityCustomization/utils';
+import { applyOverrides, homebrewToAbility } from '@/lib/abilityCustomization/utils';
 import { COOLDOWN_CONFIGS, calculateEffectiveCooldown } from '@/lib/cooldowns/config';
 
 // Mobile components
@@ -231,11 +231,23 @@ export function MobileCombatLayout({
   // Ability customization hook
   const abilityCustomization = useAbilityCustomization();
   
-  // Count abilities by type - apply customizations
+  // Count abilities by type - apply customizations + include homebrew abilities
   const unlockedAbilities = useMemo(() => {
-    return character.abilities
+    // Get base abilities with customizations
+    const baseAbilities = character.abilities
       .filter(ca => ca.currentTier > 0)
       .map(ca => {
+        // Check if it's a homebrew ability
+        if (ca.abilityId.startsWith('homebrew_')) {
+          const homebrew = abilityCustomization.state.homebrewAbilities.find(h => h.id === ca.abilityId);
+          if (!homebrew) return null;
+          return {
+            ...homebrewToAbility(homebrew),
+            tier: ca.currentTier as 1 | 2 | 3,
+          };
+        }
+        
+        // Base ability with overrides
         const baseAbility = allAbilities.find(a => a.id === ca.abilityId);
         if (!baseAbility) return null;
         const override = abilityCustomization.getOverride(ca.abilityId);
@@ -245,8 +257,10 @@ export function MobileCombatLayout({
           tier: ca.currentTier as 1 | 2 | 3,
         };
       })
-      .filter(Boolean) as (Ability & { tier: 1 | 2 | 3; isCustomized?: boolean })[];
-  }, [character.abilities, abilityCustomization.state.overrides]);
+      .filter(Boolean) as (Ability & { tier: 1 | 2 | 3; isCustomized?: boolean; isHomebrew?: boolean })[];
+    
+    return baseAbilities;
+  }, [character.abilities, abilityCustomization.state.overrides, abilityCustomization.state.homebrewAbilities]);
   
   const stealthAbilities = unlockedAbilities.filter(a => 
     a.tree === 'assassin' || 

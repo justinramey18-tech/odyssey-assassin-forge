@@ -719,14 +719,22 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       return;
     }
 
-    // Check ability-specific requirements
-    const ability = allAbilities.find(a => a.id === abilityId);
+    // Check if this is a homebrew ability
+    const isHomebrew = abilityId.startsWith('homebrew_');
+    
+    // Get ability data - check homebrew first, then base abilities
+    const homebrewAbility = isHomebrew 
+      ? JSON.parse(localStorage.getItem('odyssey-ability-customization') || '{}')?.homebrewAbilities?.find((h: any) => h.id === abilityId)
+      : null;
+    const ability = homebrewAbility || allAbilities.find(a => a.id === abilityId);
     if (!ability) return;
 
-    const currentTier = character.abilities.find(ca => ca.abilityId === abilityId)?.currentTier ?? 0;
+    // Check if ability exists in character state, if not add it (for homebrew)
+    const existingAbility = character.abilities.find(ca => ca.abilityId === abilityId);
+    const currentTier = existingAbility?.currentTier ?? 0;
     if (currentTier >= 3) return;
 
-    // Check prerequisite
+    // Check prerequisite (for both base and homebrew)
     if (ability.prerequisite) {
       const prereqTier = character.abilities.find(
         ca => ca.abilityId === ability.prerequisite!.abilityId
@@ -741,15 +749,28 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       }
     }
 
-    // Perform upgrade
-    setCharacter(prev => ({
-      ...prev,
-      abilities: prev.abilities.map(ca =>
-        ca.abilityId === abilityId && ca.currentTier < 3
-          ? { ...ca, currentTier: (ca.currentTier + 1) as 0 | 1 | 2 | 3 }
-          : ca
-      ),
-    }));
+    // Perform upgrade - add to abilities array if homebrew not yet tracked
+    setCharacter(prev => {
+      const abilityExists = prev.abilities.some(ca => ca.abilityId === abilityId);
+      
+      if (!abilityExists && isHomebrew) {
+        // Add homebrew ability to tracking and set to tier 1
+        return {
+          ...prev,
+          abilities: [...prev.abilities, { abilityId, currentTier: 1 as 0 | 1 | 2 | 3 }],
+        };
+      }
+      
+      // Normal upgrade path
+      return {
+        ...prev,
+        abilities: prev.abilities.map(ca =>
+          ca.abilityId === abilityId && ca.currentTier < 3
+            ? { ...ca, currentTier: (ca.currentTier + 1) as 0 | 1 | 2 | 3 }
+            : ca
+        ),
+      };
+    });
 
     toast({
       title: "✨ Ability Upgraded",
