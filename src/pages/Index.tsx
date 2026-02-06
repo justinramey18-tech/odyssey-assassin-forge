@@ -516,34 +516,42 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         temp: hpState.temp,
       },
       deathSaves,
-      // NEW: Spellcasting state (magic path, slots, spells)
+      // Spellcasting state (magic path, slots, spells)
       spellcasting: spellcasting.state,
-      // NEW: Prestige skill tree progress (Drizzt's Legacy)
+      // Active spell effects (duration tracking)
+      activeSpells: spellcasting.activeSpells,
+      // Prestige skill tree progress (Drizzt's Legacy)
       prestigeTree: prestigeTree.progress,
-      // NEW: Shop gold balance
+      // Shop gold balance
       shopGold: shop.currentGold,
-      // NEW: Loot items and sold history
+      // Loot items and sold history
       loot: {
         items: loot.lootItems,
         soldHistory: loot.soldHistory,
       },
-      // NEW: Proficiencies (skills and saves)
+      // Proficiencies (skills and saves)
       proficiencies: {
         skills: proficientSkills,
         saves: proficientSaves,
       },
-      // NEW: Expertise skills (double proficiency)
+      // Expertise skills (double proficiency)
       expertise: expertiseSkills,
-      // NEW: D&D Inspiration
+      // D&D Inspiration
       inspiration: hasInspiration,
-      // NEW: Combat settings (feat toggles)
+      // Combat settings (feat toggles)
       combatSettings,
+      // Conditions state (buffs/debuffs/concentration)
+      conditions: {
+        conditions: conditions.conditions,
+        recentConditions: conditions.recentConditions,
+      },
     };
   }, [
     character, equipment, achievements, consumablesInventory, 
     currentXP, xpPreset, prestigeData, abilityScores.baseScores, 
-    hpState, deathSaves, spellcasting.state, prestigeTree.progress,
-    shop.currentGold, loot.lootItems, loot.soldHistory, hasInspiration
+    hpState, deathSaves, spellcasting.state, spellcasting.activeSpells,
+    prestigeTree.progress, shop.currentGold, loot.lootItems, loot.soldHistory, 
+    hasInspiration, conditions.conditions, conditions.recentConditions
   ]);
 
   // Auto-save locally AND to cloud when authenticated (only when not in wizard)
@@ -700,6 +708,18 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     if (data.combatSettings) {
       localStorage.setItem('odyssey-combat-settings', JSON.stringify(data.combatSettings));
       console.log('[CloudSave] Restored combat settings');
+    }
+    
+    // 16. Restore active spell effects (duration tracking)
+    if (data.activeSpells) {
+      localStorage.setItem('odyssey-active-spells', JSON.stringify(data.activeSpells));
+      console.log('[CloudSave] Restored active spells:', data.activeSpells.length, 'effects');
+    }
+    
+    // 17. Restore conditions state (buffs/debuffs/concentration)
+    if (data.conditions) {
+      localStorage.setItem('odyssey-conditions-state', JSON.stringify(data.conditions));
+      console.log('[CloudSave] Restored conditions:', data.conditions.conditions?.length, 'active');
     }
     
     // Track when this was loaded from cloud
