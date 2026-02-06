@@ -23,6 +23,7 @@ export type { ApplyWizardResult, WizardStateSetters, ToastConfig } from './utils
 export { CharacterWizard } from './CharacterWizard';
 export { WizardProgress, WizardProgressCompact } from './WizardProgress';
 export { WizardNavigation, WizardNavigationCompact } from './WizardNavigation';
+export { ValidationFeedback, FieldError, ValidationIndicator } from './ValidationFeedback';
 
 // Steps
 export { 

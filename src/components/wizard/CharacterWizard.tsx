@@ -362,6 +362,7 @@ export function CharacterWizard({
                 onBack={handleBack}
                 onNext={handleNext}
                 onComplete={handleComplete}
+                validation={currentValidation}
               />
             ) : (
               <WizardNavigation
@@ -372,6 +373,7 @@ export function CharacterWizard({
                 onBack={handleBack}
                 onNext={handleNext}
                 onComplete={handleComplete}
+                validation={currentValidation}
               />
             )}
           </div>
