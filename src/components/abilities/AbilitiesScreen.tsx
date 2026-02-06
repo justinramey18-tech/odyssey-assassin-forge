@@ -127,12 +127,46 @@ export function AbilitiesScreen({
   );
 
   // Get selected ability data with customizations applied
-  const selectedAbilityBase = selectedAbility ? getAbilityById(selectedAbility) : null;
-  const selectedAbilityOverride = selectedAbility ? customization.getOverride(selectedAbility) : undefined;
-  const selectedAbilityData = selectedAbilityBase 
-    ? applyOverrides(selectedAbilityBase, selectedAbilityOverride)
+  // Check if it's a homebrew ability first
+  const selectedHomebrewAbility = selectedAbility 
+    ? customization.state.homebrewAbilities.find(h => h.id === selectedAbility)
     : null;
-  const isSelectedAbilityCustomized = selectedAbility ? !!customization.getOverride(selectedAbility) : false;
+  const selectedAbilityBase = selectedAbility && !selectedHomebrewAbility 
+    ? getAbilityById(selectedAbility) 
+    : null;
+  const selectedAbilityOverride = selectedAbility && !selectedHomebrewAbility 
+    ? customization.getOverride(selectedAbility) 
+    : undefined;
+  
+  // Create ability data for display
+  const selectedAbilityData = useMemo(() => {
+    if (selectedHomebrewAbility) {
+      // Convert homebrew to ability format
+      return {
+        id: selectedHomebrewAbility.id,
+        name: selectedHomebrewAbility.name,
+        tree: selectedHomebrewAbility.tree,
+        icon: selectedHomebrewAbility.icon,
+        type: selectedHomebrewAbility.type,
+        actionType: selectedHomebrewAbility.actionType,
+        usageType: selectedHomebrewAbility.usageType,
+        tierEffects: selectedHomebrewAbility.tierEffects,
+        minLevel: selectedHomebrewAbility.minLevel,
+        prerequisite: selectedHomebrewAbility.prerequisite,
+        isHomebrew: true,
+        customDice: selectedHomebrewAbility.dice,
+        customCooldownMinutes: selectedHomebrewAbility.cooldownMinutes,
+      } as const;
+    }
+    if (selectedAbilityBase) {
+      return applyOverrides(selectedAbilityBase, selectedAbilityOverride);
+    }
+    return null;
+  }, [selectedHomebrewAbility, selectedAbilityBase, selectedAbilityOverride]);
+  
+  const isSelectedAbilityCustomized = selectedAbility 
+    ? (!!customization.getOverride(selectedAbility) || !!selectedHomebrewAbility)
+    : false;
   
   const currentTier = selectedAbility 
     ? (character.abilities.find(ca => ca.abilityId === selectedAbility)?.currentTier || 0) as 0 | 1 | 2 | 3
@@ -277,6 +311,7 @@ export function AbilitiesScreen({
                   isMobile={true}
                   pointsInvested={pointsByTree[selectedTree]}
                   abilityImages={abilityImages}
+                  homebrewAbilities={customization.state.homebrewAbilities}
                   onSelectAbility={setSelectedAbility}
                 />
               </ScrollArea>
@@ -305,6 +340,7 @@ export function AbilitiesScreen({
                     isMobile={false}
                     pointsInvested={pointsByTree[tree]}
                     abilityImages={abilityImages}
+                    homebrewAbilities={customization.state.homebrewAbilities}
                     onSelectAbility={setSelectedAbility}
                   />
                 </ScrollArea>

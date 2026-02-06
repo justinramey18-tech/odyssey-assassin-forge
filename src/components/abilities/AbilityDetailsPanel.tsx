@@ -11,8 +11,20 @@ import * as LucideIcons from 'lucide-react';
 import { Lock, Zap, Clock, RotateCcw, Shield, Sparkles, AlertTriangle, ImagePlus, Trash2, Pencil } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+// Extended ability type that might have homebrew flag
+type AbilityWithFlags = Ability & {
+  isHomebrew?: boolean;
+  isCustomized?: boolean;
+  customDice?: {
+    tier1?: { count: number; die: number };
+    tier2?: { count: number; die: number };
+    tier3?: { count: number; die: number };
+  };
+  customCooldownMinutes?: number;
+};
+
 interface AbilityDetailsPanelProps {
-  ability: Ability | null;
+  ability: AbilityWithFlags | null;
   currentTier: 0 | 1 | 2 | 3;
   characterLevel: number;
   prestigePoints?: number;
@@ -256,12 +268,17 @@ export function AbilityDetailsPanel({
             <Badge variant="outline">
               {ability.type === 'active' ? 'Active' : 'Passive'}
             </Badge>
-            {isCustomized && (
+            {ability.isHomebrew ? (
+              <Badge className="text-xs bg-gradient-to-r from-primary to-primary/70 text-primary-foreground border-0">
+                <Sparkles className="w-3 h-3 mr-1" />
+                Homebrew
+              </Badge>
+            ) : isCustomized ? (
               <Badge variant="secondary" className="text-xs">
                 <Pencil className="w-3 h-3 mr-1" />
                 Customized
               </Badge>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

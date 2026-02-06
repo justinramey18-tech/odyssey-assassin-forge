@@ -12,6 +12,7 @@ interface AbilityNodeProps {
   isSelected: boolean;
   isMobile: boolean;
   customImage?: string | null;
+  isHomebrew?: boolean;
   onSelect: () => void;
 }
 
@@ -36,6 +37,7 @@ export function AbilityNode({
   isSelected,
   isMobile,
   customImage,
+  isHomebrew = false,
   onSelect,
 }: AbilityNodeProps) {
   const treeConfig = TREE_VISUAL_CONFIG[ability.tree];
@@ -218,8 +220,24 @@ export function AbilityNode({
         </div>
       )}
 
+      {/* Homebrew indicator badge - top-left */}
+      {isHomebrew && (
+        <div 
+          className={cn(
+            'absolute z-20 rounded-full',
+            'bg-gradient-to-br from-primary to-violet-500',
+            isMobile 
+              ? 'top-0 left-0 w-4 h-4' 
+              : 'top-1 left-1 w-5 h-5',
+            'flex items-center justify-center'
+          )}
+        >
+          <span className="text-primary-foreground text-[8px] font-bold">✦</span>
+        </div>
+      )}
+
       {/* Passive indicator */}
-      {ability.type === 'passive' && currentTier === 0 && (
+      {ability.type === 'passive' && currentTier === 0 && !isHomebrew && (
         <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px] text-muted-foreground uppercase tracking-wider">
           Passive
         </div>
