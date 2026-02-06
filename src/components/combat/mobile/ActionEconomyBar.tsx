@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { 
   Sword, 
@@ -7,6 +7,7 @@ import {
   Footprints,
   Flag,
   Sparkles,
+  Timer,
 } from 'lucide-react';
 import { ActionEconomy } from '@/lib/combat/combatTypes';
 import {
@@ -16,6 +17,20 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
+import { Ability } from '@/lib/types';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+
+interface CooldownWarningInfo {
+  abilityId: string;
+  name: string;
+  remaining: number;
+  actionType: 'action' | 'bonus_action' | 'reaction';
+}
 
 interface ActionEconomyBarProps {
   economy: ActionEconomy;
@@ -26,6 +41,8 @@ interface ActionEconomyBarProps {
   round: number;
   onEndTurn: () => void;
   onEndTurnWithSynthesis?: () => void;
+  // Cooldown warnings
+  coolingAbilities?: CooldownWarningInfo[];
 }
 
 export function ActionEconomyBar({
@@ -37,12 +54,45 @@ export function ActionEconomyBar({
   round,
   onEndTurn,
   onEndTurnWithSynthesis,
+  coolingAbilities = [],
 }: ActionEconomyBarProps) {
   const [showMovementPicker, setShowMovementPicker] = useState(false);
   const [holdProgress, setHoldProgress] = useState(0);
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
   const holdIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isHoldingRef = useRef(false);
+
+  // Categorize cooling abilities by action type
+  const coolingByType = useMemo(() => {
+    const byType = {
+      action: [] as CooldownWarningInfo[],
+      bonus: [] as CooldownWarningInfo[],
+      reaction: [] as CooldownWarningInfo[],
+    };
+    
+    coolingAbilities.forEach(ability => {
+      if (ability.actionType === 'action') {
+        byType.action.push(ability);
+      } else if (ability.actionType === 'bonus_action') {
+        byType.bonus.push(ability);
+      } else if (ability.actionType === 'reaction') {
+        byType.reaction.push(ability);
+      }
+    });
+    
+    return byType;
+  }, [coolingAbilities]);
+
+  // Format cooldown time for display
+  const formatCooldownTime = (seconds: number): string => {
+    if (seconds <= 0) return '';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins > 0) {
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${secs}s`;
+  };
 
   const toggleAction = () => {
     onEconomyChange({ ...economy, actionUsed: !economy.actionUsed });
@@ -133,6 +183,8 @@ export function ActionEconomyBar({
           onToggle={toggleAction}
           count={actionCount}
           colorClass="red"
+          coolingAbilities={coolingByType.action}
+          formatTime={formatCooldownTime}
         />
 
         {/* Divider */}
@@ -146,6 +198,8 @@ export function ActionEconomyBar({
           onToggle={toggleBonus}
           count={bonusCount}
           colorClass="amber"
+          coolingAbilities={coolingByType.bonus}
+          formatTime={formatCooldownTime}
         />
 
         {/* Divider */}
@@ -159,6 +213,8 @@ export function ActionEconomyBar({
           onToggle={toggleReaction}
           count={reactionCount}
           colorClass="cyan"
+          coolingAbilities={coolingByType.reaction}
+          formatTime={formatCooldownTime}
         />
 
         {/* Divider */}
@@ -262,6 +318,8 @@ function ActionSegment({
   onToggle,
   count,
   colorClass,
+  coolingAbilities = [],
+  formatTime,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -269,61 +327,103 @@ function ActionSegment({
   onToggle: () => void;
   count: number;
   colorClass: 'red' | 'amber' | 'cyan' | 'green';
+  coolingAbilities?: CooldownWarningInfo[];
+  formatTime?: (seconds: number) => string;
 }) {
   const colors = {
     red: {
       active: 'bg-red-500/20 text-red-400',
       used: 'bg-muted/20 text-muted-foreground opacity-50',
       badge: 'bg-red-500/30 text-red-300',
+      warning: 'text-red-300/70',
     },
     amber: {
       active: 'bg-amber-500/20 text-amber-400',
       used: 'bg-muted/20 text-muted-foreground opacity-50',
       badge: 'bg-amber-500/30 text-amber-300',
+      warning: 'text-amber-300/70',
     },
     cyan: {
       active: 'bg-cyan-500/20 text-cyan-400',
       used: 'bg-muted/20 text-muted-foreground opacity-50',
       badge: 'bg-cyan-500/30 text-cyan-300',
+      warning: 'text-cyan-300/70',
     },
     green: {
       active: 'bg-green-500/20 text-green-400',
       used: 'bg-muted/20 text-muted-foreground opacity-50',
       badge: 'bg-green-500/30 text-green-300',
+      warning: 'text-green-300/70',
     },
   };
 
   const colorSet = colors[colorClass];
+  const hasCoolingAbilities = coolingAbilities.length > 0;
 
   return (
-    <button
-      onClick={onToggle}
-      className={cn(
-        "flex-1 flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95",
-        used ? colorSet.used : colorSet.active
-      )}
-    >
-      <div className="relative">
-        {icon}
-        {count > 0 && !used && (
-          <span className={cn(
-            "absolute -top-1 -right-2 min-w-[14px] h-3.5 px-0.5 flex items-center justify-center",
-            "text-[9px] font-bold rounded-full",
-            colorSet.badge
-          )}>
-            {count}
-          </span>
+    <TooltipProvider delayDuration={0}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            onClick={onToggle}
+            className={cn(
+              "flex-1 flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 relative",
+              used ? colorSet.used : colorSet.active
+            )}
+          >
+            {/* Cooling indicator */}
+            {hasCoolingAbilities && !used && (
+              <div className="absolute top-1 left-1">
+                <Timer className="w-3 h-3 text-muted-foreground animate-pulse" />
+              </div>
+            )}
+            
+            <div className="relative">
+              {icon}
+              {count > 0 && !used && (
+                <span className={cn(
+                  "absolute -top-1 -right-2 min-w-[14px] h-3.5 px-0.5 flex items-center justify-center",
+                  "text-[9px] font-bold rounded-full",
+                  colorSet.badge
+                )}>
+                  {count}
+                </span>
+              )}
+            </div>
+            <span className={cn(
+              "text-[9px] font-mono",
+              used && "line-through"
+            )}>
+              {label}
+            </span>
+            <span className="text-[8px] text-muted-foreground">
+              {used ? 'USED' : hasCoolingAbilities ? `${coolingAbilities.length} ⏳` : 'READY'}
+            </span>
+          </button>
+        </TooltipTrigger>
+        
+        {/* Tooltip showing cooling abilities */}
+        {hasCoolingAbilities && (
+          <TooltipContent 
+            side="bottom" 
+            className="max-w-[200px] bg-background/95 backdrop-blur border border-muted"
+          >
+            <div className="space-y-1">
+              <p className="text-[10px] font-mono text-muted-foreground uppercase">On Cooldown:</p>
+              {coolingAbilities.map(ability => (
+                <div key={ability.abilityId} className="flex items-center justify-between gap-2">
+                  <span className={cn("text-xs truncate", colorSet.warning)}>
+                    {ability.name}
+                  </span>
+                  <span className="text-[10px] font-mono text-muted-foreground">
+                    {formatTime?.(ability.remaining) || `${ability.remaining}s`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </TooltipContent>
         )}
-      </div>
-      <span className={cn(
-        "text-[9px] font-mono",
-        used && "line-through"
-      )}>
-        {label}
-      </span>
-      <span className="text-[8px] text-muted-foreground">
-        {used ? 'USED' : 'READY'}
-      </span>
-    </button>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
