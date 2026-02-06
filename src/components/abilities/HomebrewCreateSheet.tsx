@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { AbilityTree, ActionType, UsageType, TierEffect } from '@/lib/types';
 import { HomebrewAbility, DICE_OPTIONS, SUGGESTED_ICONS, DieType } from '@/lib/abilityCustomization/types';
 import {
@@ -39,6 +39,8 @@ import {
   Zap,
   MessageSquare,
   CheckCircle2,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -48,7 +50,13 @@ interface HomebrewCreateSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultTree?: AbilityTree;
+  /** If provided, the sheet will be in edit mode with pre-filled values */
+  editingAbility?: HomebrewAbility | null;
   onSave: (homebrew: Omit<HomebrewAbility, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  /** Called when editing an existing ability - passes the ID */
+  onUpdate?: (id: string, homebrew: Omit<HomebrewAbility, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  /** Called when deleting a homebrew ability */
+  onDelete?: (id: string) => void;
 }
 
 const ACTION_TYPE_OPTIONS: { value: ActionType; label: string }[] = [
@@ -76,8 +84,12 @@ export function HomebrewCreateSheet({
   open,
   onOpenChange,
   defaultTree = 'hunter',
+  editingAbility,
   onSave,
+  onUpdate,
+  onDelete,
 }: HomebrewCreateSheetProps) {
+  const isEditMode = !!editingAbility;
   const { toast } = useToast();
   const assistant = useHomebrewAssistant();
   
@@ -105,7 +117,31 @@ export function HomebrewCreateSheet({
   const [suggestedNames, setSuggestedNames] = useState<string[]>([]);
   const [balanceFeedback, setBalanceFeedback] = useState<string | null>(null);
 
-  // Reset form when sheet opens with new tree
+  // Populate form when editing an existing ability
+  const populateFromAbility = useCallback((ability: HomebrewAbility) => {
+    setName(ability.name);
+    setTree(ability.tree);
+    setIcon(ability.icon);
+    setType(ability.type);
+    setActionType(ability.actionType);
+    setUsageType(ability.usageType);
+    setTier1Desc(ability.tierEffects[0]?.description || '');
+    setTier2Desc(ability.tierEffects[1]?.description || '');
+    setTier3Desc(ability.tierEffects[2]?.description || '');
+    setTier1DiceCount(ability.dice?.tier1?.count ?? '');
+    setTier1Die(ability.dice?.tier1?.die as DieType ?? '');
+    setTier2DiceCount(ability.dice?.tier2?.count ?? '');
+    setTier2Die(ability.dice?.tier2?.die as DieType ?? '');
+    setTier3DiceCount(ability.dice?.tier3?.count ?? '');
+    setTier3Die(ability.dice?.tier3?.die as DieType ?? '');
+    setCooldownMinutes(ability.cooldownMinutes ?? 0);
+    setNotes(ability.notes ?? '');
+    setMinLevel(ability.minLevel ?? 1);
+    setSuggestedNames([]);
+    setBalanceFeedback(null);
+  }, []);
+
+  // Reset form to defaults
   const resetForm = useCallback(() => {
     setName('');
     setTree(defaultTree);
@@ -128,6 +164,15 @@ export function HomebrewCreateSheet({
     setSuggestedNames([]);
     setBalanceFeedback(null);
   }, [defaultTree]);
+
+  // When sheet opens in edit mode, populate form
+  useEffect(() => {
+    if (open && editingAbility) {
+      populateFromAbility(editingAbility);
+    } else if (open && !editingAbility) {
+      resetForm();
+    }
+  }, [open, editingAbility, populateFromAbility, resetForm]);
 
   // AI Assistant handlers
   const handleSuggestNames = async () => {
@@ -317,13 +362,34 @@ export function HomebrewCreateSheet({
       notes: notes.trim() || undefined,
     };
 
-    onSave(homebrew);
-    toast({
-      title: 'Homebrew Created!',
-      description: `"${name.trim()}" has been added to your ${tree} tree.`,
-      className: 'border-primary bg-primary/10',
-    });
+    // If editing, call update; otherwise call save
+    if (isEditMode && editingAbility && onUpdate) {
+      onUpdate(editingAbility.id, homebrew);
+      toast({
+        title: 'Homebrew Updated!',
+        description: `"${name.trim()}" has been updated.`,
+        className: 'border-primary bg-primary/10',
+      });
+    } else {
+      onSave(homebrew);
+      toast({
+        title: 'Homebrew Created!',
+        description: `"${name.trim()}" has been added to your ${tree} tree.`,
+        className: 'border-primary bg-primary/10',
+      });
+    }
     handleOpenChange(false);
+  };
+
+  const handleDelete = () => {
+    if (editingAbility && onDelete) {
+      onDelete(editingAbility.id);
+      toast({
+        title: 'Homebrew Deleted',
+        description: `"${editingAbility.name}" has been removed.`,
+      });
+      handleOpenChange(false);
+    }
   };
 
   // Get the icon component dynamically
@@ -354,18 +420,40 @@ export function HomebrewCreateSheet({
             )}>
               <IconComponent className="w-5 h-5" />
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <SheetTitle className="font-cinzel flex items-center gap-2">
-                {name || 'New Homebrew Ability'}
-                <Badge variant="outline" className="text-xs border-primary/50">
-                  <Plus className="w-3 h-3 mr-1" />
-                  Creating
+                <span className="truncate">{name || (isEditMode ? 'Edit Homebrew' : 'New Homebrew Ability')}</span>
+                <Badge variant="outline" className={cn(
+                  "text-xs shrink-0",
+                  isEditMode ? "border-amber-500/50 text-amber-500" : "border-primary/50"
+                )}>
+                  {isEditMode ? (
+                    <>
+                      <Pencil className="w-3 h-3 mr-1" />
+                      Editing
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-3 h-3 mr-1" />
+                      Creating
+                    </>
+                  )}
                 </Badge>
               </SheetTitle>
               <SheetDescription className="text-xs">
-                Create a custom ability from scratch
+                {isEditMode ? 'Edit your custom ability' : 'Create a custom ability from scratch'}
               </SheetDescription>
             </div>
+            {isEditMode && onDelete && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDelete}
+                className="shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
           </div>
         </SheetHeader>
 
@@ -811,7 +899,7 @@ export function HomebrewCreateSheet({
               className="flex-1"
             >
               <Save className="w-4 h-4 mr-1" />
-              Create Ability
+              {isEditMode ? 'Save Changes' : 'Create Ability'}
             </Button>
           </div>
         </Tabs>

@@ -47,6 +47,7 @@ export function AbilitiesScreen({
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
   const [editSheetOpen, setEditSheetOpen] = useState(false);
   const [createSheetOpen, setCreateSheetOpen] = useState(false);
+  const [editingHomebrew, setEditingHomebrew] = useState<HomebrewAbility | null>(null);
   
   // Custom ability images hook
   const { images: abilityImages, handleImageUpload, clearAbilityImage } = useAbilityImages();
@@ -216,14 +217,22 @@ export function AbilitiesScreen({
     }
   }, [selectedAbility, clearAbilityImage]);
   
-  // Handle edit button click
+  // Handle edit button click - for base abilities use edit sheet, for homebrew use create sheet in edit mode
   const handleEditClick = useCallback(() => {
     if (selectedAbility) {
-      setEditSheetOpen(true);
+      const homebrew = customization.state.homebrewAbilities.find(h => h.id === selectedAbility);
+      if (homebrew) {
+        // Open create sheet in edit mode
+        setEditingHomebrew(homebrew);
+        setCreateSheetOpen(true);
+      } else {
+        // Open regular edit sheet for base abilities
+        setEditSheetOpen(true);
+      }
     }
-  }, [selectedAbility]);
+  }, [selectedAbility, customization.state.homebrewAbilities]);
   
-  // Handle save customization
+  // Handle save customization (for base abilities)
   const handleSaveCustomization = useCallback((updates: Parameters<typeof customization.updateOverride>[1]) => {
     if (selectedAbility) {
       customization.updateOverride(selectedAbility, updates);
@@ -241,6 +250,25 @@ export function AbilitiesScreen({
   const handleCreateHomebrew = useCallback((homebrew: Omit<HomebrewAbility, 'id' | 'createdAt' | 'updatedAt'>) => {
     customization.addHomebrew(homebrew);
   }, [customization]);
+
+  // Handle homebrew update
+  const handleUpdateHomebrew = useCallback((id: string, homebrew: Omit<HomebrewAbility, 'id' | 'createdAt' | 'updatedAt'>) => {
+    customization.updateHomebrew(id, homebrew);
+  }, [customization]);
+
+  // Handle homebrew delete
+  const handleDeleteHomebrew = useCallback((id: string) => {
+    customization.removeHomebrew(id);
+    setSelectedAbility(null); // Deselect since it no longer exists
+  }, [customization]);
+
+  // Handle create sheet close - reset editing state
+  const handleCreateSheetOpenChange = useCallback((open: boolean) => {
+    setCreateSheetOpen(open);
+    if (!open) {
+      setEditingHomebrew(null);
+    }
+  }, []);
 
   return (
     <div className="flex flex-col h-full min-h-screen bg-background">
@@ -424,12 +452,15 @@ export function AbilitiesScreen({
         />
       )}
 
-      {/* Homebrew Create Sheet */}
+      {/* Homebrew Create/Edit Sheet */}
       <HomebrewCreateSheet
         open={createSheetOpen}
-        onOpenChange={setCreateSheetOpen}
-        defaultTree={selectedTree}
+        onOpenChange={handleCreateSheetOpenChange}
+        defaultTree={editingHomebrew?.tree || selectedTree}
+        editingAbility={editingHomebrew}
         onSave={handleCreateHomebrew}
+        onUpdate={handleUpdateHomebrew}
+        onDelete={handleDeleteHomebrew}
       />
     </div>
   );
