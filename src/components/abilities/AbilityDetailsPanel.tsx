@@ -8,7 +8,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import * as LucideIcons from 'lucide-react';
-import { Lock, Zap, Clock, RotateCcw, Shield, Sparkles, AlertTriangle, ImagePlus, Trash2 } from 'lucide-react';
+import { Lock, Zap, Clock, RotateCcw, Shield, Sparkles, AlertTriangle, ImagePlus, Trash2, Pencil } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface AbilityDetailsPanelProps {
@@ -20,8 +20,10 @@ interface AbilityDetailsPanelProps {
   prerequisiteMet: boolean;
   equippedSlots: string[];
   customImage?: string | null;
+  isCustomized?: boolean;
   onImageUpload?: (file: File) => Promise<void>;
   onImageClear?: () => void;
+  onEdit?: () => void;
   onUpgrade: () => void;
   onDowngrade: () => void;
   onEquip: (slot: number) => void;
@@ -68,8 +70,10 @@ export function AbilityDetailsPanel({
   prerequisiteMet,
   equippedSlots,
   customImage,
+  isCustomized,
   onImageUpload,
   onImageClear,
+  onEdit,
   onUpgrade,
   onDowngrade,
   onEquip,
@@ -226,12 +230,25 @@ export function AbilityDetailsPanel({
           )}
         </button>
         <div className="flex-1 min-w-0">
-          <h2 className={cn(
-            'font-bold truncate',
-            isMobile ? 'text-xl' : 'text-2xl'
-          )}>
-            {ability.name}
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className={cn(
+              'font-bold truncate flex-1',
+              isMobile ? 'text-xl' : 'text-2xl'
+            )}>
+              {ability.name}
+            </h2>
+            {onEdit && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onEdit}
+                className="shrink-0 h-8 px-2"
+              >
+                <Pencil className="w-4 h-4" />
+                {!isMobile && <span className="ml-1">Edit</span>}
+              </Button>
+            )}
+          </div>
           <div className="flex flex-wrap gap-2 mt-1">
             <Badge variant="outline" className={cn(`border-${treeConfig.primary} text-${treeConfig.primary}`)}>
               {treeConfig.name}
@@ -239,6 +256,12 @@ export function AbilityDetailsPanel({
             <Badge variant="outline">
               {ability.type === 'active' ? 'Active' : 'Passive'}
             </Badge>
+            {isCustomized && (
+              <Badge variant="secondary" className="text-xs">
+                <Pencil className="w-3 h-3 mr-1" />
+                Customized
+              </Badge>
+            )}
           </div>
         </div>
       </div>

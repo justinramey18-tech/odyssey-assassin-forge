@@ -6,12 +6,15 @@ import { TreeColumn } from './TreeColumn';
 import { TreeSelector } from './TreeSelector';
 import { TreeBottomBar } from './TreeBottomBar';
 import { AbilityDetailsPanel } from './AbilityDetailsPanel';
+import { AbilityEditSheet } from './AbilityEditSheet';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useSwipe } from '@/hooks/use-swipe';
 import { useAbilityImages } from '@/hooks/use-ability-images';
+import { useAbilityCustomization } from '@/hooks/use-ability-customization';
+import { applyOverrides } from '@/lib/abilityCustomization/utils';
 import { cn } from '@/lib/utils';
 import { ArrowLeft } from 'lucide-react';
 
@@ -40,9 +43,13 @@ export function AbilitiesScreen({
   const [selectedTree, setSelectedTree] = useState<AbilityTree>('hunter');
   const [selectedAbility, setSelectedAbility] = useState<string | null>(null);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
+  const [editSheetOpen, setEditSheetOpen] = useState(false);
   
   // Custom ability images hook
   const { images: abilityImages, handleImageUpload, clearAbilityImage } = useAbilityImages();
+  
+  // Ability customization hook
+  const customization = useAbilityCustomization();
   
   // Refs for auto-scroll to bottom (Foundation nodes)
   const mobileScrollRef = useRef<HTMLDivElement>(null);
@@ -116,8 +123,14 @@ export function AbilitiesScreen({
     { threshold: 60, velocityThreshold: 0.4 }
   );
 
-  // Get selected ability data
-  const selectedAbilityData = selectedAbility ? getAbilityById(selectedAbility) : null;
+  // Get selected ability data with customizations applied
+  const selectedAbilityBase = selectedAbility ? getAbilityById(selectedAbility) : null;
+  const selectedAbilityOverride = selectedAbility ? customization.getOverride(selectedAbility) : undefined;
+  const selectedAbilityData = selectedAbilityBase 
+    ? applyOverrides(selectedAbilityBase, selectedAbilityOverride)
+    : null;
+  const isSelectedAbilityCustomized = selectedAbility ? !!customization.getOverride(selectedAbility) : false;
+  
   const currentTier = selectedAbility 
     ? (character.abilities.find(ca => ca.abilityId === selectedAbility)?.currentTier || 0) as 0 | 1 | 2 | 3
     : 0;
@@ -165,6 +178,27 @@ export function AbilitiesScreen({
       clearAbilityImage(selectedAbility);
     }
   }, [selectedAbility, clearAbilityImage]);
+  
+  // Handle edit button click
+  const handleEditClick = useCallback(() => {
+    if (selectedAbility) {
+      setEditSheetOpen(true);
+    }
+  }, [selectedAbility]);
+  
+  // Handle save customization
+  const handleSaveCustomization = useCallback((updates: Parameters<typeof customization.updateOverride>[1]) => {
+    if (selectedAbility) {
+      customization.updateOverride(selectedAbility, updates);
+    }
+  }, [selectedAbility, customization]);
+  
+  // Handle reset customization
+  const handleResetCustomization = useCallback(() => {
+    if (selectedAbility) {
+      customization.removeOverride(selectedAbility);
+    }
+  }, [selectedAbility, customization]);
 
   return (
     <div className="flex flex-col h-full min-h-screen bg-background">
@@ -268,8 +302,10 @@ export function AbilitiesScreen({
                 prerequisiteMet={prerequisiteMet}
                 equippedSlots={character.equippedAbilities}
                 customImage={selectedAbility ? abilityImages[selectedAbility] : null}
+                isCustomized={isSelectedAbilityCustomized}
                 onImageUpload={handleSelectedAbilityImageUpload}
                 onImageClear={handleSelectedAbilityImageClear}
+                onEdit={handleEditClick}
                 onUpgrade={handleUpgrade}
                 onDowngrade={handleDowngrade}
                 onEquip={handleEquip}
@@ -284,7 +320,7 @@ export function AbilitiesScreen({
       {/* Mobile Bottom Sheet */}
       {isMobile && (
         <Sheet 
-          open={!!selectedAbility} 
+          open={!!selectedAbility && !editSheetOpen} 
           onOpenChange={(open) => !open && setSelectedAbility(null)}
         >
           <SheetContent 
@@ -305,8 +341,10 @@ export function AbilitiesScreen({
               prerequisiteMet={prerequisiteMet}
               equippedSlots={character.equippedAbilities}
               customImage={selectedAbility ? abilityImages[selectedAbility] : null}
+              isCustomized={isSelectedAbilityCustomized}
               onImageUpload={handleSelectedAbilityImageUpload}
               onImageClear={handleSelectedAbilityImageClear}
+              onEdit={handleEditClick}
               onUpgrade={handleUpgrade}
               onDowngrade={handleDowngrade}
               onEquip={handleEquip}
@@ -315,6 +353,18 @@ export function AbilitiesScreen({
             />
           </SheetContent>
         </Sheet>
+      )}
+
+      {/* Ability Edit Sheet */}
+      {selectedAbilityBase && (
+        <AbilityEditSheet
+          open={editSheetOpen}
+          onOpenChange={setEditSheetOpen}
+          ability={selectedAbilityBase}
+          currentOverride={selectedAbilityOverride}
+          onSave={handleSaveCustomization}
+          onReset={handleResetCustomization}
+        />
       )}
     </div>
   );
