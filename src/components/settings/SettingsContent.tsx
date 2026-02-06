@@ -19,6 +19,7 @@ import { DiceOddsWidget } from './DiceOddsWidget';
 import { GameModeSettings } from './GameModeSettings';
 import { XPProgressionWidget, XPProgressionMode } from './XPProgressionWidget';
 import { GMGuidePrompts } from './GMGuidePrompts';
+import { CustomizationsPanel } from './CustomizationsPanel';
 import { DiceOddsMode } from '@/lib/diceOdds';
 import { GameModeSettings as GameModeSettingsType } from '@/lib/gameModes';
 import { useGameMode } from '@/hooks/use-game-mode';
@@ -222,6 +223,17 @@ export function SettingsContent({
           <GameModeSettings settings={gameModeSettings} onChange={onGameModeChange} />
           <Separator className="bg-border/30" />
           <XPProgressionWidget value={xpProgressionMode} onChange={onXPProgressionChange} />
+        </div>
+      </div>
+    );
+  }
+
+  // Customizations Tab
+  if (activeTab === 'customizations') {
+    return (
+      <div className="flex-1 overflow-y-auto max-h-[70vh] overscroll-contain">
+        <div className="pb-6">
+          <CustomizationsPanel onClose={onClose} />
         </div>
       </div>
     );
