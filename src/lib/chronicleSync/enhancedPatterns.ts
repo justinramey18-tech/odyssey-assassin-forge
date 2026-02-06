@@ -1,8 +1,9 @@
 // Enhanced Chronicle Sync Detection Patterns
-// Rest cycles, spell slots, death saves, combat rounds, temp HP, inspiration
+// Rest cycles, spell slots, death saves, combat rounds, temp HP, inspiration, initiative
 
 import { PatternMatch, parseTempHPMatches } from './patterns';
 import { parseInspirationMatches } from './patterns/inspiration';
+import { parseInitiativeMatches, InitiativeMatch } from './patterns/initiative';
 import { 
   ParsedRestEvent, 
   ParsedSpellSlotUsage, 
@@ -12,6 +13,9 @@ import {
   ParsedTempHP,
   ParsedInspiration,
 } from './enhancedTypes';
+
+// Re-export InitiativeMatch for consumers
+export type { InitiativeMatch } from './patterns/initiative';
 
 // ===== REST PATTERNS =====
 
@@ -339,6 +343,7 @@ export interface EnhancedPatternResults {
   kills: ParsedKillEvent[];
   tempHPGains: ParsedTempHP[];
   inspirationEvents: ParsedInspiration[];
+  initiativeRolls: InitiativeMatch[];
 }
 
 export function parseEnhancedPatterns(text: string): EnhancedPatternResults {
@@ -350,6 +355,7 @@ export function parseEnhancedPatterns(text: string): EnhancedPatternResults {
     kills: parseKillEvents(text),
     tempHPGains: parseTempHPGains(text),
     inspirationEvents: parseInspirationEvents(text),
+    initiativeRolls: parseInitiativeMatches(text),
   };
 }
 

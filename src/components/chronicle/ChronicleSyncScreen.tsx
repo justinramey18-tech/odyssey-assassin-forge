@@ -64,6 +64,8 @@ interface ChronicleSyncScreenProps {
   deathSaves: { successes: number; failures: number };
   // Spell slots state
   spellSlots?: SpellSlotState;
+  // Initiative state
+  playerInitiative?: number | null;
   onApplyChanges: (changes: ApprovedChanges) => void;
   onApplyGold: (netChange: number) => void;
   onApplyHP: (change: number, type: 'damage' | 'healing') => void;
@@ -74,6 +76,8 @@ interface ChronicleSyncScreenProps {
   onApplySpellSlots?: (slotsToExpend: Record<number, number>) => void;
   onApplyTempHP?: (amount: number) => void;
   onApplyInspiration?: (hasInspiration: boolean) => void;
+  onApplyPlayerInitiative?: (value: number) => void;
+  onApplyEnemyInitiative?: (enemyId: string, value: number) => void;
   // Target tracker integration
   existingEnemies: Enemy[];
   onAddEnemies: (enemies: NewEnemyInput[]) => number;
@@ -101,6 +105,7 @@ export function ChronicleSyncScreen({
   activeConditions,
   deathSaves,
   spellSlots,
+  playerInitiative,
   onApplyChanges,
   onApplyGold,
   onApplyHP,
@@ -111,6 +116,8 @@ export function ChronicleSyncScreen({
   onApplySpellSlots,
   onApplyTempHP,
   onApplyInspiration,
+  onApplyPlayerInitiative,
+  onApplyEnemyInitiative,
   existingEnemies,
   onAddEnemies,
   onUpdateEnemy,
@@ -702,8 +709,8 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
                 </div>
               )}
 
-              {/* Auto-Apply Panel - one-click application for HP, gold, conditions, rests, death saves */}
-              {parseResult && (hasDisplayOnlyChanges(parseResult) || (enhancedResults && enhancedResults.deathSaves.length > 0)) && (
+              {/* Auto-Apply Panel - one-click application for HP, gold, conditions, rests, death saves, initiative */}
+              {parseResult && (hasDisplayOnlyChanges(parseResult) || (enhancedResults && (enhancedResults.deathSaves.length > 0 || enhancedResults.initiativeRolls.length > 0))) && (
                 <AutoApplyPanel
                   parseResult={parseResult}
                   enhancedResults={enhancedResults ? {
@@ -712,6 +719,7 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
                     spellSlotUsage: enhancedResults.spellSlotUsage,
                     tempHPGains: enhancedResults.tempHPGains,
                     inspirationEvents: enhancedResults.inspirationEvents,
+                    initiativeRolls: enhancedResults.initiativeRolls,
                   } : undefined}
                   currentGold={currentGold}
                   currentHP={currentHP}
@@ -721,6 +729,8 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
                   activeConditions={activeConditions}
                   deathSaves={deathSaves}
                   spellSlots={spellSlots}
+                  playerInitiative={playerInitiative}
+                  enemies={existingEnemies}
                   onApplyGold={onApplyGold}
                   onApplyHP={onApplyHP}
                   onApplyConditions={onApplyConditions}
@@ -730,6 +740,8 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
                   onApplySpellSlots={onApplySpellSlots}
                   onApplyTempHP={onApplyTempHP}
                   onApplyInspiration={onApplyInspiration}
+                  onApplyPlayerInitiative={onApplyPlayerInitiative}
+                  onApplyEnemyInitiative={onApplyEnemyInitiative}
                 />
               )}
 
