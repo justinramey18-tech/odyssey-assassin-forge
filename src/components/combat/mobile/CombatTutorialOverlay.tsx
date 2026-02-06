@@ -172,44 +172,52 @@ export function CombatTutorialOverlay({ onComplete, onDismiss }: CombatTutorialO
   };
 
   // Get highlight zone styles
+  // These values are approximations for a 390px wide mobile viewport
+  // Action Economy bar is below the top bar (~56px) and HP/stats row (~100px)
   const getHighlightStyles = () => {
     if (!step.highlight) return null;
 
     switch (step.highlight) {
       case 'action-bar':
+        // The Action Economy tracker with ACTION, BONUS, REACT, MOVEMENT, END
+        // Located below the top bar and HP row
         return {
-          top: '80px',
-          left: '16px',
-          right: '16px',
-          height: '60px',
+          top: '156px',
+          left: '8px',
+          right: '8px',
+          height: '88px',
         };
       case 'situation':
+        // Situation toggles strip below action economy
         return {
-          top: '145px',
-          left: '16px',
-          right: '16px',
-          height: '50px',
+          top: '252px',
+          left: '8px',
+          right: '8px',
+          height: '44px',
         };
       case 'weapons':
+        // Weapon cards area
         return {
-          top: '200px',
-          left: '16px',
-          right: '16px',
-          height: '180px',
+          top: '304px',
+          left: '8px',
+          right: '8px',
+          height: '200px',
         };
       case 'turn-wizard':
+        // Turn wizard suggestions panel
         return {
-          top: '145px',
-          left: '16px',
-          right: '16px',
-          height: '100px',
+          top: '252px',
+          left: '8px',
+          right: '8px',
+          height: '120px',
         };
       case 'bottom-nav':
+        // Bottom navigation tabs
         return {
           bottom: '0',
           left: '0',
           right: '0',
-          height: '56px',
+          height: '64px',
         };
       default:
         return null;
@@ -219,29 +227,27 @@ export function CombatTutorialOverlay({ onComplete, onDismiss }: CombatTutorialO
   const highlightStyles = getHighlightStyles();
 
   // Calculate highlight rectangle for cutout
+  // For SVG mask we need percentage-based values for responsive sizing
   const getHighlightRect = () => {
     if (!highlightStyles) return null;
     
+    // Parse padding values
+    const leftPx = highlightStyles.left === '8px' ? 8 : highlightStyles.left === '0' ? 0 : 8;
+    const rightPx = highlightStyles.right === '8px' ? 8 : highlightStyles.right === '0' ? 0 : 8;
+    
     const rect = {
-      x: highlightStyles.left === '16px' ? 16 : highlightStyles.left === '0' ? 0 : 16,
+      x: leftPx,
       y: highlightStyles.top ? parseInt(highlightStyles.top as string) : 0,
-      width: 358, // 390 - 32 for 16px padding on each side (mobile viewport)
+      // Use percentage for width to be responsive
+      width: `calc(100% - ${leftPx + rightPx}px)`,
       height: parseInt(highlightStyles.height as string) || 60,
-      rx: 8,
+      rx: 12,
     };
     
-    // Handle bottom-positioned elements
+    // Handle bottom-positioned elements (bottom nav)
     if (highlightStyles.bottom === '0') {
-      rect.y = 788; // 844 - 56 for bottom nav
-      rect.x = 0;
-      rect.width = 390;
-      rect.rx = 0;
-    }
-    
-    // Handle full-width elements
-    if (highlightStyles.left === '0' && highlightStyles.right === '0') {
-      rect.x = 0;
-      rect.width = 390;
+      // Bottom nav needs special handling - use CSS positioning instead
+      return null; // We'll handle this with the highlight border div instead
     }
     
     return rect;
