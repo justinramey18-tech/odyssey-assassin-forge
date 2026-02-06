@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { WizardState } from '../types';
+import { WizardState, StepValidation } from '../types';
 import { 
   EQUIPMENT_PRESETS, 
   getAvailablePresets, 
@@ -18,14 +18,16 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { rarityConfig } from '@/lib/inventory/types';
+import { ValidationFeedback } from '../ValidationFeedback';
 import wizardBackground from '@/assets/wizard-background.jpg';
 
 interface EquipmentStepProps {
   state: WizardState;
   onUpdate: (updates: Partial<Pick<WizardState, 'equipment' | 'selectedPresetId'>>) => void;
+  validation?: StepValidation;
 }
 
-export function EquipmentStep({ state, onUpdate }: EquipmentStepProps) {
+export function EquipmentStep({ state, onUpdate, validation }: EquipmentStepProps) {
   const { level, gameMode, selectedPresetId } = state;
   const isHonestMode = gameMode === 'honest';
 
@@ -109,6 +111,11 @@ export function EquipmentStep({ state, onUpdate }: EquipmentStepProps) {
               ))}
             </div>
           </>
+        )}
+
+        {/* Validation Feedback */}
+        {validation && (validation.warnings.length > 0 || validation.errors.length > 0) && (
+          <ValidationFeedback validation={validation} compact className="mt-3" />
         )}
 
         {/* Selected Preset Details */}

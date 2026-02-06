@@ -14,25 +14,27 @@ import {
 } from '@/lib/abilityScores/types';
 import { calculateMaxHP, getHPBreakdown } from '@/lib/hpCalculation';
 import { cn } from '@/lib/utils';
-import { WizardState, ScoreGenerationMethod } from '../types';
-import { Dices, ListOrdered, SlidersHorizontal, Wand2, Heart, Info, RotateCcw } from 'lucide-react';
+import { WizardState, ScoreGenerationMethod, StepValidation } from '../types';
+import { Dices, ListOrdered, SlidersHorizontal, Wand2, Heart, Info, RotateCcw, AlertTriangle } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { ValidationFeedback } from '../ValidationFeedback';
 import wizardBackground from '@/assets/wizard-background.jpg';
 
 interface AbilityScoresStepProps {
   state: WizardState;
   onUpdate: (updates: Partial<Pick<WizardState, 'abilityScores' | 'scoreGenerationMethod'>>) => void;
+  validation?: StepValidation;
 }
 
 // Assassin-optimized score priority
 const ASSASSIN_PRIORITY: AbilityName[] = ['dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma', 'strength'];
 
-export function AbilityScoresStep({ state, onUpdate }: AbilityScoresStepProps) {
+export function AbilityScoresStep({ state, onUpdate, validation }: AbilityScoresStepProps) {
   const [rolledScores, setRolledScores] = useState<number[]>([]);
   const [assignedScores, setAssignedScores] = useState<Record<AbilityName, number | null>>({
     strength: null,
@@ -428,6 +430,11 @@ export function AbilityScoresStep({ state, onUpdate }: AbilityScoresStepProps) {
               </span>
             </div>
           </div>
+
+          {/* Validation Feedback */}
+          {validation && (validation.warnings.length > 0 || validation.errors.length > 0) && (
+            <ValidationFeedback validation={validation} compact className="mt-3" />
+          )}
         </div>
       </div>
     </div>
