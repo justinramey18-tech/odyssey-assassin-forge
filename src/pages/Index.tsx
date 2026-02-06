@@ -206,7 +206,7 @@ const Index = () => {
   const combatLog = useCombatLog();
   
   // Ref to hold conditions.endTurn - populated after conditions hook is created
-  const conditionsEndTurnRef = useRef<() => void>(() => {});
+  const conditionsEndTurnRef = useRef<() => { expired: string[]; tickedDown: string[] }>(() => ({ expired: [], tickedDown: [] }));
   
   // Initiative tracker (depends on targets.enemies)
   // Wire up round tracking: when a new round starts, tick down conditions
@@ -214,7 +214,39 @@ const Index = () => {
   const initiative = useInitiative(targets.enemies, {
     onRoundAdvance: useCallback((newRound: number) => {
       console.log(`[Initiative] Round ${newRound} started - ticking conditions`);
-      conditionsEndTurnRef.current();
+      const result = conditionsEndTurnRef.current();
+      
+      // Show round advance toast with condition changes
+      if (result && (result.expired.length > 0 || result.tickedDown.length > 0)) {
+        const parts: string[] = [];
+        if (result.tickedDown.length > 0) {
+          parts.push(`⏳ ${result.tickedDown.join(', ')}`);
+        }
+        if (result.expired.length > 0) {
+          parts.push(`💀 Expired: ${result.expired.join(', ')}`);
+        }
+        // Use setTimeout to ensure toast hook is available
+        setTimeout(() => {
+          import('@/hooks/use-toast').then(({ toast }) => {
+            toast({
+              title: `⚔️ Round ${newRound}`,
+              description: parts.join(' | '),
+              duration: 4000,
+            });
+          });
+        }, 0);
+      } else {
+        // Show simple round advance notification
+        setTimeout(() => {
+          import('@/hooks/use-toast').then(({ toast }) => {
+            toast({
+              title: `⚔️ Round ${newRound}`,
+              description: 'New round begins',
+              duration: 2000,
+            });
+          });
+        }, 0);
+      }
     }, []),
     onPlayerTurnStart: useCallback(() => {
       console.log('[Initiative] Player turn started - resetting action economy');

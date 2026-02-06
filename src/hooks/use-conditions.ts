@@ -85,7 +85,7 @@ export interface UseConditionsReturn {
   updateNotes: (id: string, notes: string) => void;
   
   // Turn & Rest mechanics
-  endTurn: () => void;
+  endTurn: () => { expired: string[]; tickedDown: string[] };
   shortRest: () => void;
   longRest: () => void;
   
@@ -295,8 +295,9 @@ export function useConditions(options: UseConditionsOptions = {}): UseConditions
   // Turn & Rest Mechanics
   // ============================================
 
-  const endTurn = useCallback(() => {
+  const endTurn = useCallback((): { expired: string[]; tickedDown: string[] } => {
     const expiredConditions: string[] = [];
+    const tickedDownConditions: string[] = [];
 
     setState(prev => {
       const updatedConditions = prev.conditions
@@ -308,6 +309,7 @@ export function useConditions(options: UseConditionsOptions = {}): UseConditions
               expiredConditions.push(c.name);
               return null; // Mark for removal
             }
+            tickedDownConditions.push(`${c.name} (${newValue})`);
             return { ...c, durationValue: newValue };
           }
 
@@ -320,8 +322,10 @@ export function useConditions(options: UseConditionsOptions = {}): UseConditions
                 expiredConditions.push(c.name);
                 return null; // Mark for removal
               }
+              tickedDownConditions.push(`${c.name} (${newValue}m)`);
               return { ...c, durationValue: newValue, roundsElapsed: 0 };
             }
+            // Don't add to tickedDown for partial minute progress
             return { ...c, roundsElapsed: newRoundsElapsed };
           }
 
@@ -333,13 +337,7 @@ export function useConditions(options: UseConditionsOptions = {}): UseConditions
       return { ...prev, conditions: updatedConditions };
     });
 
-    // Notify about expired conditions
-    if (expiredConditions.length > 0) {
-      toast({
-        title: "Conditions Expired",
-        description: expiredConditions.join(', ') + ' wore off',
-      });
-    }
+    return { expired: expiredConditions, tickedDown: tickedDownConditions };
   }, []);
 
   const shortRest = useCallback(() => {
