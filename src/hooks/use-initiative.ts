@@ -50,6 +50,13 @@ function saveState(state: InitiativeState): void {
   }
 }
 
+export interface UseInitiativeOptions {
+  /** Called when advancing to the player's turn (for resetting action economy) */
+  onPlayerTurnStart?: () => void;
+  /** Called when a round ends and a new round begins (for ticking down conditions) */
+  onRoundAdvance?: (newRound: number) => void;
+}
+
 export interface UseInitiativeReturn {
   // State
   playerInitiative: number | null;
@@ -74,7 +81,11 @@ export interface UseInitiativeReturn {
   resetRound: () => void;
 }
 
-export function useInitiative(enemies: Enemy[]): UseInitiativeReturn {
+export function useInitiative(
+  enemies: Enemy[],
+  options: UseInitiativeOptions = {}
+): UseInitiativeReturn {
+  const { onPlayerTurnStart, onRoundAdvance } = options;
   const [state, setState] = useState<InitiativeState>(loadState);
 
   // Persist state changes
@@ -145,23 +156,36 @@ export function useInitiative(enemies: Enemy[]): UseInitiativeReturn {
 
   // Next turn
   const nextTurn = useCallback(() => {
-    setState(prev => {
-      const activeCombatants = initiativeOrder.filter(c => c.isActive);
-      if (activeCombatants.length === 0) return prev;
+    const activeCombatants = initiativeOrder.filter(c => c.isActive);
+    if (activeCombatants.length === 0) return;
 
+    setState(prev => {
       const currentIdx = activeCombatants.findIndex(c => c.id === prev.currentTurnId);
       const nextIdx = (currentIdx + 1) % activeCombatants.length;
       
       // Check if we wrapped around (new round)
-      const newRound = nextIdx === 0 && currentIdx >= 0;
+      const isNewRound = nextIdx === 0 && currentIdx >= 0;
+      const newRoundNumber = isNewRound ? prev.roundNumber + 1 : prev.roundNumber;
+      const nextCombatant = activeCombatants[nextIdx];
+
+      // Trigger callbacks after state update
+      if (isNewRound) {
+        // Use setTimeout to ensure state is updated first
+        setTimeout(() => onRoundAdvance?.(newRoundNumber), 0);
+      }
+      
+      // Check if next turn is player's turn
+      if (nextCombatant?.isPlayer) {
+        setTimeout(() => onPlayerTurnStart?.(), 0);
+      }
 
       return {
         ...prev,
-        currentTurnId: activeCombatants[nextIdx]?.id ?? null,
-        roundNumber: newRound ? prev.roundNumber + 1 : prev.roundNumber,
+        currentTurnId: nextCombatant?.id ?? null,
+        roundNumber: newRoundNumber,
       };
     });
-  }, [initiativeOrder]);
+  }, [initiativeOrder, onRoundAdvance, onPlayerTurnStart]);
 
   // Previous turn
   const prevTurn = useCallback(() => {
