@@ -7,8 +7,15 @@ import {
   Activity,
   Heart,
   Shield,
-  Swords
+  Swords,
+  HelpCircle,
 } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface CombatTopBarProps {
   round: number;
@@ -17,6 +24,7 @@ interface CombatTopBarProps {
   onResetTurn: () => void;
   onMenuOpen: () => void;
   onSettingsOpen: () => void;
+  onReplayTutorial?: () => void;
   // New stats props
   currentHP?: number;
   maxHP?: number;
@@ -32,6 +40,7 @@ export function CombatTopBar({
   onResetTurn,
   onMenuOpen,
   onSettingsOpen,
+  onReplayTutorial,
   currentHP,
   maxHP,
   tempHP = 0,
@@ -84,6 +93,25 @@ export function CombatTopBar({
           >
             <RotateCcw className="h-4 w-4 text-red-400" />
           </Button>
+          {onReplayTutorial && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={onReplayTutorial}
+                    className="h-9 w-9 border border-primary/30 hover:border-primary/50 hover:bg-primary/10"
+                  >
+                    <HelpCircle className="h-4 w-4 text-primary" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Replay Combat Tutorial</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
           <Button
             variant="ghost"
             size="icon"
