@@ -116,6 +116,7 @@ export function HomebrewCreateSheet({
   // AI assistant state
   const [suggestedNames, setSuggestedNames] = useState<string[]>([]);
   const [balanceFeedback, setBalanceFeedback] = useState<string | null>(null);
+  const [customPrompt, setCustomPrompt] = useState('');
 
   // Populate form when editing an existing ability
   const populateFromAbility = useCallback((ability: HomebrewAbility) => {
@@ -163,6 +164,7 @@ export function HomebrewCreateSheet({
     setMinLevel(1);
     setSuggestedNames([]);
     setBalanceFeedback(null);
+    setCustomPrompt('');
   }, [defaultTree]);
 
   // When sheet opens in edit mode, populate form
@@ -176,14 +178,16 @@ export function HomebrewCreateSheet({
 
   // AI Assistant handlers
   const handleSuggestNames = async () => {
-    const names = await assistant.suggestNames({ tree, type });
+    const userPrompt = customPrompt.trim() || undefined;
+    const names = await assistant.suggestNames({ tree, type }, userPrompt);
     if (names.length > 0) {
       setSuggestedNames(names);
     }
   };
 
   const handleGenerateFull = async () => {
-    const suggestion = await assistant.suggestFullAbility({ tree, type });
+    const userPrompt = customPrompt.trim() || undefined;
+    const suggestion = await assistant.suggestFullAbility({ tree, type }, userPrompt);
     if (suggestion) {
       setName(suggestion.name || '');
       setTier1Desc(suggestion.tier1 || '');
@@ -486,6 +490,17 @@ export function HomebrewCreateSheet({
                   )}
                 </div>
                 
+                {/* Custom Prompt Input */}
+                <div className="space-y-2">
+                  <Textarea
+                    value={customPrompt}
+                    onChange={(e) => setCustomPrompt(e.target.value)}
+                    placeholder="Describe your ability idea... e.g., 'create an ability that combines stealth with poison' or 'a defensive stance that reflects damage'"
+                    className="bg-background/50 text-sm min-h-[60px] resize-none"
+                    rows={2}
+                  />
+                </div>
+                
                 <div className="flex flex-wrap gap-2">
                   <Button
                     variant="outline"
@@ -495,7 +510,7 @@ export function HomebrewCreateSheet({
                     className="text-xs h-7 border-primary/40 hover:bg-primary/10"
                   >
                     <Zap className="w-3 h-3 mr-1" />
-                    Generate Full Ability
+                    {customPrompt.trim() ? 'Generate from Prompt' : 'Generate Full Ability'}
                   </Button>
                   <Button
                     variant="outline"
@@ -507,6 +522,16 @@ export function HomebrewCreateSheet({
                     <Lightbulb className="w-3 h-3 mr-1" />
                     Suggest Names
                   </Button>
+                  {customPrompt.trim() && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setCustomPrompt('')}
+                      className="text-xs h-7 text-muted-foreground"
+                    >
+                      Clear
+                    </Button>
+                  )}
                 </div>
                 
                 {/* Name suggestions */}
