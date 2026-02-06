@@ -73,6 +73,54 @@ export const HEALING_PATTERNS = [
   /(?:gain|get|got)(?:s|ed)?\s*(\d+)\s*(?:hp|hit\s*points?|health)(?:\s*back)?/gi,
 ];
 
+// ===== TEMPORARY HP PATTERNS =====
+
+export const TEMP_HP_PATTERNS = [
+  // "gain 10 temporary HP", "receives 15 temp hit points"
+  /(?:gain|receive|get|got)(?:s|ed)?\s*(\d+)\s*(?:temp(?:orary)?)\s*(?:hp|hit\s*points?)/gi,
+  // "10 temporary HP", "15 temp hit points gained"
+  /(\d+)\s*(?:temp(?:orary)?)\s*(?:hp|hit\s*points?)(?:\s*(?:gained|received))?/gi,
+  // "temporary hit points: 8", "temp HP: 12"
+  /(?:temp(?:orary)?)\s*(?:hp|hit\s*points?):\s*(\d+)/gi,
+  // "grants 10 temporary hit points", "provides 8 temp HP"
+  /(?:grants?|provides?|gives?)(?:\s+you)?\s*(\d+)\s*(?:temp(?:orary)?)\s*(?:hp|hit\s*points?)/gi,
+  // "armor of agathys" style: "5 temp HP from armor of agathys"
+  /(\d+)\s*(?:temp(?:orary)?)\s*(?:hp|hit\s*points?)\s*(?:from|via|through)/gi,
+];
+
+export function parseTempHPMatches(text: string): PatternMatch[] {
+  const matches: PatternMatch[] = [];
+  
+  for (const pattern of TEMP_HP_PATTERNS) {
+    let match;
+    const regex = new RegExp(pattern.source, pattern.flags);
+    
+    while ((match = regex.exec(text)) !== null) {
+      const amount = parseInt(match[1], 10);
+      if (!isNaN(amount) && amount > 0) {
+        const start = Math.max(0, match.index - 50);
+        const end = Math.min(text.length, match.index + match[0].length + 50);
+        const context = text.slice(start, end).replace(/\s+/g, ' ').trim();
+        
+        matches.push({
+          fullMatch: match[0],
+          value: amount,
+          context,
+          index: match.index,
+        });
+      }
+    }
+  }
+  
+  // Deduplicate by index
+  const seen = new Set<number>();
+  return matches.filter(m => {
+    if (seen.has(m.index)) return false;
+    seen.add(m.index);
+    return true;
+  });
+}
+
 export function parseDamageMatches(text: string): PatternMatch[] {
   const matches: PatternMatch[] = [];
   

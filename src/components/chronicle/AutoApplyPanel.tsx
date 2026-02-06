@@ -3,7 +3,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { 
-  Zap, Coins, Heart, AlertCircle, Moon, Skull, Sparkles,
+  Zap, Coins, Heart, AlertCircle, Moon, Skull, Sparkles, Shield,
   Check, X, ChevronDown, Settings2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +16,7 @@ import {
   AutoApplyResult,
   CHRONICLE_AUTO_APPLY_KEY,
   ParsedSpellSlotUsage,
+  ParsedTempHP,
 } from '@/lib/chronicleSync/enhancedTypes';
 import { ChronicleParseResult, ParsedGoldChange, ParsedHPChange, ParsedCondition } from '@/lib/chronicleSync/types';
 import { ParsedRestEvent, ParsedDeathSave } from '@/lib/chronicleSync/enhancedTypes';
@@ -35,10 +36,12 @@ interface AutoApplyPanelProps {
     restEvents: ParsedRestEvent[];
     deathSaves: ParsedDeathSave[];
     spellSlotUsage: ParsedSpellSlotUsage[];
+    tempHPGains: ParsedTempHP[];
   };
   currentGold: number;
   currentHP: number;
   maxHP: number;
+  currentTempHP: number;
   activeConditions: string[];
   deathSaves?: DeathSavesState;
   spellSlots?: SpellSlotState;
@@ -49,6 +52,7 @@ interface AutoApplyPanelProps {
   onApplyDeathSaves?: (saves: DeathSavesState) => void;
   onRegainHP?: (amount: number) => void;
   onApplySpellSlots?: (slotsToExpend: Record<number, number>) => void;
+  onApplyTempHP?: (amount: number) => void;
 }
 
 // Load/save config from localStorage
@@ -57,7 +61,7 @@ function loadConfig(): AutoApplyConfig {
     const stored = localStorage.getItem(CHRONICLE_AUTO_APPLY_KEY);
     if (stored) return JSON.parse(stored);
   } catch {}
-  return { gold: true, hp: true, conditions: true, restRecovery: true, deathSaves: true, spellSlots: true };
+  return { gold: true, hp: true, conditions: true, restRecovery: true, deathSaves: true, spellSlots: true, tempHP: true };
 }
 
 function saveConfig(config: AutoApplyConfig) {
@@ -72,6 +76,7 @@ export function AutoApplyPanel({
   currentGold,
   currentHP,
   maxHP,
+  currentTempHP,
   activeConditions,
   deathSaves,
   spellSlots,
@@ -82,6 +87,7 @@ export function AutoApplyPanel({
   onApplyDeathSaves,
   onRegainHP,
   onApplySpellSlots,
+  onApplyTempHP,
 }: AutoApplyPanelProps) {
   const [config, setConfig] = useState<AutoApplyConfig>(loadConfig);
   const [isOpen, setIsOpen] = useState(true);
@@ -143,6 +149,12 @@ export function AutoApplyPanel({
     });
     const totalSlotsUsed = Object.values(slotsByLevel).reduce((sum, count) => sum + count, 0);
 
+    // Temp HP gains - take the highest value detected
+    const tempHPGains = enhancedResults?.tempHPGains || [];
+    const maxTempHPDetected = tempHPGains.length > 0
+      ? Math.max(...tempHPGains.map(t => t.amount))
+      : 0;
+
     return {
       netGold,
       goldGained,
@@ -161,10 +173,12 @@ export function AutoApplyPanel({
       slotsByLevel,
       totalSlotsUsed,
       spellSlotUsage,
+      tempHPGains,
+      maxTempHPDetected,
       hasAnyChanges: netGold !== 0 || damage > 0 || healing > 0 || 
         conditionsToAdd.length > 0 || conditionsToRemove.length > 0 ||
         shortRests > 0 || longRests > 0 || detectedDeathSaves.length > 0 ||
-        totalSlotsUsed > 0,
+        totalSlotsUsed > 0 || maxTempHPDetected > 0,
     };
   }, [parseResult, enhancedResults, activeConditions]);
 
@@ -237,6 +251,12 @@ export function AutoApplyPanel({
     setApplied(prev => ({ ...prev, spellSlots: true }));
   }, [pendingChanges.slotsByLevel, pendingChanges.totalSlotsUsed, onApplySpellSlots]);
 
+  const handleApplyTempHP = useCallback(() => {
+    if (!onApplyTempHP || pendingChanges.maxTempHPDetected === 0) return;
+    onApplyTempHP(pendingChanges.maxTempHPDetected);
+    setApplied(prev => ({ ...prev, tempHP: true }));
+  }, [pendingChanges.maxTempHPDetected, onApplyTempHP]);
+
   // Apply all enabled
   const handleApplyAll = useCallback(() => {
     if (config.gold && pendingChanges.netGold !== 0 && !applied.gold) {
@@ -259,7 +279,11 @@ export function AutoApplyPanel({
     if (config.spellSlots && pendingChanges.totalSlotsUsed > 0 && !applied.spellSlots && onApplySpellSlots) {
       handleApplySpellSlots();
     }
-  }, [config, pendingChanges, applied, handleApplyGold, handleApplyHP, handleApplyConditions, handleApplyRest, handleApplyDeathSaves, handleApplySpellSlots, onApplyDeathSaves, onApplySpellSlots]);
+    // Temp HP
+    if (config.tempHP && pendingChanges.maxTempHPDetected > 0 && !applied.tempHP && onApplyTempHP) {
+      handleApplyTempHP();
+    }
+  }, [config, pendingChanges, applied, handleApplyGold, handleApplyHP, handleApplyConditions, handleApplyRest, handleApplyDeathSaves, handleApplySpellSlots, handleApplyTempHP, onApplyDeathSaves, onApplySpellSlots, onApplyTempHP]);
 
   if (!pendingChanges.hasAnyChanges) {
     return null;
@@ -414,6 +438,31 @@ export function AutoApplyPanel({
                 applied={applied.spellSlots}
                 onApply={handleApplySpellSlots}
                 color="indigo"
+              />
+            )}
+
+            {/* Temp HP */}
+            {pendingChanges.maxTempHPDetected > 0 && onApplyTempHP && (
+              <AutoApplyRow
+                icon={<Shield className="w-4 h-4 text-cyan-400" />}
+                label="Temp HP"
+                description={
+                  pendingChanges.tempHPGains.length === 1
+                    ? `+${pendingChanges.maxTempHPDetected} temporary HP`
+                    : `${pendingChanges.tempHPGains.length} gains detected (max: +${pendingChanges.maxTempHPDetected})`
+                }
+                preview={
+                  currentTempHP > 0
+                    ? currentTempHP >= pendingChanges.maxTempHPDetected
+                      ? `Keep current (${currentTempHP} ≥ ${pendingChanges.maxTempHPDetected})`
+                      : `${currentTempHP} → ${pendingChanges.maxTempHPDetected}`
+                    : `0 → ${pendingChanges.maxTempHPDetected}`
+                }
+                enabled={config.tempHP}
+                onToggle={(v) => updateConfig('tempHP', v)}
+                applied={applied.tempHP}
+                onApply={handleApplyTempHP}
+                color="cyan"
               />
             )}
 

@@ -1,13 +1,14 @@
 // Enhanced Chronicle Sync Detection Patterns
-// Rest cycles, spell slots, death saves, combat rounds
+// Rest cycles, spell slots, death saves, combat rounds, temp HP
 
-import { PatternMatch } from './patterns';
+import { PatternMatch, parseTempHPMatches } from './patterns';
 import { 
   ParsedRestEvent, 
   ParsedSpellSlotUsage, 
   ParsedDeathSave, 
   ParsedCombatRound,
   ParsedKillEvent,
+  ParsedTempHP,
 } from './enhancedTypes';
 
 // ===== REST PATTERNS =====
@@ -301,6 +302,18 @@ export function parseKillEvents(text: string): ParsedKillEvent[] {
   return kills;
 }
 
+// ===== TEMP HP PARSING =====
+
+export function parseTempHPGains(text: string): ParsedTempHP[] {
+  const matches = parseTempHPMatches(text);
+  return matches.map(match => ({
+    amount: match.value as number,
+    source: match.context,
+    sourceText: match.fullMatch,
+    confidence: 'high' as const,
+  }));
+}
+
 // ===== COMBINED ENHANCED PARSING =====
 
 export interface EnhancedPatternResults {
@@ -309,6 +322,7 @@ export interface EnhancedPatternResults {
   deathSaves: ParsedDeathSave[];
   combatRounds: ParsedCombatRound[];
   kills: ParsedKillEvent[];
+  tempHPGains: ParsedTempHP[];
 }
 
 export function parseEnhancedPatterns(text: string): EnhancedPatternResults {
@@ -318,6 +332,7 @@ export function parseEnhancedPatterns(text: string): EnhancedPatternResults {
     deathSaves: parseDeathSaves(text),
     combatRounds: parseCombatRounds(text),
     kills: parseKillEvents(text),
+    tempHPGains: parseTempHPGains(text),
   };
 }
 

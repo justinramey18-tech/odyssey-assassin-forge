@@ -34,6 +34,13 @@ export interface ParsedKillEvent {
   sourceText: string;
 }
 
+export interface ParsedTempHP {
+  amount: number;
+  source?: string;
+  sourceText: string;
+  confidence: ConfidenceLevel;
+}
+
 // ===== SESSION HISTORY TYPES =====
 
 export interface ChronicleSession {
@@ -119,6 +126,7 @@ export interface AutoApplyConfig {
   restRecovery: boolean;
   deathSaves: boolean;
   spellSlots: boolean;
+  tempHP: boolean;
 }
 
 export interface AutoApplyResult {
