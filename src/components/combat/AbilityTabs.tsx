@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Character, Ability, getActiveSlotsByLevel } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
 import { cn } from '@/lib/utils';
@@ -14,6 +14,8 @@ import {
 } from '@/lib/combat/combatTypes';
 import { rollDice, getAbilityDice, DiceRoll } from '@/lib/diceRoller';
 import { generateRPPrompt } from '@/lib/rpPromptGenerator';
+import { useAbilityCustomization } from '@/hooks/use-ability-customization';
+import { applyOverrides, homebrewToAbility } from '@/lib/abilityCustomization/utils';
 import {
   Sword,
   Eye,
@@ -59,20 +61,42 @@ export function AbilityTabs({
   const [filterActionType, setFilterActionType] = useState<string | null>(null);
   const [showOnlyAvailable, setShowOnlyAvailable] = useState(false);
 
+  // Ability customization hook for homebrew support
+  const abilityCustomization = useAbilityCustomization();
+
   const sneakAttackDice = getSneakAttackDice(character.level);
   const hasPoisonedWeapon = conditions.includes('poisonedWeapon');
   
   // Use equipped weapons from gear, fallback to defaults
   const weapons = equippedWeapons && equippedWeapons.length > 0 ? equippedWeapons : DEFAULT_WEAPONS;
 
-  // Get unlocked abilities
-  const unlockedAbilities = character.abilities
-    .filter(ca => ca.currentTier > 0)
-    .map(ca => ({
-      ...allAbilities.find(a => a.id === ca.abilityId)!,
-      tier: ca.currentTier as 1 | 2 | 3,
-    }))
-    .filter(Boolean);
+  // Get unlocked abilities (including homebrew)
+  const unlockedAbilities = useMemo(() => {
+    return character.abilities
+      .filter(ca => ca.currentTier > 0)
+      .map(ca => {
+        // Check if it's a homebrew ability
+        if (ca.abilityId.startsWith('homebrew_')) {
+          const homebrew = abilityCustomization.state.homebrewAbilities.find(h => h.id === ca.abilityId);
+          if (!homebrew) return null;
+          return {
+            ...homebrewToAbility(homebrew),
+            tier: ca.currentTier as 1 | 2 | 3,
+          };
+        }
+        
+        // Base ability with overrides
+        const baseAbility = allAbilities.find(a => a.id === ca.abilityId);
+        if (!baseAbility) return null;
+        const override = abilityCustomization.getOverride(ca.abilityId);
+        const customized = applyOverrides(baseAbility, override);
+        return {
+          ...customized,
+          tier: ca.currentTier as 1 | 2 | 3,
+        };
+      })
+      .filter(Boolean) as (Ability & { tier: 1 | 2 | 3; isHomebrew?: boolean })[];
+  }, [character.abilities, abilityCustomization.state.homebrewAbilities, abilityCustomization.state.overrides]);
 
   // Filter abilities by category
   const stealthAbilities = unlockedAbilities.filter(a => 

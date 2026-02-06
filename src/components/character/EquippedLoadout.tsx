@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Character, getActiveSlotsByLevel, Ability } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,8 @@ import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { CooldownBadge } from '@/components/cooldowns';
 import { COOLDOWN_CONFIGS } from '@/lib/cooldowns/config';
 import { toast } from 'sonner';
+import { useAbilityCustomization } from '@/hooks/use-ability-customization';
+import { applyOverrides, homebrewToAbility } from '@/lib/abilityCustomization/utils';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Target, Crosshair, Eye, Sparkles, CloudRain, Award, Radar, Undo2,
@@ -41,6 +43,9 @@ export function EquippedLoadout({ character, prestigePoints = 0, onEquip, onUneq
   const [activeTier, setActiveTier] = useState<1 | 2 | 3>(1);
   const { rerollsDisabled } = useGameMode();
   
+  // Ability customization for homebrew support
+  const abilityCustomization = useAbilityCustomization();
+  
   // Cooldown system from drawer context
   let cooldownContext: ReturnType<typeof usePromptDrawers> | null = null;
   try {
@@ -51,17 +56,31 @@ export function EquippedLoadout({ character, prestigePoints = 0, onEquip, onUneq
 
   const totalSlots = getActiveSlotsByLevel(character.level, prestigePoints);
   
+  // Helper to get ability (base or homebrew) with customizations
+  const getAbilityById = (id: string): Ability | null => {
+    if (id.startsWith('homebrew_')) {
+      const homebrew = abilityCustomization.state.homebrewAbilities.find(h => h.id === id);
+      return homebrew ? homebrewToAbility(homebrew) : null;
+    }
+    const base = allAbilities.find(a => a.id === id);
+    if (!base) return null;
+    const override = abilityCustomization.getOverride(id);
+    return applyOverrides(base, override);
+  };
+  
   // Get available active abilities (unlocked, not passive, not already equipped)
-  const availableAbilities = character.abilities
-    .filter(ca => {
-      if (ca.currentTier === 0) return false;
-      const ability = allAbilities.find(a => a.id === ca.abilityId);
-      if (!ability || ability.type === 'passive') return false;
-      if (character.equippedAbilities.includes(ca.abilityId)) return false;
-      return true;
-    })
-    .map(ca => allAbilities.find(a => a.id === ca.abilityId)!)
-    .filter(Boolean);
+  const availableAbilities = useMemo(() => {
+    return character.abilities
+      .filter(ca => {
+        if (ca.currentTier === 0) return false;
+        const ability = getAbilityById(ca.abilityId);
+        if (!ability || ability.type === 'passive') return false;
+        if (character.equippedAbilities.includes(ca.abilityId)) return false;
+        return true;
+      })
+      .map(ca => getAbilityById(ca.abilityId))
+      .filter(Boolean) as Ability[];
+  }, [character.abilities, character.equippedAbilities, abilityCustomization.state.homebrewAbilities, abilityCustomization.state.overrides]);
 
   const treeStyles = {
     hunter: 'border-hunter/50 bg-hunter-dim/20 text-hunter-glow',
@@ -127,7 +146,7 @@ export function EquippedLoadout({ character, prestigePoints = 0, onEquip, onUneq
         <div className="flex flex-wrap gap-2">
           {Array.from({ length: totalSlots }).map((_, index) => {
             const equippedId = character.equippedAbilities[index];
-            const equippedAbility = equippedId ? allAbilities.find(a => a.id === equippedId) : null;
+            const equippedAbility = equippedId ? getAbilityById(equippedId) : null;
             const IconComponent = equippedAbility ? (iconMap[equippedAbility.icon] || HelpCircle) : Plus;
             
             // Check cooldown state

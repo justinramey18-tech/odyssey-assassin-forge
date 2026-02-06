@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Character, Ability, getActiveSlotsByLevel } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
 import { cn } from '@/lib/utils';
@@ -7,6 +7,8 @@ import { Card } from '@/components/ui/card';
 import { DiceRollModal } from '@/components/character/DiceRollModal';
 import { rollDice, getAbilityDice, DiceRoll, DieType } from '@/lib/diceRoller';
 import { generateRPPrompt } from '@/lib/rpPromptGenerator';
+import { useAbilityCustomization } from '@/hooks/use-ability-customization';
+import { applyOverrides, homebrewToAbility } from '@/lib/abilityCustomization/utils';
 import { 
   Crosshair, Target, Shield, Sword, Zap, Heart, 
   Dices, Activity, Skull, Eye, Flame, Ghost,
@@ -92,14 +94,31 @@ export function CombatHUDScreen({ character, prestigePoints = 0 }: CombatHUDScre
   const [lastAction, setLastAction] = useState<string>('SYSTEMS READY');
   const { rerollsDisabled } = useGameMode();
   
+  // Ability customization hook for homebrew support
+  const abilityCustomization = useAbilityCustomization();
+  
   const modifiers = calculateModifiers(character);
   const totalSlots = getActiveSlotsByLevel(character.level, prestigePoints);
   
-  // Get equipped abilities
-  const equippedAbilities = character.equippedAbilities
-    .filter(Boolean)
-    .map(id => allAbilities.find(a => a.id === id))
-    .filter(Boolean) as Ability[];
+  // Get equipped abilities (including homebrew)
+  const equippedAbilities = useMemo(() => {
+    return character.equippedAbilities
+      .filter(Boolean)
+      .map(id => {
+        // Check if it's a homebrew ability
+        if (id.startsWith('homebrew_')) {
+          const homebrew = abilityCustomization.state.homebrewAbilities.find(h => h.id === id);
+          if (!homebrew) return null;
+          return homebrewToAbility(homebrew);
+        }
+        // Base ability with overrides
+        const baseAbility = allAbilities.find(a => a.id === id);
+        if (!baseAbility) return null;
+        const override = abilityCustomization.getOverride(id);
+        return applyOverrides(baseAbility, override);
+      })
+      .filter(Boolean) as Ability[];
+  }, [character.equippedAbilities, abilityCustomization.state.homebrewAbilities, abilityCustomization.state.overrides]);
 
   // Handle ability activation
   const handleUseAbility = (ability: Ability) => {
