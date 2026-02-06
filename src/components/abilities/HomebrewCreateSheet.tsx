@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { AbilityTree, ActionType, UsageType, TierEffect } from '@/lib/types';
-import { HomebrewAbility, DICE_OPTIONS, SUGGESTED_ICONS, DieType } from '@/lib/abilityCustomization/types';
+import { HomebrewAbility, DICE_OPTIONS, SUGGESTED_ICONS, DieType, HomebrewAttackType, ATTACK_TYPE_OPTIONS } from '@/lib/abilityCustomization/types';
 import {
   Sheet,
   SheetContent,
@@ -112,6 +112,7 @@ export function HomebrewCreateSheet({
   const [cooldownMinutes, setCooldownMinutes] = useState<number | ''>(0);
   const [notes, setNotes] = useState('');
   const [minLevel, setMinLevel] = useState<number | ''>(1);
+  const [attackType, setAttackType] = useState<HomebrewAttackType>('none');
   
   // AI assistant state
   const [suggestedNames, setSuggestedNames] = useState<string[]>([]);
@@ -138,6 +139,7 @@ export function HomebrewCreateSheet({
     setCooldownMinutes(ability.cooldownMinutes ?? 0);
     setNotes(ability.notes ?? '');
     setMinLevel(ability.minLevel ?? 1);
+    setAttackType(ability.attackType ?? 'none');
     setSuggestedNames([]);
     setBalanceFeedback(null);
   }, []);
@@ -162,6 +164,7 @@ export function HomebrewCreateSheet({
     setCooldownMinutes(0);
     setNotes('');
     setMinLevel(1);
+    setAttackType('none');
     setSuggestedNames([]);
     setBalanceFeedback(null);
     setCustomPrompt('');
@@ -360,6 +363,7 @@ export function HomebrewCreateSheet({
       actionType: type === 'passive' ? 'passive' : actionType,
       usageType,
       tierEffects,
+      attackType: type === 'active' && attackType !== 'none' ? attackType : undefined,
       dice: Object.keys(dice).length > 0 ? dice : undefined,
       cooldownMinutes: typeof cooldownMinutes === 'number' ? cooldownMinutes : 0,
       minLevel: typeof minLevel === 'number' && minLevel > 1 ? minLevel : undefined,
@@ -790,6 +794,37 @@ export function HomebrewCreateSheet({
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+              )}
+
+              {/* Attack Type (only for active abilities) */}
+              {type === 'active' && (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Sword className="w-4 h-4" />
+                    Attack Type
+                  </Label>
+                  <Select
+                    value={attackType}
+                    onValueChange={(v) => setAttackType(v as HomebrewAttackType)}
+                  >
+                    <SelectTrigger className="bg-muted/30">
+                      <SelectValue placeholder="Select attack type..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ATTACK_TYPE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          <div className="flex flex-col">
+                            <span>{opt.label}</span>
+                            <span className="text-[10px] text-muted-foreground">{opt.description}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Specifies which weapon is used. This context is included in AI DM prompts.
+                  </p>
                 </div>
               )}
 
