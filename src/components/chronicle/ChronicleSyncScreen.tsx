@@ -58,6 +58,7 @@ interface ChronicleSyncScreenProps {
   currentHP: number;
   maxHP: number;
   currentTempHP: number;
+  currentInspiration: boolean;
   activeConditions: string[];
   // Death saves state
   deathSaves: { successes: number; failures: number };
@@ -72,6 +73,7 @@ interface ChronicleSyncScreenProps {
   onRegainHP: (amount: number) => void;
   onApplySpellSlots?: (slotsToExpend: Record<number, number>) => void;
   onApplyTempHP?: (amount: number) => void;
+  onApplyInspiration?: (hasInspiration: boolean) => void;
   // Target tracker integration
   existingEnemies: Enemy[];
   onAddEnemies: (enemies: NewEnemyInput[]) => number;
@@ -95,6 +97,7 @@ export function ChronicleSyncScreen({
   currentHP,
   maxHP,
   currentTempHP,
+  currentInspiration,
   activeConditions,
   deathSaves,
   spellSlots,
@@ -107,6 +110,7 @@ export function ChronicleSyncScreen({
   onRegainHP,
   onApplySpellSlots,
   onApplyTempHP,
+  onApplyInspiration,
   existingEnemies,
   onAddEnemies,
   onUpdateEnemy,
@@ -707,11 +711,13 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
                     deathSaves: enhancedResults.deathSaves,
                     spellSlotUsage: enhancedResults.spellSlotUsage,
                     tempHPGains: enhancedResults.tempHPGains,
+                    inspirationEvents: enhancedResults.inspirationEvents,
                   } : undefined}
                   currentGold={currentGold}
                   currentHP={currentHP}
                   maxHP={maxHP}
                   currentTempHP={currentTempHP}
+                  currentInspiration={currentInspiration}
                   activeConditions={activeConditions}
                   deathSaves={deathSaves}
                   spellSlots={spellSlots}
@@ -723,6 +729,7 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
                   onRegainHP={onRegainHP}
                   onApplySpellSlots={onApplySpellSlots}
                   onApplyTempHP={onApplyTempHP}
+                  onApplyInspiration={onApplyInspiration}
                 />
               )}
 

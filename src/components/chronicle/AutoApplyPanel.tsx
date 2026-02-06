@@ -3,7 +3,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { 
-  Zap, Coins, Heart, AlertCircle, Moon, Skull, Sparkles, Shield,
+  Zap, Coins, Heart, AlertCircle, Moon, Skull, Sparkles, Shield, Star,
   Check, X, ChevronDown, Settings2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +17,7 @@ import {
   CHRONICLE_AUTO_APPLY_KEY,
   ParsedSpellSlotUsage,
   ParsedTempHP,
+  ParsedInspiration,
 } from '@/lib/chronicleSync/enhancedTypes';
 import { ChronicleParseResult, ParsedGoldChange, ParsedHPChange, ParsedCondition } from '@/lib/chronicleSync/types';
 import { ParsedRestEvent, ParsedDeathSave } from '@/lib/chronicleSync/enhancedTypes';
@@ -37,11 +38,13 @@ interface AutoApplyPanelProps {
     deathSaves: ParsedDeathSave[];
     spellSlotUsage: ParsedSpellSlotUsage[];
     tempHPGains: ParsedTempHP[];
+    inspirationEvents: ParsedInspiration[];
   };
   currentGold: number;
   currentHP: number;
   maxHP: number;
   currentTempHP: number;
+  currentInspiration: boolean;
   activeConditions: string[];
   deathSaves?: DeathSavesState;
   spellSlots?: SpellSlotState;
@@ -53,6 +56,7 @@ interface AutoApplyPanelProps {
   onRegainHP?: (amount: number) => void;
   onApplySpellSlots?: (slotsToExpend: Record<number, number>) => void;
   onApplyTempHP?: (amount: number) => void;
+  onApplyInspiration?: (hasInspiration: boolean) => void;
 }
 
 // Load/save config from localStorage
@@ -61,7 +65,7 @@ function loadConfig(): AutoApplyConfig {
     const stored = localStorage.getItem(CHRONICLE_AUTO_APPLY_KEY);
     if (stored) return JSON.parse(stored);
   } catch {}
-  return { gold: true, hp: true, conditions: true, restRecovery: true, deathSaves: true, spellSlots: true, tempHP: true };
+  return { gold: true, hp: true, conditions: true, restRecovery: true, deathSaves: true, spellSlots: true, tempHP: true, inspiration: true };
 }
 
 function saveConfig(config: AutoApplyConfig) {
@@ -77,6 +81,7 @@ export function AutoApplyPanel({
   currentHP,
   maxHP,
   currentTempHP,
+  currentInspiration,
   activeConditions,
   deathSaves,
   spellSlots,
@@ -88,6 +93,7 @@ export function AutoApplyPanel({
   onRegainHP,
   onApplySpellSlots,
   onApplyTempHP,
+  onApplyInspiration,
 }: AutoApplyPanelProps) {
   const [config, setConfig] = useState<AutoApplyConfig>(loadConfig);
   const [isOpen, setIsOpen] = useState(true);
@@ -155,6 +161,18 @@ export function AutoApplyPanel({
       ? Math.max(...tempHPGains.map(t => t.amount))
       : 0;
 
+    // Inspiration events - compute net result
+    const inspirationEvents = enhancedResults?.inspirationEvents || [];
+    const inspirationGained = inspirationEvents.filter(e => e.type === 'gained').length;
+    const inspirationUsed = inspirationEvents.filter(e => e.type === 'used').length;
+    // Net change: positive = gained, negative = used
+    const inspirationNetChange = inspirationGained - inspirationUsed;
+    // Final state: if currently have inspiration and used more than gained, lose it
+    // If don't have and gained more than used, gain it
+    const inspirationFinalState = currentInspiration 
+      ? inspirationNetChange >= 0 // Keep if net is non-negative
+      : inspirationGained > 0; // Gain if at least one gained
+
     return {
       netGold,
       goldGained,
@@ -175,12 +193,16 @@ export function AutoApplyPanel({
       spellSlotUsage,
       tempHPGains,
       maxTempHPDetected,
+      inspirationEvents,
+      inspirationGained,
+      inspirationUsed,
+      inspirationFinalState,
       hasAnyChanges: netGold !== 0 || damage > 0 || healing > 0 || 
         conditionsToAdd.length > 0 || conditionsToRemove.length > 0 ||
         shortRests > 0 || longRests > 0 || detectedDeathSaves.length > 0 ||
-        totalSlotsUsed > 0 || maxTempHPDetected > 0,
+        totalSlotsUsed > 0 || maxTempHPDetected > 0 || inspirationEvents.length > 0,
     };
-  }, [parseResult, enhancedResults, activeConditions]);
+  }, [parseResult, enhancedResults, activeConditions, currentInspiration]);
 
   // Update config
   const updateConfig = useCallback((key: keyof AutoApplyConfig, value: boolean) => {
@@ -257,6 +279,12 @@ export function AutoApplyPanel({
     setApplied(prev => ({ ...prev, tempHP: true }));
   }, [pendingChanges.maxTempHPDetected, onApplyTempHP]);
 
+  const handleApplyInspiration = useCallback(() => {
+    if (!onApplyInspiration || pendingChanges.inspirationEvents.length === 0) return;
+    onApplyInspiration(pendingChanges.inspirationFinalState);
+    setApplied(prev => ({ ...prev, inspiration: true }));
+  }, [pendingChanges.inspirationEvents, pendingChanges.inspirationFinalState, onApplyInspiration]);
+
   // Apply all enabled
   const handleApplyAll = useCallback(() => {
     if (config.gold && pendingChanges.netGold !== 0 && !applied.gold) {
@@ -283,7 +311,11 @@ export function AutoApplyPanel({
     if (config.tempHP && pendingChanges.maxTempHPDetected > 0 && !applied.tempHP && onApplyTempHP) {
       handleApplyTempHP();
     }
-  }, [config, pendingChanges, applied, handleApplyGold, handleApplyHP, handleApplyConditions, handleApplyRest, handleApplyDeathSaves, handleApplySpellSlots, handleApplyTempHP, onApplyDeathSaves, onApplySpellSlots, onApplyTempHP]);
+    // Inspiration
+    if (config.inspiration && pendingChanges.inspirationEvents.length > 0 && !applied.inspiration && onApplyInspiration) {
+      handleApplyInspiration();
+    }
+  }, [config, pendingChanges, applied, handleApplyGold, handleApplyHP, handleApplyConditions, handleApplyRest, handleApplyDeathSaves, handleApplySpellSlots, handleApplyTempHP, handleApplyInspiration, onApplyDeathSaves, onApplySpellSlots, onApplyTempHP, onApplyInspiration]);
 
   if (!pendingChanges.hasAnyChanges) {
     return null;
@@ -463,6 +495,31 @@ export function AutoApplyPanel({
                 applied={applied.tempHP}
                 onApply={handleApplyTempHP}
                 color="cyan"
+              />
+            )}
+
+            {/* Inspiration */}
+            {pendingChanges.inspirationEvents.length > 0 && onApplyInspiration && (
+              <AutoApplyRow
+                icon={<Star className="w-4 h-4 text-yellow-400" />}
+                label="Inspiration"
+                description={
+                  pendingChanges.inspirationGained > 0 && pendingChanges.inspirationUsed > 0
+                    ? `+${pendingChanges.inspirationGained} gained, -${pendingChanges.inspirationUsed} used`
+                    : pendingChanges.inspirationGained > 0
+                    ? `Gained inspiration`
+                    : `Used inspiration`
+                }
+                preview={
+                  currentInspiration
+                    ? pendingChanges.inspirationFinalState ? 'Keep ✓' : '✓ → ✗'
+                    : pendingChanges.inspirationFinalState ? '✗ → ✓' : 'Keep ✗'
+                }
+                enabled={config.inspiration}
+                onToggle={(v) => updateConfig('inspiration', v)}
+                applied={applied.inspiration}
+                onApply={handleApplyInspiration}
+                color="yellow"
               />
             )}
 

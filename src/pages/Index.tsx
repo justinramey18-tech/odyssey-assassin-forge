@@ -114,6 +114,17 @@ const Index = () => {
   const [currentXP, setCurrentXP] = useState(0);
   const [xpPreset, setXPPreset] = useState<XPPreset>('standard');
   
+  // Inspiration State (D&D 5e)
+  const [hasInspiration, setHasInspiration] = useState(() => {
+    const stored = localStorage.getItem('odyssey-inspiration');
+    return stored === 'true';
+  });
+  
+  // Persist inspiration to localStorage
+  useEffect(() => {
+    localStorage.setItem('odyssey-inspiration', hasInspiration.toString());
+  }, [hasInspiration]);
+  
   // Prestige System State - simplified (no separate spending/respec)
   const { 
     prestigeData, 
@@ -1572,6 +1583,7 @@ const Index = () => {
               currentHP={hpState.current}
               maxHP={hpState.max}
               currentTempHP={hpState.temp}
+              currentInspiration={hasInspiration}
               activeConditions={[]}
               deathSaves={deathSaves}
               spellSlots={spellcasting.state.spellSlots}
@@ -1608,6 +1620,15 @@ const Index = () => {
                   description: newTempHP > hpState.temp 
                     ? `+${amount} temp HP (now ${newTempHP} total)`
                     : `Kept existing ${hpState.temp} temp HP (higher than ${amount})`,
+                });
+              }}
+              onApplyInspiration={(newState) => {
+                setHasInspiration(newState);
+                toast({
+                  title: newState ? "⭐ Inspiration Gained!" : "⭐ Inspiration Used",
+                  description: newState 
+                    ? "You have inspiration! Use it to gain advantage on a roll."
+                    : "Inspiration spent - make that roll count!",
                 });
               }}
               existingEnemies={targets.enemies}

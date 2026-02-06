@@ -41,6 +41,12 @@ export interface ParsedTempHP {
   confidence: ConfidenceLevel;
 }
 
+export interface ParsedInspiration {
+  type: 'gained' | 'used';
+  sourceText: string;
+  context?: string;
+}
+
 // ===== SESSION HISTORY TYPES =====
 
 export interface ChronicleSession {
@@ -127,6 +133,7 @@ export interface AutoApplyConfig {
   deathSaves: boolean;
   spellSlots: boolean;
   tempHP: boolean;
+  inspiration: boolean;
 }
 
 export interface AutoApplyResult {
