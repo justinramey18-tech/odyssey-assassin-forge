@@ -7,3 +7,4 @@ export { DisplayOnlyAlerts } from './DisplayOnlyAlerts';
 export { AnalyticsDashboard } from './AnalyticsDashboard';
 export { AutoApplyPanel } from './AutoApplyPanel';
 export { EnemiesDetectedPanel } from './EnemiesDetectedPanel';
+export { EnemyUpdatesPanel } from './EnemyUpdatesPanel';
