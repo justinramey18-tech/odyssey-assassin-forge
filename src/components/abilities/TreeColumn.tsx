@@ -7,7 +7,9 @@ import { getTreeBackground, getTreeFallbackGradient } from '@/lib/abilityTrees/b
 import { AbilityNode } from './AbilityNode';
 import { ConnectionLines } from './ConnectionLine';
 import { TierSeparator } from './TierSeparator';
+import { HomebrewAbility } from '@/lib/abilityCustomization/types';
 import { cn } from '@/lib/utils';
+import { Sparkles } from 'lucide-react';
 
 interface TreeColumnProps {
   tree: AbilityTree;
@@ -17,6 +19,7 @@ interface TreeColumnProps {
   isMobile: boolean;
   pointsInvested: number;
   abilityImages?: Record<string, string>;
+  homebrewAbilities?: HomebrewAbility[];
   onSelectAbility: (id: string) => void;
 }
 
@@ -28,6 +31,7 @@ export function TreeColumn({
   isMobile,
   pointsInvested,
   abilityImages = {},
+  homebrewAbilities = [],
   onSelectAbility,
 }: TreeColumnProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -42,6 +46,12 @@ export function TreeColumn({
   
   // Get abilities for this tree
   const treeAbilityIds = useMemo(() => getTreeAbilities(tree), [tree]);
+  
+  // Filter homebrew abilities for this tree
+  const treeHomebrewAbilities = useMemo(() => 
+    homebrewAbilities.filter(h => h.tree === tree),
+    [homebrewAbilities, tree]
+  );
   
   // Create unlocked abilities map
   const unlockedAbilities = useMemo(() => {
@@ -71,6 +81,11 @@ export function TreeColumn({
     })),
     [isMobile]
   );
+  
+  // Calculate homebrew section height
+  const homebrewSectionHeight = treeHomebrewAbilities.length > 0 
+    ? (isMobile ? 120 : 140) 
+    : 0;
 
   return (
     <div 
@@ -80,6 +95,81 @@ export function TreeColumn({
         isMobile ? 'w-full' : 'flex-1 min-w-[300px]'
       )}
     >
+      {/* Homebrew Section - Above the main tree */}
+      {treeHomebrewAbilities.length > 0 && (
+        <div className={cn(
+          'relative z-20 border-b',
+          `border-${treeConfig.primary}/30`,
+          'bg-gradient-to-b from-primary/5 to-transparent'
+        )}>
+          {/* Homebrew Header */}
+          <div className="flex items-center justify-center gap-2 py-2 px-4">
+            <Sparkles className={cn('w-4 h-4', `text-${treeConfig.primary}`)} />
+            <span className={cn(
+              'text-xs font-semibold uppercase tracking-widest',
+              `text-${treeConfig.primary}`
+            )}>
+              Homebrew
+            </span>
+            <Sparkles className={cn('w-4 h-4', `text-${treeConfig.primary}`)} />
+          </div>
+          
+          {/* Homebrew Nodes Grid */}
+          <div className={cn(
+            'flex flex-wrap justify-center gap-3 px-4 pb-4',
+            isMobile ? 'gap-2' : 'gap-4'
+          )}>
+            {treeHomebrewAbilities.map((homebrew) => {
+              const currentTier = (unlockedAbilities.get(homebrew.id) || 0) as 0 | 1 | 2 | 3;
+              const nodeSize = isMobile ? 56 : 68;
+              
+              // Convert homebrew to ability format for AbilityNode
+              const homebrewAsAbility: Ability = {
+                id: homebrew.id,
+                name: homebrew.name,
+                tree: homebrew.tree,
+                icon: homebrew.icon,
+                type: homebrew.type,
+                actionType: homebrew.actionType,
+                usageType: homebrew.usageType,
+                tierEffects: homebrew.tierEffects,
+                minLevel: homebrew.minLevel,
+                prerequisite: homebrew.prerequisite,
+              };
+              
+              return (
+                <div key={homebrew.id} className="flex flex-col items-center">
+                  <div className="relative">
+                    {/* Homebrew indicator glow */}
+                    <div className={cn(
+                      'absolute -inset-1 rounded-full opacity-50 blur-sm',
+                      'bg-gradient-to-br from-primary/40 to-primary/20'
+                    )} />
+                    <AbilityNode
+                      ability={homebrewAsAbility}
+                      currentTier={currentTier}
+                      isAccessible={true}
+                      isSelected={selectedAbilityId === homebrew.id}
+                      isMobile={isMobile}
+                      customImage={abilityImages[homebrew.id]}
+                      isHomebrew
+                      onSelect={() => onSelectAbility(homebrew.id)}
+                    />
+                  </div>
+                  <div className={cn(
+                    'text-center whitespace-nowrap mt-1',
+                    'text-xs text-muted-foreground',
+                    isMobile ? 'max-w-[70px] truncate' : 'max-w-[80px] truncate'
+                  )}>
+                    {homebrew.name}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      
       {/* Ability Tree Container */}
       <div 
         className="relative flex-1 overflow-y-auto"
