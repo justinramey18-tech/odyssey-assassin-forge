@@ -73,6 +73,7 @@ export type WizardStep =
   | 'magicPath'
   | 'skillTrees'
   | 'equipment'
+  | 'combatPrimer'
   | 'summary';
 
 export const WIZARD_STEPS: WizardStep[] = [
@@ -82,6 +83,7 @@ export const WIZARD_STEPS: WizardStep[] = [
   'magicPath',
   'skillTrees',
   'equipment',
+  'combatPrimer',
   'summary',
 ];
 
@@ -92,6 +94,7 @@ export const WIZARD_STEP_LABELS: Record<WizardStep, string> = {
   magicPath: 'Magic Path',
   skillTrees: 'Skill Trees',
   equipment: 'Equipment',
+  combatPrimer: 'Combat Primer',
   summary: 'Summary',
 };
 
