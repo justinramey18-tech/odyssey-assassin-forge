@@ -205,8 +205,22 @@ const Index = () => {
   // Combat log (action history for AI synthesis)
   const combatLog = useCombatLog();
   
+  // Ref to hold conditions.endTurn - populated after conditions hook is created
+  const conditionsEndTurnRef = useRef<() => void>(() => {});
+  
   // Initiative tracker (depends on targets.enemies)
-  const initiative = useInitiative(targets.enemies);
+  // Wire up round tracking: when a new round starts, tick down conditions
+  // When player's turn starts, reset action economy
+  const initiative = useInitiative(targets.enemies, {
+    onRoundAdvance: useCallback((newRound: number) => {
+      console.log(`[Initiative] Round ${newRound} started - ticking conditions`);
+      conditionsEndTurnRef.current();
+    }, []),
+    onPlayerTurnStart: useCallback(() => {
+      console.log('[Initiative] Player turn started - resetting action economy');
+      actionEconomy.resetTurn();
+    }, [actionEconomy]),
+  });
   
   // Build combat context for Oracle tactical awareness
   const combatContext = useMemo(() => {
@@ -314,6 +328,9 @@ const Index = () => {
       spellcastingRef.current.breakConcentration();
     }, []),
   });
+  
+  // Wire up the conditions ref for initiative round tracking
+  conditionsEndTurnRef.current = conditions.endTurn;
   
   // Shared achievements state
   const [achievements, setAchievements] = useState<Achievement[]>(
