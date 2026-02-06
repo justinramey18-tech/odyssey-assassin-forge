@@ -156,7 +156,17 @@ function validateEquipmentStep(state: WizardState): StepValidation {
   };
 }
 
-// Validate Step 7: Summary (final validation)
+// Validate Step 7: Combat Primer (informational only)
+function validateCombatPrimerStep(_state: WizardState): StepValidation {
+  // Informational step - always valid
+  return {
+    isValid: true,
+    errors: [],
+    warnings: [],
+  };
+}
+
+// Validate Step 8: Summary (final validation)
 function validateSummaryStep(state: WizardState): StepValidation {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -199,6 +209,8 @@ export function validateStep(step: number, state: WizardState): StepValidation {
     case 5:
       return validateEquipmentStep(state);
     case 6:
+      return validateCombatPrimerStep(state);
+    case 7:
       return validateSummaryStep(state);
     default:
       return { isValid: false, errors: ['Invalid step'], warnings: [] };

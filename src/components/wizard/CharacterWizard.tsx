@@ -10,6 +10,7 @@ import { GameModeStep } from './steps/GameModeStep';
 import { MagicPathStep } from './steps/MagicPathStep';
 import { SkillTreePreviewStep } from './steps/SkillTreePreviewStep';
 import { EquipmentStep } from './steps/EquipmentStep';
+import { CombatPrimerStep } from './steps/CombatPrimerStep';
 import { SummaryStep } from './steps/SummaryStep';
 import { WizardState, QUICK_START_DEFAULTS } from './types';
 import { Button } from '@/components/ui/button';
@@ -25,8 +26,8 @@ interface CharacterWizardProps {
 
 type WizardMode = 'choice' | 'wizard';
 
-// Total steps: identity(0), abilityScores(1), gameMode(2), magicPath(3), skillTrees(4), equipment(5), summary(6)
-const IMPLEMENTED_STEPS = 7;
+// Total steps: identity(0), abilityScores(1), gameMode(2), magicPath(3), skillTrees(4), equipment(5), combatPrimer(6), summary(7)
+const IMPLEMENTED_STEPS = 8;
 
 export function CharacterWizard({ 
   onComplete, 
@@ -333,6 +334,13 @@ export function CharacterWizard({
         );
       case 6:
         return (
+          <CombatPrimerStep 
+            state={state} 
+            validation={currentValidation}
+          />
+        );
+      case 7:
+        return (
           <SummaryStep 
             state={state} 
             onEditStep={handleGoToStep} 
@@ -379,8 +387,8 @@ export function CharacterWizard({
         </AnimatePresence>
       </div>
 
-      {/* Navigation Footer (not shown on summary step 6 - it has its own button) */}
-      {state.currentStep !== 6 && (
+      {/* Navigation Footer (not shown on summary step 7 - it has its own button) */}
+      {state.currentStep !== 7 && (
         <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-sm border-t border-border">
           <div className="max-w-lg mx-auto px-4 py-3">
             {isMobile ? (

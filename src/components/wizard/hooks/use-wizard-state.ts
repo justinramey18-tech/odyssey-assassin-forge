@@ -180,7 +180,7 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
       const nextStep = state.currentStep + 1;
       return { 
         ...state, 
-        currentStep: Math.min(6, nextStep),
+        currentStep: Math.min(7, nextStep),
         completedSteps: state.completedSteps.includes(state.currentStep)
           ? state.completedSteps
           : [...state.completedSteps, state.currentStep].sort((a, b) => a - b),
@@ -340,7 +340,7 @@ export function useWizardState() {
 
   // Computed values
   const isFirstStep = state.currentStep === 0;
-  const isLastStep = state.currentStep === 6;
+  const isLastStep = state.currentStep === 7;
   const canGoBack = state.currentStep > 0;
   const canGoNext = state.completedSteps.includes(state.currentStep) || state.currentStep < Math.max(...state.completedSteps, -1) + 1;
 
