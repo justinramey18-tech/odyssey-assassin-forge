@@ -3,6 +3,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { SaveData } from './use-auto-save';
 import { Json } from '@/integrations/supabase/types';
 
+export interface CloudSavePreview {
+  gold?: number;
+  spellsKnown?: number;
+  lootItems?: number;
+  consumables?: number;
+  conditions?: number;
+  proficiencies?: number;
+  hasInspiration?: boolean;
+}
+
 export interface CloudSave {
   id: string;
   save_name: string;
@@ -11,6 +21,8 @@ export interface CloudSave {
   // Character preview data
   character_name?: string;
   character_level?: number;
+  // Extended data preview
+  preview?: CloudSavePreview;
 }
 
 export function useCloudSave(userId: string | undefined) {
@@ -25,15 +37,41 @@ export function useCloudSave(userId: string | undefined) {
     try {
       const { data, error } = await supabase
         .from('character_saves')
-        .select('id, save_name, updated_at, created_at, character_data')
+        .select('id, save_name, updated_at, created_at, character_data, consumables_data, extended_data')
         .eq('user_id', userId)
         .order('updated_at', { ascending: false });
       
       if (error) throw error;
       
-      // Extract character preview info from character_data
+      // Extract character preview info from character_data and extended_data
       const savesWithPreview: CloudSave[] = (data || []).map(save => {
         const charData = save.character_data as Record<string, unknown> | null;
+        const extData = save.extended_data as Record<string, unknown> | null;
+        const consumablesData = save.consumables_data as Array<{ quantity?: number }> | null;
+        
+        // Build preview from extended data
+        const preview: CloudSavePreview = {};
+        if (extData) {
+          preview.gold = extData.shopGold as number | undefined;
+          preview.spellsKnown = (extData.spellcasting as Record<string, unknown>)?.knownSpells 
+            ? ((extData.spellcasting as Record<string, unknown>).knownSpells as unknown[]).length 
+            : undefined;
+          preview.lootItems = (extData.loot as Record<string, unknown>)?.items 
+            ? ((extData.loot as Record<string, unknown>).items as unknown[]).length 
+            : undefined;
+          preview.conditions = (extData.conditions as Record<string, unknown>)?.conditions 
+            ? ((extData.conditions as Record<string, unknown>).conditions as unknown[]).length 
+            : undefined;
+          preview.proficiencies = extData.proficiencies 
+            ? ((extData.proficiencies as Record<string, unknown>).skills as unknown[] || []).length + 
+              ((extData.proficiencies as Record<string, unknown>).saves as unknown[] || []).length
+            : undefined;
+          preview.hasInspiration = extData.inspiration as boolean | undefined;
+        }
+        if (consumablesData) {
+          preview.consumables = consumablesData.reduce((sum, c) => sum + (c.quantity ?? 0), 0);
+        }
+        
         return {
           id: save.id,
           save_name: save.save_name,
@@ -41,6 +79,7 @@ export function useCloudSave(userId: string | undefined) {
           created_at: save.created_at,
           character_name: charData?.name as string | undefined,
           character_level: charData?.level as number | undefined,
+          preview: Object.keys(preview).length > 0 ? preview : undefined,
         };
       });
       
