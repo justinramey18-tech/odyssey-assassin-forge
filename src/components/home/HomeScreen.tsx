@@ -8,6 +8,7 @@ import { ShopItem } from '@/lib/shop/types';
 import { useEquipmentStats } from '@/hooks/use-equipment-stats';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
+import { SaveData } from '@/hooks/use-auto-save';
 import { 
   Settings, Coffee, Moon, TrendingUp,
   BookOpen, Sparkles, Timer, MessageCircle, Activity, Heart, Gem, Zap, PanelLeft, HelpCircle
@@ -18,6 +19,7 @@ import { InstallBanner } from './InstallBanner';
 import { ClockWidget } from './ClockWidget';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 import { DiceRollerScreen } from '@/components/diceRoller';
+import { CharacterSavesDrawer, CharacterSavesTrigger } from './CharacterSavesDrawer';
 
 // New redesigned components
 import { CharacterNamePlaque } from './CharacterNamePlaque';
@@ -81,6 +83,8 @@ interface HomeScreenProps {
   lastCloudSyncTime?: string | null;
   isCloudSyncing?: boolean;
   onCloudSyncClick?: () => void;
+  // Character saves drawer props
+  onLoadSave?: (data: SaveData) => void;
 }
 
 // Haptic feedback helper
@@ -119,12 +123,14 @@ export function HomeScreen({
   lastCloudSyncTime,
   isCloudSyncing = false,
   onCloudSyncClick,
+  onLoadSave,
 }: HomeScreenProps) {
   const isMobile = useIsMobile();
   const stats = useEquipmentStats(equipment);
   const multiplier = XP_PRESETS[xpPreset].multiplier;
   const [showDrawersMenu, setShowDrawersMenu] = useState(false);
   const [showDiceRoller, setShowDiceRoller] = useState(false);
+  const [showCharacterSaves, setShowCharacterSaves] = useState(false);
   const [initiativeRollResult, setInitiativeRollResult] = useState<{ roll: number; total: number; prompt: string } | null>(null);
   
   // Long Rest hold state
@@ -295,7 +301,11 @@ export function HomeScreen({
           transition={{ duration: 0.3 }}
           className="flex items-center justify-between px-4 py-3 border-b border-white/10"
         >
-          <ClockWidget />
+          {/* Hamburger Menu - Character Saves */}
+          <div className="flex items-center gap-2">
+            <CharacterSavesTrigger onClick={() => setShowCharacterSaves(true)} />
+            <ClockWidget />
+          </div>
           
           <div className="flex items-center gap-1">
             {/* Custom Background Upload Button */}
@@ -580,6 +590,18 @@ export function HomeScreen({
         <div className="fixed inset-0 z-[60] bg-background">
           <DiceRollerScreen onBack={() => setShowDiceRoller(false)} />
         </div>
+      )}
+
+      {/* Character Saves Drawer */}
+      {onLoadSave && onCloudSyncClick && (
+        <CharacterSavesDrawer
+          isOpen={showCharacterSaves}
+          onOpenChange={setShowCharacterSaves}
+          currentCharacterName={character.name}
+          currentCharacterLevel={character.level}
+          onLoadSave={onLoadSave}
+          onOpenCloudSettings={onCloudSyncClick}
+        />
       )}
     </BackgroundWrapper>
   );
