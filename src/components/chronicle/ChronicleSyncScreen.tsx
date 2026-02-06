@@ -57,6 +57,7 @@ interface ChronicleSyncScreenProps {
   currentGold: number;
   currentHP: number;
   maxHP: number;
+  currentTempHP: number;
   activeConditions: string[];
   // Death saves state
   deathSaves: { successes: number; failures: number };
@@ -70,6 +71,7 @@ interface ChronicleSyncScreenProps {
   onApplyDeathSaves: (saves: { successes: number; failures: number }) => void;
   onRegainHP: (amount: number) => void;
   onApplySpellSlots?: (slotsToExpend: Record<number, number>) => void;
+  onApplyTempHP?: (amount: number) => void;
   // Target tracker integration
   existingEnemies: Enemy[];
   onAddEnemies: (enemies: NewEnemyInput[]) => number;
@@ -92,6 +94,7 @@ export function ChronicleSyncScreen({
   currentGold,
   currentHP,
   maxHP,
+  currentTempHP,
   activeConditions,
   deathSaves,
   spellSlots,
@@ -103,6 +106,7 @@ export function ChronicleSyncScreen({
   onApplyDeathSaves,
   onRegainHP,
   onApplySpellSlots,
+  onApplyTempHP,
   existingEnemies,
   onAddEnemies,
   onUpdateEnemy,
@@ -702,10 +706,12 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
                     restEvents: enhancedResults.restEvents,
                     deathSaves: enhancedResults.deathSaves,
                     spellSlotUsage: enhancedResults.spellSlotUsage,
+                    tempHPGains: enhancedResults.tempHPGains,
                   } : undefined}
                   currentGold={currentGold}
                   currentHP={currentHP}
                   maxHP={maxHP}
+                  currentTempHP={currentTempHP}
                   activeConditions={activeConditions}
                   deathSaves={deathSaves}
                   spellSlots={spellSlots}
@@ -716,6 +722,7 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
                   onApplyDeathSaves={onApplyDeathSaves}
                   onRegainHP={onRegainHP}
                   onApplySpellSlots={onApplySpellSlots}
+                  onApplyTempHP={onApplyTempHP}
                 />
               )}
 

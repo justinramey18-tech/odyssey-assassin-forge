@@ -1571,6 +1571,7 @@ const Index = () => {
               currentGold={shop.currentGold}
               currentHP={hpState.current}
               maxHP={hpState.max}
+              currentTempHP={hpState.temp}
               activeConditions={[]}
               deathSaves={deathSaves}
               spellSlots={spellcasting.state.spellSlots}
@@ -1596,6 +1597,17 @@ const Index = () => {
                   description: Object.entries(slotsToExpend)
                     .map(([l, c]) => `${c}× Level ${l}`)
                     .join(', ') + ' expended',
+                });
+              }}
+              onApplyTempHP={(amount) => {
+                // Temp HP doesn't stack - take the higher value
+                const newTempHP = Math.max(hpState.temp, amount);
+                handleHPChange(hpState.current, hpState.max, newTempHP);
+                toast({
+                  title: "🛡️ Temporary HP Applied",
+                  description: newTempHP > hpState.temp 
+                    ? `+${amount} temp HP (now ${newTempHP} total)`
+                    : `Kept existing ${hpState.temp} temp HP (higher than ${amount})`,
                 });
               }}
               existingEnemies={targets.enemies}
