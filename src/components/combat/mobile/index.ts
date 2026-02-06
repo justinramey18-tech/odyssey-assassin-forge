@@ -22,5 +22,4 @@ export { InitiativeTracker } from './InitiativeTracker';
 export { AddEnemySheet } from './AddEnemySheet';
 export { EnemyCard } from './EnemyCard';
 export { CombatDiceRoller } from './CombatDiceRoller';
-export { CombatTutorialOverlay, useCombatTutorial } from './CombatTutorialOverlay';
 export { MobileCombatLayout } from './MobileCombatLayout';

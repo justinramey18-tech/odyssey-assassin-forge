@@ -44,7 +44,6 @@ import { TurnWizardPanel } from './TurnWizardPanel';
 import { TargetTrackerPanel } from './TargetTrackerPanel';
 import { InitiativeTracker } from './InitiativeTracker';
 import { CombatDiceRoller } from './CombatDiceRoller';
-import { CombatTutorialOverlay, useCombatTutorial } from './CombatTutorialOverlay';
 import { useCombatLog } from '@/hooks/use-combat-log';
 import { useTargets } from '@/hooks/use-targets';
 import { useInitiative } from '@/hooks/use-initiative';
@@ -139,8 +138,6 @@ export function MobileCombatLayout({
   const initiativeTracker = useInitiative(targetTracker.enemies);
   const [initiativeCollapsed, setInitiativeCollapsed] = useState(true);
   
-  // First-time combat tutorial
-  const combatTutorial = useCombatTutorial();
   // Cooldown system integration
   const cooldownSystem = useCooldowns({
     characterAbilities: character.abilities,
@@ -862,11 +859,6 @@ export function MobileCombatLayout({
         onResetTurn={handleResetTurn}
         onMenuOpen={() => {}}
         onSettingsOpen={() => {}}
-        onReplayTutorial={() => {
-          combatTutorial.dismissHelpPulse();
-          combatTutorial.triggerTutorial();
-        }}
-        showHelpPulse={combatTutorial.showHelpPulse}
         currentHP={currentHP}
         maxHP={maxHP}
         tempHP={tempHP}
@@ -1019,14 +1011,6 @@ export function MobileCombatLayout({
         entries={combatLog.entries}
         characterName={character.name}
       />
-      
-      {/* First-time Combat Tutorial Overlay */}
-      {combatTutorial.showTutorial && (
-        <CombatTutorialOverlay
-          onComplete={combatTutorial.completeTutorial}
-          onDismiss={combatTutorial.dismissTutorial}
-        />
-      )}
     </div>
   );
 }
