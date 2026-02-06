@@ -1596,6 +1596,7 @@ const Index = () => {
               deathSaves={deathSaves}
               spellSlots={spellcasting.state.spellSlots}
               playerInitiative={initiative.playerInitiative}
+              currentRound={initiative.roundNumber}
               onApplyChanges={handleApplyChronicleChanges}
               onApplyGold={handleChronicleGold}
               onApplyHP={handleChronicleHP}
@@ -1653,6 +1654,13 @@ const Index = () => {
                 toast({
                   title: "⚔️ Enemy Initiative Set",
                   description: `${enemy?.name || 'Enemy'}: ${value}`,
+                });
+              }}
+              onApplyRoundNumber={(round) => {
+                initiative.setRoundNumber(round);
+                toast({
+                  title: "🔄 Combat Round Updated",
+                  description: `Now on Round ${round}`,
                 });
               }}
               existingEnemies={targets.enemies}

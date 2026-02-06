@@ -72,6 +72,7 @@ export interface UseInitiativeReturn {
   
   // Actions
   setPlayerInitiative: (value: number | null) => void;
+  setRoundNumber: (round: number) => void;
   rollPlayerInitiative: (modifier?: number) => number;
   nextTurn: () => void;
   prevTurn: () => void;
@@ -144,6 +145,11 @@ export function useInitiative(
   // Set player initiative
   const setPlayerInitiative = useCallback((value: number | null) => {
     setState(prev => ({ ...prev, playerInitiative: value }));
+  }, []);
+
+  // Set round number directly (for Chronicle Sync)
+  const setRoundNumber = useCallback((round: number) => {
+    setState(prev => ({ ...prev, roundNumber: Math.max(1, round) }));
   }, []);
 
   // Roll player initiative (d20 + modifier)
@@ -258,6 +264,7 @@ export function useInitiative(
     
     // Actions
     setPlayerInitiative,
+    setRoundNumber,
     rollPlayerInitiative,
     nextTurn,
     prevTurn,

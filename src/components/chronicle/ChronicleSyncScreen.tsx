@@ -66,6 +66,7 @@ interface ChronicleSyncScreenProps {
   spellSlots?: SpellSlotState;
   // Initiative state
   playerInitiative?: number | null;
+  currentRound?: number;
   onApplyChanges: (changes: ApprovedChanges) => void;
   onApplyGold: (netChange: number) => void;
   onApplyHP: (change: number, type: 'damage' | 'healing') => void;
@@ -78,6 +79,7 @@ interface ChronicleSyncScreenProps {
   onApplyInspiration?: (hasInspiration: boolean) => void;
   onApplyPlayerInitiative?: (value: number) => void;
   onApplyEnemyInitiative?: (enemyId: string, value: number) => void;
+  onApplyRoundNumber?: (round: number) => void;
   // Target tracker integration
   existingEnemies: Enemy[];
   onAddEnemies: (enemies: NewEnemyInput[]) => number;
@@ -106,6 +108,7 @@ export function ChronicleSyncScreen({
   deathSaves,
   spellSlots,
   playerInitiative,
+  currentRound = 1,
   onApplyChanges,
   onApplyGold,
   onApplyHP,
@@ -118,6 +121,7 @@ export function ChronicleSyncScreen({
   onApplyInspiration,
   onApplyPlayerInitiative,
   onApplyEnemyInitiative,
+  onApplyRoundNumber,
   existingEnemies,
   onAddEnemies,
   onUpdateEnemy,
@@ -720,6 +724,7 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
                     tempHPGains: enhancedResults.tempHPGains,
                     inspirationEvents: enhancedResults.inspirationEvents,
                     initiativeRolls: enhancedResults.initiativeRolls,
+                    combatRounds: enhancedResults.combatRounds,
                   } : undefined}
                   currentGold={currentGold}
                   currentHP={currentHP}
@@ -730,6 +735,7 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
                   deathSaves={deathSaves}
                   spellSlots={spellSlots}
                   playerInitiative={playerInitiative}
+                  currentRound={currentRound}
                   enemies={existingEnemies}
                   onApplyGold={onApplyGold}
                   onApplyHP={onApplyHP}
@@ -742,6 +748,7 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
                   onApplyInspiration={onApplyInspiration}
                   onApplyPlayerInitiative={onApplyPlayerInitiative}
                   onApplyEnemyInitiative={onApplyEnemyInitiative}
+                  onApplyRoundNumber={onApplyRoundNumber}
                 />
               )}
 

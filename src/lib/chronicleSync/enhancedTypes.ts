@@ -135,6 +135,7 @@ export interface AutoApplyConfig {
   tempHP: boolean;
   inspiration: boolean;
   initiative: boolean;
+  round: boolean;
 }
 
 export interface AutoApplyResult {
