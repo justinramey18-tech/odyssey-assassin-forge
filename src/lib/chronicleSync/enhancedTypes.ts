@@ -136,6 +136,7 @@ export interface AutoApplyConfig {
   inspiration: boolean;
   initiative: boolean;
   round: boolean;
+  kills: boolean;
 }
 
 export interface AutoApplyResult {
