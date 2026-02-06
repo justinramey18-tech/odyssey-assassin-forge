@@ -47,6 +47,10 @@ import { Enemy, NewEnemyInput, DamageType, EnemyCondition } from '@/lib/combat/t
 import { parseAllEnemyUpdates, ParsedEnemyUpdate } from '@/lib/chronicleSync/patterns/enemyUpdates';
 import combatBackground from '@/assets/combat-background.jpg';
 
+interface SpellSlotState {
+  [level: number]: { current: number; max: number };
+}
+
 interface ChronicleSyncScreenProps {
   characterName: string;
   characterLevel: number;
@@ -56,6 +60,8 @@ interface ChronicleSyncScreenProps {
   activeConditions: string[];
   // Death saves state
   deathSaves: { successes: number; failures: number };
+  // Spell slots state
+  spellSlots?: SpellSlotState;
   onApplyChanges: (changes: ApprovedChanges) => void;
   onApplyGold: (netChange: number) => void;
   onApplyHP: (change: number, type: 'damage' | 'healing') => void;
@@ -63,6 +69,7 @@ interface ChronicleSyncScreenProps {
   onApplyRest: (type: 'short' | 'long') => void;
   onApplyDeathSaves: (saves: { successes: number; failures: number }) => void;
   onRegainHP: (amount: number) => void;
+  onApplySpellSlots?: (slotsToExpend: Record<number, number>) => void;
   // Target tracker integration
   existingEnemies: Enemy[];
   onAddEnemies: (enemies: NewEnemyInput[]) => number;
@@ -87,6 +94,7 @@ export function ChronicleSyncScreen({
   maxHP,
   activeConditions,
   deathSaves,
+  spellSlots,
   onApplyChanges,
   onApplyGold,
   onApplyHP,
@@ -94,6 +102,7 @@ export function ChronicleSyncScreen({
   onApplyRest,
   onApplyDeathSaves,
   onRegainHP,
+  onApplySpellSlots,
   existingEnemies,
   onAddEnemies,
   onUpdateEnemy,
@@ -692,18 +701,21 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
                   enhancedResults={enhancedResults ? {
                     restEvents: enhancedResults.restEvents,
                     deathSaves: enhancedResults.deathSaves,
+                    spellSlotUsage: enhancedResults.spellSlotUsage,
                   } : undefined}
                   currentGold={currentGold}
                   currentHP={currentHP}
                   maxHP={maxHP}
                   activeConditions={activeConditions}
                   deathSaves={deathSaves}
+                  spellSlots={spellSlots}
                   onApplyGold={onApplyGold}
                   onApplyHP={onApplyHP}
                   onApplyConditions={onApplyConditions}
                   onApplyRest={onApplyRest}
                   onApplyDeathSaves={onApplyDeathSaves}
                   onRegainHP={onRegainHP}
+                  onApplySpellSlots={onApplySpellSlots}
                 />
               )}
 

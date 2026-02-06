@@ -1573,6 +1573,7 @@ const Index = () => {
               maxHP={hpState.max}
               activeConditions={[]}
               deathSaves={deathSaves}
+              spellSlots={spellcasting.state.spellSlots}
               onApplyChanges={handleApplyChronicleChanges}
               onApplyGold={handleChronicleGold}
               onApplyHP={handleChronicleHP}
@@ -1581,6 +1582,21 @@ const Index = () => {
               onApplyDeathSaves={handleDeathSavesChange}
               onRegainHP={(amount) => {
                 handleHPChange(Math.min(hpState.current + amount, hpState.max), hpState.max, hpState.temp);
+              }}
+              onApplySpellSlots={(slotsToExpend) => {
+                // Expend slots by level - each entry is [level, count]
+                Object.entries(slotsToExpend).forEach(([levelStr, count]) => {
+                  const level = Number(levelStr);
+                  for (let i = 0; i < count; i++) {
+                    spellcasting.useSlot(level);
+                  }
+                });
+                toast({
+                  title: "Spell Slots Applied",
+                  description: Object.entries(slotsToExpend)
+                    .map(([l, c]) => `${c}× Level ${l}`)
+                    .join(', ') + ' expended',
+                });
               }}
               existingEnemies={targets.enemies}
               onAddEnemies={targets.importEnemies}
