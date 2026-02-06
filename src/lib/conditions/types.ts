@@ -30,6 +30,7 @@ export interface ActiveCondition {
   saveDC?: number;
   appliedAt: number;             // Unix timestamp
   notes?: string;
+  spellLevel?: number;           // For concentration spells: the slot level used
 }
 
 // Static condition definition (the template)
@@ -58,6 +59,7 @@ export interface NewConditionInput {
   saveType?: SaveType;
   saveDC?: number;
   notes?: string;
+  spellLevel?: number;           // For concentration spells: the slot level used
 }
 
 // Quick-apply preset for common conditions
