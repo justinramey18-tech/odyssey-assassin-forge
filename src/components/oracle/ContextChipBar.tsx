@@ -1,4 +1,4 @@
-import { Heart, Timer, Package, Wand2, Eye, Coins } from 'lucide-react';
+import { Heart, Timer, Package, Wand2, Eye, Coins, Swords } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CharacterContext } from './types';
 
@@ -86,6 +86,65 @@ export function ContextChipBar({ context, onChipClick, disabled }: ContextChipBa
         ? spell.concentratingOn 
         : spell.preparedSpells.length + ' prepared',
       pulse: isConcentrating,
+    });
+  }
+
+  // Add Combat Advisor chip when in combat
+  const combat = context.combat;
+  if (combat?.isInCombat) {
+    // Build context-aware combat advisor prompt
+    const actionStatus = combat.actionUsed ? 'Action used' : 'Action available';
+    const bonusStatus = combat.bonusActionUsed ? 'Bonus used' : 'Bonus available';
+    const reactionStatus = combat.reactionUsed ? 'Reaction used' : 'Reaction available';
+    const movementStatus = `${combat.maxMovement - combat.movementUsed}ft movement left`;
+    
+    let targetInfo = '';
+    if (combat.currentTarget) {
+      const targetHpPct = Math.round((combat.currentTarget.currentHP / combat.currentTarget.maxHP) * 100);
+      const targetHealth = targetHpPct > 75 ? 'healthy' : targetHpPct > 50 ? 'bloodied' : targetHpPct > 25 ? 'badly wounded' : 'near death';
+      targetInfo = `Current target: ${combat.currentTarget.name} (AC ${combat.currentTarget.ac}, ${targetHealth} at ${targetHpPct}% HP`;
+      if (combat.currentTarget.conditions && combat.currentTarget.conditions.length > 0) {
+        targetInfo += `, ${combat.currentTarget.conditions.join(', ')}`;
+      }
+      targetInfo += ')';
+    }
+
+    const enemyCount = combat.enemies.filter(e => e.currentHP > 0).length;
+    const enemyInfo = enemyCount > 0 ? `${enemyCount} enemies remaining` : 'No enemies tracked';
+
+    const combatAdvisorQuery = `[COMBAT ADVISOR REQUEST]
+
+Round ${combat.roundNumber}, my turn.
+
+**Action Economy Status:**
+- ${actionStatus}
+- ${bonusStatus}
+- ${reactionStatus}
+- ${movementStatus}
+
+**Battlefield:**
+- ${enemyInfo}
+${targetInfo ? `- ${targetInfo}` : ''}
+
+**My Status:**
+- HP: ${context.currentHP}/${context.maxHP}
+${context.activeConditions?.length > 0 ? `- Conditions: ${context.activeConditions.map(c => c.name).join(', ')}` : ''}
+
+Based on my current action economy and the tactical situation, what's my optimal play this turn? Consider which resources I still have available and prioritize high-impact actions.`;
+
+    const availableResources = [
+      !combat.actionUsed && 'A',
+      !combat.bonusActionUsed && 'B',
+      !combat.reactionUsed && 'R',
+    ].filter(Boolean);
+
+    chips.unshift({
+      icon: Swords,
+      label: 'Combat Advisor',
+      color: 'text-rose-400',
+      query: combatAdvisorQuery,
+      subtext: availableResources.length > 0 ? availableResources.join('+') + ' ready' : 'all used',
+      pulse: !combat.actionUsed, // Pulse if main action is available
     });
   }
 
