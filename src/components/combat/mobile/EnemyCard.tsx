@@ -179,6 +179,42 @@ export function EnemyCard({
               })}
             </div>
           )}
+
+          {/* Damage type modifiers - always visible if any exist */}
+          {(enemy.resistances.length > 0 || enemy.vulnerabilities.length > 0 || enemy.immunities.length > 0) && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {enemy.immunities.map(i => (
+                <span 
+                  key={`i-${i}`} 
+                  className="text-[9px] bg-zinc-600/40 text-zinc-300 px-1.5 py-0.5 rounded flex items-center gap-0.5 border border-zinc-500/30"
+                  title={`Immune to ${DAMAGE_TYPE_LABELS[i].label} damage`}
+                >
+                  {DAMAGE_TYPE_LABELS[i].emoji}
+                  <span className="font-semibold">IMM</span>
+                </span>
+              ))}
+              {enemy.resistances.map(r => (
+                <span 
+                  key={`r-${r}`} 
+                  className="text-[9px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded flex items-center gap-0.5 border border-blue-500/30"
+                  title={`Resistant to ${DAMAGE_TYPE_LABELS[r].label} damage (½)`}
+                >
+                  {DAMAGE_TYPE_LABELS[r].emoji}
+                  <span className="font-semibold">½</span>
+                </span>
+              ))}
+              {enemy.vulnerabilities.map(v => (
+                <span 
+                  key={`v-${v}`} 
+                  className="text-[9px] bg-orange-500/20 text-orange-300 px-1.5 py-0.5 rounded flex items-center gap-0.5 border border-orange-500/30"
+                  title={`Vulnerable to ${DAMAGE_TYPE_LABELS[v].label} damage (×2)`}
+                >
+                  {DAMAGE_TYPE_LABELS[v].emoji}
+                  <span className="font-semibold">×2</span>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* AC Badge */}
@@ -238,24 +274,41 @@ export function EnemyCard({
             </Button>
           </div>
 
-          {/* Resistances/Vulnerabilities display */}
+          {/* Detailed resistances/vulnerabilities section in expanded controls */}
           {(enemy.resistances.length > 0 || enemy.vulnerabilities.length > 0 || enemy.immunities.length > 0) && (
-            <div className="flex flex-wrap gap-1.5 text-[10px]">
-              {enemy.resistances.map(r => (
-                <span key={`r-${r}`} className="bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded">
-                  {DAMAGE_TYPE_LABELS[r].emoji} R
-                </span>
-              ))}
-              {enemy.vulnerabilities.map(v => (
-                <span key={`v-${v}`} className="bg-red-500/20 text-red-300 px-1.5 py-0.5 rounded">
-                  {DAMAGE_TYPE_LABELS[v].emoji} V
-                </span>
-              ))}
-              {enemy.immunities.map(i => (
-                <span key={`i-${i}`} className="bg-slate-500/30 text-slate-300 px-1.5 py-0.5 rounded">
-                  {DAMAGE_TYPE_LABELS[i].emoji} I
-                </span>
-              ))}
+            <div className="bg-muted/10 rounded-lg p-2 space-y-1.5">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                Damage Modifiers
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {enemy.immunities.map(i => (
+                  <span 
+                    key={`i-${i}`} 
+                    className="text-[10px] bg-zinc-600/40 text-zinc-200 px-2 py-1 rounded flex items-center gap-1 border border-zinc-500/40"
+                  >
+                    {DAMAGE_TYPE_LABELS[i].emoji} {DAMAGE_TYPE_LABELS[i].label}
+                    <span className="font-bold text-zinc-400">IMMUNE</span>
+                  </span>
+                ))}
+                {enemy.resistances.map(r => (
+                  <span 
+                    key={`r-${r}`} 
+                    className="text-[10px] bg-blue-500/20 text-blue-200 px-2 py-1 rounded flex items-center gap-1 border border-blue-500/40"
+                  >
+                    {DAMAGE_TYPE_LABELS[r].emoji} {DAMAGE_TYPE_LABELS[r].label}
+                    <span className="font-bold text-blue-400">½</span>
+                  </span>
+                ))}
+                {enemy.vulnerabilities.map(v => (
+                  <span 
+                    key={`v-${v}`} 
+                    className="text-[10px] bg-orange-500/20 text-orange-200 px-2 py-1 rounded flex items-center gap-1 border border-orange-500/40"
+                  >
+                    {DAMAGE_TYPE_LABELS[v].emoji} {DAMAGE_TYPE_LABELS[v].label}
+                    <span className="font-bold text-orange-400">×2</span>
+                  </span>
+                ))}
+              </div>
             </div>
           )}
 
