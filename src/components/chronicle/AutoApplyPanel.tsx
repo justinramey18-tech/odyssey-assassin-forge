@@ -3,7 +3,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { 
-  Zap, Coins, Heart, AlertCircle, Moon, 
+  Zap, Coins, Heart, AlertCircle, Moon, Skull,
   Check, X, ChevronDown, Settings2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,21 +17,30 @@ import {
   CHRONICLE_AUTO_APPLY_KEY,
 } from '@/lib/chronicleSync/enhancedTypes';
 import { ChronicleParseResult, ParsedGoldChange, ParsedHPChange, ParsedCondition } from '@/lib/chronicleSync/types';
-import { ParsedRestEvent } from '@/lib/chronicleSync/enhancedTypes';
+import { ParsedRestEvent, ParsedDeathSave } from '@/lib/chronicleSync/enhancedTypes';
+
+interface DeathSavesState {
+  successes: number;
+  failures: number;
+}
 
 interface AutoApplyPanelProps {
   parseResult: ChronicleParseResult;
   enhancedResults?: {
     restEvents: ParsedRestEvent[];
+    deathSaves: ParsedDeathSave[];
   };
   currentGold: number;
   currentHP: number;
   maxHP: number;
   activeConditions: string[];
+  deathSaves?: DeathSavesState;
   onApplyGold: (netChange: number) => void;
   onApplyHP: (change: number, type: 'damage' | 'healing') => void;
   onApplyConditions: (toAdd: string[], toRemove: string[]) => void;
   onApplyRest: (type: 'short' | 'long') => void;
+  onApplyDeathSaves?: (saves: DeathSavesState) => void;
+  onRegainHP?: (amount: number) => void;
 }
 
 // Load/save config from localStorage
@@ -40,7 +49,7 @@ function loadConfig(): AutoApplyConfig {
     const stored = localStorage.getItem(CHRONICLE_AUTO_APPLY_KEY);
     if (stored) return JSON.parse(stored);
   } catch {}
-  return { gold: true, hp: true, conditions: true, restRecovery: true };
+  return { gold: true, hp: true, conditions: true, restRecovery: true, deathSaves: true };
 }
 
 function saveConfig(config: AutoApplyConfig) {
@@ -56,10 +65,13 @@ export function AutoApplyPanel({
   currentHP,
   maxHP,
   activeConditions,
+  deathSaves,
   onApplyGold,
   onApplyHP,
   onApplyConditions,
   onApplyRest,
+  onApplyDeathSaves,
+  onRegainHP,
 }: AutoApplyPanelProps) {
   const [config, setConfig] = useState<AutoApplyConfig>(loadConfig);
   const [isOpen, setIsOpen] = useState(true);
@@ -96,6 +108,23 @@ export function AutoApplyPanel({
     const shortRests = rests.filter(r => r.type === 'short_rest').length;
     const longRests = rests.filter(r => r.type === 'long_rest').length;
 
+    // Death saves from enhanced patterns
+    const detectedDeathSaves = enhancedResults?.deathSaves || [];
+    const deathSaveSuccesses = detectedDeathSaves.filter(
+      ds => ds.type === 'success' || ds.type === 'critical_success'
+    ).length;
+    const deathSaveFailures = detectedDeathSaves.filter(
+      ds => ds.type === 'failure'
+    ).length;
+    // Critical failures count as 2
+    const criticalFailures = detectedDeathSaves.filter(
+      ds => ds.type === 'critical_failure'
+    ).length;
+    const totalFailures = deathSaveFailures + (criticalFailures * 2);
+    
+    // Check for nat 20 (regain 1 HP)
+    const hasNat20 = detectedDeathSaves.some(ds => ds.type === 'critical_success');
+
     return {
       netGold,
       goldGained,
@@ -107,9 +136,13 @@ export function AutoApplyPanel({
       conditionsToRemove,
       shortRests,
       longRests,
+      deathSaveSuccesses,
+      deathSaveFailures: totalFailures,
+      hasNat20,
+      detectedDeathSaves,
       hasAnyChanges: netGold !== 0 || damage > 0 || healing > 0 || 
         conditionsToAdd.length > 0 || conditionsToRemove.length > 0 ||
-        shortRests > 0 || longRests > 0,
+        shortRests > 0 || longRests > 0 || detectedDeathSaves.length > 0,
     };
   }, [parseResult, enhancedResults, activeConditions]);
 
@@ -155,6 +188,27 @@ export function AutoApplyPanel({
     setApplied(prev => ({ ...prev, restRecovery: true }));
   }, [pendingChanges.longRests, pendingChanges.shortRests, onApplyRest]);
 
+  const handleApplyDeathSaves = useCallback(() => {
+    if (!onApplyDeathSaves) return;
+    
+    // Calculate new death save state by adding detected saves
+    const currentSuccesses = deathSaves?.successes ?? 0;
+    const currentFailures = deathSaves?.failures ?? 0;
+    
+    const newSuccesses = Math.min(3, currentSuccesses + pendingChanges.deathSaveSuccesses);
+    const newFailures = Math.min(3, currentFailures + pendingChanges.deathSaveFailures);
+    
+    // If nat 20 was rolled, regain 1 HP and reset saves
+    if (pendingChanges.hasNat20 && onRegainHP) {
+      onRegainHP(1);
+      onApplyDeathSaves({ successes: 0, failures: 0 });
+    } else {
+      onApplyDeathSaves({ successes: newSuccesses, failures: newFailures });
+    }
+    
+    setApplied(prev => ({ ...prev, deathSaves: true }));
+  }, [pendingChanges, deathSaves, onApplyDeathSaves, onRegainHP]);
+
   // Apply all enabled
   const handleApplyAll = useCallback(() => {
     if (config.gold && pendingChanges.netGold !== 0 && !applied.gold) {
@@ -169,7 +223,11 @@ export function AutoApplyPanel({
     if (config.restRecovery && (pendingChanges.shortRests > 0 || pendingChanges.longRests > 0) && !applied.restRecovery) {
       handleApplyRest();
     }
-  }, [config, pendingChanges, applied, handleApplyGold, handleApplyHP, handleApplyConditions, handleApplyRest]);
+    // Death saves are always enabled when detected
+    if (pendingChanges.detectedDeathSaves.length > 0 && !applied.deathSaves && onApplyDeathSaves) {
+      handleApplyDeathSaves();
+    }
+  }, [config, pendingChanges, applied, handleApplyGold, handleApplyHP, handleApplyConditions, handleApplyRest, handleApplyDeathSaves, onApplyDeathSaves]);
 
   if (!pendingChanges.hasAnyChanges) {
     return null;
@@ -271,6 +329,29 @@ export function AutoApplyPanel({
                 applied={applied.restRecovery}
                 onApply={handleApplyRest}
                 color="indigo"
+              />
+            )}
+
+            {/* Death Saves */}
+            {pendingChanges.detectedDeathSaves.length > 0 && onApplyDeathSaves && (
+              <AutoApplyRow
+                icon={<Skull className="w-4 h-4 text-rose-400" />}
+                label="Death Saves"
+                description={
+                  pendingChanges.hasNat20
+                    ? `🎉 Natural 20! Regain 1 HP and reset saves`
+                    : `${pendingChanges.deathSaveSuccesses} success${pendingChanges.deathSaveSuccesses !== 1 ? 'es' : ''}, ${pendingChanges.deathSaveFailures} failure${pendingChanges.deathSaveFailures !== 1 ? 's' : ''}`
+                }
+                preview={
+                  pendingChanges.hasNat20
+                    ? 'Saves reset, +1 HP'
+                    : `${deathSaves?.successes ?? 0}/${deathSaves?.failures ?? 0} → ${Math.min(3, (deathSaves?.successes ?? 0) + pendingChanges.deathSaveSuccesses)}/${Math.min(3, (deathSaves?.failures ?? 0) + pendingChanges.deathSaveFailures)}`
+                }
+                enabled={config.deathSaves}
+                onToggle={(v) => updateConfig('deathSaves', v)}
+                applied={applied.deathSaves}
+                onApply={handleApplyDeathSaves}
+                color="rose"
               />
             )}
 

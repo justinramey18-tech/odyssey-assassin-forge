@@ -54,11 +54,15 @@ interface ChronicleSyncScreenProps {
   currentHP: number;
   maxHP: number;
   activeConditions: string[];
+  // Death saves state
+  deathSaves: { successes: number; failures: number };
   onApplyChanges: (changes: ApprovedChanges) => void;
   onApplyGold: (netChange: number) => void;
   onApplyHP: (change: number, type: 'damage' | 'healing') => void;
   onApplyConditions: (toAdd: string[], toRemove: string[]) => void;
   onApplyRest: (type: 'short' | 'long') => void;
+  onApplyDeathSaves: (saves: { successes: number; failures: number }) => void;
+  onRegainHP: (amount: number) => void;
   // Target tracker integration
   existingEnemies: Enemy[];
   onAddEnemies: (enemies: NewEnemyInput[]) => number;
@@ -82,11 +86,14 @@ export function ChronicleSyncScreen({
   currentHP,
   maxHP,
   activeConditions,
+  deathSaves,
   onApplyChanges,
   onApplyGold,
   onApplyHP,
   onApplyConditions,
   onApplyRest,
+  onApplyDeathSaves,
+  onRegainHP,
   existingEnemies,
   onAddEnemies,
   onUpdateEnemy,
@@ -678,12 +685,25 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
                 </div>
               )}
 
-              {/* Display Only Changes */}
-              {hasDisplayOnlyChanges(parseResult) && (
-                <DisplayOnlyAlerts
-                  hpChanges={parseResult.hpChanges}
-                  goldChanges={parseResult.goldChanges}
-                  conditions={parseResult.conditions}
+              {/* Auto-Apply Panel - one-click application for HP, gold, conditions, rests, death saves */}
+              {parseResult && (hasDisplayOnlyChanges(parseResult) || (enhancedResults && enhancedResults.deathSaves.length > 0)) && (
+                <AutoApplyPanel
+                  parseResult={parseResult}
+                  enhancedResults={enhancedResults ? {
+                    restEvents: enhancedResults.restEvents,
+                    deathSaves: enhancedResults.deathSaves,
+                  } : undefined}
+                  currentGold={currentGold}
+                  currentHP={currentHP}
+                  maxHP={maxHP}
+                  activeConditions={activeConditions}
+                  deathSaves={deathSaves}
+                  onApplyGold={onApplyGold}
+                  onApplyHP={onApplyHP}
+                  onApplyConditions={onApplyConditions}
+                  onApplyRest={onApplyRest}
+                  onApplyDeathSaves={onApplyDeathSaves}
+                  onRegainHP={onRegainHP}
                 />
               )}
 
