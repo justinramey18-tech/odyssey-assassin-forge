@@ -78,6 +78,7 @@ import { useConditions } from '@/hooks/use-conditions';
 import { useTargets } from '@/hooks/use-targets';
 import { useCombatLog } from '@/hooks/use-combat-log';
 import { useInitiative } from '@/hooks/use-initiative';
+import { useCombatStats } from '@/hooks/use-combat-stats';
 
 const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -351,6 +352,13 @@ const Index = () => {
   // Ability Scores system (centralized stat management with gear sync)
   const abilityScores = useAbilityScores({
     equipmentStats: aggregatedStats,
+  });
+  
+  // Combat stats (includes initiative with DEX + ability bonuses like Sixth Sense)
+  const combatStats = useCombatStats({
+    character,
+    equipmentStats: aggregatedStats,
+    abilityModifiers: abilityScores.finalModifiers,
   });
   
   // Calculate max HP dynamically based on level, constitution, and prestige
@@ -1213,7 +1221,7 @@ const Index = () => {
           maxHP={hpState.max}
           tempHP={hpState.temp}
           shopItems={shop.shopItems}
-          initiativeModifier={abilityScores.finalModifiers.dexterity}
+          initiativeModifier={combatStats.initiativeBonus}
           customBackground={customBackground.customBackground}
           onCustomBackgroundUpload={customBackground.handleImageUpload}
           onCustomBackgroundClear={customBackground.clearCustomBackground}
