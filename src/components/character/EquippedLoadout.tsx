@@ -57,7 +57,7 @@ export function EquippedLoadout({ character, prestigePoints = 0, onEquip, onUneq
   const totalSlots = getActiveSlotsByLevel(character.level, prestigePoints);
   
   // Helper to get ability (base or homebrew) with customizations
-  const getAbilityById = (id: string): Ability | null => {
+  const getAbilityById = (id: string): (Ability & { isHomebrew?: boolean }) | null => {
     if (id.startsWith('homebrew_')) {
       const homebrew = abilityCustomization.state.homebrewAbilities.find(h => h.id === id);
       return homebrew ? homebrewToAbility(homebrew) : null;
@@ -69,6 +69,7 @@ export function EquippedLoadout({ character, prestigePoints = 0, onEquip, onUneq
   };
   
   // Get available active abilities (unlocked, not passive, not already equipped)
+  // This includes both base abilities and homebrew abilities
   const availableAbilities = useMemo(() => {
     return character.abilities
       .filter(ca => {
@@ -79,7 +80,7 @@ export function EquippedLoadout({ character, prestigePoints = 0, onEquip, onUneq
         return true;
       })
       .map(ca => getAbilityById(ca.abilityId))
-      .filter(Boolean) as Ability[];
+      .filter(Boolean) as (Ability & { isHomebrew?: boolean })[];
   }, [character.abilities, character.equippedAbilities, abilityCustomization.state.homebrewAbilities, abilityCustomization.state.overrides]);
 
   const treeStyles = {
@@ -162,6 +163,7 @@ export function EquippedLoadout({ character, prestigePoints = 0, onEquip, onUneq
               : 0;
 
             if (equippedAbility) {
+              const isHomebrew = 'isHomebrew' in equippedAbility && equippedAbility.isHomebrew;
               return (
                 <div
                   key={index}
@@ -173,13 +175,18 @@ export function EquippedLoadout({ character, prestigePoints = 0, onEquip, onUneq
                   onClick={() => handleUseAbility(equippedAbility)}
                   title={isOnCooldown 
                     ? `${equippedAbility.name} on cooldown` 
-                    : `Click to use ${equippedAbility.name}`
+                    : `Click to use ${equippedAbility.name}${isHomebrew ? ' (Homebrew)' : ''}`
                   }
                 >
                   {isOnCooldown ? (
                     <Clock className="w-3 h-3 opacity-50 absolute -top-1 -right-1 text-amber-400" />
                   ) : (
                     <Dices className="w-3 h-3 opacity-50 absolute -top-1 -right-1" />
+                  )}
+                  
+                  {/* Homebrew badge */}
+                  {isHomebrew && !isOnCooldown && (
+                    <span className="absolute -top-1 -left-1 text-[8px] text-primary font-bold">✦</span>
                   )}
                   
                   {/* Cooldown badge */}
@@ -234,6 +241,7 @@ export function EquippedLoadout({ character, prestigePoints = 0, onEquip, onUneq
                   ) : (
                     availableAbilities.map(ability => {
                       const AbilityIcon = iconMap[ability.icon] || HelpCircle;
+                      const isHomebrew = 'isHomebrew' in ability && ability.isHomebrew;
                       return (
                         <DropdownMenuItem
                           key={ability.id}
@@ -241,7 +249,10 @@ export function EquippedLoadout({ character, prestigePoints = 0, onEquip, onUneq
                           className="flex items-center gap-2"
                         >
                           <AbilityIcon className={cn('w-4 h-4', treeStyles[ability.tree].split(' ')[2])} />
-                          <span>{ability.name}</span>
+                          <span className="flex items-center gap-1">
+                            {ability.name}
+                            {isHomebrew && <span className="text-[10px] text-primary">✦</span>}
+                          </span>
                         </DropdownMenuItem>
                       );
                     })
