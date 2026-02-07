@@ -313,22 +313,24 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
   }, [outputText, toast]);
 
   // Export narrative as file
-  const handleExport = useCallback((format: 'txt' | 'md') => {
-    if (!outputText) return;
+  const handleExport = useCallback((format: 'txt' | 'md', content?: string, title?: string) => {
+    const textToExport = content || outputText;
+    if (!textToExport) return;
 
-    const fileName = savedStory?.title 
-      ? `${savedStory.title.replace(/[^a-zA-Z0-9\s-]/g, '').trim()}.${format}`
+    const storyTitle = title || savedStory?.title;
+    const fileName = storyTitle 
+      ? `${storyTitle.replace(/[^a-zA-Z0-9\s-]/g, '').trim()}.${format}`
       : `narrative-${new Date().toISOString().split('T')[0]}.${format}`;
 
-    let content = outputText;
+    let finalContent = textToExport;
     
     // Add markdown header for .md files
     if (format === 'md') {
-      const title = savedStory?.title || `${characterName}'s Chronicle`;
-      content = `# ${title}\n\n*Exported from Narrative Forge on ${new Date().toLocaleDateString()}*\n\n---\n\n${outputText}`;
+      const headerTitle = storyTitle || `${characterName}'s Chronicle`;
+      finalContent = `# ${headerTitle}\n\n*Exported from Narrative Forge on ${new Date().toLocaleDateString()}*\n\n---\n\n${textToExport}`;
     }
 
-    const blob = new Blob([content], { type: format === 'md' ? 'text/markdown' : 'text/plain' });
+    const blob = new Blob([finalContent], { type: format === 'md' ? 'text/markdown' : 'text/plain' });
     const url = URL.createObjectURL(blob);
     
     const link = document.createElement('a');
@@ -344,6 +346,12 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
       description: `Saved as ${fileName}`,
     });
   }, [outputText, savedStory, characterName, toast]);
+
+  // Export saved story
+  const handleExportSavedStory = useCallback((format: 'txt' | 'md') => {
+    if (!savedStory) return;
+    handleExport(format, savedStory.content, savedStory.title);
+  }, [savedStory, handleExport]);
 
   const removalPreview = inputText ? getRemovalPreview(inputText) : [];
 
@@ -498,6 +506,30 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
                       </>
                     )}
                   </div>
+
+                  {/* Export Options */}
+                  {!isEditingStory && (
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        onClick={() => handleExportSavedStory('txt')}
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 gap-2 text-muted-foreground hover:text-foreground"
+                      >
+                        <Download className="w-4 h-4" />
+                        Export .txt
+                      </Button>
+                      <Button
+                        onClick={() => handleExportSavedStory('md')}
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 gap-2 text-muted-foreground hover:text-foreground"
+                      >
+                        <Download className="w-4 h-4" />
+                        Export .md
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="mt-8 text-center text-muted-foreground">
