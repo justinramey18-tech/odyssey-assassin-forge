@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { ArrowLeft, Wand2, Cog, Copy, Check, Loader2, BookOpen, Cpu, Info, Save, Plus, FileText, Trash2, Eye, Pencil, X } from 'lucide-react';
+import { ArrowLeft, Wand2, Cog, Copy, Check, Loader2, BookOpen, Cpu, Info, Save, Plus, FileText, Trash2, Eye, Pencil, X, Upload, ClipboardPaste, Square, CheckSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Progress } from '@/components/ui/progress';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 import { 
@@ -20,6 +22,9 @@ import {
   defaultProcessingOptions,
 } from '@/lib/narrativeProcessor';
 import { supabase } from '@/integrations/supabase/client';
+import { CampaignFileUpload } from './CampaignFileUpload';
+import { useCampaignProcessor } from '@/hooks/use-campaign-processor';
+import { DetectedSession, estimateProcessingTime } from '@/lib/scribe/sessionDetection';
 import scribeBackground from '@/assets/scribe-background.jpg';
 
 const SAVED_STORY_KEY = 'narrative-forge-saved-story';
@@ -48,7 +53,11 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
   const [storyViewerOpen, setStoryViewerOpen] = useState(false);
   const [isEditingStory, setIsEditingStory] = useState(false);
   const [editedContent, setEditedContent] = useState('');
+  const [inputSource, setInputSource] = useState<'paste' | 'upload'>('paste');
   const { toast } = useToast();
+
+  // Campaign processor for file uploads
+  const campaignProcessor = useCampaignProcessor();
 
   // Load saved story from localStorage on mount
   useEffect(() => {
@@ -191,7 +200,48 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
     }
   }, [savedStory, toast]);
 
+  // Handle file upload
+  const handleFileLoaded = useCallback((content: string, fileName: string, sessions: DetectedSession[]) => {
+    campaignProcessor.loadFile(content, fileName, sessions);
+    // Clear paste input when switching to file
+    setInputText('');
+  }, [campaignProcessor]);
+
+  const handleFileClear = useCallback(() => {
+    campaignProcessor.reset();
+  }, [campaignProcessor]);
+
   const handleProcess = useCallback(async () => {
+    // Handle file upload mode
+    if (inputSource === 'upload' && campaignProcessor.fileName) {
+      const selectedCount = campaignProcessor.selectedSessionIds.size;
+      
+      if (selectedCount === 0) {
+        toast({
+          title: "No sessions selected",
+          description: "Please select at least one session to process.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const result = await campaignProcessor.processSelectedSessions(
+        processingMode,
+        options,
+        characterName
+      );
+
+      if (result) {
+        setOutputText(result);
+        toast({
+          title: "Processing complete!",
+          description: `${selectedCount} session${selectedCount > 1 ? 's' : ''} processed successfully.`,
+        });
+      }
+      return;
+    }
+
+    // Handle paste mode (original logic)
     if (!inputText.trim()) {
       toast({
         title: "No input",
@@ -240,7 +290,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
     } finally {
       setIsProcessing(false);
     }
-  }, [inputText, processingMode, options, characterName, toast]);
+  }, [inputSource, campaignProcessor, inputText, processingMode, options, characterName, toast]);
 
   const handleCopy = useCallback(async () => {
     if (!outputText) return;
@@ -607,14 +657,41 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
           </CardContent>
         </Card>
 
+        {/* Input Source Toggle */}
+        <div className="flex items-center gap-2 p-1 rounded-lg bg-muted/30 border border-border/50 w-fit">
+          <button
+            onClick={() => setInputSource('paste')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-all ${
+              inputSource === 'paste' 
+                ? 'bg-amber-500/20 text-amber-400' 
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <ClipboardPaste className="w-4 h-4" />
+            Paste Text
+          </button>
+          <button
+            onClick={() => setInputSource('upload')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-all ${
+              inputSource === 'upload' 
+                ? 'bg-amber-500/20 text-amber-400' 
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Upload className="w-4 h-4" />
+            Upload File
+          </button>
+        </div>
+
         {/* Input Section */}
-        <Card className="border-amber-900/30 bg-card/50">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Input: Game Chat History</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Textarea
-              placeholder="Paste your TTRPG game chat, AI-generated session log, or story content here...
+        {inputSource === 'paste' ? (
+          <Card className="border-amber-900/30 bg-card/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium">Input: Game Chat History</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Textarea
+                placeholder="Paste your TTRPG game chat, AI-generated session log, or story content here...
 
 Example:
 [GM] The ancient door creaks open. Roll Perception.
@@ -623,44 +700,178 @@ Example:
 Kira carefully examines the mechanism (DEX check: 14+4=18)...
 [OOC: Nice roll!]
 The trap clicks harmlessly as she disables it."
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              className="min-h-[200px] font-mono text-sm resize-none"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                className="min-h-[200px] font-mono text-sm resize-none"
+              />
+              
+              {/* Removal Preview */}
+              {inputText && removalPreview.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-border/50">
+                  <button 
+                    onClick={() => setShowPreview(!showPreview)}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                  >
+                    <Info className="w-3 h-3" />
+                    {showPreview ? 'Hide' : 'Show'} detection preview
+                  </button>
+                  {showPreview && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {removalPreview.map((item, i) => (
+                        <span key={i} className="px-2 py-1 text-xs bg-amber-900/20 text-amber-300 rounded-full">
+                          {item.count}× {item.element}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {/* File Upload */}
+            <CampaignFileUpload
+              onFileLoaded={handleFileLoaded}
+              onClear={handleFileClear}
+              currentFile={campaignProcessor.fileName}
+              fileStats={campaignProcessor.getFileStats()}
             />
-            
-            {/* Removal Preview */}
-            {inputText && removalPreview.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-border/50">
-                <button 
-                  onClick={() => setShowPreview(!showPreview)}
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-                >
-                  <Info className="w-3 h-3" />
-                  {showPreview ? 'Hide' : 'Show'} detection preview
-                </button>
-                {showPreview && (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {removalPreview.map((item, i) => (
-                      <span key={i} className="px-2 py-1 text-xs bg-amber-900/20 text-amber-300 rounded-full">
-                        {item.count}× {item.element}
-                      </span>
-                    ))}
+
+            {/* Session Selection */}
+            {campaignProcessor.sessions.length > 0 && (
+              <Card className="border-amber-900/30 bg-card/50">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium">
+                      Detected Sessions ({campaignProcessor.sessions.length})
+                    </CardTitle>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={campaignProcessor.selectAllSessions}
+                        className="text-xs h-7 px-2"
+                      >
+                        <CheckSquare className="w-3 h-3 mr-1" />
+                        All
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={campaignProcessor.deselectAllSessions}
+                        className="text-xs h-7 px-2"
+                      >
+                        <Square className="w-3 h-3 mr-1" />
+                        None
+                      </Button>
+                    </div>
                   </div>
-                )}
-              </div>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="max-h-[200px]">
+                    <div className="space-y-2">
+                      {campaignProcessor.sessions.map((session) => {
+                        const isSelected = campaignProcessor.selectedSessionIds.has(session.id);
+                        const isProcessed = campaignProcessor.processedSessions.has(session.id);
+                        const processed = campaignProcessor.processedSessions.get(session.id);
+                        
+                        return (
+                          <div
+                            key={session.id}
+                            onClick={() => campaignProcessor.toggleSession(session.id)}
+                            className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer transition-all ${
+                              isSelected 
+                                ? 'bg-amber-500/10 border border-amber-500/30' 
+                                : 'hover:bg-muted/30 border border-transparent'
+                            }`}
+                          >
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() => campaignProcessor.toggleSession(session.id)}
+                              className="mt-0.5"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-sm truncate">{session.title}</span>
+                                {isProcessed && processed?.status === 'completed' && (
+                                  <Check className="w-3 h-3 text-green-400 shrink-0" />
+                                )}
+                                {isProcessed && processed?.status === 'error' && (
+                                  <X className="w-3 h-3 text-destructive shrink-0" />
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground truncate">{session.preview}</p>
+                              <span className="text-xs text-muted-foreground/60">
+                                {session.wordCount.toLocaleString()} words
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                  
+                  {/* Processing estimate */}
+                  {campaignProcessor.selectedSessionIds.size > 0 && (
+                    <div className="mt-3 pt-3 border-t border-border/50 text-xs text-muted-foreground">
+                      <span className="text-amber-400">{campaignProcessor.selectedSessionIds.size}</span> session{campaignProcessor.selectedSessionIds.size > 1 ? 's' : ''} selected
+                      {processingMode === 'ai' && (
+                        <span className="ml-2">
+                          • Est. time: {estimateProcessingTime(
+                            campaignProcessor.sessions.filter(s => campaignProcessor.selectedSessionIds.has(s.id)),
+                            processingMode
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             )}
-          </CardContent>
-        </Card>
+
+            {/* Processing Progress */}
+            {campaignProcessor.isProcessing && (
+              <Card className="border-purple-900/30 bg-purple-950/20">
+                <CardContent className="p-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-purple-400">
+                        Processing: {campaignProcessor.sessions.find(s => s.id === campaignProcessor.currentlyProcessing)?.title || '...'}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={campaignProcessor.cancelProcessing}
+                        className="h-7 text-xs text-muted-foreground hover:text-destructive"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                    <Progress value={campaignProcessor.progress} className="h-2" />
+                    <p className="text-xs text-muted-foreground text-center">
+                      {campaignProcessor.progress}% complete
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
 
         {/* Process Button */}
         <div className="flex justify-center">
           <Button
             onClick={handleProcess}
-            disabled={isProcessing || !inputText.trim()}
+            disabled={
+              (isProcessing || campaignProcessor.isProcessing) ||
+              (inputSource === 'paste' && !inputText.trim()) ||
+              (inputSource === 'upload' && (!campaignProcessor.fileName || campaignProcessor.selectedSessionIds.size === 0))
+            }
             className="gap-2 px-8 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white border-0"
             size="lg"
           >
-            {isProcessing ? (
+            {(isProcessing || campaignProcessor.isProcessing) ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
                 {processingMode === 'ai' ? 'AI is writing...' : 'Processing...'}
@@ -668,7 +879,10 @@ The trap clicks harmlessly as she disables it."
             ) : (
               <>
                 <Wand2 className="w-5 h-5" />
-                Forge Narrative
+                {inputSource === 'upload' && campaignProcessor.selectedSessionIds.size > 1
+                  ? `Forge ${campaignProcessor.selectedSessionIds.size} Sessions`
+                  : 'Forge Narrative'
+                }
               </>
             )}
           </Button>
