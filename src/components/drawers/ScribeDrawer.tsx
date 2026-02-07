@@ -31,6 +31,7 @@ const GENRE_STYLES: Record<NarrativeStyle, { name: string; description: string }
   lovecraftian: { name: 'Lovecraftian', description: 'Cosmic dread & sanity erosion' },
   gonzo: { name: 'Gonzo', description: 'Hunter S. Thompson style' },
   hemingway: { name: 'Hemingway', description: 'Brutal minimalism' },
+  custom: { name: 'Custom', description: 'Your own style guide' },
 };
 
 interface ScribeDrawerProps {
@@ -48,6 +49,7 @@ export function ScribeDrawer({
   const [outputText, setOutputText] = useState('');
   const [selectedGenre, setSelectedGenre] = useState<NarrativeStyle>('fantasy');
   const [toneIntensity, setToneIntensity] = useState(3);
+  const [customStylePrompt, setCustomStylePrompt] = useState('');
   const [copied, setCopied] = useState(false);
 
   const handleProcess = () => {
@@ -63,6 +65,7 @@ export function ScribeDrawer({
       enhanceDescriptions: true,
       narrativeStyle: selectedGenre,
       toneIntensity,
+      customStylePrompt: selectedGenre === 'custom' ? customStylePrompt : undefined,
     };
     
     const processed = processTextOffline(inputText, options);
@@ -129,6 +132,29 @@ export function ScribeDrawer({
               ))}
             </div>
           </div>
+
+          {/* Custom Style Prompt (shown when Custom is selected) */}
+          {selectedGenre === 'custom' && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <Wand2 className="w-3 h-3" />
+                Your Style Guide
+              </h3>
+              <Textarea
+                placeholder={`Define word replacements like:
+• Replace "attacks" with "lunges viciously"
+• Use "crimson spray" instead of "blood"
+• "hits" -> "connects brutally"
+• Say "shadows whisper" for "moves"`}
+                value={customStylePrompt}
+                onChange={(e) => setCustomStylePrompt(e.target.value)}
+                className="min-h-[100px] text-xs resize-none border-amber-500/30 focus:border-amber-500/50"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Define word replacements using patterns like "replace X with Y" or "X → Y"
+              </p>
+            </div>
+          )}
 
           {/* Tone Intensity Slider */}
           <div className="space-y-3">

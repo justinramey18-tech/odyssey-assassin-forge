@@ -12,7 +12,8 @@ export type NarrativeStyle =
   | 'subtle_absurdity'
   | 'lovecraftian'
   | 'gonzo'
-  | 'hemingway';
+  | 'hemingway'
+  | 'custom';
 
 export interface ProcessingOptions {
   removeRolls: boolean;
@@ -21,6 +22,7 @@ export interface ProcessingOptions {
   enhanceDescriptions: boolean;
   narrativeStyle: NarrativeStyle;
   toneIntensity: number; // 1-5: Subtle to Dramatic
+  customStylePrompt?: string; // User's custom style guide
 }
 
 export const defaultProcessingOptions: ProcessingOptions = {
@@ -189,6 +191,7 @@ const styleEnhancements: Record<string, Record<string, string>> = {
     'moves': 'moved',
     'searches': 'looked',
   },
+  custom: {}, // Custom styles use parseCustomStylePrompt
 };
 
 // Clean up excessive whitespace and formatting
@@ -200,6 +203,35 @@ function cleanWhitespace(text: string): string {
     .trim();
 }
 
+// Parse custom style prompt into enhancement patterns
+// Looks for patterns like "use X instead of Y" or "replace X with Y"
+function parseCustomStylePrompt(prompt: string): Record<string, string> {
+  const patterns: Record<string, string> = {};
+  
+  // Match patterns like "use 'dramatic flair' instead of 'attacks'"
+  // or "replace 'hits' with 'strikes true'"
+  const replacePatterns = [
+    /(?:use|say)\s+['"]([^'"]+)['"]\s+(?:instead of|for)\s+['"]([^'"]+)['"]/gi,
+    /(?:replace|change)\s+['"]([^'"]+)['"]\s+(?:with|to)\s+['"]([^'"]+)['"]/gi,
+    /['"]([^'"]+)['"]\s*(?:->|=>|→)\s*['"]([^'"]+)['"]/gi,
+  ];
+  
+  for (const regex of replacePatterns) {
+    let match;
+    while ((match = regex.exec(prompt)) !== null) {
+      // For "use X instead of Y", X is replacement, Y is pattern
+      if (regex.source.includes('instead of')) {
+        patterns[match[2].toLowerCase()] = match[1];
+      } else {
+        // For "replace X with Y", X is pattern, Y is replacement
+        patterns[match[1].toLowerCase()] = match[2];
+      }
+    }
+  }
+  
+  return patterns;
+}
+
 // Capitalize sentences properly
 function capitalizeSentences(text: string): string {
   return text.replace(/(^|[.!?]\s+)([a-z])/g, (match, prefix, letter) => {
@@ -209,8 +241,15 @@ function capitalizeSentences(text: string): string {
 
 // Apply narrative style enhancements
 // Intensity: 1=Subtle (20%), 2=Mild (40%), 3=Moderate (60%), 4=Strong (80%), 5=Dramatic (95%)
-function applyStyleEnhancements(text: string, style: string, intensity: number = 3): string {
-  const enhancements = styleEnhancements[style] || styleEnhancements.fantasy;
+function applyStyleEnhancements(text: string, style: string, intensity: number = 3, customPrompt?: string): string {
+  let enhancements: Record<string, string>;
+  
+  if (style === 'custom' && customPrompt) {
+    enhancements = parseCustomStylePrompt(customPrompt);
+  } else {
+    enhancements = styleEnhancements[style] || styleEnhancements.fantasy;
+  }
+  
   let result = text;
   
   // Map intensity 1-5 to replacement probability
@@ -301,7 +340,7 @@ export function processTextOffline(input: string, options: ProcessingOptions = d
   
   // Apply style enhancements
   if (options.enhanceDescriptions) {
-    result = applyStyleEnhancements(result, options.narrativeStyle, options.toneIntensity);
+    result = applyStyleEnhancements(result, options.narrativeStyle, options.toneIntensity, options.customStylePrompt);
   }
   
   // Clean up formatting
