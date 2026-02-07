@@ -1413,11 +1413,20 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
   // Show wizard on first load
   if (showWizard) {
     return (
-      <CharacterWizard
-        onComplete={handleWizardComplete}
-        onQuickStart={handleQuickStart}
-        onLoadCloud={() => setShowCloudSaveModal(true)}
-      />
+      <>
+        <CharacterWizard
+          onComplete={handleWizardComplete}
+          onQuickStart={handleQuickStart}
+          onLoadCloud={() => setShowCloudSaveModal(true)}
+        />
+        {/* Cloud Save Modal - available during wizard */}
+        <CloudSaveModal
+          open={showCloudSaveModal}
+          onOpenChange={setShowCloudSaveModal}
+          currentData={saveData}
+          onLoadSave={handleLoadCloudSave}
+        />
+      </>
     );
   }
 
