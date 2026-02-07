@@ -1,263 +1,442 @@
 
-# Attack Queue System with Multi-Target Support
+# BuildConfig Type: Centralizing Class-Specific Data
 
 ## Overview
-This plan adds an **Attack Queue** system to the Combat tab that allows players to:
-1. Select specific enemies as targets for each attack
-2. Queue multiple attacks on the same enemy
-3. Queue attacks on multiple different enemies with an ordering mechanism
-4. Generate AI DM prompts that include the selected target(s) for each attack
+
+This plan creates a `BuildConfig` type that consolidates all "Odyssey Assassin"-specific strings, data, and configuration into a single source of truth. This makes the codebase ready for future customization (different classes, themes, or user-defined builds) without changing core functionality.
 
 ---
 
-## Technical Architecture
+## What Gets Centralized
 
-### Core Concept: Attack Queue
+Based on codebase analysis, these are the class-specific elements currently hardcoded:
 
-Instead of single-shot attacks, players will build an "Attack Queue" containing ordered attacks, each with an assigned target. When ready, they can execute the entire queue to generate a combined AI prompt.
+### 1. Identity & Branding
+- Class name: "Odyssey Assassin"
+- Default character name: "Unnamed Assassin"
+- App subtitle/tagline
 
-```text
-┌─────────────────────────────────────────────┐
-│             ATTACK QUEUE                    │
-├─────────────────────────────────────────────┤
-│ 1. Shortsword → Goblin #1        [×] [▲▼]  │
-│ 2. Shortsword + Sneak → Goblin #1 [×] [▲▼]  │
-│ 3. Dagger (offhand) → Orc        [×] [▲▼]  │
-├─────────────────────────────────────────────┤
-│    [Clear Queue]    [Execute Attacks]       │
-└─────────────────────────────────────────────┘
-```
+### 2. Ability Trees (3 trees)
+- Tree IDs: `'hunter' | 'warrior' | 'assassin'`
+- Tree display names and subtitles
+- Tree colors (CSS variables)
+- Tree icons
+- All 24 abilities (8 per tree)
+
+### 3. Prestige System (Drizzt's Legacy)
+- Prestige tree name: "Drizzt's Legacy"
+- Central node: "Drizzt Do'Urden"
+- Branch names and themes
+- Prestige abilities
+
+### 4. Progression Mechanics
+- Hit die: d8 (Rogue class)
+- Ability point formula
+- HP calculation formula
+
+### 5. Visual Theme
+- CSS color variables for trees
+- Icon assignments
+- Background images
+
+### 6. AI DM Prompts
+- All "ODYSSEY ASSASSIN" references in GM Guide prompts
+- Character identity prompts (Deadpool persona)
 
 ---
 
-## Files to Create/Modify
+## BuildConfig Type Definition
 
-### 1. New Type Definitions
-**File:** `src/lib/combat/attackQueue.ts` (NEW)
+**File:** `src/lib/buildConfig/types.ts` (NEW)
 
 ```typescript
-interface QueuedAttack {
+import { LucideIcon } from 'lucide-react';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BUILD CONFIGURATION - Single source of truth for class customization
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Core identity for the build
+ */
+export interface BuildIdentity {
+  /** Class name displayed in UI (e.g., "Odyssey Assassin") */
+  className: string;
+  /** Short subtitle (e.g., "ASSASSIN") */
+  classSubtitle: string;
+  /** Default name for new characters */
+  defaultCharacterName: string;
+  /** App title for headers */
+  appTitle: string;
+  /** Description for GM guides */
+  classDescription: string;
+}
+
+/**
+ * Configuration for a single ability tree
+ */
+export interface TreeConfig {
+  id: string;               // Unique identifier (e.g., 'hunter')
+  name: string;             // Display name (e.g., 'Hunter')
+  subtitle: string;         // Short description (e.g., 'Ranged & Awareness')
+  iconName: string;         // Lucide icon name (e.g., 'Target')
+  colors: {
+    primary: string;        // CSS variable name (e.g., 'hunter')
+    glow: string;
+    dim: string;
+  };
+}
+
+/**
+ * Configuration for prestige/post-endgame system
+ */
+export interface PrestigeConfig {
+  treeName: string;         // e.g., "Drizzt's Legacy"
+  centralNode: {
+    name: string;           // e.g., "Drizzt Do'Urden"
+    title: string;          // e.g., "Legendary Ranger of Icewind Dale"
+  };
+  branches: PrestigeBranchConfig[];
+}
+
+export interface PrestigeBranchConfig {
   id: string;
-  weapon: WeaponAttack;
-  rollType: 'normal' | 'sneak' | 'assassinate';
-  targetId: string | null;      // Enemy ID or null for "no specific target"
-  targetName: string | null;    // Cached name for display
-  order: number;                // Position in queue
-  isOffhand?: boolean;
+  name: string;
+  subtitle: string;
+  iconName: string;
+  primaryColor: string;
+  glowColor: string;
 }
 
-interface AttackQueueState {
-  attacks: QueuedAttack[];
-  selectedTargetId: string | null;  // Currently selected target for next attack
+/**
+ * Mechanical progression configuration
+ */
+export interface ProgressionConfig {
+  hitDie: 'd6' | 'd8' | 'd10' | 'd12';
+  hitDieMax: number;
+  hitDieAvg: number;
+  maxLevel: number;
+  /** Point formula: returns points available at given level */
+  getAbilityPointsForLevel: (level: number) => number;
+  /** HP formula: returns max HP for level + CON mod + prestige */
+  calculateMaxHP: (level: number, conMod: number, prestigeLevel: number) => number;
+}
+
+/**
+ * AI DM prompt customization
+ */
+export interface AIPromptConfig {
+  /** Character personality archetype for RP prompts */
+  personalityArchetype: string;
+  /** Personality traits list */
+  personalityTraits: string[];
+  /** Example quips/dialogue */
+  exampleQuips: string[];
+}
+
+/**
+ * Complete build configuration
+ */
+export interface BuildConfig {
+  version: number;
+  identity: BuildIdentity;
+  trees: TreeConfig[];
+  prestige: PrestigeConfig;
+  progression: ProgressionConfig;
+  aiPrompts: AIPromptConfig;
 }
 ```
 
-### 2. Attack Queue Hook
-**File:** `src/hooks/use-attack-queue.ts` (NEW)
+---
 
-Manages the attack queue state with functions:
-- `addToQueue(weapon, rollType, targetId, isOffhand?)` - Add attack to queue
-- `removeFromQueue(id)` - Remove specific attack
-- `reorderAttack(id, direction: 'up' | 'down')` - Change attack order
-- `setDefaultTarget(targetId)` - Set default target for new attacks
-- `clearQueue()` - Clear all queued attacks
-- `executeQueue()` - Process all attacks and return combined prompt data
-- Persists to localStorage for session continuity
+## Default Configuration
 
-### 3. Target Selection UI Component
-**File:** `src/components/combat/mobile/TargetSelector.tsx` (NEW)
-
-A compact, mobile-friendly target selection component:
-- Displays as a row of chips/pills showing active enemies
-- Current target highlighted with ring/glow
-- Tap to select, shows "(No Target)" option
-- Displays enemy HP status via color coding
-
-```text
-┌────────────────────────────────────────────┐
-│ 🎯 TARGET: [None] [Goblin #1✓] [Orc] [Troll] │
-└────────────────────────────────────────────┘
-```
-
-### 4. Attack Queue Panel
-**File:** `src/components/combat/mobile/AttackQueuePanel.tsx` (NEW)
-
-Visual queue management component:
-- Lists all queued attacks with target assignments
-- Drag handles or up/down buttons for reordering
-- Delete button per entry
-- "Execute All" button to process queue
-- Shows estimated total damage
-- Collapsible for space efficiency
-
-### 5. Modify MobileWeaponCard
-**File:** `src/components/combat/mobile/MobileWeaponCard.tsx`
-
-**Changes:**
-- Add "Queue Attack" mode alongside "Execute Immediately" mode
-- Add target selector dropdown/chip row when queueing
-- New prop: `onQueueAttack` callback
-- New prop: `currentTargetId` for pre-selection
-- Visual indication when attack is queued
-
-### 6. Modify MobileCombatLayout
-**File:** `src/components/combat/mobile/MobileCombatLayout.tsx`
-
-**Changes:**
-- Integrate `useAttackQueue` hook
-- Add `AttackQueuePanel` to the Combat tab
-- Wire up target selection state
-- Pass target context to weapon cards
-- Handle queue execution flow
-
-### 7. Enhanced Prompt Generation
-**File:** `src/lib/combat/attackQueuePrompts.ts` (NEW)
-
-New function to generate multi-attack prompts:
+**File:** `src/lib/buildConfig/odysseyAssassin.ts` (NEW)
 
 ```typescript
-function generateMultiAttackPrompt(
-  attacks: ExecutedAttack[],
-  characterName: string,
-  enemies: Enemy[]
-): string
+import { BuildConfig } from './types';
+import { getAbilityPointsForLevel } from '@/lib/types';
+import { calculateMaxHP } from '@/lib/hpCalculation';
+
+/**
+ * Default Odyssey Assassin build configuration
+ * This is the original hardcoded configuration extracted into a data object
+ */
+export const ODYSSEY_ASSASSIN_CONFIG: BuildConfig = {
+  version: 1,
+  
+  identity: {
+    className: 'Odyssey Assassin',
+    classSubtitle: 'ASSASSIN',
+    defaultCharacterName: 'Unnamed Assassin',
+    appTitle: 'Odyssey Assassin',
+    classDescription: 'A custom D&D 5e Assassin class with extensive homebrew abilities, legendary gear, and prestige progression.',
+  },
+  
+  trees: [
+    {
+      id: 'hunter',
+      name: 'Hunter',
+      subtitle: 'Ranged & Awareness',
+      iconName: 'Target',
+      colors: { primary: 'hunter', glow: 'hunter-glow', dim: 'hunter-dim' },
+    },
+    {
+      id: 'warrior',
+      name: 'Warrior',
+      subtitle: 'Melee & Defense',
+      iconName: 'Swords',
+      colors: { primary: 'warrior', glow: 'warrior-glow', dim: 'warrior-dim' },
+    },
+    {
+      id: 'assassin',
+      name: 'Assassin',
+      subtitle: 'Stealth & Crits',
+      iconName: 'Eye',
+      colors: { primary: 'assassin', glow: 'assassin-glow', dim: 'assassin-dim' },
+    },
+  ],
+  
+  prestige: {
+    treeName: "Drizzt's Legacy",
+    centralNode: {
+      name: "Drizzt Do'Urden",
+      title: 'Legendary Ranger of Icewind Dale',
+    },
+    branches: [
+      { id: 'dual_wielding', name: 'Dual Wielding', subtitle: 'Scimitar Mastery', iconName: 'Swords', primaryColor: 'red-500', glowColor: '#EF4444' },
+      { id: 'guenhwyvar', name: 'Guenhwyvar', subtitle: 'Astral Companion', iconName: 'Cat', primaryColor: 'teal-500', glowColor: '#14B8A6' },
+      { id: 'drow_abilities', name: 'Drow Abilities', subtitle: 'Shadow Magic', iconName: 'Eye', primaryColor: 'violet-500', glowColor: '#8B5CF6' },
+      { id: 'monk_abilities', name: 'Monk Abilities', subtitle: 'Spiritual Discipline', iconName: 'Zap', primaryColor: 'amber-500', glowColor: '#FBBF24' },
+    ],
+  },
+  
+  progression: {
+    hitDie: 'd8',
+    hitDieMax: 8,
+    hitDieAvg: 5,
+    maxLevel: 20,
+    getAbilityPointsForLevel,
+    calculateMaxHP,
+  },
+  
+  aiPrompts: {
+    personalityArchetype: 'Deadpool-inspired anti-hero',
+    personalityTraits: [
+      'Fourth-Wall Awareness',
+      'Inappropriate Humor',
+      'Mercenary Pragmatism',
+      'Pop Culture References',
+      'Genre Savvy',
+    ],
+    exampleQuips: [
+      "Is it just me, or did that guy look like he was about to monologue?",
+      "Ooh, a critical hit! That's gonna leave a mark. And by mark, I mean corpse.",
+    ],
+  },
+};
 ```
 
-Output format includes all attacks with their targets:
-```markdown
-## ⚔️ MULTI-ATTACK SEQUENCE
-
-**Character:** Σκιά
-**Total Attacks:** 3
-
 ---
 
-### Attack 1: Shortsword → Goblin #1
-**Roll:** 1d20+7 = [18] = **25**
-**Damage on Hit:** 1d6+4 piercing
-🎯 Target: Goblin #1 (AC 13, Bloodied - 12/25 HP)
+## Build Context Provider
 
----
+**File:** `src/lib/buildConfig/BuildContext.tsx` (NEW)
 
-### Attack 2: Shortsword + Sneak Attack → Goblin #1
-**Roll:** 2d20kh1+7 = [19, 8] = **26**
-**Damage on Hit:** 1d6+4+4d6 piercing
-🎯 Target: Goblin #1 (AC 13, Bloodied)
-*Sneak Attack applied - ally within 5ft*
+```typescript
+import React, { createContext, useContext, ReactNode } from 'react';
+import { BuildConfig } from './types';
+import { ODYSSEY_ASSASSIN_CONFIG } from './odysseyAssassin';
 
----
+const BuildContext = createContext<BuildConfig>(ODYSSEY_ASSASSIN_CONFIG);
 
-### Attack 3: Dagger (Offhand) → Orc
-**Roll:** 1d20+7 = [14] = **21**
-**Damage on Hit:** 1d4 piercing
-🎯 Target: Orc (AC 14, Healthy - 30/30 HP)
-*Offhand attack - no ability modifier to damage*
+interface BuildProviderProps {
+  config?: BuildConfig;
+  children: ReactNode;
+}
 
----
+/**
+ * Provides build configuration to the entire app
+ * Future: Can swap configs for different builds
+ */
+export function BuildProvider({ config = ODYSSEY_ASSASSIN_CONFIG, children }: BuildProviderProps) {
+  return (
+    <BuildContext.Provider value={config}>
+      {children}
+    </BuildContext.Provider>
+  );
+}
 
-### Narration Guide
-Σκιά unleashes a flurry of strikes, first focusing on Goblin #1 with two devastating attacks, then spinning to catch the Orc off-guard with a quick dagger slash.
+/**
+ * Hook to access build configuration anywhere in the app
+ */
+export function useBuildConfig(): BuildConfig {
+  return useContext(BuildContext);
+}
+
+/**
+ * Direct access to current config (for non-React code)
+ * Future: Can be made dynamic
+ */
+export function getBuildConfig(): BuildConfig {
+  return ODYSSEY_ASSASSIN_CONFIG;
+}
 ```
 
 ---
 
-## UI/UX Design
+## Module Exports
 
-### Target Selection Flow
+**File:** `src/lib/buildConfig/index.ts` (NEW)
 
-1. **Default Target**: When an enemy is set as "current target" in the Target Tracker, it auto-populates as the default for new attacks
-2. **Override**: Player can tap a different enemy chip to override for specific attacks
-3. **No Target**: "(Any)" option for unspecified targets
-
-### Queue Management
-
-1. **Add to Queue**: Tap weapon → select target → tap "Queue Attack" button
-2. **Quick Add**: If default target set, weapon tap can auto-queue
-3. **Reorder**: Up/Down arrows or drag handles
-4. **Execute**: "Execute All" processes queue, generates combined prompt, clears queue
-
-### Visual States
-
-- **Empty Queue**: Collapsed, shows "No attacks queued"
-- **Has Attacks**: Expanded, shows list with reorder controls
-- **Executing**: Brief loading state, then shows DiceRollModal with combined results
+```typescript
+export * from './types';
+export * from './odysseyAssassin';
+export * from './BuildContext';
+```
 
 ---
 
-## Integration Points
+## Files to Modify (Minimal Changes)
 
-### Combat Log
-Each executed attack in the queue gets its own combat log entry with target information.
+These changes replace hardcoded strings with config lookups. The behavior remains identical.
 
-### Turn Summary
-Queue execution adds all attacks to turn summary at once.
+### 1. App Entry Point
+**File:** `src/App.tsx`
 
-### Action Economy
-Queue execution respects action economy:
-- First attack uses Action
-- Offhand attacks use Bonus Action
-- System warns if queue exceeds available actions
+Wrap the app with `BuildProvider`:
+```typescript
+import { BuildProvider } from '@/lib/buildConfig';
 
----
+function App() {
+  return (
+    <BuildProvider>
+      {/* existing app content */}
+    </BuildProvider>
+  );
+}
+```
 
-## Settings Option
+### 2. Character Header
+**File:** `src/components/character/CharacterHeader.tsx`
 
-Add toggle in Combat Settings:
-- **"Enable Attack Queue"**: Default ON
-- When OFF, weapons work as they do today (immediate execution)
+Replace hardcoded name:
+```typescript
+import { useBuildConfig } from '@/lib/buildConfig';
+
+// Before:
+<h1>{character.name || 'Unnamed Assassin'}</h1>
+
+// After:
+const { identity } = useBuildConfig();
+<h1>{character.name || identity.defaultCharacterName}</h1>
+```
+
+### 3. Home Modal
+**File:** `src/components/home/HomeModalContents.tsx`
+
+Replace class labels:
+```typescript
+import { useBuildConfig } from '@/lib/buildConfig';
+
+// Before:
+<p className="text-xs text-red-400">Odyssey Assassin</p>
+
+// After:
+const { identity } = useBuildConfig();
+<p className="text-xs text-red-400">{identity.className}</p>
+```
+
+### 4. Tree Visual Config
+**File:** `src/lib/abilityTrees/colors.ts`
+
+Use config for tree data (keeps existing structure for backward compatibility):
+```typescript
+import { getBuildConfig } from '@/lib/buildConfig';
+
+// Dynamically generate from config
+export function getTreeVisualConfig() {
+  const config = getBuildConfig();
+  // Map config.trees to existing TREE_VISUAL_CONFIG structure
+}
+```
+
+### 5. GM Guide Prompts
+**File:** `src/lib/gmGuidePrompts.ts`
+
+Use template strings with config:
+```typescript
+import { getBuildConfig } from '@/lib/buildConfig';
+
+const config = getBuildConfig();
+
+// Before:
+content: `# ODYSSEY ASSASSIN - CORE OVERVIEW`
+
+// After:
+content: `# ${config.identity.appTitle.toUpperCase()} - CORE OVERVIEW`
+```
 
 ---
 
 ## Implementation Phases
 
-### Phase 1: Core Infrastructure
-1. Create `attackQueue.ts` types
-2. Create `use-attack-queue.ts` hook
-3. Create `TargetSelector.tsx` component
+### Phase 1: Core Types (This PR)
+1. Create `src/lib/buildConfig/types.ts`
+2. Create `src/lib/buildConfig/odysseyAssassin.ts`
+3. Create `src/lib/buildConfig/BuildContext.tsx`
+4. Create `src/lib/buildConfig/index.ts`
 
-### Phase 2: Queue UI
-1. Create `AttackQueuePanel.tsx`
-2. Modify `MobileWeaponCard.tsx` to support queueing
+### Phase 2: Wire Up Provider
+1. Add `BuildProvider` to `App.tsx`
+2. Update 3-5 high-visibility components to use `useBuildConfig()`
 
-### Phase 3: Integration
-1. Integrate into `MobileCombatLayout.tsx`
-2. Create `attackQueuePrompts.ts` for multi-attack prompts
-3. Wire up combat log and turn summary
-
-### Phase 4: Polish
-1. Add animations for queue add/remove
-2. Add action economy validation
-3. Add settings toggle
-4. Test end-to-end on mobile
+### Phase 3: Gradual Migration
+1. Replace hardcoded strings incrementally
+2. Add helper functions for common lookups
+3. Update GM Guide prompts
 
 ---
 
-## Edge Cases
+## What This Enables (Future)
 
-1. **Enemy Defeated Mid-Queue**: If a target is defeated, remaining attacks on that target show warning but still execute (AI DM can narrate the overkill or miss)
-
-2. **No Enemies Tracked**: Queue still works, attacks have no assigned target (uses generic "the enemy" in prompts)
-
-3. **Queue Limit**: Max 10 attacks in queue to prevent UI overflow
-
-4. **Session Persistence**: Queue persists to localStorage so refreshing doesn't lose queued attacks
+1. **Custom Class Names**: User can rename "Assassin" to "Shadow Blade"
+2. **Tree Renaming**: Change "Hunter" to "Ranger" or "Marksman"
+3. **Alternate Builds**: Load a "Battle Master" or "Elementalist" config
+4. **User Overrides**: Store custom labels in localStorage
+5. **Import/Export**: Share build configurations as JSON
 
 ---
 
 ## Backward Compatibility
 
-- Existing immediate-attack flow remains available
-- Users can toggle between "Queue Mode" and "Immediate Mode"
-- Default behavior can be set in Combat Settings
+- All existing code continues to work
+- `ODYSSEY_ASSASSIN_CONFIG` is the default
+- No breaking changes to types or interfaces
+- Existing localStorage data remains valid
+- Components without config access still work (use defaults)
+
+---
+
+## Files Created/Modified Summary
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `src/lib/buildConfig/types.ts` | CREATE | Type definitions |
+| `src/lib/buildConfig/odysseyAssassin.ts` | CREATE | Default config |
+| `src/lib/buildConfig/BuildContext.tsx` | CREATE | React context |
+| `src/lib/buildConfig/index.ts` | CREATE | Module exports |
+| `src/App.tsx` | MODIFY | Wrap with provider |
+| `src/components/character/CharacterHeader.tsx` | MODIFY | Use config |
+| `src/components/home/HomeModalContents.tsx` | MODIFY | Use config |
 
 ---
 
 ## Testing Criteria
 
-1. Queue multiple attacks on same enemy - verify prompt shows all attacks
-2. Queue attacks on different enemies - verify ordering reflected in prompt
-3. Reorder attacks - verify prompt order matches
-4. Execute queue - verify combat log entries, turn summary updates
-5. Test on mobile viewport - verify touch targets are accessible
-6. Test with no enemies tracked - verify graceful fallback
-7. Test action economy warnings when over-queueing
+1. App loads and displays "Odyssey Assassin" as before
+2. Default character name shows correctly
+3. Tree names display in Abilities tab
+4. GM Guide prompts include correct class name
+5. No console errors related to undefined config
+6. Build config is accessible via `useBuildConfig()` hook
