@@ -5,6 +5,7 @@ import { Skull, Shield, Swords, Target } from 'lucide-react';
 import { PrestigeBadge } from '@/components/prestige';
 import { PrestigeData } from '@/lib/prestige';
 import { HPWidget } from './HPWidget';
+import { useBuildConfig } from '@/lib/buildConfig';
 
 interface DeathSavesState {
   successes: number;
@@ -37,6 +38,7 @@ export function CharacterHeader({
   onHPChange,
   onDeathSavesChange,
 }: CharacterHeaderProps) {
+  const { identity } = useBuildConfig();
   const isMaxLevel = character.level >= 20;
   const isPrestigeActive = isMaxLevel && prestigeData && prestigeData.prestigeLevel > 0;
   
@@ -61,8 +63,8 @@ export function CharacterHeader({
               <Skull className="w-6 h-6 text-red-400" />
             </div>
             <div>
-              <h1 className="font-cinzel font-bold text-lg text-foreground tracking-wide">
-                {character.name || 'Unnamed Assassin'}
+            <h1 className="font-cinzel font-bold text-lg text-foreground tracking-wide">
+                {character.name || identity.defaultCharacterName}
               </h1>
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-xs border-primary/50 text-primary font-display">

@@ -6,6 +6,7 @@ import { Achievement } from '@/lib/achievements';
 import { useEquipmentStats } from '@/hooks/use-equipment-stats';
 import { useAbilityCustomization } from '@/hooks/use-ability-customization';
 import { homebrewToAbility } from '@/lib/abilityCustomization/utils';
+import { useBuildConfig } from '@/lib/buildConfig';
 import { 
   User, Heart, Shield, Zap, Target, 
   Trophy, Package, Star, Sparkles, Moon, Sun,
@@ -33,6 +34,7 @@ export function CharacterStatsContent({
   maxHP: propMaxHP,
   tempHP: propTempHP = 0,
 }: CharacterStatsProps) {
+  const { identity } = useBuildConfig();
   const activeSlots = getActiveSlotsByLevel(character.level, prestigePoints);
   const xpForLevel = (level: number) => level * 1000;
   const currentXP = Math.floor(xpForLevel(character.level) * 0.65);
@@ -71,8 +73,8 @@ export function CharacterStatsContent({
           </div>
         </div>
         <div>
-          <h3 className="text-lg font-cinzel font-bold">{character.name || 'Unnamed Assassin'}</h3>
-          <p className="text-xs text-red-400 uppercase tracking-wider">Odyssey Assassin</p>
+          <h3 className="text-lg font-cinzel font-bold">{character.name || identity.defaultCharacterName}</h3>
+          <p className="text-xs text-red-400 uppercase tracking-wider">{identity.className}</p>
         </div>
       </div>
 
