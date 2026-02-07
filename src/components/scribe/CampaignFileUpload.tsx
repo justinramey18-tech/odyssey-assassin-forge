@@ -12,16 +12,48 @@ import {
 } from '@/lib/scribe/sessionDetection';
 import mammoth from 'mammoth';
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB (increased for docx)
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 const WARNING_FILE_SIZE = 1024 * 1024; // 1 MB
-const ACCEPTED_EXTENSIONS = ['.txt', '.md', '.json', '.log', '.docx'];
+const ACCEPTED_EXTENSIONS = ['.txt', '.md', '.json', '.log', '.docx', '.rtf', '.doc'];
 const ACCEPTED_MIME_TYPES = [
   'text/plain',
   'text/markdown',
   'application/json',
   'text/x-log',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/rtf',
+  'text/rtf',
+  'application/msword',
 ];
+
+// Simple RTF text extractor for browser
+function extractTextFromRtf(rtfContent: string): string {
+  // Remove RTF header and control words
+  let text = rtfContent;
+  
+  // Remove RTF groups with specific content types we want to skip
+  text = text.replace(/\{\\(?:pict|object|fonttbl|colortbl|stylesheet|info|\\*)[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/gi, '');
+  
+  // Handle special characters
+  text = text.replace(/\\par\b/gi, '\n');
+  text = text.replace(/\\line\b/gi, '\n');
+  text = text.replace(/\\tab\b/gi, '\t');
+  text = text.replace(/\\'([0-9a-fA-F]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+  
+  // Remove RTF control words (but preserve the text after them)
+  text = text.replace(/\\[a-z]+(-?\d+)?\s?/gi, '');
+  
+  // Remove remaining braces and backslashes
+  text = text.replace(/[{}]/g, '');
+  text = text.replace(/\\\\/g, '\\');
+  
+  // Clean up whitespace
+  text = text.replace(/\r\n/g, '\n');
+  text = text.replace(/\n{3,}/g, '\n\n');
+  text = text.trim();
+  
+  return text;
+}
 
 interface CampaignFileUploadProps {
   onFileLoaded: (content: string, fileName: string, sessions: DetectedSession[]) => void;
@@ -49,6 +81,16 @@ export function CampaignFileUpload({
       toast({
         title: "Invalid file type",
         description: `Accepted formats: ${ACCEPTED_EXTENSIONS.join(', ')}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Special handling for legacy .doc files
+    if (extension === '.doc') {
+      toast({
+        title: "Legacy Word format detected",
+        description: "Please convert your .doc file to .docx using Microsoft Word or Google Docs for best results. Legacy .doc format has limited browser support.",
         variant: "destructive",
       });
       return;
@@ -103,7 +145,41 @@ export function CampaignFileUpload({
           setIsLoading(false);
           return;
         }
-      } else {
+      } 
+      // Handle RTF files
+      else if (extension === '.rtf') {
+        try {
+          const rtfContent = await file.text();
+          content = extractTextFromRtf(rtfContent);
+          
+          if (!content.trim()) {
+            toast({
+              title: "RTF extraction failed",
+              description: "Could not extract readable text from the RTF file. Try converting to .txt or .docx.",
+              variant: "destructive",
+            });
+            setIsLoading(false);
+            return;
+          }
+          
+          sessions = detectSessions(content);
+          
+          toast({
+            title: "RTF document loaded",
+            description: `Extracted ${countWords(content).toLocaleString()} words from your document.`,
+          });
+        } catch (rtfError) {
+          console.error('RTF parsing error:', rtfError);
+          toast({
+            title: "Failed to parse RTF document",
+            description: "The file may be corrupted or use unsupported RTF features.",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+      }
+      else {
         // Handle text-based files
         const text = await file.text();
         content = text;
@@ -132,15 +208,15 @@ export function CampaignFileUpload({
           title: "No session markers detected",
           description: `Split into ${sessions.length} parts based on size. Processing will be done in chunks.`,
         });
-      } else if (sessions.length > 0 && extension !== '.docx') {
+      } else if (sessions.length > 0 && extension !== '.docx' && extension !== '.rtf') {
         toast({
           title: "Sessions detected!",
           description: `Found ${sessions.length} session${sessions.length > 1 ? 's' : ''} in your campaign file.`,
         });
-      } else if (sessions.length > 0 && extension === '.docx') {
+      } else if (sessions.length > 0 && (extension === '.docx' || extension === '.rtf')) {
         toast({
           title: "Sessions detected in document!",
-          description: `Found ${sessions.length} session${sessions.length > 1 ? 's' : ''} in your Word document.`,
+          description: `Found ${sessions.length} session${sessions.length > 1 ? 's' : ''} in your document.`,
         });
       }
 
@@ -294,11 +370,14 @@ export function CampaignFileUpload({
               </p>
             </div>
             
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <FileType className="w-3 h-3" />
-              <span>.txt, .md, .json, .log, .docx</span>
-              <span>•</span>
-              <span>Max 5 MB</span>
+            <div className="flex flex-col items-center gap-1 text-xs text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <FileType className="w-3 h-3" />
+                <span>.txt, .md, .json, .docx, .rtf</span>
+                <span>•</span>
+                <span>Max 5 MB</span>
+              </div>
+              <span className="text-muted-foreground/60">.doc files: please convert to .docx first</span>
             </div>
           </div>
         </div>
