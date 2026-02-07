@@ -210,11 +210,18 @@ export function InfinityGauntletScreen({ characterName, open, onClose }: Infinit
                   (e.currentTarget as HTMLButtonElement).style.borderColor = 'transparent';
                 }}
               >
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">{prompt.icon}</span>
-                  <span className="font-body text-sm text-foreground group-hover:text-white transition-colors">
-                    {prompt.title}
-                  </span>
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{prompt.icon}</span>
+                    <span className="font-body text-sm text-foreground group-hover:text-white transition-colors">
+                      {prompt.title}
+                    </span>
+                  </div>
+                  {prompt.description && (
+                    <p className="text-xs text-muted-foreground pl-7 leading-relaxed">
+                      {prompt.description}
+                    </p>
+                  )}
                 </div>
               </button>
             ))}
