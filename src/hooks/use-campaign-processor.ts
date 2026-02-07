@@ -82,6 +82,8 @@ export interface UseCampaignProcessorReturn extends CampaignProcessorState {
   resumeProcessing: (mode: 'ai' | 'offline', options: ProcessingOptions, characterName: string) => Promise<string | null>;
   clearSavedProgress: () => void;
   loadSavedProgress: () => boolean;
+  retryFailedSessions: (mode: 'ai' | 'offline', options: ProcessingOptions, characterName: string) => Promise<string | null>;
+  getFailedSessionCount: () => number;
 }
 
 // Helper to save progress to localStorage
@@ -635,6 +637,103 @@ export function useCampaignProcessor(): UseCampaignProcessorReturn {
     }));
   }, []);
 
+  const getFailedSessionCount = useCallback((): number => {
+    return Array.from(state.processedSessions.values()).filter(s => s.status === 'error').length;
+  }, [state.processedSessions]);
+
+  const retryFailedSessions = useCallback(async (
+    mode: 'ai' | 'offline',
+    options: ProcessingOptions,
+    characterName: string
+  ): Promise<string | null> => {
+    const { sessions, selectedSessionIds, fileContent, processedSessions } = state;
+    
+    if (!fileContent) return null;
+
+    // Find failed sessions that are still selected
+    const failedSessionIds = Array.from(processedSessions.entries())
+      .filter(([id, p]) => p.status === 'error' && selectedSessionIds.has(id))
+      .map(([id]) => id);
+
+    if (failedSessionIds.length === 0) return null;
+
+    const failedSessions = sessions.filter(s => failedSessionIds.includes(s.id));
+    const totalToRetry = failedSessions.length;
+
+    cancelledRef.current = false;
+    const newProcessed = new Map(processedSessions);
+
+    setState(prev => ({
+      ...prev,
+      isProcessing: true,
+      progress: 0,
+      error: null,
+    }));
+
+    for (let i = 0; i < failedSessions.length; i++) {
+      if (cancelledRef.current) break;
+
+      const session = failedSessions[i];
+      
+      setState(prev => ({
+        ...prev,
+        currentlyProcessing: session.id,
+        progress: Math.round((i / totalToRetry) * 100),
+      }));
+
+      const result = await processSession(
+        session,
+        fileContent,
+        mode,
+        options,
+        characterName
+      );
+
+      const processedSession: ProcessedSession = {
+        sessionId: session.id,
+        title: session.title,
+        inputPreview: session.preview,
+        output: result.output,
+        wordCount: countWords(result.output),
+        processedAt: new Date().toISOString(),
+        status: result.error ? 'error' : 'completed',
+        error: result.error,
+      };
+
+      newProcessed.set(session.id, processedSession);
+
+      setState(prev => ({
+        ...prev,
+        processedSessions: new Map(newProcessed),
+        progress: Math.round(((i + 1) / totalToRetry) * 100),
+      }));
+
+      // Add delay between AI calls
+      if (mode === 'ai' && i < failedSessions.length - 1 && !cancelledRef.current) {
+        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_AI_CALLS));
+      }
+    }
+
+    setState(prev => ({
+      ...prev,
+      isProcessing: false,
+      currentlyProcessing: null,
+      progress: 100,
+    }));
+
+    // Return combined output of all selected sessions
+    const outputs: string[] = [];
+    for (const session of sessions) {
+      if (!selectedSessionIds.has(session.id)) continue;
+      const processed = newProcessed.get(session.id);
+      if (processed?.output) {
+        outputs.push(processed.output);
+      }
+    }
+
+    return outputs.join('\n\n---\n\n');
+  }, [state]);
+
   return {
     ...state,
     loadFile,
@@ -649,5 +748,7 @@ export function useCampaignProcessor(): UseCampaignProcessorReturn {
     resumeProcessing,
     clearSavedProgress,
     loadSavedProgress,
+    retryFailedSessions,
+    getFailedSessionCount,
   };
 }

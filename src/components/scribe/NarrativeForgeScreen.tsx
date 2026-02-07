@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { ArrowLeft, Wand2, Cog, Copy, Check, Loader2, BookOpen, Cpu, Info, Save, Plus, FileText, Trash2, Eye, Pencil, X, Upload, ClipboardPaste, Square, CheckSquare, Download } from 'lucide-react';
+import { ArrowLeft, Wand2, Cog, Copy, Check, Loader2, BookOpen, Cpu, Info, Save, Plus, FileText, Trash2, Eye, Pencil, X, Upload, ClipboardPaste, Square, CheckSquare, Download, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -352,6 +352,35 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
     if (!savedStory) return;
     handleExport(format, savedStory.content, savedStory.title);
   }, [savedStory, handleExport]);
+
+  // Retry failed sessions
+  const handleRetryFailed = useCallback(async () => {
+    const failedCount = campaignProcessor.getFailedSessionCount();
+    if (failedCount === 0) return;
+
+    const result = await campaignProcessor.retryFailedSessions(
+      processingMode,
+      options,
+      characterName
+    );
+
+    if (result) {
+      setOutputText(result);
+      const newFailedCount = campaignProcessor.getFailedSessionCount();
+      if (newFailedCount === 0) {
+        toast({
+          title: "All sessions processed!",
+          description: `Successfully retried ${failedCount} failed session${failedCount > 1 ? 's' : ''}.`,
+        });
+      } else {
+        toast({
+          title: "Retry complete",
+          description: `${failedCount - newFailedCount} of ${failedCount} sessions succeeded. ${newFailedCount} still failed.`,
+          variant: newFailedCount > 0 ? "destructive" : "default",
+        });
+      }
+    }
+  }, [campaignProcessor, processingMode, options, characterName, toast]);
 
   const removalPreview = inputText ? getRemovalPreview(inputText) : [];
 
@@ -1035,6 +1064,21 @@ The trap clicks harmlessly as she disables it."
                         })}
                     </div>
                   </ScrollArea>
+                  
+                  {/* Retry Failed Sessions Button */}
+                  {!campaignProcessor.isProcessing && campaignProcessor.getFailedSessionCount() > 0 && (
+                    <div className="mt-3 pt-3 border-t border-border/50">
+                      <Button
+                        onClick={handleRetryFailed}
+                        variant="outline"
+                        size="sm"
+                        className="w-full gap-2 border-amber-600/50 text-amber-400 hover:bg-amber-950/50 hover:text-amber-300"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                        Retry {campaignProcessor.getFailedSessionCount()} Failed Session{campaignProcessor.getFailedSessionCount() > 1 ? 's' : ''}
+                      </Button>
+                    </div>
+                  )}
                   
                   {/* Combined preview toggle for completed sessions */}
                   {!campaignProcessor.isProcessing && campaignProcessor.processedSessions.size > 1 && (
