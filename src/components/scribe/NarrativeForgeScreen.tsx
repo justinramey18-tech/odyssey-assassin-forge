@@ -508,6 +508,57 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
             </CardContent>
           </Card>
         )}
+
+        {/* Resume Processing Banner */}
+        {campaignProcessor.hasSavedProgress && campaignProcessor.savedProgressInfo && (
+          <Card className="border-purple-900/30 bg-purple-950/20">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center shrink-0">
+                  <Loader2 className="w-5 h-5 text-purple-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm text-purple-400">Interrupted Processing Found</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {campaignProcessor.savedProgressInfo.fileName} • {' '}
+                    {campaignProcessor.savedProgressInfo.completedCount} of {campaignProcessor.savedProgressInfo.totalCount} sessions completed
+                  </p>
+                  <p className="text-xs text-muted-foreground/60 mt-0.5">
+                    Saved {new Date(campaignProcessor.savedProgressInfo.savedAt).toLocaleString()}
+                  </p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <Button
+                    size="sm"
+                    onClick={async () => {
+                      const result = await campaignProcessor.resumeProcessing(processingMode, options, characterName);
+                      if (result) {
+                        setOutputText(result);
+                        toast({
+                          title: "Processing resumed and completed!",
+                          description: "All sessions have been processed.",
+                        });
+                      }
+                    }}
+                    className="gap-1 bg-purple-600 hover:bg-purple-700 text-white"
+                  >
+                    <Wand2 className="w-3 h-3" />
+                    Resume
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={campaignProcessor.clearSavedProgress}
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Mode Selection */}
         <Tabs value={processingMode} onValueChange={(v) => setProcessingMode(v as 'ai' | 'offline')}>
           <TabsList className="grid w-full grid-cols-2 bg-black/40 border border-amber-900/40">
