@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { Upload, FileText, X, AlertTriangle, FileType } from 'lucide-react';
+import { Upload, FileText, X, AlertTriangle, FileType, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -10,15 +10,17 @@ import {
   parseJsonCampaign,
   countWords 
 } from '@/lib/scribe/sessionDetection';
+import mammoth from 'mammoth';
 
-const MAX_FILE_SIZE = 1024 * 1024; // 1 MB
-const WARNING_FILE_SIZE = 512 * 1024; // 500 KB
-const ACCEPTED_EXTENSIONS = ['.txt', '.md', '.json', '.log'];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB (increased for docx)
+const WARNING_FILE_SIZE = 1024 * 1024; // 1 MB
+const ACCEPTED_EXTENSIONS = ['.txt', '.md', '.json', '.log', '.docx'];
 const ACCEPTED_MIME_TYPES = [
   'text/plain',
   'text/markdown',
   'application/json',
   'text/x-log',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ];
 
 interface CampaignFileUploadProps {
@@ -56,7 +58,7 @@ export function CampaignFileUpload({
     if (file.size > MAX_FILE_SIZE) {
       toast({
         title: "File too large",
-        description: "Maximum file size is 1 MB. Consider splitting your campaign into smaller files.",
+        description: "Maximum file size is 5 MB. Consider splitting your campaign into smaller files.",
         variant: "destructive",
       });
       return;
@@ -70,24 +72,57 @@ export function CampaignFileUpload({
     setIsLoading(true);
 
     try {
-      const text = await file.text();
-      let content = text;
+      let content = '';
       let sessions: DetectedSession[] = [];
 
-      // Handle JSON files specially
-      if (extension === '.json') {
-        const parsed = parseJsonCampaign(text);
-        if (parsed) {
-          content = parsed.text;
-          sessions = parsed.sessions;
-        } else {
-          // If JSON parsing fails, treat as plain text
-          content = text;
-          sessions = detectSessions(text);
+      // Handle DOCX files
+      if (extension === '.docx') {
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const result = await mammoth.extractRawText({ arrayBuffer });
+          content = result.value;
+          
+          if (result.messages.length > 0) {
+            console.log('Mammoth messages:', result.messages);
+          }
+          
+          // Detect sessions in extracted text
+          sessions = detectSessions(content);
+          
+          toast({
+            title: "Word document loaded",
+            description: `Extracted ${countWords(content).toLocaleString()} words from your document.`,
+          });
+        } catch (docxError) {
+          console.error('DOCX parsing error:', docxError);
+          toast({
+            title: "Failed to parse Word document",
+            description: "The file may be corrupted or in an unsupported format.",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
         }
       } else {
-        // Detect sessions in text files
-        sessions = detectSessions(text);
+        // Handle text-based files
+        const text = await file.text();
+        content = text;
+
+        // Handle JSON files specially
+        if (extension === '.json') {
+          const parsed = parseJsonCampaign(text);
+          if (parsed) {
+            content = parsed.text;
+            sessions = parsed.sessions;
+          } else {
+            // If JSON parsing fails, treat as plain text
+            content = text;
+            sessions = detectSessions(text);
+          }
+        } else {
+          // Detect sessions in text files
+          sessions = detectSessions(text);
+        }
       }
 
       // If no sessions detected, fall back to chunk-based splitting
@@ -97,10 +132,15 @@ export function CampaignFileUpload({
           title: "No session markers detected",
           description: `Split into ${sessions.length} parts based on size. Processing will be done in chunks.`,
         });
-      } else if (sessions.length > 0) {
+      } else if (sessions.length > 0 && extension !== '.docx') {
         toast({
           title: "Sessions detected!",
           description: `Found ${sessions.length} session${sessions.length > 1 ? 's' : ''} in your campaign file.`,
+        });
+      } else if (sessions.length > 0 && extension === '.docx') {
+        toast({
+          title: "Sessions detected in document!",
+          description: `Found ${sessions.length} session${sessions.length > 1 ? 's' : ''} in your Word document.`,
         });
       }
 
@@ -256,9 +296,9 @@ export function CampaignFileUpload({
             
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <FileType className="w-3 h-3" />
-              <span>.txt, .md, .json, .log</span>
+              <span>.txt, .md, .json, .log, .docx</span>
               <span>•</span>
-              <span>Max 1 MB</span>
+              <span>Max 5 MB</span>
             </div>
           </div>
         </div>
