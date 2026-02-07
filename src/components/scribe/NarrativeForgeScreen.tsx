@@ -23,18 +23,11 @@ import {
 } from '@/lib/narrativeProcessor';
 import { supabase } from '@/integrations/supabase/client';
 import { CampaignFileUpload } from './CampaignFileUpload';
+import { StoryListSheet } from './StoryListSheet';
 import { useCampaignProcessor } from '@/hooks/use-campaign-processor';
+import { useSavedStories } from '@/hooks/use-saved-stories';
 import { DetectedSession, estimateProcessingTime } from '@/lib/scribe/sessionDetection';
 import scribeBackground from '@/assets/scribe-background.jpg';
-
-const SAVED_STORY_KEY = 'narrative-forge-saved-story';
-
-interface SavedStory {
-  title: string;
-  content: string;
-  lastUpdated: string;
-  style: string;
-}
 
 interface NarrativeForgeScreenProps {
   characterName: string;
@@ -49,37 +42,27 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
   const [copied, setCopied] = useState(false);
   const [options, setOptions] = useState<ProcessingOptions>(defaultProcessingOptions);
   const [showPreview, setShowPreview] = useState(false);
-  const [savedStory, setSavedStory] = useState<SavedStory | null>(null);
   const [storyViewerOpen, setStoryViewerOpen] = useState(false);
   const [isEditingStory, setIsEditingStory] = useState(false);
   const [editedContent, setEditedContent] = useState('');
   const [inputSource, setInputSource] = useState<'paste' | 'upload'>('paste');
   const { toast } = useToast();
 
+  // Multi-story management
+  const {
+    stories,
+    activeStoryId,
+    activeStory,
+    setActiveStoryId,
+    createStory,
+    updateStory,
+    appendToStory,
+    deleteStory,
+    renameStory,
+  } = useSavedStories();
+
   // Campaign processor for file uploads
   const campaignProcessor = useCampaignProcessor();
-
-  // Load saved story from localStorage on mount
-  useEffect(() => {
-    const stored = localStorage.getItem(SAVED_STORY_KEY);
-    if (stored) {
-      try {
-        setSavedStory(JSON.parse(stored));
-      } catch (e) {
-        console.error('Failed to parse saved story:', e);
-      }
-    }
-  }, []);
-
-  // Save story to localStorage
-  const persistStory = useCallback((story: SavedStory | null) => {
-    if (story) {
-      localStorage.setItem(SAVED_STORY_KEY, JSON.stringify(story));
-    } else {
-      localStorage.removeItem(SAVED_STORY_KEY);
-    }
-    setSavedStory(story);
-  }, []);
 
   const handleSaveAsNewStory = useCallback(() => {
     if (!outputText.trim()) {
@@ -91,19 +74,17 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
       return;
     }
 
-    const newStory: SavedStory = {
-      title: `${characterName}'s Chronicle`,
-      content: outputText,
-      lastUpdated: new Date().toISOString(),
-      style: options.narrativeStyle,
-    };
-
-    persistStory(newStory);
+    createStory(
+      `${characterName}'s Chronicle`,
+      outputText,
+      options.narrativeStyle
+    );
+    
     toast({
       title: "Story Saved!",
-      description: "Your narrative has been saved. You can now add more content to it.",
+      description: "Your narrative has been saved as a new story.",
     });
-  }, [outputText, characterName, options.narrativeStyle, persistStory, toast]);
+  }, [outputText, characterName, options.narrativeStyle, createStory, toast]);
 
   const handleAddToStory = useCallback(() => {
     if (!outputText.trim()) {
@@ -115,43 +96,38 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
       return;
     }
 
-    if (!savedStory) {
+    if (!activeStory) {
       toast({
-        title: "No saved story",
-        description: "Save a story first before adding to it.",
+        title: "No story selected",
+        description: "Select or create a story first before adding to it.",
         variant: "destructive",
       });
       return;
     }
 
-    const updatedStory: SavedStory = {
-      ...savedStory,
-      content: savedStory.content + '\n\n---\n\n' + outputText,
-      lastUpdated: new Date().toISOString(),
-    };
-
-    persistStory(updatedStory);
+    appendToStory(activeStory.id, outputText);
     toast({
       title: "Added to Story!",
-      description: "Your narrative has been appended to your saved story.",
+      description: `Your narrative has been appended to "${activeStory.title}".`,
     });
-  }, [outputText, savedStory, persistStory, toast]);
+  }, [outputText, activeStory, appendToStory, toast]);
 
-  const handleDeleteStory = useCallback(() => {
-    persistStory(null);
+  const handleDeleteActiveStory = useCallback(() => {
+    if (!activeStory) return;
+    deleteStory(activeStory.id);
     setIsEditingStory(false);
     toast({
       title: "Story Deleted",
       description: "Your saved story has been removed.",
     });
-  }, [persistStory, toast]);
+  }, [activeStory, deleteStory, toast]);
 
   const handleStartEditing = useCallback(() => {
-    if (savedStory) {
-      setEditedContent(savedStory.content);
+    if (activeStory) {
+      setEditedContent(activeStory.content);
       setIsEditingStory(true);
     }
-  }, [savedStory]);
+  }, [activeStory]);
 
   const handleCancelEditing = useCallback(() => {
     setIsEditingStory(false);
@@ -159,7 +135,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
   }, []);
 
   const handleSaveEdits = useCallback(() => {
-    if (!savedStory || !editedContent.trim()) {
+    if (!activeStory || !editedContent.trim()) {
       toast({
         title: "Cannot save empty story",
         description: "Please add some content before saving.",
@@ -168,25 +144,19 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
       return;
     }
 
-    const updatedStory: SavedStory = {
-      ...savedStory,
-      content: editedContent,
-      lastUpdated: new Date().toISOString(),
-    };
-
-    persistStory(updatedStory);
+    updateStory(activeStory.id, { content: editedContent });
     setIsEditingStory(false);
     toast({
       title: "Story Updated",
       description: "Your changes have been saved.",
     });
-  }, [savedStory, editedContent, persistStory, toast]);
+  }, [activeStory, editedContent, updateStory, toast]);
 
   const handleCopyStory = useCallback(async () => {
-    if (!savedStory?.content) return;
+    if (!activeStory?.content) return;
     
     try {
-      await navigator.clipboard.writeText(savedStory.content);
+      await navigator.clipboard.writeText(activeStory.content);
       toast({
         title: "Copied!",
         description: "Your full story has been copied to clipboard.",
@@ -198,7 +168,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
         variant: "destructive",
       });
     }
-  }, [savedStory, toast]);
+  }, [activeStory, toast]);
 
   // Handle file upload
   const handleFileLoaded = useCallback((content: string, fileName: string, sessions: DetectedSession[]) => {
@@ -317,7 +287,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
     const textToExport = content || outputText;
     if (!textToExport) return;
 
-    const storyTitle = title || savedStory?.title;
+    const storyTitle = title || activeStory?.title;
     const fileName = storyTitle 
       ? `${storyTitle.replace(/[^a-zA-Z0-9\s-]/g, '').trim()}.${format}`
       : `narrative-${new Date().toISOString().split('T')[0]}.${format}`;
@@ -345,13 +315,13 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
       title: "Exported!",
       description: `Saved as ${fileName}`,
     });
-  }, [outputText, savedStory, characterName, toast]);
+  }, [outputText, activeStory, characterName, toast]);
 
   // Export saved story
   const handleExportSavedStory = useCallback((format: 'txt' | 'md') => {
-    if (!savedStory) return;
-    handleExport(format, savedStory.content, savedStory.title);
-  }, [savedStory, handleExport]);
+    if (!activeStory) return;
+    handleExport(format, activeStory.content, activeStory.title);
+  }, [activeStory, handleExport]);
 
   // Retry failed sessions
   const handleRetryFailed = useCallback(async () => {
@@ -410,173 +380,174 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
             </h1>
           </div>
           
-          {/* Story Viewer Button */}
-          <Sheet open={storyViewerOpen} onOpenChange={setStoryViewerOpen}>
-            <SheetTrigger asChild>
-              <button 
-                className={`p-2 -mr-2 rounded-lg transition-colors relative ${
-                  savedStory ? 'hover:bg-amber-900/30 text-amber-400' : 'hover:bg-muted text-muted-foreground'
-                }`}
-              >
-                <FileText className="w-5 h-5" />
-                {savedStory && (
-                  <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border border-background" />
-                )}
-              </button>
-            </SheetTrigger>
-            <SheetContent className="w-full sm:max-w-lg">
-              <SheetHeader>
-                <SheetTitle className="flex items-center gap-2 text-amber-400">
-                  <BookOpen className="w-5 h-5" />
-                  {savedStory?.title || 'Saved Story'}
-                </SheetTitle>
-              </SheetHeader>
-              
-              {savedStory ? (
-                <div className="mt-4 space-y-4">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Last updated: {new Date(savedStory.lastUpdated).toLocaleDateString()}</span>
-                    <span className="capitalize">{savedStory.style} style</span>
-                  </div>
-                  
-                  {isEditingStory ? (
-                    <>
-                      <Textarea
-                        value={editedContent}
-                        onChange={(e) => setEditedContent(e.target.value)}
-                        className="h-[calc(100vh-300px)] resize-none font-serif text-sm leading-relaxed bg-background/50 border-amber-900/30 focus:border-amber-500/50"
-                        placeholder="Edit your story..."
-                      />
-                      <div className="text-xs text-muted-foreground text-right">
-                        {editedContent.split(/\s+/).filter(Boolean).length} words
-                      </div>
-                    </>
-                  ) : (
-                    <ScrollArea className="h-[calc(100vh-250px)] pr-4">
-                      <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap font-serif leading-relaxed">
-                        {savedStory.content}
-                      </div>
-                    </ScrollArea>
-                  )}
-                  
-                  <div className="flex gap-2 pt-4 border-t border-border/50">
-                    {isEditingStory ? (
-                      <>
-                        <Button
-                          onClick={handleSaveEdits}
-                          size="sm"
-                          className="flex-1 gap-2 bg-amber-600 hover:bg-amber-700"
-                        >
-                          <Save className="w-4 h-4" />
-                          Save Changes
-                        </Button>
-                        <Button
-                          onClick={handleCancelEditing}
-                          variant="outline"
-                          size="sm"
-                          className="gap-2"
-                        >
-                          <X className="w-4 h-4" />
-                          Cancel
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Button
-                          onClick={handleStartEditing}
-                          variant="outline"
-                          size="sm"
-                          className="flex-1 gap-2 text-amber-400 hover:text-amber-300 border-amber-900/50 hover:border-amber-500/50"
-                        >
-                          <Pencil className="w-4 h-4" />
-                          Edit
-                        </Button>
-                        <Button
-                          onClick={handleCopyStory}
-                          variant="outline"
-                          size="sm"
-                          className="flex-1 gap-2"
-                        >
-                          <Copy className="w-4 h-4" />
-                          Copy All
-                        </Button>
-                        
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="gap-2 text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Saved Story?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will permanently delete your saved story. This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => {
-                                  handleDeleteStory();
-                                  setStoryViewerOpen(false);
-                                }}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Export Options */}
-                  {!isEditingStory && (
-                    <div className="flex gap-2 pt-2">
-                      <Button
-                        onClick={() => handleExportSavedStory('txt')}
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 gap-2 text-muted-foreground hover:text-foreground"
-                      >
-                        <Download className="w-4 h-4" />
-                        Export .txt
-                      </Button>
-                      <Button
-                        onClick={() => handleExportSavedStory('md')}
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 gap-2 text-muted-foreground hover:text-foreground"
-                      >
-                        <Download className="w-4 h-4" />
-                        Export .md
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="mt-8 text-center text-muted-foreground">
-                  <FileText className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                  <p className="text-sm">No story saved yet.</p>
-                  <p className="text-xs mt-1">Generate a narrative and save it to start building your chronicle.</p>
-                </div>
-              )}
-            </SheetContent>
-          </Sheet>
+          {/* Story List Button */}
+          <StoryListSheet
+            stories={stories}
+            activeStoryId={activeStoryId}
+            onSelectStory={setActiveStoryId}
+            onDeleteStory={deleteStory}
+            onRenameStory={renameStory}
+            onViewStory={(id) => {
+              setActiveStoryId(id);
+              setStoryViewerOpen(true);
+            }}
+          />
         </div>
         
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-[2px] bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
       </header>
 
+      {/* Active Story Viewer Sheet */}
+      <Sheet open={storyViewerOpen} onOpenChange={setStoryViewerOpen}>
+        <SheetContent className="w-full sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2 text-amber-400">
+              <BookOpen className="w-5 h-5" />
+              {activeStory?.title || 'Saved Story'}
+            </SheetTitle>
+          </SheetHeader>
+          
+          {activeStory ? (
+            <div className="mt-4 space-y-4">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Last updated: {new Date(activeStory.lastUpdated).toLocaleDateString()}</span>
+                <span className="capitalize">{activeStory.style} style</span>
+              </div>
+              
+              {isEditingStory ? (
+                <>
+                  <Textarea
+                    value={editedContent}
+                    onChange={(e) => setEditedContent(e.target.value)}
+                    className="h-[calc(100vh-300px)] resize-none font-serif text-sm leading-relaxed bg-background/50 border-amber-900/30 focus:border-amber-500/50"
+                    placeholder="Edit your story..."
+                  />
+                  <div className="text-xs text-muted-foreground text-right">
+                    {editedContent.split(/\s+/).filter(Boolean).length} words
+                  </div>
+                </>
+              ) : (
+                <ScrollArea className="h-[calc(100vh-250px)] pr-4">
+                  <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap font-serif leading-relaxed">
+                    {activeStory.content}
+                  </div>
+                </ScrollArea>
+              )}
+              
+              <div className="flex gap-2 pt-4 border-t border-border/50">
+                {isEditingStory ? (
+                  <>
+                    <Button
+                      onClick={handleSaveEdits}
+                      size="sm"
+                      className="flex-1 gap-2 bg-amber-600 hover:bg-amber-700"
+                    >
+                      <Save className="w-4 h-4" />
+                      Save Changes
+                    </Button>
+                    <Button
+                      onClick={handleCancelEditing}
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                    >
+                      <X className="w-4 h-4" />
+                      Cancel
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      onClick={handleStartEditing}
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 gap-2 text-amber-400 hover:text-amber-300 border-amber-900/50 hover:border-amber-500/50"
+                    >
+                      <Pencil className="w-4 h-4" />
+                      Edit
+                    </Button>
+                    <Button
+                      onClick={handleCopyStory}
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 gap-2"
+                    >
+                      <Copy className="w-4 h-4" />
+                      Copy All
+                    </Button>
+                    
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-2 text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete "{activeStory.title}"?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will permanently delete this story ({activeStory.wordCount.toLocaleString()} words). This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => {
+                              handleDeleteActiveStory();
+                              setStoryViewerOpen(false);
+                            }}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </>
+                )}
+              </div>
+
+              {/* Export Options */}
+              {!isEditingStory && (
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    onClick={() => handleExportSavedStory('txt')}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 gap-2 text-muted-foreground hover:text-foreground"
+                  >
+                    <Download className="w-4 h-4" />
+                    Export .txt
+                  </Button>
+                  <Button
+                    onClick={() => handleExportSavedStory('md')}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 gap-2 text-muted-foreground hover:text-foreground"
+                  >
+                    <Download className="w-4 h-4" />
+                    Export .md
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="mt-8 text-center text-muted-foreground">
+              <FileText className="w-12 h-12 mx-auto mb-4 opacity-30" />
+              <p className="text-sm">No story selected.</p>
+              <p className="text-xs mt-1">Generate a narrative and save it to start building your chronicle.</p>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
       <div className="relative z-10 max-w-4xl mx-auto px-4 py-6 space-y-6">
-        {/* Saved Story Indicator */}
-        {savedStory && (
+        {/* Active Story Indicator */}
+        {activeStory && (
           <Card className="border-green-900/30 bg-green-950/20">
             <CardContent className="p-3 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -584,9 +555,10 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
                   <BookOpen className="w-4 h-4 text-green-400" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-green-400">{savedStory.title}</p>
+                  <p className="text-sm font-medium text-green-400">{activeStory.title}</p>
                   <p className="text-xs text-muted-foreground">
-                    {savedStory.content.split(/\s+/).length} words • Updated {new Date(savedStory.lastUpdated).toLocaleDateString()}
+                    {activeStory.wordCount.toLocaleString()} words • Updated {new Date(activeStory.lastUpdated).toLocaleDateString()}
+                    {stories.length > 1 && ` • ${stories.length} stories saved`}
                   </p>
                 </div>
               </div>
@@ -1168,10 +1140,10 @@ The trap clicks harmlessly as she disables it."
                     className="flex-1 gap-2 border-amber-600/50 text-amber-400 hover:bg-amber-950/50 hover:text-amber-300"
                   >
                     <Save className="w-4 h-4" />
-                    {savedStory ? 'Replace Saved Story' : 'Save as New Story'}
+                    Save as New Story
                   </Button>
                   
-                  {savedStory && (
+                  {activeStory && (
                     <Button
                       onClick={handleAddToStory}
                       variant="outline"
@@ -1179,7 +1151,7 @@ The trap clicks harmlessly as she disables it."
                       className="flex-1 gap-2 border-green-600/50 text-green-400 hover:bg-green-950/50 hover:text-green-300"
                     >
                       <Plus className="w-4 h-4" />
-                      Add to Saved Story
+                      Add to "{activeStory.title.slice(0, 15)}{activeStory.title.length > 15 ? '...' : ''}"
                     </Button>
                   )}
                 </div>
