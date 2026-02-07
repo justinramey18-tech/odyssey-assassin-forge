@@ -972,6 +972,89 @@ The trap clicks harmlessly as she disables it."
                 </CardContent>
               </Card>
             )}
+
+            {/* Live Preview Panel - Shows already-processed outputs during processing */}
+            {campaignProcessor.processedSessions.size > 0 && (
+              <Card className="border-green-900/30 bg-card/50">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium text-green-400 flex items-center gap-2">
+                      <Eye className="w-4 h-4" />
+                      Live Preview
+                      {campaignProcessor.isProcessing && (
+                        <span className="text-xs font-normal text-muted-foreground">
+                          ({campaignProcessor.processedSessions.size} of {campaignProcessor.selectedSessionIds.size} sessions)
+                        </span>
+                      )}
+                    </CardTitle>
+                    {!campaignProcessor.isProcessing && campaignProcessor.processedSessions.size > 0 && (
+                      <span className="text-xs text-green-400/70">
+                        {Array.from(campaignProcessor.processedSessions.values())
+                          .filter(s => s.status === 'completed')
+                          .reduce((sum, s) => sum + s.wordCount, 0)
+                          .toLocaleString()} words total
+                      </span>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="max-h-[300px]">
+                    <div className="space-y-4">
+                      {campaignProcessor.sessions
+                        .filter(s => campaignProcessor.processedSessions.has(s.id))
+                        .map((session) => {
+                          const processed = campaignProcessor.processedSessions.get(session.id);
+                          if (!processed) return null;
+                          
+                          return (
+                            <div key={session.id} className="space-y-2">
+                              <div className="flex items-center gap-2 text-xs">
+                                {processed.status === 'completed' ? (
+                                  <Check className="w-3 h-3 text-green-400" />
+                                ) : processed.status === 'error' ? (
+                                  <X className="w-3 h-3 text-destructive" />
+                                ) : (
+                                  <Loader2 className="w-3 h-3 animate-spin text-purple-400" />
+                                )}
+                                <span className="font-medium text-foreground/80">{session.title}</span>
+                                <span className="text-muted-foreground">
+                                  • {processed.wordCount.toLocaleString()} words
+                                </span>
+                              </div>
+                              {processed.status === 'completed' && processed.output ? (
+                                <div className="pl-5 text-sm text-muted-foreground font-serif leading-relaxed line-clamp-3">
+                                  {processed.output.slice(0, 300)}{processed.output.length > 300 ? '...' : ''}
+                                </div>
+                              ) : processed.status === 'error' ? (
+                                <div className="pl-5 text-xs text-destructive">
+                                  Error: {processed.error || 'Processing failed'}
+                                </div>
+                              ) : null}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </ScrollArea>
+                  
+                  {/* Combined preview toggle for completed sessions */}
+                  {!campaignProcessor.isProcessing && campaignProcessor.processedSessions.size > 1 && (
+                    <div className="mt-3 pt-3 border-t border-border/50">
+                      <details className="group">
+                        <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors flex items-center gap-1">
+                          <Eye className="w-3 h-3" />
+                          View combined output
+                        </summary>
+                        <ScrollArea className="mt-2 max-h-[200px]">
+                          <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap font-serif leading-relaxed text-sm">
+                            {campaignProcessor.combineProcessedSessions()}
+                          </div>
+                        </ScrollArea>
+                      </details>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
 
