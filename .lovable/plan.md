@@ -1,442 +1,281 @@
 
-# BuildConfig Type: Centralizing Class-Specific Data
+# File Upload & Campaign Parsing for Scribe
 
 ## Overview
 
-This plan creates a `BuildConfig` type that consolidates all "Odyssey Assassin"-specific strings, data, and configuration into a single source of truth. This makes the codebase ready for future customization (different classes, themes, or user-defined builds) without changing core functionality.
+Add the ability to upload entire campaign files (`.txt`, `.md`, `.json`) to the Narrative Forge screen. The system will parse the file, optionally detect session boundaries, and process the entire campaign into a unified story.
 
 ---
 
-## What Gets Centralized
+## Current State
 
-Based on codebase analysis, these are the class-specific elements currently hardcoded:
-
-### 1. Identity & Branding
-- Class name: "Odyssey Assassin"
-- Default character name: "Unnamed Assassin"
-- App subtitle/tagline
-
-### 2. Ability Trees (3 trees)
-- Tree IDs: `'hunter' | 'warrior' | 'assassin'`
-- Tree display names and subtitles
-- Tree colors (CSS variables)
-- Tree icons
-- All 24 abilities (8 per tree)
-
-### 3. Prestige System (Drizzt's Legacy)
-- Prestige tree name: "Drizzt's Legacy"
-- Central node: "Drizzt Do'Urden"
-- Branch names and themes
-- Prestige abilities
-
-### 4. Progression Mechanics
-- Hit die: d8 (Rogue class)
-- Ability point formula
-- HP calculation formula
-
-### 5. Visual Theme
-- CSS color variables for trees
-- Icon assignments
-- Background images
-
-### 6. AI DM Prompts
-- All "ODYSSEY ASSASSIN" references in GM Guide prompts
-- Character identity prompts (Deadpool persona)
+The Narrative Forge currently:
+- Accepts pasted text via a `<Textarea>`
+- Processes text using either Offline Logic (regex-based) or AI Scribe (edge function)
+- Has a maximum input limit of **15,000 characters** in the edge function
+- Saves output to a single `SavedStory` in localStorage
+- Already has file handling patterns in the codebase (see `AchievementsScreen.tsx`, `use-equipment-images.ts`)
 
 ---
 
-## BuildConfig Type Definition
+## Technical Architecture
 
-**File:** `src/lib/buildConfig/types.ts` (NEW)
+### Core Challenge: Large Files
+
+Campaign files can be **very large** (100,000+ characters). Two processing strategies:
+
+1. **Chunked Processing**: Split the file into ~10,000 character chunks, process each through AI, combine results
+2. **Session-Based Processing**: Detect session boundaries, process each session separately, allow user to build story incrementally
+
+**Recommendation**: Implement **both** - auto-detect sessions if markers exist, otherwise chunk by size.
+
+---
+
+## Files to Create/Modify
+
+### 1. File Upload Component
+**File:** `src/components/scribe/CampaignFileUpload.tsx` (NEW)
+
+A dropzone/button component for file upload:
+- Accepts `.txt`, `.md`, `.json` files
+- Shows file name and size after selection
+- Extracts text content using `FileReader`
+- Displays preview of detected sessions (if any)
+- Has "Clear" button to reset
 
 ```typescript
-import { LucideIcon } from 'lucide-react';
-
-// ═══════════════════════════════════════════════════════════════════════════
-// BUILD CONFIGURATION - Single source of truth for class customization
-// ═══════════════════════════════════════════════════════════════════════════
-
-/**
- * Core identity for the build
- */
-export interface BuildIdentity {
-  /** Class name displayed in UI (e.g., "Odyssey Assassin") */
-  className: string;
-  /** Short subtitle (e.g., "ASSASSIN") */
-  classSubtitle: string;
-  /** Default name for new characters */
-  defaultCharacterName: string;
-  /** App title for headers */
-  appTitle: string;
-  /** Description for GM guides */
-  classDescription: string;
+interface CampaignFileUploadProps {
+  onFileLoaded: (content: string, fileName: string, sessions: DetectedSession[]) => void;
+  onClear: () => void;
+  currentFile: string | null;
 }
+```
 
-/**
- * Configuration for a single ability tree
- */
-export interface TreeConfig {
-  id: string;               // Unique identifier (e.g., 'hunter')
-  name: string;             // Display name (e.g., 'Hunter')
-  subtitle: string;         // Short description (e.g., 'Ranged & Awareness')
-  iconName: string;         // Lucide icon name (e.g., 'Target')
-  colors: {
-    primary: string;        // CSS variable name (e.g., 'hunter')
-    glow: string;
-    dim: string;
-  };
-}
+### 2. Session Detection Logic
+**File:** `src/lib/scribe/sessionDetection.ts` (NEW)
 
-/**
- * Configuration for prestige/post-endgame system
- */
-export interface PrestigeConfig {
-  treeName: string;         // e.g., "Drizzt's Legacy"
-  centralNode: {
-    name: string;           // e.g., "Drizzt Do'Urden"
-    title: string;          // e.g., "Legendary Ranger of Icewind Dale"
-  };
-  branches: PrestigeBranchConfig[];
-}
+Functions to detect session boundaries in campaign text:
 
-export interface PrestigeBranchConfig {
+```typescript
+interface DetectedSession {
   id: string;
-  name: string;
-  subtitle: string;
-  iconName: string;
-  primaryColor: string;
-  glowColor: string;
+  title: string;           // "Session 1" or detected name
+  startIndex: number;
+  endIndex: number;
+  preview: string;         // First 100 chars
+  wordCount: number;
 }
 
-/**
- * Mechanical progression configuration
- */
-export interface ProgressionConfig {
-  hitDie: 'd6' | 'd8' | 'd10' | 'd12';
-  hitDieMax: number;
-  hitDieAvg: number;
-  maxLevel: number;
-  /** Point formula: returns points available at given level */
-  getAbilityPointsForLevel: (level: number) => number;
-  /** HP formula: returns max HP for level + CON mod + prestige */
-  calculateMaxHP: (level: number, conMod: number, prestigeLevel: number) => number;
-}
+// Detection patterns:
+const SESSION_MARKERS = [
+  /^---+\s*Session\s+(\d+)/gim,                    // "--- Session 1 ---"
+  /^##?\s*Session\s+(\d+)[:\s-]*(.+)?$/gim,        // "# Session 1: The Beginning"
+  /^Session\s+(\d+)[:\s-]*(.+)?$/gim,              // "Session 1 - The Dark Forest"
+  /^\[Session\s+(\d+)\]/gim,                        // "[Session 1]"
+  /^={3,}$/gm,                                      // "===" separators
+  /^-{3,}$/gm,                                      // "---" separators
+  /^DAY\s+(\d+)/gim,                                // "DAY 1" markers
+  /^CHAPTER\s+(\d+)/gim,                            // "CHAPTER 1"
+];
 
-/**
- * AI DM prompt customization
- */
-export interface AIPromptConfig {
-  /** Character personality archetype for RP prompts */
-  personalityArchetype: string;
-  /** Personality traits list */
-  personalityTraits: string[];
-  /** Example quips/dialogue */
-  exampleQuips: string[];
-}
-
-/**
- * Complete build configuration
- */
-export interface BuildConfig {
-  version: number;
-  identity: BuildIdentity;
-  trees: TreeConfig[];
-  prestige: PrestigeConfig;
-  progression: ProgressionConfig;
-  aiPrompts: AIPromptConfig;
-}
+function detectSessions(text: string): DetectedSession[];
+function splitByChunkSize(text: string, chunkSize: number): DetectedSession[];
 ```
 
----
+### 3. Chunked Processing Hook
+**File:** `src/hooks/use-campaign-processor.ts` (NEW)
 
-## Default Configuration
-
-**File:** `src/lib/buildConfig/odysseyAssassin.ts` (NEW)
+Manages the multi-chunk processing workflow:
 
 ```typescript
-import { BuildConfig } from './types';
-import { getAbilityPointsForLevel } from '@/lib/types';
-import { calculateMaxHP } from '@/lib/hpCalculation';
-
-/**
- * Default Odyssey Assassin build configuration
- * This is the original hardcoded configuration extracted into a data object
- */
-export const ODYSSEY_ASSASSIN_CONFIG: BuildConfig = {
-  version: 1,
+interface UseCampaignProcessorReturn {
+  // State
+  sessions: DetectedSession[];
+  processedSessions: ProcessedSession[];
+  currentlyProcessing: string | null;
+  progress: number;                    // 0-100
+  isProcessing: boolean;
+  error: string | null;
   
-  identity: {
-    className: 'Odyssey Assassin',
-    classSubtitle: 'ASSASSIN',
-    defaultCharacterName: 'Unnamed Assassin',
-    appTitle: 'Odyssey Assassin',
-    classDescription: 'A custom D&D 5e Assassin class with extensive homebrew abilities, legendary gear, and prestige progression.',
-  },
-  
-  trees: [
-    {
-      id: 'hunter',
-      name: 'Hunter',
-      subtitle: 'Ranged & Awareness',
-      iconName: 'Target',
-      colors: { primary: 'hunter', glow: 'hunter-glow', dim: 'hunter-dim' },
-    },
-    {
-      id: 'warrior',
-      name: 'Warrior',
-      subtitle: 'Melee & Defense',
-      iconName: 'Swords',
-      colors: { primary: 'warrior', glow: 'warrior-glow', dim: 'warrior-dim' },
-    },
-    {
-      id: 'assassin',
-      name: 'Assassin',
-      subtitle: 'Stealth & Crits',
-      iconName: 'Eye',
-      colors: { primary: 'assassin', glow: 'assassin-glow', dim: 'assassin-dim' },
-    },
-  ],
-  
-  prestige: {
-    treeName: "Drizzt's Legacy",
-    centralNode: {
-      name: "Drizzt Do'Urden",
-      title: 'Legendary Ranger of Icewind Dale',
-    },
-    branches: [
-      { id: 'dual_wielding', name: 'Dual Wielding', subtitle: 'Scimitar Mastery', iconName: 'Swords', primaryColor: 'red-500', glowColor: '#EF4444' },
-      { id: 'guenhwyvar', name: 'Guenhwyvar', subtitle: 'Astral Companion', iconName: 'Cat', primaryColor: 'teal-500', glowColor: '#14B8A6' },
-      { id: 'drow_abilities', name: 'Drow Abilities', subtitle: 'Shadow Magic', iconName: 'Eye', primaryColor: 'violet-500', glowColor: '#8B5CF6' },
-      { id: 'monk_abilities', name: 'Monk Abilities', subtitle: 'Spiritual Discipline', iconName: 'Zap', primaryColor: 'amber-500', glowColor: '#FBBF24' },
-    ],
-  },
-  
-  progression: {
-    hitDie: 'd8',
-    hitDieMax: 8,
-    hitDieAvg: 5,
-    maxLevel: 20,
-    getAbilityPointsForLevel,
-    calculateMaxHP,
-  },
-  
-  aiPrompts: {
-    personalityArchetype: 'Deadpool-inspired anti-hero',
-    personalityTraits: [
-      'Fourth-Wall Awareness',
-      'Inappropriate Humor',
-      'Mercenary Pragmatism',
-      'Pop Culture References',
-      'Genre Savvy',
-    ],
-    exampleQuips: [
-      "Is it just me, or did that guy look like he was about to monologue?",
-      "Ooh, a critical hit! That's gonna leave a mark. And by mark, I mean corpse.",
-    ],
-  },
-};
-```
-
----
-
-## Build Context Provider
-
-**File:** `src/lib/buildConfig/BuildContext.tsx` (NEW)
-
-```typescript
-import React, { createContext, useContext, ReactNode } from 'react';
-import { BuildConfig } from './types';
-import { ODYSSEY_ASSASSIN_CONFIG } from './odysseyAssassin';
-
-const BuildContext = createContext<BuildConfig>(ODYSSEY_ASSASSIN_CONFIG);
-
-interface BuildProviderProps {
-  config?: BuildConfig;
-  children: ReactNode;
-}
-
-/**
- * Provides build configuration to the entire app
- * Future: Can swap configs for different builds
- */
-export function BuildProvider({ config = ODYSSEY_ASSASSIN_CONFIG, children }: BuildProviderProps) {
-  return (
-    <BuildContext.Provider value={config}>
-      {children}
-    </BuildContext.Provider>
-  );
-}
-
-/**
- * Hook to access build configuration anywhere in the app
- */
-export function useBuildConfig(): BuildConfig {
-  return useContext(BuildContext);
-}
-
-/**
- * Direct access to current config (for non-React code)
- * Future: Can be made dynamic
- */
-export function getBuildConfig(): BuildConfig {
-  return ODYSSEY_ASSASSIN_CONFIG;
+  // Actions
+  loadFile: (content: string, fileName: string) => void;
+  processAllSessions: (mode: 'ai' | 'offline', options: ProcessingOptions) => Promise<void>;
+  processSession: (sessionId: string, mode: 'ai' | 'offline', options: ProcessingOptions) => Promise<void>;
+  combineProcessedSessions: () => string;
+  reset: () => void;
 }
 ```
 
----
+**Processing Logic:**
+1. If sessions detected → process each session sequentially with delays between AI calls
+2. If no sessions → split into ~10,000 char chunks at paragraph boundaries
+3. Store each processed chunk in state
+4. Show progress bar during multi-chunk processing
+5. Combine all processed chunks into final narrative
 
-## Module Exports
+### 4. Modify NarrativeForgeScreen
+**File:** `src/components/scribe/NarrativeForgeScreen.tsx`
 
-**File:** `src/lib/buildConfig/index.ts` (NEW)
+**Changes:**
+- Add import toggle: "Paste Text" vs "Upload File"
+- When "Upload File" selected, show `CampaignFileUpload` instead of textarea
+- Show detected sessions list with option to process all or select specific ones
+- Add progress bar for multi-session processing
+- Handle large file processing with chunking
+- Integrate with existing story save system
 
-```typescript
-export * from './types';
-export * from './odysseyAssassin';
-export * from './BuildContext';
+**New UI Flow:**
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│  INPUT SOURCE:  [Paste Text ○]  [Upload File ●]             │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │  📁  campaign_log.txt                               │    │
+│  │      Size: 145 KB • 32,450 words                    │    │
+│  │      Detected: 8 sessions                           │    │
+│  │      [Clear]                                        │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                                                             │
+│  DETECTED SESSIONS:                                         │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │ ☑ Session 1: The Beginning (2,340 words)            │    │
+│  │ ☑ Session 2: Into the Dungeon (3,120 words)         │    │
+│  │ ☑ Session 3: The Dragon's Lair (4,500 words)        │    │
+│  │ ... (8 total)                                       │    │
+│  │                                                     │    │
+│  │ [Select All]  [Deselect All]                        │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                                                             │
+│         [🔧 Process Selected Sessions]                      │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │  Processing: Session 3 of 8...                      │    │
+│  │  ████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  37%   │    │
+│  └─────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────┘
 ```
 
----
+### 5. Update Edge Function (Optional Enhancement)
+**File:** `supabase/functions/narrative-forge/index.ts`
 
-## Files to Modify (Minimal Changes)
+**Changes:**
+- Increase `MAX_TEXT_LENGTH` to 20,000 (optional)
+- Add `chunkIndex` and `totalChunks` to request for context continuity
+- If processing a chunk, include summary of previous chunk in prompt
 
-These changes replace hardcoded strings with config lookups. The behavior remains identical.
-
-### 1. App Entry Point
-**File:** `src/App.tsx`
-
-Wrap the app with `BuildProvider`:
 ```typescript
-import { BuildProvider } from '@/lib/buildConfig';
-
-function App() {
-  return (
-    <BuildProvider>
-      {/* existing app content */}
-    </BuildProvider>
-  );
+// Enhanced request body
+interface RequestBody {
+  text: string;
+  characterName?: string;
+  style?: string;
+  // NEW: Multi-chunk context
+  isChunkedProcessing?: boolean;
+  chunkIndex?: number;
+  totalChunks?: number;
+  previousChunkSummary?: string;  // Last 200 chars of previous output
 }
-```
-
-### 2. Character Header
-**File:** `src/components/character/CharacterHeader.tsx`
-
-Replace hardcoded name:
-```typescript
-import { useBuildConfig } from '@/lib/buildConfig';
-
-// Before:
-<h1>{character.name || 'Unnamed Assassin'}</h1>
-
-// After:
-const { identity } = useBuildConfig();
-<h1>{character.name || identity.defaultCharacterName}</h1>
-```
-
-### 3. Home Modal
-**File:** `src/components/home/HomeModalContents.tsx`
-
-Replace class labels:
-```typescript
-import { useBuildConfig } from '@/lib/buildConfig';
-
-// Before:
-<p className="text-xs text-red-400">Odyssey Assassin</p>
-
-// After:
-const { identity } = useBuildConfig();
-<p className="text-xs text-red-400">{identity.className}</p>
-```
-
-### 4. Tree Visual Config
-**File:** `src/lib/abilityTrees/colors.ts`
-
-Use config for tree data (keeps existing structure for backward compatibility):
-```typescript
-import { getBuildConfig } from '@/lib/buildConfig';
-
-// Dynamically generate from config
-export function getTreeVisualConfig() {
-  const config = getBuildConfig();
-  // Map config.trees to existing TREE_VISUAL_CONFIG structure
-}
-```
-
-### 5. GM Guide Prompts
-**File:** `src/lib/gmGuidePrompts.ts`
-
-Use template strings with config:
-```typescript
-import { getBuildConfig } from '@/lib/buildConfig';
-
-const config = getBuildConfig();
-
-// Before:
-content: `# ODYSSEY ASSASSIN - CORE OVERVIEW`
-
-// After:
-content: `# ${config.identity.appTitle.toUpperCase()} - CORE OVERVIEW`
 ```
 
 ---
 
 ## Implementation Phases
 
-### Phase 1: Core Types (This PR)
-1. Create `src/lib/buildConfig/types.ts`
-2. Create `src/lib/buildConfig/odysseyAssassin.ts`
-3. Create `src/lib/buildConfig/BuildContext.tsx`
-4. Create `src/lib/buildConfig/index.ts`
+### Phase 1: Core File Upload
+1. Create `sessionDetection.ts` with session detection patterns
+2. Create `CampaignFileUpload.tsx` component
+3. Add file upload toggle to `NarrativeForgeScreen.tsx`
+4. Test with single-chunk files (under 15K chars)
 
-### Phase 2: Wire Up Provider
-1. Add `BuildProvider` to `App.tsx`
-2. Update 3-5 high-visibility components to use `useBuildConfig()`
+### Phase 2: Multi-Session Processing
+1. Create `use-campaign-processor.ts` hook
+2. Add session selection UI to NarrativeForgeScreen
+3. Implement sequential processing with progress tracking
+4. Add session-by-session output preview
 
-### Phase 3: Gradual Migration
-1. Replace hardcoded strings incrementally
-2. Add helper functions for common lookups
-3. Update GM Guide prompts
-
----
-
-## What This Enables (Future)
-
-1. **Custom Class Names**: User can rename "Assassin" to "Shadow Blade"
-2. **Tree Renaming**: Change "Hunter" to "Ranger" or "Marksman"
-3. **Alternate Builds**: Load a "Battle Master" or "Elementalist" config
-4. **User Overrides**: Store custom labels in localStorage
-5. **Import/Export**: Share build configurations as JSON
+### Phase 3: Polish
+1. Add drag-and-drop support to file upload
+2. Add rate limiting protection (delay between AI calls)
+3. Handle edge function errors with retry logic
+4. Store file processing state in localStorage for resume capability
 
 ---
 
-## Backward Compatibility
+## Session Detection Patterns
 
-- All existing code continues to work
-- `ODYSSEY_ASSASSIN_CONFIG` is the default
-- No breaking changes to types or interfaces
-- Existing localStorage data remains valid
-- Components without config access still work (use defaults)
+The system will look for these markers to split campaigns into sessions:
+
+| Pattern | Example |
+|---------|---------|
+| Session headers | `# Session 3: The Dark Forest` |
+| Horizontal rules | `---` or `===` |
+| Bracketed markers | `[Session 5]` |
+| Day markers | `DAY 7:` |
+| Chapter markers | `CHAPTER 2` |
+| Time jumps | `--- Three days later ---` |
+| Long rest indicators | `The party takes a long rest` |
+
+If no markers detected, the system falls back to **chunk-by-paragraph** splitting at ~10,000 character boundaries.
 
 ---
 
-## Files Created/Modified Summary
+## File Type Handling
 
-| File | Action | Purpose |
-|------|--------|---------|
-| `src/lib/buildConfig/types.ts` | CREATE | Type definitions |
-| `src/lib/buildConfig/odysseyAssassin.ts` | CREATE | Default config |
-| `src/lib/buildConfig/BuildContext.tsx` | CREATE | React context |
-| `src/lib/buildConfig/index.ts` | CREATE | Module exports |
-| `src/App.tsx` | MODIFY | Wrap with provider |
-| `src/components/character/CharacterHeader.tsx` | MODIFY | Use config |
-| `src/components/home/HomeModalContents.tsx` | MODIFY | Use config |
+| File Type | Handling |
+|-----------|----------|
+| `.txt` | Read as plain text |
+| `.md` | Read as text (markdown preserved) |
+| `.json` | Parse JSON, extract `content` or `sessions` array if structured |
+| `.log` | Read as plain text |
+
+**Size Limits:**
+- Maximum file size: 1 MB (approximately 200,000 words)
+- Warning shown for files over 500 KB
+- Processing may take several minutes for large files
+
+---
+
+## Error Handling
+
+1. **File too large**: Show warning, offer to process first N sessions only
+2. **AI rate limiting**: Add 2-second delay between AI calls, exponential backoff on 429 errors
+3. **Processing interrupted**: Save processed chunks to localStorage, offer resume
+4. **Invalid file format**: Show clear error message with supported formats
+5. **No sessions detected**: Fall back to chunk-based processing with user confirmation
 
 ---
 
 ## Testing Criteria
 
-1. App loads and displays "Odyssey Assassin" as before
-2. Default character name shows correctly
-3. Tree names display in Abilities tab
-4. GM Guide prompts include correct class name
-5. No console errors related to undefined config
-6. Build config is accessible via `useBuildConfig()` hook
+1. Upload `.txt` file under 15K chars → processes normally
+2. Upload large file (50K+ chars) with session markers → detects sessions correctly
+3. Upload large file without markers → falls back to chunk splitting
+4. Process 5 sessions with AI mode → progress bar updates, all complete
+5. Cancel mid-processing → state resets cleanly
+6. Combine processed sessions → single coherent story output
+7. Save combined output to story → persists correctly
+8. Resume interrupted processing → picks up where left off
+9. Test with malformed files → graceful error messages
+
+---
+
+## Backward Compatibility
+
+- Paste text mode remains the default
+- File upload is an optional toggle
+- Existing story save format unchanged
+- All current processing options work with file upload
+
+---
+
+## Files Summary
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `src/lib/scribe/sessionDetection.ts` | CREATE | Session boundary detection logic |
+| `src/components/scribe/CampaignFileUpload.tsx` | CREATE | File upload dropzone component |
+| `src/hooks/use-campaign-processor.ts` | CREATE | Multi-chunk processing state management |
+| `src/components/scribe/NarrativeForgeScreen.tsx` | MODIFY | Add file upload mode and session UI |
+| `src/lib/scribe/index.ts` | CREATE | Barrel export for scribe utilities |
+| `supabase/functions/narrative-forge/index.ts` | MODIFY (optional) | Add chunk context support |
