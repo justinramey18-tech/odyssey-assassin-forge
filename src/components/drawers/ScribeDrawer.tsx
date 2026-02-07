@@ -6,9 +6,18 @@ import { EdgeDrawer } from './EdgeDrawer';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Slider } from '@/components/ui/slider';
 import { processTextOffline, ProcessingOptions } from '@/lib/narrativeProcessor';
 
 import type { NarrativeStyle } from '@/lib/narrativeProcessor';
+
+const INTENSITY_LABELS: Record<number, { name: string; description: string }> = {
+  1: { name: 'Subtle', description: 'Light touches, preserves original feel' },
+  2: { name: 'Mild', description: 'Gentle enhancements' },
+  3: { name: 'Moderate', description: 'Balanced transformation' },
+  4: { name: 'Strong', description: 'Bold stylization' },
+  5: { name: 'Dramatic', description: 'Maximum style intensity' },
+};
 
 const GENRE_STYLES: Record<NarrativeStyle, { name: string; description: string }> = {
   fantasy: { name: 'Fantasy', description: 'Epic high fantasy prose' },
@@ -38,6 +47,7 @@ export function ScribeDrawer({
   const [inputText, setInputText] = useState('');
   const [outputText, setOutputText] = useState('');
   const [selectedGenre, setSelectedGenre] = useState<NarrativeStyle>('fantasy');
+  const [toneIntensity, setToneIntensity] = useState(3);
   const [copied, setCopied] = useState(false);
 
   const handleProcess = () => {
@@ -52,6 +62,7 @@ export function ScribeDrawer({
       removeMechanics: true,
       enhanceDescriptions: true,
       narrativeStyle: selectedGenre,
+      toneIntensity,
     };
     
     const processed = processTextOffline(inputText, options);
@@ -117,6 +128,29 @@ export function ScribeDrawer({
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Tone Intensity Slider */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Tone Intensity
+              </h3>
+              <span className="text-xs font-medium text-amber-400">
+                {INTENSITY_LABELS[toneIntensity]?.name}
+              </span>
+            </div>
+            <Slider
+              value={[toneIntensity]}
+              onValueChange={(value) => setToneIntensity(value[0])}
+              min={1}
+              max={5}
+              step={1}
+              className="w-full"
+            />
+            <p className="text-[10px] text-muted-foreground text-center">
+              {INTENSITY_LABELS[toneIntensity]?.description}
+            </p>
           </div>
 
           {/* Input */}

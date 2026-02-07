@@ -20,6 +20,7 @@ export interface ProcessingOptions {
   removeMechanics: boolean;
   enhanceDescriptions: boolean;
   narrativeStyle: NarrativeStyle;
+  toneIntensity: number; // 1-5: Subtle to Dramatic
 }
 
 export const defaultProcessingOptions: ProcessingOptions = {
@@ -28,6 +29,7 @@ export const defaultProcessingOptions: ProcessingOptions = {
   removeMechanics: true,
   enhanceDescriptions: true,
   narrativeStyle: 'fantasy',
+  toneIntensity: 3, // Moderate by default
 };
 
 // Regex patterns for identifying TTRPG elements
@@ -206,16 +208,26 @@ function capitalizeSentences(text: string): string {
 }
 
 // Apply narrative style enhancements
-function applyStyleEnhancements(text: string, style: string): string {
+// Intensity: 1=Subtle (20%), 2=Mild (40%), 3=Moderate (60%), 4=Strong (80%), 5=Dramatic (95%)
+function applyStyleEnhancements(text: string, style: string, intensity: number = 3): string {
   const enhancements = styleEnhancements[style] || styleEnhancements.fantasy;
   let result = text;
   
+  // Map intensity 1-5 to replacement probability
+  const intensityMap: Record<number, number> = {
+    1: 0.20, // Subtle - only 20% of phrases enhanced
+    2: 0.40, // Mild
+    3: 0.60, // Moderate
+    4: 0.80, // Strong
+    5: 0.95, // Dramatic - almost everything enhanced
+  };
+  const replaceChance = intensityMap[intensity] || 0.60;
+  
   for (const [pattern, replacement] of Object.entries(enhancements)) {
     const regex = new RegExp(`\\b${pattern}\\b`, 'gi');
-    // Only replace sometimes to avoid over-processing
-    result = result.replace(regex, (match, offset) => {
-      // Random chance to apply enhancement for variety
-      if (Math.random() > 0.7) return match;
+    result = result.replace(regex, (match) => {
+      // Apply enhancement based on intensity
+      if (Math.random() > replaceChance) return match;
       return replacement;
     });
   }
@@ -289,7 +301,7 @@ export function processTextOffline(input: string, options: ProcessingOptions = d
   
   // Apply style enhancements
   if (options.enhanceDescriptions) {
-    result = applyStyleEnhancements(result, options.narrativeStyle);
+    result = applyStyleEnhancements(result, options.narrativeStyle, options.toneIntensity);
   }
   
   // Clean up formatting
