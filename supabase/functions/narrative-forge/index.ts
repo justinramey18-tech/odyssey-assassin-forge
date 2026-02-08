@@ -92,6 +92,74 @@ function sanitizeInput(text: string): string {
   return sanitized;
 }
 
+// Smart parse: Extract only assistant/DM content from chat logs
+// Filters out user/player messages marked with "user" or "User" labels
+function extractAssistantContent(text: string): string {
+  const lines = text.split('\n');
+  const result: string[] = [];
+  let inUserSection = false;
+  let inAssistantSection = true; // Default to keeping content until we see a label
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmedLine = line.trim().toLowerCase();
+    
+    // Detect section markers
+    // Match "user" or "**user**" at start of line (case insensitive)
+    if (/^(\*\*)?user(\*\*)?:?\s*$/i.test(line.trim()) || 
+        /^user\s*$/i.test(line.trim())) {
+      inUserSection = true;
+      inAssistantSection = false;
+      continue; // Skip the label line itself
+    }
+    
+    // Match "assistant" or "**assistant**" at start of line
+    if (/^(\*\*)?assistant(\*\*)?:?\s*$/i.test(line.trim()) || 
+        /^assistant\s*$/i.test(line.trim())) {
+      inUserSection = false;
+      inAssistantSection = true;
+      continue; // Skip the label line itself
+    }
+    
+    // Also detect inline patterns like "User: message" or "**User**: message"
+    const userInlineMatch = line.match(/^(\*\*)?(user)(\*\*)?:\s*(.*)$/i);
+    if (userInlineMatch) {
+      // This is a user message, skip it
+      continue;
+    }
+    
+    const assistantInlineMatch = line.match(/^(\*\*)?(assistant)(\*\*)?:\s*(.*)$/i);
+    if (assistantInlineMatch) {
+      // Keep the content after "assistant:"
+      result.push(assistantInlineMatch[4]);
+      inUserSection = false;
+      inAssistantSection = true;
+      continue;
+    }
+    
+    // Keep content if we're in an assistant section (or default section before any labels)
+    if (inAssistantSection && !inUserSection) {
+      result.push(line);
+    }
+  }
+  
+  // Clean up: remove excessive blank lines
+  let cleaned = result.join('\n');
+  cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
+  
+  return cleaned;
+}
+
+// Detect if text appears to be a chat log format (has user/assistant labels)
+function isChatLogFormat(text: string): boolean {
+  const lowerText = text.toLowerCase();
+  // Check for typical chat log markers
+  const hasUserLabel = /\buser\b\s*$/im.test(text) || /^\*\*user\*\*\s*$/im.test(text);
+  const hasAssistantLabel = /\bassistant\b\s*$/im.test(text) || /^\*\*assistant\*\*\s*$/im.test(text);
+  
+  return hasUserLabel || hasAssistantLabel;
+}
+
 // Sanitize character name - only allow alphanumeric, spaces, and common name characters
 function sanitizeCharacterName(name: string): string {
   // Allow letters (including accented), numbers, spaces, hyphens, apostrophes
@@ -393,8 +461,16 @@ Deno.serve(async (req) => {
     }
 
     // Sanitize text input to prevent prompt injection
-    const sanitizedText = sanitizeInput(validation.text);
+    let sanitizedText = sanitizeInput(validation.text);
     const { characterName, style } = validation;
+    
+    // Smart parse: detect chat log format and extract only assistant content
+    const isChatFormat = isChatLogFormat(sanitizedText);
+    if (isChatFormat) {
+      console.log('Detected chat log format - extracting assistant content only');
+      sanitizedText = extractAssistantContent(sanitizedText);
+      console.log(`After smart parse: ${sanitizedText.length} chars (filtered from ${validation.text.length})`);
+    }
     
     const styleGuide = styleGuides[style];
 
