@@ -46,11 +46,31 @@ export function useFavoritePrompts() {
     setFavorites(new Set());
   }, []);
 
+  const exportFavorites = useCallback((): string => {
+    return JSON.stringify([...favorites], null, 2);
+  }, [favorites]);
+
+  const importFavorites = useCallback((jsonString: string): { success: boolean; count: number; error?: string } => {
+    try {
+      const parsed = JSON.parse(jsonString);
+      if (!Array.isArray(parsed)) {
+        return { success: false, count: 0, error: 'Invalid format: expected an array' };
+      }
+      const validIds = parsed.filter((id): id is string => typeof id === 'string');
+      setFavorites(new Set(validIds));
+      return { success: true, count: validIds.length };
+    } catch (e) {
+      return { success: false, count: 0, error: 'Failed to parse JSON' };
+    }
+  }, []);
+
   return {
     favorites,
     favoriteCount: favorites.size,
     toggleFavorite,
     isFavorite,
     clearFavorites,
+    exportFavorites,
+    importFavorites,
   };
 }
