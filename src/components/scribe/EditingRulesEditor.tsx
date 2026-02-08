@@ -14,10 +14,14 @@ import {
   X,
   FileText,
   HelpCircle,
+  FlaskConical,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Select, 
   SelectContent, 
@@ -45,6 +49,7 @@ import {
   DialogTitle,
   DialogFooter,
   DialogTrigger,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   Tooltip,
@@ -53,6 +58,7 @@ import {
 } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { useEditingRules } from '@/hooks/use-editing-rules';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   EditingRule, 
   RuleType, 
@@ -77,9 +83,17 @@ function RuleTypeIcon({ type, className = 'w-4 h-4' }: { type: RuleType; classNa
 
 interface EditingRulesEditorProps {
   onRulesChange?: (rules: EditingRule[]) => void;
+  sampleText?: string;
+  characterName?: string;
+  narrativeStyle?: string;
 }
 
-export function EditingRulesEditor({ onRulesChange }: EditingRulesEditorProps) {
+export function EditingRulesEditor({ 
+  onRulesChange, 
+  sampleText = '',
+  characterName = '',
+  narrativeStyle = 'fantasy',
+}: EditingRulesEditorProps) {
   const { toast } = useToast();
   const {
     rules,
@@ -100,6 +114,12 @@ export function EditingRulesEditor({ onRulesChange }: EditingRulesEditorProps) {
   const [newRuleText, setNewRuleText] = useState('');
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [ruleSetName, setRuleSetName] = useState('');
+  
+  // Test preview state
+  const [testDialogOpen, setTestDialogOpen] = useState(false);
+  const [testResult, setTestResult] = useState('');
+  const [isTesting, setIsTesting] = useState(false);
+  const [testSampleInput, setTestSampleInput] = useState('');
 
   // Notify parent when rules change
   const handleRulesChange = useCallback(() => {
@@ -194,6 +214,73 @@ export function EditingRulesEditor({ onRulesChange }: EditingRulesEditorProps) {
       description: 'Your saved rules have been loaded.',
     });
   }, [loadRuleSet, handleRulesChange, toast]);
+
+  // Test rules on sample text
+  const handleTestRules = useCallback(async () => {
+    const textToTest = testSampleInput.trim() || sampleText.slice(0, 500);
+    
+    if (!textToTest) {
+      toast({
+        title: 'No sample text',
+        description: 'Paste some text to test, or enter text in the main input first.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (rules.filter(r => r.isValid).length === 0) {
+      toast({
+        title: 'No valid rules',
+        description: 'Add at least one valid rule to test.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsTesting(true);
+    setTestResult('');
+
+    try {
+      const rulesForApi = rules
+        .filter(r => r.isValid && r.instruction.trim())
+        .map(r => ({ type: r.type, instruction: r.instruction, scope: r.scope }));
+
+      const { data, error } = await supabase.functions.invoke('narrative-forge', {
+        body: {
+          text: textToTest.slice(0, 500), // Limit to 500 chars for preview
+          characterName,
+          style: narrativeStyle,
+          smartParseEnabled: false, // Don't filter for test
+          customEditingRules: rulesForApi,
+        },
+      });
+
+      if (error) throw error;
+      
+      setTestResult(data.narrative || 'No output generated.');
+      toast({
+        title: 'Test complete',
+        description: 'Preview generated successfully.',
+      });
+    } catch (error) {
+      console.error('Test rules error:', error);
+      setTestResult(`Error: ${error instanceof Error ? error.message : 'Failed to generate preview'}`);
+      toast({
+        title: 'Test failed',
+        description: error instanceof Error ? error.message : 'An error occurred.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsTesting(false);
+    }
+  }, [testSampleInput, sampleText, rules, characterName, narrativeStyle, toast]);
+
+  // Open test dialog with pre-filled sample
+  const handleOpenTestDialog = useCallback(() => {
+    setTestSampleInput(sampleText.slice(0, 500));
+    setTestResult('');
+    setTestDialogOpen(true);
+  }, [sampleText]);
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="space-y-2">
@@ -341,7 +428,90 @@ export function EditingRulesEditor({ onRulesChange }: EditingRulesEditorProps) {
 
         {/* Action buttons */}
         {rules.length > 0 && (
-          <div className="flex gap-2 pt-2 border-t border-border/50">
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50">
+            {/* Test rules on sample */}
+            <Dialog open={testDialogOpen} onOpenChange={setTestDialogOpen}>
+              <DialogTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="gap-1 text-xs border-purple-500/30 text-purple-400 hover:text-purple-300 hover:bg-purple-500/10"
+                  onClick={handleOpenTestDialog}
+                >
+                  <FlaskConical className="w-3.5 h-3.5" />
+                  Test Rules
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <FlaskConical className="w-5 h-5 text-purple-400" />
+                    Test Rules on Sample
+                  </DialogTitle>
+                  <DialogDescription>
+                    See how your {validRuleCount} rule{validRuleCount !== 1 ? 's' : ''} will transform the first 500 characters.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex-1 overflow-hidden space-y-4 py-2">
+                  {/* Sample input */}
+                  <div className="space-y-2">
+                    <Label htmlFor="testSampleInput" className="text-sm">Sample Text (max 500 chars)</Label>
+                    <Textarea
+                      id="testSampleInput"
+                      value={testSampleInput}
+                      onChange={(e) => setTestSampleInput(e.target.value.slice(0, 500))}
+                      placeholder="Paste sample text to test your rules..."
+                      className="h-32 font-mono text-xs resize-none"
+                    />
+                    <p className="text-xs text-muted-foreground text-right">
+                      {testSampleInput.length}/500 characters
+                    </p>
+                  </div>
+                  
+                  {/* Result */}
+                  {(testResult || isTesting) && (
+                    <div className="space-y-2">
+                      <Label className="text-sm">Preview Result</Label>
+                      <ScrollArea className="h-48 rounded-lg border border-border/50 bg-muted/20 p-3">
+                        {isTesting ? (
+                          <div className="flex items-center justify-center h-full gap-2 text-muted-foreground">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span className="text-sm">Generating preview...</span>
+                          </div>
+                        ) : (
+                          <p className="text-sm whitespace-pre-wrap font-serif leading-relaxed">
+                            {testResult}
+                          </p>
+                        )}
+                      </ScrollArea>
+                    </div>
+                  )}
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setTestDialogOpen(false)}>
+                    Close
+                  </Button>
+                  <Button 
+                    onClick={handleTestRules}
+                    disabled={isTesting || !testSampleInput.trim()}
+                    className="gap-1 bg-purple-600 hover:bg-purple-700"
+                  >
+                    {isTesting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Testing...
+                      </>
+                    ) : (
+                      <>
+                        <FlaskConical className="w-4 h-4" />
+                        Run Test
+                      </>
+                    )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
             {/* Save as rule set */}
             <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
               <DialogTrigger asChild>

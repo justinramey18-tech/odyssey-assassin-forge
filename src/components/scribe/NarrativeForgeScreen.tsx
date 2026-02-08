@@ -840,7 +840,11 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
             {/* Custom Editing Rules - AI mode only */}
             {processingMode === 'ai' && (
               <div className="pt-3 border-t border-border/50">
-                <EditingRulesEditor />
+                <EditingRulesEditor 
+                  sampleText={inputSource === 'paste' ? inputText : (campaignProcessor.fileContent || '')}
+                  characterName={characterName}
+                  narrativeStyle={options.narrativeStyle}
+                />
               </div>
             )}
           </CardContent>
