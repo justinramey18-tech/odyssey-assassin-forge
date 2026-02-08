@@ -1,296 +1,374 @@
 
 
-# Improved Plan: Custom Editing Prompts for the Scribe
+# Implementation Plan: Enhanced Scribe Features
 
-## Summary of Improvements
+## Overview
 
-After reviewing the existing codebase, I've identified several enhancements to make the custom editing rules feature more powerful, user-friendly, and robust.
+This plan covers 8 new features for the Scribe tab, organized into three implementation phases based on complexity and dependencies.
 
 ---
 
-## Key Improvements Over Original Plan
+## Phase 1: Core Enhancements (Simpler, Foundation Features)
 
-### 1. Rule Templates / Presets
-**Original**: Users type free-form rules only
-**Improved**: Add a dropdown of common editing rule templates to speed up usage
+### Feature 1: Style Blending (70% Fantasy + 30% Noir)
 
-Templates include:
-- "Replace [word] with [word]" - Word substitution
-- "Remove all instances of [word/phrase]" - Deletion
-- "Change [name] to [name]" - Character renaming
-- "Convert profanity to [style]" - Content filtering
-- "Adjust tone to be more [adjective]" - Tone shifting
+**What it does:** Allow users to combine two narrative styles with adjustable weightings to create hybrid tones.
 
-This reduces cognitive load and shows users what's possible.
+**User Experience:**
+- New "Blend Styles" toggle in Processing Options
+- When enabled, shows two style dropdowns with percentage sliders (must total 100%)
+- Preview shows blend like "70% Fantasy + 30% Noir"
 
-### 2. Rule Categories with Icons
-**Original**: Flat list of text rules
-**Improved**: Categorized rules with visual indicators
+**Technical Changes:**
 
-| Category | Icon | Example |
-|----------|------|---------|
-| Replacement | `Replace` | "Replace 'ozone' with 'aether'" |
-| Removal | `Trash2` | "Remove modern slang" |
-| Style | `Palette` | "Make dialogue more formal" |
-| Character | `User` | "Rename 'Bob' to 'Archmage Robert'" |
+| File | Changes |
+|------|---------|
+| `NarrativeForgeScreen.tsx` | Add `styleBlendEnabled`, `secondaryStyle`, `blendRatio` state |
+| `narrative-forge/index.ts` | Accept `blendConfig` parameter, merge two style guides proportionally in prompt |
 
-Visual scanning becomes faster, and users understand rule types at a glance.
-
-### 3. Rule Priority / Ordering
-**Original**: Rules applied in undefined order
-**Improved**: Drag-to-reorder capability with explicit ordering
-
-- Rules are numbered and applied in order
-- Users can drag to reorder (using `dnd-kit` or simple up/down arrows)
-- The AI prompt clearly states "Apply these rules in order"
-- Edge cases like conflicting rules are handled by order
-
-### 4. Rule Validation with Preview
-**Original**: Rules validated only at edge function
-**Improved**: Client-side validation with live feedback
-
-- Warn if rule is too vague: "This rule might be too general"
-- Highlight potential conflicts: "Rule 2 might conflict with Rule 1"
-- Show estimated impact: "This will likely affect ~15% of text"
-- Test button to show a sample transformation before full processing
-
-### 5. Save/Load Rule Sets
-**Original**: Rules are session-only
-**Improved**: Persist rule sets to localStorage with names
-
-```typescript
-interface RuleSet {
-  id: string;
-  name: string;          // "My Fantasy Cleanup Rules"
-  rules: EditingRule[];
-  createdAt: string;
-  lastUsed: string;
-}
-```
-
-Users can:
-- Save current rules as a named set
-- Load previously saved rule sets
-- Share rule sets by export/import (JSON)
-
-### 6. Scope-Limited Rules
-**Original**: Rules apply globally to all text
-**Improved**: Optional scope limiters
-
-```typescript
-interface EditingRule {
-  id: string;
-  type: 'replace' | 'remove' | 'style' | 'character' | 'custom';
-  instruction: string;
-  scope?: 'dialogue' | 'narration' | 'combat' | 'all';  // NEW
-}
-```
-
-Example: "Only in dialogue: change 'gonna' to 'going to'"
-
-### 7. Enhanced Security Measures
-**Original**: Basic sanitization with redaction
-**Improved**: Multi-layer validation
-
-- **Client-side**: Block obvious injection patterns before send
-- **Edge function**: Existing sanitization + length limits
-- **Prompt structure**: Rules wrapped in XML-like tags to isolate them
-- **Rate limiting**: Max 3 rules per request for first-time users
-
-Prompt structure with isolation:
+**Edge Function Prompt Logic:**
 ```text
-<user_editing_rules>
-1. Replace 'ozone' with 'aether'
-2. Remove modern slang
-</user_editing_rules>
+// When blending enabled:
+const blendedGuide = `
+PRIMARY STYLE (${blendRatio}% weight):
+${styleGuides[primaryStyle]}
 
-Apply each rule strictly as stated. Do not interpret beyond the literal instruction.
+SECONDARY STYLE (${100-blendRatio}% weight):
+${styleGuides[secondaryStyle]}
+
+Blend these styles, favoring the primary but incorporating secondary elements.
+`;
 ```
 
 ---
 
-## Revised Technical Architecture
+### Feature 2: Processing Templates
 
-### Data Structures
+**What it does:** Save combinations of options + editing rules as named templates that can be quickly applied.
 
-```typescript
-// src/lib/scribe/editingRules.ts (NEW)
+**User Experience:**
+- "Save as Template" button in Processing Options header
+- "Load Template" dropdown to select saved templates
+- Templates include: style, blending config, smart parse setting, and all editing rules
 
-export interface EditingRule {
-  id: string;
-  type: 'replace' | 'remove' | 'style' | 'character' | 'custom';
-  instruction: string;
-  scope: 'dialogue' | 'narration' | 'combat' | 'all';
-  isValid: boolean;
-  validationWarning?: string;
-}
-
-export interface RuleSet {
-  id: string;
-  name: string;
-  rules: EditingRule[];
-  createdAt: string;
-  lastUsed: string;
-}
-
-export const RULE_TEMPLATES = [
-  { type: 'replace', template: "Replace '[from]' with '[to]'" },
-  { type: 'remove', template: "Remove all instances of '[word]'" },
-  { type: 'character', template: "Rename '[oldName]' to '[newName]'" },
-  { type: 'style', template: "Make the tone more [adjective]" },
-] as const;
-
-export function validateRule(rule: EditingRule): EditingRule;
-export function serializeRulesForPrompt(rules: EditingRule[]): string;
-```
-
-### Updated Request Body
-
-```typescript
-interface RequestBody {
-  text: string;
-  characterName?: string;
-  style?: string;
-  smartParseEnabled?: boolean;
-  customEditingRules?: Array<{      // NEW - structured rules
-    type: string;
-    instruction: string;
-    scope: string;
-  }>;
-}
-```
-
-### Prompt Injection Format
-
-```typescript
-// In narrative-forge/index.ts
-if (customEditingRules?.length > 0) {
-  const rulesSection = customEditingRules.map((r, i) => 
-    `${i + 1}. [${r.scope.toUpperCase()}] ${r.instruction}`
-  ).join('\n');
-  
-  systemPrompt += `
-
-<user_editing_rules>
-Apply these specific editing rules during transformation:
-${rulesSection}
-
-Important: Apply each rule exactly as stated. Do not creatively interpret or extend the rules.
-</user_editing_rules>`;
-}
-```
-
----
-
-## Updated UI Design
-
-```text
-+-------------------------------------------------------------+
-| ⚙️ CUSTOM EDITING RULES                            [?] Help |
-+-------------------------------------------------------------+
-| 📋 Load Saved Set: [ Select a rule set...          ▾]       |
-+-------------------------------------------------------------+
-|                                                              |
-| [+ Add Rule]  [📝 From Template ▾]                           |
-|                                                              |
-| ┌─ 1. 🔄 Replace ──────────────────────────────────── [≡] ─┐ |
-| │  Replace 'ozone' with 'aether'                           │ |
-| │  Scope: [All Text ▾]                        [Edit] [X]   │ |
-| └──────────────────────────────────────────────────────────┘ |
-|                                                              |
-| ┌─ 2. 🗑️ Remove ───────────────────────────────────── [≡] ─┐ |
-| │  Remove modern slang and profanity                       │ |
-| │  Scope: [Dialogue ▾]                        [Edit] [X]   │ |
-| │  ⚠️ Vague rule - consider being more specific            │ |
-| └──────────────────────────────────────────────────────────┘ |
-|                                                              |
-| ┌─ 3. 👤 Character ────────────────────────────────── [≡] ─┐ |
-| │  Rename 'Bob' to 'Archmage Robert'                       │ |
-| │  Scope: [All Text ▾]                        [Edit] [X]   │ |
-| └──────────────────────────────────────────────────────────┘ |
-|                                                              |
-| [Test Rules on Sample]     [Save as Rule Set...]            |
-+-------------------------------------------------------------+
-```
-
-**UI Features:**
-- Drag handles (`≡`) for reordering
-- Visual icons per rule type
-- Inline scope selector dropdown
-- Validation warnings shown inline
-- Quick-add via template dropdown
-
----
-
-## Files to Create/Modify
+**Technical Changes:**
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `src/lib/scribe/editingRules.ts` | CREATE | Rule types, templates, validation, serialization |
-| `src/components/scribe/EditingRulesEditor.tsx` | CREATE | Main rule management component with all UI |
-| `src/hooks/use-editing-rules.ts` | CREATE | Hook for rule state, localStorage persistence |
-| `src/components/scribe/NarrativeForgeScreen.tsx` | MODIFY | Import and render EditingRulesEditor in options |
-| `src/hooks/use-campaign-processor.ts` | MODIFY | Add `customEditingRules` to processing params |
-| `supabase/functions/narrative-forge/index.ts` | MODIFY | Accept/validate rules, append to system prompt |
+| `src/lib/scribe/processingTemplates.ts` | CREATE | Template interface, validation, localStorage persistence |
+| `src/hooks/use-processing-templates.ts` | CREATE | Template CRUD operations hook |
+| `NarrativeForgeScreen.tsx` | MODIFY | Add template save/load UI in Processing Options card |
+
+**Data Structure:**
+```typescript
+interface ProcessingTemplate {
+  id: string;
+  name: string;
+  createdAt: string;
+  lastUsed: string;
+  
+  // Processing config
+  narrativeStyle: string;
+  blendConfig?: { secondaryStyle: string; ratio: number };
+  smartParseEnabled: boolean;
+  processingOptions: ProcessingOptions;
+  
+  // Editing rules
+  editingRules: EditingRule[];
+}
+```
 
 ---
 
-## Validation Rules
+### Feature 3: Batch Style Preview
 
-| Check | Action |
-|-------|--------|
-| Rule length > 200 chars | Reject with error |
-| More than 10 rules | Reject with error |
-| Contains injection patterns | Sanitize with `[REDACTED]` |
-| Rule too vague (< 5 words) | Show warning, allow |
-| Duplicate rules | Show warning, allow |
-| Empty instruction | Reject with error |
+**What it does:** Preview how different styles would transform the same sample text side-by-side.
 
----
+**User Experience:**
+- "Preview All Styles" button appears when there's input text
+- Opens a sheet/modal showing a 500-char sample transformed by 3-4 selected styles
+- Users can select which styles to compare
 
-## Testing Criteria
+**Technical Changes:**
 
-1. Add a replacement rule, process text → word is replaced
-2. Add a removal rule → specified content is removed
-3. Add 10 rules → all apply in order
-4. Try to add 11th rule → blocked with message
-5. Reorder rules → order is preserved in processing
-6. Save rule set → persists after page refresh
-7. Load rule set → rules populate correctly
-8. Test injection pattern → shows `[REDACTED]` in preview
-9. Use scope limiter → rule only applies to specified sections
-10. Offline mode → rules are hidden (not applicable)
+| File | Action | Purpose |
+|------|--------|---------|
+| `src/components/scribe/StylePreviewSheet.tsx` | CREATE | Multi-column preview UI with style selector |
+| `NarrativeForgeScreen.tsx` | MODIFY | Add button to trigger preview sheet |
+| Edge function | No changes | Uses existing endpoint with different styles |
 
----
-
-## Edge Cases
-
-| Scenario | Handling |
-|----------|----------|
-| Rules conflict (replace A→B, replace B→A) | Apply in order; user can reorder |
-| Rule affects character name in prompt | Character name applied after rules |
-| Very long rule text | Truncate with ellipsis in UI, full text in tooltip |
-| User tries rules in offline mode | Hide rules section, show "AI mode only" note |
-| Saved progress with rules | Include rules in localStorage snapshot |
+**UI Design:**
+```text
++----------------------------------------------------------+
+| STYLE COMPARISON PREVIEW                            [X]  |
++----------------------------------------------------------+
+| Sample: "The ancient door creaks open..."                |
++----------------------------------------------------------+
+| [ ] Fantasy    [ ] Noir    [x] Salvatore    [x] Deadpool |
++----------------------------------------------------------+
+|                          |                               |
+| SALVATORE                | DEADPOOL                      |
+| The blade sang as        | (Oh great, another door.      |
+| Drizzt pressed forward...| The writer loves doors...)    |
+|                          |                               |
++----------------------------------------------------------+
+```
 
 ---
 
-## Implementation Phases
+## Phase 2: Story Management Enhancements
 
-### Phase 1: Core Functionality
-- Create `editingRules.ts` with types and templates
-- Create `EditingRulesEditor.tsx` component
-- Add to `NarrativeForgeScreen.tsx`
-- Update edge function to accept and apply rules
+### Feature 4: Story Organization (Folders/Tags)
 
-### Phase 2: Enhanced UX
-- Add rule reordering
-- Add templates dropdown
-- Add validation warnings
-- Add scope selector
+**What it does:** Group stories by campaign, character, or custom tags for better organization.
 
-### Phase 3: Persistence
-- Create `use-editing-rules.ts` hook
-- Add save/load rule sets to localStorage
-- Add export/import as JSON
+**User Experience:**
+- Tags shown as colored chips on story cards
+- Filter stories by tag in the story list sheet
+- "Add Tag" button on each story with autocomplete from existing tags
+- Optional folder grouping view
+
+**Technical Changes:**
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `use-saved-stories.ts` | MODIFY | Extend `SavedStory` interface with `tags: string[]` and `folderId?: string` |
+| `src/lib/scribe/storyOrganization.ts` | CREATE | Tag/folder types, color mapping, filtering utilities |
+| `StoryListSheet.tsx` | MODIFY | Add tag filter dropdown, tag display on cards, tag editing |
+| `NarrativeForgeScreen.tsx` | MODIFY | Pass tag filter state to sheet |
+
+**Extended Interface:**
+```typescript
+interface SavedStory {
+  // ... existing fields
+  tags: string[];           // NEW: ["campaign-1", "character-kira"]
+  folderId?: string;        // NEW: optional folder grouping
+}
+
+interface StoryFolder {
+  id: string;
+  name: string;
+  color: string;
+  createdAt: string;
+}
+```
+
+---
+
+### Feature 5: Story Merging
+
+**What it does:** Combine multiple saved stories into one with ordering control.
+
+**User Experience:**
+- "Merge Stories" button in story list sheet
+- Opens merge dialog with drag-to-reorder capability
+- Preview combined word count and structure
+- Creates new merged story (originals optionally preserved)
+
+**Technical Changes:**
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `src/components/scribe/StoryMergeDialog.tsx` | CREATE | Merge UI with reordering, preview, options |
+| `use-saved-stories.ts` | MODIFY | Add `mergeStories(ids: string[], options)` function |
+| `StoryListSheet.tsx` | MODIFY | Add merge button, selection mode for merging |
+
+**Merge Options:**
+```typescript
+interface MergeOptions {
+  newTitle: string;
+  separator: '---' | '***' | 'chapter' | 'none';
+  preserveOriginals: boolean;
+  inheritTags: boolean;
+}
+```
+
+---
+
+### Feature 6: Comparison View (Original vs. Transformed)
+
+**What it does:** Side-by-side view showing original vs. transformed text with diff highlighting.
+
+**User Experience:**
+- Toggle button switches output panel to split-view mode
+- Left side: original input (or selected session)
+- Right side: transformed output
+- Visual highlighting of changes (additions in green, removals in red)
+- Word count comparison shown
+
+**Technical Changes:**
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `src/components/scribe/ComparisonView.tsx` | CREATE | Split-panel component with diff rendering |
+| `src/lib/scribe/textDiff.ts` | CREATE | Simple word-level diff algorithm |
+| `NarrativeForgeScreen.tsx` | MODIFY | Add comparison toggle, store original text, render comparison view |
+
+**Diff Algorithm Approach:**
+```typescript
+// Simple word-level diff for narrative comparison
+interface DiffSegment {
+  type: 'unchanged' | 'added' | 'removed';
+  text: string;
+}
+
+function computeNarrativeDiff(original: string, transformed: string): DiffSegment[] {
+  // Word-level comparison with paragraph awareness
+  // Highlight added prose, removed mechanics
+}
+```
+
+---
+
+## Phase 3: Advanced Features
+
+### Feature 7: Multi-File Upload
+
+**What it does:** Process multiple campaign files and combine them chronologically.
+
+**User Experience:**
+- Drag-drop zone accepts multiple files
+- File list shows all uploaded files with drag-to-reorder
+- Combine button merges all files in order before processing
+- Sessions detected across all files with file source indicator
+
+**Technical Changes:**
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `CampaignFileUpload.tsx` | MODIFY | Accept `multiple` files, manage file list with ordering |
+| `use-campaign-processor.ts` | MODIFY | Add `loadFiles()` for multiple files, `combineFiles()` utility |
+| `src/lib/scribe/sessionDetection.ts` | MODIFY | Add `detectSessionsMultiFile()` that tracks source file |
+
+**Extended Session Interface:**
+```typescript
+interface DetectedSession {
+  // ... existing fields
+  sourceFile?: string;        // NEW: originating filename
+  sourceFileIndex?: number;   // NEW: file order position
+}
+```
+
+**UI Changes:**
+```text
++---------------------------------------------+
+| UPLOADED FILES (3)                    [+]   |
++---------------------------------------------+
+| [≡] campaign-part1.txt    45KB        [X]  |
+| [≡] campaign-part2.txt    38KB        [X]  |
+| [≡] session-notes.md      12KB        [X]  |
++---------------------------------------------+
+| 127 sessions detected across 3 files        |
++---------------------------------------------+
+```
+
+---
+
+### Feature 8: Regenerate Partial Sections
+
+**What it does:** Allow users to select and regenerate just a portion of the output.
+
+**User Experience:**
+- Text selection in output textarea
+- "Regenerate Selection" button appears when text is selected
+- Opens dialog to optionally modify style or add specific instructions for that section
+- Replaces only the selected portion with new generation
+
+**Technical Changes:**
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `src/components/scribe/SelectableOutput.tsx` | CREATE | Enhanced output component with selection tracking |
+| `NarrativeForgeScreen.tsx` | MODIFY | Replace output textarea with SelectableOutput, add regeneration handler |
+| `narrative-forge/index.ts` | MODIFY | Add `mode: 'full' | 'partial'` with context-aware regeneration |
+
+**Edge Function Enhancement:**
+```typescript
+interface RequestBody {
+  // ... existing fields
+  mode?: 'full' | 'partial';
+  partialContext?: {
+    precedingText: string;    // ~500 chars before selection
+    selectedText: string;     // text to regenerate
+    followingText: string;    // ~500 chars after selection
+    instruction?: string;     // optional user guidance
+  };
+}
+```
+
+**Partial Regeneration Prompt:**
+```text
+CONTEXT (preceding text):
+${precedingText}
+
+TEXT TO REGENERATE:
+${selectedText}
+
+CONTEXT (following text):
+${followingText}
+
+Rewrite the middle section while maintaining continuity with surrounding context.
+${instruction ? `Additional instruction: ${instruction}` : ''}
+```
+
+---
+
+## File Summary
+
+### New Files (9)
+| File | Purpose |
+|------|---------|
+| `src/lib/scribe/processingTemplates.ts` | Template types and persistence |
+| `src/hooks/use-processing-templates.ts` | Template CRUD hook |
+| `src/lib/scribe/storyOrganization.ts` | Tags, folders, filtering |
+| `src/lib/scribe/textDiff.ts` | Word-level diff algorithm |
+| `src/components/scribe/StylePreviewSheet.tsx` | Multi-style comparison |
+| `src/components/scribe/StoryMergeDialog.tsx` | Story merge UI |
+| `src/components/scribe/ComparisonView.tsx` | Original vs. transformed view |
+| `src/components/scribe/SelectableOutput.tsx` | Output with selection tracking |
+| `src/components/scribe/MultiFileUpload.tsx` | Multiple file handling (or extend existing) |
+
+### Modified Files (6)
+| File | Changes |
+|------|---------|
+| `NarrativeForgeScreen.tsx` | All UI integrations, new state variables |
+| `use-saved-stories.ts` | Tags, folders, merge functionality |
+| `use-campaign-processor.ts` | Multi-file support |
+| `StoryListSheet.tsx` | Tag filtering, merge selection |
+| `CampaignFileUpload.tsx` | Multi-file support |
+| `narrative-forge/index.ts` | Style blending, partial regeneration |
+
+---
+
+## Dependencies
+
+- No new npm packages required
+- All features use existing UI components (shadcn/ui)
+- Diff algorithm is custom (simple word-level, no library needed)
+
+---
+
+## Implementation Order Recommendation
+
+1. **Processing Templates** - Foundation for saving configurations
+2. **Style Blending** - Simple edge function change
+3. **Batch Style Preview** - Uses existing infrastructure
+4. **Story Organization (Tags)** - Extends existing story system
+5. **Comparison View** - Useful debugging tool
+6. **Story Merging** - Builds on tags feature
+7. **Multi-File Upload** - Complex but self-contained
+8. **Partial Regeneration** - Most complex, requires all foundations
+
+---
+
+## Testing Checklist
+
+For each feature:
+- [ ] Core functionality works with sample data
+- [ ] Edge cases handled (empty input, max limits)
+- [ ] localStorage persistence works across page refreshes
+- [ ] Mobile responsive layout
+- [ ] Loading/error states display correctly
+- [ ] Toast notifications provide feedback
+- [ ] Feature integrates smoothly with existing workflow
 
