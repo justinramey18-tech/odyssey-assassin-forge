@@ -208,35 +208,35 @@ export function StyleBlendControls({
             </p>
           </div>
 
-          {/* Presets Dropdown */}
+          {/* Presets Dropdown - Mobile Optimized */}
           {relevantPresets.length > 0 && (
             <Collapsible open={showPresets} onOpenChange={setShowPresets}>
               <CollapsibleTrigger asChild>
                 <Button 
-                  variant="ghost" 
+                  variant="outline" 
                   size="sm" 
-                  className="w-full justify-between h-7 text-xs"
+                  className="w-full justify-between h-10 text-sm touch-manipulation"
                 >
-                  <span className="flex items-center gap-1.5">
-                    <Sparkles className="w-3 h-3" />
-                    Quick Presets
+                  <span className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4" />
+                    Quick Presets ({relevantPresets.length})
                   </span>
                   <ChevronDown className={cn(
-                    "w-3 h-3 transition-transform",
+                    "w-4 h-4 transition-transform",
                     showPresets && "rotate-180"
                   )} />
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent className="pt-2">
-                <div className="grid gap-1.5">
+                <div className="grid gap-2 max-h-48 overflow-y-auto overscroll-contain">
                   {relevantPresets.map(preset => (
                     <button
                       key={preset.id}
                       onClick={() => handlePresetSelect(preset)}
-                      className="text-left p-2 rounded-md bg-muted/50 hover:bg-muted transition-colors"
+                      className="text-left p-3 rounded-md bg-muted/50 hover:bg-muted active:bg-muted/80 transition-colors touch-manipulation min-h-[52px]"
                     >
-                      <div className="text-xs font-medium">{preset.name}</div>
-                      <div className="text-[10px] text-muted-foreground">{preset.description}</div>
+                      <div className="text-sm font-medium">{preset.name}</div>
+                      <div className="text-xs text-muted-foreground">{preset.description}</div>
                     </button>
                   ))}
                 </div>
