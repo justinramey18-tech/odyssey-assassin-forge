@@ -1,281 +1,296 @@
 
-# File Upload & Campaign Parsing for Scribe
 
-## Overview
+# Improved Plan: Custom Editing Prompts for the Scribe
 
-Add the ability to upload entire campaign files (`.txt`, `.md`, `.json`) to the Narrative Forge screen. The system will parse the file, optionally detect session boundaries, and process the entire campaign into a unified story.
+## Summary of Improvements
 
----
-
-## Current State
-
-The Narrative Forge currently:
-- Accepts pasted text via a `<Textarea>`
-- Processes text using either Offline Logic (regex-based) or AI Scribe (edge function)
-- Has a maximum input limit of **15,000 characters** in the edge function
-- Saves output to a single `SavedStory` in localStorage
-- Already has file handling patterns in the codebase (see `AchievementsScreen.tsx`, `use-equipment-images.ts`)
+After reviewing the existing codebase, I've identified several enhancements to make the custom editing rules feature more powerful, user-friendly, and robust.
 
 ---
 
-## Technical Architecture
+## Key Improvements Over Original Plan
 
-### Core Challenge: Large Files
+### 1. Rule Templates / Presets
+**Original**: Users type free-form rules only
+**Improved**: Add a dropdown of common editing rule templates to speed up usage
 
-Campaign files can be **very large** (100,000+ characters). Two processing strategies:
+Templates include:
+- "Replace [word] with [word]" - Word substitution
+- "Remove all instances of [word/phrase]" - Deletion
+- "Change [name] to [name]" - Character renaming
+- "Convert profanity to [style]" - Content filtering
+- "Adjust tone to be more [adjective]" - Tone shifting
 
-1. **Chunked Processing**: Split the file into ~10,000 character chunks, process each through AI, combine results
-2. **Session-Based Processing**: Detect session boundaries, process each session separately, allow user to build story incrementally
+This reduces cognitive load and shows users what's possible.
 
-**Recommendation**: Implement **both** - auto-detect sessions if markers exist, otherwise chunk by size.
+### 2. Rule Categories with Icons
+**Original**: Flat list of text rules
+**Improved**: Categorized rules with visual indicators
+
+| Category | Icon | Example |
+|----------|------|---------|
+| Replacement | `Replace` | "Replace 'ozone' with 'aether'" |
+| Removal | `Trash2` | "Remove modern slang" |
+| Style | `Palette` | "Make dialogue more formal" |
+| Character | `User` | "Rename 'Bob' to 'Archmage Robert'" |
+
+Visual scanning becomes faster, and users understand rule types at a glance.
+
+### 3. Rule Priority / Ordering
+**Original**: Rules applied in undefined order
+**Improved**: Drag-to-reorder capability with explicit ordering
+
+- Rules are numbered and applied in order
+- Users can drag to reorder (using `dnd-kit` or simple up/down arrows)
+- The AI prompt clearly states "Apply these rules in order"
+- Edge cases like conflicting rules are handled by order
+
+### 4. Rule Validation with Preview
+**Original**: Rules validated only at edge function
+**Improved**: Client-side validation with live feedback
+
+- Warn if rule is too vague: "This rule might be too general"
+- Highlight potential conflicts: "Rule 2 might conflict with Rule 1"
+- Show estimated impact: "This will likely affect ~15% of text"
+- Test button to show a sample transformation before full processing
+
+### 5. Save/Load Rule Sets
+**Original**: Rules are session-only
+**Improved**: Persist rule sets to localStorage with names
+
+```typescript
+interface RuleSet {
+  id: string;
+  name: string;          // "My Fantasy Cleanup Rules"
+  rules: EditingRule[];
+  createdAt: string;
+  lastUsed: string;
+}
+```
+
+Users can:
+- Save current rules as a named set
+- Load previously saved rule sets
+- Share rule sets by export/import (JSON)
+
+### 6. Scope-Limited Rules
+**Original**: Rules apply globally to all text
+**Improved**: Optional scope limiters
+
+```typescript
+interface EditingRule {
+  id: string;
+  type: 'replace' | 'remove' | 'style' | 'character' | 'custom';
+  instruction: string;
+  scope?: 'dialogue' | 'narration' | 'combat' | 'all';  // NEW
+}
+```
+
+Example: "Only in dialogue: change 'gonna' to 'going to'"
+
+### 7. Enhanced Security Measures
+**Original**: Basic sanitization with redaction
+**Improved**: Multi-layer validation
+
+- **Client-side**: Block obvious injection patterns before send
+- **Edge function**: Existing sanitization + length limits
+- **Prompt structure**: Rules wrapped in XML-like tags to isolate them
+- **Rate limiting**: Max 3 rules per request for first-time users
+
+Prompt structure with isolation:
+```text
+<user_editing_rules>
+1. Replace 'ozone' with 'aether'
+2. Remove modern slang
+</user_editing_rules>
+
+Apply each rule strictly as stated. Do not interpret beyond the literal instruction.
+```
+
+---
+
+## Revised Technical Architecture
+
+### Data Structures
+
+```typescript
+// src/lib/scribe/editingRules.ts (NEW)
+
+export interface EditingRule {
+  id: string;
+  type: 'replace' | 'remove' | 'style' | 'character' | 'custom';
+  instruction: string;
+  scope: 'dialogue' | 'narration' | 'combat' | 'all';
+  isValid: boolean;
+  validationWarning?: string;
+}
+
+export interface RuleSet {
+  id: string;
+  name: string;
+  rules: EditingRule[];
+  createdAt: string;
+  lastUsed: string;
+}
+
+export const RULE_TEMPLATES = [
+  { type: 'replace', template: "Replace '[from]' with '[to]'" },
+  { type: 'remove', template: "Remove all instances of '[word]'" },
+  { type: 'character', template: "Rename '[oldName]' to '[newName]'" },
+  { type: 'style', template: "Make the tone more [adjective]" },
+] as const;
+
+export function validateRule(rule: EditingRule): EditingRule;
+export function serializeRulesForPrompt(rules: EditingRule[]): string;
+```
+
+### Updated Request Body
+
+```typescript
+interface RequestBody {
+  text: string;
+  characterName?: string;
+  style?: string;
+  smartParseEnabled?: boolean;
+  customEditingRules?: Array<{      // NEW - structured rules
+    type: string;
+    instruction: string;
+    scope: string;
+  }>;
+}
+```
+
+### Prompt Injection Format
+
+```typescript
+// In narrative-forge/index.ts
+if (customEditingRules?.length > 0) {
+  const rulesSection = customEditingRules.map((r, i) => 
+    `${i + 1}. [${r.scope.toUpperCase()}] ${r.instruction}`
+  ).join('\n');
+  
+  systemPrompt += `
+
+<user_editing_rules>
+Apply these specific editing rules during transformation:
+${rulesSection}
+
+Important: Apply each rule exactly as stated. Do not creatively interpret or extend the rules.
+</user_editing_rules>`;
+}
+```
+
+---
+
+## Updated UI Design
+
+```text
++-------------------------------------------------------------+
+| ⚙️ CUSTOM EDITING RULES                            [?] Help |
++-------------------------------------------------------------+
+| 📋 Load Saved Set: [ Select a rule set...          ▾]       |
++-------------------------------------------------------------+
+|                                                              |
+| [+ Add Rule]  [📝 From Template ▾]                           |
+|                                                              |
+| ┌─ 1. 🔄 Replace ──────────────────────────────────── [≡] ─┐ |
+| │  Replace 'ozone' with 'aether'                           │ |
+| │  Scope: [All Text ▾]                        [Edit] [X]   │ |
+| └──────────────────────────────────────────────────────────┘ |
+|                                                              |
+| ┌─ 2. 🗑️ Remove ───────────────────────────────────── [≡] ─┐ |
+| │  Remove modern slang and profanity                       │ |
+| │  Scope: [Dialogue ▾]                        [Edit] [X]   │ |
+| │  ⚠️ Vague rule - consider being more specific            │ |
+| └──────────────────────────────────────────────────────────┘ |
+|                                                              |
+| ┌─ 3. 👤 Character ────────────────────────────────── [≡] ─┐ |
+| │  Rename 'Bob' to 'Archmage Robert'                       │ |
+| │  Scope: [All Text ▾]                        [Edit] [X]   │ |
+| └──────────────────────────────────────────────────────────┘ |
+|                                                              |
+| [Test Rules on Sample]     [Save as Rule Set...]            |
++-------------------------------------------------------------+
+```
+
+**UI Features:**
+- Drag handles (`≡`) for reordering
+- Visual icons per rule type
+- Inline scope selector dropdown
+- Validation warnings shown inline
+- Quick-add via template dropdown
 
 ---
 
 ## Files to Create/Modify
 
-### 1. File Upload Component
-**File:** `src/components/scribe/CampaignFileUpload.tsx` (NEW)
-
-A dropzone/button component for file upload:
-- Accepts `.txt`, `.md`, `.json` files
-- Shows file name and size after selection
-- Extracts text content using `FileReader`
-- Displays preview of detected sessions (if any)
-- Has "Clear" button to reset
-
-```typescript
-interface CampaignFileUploadProps {
-  onFileLoaded: (content: string, fileName: string, sessions: DetectedSession[]) => void;
-  onClear: () => void;
-  currentFile: string | null;
-}
-```
-
-### 2. Session Detection Logic
-**File:** `src/lib/scribe/sessionDetection.ts` (NEW)
-
-Functions to detect session boundaries in campaign text:
-
-```typescript
-interface DetectedSession {
-  id: string;
-  title: string;           // "Session 1" or detected name
-  startIndex: number;
-  endIndex: number;
-  preview: string;         // First 100 chars
-  wordCount: number;
-}
-
-// Detection patterns:
-const SESSION_MARKERS = [
-  /^---+\s*Session\s+(\d+)/gim,                    // "--- Session 1 ---"
-  /^##?\s*Session\s+(\d+)[:\s-]*(.+)?$/gim,        // "# Session 1: The Beginning"
-  /^Session\s+(\d+)[:\s-]*(.+)?$/gim,              // "Session 1 - The Dark Forest"
-  /^\[Session\s+(\d+)\]/gim,                        // "[Session 1]"
-  /^={3,}$/gm,                                      // "===" separators
-  /^-{3,}$/gm,                                      // "---" separators
-  /^DAY\s+(\d+)/gim,                                // "DAY 1" markers
-  /^CHAPTER\s+(\d+)/gim,                            // "CHAPTER 1"
-];
-
-function detectSessions(text: string): DetectedSession[];
-function splitByChunkSize(text: string, chunkSize: number): DetectedSession[];
-```
-
-### 3. Chunked Processing Hook
-**File:** `src/hooks/use-campaign-processor.ts` (NEW)
-
-Manages the multi-chunk processing workflow:
-
-```typescript
-interface UseCampaignProcessorReturn {
-  // State
-  sessions: DetectedSession[];
-  processedSessions: ProcessedSession[];
-  currentlyProcessing: string | null;
-  progress: number;                    // 0-100
-  isProcessing: boolean;
-  error: string | null;
-  
-  // Actions
-  loadFile: (content: string, fileName: string) => void;
-  processAllSessions: (mode: 'ai' | 'offline', options: ProcessingOptions) => Promise<void>;
-  processSession: (sessionId: string, mode: 'ai' | 'offline', options: ProcessingOptions) => Promise<void>;
-  combineProcessedSessions: () => string;
-  reset: () => void;
-}
-```
-
-**Processing Logic:**
-1. If sessions detected → process each session sequentially with delays between AI calls
-2. If no sessions → split into ~10,000 char chunks at paragraph boundaries
-3. Store each processed chunk in state
-4. Show progress bar during multi-chunk processing
-5. Combine all processed chunks into final narrative
-
-### 4. Modify NarrativeForgeScreen
-**File:** `src/components/scribe/NarrativeForgeScreen.tsx`
-
-**Changes:**
-- Add import toggle: "Paste Text" vs "Upload File"
-- When "Upload File" selected, show `CampaignFileUpload` instead of textarea
-- Show detected sessions list with option to process all or select specific ones
-- Add progress bar for multi-session processing
-- Handle large file processing with chunking
-- Integrate with existing story save system
-
-**New UI Flow:**
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│  INPUT SOURCE:  [Paste Text ○]  [Upload File ●]             │
-├─────────────────────────────────────────────────────────────┤
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │  📁  campaign_log.txt                               │    │
-│  │      Size: 145 KB • 32,450 words                    │    │
-│  │      Detected: 8 sessions                           │    │
-│  │      [Clear]                                        │    │
-│  └─────────────────────────────────────────────────────┘    │
-│                                                             │
-│  DETECTED SESSIONS:                                         │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │ ☑ Session 1: The Beginning (2,340 words)            │    │
-│  │ ☑ Session 2: Into the Dungeon (3,120 words)         │    │
-│  │ ☑ Session 3: The Dragon's Lair (4,500 words)        │    │
-│  │ ... (8 total)                                       │    │
-│  │                                                     │    │
-│  │ [Select All]  [Deselect All]                        │    │
-│  └─────────────────────────────────────────────────────┘    │
-│                                                             │
-│         [🔧 Process Selected Sessions]                      │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │  Processing: Session 3 of 8...                      │    │
-│  │  ████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  37%   │    │
-│  └─────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### 5. Update Edge Function (Optional Enhancement)
-**File:** `supabase/functions/narrative-forge/index.ts`
-
-**Changes:**
-- Increase `MAX_TEXT_LENGTH` to 20,000 (optional)
-- Add `chunkIndex` and `totalChunks` to request for context continuity
-- If processing a chunk, include summary of previous chunk in prompt
-
-```typescript
-// Enhanced request body
-interface RequestBody {
-  text: string;
-  characterName?: string;
-  style?: string;
-  // NEW: Multi-chunk context
-  isChunkedProcessing?: boolean;
-  chunkIndex?: number;
-  totalChunks?: number;
-  previousChunkSummary?: string;  // Last 200 chars of previous output
-}
-```
+| File | Action | Purpose |
+|------|--------|---------|
+| `src/lib/scribe/editingRules.ts` | CREATE | Rule types, templates, validation, serialization |
+| `src/components/scribe/EditingRulesEditor.tsx` | CREATE | Main rule management component with all UI |
+| `src/hooks/use-editing-rules.ts` | CREATE | Hook for rule state, localStorage persistence |
+| `src/components/scribe/NarrativeForgeScreen.tsx` | MODIFY | Import and render EditingRulesEditor in options |
+| `src/hooks/use-campaign-processor.ts` | MODIFY | Add `customEditingRules` to processing params |
+| `supabase/functions/narrative-forge/index.ts` | MODIFY | Accept/validate rules, append to system prompt |
 
 ---
 
-## Implementation Phases
+## Validation Rules
 
-### Phase 1: Core File Upload
-1. Create `sessionDetection.ts` with session detection patterns
-2. Create `CampaignFileUpload.tsx` component
-3. Add file upload toggle to `NarrativeForgeScreen.tsx`
-4. Test with single-chunk files (under 15K chars)
-
-### Phase 2: Multi-Session Processing
-1. Create `use-campaign-processor.ts` hook
-2. Add session selection UI to NarrativeForgeScreen
-3. Implement sequential processing with progress tracking
-4. Add session-by-session output preview
-
-### Phase 3: Polish
-1. Add drag-and-drop support to file upload
-2. Add rate limiting protection (delay between AI calls)
-3. Handle edge function errors with retry logic
-4. Store file processing state in localStorage for resume capability
-
----
-
-## Session Detection Patterns
-
-The system will look for these markers to split campaigns into sessions:
-
-| Pattern | Example |
-|---------|---------|
-| Session headers | `# Session 3: The Dark Forest` |
-| Horizontal rules | `---` or `===` |
-| Bracketed markers | `[Session 5]` |
-| Day markers | `DAY 7:` |
-| Chapter markers | `CHAPTER 2` |
-| Time jumps | `--- Three days later ---` |
-| Long rest indicators | `The party takes a long rest` |
-
-If no markers detected, the system falls back to **chunk-by-paragraph** splitting at ~10,000 character boundaries.
-
----
-
-## File Type Handling
-
-| File Type | Handling |
-|-----------|----------|
-| `.txt` | Read as plain text |
-| `.md` | Read as text (markdown preserved) |
-| `.json` | Parse JSON, extract `content` or `sessions` array if structured |
-| `.log` | Read as plain text |
-
-**Size Limits:**
-- Maximum file size: 1 MB (approximately 200,000 words)
-- Warning shown for files over 500 KB
-- Processing may take several minutes for large files
-
----
-
-## Error Handling
-
-1. **File too large**: Show warning, offer to process first N sessions only
-2. **AI rate limiting**: Add 2-second delay between AI calls, exponential backoff on 429 errors
-3. **Processing interrupted**: Save processed chunks to localStorage, offer resume
-4. **Invalid file format**: Show clear error message with supported formats
-5. **No sessions detected**: Fall back to chunk-based processing with user confirmation
+| Check | Action |
+|-------|--------|
+| Rule length > 200 chars | Reject with error |
+| More than 10 rules | Reject with error |
+| Contains injection patterns | Sanitize with `[REDACTED]` |
+| Rule too vague (< 5 words) | Show warning, allow |
+| Duplicate rules | Show warning, allow |
+| Empty instruction | Reject with error |
 
 ---
 
 ## Testing Criteria
 
-1. Upload `.txt` file under 15K chars → processes normally
-2. Upload large file (50K+ chars) with session markers → detects sessions correctly
-3. Upload large file without markers → falls back to chunk splitting
-4. Process 5 sessions with AI mode → progress bar updates, all complete
-5. Cancel mid-processing → state resets cleanly
-6. Combine processed sessions → single coherent story output
-7. Save combined output to story → persists correctly
-8. Resume interrupted processing → picks up where left off
-9. Test with malformed files → graceful error messages
+1. Add a replacement rule, process text → word is replaced
+2. Add a removal rule → specified content is removed
+3. Add 10 rules → all apply in order
+4. Try to add 11th rule → blocked with message
+5. Reorder rules → order is preserved in processing
+6. Save rule set → persists after page refresh
+7. Load rule set → rules populate correctly
+8. Test injection pattern → shows `[REDACTED]` in preview
+9. Use scope limiter → rule only applies to specified sections
+10. Offline mode → rules are hidden (not applicable)
 
 ---
 
-## Backward Compatibility
+## Edge Cases
 
-- Paste text mode remains the default
-- File upload is an optional toggle
-- Existing story save format unchanged
-- All current processing options work with file upload
+| Scenario | Handling |
+|----------|----------|
+| Rules conflict (replace A→B, replace B→A) | Apply in order; user can reorder |
+| Rule affects character name in prompt | Character name applied after rules |
+| Very long rule text | Truncate with ellipsis in UI, full text in tooltip |
+| User tries rules in offline mode | Hide rules section, show "AI mode only" note |
+| Saved progress with rules | Include rules in localStorage snapshot |
 
 ---
 
-## Files Summary
+## Implementation Phases
 
-| File | Action | Purpose |
-|------|--------|---------|
-| `src/lib/scribe/sessionDetection.ts` | CREATE | Session boundary detection logic |
-| `src/components/scribe/CampaignFileUpload.tsx` | CREATE | File upload dropzone component |
-| `src/hooks/use-campaign-processor.ts` | CREATE | Multi-chunk processing state management |
-| `src/components/scribe/NarrativeForgeScreen.tsx` | MODIFY | Add file upload mode and session UI |
-| `src/lib/scribe/index.ts` | CREATE | Barrel export for scribe utilities |
-| `supabase/functions/narrative-forge/index.ts` | MODIFY (optional) | Add chunk context support |
+### Phase 1: Core Functionality
+- Create `editingRules.ts` with types and templates
+- Create `EditingRulesEditor.tsx` component
+- Add to `NarrativeForgeScreen.tsx`
+- Update edge function to accept and apply rules
+
+### Phase 2: Enhanced UX
+- Add rule reordering
+- Add templates dropdown
+- Add validation warnings
+- Add scope selector
+
+### Phase 3: Persistence
+- Create `use-editing-rules.ts` hook
+- Add save/load rule sets to localStorage
+- Add export/import as JSON
+
