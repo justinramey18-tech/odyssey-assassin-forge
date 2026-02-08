@@ -26,6 +26,27 @@ const ACCEPTED_MIME_TYPES = [
   'application/msword',
 ];
 
+// Normalize special characters (smart quotes, dashes, etc.) to ASCII equivalents
+function normalizeSpecialCharacters(text: string): string {
+  return text
+    // Smart single quotes to straight
+    .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'")
+    // Smart double quotes to straight
+    .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')
+    // En-dash and em-dash to hyphen/double hyphen
+    .replace(/\u2013/g, '-')
+    .replace(/\u2014/g, '--')
+    // Ellipsis to three dots
+    .replace(/\u2026/g, '...')
+    // Non-breaking space to regular space
+    .replace(/\u00A0/g, ' ')
+    // Other common problematic characters
+    .replace(/\u2022/g, '*')  // Bullet
+    .replace(/\u00B7/g, '*')  // Middle dot
+    .replace(/\u2023/g, '>')  // Triangle bullet
+    .replace(/\u25E6/g, 'o'); // White bullet
+}
+
 // Simple RTF text extractor for browser
 function extractTextFromRtf(rtfContent: string): string {
   // Remove RTF header and control words
@@ -51,6 +72,9 @@ function extractTextFromRtf(rtfContent: string): string {
   text = text.replace(/\r\n/g, '\n');
   text = text.replace(/\n{3,}/g, '\n\n');
   text = text.trim();
+  
+  // Normalize special characters
+  text = normalizeSpecialCharacters(text);
   
   return text;
 }
@@ -122,7 +146,8 @@ export function CampaignFileUpload({
         try {
           const arrayBuffer = await file.arrayBuffer();
           const result = await mammoth.extractRawText({ arrayBuffer });
-          content = result.value;
+          // Normalize special characters (smart quotes, dashes, etc.)
+          content = normalizeSpecialCharacters(result.value);
           
           if (result.messages.length > 0) {
             console.log('Mammoth messages:', result.messages);
@@ -188,7 +213,8 @@ export function CampaignFileUpload({
         const arrayBuffer = await file.arrayBuffer();
         const decoder = new TextDecoder('utf-8');
         const text = decoder.decode(arrayBuffer);
-        content = text;
+        // Normalize special characters (smart quotes, dashes, etc.)
+        content = normalizeSpecialCharacters(text);
 
         // Handle JSON files specially
         if (extension === '.json') {
