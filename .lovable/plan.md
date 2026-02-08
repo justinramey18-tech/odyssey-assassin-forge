@@ -352,8 +352,8 @@ ${instruction ? `Additional instruction: ${instruction}` : ''}
 
 1. ~~**Processing Templates** - Foundation for saving configurations~~ ✅ DONE
 2. ~~**Style Blending** - Simple edge function change~~ ✅ DONE
-3. **Batch Style Preview** - Uses existing infrastructure
-4. **Story Organization (Tags)** - Extends existing story system
+3. ~~**Batch Style Preview** - Uses existing infrastructure~~ ✅ DONE
+4. ~~**Story Organization (Tags)** - Extends existing story system~~ ✅ DONE
 5. **Comparison View** - Useful debugging tool
 6. **Story Merging** - Builds on tags feature
 7. **Multi-File Upload** - Complex but self-contained

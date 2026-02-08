@@ -1,11 +1,14 @@
-import { useState } from 'react';
-import { BookOpen, Plus, FileText, Trash2, Check, X, Pencil, ChevronRight } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { BookOpen, Plus, FileText, Trash2, Check, X, Pencil, ChevronRight, Filter, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { StoryTags } from './StoryTags';
+import { getColorForTagName, TAG_COLORS, filterStoriesByTags } from '@/lib/scribe/storyOrganization';
 import type { SavedStory } from '@/hooks/use-saved-stories';
 
 interface StoryListSheetProps {
@@ -15,6 +18,9 @@ interface StoryListSheetProps {
   onDeleteStory: (id: string) => void;
   onRenameStory: (id: string, newTitle: string) => void;
   onViewStory: (id: string) => void;
+  onAddTag?: (storyId: string, tag: string) => void;
+  onRemoveTag?: (storyId: string, tag: string) => void;
+  allTags?: string[];
   trigger?: React.ReactNode;
 }
 
@@ -25,11 +31,15 @@ export function StoryListSheet({
   onDeleteStory,
   onRenameStory,
   onViewStory,
+  onAddTag,
+  onRemoveTag,
+  allTags = [],
   trigger,
 }: StoryListSheetProps) {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
+  const [filterTags, setFilterTags] = useState<string[]>([]);
 
   const handleStartRename = (story: SavedStory) => {
     setEditingId(story.id);
@@ -49,9 +59,28 @@ export function StoryListSheet({
     setEditingTitle('');
   };
 
-  const sortedStories = [...stories].sort(
-    (a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime()
-  );
+  const toggleFilterTag = (tag: string) => {
+    setFilterTags(prev => 
+      prev.includes(tag) 
+        ? prev.filter(t => t !== tag)
+        : [...prev, tag]
+    );
+  };
+
+  // Filter and sort stories
+  const filteredStories = useMemo(() => {
+    let result = [...stories];
+    
+    // Apply tag filter
+    if (filterTags.length > 0) {
+      result = filterStoriesByTags(result, filterTags, 'any');
+    }
+    
+    // Sort by last updated
+    return result.sort(
+      (a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime()
+    );
+  }, [stories, filterTags]);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -83,9 +112,64 @@ export function StoryListSheet({
         </SheetHeader>
         
         {stories.length > 0 ? (
-          <ScrollArea className="h-[calc(100vh-120px)] mt-4 -mx-2 px-2">
-            <div className="space-y-2">
-              {sortedStories.map((story) => (
+          <>
+            {/* Tag filter */}
+            {allTags.length > 0 && (
+              <div className="mt-4 mb-2 flex items-center gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2 text-xs">
+                      <Filter className="w-3 h-3" />
+                      Filter by Tag
+                      {filterTags.length > 0 && (
+                        <span className="bg-primary/20 text-primary px-1.5 rounded-full text-[10px]">
+                          {filterTags.length}
+                        </span>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-48">
+                    <DropdownMenuLabel className="text-xs">Filter by tags</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {allTags.map(tag => (
+                      <DropdownMenuCheckboxItem
+                        key={tag}
+                        checked={filterTags.includes(tag)}
+                        onCheckedChange={() => toggleFilterTag(tag)}
+                      >
+                        <span className="flex items-center gap-2">
+                          <Tag className="w-3 h-3" />
+                          {tag}
+                        </span>
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                    {filterTags.length > 0 && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="w-full justify-start text-xs"
+                          onClick={() => setFilterTags([])}
+                        >
+                          Clear filters
+                        </Button>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                
+                {filterTags.length > 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    Showing {filteredStories.length} of {stories.length}
+                  </span>
+                )}
+              </div>
+            )}
+            
+            <ScrollArea className="h-[calc(100vh-180px)] -mx-2 px-2">
+              <div className="space-y-2">
+                {filteredStories.map((story) => (
                 <div
                   key={story.id}
                   className={cn(
@@ -150,6 +234,20 @@ export function StoryListSheet({
                             <span>•</span>
                             <span>{new Date(story.lastUpdated).toLocaleDateString()}</span>
                           </div>
+                          
+                          {/* Story tags */}
+                          {story.tags && story.tags.length > 0 && (
+                            <div className="mt-1.5">
+                              <StoryTags
+                                tags={story.tags}
+                                allTags={allTags}
+                                onAddTag={(tag) => onAddTag?.(story.id, tag)}
+                                onRemoveTag={(tag) => onRemoveTag?.(story.id, tag)}
+                                compact
+                                readonly
+                              />
+                            </div>
+                          )}
                         </div>
                         <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
@@ -203,8 +301,9 @@ export function StoryListSheet({
                   )}
                 </div>
               ))}
-            </div>
-          </ScrollArea>
+              </div>
+            </ScrollArea>
+          </>
         ) : (
           <div className="mt-12 text-center text-muted-foreground">
             <FileText className="w-16 h-16 mx-auto mb-4 opacity-20" />

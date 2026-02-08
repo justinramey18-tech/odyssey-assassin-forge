@@ -28,6 +28,8 @@ import { SmartParsePreview } from './SmartParsePreview';
 import { EditingRulesEditor } from './EditingRulesEditor';
 import { TemplateControls } from './TemplateControls';
 import { StyleBlendControls } from './StyleBlendControls';
+import { StylePreviewSheet } from './StylePreviewSheet';
+import { StoryTags } from './StoryTags';
 import { useCampaignProcessor } from '@/hooks/use-campaign-processor';
 import { useSavedStories } from '@/hooks/use-saved-stories';
 import { useEditingRules } from '@/hooks/use-editing-rules';
@@ -71,6 +73,9 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
     appendToStory,
     deleteStory,
     renameStory,
+    addTagToStory,
+    removeTagFromStory,
+    getAllTags,
   } = useSavedStories();
 
   // Campaign processor for file uploads
@@ -501,6 +506,9 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
               setActiveStoryId(id);
               setStoryViewerOpen(true);
             }}
+            onAddTag={addTagToStory}
+            onRemoveTag={removeTagFromStory}
+            allTags={getAllTags()}
           />
         </div>
         
@@ -523,6 +531,14 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
                 <span>Last updated: {new Date(activeStory.lastUpdated).toLocaleDateString()}</span>
                 <span className="capitalize">{activeStory.style} style</span>
               </div>
+              
+              {/* Story Tags */}
+              <StoryTags
+                tags={activeStory.tags || []}
+                allTags={getAllTags()}
+                onAddTag={(tag) => addTagToStory(activeStory.id, tag)}
+                onRemoveTag={(tag) => removeTagFromStory(activeStory.id, tag)}
+              />
               
               {isEditingStory ? (
                 <>
@@ -1032,6 +1048,16 @@ The trap clicks harmlessly as she disables it."
                         </span>
                       )}
                     </button>
+                  </div>
+                )}
+                
+                {/* Style Comparison Preview Button (AI mode only) */}
+                {inputText && processingMode === 'ai' && (
+                  <div className="mt-3 pt-3 border-t border-border/50">
+                    <StylePreviewSheet
+                      sampleText={inputText}
+                      characterName={characterName}
+                    />
                   </div>
                 )}
               </CardContent>
