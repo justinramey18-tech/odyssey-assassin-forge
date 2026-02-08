@@ -40,6 +40,7 @@ interface AICommandDialogProps {
   onApplyCommand: (instruction: string) => Promise<void>;
   isProcessing: boolean;
   storyWordCount: number;
+  storyCharCount?: number;
 }
 
 const EXAMPLE_COMMANDS = [
@@ -57,6 +58,7 @@ export function AICommandDialog({
   onApplyCommand,
   isProcessing,
   storyWordCount,
+  storyCharCount = 0,
 }: AICommandDialogProps) {
   const [instruction, setInstruction] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -444,12 +446,20 @@ export function AICommandDialog({
                 disabled={isProcessing}
                 className="min-h-[120px] resize-none"
               />
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{instruction.length}/1000 characters</span>
-                {storyWordCount > 5000 && (
-                  <span className="text-amber-400">
-                    Long story - processing may take 15-30 seconds
-                  </span>
+              <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                <div className="flex items-center justify-between">
+                  <span>{instruction.length}/1000 characters</span>
+                  {storyWordCount > 5000 && storyCharCount <= 50000 && (
+                    <span className="text-amber-400">
+                      Long story - processing may take 15-30 seconds
+                    </span>
+                  )}
+                </div>
+                {storyCharCount > 50000 && (
+                  <div className="p-2 rounded bg-destructive/10 border border-destructive/30 text-destructive">
+                    ⚠️ Story exceeds 50,000 character limit ({storyCharCount.toLocaleString()} chars). 
+                    AI Command cannot process stories this long.
+                  </div>
                 )}
               </div>
             </div>
@@ -472,7 +482,7 @@ export function AICommandDialog({
             </Button>
             <Button 
               onClick={handleApply}
-              disabled={isProcessing || instruction.trim().length < 3}
+              disabled={isProcessing || instruction.trim().length < 3 || storyCharCount > 50000}
               className="gap-2 bg-purple-600 hover:bg-purple-700"
             >
               {isProcessing ? (
