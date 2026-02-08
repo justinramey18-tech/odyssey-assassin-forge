@@ -149,7 +149,10 @@ export function CampaignFileUpload({
       // Handle RTF files
       else if (extension === '.rtf') {
         try {
-          const rtfContent = await file.text();
+          // Use explicit UTF-8 decoding to handle smart quotes and special characters
+          const arrayBuffer = await file.arrayBuffer();
+          const decoder = new TextDecoder('utf-8');
+          const rtfContent = decoder.decode(arrayBuffer);
           content = extractTextFromRtf(rtfContent);
           
           if (!content.trim()) {
@@ -180,8 +183,11 @@ export function CampaignFileUpload({
         }
       }
       else {
-        // Handle text-based files
-        const text = await file.text();
+        // Handle text-based files with explicit UTF-8 decoding
+        // This ensures smart quotes and special characters are preserved
+        const arrayBuffer = await file.arrayBuffer();
+        const decoder = new TextDecoder('utf-8');
+        const text = decoder.decode(arrayBuffer);
         content = text;
 
         // Handle JSON files specially
