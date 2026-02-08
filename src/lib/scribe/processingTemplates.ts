@@ -5,7 +5,161 @@ import { ProcessingOptions } from '@/lib/narrativeProcessor';
 
 export interface BlendConfig {
   secondaryStyle: string;
-  ratio: number; // 10-90, primary style gets (100 - ratio)%
+  ratio: number; // 10-90, primary style gets remaining %
+  tertiaryStyle?: string;
+  tertiaryRatio?: number; // 5-30, optional third style
+}
+
+export interface BlendPreset {
+  id: string;
+  name: string;
+  description: string;
+  primaryStyle: string;
+  secondaryStyle: string;
+  ratio: number;
+  tertiaryStyle?: string;
+  tertiaryRatio?: number;
+}
+
+// Curated blend presets for common combinations
+export const BLEND_PRESETS: BlendPreset[] = [
+  {
+    id: 'epic-noir',
+    name: 'Epic Noir',
+    description: 'Grand fantasy narratives with shadowy undertones',
+    primaryStyle: 'fantasy',
+    secondaryStyle: 'noir',
+    ratio: 30,
+  },
+  {
+    id: 'literary-action',
+    name: 'Literary Action',
+    description: 'Refined prose meets pulse-pounding combat',
+    primaryStyle: 'literary',
+    secondaryStyle: 'action',
+    ratio: 35,
+  },
+  {
+    id: 'cosmic-salvatore',
+    name: 'Cosmic Warrior',
+    description: 'Drizzt-style combat with Lovecraftian dread',
+    primaryStyle: 'salvatore',
+    secondaryStyle: 'lovecraftian',
+    ratio: 25,
+  },
+  {
+    id: 'gonzo-deadpool',
+    name: 'Chaotic Chronicle',
+    description: 'Frantic energy with fourth-wall breaks',
+    primaryStyle: 'gonzo',
+    secondaryStyle: 'deadpool',
+    ratio: 40,
+  },
+  {
+    id: 'dark-absurd',
+    name: 'Gallows Surreal',
+    description: 'Sardonic wit meets deadpan weirdness',
+    primaryStyle: 'dark_comedy',
+    secondaryStyle: 'subtle_absurdity',
+    ratio: 35,
+  },
+  {
+    id: 'hemingway-noir',
+    name: 'Hard-Boiled Minimal',
+    description: 'Brutal efficiency with noir atmosphere',
+    primaryStyle: 'hemingway',
+    secondaryStyle: 'noir',
+    ratio: 30,
+  },
+  {
+    id: 'fantasy-trio',
+    name: 'Epic Saga',
+    description: 'Fantasy core with literary polish and action beats',
+    primaryStyle: 'fantasy',
+    secondaryStyle: 'literary',
+    ratio: 25,
+    tertiaryStyle: 'action',
+    tertiaryRatio: 15,
+  },
+  {
+    id: 'horror-trio',
+    name: 'Cosmic Horror Comedy',
+    description: 'Lovecraftian dread with dark humor undertones',
+    primaryStyle: 'lovecraftian',
+    secondaryStyle: 'dark_comedy',
+    ratio: 20,
+    tertiaryStyle: 'subtle_absurdity',
+    tertiaryRatio: 10,
+  },
+];
+
+/**
+ * Generate a description of what the blend will produce
+ */
+export function getBlendDescription(
+  primaryStyle: string,
+  blendConfig?: BlendConfig
+): string {
+  if (!blendConfig) {
+    return getStyleDescription(primaryStyle);
+  }
+
+  const primaryName = formatStyleName(primaryStyle);
+  const secondaryName = formatStyleName(blendConfig.secondaryStyle);
+  const primaryRatio = blendConfig.tertiaryStyle 
+    ? 100 - blendConfig.ratio - (blendConfig.tertiaryRatio || 0)
+    : 100 - blendConfig.ratio;
+
+  const blendDescriptions: Record<string, Record<string, string>> = {
+    fantasy: {
+      noir: 'Epic quests shadowed by moral ambiguity and gritty realism',
+      literary: 'Grand adventures told with elegant, refined prose',
+      action: 'Sweeping fantasy with punchy, kinetic combat scenes',
+      lovecraftian: 'High fantasy touched by unknowable cosmic forces',
+    },
+    noir: {
+      fantasy: 'Hard-boiled investigations in magical settings',
+      literary: 'Atmospheric crime stories with poetic undertones',
+      hemingway: 'Sparse, brutal noir with no wasted words',
+    },
+    salvatore: {
+      lovecraftian: 'Warrior poetry against incomprehensible horrors',
+      action: 'Named blade techniques with explosive pacing',
+      fantasy: 'Combat mastery in epic fantasy tradition',
+    },
+    deadpool: {
+      gonzo: 'Meta chaos meets frantic journalistic energy',
+      dark_comedy: 'Fourth-wall breaks with gallows humor',
+    },
+    literary: {
+      action: 'Refined prose punctuated by visceral action',
+      fantasy: 'Elevated language for fantastical narratives',
+    },
+  };
+
+  const specific = blendDescriptions[primaryStyle]?.[blendConfig.secondaryStyle] 
+    || blendDescriptions[blendConfig.secondaryStyle]?.[primaryStyle];
+
+  if (specific) {
+    if (blendConfig.tertiaryStyle) {
+      const tertiaryName = formatStyleName(blendConfig.tertiaryStyle);
+      return `${specific}, with ${tertiaryName.toLowerCase()} accents`;
+    }
+    return specific;
+  }
+
+  // Generic description
+  let desc = `${primaryRatio}% ${primaryName} foundation with ${blendConfig.ratio}% ${secondaryName} influence`;
+  if (blendConfig.tertiaryStyle) {
+    const tertiaryName = formatStyleName(blendConfig.tertiaryStyle);
+    desc += ` and ${blendConfig.tertiaryRatio}% ${tertiaryName} touches`;
+  }
+  return desc;
+}
+
+function getStyleDescription(style: string): string {
+  const style_info = NARRATIVE_STYLES.find(s => s.value === style);
+  return style_info?.description || 'Custom narrative style';
 }
 
 // Re-export ProcessingOptions for convenience
