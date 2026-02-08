@@ -14,6 +14,7 @@ export interface SavedStory {
   createdAt: string;
   style: string;
   wordCount: number;
+  tags: string[];  // NEW: array of tag names
 }
 
 interface UseSavedStoriesReturn {
@@ -21,12 +22,15 @@ interface UseSavedStoriesReturn {
   activeStoryId: string | null;
   activeStory: SavedStory | null;
   setActiveStoryId: (id: string | null) => void;
-  createStory: (title: string, content: string, style: string) => SavedStory;
+  createStory: (title: string, content: string, style: string, tags?: string[]) => SavedStory;
   updateStory: (id: string, updates: Partial<Omit<SavedStory, 'id' | 'createdAt'>>) => void;
   appendToStory: (id: string, content: string) => void;
   deleteStory: (id: string) => void;
   renameStory: (id: string, newTitle: string) => void;
   getStoryById: (id: string) => SavedStory | undefined;
+  addTagToStory: (id: string, tag: string) => void;
+  removeTagFromStory: (id: string, tag: string) => void;
+  getAllTags: () => string[];
 }
 
 function generateId(): string {
@@ -49,7 +53,12 @@ export function useSavedStories(): UseSavedStoriesReturn {
     
     if (stored) {
       try {
-        loadedStories = JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        // Ensure all stories have tags array (migration for older stories)
+        loadedStories = parsed.map((story: SavedStory) => ({
+          ...story,
+          tags: story.tags || [],
+        }));
       } catch (e) {
         console.error('Failed to parse saved stories:', e);
       }
@@ -69,6 +78,7 @@ export function useSavedStories(): UseSavedStoriesReturn {
             createdAt: legacy.lastUpdated || new Date().toISOString(),
             style: legacy.style || 'fantasy',
             wordCount: countWords(legacy.content || ''),
+            tags: legacy.tags || [],
           };
           loadedStories = [migratedStory];
           // Save migrated data and remove legacy key
@@ -111,7 +121,7 @@ export function useSavedStories(): UseSavedStoriesReturn {
     setActiveStoryIdState(id);
   }, []);
 
-  const createStory = useCallback((title: string, content: string, style: string): SavedStory => {
+  const createStory = useCallback((title: string, content: string, style: string, tags: string[] = []): SavedStory => {
     const now = new Date().toISOString();
     const newStory: SavedStory = {
       id: generateId(),
@@ -121,6 +131,7 @@ export function useSavedStories(): UseSavedStoriesReturn {
       createdAt: now,
       style,
       wordCount: countWords(content),
+      tags,
     };
     
     const updatedStories = [newStory, ...stories];
@@ -173,6 +184,31 @@ export function useSavedStories(): UseSavedStoriesReturn {
     return stories.find(s => s.id === id);
   }, [stories]);
 
+  const addTagToStory = useCallback((id: string, tag: string) => {
+    const story = stories.find(s => s.id === id);
+    if (!story) return;
+    
+    const normalizedTag = tag.trim();
+    if (!normalizedTag || story.tags.includes(normalizedTag)) return;
+    
+    updateStory(id, { tags: [...story.tags, normalizedTag] });
+  }, [stories, updateStory]);
+
+  const removeTagFromStory = useCallback((id: string, tag: string) => {
+    const story = stories.find(s => s.id === id);
+    if (!story) return;
+    
+    updateStory(id, { tags: story.tags.filter(t => t !== tag) });
+  }, [stories, updateStory]);
+
+  const getAllTags = useCallback((): string[] => {
+    const tagSet = new Set<string>();
+    stories.forEach(story => {
+      story.tags?.forEach(tag => tagSet.add(tag));
+    });
+    return Array.from(tagSet).sort();
+  }, [stories]);
+
   const activeStory = activeStoryId ? stories.find(s => s.id === activeStoryId) || null : null;
 
   return {
@@ -186,5 +222,8 @@ export function useSavedStories(): UseSavedStoriesReturn {
     deleteStory,
     renameStory,
     getStoryById,
+    addTagToStory,
+    removeTagFromStory,
+    getAllTags,
   };
 }
