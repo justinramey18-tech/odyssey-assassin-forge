@@ -66,6 +66,13 @@ interface BlendConfig {
   ratio: number; // 10-50, how much of secondary style to blend
 }
 
+interface PartialContext {
+  precedingText: string;
+  selectedText: string;
+  followingText: string;
+  instruction?: string;
+}
+
 interface RequestBody {
   text: string;
   characterName?: string;
@@ -73,6 +80,8 @@ interface RequestBody {
   smartParseEnabled?: boolean;
   customEditingRules?: CustomEditingRule[];
   blendConfig?: BlendConfig;
+  mode?: 'full' | 'partial';
+  partialContext?: PartialContext;
 }
 
 type ValidationResult = {
@@ -83,6 +92,8 @@ type ValidationResult = {
   smartParseEnabled: boolean;
   customEditingRules: CustomEditingRule[];
   blendConfig?: BlendConfig;
+  mode: 'full' | 'partial';
+  partialContext?: PartialContext;
 } | {
   valid: false;
   error: string;
@@ -230,15 +241,63 @@ function validateBlendConfig(config: unknown): BlendConfig | undefined {
   return { secondaryStyle, ratio };
 }
 
+// Validate partial context for partial regeneration
+function validatePartialContext(context: unknown): PartialContext | null {
+  if (!context || typeof context !== 'object') return null;
+  
+  const { precedingText, selectedText, followingText, instruction } = context as PartialContext;
+  
+  if (typeof selectedText !== 'string' || selectedText.length < 5) {
+    return null;
+  }
+  
+  return {
+    precedingText: typeof precedingText === 'string' ? sanitizeInput(precedingText) : '',
+    selectedText: sanitizeInput(selectedText),
+    followingText: typeof followingText === 'string' ? sanitizeInput(followingText) : '',
+    instruction: typeof instruction === 'string' ? sanitizeInput(instruction.slice(0, 200)) : undefined,
+  };
+}
+
 // Validate request body
 function validateRequestBody(body: unknown): ValidationResult {
   if (!body || typeof body !== 'object') {
     return { valid: false, error: 'Invalid request body' };
   }
   
-  const { text, characterName, style, smartParseEnabled, customEditingRules, blendConfig } = body as RequestBody;
+  const { text, characterName, style, smartParseEnabled, customEditingRules, blendConfig, mode, partialContext } = body as RequestBody;
   
-  // Validate text
+  // Determine mode
+  const validatedMode = mode === 'partial' ? 'partial' : 'full';
+  
+  // For partial mode, validate partial context instead of text
+  if (validatedMode === 'partial') {
+    const validatedPartialContext = validatePartialContext(partialContext);
+    if (!validatedPartialContext) {
+      return { valid: false, error: 'Invalid partial context for partial regeneration' };
+    }
+    
+    // Validate style
+    let validatedStyle: ValidStyle = 'fantasy';
+    if (style !== undefined && style !== null && typeof style === 'string') {
+      if (VALID_STYLES.includes(style as ValidStyle)) {
+        validatedStyle = style as ValidStyle;
+      }
+    }
+    
+    return {
+      valid: true,
+      text: '', // Not used in partial mode
+      characterName: characterName ? sanitizeCharacterName(String(characterName)) : null,
+      style: validatedStyle,
+      smartParseEnabled: false,
+      customEditingRules: [],
+      mode: 'partial',
+      partialContext: validatedPartialContext,
+    };
+  }
+  
+  // Full mode validation (existing logic)
   if (text === undefined || text === null) {
     return { valid: false, error: 'Missing text parameter' };
   }
@@ -306,6 +365,7 @@ function validateRequestBody(body: unknown): ValidationResult {
     smartParseEnabled: smartParseEnabled !== false, // Default to true
     customEditingRules: validatedRules,
     blendConfig: validatedBlendConfig,
+    mode: 'full',
   };
 }
 
@@ -533,9 +593,98 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Sanitize text input to prevent prompt injection
+    const { characterName, style, smartParseEnabled, customEditingRules, blendConfig, mode, partialContext } = validation;
+    
+    // Handle partial regeneration mode
+    if (mode === 'partial' && partialContext) {
+      console.log(`Processing partial regeneration: ${partialContext.selectedText.length} chars selected`);
+      
+      const styleGuide = styleGuides[style];
+      
+      const partialSystemPrompt = `You are a skilled narrative writer who can seamlessly rewrite portions of prose fiction.
+
+Your task is to rewrite the SELECTED TEXT while:
+1. MAINTAINING perfect continuity with the surrounding context
+2. PRESERVING the same narrative perspective and tense
+3. MATCHING the tone and style of the surrounding text
+4. KEEPING the same basic plot events and character actions (unless instructed otherwise)
+
+${styleGuide}
+
+${characterName ? `The main character or POV is: ${characterName}` : ''}
+
+${partialContext.instruction ? `SPECIAL INSTRUCTION: ${partialContext.instruction}` : ''}
+
+Respond ONLY with the rewritten text. No explanations, no meta-commentary. The output should slot seamlessly into the surrounding context.`;
+
+      const partialUserPrompt = `CONTEXT (text that comes BEFORE the section to rewrite):
+---
+${partialContext.precedingText || '[Beginning of text]'}
+---
+
+TEXT TO REWRITE:
+---
+${partialContext.selectedText}
+---
+
+CONTEXT (text that comes AFTER the section to rewrite):
+---
+${partialContext.followingText || '[End of text]'}
+---
+
+Rewrite the middle section while maintaining perfect continuity with the surrounding context.`;
+
+      const response = await fetch(AI_GATEWAY_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-3-flash-preview',
+          messages: [
+            { role: 'system', content: partialSystemPrompt },
+            { role: 'user', content: partialUserPrompt },
+          ],
+          temperature: 0.7,
+          max_tokens: 2000,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('AI Gateway error:', response.status, errorText);
+        return new Response(
+          JSON.stringify({ success: false, error: `AI processing failed: ${response.status}` }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const data = await response.json();
+      const narrative = data.choices?.[0]?.message?.content || '';
+
+      console.log(`Partial regeneration completed: ${narrative.length} chars output`);
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          narrative,
+          mode: 'partial',
+          style,
+          inputLength: partialContext.selectedText.length,
+          outputLength: narrative.length,
+        }),
+        { 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json' 
+          } 
+        }
+      );
+    }
+
+    // Full mode: Sanitize text input to prevent prompt injection
     let sanitizedText = sanitizeInput(validation.text);
-    const { characterName, style, smartParseEnabled, customEditingRules, blendConfig } = validation;
     
     // Smart parse: detect chat log format and extract only assistant content (if enabled)
     if (smartParseEnabled) {

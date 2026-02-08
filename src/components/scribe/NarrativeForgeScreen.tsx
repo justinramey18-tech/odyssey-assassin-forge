@@ -32,6 +32,7 @@ import { StyleBlendControls } from './StyleBlendControls';
 import { StylePreviewSheet } from './StylePreviewSheet';
 import { StoryTags } from './StoryTags';
 import { ComparisonView } from './ComparisonView';
+import { SelectableOutput, PartialRegenerateRequest } from './SelectableOutput';
 import { useCampaignProcessor } from '@/hooks/use-campaign-processor';
 import { useSavedStories, MergeOptions } from '@/hooks/use-saved-stories';
 import { useEditingRules } from '@/hooks/use-editing-rules';
@@ -340,6 +341,59 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
       setIsProcessing(false);
     }
   }, [inputSource, campaignProcessor, inputText, processingMode, options, characterName, smartParseEnabled, editingRulesHook.rules, styleBlendEnabled, blendConfig, toast]);
+
+  // Handle partial regeneration of selected text
+  const handlePartialRegenerate = useCallback(async (request: PartialRegenerateRequest): Promise<string | null> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('narrative-forge', {
+        body: {
+          mode: 'partial',
+          partialContext: {
+            precedingText: request.precedingText,
+            selectedText: request.selectedText,
+            followingText: request.followingText,
+            instruction: request.instruction,
+          },
+          style: request.style || options.narrativeStyle,
+          characterName,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.success && data.narrative) {
+        toast({
+          title: "Section regenerated",
+          description: `Rewrote ${request.selectedText.split(/\s+/).length} words.`,
+        });
+        return data.narrative;
+      }
+      
+      throw new Error(data.error || 'Failed to regenerate');
+    } catch (error) {
+      toast({
+        title: "Regeneration failed",
+        description: error instanceof Error ? error.message : "An error occurred.",
+        variant: "destructive",
+      });
+      return null;
+    }
+  }, [options.narrativeStyle, characterName, toast]);
+
+  // Available styles for partial regeneration
+  const availableStyles = useMemo(() => [
+    { value: 'fantasy', label: 'Fantasy' },
+    { value: 'noir', label: 'Noir' },
+    { value: 'literary', label: 'Literary' },
+    { value: 'action', label: 'Action' },
+    { value: 'salvatore', label: 'R.A. Salvatore' },
+    { value: 'deadpool', label: 'Deadpool' },
+    { value: 'dark_comedy', label: 'Dark Comedy' },
+    { value: 'subtle_absurdity', label: 'Subtle Absurdity' },
+    { value: 'lovecraftian', label: 'Lovecraftian' },
+    { value: 'gonzo', label: 'Gonzo' },
+    { value: 'hemingway', label: 'Hemingway' },
+  ], []);
 
   const handleCopy = useCallback(async () => {
     if (!outputText) return;
@@ -1461,9 +1515,20 @@ The trap clicks harmlessly as she disables it."
             </CardHeader>
             <CardContent className="space-y-4">
               <ScrollArea className="max-h-[400px]">
-                <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap font-serif leading-relaxed">
-                  {outputText}
-                </div>
+                {processingMode === 'ai' ? (
+                  <SelectableOutput
+                    text={outputText}
+                    onTextChange={setOutputText}
+                    onPartialRegenerate={handlePartialRegenerate}
+                    isProcessing={isProcessing}
+                    currentStyle={options.narrativeStyle as string}
+                    availableStyles={availableStyles}
+                  />
+                ) : (
+                  <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap font-serif leading-relaxed">
+                    {outputText}
+                  </div>
+                )}
               </ScrollArea>
               
               {/* Save Options */}
