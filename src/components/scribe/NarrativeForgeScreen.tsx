@@ -33,6 +33,9 @@ import { StylePreviewSheet } from './StylePreviewSheet';
 import { StoryTags } from './StoryTags';
 import { ComparisonView } from './ComparisonView';
 import { SelectableOutput, PartialRegenerateRequest } from './SelectableOutput';
+import { AICommandDialog } from './AICommandDialog';
+import { StoryFileUpload } from './StoryFileUpload';
+import { StoryEditModeSelector, StoryEditMode } from './StoryEditModeSelector';
 import { useCampaignProcessor } from '@/hooks/use-campaign-processor';
 import { useSavedStories, MergeOptions } from '@/hooks/use-saved-stories';
 import { useEditingRules } from '@/hooks/use-editing-rules';
@@ -66,6 +69,13 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
   const [showComparisonView, setShowComparisonView] = useState(false);
   const [lastProcessedInput, setLastProcessedInput] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  
+  // New state for story editing features
+  const [storyEditMode, setStoryEditMode] = useState<StoryEditMode>('view');
+  const [showAICommandDialog, setShowAICommandDialog] = useState(false);
+  const [showStoryFileUpload, setShowStoryFileUpload] = useState(false);
+  const [isApplyingCommand, setIsApplyingCommand] = useState(false);
+  
   const { toast } = useToast();
 
   // Multi-story management
@@ -162,12 +172,14 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
     if (activeStory) {
       setEditedContent(activeStory.content);
       setIsEditingStory(true);
+      setStoryEditMode('text');
     }
   }, [activeStory]);
 
   const handleCancelEditing = useCallback(() => {
     setIsEditingStory(false);
     setEditedContent('');
+    setStoryEditMode('view');
   }, []);
 
   const handleSaveEdits = useCallback(() => {
@@ -182,11 +194,167 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
 
     updateStory(activeStory.id, { content: editedContent });
     setIsEditingStory(false);
+    setStoryEditMode('view');
     toast({
       title: "Story Updated",
       description: "Your changes have been saved.",
     });
   }, [activeStory, editedContent, updateStory, toast]);
+
+  // Handle edit mode changes from selector
+  const handleStoryEditModeChange = useCallback((newMode: StoryEditMode) => {
+    if (!activeStory) return;
+    
+    if (newMode === 'text') {
+      setEditedContent(activeStory.content);
+      setIsEditingStory(true);
+    } else if (newMode === 'ai') {
+      setEditedContent(activeStory.content);
+      setIsEditingStory(true);
+    } else {
+      // View mode - if there were unsaved changes, prompt or just reset
+      if (isEditingStory && editedContent !== activeStory.content) {
+        // Auto-save when switching to view mode
+        if (editedContent.trim()) {
+          updateStory(activeStory.id, { content: editedContent });
+          toast({
+            title: "Changes Saved",
+            description: "Your edits were auto-saved when exiting edit mode.",
+          });
+        }
+      }
+      setIsEditingStory(false);
+      setEditedContent('');
+    }
+    
+    setStoryEditMode(newMode);
+  }, [activeStory, isEditingStory, editedContent, updateStory, toast]);
+
+  // Handle AI partial regeneration for saved stories
+  const handleStoryPartialRegenerate = useCallback(async (request: PartialRegenerateRequest): Promise<string | null> => {
+    if (!activeStory) return null;
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('narrative-forge', {
+        body: {
+          mode: 'partial',
+          partialContext: {
+            precedingText: request.precedingText,
+            selectedText: request.selectedText,
+            followingText: request.followingText,
+            instruction: request.instruction,
+          },
+          style: request.style || activeStory.style,
+          characterName,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.success && data.narrative) {
+        toast({
+          title: "Section regenerated",
+          description: `Rewrote ${request.selectedText.split(/\s+/).length} words.`,
+        });
+        return data.narrative;
+      }
+      
+      throw new Error(data.error || 'Failed to regenerate');
+    } catch (error) {
+      toast({
+        title: "Regeneration failed",
+        description: error instanceof Error ? error.message : "An error occurred.",
+        variant: "destructive",
+      });
+      return null;
+    }
+  }, [activeStory, characterName, toast]);
+
+  // Handle AI command for full-text transformation
+  const handleApplyAICommand = useCallback(async (instruction: string) => {
+    if (!activeStory) return;
+    
+    const contentToProcess = isEditingStory ? editedContent : activeStory.content;
+    
+    setIsApplyingCommand(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('narrative-forge', {
+        body: {
+          mode: 'command',
+          commandContext: {
+            fullText: contentToProcess,
+            instruction,
+          },
+          style: activeStory.style,
+          characterName,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.success && data.narrative) {
+        // Update the story content
+        setEditedContent(data.narrative);
+        updateStory(activeStory.id, { content: data.narrative });
+        
+        toast({
+          title: "Command Applied",
+          description: `Processed ${data.inputLength.toLocaleString()} → ${data.outputLength.toLocaleString()} characters.`,
+        });
+        
+        // Switch to text edit mode to show the results
+        setIsEditingStory(true);
+        setStoryEditMode('text');
+      } else {
+        throw new Error(data.error || 'Failed to apply command');
+      }
+    } catch (error) {
+      toast({
+        title: "Command Failed",
+        description: error instanceof Error ? error.message : "An error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsApplyingCommand(false);
+    }
+  }, [activeStory, isEditingStory, editedContent, characterName, updateStory, toast]);
+
+  // Handle file import to story
+  const handleFileImportToStory = useCallback((content: string, mode: 'append' | 'replace') => {
+    if (!activeStory) return;
+    
+    let newContent: string;
+    
+    if (mode === 'replace') {
+      newContent = content;
+    } else {
+      // Append with separator
+      newContent = activeStory.content + '\n\n---\n\n' + content;
+    }
+    
+    setEditedContent(newContent);
+    updateStory(activeStory.id, { content: newContent });
+    
+    const wordCount = content.split(/\s+/).filter(Boolean).length;
+    toast({
+      title: mode === 'replace' ? "Story Replaced" : "Content Appended",
+      description: `${wordCount.toLocaleString()} words ${mode === 'replace' ? 'replaced' : 'added to'} your story.`,
+    });
+    
+    // Switch to edit mode to show the new content
+    setIsEditingStory(true);
+    setStoryEditMode('text');
+  }, [activeStory, updateStory, toast]);
+
+  // Handle content change from AI edit mode
+  const handleStoryContentChange = useCallback((newContent: string) => {
+    setEditedContent(newContent);
+    // Auto-save when content changes in AI edit mode
+    if (activeStory) {
+      updateStory(activeStory.id, { content: newContent });
+    }
+  }, [activeStory, updateStory]);
 
   const handleCopyStory = useCallback(async () => {
     if (!activeStory?.content) return;
@@ -614,7 +782,15 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
       </header>
 
       {/* Active Story Viewer Sheet */}
-      <Sheet open={storyViewerOpen} onOpenChange={setStoryViewerOpen}>
+      <Sheet open={storyViewerOpen} onOpenChange={(open) => {
+        setStoryViewerOpen(open);
+        if (!open) {
+          // Reset edit mode when closing
+          setStoryEditMode('view');
+          setIsEditingStory(false);
+          setEditedContent('');
+        }
+      }}>
         <SheetContent className="w-full sm:max-w-lg">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2 text-amber-400">
@@ -625,9 +801,20 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
           
           {activeStory ? (
             <div className="mt-4 space-y-4">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Last updated: {new Date(activeStory.lastUpdated).toLocaleDateString()}</span>
-                <span className="capitalize">{activeStory.style} style</span>
+              {/* Story Info & Mode Controls */}
+              <div className="flex items-center justify-between">
+                <div className="text-xs text-muted-foreground">
+                  <span>{new Date(activeStory.lastUpdated).toLocaleDateString()}</span>
+                  <span className="mx-2">•</span>
+                  <span className="capitalize">{activeStory.style}</span>
+                  <span className="mx-2">•</span>
+                  <span>{activeStory.wordCount.toLocaleString()} words</span>
+                </div>
+                <StoryEditModeSelector
+                  mode={storyEditMode}
+                  onModeChange={handleStoryEditModeChange}
+                  disabled={isApplyingCommand}
+                />
               </div>
               
               {/* Story Tags */}
@@ -638,105 +825,140 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
                 onRemoveTag={(tag) => removeTagFromStory(activeStory.id, tag)}
               />
               
-              {isEditingStory ? (
+              {/* Action Buttons for Import & AI Command */}
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowStoryFileUpload(true)}
+                  disabled={isApplyingCommand}
+                  className="gap-1.5 text-amber-400 border-amber-900/50 hover:border-amber-500/50 hover:text-amber-300"
+                >
+                  <Upload className="w-4 h-4" />
+                  Import File
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAICommandDialog(true)}
+                  disabled={isApplyingCommand}
+                  className="gap-1.5 text-purple-400 border-purple-900/50 hover:border-purple-500/50 hover:text-purple-300"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  AI Command
+                </Button>
+              </div>
+              
+              {/* Content Display Based on Mode */}
+              {storyEditMode === 'text' ? (
+                // Text Edit Mode
                 <>
                   <Textarea
                     value={editedContent}
                     onChange={(e) => setEditedContent(e.target.value)}
-                    className="h-[calc(100vh-300px)] resize-none font-serif text-sm leading-relaxed bg-background/50 border-amber-900/30 focus:border-amber-500/50"
+                    className="h-[calc(100vh-380px)] resize-none font-serif text-sm leading-relaxed bg-background/50 border-amber-900/30 focus:border-amber-500/50"
                     placeholder="Edit your story..."
+                    disabled={isApplyingCommand}
                   />
                   <div className="text-xs text-muted-foreground text-right">
                     {editedContent.split(/\s+/).filter(Boolean).length} words
                   </div>
                 </>
+              ) : storyEditMode === 'ai' ? (
+                // AI Edit Mode - SelectableOutput
+                <ScrollArea className="h-[calc(100vh-380px)] pr-4">
+                  <SelectableOutput
+                    text={editedContent || activeStory.content}
+                    onTextChange={handleStoryContentChange}
+                    onPartialRegenerate={handleStoryPartialRegenerate}
+                    isProcessing={isApplyingCommand}
+                    currentStyle={activeStory.style}
+                    availableStyles={availableStyles}
+                  />
+                </ScrollArea>
               ) : (
-                <ScrollArea className="h-[calc(100vh-250px)] pr-4">
+                // View Mode
+                <ScrollArea className="h-[calc(100vh-380px)] pr-4">
                   <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap font-serif leading-relaxed">
                     {activeStory.content}
                   </div>
                 </ScrollArea>
               )}
               
-              <div className="flex gap-2 pt-4 border-t border-border/50">
-                {isEditingStory ? (
-                  <>
-                    <Button
-                      onClick={handleSaveEdits}
-                      size="sm"
-                      className="flex-1 gap-2 bg-amber-600 hover:bg-amber-700"
-                    >
-                      <Save className="w-4 h-4" />
-                      Save Changes
-                    </Button>
-                    <Button
-                      onClick={handleCancelEditing}
-                      variant="outline"
-                      size="sm"
-                      className="gap-2"
-                    >
-                      <X className="w-4 h-4" />
-                      Cancel
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      onClick={handleStartEditing}
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 gap-2 text-amber-400 hover:text-amber-300 border-amber-900/50 hover:border-amber-500/50"
-                    >
-                      <Pencil className="w-4 h-4" />
-                      Edit
-                    </Button>
-                    <Button
-                      onClick={handleCopyStory}
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 gap-2"
-                    >
-                      <Copy className="w-4 h-4" />
-                      Copy All
-                    </Button>
-                    
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-2 text-destructive hover:text-destructive"
+              {/* Save/Cancel Buttons for Edit Modes */}
+              {storyEditMode !== 'view' && (
+                <div className="flex gap-2 pt-4 border-t border-border/50">
+                  <Button
+                    onClick={handleSaveEdits}
+                    size="sm"
+                    disabled={isApplyingCommand}
+                    className="flex-1 gap-2 bg-amber-600 hover:bg-amber-700"
+                  >
+                    <Save className="w-4 h-4" />
+                    Save Changes
+                  </Button>
+                  <Button
+                    onClick={handleCancelEditing}
+                    variant="outline"
+                    size="sm"
+                    disabled={isApplyingCommand}
+                    className="gap-2"
+                  >
+                    <X className="w-4 h-4" />
+                    Cancel
+                  </Button>
+                </div>
+              )}
+              
+              {/* View Mode Actions */}
+              {storyEditMode === 'view' && (
+                <div className="flex gap-2 pt-4 border-t border-border/50">
+                  <Button
+                    onClick={handleCopyStory}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 gap-2"
+                  >
+                    <Copy className="w-4 h-4" />
+                    Copy All
+                  </Button>
+                  
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2 text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete "{activeStory.title}"?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will permanently delete this story ({activeStory.wordCount.toLocaleString()} words). This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => {
+                            handleDeleteActiveStory();
+                            setStoryViewerOpen(false);
+                          }}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete "{activeStory.title}"?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will permanently delete this story ({activeStory.wordCount.toLocaleString()} words). This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => {
-                              handleDeleteActiveStory();
-                              setStoryViewerOpen(false);
-                            }}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </>
-                )}
-              </div>
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              )}
 
               {/* Export Options */}
-              {!isEditingStory && (
+              {storyEditMode === 'view' && (
                 <div className="flex gap-2 pt-2">
                   <Button
                     onClick={() => handleExportSavedStory('txt')}
@@ -768,6 +990,23 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
           )}
         </SheetContent>
       </Sheet>
+
+      {/* AI Command Dialog */}
+      <AICommandDialog
+        open={showAICommandDialog}
+        onOpenChange={setShowAICommandDialog}
+        onApplyCommand={handleApplyAICommand}
+        isProcessing={isApplyingCommand}
+        storyWordCount={activeStory?.wordCount || 0}
+      />
+
+      {/* Story File Upload Dialog */}
+      <StoryFileUpload
+        open={showStoryFileUpload}
+        onOpenChange={setShowStoryFileUpload}
+        onImport={handleFileImportToStory}
+        currentWordCount={activeStory?.wordCount || 0}
+      />
 
       <div className="relative z-10 max-w-4xl mx-auto px-4 py-6 space-y-6">
         {/* Active Story Indicator */}
