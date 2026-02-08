@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Wand2, Loader2, Sparkles, ChevronDown, Save, Trash2, FolderOpen, MoreHorizontal } from 'lucide-react';
+import { Wand2, Loader2, Sparkles, ChevronDown, Save, Trash2, FolderOpen, MoreHorizontal, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -63,12 +63,17 @@ export function AICommandDialog({
   const [showTemplatesPanel, setShowTemplatesPanel] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [templateToDelete, setTemplateToDelete] = useState<AICommandTemplate | null>(null);
+  const [templateToEdit, setTemplateToEdit] = useState<AICommandTemplate | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editInstruction, setEditInstruction] = useState('');
   
   const { toast } = useToast();
   const {
     templates,
     createTemplate,
     deleteTemplate,
+    renameTemplate,
+    updateInstruction,
     useTemplate,
     canAddTemplate,
   } = useAICommandTemplates();
@@ -162,6 +167,56 @@ export function AICommandDialog({
       setTemplateToDelete(null);
     }
   }, [templateToDelete, deleteTemplate, toast]);
+
+  const handleOpenEditDialog = useCallback((template: AICommandTemplate) => {
+    setTemplateToEdit(template);
+    setEditName(template.name);
+    setEditInstruction(template.instruction);
+  }, []);
+
+  const handleSaveEditedTemplate = useCallback(() => {
+    if (!templateToEdit) return;
+    
+    const trimmedName = editName.trim();
+    const trimmedInstruction = editInstruction.trim();
+    
+    if (!trimmedName) {
+      toast({
+        title: "Name required",
+        description: "Please enter a name for this template.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!trimmedInstruction || trimmedInstruction.length < 3) {
+      toast({
+        title: "Instruction required",
+        description: "Please enter an instruction (at least 3 characters).",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Update name if changed
+    if (trimmedName !== templateToEdit.name) {
+      renameTemplate(templateToEdit.id, trimmedName);
+    }
+    
+    // Update instruction if changed
+    if (trimmedInstruction !== templateToEdit.instruction) {
+      updateInstruction(templateToEdit.id, trimmedInstruction);
+    }
+    
+    toast({
+      title: "Template Updated",
+      description: `"${trimmedName}" has been saved.`,
+    });
+    
+    setTemplateToEdit(null);
+    setEditName('');
+    setEditInstruction('');
+  }, [templateToEdit, editName, editInstruction, renameTemplate, updateInstruction, toast]);
 
   return (
     <>
@@ -285,6 +340,13 @@ export function AICommandDialog({
                                   handleLoadTemplate(template);
                                 }}>
                                   Use Template
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenEditDialog(template);
+                                }}>
+                                  <Pencil className="w-3.5 h-3.5 mr-2" />
+                                  Edit Template
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
@@ -443,6 +505,59 @@ export function AICommandDialog({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Template Dialog */}
+      <Dialog open={!!templateToEdit} onOpenChange={(open) => !open && setTemplateToEdit(null)}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="w-5 h-5 text-purple-400" />
+              Edit Template
+            </DialogTitle>
+            <DialogDescription>
+              Update the name or instruction for this template.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Template Name</Label>
+              <Input
+                placeholder="e.g., Standard Name Fixes, Tone Adjustment..."
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Instruction</Label>
+              <Textarea
+                placeholder="Enter the AI command instruction..."
+                value={editInstruction}
+                onChange={(e) => setEditInstruction(e.target.value)}
+                className="min-h-[120px] resize-none"
+              />
+              <span className="text-xs text-muted-foreground">
+                {editInstruction.length}/1000 characters
+              </span>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTemplateToEdit(null)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSaveEditedTemplate}
+              disabled={!editName.trim() || editInstruction.trim().length < 3}
+              className="gap-2 bg-purple-600 hover:bg-purple-700"
+            >
+              <Save className="w-4 h-4" />
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
