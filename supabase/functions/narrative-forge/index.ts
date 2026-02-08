@@ -44,7 +44,7 @@ async function authenticateRequest(req: Request): Promise<{ userId: string } | {
 }
 
 // Input validation constants
-const MAX_TEXT_LENGTH = 15000;
+const MAX_TEXT_LENGTH = 50000;
 const MIN_TEXT_LENGTH = 10;
 const MAX_CHARACTER_NAME_LENGTH = 100;
 const VALID_STYLES = [
