@@ -10,7 +10,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
@@ -36,6 +38,7 @@ import { SelectableOutput, PartialRegenerateRequest } from './SelectableOutput';
 import { AICommandDialog } from './AICommandDialog';
 import { StoryFileUpload } from './StoryFileUpload';
 import { StoryEditModeSelector, StoryEditMode } from './StoryEditModeSelector';
+import { StoryViewerContent } from './StoryViewerContent';
 import { useCampaignProcessor } from '@/hooks/use-campaign-processor';
 import { useSavedStories, MergeOptions } from '@/hooks/use-saved-stories';
 import { useEditingRules } from '@/hooks/use-editing-rules';
@@ -51,6 +54,7 @@ interface NarrativeForgeScreenProps {
 }
 
 export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeScreenProps) {
+  const isMobile = useIsMobile();
   const [inputText, setInputText] = useState('');
   const [outputText, setOutputText] = useState('');
   const [processingMode, setProcessingMode] = useState<'ai' | 'offline'>('offline');
@@ -781,215 +785,92 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-20 h-[2px] bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
       </header>
 
-      {/* Active Story Viewer Sheet */}
-      <Sheet open={storyViewerOpen} onOpenChange={(open) => {
-        setStoryViewerOpen(open);
-        if (!open) {
-          // Reset edit mode when closing
-          setStoryEditMode('view');
-          setIsEditingStory(false);
-          setEditedContent('');
-        }
-      }}>
-        <SheetContent className="w-full sm:max-w-lg">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2 text-amber-400">
-              <BookOpen className="w-5 h-5" />
-              {activeStory?.title || 'Saved Story'}
-            </SheetTitle>
-          </SheetHeader>
-          
-          {activeStory ? (
-            <div className="mt-4 space-y-4">
-              {/* Story Info & Mode Controls */}
-              <div className="flex items-center justify-between">
-                <div className="text-xs text-muted-foreground">
-                  <span>{new Date(activeStory.lastUpdated).toLocaleDateString()}</span>
-                  <span className="mx-2">•</span>
-                  <span className="capitalize">{activeStory.style}</span>
-                  <span className="mx-2">•</span>
-                  <span>{activeStory.wordCount.toLocaleString()} words</span>
-                </div>
-                <StoryEditModeSelector
-                  mode={storyEditMode}
-                  onModeChange={handleStoryEditModeChange}
-                  disabled={isApplyingCommand}
-                />
-              </div>
-              
-              {/* Story Tags */}
-              <StoryTags
-                tags={activeStory.tags || []}
+      {/* Active Story Viewer - Responsive Sheet/Drawer */}
+      {isMobile ? (
+        <Drawer open={storyViewerOpen} onOpenChange={(open) => {
+          setStoryViewerOpen(open);
+          if (!open) {
+            setStoryEditMode('view');
+            setIsEditingStory(false);
+            setEditedContent('');
+          }
+        }}>
+          <DrawerContent className="max-h-[90vh]">
+            <DrawerHeader>
+              <DrawerTitle className="flex items-center gap-2 text-amber-400">
+                <BookOpen className="w-5 h-5" />
+                {activeStory?.title || 'Saved Story'}
+              </DrawerTitle>
+            </DrawerHeader>
+            <div className="px-4 pb-6 overflow-y-auto">
+              <StoryViewerContent
+                activeStory={activeStory}
+                storyEditMode={storyEditMode}
+                onModeChange={handleStoryEditModeChange}
+                isApplyingCommand={isApplyingCommand}
+                editedContent={editedContent}
+                onEditedContentChange={setEditedContent}
+                onSaveEdits={handleSaveEdits}
+                onCancelEditing={handleCancelEditing}
+                onCopyStory={handleCopyStory}
+                onDeleteStory={handleDeleteActiveStory}
+                onCloseViewer={() => setStoryViewerOpen(false)}
+                onShowFileUpload={() => setShowStoryFileUpload(true)}
+                onShowAICommand={() => setShowAICommandDialog(true)}
+                onPartialRegenerate={handleStoryPartialRegenerate}
+                onContentChange={handleStoryContentChange}
+                onExportStory={handleExportSavedStory}
+                onAddTag={addTagToStory}
+                onRemoveTag={removeTagFromStory}
                 allTags={getAllTags()}
-                onAddTag={(tag) => addTagToStory(activeStory.id, tag)}
-                onRemoveTag={(tag) => removeTagFromStory(activeStory.id, tag)}
+                availableStyles={availableStyles}
+                isMobile={true}
               />
-              
-              {/* Action Buttons for Import & AI Command */}
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowStoryFileUpload(true)}
-                  disabled={isApplyingCommand}
-                  className="gap-1.5 text-amber-400 border-amber-900/50 hover:border-amber-500/50 hover:text-amber-300"
-                >
-                  <Upload className="w-4 h-4" />
-                  Import File
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowAICommandDialog(true)}
-                  disabled={isApplyingCommand}
-                  className="gap-1.5 text-purple-400 border-purple-900/50 hover:border-purple-500/50 hover:text-purple-300"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  AI Command
-                </Button>
-              </div>
-              
-              {/* Content Display Based on Mode */}
-              {storyEditMode === 'text' ? (
-                // Text Edit Mode
-                <>
-                  <Textarea
-                    value={editedContent}
-                    onChange={(e) => setEditedContent(e.target.value)}
-                    className="h-[calc(100vh-380px)] resize-none font-serif text-sm leading-relaxed bg-background/50 border-amber-900/30 focus:border-amber-500/50"
-                    placeholder="Edit your story..."
-                    disabled={isApplyingCommand}
-                  />
-                  <div className="text-xs text-muted-foreground text-right">
-                    {editedContent.split(/\s+/).filter(Boolean).length} words
-                  </div>
-                </>
-              ) : storyEditMode === 'ai' ? (
-                // AI Edit Mode - SelectableOutput
-                <ScrollArea className="h-[calc(100vh-380px)] pr-4">
-                  <SelectableOutput
-                    text={editedContent || activeStory.content}
-                    onTextChange={handleStoryContentChange}
-                    onPartialRegenerate={handleStoryPartialRegenerate}
-                    isProcessing={isApplyingCommand}
-                    currentStyle={activeStory.style}
-                    availableStyles={availableStyles}
-                  />
-                </ScrollArea>
-              ) : (
-                // View Mode
-                <ScrollArea className="h-[calc(100vh-380px)] pr-4">
-                  <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap font-serif leading-relaxed">
-                    {activeStory.content}
-                  </div>
-                </ScrollArea>
-              )}
-              
-              {/* Save/Cancel Buttons for Edit Modes */}
-              {storyEditMode !== 'view' && (
-                <div className="flex gap-2 pt-4 border-t border-border/50">
-                  <Button
-                    onClick={handleSaveEdits}
-                    size="sm"
-                    disabled={isApplyingCommand}
-                    className="flex-1 gap-2 bg-amber-600 hover:bg-amber-700"
-                  >
-                    <Save className="w-4 h-4" />
-                    Save Changes
-                  </Button>
-                  <Button
-                    onClick={handleCancelEditing}
-                    variant="outline"
-                    size="sm"
-                    disabled={isApplyingCommand}
-                    className="gap-2"
-                  >
-                    <X className="w-4 h-4" />
-                    Cancel
-                  </Button>
-                </div>
-              )}
-              
-              {/* View Mode Actions */}
-              {storyEditMode === 'view' && (
-                <div className="flex gap-2 pt-4 border-t border-border/50">
-                  <Button
-                    onClick={handleCopyStory}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 gap-2"
-                  >
-                    <Copy className="w-4 h-4" />
-                    Copy All
-                  </Button>
-                  
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-2 text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete "{activeStory.title}"?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This will permanently delete this story ({activeStory.wordCount.toLocaleString()} words). This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => {
-                            handleDeleteActiveStory();
-                            setStoryViewerOpen(false);
-                          }}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              )}
-
-              {/* Export Options */}
-              {storyEditMode === 'view' && (
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    onClick={() => handleExportSavedStory('txt')}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 gap-2 text-muted-foreground hover:text-foreground"
-                  >
-                    <Download className="w-4 h-4" />
-                    Export .txt
-                  </Button>
-                  <Button
-                    onClick={() => handleExportSavedStory('md')}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 gap-2 text-muted-foreground hover:text-foreground"
-                  >
-                    <Download className="w-4 h-4" />
-                    Export .md
-                  </Button>
-                </div>
-              )}
             </div>
-          ) : (
-            <div className="mt-8 text-center text-muted-foreground">
-              <FileText className="w-12 h-12 mx-auto mb-4 opacity-30" />
-              <p className="text-sm">No story selected.</p>
-              <p className="text-xs mt-1">Generate a narrative and save it to start building your chronicle.</p>
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
+          </DrawerContent>
+        </Drawer>
+      ) : (
+        <Sheet open={storyViewerOpen} onOpenChange={(open) => {
+          setStoryViewerOpen(open);
+          if (!open) {
+            setStoryEditMode('view');
+            setIsEditingStory(false);
+            setEditedContent('');
+          }
+        }}>
+          <SheetContent className="w-full sm:max-w-lg">
+            <SheetHeader>
+              <SheetTitle className="flex items-center gap-2 text-amber-400">
+                <BookOpen className="w-5 h-5" />
+                {activeStory?.title || 'Saved Story'}
+              </SheetTitle>
+            </SheetHeader>
+            <StoryViewerContent
+              activeStory={activeStory}
+              storyEditMode={storyEditMode}
+              onModeChange={handleStoryEditModeChange}
+              isApplyingCommand={isApplyingCommand}
+              editedContent={editedContent}
+              onEditedContentChange={setEditedContent}
+              onSaveEdits={handleSaveEdits}
+              onCancelEditing={handleCancelEditing}
+              onCopyStory={handleCopyStory}
+              onDeleteStory={handleDeleteActiveStory}
+              onCloseViewer={() => setStoryViewerOpen(false)}
+              onShowFileUpload={() => setShowStoryFileUpload(true)}
+              onShowAICommand={() => setShowAICommandDialog(true)}
+              onPartialRegenerate={handleStoryPartialRegenerate}
+              onContentChange={handleStoryContentChange}
+              onExportStory={handleExportSavedStory}
+              onAddTag={addTagToStory}
+              onRemoveTag={removeTagFromStory}
+              allTags={getAllTags()}
+              availableStyles={availableStyles}
+              isMobile={false}
+            />
+          </SheetContent>
+        </Sheet>
+      )}
 
       {/* AI Command Dialog */}
       <AICommandDialog
