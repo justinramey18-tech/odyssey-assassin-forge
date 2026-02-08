@@ -23,6 +23,7 @@ export interface BlendPreset {
 
 // Curated blend presets for common combinations
 export const BLEND_PRESETS: BlendPreset[] = [
+  // Fantasy-based blends
   {
     id: 'epic-noir',
     name: 'Epic Noir',
@@ -32,44 +33,12 @@ export const BLEND_PRESETS: BlendPreset[] = [
     ratio: 30,
   },
   {
-    id: 'literary-action',
-    name: 'Literary Action',
-    description: 'Refined prose meets pulse-pounding combat',
-    primaryStyle: 'literary',
-    secondaryStyle: 'action',
-    ratio: 35,
-  },
-  {
-    id: 'cosmic-salvatore',
-    name: 'Cosmic Warrior',
-    description: 'Drizzt-style combat with Lovecraftian dread',
-    primaryStyle: 'salvatore',
-    secondaryStyle: 'lovecraftian',
+    id: 'fantasy-literary',
+    name: 'High Fantasy',
+    description: 'Epic adventures told with elegant, refined prose',
+    primaryStyle: 'fantasy',
+    secondaryStyle: 'literary',
     ratio: 25,
-  },
-  {
-    id: 'gonzo-deadpool',
-    name: 'Chaotic Chronicle',
-    description: 'Frantic energy with fourth-wall breaks',
-    primaryStyle: 'gonzo',
-    secondaryStyle: 'deadpool',
-    ratio: 40,
-  },
-  {
-    id: 'dark-absurd',
-    name: 'Gallows Surreal',
-    description: 'Sardonic wit meets deadpan weirdness',
-    primaryStyle: 'dark_comedy',
-    secondaryStyle: 'subtle_absurdity',
-    ratio: 35,
-  },
-  {
-    id: 'hemingway-noir',
-    name: 'Hard-Boiled Minimal',
-    description: 'Brutal efficiency with noir atmosphere',
-    primaryStyle: 'hemingway',
-    secondaryStyle: 'noir',
-    ratio: 30,
   },
   {
     id: 'fantasy-trio',
@@ -81,6 +50,174 @@ export const BLEND_PRESETS: BlendPreset[] = [
     tertiaryStyle: 'action',
     tertiaryRatio: 15,
   },
+
+  // Noir-based blends
+  {
+    id: 'noir-lovecraft',
+    name: 'Cosmic Noir',
+    description: 'Hard-boiled investigation into unknowable horrors',
+    primaryStyle: 'noir',
+    secondaryStyle: 'lovecraftian',
+    ratio: 30,
+  },
+  {
+    id: 'noir-hemingway',
+    name: 'Hard-Boiled Minimal',
+    description: 'Sparse, brutal noir with no wasted words',
+    primaryStyle: 'noir',
+    secondaryStyle: 'hemingway',
+    ratio: 35,
+  },
+  {
+    id: 'noir-fantasy',
+    name: 'Magical Detective',
+    description: 'Gritty investigations in a world of magic',
+    primaryStyle: 'noir',
+    secondaryStyle: 'fantasy',
+    ratio: 25,
+  },
+
+  // Literary-based blends
+  {
+    id: 'literary-action',
+    name: 'Literary Action',
+    description: 'Refined prose meets pulse-pounding combat',
+    primaryStyle: 'literary',
+    secondaryStyle: 'action',
+    ratio: 35,
+  },
+  {
+    id: 'literary-dark',
+    name: 'Gothic Literary',
+    description: 'Elegant prose with sardonic dark undertones',
+    primaryStyle: 'literary',
+    secondaryStyle: 'dark_comedy',
+    ratio: 20,
+  },
+
+  // Action-based blends
+  {
+    id: 'action-salvatore',
+    name: 'Combat Master',
+    description: 'Fast-paced action with named technique flourishes',
+    primaryStyle: 'action',
+    secondaryStyle: 'salvatore',
+    ratio: 30,
+  },
+  {
+    id: 'action-gonzo',
+    name: 'Adrenaline Rush',
+    description: 'Explosive combat with frantic energy',
+    primaryStyle: 'action',
+    secondaryStyle: 'gonzo',
+    ratio: 25,
+  },
+  {
+    id: 'action-noir',
+    name: 'Gritty Action',
+    description: 'Punchy combat in morally grey settings',
+    primaryStyle: 'action',
+    secondaryStyle: 'noir',
+    ratio: 30,
+  },
+
+  // Salvatore-based blends
+  {
+    id: 'cosmic-salvatore',
+    name: 'Cosmic Warrior',
+    description: 'Drizzt-style combat against cosmic horrors',
+    primaryStyle: 'salvatore',
+    secondaryStyle: 'lovecraftian',
+    ratio: 25,
+  },
+  {
+    id: 'salvatore-fantasy',
+    name: 'Blade Poet',
+    description: 'Warrior poetry in epic fantasy tradition',
+    primaryStyle: 'salvatore',
+    secondaryStyle: 'fantasy',
+    ratio: 30,
+  },
+
+  // Deadpool-based blends
+  {
+    id: 'deadpool-gonzo',
+    name: 'Chaotic Chronicle',
+    description: 'Fourth-wall breaks meet frantic journalism',
+    primaryStyle: 'deadpool',
+    secondaryStyle: 'gonzo',
+    ratio: 35,
+  },
+  {
+    id: 'deadpool-action',
+    name: 'Meta Mayhem',
+    description: 'Self-aware chaos with explosive combat',
+    primaryStyle: 'deadpool',
+    secondaryStyle: 'action',
+    ratio: 30,
+  },
+  {
+    id: 'deadpool-dark',
+    name: 'Irreverent Darkness',
+    description: 'Breaking the fourth wall with gallows humor',
+    primaryStyle: 'deadpool',
+    secondaryStyle: 'dark_comedy',
+    ratio: 25,
+  },
+
+  // Dark Comedy-based blends
+  {
+    id: 'dark-absurd',
+    name: 'Gallows Surreal',
+    description: 'Sardonic wit meets deadpan weirdness',
+    primaryStyle: 'dark_comedy',
+    secondaryStyle: 'subtle_absurdity',
+    ratio: 35,
+  },
+  {
+    id: 'dark-noir',
+    name: 'Cynical Shadows',
+    description: 'Noir atmosphere with bitter humor',
+    primaryStyle: 'dark_comedy',
+    secondaryStyle: 'noir',
+    ratio: 30,
+  },
+
+  // Subtle Absurdity-based blends
+  {
+    id: 'absurd-literary',
+    name: 'Kafkaesque',
+    description: 'Elegant prose describing impossible things',
+    primaryStyle: 'subtle_absurdity',
+    secondaryStyle: 'literary',
+    ratio: 25,
+  },
+  {
+    id: 'absurd-fantasy',
+    name: 'Surreal Quest',
+    description: 'Epic adventures that bend reality',
+    primaryStyle: 'subtle_absurdity',
+    secondaryStyle: 'fantasy',
+    ratio: 30,
+  },
+
+  // Lovecraftian-based blends
+  {
+    id: 'lovecraft-noir',
+    name: 'Eldritch Investigation',
+    description: 'Hard-boiled detectives against cosmic dread',
+    primaryStyle: 'lovecraftian',
+    secondaryStyle: 'noir',
+    ratio: 30,
+  },
+  {
+    id: 'lovecraft-literary',
+    name: 'Cosmic Poetry',
+    description: 'Elegant descriptions of sanity-shattering horrors',
+    primaryStyle: 'lovecraftian',
+    secondaryStyle: 'literary',
+    ratio: 25,
+  },
   {
     id: 'horror-trio',
     name: 'Cosmic Horror Comedy',
@@ -90,6 +227,50 @@ export const BLEND_PRESETS: BlendPreset[] = [
     ratio: 20,
     tertiaryStyle: 'subtle_absurdity',
     tertiaryRatio: 10,
+  },
+
+  // Gonzo-based blends
+  {
+    id: 'gonzo-action',
+    name: 'Savage Reporting',
+    description: 'Frantic journalism covering explosive events',
+    primaryStyle: 'gonzo',
+    secondaryStyle: 'action',
+    ratio: 30,
+  },
+  {
+    id: 'gonzo-absurd',
+    name: 'Fear & Weirdness',
+    description: 'Hunter S. Thompson meets Kafka',
+    primaryStyle: 'gonzo',
+    secondaryStyle: 'subtle_absurdity',
+    ratio: 35,
+  },
+
+  // Hemingway-based blends
+  {
+    id: 'hemingway-action',
+    name: 'Brutal Efficiency',
+    description: 'Short sentences, maximum impact combat',
+    primaryStyle: 'hemingway',
+    secondaryStyle: 'action',
+    ratio: 35,
+  },
+  {
+    id: 'hemingway-noir',
+    name: 'Terse Shadows',
+    description: 'Minimalist prose in shadowy settings',
+    primaryStyle: 'hemingway',
+    secondaryStyle: 'noir',
+    ratio: 30,
+  },
+  {
+    id: 'hemingway-salvatore',
+    name: 'Warrior Haiku',
+    description: 'Named techniques in spare, powerful prose',
+    primaryStyle: 'hemingway',
+    secondaryStyle: 'salvatore',
+    ratio: 25,
   },
 ];
 
