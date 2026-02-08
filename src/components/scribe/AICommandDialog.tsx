@@ -1,10 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Wand2, Loader2, Sparkles, ChevronDown, Save, Trash2, FolderOpen, MoreHorizontal, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Progress } from '@/components/ui/progress';
 import {
   Dialog,
   DialogContent,
@@ -66,6 +67,36 @@ export function AICommandDialog({
   const [templateToEdit, setTemplateToEdit] = useState<AICommandTemplate | null>(null);
   const [editName, setEditName] = useState('');
   const [editInstruction, setEditInstruction] = useState('');
+  const [progress, setProgress] = useState(0);
+  
+  // Simulated progress for visual feedback during processing
+  useEffect(() => {
+    if (!isProcessing) {
+      setProgress(0);
+      return;
+    }
+    
+    // Start progress animation
+    setProgress(5);
+    
+    const intervals = [
+      { delay: 500, value: 15 },
+      { delay: 1500, value: 30 },
+      { delay: 3000, value: 45 },
+      { delay: 6000, value: 60 },
+      { delay: 10000, value: 75 },
+      { delay: 15000, value: 85 },
+      { delay: 25000, value: 92 },
+    ];
+    
+    const timeouts = intervals.map(({ delay, value }) => 
+      setTimeout(() => setProgress(value), delay)
+    );
+    
+    return () => {
+      timeouts.forEach(clearTimeout);
+    };
+  }, [isProcessing]);
   
   const { toast } = useToast();
   const {
@@ -231,6 +262,33 @@ export function AICommandDialog({
               Apply an AI transformation to the entire story. The AI will process all {storyWordCount.toLocaleString()} words according to your instruction.
             </DialogDescription>
           </DialogHeader>
+          
+          {/* Processing Overlay */}
+          {isProcessing && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm rounded-lg animate-fade-in">
+              <div className="flex flex-col items-center gap-4 p-8">
+                <div className="relative">
+                  <Sparkles className="w-12 h-12 text-purple-400 animate-pulse" />
+                  <div className="absolute inset-0 w-12 h-12 rounded-full bg-purple-500/20 animate-ping" />
+                </div>
+                <div className="text-center space-y-2">
+                  <h3 className="font-semibold text-lg">Processing Story...</h3>
+                  <p className="text-sm text-muted-foreground max-w-[280px]">
+                    AI is transforming {storyWordCount.toLocaleString()} words. This may take 15-30 seconds for longer stories.
+                  </p>
+                </div>
+                <div className="w-full max-w-[280px] space-y-2">
+                  <Progress value={progress} className="h-2" />
+                  <p className="text-xs text-muted-foreground text-center">
+                    {progress < 30 ? 'Reading story...' : 
+                     progress < 60 ? 'Applying transformation...' : 
+                     progress < 85 ? 'Generating output...' : 
+                     'Finalizing...'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
           
           <div className="space-y-4 py-4">
             {/* Templates & Examples Row */}
