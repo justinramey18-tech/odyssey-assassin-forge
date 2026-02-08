@@ -59,6 +59,7 @@ interface RequestBody {
   text: string;
   characterName?: string;
   style?: string;
+  smartParseEnabled?: boolean;
 }
 
 type ValidationResult = {
@@ -66,6 +67,7 @@ type ValidationResult = {
   text: string;
   characterName: string | null;
   style: ValidStyle;
+  smartParseEnabled: boolean;
 } | {
   valid: false;
   error: string;
@@ -172,7 +174,7 @@ function validateRequestBody(body: unknown): ValidationResult {
     return { valid: false, error: 'Invalid request body' };
   }
   
-  const { text, characterName, style } = body as RequestBody;
+  const { text, characterName, style, smartParseEnabled } = body as RequestBody;
   
   // Validate text
   if (text === undefined || text === null) {
@@ -233,6 +235,7 @@ function validateRequestBody(body: unknown): ValidationResult {
     text,
     characterName: validatedCharacterName,
     style: validatedStyle,
+    smartParseEnabled: smartParseEnabled !== false, // Default to true
   };
 }
 
@@ -462,14 +465,18 @@ Deno.serve(async (req) => {
 
     // Sanitize text input to prevent prompt injection
     let sanitizedText = sanitizeInput(validation.text);
-    const { characterName, style } = validation;
+    const { characterName, style, smartParseEnabled } = validation;
     
-    // Smart parse: detect chat log format and extract only assistant content
-    const isChatFormat = isChatLogFormat(sanitizedText);
-    if (isChatFormat) {
-      console.log('Detected chat log format - extracting assistant content only');
-      sanitizedText = extractAssistantContent(sanitizedText);
-      console.log(`After smart parse: ${sanitizedText.length} chars (filtered from ${validation.text.length})`);
+    // Smart parse: detect chat log format and extract only assistant content (if enabled)
+    if (smartParseEnabled) {
+      const isChatFormat = isChatLogFormat(sanitizedText);
+      if (isChatFormat) {
+        console.log('Smart parse enabled - extracting assistant content only');
+        sanitizedText = extractAssistantContent(sanitizedText);
+        console.log(`After smart parse: ${sanitizedText.length} chars (filtered from ${validation.text.length})`);
+      }
+    } else {
+      console.log('Smart parse disabled - including all content');
     }
     
     const styleGuide = styleGuides[style];

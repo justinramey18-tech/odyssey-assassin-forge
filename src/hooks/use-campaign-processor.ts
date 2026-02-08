@@ -73,16 +73,17 @@ export interface UseCampaignProcessorReturn extends CampaignProcessorState {
   processSelectedSessions: (
     mode: 'ai' | 'offline',
     options: ProcessingOptions,
-    characterName: string
+    characterName: string,
+    smartParseEnabled?: boolean
   ) => Promise<string | null>;
   cancelProcessing: () => void;
   combineProcessedSessions: () => string;
   reset: () => void;
   getFileStats: () => { wordCount: number; charCount: number; sessionCount: number } | null;
-  resumeProcessing: (mode: 'ai' | 'offline', options: ProcessingOptions, characterName: string) => Promise<string | null>;
+  resumeProcessing: (mode: 'ai' | 'offline', options: ProcessingOptions, characterName: string, smartParseEnabled?: boolean) => Promise<string | null>;
   clearSavedProgress: () => void;
   loadSavedProgress: () => boolean;
-  retryFailedSessions: (mode: 'ai' | 'offline', options: ProcessingOptions, characterName: string) => Promise<string | null>;
+  retryFailedSessions: (mode: 'ai' | 'offline', options: ProcessingOptions, characterName: string, smartParseEnabled?: boolean) => Promise<string | null>;
   getFailedSessionCount: () => number;
 }
 
@@ -255,7 +256,8 @@ export function useCampaignProcessor(): UseCampaignProcessorReturn {
     content: string,
     mode: 'ai' | 'offline',
     options: ProcessingOptions,
-    characterName: string
+    characterName: string,
+    smartParseEnabled: boolean = true
   ): Promise<{ output: string; error?: string }> => {
     const sessionContent = getSessionContent(content, session);
 
@@ -271,6 +273,7 @@ export function useCampaignProcessor(): UseCampaignProcessorReturn {
           text: sessionContent,
           characterName,
           style: options.narrativeStyle,
+          smartParseEnabled,
         },
       });
 
@@ -288,6 +291,7 @@ export function useCampaignProcessor(): UseCampaignProcessorReturn {
     mode: 'ai' | 'offline',
     options: ProcessingOptions,
     characterName: string,
+    smartParseEnabled: boolean = true,
     startFromIndex: number = 0,
     existingProcessed?: Map<string, ProcessedSession>
   ): Promise<string | null> => {
@@ -338,7 +342,8 @@ export function useCampaignProcessor(): UseCampaignProcessorReturn {
         fileContent,
         mode,
         options,
-        characterName
+        characterName,
+        smartParseEnabled
       );
 
       const processedSession: ProcessedSession = {
@@ -483,7 +488,8 @@ export function useCampaignProcessor(): UseCampaignProcessorReturn {
   const resumeProcessing = useCallback(async (
     mode: 'ai' | 'offline',
     options: ProcessingOptions,
-    characterName: string
+    characterName: string,
+    smartParseEnabled: boolean = true
   ): Promise<string | null> => {
     const saved = loadProgressFromStorage();
     if (!saved) return null;
@@ -555,7 +561,8 @@ export function useCampaignProcessor(): UseCampaignProcessorReturn {
         saved.fileContent,
         mode,
         options,
-        characterName
+        characterName,
+        smartParseEnabled
       );
 
       const processedSession: ProcessedSession = {
@@ -644,7 +651,8 @@ export function useCampaignProcessor(): UseCampaignProcessorReturn {
   const retryFailedSessions = useCallback(async (
     mode: 'ai' | 'offline',
     options: ProcessingOptions,
-    characterName: string
+    characterName: string,
+    smartParseEnabled: boolean = true
   ): Promise<string | null> => {
     const { sessions, selectedSessionIds, fileContent, processedSessions } = state;
     
@@ -686,7 +694,8 @@ export function useCampaignProcessor(): UseCampaignProcessorReturn {
         fileContent,
         mode,
         options,
-        characterName
+        characterName,
+        smartParseEnabled
       );
 
       const processedSession: ProcessedSession = {
