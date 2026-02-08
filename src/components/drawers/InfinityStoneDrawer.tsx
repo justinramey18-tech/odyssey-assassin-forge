@@ -325,34 +325,41 @@ export function InfinityStoneDrawer({
                           key={prompt.id}
                           onClick={() => copyToClipboard(prompt)}
                           className={cn(
-                            'w-full flex items-center gap-2 p-2.5 rounded-lg',
+                            'w-full flex flex-col gap-1 p-2.5 rounded-lg',
                             'bg-card/50 hover:bg-card border border-transparent',
                             'transition-all duration-200 text-left group',
                             isCopied && 'bg-green-500/20 border-green-500/50'
                           )}
                         >
-                          <span className="text-base shrink-0">{prompt.icon}</span>
-                          <span className={cn(
-                            'flex-1 text-sm text-foreground/90 group-hover:text-foreground',
-                            isCopied && 'text-green-400'
-                          )}>
-                            {prompt.title}
-                          </span>
-                          {intensityConfig && (
-                            <span 
-                              className="text-[10px] px-1.5 py-0.5 rounded shrink-0"
-                              style={{ 
-                                backgroundColor: `${intensityConfig.color}20`,
-                                color: intensityConfig.color,
-                              }}
-                            >
-                              {intensityConfig.icon}
+                          <div className="flex items-center gap-2 w-full">
+                            <span className="text-base shrink-0">{prompt.icon}</span>
+                            <span className={cn(
+                              'flex-1 text-sm text-foreground/90 group-hover:text-foreground',
+                              isCopied && 'text-green-400'
+                            )}>
+                              {prompt.title}
                             </span>
-                          )}
-                          {isCopied ? (
-                            <Check className="w-4 h-4 text-green-400 shrink-0" />
-                          ) : (
-                            <Copy className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                            {intensityConfig && (
+                              <span 
+                                className="text-[10px] px-1.5 py-0.5 rounded shrink-0"
+                                style={{ 
+                                  backgroundColor: `${intensityConfig.color}20`,
+                                  color: intensityConfig.color,
+                                }}
+                              >
+                                {intensityConfig.icon}
+                              </span>
+                            )}
+                            {isCopied ? (
+                              <Check className="w-4 h-4 text-green-400 shrink-0" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                            )}
+                          </div>
+                          {prompt.description && (
+                            <p className="text-xs text-muted-foreground pl-7 leading-relaxed">
+                              {prompt.description}
+                            </p>
                           )}
                         </button>
                       );
