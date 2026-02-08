@@ -16,6 +16,7 @@ import {
   HelpCircle,
   FlaskConical,
   Loader2,
+  Copy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -100,6 +101,7 @@ export function EditingRulesEditor({
     addRule,
     updateRule,
     removeRule,
+    duplicateRule,
     reorderRules,
     clearAllRules,
     canAddRule,
@@ -407,6 +409,7 @@ export function EditingRulesEditor({
                 index={index}
                 isFirst={index === 0}
                 isLast={index === rules.length - 1}
+                canDuplicate={canAddRule}
                 onUpdate={(updates) => {
                   updateRule(rule.id, updates);
                   handleRulesChange();
@@ -414,6 +417,16 @@ export function EditingRulesEditor({
                 onRemove={() => {
                   removeRule(rule.id);
                   handleRulesChange();
+                }}
+                onDuplicate={() => {
+                  const success = duplicateRule(rule.id);
+                  if (success) {
+                    handleRulesChange();
+                    toast({
+                      title: 'Rule duplicated',
+                      description: 'Edit the copy to create a variation.',
+                    });
+                  }
                 }}
                 onMoveUp={() => handleMoveRule(index, 'up')}
                 onMoveDown={() => handleMoveRule(index, 'down')}
@@ -581,8 +594,10 @@ interface RuleCardProps {
   index: number;
   isFirst: boolean;
   isLast: boolean;
+  canDuplicate: boolean;
   onUpdate: (updates: Partial<Pick<EditingRule, 'instruction' | 'scope' | 'type'>>) => void;
   onRemove: () => void;
+  onDuplicate: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
 }
@@ -592,8 +607,10 @@ function RuleCard({
   index,
   isFirst,
   isLast,
+  canDuplicate,
   onUpdate,
   onRemove,
+  onDuplicate,
   onMoveUp,
   onMoveDown,
 }: RuleCardProps) {
@@ -666,6 +683,24 @@ function RuleCard({
             <ChevronDown className="w-3.5 h-3.5" />
           </Button>
         </div>
+
+        {/* Duplicate button */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 text-muted-foreground hover:text-purple-400"
+              onClick={onDuplicate}
+              disabled={!canDuplicate}
+            >
+              <Copy className="w-3.5 h-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            <p className="text-xs">Duplicate rule</p>
+          </TooltipContent>
+        </Tooltip>
 
         {/* Delete button */}
         <Button

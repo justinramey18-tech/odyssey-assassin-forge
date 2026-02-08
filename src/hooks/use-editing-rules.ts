@@ -21,6 +21,7 @@ interface UseEditingRulesReturn {
   addRule: (instruction?: string, type?: RuleType) => boolean;
   updateRule: (id: string, updates: Partial<Pick<EditingRule, 'instruction' | 'scope' | 'type'>>) => void;
   removeRule: (id: string) => void;
+  duplicateRule: (id: string) => boolean;
   reorderRules: (fromIndex: number, toIndex: number) => void;
   clearAllRules: () => void;
   
@@ -133,6 +134,28 @@ export function useEditingRules(): UseEditingRulesReturn {
     setRules(prev => prev.filter(rule => rule.id !== id));
   }, []);
 
+  const duplicateRule = useCallback((id: string): boolean => {
+    if (!canAddRule) return false;
+    
+    setRules(prev => {
+      const sourceRule = prev.find(r => r.id === id);
+      if (!sourceRule) return prev;
+      
+      const sourceIndex = prev.findIndex(r => r.id === id);
+      const newRule: EditingRule = {
+        ...sourceRule,
+        id: crypto.randomUUID(),
+      };
+      
+      // Insert the duplicate right after the source rule
+      const newRules = [...prev];
+      newRules.splice(sourceIndex + 1, 0, newRule);
+      return newRules;
+    });
+    
+    return true;
+  }, [canAddRule]);
+
   const reorderRules = useCallback((fromIndex: number, toIndex: number) => {
     setRules(prev => {
       const newRules = [...prev];
@@ -219,6 +242,7 @@ export function useEditingRules(): UseEditingRulesReturn {
     addRule,
     updateRule,
     removeRule,
+    duplicateRule,
     reorderRules,
     clearAllRules,
     canAddRule,
