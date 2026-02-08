@@ -61,12 +61,18 @@ interface CustomEditingRule {
   scope: string;
 }
 
+interface BlendConfig {
+  secondaryStyle: string;
+  ratio: number; // 10-50, how much of secondary style to blend
+}
+
 interface RequestBody {
   text: string;
   characterName?: string;
   style?: string;
   smartParseEnabled?: boolean;
   customEditingRules?: CustomEditingRule[];
+  blendConfig?: BlendConfig;
 }
 
 type ValidationResult = {
@@ -76,6 +82,7 @@ type ValidationResult = {
   style: ValidStyle;
   smartParseEnabled: boolean;
   customEditingRules: CustomEditingRule[];
+  blendConfig?: BlendConfig;
 } | {
   valid: false;
   error: string;
@@ -206,13 +213,30 @@ function validateEditingRules(rules: unknown): CustomEditingRule[] {
   return validatedRules;
 }
 
+// Validate blend config
+function validateBlendConfig(config: unknown): BlendConfig | undefined {
+  if (!config || typeof config !== 'object') return undefined;
+  
+  const { secondaryStyle, ratio } = config as BlendConfig;
+  
+  if (typeof secondaryStyle !== 'string' || !VALID_STYLES.includes(secondaryStyle as ValidStyle)) {
+    return undefined;
+  }
+  
+  if (typeof ratio !== 'number' || ratio < 10 || ratio > 50) {
+    return undefined;
+  }
+  
+  return { secondaryStyle, ratio };
+}
+
 // Validate request body
 function validateRequestBody(body: unknown): ValidationResult {
   if (!body || typeof body !== 'object') {
     return { valid: false, error: 'Invalid request body' };
   }
   
-  const { text, characterName, style, smartParseEnabled, customEditingRules } = body as RequestBody;
+  const { text, characterName, style, smartParseEnabled, customEditingRules, blendConfig } = body as RequestBody;
   
   // Validate text
   if (text === undefined || text === null) {
@@ -271,6 +295,9 @@ function validateRequestBody(body: unknown): ValidationResult {
   // Validate custom editing rules
   const validatedRules = validateEditingRules(customEditingRules);
   
+  // Validate blend config
+  const validatedBlendConfig = validateBlendConfig(blendConfig);
+  
   return {
     valid: true,
     text,
@@ -278,6 +305,7 @@ function validateRequestBody(body: unknown): ValidationResult {
     style: validatedStyle,
     smartParseEnabled: smartParseEnabled !== false, // Default to true
     customEditingRules: validatedRules,
+    blendConfig: validatedBlendConfig,
   };
 }
 
@@ -507,7 +535,7 @@ Deno.serve(async (req) => {
 
     // Sanitize text input to prevent prompt injection
     let sanitizedText = sanitizeInput(validation.text);
-    const { characterName, style, smartParseEnabled, customEditingRules } = validation;
+    const { characterName, style, smartParseEnabled, customEditingRules, blendConfig } = validation;
     
     // Smart parse: detect chat log format and extract only assistant content (if enabled)
     if (smartParseEnabled) {
@@ -521,9 +549,35 @@ Deno.serve(async (req) => {
       console.log('Smart parse disabled - including all content');
     }
     
-    const styleGuide = styleGuides[style];
+    // Build style guide - either single style or blended
+    let styleGuide: string;
+    if (blendConfig) {
+      const primaryRatio = 100 - blendConfig.ratio;
+      const primaryGuide = styleGuides[style];
+      const secondaryGuide = styleGuides[blendConfig.secondaryStyle as ValidStyle];
+      
+      styleGuide = `
+STYLE BLENDING INSTRUCTIONS:
+You will blend TWO narrative styles in your writing.
 
-    console.log(`Processing narrative forge request: ${sanitizedText.length} chars, style: ${style}, rules: ${customEditingRules.length}`);
+PRIMARY STYLE (${primaryRatio}% weight - favor this style):
+${primaryGuide}
+
+SECONDARY STYLE (${blendConfig.ratio}% weight - incorporate elements of this):
+${secondaryGuide}
+
+BLENDING APPROACH:
+- Use the primary style as your foundation for tone, vocabulary, and structure
+- Weave in distinctive elements from the secondary style (characteristic phrases, specific techniques)
+- The blend should feel natural, not jarring - like a skilled author who has absorbed multiple influences
+- When styles conflict, favor the primary style
+`;
+      console.log(`Style blending: ${primaryRatio}% ${style} + ${blendConfig.ratio}% ${blendConfig.secondaryStyle}`);
+    } else {
+      styleGuide = styleGuides[style];
+    }
+
+    console.log(`Processing narrative forge request: ${sanitizedText.length} chars, style: ${style}, rules: ${customEditingRules.length}, blended: ${!!blendConfig}`);
 
     // Build custom editing rules section for the prompt
     let customRulesSection = '';
