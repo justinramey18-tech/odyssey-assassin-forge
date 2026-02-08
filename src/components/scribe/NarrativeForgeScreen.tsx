@@ -276,9 +276,30 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
 
   // Handle AI command for full-text transformation
   const handleApplyAICommand = useCallback(async (instruction: string) => {
-    if (!activeStory) return;
+    if (!activeStory) {
+      toast({
+        title: "No Story Selected",
+        description: "Please select a story first.",
+        variant: "destructive",
+      });
+      return;
+    }
     
-    const contentToProcess = isEditingStory ? editedContent : activeStory.content;
+    // Use edited content if in edit mode, otherwise use story content
+    // Prioritize activeStory.content as the source of truth for View mode
+    const contentToProcess = (storyEditMode !== 'view' && editedContent.trim()) 
+      ? editedContent 
+      : activeStory.content;
+    
+    // Validate content before sending
+    if (!contentToProcess || contentToProcess.length < 10) {
+      toast({
+        title: "Content Too Short",
+        description: "The story needs at least 10 characters to process.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     setIsApplyingCommand(true);
     
@@ -322,7 +343,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
     } finally {
       setIsApplyingCommand(false);
     }
-  }, [activeStory, isEditingStory, editedContent, characterName, updateStory, toast]);
+  }, [activeStory, storyEditMode, editedContent, characterName, updateStory, toast]);
 
   // Handle file import to story
   const handleFileImportToStory = useCallback((content: string, mode: 'append' | 'replace') => {
