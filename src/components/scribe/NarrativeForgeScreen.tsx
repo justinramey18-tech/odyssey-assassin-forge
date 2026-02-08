@@ -301,6 +301,17 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
       return;
     }
     
+    // Check character limit (50,000 max for AI Command)
+    const MAX_COMMAND_CHARS = 50000;
+    if (contentToProcess.length > MAX_COMMAND_CHARS) {
+      toast({
+        title: "Story Too Long",
+        description: `AI Command supports up to ${MAX_COMMAND_CHARS.toLocaleString()} characters. Your story has ${contentToProcess.length.toLocaleString()} characters. Consider splitting into smaller sections.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsApplyingCommand(true);
     
     try {
@@ -900,6 +911,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
         onApplyCommand={handleApplyAICommand}
         isProcessing={isApplyingCommand}
         storyWordCount={activeStory?.wordCount || 0}
+        storyCharCount={activeStory?.content?.length || 0}
       />
 
       {/* Story File Upload Dialog */}
