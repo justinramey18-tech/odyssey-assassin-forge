@@ -44,6 +44,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
   const [copied, setCopied] = useState(false);
   const [options, setOptions] = useState<ProcessingOptions>(defaultProcessingOptions);
   const [showPreview, setShowPreview] = useState(false);
+  const [smartParseEnabled, setSmartParseEnabled] = useState(true);
   const [showSmartParsePreview, setShowSmartParsePreview] = useState(false);
   const [storyViewerOpen, setStoryViewerOpen] = useState(false);
   const [isEditingStory, setIsEditingStory] = useState(false);
@@ -209,7 +210,8 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
       const result = await campaignProcessor.processSelectedSessions(
         processingMode,
         options,
-        characterName
+        characterName,
+        smartParseEnabled
       );
 
       if (result) {
@@ -250,6 +252,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
             text: inputText,
             characterName,
             style: options.narrativeStyle,
+            smartParseEnabled,
           },
         });
 
@@ -342,7 +345,8 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
     const result = await campaignProcessor.retryFailedSessions(
       processingMode,
       options,
-      characterName
+      characterName,
+      smartParseEnabled
     );
 
     if (result) {
@@ -361,7 +365,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
         });
       }
     }
-  }, [campaignProcessor, processingMode, options, characterName, toast]);
+  }, [campaignProcessor, processingMode, options, characterName, smartParseEnabled, toast]);
 
   const removalPreview = inputText ? getRemovalPreview(inputText) : [];
 
@@ -608,7 +612,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
                   <Button
                     size="sm"
                     onClick={async () => {
-                      const result = await campaignProcessor.resumeProcessing(processingMode, options, characterName);
+                      const result = await campaignProcessor.resumeProcessing(processingMode, options, characterName, smartParseEnabled);
                       if (result) {
                         setOutputText(result);
                         toast({
@@ -724,6 +728,30 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
                 />
               </div>
             </div>
+
+            {/* Smart Parse Toggle - AI mode only */}
+            {processingMode === 'ai' && (
+              <div className="pt-3 border-t border-border/50">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="smartParse" className="text-sm cursor-pointer flex items-center gap-2">
+                      <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                      Smart Parse
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      {smartParseEnabled 
+                        ? 'Filters out player inputs, keeping only DM/AI content' 
+                        : 'Includes all content (player & DM messages)'}
+                    </p>
+                  </div>
+                  <Switch 
+                    id="smartParse"
+                    checked={smartParseEnabled}
+                    onCheckedChange={setSmartParseEnabled}
+                  />
+                </div>
+              </div>
+            )}
             
             <div className="space-y-2">
               <Label htmlFor="narrativeStyle" className="text-sm">Narrative Style:</Label>
