@@ -10,6 +10,8 @@ export interface DetectedSession {
   preview: string;
   wordCount: number;
   charCount: number;
+  sourceFile?: string;        // Originating filename for multi-file uploads
+  sourceFileIndex?: number;   // File order position for sorting
 }
 
 interface SessionMarkerMatch {
@@ -307,4 +309,67 @@ export function parseJsonCampaign(jsonContent: string): { text: string; sessions
   } catch {
     return null;
   }
+}
+
+/**
+ * Combine sessions from multiple files with source tracking
+ * Returns sessions with updated indices for the combined content
+ */
+export interface MultiFileContent {
+  fileName: string;
+  content: string;
+  sessions: DetectedSession[];
+}
+
+export function combineMultiFileSessions(files: MultiFileContent[]): {
+  combinedContent: string;
+  combinedSessions: DetectedSession[];
+} {
+  let combinedContent = '';
+  const combinedSessions: DetectedSession[] = [];
+  let globalSessionIndex = 0;
+  
+  for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
+    const file = files[fileIndex];
+    const startOffset = combinedContent.length;
+    
+    // Add separator between files
+    if (combinedContent.length > 0) {
+      combinedContent += '\n\n---\n\n';
+    }
+    
+    const contentStartOffset = combinedContent.length;
+    combinedContent += file.content;
+    
+    // If file has no sessions, create one for the whole file
+    if (file.sessions.length === 0) {
+      globalSessionIndex++;
+      combinedSessions.push({
+        id: `multi-session-${globalSessionIndex}`,
+        title: file.fileName.replace(/\.[^/.]+$/, ''),
+        startIndex: contentStartOffset,
+        endIndex: combinedContent.length,
+        preview: file.content.slice(0, 150).replace(/\n/g, ' ').trim() + '...',
+        wordCount: countWords(file.content),
+        charCount: file.content.length,
+        sourceFile: file.fileName,
+        sourceFileIndex: fileIndex,
+      });
+    } else {
+      // Add sessions with updated indices and source tracking
+      for (const session of file.sessions) {
+        globalSessionIndex++;
+        combinedSessions.push({
+          ...session,
+          id: `multi-session-${globalSessionIndex}`,
+          startIndex: contentStartOffset + session.startIndex,
+          endIndex: contentStartOffset + session.endIndex,
+          sourceFile: file.fileName,
+          sourceFileIndex: fileIndex,
+        });
+      }
+    }
+  }
+  
+  return { combinedContent, combinedSessions };
 }
