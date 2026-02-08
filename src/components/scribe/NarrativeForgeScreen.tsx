@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { ArrowLeft, Wand2, Cog, Copy, Check, Loader2, BookOpen, Cpu, Info, Save, Plus, FileText, Trash2, Eye, Pencil, X, Upload, ClipboardPaste, Square, CheckSquare, Download, RotateCcw, Sparkles } from 'lucide-react';
+import { ArrowLeft, Wand2, Cog, Copy, Check, Loader2, BookOpen, Cpu, Info, Save, Plus, FileText, Trash2, Eye, Pencil, X, Upload, ClipboardPaste, Square, CheckSquare, Download, RotateCcw, Sparkles, ArrowLeftRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,8 +30,9 @@ import { TemplateControls } from './TemplateControls';
 import { StyleBlendControls } from './StyleBlendControls';
 import { StylePreviewSheet } from './StylePreviewSheet';
 import { StoryTags } from './StoryTags';
+import { ComparisonView } from './ComparisonView';
 import { useCampaignProcessor } from '@/hooks/use-campaign-processor';
-import { useSavedStories } from '@/hooks/use-saved-stories';
+import { useSavedStories, MergeOptions } from '@/hooks/use-saved-stories';
 import { useEditingRules } from '@/hooks/use-editing-rules';
 import { useProcessingTemplates } from '@/hooks/use-processing-templates';
 import { DetectedSession, estimateProcessingTime } from '@/lib/scribe/sessionDetection';
@@ -60,6 +61,8 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
   const [inputSource, setInputSource] = useState<'paste' | 'upload'>('paste');
   const [styleBlendEnabled, setStyleBlendEnabled] = useState(false);
   const [blendConfig, setBlendConfig] = useState<BlendConfig | undefined>(undefined);
+  const [showComparisonView, setShowComparisonView] = useState(false);
+  const [lastProcessedInput, setLastProcessedInput] = useState('');
   const { toast } = useToast();
 
   // Multi-story management
@@ -76,6 +79,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
     addTagToStory,
     removeTagFromStory,
     getAllTags,
+    mergeStories,
   } = useSavedStories();
 
   // Campaign processor for file uploads
@@ -258,6 +262,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
     }
 
     setIsProcessing(true);
+    setLastProcessedInput(inputText); // Store for comparison view
     
     try {
       if (processingMode === 'offline') {
@@ -505,6 +510,15 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
             onViewStory={(id) => {
               setActiveStoryId(id);
               setStoryViewerOpen(true);
+            }}
+            onMergeStories={(orderedIds, options) => {
+              const merged = mergeStories(orderedIds, options);
+              if (merged) {
+                toast({
+                  title: "Stories Merged!",
+                  description: `Created "${merged.title}" with ${merged.wordCount.toLocaleString()} words.`,
+                });
+              }
             }}
             onAddTag={addTagToStory}
             onRemoveTag={removeTagFromStory}
@@ -1355,25 +1369,53 @@ The trap clicks harmlessly as she disables it."
           </Button>
         </div>
 
+        {/* Comparison View */}
+        {showComparisonView && lastProcessedInput && outputText && (
+          <ComparisonView
+            originalText={lastProcessedInput}
+            transformedText={outputText}
+            onClose={() => setShowComparisonView(false)}
+          />
+        )}
+
         {/* Output Section */}
         {outputText && (
           <Card className="border-green-900/30 bg-card/50">
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-medium text-green-400">Output: Pure Prose</CardTitle>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    onClick={handleCopy}
-                    variant="ghost"
-                    size="sm"
-                    className="gap-2 text-muted-foreground hover:text-foreground"
-                  >
-                    {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
-                    {copied ? 'Copied!' : 'Copy'}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Copy to clipboard</TooltipContent>
-              </Tooltip>
+              <div className="flex items-center gap-2">
+                {/* Compare button */}
+                {lastProcessedInput && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={() => setShowComparisonView(!showComparisonView)}
+                        variant="ghost"
+                        size="sm"
+                        className={`gap-2 ${showComparisonView ? 'text-purple-400' : 'text-muted-foreground hover:text-foreground'}`}
+                      >
+                        <ArrowLeftRight className="w-4 h-4" />
+                        Compare
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Compare original vs transformed</TooltipContent>
+                  </Tooltip>
+                )}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      onClick={handleCopy}
+                      variant="ghost"
+                      size="sm"
+                      className="gap-2 text-muted-foreground hover:text-foreground"
+                    >
+                      {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+                      {copied ? 'Copied!' : 'Copy'}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Copy to clipboard</TooltipContent>
+                </Tooltip>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <ScrollArea className="max-h-[400px]">

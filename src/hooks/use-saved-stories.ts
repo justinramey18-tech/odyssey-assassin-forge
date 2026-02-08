@@ -17,6 +17,13 @@ export interface SavedStory {
   tags: string[];  // NEW: array of tag names
 }
 
+export interface MergeOptions {
+  newTitle: string;
+  separator: '---' | '***' | 'chapter' | 'none';
+  preserveOriginals: boolean;
+  inheritTags: boolean;
+}
+
 interface UseSavedStoriesReturn {
   stories: SavedStory[];
   activeStoryId: string | null;
@@ -31,6 +38,7 @@ interface UseSavedStoriesReturn {
   addTagToStory: (id: string, tag: string) => void;
   removeTagFromStory: (id: string, tag: string) => void;
   getAllTags: () => string[];
+  mergeStories: (orderedIds: string[], options: MergeOptions) => SavedStory | null;
 }
 
 function generateId(): string {
@@ -209,6 +217,54 @@ export function useSavedStories(): UseSavedStoriesReturn {
     return Array.from(tagSet).sort();
   }, [stories]);
 
+  const mergeStories = useCallback((orderedIds: string[], options: MergeOptions): SavedStory | null => {
+    if (orderedIds.length < 2) return null;
+    
+    const storiesToMerge = orderedIds
+      .map(id => stories.find(s => s.id === id))
+      .filter((s): s is SavedStory => s !== undefined);
+    
+    if (storiesToMerge.length < 2) return null;
+    
+    // Get separator text
+    const separatorText = options.separator === '---' ? '\n\n---\n\n'
+      : options.separator === '***' ? '\n\n***\n\n'
+      : options.separator === 'chapter' ? '\n\n'
+      : '\n\n';
+    
+    // Build merged content
+    const mergedContent = storiesToMerge
+      .map((story, idx) => {
+        if (options.separator === 'chapter') {
+          return `## Chapter ${idx + 1}: ${story.title}\n\n${story.content}`;
+        }
+        return story.content;
+      })
+      .join(separatorText);
+    
+    // Collect all tags if inheriting
+    const mergedTags = options.inheritTags
+      ? Array.from(new Set(storiesToMerge.flatMap(s => s.tags || [])))
+      : [];
+    
+    // Use the style from the first story
+    const primaryStyle = storiesToMerge[0].style;
+    
+    // Create the merged story
+    const newStory = createStory(options.newTitle, mergedContent, primaryStyle, mergedTags);
+    
+    // Delete originals if not preserving
+    if (!options.preserveOriginals) {
+      orderedIds.forEach(id => {
+        if (id !== newStory.id) {
+          deleteStory(id);
+        }
+      });
+    }
+    
+    return newStory;
+  }, [stories, createStory, deleteStory]);
+
   const activeStory = activeStoryId ? stories.find(s => s.id === activeStoryId) || null : null;
 
   return {
@@ -225,5 +281,6 @@ export function useSavedStories(): UseSavedStoriesReturn {
     addTagToStory,
     removeTagFromStory,
     getAllTags,
+    mergeStories,
   };
 }

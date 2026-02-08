@@ -354,8 +354,8 @@ ${instruction ? `Additional instruction: ${instruction}` : ''}
 2. ~~**Style Blending** - Simple edge function change~~ ✅ DONE
 3. ~~**Batch Style Preview** - Uses existing infrastructure~~ ✅ DONE
 4. ~~**Story Organization (Tags)** - Extends existing story system~~ ✅ DONE
-5. **Comparison View** - Useful debugging tool
-6. **Story Merging** - Builds on tags feature
+5. ~~**Comparison View** - Useful debugging tool~~ ✅ DONE
+6. ~~**Story Merging** - Builds on tags feature~~ ✅ DONE
 7. **Multi-File Upload** - Complex but self-contained
 8. **Partial Regeneration** - Most complex, requires all foundations
 
