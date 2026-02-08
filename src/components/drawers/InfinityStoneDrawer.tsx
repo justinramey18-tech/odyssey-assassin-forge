@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Gem, Copy, Check, Shuffle, Sparkles } from 'lucide-react';
+import { Gem, Copy, Check, Shuffle, Sparkles, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { EdgeDrawer } from './EdgeDrawer';
@@ -13,8 +13,9 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { useFavoritePrompts } from '@/hooks/use-favorite-prompts';
 
-type IntensityLevel = 'all' | 'mild' | 'moderate' | 'extreme';
+type IntensityLevel = 'all' | 'mild' | 'moderate' | 'extreme' | 'favorites';
 
 // Infinity Stones configuration matching the gauntlet screen
 const infinityStones = [
@@ -63,6 +64,7 @@ const infinityStones = [
 ];
 
 const intensityLevels: { id: IntensityLevel; label: string; icon: string; color: string }[] = [
+  { id: 'favorites', label: 'Favorites', icon: '⭐', color: '#eab308' },
   { id: 'all', label: 'All', icon: '🎲', color: 'hsl(var(--muted-foreground))' },
   { id: 'mild', label: 'Mild', icon: '🌱', color: '#22c55e' },
   { id: 'moderate', label: 'Moderate', icon: '🔥', color: '#f97316' },
@@ -91,6 +93,7 @@ export function InfinityStoneDrawer({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expandedStone, setExpandedStone] = useState<string | undefined>(undefined);
   const [selectedIntensity, setSelectedIntensity] = useState<IntensityLevel>('all');
+  const { favorites, favoriteCount, toggleFavorite, isFavorite } = useFavoritePrompts();
 
   const getPromptsForStone = (stoneId: string) => {
     const stone = infinityStones.find(s => s.id === stoneId);
@@ -98,8 +101,11 @@ export function InfinityStoneDrawer({
     return characterPrompts.filter(p => stone.categories.includes(p.category));
   };
 
-  // Filter prompts by intensity
+  // Filter prompts by intensity or favorites
   const filterByIntensity = (prompts: CharacterPrompt[]) => {
+    if (selectedIntensity === 'favorites') {
+      return prompts.filter(p => isFavorite(p.id));
+    }
     if (selectedIntensity === 'all') return prompts;
     return prompts.filter(p => {
       const intensity = getPromptIntensity(p.id);
@@ -216,6 +222,11 @@ export function InfinityStoneDrawer({
                 >
                   <span>{level.icon}</span>
                   <span>{level.label}</span>
+                  {level.id === 'favorites' && favoriteCount > 0 && (
+                    <span className="ml-0.5 text-[10px] bg-yellow-500/30 text-yellow-400 px-1.5 rounded-full">
+                      {favoriteCount}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -319,11 +330,11 @@ export function InfinityStoneDrawer({
                       const isCopied = copiedId === prompt.id;
                       const intensity = getPromptIntensity(prompt.id);
                       const intensityConfig = intensity ? intensityLevels.find(l => l.id === intensity) : null;
+                      const isStarred = isFavorite(prompt.id);
                       
                       return (
-                        <button
+                        <div
                           key={prompt.id}
-                          onClick={() => copyToClipboard(prompt)}
                           className={cn(
                             'w-full flex flex-col gap-1 p-2.5 rounded-lg',
                             'bg-card/50 hover:bg-card border border-transparent',
@@ -332,13 +343,36 @@ export function InfinityStoneDrawer({
                           )}
                         >
                           <div className="flex items-center gap-2 w-full">
-                            <span className="text-base shrink-0">{prompt.icon}</span>
-                            <span className={cn(
-                              'flex-1 text-sm text-foreground/90 group-hover:text-foreground',
-                              isCopied && 'text-green-400'
-                            )}>
-                              {prompt.title}
-                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleFavorite(prompt.id);
+                                toast.success(isStarred ? 'Removed from favorites' : 'Added to favorites');
+                              }}
+                              className="shrink-0 p-0.5 -ml-0.5 rounded hover:bg-yellow-500/20 transition-colors"
+                              aria-label={isStarred ? 'Remove from favorites' : 'Add to favorites'}
+                            >
+                              <Star 
+                                className={cn(
+                                  'w-4 h-4 transition-colors',
+                                  isStarred 
+                                    ? 'fill-yellow-400 text-yellow-400' 
+                                    : 'text-muted-foreground/50 hover:text-yellow-400'
+                                )} 
+                              />
+                            </button>
+                            <button
+                              onClick={() => copyToClipboard(prompt)}
+                              className="flex-1 flex items-center gap-2 text-left"
+                            >
+                              <span className="text-base shrink-0">{prompt.icon}</span>
+                              <span className={cn(
+                                'flex-1 text-sm text-foreground/90 group-hover:text-foreground',
+                                isCopied && 'text-green-400'
+                              )}>
+                                {prompt.title}
+                              </span>
+                            </button>
                             {intensityConfig && (
                               <span 
                                 className="text-[10px] px-1.5 py-0.5 rounded shrink-0"
@@ -353,15 +387,21 @@ export function InfinityStoneDrawer({
                             {isCopied ? (
                               <Check className="w-4 h-4 text-green-400 shrink-0" />
                             ) : (
-                              <Copy className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                              <Copy 
+                                className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0 cursor-pointer" 
+                                onClick={() => copyToClipboard(prompt)}
+                              />
                             )}
                           </div>
                           {prompt.description && (
-                            <p className="text-xs text-muted-foreground pl-7 leading-relaxed">
+                            <p 
+                              className="text-xs text-muted-foreground pl-7 leading-relaxed cursor-pointer"
+                              onClick={() => copyToClipboard(prompt)}
+                            >
                               {prompt.description}
                             </p>
                           )}
-                        </button>
+                        </div>
                       );
                     })}
                   </AccordionContent>
