@@ -13,7 +13,7 @@ import {
 const STORAGE_KEY = 'scribe-editing-rules';
 const RULE_SETS_KEY = 'scribe-rule-sets';
 
-interface UseEditingRulesReturn {
+export interface UseEditingRulesReturn {
   // Current session rules
   rules: EditingRule[];
   

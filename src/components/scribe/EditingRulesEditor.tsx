@@ -58,7 +58,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
-import { useEditingRules } from '@/hooks/use-editing-rules';
+import { UseEditingRulesReturn } from '@/hooks/use-editing-rules';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   EditingRule, 
@@ -83,6 +83,7 @@ function RuleTypeIcon({ type, className = 'w-4 h-4' }: { type: RuleType; classNa
 }
 
 interface EditingRulesEditorProps {
+  editingRulesHook: UseEditingRulesReturn;
   onRulesChange?: (rules: EditingRule[]) => void;
   sampleText?: string;
   characterName?: string;
@@ -90,6 +91,7 @@ interface EditingRulesEditorProps {
 }
 
 export function EditingRulesEditor({ 
+  editingRulesHook,
   onRulesChange, 
   sampleText = '',
   characterName = '',
@@ -110,7 +112,7 @@ export function EditingRulesEditor({
     saveAsRuleSet,
     loadRuleSet,
     deleteRuleSet,
-  } = useEditingRules();
+  } = editingRulesHook;
 
   const [isOpen, setIsOpen] = useState(false);
   const [newRuleText, setNewRuleText] = useState('');
