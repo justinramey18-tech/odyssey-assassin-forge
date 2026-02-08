@@ -1054,6 +1054,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
                   sampleText={inputSource === 'paste' ? inputText : (campaignProcessor.fileContent || '')}
                   characterName={characterName}
                   narrativeStyle={options.narrativeStyle}
+                  editingRulesHook={editingRulesHook}
                 />
               </div>
             )}
