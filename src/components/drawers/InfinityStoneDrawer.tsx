@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Gem, Copy, Check, Shuffle, Sparkles, Star } from 'lucide-react';
+import { useState, useMemo, useRef } from 'react';
+import { Gem, Copy, Check, Shuffle, Sparkles, Star, Download, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { EdgeDrawer } from './EdgeDrawer';
@@ -93,7 +93,43 @@ export function InfinityStoneDrawer({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expandedStone, setExpandedStone] = useState<string | undefined>(undefined);
   const [selectedIntensity, setSelectedIntensity] = useState<IntensityLevel>('all');
-  const { favorites, favoriteCount, toggleFavorite, isFavorite } = useFavoritePrompts();
+  const { favorites, favoriteCount, toggleFavorite, isFavorite, exportFavorites, importFavorites } = useFavoritePrompts();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleExportFavorites = () => {
+    if (favoriteCount === 0) {
+      toast.error('No favorites to export');
+      return;
+    }
+    const json = exportFavorites();
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'favorite-prompts.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${favoriteCount} favorites`);
+  };
+
+  const handleImportFavorites = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      const result = importFavorites(content);
+      if (result.success) {
+        toast.success(`Imported ${result.count} favorites`);
+      } else {
+        toast.error(result.error || 'Failed to import');
+      }
+    };
+    reader.readAsText(file);
+    // Reset input so same file can be re-imported
+    e.target.value = '';
+  };
 
   const getPromptsForStone = (stoneId: string) => {
     const stone = infinityStones.find(s => s.id === stoneId);
@@ -229,6 +265,28 @@ export function InfinityStoneDrawer({
                   )}
                 </button>
               ))}
+              {/* Export/Import Buttons */}
+              <button
+                onClick={handleExportFavorites}
+                className="p-1.5 rounded-full border border-border hover:bg-muted transition-colors"
+                title="Export favorites"
+              >
+                <Download className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="p-1.5 rounded-full border border-border hover:bg-muted transition-colors"
+                title="Import favorites"
+              >
+                <Upload className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleImportFavorites}
+                className="hidden"
+              />
             </div>
           </div>
 
