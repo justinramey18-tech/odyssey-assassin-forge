@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
-import { ArrowLeft, Wand2, Cog, Copy, Check, Loader2, BookOpen, Cpu, Info, Save, Plus, FileText, Trash2, Eye, Pencil, X, Upload, ClipboardPaste, Square, CheckSquare, Download, RotateCcw } from 'lucide-react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { ArrowLeft, Wand2, Cog, Copy, Check, Loader2, BookOpen, Cpu, Info, Save, Plus, FileText, Trash2, Eye, Pencil, X, Upload, ClipboardPaste, Square, CheckSquare, Download, RotateCcw, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,9 +24,11 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { CampaignFileUpload } from './CampaignFileUpload';
 import { StoryListSheet } from './StoryListSheet';
+import { SmartParsePreview } from './SmartParsePreview';
 import { useCampaignProcessor } from '@/hooks/use-campaign-processor';
 import { useSavedStories } from '@/hooks/use-saved-stories';
 import { DetectedSession, estimateProcessingTime } from '@/lib/scribe/sessionDetection';
+import { getSmartParsePreview } from '@/lib/scribe/smartParsing';
 import scribeBackground from '@/assets/scribe-background.jpg';
 
 interface NarrativeForgeScreenProps {
@@ -42,6 +44,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
   const [copied, setCopied] = useState(false);
   const [options, setOptions] = useState<ProcessingOptions>(defaultProcessingOptions);
   const [showPreview, setShowPreview] = useState(false);
+  const [showSmartParsePreview, setShowSmartParsePreview] = useState(false);
   const [storyViewerOpen, setStoryViewerOpen] = useState(false);
   const [isEditingStory, setIsEditingStory] = useState(false);
   const [editedContent, setEditedContent] = useState('');
@@ -63,6 +66,14 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
 
   // Campaign processor for file uploads
   const campaignProcessor = useCampaignProcessor();
+
+  // Smart parse preview - shows what will be filtered when using AI mode
+  const smartParseInfo = useMemo(() => {
+    const textToCheck = inputSource === 'paste' 
+      ? inputText 
+      : campaignProcessor?.fileContent || '';
+    return getSmartParsePreview(textToCheck);
+  }, [inputText, inputSource, campaignProcessor?.fileContent]);
 
   const handleSaveAsNewStory = useCallback(() => {
     if (!outputText.trim()) {
@@ -802,13 +813,14 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
 
         {/* Input Section */}
         {inputSource === 'paste' ? (
-          <Card className="border-amber-900/30 bg-card/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Input: Game Chat History</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Textarea
-                placeholder="Paste your TTRPG game chat, AI-generated session log, or story content here...
+          <>
+            <Card className="border-amber-900/30 bg-card/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium">Input: Game Chat History</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Textarea
+                  placeholder="Paste your TTRPG game chat, AI-generated session log, or story content here...
 
 Example:
 [GM] The ancient door creaks open. Roll Perception.
@@ -817,34 +829,61 @@ Example:
 Kira carefully examines the mechanism (DEX check: 14+4=18)...
 [OOC: Nice roll!]
 The trap clicks harmlessly as she disables it."
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                className="min-h-[200px] font-mono text-sm resize-none"
-              />
-              
-              {/* Removal Preview */}
-              {inputText && removalPreview.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-border/50">
-                  <button 
-                    onClick={() => setShowPreview(!showPreview)}
-                    className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-                  >
-                    <Info className="w-3 h-3" />
-                    {showPreview ? 'Hide' : 'Show'} detection preview
-                  </button>
-                  {showPreview && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {removalPreview.map((item, i) => (
-                        <span key={i} className="px-2 py-1 text-xs bg-amber-900/20 text-amber-300 rounded-full">
-                          {item.count}× {item.element}
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  className="min-h-[200px] font-mono text-sm resize-none"
+                />
+                
+                {/* Removal Preview */}
+                {inputText && removalPreview.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-border/50">
+                    <button 
+                      onClick={() => setShowPreview(!showPreview)}
+                      className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                    >
+                      <Info className="w-3 h-3" />
+                      {showPreview ? 'Hide' : 'Show'} detection preview
+                    </button>
+                    {showPreview && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {removalPreview.map((item, i) => (
+                          <span key={i} className="px-2 py-1 text-xs bg-amber-900/20 text-amber-300 rounded-full">
+                            {item.count}× {item.element}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Smart Parse Preview Button (AI mode only) */}
+                {inputText && processingMode === 'ai' && smartParseInfo.isChatFormat && (
+                  <div className="mt-3 pt-3 border-t border-border/50">
+                    <button 
+                      onClick={() => setShowSmartParsePreview(!showSmartParsePreview)}
+                      className="text-xs text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-1"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      {showSmartParsePreview ? 'Hide' : 'Show'} Smart Parse preview
+                      {smartParseInfo.stats && (
+                        <span className="text-muted-foreground ml-1">
+                          ({smartParseInfo.stats.reductionPercent}% will be filtered)
                         </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            
+            {/* Smart Parse Preview Panel (paste mode) */}
+            {showSmartParsePreview && inputText && processingMode === 'ai' && (
+              <SmartParsePreview 
+                text={inputText} 
+                onClose={() => setShowSmartParsePreview(false)} 
+              />
+            )}
+          </>
         ) : (
           <div className="space-y-4">
             {/* File Upload */}
@@ -943,8 +982,34 @@ The trap clicks harmlessly as she disables it."
                       )}
                     </div>
                   )}
+                  
+                  {/* Smart Parse Preview Button (file upload, AI mode) */}
+                  {processingMode === 'ai' && smartParseInfo.isChatFormat && (
+                    <div className="mt-3 pt-3 border-t border-border/50">
+                      <button 
+                        onClick={() => setShowSmartParsePreview(!showSmartParsePreview)}
+                        className="text-xs text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-1"
+                      >
+                        <Sparkles className="w-3 h-3" />
+                        {showSmartParsePreview ? 'Hide' : 'Show'} Smart Parse preview
+                        {smartParseInfo.stats && (
+                          <span className="text-muted-foreground ml-1">
+                            ({smartParseInfo.stats.reductionPercent}% will be filtered)
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
+            )}
+            
+            {/* Smart Parse Preview Panel (file upload mode) */}
+            {showSmartParsePreview && campaignProcessor.fileContent && processingMode === 'ai' && (
+              <SmartParsePreview 
+                text={campaignProcessor.fileContent} 
+                onClose={() => setShowSmartParsePreview(false)} 
+              />
             )}
 
             {/* Processing Progress */}
