@@ -1,374 +1,209 @@
 
 
-# Implementation Plan: Enhanced Scribe Features
+# Plan: AI Editing, File Upload & Custom AI Commands for Saved Stories
 
 ## Overview
+This plan adds three features to the Scribe system, all focused on **saved stories**:
+1. **AI Editing for Saved Stories** - Select text within saved stories and regenerate with AI
+2. **File Upload to Saved Stories** - Upload text files to append/replace content in saved stories
+3. **Custom AI Commands for Saved Stories** - Apply global AI transformations (e.g., "Change 'lzj' to 'xeyle'") to saved stories or freshly imported files
 
-This plan covers 8 new features for the Scribe tab, organized into three implementation phases based on complexity and dependencies.
-
----
-
-## Phase 1: Core Enhancements (Simpler, Foundation Features)
-
-### Feature 1: Style Blending (70% Fantasy + 30% Noir)
-
-**What it does:** Allow users to combine two narrative styles with adjustable weightings to create hybrid tones.
-
-**User Experience:**
-- New "Blend Styles" toggle in Processing Options
-- When enabled, shows two style dropdowns with percentage sliders (must total 100%)
-- Preview shows blend like "70% Fantasy + 30% Noir"
-
-**Technical Changes:**
-
-| File | Changes |
-|------|---------|
-| `NarrativeForgeScreen.tsx` | Add `styleBlendEnabled`, `secondaryStyle`, `blendRatio` state |
-| `narrative-forge/index.ts` | Accept `blendConfig` parameter, merge two style guides proportionally in prompt |
-
-**Edge Function Prompt Logic:**
-```text
-// When blending enabled:
-const blendedGuide = `
-PRIMARY STYLE (${blendRatio}% weight):
-${styleGuides[primaryStyle]}
-
-SECONDARY STYLE (${100-blendRatio}% weight):
-${styleGuides[secondaryStyle]}
-
-Blend these styles, favoring the primary but incorporating secondary elements.
-`;
-```
+All three features are accessed from the **Story Viewer Sheet** - the panel that opens when you click on a saved story.
 
 ---
 
-### Feature 2: Processing Templates
+## Feature 1: AI Editing for Saved Stories (Selection-Based)
 
-**What it does:** Save combinations of options + editing rules as named templates that can be quickly applied.
+### What It Does
+Enables users to select specific text within a saved story and regenerate just that portion using AI, with optional custom instructions.
 
-**User Experience:**
-- "Save as Template" button in Processing Options header
-- "Load Template" dropdown to select saved templates
-- Templates include: style, blending config, smart parse setting, and all editing rules
+### How It Works
+- Add a mode toggle in Story Viewer: "View" / "Text Edit" / "AI Edit"
+- In AI Edit mode, the story text becomes selectable
+- Selecting text opens a dialog to provide optional instructions
+- AI regenerates only the selected portion while maintaining context
 
-**Technical Changes:**
-
-| File | Action | Purpose |
-|------|--------|---------|
-| `src/lib/scribe/processingTemplates.ts` | CREATE | Template interface, validation, localStorage persistence |
-| `src/hooks/use-processing-templates.ts` | CREATE | Template CRUD operations hook |
-| `NarrativeForgeScreen.tsx` | MODIFY | Add template save/load UI in Processing Options card |
-
-**Data Structure:**
-```typescript
-interface ProcessingTemplate {
-  id: string;
-  name: string;
-  createdAt: string;
-  lastUsed: string;
-  
-  // Processing config
-  narrativeStyle: string;
-  blendConfig?: { secondaryStyle: string; ratio: number };
-  smartParseEnabled: boolean;
-  processingOptions: ProcessingOptions;
-  
-  // Editing rules
-  editingRules: EditingRule[];
-}
-```
+### UI Location
+Story Viewer Sheet header - mode selector dropdown
 
 ---
 
-### Feature 3: Batch Style Preview
+## Feature 2: File Upload to Saved Stories
 
-**What it does:** Preview how different styles would transform the same sample text side-by-side.
+### What It Does
+Allows users to upload .txt, .md, .docx, or .rtf files directly into an existing saved story.
 
-**User Experience:**
-- "Preview All Styles" button appears when there's input text
-- Opens a sheet/modal showing a 500-char sample transformed by 3-4 selected styles
-- Users can select which styles to compare
+### How It Works
+- "Import File" button in Story Viewer
+- Upload a file and preview its content
+- Choose to **Append** (adds separator + content) or **Replace** (overwrites story)
+- Content is normalized for encoding issues
 
-**Technical Changes:**
-
-| File | Action | Purpose |
-|------|--------|---------|
-| `src/components/scribe/StylePreviewSheet.tsx` | CREATE | Multi-column preview UI with style selector |
-| `NarrativeForgeScreen.tsx` | MODIFY | Add button to trigger preview sheet |
-| Edge function | No changes | Uses existing endpoint with different styles |
-
-**UI Design:**
-```text
-+----------------------------------------------------------+
-| STYLE COMPARISON PREVIEW                            [X]  |
-+----------------------------------------------------------+
-| Sample: "The ancient door creaks open..."                |
-+----------------------------------------------------------+
-| [ ] Fantasy    [ ] Noir    [x] Salvatore    [x] Deadpool |
-+----------------------------------------------------------+
-|                          |                               |
-| SALVATORE                | DEADPOOL                      |
-| The blade sang as        | (Oh great, another door.      |
-| Drizzt pressed forward...| The writer loves doors...)    |
-|                          |                               |
-+----------------------------------------------------------+
-```
+### UI Location
+Story Viewer Sheet header - "Import File" button
 
 ---
 
-## Phase 2: Story Management Enhancements
+## Feature 3: Custom AI Commands for Saved Stories
 
-### Feature 4: Story Organization (Folders/Tags)
+### What It Does
+Allows users to apply AI transformations to an **entire saved story** using natural language instructions - without having to select text manually.
 
-**What it does:** Group stories by campaign, character, or custom tags for better organization.
+### Use Cases
+- "Change every instance of 'lzj' to 'xeyle'"
+- "Convert all dialogue to first person"
+- "Add more sensory details throughout"
+- "Make the tone more formal"
+- "Remove all references to [character name]"
 
-**User Experience:**
-- Tags shown as colored chips on story cards
-- Filter stories by tag in the story list sheet
-- "Add Tag" button on each story with autocomplete from existing tags
-- Optional folder grouping view
+### How It Works
+- "AI Command" button in Story Viewer (available in View or AI Edit mode)
+- Opens dialog with textarea for custom instruction
+- Sends full story text to edge function with new `mode: 'command'`
+- AI processes entire story according to instruction
+- Story content is replaced with transformed result
 
-**Technical Changes:**
+### UI Location
+Story Viewer Sheet header - "AI Command" button (wand icon)
 
-| File | Action | Purpose |
-|------|--------|---------|
-| `use-saved-stories.ts` | MODIFY | Extend `SavedStory` interface with `tags: string[]` and `folderId?: string` |
-| `src/lib/scribe/storyOrganization.ts` | CREATE | Tag/folder types, color mapping, filtering utilities |
-| `StoryListSheet.tsx` | MODIFY | Add tag filter dropdown, tag display on cards, tag editing |
-| `NarrativeForgeScreen.tsx` | MODIFY | Pass tag filter state to sheet |
-
-**Extended Interface:**
-```typescript
-interface SavedStory {
-  // ... existing fields
-  tags: string[];           // NEW: ["campaign-1", "character-kira"]
-  folderId?: string;        // NEW: optional folder grouping
-}
-
-interface StoryFolder {
-  id: string;
-  name: string;
-  color: string;
-  createdAt: string;
-}
-```
+### Works With Imported Files
+When a user imports a file (Feature 2), the content becomes part of the saved story. They can then immediately apply an AI Command to transform the imported content.
 
 ---
 
-### Feature 5: Story Merging
+## Files to Create
 
-**What it does:** Combine multiple saved stories into one with ordering control.
-
-**User Experience:**
-- "Merge Stories" button in story list sheet
-- Opens merge dialog with drag-to-reorder capability
-- Preview combined word count and structure
-- Creates new merged story (originals optionally preserved)
-
-**Technical Changes:**
-
-| File | Action | Purpose |
-|------|--------|---------|
-| `src/components/scribe/StoryMergeDialog.tsx` | CREATE | Merge UI with reordering, preview, options |
-| `use-saved-stories.ts` | MODIFY | Add `mergeStories(ids: string[], options)` function |
-| `StoryListSheet.tsx` | MODIFY | Add merge button, selection mode for merging |
-
-**Merge Options:**
-```typescript
-interface MergeOptions {
-  newTitle: string;
-  separator: '---' | '***' | 'chapter' | 'none';
-  preserveOriginals: boolean;
-  inheritTags: boolean;
-}
-```
-
----
-
-### Feature 6: Comparison View (Original vs. Transformed)
-
-**What it does:** Side-by-side view showing original vs. transformed text with diff highlighting.
-
-**User Experience:**
-- Toggle button switches output panel to split-view mode
-- Left side: original input (or selected session)
-- Right side: transformed output
-- Visual highlighting of changes (additions in green, removals in red)
-- Word count comparison shown
-
-**Technical Changes:**
-
-| File | Action | Purpose |
-|------|--------|---------|
-| `src/components/scribe/ComparisonView.tsx` | CREATE | Split-panel component with diff rendering |
-| `src/lib/scribe/textDiff.ts` | CREATE | Simple word-level diff algorithm |
-| `NarrativeForgeScreen.tsx` | MODIFY | Add comparison toggle, store original text, render comparison view |
-
-**Diff Algorithm Approach:**
-```typescript
-// Simple word-level diff for narrative comparison
-interface DiffSegment {
-  type: 'unchanged' | 'added' | 'removed';
-  text: string;
-}
-
-function computeNarrativeDiff(original: string, transformed: string): DiffSegment[] {
-  // Word-level comparison with paragraph awareness
-  // Highlight added prose, removed mechanics
-}
-```
-
----
-
-## Phase 3: Advanced Features
-
-### Feature 7: Multi-File Upload
-
-**What it does:** Process multiple campaign files and combine them chronologically.
-
-**User Experience:**
-- Drag-drop zone accepts multiple files
-- File list shows all uploaded files with drag-to-reorder
-- Combine button merges all files in order before processing
-- Sessions detected across all files with file source indicator
-
-**Technical Changes:**
-
-| File | Action | Purpose |
-|------|--------|---------|
-| `CampaignFileUpload.tsx` | MODIFY | Accept `multiple` files, manage file list with ordering |
-| `use-campaign-processor.ts` | MODIFY | Add `loadFiles()` for multiple files, `combineFiles()` utility |
-| `src/lib/scribe/sessionDetection.ts` | MODIFY | Add `detectSessionsMultiFile()` that tracks source file |
-
-**Extended Session Interface:**
-```typescript
-interface DetectedSession {
-  // ... existing fields
-  sourceFile?: string;        // NEW: originating filename
-  sourceFileIndex?: number;   // NEW: file order position
-}
-```
-
-**UI Changes:**
-```text
-+---------------------------------------------+
-| UPLOADED FILES (3)                    [+]   |
-+---------------------------------------------+
-| [≡] campaign-part1.txt    45KB        [X]  |
-| [≡] campaign-part2.txt    38KB        [X]  |
-| [≡] session-notes.md      12KB        [X]  |
-+---------------------------------------------+
-| 127 sessions detected across 3 files        |
-+---------------------------------------------+
-```
-
----
-
-### Feature 8: Regenerate Partial Sections
-
-**What it does:** Allow users to select and regenerate just a portion of the output.
-
-**User Experience:**
-- Text selection in output textarea
-- "Regenerate Selection" button appears when text is selected
-- Opens dialog to optionally modify style or add specific instructions for that section
-- Replaces only the selected portion with new generation
-
-**Technical Changes:**
-
-| File | Action | Purpose |
-|------|--------|---------|
-| `src/components/scribe/SelectableOutput.tsx` | CREATE | Enhanced output component with selection tracking |
-| `NarrativeForgeScreen.tsx` | MODIFY | Replace output textarea with SelectableOutput, add regeneration handler |
-| `narrative-forge/index.ts` | MODIFY | Add `mode: 'full' | 'partial'` with context-aware regeneration |
-
-**Edge Function Enhancement:**
-```typescript
-interface RequestBody {
-  // ... existing fields
-  mode?: 'full' | 'partial';
-  partialContext?: {
-    precedingText: string;    // ~500 chars before selection
-    selectedText: string;     // text to regenerate
-    followingText: string;    // ~500 chars after selection
-    instruction?: string;     // optional user guidance
-  };
-}
-```
-
-**Partial Regeneration Prompt:**
-```text
-CONTEXT (preceding text):
-${precedingText}
-
-TEXT TO REGENERATE:
-${selectedText}
-
-CONTEXT (following text):
-${followingText}
-
-Rewrite the middle section while maintaining continuity with surrounding context.
-${instruction ? `Additional instruction: ${instruction}` : ''}
-```
-
----
-
-## File Summary
-
-### New Files (9)
 | File | Purpose |
 |------|---------|
-| `src/lib/scribe/processingTemplates.ts` | Template types and persistence |
-| `src/hooks/use-processing-templates.ts` | Template CRUD hook |
-| `src/lib/scribe/storyOrganization.ts` | Tags, folders, filtering |
-| `src/lib/scribe/textDiff.ts` | Word-level diff algorithm |
-| `src/components/scribe/StylePreviewSheet.tsx` | Multi-style comparison |
-| `src/components/scribe/StoryMergeDialog.tsx` | Story merge UI |
-| `src/components/scribe/ComparisonView.tsx` | Original vs. transformed view |
-| `src/components/scribe/SelectableOutput.tsx` | Output with selection tracking |
-| `src/components/scribe/MultiFileUpload.tsx` | Multiple file handling (or extend existing) |
+| `src/components/scribe/StoryFileUpload.tsx` | File upload component for importing to stories |
+| `src/components/scribe/AICommandDialog.tsx` | Dialog for custom AI commands on full story |
+| `src/components/scribe/StoryEditModeSelector.tsx` | Dropdown for switching View/Text/AI modes |
 
-### Modified Files (6)
+---
+
+## Files to Modify
+
 | File | Changes |
 |------|---------|
-| `NarrativeForgeScreen.tsx` | All UI integrations, new state variables |
-| `use-saved-stories.ts` | Tags, folders, merge functionality |
-| `use-campaign-processor.ts` | Multi-file support |
-| `StoryListSheet.tsx` | Tag filtering, merge selection |
-| `CampaignFileUpload.tsx` | Multi-file support |
-| `narrative-forge/index.ts` | Style blending, partial regeneration |
+| `src/components/scribe/NarrativeForgeScreen.tsx` | Add edit modes, file upload, AI command in Story Viewer |
+| `supabase/functions/narrative-forge/index.ts` | Add 'command' mode for full-text transformations |
 
 ---
 
-## Dependencies
+## Implementation Steps
 
-- No new npm packages required
-- All features use existing UI components (shadcn/ui)
-- Diff algorithm is custom (simple word-level, no library needed)
+### Step 1: Update Edge Function for Command Mode
+Add new `'command'` mode to process full-text transformations:
+
+```typescript
+// New mode type
+mode?: 'full' | 'partial' | 'command';
+
+// New context for command mode
+commandContext?: {
+  fullText: string;      // Entire story (up to 50,000 chars)
+  instruction: string;   // User's command (max 1000 chars)
+};
+```
+
+Command mode prompt will instruct the AI to apply the user's instruction to the entire text while maintaining style consistency.
+
+### Step 2: Create AICommandDialog Component
+- Textarea for entering custom instruction
+- Examples dropdown for common commands
+- Loading state during processing
+- Error handling with toast feedback
+
+### Step 3: Create StoryFileUpload Component
+- Single file drop zone (.txt, .md, .docx, .rtf)
+- Content preview with word count
+- Append/Replace option buttons
+- Uses existing normalization and parsing utilities
+
+### Step 4: Create StoryEditModeSelector Component
+- Dropdown with View, Text Edit, AI Edit options
+- Icons for each mode
+- Maintains selected state
+
+### Step 5: Update Story Viewer in NarrativeForgeScreen
+- Replace edit button with mode selector
+- Add "Import File" button
+- Add "AI Command" button
+- Conditional rendering based on mode:
+  - View: ScrollArea with read-only prose
+  - Text Edit: Textarea for direct editing
+  - AI Edit: SelectableOutput for selection-based regeneration
+- Handle all save/cancel flows
 
 ---
 
-## Implementation Order Recommendation
+## User Flows
 
-1. ~~**Processing Templates** - Foundation for saving configurations~~ ✅ DONE
-2. ~~**Style Blending** - Simple edge function change~~ ✅ DONE
-3. ~~**Batch Style Preview** - Uses existing infrastructure~~ ✅ DONE
-4. ~~**Story Organization (Tags)** - Extends existing story system~~ ✅ DONE
-5. ~~**Comparison View** - Useful debugging tool~~ ✅ DONE
-6. ~~**Story Merging** - Builds on tags feature~~ ✅ DONE
-7. ~~**Multi-File Upload** - Complex but self-contained~~ ✅ DONE
-8. ~~**Partial Regeneration** - Most complex, requires all foundations~~ ✅ DONE
+### Flow 1: AI Edit a Section
+1. Open saved story
+2. Select "AI Edit" from dropdown
+3. Highlight text you want to change
+4. Dialog opens - add optional instruction
+5. AI regenerates just that section
+6. Save changes
+
+### Flow 2: Import and Transform a File
+1. Open a saved story (or create new one)
+2. Click "Import File"
+3. Upload a .txt/.docx file
+4. Choose "Append" or "Replace"
+5. Content is added to story
+6. Click "AI Command"
+7. Enter: "Change 'lzj' to 'xeyle' throughout"
+8. AI transforms entire story
+9. Save changes
+
+### Flow 3: Apply Global Command
+1. Open any saved story
+2. Click "AI Command"
+3. Enter instruction: "Make the tone more dramatic"
+4. Click "Apply"
+5. Story is transformed
+6. Save changes
 
 ---
 
-## Testing Checklist
+## Technical Details
 
-For each feature:
-- [ ] Core functionality works with sample data
-- [ ] Edge cases handled (empty input, max limits)
-- [ ] localStorage persistence works across page refreshes
-- [ ] Mobile responsive layout
-- [ ] Loading/error states display correctly
-- [ ] Toast notifications provide feedback
-- [ ] Feature integrates smoothly with existing workflow
+### Edge Function Command Mode Prompt
+```text
+SYSTEM:
+You are an expert prose editor. Apply the user's instruction to the provided text.
+Follow the instruction precisely. Return the complete modified text.
+Maintain the overall structure and narrative voice unless instructed otherwise.
+
+USER:
+INSTRUCTION: ${instruction}
+
+STYLE GUIDE: ${styleGuide}
+
+TEXT TO EDIT:
+---
+${fullText}
+---
+
+Apply the instruction and return the complete edited text.
+```
+
+### Validation
+- Instruction required (min 3 chars, max 1000 chars)
+- Full text required (min 10 chars, max 50,000 chars)
+- Button disabled during processing
+- Original content preserved if error occurs
+
+---
+
+## Edge Cases Handled
+
+- Empty instruction: Validation prevents submission
+- Very long stories: Warning shown, processing continues
+- Import empty file: Error toast, no changes made
+- File encoding issues: UTF-8 normalization applied
+- Failed transformation: Error toast, original content preserved
+- Concurrent operations: Buttons disabled during processing
 
