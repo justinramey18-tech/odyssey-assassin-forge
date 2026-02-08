@@ -132,8 +132,13 @@ export function MobileCombatLayout({
     abilityModifiers,
   });
   
-  // Access drawer context
-  const drawerContext = usePromptDrawers();
+  // Access drawer context (optional - may not be in PromptDrawerProvider)
+  let drawerContext: ReturnType<typeof usePromptDrawers> | null = null;
+  try {
+    drawerContext = usePromptDrawers();
+  } catch {
+    // Not inside PromptDrawerProvider - drawer functions won't be available
+  }
   
   // Equipment custom images for weapon cards
   const { images: equipmentImages } = useEquipmentImages();
