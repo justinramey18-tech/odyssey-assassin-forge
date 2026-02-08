@@ -46,6 +46,7 @@ import { useProcessingTemplates } from '@/hooks/use-processing-templates';
 import { DetectedSession, estimateProcessingTime, combineMultiFileSessions } from '@/lib/scribe/sessionDetection';
 import { getSmartParsePreview } from '@/lib/scribe/smartParsing';
 import { BlendConfig } from '@/lib/scribe/processingTemplates';
+import { splitTextIntoChunks, reassembleChunks, createChunkContext } from '@/lib/scribe/chunkProcessing';
 import scribeBackground from '@/assets/scribe-background.jpg';
 
 interface NarrativeForgeScreenProps {
@@ -79,6 +80,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
   const [showAICommandDialog, setShowAICommandDialog] = useState(false);
   const [showStoryFileUpload, setShowStoryFileUpload] = useState(false);
   const [isApplyingCommand, setIsApplyingCommand] = useState(false);
+  const [chunkProgress, setChunkProgress] = useState<{ current: number; total: number } | null>(null);
   
   const { toast } = useToast();
 
@@ -274,7 +276,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
     }
   }, [activeStory, characterName, toast]);
 
-  // Handle AI command for full-text transformation
+  // Handle AI command for full-text transformation (with chunked processing for large stories)
   const handleApplyAICommand = useCallback(async (instruction: string) => {
     if (!activeStory) {
       toast({
@@ -286,7 +288,6 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
     }
     
     // Use edited content if in edit mode, otherwise use story content
-    // Prioritize activeStory.content as the source of truth for View mode
     const contentToProcess = (storyEditMode !== 'view' && editedContent.trim()) 
       ? editedContent 
       : activeStory.content;
@@ -301,50 +302,75 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
       return;
     }
     
-    // Check character limit (50,000 max for AI Command)
-    const MAX_COMMAND_CHARS = 50000;
-    if (contentToProcess.length > MAX_COMMAND_CHARS) {
-      toast({
-        title: "Story Too Long",
-        description: `AI Command supports up to ${MAX_COMMAND_CHARS.toLocaleString()} characters. Your story has ${contentToProcess.length.toLocaleString()} characters. Consider splitting into smaller sections.`,
-        variant: "destructive",
-      });
-      return;
-    }
-    
     setIsApplyingCommand(true);
+    setChunkProgress(null);
     
     try {
-      const { data, error } = await supabase.functions.invoke('narrative-forge', {
-        body: {
-          mode: 'command',
-          commandContext: {
-            fullText: contentToProcess,
-            instruction,
-          },
-          style: activeStory.style,
-          characterName,
-        },
-      });
-
-      if (error) throw error;
-
-      if (data.success && data.narrative) {
-        // Update the story content
-        setEditedContent(data.narrative);
-        updateStory(activeStory.id, { content: data.narrative });
-        
+      // Split into chunks if needed (for stories over ~45K chars)
+      const { chunks } = splitTextIntoChunks(contentToProcess);
+      const isChunked = chunks.length > 1;
+      
+      if (isChunked) {
+        setChunkProgress({ current: 0, total: chunks.length });
         toast({
-          title: "Command Applied",
-          description: `Processed ${data.inputLength.toLocaleString()} → ${data.outputLength.toLocaleString()} characters.`,
+          title: "Processing Large Story",
+          description: `Splitting into ${chunks.length} sections for processing...`,
         });
-        
-        // Switch to text edit mode to show the results
-        setIsEditingStory(true);
-        setStoryEditMode('text');
-      } else {
-        throw new Error(data.error || 'Failed to apply command');
       }
+      
+      const processedChunks: string[] = [];
+      let totalInputLength = 0;
+      let totalOutputLength = 0;
+      
+      // Process each chunk sequentially
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        const contextualInstruction = createChunkContext(i, chunks.length, instruction);
+        
+        if (isChunked) {
+          setChunkProgress({ current: i + 1, total: chunks.length });
+        }
+        
+        const { data, error } = await supabase.functions.invoke('narrative-forge', {
+          body: {
+            mode: 'command',
+            commandContext: {
+              fullText: chunk,
+              instruction: contextualInstruction,
+            },
+            style: activeStory.style,
+            characterName,
+          },
+        });
+
+        if (error) throw error;
+
+        if (data.success && data.narrative) {
+          processedChunks.push(data.narrative);
+          totalInputLength += data.inputLength || chunk.length;
+          totalOutputLength += data.outputLength || data.narrative.length;
+        } else {
+          throw new Error(data.error || `Failed to process section ${i + 1}`);
+        }
+      }
+      
+      // Reassemble the processed chunks
+      const finalContent = reassembleChunks(processedChunks);
+      
+      // Update the story content
+      setEditedContent(finalContent);
+      updateStory(activeStory.id, { content: finalContent });
+      
+      toast({
+        title: "Command Applied",
+        description: isChunked 
+          ? `Processed ${chunks.length} sections: ${totalInputLength.toLocaleString()} → ${totalOutputLength.toLocaleString()} characters.`
+          : `Processed ${totalInputLength.toLocaleString()} → ${totalOutputLength.toLocaleString()} characters.`,
+      });
+      
+      // Switch to text edit mode to show the results
+      setIsEditingStory(true);
+      setStoryEditMode('text');
     } catch (error) {
       toast({
         title: "Command Failed",
@@ -353,8 +379,10 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
       });
     } finally {
       setIsApplyingCommand(false);
+      setChunkProgress(null);
     }
   }, [activeStory, storyEditMode, editedContent, characterName, updateStory, toast]);
+
 
   // Handle file import to story
   const handleFileImportToStory = useCallback((content: string, mode: 'append' | 'replace') => {
@@ -912,6 +940,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
         isProcessing={isApplyingCommand}
         storyWordCount={activeStory?.wordCount || 0}
         storyCharCount={activeStory?.content?.length || 0}
+        chunkProgress={chunkProgress}
       />
 
       {/* Story File Upload Dialog */}

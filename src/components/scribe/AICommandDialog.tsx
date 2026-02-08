@@ -41,6 +41,7 @@ interface AICommandDialogProps {
   isProcessing: boolean;
   storyWordCount: number;
   storyCharCount?: number;
+  chunkProgress?: { current: number; total: number } | null;
 }
 
 const EXAMPLE_COMMANDS = [
@@ -59,6 +60,7 @@ export function AICommandDialog({
   isProcessing,
   storyWordCount,
   storyCharCount = 0,
+  chunkProgress,
 }: AICommandDialogProps) {
   const [instruction, setInstruction] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -274,19 +276,37 @@ export function AICommandDialog({
                   <div className="absolute inset-0 w-12 h-12 rounded-full bg-purple-500/20 animate-ping" />
                 </div>
                 <div className="text-center space-y-2">
-                  <h3 className="font-semibold text-lg">Processing Story...</h3>
+                  <h3 className="font-semibold text-lg">
+                    {chunkProgress 
+                      ? `Processing Section ${chunkProgress.current} of ${chunkProgress.total}...`
+                      : 'Processing Story...'}
+                  </h3>
                   <p className="text-sm text-muted-foreground max-w-[280px]">
-                    AI is transforming {storyWordCount.toLocaleString()} words. This may take 15-30 seconds for longer stories.
+                    {chunkProgress 
+                      ? `Large story split into ${chunkProgress.total} sections for processing.`
+                      : `AI is transforming ${storyWordCount.toLocaleString()} words. This may take 15-30 seconds for longer stories.`}
                   </p>
                 </div>
                 <div className="w-full max-w-[280px] space-y-2">
-                  <Progress value={progress} className="h-2" />
-                  <p className="text-xs text-muted-foreground text-center">
-                    {progress < 30 ? 'Reading story...' : 
-                     progress < 60 ? 'Applying transformation...' : 
-                     progress < 85 ? 'Generating output...' : 
-                     'Finalizing...'}
-                  </p>
+                  {chunkProgress ? (
+                    <>
+                      <Progress value={(chunkProgress.current / chunkProgress.total) * 100} className="h-2" />
+                      <p className="text-xs text-muted-foreground text-center">
+                        Section {chunkProgress.current}/{chunkProgress.total} • 
+                        ~{Math.ceil((chunkProgress.total - chunkProgress.current) * 20)}s remaining
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <Progress value={progress} className="h-2" />
+                      <p className="text-xs text-muted-foreground text-center">
+                        {progress < 30 ? 'Reading story...' : 
+                         progress < 60 ? 'Applying transformation...' : 
+                         progress < 85 ? 'Generating output...' : 
+                         'Finalizing...'}
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -449,16 +469,20 @@ export function AICommandDialog({
               <div className="flex flex-col gap-1 text-xs text-muted-foreground">
                 <div className="flex items-center justify-between">
                   <span>{instruction.length}/1000 characters</span>
-                  {storyWordCount > 5000 && storyCharCount <= 50000 && (
+                  {storyCharCount > 45000 && (
+                    <span className="text-amber-400">
+                      {Math.ceil(storyCharCount / 45000)} sections • ~{Math.ceil(storyCharCount / 45000) * 20}s
+                    </span>
+                  )}
+                  {storyWordCount > 5000 && storyCharCount <= 45000 && (
                     <span className="text-amber-400">
                       Long story - processing may take 15-30 seconds
                     </span>
                   )}
                 </div>
-                {storyCharCount > 50000 && (
-                  <div className="p-2 rounded bg-destructive/10 border border-destructive/30 text-destructive">
-                    ⚠️ Story exceeds 50,000 character limit ({storyCharCount.toLocaleString()} chars). 
-                    AI Command cannot process stories this long.
+                {storyCharCount > 45000 && (
+                  <div className="p-2 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400">
+                    📚 Large story ({storyCharCount.toLocaleString()} chars) will be processed in {Math.ceil(storyCharCount / 45000)} sections automatically.
                   </div>
                 )}
               </div>
@@ -482,7 +506,7 @@ export function AICommandDialog({
             </Button>
             <Button 
               onClick={handleApply}
-              disabled={isProcessing || instruction.trim().length < 3 || storyCharCount > 50000}
+              disabled={isProcessing || instruction.trim().length < 3}
               className="gap-2 bg-purple-600 hover:bg-purple-700"
             >
               {isProcessing ? (
