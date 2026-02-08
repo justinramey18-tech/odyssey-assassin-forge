@@ -63,7 +63,9 @@ interface CustomEditingRule {
 
 interface BlendConfig {
   secondaryStyle: string;
-  ratio: number; // 10-50, how much of secondary style to blend
+  ratio: number; // 10-90, how much of secondary style to blend
+  tertiaryStyle?: string;
+  tertiaryRatio?: number; // 5-30, optional third style
 }
 
 interface PartialContext {
@@ -228,17 +230,31 @@ function validateEditingRules(rules: unknown): CustomEditingRule[] {
 function validateBlendConfig(config: unknown): BlendConfig | undefined {
   if (!config || typeof config !== 'object') return undefined;
   
-  const { secondaryStyle, ratio } = config as BlendConfig;
+  const { secondaryStyle, ratio, tertiaryStyle, tertiaryRatio } = config as BlendConfig;
   
   if (typeof secondaryStyle !== 'string' || !VALID_STYLES.includes(secondaryStyle as ValidStyle)) {
     return undefined;
   }
   
-  if (typeof ratio !== 'number' || ratio < 10 || ratio > 50) {
+  if (typeof ratio !== 'number' || ratio < 10 || ratio > 90) {
     return undefined;
   }
   
-  return { secondaryStyle, ratio };
+  const result: BlendConfig = { secondaryStyle, ratio };
+  
+  // Validate optional tertiary style
+  if (tertiaryStyle !== undefined) {
+    if (typeof tertiaryStyle === 'string' && VALID_STYLES.includes(tertiaryStyle as ValidStyle)) {
+      result.tertiaryStyle = tertiaryStyle;
+      if (typeof tertiaryRatio === 'number' && tertiaryRatio >= 5 && tertiaryRatio <= 30) {
+        result.tertiaryRatio = tertiaryRatio;
+      } else {
+        result.tertiaryRatio = 10; // Default tertiary ratio
+      }
+    }
+  }
+  
+  return result;
 }
 
 // Validate partial context for partial regeneration
@@ -701,11 +717,36 @@ Rewrite the middle section while maintaining perfect continuity with the surroun
     // Build style guide - either single style or blended
     let styleGuide: string;
     if (blendConfig) {
-      const primaryRatio = 100 - blendConfig.ratio;
+      const tertiaryRatio = blendConfig.tertiaryStyle ? (blendConfig.tertiaryRatio || 10) : 0;
+      const primaryRatio = 100 - blendConfig.ratio - tertiaryRatio;
       const primaryGuide = styleGuides[style];
       const secondaryGuide = styleGuides[blendConfig.secondaryStyle as ValidStyle];
       
-      styleGuide = `
+      if (blendConfig.tertiaryStyle) {
+        const tertiaryGuide = styleGuides[blendConfig.tertiaryStyle as ValidStyle];
+        styleGuide = `
+STYLE BLENDING INSTRUCTIONS:
+You will blend THREE narrative styles in your writing.
+
+PRIMARY STYLE (${primaryRatio}% weight - this is your foundation):
+${primaryGuide}
+
+SECONDARY STYLE (${blendConfig.ratio}% weight - incorporate elements of this):
+${secondaryGuide}
+
+TERTIARY STYLE (${tertiaryRatio}% weight - light seasoning from this):
+${tertiaryGuide}
+
+BLENDING APPROACH:
+- Use the primary style as your foundation for tone, vocabulary, and structure
+- Weave in distinctive elements from the secondary style (characteristic phrases, specific techniques)
+- Add subtle touches from the tertiary style as accent and flavor
+- The blend should feel natural, not jarring - like a skilled author who has absorbed multiple influences
+- When styles conflict, favor the primary style, then secondary, then tertiary
+`;
+        console.log(`Style blending: ${primaryRatio}% ${style} + ${blendConfig.ratio}% ${blendConfig.secondaryStyle} + ${tertiaryRatio}% ${blendConfig.tertiaryStyle}`);
+      } else {
+        styleGuide = `
 STYLE BLENDING INSTRUCTIONS:
 You will blend TWO narrative styles in your writing.
 
@@ -721,7 +762,8 @@ BLENDING APPROACH:
 - The blend should feel natural, not jarring - like a skilled author who has absorbed multiple influences
 - When styles conflict, favor the primary style
 `;
-      console.log(`Style blending: ${primaryRatio}% ${style} + ${blendConfig.ratio}% ${blendConfig.secondaryStyle}`);
+        console.log(`Style blending: ${primaryRatio}% ${style} + ${blendConfig.ratio}% ${blendConfig.secondaryStyle}`);
+      }
     } else {
       styleGuide = styleGuides[style];
     }
