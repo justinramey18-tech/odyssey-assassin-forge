@@ -75,6 +75,11 @@ interface PartialContext {
   instruction?: string;
 }
 
+interface CommandContext {
+  fullText: string;      // Entire story (up to 50,000 chars)
+  instruction: string;   // User's command (max 1000 chars)
+}
+
 interface RequestBody {
   text: string;
   characterName?: string;
@@ -82,8 +87,9 @@ interface RequestBody {
   smartParseEnabled?: boolean;
   customEditingRules?: CustomEditingRule[];
   blendConfig?: BlendConfig;
-  mode?: 'full' | 'partial';
+  mode?: 'full' | 'partial' | 'command';
   partialContext?: PartialContext;
+  commandContext?: CommandContext;
 }
 
 type ValidationResult = {
@@ -94,8 +100,9 @@ type ValidationResult = {
   smartParseEnabled: boolean;
   customEditingRules: CustomEditingRule[];
   blendConfig?: BlendConfig;
-  mode: 'full' | 'partial';
+  mode: 'full' | 'partial' | 'command';
   partialContext?: PartialContext;
+  commandContext?: CommandContext;
 } | {
   valid: false;
   error: string;
@@ -275,30 +282,73 @@ function validatePartialContext(context: unknown): PartialContext | null {
   };
 }
 
+// Validate command context for command mode
+function validateCommandContext(context: unknown): CommandContext | null {
+  if (!context || typeof context !== 'object') return null;
+  
+  const { fullText, instruction } = context as CommandContext;
+  
+  if (typeof fullText !== 'string' || fullText.length < 10) {
+    return null;
+  }
+  
+  if (fullText.length > MAX_TEXT_LENGTH) {
+    return null;
+  }
+  
+  if (typeof instruction !== 'string' || instruction.length < 3 || instruction.length > 1000) {
+    return null;
+  }
+  
+  return {
+    fullText: sanitizeInput(fullText),
+    instruction: sanitizeInput(instruction),
+  };
+}
+
 // Validate request body
 function validateRequestBody(body: unknown): ValidationResult {
   if (!body || typeof body !== 'object') {
     return { valid: false, error: 'Invalid request body' };
   }
   
-  const { text, characterName, style, smartParseEnabled, customEditingRules, blendConfig, mode, partialContext } = body as RequestBody;
+  const { text, characterName, style, smartParseEnabled, customEditingRules, blendConfig, mode, partialContext, commandContext } = body as RequestBody;
   
   // Determine mode
-  const validatedMode = mode === 'partial' ? 'partial' : 'full';
+  const validatedMode = mode === 'partial' ? 'partial' : mode === 'command' ? 'command' : 'full';
+  
+  // Validate style for all modes
+  let validatedStyle: ValidStyle = 'fantasy';
+  if (style !== undefined && style !== null && typeof style === 'string') {
+    if (VALID_STYLES.includes(style as ValidStyle)) {
+      validatedStyle = style as ValidStyle;
+    }
+  }
+  
+  // For command mode, validate command context
+  if (validatedMode === 'command') {
+    const validatedCommandContext = validateCommandContext(commandContext);
+    if (!validatedCommandContext) {
+      return { valid: false, error: 'Invalid command context. Requires fullText (10-50000 chars) and instruction (3-1000 chars)' };
+    }
+    
+    return {
+      valid: true,
+      text: '', // Not used in command mode
+      characterName: characterName ? sanitizeCharacterName(String(characterName)) : null,
+      style: validatedStyle,
+      smartParseEnabled: false,
+      customEditingRules: [],
+      mode: 'command',
+      commandContext: validatedCommandContext,
+    };
+  }
   
   // For partial mode, validate partial context instead of text
   if (validatedMode === 'partial') {
     const validatedPartialContext = validatePartialContext(partialContext);
     if (!validatedPartialContext) {
       return { valid: false, error: 'Invalid partial context for partial regeneration' };
-    }
-    
-    // Validate style
-    let validatedStyle: ValidStyle = 'fantasy';
-    if (style !== undefined && style !== null && typeof style === 'string') {
-      if (VALID_STYLES.includes(style as ValidStyle)) {
-        validatedStyle = style as ValidStyle;
-      }
     }
     
     return {
@@ -328,23 +378,6 @@ function validateRequestBody(body: unknown): ValidationResult {
   
   if (text.length > MAX_TEXT_LENGTH) {
     return { valid: false, error: `text exceeds maximum length of ${MAX_TEXT_LENGTH} characters` };
-  }
-  
-  // Validate style
-  let validatedStyle: ValidStyle = 'fantasy';
-  if (style !== undefined && style !== null) {
-    if (typeof style !== 'string') {
-      return { valid: false, error: 'style must be a string' };
-    }
-    
-    if (!VALID_STYLES.includes(style as ValidStyle)) {
-      return { 
-        valid: false, 
-        error: `Invalid style. Must be one of: ${VALID_STYLES.join(', ')}` 
-      };
-    }
-    
-    validatedStyle = style as ValidStyle;
   }
   
   // Validate characterName
@@ -609,7 +642,87 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { characterName, style, smartParseEnabled, customEditingRules, blendConfig, mode, partialContext } = validation;
+    const { characterName, style, smartParseEnabled, customEditingRules, blendConfig, mode, partialContext, commandContext } = validation;
+    
+    // Handle command mode - apply AI transformation to full text
+    if (mode === 'command' && commandContext) {
+      console.log(`Processing command mode: ${commandContext.fullText.length} chars, instruction: "${commandContext.instruction.slice(0, 50)}..."`);
+      
+      const styleGuide = styleGuides[style];
+      
+      const commandSystemPrompt = `You are an expert prose editor. Your task is to apply the user's editing instruction to the provided text.
+
+RULES:
+1. APPLY the instruction PRECISELY as stated
+2. MAINTAIN the overall structure and narrative voice unless instructed otherwise
+3. PRESERVE important story elements, character names, and plot points unless the instruction specifically targets them
+4. RETURN the complete modified text - do not summarize or truncate
+5. Do NOT add explanations, notes, or meta-commentary - respond only with the edited text
+
+${styleGuide}
+
+${characterName ? `Primary character for reference: ${characterName}` : ''}
+
+Respond ONLY with the edited text. No explanations, no meta-commentary.`;
+
+      const commandUserPrompt = `EDITING INSTRUCTION:
+${commandContext.instruction}
+
+TEXT TO EDIT:
+---
+${commandContext.fullText}
+---
+
+Apply the instruction above and return the complete edited text.`;
+
+      const response = await fetch(AI_GATEWAY_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-3-pro-preview',
+          messages: [
+            { role: 'system', content: commandSystemPrompt },
+            { role: 'user', content: commandUserPrompt },
+          ],
+          temperature: 0.5, // Lower temperature for more precise editing
+          max_tokens: 16000, // Support longer outputs for full story editing
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('AI Gateway error:', response.status, errorText);
+        return new Response(
+          JSON.stringify({ success: false, error: `AI processing failed: ${response.status}` }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const data = await response.json();
+      const narrative = data.choices?.[0]?.message?.content || '';
+
+      console.log(`Command mode completed: ${narrative.length} chars output`);
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          narrative,
+          mode: 'command',
+          style,
+          inputLength: commandContext.fullText.length,
+          outputLength: narrative.length,
+        }),
+        { 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json' 
+          } 
+        }
+      );
+    }
     
     // Handle partial regeneration mode
     if (mode === 'partial' && partialContext) {
