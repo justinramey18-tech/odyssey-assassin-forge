@@ -357,7 +357,7 @@ ${instruction ? `Additional instruction: ${instruction}` : ''}
 5. ~~**Comparison View** - Useful debugging tool~~ ✅ DONE
 6. ~~**Story Merging** - Builds on tags feature~~ ✅ DONE
 7. ~~**Multi-File Upload** - Complex but self-contained~~ ✅ DONE
-8. **Partial Regeneration** - Most complex, requires all foundations
+8. ~~**Partial Regeneration** - Most complex, requires all foundations~~ ✅ DONE
 
 ---
 
