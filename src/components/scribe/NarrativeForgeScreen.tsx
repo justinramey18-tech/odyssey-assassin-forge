@@ -25,8 +25,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { CampaignFileUpload } from './CampaignFileUpload';
 import { StoryListSheet } from './StoryListSheet';
 import { SmartParsePreview } from './SmartParsePreview';
+import { EditingRulesEditor } from './EditingRulesEditor';
 import { useCampaignProcessor } from '@/hooks/use-campaign-processor';
 import { useSavedStories } from '@/hooks/use-saved-stories';
+import { useEditingRules } from '@/hooks/use-editing-rules';
 import { DetectedSession, estimateProcessingTime } from '@/lib/scribe/sessionDetection';
 import { getSmartParsePreview } from '@/lib/scribe/smartParsing';
 import scribeBackground from '@/assets/scribe-background.jpg';
@@ -67,6 +69,9 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
 
   // Campaign processor for file uploads
   const campaignProcessor = useCampaignProcessor();
+
+  // Custom editing rules
+  const editingRulesHook = useEditingRules();
 
   // Smart parse preview - shows what will be filtered when using AI mode
   const smartParseInfo = useMemo(() => {
@@ -207,11 +212,17 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
         return;
       }
 
+      // Prepare custom editing rules for the processor
+      const rulesForApi = editingRulesHook.rules
+        .filter(r => r.isValid && r.instruction.trim())
+        .map(r => ({ type: r.type, instruction: r.instruction, scope: r.scope }));
+
       const result = await campaignProcessor.processSelectedSessions(
         processingMode,
         options,
         characterName,
-        smartParseEnabled
+        smartParseEnabled,
+        rulesForApi
       );
 
       if (result) {
@@ -246,6 +257,11 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
           description: "Your text has been transformed using offline logic.",
         });
       } else {
+        // Prepare custom editing rules for the API
+        const rulesForApi = editingRulesHook.rules
+          .filter(r => r.isValid && r.instruction.trim())
+          .map(r => ({ type: r.type, instruction: r.instruction, scope: r.scope }));
+
         // Use AI-powered processing via edge function
         const { data, error } = await supabase.functions.invoke('narrative-forge', {
           body: { 
@@ -253,6 +269,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
             characterName,
             style: options.narrativeStyle,
             smartParseEnabled,
+            customEditingRules: rulesForApi,
           },
         });
 
@@ -342,11 +359,17 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
     const failedCount = campaignProcessor.getFailedSessionCount();
     if (failedCount === 0) return;
 
+    // Prepare custom editing rules for the processor
+    const rulesForApi = editingRulesHook.rules
+      .filter(r => r.isValid && r.instruction.trim())
+      .map(r => ({ type: r.type, instruction: r.instruction, scope: r.scope }));
+
     const result = await campaignProcessor.retryFailedSessions(
       processingMode,
       options,
       characterName,
-      smartParseEnabled
+      smartParseEnabled,
+      rulesForApi
     );
 
     if (result) {
@@ -365,7 +388,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
         });
       }
     }
-  }, [campaignProcessor, processingMode, options, characterName, smartParseEnabled, toast]);
+  }, [campaignProcessor, processingMode, options, characterName, smartParseEnabled, editingRulesHook.rules, toast]);
 
   const removalPreview = inputText ? getRemovalPreview(inputText) : [];
 
@@ -612,7 +635,10 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
                   <Button
                     size="sm"
                     onClick={async () => {
-                      const result = await campaignProcessor.resumeProcessing(processingMode, options, characterName, smartParseEnabled);
+                      const rulesForApi = editingRulesHook.rules
+                        .filter(r => r.isValid && r.instruction.trim())
+                        .map(r => ({ type: r.type, instruction: r.instruction, scope: r.scope }));
+                      const result = await campaignProcessor.resumeProcessing(processingMode, options, characterName, smartParseEnabled, rulesForApi);
                       if (result) {
                         setOutputText(result);
                         toast({
@@ -810,6 +836,13 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Custom Editing Rules - AI mode only */}
+            {processingMode === 'ai' && (
+              <div className="pt-3 border-t border-border/50">
+                <EditingRulesEditor />
+              </div>
+            )}
           </CardContent>
         </Card>
 

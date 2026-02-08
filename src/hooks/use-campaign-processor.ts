@@ -9,6 +9,13 @@ import {
 import { processTextOffline, ProcessingOptions } from '@/lib/narrativeProcessor';
 import { supabase } from '@/integrations/supabase/client';
 
+// Type for custom editing rules passed to the API
+export interface CustomEditingRuleInput {
+  type: string;
+  instruction: string;
+  scope: string;
+}
+
 const STORAGE_KEY = 'campaign-processor-progress';
 const DELAY_BETWEEN_AI_CALLS = 2000; // 2 seconds between AI calls
 
@@ -74,16 +81,17 @@ export interface UseCampaignProcessorReturn extends CampaignProcessorState {
     mode: 'ai' | 'offline',
     options: ProcessingOptions,
     characterName: string,
-    smartParseEnabled?: boolean
+    smartParseEnabled?: boolean,
+    customEditingRules?: CustomEditingRuleInput[]
   ) => Promise<string | null>;
   cancelProcessing: () => void;
   combineProcessedSessions: () => string;
   reset: () => void;
   getFileStats: () => { wordCount: number; charCount: number; sessionCount: number } | null;
-  resumeProcessing: (mode: 'ai' | 'offline', options: ProcessingOptions, characterName: string, smartParseEnabled?: boolean) => Promise<string | null>;
+  resumeProcessing: (mode: 'ai' | 'offline', options: ProcessingOptions, characterName: string, smartParseEnabled?: boolean, customEditingRules?: CustomEditingRuleInput[]) => Promise<string | null>;
   clearSavedProgress: () => void;
   loadSavedProgress: () => boolean;
-  retryFailedSessions: (mode: 'ai' | 'offline', options: ProcessingOptions, characterName: string, smartParseEnabled?: boolean) => Promise<string | null>;
+  retryFailedSessions: (mode: 'ai' | 'offline', options: ProcessingOptions, characterName: string, smartParseEnabled?: boolean, customEditingRules?: CustomEditingRuleInput[]) => Promise<string | null>;
   getFailedSessionCount: () => number;
 }
 
@@ -257,7 +265,8 @@ export function useCampaignProcessor(): UseCampaignProcessorReturn {
     mode: 'ai' | 'offline',
     options: ProcessingOptions,
     characterName: string,
-    smartParseEnabled: boolean = true
+    smartParseEnabled: boolean = true,
+    customEditingRules?: CustomEditingRuleInput[]
   ): Promise<{ output: string; error?: string }> => {
     const sessionContent = getSessionContent(content, session);
 
@@ -274,6 +283,7 @@ export function useCampaignProcessor(): UseCampaignProcessorReturn {
           characterName,
           style: options.narrativeStyle,
           smartParseEnabled,
+          customEditingRules: customEditingRules || [],
         },
       });
 
@@ -292,8 +302,7 @@ export function useCampaignProcessor(): UseCampaignProcessorReturn {
     options: ProcessingOptions,
     characterName: string,
     smartParseEnabled: boolean = true,
-    startFromIndex: number = 0,
-    existingProcessed?: Map<string, ProcessedSession>
+    customEditingRules?: CustomEditingRuleInput[]
   ): Promise<string | null> => {
     const { sessions, selectedSessionIds, fileContent } = state;
     
@@ -305,18 +314,18 @@ export function useCampaignProcessor(): UseCampaignProcessorReturn {
     const selectedSessions = sessions.filter(s => selectedSessionIds.has(s.id));
     const totalSessions = selectedSessions.length;
 
-    // Start with existing processed sessions if resuming
-    const newProcessed = existingProcessed ? new Map(existingProcessed) : new Map<string, ProcessedSession>();
+    // Start fresh
+    const newProcessed = new Map<string, ProcessedSession>();
 
     setState(prev => ({
       ...prev,
       isProcessing: true,
-      progress: Math.round((startFromIndex / totalSessions) * 100),
+      progress: 0,
       error: null,
       processedSessions: newProcessed,
     }));
 
-    for (let i = startFromIndex; i < selectedSessions.length; i++) {
+    for (let i = 0; i < selectedSessions.length; i++) {
       if (cancelledRef.current) {
         // Save progress when cancelled
         saveProgressToStorage(
@@ -343,7 +352,8 @@ export function useCampaignProcessor(): UseCampaignProcessorReturn {
         mode,
         options,
         characterName,
-        smartParseEnabled
+        smartParseEnabled,
+        customEditingRules
       );
 
       const processedSession: ProcessedSession = {
@@ -489,7 +499,8 @@ export function useCampaignProcessor(): UseCampaignProcessorReturn {
     mode: 'ai' | 'offline',
     options: ProcessingOptions,
     characterName: string,
-    smartParseEnabled: boolean = true
+    smartParseEnabled: boolean = true,
+    customEditingRules?: CustomEditingRuleInput[]
   ): Promise<string | null> => {
     const saved = loadProgressFromStorage();
     if (!saved) return null;
@@ -562,7 +573,8 @@ export function useCampaignProcessor(): UseCampaignProcessorReturn {
         mode,
         options,
         characterName,
-        smartParseEnabled
+        smartParseEnabled,
+        customEditingRules
       );
 
       const processedSession: ProcessedSession = {
@@ -652,7 +664,8 @@ export function useCampaignProcessor(): UseCampaignProcessorReturn {
     mode: 'ai' | 'offline',
     options: ProcessingOptions,
     characterName: string,
-    smartParseEnabled: boolean = true
+    smartParseEnabled: boolean = true,
+    customEditingRules?: CustomEditingRuleInput[]
   ): Promise<string | null> => {
     const { sessions, selectedSessionIds, fileContent, processedSessions } = state;
     
@@ -695,7 +708,8 @@ export function useCampaignProcessor(): UseCampaignProcessorReturn {
         mode,
         options,
         characterName,
-        smartParseEnabled
+        smartParseEnabled,
+        customEditingRules
       );
 
       const processedSession: ProcessedSession = {

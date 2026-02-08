@@ -55,11 +55,18 @@ const VALID_STYLES = [
 
 type ValidStyle = typeof VALID_STYLES[number];
 
+interface CustomEditingRule {
+  type: string;
+  instruction: string;
+  scope: string;
+}
+
 interface RequestBody {
   text: string;
   characterName?: string;
   style?: string;
   smartParseEnabled?: boolean;
+  customEditingRules?: CustomEditingRule[];
 }
 
 type ValidationResult = {
@@ -68,6 +75,7 @@ type ValidationResult = {
   characterName: string | null;
   style: ValidStyle;
   smartParseEnabled: boolean;
+  customEditingRules: CustomEditingRule[];
 } | {
   valid: false;
   error: string;
@@ -168,13 +176,43 @@ function sanitizeCharacterName(name: string): string {
   return name.replace(/[^a-zA-ZÀ-ÿ0-9\s\-']/g, '').trim();
 }
 
+// Validate custom editing rules
+const MAX_EDITING_RULES = 10;
+const MAX_RULE_LENGTH = 200;
+
+function validateEditingRules(rules: unknown): CustomEditingRule[] {
+  if (!rules || !Array.isArray(rules)) return [];
+  
+  const validatedRules: CustomEditingRule[] = [];
+  
+  for (const rule of rules.slice(0, MAX_EDITING_RULES)) {
+    if (!rule || typeof rule !== 'object') continue;
+    
+    const { type, instruction, scope } = rule as CustomEditingRule;
+    
+    if (typeof instruction !== 'string' || instruction.length === 0) continue;
+    if (instruction.length > MAX_RULE_LENGTH) continue;
+    
+    // Sanitize the instruction
+    const sanitizedInstruction = sanitizeInput(instruction);
+    
+    validatedRules.push({
+      type: typeof type === 'string' ? type : 'custom',
+      instruction: sanitizedInstruction,
+      scope: typeof scope === 'string' ? scope : 'all',
+    });
+  }
+  
+  return validatedRules;
+}
+
 // Validate request body
 function validateRequestBody(body: unknown): ValidationResult {
   if (!body || typeof body !== 'object') {
     return { valid: false, error: 'Invalid request body' };
   }
   
-  const { text, characterName, style, smartParseEnabled } = body as RequestBody;
+  const { text, characterName, style, smartParseEnabled, customEditingRules } = body as RequestBody;
   
   // Validate text
   if (text === undefined || text === null) {
@@ -230,12 +268,16 @@ function validateRequestBody(body: unknown): ValidationResult {
     }
   }
   
+  // Validate custom editing rules
+  const validatedRules = validateEditingRules(customEditingRules);
+  
   return {
     valid: true,
     text,
     characterName: validatedCharacterName,
     style: validatedStyle,
     smartParseEnabled: smartParseEnabled !== false, // Default to true
+    customEditingRules: validatedRules,
   };
 }
 
@@ -465,7 +507,7 @@ Deno.serve(async (req) => {
 
     // Sanitize text input to prevent prompt injection
     let sanitizedText = sanitizeInput(validation.text);
-    const { characterName, style, smartParseEnabled } = validation;
+    const { characterName, style, smartParseEnabled, customEditingRules } = validation;
     
     // Smart parse: detect chat log format and extract only assistant content (if enabled)
     if (smartParseEnabled) {
@@ -481,7 +523,27 @@ Deno.serve(async (req) => {
     
     const styleGuide = styleGuides[style];
 
-    console.log(`Processing narrative forge request: ${sanitizedText.length} chars, style: ${style}`);
+    console.log(`Processing narrative forge request: ${sanitizedText.length} chars, style: ${style}, rules: ${customEditingRules.length}`);
+
+    // Build custom editing rules section for the prompt
+    let customRulesSection = '';
+    if (customEditingRules.length > 0) {
+      const rulesText = customEditingRules
+        .map((r, i) => {
+          const scopeLabel = r.scope !== 'all' ? ` [SCOPE: ${r.scope.toUpperCase()}]` : '';
+          return `${i + 1}.${scopeLabel} ${r.instruction}`;
+        })
+        .join('\n');
+      
+      customRulesSection = `
+
+<user_editing_rules>
+Apply these specific editing rules during transformation:
+${rulesText}
+
+Important: Apply each rule exactly as stated. Do not creatively interpret or extend beyond the literal instruction.
+</user_editing_rules>`;
+    }
 
     const systemPrompt = `You are a skilled narrative writer and editor who transforms TTRPG (tabletop role-playing game) 
 chat logs and AI-generated game sessions into polished prose fiction.
@@ -503,7 +565,7 @@ ${characterName ? `The main character or POV is: ${characterName}` : ''}
 
 Important: Do NOT add new plot elements or significantly change what happens. Your job is to 
 transform the FORMAT from game log to prose, not to rewrite the story itself.
-
+${customRulesSection}
 Respond ONLY with the transformed prose narrative. No explanations, no meta-commentary.`;
 
     const response = await fetch(AI_GATEWAY_URL, {
