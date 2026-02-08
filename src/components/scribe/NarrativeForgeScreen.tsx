@@ -23,6 +23,7 @@ import {
 } from '@/lib/narrativeProcessor';
 import { supabase } from '@/integrations/supabase/client';
 import { CampaignFileUpload } from './CampaignFileUpload';
+import { MultiFileUpload, UploadedFile } from './MultiFileUpload';
 import { StoryListSheet } from './StoryListSheet';
 import { SmartParsePreview } from './SmartParsePreview';
 import { EditingRulesEditor } from './EditingRulesEditor';
@@ -35,7 +36,7 @@ import { useCampaignProcessor } from '@/hooks/use-campaign-processor';
 import { useSavedStories, MergeOptions } from '@/hooks/use-saved-stories';
 import { useEditingRules } from '@/hooks/use-editing-rules';
 import { useProcessingTemplates } from '@/hooks/use-processing-templates';
-import { DetectedSession, estimateProcessingTime } from '@/lib/scribe/sessionDetection';
+import { DetectedSession, estimateProcessingTime, combineMultiFileSessions } from '@/lib/scribe/sessionDetection';
 import { getSmartParsePreview } from '@/lib/scribe/smartParsing';
 import { BlendConfig } from '@/lib/scribe/processingTemplates';
 import scribeBackground from '@/assets/scribe-background.jpg';
@@ -63,6 +64,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
   const [blendConfig, setBlendConfig] = useState<BlendConfig | undefined>(undefined);
   const [showComparisonView, setShowComparisonView] = useState(false);
   const [lastProcessedInput, setLastProcessedInput] = useState('');
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const { toast } = useToast();
 
   // Multi-story management
@@ -203,15 +205,43 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
     }
   }, [activeStory, toast]);
 
-  // Handle file upload
+  // Handle single file upload (legacy)
   const handleFileLoaded = useCallback((content: string, fileName: string, sessions: DetectedSession[]) => {
     campaignProcessor.loadFile(content, fileName, sessions);
     // Clear paste input when switching to file
     setInputText('');
   }, [campaignProcessor]);
 
+  // Handle multi-file upload
+  const handleMultiFilesLoaded = useCallback((files: UploadedFile[]) => {
+    setUploadedFiles(files);
+    
+    if (files.length === 0) {
+      campaignProcessor.reset();
+      return;
+    }
+    
+    // Combine all files into a single content with sessions
+    const multiFileContent = files.map(f => ({
+      fileName: f.name,
+      content: f.content,
+      sessions: f.sessions,
+    }));
+    
+    const { combinedContent, combinedSessions } = combineMultiFileSessions(multiFileContent);
+    
+    // Load combined content into campaign processor
+    const combinedFileName = files.length === 1 
+      ? files[0].name 
+      : `${files.length} files combined`;
+    
+    campaignProcessor.loadFile(combinedContent, combinedFileName, combinedSessions);
+    setInputText('');
+  }, [campaignProcessor]);
+
   const handleFileClear = useCallback(() => {
     campaignProcessor.reset();
+    setUploadedFiles([]);
   }, [campaignProcessor]);
 
   const handleProcess = useCallback(async () => {
@@ -1087,12 +1117,11 @@ The trap clicks harmlessly as she disables it."
           </>
         ) : (
           <div className="space-y-4">
-            {/* File Upload */}
-            <CampaignFileUpload
-              onFileLoaded={handleFileLoaded}
+            {/* Multi-File Upload */}
+            <MultiFileUpload
+              onFilesLoaded={handleMultiFilesLoaded}
               onClear={handleFileClear}
-              currentFile={campaignProcessor.fileName}
-              fileStats={campaignProcessor.getFileStats()}
+              currentFiles={uploadedFiles}
             />
 
             {/* Session Selection */}
@@ -1102,6 +1131,11 @@ The trap clicks harmlessly as she disables it."
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-sm font-medium">
                       Detected Sessions ({campaignProcessor.sessions.length})
+                      {uploadedFiles.length > 1 && (
+                        <span className="text-muted-foreground font-normal ml-1">
+                          across {uploadedFiles.length} files
+                        </span>
+                      )}
                     </CardTitle>
                     <div className="flex gap-2">
                       <Button
@@ -1126,7 +1160,7 @@ The trap clicks harmlessly as she disables it."
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <ScrollArea className="max-h-[200px]">
+                  <ScrollArea className="max-h-[250px]">
                     <div className="space-y-2">
                       {campaignProcessor.sessions.map((session) => {
                         const isSelected = campaignProcessor.selectedSessionIds.has(session.id);
@@ -1159,9 +1193,17 @@ The trap clicks harmlessly as she disables it."
                                 )}
                               </div>
                               <p className="text-xs text-muted-foreground truncate">{session.preview}</p>
-                              <span className="text-xs text-muted-foreground/60">
-                                {session.wordCount.toLocaleString()} words
-                              </span>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
+                                <span>{session.wordCount.toLocaleString()} words</span>
+                                {session.sourceFile && uploadedFiles.length > 1 && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="truncate max-w-[120px]" title={session.sourceFile}>
+                                      {session.sourceFile}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
                             </div>
                           </div>
                         );
