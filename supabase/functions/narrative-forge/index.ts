@@ -820,7 +820,7 @@ Respond ONLY with the transformed prose narrative. No explanations, no meta-comm
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-pro',
+        model: 'google/gemini-3-pro-preview',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `Transform this game chat into prose narrative:\n\n${sanitizedText}` },
