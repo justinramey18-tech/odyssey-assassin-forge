@@ -350,8 +350,8 @@ ${instruction ? `Additional instruction: ${instruction}` : ''}
 
 ## Implementation Order Recommendation
 
-1. **Processing Templates** - Foundation for saving configurations
-2. **Style Blending** - Simple edge function change
+1. ~~**Processing Templates** - Foundation for saving configurations~~ ✅ DONE
+2. ~~**Style Blending** - Simple edge function change~~ ✅ DONE
 3. **Batch Style Preview** - Uses existing infrastructure
 4. **Story Organization (Tags)** - Extends existing story system
 5. **Comparison View** - Useful debugging tool

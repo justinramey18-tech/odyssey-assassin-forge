@@ -26,11 +26,15 @@ import { CampaignFileUpload } from './CampaignFileUpload';
 import { StoryListSheet } from './StoryListSheet';
 import { SmartParsePreview } from './SmartParsePreview';
 import { EditingRulesEditor } from './EditingRulesEditor';
+import { TemplateControls } from './TemplateControls';
+import { StyleBlendControls } from './StyleBlendControls';
 import { useCampaignProcessor } from '@/hooks/use-campaign-processor';
 import { useSavedStories } from '@/hooks/use-saved-stories';
 import { useEditingRules } from '@/hooks/use-editing-rules';
+import { useProcessingTemplates } from '@/hooks/use-processing-templates';
 import { DetectedSession, estimateProcessingTime } from '@/lib/scribe/sessionDetection';
 import { getSmartParsePreview } from '@/lib/scribe/smartParsing';
+import { BlendConfig } from '@/lib/scribe/processingTemplates';
 import scribeBackground from '@/assets/scribe-background.jpg';
 
 interface NarrativeForgeScreenProps {
@@ -52,6 +56,8 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
   const [isEditingStory, setIsEditingStory] = useState(false);
   const [editedContent, setEditedContent] = useState('');
   const [inputSource, setInputSource] = useState<'paste' | 'upload'>('paste');
+  const [styleBlendEnabled, setStyleBlendEnabled] = useState(false);
+  const [blendConfig, setBlendConfig] = useState<BlendConfig | undefined>(undefined);
   const { toast } = useToast();
 
   // Multi-story management
@@ -73,7 +79,8 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
   // Custom editing rules
   const editingRulesHook = useEditingRules();
 
-  // Smart parse preview - shows what will be filtered when using AI mode
+  // Processing templates
+  const templatesHook = useProcessingTemplates();
   const smartParseInfo = useMemo(() => {
     const textToCheck = inputSource === 'paste' 
       ? inputText 
@@ -270,6 +277,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
             style: options.narrativeStyle,
             smartParseEnabled,
             customEditingRules: rulesForApi,
+            blendConfig: styleBlendEnabled ? blendConfig : undefined,
           },
         });
 
@@ -291,7 +299,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
     } finally {
       setIsProcessing(false);
     }
-  }, [inputSource, campaignProcessor, inputText, processingMode, options, characterName, toast]);
+  }, [inputSource, campaignProcessor, inputText, processingMode, options, characterName, smartParseEnabled, editingRulesHook.rules, styleBlendEnabled, blendConfig, toast]);
 
   const handleCopy = useCallback(async () => {
     if (!outputText) return;
@@ -389,6 +397,70 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
       }
     }
   }, [campaignProcessor, processingMode, options, characterName, smartParseEnabled, editingRulesHook.rules, toast]);
+
+  // Template handlers
+  const handleSaveTemplate = useCallback((name: string) => {
+    const template = templatesHook.saveAsTemplate(
+      name,
+      options.narrativeStyle,
+      smartParseEnabled,
+      options,
+      editingRulesHook.rules,
+      styleBlendEnabled ? blendConfig : undefined
+    );
+    
+    if (template) {
+      toast({
+        title: "Template Saved",
+        description: `"${name}" has been saved for future use.`,
+      });
+    } else {
+      toast({
+        title: "Failed to save template",
+        description: "Maximum templates reached or invalid name.",
+        variant: "destructive",
+      });
+    }
+  }, [templatesHook, options, smartParseEnabled, editingRulesHook.rules, styleBlendEnabled, blendConfig, toast]);
+
+  const handleLoadTemplate = useCallback((id: string) => {
+    const template = templatesHook.getTemplateById(id);
+    if (!template) return;
+
+    // Apply template settings
+    setOptions(template.processingOptions);
+    setSmartParseEnabled(template.smartParseEnabled);
+    
+    // Apply blend config
+    if (template.blendConfig) {
+      setStyleBlendEnabled(true);
+      setBlendConfig(template.blendConfig);
+    } else {
+      setStyleBlendEnabled(false);
+      setBlendConfig(undefined);
+    }
+    
+    // Load editing rules
+    if (template.editingRules.length > 0) {
+      editingRulesHook.clearAllRules();
+      template.editingRules.forEach(rule => {
+        editingRulesHook.addRule(rule.instruction, rule.type);
+      });
+    }
+
+    toast({
+      title: "Template Loaded",
+      description: `Applied "${template.name}" settings.`,
+    });
+  }, [templatesHook, editingRulesHook, toast]);
+
+  const handleDeleteTemplate = useCallback((id: string) => {
+    templatesHook.deleteTemplate(id);
+    toast({
+      title: "Template Deleted",
+      description: "The template has been removed.",
+    });
+  }, [templatesHook, toast]);
 
   const removalPreview = inputText ? getRemovalPreview(inputText) : [];
 
@@ -714,10 +786,21 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
         {/* Processing Options */}
         <Card className="border-amber-900/30 bg-card/50">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Cog className="w-4 h-4 text-amber-400" />
-              Processing Options
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Cog className="w-4 h-4 text-amber-400" />
+                Processing Options
+              </CardTitle>
+              {processingMode === 'ai' && (
+                <TemplateControls
+                  templates={templatesHook.templates}
+                  canAddTemplate={templatesHook.canAddTemplate}
+                  onSaveTemplate={handleSaveTemplate}
+                  onLoadTemplate={handleLoadTemplate}
+                  onDeleteTemplate={handleDeleteTemplate}
+                />
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -836,6 +919,19 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Style Blending - AI mode only */}
+            {processingMode === 'ai' && (
+              <div className="pt-3 border-t border-border/50">
+                <StyleBlendControls
+                  enabled={styleBlendEnabled}
+                  onEnabledChange={setStyleBlendEnabled}
+                  primaryStyle={options.narrativeStyle}
+                  blendConfig={blendConfig}
+                  onBlendConfigChange={setBlendConfig}
+                />
+              </div>
+            )}
 
             {/* Custom Editing Rules - AI mode only */}
             {processingMode === 'ai' && (
