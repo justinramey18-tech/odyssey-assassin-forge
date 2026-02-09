@@ -314,7 +314,7 @@ export function WildShapeTracker({
                     }, {} as Record<string, UnifiedTrackerForm[]>);
 
                     const sortedKeys = Object.keys(grouped).sort((a, b) => {
-                      return grouped[b][0].form.cr - grouped[a][0].form.cr;
+                      return grouped[a][0].form.cr - grouped[b][0].form.cr;
                     });
 
                     const catColors = {
