@@ -37,6 +37,7 @@ function createTestWizardState(overrides: Partial<WizardState> = {}): WizardStat
     name: 'Test Assassin',
     level: 1,
     portraitIcon: 'Skull',
+    primaryClass: 'rogue', // Default to legacy Odyssey Assassin
     abilityScores: {
       strength: 10,
       dexterity: 15,

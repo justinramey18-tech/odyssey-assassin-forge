@@ -1,5 +1,7 @@
 // Odyssey Assassin Character Sheet Types
 
+import { DnDClass, ClassLevelMap } from '@/lib/classes/types';
+
 export type AbilityTree = 'hunter' | 'warrior' | 'assassin';
 
 export type ActionType = 'action' | 'bonus_action' | 'reaction' | 'passive';
@@ -10,6 +12,9 @@ export interface TierEffect {
   tier: 1 | 2 | 3;
   description: string;
 }
+
+// Re-export class types for convenience
+export type { DnDClass, ClassLevelMap } from '@/lib/classes/types';
 
 export interface Ability {
   id: string;
@@ -35,6 +40,10 @@ export interface Character {
   level: number;
   abilities: CharacterAbility[];
   equippedAbilities: string[]; // Array of ability IDs in loadout slots
+  
+  // Multiclass support (optional - defaults to 'rogue' for backward compatibility)
+  primaryClass?: DnDClass;
+  multiclassLevels?: ClassLevelMap;
 }
 
 // Calculate ability points by level
