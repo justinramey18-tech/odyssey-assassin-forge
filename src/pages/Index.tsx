@@ -1666,6 +1666,10 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           wildShapeMaxUses={wildShape.state.maxUses}
           wildShapeTransformedAt={wildShape.state.transformedAt}
           wildShapeDurationMinutes={wildShape.state.transformDurationMinutes}
+          wildShapeFormCR={wildShape.state.currentForm?.cr}
+          wildShapeFormHP={wildShape.state.formHP}
+          wildShapeFormMaxHP={wildShape.state.formMaxHP}
+          wildShapeFormAC={wildShape.state.currentForm?.ac}
           onDismissWildShape={() => wildShape.revert()}
           customBackground={customBackground.customBackground}
           onCustomBackgroundUpload={customBackground.handleImageUpload}

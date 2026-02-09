@@ -1,7 +1,9 @@
 import { motion } from 'framer-motion';
 import { Timer, Footprints, Sparkles, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { toast } from 'sonner';
+import { generateWildShapeAbilityPrompt } from '@/lib/wildShapePrompts';
 
 interface WildShapeOverlayProps {
   formName: string;
@@ -14,6 +16,16 @@ interface WildShapeOverlayProps {
   /** Total duration in minutes */
   durationMinutes?: number;
   onDismiss: () => void;
+  /** Character name for prompt generation */
+  characterName?: string;
+  /** Form CR for prompt generation */
+  formCR?: number;
+  /** Form current HP */
+  formHP?: number;
+  /** Form max HP */
+  formMaxHP?: number;
+  /** Form AC */
+  formAC?: number;
 }
 
 export function WildShapeOverlay({
@@ -25,6 +37,11 @@ export function WildShapeOverlay({
   transformedAt,
   durationMinutes,
   onDismiss,
+  characterName,
+  formCR,
+  formHP,
+  formMaxHP,
+  formAC,
 }: WildShapeOverlayProps) {
   const [remainingMinutes, setRemainingMinutes] = useState<number | null>(null);
 
@@ -122,22 +139,43 @@ export function WildShapeOverlay({
             </div>
           </div>
 
-          {/* Special abilities */}
+          {/* Special abilities - tappable for AI prompts */}
           {specialAbilities.length > 0 && (
             <div className="flex items-start gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-green-400 mt-0.5 shrink-0" />
               <div className="flex flex-wrap gap-1">
                 {specialAbilities.map((ability, i) => (
-                  <span
+                  <button
                     key={i}
+                    onClick={async () => {
+                      if (characterName && formCR !== undefined && formHP !== undefined && formMaxHP !== undefined && formAC !== undefined) {
+                        const prompt = generateWildShapeAbilityPrompt({
+                          abilityName: ability,
+                          characterName,
+                          formName,
+                          formCR,
+                          formHP,
+                          formMaxHP,
+                          formAC,
+                          formSpeed: speed,
+                        });
+                        try {
+                          await navigator.clipboard.writeText(prompt);
+                          toast.success(`${ability} prompt copied!`);
+                        } catch { toast.error('Failed to copy'); }
+                      }
+                    }}
                     className={cn(
                       "text-[10px] px-1.5 py-0.5 rounded-md",
                       "bg-green-900/40 border border-green-600/20",
-                      "text-green-300/90"
+                      "text-green-300/90",
+                      characterName ? "hover:bg-green-800/50 hover:border-green-500/40 active:scale-95 cursor-pointer transition-all" : ""
                     )}
+                    style={{ touchAction: 'manipulation' }}
+                    disabled={!characterName}
                   >
                     {ability}
-                  </span>
+                  </button>
                 ))}
               </div>
             </div>

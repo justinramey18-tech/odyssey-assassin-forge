@@ -97,6 +97,10 @@ interface HomeScreenProps {
   wildShapeMaxUses?: number;
   wildShapeTransformedAt?: number;
   wildShapeDurationMinutes?: number;
+  wildShapeFormCR?: number;
+  wildShapeFormHP?: number;
+  wildShapeFormMaxHP?: number;
+  wildShapeFormAC?: number;
   onDismissWildShape?: () => void;
 }
 
@@ -145,6 +149,10 @@ export function HomeScreen({
   wildShapeMaxUses = 0,
   wildShapeTransformedAt,
   wildShapeDurationMinutes,
+  wildShapeFormCR,
+  wildShapeFormHP,
+  wildShapeFormMaxHP,
+  wildShapeFormAC,
   onDismissWildShape,
 }: HomeScreenProps) {
   const isMobile = useIsMobile();
@@ -418,6 +426,11 @@ export function HomeScreen({
                 transformedAt={wildShapeTransformedAt}
                 durationMinutes={wildShapeDurationMinutes}
                 onDismiss={onDismissWildShape}
+                characterName={character.name}
+                formCR={wildShapeFormCR}
+                formHP={wildShapeFormHP}
+                formMaxHP={wildShapeFormMaxHP}
+                formAC={wildShapeFormAC}
               />
             )}
 

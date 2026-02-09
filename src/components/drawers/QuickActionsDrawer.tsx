@@ -21,6 +21,7 @@ import { SpellDefinition } from '@/lib/magic/types';
 import { UseWildShapeReturn } from '@/hooks/use-wild-shape';
 import { formatCR } from '@/lib/magic/wildShape';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
+import { generateWildShapeAbilityPrompt } from '@/lib/wildShapePrompts';
 import { applyOverrides, homebrewToAbility } from '@/lib/abilityCustomization/utils';
 import { isLegacyAbilityId, resolveLegacyAbility } from '@/lib/prestigeTree/abilityConverter';
 import { rollDice, getAbilityDice, DiceRoll, DieType, RollMode, isCriticalHit, isCriticalMiss, inferRollMode } from '@/lib/diceRoller';
@@ -613,9 +614,30 @@ function WildShapeSection({ wildShape, characterName }: { wildShape: UseWildShap
               {form.specialAbilities && form.specialAbilities.length > 0 && (
                 <div className="flex flex-wrap gap-1">
                   {form.specialAbilities.map(ab => (
-                    <span key={ab} className="text-[10px] px-1.5 py-0.5 bg-green-500/10 border border-green-500/20 rounded text-green-300">
+                    <button
+                      key={ab}
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        const prompt = generateWildShapeAbilityPrompt({
+                          abilityName: ab,
+                          characterName,
+                          formName: form.name,
+                          formCR: form.cr,
+                          formHP: wildShape.state.formHP,
+                          formMaxHP: wildShape.state.formMaxHP,
+                          formAC: form.ac,
+                          formSpeed: form.speed,
+                        });
+                        try {
+                          await navigator.clipboard.writeText(prompt);
+                          toast.success(`${ab} prompt copied!`);
+                        } catch { toast.error('Failed to copy'); }
+                      }}
+                      className="text-[10px] px-1.5 py-0.5 bg-green-500/10 border border-green-500/20 rounded text-green-300 hover:bg-green-500/25 hover:border-green-500/40 active:scale-95 transition-all cursor-pointer"
+                      style={{ touchAction: 'manipulation' }}
+                    >
                       {ab}
-                    </span>
+                    </button>
                   ))}
                 </div>
               )}
@@ -633,7 +655,8 @@ function WildShapeSection({ wildShape, characterName }: { wildShape: UseWildShap
 
   const forms = wildShape.availableForms;
   const elementals = wildShape.elementalForms;
-  const totalForms = forms.length + elementals.length;
+  const dragons = wildShape.dragonForms;
+  const totalForms = forms.length + elementals.length + dragons.length;
 
   return (
     <Collapsible className="group">
@@ -698,6 +721,41 @@ function WildShapeSection({ wildShape, characterName }: { wildShape: UseWildShap
               </div>
             </button>
           ))}
+          {/* Dragon Forms */}
+          {dragons.length > 0 && (
+            <>
+              <div className="flex items-center gap-2 px-2 pt-2">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-purple-400">Dragon Forms</span>
+                <span className="text-[10px] text-purple-400/60 font-mono">3 uses each</span>
+              </div>
+              {dragons.map(form => (
+                <button
+                  key={form.id}
+                  onClick={() => wildShape.transformDragon(form)}
+                  disabled={wildShape.state.usesRemaining < 3 || wildShape.state.isTransformed}
+                  className={cn(
+                    "w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-colors text-left",
+                    wildShape.state.usesRemaining >= 3
+                      ? "bg-card/40 border-purple-500/30 hover:bg-purple-500/10 active:bg-purple-500/15"
+                      : "bg-card/40 border-border/30 opacity-50 cursor-not-allowed"
+                  )}
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <PawPrint className="w-4 h-4 text-purple-400 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-medium truncate">{form.name}</p>
+                      <span className="text-[10px] text-purple-400/70 font-mono">CR {formatCR(form.cr)}</span>
+                      <span className="text-[10px] text-amber-400 font-mono">3 uses</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      HP {form.hp} · AC {form.ac} · {form.speed}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </>
+          )}
         </div>
       </CollapsibleContent>
     </Collapsible>

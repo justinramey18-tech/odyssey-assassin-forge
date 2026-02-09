@@ -129,6 +129,18 @@ export const BEAST_FORMS: BeastForm[] = [
     description: 'A tiny arachnid with web sense and climbing.',
     specialAbilities: ['Spider Climb', 'Web Sense'],
   },
+  // CR 0 - Screaming Goat
+  {
+    id: 'screaming-goat',
+    name: 'Screaming Goat',
+    cr: 0,
+    hp: 4,
+    ac: 10,
+    speed: '40 ft.',
+    iconName: 'Rabbit',
+    description: 'A small but terrifyingly loud goat.',
+    specialAbilities: ['Terrifying Scream (DC 10, frightened 1 round)', 'Sure-Footed (advantage vs. knockdown)', 'Charge (ram + knockdown)'],
+  },
   // CR 1/8
   {
     id: 'poisonous-snake',
@@ -269,6 +281,18 @@ export const BEAST_FORMS: BeastForm[] = [
     iconName: 'Bird',
     description: 'A majestic flying predator with keen sight.',
     specialAbilities: ['Keen Sight', 'Multiattack'],
+  },
+  // CR 1 - Utah Raptor
+  {
+    id: 'utah-raptor',
+    name: 'Utah Raptor',
+    cr: 1,
+    hp: 32,
+    ac: 14,
+    speed: '60 ft.',
+    iconName: 'Rabbit',
+    description: 'A swift and deadly pack predator with razor claws.',
+    specialAbilities: ['Pounce (knockdown + bonus bite)', 'Pack Tactics', 'Keen Smell', 'Disemboweling Claw (2d8 slashing)'],
   },
   {
     id: 'giant-octopus',
