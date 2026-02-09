@@ -4,7 +4,8 @@
 
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Wand2, BookOpen, Zap, Settings, Package, RefreshCw, Flame } from 'lucide-react';
+import { Wand2, BookOpen, Zap, Settings, Package, RefreshCw, Flame, Sparkles } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { DnDClass } from '@/lib/classes/types';
 import { CLASS_REGISTRY } from '@/lib/classes';
 import { SpellDefinition } from '@/lib/magic/types';
@@ -28,6 +29,8 @@ import { ClericDomainPanel } from './ClericDomainPanel';
 import { useWildShape } from '@/hooks/use-wild-shape';
 import { DruidCircle, LandType } from '@/lib/classes/druidCircles';
 import { ClericDomain, getDomainChannelDivinity } from '@/lib/classes/clericDomains';
+import { useInvocations } from '@/hooks/use-invocations';
+import { InvocationsPanel } from './InvocationsPanel';
 
 // Background image
 import arcanaBackground from '@/assets/trees/arcana-wizards-mobile.jpg';
@@ -141,6 +144,15 @@ export function ClassSpellcastingScreen({
   );
   const isDruid = primaryClass === 'druid';
   const hasWildShape = isDruid && characterLevel >= 2;
+
+  // Warlock flags
+  const isWarlock = primaryClass === 'warlock';
+
+  // Warlock Invocations
+  const warlockInvocations = useInvocations(
+    isWarlock ? characterLevel : 0,
+    true // assume Eldritch Blast is known
+  );
 
   // Cleric flags
   const isCleric = primaryClass === 'cleric';
@@ -351,6 +363,26 @@ export function ClassSpellcastingScreen({
           </div>
         )}
 
+        {/* Warlock Invocations - Compact Header */}
+        {isWarlock && characterLevel >= 2 && (
+          <div className="mt-3 flex items-center gap-2 p-2 rounded-lg bg-purple-600/15 border border-purple-500/20">
+            <Sparkles className="w-4 h-4 text-purple-400" />
+            <span className="text-xs text-purple-300 font-medium">
+              Invocations: {warlockInvocations.selectedInvocations.length}/{warlockInvocations.maxInvocations}
+            </span>
+            {warlockInvocations.eldritchBlastMods.length > 0 && (
+              <Badge variant="outline" className="text-[9px] ml-auto border-purple-500/30 text-purple-400">
+                EB +{warlockInvocations.eldritchBlastMods.length} mods
+              </Badge>
+            )}
+            {warlockInvocations.atWillSpells.length > 0 && (
+              <Badge variant="outline" className="text-[9px] border-blue-500/30 text-blue-400">
+                {warlockInvocations.atWillSpells.length} at-will
+              </Badge>
+            )}
+          </div>
+        )}
+
         {/* Compact Slot Display */}
         <div className="mt-3 p-2 bg-background/30 rounded-lg">
           <SpellSlotTracker
@@ -453,6 +485,14 @@ export function ClassSpellcastingScreen({
 
         <TabsContent value="features" className="mt-0 flex-1 overflow-y-auto">
           <div className="p-4 pb-24 space-y-4">
+            {/* Warlock Invocations Panel */}
+            {isWarlock && (
+              <InvocationsPanel
+                invocations={warlockInvocations}
+                warlockLevel={characterLevel}
+                characterName={characterName}
+              />
+            )}
             {/* Cleric Domain Panel (Cleric only) */}
             {isCleric && (
               <ClericDomainPanel
