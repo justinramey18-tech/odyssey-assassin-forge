@@ -24,15 +24,18 @@ import { SorceryPointsTracker } from './SorceryPointsTracker';
 import { ChannelDivinityTracker } from './ChannelDivinityTracker';
 import { WildShapeTracker } from './WildShapeTracker';
 import { DruidCirclePanel } from './DruidCirclePanel';
+import { ClericDomainPanel } from './ClericDomainPanel';
 import { useWildShape } from '@/hooks/use-wild-shape';
 import { DruidCircle, LandType } from '@/lib/classes/druidCircles';
+import { ClericDomain, getDomainChannelDivinity } from '@/lib/classes/clericDomains';
 
 // Background image
 import arcanaBackground from '@/assets/trees/arcana-wizards-mobile.jpg';
 
-// Storage keys for Druid circle selection
+// Storage keys for subclass selection
 const DRUID_CIRCLE_KEY = 'dnd-druid-circle';
 const DRUID_LAND_KEY = 'dnd-druid-land';
+const CLERIC_DOMAIN_KEY = 'dnd-cleric-domain';
 
 interface ClassSpellcastingScreenProps {
   primaryClass: DnDClass;
@@ -120,6 +123,14 @@ export function ClassSpellcastingScreen({
     } catch { return null; }
   });
 
+  // Cleric Domain state (persisted)
+  const [clericDomain, setClericDomain] = useState<ClericDomain | null>(() => {
+    try {
+      const saved = localStorage.getItem(CLERIC_DOMAIN_KEY);
+      return saved as ClericDomain | null;
+    } catch { return null; }
+  });
+
   // Get class configuration
   const classConfig = CLASS_REGISTRY[primaryClass];
 
@@ -131,6 +142,10 @@ export function ClassSpellcastingScreen({
   const isDruid = primaryClass === 'druid';
   const hasWildShape = isDruid && characterLevel >= 2;
 
+  // Cleric flags
+  const isCleric = primaryClass === 'cleric';
+  const domainChannelDivinity = clericDomain ? getDomainChannelDivinity(clericDomain, characterLevel) : [];
+
   // Persist circle selection
   const handleSelectCircle = (circle: DruidCircle) => {
     setDruidCircle(circle);
@@ -140,6 +155,12 @@ export function ClassSpellcastingScreen({
   const handleSelectLand = (land: LandType) => {
     setDruidLand(land);
     localStorage.setItem(DRUID_LAND_KEY, land);
+  };
+
+  // Persist domain selection
+  const handleSelectDomain = (domain: ClericDomain) => {
+    setClericDomain(domain);
+    localStorage.setItem(CLERIC_DOMAIN_KEY, domain);
   };
 
   const handleSpellSelect = (spell: SpellDefinition) => {
@@ -432,6 +453,15 @@ export function ClassSpellcastingScreen({
 
         <TabsContent value="features" className="mt-0 flex-1 overflow-y-auto">
           <div className="p-4 pb-24 space-y-4">
+            {/* Cleric Domain Panel (Cleric only) */}
+            {isCleric && (
+              <ClericDomainPanel
+                clericLevel={characterLevel}
+                selectedDomain={clericDomain}
+                onSelectDomain={handleSelectDomain}
+              />
+            )}
+
             {/* Druid Circle Panel (Druid only) */}
             {isDruid && characterLevel >= 2 && (
               <DruidCirclePanel
