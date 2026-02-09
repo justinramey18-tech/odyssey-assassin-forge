@@ -163,6 +163,8 @@ export interface ClassSpellcastingState {
   /** Stats tracking */
   spellsCastToday: number;
   totalSpellsCast: number;
+  /** Whether Natural Recovery (Circle of the Land) has been used since last long rest */
+  naturalRecoveryUsed: boolean;
 }
 
 // ============================================
@@ -186,6 +188,7 @@ function getDefaultClassSpellcastingState(): ClassSpellcastingState {
     concentrationStartTime: undefined,
     spellsCastToday: 0,
     totalSpellsCast: 0,
+    naturalRecoveryUsed: false,
   };
 }
 
@@ -330,6 +333,12 @@ export interface UseClassSpellcastingReturn {
   // Rest recovery
   onShortRest: () => void;
   onLongRest: () => void;
+  
+  // Natural Recovery (Circle of the Land Druid)
+  naturalRecoveryUsed: boolean;
+  /** Max total spell levels recoverable = ceil(druidLevel / 2) */
+  naturalRecoveryMax: number;
+  useNaturalRecovery: (slotLevels: number[]) => boolean;
   
   // Refresh
   refreshSlotsForLevel: () => void;
@@ -1099,9 +1108,68 @@ export function useClassSpellcasting(
         spellsCastToday: 0,
         concentratingOn: null,
         concentrationStartTime: undefined,
+        naturalRecoveryUsed: false, // Reset Natural Recovery on long rest
       };
     });
   }, [activeSpells.length, toast]);
+
+  // Natural Recovery (Circle of the Land Druid)
+  const naturalRecoveryMax = useMemo(() => {
+    if (primaryClass !== 'druid') return 0;
+    return Math.ceil(primaryLevel / 2);
+  }, [primaryClass, primaryLevel]);
+
+  const useNaturalRecovery = useCallback((slotLevels: number[]): boolean => {
+    if (primaryClass !== 'druid') return false;
+    
+    const totalLevels = slotLevels.reduce((sum, l) => sum + l, 0);
+    const maxRecoverable = Math.ceil(primaryLevel / 2);
+    
+    if (totalLevels > maxRecoverable) {
+      toast({
+        title: 'Too Many Slot Levels',
+        description: `Combined slot levels (${totalLevels}) exceed your maximum of ${maxRecoverable}.`,
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    // Check no slots above 5th level
+    if (slotLevels.some(l => l >= 6)) {
+      toast({
+        title: 'Slot Level Too High',
+        description: "Natural Recovery can't restore slots of 6th level or higher.",
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    setState(prev => {
+      if (prev.naturalRecoveryUsed) return prev;
+
+      const newSlots = { ...prev.spellSlots };
+      for (const level of slotLevels) {
+        const slot = newSlots[level];
+        if (slot && slot.current < slot.max) {
+          newSlots[level] = { ...slot, current: Math.min(slot.current + 1, slot.max) };
+        }
+      }
+
+      return {
+        ...prev,
+        spellSlots: newSlots,
+        naturalRecoveryUsed: true,
+      };
+    });
+
+    toast({
+      title: '🌿 Natural Recovery',
+      description: `Recovered ${slotLevels.length} spell slot${slotLevels.length > 1 ? 's' : ''} (${totalLevels} levels total).`,
+      className: 'border-green-500 bg-green-500/10',
+    });
+
+    return true;
+  }, [primaryClass, primaryLevel, toast]);
 
   // Refresh
   const refreshSlotsForLevel = useCallback(() => {
@@ -1177,6 +1245,10 @@ export function useClassSpellcasting(
     toggleFocus,
     onShortRest,
     onLongRest,
+    // Natural Recovery
+    naturalRecoveryUsed: state.naturalRecoveryUsed,
+    naturalRecoveryMax,
+    useNaturalRecovery,
     refreshSlotsForLevel,
     resetClassSpellcasting,
   };

@@ -31,6 +31,7 @@ import { DruidCircle, LandType } from '@/lib/classes/druidCircles';
 import { ClericDomain, getDomainChannelDivinity } from '@/lib/classes/clericDomains';
 import { useInvocations } from '@/hooks/use-invocations';
 import { InvocationsPanel } from './InvocationsPanel';
+import { NaturalRecoveryPanel } from './NaturalRecoveryPanel';
 
 // Background image
 import arcanaBackground from '@/assets/trees/arcana-wizards-mobile.jpg';
@@ -109,6 +110,10 @@ export function ClassSpellcastingScreen({
     useComponent,
     toggleFocus,
     onLongRest,
+    // Natural Recovery
+    naturalRecoveryUsed,
+    naturalRecoveryMax,
+    useNaturalRecovery,
   } = spellcasting;
 
   const [selectedSpell, setSelectedSpell] = useState<SpellDefinition | null>(null);
@@ -513,6 +518,17 @@ export function ClassSpellcastingScreen({
                 selectedLand={druidLand}
                 onSelectCircle={handleSelectCircle}
                 onSelectLand={handleSelectLand}
+              />
+            )}
+
+            {/* Natural Recovery (Circle of the Land Druid) */}
+            {isDruid && druidCircle === 'land' && characterLevel >= 2 && (
+              <NaturalRecoveryPanel
+                druidLevel={characterLevel}
+                spellSlots={state.spellSlots}
+                naturalRecoveryUsed={naturalRecoveryUsed}
+                naturalRecoveryMax={naturalRecoveryMax}
+                onRecover={useNaturalRecovery}
               />
             )}
 
