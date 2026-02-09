@@ -1053,6 +1053,12 @@ export function MobileCombatLayout({
             concentrationSpell={concentrationForItems}
             lootItemsWithDice={lootItemsWithDice}
             onUseLootItem={onUseLootItem}
+            characterName={character.name}
+            onLogEntry={(entry) => combatLog.addEntry(entry)}
+            onRemoveLogEntry={(actionName) => {
+              const match = combatLog.entries.find(e => e.actionType === 'item' && e.actionName === actionName);
+              if (match) combatLog.removeEntry(match.id);
+            }}
           />
         );
       
