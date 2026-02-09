@@ -5,6 +5,7 @@ import { useWizardValidation, validateStep } from './hooks/use-wizard-validation
 import { WizardProgress, WizardProgressCompact } from './WizardProgress';
 import { WizardNavigation, WizardNavigationCompact } from './WizardNavigation';
 import { IdentityStep } from './steps/IdentityStep';
+import { ClassSelectionStep } from './steps/ClassSelectionStep';
 import { AbilityScoresStep } from './steps/AbilityScoresStep';
 import { GameModeStep } from './steps/GameModeStep';
 import { MagicPathStep } from './steps/MagicPathStep';
@@ -17,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Skull, Zap, Settings2, Cloud } from 'lucide-react';
 import wizardBackground from '@/assets/wizard-background.jpg';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { DnDClass } from '@/lib/classes';
 
 interface CharacterWizardProps {
   onComplete: (state: WizardState) => void;
@@ -26,8 +28,8 @@ interface CharacterWizardProps {
 
 type WizardMode = 'choice' | 'wizard';
 
-// Total steps: identity(0), abilityScores(1), gameMode(2), magicPath(3), skillTrees(4), equipment(5), combatPrimer(6), summary(7)
-const IMPLEMENTED_STEPS = 8;
+// Total steps: identity(0), classSelection(1), abilityScores(2), gameMode(3), magicPath(4), skillTrees(5), equipment(6), combatPrimer(7), summary(8)
+const IMPLEMENTED_STEPS = 9;
 
 export function CharacterWizard({ 
   onComplete, 
@@ -155,6 +157,13 @@ export function CharacterWizard({
   const handleEquipmentUpdate = useCallback((updates: Partial<Pick<WizardState, 'equipment' | 'selectedPresetId'>>) => {
     if (updates.equipment !== undefined && updates.selectedPresetId !== undefined) {
       wizard.setEquipment(updates.equipment, updates.selectedPresetId);
+    }
+  }, [wizard]);
+
+  // Class selection handler
+  const handleClassUpdate = useCallback((updates: Partial<Pick<WizardState, 'primaryClass'>>) => {
+    if (updates.primaryClass !== undefined) {
+      wizard.setPrimaryClass(updates.primaryClass);
     }
   }, [wizard]);
 
@@ -294,13 +303,20 @@ export function CharacterWizard({
         return <IdentityStep state={state} onUpdate={handleIdentityUpdate} />;
       case 1:
         return (
+          <ClassSelectionStep 
+            state={state} 
+            onChange={handleClassUpdate}
+          />
+        );
+      case 2:
+        return (
           <AbilityScoresStep 
             state={state} 
             onUpdate={handleAbilityScoresUpdate} 
             validation={currentValidation}
           />
         );
-      case 2:
+      case 3:
         return (
           <GameModeStep 
             state={state} 
@@ -308,7 +324,7 @@ export function CharacterWizard({
             validation={currentValidation}
           />
         );
-      case 3:
+      case 4:
         return (
           <MagicPathStep 
             state={state} 
@@ -316,7 +332,7 @@ export function CharacterWizard({
             validation={currentValidation}
           />
         );
-      case 4:
+      case 5:
         return (
           <SkillTreePreviewStep 
             state={state} 
@@ -324,7 +340,7 @@ export function CharacterWizard({
             validation={currentValidation}
           />
         );
-      case 5:
+      case 6:
         return (
           <EquipmentStep 
             state={state} 
@@ -332,14 +348,14 @@ export function CharacterWizard({
             validation={currentValidation}
           />
         );
-      case 6:
+      case 7:
         return (
           <CombatPrimerStep 
             state={state} 
             validation={currentValidation}
           />
         );
-      case 7:
+      case 8:
         return (
           <SummaryStep 
             state={state} 
@@ -387,8 +403,8 @@ export function CharacterWizard({
         </AnimatePresence>
       </div>
 
-      {/* Navigation Footer (not shown on summary step 7 - it has its own button) */}
-      {state.currentStep !== 7 && (
+      {/* Navigation Footer (not shown on summary step 8 - it has its own button) */}
+      {state.currentStep !== 8 && (
         <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-sm border-t border-border">
           <div className="max-w-lg mx-auto px-4 py-3">
             {isMobile ? (
