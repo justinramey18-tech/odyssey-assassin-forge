@@ -1,11 +1,14 @@
 // Character Builder Wizard Types
 
 import { BaseAbilityScores } from '@/lib/abilityScores/types';
-import { CharacterAbility } from '@/lib/types';
+import { CharacterAbility, DnDClass } from '@/lib/types';
 import { CharacterEquipment } from '@/lib/inventory/types';
 import { HonestModeRules } from '@/lib/gameModes';
 import { DiceOddsMode } from '@/lib/diceOdds';
 import { MagicPath } from '@/lib/magic/types';
+
+// Re-export DnDClass for convenience
+export type { DnDClass } from '@/lib/types';
 
 // XP Preset types
 export type XPPreset = 'standard' | 'fastTrack' | 'epicJourney' | 'milestone';
@@ -68,9 +71,10 @@ export type PortraitIcon = typeof PORTRAIT_ICONS[number];
 // Wizard step identifiers
 export type WizardStep = 
   | 'identity'
+  | 'classSelection'  // NEW - class choice before ability scores
   | 'abilityScores'
   | 'gameMode'
-  | 'magicPath'
+  | 'magicPath'       // Only shows for Rogue class
   | 'skillTrees'
   | 'equipment'
   | 'combatPrimer'
@@ -78,6 +82,7 @@ export type WizardStep =
 
 export const WIZARD_STEPS: WizardStep[] = [
   'identity',
+  'classSelection',   // NEW - position 2
   'abilityScores',
   'gameMode',
   'magicPath',
@@ -89,6 +94,7 @@ export const WIZARD_STEPS: WizardStep[] = [
 
 export const WIZARD_STEP_LABELS: Record<WizardStep, string> = {
   identity: 'Identity',
+  classSelection: 'Class',  // NEW
   abilityScores: 'Ability Scores',
   gameMode: 'Game Mode',
   magicPath: 'Magic Path',
@@ -109,23 +115,26 @@ export interface WizardState {
   level: number;
   portraitIcon: PortraitIcon;
   
-  // Step 2: Ability Scores
+  // Step 2: Class Selection (NEW)
+  primaryClass: DnDClass;
+  
+  // Step 3: Ability Scores
   abilityScores: BaseAbilityScores;
   scoreGenerationMethod: ScoreGenerationMethod;
   
-  // Step 3: Game Mode
+  // Step 4: Game Mode
   gameMode: 'honest' | 'infinityPool';
   honestModeRules: HonestModeRules;
   xpPreset: XPPreset;
   diceOddsMode: DiceOddsMode;
   
-  // Step 4: Magic Path
+  // Step 5: Magic Path (Rogue only)
   selectedPath: MagicPath | null;
   
-  // Step 5: Skill Trees
+  // Step 6: Skill Trees
   starterAbilities: CharacterAbility[];
   
-  // Step 6: Equipment
+  // Step 7: Equipment
   equipment: CharacterEquipment;
   selectedPresetId: string | null;
 }
@@ -134,6 +143,7 @@ export interface WizardState {
 export const QUICK_START_DEFAULTS: Partial<WizardState> = {
   level: 1,
   portraitIcon: 'Skull',
+  primaryClass: 'rogue', // Default to legacy Odyssey Assassin
   abilityScores: {
     strength: 8,
     dexterity: 15,
@@ -149,6 +159,17 @@ export const QUICK_START_DEFAULTS: Partial<WizardState> = {
   selectedPath: null,
   starterAbilities: [],
   selectedPresetId: 'street-runner',
+};
+
+// Suggested ability score arrays by class (for optimization hints)
+export const CLASS_SUGGESTED_ARRAYS: Record<DnDClass, BaseAbilityScores> = {
+  rogue: { strength: 8, dexterity: 15, constitution: 14, intelligence: 12, wisdom: 13, charisma: 10 },
+  wizard: { strength: 8, dexterity: 14, constitution: 13, intelligence: 15, wisdom: 12, charisma: 10 },
+  sorcerer: { strength: 8, dexterity: 14, constitution: 13, intelligence: 10, wisdom: 12, charisma: 15 },
+  warlock: { strength: 8, dexterity: 14, constitution: 13, intelligence: 10, wisdom: 12, charisma: 15 },
+  cleric: { strength: 14, dexterity: 10, constitution: 13, intelligence: 8, wisdom: 15, charisma: 12 },
+  druid: { strength: 10, dexterity: 14, constitution: 13, intelligence: 8, wisdom: 15, charisma: 12 },
+  bard: { strength: 8, dexterity: 14, constitution: 13, intelligence: 10, wisdom: 12, charisma: 15 },
 };
 
 // Validation result

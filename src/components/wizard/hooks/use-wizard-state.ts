@@ -9,9 +9,10 @@ import {
   WIZARD_PROGRESS_KEY,
   SavedWizardProgress,
   QUICK_START_DEFAULTS,
+  CLASS_SUGGESTED_ARRAYS,
 } from '../types';
 import { BaseAbilityScores, DEFAULT_BASE_SCORES } from '@/lib/abilityScores/types';
-import { CharacterAbility } from '@/lib/types';
+import { CharacterAbility, DnDClass } from '@/lib/types';
 import { CharacterEquipment, EquipmentSlotType } from '@/lib/inventory/types';
 import { HonestModeRules } from '@/lib/gameModes';
 import { DiceOddsMode } from '@/lib/diceOdds';
@@ -57,6 +58,9 @@ const INITIAL_STATE: WizardState = {
   level: 1,
   portraitIcon: 'Skull',
   
+  // Class Selection (NEW)
+  primaryClass: 'rogue', // Default to legacy Odyssey Assassin
+  
   // Ability Scores
   abilityScores: DEFAULT_BASE_SCORES,
   scoreGenerationMethod: 'standard',
@@ -83,6 +87,7 @@ type WizardAction =
   | { type: 'SET_STEP'; step: number }
   | { type: 'COMPLETE_STEP'; step: number }
   | { type: 'SET_IDENTITY'; name: string; level: number; portraitIcon: PortraitIcon }
+  | { type: 'SET_PRIMARY_CLASS'; primaryClass: DnDClass }
   | { type: 'SET_ABILITY_SCORES'; scores: BaseAbilityScores; method: ScoreGenerationMethod }
   | { type: 'SET_GAME_MODE'; mode: 'honest' | 'infinityPool' }
   | { type: 'SET_HONEST_RULES'; rules: Partial<HonestModeRules> }
@@ -119,6 +124,20 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
         name: action.name, 
         level: action.level,
         portraitIcon: action.portraitIcon,
+      };
+      
+    case 'SET_PRIMARY_CLASS':
+      // When changing class, optionally suggest optimized ability scores
+      const suggestedScores = CLASS_SUGGESTED_ARRAYS[action.primaryClass];
+      return { 
+        ...state, 
+        primaryClass: action.primaryClass,
+        // Update ability scores if using standard array method
+        ...(state.scoreGenerationMethod === 'standard' && suggestedScores 
+          ? { abilityScores: suggestedScores } 
+          : {}),
+        // Clear magic path if switching away from rogue
+        ...(action.primaryClass !== 'rogue' ? { selectedPath: null } : {}),
       };
       
     case 'SET_ABILITY_SCORES':
@@ -178,9 +197,10 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
       
     case 'GO_NEXT':
       const nextStep = state.currentStep + 1;
+      const totalSteps = 8; // Updated for new classSelection step (0-8 = 9 steps)
       return { 
         ...state, 
-        currentStep: Math.min(7, nextStep),
+        currentStep: Math.min(totalSteps, nextStep),
         completedSteps: state.completedSteps.includes(state.currentStep)
           ? state.completedSteps
           : [...state.completedSteps, state.currentStep].sort((a, b) => a - b),
@@ -271,6 +291,10 @@ export function useWizardState() {
     dispatch({ type: 'SET_IDENTITY', name, level, portraitIcon });
   }, []);
 
+  const setPrimaryClass = useCallback((primaryClass: DnDClass) => {
+    dispatch({ type: 'SET_PRIMARY_CLASS', primaryClass });
+  }, []);
+
   const setAbilityScores = useCallback((scores: BaseAbilityScores, method: ScoreGenerationMethod) => {
     dispatch({ type: 'SET_ABILITY_SCORES', scores, method });
   }, []);
@@ -340,9 +364,12 @@ export function useWizardState() {
 
   // Computed values
   const isFirstStep = state.currentStep === 0;
-  const isLastStep = state.currentStep === 7;
+  const isLastStep = state.currentStep === 8; // Updated for 9 steps (0-8)
   const canGoBack = state.currentStep > 0;
   const canGoNext = state.completedSteps.includes(state.currentStep) || state.currentStep < Math.max(...state.completedSteps, -1) + 1;
+
+  // Check if MagicPath step should be skipped (non-Rogue classes)
+  const shouldSkipMagicPath = state.primaryClass !== 'rogue';
 
   return {
     state,
@@ -357,26 +384,30 @@ export function useWizardState() {
     isLastStep,
     canGoBack,
     canGoNext,
+    shouldSkipMagicPath,
     
     // Step 1: Identity
     setIdentity,
     
-    // Step 2: Ability Scores
+    // Step 2: Class Selection
+    setPrimaryClass,
+    
+    // Step 3: Ability Scores
     setAbilityScores,
     
-    // Step 3: Game Mode
+    // Step 4: Game Mode
     setGameMode,
     setHonestRules,
     setXPPreset,
     setDiceOdds,
     
-    // Step 4: Magic Path
+    // Step 5: Magic Path (Rogue only)
     setMagicPath,
     
-    // Step 5: Skill Trees
+    // Step 6: Skill Trees
     setStarterAbilities,
     
-    // Step 6: Equipment
+    // Step 7: Equipment
     setEquipment,
     
     // Quick start
