@@ -1,5 +1,5 @@
 import { useMemo, useState, useRef, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Character, getAbilityPointsForLevel, getTotalPointsSpent } from '@/lib/types';
 import { CharacterEquipment } from '@/lib/inventory';
 import { Achievement } from '@/lib/achievements';
@@ -319,18 +319,54 @@ export function HomeScreen({
       onNavigateToTab(cardId as NavigableTab);
     }
   };
+  const hasWildShapeBg = isWildShape && !!wildShapeBackground;
+  const defaultBg = customBackground || homeBackground;
 
   return (
-    <BackgroundWrapper
-      imagePath={(isWildShape && wildShapeBackground) ? wildShapeBackground : (customBackground || homeBackground)}
-      overlayOpacity={(isWildShape && wildShapeBackground) ? 40 : (customBackground ? 55 : 45)}
-      tintColor={(isWildShape && wildShapeBackground) ? 'green' : 'cyan'}
-      tintOpacity={(isWildShape && wildShapeBackground) ? 15 : 8}
-      fixed={true}
-      backgroundSize="cover"
-      backgroundPosition="center center"
-      className="fixed inset-0 z-50"
-    >
+    <div className="fixed inset-0 z-50 relative min-h-screen w-full overflow-hidden">
+      {/* Default background layer (always present) */}
+      <BackgroundWrapper
+        imagePath={defaultBg}
+        overlayOpacity={customBackground ? 55 : 45}
+        tintColor="cyan"
+        tintOpacity={8}
+        fixed={true}
+        backgroundSize="cover"
+        backgroundPosition="center center"
+        className="fixed inset-0 z-0"
+      >
+        <div />
+      </BackgroundWrapper>
+
+      {/* Wild Shape background layer (crossfades in/out) */}
+      <AnimatePresence>
+        {hasWildShapeBg && (
+          <motion.div
+            key="wild-shape-bg"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8, ease: 'easeInOut' }}
+            className="fixed inset-0 z-[1]"
+          >
+            <BackgroundWrapper
+              imagePath={wildShapeBackground!}
+              overlayOpacity={40}
+              tintColor="green"
+              tintOpacity={15}
+              fixed={true}
+              backgroundSize="cover"
+              backgroundPosition="center center"
+              className="absolute inset-0"
+            >
+              <div />
+            </BackgroundWrapper>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Content layer */}
+      <div className="relative z-10">
       <div className="flex flex-col h-screen overflow-hidden relative z-10">
         {/* Install Banner */}
         <InstallBanner />
@@ -722,6 +758,7 @@ export function HomeScreen({
           onOpenCloudSettings={onCloudSyncClick}
         />
       )}
-    </BackgroundWrapper>
+      </div>
+    </div>
   );
 }
