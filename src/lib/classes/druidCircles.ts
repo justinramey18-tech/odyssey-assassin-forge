@@ -286,11 +286,11 @@ export const MOON_CIRCLE_WILD_SHAPE: Record<number, MoonCircleWildShapeConfig> =
   13: { maxCR: 4, canSwim: true, canFly: true, canElemental: true, canDragon: false },
   14: { maxCR: 4, canSwim: true, canFly: true, canElemental: true, canDragon: false },
   15: { maxCR: 5, canSwim: true, canFly: true, canElemental: true, canDragon: false },
-  16: { maxCR: 5, canSwim: true, canFly: true, canElemental: true, canDragon: false },
-  17: { maxCR: 5, canSwim: true, canFly: true, canElemental: true, canDragon: false },
-  18: { maxCR: 6, canSwim: true, canFly: true, canElemental: true, canDragon: true },
-  19: { maxCR: 6, canSwim: true, canFly: true, canElemental: true, canDragon: true },
-  20: { maxCR: 6, canSwim: true, canFly: true, canElemental: true, canDragon: true },
+  16: { maxCR: 8, canSwim: true, canFly: true, canElemental: true, canDragon: false },
+  17: { maxCR: 10, canSwim: true, canFly: true, canElemental: true, canDragon: false },
+  18: { maxCR: 12, canSwim: true, canFly: true, canElemental: true, canDragon: true },
+  19: { maxCR: 12, canSwim: true, canFly: true, canElemental: true, canDragon: true },
+  20: { maxCR: 12, canSwim: true, canFly: true, canElemental: true, canDragon: true },
 };
 
 /**
