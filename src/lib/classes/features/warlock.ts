@@ -130,17 +130,9 @@ export const WARLOCK_FEATURES: ClassFeature[] = [
 ];
 
 /**
- * Popular Eldritch Invocations
+ * Popular Eldritch Invocations (legacy reference - see src/lib/classes/invocations.ts for full list)
  */
-export const ELDRITCH_INVOCATIONS = [
-  { id: 'agonizing-blast', name: 'Agonizing Blast', prerequisite: 'eldritch blast cantrip', description: 'Add CHA to eldritch blast damage' },
-  { id: 'armor-of-shadows', name: 'Armor of Shadows', prerequisite: null, description: 'Cast mage armor at will' },
-  { id: 'devil-sight', name: "Devil's Sight", prerequisite: null, description: 'See in magical darkness 120 ft' },
-  { id: 'eldritch-sight', name: 'Eldritch Sight', prerequisite: null, description: 'Cast detect magic at will' },
-  { id: 'mask-of-many-faces', name: 'Mask of Many Faces', prerequisite: null, description: 'Cast disguise self at will' },
-  { id: 'repelling-blast', name: 'Repelling Blast', prerequisite: 'eldritch blast cantrip', description: 'Push target 10 ft with eldritch blast' },
-  { id: 'thirsting-blade', name: 'Thirsting Blade', prerequisite: 'Pact of the Blade, 5th level', description: 'Attack twice with pact weapon' },
-] as const;
+export { ALL_INVOCATIONS as ELDRITCH_INVOCATIONS } from '../invocations';
 
 /**
  * Get invocations known for a given warlock level
