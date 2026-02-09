@@ -1,89 +1,145 @@
 
 
-# Wild Shape Real-Time Sync -- Refined Plan
+# Comprehensive Wild Shape Expansion: 14 Creatures + 6 Dragons + Interactive Abilities
 
-## What This Does (In Plain Terms)
+## What This Adds
 
-When your Druid transforms into a beast, three things should happen instantly across the whole app:
-
-1. **HP Bar turns green** and shows the beast's HP pool instead of your character's
-2. **AC and stats update** to reflect the beast form's armor and abilities
-3. **Combat tab sees the beast HP** so damage goes to the right place
-4. When the beast form's HP hits zero, everything snaps back to your real character stats automatically, and any leftover damage carries over
-
-Right now, Wild Shape only lives inside the Arcana tab -- it's isolated. This plan lifts it up so the entire app knows about transformations.
+20 new Wild Shape forms with unique, interactive special abilities that generate AI DM prompts when tapped. The forms span from a humble Screaming Goat (CR 0) all the way to ancient dragons (CR 13-17). Every special ability across ALL forms (existing and new) becomes a tappable button that copies a rich, context-aware prompt to your clipboard.
 
 ---
 
-## The Problem
+## Part 1: New Forms Data
 
-The `useWildShape` hook is currently created inside the Arcana tab's `ClassSpellcastingScreen`. That means the Home Screen, HP bar, and Combat tab have no idea when you're transformed. We need to move it up to the main app level (`Index.tsx`) and pass it down.
+### Base Beast Forms (added to `wildShape.ts`)
+Available to ALL druids based on standard CR/level restrictions.
 
----
+| Form | CR | HP | AC | Speed | Special Abilities |
+|---|---|---|---|---|---|
+| Screaming Goat | 0 | 4 | 10 | 40 ft. | Terrifying Scream (DC 10, frightened 1 round), Sure-Footed (advantage vs. knockdown), Charge (ram + knockdown) |
+| Utah Raptor | 1 | 32 | 14 | 60 ft. | Pounce (knockdown + bonus bite), Pack Tactics, Keen Smell, Disemboweling Claw (2d8 slashing) |
 
-## Step-by-Step Changes
+### Moon Circle Beast Forms (added to `druidCircles.ts`)
+Available only to Circle of the Moon druids, filtered by their enhanced CR cap.
 
-### 1. Lift Wild Shape to Index.tsx (the app's brain)
+| Form | CR | HP | AC | Speed | Special Abilities |
+|---|---|---|---|---|---|
+| Owlbear | 3 | 59 | 13 | 40 ft. | Keen Sight and Smell, Multiattack (Beak + Claws), Bear Hug (grapple on claw hit, DC 14) |
+| Chupacabra | 3 | 45 | 14 | 40 ft., climb 30 ft. | Blood Drain (regain HP equal to damage), Stealthy Predator (advantage on Stealth at night), Darkvision 120 ft., Spider Climb |
+| Giant Otter | 3 | 52 | 13 | 40 ft., swim 60 ft. | Hold Breath 30 min, Powerful Jaws (2d10 bite + grapple), Playful Dodge (Disengage as bonus action), Keen Smell |
+| Mothman | 4 | 65 | 15 | 30 ft., fly 60 ft. | Hypnotic Gaze (DC 14, charmed), Prophetic Shriek (DC 14, frightened + prone), Darkvision 120 ft., Flyby |
+| Skinwalker | 4 | 71 | 14 | 40 ft. | Shapechanger (mimic any Medium humanoid), Terrifying Howl (DC 14, frightened 30 ft.), Multiattack (Bite + Claw), Darkvision 60 ft. |
+| Mi-Go (Brain Fungus) | 5 | 76 | 16 | 30 ft., fly 60 ft. | Surgical Claws (2d8 + stun DC 15), Extract Brain (incapacitated target, instant kill), Innate Spellcasting (Detect Thoughts at will), Blindsight 30 ft. |
+| Shoggoth Spawn | 5 | 95 | 14 | 30 ft., swim 30 ft. | Amorphous (squeeze through 1-inch gaps), Pseudopod Multiattack (3x 2d6+5), Maddening Form (DC 14, frightened on sight), Acid Secretion (melee attackers take 1d6 acid) |
+| Spinosaurus | 5 | 95 | 14 | 40 ft., swim 40 ft. | Multiattack (Bite + 2 Claws), Amphibious, Bite (3d12 + grapple), Sail Display (DC 14, frightened), Siege Monster |
+| T-Rex | 8 | 136 | 13 | 50 ft. | Multiattack (Bite + Tail), Bite (4d12 + grapple, swallow Medium), Tail (3d8 + knockdown), Legendary Resistance (1/day) |
+| Hydra | 8 | 172 | 15 | 30 ft., swim 30 ft. | Reactive Heads (one reaction per head), Multiple Bites (5 heads, 1d10+5 each), Head Regrowth (2 new heads unless fire damage), Hold Breath 1 hour, Wakeful |
+| Flesh Cathedral | 10 | 200 | 16 | 20 ft. | Absorb (grappled creatures merge, healing the form), Maddening Aura (DC 16, 3d6 psychic in 30 ft.), Siege Monster, Regeneration (10 HP/round unless fire/acid), Amorphous |
+| Mothra (Kaiju) | 12 | 250 | 17 | 20 ft., fly 120 ft. | Radiant Dust (DC 17, 6d8 radiant 60 ft. cone), Blinding Scales (DC 17, blinded), Legendary Resistance (2/day), Gust Wings (DC 17, push 30 ft.), Silk Spray (restrain DC 17) |
 
-- Import and initialize `useWildShape` in `Index.tsx` using the character's druid level and circle
-- Read druid circle from localStorage (same key the Arcana tab already uses)
-- Create "effective" values that auto-switch between beast and character stats:
-  - `effectiveCurrentHP` -- beast form HP when transformed, character HP otherwise
-  - `effectiveMaxHP` -- beast form max HP when transformed, character max HP otherwise
-  - `effectiveAC` -- beast AC when transformed, equipment AC otherwise
-- Pass these effective values everywhere instead of raw `hpState`
+### Dragon Forms (new category in `druidCircles.ts`)
+Moon Circle level 18+ only. Costs **3 Wild Shape uses** per transformation.
 
-### 2. Update HP Bar (DynamicHealthBar)
-
-- Add two new optional props: `isWildShape` and `wildShapeFormName`
-- When `isWildShape` is true:
-  - Switch the bar gradient to green tones (healthy: emerald, injured: green-600, critical: green-900)
-  - Show the beast name (e.g. "Brown Bear") as a small label inside or above the bar
-  - Change the glow and text colors to green
-- When false: keep the current blood-red theme unchanged
-
-### 3. Thread Props Through HomeScreen
-
-- Add `isWildShape` and `wildShapeFormName` props to `HomeScreen`
-- Forward them to `DynamicHealthBar`
-- HP values already come from Index.tsx, so they'll automatically be the effective (wild-shape-aware) values
-
-### 4. Damage Routing in Combat
-
-- Update `handleHPChange` in `Index.tsx`:
-  - If transformed, route damage through `wildShape.takeDamage()`
-  - If the form drops to 0, the hook returns overflow damage, which gets applied to character HP
-  - If not transformed, normal HP update as before
-
-### 5. Rest Integration
-
-- Add `wildShape.onShortRest()` to the existing short rest handler
-- Add `wildShape.onLongRest()` to the existing long rest handler
-- Both already handle reverting and restoring uses internally
-
-### 6. Remove Duplicate Hook in Arcana Tab
-
-- Pass the wild shape hook instance from Index.tsx down to `ClassSpellcastingScreen` as a prop instead of creating a second instance there
-- This prevents two separate wild shape states from going out of sync
+| Dragon | CR | HP | AC | Speed | Special Abilities |
+|---|---|---|---|---|---|
+| White Dragon | 13 | 200 | 18 | 40 ft., fly 80 ft., burrow 40 ft., swim 40 ft. | Cold Breath (DC 19, 12d8 cold, 60 ft. cone), Cold Immunity, Ice Walk, Blindsight 60 ft. |
+| Black Dragon | 14 | 195 | 19 | 40 ft., fly 80 ft., swim 40 ft. | Acid Breath (DC 18, 12d8 acid, 60 ft. line), Acid Immunity, Amphibious, Blindsight 60 ft. |
+| Copper Dragon | 14 | 184 | 18 | 40 ft., fly 80 ft., climb 40 ft. | Acid Breath (DC 18, 12d8 acid, 60 ft. line), Slowing Breath (DC 18, speed halved), Acid Immunity |
+| Silver Dragon | 16 | 243 | 19 | 40 ft., fly 80 ft. | Cold Breath (DC 20, 13d8 cold, 60 ft. cone), Paralyzing Breath (DC 20, CON save or paralyzed), Cold Immunity |
+| Red Dragon | 17 | 256 | 19 | 40 ft., fly 80 ft., climb 40 ft. | Fire Breath (DC 21, 18d6 fire, 60 ft. cone), Frightful Presence (DC 19), Fire Immunity, Legendary Resistance (3/day) |
+| Gold Dragon | 17 | 256 | 19 | 40 ft., fly 80 ft., swim 40 ft. | Fire Breath (DC 21, 12d10 fire, 60 ft. cone), Weakening Breath (DC 21, STR disadvantage), Fire Immunity, Amphibious |
 
 ---
 
-## Files That Change
+## Part 2: Interactive Special Abilities (AI Prompts)
 
-| File | What Changes |
+Currently, special abilities display as static green tags. This plan converts them into tappable buttons across the entire app.
+
+### New shared utility: `src/lib/wildShapePrompts.ts`
+
+A single function `generateWildShapeAbilityPrompt` that:
+- Accepts character name, form name, form CR, HP/maxHP, AC, speed, and the specific ability name
+- Wraps output with `applyTimePrefix()` for 4th Wall Time
+- Produces a prompt like:
+
+```text
+## [4th Wall Time] Wild Shape Ability: Pack Tactics
+
+**Character:** Vex in Wolf form (CR 1/4)
+**Beast HP:** 8/11 | AC: 13
+**Ability:** Pack Tactics
+
+Pack Tactics grants advantage on attack rolls against a creature
+if at least one ally is within 5 ft. of the target.
+
+Narrate Vex's wolf form coordinating with allies, using Pack
+Tactics to press the advantage.
+```
+
+### Where abilities become tappable
+
+1. **QuickActionsDrawer.tsx** -- The transformed form view (lines 613-621): static `<span>` tags become buttons with tap-to-copy + toast feedback
+2. **WildShapeOverlay.tsx** -- The home screen overlay (lines 126-144): same treatment, requires adding `characterName` and form CR as new props
+3. **HomeScreen.tsx / Index.tsx** -- Thread `characterName` to the overlay component
+
+---
+
+## Part 3: Dragon Wild Shape System
+
+### Config changes in `druidCircles.ts`
+
+- Add `canDragon: boolean` to `MoonCircleWildShapeConfig` interface
+- Extend `MOON_CIRCLE_WILD_SHAPE` at levels 18-20:
+  - Level 18: maxCR 6, canDragon true
+  - Level 19: maxCR 6, canDragon true
+  - Level 20: maxCR 6, canDragon true
+- Add `DragonForm` interface (extends `BeastForm` with `element`, `immunities`, `resistances`)
+- Add `DRAGON_FORMS: DragonForm[]` array with all 6 dragons
+
+### Hook changes in `use-wild-shape.ts`
+
+- Add `dragonForms: DragonForm[]` and `canUseDragon: boolean` to `UseWildShapeReturn`
+- Add `transformDragon(form: DragonForm)` function -- costs 3 uses, validates Moon Circle level 18+
+- Expose dragon forms filtered by availability
+
+### UI changes in `QuickActionsDrawer.tsx`
+
+- Add a **Dragon Forms** section below Elemental Forms
+- Purple/gold accent styling to distinguish from green (beast) and orange (elemental)
+- "3 uses" badge on each dragon card
+- When transformed into a dragon, show the same active-form panel with stats, abilities, and dismiss button
+
+---
+
+## Part 4: Updating Existing Form Abilities
+
+The existing base and Moon Circle forms that currently have minimal abilities will get enriched special ability lists. For example:
+- **Polar Bear**: already has Keen Smell, Multiattack -- stays as-is
+- **Giant Elk**: Charge (ram + knockdown) -- stays as-is
+- All existing forms keep their current abilities (no removals)
+
+---
+
+## File Change Summary
+
+| File | Changes |
 |---|---|
-| `src/pages/Index.tsx` | Add `useWildShape` hook, create effective HP/AC values, update damage handler, update rest handlers, pass wild shape to HomeScreen and ClassSpellcastingScreen |
-| `src/components/home/DynamicHealthBar.tsx` | Add green color mode when `isWildShape` is true, show beast form name |
-| `src/components/home/HomeScreen.tsx` | Accept and forward `isWildShape` and `wildShapeFormName` props |
-| `src/components/magic/ClassSpellcastingScreen.tsx` | Accept wild shape as a prop instead of creating its own instance |
+| `src/lib/magic/wildShape.ts` | Add Screaming Goat (CR 0) and Utah Raptor (CR 1) to `BEAST_FORMS` |
+| `src/lib/classes/druidCircles.ts` | Add `canDragon` to config interface, extend levels 18-20, add 12 Moon beast forms, add `DragonForm` interface, add `DRAGON_FORMS` array with 6 dragons |
+| `src/lib/wildShapePrompts.ts` | **New file** -- shared `generateWildShapeAbilityPrompt` utility |
+| `src/hooks/use-wild-shape.ts` | Add `dragonForms`, `canUseDragon`, `transformDragon` to hook return; filter dragon forms by level/circle |
+| `src/components/drawers/QuickActionsDrawer.tsx` | Add Dragon Forms section with purple/gold styling; convert all special ability tags to tappable prompt-copy buttons |
+| `src/components/home/WildShapeOverlay.tsx` | Accept `characterName` and form CR props; convert ability tags to tappable prompt-copy buttons |
+| `src/components/home/HomeScreen.tsx` | Pass `characterName` to `WildShapeOverlay` |
+| `src/pages/Index.tsx` | Pass `characterName` to HomeScreen for overlay threading |
 
 ---
 
-## Edge Cases Handled
+## How It All Syncs
 
-- **Not a Druid**: Hook receives level 0, stays inactive, everything works as normal
-- **Beast HP hits exactly 0**: Overflow is 0, clean revert with no carry-over damage
-- **Rest while transformed**: Auto-reverts first, then restores uses
-- **Temp HP**: Set to 0 during wild shape (per D&D rules, temp HP doesn't carry between forms)
-- **Cloud saves**: Wild shape is short-lived combat state stored in localStorage only, not cloud-synced (matches current behavior)
+- **No sync architecture changes needed** -- all new forms use the existing `BeastForm` interface (dragons via a compatible `DragonForm` extension)
+- HP bar turns green and shows the form name for all 20 new forms
+- Combat damage routes through the beast/dragon HP pool with overflow carry-over
+- Rest handlers revert and restore uses (dragons restore all 3 consumed uses)
+- Quick Actions drawer auto-filters forms by druid level and circle
+- Every special ability across all forms (old and new) generates a copyable AI DM prompt with 4th Wall Time
 
