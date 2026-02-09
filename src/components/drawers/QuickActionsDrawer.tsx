@@ -611,6 +611,26 @@ function WildShapeSection({ wildShape, characterName }: { wildShape: UseWildShap
                   <p className="text-[11px] font-medium">{form.speed}</p>
                 </div>
               </div>
+              {/* Combat Wild Shape Healing (Moon Circle) */}
+              {wildShape.canUseElemental && wildShape.state.formHP < wildShape.state.formMaxHP && (
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className="text-[10px] text-green-300/70">💚 Heal (spell slot):</span>
+                  {[1, 2, 3, 4, 5].map(lvl => (
+                    <button
+                      key={lvl}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        wildShape.healWithSpellSlot(lvl);
+                      }}
+                      className="w-6 h-6 rounded bg-green-500/15 border border-green-500/25 text-[11px] font-bold text-green-300 hover:bg-green-500/30 active:scale-90 transition-all"
+                      style={{ touchAction: 'manipulation' }}
+                      title={`Spend level ${lvl} slot to heal ${lvl}d8`}
+                    >
+                      {lvl}
+                    </button>
+                  ))}
+                </div>
+              )}
               {form.specialAbilities && form.specialAbilities.length > 0 && (
                 <div className="flex flex-wrap gap-1">
                   {form.specialAbilities.map(ab => (
