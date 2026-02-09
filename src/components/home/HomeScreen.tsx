@@ -11,7 +11,8 @@ import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { SaveData } from '@/hooks/use-auto-save';
 import { 
   Settings, Coffee, Moon, TrendingUp,
-  BookOpen, Sparkles, Timer, MessageCircle, Activity, Heart, Gem, Zap, PanelLeft, HelpCircle
+  BookOpen, Sparkles, Timer, MessageCircle, Activity, Heart, Gem, Zap, PanelLeft, HelpCircle,
+  Swords, Wand2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
@@ -40,6 +41,7 @@ import homeBackground from '@/assets/home-background-new.jpg';
 type NavigableTab = 
   | 'skills' 
   | 'abilities' 
+  | 'arcana'
   | 'gear' 
   | 'feats' 
   | 'stars' 
@@ -252,14 +254,11 @@ export function HomeScreen({
 
   // Drawer menu options
   const drawerOptions = [
-    { id: 'oracle', label: 'Oracle', icon: MessageCircle, color: 'text-red-400', action: drawerContext?.openOracleDrawer },
-    { id: 'conditions', label: 'Conditions', icon: Activity, color: 'text-rose-400', action: drawerContext?.openConditionsDrawer },
-    { id: 'stats', label: 'Stats', icon: Heart, color: 'text-green-400', action: drawerContext?.openStatsDrawer },
-    { id: 'setbonus', label: 'Set Bonus', icon: Sparkles, color: 'text-amber-400', action: drawerContext?.openSetBonusDrawer },
-    { id: 'prompts', label: 'Prompts', icon: Gem, color: 'text-yellow-400', action: drawerContext?.openInfinityDrawer },
-    { id: 'abilities', label: 'Abilities', icon: Zap, color: 'text-purple-400', action: drawerContext?.openAbilitiesDrawer },
-    { id: 'scribe', label: 'Scribe', icon: BookOpen, color: 'text-orange-400', action: drawerContext?.openScribeDrawer },
-    { id: 'timers', label: 'Timers', icon: Timer, color: 'text-cyan-400', action: drawerContext?.openCooldownDrawer },
+    { id: 'combat', label: 'Combat', icon: Swords, color: 'text-red-400', action: () => { setShowDrawersMenu(false); onNavigateToTab('combat'); } },
+    { id: 'arcana', label: 'Arcana', icon: Wand2, color: 'text-indigo-400', action: () => { setShowDrawersMenu(false); onNavigateToTab('arcana'); } },
+    { id: 'abilities', label: 'Abilities', icon: Zap, color: 'text-purple-400', action: () => { setShowDrawersMenu(false); onNavigateToTab('abilities'); } },
+    { id: 'prompts', label: 'RP Prompts', icon: Gem, color: 'text-yellow-400', action: drawerContext?.openInfinityDrawer },
+    { id: 'settings', label: 'Settings', icon: Settings, color: 'text-slate-400', action: onOpenSettings },
   ];
 
   const handleDrawerOptionClick = (action?: () => void) => {
@@ -553,7 +552,7 @@ export function HomeScreen({
       <Sheet open={showDrawersMenu} onOpenChange={setShowDrawersMenu}>
         <SheetContent side="bottom" className="h-auto max-h-[60vh] rounded-t-xl">
           <div className="w-12 h-1 bg-muted rounded-full mx-auto mb-4" />
-          <SheetTitle className="text-center font-cinzel mb-4">Quick-Access Drawers</SheetTitle>
+          <SheetTitle className="text-center font-cinzel mb-4">Quick Access</SheetTitle>
           
           <div className="grid grid-cols-3 gap-3 pb-6">
             {drawerOptions.map((option) => {
