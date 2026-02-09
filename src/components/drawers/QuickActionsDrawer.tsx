@@ -5,9 +5,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { 
   Swords, Sparkles, Zap, Wand2, 
-  ChevronDown, Copy, Check, Timer, Shield, Play
+  ChevronDown, Copy, Check, Timer, Shield, Play, Dices
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Character, Ability } from '@/lib/types';
 import { allAbilities, getAbilityById } from '@/lib/abilities';
 import { WeaponAttack, UNARMED_STRIKE } from '@/lib/combat/combatTypes';
@@ -18,6 +19,8 @@ import { SpellDefinition } from '@/lib/magic/types';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
 import { applyOverrides, homebrewToAbility } from '@/lib/abilityCustomization/utils';
 import { isLegacyAbilityId, resolveLegacyAbility } from '@/lib/prestigeTree/abilityConverter';
+import { rollDice, getAbilityDice, DiceRoll, isCriticalHit, isCriticalMiss, inferRollMode } from '@/lib/diceRoller';
+import { generateRPPrompt } from '@/lib/rpPromptGenerator';
 
 // Types for cooldown info passed in
 interface CooldownInfo {
@@ -35,7 +38,6 @@ interface SpellcastingInfo {
   spellSlots: Record<number, { current: number; max: number }>;
   pactSlots?: { current: number; max: number; level: number };
   concentratingOn: string | null;
-  // Casting action
   castSpell: (spellId: string, spellName: string, baseLevel: number, castLevel: number, usePact: boolean, requiresConcentration: boolean, duration: string) => {
     success: boolean;
     brokeConcentration: string | null;
@@ -53,7 +55,22 @@ interface QuickActionsDrawerProps {
   characterName: string;
 }
 
-// Prompt generators
+// ── Prompt generators (static, no roll data) ──
+
+function generateQuickWeaponPrompt(weapon: WeaponAttack, characterName: string): string {
+  return applyTimePrefix(
+    `## ⚔️ ${weapon.name} Attack
+
+**Character:** ${characterName}
+**Weapon:** ${weapon.name}
+**Damage:** ${weapon.damage} ${weapon.damageType}
+**Properties:** ${weapon.properties.join(', ') || 'Standard'}
+**Type:** ${weapon.isRanged ? 'Ranged' : 'Melee'}
+
+Narrate ${characterName} attacking with their ${weapon.name}. Describe the strike, the weapon's feel, and the impact.`
+  );
+}
+
 function generateQuickAbilityPrompt(ability: Ability, tier: number, characterName: string): string {
   const tierEffect = ability.tierEffects.find(e => e.tier === tier)?.description || '';
   const treeContext = {
@@ -74,20 +91,6 @@ Narrate ${characterName} activating **${ability.name}** with dramatic flair. Des
   );
 }
 
-function generateQuickWeaponPrompt(weapon: WeaponAttack, characterName: string): string {
-  return applyTimePrefix(
-    `## ⚔️ ${weapon.name} Attack
-
-**Character:** ${characterName}
-**Weapon:** ${weapon.name}
-**Damage:** ${weapon.damage} ${weapon.damageType}
-**Properties:** ${weapon.properties.join(', ') || 'Standard'}
-**Type:** ${weapon.isRanged ? 'Ranged' : 'Melee'}
-
-Narrate ${characterName} attacking with their ${weapon.name}. Describe the strike, the weapon's feel, and the impact.`
-  );
-}
-
 function generateQuickSpellPrompt(spell: SpellDefinition, characterName: string, isCantrip: boolean): string {
   const levelLabel = spell.level === 0 ? 'Cantrip' : `Level ${spell.level}`;
   return applyTimePrefix(
@@ -104,7 +107,151 @@ Narrate ${characterName} casting **${spell.name}**. Describe the arcane gestures
   );
 }
 
-// Copy helper
+// ── Roll-enhanced prompt generators ──
+
+function generateWeaponRollPrompt(weapon: WeaponAttack, roll: DiceRoll, characterName: string): string {
+  const maxVal = parseInt(roll.die.slice(1));
+  const isCrit = roll.die === 'd20' 
+    ? isCriticalHit(roll.rolls, inferRollMode(roll.rolls, roll.total, roll.modifier), roll.die) 
+    : roll.rolls.some(r => r === maxVal);
+  const isFumble = roll.die === 'd20'
+    ? isCriticalMiss(roll.rolls, inferRollMode(roll.rolls, roll.total, roll.modifier), roll.die)
+    : roll.rolls.every(r => r === 1);
+  const quality = isCrit ? 'CRITICAL HIT!' : isFumble ? 'CRITICAL MISS!' : roll.total >= maxVal * 0.7 ? 'Solid Hit' : 'Glancing Blow';
+
+  return applyTimePrefix(
+    `## ⚔️ ${weapon.name} Attack — ${quality}
+
+**Character:** ${characterName}
+**Weapon:** ${weapon.name} | **Damage:** ${weapon.damage} ${weapon.damageType}
+**Properties:** ${weapon.properties.join(', ') || 'Standard'}
+
+### 🎲 Dice Roll
+**Roll:** ${roll.count}${roll.die} → [${roll.rolls.join(', ')}]${roll.modifier ? ` + ${roll.modifier}` : ''} = **${roll.total}**
+**Result:** ${quality}
+
+${isCrit ? '**The strike lands with devastating precision! Double damage dice!**\n\n' : ''}${isFumble ? '**The attack goes wildly astray! Describe the embarrassing miss.**\n\n' : ''}Narrate ${characterName}'s attack with their ${weapon.name}. Factor in the ${quality.toLowerCase()} — describe the weapon's arc, impact, and battlefield consequence.`
+  );
+}
+
+function generateAbilityRollPrompt(ability: Ability, tier: 1 | 2 | 3, roll: DiceRoll, characterName: string): string {
+  // Use the existing high-quality prompt generator
+  return generateRPPrompt(ability, tier, roll, characterName);
+}
+
+// ── Inline Roll Result Display ──
+
+function InlineRollResult({ 
+  roll, 
+  prompt, 
+  onReroll, 
+  label,
+  colorClass,
+}: { 
+  roll: DiceRoll; 
+  prompt: string; 
+  onReroll: () => void;
+  label: string;
+  colorClass: string;
+}) {
+  const [copied, setCopied] = useState(false);
+  const maxVal = parseInt(roll.die.slice(1));
+  
+  const isCrit = roll.die === 'd20'
+    ? isCriticalHit(roll.rolls, inferRollMode(roll.rolls, roll.total, roll.modifier), roll.die)
+    : roll.rolls.some(r => r === maxVal);
+  const isFumble = roll.die === 'd20'
+    ? isCriticalMiss(roll.rolls, inferRollMode(roll.rolls, roll.total, roll.modifier), roll.die)
+    : roll.rolls.every(r => r === 1);
+
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setCopied(true);
+      toast.success('Roll prompt copied!');
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Failed to copy');
+    }
+  }, [prompt]);
+
+  return (
+    <motion.div
+      initial={{ height: 0, opacity: 0 }}
+      animate={{ height: 'auto', opacity: 1 }}
+      exit={{ height: 0, opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      className="overflow-hidden"
+    >
+      <div className={cn(
+        "mx-1 mt-1 mb-2 rounded-lg border p-3",
+        isCrit ? "border-amber-500/50 bg-amber-500/10" 
+        : isFumble ? "border-red-500/50 bg-red-500/10" 
+        : `border-border/40 bg-card/60`
+      )}>
+        {/* Roll result header */}
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[11px] text-muted-foreground font-mono uppercase">{label}</span>
+          <div className="flex items-center gap-1">
+            {roll.rolls.map((r, i) => (
+              <span key={i} className={cn(
+                "inline-flex items-center justify-center w-7 h-7 rounded-md text-xs font-bold border",
+                r === maxVal ? "bg-amber-500/20 border-amber-500/50 text-amber-300"
+                : r === 1 ? "bg-red-500/20 border-red-500/50 text-red-300"
+                : "bg-muted/30 border-border/30 text-foreground"
+              )}>
+                {r}
+              </span>
+            ))}
+            {roll.modifier !== 0 && (
+              <span className="text-xs text-muted-foreground ml-1">
+                {roll.modifier > 0 ? '+' : ''}{roll.modifier}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Total */}
+        <div className="text-center mb-2">
+          <span className={cn(
+            "text-2xl font-cinzel font-bold",
+            isCrit ? "text-amber-400 animate-pulse" : isFumble ? "text-red-400" : colorClass
+          )}>
+            {roll.total}
+          </span>
+          {isCrit && <span className="block text-[10px] text-amber-400 font-semibold uppercase tracking-wider mt-0.5">✦ Critical! ✦</span>}
+          {isFumble && <span className="block text-[10px] text-red-400 font-semibold uppercase tracking-wider mt-0.5">✗ Fumble ✗</span>}
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex gap-2">
+          <button
+            onClick={onReroll}
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md bg-muted/30 hover:bg-muted/50 text-xs font-medium transition-colors"
+          >
+            <Dices className="w-3.5 h-3.5" />
+            Reroll
+          </button>
+          <button
+            onClick={handleCopy}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-colors",
+              copied 
+                ? "bg-emerald-500/20 text-emerald-400" 
+                : "bg-primary/15 text-primary hover:bg-primary/25"
+            )}
+          >
+            {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? 'Copied!' : 'Copy Prompt'}
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Copy helper ──
+
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
 
@@ -134,7 +281,7 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-// Quick-cast button — fires action + copies prompt in one tap
+// Quick-cast button
 function QuickCastButton({ 
   label, 
   disabled, 
@@ -152,7 +299,6 @@ function QuickCastButton({
     e.stopPropagation();
     if (disabled) return;
     onCast();
-    // Also copy prompt to clipboard
     try {
       await navigator.clipboard.writeText(prompt);
     } catch { /* silent */ }
@@ -222,6 +368,8 @@ export function QuickActionsDrawer({
   spellcasting,
   characterName,
 }: QuickActionsDrawerProps) {
+  // Track which item has an active inline roll
+  const [activeRoll, setActiveRoll] = useState<{ id: string; roll: DiceRoll; prompt: string } | null>(null);
 
   // ── Basics: Equipped weapons + unarmed strike ──
   const weapons = useMemo((): WeaponAttack[] => {
@@ -249,7 +397,7 @@ export function QuickActionsDrawer({
     }).filter(Boolean) as { ability: Ability; tier: 1 | 2 | 3 }[];
   }, [character.equippedAbilities, character.abilities]);
 
-  // ── Magic: Favorited spells (non-cantrips) auto-populate; fall back to prepared/known ──
+  // ── Magic: Favorited spells auto-populate; fall back to prepared/known ──
   const preparedSpells = useMemo((): SpellDefinition[] => {
     if (!spellcasting) return [];
     const favoriteNonCantrips = spellcasting.favoriteSpells
@@ -262,7 +410,7 @@ export function QuickActionsDrawer({
       .filter((s): s is SpellDefinition => !!s && s.level > 0);
   }, [spellcasting]);
 
-  // ── Cantrips: Favorited cantrips auto-populate; fall back to all known ──
+  // ── Cantrips ──
   const cantrips = useMemo((): SpellDefinition[] => {
     if (!spellcasting) return [];
     const favoriteCantrips = spellcasting.favoriteSpells
@@ -291,15 +439,47 @@ export function QuickActionsDrawer({
     return parts.join(' · ');
   }, [spellcasting]);
 
-  // ── Handlers ──
+  // ── Roll handlers ──
+
+  const handleWeaponRoll = useCallback((weapon: WeaponAttack) => {
+    // Parse weapon damage for die info, default to d20 attack roll
+    const roll = rollDice('d20', 1, weapon.attackBonus);
+    const prompt = generateWeaponRollPrompt(weapon, roll, characterName);
+    setActiveRoll({ id: `weapon-${weapon.id}`, roll, prompt });
+  }, [characterName]);
+
+  const handleWeaponReroll = useCallback((weapon: WeaponAttack) => {
+    const roll = rollDice('d20', 1, weapon.attackBonus);
+    const prompt = generateWeaponRollPrompt(weapon, roll, characterName);
+    setActiveRoll({ id: `weapon-${weapon.id}`, roll, prompt });
+  }, [characterName]);
+
+  const handleAbilityRoll = useCallback((ability: Ability, tier: 1 | 2 | 3) => {
+    const { die, count } = getAbilityDice(tier);
+    const roll = rollDice(die, count);
+    const prompt = generateAbilityRollPrompt(ability, tier, roll, characterName);
+    // Also trigger cooldown
+    cooldowns.triggerCooldown(ability.id);
+    setActiveRoll({ id: `ability-${ability.id}`, roll, prompt });
+    toast.success(`${ability.name} activated!`, { description: 'Cooldown started' });
+  }, [characterName, cooldowns]);
+
+  const handleAbilityReroll = useCallback((ability: Ability, tier: 1 | 2 | 3) => {
+    const { die, count } = getAbilityDice(tier);
+    const roll = rollDice(die, count);
+    const prompt = generateAbilityRollPrompt(ability, tier, roll, characterName);
+    setActiveRoll({ id: `ability-${ability.id}`, roll, prompt });
+  }, [characterName]);
+
+  // ── Spell cast handlers ──
   const handleCastSpell = useCallback((spell: SpellDefinition) => {
     if (!spellcasting) return;
     const result = spellcasting.castSpell(
       spell.id,
       spell.name,
       spell.level,
-      spell.level, // cast at base level
-      false, // don't use pact slot by default
+      spell.level,
+      false,
       spell.concentration,
       spell.duration || '1 round'
     );
@@ -350,14 +530,37 @@ export function QuickActionsDrawer({
                 <div className="space-y-1 pl-2 pr-1 pb-2">
                   {weapons.map(weapon => {
                     const prompt = generateQuickWeaponPrompt(weapon, characterName);
+                    const isRolling = activeRoll?.id === `weapon-${weapon.id}`;
                     return (
-                      <div key={weapon.id} className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-card/40 border border-border/30">
-                        <Swords className="w-4 h-4 text-red-400 shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{weapon.name}</p>
-                          <p className="text-xs text-muted-foreground">{weapon.damage} {weapon.damageType} · {weapon.properties.join(', ') || 'Standard'}</p>
-                        </div>
-                        <CopyButton text={prompt} />
+                      <div key={weapon.id}>
+                        <button
+                          onClick={() => isRolling ? setActiveRoll(null) : handleWeaponRoll(weapon)}
+                          className={cn(
+                            "w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-colors text-left",
+                            isRolling 
+                              ? "bg-red-500/10 border-red-500/30" 
+                              : "bg-card/40 border-border/30 hover:bg-card/60 active:bg-card/80"
+                          )}
+                          style={{ touchAction: 'manipulation' }}
+                        >
+                          <Swords className="w-4 h-4 text-red-400 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{weapon.name}</p>
+                            <p className="text-xs text-muted-foreground">{weapon.damage} {weapon.damageType} · {weapon.properties.join(', ') || 'Standard'}</p>
+                          </div>
+                          <Dices className={cn("w-4 h-4 shrink-0 transition-colors", isRolling ? "text-red-400" : "text-muted-foreground/50")} />
+                        </button>
+                        <AnimatePresence>
+                          {isRolling && activeRoll && (
+                            <InlineRollResult
+                              roll={activeRoll.roll}
+                              prompt={activeRoll.prompt}
+                              onReroll={() => handleWeaponReroll(weapon)}
+                              label={`${weapon.name} Attack`}
+                              colorClass="text-red-400"
+                            />
+                          )}
+                        </AnimatePresence>
                       </div>
                     );
                   })}
@@ -392,39 +595,65 @@ export function QuickActionsDrawer({
                     const remaining = cooldowns.getRemainingTime(ability.id);
                     const prompt = generateQuickAbilityPrompt(ability, tier, characterName);
                     const isPassive = ability.type === 'passive';
+                    const isRolling = activeRoll?.id === `ability-${ability.id}`;
                     return (
-                      <div key={ability.id} className={cn(
-                        "flex items-center gap-2 px-3 py-2.5 rounded-lg bg-card/40 border border-border/30",
-                        onCD && "opacity-60"
-                      )}>
-                        <Zap className={cn("w-4 h-4 shrink-0", 
-                          ability.tree === 'hunter' ? 'text-green-400' :
-                          ability.tree === 'warrior' ? 'text-red-400' : 'text-purple-400'
-                        )} />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-sm font-medium truncate">{ability.name}</p>
-                            <span className="text-[10px] text-amber-400 font-mono">T{tier}</span>
+                      <div key={ability.id}>
+                        <button
+                          onClick={() => {
+                            if (isPassive || onCD) return;
+                            isRolling ? setActiveRoll(null) : handleAbilityRoll(ability, tier);
+                          }}
+                          disabled={isPassive || onCD}
+                          className={cn(
+                            "w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-colors text-left",
+                            isRolling
+                              ? "bg-purple-500/10 border-purple-500/30"
+                              : onCD
+                                ? "bg-card/40 border-border/30 opacity-60 cursor-not-allowed"
+                                : isPassive
+                                  ? "bg-card/40 border-border/30 cursor-default"
+                                  : "bg-card/40 border-border/30 hover:bg-card/60 active:bg-card/80"
+                          )}
+                          style={{ touchAction: 'manipulation' }}
+                        >
+                          <Zap className={cn("w-4 h-4 shrink-0", 
+                            ability.tree === 'hunter' ? 'text-green-400' :
+                            ability.tree === 'warrior' ? 'text-red-400' : 'text-purple-400'
+                          )} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-medium truncate">{ability.name}</p>
+                              <span className="text-[10px] text-amber-400 font-mono">T{tier}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs text-muted-foreground">{ability.actionType.replace('_', ' ')}</p>
+                              {onCD && (
+                                <span className="flex items-center gap-0.5 text-[10px] text-amber-400">
+                                  <Timer className="w-3 h-3" />
+                                  {cooldowns.formatRemainingTime(remaining)}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <p className="text-xs text-muted-foreground">{ability.actionType.replace('_', ' ')}</p>
-                            {onCD && (
-                              <span className="flex items-center gap-0.5 text-[10px] text-amber-400">
-                                <Timer className="w-3 h-3" />
-                                {cooldowns.formatRemainingTime(remaining)}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        {!isPassive && (
-                          <QuickCastButton
-                            label="Use"
-                            disabled={onCD}
-                            onCast={() => handleUseAbility(ability.id, ability.name)}
-                            prompt={prompt}
-                          />
-                        )}
-                        <CopyButton text={prompt} />
+                          {!isPassive && !onCD && (
+                            <Dices className={cn("w-4 h-4 shrink-0 transition-colors", isRolling ? "text-purple-400" : "text-muted-foreground/50")} />
+                          )}
+                          {isPassive && <CopyButton text={prompt} />}
+                        </button>
+                        <AnimatePresence>
+                          {isRolling && activeRoll && (
+                            <InlineRollResult
+                              roll={activeRoll.roll}
+                              prompt={activeRoll.prompt}
+                              onReroll={() => handleAbilityReroll(ability, tier)}
+                              label={`${ability.name} T${tier}`}
+                              colorClass={
+                                ability.tree === 'hunter' ? 'text-green-400' :
+                                ability.tree === 'warrior' ? 'text-red-400' : 'text-purple-400'
+                              }
+                            />
+                          )}
+                        </AnimatePresence>
                       </div>
                     );
                   })}
@@ -502,7 +731,6 @@ export function QuickActionsDrawer({
                           label="Cast"
                           disabled={false}
                           onCast={() => {
-                            // Cantrips don't use slots, just copy prompt + toast
                             toast.success(`${spell.name} cast!`, { description: 'Cantrip — no slot used' });
                           }}
                           prompt={prompt}
