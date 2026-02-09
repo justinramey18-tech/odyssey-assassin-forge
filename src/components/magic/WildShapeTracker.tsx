@@ -1,7 +1,7 @@
 // Wild Shape Tracker
 // Displays Druid's Wild Shape uses, current form HP, and transformation controls
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { 
   PawPrint, 
@@ -13,7 +13,10 @@ import {
   Zap,
   Waves,
   Wind,
+  ImagePlus,
+  ImageOff,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import {
@@ -56,6 +59,10 @@ interface WildShapeTrackerProps {
   onTransformDragon?: (form: DragonForm) => boolean;
   onRevert: () => void;
   onRestoreUse?: () => void;
+  // Background image per form
+  onAssignBackground?: (formId: string, file: File) => Promise<void>;
+  onRemoveBackground?: (formId: string) => void;
+  hasBackground?: (formId: string) => boolean;
 }
 
 export function WildShapeTracker({
@@ -75,11 +82,33 @@ export function WildShapeTracker({
   onTransformDragon,
   onRevert,
   onRestoreUse,
+  onAssignBackground,
+  onRemoveBackground,
+  hasBackground,
 }: WildShapeTrackerProps) {
   const [isFormSheetOpen, setIsFormSheetOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadTargetFormId, setUploadTargetFormId] = useState<string | null>(null);
   const hpPercentage = formMaxHP > 0 ? (formHP / formMaxHP) * 100 : 0;
 
-  // Group forms by CR
+  const handlePhotoUpload = (formId: string) => {
+    setUploadTargetFormId(formId);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !uploadTargetFormId || !onAssignBackground) return;
+    try {
+      await onAssignBackground(uploadTargetFormId, file);
+      toast.success('Background assigned to form');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to upload image');
+    }
+    // Reset
+    e.target.value = '';
+    setUploadTargetFormId(null);
+  };
   const formsByCR = availableForms.reduce((acc, form) => {
     const crKey = formatCR(form.cr);
     if (!acc[crKey]) acc[crKey] = [];
@@ -337,17 +366,16 @@ export function WildShapeTracker({
                             {grouped[crKey].map(({ form, category, useCost, onSelect, isDisabled }) => {
                               const colors = catColors[category];
                               return (
-                                <button
+                                <div
                                   key={form.id}
-                                  onClick={onSelect}
-                                  disabled={isDisabled}
                                   className={cn(
-                                    "p-3 rounded-lg border transition-all text-left disabled:opacity-40",
+                                    "p-3 rounded-lg border transition-all text-left",
+                                    isDisabled && "opacity-40",
                                     colors.border
                                   )}
                                 >
-                                  <div className="flex items-start justify-between">
-                                    <div>
+                                  <div className="flex items-start justify-between" onClick={() => { if (!isDisabled) onSelect(); }}>
+                                    <div className="flex-1">
                                       <div className="flex items-center gap-1.5">
                                         <p className="font-medium text-foreground">{form.name}</p>
                                         {useCost > 1 && (
@@ -360,8 +388,32 @@ export function WildShapeTracker({
                                         {form.description}
                                       </p>
                                     </div>
+                                    {/* Photo assign/remove button */}
+                                    {onAssignBackground && (
+                                      <div className="flex items-center gap-1 ml-2 shrink-0">
+                                        {hasBackground?.(form.id) ? (
+                                          <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); onRemoveBackground?.(form.id); toast.success('Background removed'); }}
+                                            className="p-1.5 rounded-md hover:bg-red-500/20 text-red-400 transition-colors"
+                                            aria-label="Remove background photo"
+                                          >
+                                            <ImageOff className="w-4 h-4" />
+                                          </button>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); handlePhotoUpload(form.id); }}
+                                            className="p-1.5 rounded-md hover:bg-green-500/20 text-muted-foreground hover:text-green-400 transition-colors"
+                                            aria-label="Assign background photo"
+                                          >
+                                            <ImagePlus className="w-4 h-4" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    )}
                                   </div>
-                                  <div className="flex items-center gap-3 mt-2 text-xs">
+                                  <div className="flex items-center gap-3 mt-2 text-xs" onClick={() => { if (!isDisabled) onSelect(); }}>
                                     <span className="flex items-center gap-1 text-red-400">
                                       <Heart className="w-3 h-3" /> {form.hp}
                                     </span>
@@ -379,7 +431,7 @@ export function WildShapeTracker({
                                       ))}
                                     </div>
                                   )}
-                                </button>
+                                </div>
                               );
                             })}
                           </div>
@@ -389,6 +441,14 @@ export function WildShapeTracker({
                   })()}
                 </div>
               </ScrollArea>
+              {/* Hidden file input for photo uploads */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileChange}
+              />
             </SheetContent>
           </Sheet>
 

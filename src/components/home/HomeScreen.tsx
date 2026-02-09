@@ -80,6 +80,8 @@ interface HomeScreenProps {
   customBackground?: string | null;
   onCustomBackgroundUpload?: (file: File) => Promise<void>;
   onCustomBackgroundClear?: () => void;
+  // Wild Shape background (overrides custom/default when transformed)
+  wildShapeBackground?: string | null;
   // Prestige data for XP bar
   prestigeData?: PrestigeData;
   // Cloud sync props
@@ -136,6 +138,7 @@ export function HomeScreen({
   customBackground,
   onCustomBackgroundUpload,
   onCustomBackgroundClear,
+  wildShapeBackground,
   prestigeData,
   lastCloudSyncTime,
   isCloudSyncing = false,
@@ -319,12 +322,12 @@ export function HomeScreen({
 
   return (
     <BackgroundWrapper
-      imagePath={customBackground || homeBackground}
-      overlayOpacity={customBackground ? 55 : 45}
-      tintColor="cyan"
-      tintOpacity={8}
+      imagePath={(isWildShape && wildShapeBackground) ? wildShapeBackground : (customBackground || homeBackground)}
+      overlayOpacity={(isWildShape && wildShapeBackground) ? 40 : (customBackground ? 55 : 45)}
+      tintColor={(isWildShape && wildShapeBackground) ? 'green' : 'cyan'}
+      tintOpacity={(isWildShape && wildShapeBackground) ? 15 : 8}
       fixed={true}
-      backgroundSize={customBackground ? 'cover' : 'contain'}
+      backgroundSize="cover"
       backgroundPosition="center center"
       className="fixed inset-0 z-50"
     >

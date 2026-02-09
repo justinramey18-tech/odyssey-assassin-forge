@@ -76,6 +76,7 @@ import { adaptClassSpellcastingForCombat } from '@/hooks/use-combat-spellcasting
 import { Consumable } from '@/lib/consumables/types';
 import { EquipmentItem as ShopEquipmentItem } from '@/lib/inventory/types';
 import { useCustomBackground } from '@/hooks/use-custom-background';
+import { useWildShapeBackgrounds } from '@/hooks/use-wild-shape-backgrounds';
 import { useActionEconomy } from '@/hooks/use-action-economy';
 import { useConditions } from '@/hooks/use-conditions';
 import { useTargets } from '@/hooks/use-targets';
@@ -215,6 +216,9 @@ const Index = () => {
   
   // Custom home background
   const customBackground = useCustomBackground();
+  
+  // Wild shape per-form background images
+  const wildShapeBgs = useWildShapeBackgrounds();
   
   // Action economy (combat turn tracking with persistence)
   const actionEconomy = useActionEconomy();
@@ -1671,6 +1675,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           wildShapeFormMaxHP={wildShape.state.formMaxHP}
           wildShapeFormAC={wildShape.state.currentForm?.ac}
           onDismissWildShape={() => wildShape.revert()}
+          wildShapeBackground={wildShapeBgs.getActiveBackground(wildShape.state.currentForm?.id)}
           customBackground={customBackground.customBackground}
           onCustomBackgroundUpload={customBackground.handleImageUpload}
           onCustomBackgroundClear={customBackground.clearCustomBackground}
@@ -1946,6 +1951,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
                     setCharacter(prev => ({ ...prev, primaryClass: classId }));
                   }}
                   wildShapeInstance={wildShape}
+                  onAssignWildShapeBackground={wildShapeBgs.assignBackground}
+                  onRemoveWildShapeBackground={wildShapeBgs.removeBackground}
+                  hasWildShapeBackground={wildShapeBgs.hasBackground}
                 />
               )}
             </BackgroundWrapper>

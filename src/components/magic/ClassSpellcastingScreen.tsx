@@ -56,6 +56,10 @@ interface ClassSpellcastingScreenProps {
   onChangeClass?: (classId: DnDClass) => void;
   /** Wild Shape instance passed from Index.tsx (prevents duplicate hooks) */
   wildShapeInstance?: UseWildShapeReturn;
+  // Wild Shape background management
+  onAssignWildShapeBackground?: (formId: string, file: File) => Promise<void>;
+  onRemoveWildShapeBackground?: (formId: string) => void;
+  hasWildShapeBackground?: (formId: string) => boolean;
 }
 
 export function ClassSpellcastingScreen({
@@ -68,6 +72,9 @@ export function ClassSpellcastingScreen({
   isProficientInConSaves = false,
   onChangeClass,
   wildShapeInstance,
+  onAssignWildShapeBackground,
+  onRemoveWildShapeBackground,
+  hasWildShapeBackground,
 }: ClassSpellcastingScreenProps) {
   const {
     state,
@@ -550,6 +557,9 @@ export function ClassSpellcastingScreen({
                 onTransformDragon={wildShape.transformDragon}
                 onRevert={() => wildShape.revert()}
                 onRestoreUse={wildShape.restoreUse}
+                onAssignBackground={onAssignWildShapeBackground}
+                onRemoveBackground={onRemoveWildShapeBackground}
+                hasBackground={hasWildShapeBackground}
               />
             )}
 
