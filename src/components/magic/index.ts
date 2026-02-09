@@ -1,7 +1,9 @@
 // Magic System Components
 export { MagicScreen } from './MagicScreen';
+export { ClassSpellcastingScreen } from './ClassSpellcastingScreen';
 export { SpellCard } from './SpellCard';
 export { SpellbookGrid } from './SpellbookGrid';
+export { ClassSpellbookGrid } from './ClassSpellbookGrid';
 export { SpellDetailsSheet } from './SpellDetailsSheet';
 export { SpellCastSheet } from './SpellCastSheet';
 export { SpellSlotTracker } from './SpellSlotTracker';

@@ -63,7 +63,7 @@ import {
   EquipmentItem,
   createInitialEquipment,
 } from '@/lib/inventory/index';
-import { MagicScreen } from '@/components/magic';
+import { MagicScreen, ClassSpellcastingScreen } from '@/components/magic';
 import { ShopScreen } from '@/components/shop';
 import { LootScreen } from '@/components/loot';
 import { generateLootUsePrompt } from '@/lib/loot/prompts';
@@ -71,6 +71,7 @@ import { useShop } from '@/hooks/use-shop';
 import { useLoot } from '@/hooks/use-loot';
 import { ParsedShopItem } from '@/lib/shop/types';
 import { useSpellcasting } from '@/hooks/use-spellcasting';
+import { useClassSpellcasting } from '@/hooks/use-class-spellcasting';
 import { Consumable } from '@/lib/consumables/types';
 import { EquipmentItem as ShopEquipmentItem } from '@/lib/inventory/types';
 import { useCustomBackground } from '@/hooks/use-custom-background';
@@ -355,7 +356,10 @@ const Index = () => {
     return calculateMaxHP(character.level, conMod, prestigeData.prestigeLevel);
   }, [character.level, abilityScores.finalScores.constitution, prestigeData.prestigeLevel]);
   
-  // Spellcasting system (uses ability scores for auto-calculation)
+  // Determine if character is using Rogue class (legacy Magic Path system)
+  const isRogueClass = (character.primaryClass ?? 'rogue') === 'rogue';
+  
+  // Spellcasting system for Rogue (Magic Paths - uses ability scores for auto-calculation)
   const spellcasting = useSpellcasting(character.level, character.name, {
     abilityScores: {
       intelligence: abilityScores.finalScores.intelligence,
@@ -363,6 +367,21 @@ const Index = () => {
       charisma: abilityScores.finalScores.charisma,
     },
   });
+  
+  // Class-based spellcasting for non-Rogue classes (Wizard, Sorcerer, etc.)
+  const classSpellcasting = useClassSpellcasting(
+    character.primaryClass ?? 'wizard',
+    character.level,
+    character.multiclassLevels ?? {},
+    character.name,
+    {
+      abilityScores: {
+        intelligence: abilityScores.finalScores.intelligence,
+        wisdom: abilityScores.finalScores.wisdom,
+        charisma: abilityScores.finalScores.charisma,
+      },
+    }
+  );
   
   // Conditions system with concentration sync to spellcasting
   // Using refs to avoid stale closure issues in callbacks
@@ -1739,7 +1758,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
             />
           )}
 
-          {/* Arcana Sub-Tab */}
+          {/* Arcana Sub-Tab - Conditional rendering based on class */}
           {activeTab === 'arcana' && (
             <BackgroundWrapper 
               imagePath={builderBackground} 
@@ -1748,14 +1767,28 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
               tintOpacity={15}
               className="min-h-[calc(100vh-10vh)]"
             >
-              <MagicScreen
-                characterLevel={character.level}
-                characterName={character.name}
-                spellcasting={spellcasting}
-                conModifier={abilityScores.getScoreBreakdown('constitution').modifier}
-                proficiencyBonus={spellcasting.state.proficiencyBonus}
-                isProficientInConSaves={false}
-              />
+              {isRogueClass ? (
+                // Rogue: Use legacy Magic Path system
+                <MagicScreen
+                  characterLevel={character.level}
+                  characterName={character.name}
+                  spellcasting={spellcasting}
+                  conModifier={abilityScores.getScoreBreakdown('constitution').modifier}
+                  proficiencyBonus={spellcasting.state.proficiencyBonus}
+                  isProficientInConSaves={false}
+                />
+              ) : (
+                // Non-Rogue: Use class-based spellcasting (Wizard, Sorcerer, etc.)
+                <ClassSpellcastingScreen
+                  primaryClass={character.primaryClass ?? 'wizard'}
+                  characterLevel={character.level}
+                  characterName={character.name}
+                  spellcasting={classSpellcasting}
+                  conModifier={abilityScores.getScoreBreakdown('constitution').modifier}
+                  proficiencyBonus={classSpellcasting.state.proficiencyBonus}
+                  isProficientInConSaves={false}
+                />
+              )}
             </BackgroundWrapper>
           )}
 

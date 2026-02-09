@@ -72,7 +72,7 @@ export interface SpellComponents {
 export interface SpellDefinition {
   id: string;
   name: string;
-  level: 0 | 1 | 2 | 3 | 4 | 5; // 0 = cantrip, max 5th level for half-casters
+  level: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9; // 0 = cantrip, up to 9th for full casters
   school: SpellSchool;
   castingTime: CastingTime;
   range: string;
@@ -88,13 +88,17 @@ export interface SpellDefinition {
   damageFormula?: string; // e.g., "1d10" or "3d8"
   healingFormula?: string;
   iconName: string; // Lucide icon name
-  pathRestrictions?: MagicPath[]; // Only these paths can learn this spell
+  pathRestrictions?: MagicPath[]; // Only these paths can learn this spell (Rogue MagicPath system)
+  classes?: DnDClass[]; // Which D&D classes can learn this spell (class-based spellcasting)
   personalityQuips: {
     thunderhead: string;
     jarvis: string;
     deadpool: string;
   };
 }
+
+// Import DnDClass for the classes field
+import { DnDClass } from '@/lib/classes/types';
 
 // ============================================
 // SPELL SLOT TRACKING
