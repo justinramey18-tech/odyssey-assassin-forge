@@ -3,7 +3,7 @@ import { Character, getActiveSlotsByLevel, Ability } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { X, Plus, HelpCircle, Target, Crosshair, Eye, Sparkles, CloudRain, Award, Radar, Undo2, Flame, ShieldOff, Megaphone, Zap, Swords, Sword, Shield, Heart, Skull, Footprints, Droplets, EyeOff, Ghost, Moon, FlaskConical, Brain, Dices, Clock } from 'lucide-react';
+import { X, Plus, HelpCircle, Target, Crosshair, Eye, Sparkles, CloudRain, Award, Radar, Undo2, Flame, ShieldOff, Megaphone, Zap, Swords, Sword, Shield, Heart, Skull, Footprints, Droplets, EyeOff, Ghost, Moon, FlaskConical, Brain, Dices, Clock, Snowflake, Star, Wind, Bird, Copy, Crown, Cat, Link, Users, Waves, Feather, Hand, CircleDot, Sun, Gem, Music, Lightbulb, Leaf, User, Timer, HeartPulse, Shuffle, Wand2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,22 +20,26 @@ import { COOLDOWN_CONFIGS } from '@/lib/cooldowns/config';
 import { toast } from 'sonner';
 import { useAbilityCustomization } from '@/hooks/use-ability-customization';
 import { applyOverrides, homebrewToAbility } from '@/lib/abilityCustomization/utils';
+import { isLegacyAbilityId, resolveLegacyAbility, getUnlockedLegacyAbilities } from '@/lib/prestigeTree/abilityConverter';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Target, Crosshair, Eye, Sparkles, CloudRain, Award, Radar, Undo2,
   Flame, ShieldOff, Megaphone, Zap, Swords, Sword, Shield, Heart,
   Skull, Footprints, Droplets, EyeOff, Ghost, Moon, FlaskConical, Brain,
-  HelpCircle,
+  HelpCircle, Snowflake, Star, Wind, Bird, Copy, Crown, Cat, Link,
+  Users, Waves, Feather, Hand, CircleDot, Sun, Gem, Music,
+  Lightbulb, Leaf, User, Timer, HeartPulse, Shuffle, Wand2, Clock,
 };
 
 interface EquippedLoadoutProps {
   character: Character;
   prestigePoints?: number;
+  unlockedPrestigeAbilities?: string[];
   onEquip: (slotIndex: number, abilityId: string) => void;
   onUnequip: (slotIndex: number) => void;
 }
 
-export function EquippedLoadout({ character, prestigePoints = 0, onEquip, onUnequip }: EquippedLoadoutProps) {
+export function EquippedLoadout({ character, prestigePoints = 0, unlockedPrestigeAbilities = [], onEquip, onUnequip }: EquippedLoadoutProps) {
   const [showDiceModal, setShowDiceModal] = useState(false);
   const [currentRoll, setCurrentRoll] = useState<DiceRoll | null>(null);
   const [currentRPPrompt, setCurrentRPPrompt] = useState('');
@@ -56,8 +60,13 @@ export function EquippedLoadout({ character, prestigePoints = 0, onEquip, onUneq
 
   const totalSlots = getActiveSlotsByLevel(character.level, prestigePoints);
   
-  // Helper to get ability (base or homebrew) with customizations
-  const getAbilityById = (id: string): (Ability & { isHomebrew?: boolean }) | null => {
+  // Helper to get ability (base, homebrew, or legacy) with customizations
+  const getAbilityById = (id: string): (Ability & { isHomebrew?: boolean; isLegacy?: boolean }) | null => {
+    // Legacy prestige ability
+    if (isLegacyAbilityId(id)) {
+      const legacy = resolveLegacyAbility(id);
+      return legacy ? { ...legacy, isLegacy: true } as Ability & { isLegacy: boolean } : null;
+    }
     if (id.startsWith('homebrew_')) {
       const homebrew = abilityCustomization.state.homebrewAbilities.find(h => h.id === id);
       return homebrew ? homebrewToAbility(homebrew) : null;
@@ -69,9 +78,10 @@ export function EquippedLoadout({ character, prestigePoints = 0, onEquip, onUneq
   };
   
   // Get available active abilities (unlocked, not passive, not already equipped)
-  // This includes both base abilities and homebrew abilities
+  // This includes base abilities, homebrew abilities, AND legacy prestige abilities
   const availableAbilities = useMemo(() => {
-    return character.abilities
+    // Base + homebrew abilities
+    const baseAvailable = character.abilities
       .filter(ca => {
         if (ca.currentTier === 0) return false;
         const ability = getAbilityById(ca.abilityId);
@@ -81,9 +91,20 @@ export function EquippedLoadout({ character, prestigePoints = 0, onEquip, onUneq
       })
       .map(ca => getAbilityById(ca.abilityId))
       .filter(Boolean) as (Ability & { isHomebrew?: boolean })[];
-  }, [character.abilities, character.equippedAbilities, abilityCustomization.state.homebrewAbilities, abilityCustomization.state.overrides]);
 
-  const treeStyles = {
+    // Legacy prestige abilities (unlocked and not already equipped)
+    const legacyAvailable = getUnlockedLegacyAbilities(unlockedPrestigeAbilities)
+      .filter(la => {
+        if (la.type === 'passive') return false;
+        if (character.equippedAbilities.includes(la.id)) return false;
+        return true;
+      })
+      .map(la => ({ ...la, isLegacy: true }));
+
+    return [...baseAvailable, ...legacyAvailable];
+  }, [character.abilities, character.equippedAbilities, unlockedPrestigeAbilities, abilityCustomization.state.homebrewAbilities, abilityCustomization.state.overrides]);
+
+  const treeStyles: Record<string, string> = {
     hunter: 'border-hunter/50 bg-hunter-dim/20 text-hunter-glow',
     warrior: 'border-warrior/50 bg-warrior-dim/20 text-warrior-glow',
     assassin: 'border-assassin/50 bg-assassin-dim/20 text-assassin-glow',
@@ -101,8 +122,9 @@ export function EquippedLoadout({ character, prestigePoints = 0, onEquip, onUneq
       }
     }
     
-    // Get the current tier of this ability
-    const charAbility = character.abilities.find(ca => ca.abilityId === ability.id);
+    // Get the current tier of this ability (legacy abilities default to tier 1)
+    const isLegacy = isLegacyAbilityId(ability.id);
+    const charAbility = isLegacy ? null : character.abilities.find(ca => ca.abilityId === ability.id);
     const tier = (charAbility?.currentTier || 1) as 1 | 2 | 3;
     
     const { die, count } = getAbilityDice(tier);
@@ -164,18 +186,19 @@ export function EquippedLoadout({ character, prestigePoints = 0, onEquip, onUneq
 
             if (equippedAbility) {
               const isHomebrew = 'isHomebrew' in equippedAbility && equippedAbility.isHomebrew;
+              const isLegacyEquipped = 'isLegacy' in equippedAbility && (equippedAbility as any).isLegacy;
               return (
                 <div
                   key={index}
                   className={cn(
                     'relative group flex items-center gap-2 px-3 py-2 rounded-lg border transition-all cursor-pointer hover:scale-105',
-                    treeStyles[equippedAbility.tree],
+                    treeStyles[equippedAbility.tree] ?? 'border-primary/50 bg-primary/10 text-primary',
                     isOnCooldown && 'opacity-60'
                   )}
                   onClick={() => handleUseAbility(equippedAbility)}
                   title={isOnCooldown 
                     ? `${equippedAbility.name} on cooldown` 
-                    : `Click to use ${equippedAbility.name}${isHomebrew ? ' (Homebrew)' : ''}`
+                    : `Click to use ${equippedAbility.name}${isHomebrew ? ' (Homebrew)' : ''}${isLegacyEquipped ? ' (Legacy)' : ''}`
                   }
                 >
                   {isOnCooldown ? (
@@ -187,6 +210,11 @@ export function EquippedLoadout({ character, prestigePoints = 0, onEquip, onUneq
                   {/* Homebrew badge */}
                   {isHomebrew && !isOnCooldown && (
                     <span className="absolute -top-1 -left-1 text-[8px] text-primary font-bold">✦</span>
+                  )}
+                  
+                  {/* Legacy badge */}
+                  {isLegacyEquipped && !isOnCooldown && (
+                    <span className="absolute -top-1 -left-1 text-[8px] text-amber-400 font-bold">★</span>
                   )}
                   
                   {/* Cooldown badge */}
@@ -242,16 +270,18 @@ export function EquippedLoadout({ character, prestigePoints = 0, onEquip, onUneq
                     availableAbilities.map(ability => {
                       const AbilityIcon = iconMap[ability.icon] || HelpCircle;
                       const isHomebrew = 'isHomebrew' in ability && ability.isHomebrew;
+                      const isLegacyItem = 'isLegacy' in ability && (ability as any).isLegacy;
                       return (
                         <DropdownMenuItem
                           key={ability.id}
                           onClick={() => onEquip(index, ability.id)}
                           className="flex items-center gap-2"
                         >
-                          <AbilityIcon className={cn('w-4 h-4', treeStyles[ability.tree].split(' ')[2])} />
+                          <AbilityIcon className={cn('w-4 h-4', (treeStyles[ability.tree] ?? 'text-primary').split(' ')[2])} />
                           <span className="flex items-center gap-1">
                             {ability.name}
                             {isHomebrew && <span className="text-[10px] text-primary">✦</span>}
+                            {isLegacyItem && <span className="text-[10px] text-amber-400">★</span>}
                           </span>
                         </DropdownMenuItem>
                       );

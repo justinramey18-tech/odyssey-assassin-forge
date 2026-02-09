@@ -26,6 +26,7 @@ import { useAbilityCustomization } from '@/hooks/use-ability-customization';
 import { useAttackQueue } from '@/hooks/use-attack-queue';
 import { applyOverrides, homebrewToAbility } from '@/lib/abilityCustomization/utils';
 import { COOLDOWN_CONFIGS, calculateEffectiveCooldown } from '@/lib/cooldowns/config';
+import { isLegacyAbilityId, resolveLegacyAbility } from '@/lib/prestigeTree/abilityConverter';
 
 // Mobile components
 import { CombatBottomNav, CombatTab } from './CombatBottomNav';
@@ -271,8 +272,18 @@ export function MobileCombatLayout({
       })
       .filter(Boolean) as (Ability & { tier: 1 | 2 | 3; isCustomized?: boolean; isHomebrew?: boolean })[];
     
-    return baseAbilities;
-  }, [character.abilities, abilityCustomization.state.overrides, abilityCustomization.state.homebrewAbilities]);
+    // Include equipped legacy abilities
+    const legacyAbilities = character.equippedAbilities
+      .filter(id => isLegacyAbilityId(id))
+      .map(id => {
+        const ability = resolveLegacyAbility(id);
+        if (!ability) return null;
+        return { ...ability, tier: 1 as const, isLegacy: true };
+      })
+      .filter(Boolean) as (Ability & { tier: 1 | 2 | 3; isLegacy?: boolean })[];
+
+    return [...baseAbilities, ...legacyAbilities];
+  }, [character.abilities, character.equippedAbilities, abilityCustomization.state.overrides, abilityCustomization.state.homebrewAbilities]);
   
   const stealthAbilities = unlockedAbilities.filter(a => 
     a.tree === 'assassin' || 
