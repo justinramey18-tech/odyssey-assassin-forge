@@ -26,6 +26,7 @@ import { CharacterSavesDrawer, CharacterSavesTrigger } from './CharacterSavesDra
 import { CharacterNamePlaque } from './CharacterNamePlaque';
 import { StatusIndicatorRow } from './StatusIndicatorRow';
 import { DynamicHealthBar } from './DynamicHealthBar';
+import { WildShapeOverlay } from './WildShapeOverlay';
 import { AvailablePointsWidget } from './AvailablePointsWidget';
 import { EnlargedD20Section } from './EnlargedD20Section';
 import { CloudSyncStatusWidget } from './CloudSyncStatusWidget';
@@ -90,6 +91,13 @@ interface HomeScreenProps {
   // Wild Shape props
   isWildShape?: boolean;
   wildShapeFormName?: string;
+  wildShapeSpeed?: string;
+  wildShapeAbilities?: string[];
+  wildShapeUsesRemaining?: number;
+  wildShapeMaxUses?: number;
+  wildShapeTransformedAt?: number;
+  wildShapeDurationMinutes?: number;
+  onDismissWildShape?: () => void;
 }
 
 // Haptic feedback helper
@@ -131,6 +139,13 @@ export function HomeScreen({
   onLoadSave,
   isWildShape = false,
   wildShapeFormName,
+  wildShapeSpeed,
+  wildShapeAbilities = [],
+  wildShapeUsesRemaining = 0,
+  wildShapeMaxUses = 0,
+  wildShapeTransformedAt,
+  wildShapeDurationMinutes,
+  onDismissWildShape,
 }: HomeScreenProps) {
   const isMobile = useIsMobile();
   const stats = useEquipmentStats(equipment);
@@ -392,7 +407,20 @@ export function HomeScreen({
               wildShapeFormName={wildShapeFormName}
             />
 
-            {/* XP Progress Bar - Synced with Skills Tab */}
+            {/* Wild Shape Details Overlay */}
+            {isWildShape && wildShapeFormName && onDismissWildShape && (
+              <WildShapeOverlay
+                formName={wildShapeFormName}
+                speed={wildShapeSpeed || '30 ft.'}
+                specialAbilities={wildShapeAbilities}
+                usesRemaining={wildShapeUsesRemaining}
+                maxUses={wildShapeMaxUses}
+                transformedAt={wildShapeTransformedAt}
+                durationMinutes={wildShapeDurationMinutes}
+                onDismiss={onDismissWildShape}
+              />
+            )}
+
             <XPProgressBar
               currentLevel={character.level}
               currentXP={currentXP}
