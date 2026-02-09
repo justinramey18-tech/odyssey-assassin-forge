@@ -30,23 +30,23 @@ export function DynamicHealthBar({
   
   // Get bar color based on health
   const getBarColor = () => {
-    if (isCritical) return 'bg-gradient-to-r from-rose-600 to-rose-500';
-    if (isInjured) return 'bg-gradient-to-r from-amber-600 to-amber-500';
-    return 'bg-gradient-to-r from-emerald-600 to-emerald-500';
+    if (isCritical) return 'bg-gradient-to-r from-red-900 to-red-700';
+    if (isInjured) return 'bg-gradient-to-r from-red-800 to-red-600';
+    return 'bg-gradient-to-r from-red-700 to-red-500';
   };
   
   // Get glow color
   const getGlowColor = () => {
-    if (isCritical) return 'shadow-rose-500/40';
-    if (isInjured) return 'shadow-amber-500/40';
-    return 'shadow-emerald-500/40';
+    if (isCritical) return 'shadow-red-900/50';
+    if (isInjured) return 'shadow-red-700/40';
+    return 'shadow-red-500/40';
   };
   
   // Get text color
   const getTextColor = () => {
-    if (isCritical) return 'text-rose-400';
-    if (isInjured) return 'text-amber-400';
-    return 'text-emerald-400';
+    if (isCritical) return 'text-red-300';
+    if (isInjured) return 'text-red-400';
+    return 'text-red-400';
   };
 
   // Haptic feedback helper
