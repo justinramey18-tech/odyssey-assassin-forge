@@ -1838,6 +1838,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
                   conModifier={abilityScores.getScoreBreakdown('constitution').modifier}
                   proficiencyBonus={spellcasting.state.proficiencyBonus}
                   isProficientInConSaves={false}
+                  onChangeClass={(classId) => {
+                    setCharacter(prev => ({ ...prev, primaryClass: classId }));
+                  }}
                 />
               ) : (
                 // Non-Rogue: Use class-based spellcasting (Wizard, Sorcerer, etc.)
@@ -1849,6 +1852,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
                   conModifier={abilityScores.getScoreBreakdown('constitution').modifier}
                   proficiencyBonus={classSpellcasting.state.proficiencyBonus}
                   isProficientInConSaves={false}
+                  onChangeClass={(classId) => {
+                    setCharacter(prev => ({ ...prev, primaryClass: classId }));
+                  }}
                 />
               )}
             </BackgroundWrapper>
