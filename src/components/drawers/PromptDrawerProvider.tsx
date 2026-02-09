@@ -7,6 +7,7 @@ import { StatsDrawer } from './StatsDrawer';
 import { ScribeDrawer } from './ScribeDrawer';
 import { ActiveSetBonusDrawer } from './ActiveSetBonusDrawer';
 import { CooldownDrawer } from './CooldownDrawer';
+import { QuickActionsDrawer } from './QuickActionsDrawer';
 import { OracleDrawer } from '@/components/oracle';
 import { ConditionDrawer } from '@/components/conditions';
 import { Character } from '@/lib/types';
@@ -35,6 +36,7 @@ interface PromptDrawerContextValue {
   openOracleDrawer: () => void;
   openConditionsDrawer: () => void;
   openAddConditionSheet: () => void;
+  openQuickActionsDrawer: () => void;
   closeAllDrawers: () => void;
   // Cooldown system exposure
   triggerCooldown: (abilityId: string) => void;
@@ -146,6 +148,7 @@ export function PromptDrawerProvider({
   const [cooldownOpen, setCooldownOpen] = useState(false);
   const [oracleOpen, setOracleOpen] = useState(false);
   const [conditionsOpen, setConditionsOpen] = useState(false);
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [oraclePersonality, setOraclePersonality] = useState<Personality>('deadpool');
   
   // Game mode integration for Infinity Stones lock and cooldown enforcement
@@ -176,6 +179,7 @@ export function PromptDrawerProvider({
     setCooldownOpen(false);
     setOracleOpen(false);
     setConditionsOpen(false);
+    setQuickActionsOpen(false);
   }, []);
 
   // Edge swipe detection
@@ -253,6 +257,7 @@ export function PromptDrawerProvider({
     openOracleDrawer: useCallback(() => { closeAllDrawers(); setOracleOpen(true); }, [closeAllDrawers]),
     openConditionsDrawer: useCallback(() => { closeAllDrawers(); setConditionsOpen(true); }, [closeAllDrawers]),
     openAddConditionSheet: useCallback(() => { setConditionsOpen(true); }, []),
+    openQuickActionsDrawer: useCallback(() => { closeAllDrawers(); setQuickActionsOpen(true); }, [closeAllDrawers]),
     closeAllDrawers,
     // Cooldown system exposure
     triggerCooldown: cooldownSystem.triggerCooldown,
@@ -381,6 +386,30 @@ export function PromptDrawerProvider({
             onLongRest={conditionsSystem.longRest}
             onBreakConcentration={conditionsSystem.breakConcentration}
             onClearAll={conditionsSystem.clearAll}
+          />
+
+          <QuickActionsDrawer
+            open={quickActionsOpen}
+            onOpenChange={setQuickActionsOpen}
+            character={character}
+            equipment={equipment}
+            cooldowns={{
+              isOnCooldown: cooldownSystem.isOnCooldown,
+              getRemainingTime: cooldownSystem.getRemainingTime,
+              formatRemainingTime: cooldownSystem.formatRemainingTime,
+            }}
+            spellcasting={spellcasting ? {
+              preparedSpells: spellcasting.state.preparedSpells,
+              knownSpells: spellcasting.state.knownSpells,
+              spellSlots: spellcasting.state.spellSlots as Record<number, { current: number; max: number }>,
+              pactSlots: spellcasting.state.pactSlots ? {
+                current: spellcasting.state.pactSlots.current,
+                max: spellcasting.state.pactSlots.max,
+                level: spellcasting.state.pactSlots.level,
+              } : undefined,
+              concentratingOn: spellcasting.state.concentratingOn,
+            } : undefined}
+            characterName={character.name}
           />
         </>
       )}
