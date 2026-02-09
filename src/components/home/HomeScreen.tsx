@@ -12,7 +12,7 @@ import { SaveData } from '@/hooks/use-auto-save';
 import { 
   Settings, Coffee, Moon, TrendingUp,
   BookOpen, Sparkles, Timer, MessageCircle, Activity, Heart, Gem, Zap, PanelLeft, HelpCircle,
-  Swords, Wand2, ListChecks,
+  Swords, Wand2, ListChecks, ChevronUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
@@ -134,6 +134,16 @@ export function HomeScreen({
   const [showDiceRoller, setShowDiceRoller] = useState(false);
   const [showCharacterSaves, setShowCharacterSaves] = useState(false);
   const [initiativeRollResult, setInitiativeRollResult] = useState<{ roll: number; total: number; prompt: string } | null>(null);
+  const [footerCollapsed, setFooterCollapsed] = useState(() => {
+    try { return localStorage.getItem('odyssey-home-footer-collapsed') === 'true'; } catch { return false; }
+  });
+  const toggleFooter = useCallback(() => {
+    setFooterCollapsed(prev => {
+      const next = !prev;
+      try { localStorage.setItem('odyssey-home-footer-collapsed', String(next)); } catch {}
+      return next;
+    });
+  }, []);
   
   // Long Rest hold state
   const [longRestProgress, setLongRestProgress] = useState(0);
@@ -513,39 +523,67 @@ export function HomeScreen({
           </div>
         </div>
 
-        {/* Primary Navigation Cards Footer */}
+        {/* Primary Navigation Cards Footer — Collapsible */}
         <motion.footer 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.9, duration: 0.3 }}
-          className="border-t border-white/10 p-4"
+          className="border-t border-white/10"
         >
-          <PrimaryNavigationCards
-            onQuickMenusClick={() => {
-              triggerHaptic('light');
-              setShowDrawersMenu(true);
+          {/* Collapse toggle tab */}
+          <button
+            onClick={toggleFooter}
+            className="w-full flex items-center justify-center py-1.5 hover:bg-white/5 transition-colors"
+            style={{ touchAction: 'manipulation' }}
+            aria-label={footerCollapsed ? 'Expand navigation' : 'Collapse navigation'}
+          >
+            <motion.div
+              animate={{ rotate: footerCollapsed ? 0 : 180 }}
+              transition={{ duration: 0.2 }}
+            >
+              <ChevronUp className="w-4 h-4 text-white/40" />
+            </motion.div>
+          </button>
+
+          {/* Collapsible content */}
+          <motion.div
+            initial={false}
+            animate={{ 
+              height: footerCollapsed ? 0 : 'auto',
+              opacity: footerCollapsed ? 0 : 1,
             }}
-            onCombatClick={() => {
-              triggerHaptic('light');
-              onNavigateToTab('combat');
-            }}
-            onContextualClick={handleContextualCardClick}
-            onChronicleClick={() => {
-              triggerHaptic('light');
-              onNavigateToTab('chronicle');
-            }}
-            onScribeClick={() => {
-              triggerHaptic('light');
-              onNavigateToTab('scribe');
-            }}
-            onOracleClick={() => {
-              triggerHaptic('light');
-              drawerContext?.openOracleDrawer?.();
-            }}
-            achievements={achievements}
-            hasChronicleUndo={hasChronicleUndo}
-            hasNewShopItems={hasNewShopItems}
-          />
+            transition={{ duration: 0.25, ease: 'easeInOut' }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4">
+              <PrimaryNavigationCards
+                onQuickMenusClick={() => {
+                  triggerHaptic('light');
+                  setShowDrawersMenu(true);
+                }}
+                onCombatClick={() => {
+                  triggerHaptic('light');
+                  onNavigateToTab('combat');
+                }}
+                onContextualClick={handleContextualCardClick}
+                onChronicleClick={() => {
+                  triggerHaptic('light');
+                  onNavigateToTab('chronicle');
+                }}
+                onScribeClick={() => {
+                  triggerHaptic('light');
+                  onNavigateToTab('scribe');
+                }}
+                onOracleClick={() => {
+                  triggerHaptic('light');
+                  drawerContext?.openOracleDrawer?.();
+                }}
+                achievements={achievements}
+                hasChronicleUndo={hasChronicleUndo}
+                hasNewShopItems={hasNewShopItems}
+              />
+            </div>
+          </motion.div>
         </motion.footer>
       </div>
 
