@@ -5,7 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { 
   Swords, Sparkles, Zap, Wand2, 
-  ChevronDown, Copy, Check, Timer, Shield
+  ChevronDown, Copy, Check, Timer, Shield, Play
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Character, Ability } from '@/lib/types';
@@ -24,6 +24,7 @@ interface CooldownInfo {
   isOnCooldown: (abilityId: string) => boolean;
   getRemainingTime: (abilityId: string) => number;
   formatRemainingTime: (seconds: number) => string;
+  triggerCooldown: (abilityId: string) => void;
 }
 
 // Types for spellcasting info
@@ -34,6 +35,12 @@ interface SpellcastingInfo {
   spellSlots: Record<number, { current: number; max: number }>;
   pactSlots?: { current: number; max: number; level: number };
   concentratingOn: string | null;
+  // Casting action
+  castSpell: (spellId: string, spellName: string, baseLevel: number, castLevel: number, usePact: boolean, requiresConcentration: boolean, duration: string) => {
+    success: boolean;
+    brokeConcentration: string | null;
+  };
+  useSlot: (level: number) => boolean;
 }
 
 interface QuickActionsDrawerProps {
@@ -127,6 +134,59 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+// Quick-cast button — fires action + copies prompt in one tap
+function QuickCastButton({ 
+  label, 
+  disabled, 
+  onCast, 
+  prompt 
+}: { 
+  label: string; 
+  disabled?: boolean; 
+  onCast: () => void; 
+  prompt: string;
+}) {
+  const [fired, setFired] = useState(false);
+
+  const handleCast = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (disabled) return;
+    onCast();
+    // Also copy prompt to clipboard
+    try {
+      await navigator.clipboard.writeText(prompt);
+    } catch { /* silent */ }
+    setFired(true);
+    setTimeout(() => setFired(false), 1500);
+  }, [disabled, onCast, prompt]);
+
+  return (
+    <button
+      onClick={handleCast}
+      disabled={disabled}
+      className={cn(
+        "flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold transition-all shrink-0",
+        "min-h-[28px] min-w-[52px] justify-center",
+        fired
+          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+          : disabled
+            ? "bg-muted/30 text-muted-foreground/40 cursor-not-allowed border border-border/20"
+            : "bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 active:scale-95"
+      )}
+      style={{ touchAction: 'manipulation' }}
+    >
+      {fired ? (
+        <Check className="w-3 h-3" />
+      ) : (
+        <>
+          <Play className="w-3 h-3" />
+          {label}
+        </>
+      )}
+    </button>
+  );
+}
+
 // Category header component
 function CategoryHeader({ 
   icon: Icon, 
@@ -176,13 +236,11 @@ export function QuickActionsDrawer({
   const equippedAbilities = useMemo(() => {
     const ids = character.equippedAbilities || [];
     return ids.map(id => {
-      // Legacy prestige abilities
       if (isLegacyAbilityId(id)) {
         const legacy = resolveLegacyAbility(id);
         if (legacy) return { ability: legacy, tier: 1 as const };
         return null;
       }
-      // Base abilities
       const ability = getAbilityById(id);
       if (!ability) return null;
       const charAbility = character.abilities.find(a => a.abilityId === id);
@@ -198,7 +256,6 @@ export function QuickActionsDrawer({
       .map(id => getSpellById(id))
       .filter((s): s is SpellDefinition => !!s && s.level > 0);
     if (favoriteNonCantrips.length > 0) return favoriteNonCantrips;
-    // Fallback: all prepared/known non-cantrips
     const allIds = [...new Set([...spellcasting.preparedSpells, ...spellcasting.knownSpells])];
     return allIds
       .map(id => getSpellById(id))
@@ -212,7 +269,6 @@ export function QuickActionsDrawer({
       .map(id => getSpellById(id))
       .filter((s): s is SpellDefinition => !!s && s.level === 0);
     if (favoriteCantrips.length > 0) return favoriteCantrips;
-    // Fallback: all known cantrips
     const allIds = [...new Set([...spellcasting.preparedSpells, ...spellcasting.knownSpells])];
     return allIds
       .map(id => getSpellById(id))
@@ -234,6 +290,34 @@ export function QuickActionsDrawer({
     }
     return parts.join(' · ');
   }, [spellcasting]);
+
+  // ── Handlers ──
+  const handleCastSpell = useCallback((spell: SpellDefinition) => {
+    if (!spellcasting) return;
+    const result = spellcasting.castSpell(
+      spell.id,
+      spell.name,
+      spell.level,
+      spell.level, // cast at base level
+      false, // don't use pact slot by default
+      spell.concentration,
+      spell.duration || '1 round'
+    );
+    if (result.success) {
+      toast.success(`${spell.name} cast!`, {
+        description: result.brokeConcentration
+          ? `Concentration on ${result.brokeConcentration} broken`
+          : `Level ${spell.level} slot used`,
+      });
+    }
+  }, [spellcasting]);
+
+  const handleUseAbility = useCallback((abilityId: string, abilityName: string) => {
+    cooldowns.triggerCooldown(abilityId);
+    toast.success(`${abilityName} activated!`, {
+      description: 'Cooldown started · Prompt copied',
+    });
+  }, [cooldowns]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -277,7 +361,6 @@ export function QuickActionsDrawer({
                       </div>
                     );
                   })}
-                  {/* Dodge / Dash / Disengage quick actions */}
                   {['Dodge', 'Dash', 'Disengage', 'Help', 'Hide'].map(action => (
                     <div key={action} className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-card/40 border border-border/30">
                       <Shield className="w-4 h-4 text-slate-400 shrink-0" />
@@ -308,6 +391,7 @@ export function QuickActionsDrawer({
                     const onCD = cooldowns.isOnCooldown(ability.id);
                     const remaining = cooldowns.getRemainingTime(ability.id);
                     const prompt = generateQuickAbilityPrompt(ability, tier, characterName);
+                    const isPassive = ability.type === 'passive';
                     return (
                       <div key={ability.id} className={cn(
                         "flex items-center gap-2 px-3 py-2.5 rounded-lg bg-card/40 border border-border/30",
@@ -332,6 +416,14 @@ export function QuickActionsDrawer({
                             )}
                           </div>
                         </div>
+                        {!isPassive && (
+                          <QuickCastButton
+                            label="Use"
+                            disabled={onCD}
+                            onCast={() => handleUseAbility(ability.id, ability.name)}
+                            prompt={prompt}
+                          />
+                        )}
                         <CopyButton text={prompt} />
                       </div>
                     );
@@ -368,8 +460,17 @@ export function QuickActionsDrawer({
                             {spell.concentration && <span className="text-[10px] text-yellow-400">C</span>}
                             {isConcentrating && <span className="text-[10px] text-amber-400 animate-pulse">●</span>}
                           </div>
-                          <p className="text-xs text-muted-foreground">{spell.school} · {spell.castingTime.replace('_', ' ')}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {spell.school} · {spell.castingTime.replace('_', ' ')}
+                            {slot && <span className="ml-1 text-indigo-300/70">({slot.current}/{slot.max})</span>}
+                          </p>
                         </div>
+                        <QuickCastButton
+                          label="Cast"
+                          disabled={!hasSlot}
+                          onCast={() => handleCastSpell(spell)}
+                          prompt={prompt}
+                        />
                         <CopyButton text={prompt} />
                       </div>
                     );
@@ -397,6 +498,15 @@ export function QuickActionsDrawer({
                           <p className="text-sm font-medium truncate">{spell.name}</p>
                           <p className="text-xs text-muted-foreground">{spell.school} · {spell.castingTime.replace('_', ' ')}</p>
                         </div>
+                        <QuickCastButton
+                          label="Cast"
+                          disabled={false}
+                          onCast={() => {
+                            // Cantrips don't use slots, just copy prompt + toast
+                            toast.success(`${spell.name} cast!`, { description: 'Cantrip — no slot used' });
+                          }}
+                          prompt={prompt}
+                        />
                         <CopyButton text={prompt} />
                       </div>
                     );
