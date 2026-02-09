@@ -12,6 +12,10 @@ import {
   getPointsFromSlotLevel,
   SorceryPointsConfig,
 } from '@/lib/magic/sorceryPoints';
+import {
+  getChannelDivinityForLevel,
+  ChannelDivinityConfig,
+} from '@/lib/magic/channelDivinity';
 import { 
   getMulticlassSpellSlots, 
   getMulticlassMaxSpellLevel,
@@ -41,6 +45,12 @@ export interface TrackedPactSlots {
 
 // Runtime sorcery point tracking (current/max)
 export interface TrackedSorceryPoints {
+  current: number;
+  max: number;
+}
+
+// Runtime channel divinity tracking (current/max)
+export interface TrackedChannelDivinity {
   current: number;
   max: number;
 }
@@ -95,6 +105,17 @@ function toTrackedSorceryPoints(config: SorceryPointsConfig | null): TrackedSorc
 }
 
 /**
+ * Convert ChannelDivinityConfig to TrackedChannelDivinity for runtime tracking
+ */
+function toTrackedChannelDivinity(config: ChannelDivinityConfig | null): TrackedChannelDivinity | null {
+  if (!config || config.maxUses === 0) return null;
+  return {
+    current: config.maxUses,
+    max: config.maxUses,
+  };
+}
+
+/**
  * Convert SpellSlotsByLevel to TrackedSpellSlots for runtime tracking
  */
 function toTrackedSpellSlots(slots: SpellSlotsByLevel): TrackedSpellSlots {
@@ -125,6 +146,8 @@ export interface ClassSpellcastingState {
   pactSlots: TrackedPactSlots | null;
   /** Sorcerer sorcery points (for Metamagic and Font of Magic) */
   sorceryPoints: TrackedSorceryPoints | null;
+  /** Cleric Channel Divinity uses */
+  channelDivinity: TrackedChannelDivinity | null;
   /** Current ability modifier for spellcasting */
   abilityModifier: number;
   /** Proficiency bonus */
@@ -154,6 +177,7 @@ function getDefaultClassSpellcastingState(): ClassSpellcastingState {
     spellSlots: {},
     pactSlots: null,
     sorceryPoints: null,
+    channelDivinity: null,
     abilityModifier: 0,
     proficiencyBonus: 2,
     materialComponents: {},
@@ -246,6 +270,11 @@ export interface UseClassSpellcastingReturn {
   sorceryPointsMax: number;
   sorceryPointsCurrent: number;
   
+  // Channel Divinity (Cleric only)
+  hasChannelDivinity: boolean;
+  channelDivinityMax: number;
+  channelDivinityCurrent: number;
+  
   // Preparation info
   maxPreparedSpells: number;
   currentPreparedCount: number;
@@ -274,6 +303,10 @@ export interface UseClassSpellcastingReturn {
   restoreSorceryPoints: (amount: number) => void;
   convertSlotToPoints: (slotLevel: number) => boolean;
   createSlotFromPoints: (slotLevel: number) => boolean;
+  
+  // Channel Divinity management
+  useChannelDivinity: (optionName?: string) => boolean;
+  restoreChannelDivinity: () => void;
   
   // Casting
   castSpell: (spellId: string, spellName: string, baseLevel: number, castLevel: number, usePact: boolean, requiresConcentration: boolean, duration: string) => {
@@ -424,11 +457,17 @@ export function useClassSpellcasting(
       ? getSorceryPointsForLevel(primaryLevel)
       : null;
 
+    // Get channel divinity config if this is a cleric
+    const channelDivinityConfig = primaryClass === 'cleric'
+      ? getChannelDivinityForLevel(primaryLevel)
+      : null;
+
     setState(prev => ({
       ...prev,
       spellSlots: toTrackedSpellSlots(slotInfo.regularSlots),
       pactSlots: toTrackedPactSlots(slotInfo.pactSlots),
       sorceryPoints: toTrackedSorceryPoints(sorceryConfig),
+      channelDivinity: toTrackedChannelDivinity(channelDivinityConfig),
     }));
   }, [slotInfo, primaryClass, primaryLevel]);
 
@@ -724,6 +763,51 @@ export function useClassSpellcasting(
     return true;
   }, [state.sorceryPoints, toast]);
 
+  // ============================================
+  // CHANNEL DIVINITY MANAGEMENT (Cleric only)
+  // ============================================
+
+  // Derived channel divinity values
+  const hasChannelDivinity = primaryClass === 'cleric' && state.channelDivinity !== null;
+  const channelDivinityMax = state.channelDivinity?.max ?? 0;
+  const channelDivinityCurrent = state.channelDivinity?.current ?? 0;
+
+  const useChannelDivinity = useCallback((optionName?: string): boolean => {
+    if (!state.channelDivinity || state.channelDivinity.current <= 0) {
+      toast({
+        title: 'No Channel Divinity Uses',
+        description: 'You have no Channel Divinity uses remaining. Take a short or long rest to recover.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    setState(prev => ({
+      ...prev,
+      channelDivinity: prev.channelDivinity 
+        ? { ...prev.channelDivinity, current: prev.channelDivinity.current - 1 }
+        : null,
+    }));
+
+    toast({
+      title: `☀️ Channel Divinity${optionName ? `: ${optionName}` : ''}`,
+      description: `Divine power channeled. ${state.channelDivinity.current - 1} use${state.channelDivinity.current - 1 !== 1 ? 's' : ''} remaining.`,
+      className: 'border-yellow-500 bg-yellow-500/10',
+    });
+
+    return true;
+  }, [state.channelDivinity, toast]);
+
+  const restoreChannelDivinity = useCallback(() => {
+    setState(prev => {
+      if (!prev.channelDivinity || prev.channelDivinity.current >= prev.channelDivinity.max) return prev;
+      return {
+        ...prev,
+        channelDivinity: { ...prev.channelDivinity, current: prev.channelDivinity.current + 1 },
+      };
+    });
+  }, []);
+
   // Concentration
   const startConcentration = useCallback((spellId: string) => {
     if (state.concentratingOn) {
@@ -879,22 +963,43 @@ export function useClassSpellcasting(
 
   // Rest recovery
   const onShortRest = useCallback(() => {
-    // Warlock pact slots recover on short rest
     setState(prev => {
-      if (!prev.pactSlots) return prev;
-      
-      const restored = prev.pactSlots.max - prev.pactSlots.current;
-      if (restored > 0) {
+      let restoredPact = false;
+      let restoredChannelDivinity = false;
+
+      // Warlock pact slots recover on short rest
+      const newPactSlots = prev.pactSlots 
+        ? (() => {
+            restoredPact = prev.pactSlots.current < prev.pactSlots.max;
+            return { ...prev.pactSlots, current: prev.pactSlots.max };
+          })()
+        : null;
+
+      // Cleric Channel Divinity recovers on short rest
+      const newChannelDivinity = prev.channelDivinity
+        ? (() => {
+            restoredChannelDivinity = prev.channelDivinity.current < prev.channelDivinity.max;
+            return { ...prev.channelDivinity, current: prev.channelDivinity.max };
+          })()
+        : null;
+
+      // Show appropriate toast
+      if (restoredPact || restoredChannelDivinity) {
+        const parts: string[] = [];
+        if (restoredPact) parts.push('Pact slots');
+        if (restoredChannelDivinity) parts.push('Channel Divinity');
+        
         toast({
-          title: '🌙 Pact Magic Restored',
-          description: `${restored} pact slot${restored > 1 ? 's' : ''} recovered.`,
+          title: '🌙 Short Rest Complete',
+          description: `${parts.join(' and ')} recovered.`,
           className: 'border-violet-500 bg-violet-500/10',
         });
       }
 
       return {
         ...prev,
-        pactSlots: { ...prev.pactSlots, current: prev.pactSlots.max },
+        pactSlots: newPactSlots,
+        channelDivinity: newChannelDivinity,
       };
     });
   }, [toast]);
@@ -921,13 +1026,19 @@ export function useClassSpellcasting(
         ? { ...prev.sorceryPoints, current: prev.sorceryPoints.max }
         : null;
 
+      // Restore channel divinity on long rest
+      const restoredChannelDivinity = prev.channelDivinity
+        ? { ...prev.channelDivinity, current: prev.channelDivinity.max }
+        : null;
+
       const sorceryRestored = prev.sorceryPoints && prev.sorceryPoints.current < prev.sorceryPoints.max;
+      const divinityRestored = prev.channelDivinity && prev.channelDivinity.current < prev.channelDivinity.max;
 
       toast({
         title: '☀️ Arcane Reserves Restored',
         description: activeCount > 0 
-          ? `All spell slots${sorceryRestored ? ' and sorcery points' : ''} recovered. ${activeCount} active spell${activeCount > 1 ? 's' : ''} ended.`
-          : `All spell slots${sorceryRestored ? ' and sorcery points' : ''} have been recovered.`,
+          ? `All resources recovered. ${activeCount} active spell${activeCount > 1 ? 's' : ''} ended.`
+          : 'All spell slots and class resources have been recovered.',
         className: 'border-indigo-500 bg-indigo-500/10',
       });
 
@@ -936,6 +1047,7 @@ export function useClassSpellcasting(
         spellSlots: restoredSlots,
         pactSlots: restoredPact,
         sorceryPoints: restoredSorceryPoints,
+        channelDivinity: restoredChannelDivinity,
         spellsCastToday: 0,
         concentratingOn: null,
         concentrationStartTime: undefined,
@@ -978,6 +1090,10 @@ export function useClassSpellcasting(
     hasSorceryPoints,
     sorceryPointsMax,
     sorceryPointsCurrent,
+    // Channel Divinity
+    hasChannelDivinity,
+    channelDivinityMax,
+    channelDivinityCurrent,
     // Preparation
     maxPreparedSpells,
     currentPreparedCount,
@@ -999,6 +1115,9 @@ export function useClassSpellcasting(
     restoreSorceryPoints,
     convertSlotToPoints,
     createSlotFromPoints,
+    // Channel Divinity management
+    useChannelDivinity,
+    restoreChannelDivinity,
     // Other
     castSpell,
     dismissActiveSpell,

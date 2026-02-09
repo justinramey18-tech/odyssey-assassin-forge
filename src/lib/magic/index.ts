@@ -53,6 +53,19 @@ export {
   getTwinnedSpellCost,
 } from './sorceryPoints';
 
+// Channel Divinity (Cleric) class resource
+export type { ChannelDivinityConfig, ChannelDivinityOption } from './channelDivinity';
+export {
+  CHANNEL_DIVINITY_BY_LEVEL,
+  BASE_CHANNEL_DIVINITY_OPTIONS,
+  DESTROY_UNDEAD_CR,
+  getChannelDivinityForLevel,
+  getChannelDivinityUses,
+  getDestroyUndeadCR,
+  channelDivinityRegeneratesOnShortRest,
+  channelDivinityRegeneratesOnLongRest,
+} from './channelDivinity';
+
 // Multiclass spell slot calculation
 export type { MulticlassSpellSlots } from './multiclassSlots';
 export { 
