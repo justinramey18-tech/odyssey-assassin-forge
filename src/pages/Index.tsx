@@ -83,6 +83,9 @@ import { useCombatLog } from '@/hooks/use-combat-log';
 import { useInitiative } from '@/hooks/use-initiative';
 import { useCombatStats } from '@/hooks/use-combat-stats';
 
+// Stable empty object to prevent re-renders from `character.multiclassLevels ?? {}`
+const EMPTY_MULTICLASS_LEVELS: Record<string, never> = {};
+
 const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -373,7 +376,7 @@ const Index = () => {
   const classSpellcasting = useClassSpellcasting(
     character.primaryClass ?? 'wizard',
     character.level,
-    character.multiclassLevels ?? {},
+    character.multiclassLevels ?? EMPTY_MULTICLASS_LEVELS,
     character.name,
     {
       abilityScores: {
