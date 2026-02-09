@@ -534,7 +534,11 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         duration: 8000,
       });
     }
-  }, [deathSaves, hpState, character.name, toast, wildShape]);
+   }, [deathSaves, hpState, character.name, toast, wildShape]);
+
+  // Track whether initial HP sync has completed to suppress load-time toasts
+  const hasInitialHPSynced = useRef(false);
+
   // Auto-update max HP when calculation changes (level up, CON change, prestige)
   useEffect(() => {
     if (calculatedMaxHP !== hpState.max) {
@@ -553,8 +557,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       setHpState(newState);
       localStorage.setItem('odyssey-hp-state', JSON.stringify(newState));
       
-      // Show toast for significant changes (not on initial load)
-      if (hpState.max > 8 && hpDiff !== 0) {
+      // Show toast for significant changes, but NOT on initial app load
+      if (hasInitialHPSynced.current && hpState.max > 8 && hpDiff !== 0) {
         toast({
           title: hpDiff > 0 ? "❤️ Max HP Increased!" : "💔 Max HP Decreased",
           description: `Max HP: ${hpState.max} → ${calculatedMaxHP} (${hpDiff > 0 ? '+' : ''}${hpDiff})`,
@@ -562,6 +566,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         });
       }
     }
+    hasInitialHPSynced.current = true;
   }, [calculatedMaxHP, hpState.max, hpState.current, hpState.temp, toast]);
 
   // Legacy spentPoints for compatibility
