@@ -32,7 +32,7 @@ import { EnlargedD20Section } from './EnlargedD20Section';
 import { CloudSyncStatusWidget } from './CloudSyncStatusWidget';
 import { PrimaryNavigationCards } from './PrimaryNavigationCards';
 import { BackgroundUploadButton } from './BackgroundUploadButton';
-import { WildShapeLightningBorder } from './WildShapeLightningBorder';
+import { WildShapeLightningBorder, CRScaledPulse } from './WildShapeLightningBorder';
 import { XPProgressBar } from './XPProgressBar';
 import { PrestigeData } from '@/lib/prestige';
 import { PRESTIGE_CONFIG } from '@/lib/prestige/config';
@@ -362,24 +362,10 @@ export function HomeScreen({
             >
               <div />
             </BackgroundWrapper>
-            {/* Looping green energy pulse overlay */}
-            <motion.div
-              className="absolute inset-0 pointer-events-none"
-              animate={{
-                boxShadow: [
-                  'inset 0 0 80px 15px rgba(34,197,94,0.0)',
-                  'inset 0 0 120px 40px rgba(34,197,94,0.25)',
-                  'inset 0 0 80px 15px rgba(34,197,94,0.0)',
-                ],
-              }}
-              transition={{
-                duration: 5,
-                repeat: Infinity,
-                ease: 'easeInOut',
-              }}
-            />
-            {/* DBZ-style crackling lightning on left/right edges */}
-            <WildShapeLightningBorder />
+            {/* Looping green energy pulse overlay — intensity scales with CR */}
+            <CRScaledPulse cr={wildShapeFormCR ?? 0} />
+            {/* DBZ-style crackling lightning on all edges — scales with CR */}
+            <WildShapeLightningBorder cr={wildShapeFormCR ?? 0} />
           </motion.div>
         )}
       </AnimatePresence>
