@@ -3,9 +3,8 @@ import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { 
-  Swords, Sparkles, Zap, Wand2, 
-  ChevronDown, Copy, Check, Timer, Shield, Play, Dices
+import { Swords, Sparkles, Zap, Wand2, 
+  ChevronDown, Copy, Check, Timer, Shield, Play, Dices, Target
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -19,7 +18,7 @@ import { SpellDefinition } from '@/lib/magic/types';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
 import { applyOverrides, homebrewToAbility } from '@/lib/abilityCustomization/utils';
 import { isLegacyAbilityId, resolveLegacyAbility } from '@/lib/prestigeTree/abilityConverter';
-import { rollDice, getAbilityDice, DiceRoll, RollMode, isCriticalHit, isCriticalMiss, inferRollMode } from '@/lib/diceRoller';
+import { rollDice, getAbilityDice, DiceRoll, DieType, RollMode, isCriticalHit, isCriticalMiss, inferRollMode } from '@/lib/diceRoller';
 import { generateRPPrompt } from '@/lib/rpPromptGenerator';
 
 // Types for cooldown info passed in
@@ -109,7 +108,19 @@ Narrate ${characterName} casting **${spell.name}**. Describe the arcane gestures
 
 // ── Roll-enhanced prompt generators ──
 
-function generateWeaponRollPrompt(weapon: WeaponAttack, roll: DiceRoll, characterName: string, rollMode: RollMode): string {
+// ── Parse damage formula like "1d6", "2d8", "1d4+2" ──
+function parseDamageFormula(formula: string): { die: DieType; count: number; modifier: number } | null {
+  const match = formula.match(/^(\d+)?d(\d+)(?:\s*\+\s*(\d+))?$/i);
+  if (!match) return null;
+  const count = parseInt(match[1] || '1');
+  const sides = parseInt(match[2]);
+  const modifier = parseInt(match[3] || '0');
+  const validDice: number[] = [4, 6, 8, 10, 12, 20, 100];
+  if (!validDice.includes(sides)) return null;
+  return { die: `d${sides}` as DieType, count, modifier };
+}
+
+function generateWeaponRollPrompt(weapon: WeaponAttack, roll: DiceRoll, characterName: string, rollMode: RollMode, damageRoll?: DiceRoll): string {
   const maxVal = parseInt(roll.die.slice(1));
   const isCrit = roll.die === 'd20'
     ? isCriticalHit(roll.rolls, rollMode, roll.die)
@@ -118,7 +129,6 @@ function generateWeaponRollPrompt(weapon: WeaponAttack, roll: DiceRoll, characte
     ? isCriticalMiss(roll.rolls, rollMode, roll.die)
     : roll.rolls.every(r => r === 1);
   
-  // For adv/disadv, show which die was kept
   let rollDisplay = `[${roll.rolls.join(', ')}]`;
   let effectiveTotal = roll.total;
   if (rollMode !== 'normal' && roll.rolls.length === 2 && roll.die === 'd20') {
@@ -130,6 +140,12 @@ function generateWeaponRollPrompt(weapon: WeaponAttack, roll: DiceRoll, characte
   const quality = isCrit ? 'CRITICAL HIT!' : isFumble ? 'CRITICAL MISS!' : effectiveTotal >= maxVal * 0.7 + roll.modifier ? 'Solid Hit' : 'Glancing Blow';
   const modeLabel = rollMode === 'advantage' ? ' (Advantage)' : rollMode === 'disadvantage' ? ' (Disadvantage)' : '';
 
+  let damageSection = '';
+  if (damageRoll) {
+    const critLabel = isCrit ? ' (Critical — doubled dice!)' : '';
+    damageSection = `\n### 💥 Damage Roll${critLabel}\n**Roll:** ${damageRoll.count}${damageRoll.die} → [${damageRoll.rolls.join(', ')}]${damageRoll.modifier ? ` + ${damageRoll.modifier}` : ''} = **${damageRoll.total}** ${weapon.damageType}\n`;
+  }
+
   return applyTimePrefix(
     `## ⚔️ ${weapon.name} Attack${modeLabel} — ${quality}
 
@@ -137,16 +153,15 @@ function generateWeaponRollPrompt(weapon: WeaponAttack, roll: DiceRoll, characte
 **Weapon:** ${weapon.name} | **Damage:** ${weapon.damage} ${weapon.damageType}
 **Properties:** ${weapon.properties.join(', ') || 'Standard'}
 
-### 🎲 Dice Roll${modeLabel}
+### 🎲 Attack Roll${modeLabel}
 **Roll:** ${roll.count}${roll.die} → ${rollDisplay}${roll.modifier ? ` + ${roll.modifier}` : ''} = **${effectiveTotal}**
 **Result:** ${quality}
-
+${damageSection}
 ${isCrit ? '**The strike lands with devastating precision! Double damage dice!**\n\n' : ''}${isFumble ? '**The attack goes wildly astray! Describe the embarrassing miss.**\n\n' : ''}Narrate ${characterName}'s attack with their ${weapon.name}. Factor in the ${quality.toLowerCase()} — describe the weapon's arc, impact, and battlefield consequence.`
   );
 }
 
 function generateAbilityRollPrompt(ability: Ability, tier: 1 | 2 | 3, roll: DiceRoll, characterName: string): string {
-  // Use the existing high-quality prompt generator
   return generateRPPrompt(ability, tier, roll, characterName);
 }
 
@@ -160,6 +175,9 @@ function InlineRollResult({
   colorClass,
   rollMode,
   onRollModeChange,
+  damageRoll,
+  onRollDamage,
+  damageType,
 }: { 
   roll: DiceRoll; 
   prompt: string; 
@@ -168,6 +186,9 @@ function InlineRollResult({
   colorClass: string;
   rollMode?: RollMode;
   onRollModeChange?: (mode: RollMode) => void;
+  damageRoll?: DiceRoll;
+  onRollDamage?: () => void;
+  damageType?: string;
 }) {
   const [copied, setCopied] = useState(false);
   const maxVal = parseInt(roll.die.slice(1));
@@ -278,6 +299,45 @@ function InlineRollResult({
           {isFumble && <span className="block text-[10px] text-red-400 font-semibold uppercase tracking-wider mt-0.5">✗ Fumble ✗</span>}
         </div>
 
+        {/* Damage Roll Result (step 2) */}
+        {damageRoll && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            transition={{ duration: 0.15 }}
+            className="mb-2"
+          >
+            <div className="flex items-center gap-1.5 mb-1">
+              <Target className="w-3 h-3 text-orange-400" />
+              <span className="text-[10px] text-muted-foreground font-mono uppercase">Damage{isCrit ? ' (Critical)' : ''}</span>
+            </div>
+            <div className="flex items-center justify-center gap-1 mb-1">
+              {damageRoll.rolls.map((r, i) => {
+                const dmgMax = parseInt(damageRoll.die.slice(1));
+                return (
+                  <span key={i} className={cn(
+                    "inline-flex items-center justify-center w-6 h-6 rounded text-xs font-bold border",
+                    r === dmgMax ? "bg-orange-500/20 border-orange-500/50 text-orange-300"
+                    : r === 1 ? "bg-muted/20 border-border/30 text-muted-foreground"
+                    : "bg-muted/30 border-border/30 text-foreground"
+                  )}>
+                    {r}
+                  </span>
+                );
+              })}
+              {damageRoll.modifier !== 0 && (
+                <span className="text-xs text-muted-foreground">
+                  {damageRoll.modifier > 0 ? '+' : ''}{damageRoll.modifier}
+                </span>
+              )}
+            </div>
+            <div className="text-center">
+              <span className="text-xl font-cinzel font-bold text-orange-400">{damageRoll.total}</span>
+              <span className="text-[10px] text-muted-foreground ml-1.5">{damageType || 'damage'}</span>
+            </div>
+          </motion.div>
+        )}
+
         {/* Action buttons */}
         <div className="flex gap-2">
           <button
@@ -287,6 +347,15 @@ function InlineRollResult({
             <Dices className="w-3.5 h-3.5" />
             Reroll
           </button>
+          {onRollDamage && !damageRoll && !isFumble && (
+            <button
+              onClick={onRollDamage}
+              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md bg-orange-500/15 text-orange-400 hover:bg-orange-500/25 border border-orange-500/30 text-xs font-semibold transition-colors"
+            >
+              <Target className="w-3.5 h-3.5" />
+              Roll Damage
+            </button>
+          )}
           <button
             onClick={handleCopy}
             className={cn(
@@ -424,7 +493,10 @@ export function QuickActionsDrawer({
   characterName,
 }: QuickActionsDrawerProps) {
   // Track which item has an active inline roll
-  const [activeRoll, setActiveRoll] = useState<{ id: string; roll: DiceRoll; prompt: string } | null>(null);
+  const [activeRoll, setActiveRoll] = useState<{ 
+    id: string; roll: DiceRoll; prompt: string; 
+    damageRoll?: DiceRoll; damageFormula?: string; isCrit?: boolean;
+  } | null>(null);
   // Track roll mode for weapon attacks
   const [weaponRollMode, setWeaponRollMode] = useState<RollMode>('normal');
 
@@ -527,6 +599,29 @@ export function QuickActionsDrawer({
       }
     }
   }, [activeRoll, weapons, characterName]);
+
+  // ── Damage roll handler ──
+  const handleDamageRoll = useCallback((weapon: WeaponAttack) => {
+    if (!activeRoll) return;
+    const parsed = parseDamageFormula(weapon.damage);
+    if (!parsed) {
+      // Flat damage (e.g. "1" for unarmed)
+      const flatDmg = parseInt(weapon.damage) || 1;
+      const fakeDmgRoll: DiceRoll = { die: 'd4', count: 0, modifier: flatDmg, rolls: [], total: flatDmg };
+      const newPrompt = generateWeaponRollPrompt(weapon, activeRoll.roll, characterName, weaponRollMode, fakeDmgRoll);
+      setActiveRoll(prev => prev ? { ...prev, damageRoll: fakeDmgRoll, damageFormula: weapon.damage, prompt: newPrompt } : null);
+      return;
+    }
+    // Check if crit — double the dice count
+    const isCrit = isCriticalHit(activeRoll.roll.rolls, weaponRollMode, activeRoll.roll.die);
+    const diceCount = isCrit ? parsed.count * 2 : parsed.count;
+    const dmgRoll = rollDice(parsed.die, diceCount, parsed.modifier);
+    const newPrompt = generateWeaponRollPrompt(weapon, activeRoll.roll, characterName, weaponRollMode, dmgRoll);
+    setActiveRoll(prev => prev ? { ...prev, damageRoll: dmgRoll, damageFormula: weapon.damage, isCrit, prompt: newPrompt } : null);
+    toast.success(`${dmgRoll.total} ${weapon.damageType} damage!`, { 
+      description: isCrit ? 'Critical hit — dice doubled!' : undefined 
+    });
+  }, [activeRoll, characterName, weaponRollMode]);
 
   const handleAbilityRoll = useCallback((ability: Ability, tier: 1 | 2 | 3) => {
     const { die, count } = getAbilityDice(tier);
@@ -634,6 +729,9 @@ export function QuickActionsDrawer({
                               colorClass="text-red-400"
                               rollMode={weaponRollMode}
                               onRollModeChange={handleWeaponRollModeChange}
+                              damageRoll={activeRoll.damageRoll}
+                              onRollDamage={() => handleDamageRoll(weapon)}
+                              damageType={weapon.damageType}
                             />
                           )}
                         </AnimatePresence>
