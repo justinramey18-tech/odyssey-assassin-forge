@@ -33,6 +33,7 @@ import { CloudSyncStatusWidget } from './CloudSyncStatusWidget';
 import { PrimaryNavigationCards } from './PrimaryNavigationCards';
 import { BackgroundUploadButton } from './BackgroundUploadButton';
 import { WildShapeLightningBorder, CRScaledPulse, TransformationBurst } from './WildShapeLightningBorder';
+import { DragonParticles } from './DragonParticles';
 import { XPProgressBar } from './XPProgressBar';
 import { PrestigeData } from '@/lib/prestige';
 import { PRESTIGE_CONFIG } from '@/lib/prestige/config';
@@ -399,6 +400,8 @@ export function HomeScreen({
             <CRScaledPulse cr={wildShapeFormCR ?? 0} formName={wildShapeFormName} />
             {/* DBZ-style crackling lightning on all edges — scales with CR */}
             <WildShapeLightningBorder cr={wildShapeFormCR ?? 0} formName={wildShapeFormName} />
+            {/* Dragon element particles — embers, snowflakes, or acid drops */}
+            <DragonParticles formName={wildShapeFormName} />
           </motion.div>
         )}
       </AnimatePresence>
