@@ -32,6 +32,7 @@ import { EnlargedD20Section } from './EnlargedD20Section';
 import { CloudSyncStatusWidget } from './CloudSyncStatusWidget';
 import { PrimaryNavigationCards } from './PrimaryNavigationCards';
 import { BackgroundUploadButton } from './BackgroundUploadButton';
+import { WildShapeLightningBorder } from './WildShapeLightningBorder';
 import { XPProgressBar } from './XPProgressBar';
 import { PrestigeData } from '@/lib/prestige';
 import { PRESTIGE_CONFIG } from '@/lib/prestige/config';
@@ -377,6 +378,8 @@ export function HomeScreen({
                 ease: 'easeInOut',
               }}
             />
+            {/* DBZ-style crackling lightning on left/right edges */}
+            <WildShapeLightningBorder />
           </motion.div>
         )}
       </AnimatePresence>
