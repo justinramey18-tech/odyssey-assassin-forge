@@ -276,7 +276,10 @@ export function getPromptsByCategory(category: AIPromptTemplate['category']): AI
   return AI_DM_PROMPTS.filter(p => p.category === category);
 }
 
-// Format a prompt with the roll result
+// Format a prompt with the roll result, applying 4th Wall Time if enabled
+import { applyTimePrefix } from './fourthWallTime';
+
 export function formatPromptWithRoll(prompt: string, roll: number): string {
-  return prompt.replace(/{ROLL}/g, roll.toString());
+  const formatted = prompt.replace(/{ROLL}/g, roll.toString());
+  return applyTimePrefix(formatted);
 }
