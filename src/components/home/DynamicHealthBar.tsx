@@ -10,6 +10,8 @@ interface DynamicHealthBarProps {
   initiative: number;
   onTap?: () => void;
   onInitiativeClick?: () => void;
+  isWildShape?: boolean;
+  wildShapeFormName?: string;
 }
 
 export function DynamicHealthBar({
@@ -20,6 +22,8 @@ export function DynamicHealthBar({
   initiative,
   onTap,
   onInitiativeClick,
+  isWildShape = false,
+  wildShapeFormName,
 }: DynamicHealthBarProps) {
   const hpPercentage = Math.max(0, Math.min(100, (currentHP / maxHP) * 100));
   
@@ -28,8 +32,13 @@ export function DynamicHealthBar({
   const isInjured = hpPercentage > 25 && hpPercentage <= 50;
   const isCritical = hpPercentage <= 25;
   
-  // Get bar color based on health
+  // Get bar color based on health (green for Wild Shape, red for normal)
   const getBarColor = () => {
+    if (isWildShape) {
+      if (isCritical) return 'bg-gradient-to-r from-green-900 to-green-700';
+      if (isInjured) return 'bg-gradient-to-r from-green-800 to-green-600';
+      return 'bg-gradient-to-r from-green-700 to-green-500';
+    }
     if (isCritical) return 'bg-gradient-to-r from-red-900 to-red-700';
     if (isInjured) return 'bg-gradient-to-r from-red-800 to-red-600';
     return 'bg-gradient-to-r from-red-700 to-red-500';
@@ -37,6 +46,11 @@ export function DynamicHealthBar({
   
   // Get glow color
   const getGlowColor = () => {
+    if (isWildShape) {
+      if (isCritical) return 'shadow-green-900/50';
+      if (isInjured) return 'shadow-green-700/40';
+      return 'shadow-green-500/40';
+    }
     if (isCritical) return 'shadow-red-900/50';
     if (isInjured) return 'shadow-red-700/40';
     return 'shadow-red-500/40';
@@ -44,6 +58,10 @@ export function DynamicHealthBar({
   
   // Get text color
   const getTextColor = () => {
+    if (isWildShape) {
+      if (isCritical) return 'text-green-300';
+      return 'text-green-400';
+    }
     if (isCritical) return 'text-red-300';
     if (isInjured) return 'text-red-400';
     return 'text-red-400';
@@ -64,12 +82,21 @@ export function DynamicHealthBar({
       className="px-4 space-y-3"
       style={{ transformOrigin: 'center' }}
     >
+      {/* Wild Shape Form Name Label */}
+      {isWildShape && wildShapeFormName && (
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <span className="text-xs font-cinzel uppercase tracking-wider text-green-400/80">
+            🐻 {wildShapeFormName}
+          </span>
+        </div>
+      )}
+
       {/* Health Bar Container */}
       <button
         onClick={onTap}
         className="w-full text-left"
         style={{ touchAction: 'manipulation' }}
-        aria-label={`Health: ${currentHP} of ${maxHP} HP${tempHP > 0 ? `, plus ${tempHP} temporary HP` : ''}`}
+        aria-label={`${isWildShape ? 'Wild Shape ' : ''}Health: ${currentHP} of ${maxHP} HP${tempHP > 0 ? `, plus ${tempHP} temporary HP` : ''}`}
       >
         {/* Main HP Bar */}
         <div 
