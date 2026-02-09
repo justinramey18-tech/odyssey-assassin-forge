@@ -1,6 +1,6 @@
 // Wild Shape Hook
 // Manages Druid Wild Shape transformations with beast form HP pools
-// Supports Circle of the Moon enhancements
+// Supports Circle of the Moon enhancements + Dragon Wild Shape
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -19,6 +19,8 @@ import {
   MOON_CIRCLE_BEAST_FORMS,
   ELEMENTAL_FORMS,
   ElementalForm,
+  DRAGON_FORMS,
+  DragonForm,
 } from '@/lib/classes/druidCircles';
 
 const WILD_SHAPE_STORAGE_KEY = 'dnd-wild-shape-state';
@@ -29,9 +31,12 @@ export interface UseWildShapeReturn {
   availableForms: BeastForm[];
   elementalForms: ElementalForm[];
   canUseElemental: boolean;
+  dragonForms: DragonForm[];
+  canUseDragon: boolean;
   // Actions
   transform: (form: BeastForm) => boolean;
   transformElemental: (form: ElementalForm) => boolean;
+  transformDragon: (form: DragonForm) => boolean;
   revert: (damageOverflow?: number) => number;
   takeDamage: (amount: number) => { reverted: boolean; overflow: number };
   heal: (amount: number) => void;
@@ -80,6 +85,10 @@ export function useWildShape(druidLevel: number, circle: DruidCircle | null = nu
   // Elemental forms (Moon Circle level 10+)
   const canUseElemental = circle === 'moon' && moonConfig?.canElemental === true;
   const elementalForms = canUseElemental ? ELEMENTAL_FORMS : [];
+
+  // Dragon forms (Moon Circle level 18+)
+  const canUseDragon = circle === 'moon' && moonConfig?.canDragon === true;
+  const dragonForms = canUseDragon ? DRAGON_FORMS : [];
 
   // Load initial state from localStorage
   const [state, setState] = useState<WildShapeState>(() => {
@@ -390,14 +399,81 @@ export function useWildShape(druidLevel: number, circle: DruidCircle | null = nu
     });
   }, [state.isTransformed, circle, toast]);
 
+  // Transform into dragon (Moon Circle level 18+, costs 3 uses)
+  const transformDragon = useCallback((form: DragonForm): boolean => {
+    if (!canUseDragon) {
+      toast({
+        title: 'Dragon Form Unavailable',
+        description: 'Dragon Wild Shape requires Circle of the Moon at level 18+.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    if (state.usesRemaining < 3) {
+      toast({
+        title: 'Insufficient Uses',
+        description: 'Dragon Wild Shape requires 3 Wild Shape uses.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    if (state.isTransformed) {
+      toast({
+        title: 'Already Transformed',
+        description: 'You must revert before assuming a new form.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    // Create a BeastForm-compatible object from DragonForm
+    const dragonAsBeast: BeastForm = {
+      id: form.id,
+      name: form.name,
+      cr: form.cr,
+      hp: form.hp,
+      ac: form.ac,
+      speed: form.speed,
+      flySpeed: form.flySpeed,
+      swimSpeed: form.swimSpeed,
+      iconName: form.iconName,
+      description: form.description,
+      specialAbilities: form.specialAbilities,
+    };
+
+    setState(prev => ({
+      ...prev,
+      usesRemaining: prev.usesRemaining - 3, // Costs 3 uses
+      isTransformed: true,
+      currentForm: dragonAsBeast,
+      formHP: form.hp,
+      formMaxHP: form.hp,
+      transformedAt: Date.now(),
+      transformDurationMinutes: enforceDuration ? (config?.maxHours ?? 1) * 60 : undefined,
+    }));
+
+    toast({
+      title: `🐉 Dragon Wild Shape: ${form.name}`,
+      description: `Transformed into ${form.name}! ${form.hp} HP, AC ${form.ac}. Cost: 3 uses.`,
+      className: 'border-purple-500 bg-purple-500/10',
+    });
+
+    return true;
+  }, [canUseDragon, state.usesRemaining, state.isTransformed, config, enforceDuration, toast]);
+
   return {
     state,
     config,
     availableForms,
     elementalForms,
     canUseElemental,
+    dragonForms,
+    canUseDragon,
     transform,
     transformElemental,
+    transformDragon,
     revert,
     takeDamage,
     heal,
