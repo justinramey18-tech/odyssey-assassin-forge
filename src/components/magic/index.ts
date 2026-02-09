@@ -16,3 +16,4 @@ export { SorceryPointsTracker } from './SorceryPointsTracker';
 export { ChannelDivinityTracker } from './ChannelDivinityTracker';
 export { WildShapeTracker } from './WildShapeTracker';
 export { DruidCirclePanel } from './DruidCirclePanel';
+export { ClericDomainPanel } from './ClericDomainPanel';

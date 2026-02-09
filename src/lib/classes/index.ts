@@ -19,6 +19,7 @@ export * from './proficiencies';
 export * from './prerequisites';
 export * from './features';
 export * from './druidCircles';
+export * from './clericDomains';
 
 /**
  * Complete registry of all D&D class configurations
