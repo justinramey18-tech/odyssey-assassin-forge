@@ -107,6 +107,21 @@ interface HomeScreenProps {
   onDismissWildShape?: () => void;
 }
 
+/** Map dragon form names to element-appropriate tint colors */
+function getDragonTint(formName?: string): 'red' | 'amber' | 'purple' | 'cyan' | 'green' | 'indigo' {
+  if (!formName) return 'green';
+  const id = formName.toLowerCase().replace(/\s+/g, '-');
+  const dragonTints: Record<string, 'red' | 'amber' | 'purple' | 'cyan' | 'green'> = {
+    'red-dragon': 'red',
+    'gold-dragon': 'amber',
+    'white-dragon': 'cyan',
+    'silver-dragon': 'cyan',
+    'black-dragon': 'purple',
+    'copper-dragon': 'amber',
+  };
+  return dragonTints[id] ?? 'green';
+}
+
 // Haptic feedback helper
 const triggerHaptic = (intensity: 'light' | 'medium' | 'heavy' = 'light') => {
   if ('vibrate' in navigator) {
@@ -371,7 +386,7 @@ export function HomeScreen({
             <BackgroundWrapper
               imagePath={wildShapeBackground!}
               overlayOpacity={40}
-              tintColor="green"
+              tintColor={getDragonTint(wildShapeFormName)}
               tintOpacity={15}
               fixed={true}
               backgroundSize="cover"
