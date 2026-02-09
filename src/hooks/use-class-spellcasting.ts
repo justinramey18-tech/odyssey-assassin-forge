@@ -450,8 +450,20 @@ export function useClassSpellcasting(
     }
   }, [abilityScores, spellcastingAbility, state.abilityModifier]);
 
-  // Sync slots when level changes
+  // Sync slots when level changes — preserve current values if max hasn't changed
+  const prevSlotInfoRef = useRef<string>('');
   useEffect(() => {
+    const slotKey = JSON.stringify({
+      regular: slotInfo.regularSlots,
+      pact: slotInfo.pactSlots,
+      primaryClass,
+      primaryLevel,
+    });
+    
+    // Only reset slots when the slot configuration actually changes
+    if (slotKey === prevSlotInfoRef.current) return;
+    prevSlotInfoRef.current = slotKey;
+
     // Get sorcery points config if this is a sorcerer
     const sorceryConfig = primaryClass === 'sorcerer' 
       ? getSorceryPointsForLevel(primaryLevel)
@@ -462,13 +474,49 @@ export function useClassSpellcasting(
       ? getChannelDivinityForLevel(primaryLevel)
       : null;
 
-    setState(prev => ({
-      ...prev,
-      spellSlots: toTrackedSpellSlots(slotInfo.regularSlots),
-      pactSlots: toTrackedPactSlots(slotInfo.pactSlots),
-      sorceryPoints: toTrackedSorceryPoints(sorceryConfig),
-      channelDivinity: toTrackedChannelDivinity(channelDivinityConfig),
-    }));
+    setState(prev => {
+      // Merge new max values while preserving current usage
+      const newSlots: TrackedSpellSlots = {};
+      for (let level = 1; level <= 9; level++) {
+        const newMax = (slotInfo.regularSlots as Record<number, number>)[level] ?? 0;
+        if (newMax > 0) {
+          const prevSlot = prev.spellSlots[level];
+          // If the max changed, adjust current proportionally; otherwise keep current
+          if (prevSlot && prevSlot.max === newMax) {
+            newSlots[level] = { current: prevSlot.current, max: newMax };
+          } else {
+            // New slot level or max changed — set current to new max
+            newSlots[level] = { current: newMax, max: newMax };
+          }
+        }
+      }
+
+      // Preserve pact slot usage
+      let newPactSlots = toTrackedPactSlots(slotInfo.pactSlots);
+      if (newPactSlots && prev.pactSlots && prev.pactSlots.max === newPactSlots.max) {
+        newPactSlots = { ...newPactSlots, current: prev.pactSlots.current };
+      }
+
+      // Preserve sorcery point usage
+      let newSorceryPoints = toTrackedSorceryPoints(sorceryConfig);
+      if (newSorceryPoints && prev.sorceryPoints && prev.sorceryPoints.max === newSorceryPoints.max) {
+        newSorceryPoints = { ...newSorceryPoints, current: prev.sorceryPoints.current };
+      }
+
+      // Preserve channel divinity usage
+      let newChannelDivinity = toTrackedChannelDivinity(channelDivinityConfig);
+      if (newChannelDivinity && prev.channelDivinity && prev.channelDivinity.max === newChannelDivinity.max) {
+        newChannelDivinity = { ...newChannelDivinity, current: prev.channelDivinity.current };
+      }
+
+      return {
+        ...prev,
+        spellSlots: newSlots,
+        pactSlots: newPactSlots,
+        sorceryPoints: newSorceryPoints,
+        channelDivinity: newChannelDivinity,
+      };
+    });
   }, [slotInfo, primaryClass, primaryLevel]);
 
   // Derived calculations
