@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Wand2, BookOpen, Zap, Settings, Package, RefreshCw, Flame, Sparkles } from 'lucide-react';
+import { Wand2, BookOpen, Zap, Settings, Package, RefreshCw, Flame, Sparkles, Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { DnDClass } from '@/lib/classes/types';
 import { CLASS_REGISTRY } from '@/lib/classes';
@@ -32,6 +32,8 @@ import { ClericDomain, getDomainChannelDivinity } from '@/lib/classes/clericDoma
 import { useInvocations } from '@/hooks/use-invocations';
 import { InvocationsPanel } from './InvocationsPanel';
 import { NaturalRecoveryPanel } from './NaturalRecoveryPanel';
+import { HomebrewSpellCreateSheet } from './HomebrewSpellCreateSheet';
+import { HomebrewSpell } from '@/lib/spellCustomization/types';
 
 // Background image
 import arcanaBackground from '@/assets/trees/arcana-wizards-mobile.jpg';
@@ -60,6 +62,11 @@ interface ClassSpellcastingScreenProps {
   onAssignWildShapeBackground?: (formId: string, file: File) => Promise<void>;
   onRemoveWildShapeBackground?: (formId: string) => void;
   hasWildShapeBackground?: (formId: string) => boolean;
+  // Homebrew spell support
+  homebrewSpells?: HomebrewSpell[];
+  onAddHomebrewSpell?: (spell: HomebrewSpell) => void;
+  onUpdateHomebrewSpell?: (id: string, updates: Partial<HomebrewSpell>) => void;
+  onRemoveHomebrewSpell?: (id: string) => void;
 }
 
 export function ClassSpellcastingScreen({
@@ -75,6 +82,10 @@ export function ClassSpellcastingScreen({
   onAssignWildShapeBackground,
   onRemoveWildShapeBackground,
   hasWildShapeBackground,
+  homebrewSpells = [],
+  onAddHomebrewSpell,
+  onUpdateHomebrewSpell,
+  onRemoveHomebrewSpell,
 }: ClassSpellcastingScreenProps) {
   const {
     state,
@@ -129,6 +140,8 @@ export function ClassSpellcastingScreen({
   const [selectedSpell, setSelectedSpell] = useState<SpellDefinition | null>(null);
   const [castingSpell, setCastingSpell] = useState<SpellDefinition | null>(null);
   const [activeTab, setActiveTab] = useState<'spellbook' | 'slots' | 'components' | 'features'>('spellbook');
+  const [showCreateSpell, setShowCreateSpell] = useState(false);
+  const [editingSpell, setEditingSpell] = useState<HomebrewSpell | null>(null);
 
   // Druid Circle state (persisted)
   const [druidCircle, setDruidCircle] = useState<DruidCircle | null>(() => {
@@ -454,6 +467,20 @@ export function ClassSpellcastingScreen({
         </TabsList>
 
         <TabsContent value="spellbook" className="mt-0 flex-1">
+          {/* Create Spell FAB */}
+          {onAddHomebrewSpell && (
+            <div className="px-4 pt-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setEditingSpell(null); setShowCreateSpell(true); }}
+                className="w-full border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Create Homebrew Spell
+              </Button>
+            </div>
+          )}
           <ClassSpellbookGrid
             classId={primaryClass}
             characterLevel={characterLevel}
@@ -463,6 +490,9 @@ export function ClassSpellcastingScreen({
             concentratingOn={state.concentratingOn}
             maxSpellLevel={maxSpellLevel}
             onSpellSelect={handleSpellSelect}
+            homebrewSpells={homebrewSpells}
+            onEditHomebrew={(spell) => { setEditingSpell(spell); setShowCreateSpell(true); }}
+            onDeleteHomebrew={onRemoveHomebrewSpell}
           />
         </TabsContent>
 
@@ -665,6 +695,21 @@ export function ClassSpellcastingScreen({
         characterName={characterName}
         characterLevel={characterLevel}
         onCast={handleCastSpell}
+      />
+
+      {/* Homebrew Spell Create/Edit Sheet */}
+      <HomebrewSpellCreateSheet
+        isOpen={showCreateSpell}
+        onClose={() => { setShowCreateSpell(false); setEditingSpell(null); }}
+        onSave={(spell) => {
+          if (editingSpell && onUpdateHomebrewSpell) {
+            onUpdateHomebrewSpell(editingSpell.id, spell);
+          } else if (onAddHomebrewSpell) {
+            onAddHomebrewSpell(spell);
+          }
+        }}
+        editSpell={editingSpell}
+        primaryClass={primaryClass}
       />
     </div>
   );

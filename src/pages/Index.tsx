@@ -85,6 +85,7 @@ import { useInitiative } from '@/hooks/use-initiative';
 import { useCombatStats } from '@/hooks/use-combat-stats';
 import { useWildShape } from '@/hooks/use-wild-shape';
 import { DruidCircle } from '@/lib/classes/druidCircles';
+import { useSpellCustomization } from '@/hooks/use-spell-customization';
 
 // Stable empty object to prevent re-renders from `character.multiclassLevels ?? {}`
 const EMPTY_MULTICLASS_LEVELS: Record<string, never> = {};
@@ -459,8 +460,10 @@ const Index = () => {
   } = useConsumables();
   
   const { toast } = useToast();
-  
-  
+
+  // Spell Customization (homebrew spells)
+  const spellCustomization = useSpellCustomization();
+
   // HP change handler with localStorage persistence, concentration check, and Wild Shape routing
   const handleHPChange = useCallback((current: number, max: number, temp: number) => {
     // If transformed, route damage through Wild Shape
@@ -1965,6 +1968,10 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
                   onAssignWildShapeBackground={wildShapeBgs.assignBackground}
                   onRemoveWildShapeBackground={wildShapeBgs.removeBackground}
                   hasWildShapeBackground={wildShapeBgs.hasBackground}
+                  homebrewSpells={spellCustomization.homebrewSpells}
+                  onAddHomebrewSpell={spellCustomization.addSpell}
+                  onUpdateHomebrewSpell={spellCustomization.updateSpell}
+                  onRemoveHomebrewSpell={spellCustomization.removeSpell}
                 />
               )}
             </BackgroundWrapper>

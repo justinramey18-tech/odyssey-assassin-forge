@@ -17,3 +17,4 @@ export { ChannelDivinityTracker } from './ChannelDivinityTracker';
 export { WildShapeTracker } from './WildShapeTracker';
 export { DruidCirclePanel } from './DruidCirclePanel';
 export { ClericDomainPanel } from './ClericDomainPanel';
+export { HomebrewSpellCreateSheet } from './HomebrewSpellCreateSheet';

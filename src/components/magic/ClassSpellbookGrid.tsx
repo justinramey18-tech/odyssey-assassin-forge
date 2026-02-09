@@ -3,10 +3,11 @@
 
 import { useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import { Search, Filter, BookOpen, Star, Focus, Sparkles } from 'lucide-react';
+import { Search, Filter, BookOpen, Star, Focus, Sparkles, Pencil, Trash2 } from 'lucide-react';
 import { DnDClass } from '@/lib/classes/types';
 import { SpellDefinition, SpellSchool } from '@/lib/magic/types';
 import { getSpellsByClass, getSpellLevelLabel } from '@/lib/magic/spells';
+import { HomebrewSpell } from '@/lib/spellCustomization/types';
 import { SCHOOL_CONFIGS } from '@/lib/magic/schools';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,9 @@ interface ClassSpellbookGridProps {
   concentratingOn: string | null;
   maxSpellLevel: number;
   onSpellSelect: (spell: SpellDefinition) => void;
+  homebrewSpells?: HomebrewSpell[];
+  onEditHomebrew?: (spell: HomebrewSpell) => void;
+  onDeleteHomebrew?: (id: string) => void;
 }
 
 type SpellFilter = 'all' | 'known' | 'prepared' | 'favorites';
@@ -43,17 +47,23 @@ export function ClassSpellbookGrid({
   concentratingOn,
   maxSpellLevel,
   onSpellSelect,
+  homebrewSpells = [],
+  onEditHomebrew,
+  onDeleteHomebrew,
 }: ClassSpellbookGridProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterMode, setFilterMode] = useState<SpellFilter>('all');
   const [schoolFilters, setSchoolFilters] = useState<SpellSchool[]>([]);
 
-  // Get all spells available to this class
+  // Get all spells available to this class, merged with homebrew
   const classSpells = useMemo(() => {
     const spells = getSpellsByClass(classId);
     // Filter to max spell level the character can access
-    return spells.filter(spell => spell.level <= maxSpellLevel);
-  }, [classId, maxSpellLevel]);
+    const filtered = spells.filter(spell => spell.level <= maxSpellLevel);
+    // Merge homebrew spells (they appear regardless of class filter)
+    const homebrewFiltered = homebrewSpells.filter(s => s.level <= maxSpellLevel);
+    return [...filtered, ...homebrewFiltered];
+  }, [classId, maxSpellLevel, homebrewSpells]);
 
   // Apply filters
   const filteredSpells = useMemo(() => {
@@ -270,15 +280,37 @@ export function ClassSpellbookGrid({
                   {/* Spell Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {spells.map(spell => (
-                      <SpellCard
-                        key={spell.id}
-                        spell={spell}
-                        isPrepared={preparedSpells.includes(spell.id)}
-                        isFavorite={favoriteSpells.includes(spell.id)}
-                        isConcentrating={concentratingOn === spell.id}
-                        characterLevel={characterLevel}
-                        onClick={() => onSpellSelect(spell)}
-                      />
+                      <div key={spell.id} className="relative">
+                        <SpellCard
+                          spell={spell}
+                          isPrepared={preparedSpells.includes(spell.id)}
+                          isFavorite={favoriteSpells.includes(spell.id)}
+                          isConcentrating={concentratingOn === spell.id}
+                          characterLevel={characterLevel}
+                          onClick={() => onSpellSelect(spell)}
+                        />
+                        {/* Edit/Delete for homebrew spells */}
+                        {(spell as any).isHomebrew && (onEditHomebrew || onDeleteHomebrew) && (
+                          <div className="absolute bottom-2 right-2 flex gap-1 z-10">
+                            {onEditHomebrew && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); onEditHomebrew(spell as HomebrewSpell); }}
+                                className="w-7 h-7 rounded-md bg-indigo-600/40 hover:bg-indigo-600/60 flex items-center justify-center transition-colors"
+                              >
+                                <Pencil className="w-3.5 h-3.5 text-indigo-300" />
+                              </button>
+                            )}
+                            {onDeleteHomebrew && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); onDeleteHomebrew(spell.id); }}
+                                className="w-7 h-7 rounded-md bg-red-600/40 hover:bg-red-600/60 flex items-center justify-center transition-colors"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-red-300" />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                 </div>
