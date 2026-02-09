@@ -381,9 +381,9 @@ export function HomeScreen({
               <div />
             </BackgroundWrapper>
             {/* Looping green energy pulse overlay — intensity scales with CR */}
-            <CRScaledPulse cr={wildShapeFormCR ?? 0} />
+            <CRScaledPulse cr={wildShapeFormCR ?? 0} formName={wildShapeFormName} />
             {/* DBZ-style crackling lightning on all edges — scales with CR */}
-            <WildShapeLightningBorder cr={wildShapeFormCR ?? 0} />
+            <WildShapeLightningBorder cr={wildShapeFormCR ?? 0} formName={wildShapeFormName} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -391,7 +391,7 @@ export function HomeScreen({
       {/* One-shot transformation burst (flash + shake) for high-CR forms */}
       <AnimatePresence>
         {hasWildShapeBg && (
-          <TransformationBurst key={`burst-${wildShapeFormName}`} cr={wildShapeFormCR ?? 0} />
+          <TransformationBurst key={`burst-${wildShapeFormName}`} cr={wildShapeFormCR ?? 0} formName={wildShapeFormName} />
         )}
       </AnimatePresence>
 

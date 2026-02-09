@@ -10,26 +10,62 @@ type Edge = 'left' | 'right' | 'top' | 'bottom';
 function crToIntensity(cr: number): number {
   if (cr <= 0) return 0.15;
   if (cr >= 20) return 1.0;
-  // Logarithmic curve for natural scaling
   return Math.min(1, 0.15 + 0.85 * (Math.log(cr + 1) / Math.log(21)));
+}
+
+/**
+ * Dragon element color palettes keyed by dragon name substring.
+ * Returns [primary RGB, accent RGB] for lightning/glow effects.
+ */
+interface ElementColors {
+  primary: string;   // e.g. "34,197,94" (green default)
+  accent: string;    // e.g. "202,178,52" (gold default)
+  flash1: string;    // radial flash color 1
+  flash2: string;    // radial flash color 2
+}
+
+const DRAGON_COLOR_MAP: Record<string, ElementColors> = {
+  // Fire dragons — red/orange/gold
+  'red-dragon':    { primary: '239,68,68',   accent: '251,146,60',  flash1: '239,68,68',   flash2: '251,146,60'  },
+  'gold-dragon':   { primary: '234,179,8',   accent: '251,146,60',  flash1: '234,179,8',   flash2: '251,191,36'  },
+  // Cold dragons — ice blue/white
+  'white-dragon':  { primary: '147,197,253', accent: '219,234,254', flash1: '147,197,253', flash2: '219,234,254' },
+  'silver-dragon': { primary: '148,163,184', accent: '203,213,225', flash1: '148,163,184', flash2: '226,232,240' },
+  // Acid dragons — toxic green/purple
+  'black-dragon':  { primary: '132,204,22',  accent: '163,130,246', flash1: '132,204,22',  flash2: '163,130,246' },
+  'copper-dragon': { primary: '180,83,9',    accent: '132,204,22',  flash1: '180,83,9',    flash2: '132,204,22'  },
+};
+
+const DEFAULT_COLORS: ElementColors = {
+  primary: '34,197,94',
+  accent: '202,178,52',
+  flash1: '34,197,94',
+  flash2: '202,178,52',
+};
+
+function getFormColors(formName?: string): ElementColors {
+  if (!formName) return DEFAULT_COLORS;
+  // Match against known dragon form IDs by converting name to id format
+  const id = formName.toLowerCase().replace(/\s+/g, '-');
+  return DRAGON_COLOR_MAP[id] ?? DEFAULT_COLORS;
 }
 
 interface CRProps {
   cr: number;
+  formName?: string;
 }
 
 /**
- * Green energy vignette pulse that scales with CR.
- * Low CR = faint, slow pulse. High CR = intense, fast pulse.
+ * Energy vignette pulse that scales with CR.
+ * Color adapts to dragon element type.
  */
-export function CRScaledPulse({ cr }: CRProps) {
+export function CRScaledPulse({ cr, formName }: CRProps) {
   const intensity = crToIntensity(cr);
+  const colors = getFormColors(formName);
 
-  // Scale spread and opacity with intensity
-  const peakSpread = Math.round(60 + intensity * 80); // 60–140px
-  const peakBlur = Math.round(10 + intensity * 35);   // 10–45px
-  const peakOpacity = (0.08 + intensity * 0.22).toFixed(2); // 0.08–0.30
-  // Duration: slower at low CR (7s), faster at high CR (3s)
+  const peakSpread = Math.round(60 + intensity * 80);
+  const peakBlur = Math.round(10 + intensity * 35);
+  const peakOpacity = (0.08 + intensity * 0.22).toFixed(2);
   const duration = 7 - intensity * 4;
 
   return (
@@ -37,9 +73,9 @@ export function CRScaledPulse({ cr }: CRProps) {
       className="absolute inset-0 pointer-events-none"
       animate={{
         boxShadow: [
-          `inset 0 0 ${peakSpread * 0.7}px ${peakBlur * 0.4}px rgba(34,197,94,0.0)`,
-          `inset 0 0 ${peakSpread}px ${peakBlur}px rgba(34,197,94,${peakOpacity})`,
-          `inset 0 0 ${peakSpread * 0.7}px ${peakBlur * 0.4}px rgba(34,197,94,0.0)`,
+          `inset 0 0 ${peakSpread * 0.7}px ${peakBlur * 0.4}px rgba(${colors.primary},0.0)`,
+          `inset 0 0 ${peakSpread}px ${peakBlur}px rgba(${colors.primary},${peakOpacity})`,
+          `inset 0 0 ${peakSpread * 0.7}px ${peakBlur * 0.4}px rgba(${colors.primary},0.0)`,
         ],
       }}
       transition={{
@@ -53,12 +89,12 @@ export function CRScaledPulse({ cr }: CRProps) {
 
 /**
  * DBZ-style crackling lightning energy borders on all 4 edges.
- * Gold-green color mix. Intensity and bolt count scale with CR.
+ * Color adapts to dragon element type.
  */
-export function WildShapeLightningBorder({ cr }: CRProps) {
+export function WildShapeLightningBorder({ cr, formName }: CRProps) {
   const intensity = crToIntensity(cr);
+  const colors = getFormColors(formName);
 
-  // At low CR, show fewer bolts; at high CR, show all
   const verticalBolts = useMemo(() => {
     const all = [
       { delay: 0, side: 'left' as Edge, path: 'M0,0 Q8,12 2,25 Q10,40 0,55 Q7,70 3,85 Q9,95 0,100' },
@@ -79,77 +115,79 @@ export function WildShapeLightningBorder({ cr }: CRProps) {
       { delay: 1.6, side: 'bottom' as Edge, path: 'M0,10 Q15,2 28,8 Q42,0 58,7 Q72,1 88,10 Q96,3 100,10' },
       { delay: 0.9, side: 'bottom' as Edge, path: 'M5,10 Q18,4 32,9 Q48,1 62,6 Q78,2 93,10' },
     ];
-    // Only show horizontal bolts above ~40% intensity (CR ~3+)
     if (intensity < 0.35) return [];
     const count = Math.max(1, Math.round(all.length * intensity));
     return all.slice(0, count);
   }, [intensity]);
 
-  // Scale glow opacity with intensity
   const glowOpacity = (0.05 + intensity * 0.15).toFixed(2);
+
+  // Unique gradient ID to avoid SVG defs collision across instances
+  const gradientId = useMemo(() => `lightning-grad-${formName?.replace(/\s/g, '') ?? 'default'}`, [formName]);
 
   return (
     <>
       {/* Left edge */}
       <div className="absolute left-0 top-0 bottom-0 w-8 pointer-events-none z-20 overflow-hidden">
         {verticalBolts.filter(b => b.side === 'left').map((bolt, i) => (
-          <LightningBolt key={`l-${i}`} path={bolt.path} delay={bolt.delay} orientation="vertical" intensity={intensity} />
+          <LightningBolt key={`l-${i}`} path={bolt.path} delay={bolt.delay} orientation="vertical" intensity={intensity} colors={colors} gradientId={gradientId} />
         ))}
-        <EdgeGlow direction="left" opacity={glowOpacity} />
+        <EdgeGlow direction="left" opacity={glowOpacity} colors={colors} />
       </div>
 
       {/* Right edge */}
       <div className="absolute right-0 top-0 bottom-0 w-8 pointer-events-none z-20 overflow-hidden">
         {verticalBolts.filter(b => b.side === 'right').map((bolt, i) => (
-          <LightningBolt key={`r-${i}`} path={bolt.path} delay={bolt.delay} orientation="vertical" intensity={intensity} />
+          <LightningBolt key={`r-${i}`} path={bolt.path} delay={bolt.delay} orientation="vertical" intensity={intensity} colors={colors} gradientId={gradientId} />
         ))}
-        <EdgeGlow direction="right" opacity={glowOpacity} />
+        <EdgeGlow direction="right" opacity={glowOpacity} colors={colors} />
       </div>
 
-      {/* Top edge — only at higher CR */}
+      {/* Top edge */}
       {horizontalBolts.some(b => b.side === 'top') && (
         <div className="absolute top-0 left-0 right-0 h-8 pointer-events-none z-20 overflow-hidden">
           {horizontalBolts.filter(b => b.side === 'top').map((bolt, i) => (
-            <LightningBolt key={`t-${i}`} path={bolt.path} delay={bolt.delay} orientation="horizontal" intensity={intensity} />
+            <LightningBolt key={`t-${i}`} path={bolt.path} delay={bolt.delay} orientation="horizontal" intensity={intensity} colors={colors} gradientId={gradientId} />
           ))}
-          <EdgeGlow direction="top" opacity={glowOpacity} />
+          <EdgeGlow direction="top" opacity={glowOpacity} colors={colors} />
         </div>
       )}
 
-      {/* Bottom edge — only at higher CR */}
+      {/* Bottom edge */}
       {horizontalBolts.some(b => b.side === 'bottom') && (
         <div className="absolute bottom-0 left-0 right-0 h-8 pointer-events-none z-20 overflow-hidden">
           {horizontalBolts.filter(b => b.side === 'bottom').map((bolt, i) => (
-            <LightningBolt key={`b-${i}`} path={bolt.path} delay={bolt.delay} orientation="horizontal" intensity={intensity} />
+            <LightningBolt key={`b-${i}`} path={bolt.path} delay={bolt.delay} orientation="horizontal" intensity={intensity} colors={colors} gradientId={gradientId} />
           ))}
-          <EdgeGlow direction="bottom" opacity={glowOpacity} />
+          <EdgeGlow direction="bottom" opacity={glowOpacity} colors={colors} />
         </div>
       )}
     </>
   );
 }
 
-function EdgeGlow({ direction, opacity }: { direction: 'left' | 'right' | 'top' | 'bottom'; opacity: string }) {
+function EdgeGlow({ direction, opacity, colors }: { direction: 'left' | 'right' | 'top' | 'bottom'; opacity: string; colors: ElementColors }) {
+  const { primary } = colors;
   const glowMap: Record<string, string[]> = {
     left: [
-      `inset -15px 0 25px -10px rgba(34,197,94,0.0)`,
-      `inset -15px 0 25px -10px rgba(34,197,94,${opacity})`,
-      `inset -15px 0 25px -10px rgba(34,197,94,0.0)`,
+      `inset -15px 0 25px -10px rgba(${primary},0.0)`,
+      `inset -15px 0 25px -10px rgba(${primary},${opacity})`,
+      `inset -15px 0 25px -10px rgba(${primary},0.0)`,
     ],
     right: [
-      `inset 15px 0 25px -10px rgba(34,197,94,0.0)`,
-      `inset 15px 0 25px -10px rgba(34,197,94,${opacity})`,
-      `inset 15px 0 25px -10px rgba(34,197,94,0.0)`,
+      `inset 15px 0 25px -10px rgba(${primary},0.0)`,
+      `inset 15px 0 25px -10px rgba(${primary},${opacity})`,
+      `inset 15px 0 25px -10px rgba(${primary},0.0)`,
     ],
     top: [
-      `inset 0 -15px 25px -10px rgba(34,197,94,0.0)`,
-      `inset 0 -15px 25px -10px rgba(34,197,94,${opacity})`,
-      `inset 0 -15px 25px -10px rgba(34,197,94,0.0)`,
+      `inset 0 -15px 25px -10px rgba(${primary},0.0)`,
+      `inset 0 -15px 25px -10px rgba(${primary},${opacity})`,
+      `inset 0 -15px 25px -10px rgba(${primary},0.0)`,
     ],
     bottom: [
-      `inset 0 15px 25px -10px rgba(34,197,94,0.0)`,
-      `inset 0 15px 25px -10px rgba(34,197,94,${opacity})`,
-      `inset 0 15px 25px -10px rgba(34,197,94,0.0)`,
+      `inset 0 15px 25px -10px rgba(${primary},0.0)`,
+      `inset 0 15px 25px -10px rgba(${primary},${opacity})`,
+      `inset 0 15px 25px -10px rgba(${primary},0.0)`,
     ],
   };
   const delayMap: Record<string, number> = { left: 0.5, right: 1.2, top: 0.8, bottom: 1.5 };
@@ -163,13 +201,20 @@ function EdgeGlow({ direction, opacity }: { direction: 'left' | 'right' | 'top' 
   );
 }
 
-function LightningBolt({ path, delay, orientation, intensity }: { path: string; delay: number; orientation: 'vertical' | 'horizontal'; intensity: number }) {
+function LightningBolt({ path, delay, orientation, intensity, colors, gradientId }: {
+  path: string;
+  delay: number;
+  orientation: 'vertical' | 'horizontal';
+  intensity: number;
+  colors: ElementColors;
+  gradientId: string;
+}) {
   const isHorizontal = orientation === 'horizontal';
   const viewBox = isHorizontal ? '0 0 100 10' : '0 0 10 100';
+  const { primary, accent } = colors;
 
-  // Scale opacity peaks and pause duration with intensity
-  const peakOpacity = 0.4 + intensity * 0.6; // 0.4–1.0
-  const repeatDelay = 2.5 - intensity * 1.8; // 2.5s pause at low CR, 0.7s at high CR
+  const peakOpacity = 0.4 + intensity * 0.6;
+  const repeatDelay = 2.5 - intensity * 1.8;
 
   return (
     <motion.svg
@@ -190,17 +235,17 @@ function LightningBolt({ path, delay, orientation, intensity }: { path: string; 
       <motion.path
         d={path}
         fill="none"
-        stroke="url(#lightning-gradient)"
+        stroke={`url(#${gradientId})`}
         strokeWidth="0.8"
         strokeLinecap="round"
         animate={{
           strokeWidth: [0.3 + intensity * 0.2, 0.6 + intensity * 0.8, 0.4 + intensity * 0.3, 0.5 + intensity * 0.6, 0.3 + intensity * 0.2],
           filter: [
-            `drop-shadow(0 0 ${1 + intensity * 2}px rgba(34,197,94,${(0.4 + intensity * 0.4).toFixed(2)}))`,
-            `drop-shadow(0 0 ${3 + intensity * 4}px rgba(202,178,52,${(0.5 + intensity * 0.4).toFixed(2)}))`,
-            `drop-shadow(0 0 ${2 + intensity * 2}px rgba(34,197,94,${(0.3 + intensity * 0.4).toFixed(2)}))`,
-            `drop-shadow(0 0 ${2 + intensity * 3}px rgba(202,178,52,${(0.4 + intensity * 0.4).toFixed(2)}))`,
-            `drop-shadow(0 0 ${1 + intensity * 2}px rgba(34,197,94,${(0.3 + intensity * 0.3).toFixed(2)}))`,
+            `drop-shadow(0 0 ${1 + intensity * 2}px rgba(${primary},${(0.4 + intensity * 0.4).toFixed(2)}))`,
+            `drop-shadow(0 0 ${3 + intensity * 4}px rgba(${accent},${(0.5 + intensity * 0.4).toFixed(2)}))`,
+            `drop-shadow(0 0 ${2 + intensity * 2}px rgba(${primary},${(0.3 + intensity * 0.4).toFixed(2)}))`,
+            `drop-shadow(0 0 ${2 + intensity * 3}px rgba(${accent},${(0.4 + intensity * 0.4).toFixed(2)}))`,
+            `drop-shadow(0 0 ${1 + intensity * 2}px rgba(${primary},${(0.3 + intensity * 0.3).toFixed(2)}))`,
           ],
         }}
         transition={{ duration: 0.4, repeat: Infinity, ease: 'linear' }}
@@ -216,11 +261,11 @@ function LightningBolt({ path, delay, orientation, intensity }: { path: string; 
         transition={{ duration: 0.6, repeat: Infinity, ease: 'linear' }}
       />
       <defs>
-        <linearGradient id="lightning-gradient" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgba(34,197,94,0.9)" />
-          <stop offset="30%" stopColor="rgba(202,178,52,1)" />
-          <stop offset="60%" stopColor="rgba(34,197,94,0.95)" />
-          <stop offset="100%" stopColor="rgba(202,178,52,0.9)" />
+        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={`rgba(${primary},0.9)`} />
+          <stop offset="30%" stopColor={`rgba(${accent},1)`} />
+          <stop offset="60%" stopColor={`rgba(${primary},0.95)`} />
+          <stop offset="100%" stopColor={`rgba(${accent},0.9)`} />
         </linearGradient>
       </defs>
     </motion.svg>
@@ -228,36 +273,29 @@ function LightningBolt({ path, delay, orientation, intensity }: { path: string; 
 }
 
 /**
- * One-shot transformation burst: white flash + screen shake.
- * Scales with CR — subtle at low CR, dramatic at high CR.
- * Plays once on mount, then removes itself.
+ * One-shot transformation burst: flash + screen shake.
+ * Color adapts to dragon element type.
  */
-export function TransformationBurst({ cr }: CRProps) {
+export function TransformationBurst({ cr, formName }: CRProps) {
   const intensity = crToIntensity(cr);
+  const colors = getFormColors(formName);
 
-  // Flash opacity: barely visible at low CR, blinding at high CR
-  const flashPeak = 0.1 + intensity * 0.5; // 0.1–0.6
-  // Shake magnitude in pixels
-  const shakePx = Math.round(1 + intensity * 5); // 1–6px
-  // Duration scales slightly with intensity
-  const duration = 0.3 + intensity * 0.3; // 0.3–0.6s
+  const flashPeak = 0.1 + intensity * 0.5;
+  const shakePx = Math.round(1 + intensity * 5);
+  const duration = 0.3 + intensity * 0.3;
 
-  // Build a rapid shake sequence
   const shakeX = [0, -shakePx, shakePx, -shakePx * 0.6, shakePx * 0.4, 0];
   const shakeY = [0, shakePx * 0.5, -shakePx * 0.3, shakePx * 0.4, -shakePx * 0.2, 0];
 
   return (
     <>
-      {/* Flash overlay */}
       <motion.div
         className="fixed inset-0 z-[60] pointer-events-none"
-        style={{ background: `radial-gradient(ellipse at center, rgba(34,197,94,0.8), rgba(202,178,52,0.4), transparent 70%)` }}
+        style={{ background: `radial-gradient(ellipse at center, rgba(${colors.flash1},0.8), rgba(${colors.flash2},0.4), transparent 70%)` }}
         initial={{ opacity: 0 }}
         animate={{ opacity: [0, flashPeak, flashPeak * 0.3, 0] }}
         transition={{ duration: duration + 0.2, ease: 'easeOut', times: [0, 0.15, 0.5, 1] }}
       />
-
-      {/* Screen shake — applied to a full-screen wrapper that nudges the viewport */}
       <motion.div
         className="fixed inset-0 z-[59] pointer-events-none"
         initial={{ x: 0, y: 0 }}
