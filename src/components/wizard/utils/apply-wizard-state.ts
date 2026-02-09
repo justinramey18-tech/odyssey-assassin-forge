@@ -156,14 +156,15 @@ export function applyWizardState(
   const appliedChanges: string[] = [];
 
   try {
-    // 1. Character basics (name, level, abilities)
+    // 1. Character basics (name, level, class, abilities)
     setters.setCharacter(prev => ({
       ...prev,
       name: wizardState.name,
       level: wizardState.level,
+      primaryClass: wizardState.primaryClass,
       abilities: mergeAbilities(prev.abilities, wizardState.starterAbilities),
     }));
-    appliedChanges.push(`Character: ${wizardState.name}, Level ${wizardState.level}`);
+    appliedChanges.push(`Character: ${wizardState.name}, Level ${wizardState.level} ${wizardState.primaryClass.charAt(0).toUpperCase() + wizardState.primaryClass.slice(1)}`);
 
     // 2. XP for level
     const startingXP = calculateStartingXP(wizardState.level, wizardState.xpPreset);
