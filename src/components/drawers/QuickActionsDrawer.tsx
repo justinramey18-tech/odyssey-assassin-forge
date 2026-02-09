@@ -1,11 +1,12 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Swords, Sparkles, Zap, Wand2, 
   ChevronDown, Copy, Check, Timer, Shield, Play, Dices, Target,
-  Beaker, Skull, ScrollText, FlaskConical, PawPrint, Clock, Heart
+  Beaker, Skull, ScrollText, FlaskConical, PawPrint, Clock, Heart,
+  ImagePlus, ImageOff
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -61,6 +62,10 @@ interface QuickActionsDrawerProps {
   consumablesInventory?: InventoryItem[];
   onUseConsumable?: (consumableId: string) => boolean;
   wildShape?: UseWildShapeReturn;
+  // Wild Shape background management
+  onAssignWildShapeBackground?: (formId: string, file: File) => Promise<void>;
+  onRemoveWildShapeBackground?: (formId: string) => void;
+  hasWildShapeBackground?: (formId: string) => boolean;
 }
 
 // ── Prompt generators (static, no roll data) ──
@@ -564,7 +569,28 @@ function WildShapeStatusBar({ wildShape }: { wildShape: UseWildShapeReturn }) {
 
 // ── Wild Shape Beast Form Section ──
 
-function WildShapeSection({ wildShape, characterName }: { wildShape: UseWildShapeReturn; characterName: string }) {
+function WildShapeSection({ wildShape, characterName, onAssignBackground, onRemoveBackground, hasBackground }: { wildShape: UseWildShapeReturn; characterName: string; onAssignBackground?: (formId: string, file: File) => Promise<void>; onRemoveBackground?: (formId: string) => void; hasBackground?: (formId: string) => boolean }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadTargetFormId, setUploadTargetFormId] = useState<string | null>(null);
+
+  const handlePhotoUpload = useCallback((formId: string) => {
+    setUploadTargetFormId(formId);
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !uploadTargetFormId || !onAssignBackground) return;
+    try {
+      await onAssignBackground(uploadTargetFormId, file);
+      toast.success('Background assigned to form');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to upload image');
+    }
+    e.target.value = '';
+    setUploadTargetFormId(null);
+  }, [uploadTargetFormId, onAssignBackground]);
+
   const handleTransform = useCallback((form: any) => {
     wildShape.transform(form);
   }, [wildShape]);
@@ -754,31 +780,57 @@ function WildShapeSection({ wildShape, characterName }: { wildShape: UseWildShap
                 {formsByCR[crKey].map(({ form, category, useCost, onTransform, disabled }) => {
                   const colors = categoryColors[category];
                   return (
-                    <button
+                    <div
                       key={form.id}
-                      onClick={onTransform}
-                      disabled={disabled}
                       className={cn(
                         "w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-colors text-left",
                         !disabled ? `bg-card/40 ${colors.border}` : "bg-card/40 border-border/30 opacity-50 cursor-not-allowed"
                       )}
                       style={{ touchAction: 'manipulation' }}
                     >
-                      <PawPrint className={cn("w-4 h-4 shrink-0", colors.icon)} />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-sm font-medium truncate">{form.name}</p>
-                          {useCost > 1 && (
-                            <span className={cn("text-[10px] font-mono", category === 'elemental' ? 'text-orange-400' : 'text-purple-400')}>
-                              {useCost} uses
-                            </span>
+                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { if (!disabled) onTransform(); }}>
+                        <div className="flex items-center gap-2">
+                          <PawPrint className={cn("w-4 h-4 shrink-0", colors.icon)} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-medium truncate">{form.name}</p>
+                              {useCost > 1 && (
+                                <span className={cn("text-[10px] font-mono", category === 'elemental' ? 'text-orange-400' : 'text-purple-400')}>
+                                  {useCost} uses
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              HP {form.hp} · AC {form.ac} · {form.speed}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Photo assign/remove button */}
+                      {onAssignBackground && (
+                        <div className="shrink-0">
+                          {hasBackground?.(form.id) ? (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); onRemoveBackground?.(form.id); toast.success('Background removed'); }}
+                              className="p-1.5 rounded-md hover:bg-red-500/20 text-red-400 transition-colors"
+                              aria-label="Remove background photo"
+                            >
+                              <ImageOff className="w-4 h-4" />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handlePhotoUpload(form.id); }}
+                              className="p-1.5 rounded-md hover:bg-green-500/20 text-muted-foreground hover:text-green-400 transition-colors"
+                              aria-label="Assign background photo"
+                            >
+                              <ImagePlus className="w-4 h-4" />
+                            </button>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          HP {form.hp} · AC {form.ac} · {form.speed}
-                        </p>
-                      </div>
-                    </button>
+                      )}
+                    </div>
                   );
                 })}
               </CollapsibleContent>
@@ -786,6 +838,14 @@ function WildShapeSection({ wildShape, characterName }: { wildShape: UseWildShap
           ))}
         </div>
       </CollapsibleContent>
+      {/* Hidden file input for photo uploads */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileChange}
+      />
     </Collapsible>
   );
 }
@@ -801,6 +861,9 @@ export function QuickActionsDrawer({
   consumablesInventory = [],
   onUseConsumable,
   wildShape,
+  onAssignWildShapeBackground,
+  onRemoveWildShapeBackground,
+  hasWildShapeBackground,
 }: QuickActionsDrawerProps) {
   // Track which item has an active inline roll
   const [activeRoll, setActiveRoll] = useState<{ 
@@ -1022,7 +1085,7 @@ export function QuickActionsDrawer({
 
             {/* ── WILD SHAPE (Druid only) ── */}
             {wildShape && wildShape.config && (
-              <WildShapeSection wildShape={wildShape} characterName={characterName} />
+              <WildShapeSection wildShape={wildShape} characterName={characterName} onAssignBackground={onAssignWildShapeBackground} onRemoveBackground={onRemoveWildShapeBackground} hasBackground={hasWildShapeBackground} />
             )}
 
             {/* ── BASICS (Weapons / Actions) ── */}
