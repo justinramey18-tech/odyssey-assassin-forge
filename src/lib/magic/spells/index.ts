@@ -1,10 +1,12 @@
 import { SpellDefinition, MagicPath, SpellSchool } from '../types';
+import { DnDClass } from '@/lib/classes/types';
 import { CANTRIPS, getCantripsByPath } from './cantrips';
 import { FIRST_LEVEL_SPELLS, getFirstLevelSpellsByPath } from './1st-level';
 import { SECOND_LEVEL_SPELLS, getSecondLevelSpellsByPath } from './2nd-level';
 import { THIRD_LEVEL_SPELLS, getThirdLevelSpellsByPath } from './3rd-level';
 import { FOURTH_LEVEL_SPELLS, getFourthLevelSpellsByPath } from './4th-level';
 import { FIFTH_LEVEL_SPELLS, getFifthLevelSpellsByPath } from './5th-level';
+import { WIZARD_SPELLS } from './wizard-spells';
 import { SpellFilter, SpellListResult, SpellRegistry } from './types';
 
 // ============================================
@@ -12,12 +14,15 @@ import { SpellFilter, SpellListResult, SpellRegistry } from './types';
 // ============================================
 
 export const ALL_SPELLS: SpellDefinition[] = [
+  // Rogue Magic Path spells
   ...CANTRIPS,
   ...FIRST_LEVEL_SPELLS,
   ...SECOND_LEVEL_SPELLS,
   ...THIRD_LEVEL_SPELLS,
   ...FOURTH_LEVEL_SPELLS,
   ...FIFTH_LEVEL_SPELLS,
+  // Full caster class spells
+  ...WIZARD_SPELLS,
 ];
 
 export const SPELL_REGISTRY: SpellRegistry = ALL_SPELLS.reduce((acc, spell) => {
@@ -45,6 +50,33 @@ export function getSpellsByPath(path: MagicPath): SpellDefinition[] {
   return ALL_SPELLS.filter(
     spell => !spell.pathRestrictions || spell.pathRestrictions.includes(path)
   );
+}
+
+// ============================================
+// CLASS-BASED SPELL LOOKUP (NEW)
+// ============================================
+
+/**
+ * Get all spells available to a specific D&D class
+ */
+export function getSpellsByClass(classId: DnDClass): SpellDefinition[] {
+  return ALL_SPELLS.filter(spell => spell.classes?.includes(classId) ?? false);
+}
+
+/**
+ * Get spells for a class filtered by spell level
+ */
+export function getClassSpellsByLevel(classId: DnDClass, level: number): SpellDefinition[] {
+  return ALL_SPELLS.filter(spell => 
+    spell.level === level && (spell.classes?.includes(classId) ?? false)
+  );
+}
+
+/**
+ * Get cantrips available to a specific class
+ */
+export function getClassCantrips(classId: DnDClass): SpellDefinition[] {
+  return getClassSpellsByLevel(classId, 0);
 }
 
 // ============================================
