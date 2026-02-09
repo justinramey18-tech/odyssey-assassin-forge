@@ -467,6 +467,30 @@ export function useCooldowns({
     }
   }, []);
 
+  // Listen for rest events dispatched from Index.tsx
+  useEffect(() => {
+    const handleRestEvent = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.type === 'long') {
+        // Long rest resets ALL cooldowns
+        setCooldowns(prev => {
+          const updated = new Map(prev);
+          updated.forEach((state, id) => {
+            updated.set(id, { ...state, isOnCooldown: false, availableAt: null });
+          });
+          return updated;
+        });
+        notifiedAbilitiesRef.current.clear();
+      } else if (detail?.type === 'short') {
+        // Short rest resets only short-rest cooldowns
+        resetShortRestCooldowns();
+      }
+    };
+
+    window.addEventListener('odyssey-rest', handleRestEvent);
+    return () => window.removeEventListener('odyssey-rest', handleRestEvent);
+  }, [resetShortRestCooldowns]);
+
   return {
     // State
     cooldowns,
