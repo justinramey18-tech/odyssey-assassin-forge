@@ -1164,11 +1164,19 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     // Clear short-rest conditions
     conditions.shortRest();
     
-    // Restore pact slots
+    // Restore pact slots (legacy spellcasting)
     spellcasting.onShortRest();
+    
+    // Restore class spellcasting short rest resources (pact slots, channel divinity, natural recovery)
+    if (!isRogueClass) {
+      classSpellcasting.onShortRest();
+    }
     
     // Wild Shape rest (revert and restore uses)
     wildShape.onShortRest();
+    
+    // Dispatch event for cooldown system (lives in child components)
+    window.dispatchEvent(new CustomEvent('odyssey-rest', { detail: { type: 'short' } }));
     
     toast({
       title: "☕ Short Rest Complete",
@@ -1195,11 +1203,23 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     // Clear long-rest conditions
     conditions.longRest();
     
-    // Restore all spell slots
+    // Restore all spell slots (legacy spellcasting)
     spellcasting.onLongRest();
+    
+    // Restore class spellcasting resources (slots, sorcery points, channel divinity, natural recovery)
+    if (!isRogueClass) {
+      classSpellcasting.onLongRest();
+    }
     
     // Wild Shape rest (revert and restore uses)
     wildShape.onLongRest();
+    
+    // Reset death saves on long rest
+    setDeathSaves({ successes: 0, failures: 0 });
+    localStorage.setItem('odyssey-death-saves', JSON.stringify({ successes: 0, failures: 0 }));
+    
+    // Dispatch event for cooldown system (lives in child components)
+    window.dispatchEvent(new CustomEvent('odyssey-rest', { detail: { type: 'long' } }));
     
     toast({
       title: "🌙 Long Rest Complete", 
