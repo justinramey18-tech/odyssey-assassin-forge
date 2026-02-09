@@ -381,6 +381,7 @@ export function HomeScreen({
               tempHP={tempHP}
               ac={stats.totalAC}
               initiative={initiativeModifier}
+              onTap={() => drawerContext?.openStatsDrawer()}
               onInitiativeClick={handleInitiativeRoll}
             />
 
