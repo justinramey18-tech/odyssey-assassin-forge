@@ -1,7 +1,8 @@
 // Wild Shape Hook
 // Manages Druid Wild Shape transformations with beast form HP pools
+// Supports Circle of the Moon enhancements
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import {
   WildShapeState,
@@ -10,7 +11,15 @@ import {
   getDefaultWildShapeState,
   getAvailableBeastForms,
   formatCR,
+  BEAST_FORMS,
 } from '@/lib/magic/wildShape';
+import {
+  DruidCircle,
+  getMoonCircleWildShape,
+  MOON_CIRCLE_BEAST_FORMS,
+  ELEMENTAL_FORMS,
+  ElementalForm,
+} from '@/lib/classes/druidCircles';
 
 const WILD_SHAPE_STORAGE_KEY = 'dnd-wild-shape-state';
 
@@ -18,8 +27,11 @@ export interface UseWildShapeReturn {
   state: WildShapeState;
   config: ReturnType<typeof getWildShapeForLevel>;
   availableForms: BeastForm[];
+  elementalForms: ElementalForm[];
+  canUseElemental: boolean;
   // Actions
   transform: (form: BeastForm) => boolean;
+  transformElemental: (form: ElementalForm) => boolean;
   revert: (damageOverflow?: number) => number;
   takeDamage: (amount: number) => { reverted: boolean; overflow: number };
   heal: (amount: number) => void;
@@ -30,12 +42,44 @@ export interface UseWildShapeReturn {
   // Helpers
   canTransform: boolean;
   getRemainingDuration: () => number | null;
+  // Circle of the Moon bonus action healing
+  healWithSpellSlot: (slotLevel: number) => void;
 }
 
-export function useWildShape(druidLevel: number): UseWildShapeReturn {
+export function useWildShape(druidLevel: number, circle: DruidCircle | null = null): UseWildShapeReturn {
   const { toast } = useToast();
-  const config = getWildShapeForLevel(druidLevel);
-  const availableForms = getAvailableBeastForms(druidLevel);
+  const baseConfig = getWildShapeForLevel(druidLevel);
+  const moonConfig = circle === 'moon' ? getMoonCircleWildShape(druidLevel) : null;
+  
+  // Use Moon Circle config if available, otherwise base
+  const config = moonConfig ? {
+    maxUses: baseConfig?.maxUses ?? 0,
+    maxCR: moonConfig.maxCR,
+    canSwim: moonConfig.canSwim,
+    canFly: moonConfig.canFly,
+    maxHours: baseConfig?.maxHours ?? 0,
+  } : baseConfig;
+
+  // Get available beast forms based on circle
+  const availableForms = useMemo(() => {
+    if (!config) return [];
+    
+    // Combine base forms with Moon Circle forms if applicable
+    const allForms = circle === 'moon' 
+      ? [...BEAST_FORMS, ...MOON_CIRCLE_BEAST_FORMS]
+      : BEAST_FORMS;
+    
+    return allForms.filter(beast => {
+      if (beast.cr > config.maxCR) return false;
+      if (beast.swimSpeed && !config.canSwim) return false;
+      if (beast.flySpeed && !config.canFly) return false;
+      return true;
+    });
+  }, [config, circle]);
+
+  // Elemental forms (Moon Circle level 10+)
+  const canUseElemental = circle === 'moon' && moonConfig?.canElemental === true;
+  const elementalForms = canUseElemental ? ELEMENTAL_FORMS : [];
 
   // Load initial state from localStorage
   const [state, setState] = useState<WildShapeState>(() => {
@@ -248,14 +292,116 @@ export function useWildShape(druidLevel: number): UseWildShapeReturn {
     return Math.max(0, remaining);
   }, [state.isTransformed, state.transformedAt, state.transformDurationMinutes]);
 
+  // Transform into elemental (Moon Circle level 10+, costs 2 uses)
+  const transformElemental = useCallback((form: ElementalForm): boolean => {
+    if (!canUseElemental) {
+      toast({
+        title: 'Elemental Form Unavailable',
+        description: 'Elemental Wild Shape requires Circle of the Moon at level 10+.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    if (state.usesRemaining < 2) {
+      toast({
+        title: 'Insufficient Uses',
+        description: 'Elemental Wild Shape requires 2 Wild Shape uses.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    if (state.isTransformed) {
+      toast({
+        title: 'Already Transformed',
+        description: 'You must revert before assuming a new form.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    // Create a BeastForm-compatible object from ElementalForm
+    const elementalAsBeast: BeastForm = {
+      id: form.id,
+      name: form.name,
+      cr: form.cr,
+      hp: form.hp,
+      ac: form.ac,
+      speed: form.speed,
+      iconName: form.iconName,
+      description: form.description,
+      specialAbilities: form.specialAbilities,
+    };
+
+    setState(prev => ({
+      ...prev,
+      usesRemaining: prev.usesRemaining - 2, // Costs 2 uses
+      isTransformed: true,
+      currentForm: elementalAsBeast,
+      formHP: form.hp,
+      formMaxHP: form.hp,
+      transformedAt: Date.now(),
+      transformDurationMinutes: (config?.maxHours ?? 1) * 60,
+    }));
+
+    toast({
+      title: `🔥 Elemental Wild Shape: ${form.name}`,
+      description: `Transformed into ${form.name}! ${form.hp} HP, AC ${form.ac}. Cost: 2 uses.`,
+      className: 'border-orange-500 bg-orange-500/10',
+    });
+
+    return true;
+  }, [canUseElemental, state.usesRemaining, state.isTransformed, config, toast]);
+
+  // Heal with spell slot (Moon Circle Combat Wild Shape feature)
+  const healWithSpellSlot = useCallback((slotLevel: number) => {
+    if (!state.isTransformed) {
+      toast({
+        title: 'Not Transformed',
+        description: 'You can only use this ability while in beast form.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (circle !== 'moon') {
+      toast({
+        title: 'Combat Wild Shape Required',
+        description: 'This ability requires Circle of the Moon.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Heal 1d8 per slot level
+    const healRoll = Array.from({ length: slotLevel }, () => Math.floor(Math.random() * 8) + 1);
+    const totalHeal = healRoll.reduce((a, b) => a + b, 0);
+
+    setState(prev => ({
+      ...prev,
+      formHP: Math.min(prev.formHP + totalHeal, prev.formMaxHP),
+    }));
+
+    toast({
+      title: `💚 Combat Wild Shape Healing`,
+      description: `Expended level ${slotLevel} slot to heal ${totalHeal} HP (${slotLevel}d8: [${healRoll.join(', ')}])`,
+      className: 'border-green-500 bg-green-500/10',
+    });
+  }, [state.isTransformed, circle, toast]);
+
   return {
     state,
     config,
     availableForms,
+    elementalForms,
+    canUseElemental,
     transform,
+    transformElemental,
     revert,
     takeDamage,
     heal,
+    healWithSpellSlot,
     useWildShape,
     restoreUse,
     onShortRest,

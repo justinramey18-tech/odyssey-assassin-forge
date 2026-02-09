@@ -15,3 +15,4 @@ export { RangeIndicator, RangeIndicatorCompact } from './RangeIndicator';
 export { SorceryPointsTracker } from './SorceryPointsTracker';
 export { ChannelDivinityTracker } from './ChannelDivinityTracker';
 export { WildShapeTracker } from './WildShapeTracker';
+export { DruidCirclePanel } from './DruidCirclePanel';

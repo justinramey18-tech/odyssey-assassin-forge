@@ -23,10 +23,16 @@ import { ActiveSpellsPanel } from './ActiveSpellsPanel';
 import { SorceryPointsTracker } from './SorceryPointsTracker';
 import { ChannelDivinityTracker } from './ChannelDivinityTracker';
 import { WildShapeTracker } from './WildShapeTracker';
+import { DruidCirclePanel } from './DruidCirclePanel';
 import { useWildShape } from '@/hooks/use-wild-shape';
+import { DruidCircle, LandType } from '@/lib/classes/druidCircles';
 
 // Background image
 import arcanaBackground from '@/assets/trees/arcana-wizards-mobile.jpg';
+
+// Storage keys for Druid circle selection
+const DRUID_CIRCLE_KEY = 'dnd-druid-circle';
+const DRUID_LAND_KEY = 'dnd-druid-land';
 
 interface ClassSpellcastingScreenProps {
   primaryClass: DnDClass;
@@ -100,13 +106,41 @@ export function ClassSpellcastingScreen({
   const [castingSpell, setCastingSpell] = useState<SpellDefinition | null>(null);
   const [activeTab, setActiveTab] = useState<'spellbook' | 'slots' | 'components' | 'features'>('spellbook');
 
+  // Druid Circle state (persisted)
+  const [druidCircle, setDruidCircle] = useState<DruidCircle | null>(() => {
+    try {
+      const saved = localStorage.getItem(DRUID_CIRCLE_KEY);
+      return saved as DruidCircle | null;
+    } catch { return null; }
+  });
+  const [druidLand, setDruidLand] = useState<LandType | null>(() => {
+    try {
+      const saved = localStorage.getItem(DRUID_LAND_KEY);
+      return saved as LandType | null;
+    } catch { return null; }
+  });
+
   // Get class configuration
   const classConfig = CLASS_REGISTRY[primaryClass];
 
-  // Wild Shape for Druids
-  const wildShape = useWildShape(primaryClass === 'druid' ? characterLevel : 0);
+  // Wild Shape for Druids (pass circle for Moon enhancements)
+  const wildShape = useWildShape(
+    primaryClass === 'druid' ? characterLevel : 0,
+    primaryClass === 'druid' ? druidCircle : null
+  );
   const isDruid = primaryClass === 'druid';
   const hasWildShape = isDruid && characterLevel >= 2;
+
+  // Persist circle selection
+  const handleSelectCircle = (circle: DruidCircle) => {
+    setDruidCircle(circle);
+    localStorage.setItem(DRUID_CIRCLE_KEY, circle);
+  };
+
+  const handleSelectLand = (land: LandType) => {
+    setDruidLand(land);
+    localStorage.setItem(DRUID_LAND_KEY, land);
+  };
 
   const handleSpellSelect = (spell: SpellDefinition) => {
     setSelectedSpell(spell);
@@ -398,6 +432,17 @@ export function ClassSpellcastingScreen({
 
         <TabsContent value="features" className="mt-0 flex-1 overflow-y-auto">
           <div className="p-4 pb-24 space-y-4">
+            {/* Druid Circle Panel (Druid only) */}
+            {isDruid && characterLevel >= 2 && (
+              <DruidCirclePanel
+                druidLevel={characterLevel}
+                selectedCircle={druidCircle}
+                selectedLand={druidLand}
+                onSelectCircle={handleSelectCircle}
+                onSelectLand={handleSelectLand}
+              />
+            )}
+
             {/* Wild Shape Panel (Druid only) */}
             {hasWildShape && (
               <WildShapeTracker
