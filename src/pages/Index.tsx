@@ -1636,6 +1636,13 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           initiativeModifier={combatStats.initiativeBonus}
           isWildShape={wildShape.state.isTransformed}
           wildShapeFormName={wildShape.state.currentForm?.name}
+          wildShapeSpeed={wildShape.state.currentForm?.speed}
+          wildShapeAbilities={wildShape.state.currentForm?.specialAbilities}
+          wildShapeUsesRemaining={wildShape.state.usesRemaining}
+          wildShapeMaxUses={wildShape.state.maxUses}
+          wildShapeTransformedAt={wildShape.state.transformedAt}
+          wildShapeDurationMinutes={wildShape.state.transformDurationMinutes}
+          onDismissWildShape={() => wildShape.revert()}
           customBackground={customBackground.customBackground}
           onCustomBackgroundUpload={customBackground.handleImageUpload}
           onCustomBackgroundClear={customBackground.clearCustomBackground}
