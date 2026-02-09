@@ -366,13 +366,13 @@ export function HomeScreen({
               className="absolute inset-0 pointer-events-none"
               animate={{
                 boxShadow: [
-                  'inset 0 0 60px 10px rgba(34,197,94,0.0)',
-                  'inset 0 0 80px 20px rgba(34,197,94,0.15)',
-                  'inset 0 0 60px 10px rgba(34,197,94,0.0)',
+                  'inset 0 0 80px 15px rgba(34,197,94,0.0)',
+                  'inset 0 0 120px 40px rgba(34,197,94,0.25)',
+                  'inset 0 0 80px 15px rgba(34,197,94,0.0)',
                 ],
               }}
               transition={{
-                duration: 3,
+                duration: 5,
                 repeat: Infinity,
                 ease: 'easeInOut',
               }}
