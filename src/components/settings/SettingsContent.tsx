@@ -32,6 +32,7 @@ interface SettingsContentProps {
   activeTab: SettingsTab;
   characterName: string;
   onEditCharacter: () => void;
+  onNewCharacter?: () => void;
   onClose: () => void;
   prestigeData?: {
     totalPrestigePoints: number;
@@ -63,6 +64,7 @@ export function SettingsContent({
   activeTab,
   characterName,
   onEditCharacter,
+  onNewCharacter,
   onClose,
   prestigeData,
   onResetComplete,
@@ -536,6 +538,19 @@ export function SettingsContent({
             >
               Edit
             </Button>
+            {onNewCharacter && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => {
+                  onClose();
+                  onNewCharacter();
+                }}
+                className="shrink-0"
+              >
+                New
+              </Button>
+            )}
           </div>
         </div>
 

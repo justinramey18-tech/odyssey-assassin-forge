@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 interface SettingsModalProps {
   characterName: string;
   onEditCharacter: () => void;
+  onNewCharacter?: () => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   initialTab?: SettingsTab;
@@ -40,7 +41,8 @@ interface SettingsModalProps {
 
 export function SettingsModal({ 
   characterName, 
-  onEditCharacter, 
+  onEditCharacter,
+  onNewCharacter, 
   open: controlledOpen, 
   onOpenChange,
   initialTab,
@@ -204,6 +206,7 @@ export function SettingsModal({
                   activeTab={activeTab}
                   characterName={characterName}
                   onEditCharacter={onEditCharacter}
+                  onNewCharacter={onNewCharacter}
                   onClose={() => setOpen(false)}
                   prestigeData={prestigeData}
                   onResetComplete={onResetComplete}
@@ -262,6 +265,7 @@ export function SettingsModal({
                 activeTab={activeTab}
                 characterName={characterName}
                 onEditCharacter={onEditCharacter}
+                onNewCharacter={onNewCharacter}
                 onClose={() => setOpen(false)}
                 prestigeData={prestigeData}
                 onResetComplete={onResetComplete}
