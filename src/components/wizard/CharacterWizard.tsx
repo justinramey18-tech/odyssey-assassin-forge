@@ -89,6 +89,9 @@ export function CharacterWizard({
     if (validation.isValid) {
       // Skip Magic Path (step 4) if not a Rogue
       if (state.currentStep === 3 && state.primaryClass !== 'rogue') {
+        // Mark current step and the skipped step as complete, then jump
+        wizard.completeStep(3);
+        wizard.completeStep(4);
         wizard.jumpToStep(5); // Jump directly to Skill Trees
       } else {
         wizard.goNext();
