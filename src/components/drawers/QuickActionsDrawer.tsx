@@ -19,7 +19,7 @@ import { generateConsumablePrompt } from '@/lib/consumables/prompts';
 import { getSpellById } from '@/lib/magic/spells';
 import { SpellDefinition } from '@/lib/magic/types';
 import { UseWildShapeReturn } from '@/hooks/use-wild-shape';
-import { formatCR } from '@/lib/magic/wildShape';
+import { BeastForm, formatCR } from '@/lib/magic/wildShape';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
 import { generateWildShapeAbilityPrompt } from '@/lib/wildShapePrompts';
 import { applyOverrides, homebrewToAbility } from '@/lib/abilityCustomization/utils';
@@ -678,6 +678,60 @@ function WildShapeSection({ wildShape, characterName }: { wildShape: UseWildShap
   const dragons = wildShape.dragonForms;
   const totalForms = forms.length + elementals.length + dragons.length;
 
+  // Build unified list of all forms with metadata for styling/behavior
+  type UnifiedForm = {
+    form: BeastForm;
+    category: 'beast' | 'elemental' | 'dragon';
+    useCost: number;
+    onTransform: () => void;
+    disabled: boolean;
+  };
+
+  const allUnifiedForms: UnifiedForm[] = [
+    ...forms.map(f => ({
+      form: f,
+      category: 'beast' as const,
+      useCost: 1,
+      onTransform: () => handleTransform(f),
+      disabled: !wildShape.canTransform,
+    })),
+    ...elementals.map(f => ({
+      form: f as BeastForm,
+      category: 'elemental' as const,
+      useCost: 2,
+      onTransform: () => wildShape.transformElemental(f),
+      disabled: wildShape.state.usesRemaining < 2 || wildShape.state.isTransformed,
+    })),
+    ...dragons.map(f => ({
+      form: f as BeastForm,
+      category: 'dragon' as const,
+      useCost: 3,
+      onTransform: () => wildShape.transformDragon(f),
+      disabled: wildShape.state.usesRemaining < 3 || wildShape.state.isTransformed,
+    })),
+  ];
+
+  // Group by CR
+  const formsByCR = allUnifiedForms.reduce((acc, item) => {
+    const crKey = formatCR(item.form.cr);
+    if (!acc[crKey]) acc[crKey] = [];
+    acc[crKey].push(item);
+    return acc;
+  }, {} as Record<string, UnifiedForm[]>);
+
+  // Sort CR keys by numeric value (highest first)
+  const sortedCRKeys = Object.keys(formsByCR).sort((a, b) => {
+    const numA = formsByCR[a][0].form.cr;
+    const numB = formsByCR[b][0].form.cr;
+    return numB - numA;
+  });
+
+  const categoryColors = {
+    beast: { icon: 'text-green-400', border: 'border-green-500/30 hover:bg-green-500/10 hover:border-green-500/30 active:bg-green-500/15', tag: 'text-green-400/70' },
+    elemental: { icon: 'text-orange-400', border: 'border-orange-500/30 hover:bg-orange-500/10 active:bg-orange-500/15', tag: 'text-orange-400/70' },
+    dragon: { icon: 'text-purple-400', border: 'border-purple-500/30 hover:bg-purple-500/10 active:bg-purple-500/15', tag: 'text-purple-400/70' },
+  };
+
   return (
     <Collapsible className="group">
       <CollapsibleTrigger className="w-full">
@@ -685,97 +739,51 @@ function WildShapeSection({ wildShape, characterName }: { wildShape: UseWildShap
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="space-y-1 pl-2 pr-1 pb-2">
-          {!wildShape.canTransform && (
+          {!wildShape.canTransform && wildShape.state.usesRemaining <= 0 && (
             <p className="text-xs text-muted-foreground text-center py-2">
-              {wildShape.state.usesRemaining <= 0 ? 'No uses remaining. Take a rest to recover.' : 'Wild Shape unavailable.'}
+              No uses remaining. Take a rest to recover.
             </p>
           )}
-          {forms.map(form => (
-            <button
-              key={form.id}
-              onClick={() => handleTransform(form)}
-              disabled={!wildShape.canTransform}
-              className={cn(
-                "w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-colors text-left",
-                wildShape.canTransform
-                  ? "bg-card/40 border-border/30 hover:bg-green-500/10 hover:border-green-500/30 active:bg-green-500/15"
-                  : "bg-card/40 border-border/30 opacity-50 cursor-not-allowed"
-              )}
-              style={{ touchAction: 'manipulation' }}
-            >
-              <PawPrint className="w-4 h-4 text-green-400 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <p className="text-sm font-medium truncate">{form.name}</p>
-                  <span className="text-[10px] text-green-400/70 font-mono">CR {formatCR(form.cr)}</span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  HP {form.hp} · AC {form.ac} · {form.speed}
-                </p>
-              </div>
-            </button>
+          {sortedCRKeys.map(crKey => (
+            <Collapsible key={crKey} defaultOpen={formsByCR[crKey][0].form.cr >= 1}>
+              <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-1.5 rounded-md bg-card/30 hover:bg-card/50 transition-colors">
+                <span className="text-xs font-semibold text-muted-foreground">CR {crKey}</span>
+                <span className="text-[10px] text-muted-foreground">{formsByCR[crKey].length} forms</span>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-1 pt-1">
+                {formsByCR[crKey].map(({ form, category, useCost, onTransform, disabled }) => {
+                  const colors = categoryColors[category];
+                  return (
+                    <button
+                      key={form.id}
+                      onClick={onTransform}
+                      disabled={disabled}
+                      className={cn(
+                        "w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-colors text-left",
+                        !disabled ? `bg-card/40 ${colors.border}` : "bg-card/40 border-border/30 opacity-50 cursor-not-allowed"
+                      )}
+                      style={{ touchAction: 'manipulation' }}
+                    >
+                      <PawPrint className={cn("w-4 h-4 shrink-0", colors.icon)} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-medium truncate">{form.name}</p>
+                          {useCost > 1 && (
+                            <span className={cn("text-[10px] font-mono", category === 'elemental' ? 'text-orange-400' : 'text-purple-400')}>
+                              {useCost} uses
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          HP {form.hp} · AC {form.ac} · {form.speed}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </CollapsibleContent>
+            </Collapsible>
           ))}
-          {elementals.map(form => (
-            <button
-              key={form.id}
-              onClick={() => wildShape.transformElemental(form)}
-              disabled={wildShape.state.usesRemaining < 2 || wildShape.state.isTransformed}
-              className={cn(
-                "w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-colors text-left",
-                wildShape.state.usesRemaining >= 2
-                  ? "bg-card/40 border-orange-500/30 hover:bg-orange-500/10 active:bg-orange-500/15"
-                  : "bg-card/40 border-border/30 opacity-50 cursor-not-allowed"
-              )}
-              style={{ touchAction: 'manipulation' }}
-            >
-              <PawPrint className="w-4 h-4 text-orange-400 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <p className="text-sm font-medium truncate">{form.name}</p>
-                  <span className="text-[10px] text-orange-400/70 font-mono">CR {formatCR(form.cr)}</span>
-                  <span className="text-[10px] text-orange-400 font-mono">2 uses</span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  HP {form.hp} · AC {form.ac} · {form.speed}
-                </p>
-              </div>
-            </button>
-          ))}
-          {/* Dragon Forms */}
-          {dragons.length > 0 && (
-            <>
-              <div className="flex items-center gap-2 px-2 pt-2">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-purple-400">Dragon Forms</span>
-                <span className="text-[10px] text-purple-400/60 font-mono">3 uses each</span>
-              </div>
-              {dragons.map(form => (
-                <button
-                  key={form.id}
-                  onClick={() => wildShape.transformDragon(form)}
-                  disabled={wildShape.state.usesRemaining < 3 || wildShape.state.isTransformed}
-                  className={cn(
-                    "w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-colors text-left",
-                    wildShape.state.usesRemaining >= 3
-                      ? "bg-card/40 border-purple-500/30 hover:bg-purple-500/10 active:bg-purple-500/15"
-                      : "bg-card/40 border-border/30 opacity-50 cursor-not-allowed"
-                  )}
-                  style={{ touchAction: 'manipulation' }}
-                >
-                  <PawPrint className="w-4 h-4 text-purple-400 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-medium truncate">{form.name}</p>
-                      <span className="text-[10px] text-purple-400/70 font-mono">CR {formatCR(form.cr)}</span>
-                      <span className="text-[10px] text-amber-400 font-mono">3 uses</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      HP {form.hp} · AC {form.ac} · {form.speed}
-                    </p>
-                  </div>
-                </button>
-              ))}
-            </>
-          )}
         </div>
       </CollapsibleContent>
     </Collapsible>

@@ -272,127 +272,121 @@ export function WildShapeTracker({
               </SheetHeader>
               <ScrollArea className="h-full mt-4 pr-4">
                 <div className="space-y-4 pb-8">
-                  {Object.entries(formsByCR)
-                    .sort((a, b) => {
-                      // Sort by CR value
-                      const crA = a[1][0].cr;
-                      const crB = b[1][0].cr;
-                      return crB - crA; // Highest first
-                    })
-                    .map(([crKey, forms]) => (
-                      <Collapsible key={crKey} defaultOpen={forms[0].cr >= 0.5}>
+                  {(() => {
+                    // Build unified form list
+                    type UnifiedTrackerForm = {
+                      form: BeastForm;
+                      category: 'beast' | 'elemental' | 'dragon';
+                      useCost: number;
+                      onSelect: () => void;
+                      isDisabled: boolean;
+                    };
+
+                    const allForms: UnifiedTrackerForm[] = [
+                      ...availableForms.map(f => ({
+                        form: f,
+                        category: 'beast' as const,
+                        useCost: 1,
+                        onSelect: () => { onTransform(f); setIsFormSheetOpen(false); },
+                        isDisabled: usesRemaining < 1 || isTransformed,
+                      })),
+                      ...(elementalForms && onTransformElemental ? elementalForms.map(f => ({
+                        form: f as BeastForm,
+                        category: 'elemental' as const,
+                        useCost: 2,
+                        onSelect: () => { onTransformElemental(f); setIsFormSheetOpen(false); },
+                        isDisabled: usesRemaining < 2 || isTransformed,
+                      })) : []),
+                      ...(dragonForms && onTransformDragon ? dragonForms.map(f => ({
+                        form: f as BeastForm,
+                        category: 'dragon' as const,
+                        useCost: 3,
+                        onSelect: () => { onTransformDragon(f); setIsFormSheetOpen(false); },
+                        isDisabled: usesRemaining < 3 || isTransformed,
+                      })) : []),
+                    ];
+
+                    const grouped = allForms.reduce((acc, item) => {
+                      const crKey = formatCR(item.form.cr);
+                      if (!acc[crKey]) acc[crKey] = [];
+                      acc[crKey].push(item);
+                      return acc;
+                    }, {} as Record<string, UnifiedTrackerForm[]>);
+
+                    const sortedKeys = Object.keys(grouped).sort((a, b) => {
+                      return grouped[b][0].form.cr - grouped[a][0].form.cr;
+                    });
+
+                    const catColors = {
+                      beast: { border: 'border-border hover:border-green-500/50 hover:bg-green-500/5', accent: 'text-green-400' },
+                      elemental: { border: 'border-orange-500/30 hover:border-orange-500/50 hover:bg-orange-500/5', accent: 'text-orange-400' },
+                      dragon: { border: 'border-purple-500/30 hover:border-purple-500/50 hover:bg-purple-500/5', accent: 'text-purple-400' },
+                    };
+
+                    return sortedKeys.map(crKey => (
+                      <Collapsible key={crKey} defaultOpen={grouped[crKey][0].form.cr >= 1}>
                         <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded bg-muted/30 hover:bg-muted/50">
                           <span className="text-sm font-medium">CR {crKey}</span>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">{forms.length} forms</span>
+                            <span className="text-xs text-muted-foreground">{grouped[crKey].length} forms</span>
                             <ChevronDown className="w-4 h-4" />
                           </div>
                         </CollapsibleTrigger>
                         <CollapsibleContent className="pt-2">
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {forms.map(form => (
-                              <button
-                                key={form.id}
-                                onClick={() => {
-                                  onTransform(form);
-                                  setIsFormSheetOpen(false);
-                                }}
-                                className="p-3 rounded-lg border border-border hover:border-green-500/50 hover:bg-green-500/5 transition-all text-left"
-                              >
-                                <div className="flex items-start justify-between">
-                                  <div>
-                                    <p className="font-medium text-foreground">{form.name}</p>
-                                    <p className="text-xs text-muted-foreground mt-0.5">
-                                      {form.description}
-                                    </p>
+                            {grouped[crKey].map(({ form, category, useCost, onSelect, isDisabled }) => {
+                              const colors = catColors[category];
+                              return (
+                                <button
+                                  key={form.id}
+                                  onClick={onSelect}
+                                  disabled={isDisabled}
+                                  className={cn(
+                                    "p-3 rounded-lg border transition-all text-left disabled:opacity-40",
+                                    colors.border
+                                  )}
+                                >
+                                  <div className="flex items-start justify-between">
+                                    <div>
+                                      <div className="flex items-center gap-1.5">
+                                        <p className="font-medium text-foreground">{form.name}</p>
+                                        {useCost > 1 && (
+                                          <span className={cn("text-[10px] font-mono", colors.accent)}>
+                                            {useCost} uses
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-muted-foreground mt-0.5">
+                                        {form.description}
+                                      </p>
+                                    </div>
                                   </div>
-                                </div>
-                                <div className="flex items-center gap-3 mt-2 text-xs">
-                                  <span className="flex items-center gap-1 text-red-400">
-                                    <Heart className="w-3 h-3" /> {form.hp}
-                                  </span>
-                                  <span className="flex items-center gap-1 text-blue-400">
-                                    <Shield className="w-3 h-3" /> {form.ac}
-                                  </span>
-                                  <span className="text-muted-foreground">{form.speed}</span>
-                                </div>
-                                {form.specialAbilities && (
-                                  <div className="flex flex-wrap gap-1 mt-2">
-                                    {form.specialAbilities.slice(0, 3).map((ability, i) => (
-                                      <Badge key={i} variant="outline" className="text-[10px]">
-                                        {ability}
-                                      </Badge>
-                                    ))}
+                                  <div className="flex items-center gap-3 mt-2 text-xs">
+                                    <span className="flex items-center gap-1 text-red-400">
+                                      <Heart className="w-3 h-3" /> {form.hp}
+                                    </span>
+                                    <span className="flex items-center gap-1 text-blue-400">
+                                      <Shield className="w-3 h-3" /> {form.ac}
+                                    </span>
+                                    <span className="text-muted-foreground">{form.speed}</span>
                                   </div>
-                                )}
-                              </button>
-                            ))}
+                                  {form.specialAbilities && (
+                                    <div className="flex flex-wrap gap-1 mt-2">
+                                      {form.specialAbilities.slice(0, 3).map((ability, i) => (
+                                        <Badge key={i} variant="outline" className="text-[10px]">
+                                          {ability}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  )}
+                                </button>
+                              );
+                            })}
                           </div>
                         </CollapsibleContent>
                       </Collapsible>
-                    ))}
-
-                  {/* Elemental Forms */}
-                  {elementalForms && elementalForms.length > 0 && onTransformElemental && (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 px-2 pt-2">
-                        <span className="text-xs font-semibold uppercase tracking-wider text-orange-400">Elemental Forms</span>
-                        <span className="text-[10px] text-orange-400/60 font-mono">2 uses each</span>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {elementalForms.map(form => (
-                          <button
-                            key={form.id}
-                            onClick={() => {
-                              onTransformElemental(form);
-                              setIsFormSheetOpen(false);
-                            }}
-                            disabled={usesRemaining < 2 || isTransformed}
-                            className="p-3 rounded-lg border border-orange-500/30 hover:border-orange-500/50 hover:bg-orange-500/5 transition-all text-left disabled:opacity-40"
-                          >
-                            <p className="font-medium text-foreground">{form.name}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">{form.description}</p>
-                            <div className="flex items-center gap-3 mt-2 text-xs">
-                              <span className="flex items-center gap-1 text-red-400"><Heart className="w-3 h-3" /> {form.hp}</span>
-                              <span className="flex items-center gap-1 text-blue-400"><Shield className="w-3 h-3" /> {form.ac}</span>
-                              <span className="text-muted-foreground">{form.speed}</span>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Dragon Forms */}
-                  {dragonForms && dragonForms.length > 0 && onTransformDragon && (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 px-2 pt-2">
-                        <span className="text-xs font-semibold uppercase tracking-wider text-purple-400">Dragon Forms</span>
-                        <span className="text-[10px] text-purple-400/60 font-mono">3 uses each</span>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {dragonForms.map(form => (
-                          <button
-                            key={form.id}
-                            onClick={() => {
-                              onTransformDragon(form);
-                              setIsFormSheetOpen(false);
-                            }}
-                            disabled={usesRemaining < 3 || isTransformed}
-                            className="p-3 rounded-lg border border-purple-500/30 hover:border-purple-500/50 hover:bg-purple-500/5 transition-all text-left disabled:opacity-40"
-                          >
-                            <p className="font-medium text-foreground">{form.name}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">{form.description}</p>
-                            <div className="flex items-center gap-3 mt-2 text-xs">
-                              <span className="flex items-center gap-1 text-red-400"><Heart className="w-3 h-3" /> {form.hp}</span>
-                              <span className="flex items-center gap-1 text-blue-400"><Shield className="w-3 h-3" /> {form.ac}</span>
-                              <span className="text-muted-foreground">CR {formatCR(form.cr)}</span>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                    ));
+                  })()}
                 </div>
               </ScrollArea>
             </SheetContent>
