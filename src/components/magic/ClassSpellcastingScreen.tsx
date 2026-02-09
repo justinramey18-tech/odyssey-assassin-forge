@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Wand2, BookOpen, Zap, Settings, Package, RefreshCw } from 'lucide-react';
+import { Wand2, BookOpen, Zap, Settings, Package, RefreshCw, Flame } from 'lucide-react';
 import { DnDClass } from '@/lib/classes/types';
 import { CLASS_REGISTRY } from '@/lib/classes';
 import { SpellDefinition } from '@/lib/magic/types';
@@ -20,6 +20,7 @@ import { SpellSlotTracker } from './SpellSlotTracker';
 import { MaterialComponentsPanel } from './MaterialComponentsPanel';
 import { ConcentrationCheckPanel } from './ConcentrationCheckPanel';
 import { ActiveSpellsPanel } from './ActiveSpellsPanel';
+import { SorceryPointsTracker } from './SorceryPointsTracker';
 
 // Background image
 import arcanaBackground from '@/assets/trees/arcana-wizards-mobile.jpg';
@@ -59,6 +60,15 @@ export function ClassSpellcastingScreen({
     currentPreparedCount,
     canPrepareMore,
     isPreparedCaster,
+    // Sorcery Points
+    hasSorceryPoints,
+    sorceryPointsMax,
+    sorceryPointsCurrent,
+    useSorceryPoints,
+    restoreSorceryPoints,
+    convertSlotToPoints,
+    createSlotFromPoints,
+    // Spell management
     learnSpell,
     forgetSpell,
     prepareSpell,
@@ -215,6 +225,23 @@ export function ClassSpellcastingScreen({
               isProficientInConSaves={isProficientInConSaves}
               onBreakConcentration={breakConcentration}
             />
+          </div>
+        )}
+
+        {/* Sorcery Points (Sorcerer only) */}
+        {hasSorceryPoints && (
+          <div className="mt-3 flex items-center gap-2">
+            <SorceryPointsTracker
+              current={sorceryPointsCurrent}
+              max={sorceryPointsMax}
+              spellSlots={state.spellSlots}
+              compact
+              onUseSorceryPoints={useSorceryPoints}
+              onRestoreSorceryPoints={restoreSorceryPoints}
+              onConvertSlotToPoints={convertSlotToPoints}
+              onCreateSlotFromPoints={createSlotFromPoints}
+            />
+            <span className="text-xs text-muted-foreground">Sorcery Points</span>
           </div>
         )}
 

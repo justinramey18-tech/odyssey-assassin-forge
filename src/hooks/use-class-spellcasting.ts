@@ -7,6 +7,12 @@ import { DnDClass, ClassLevelMap, CLASS_REGISTRY, FULL_CASTER_CLASSES } from '@/
 import { SpellSlotsByLevel } from '@/lib/magic/fullCasterSlots';
 import { PactSlots as PactSlotsConfig } from '@/lib/magic/pactMagicSlots';
 import { 
+  getSorceryPointsForLevel, 
+  getSlotCreationCost, 
+  getPointsFromSlotLevel,
+  SorceryPointsConfig,
+} from '@/lib/magic/sorceryPoints';
+import { 
   getMulticlassSpellSlots, 
   getMulticlassMaxSpellLevel,
   hasSpellcasting,
@@ -25,6 +31,19 @@ import {
   getExpiredSpells,
 } from '@/lib/magic/durations';
 import { useToast } from '@/hooks/use-toast';
+
+// Runtime pact slot tracking (current/max)
+export interface TrackedPactSlots {
+  current: number;
+  max: number;
+  level: number;
+}
+
+// Runtime sorcery point tracking (current/max)
+export interface TrackedSorceryPoints {
+  current: number;
+  max: number;
+}
 
 // Runtime pact slot tracking (current/max)
 export interface TrackedPactSlots {
@@ -65,6 +84,17 @@ function toTrackedPactSlots(config: PactSlotsConfig | null): TrackedPactSlots | 
 }
 
 /**
+ * Convert SorceryPointsConfig to TrackedSorceryPoints for runtime tracking
+ */
+function toTrackedSorceryPoints(config: SorceryPointsConfig | null): TrackedSorceryPoints | null {
+  if (!config) return null;
+  return {
+    current: config.maxPoints,
+    max: config.maxPoints,
+  };
+}
+
+/**
  * Convert SpellSlotsByLevel to TrackedSpellSlots for runtime tracking
  */
 function toTrackedSpellSlots(slots: SpellSlotsByLevel): TrackedSpellSlots {
@@ -93,6 +123,8 @@ export interface ClassSpellcastingState {
   spellSlots: TrackedSpellSlots;
   /** Warlock pact slots (separate from regular slots) */
   pactSlots: TrackedPactSlots | null;
+  /** Sorcerer sorcery points (for Metamagic and Font of Magic) */
+  sorceryPoints: TrackedSorceryPoints | null;
   /** Current ability modifier for spellcasting */
   abilityModifier: number;
   /** Proficiency bonus */
@@ -121,6 +153,7 @@ function getDefaultClassSpellcastingState(): ClassSpellcastingState {
     favoriteSpells: [],
     spellSlots: {},
     pactSlots: null,
+    sorceryPoints: null,
     abilityModifier: 0,
     proficiencyBonus: 2,
     materialComponents: {},
@@ -208,6 +241,11 @@ export interface UseClassSpellcastingReturn {
   spellcastingAbility: 'INT' | 'WIS' | 'CHA';
   totalSlotsRemaining: number;
   
+  // Sorcery Points (Sorcerer only)
+  hasSorceryPoints: boolean;
+  sorceryPointsMax: number;
+  sorceryPointsCurrent: number;
+  
   // Preparation info
   maxPreparedSpells: number;
   currentPreparedCount: number;
@@ -230,6 +268,12 @@ export interface UseClassSpellcastingReturn {
   restoreSlot: (level: number) => void;
   usePactSlot: () => boolean;
   restorePactSlot: () => void;
+  
+  // Sorcery Point management
+  useSorceryPoints: (amount: number, reason?: string) => boolean;
+  restoreSorceryPoints: (amount: number) => void;
+  convertSlotToPoints: (slotLevel: number) => boolean;
+  createSlotFromPoints: (slotLevel: number) => boolean;
   
   // Casting
   castSpell: (spellId: string, spellName: string, baseLevel: number, castLevel: number, usePact: boolean, requiresConcentration: boolean, duration: string) => {
@@ -375,12 +419,18 @@ export function useClassSpellcasting(
 
   // Sync slots when level changes
   useEffect(() => {
+    // Get sorcery points config if this is a sorcerer
+    const sorceryConfig = primaryClass === 'sorcerer' 
+      ? getSorceryPointsForLevel(primaryLevel)
+      : null;
+
     setState(prev => ({
       ...prev,
       spellSlots: toTrackedSpellSlots(slotInfo.regularSlots),
       pactSlots: toTrackedPactSlots(slotInfo.pactSlots),
+      sorceryPoints: toTrackedSorceryPoints(sorceryConfig),
     }));
-  }, [slotInfo]);
+  }, [slotInfo, primaryClass, primaryLevel]);
 
   // Derived calculations
   const spellAttackBonus = state.abilityModifier + state.proficiencyBonus;
@@ -533,6 +583,146 @@ export function useClassSpellcasting(
       };
     });
   }, []);
+
+  // ============================================
+  // SORCERY POINT MANAGEMENT
+  // ============================================
+
+  // Derived sorcery point values
+  const hasSorceryPoints = primaryClass === 'sorcerer' && state.sorceryPoints !== null;
+  const sorceryPointsMax = state.sorceryPoints?.max ?? 0;
+  const sorceryPointsCurrent = state.sorceryPoints?.current ?? 0;
+
+  const useSorceryPoints = useCallback((amount: number, reason?: string): boolean => {
+    if (!state.sorceryPoints || state.sorceryPoints.current < amount) {
+      toast({
+        title: 'Insufficient Sorcery Points',
+        description: `Need ${amount} but only have ${state.sorceryPoints?.current ?? 0}.`,
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    setState(prev => ({
+      ...prev,
+      sorceryPoints: prev.sorceryPoints 
+        ? { ...prev.sorceryPoints, current: prev.sorceryPoints.current - amount }
+        : null,
+    }));
+
+    toast({
+      title: `⚡ ${amount} Sorcery Point${amount > 1 ? 's' : ''} Used`,
+      description: reason ?? 'Innate magic expended.',
+      className: 'border-red-500 bg-red-500/10',
+    });
+
+    return true;
+  }, [state.sorceryPoints, toast]);
+
+  const restoreSorceryPoints = useCallback((amount: number) => {
+    setState(prev => {
+      if (!prev.sorceryPoints) return prev;
+      const newCurrent = Math.min(prev.sorceryPoints.max, prev.sorceryPoints.current + amount);
+      return {
+        ...prev,
+        sorceryPoints: { ...prev.sorceryPoints, current: newCurrent },
+      };
+    });
+  }, []);
+
+  /**
+   * Font of Magic: Convert a spell slot to sorcery points
+   * Gain points equal to the slot's level
+   */
+  const convertSlotToPoints = useCallback((slotLevel: number): boolean => {
+    const slot = state.spellSlots[slotLevel];
+    if (!slot || slot.current <= 0) {
+      toast({
+        title: 'No Slot Available',
+        description: `No ${slotLevel}${slotLevel === 1 ? 'st' : slotLevel === 2 ? 'nd' : slotLevel === 3 ? 'rd' : 'th'}-level slot to convert.`,
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    if (!state.sorceryPoints) {
+      toast({
+        title: 'No Sorcery Points',
+        description: 'Only sorcerers can convert spell slots.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    const pointsGained = getPointsFromSlotLevel(slotLevel);
+    const newCurrent = Math.min(state.sorceryPoints.max, state.sorceryPoints.current + pointsGained);
+
+    setState(prev => ({
+      ...prev,
+      spellSlots: {
+        ...prev.spellSlots,
+        [slotLevel]: { ...prev.spellSlots[slotLevel], current: prev.spellSlots[slotLevel].current - 1 },
+      },
+      sorceryPoints: prev.sorceryPoints 
+        ? { ...prev.sorceryPoints, current: newCurrent }
+        : null,
+    }));
+
+    toast({
+      title: `🔄 Slot Converted`,
+      description: `Level ${slotLevel} slot → ${pointsGained} sorcery point${pointsGained > 1 ? 's' : ''}.`,
+      className: 'border-violet-500 bg-violet-500/10',
+    });
+
+    return true;
+  }, [state.spellSlots, state.sorceryPoints, toast]);
+
+  /**
+   * Font of Magic: Create a spell slot using sorcery points
+   * Costs vary by slot level (max 5th level)
+   */
+  const createSlotFromPoints = useCallback((slotLevel: number): boolean => {
+    const cost = getSlotCreationCost(slotLevel);
+    if (cost === null) {
+      toast({
+        title: 'Invalid Slot Level',
+        description: 'Can only create slots of 1st-5th level.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    if (!state.sorceryPoints || state.sorceryPoints.current < cost) {
+      toast({
+        title: 'Insufficient Sorcery Points',
+        description: `Creating a ${slotLevel}${slotLevel === 1 ? 'st' : slotLevel === 2 ? 'nd' : slotLevel === 3 ? 'rd' : 'th'}-level slot requires ${cost} points.`,
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    setState(prev => {
+      const currentSlot = prev.spellSlots[slotLevel] ?? { current: 0, max: 0 };
+      return {
+        ...prev,
+        spellSlots: {
+          ...prev.spellSlots,
+          [slotLevel]: { ...currentSlot, current: currentSlot.current + 1 },
+        },
+        sorceryPoints: prev.sorceryPoints 
+          ? { ...prev.sorceryPoints, current: prev.sorceryPoints.current - cost }
+          : null,
+      };
+    });
+
+    toast({
+      title: `✨ Slot Created`,
+      description: `${cost} sorcery points → Level ${slotLevel} slot.`,
+      className: 'border-indigo-500 bg-indigo-500/10',
+    });
+
+    return true;
+  }, [state.sorceryPoints, toast]);
 
   // Concentration
   const startConcentration = useCallback((spellId: string) => {
@@ -726,11 +916,18 @@ export function useClassSpellcasting(
         ? { ...prev.pactSlots, current: prev.pactSlots.max }
         : null;
 
+      // Restore sorcery points on long rest
+      const restoredSorceryPoints = prev.sorceryPoints 
+        ? { ...prev.sorceryPoints, current: prev.sorceryPoints.max }
+        : null;
+
+      const sorceryRestored = prev.sorceryPoints && prev.sorceryPoints.current < prev.sorceryPoints.max;
+
       toast({
         title: '☀️ Arcane Reserves Restored',
         description: activeCount > 0 
-          ? `All spell slots recovered. ${activeCount} active spell${activeCount > 1 ? 's' : ''} ended.`
-          : 'All spell slots have been recovered.',
+          ? `All spell slots${sorceryRestored ? ' and sorcery points' : ''} recovered. ${activeCount} active spell${activeCount > 1 ? 's' : ''} ended.`
+          : `All spell slots${sorceryRestored ? ' and sorcery points' : ''} have been recovered.`,
         className: 'border-indigo-500 bg-indigo-500/10',
       });
 
@@ -738,6 +935,7 @@ export function useClassSpellcasting(
         ...prev,
         spellSlots: restoredSlots,
         pactSlots: restoredPact,
+        sorceryPoints: restoredSorceryPoints,
         spellsCastToday: 0,
         concentratingOn: null,
         concentrationStartTime: undefined,
@@ -776,6 +974,11 @@ export function useClassSpellcasting(
     spellSaveDC,
     spellcastingAbility,
     totalSlotsRemaining,
+    // Sorcery Points
+    hasSorceryPoints,
+    sorceryPointsMax,
+    sorceryPointsCurrent,
+    // Preparation
     maxPreparedSpells,
     currentPreparedCount,
     canPrepareMore,
@@ -791,6 +994,12 @@ export function useClassSpellcasting(
     restoreSlot,
     usePactSlot,
     restorePactSlot,
+    // Sorcery Point management
+    useSorceryPoints,
+    restoreSorceryPoints,
+    convertSlotToPoints,
+    createSlotFromPoints,
+    // Other
     castSpell,
     dismissActiveSpell,
     startConcentration,
