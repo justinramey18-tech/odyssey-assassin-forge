@@ -21,6 +21,7 @@ import { MaterialComponentsPanel } from './MaterialComponentsPanel';
 import { ConcentrationCheckPanel } from './ConcentrationCheckPanel';
 import { ActiveSpellsPanel } from './ActiveSpellsPanel';
 import { SorceryPointsTracker } from './SorceryPointsTracker';
+import { ChannelDivinityTracker } from './ChannelDivinityTracker';
 
 // Background image
 import arcanaBackground from '@/assets/trees/arcana-wizards-mobile.jpg';
@@ -68,6 +69,12 @@ export function ClassSpellcastingScreen({
     restoreSorceryPoints,
     convertSlotToPoints,
     createSlotFromPoints,
+    // Channel Divinity
+    hasChannelDivinity,
+    channelDivinityMax,
+    channelDivinityCurrent,
+    useChannelDivinity,
+    restoreChannelDivinity,
     // Spell management
     learnSpell,
     forgetSpell,
@@ -242,6 +249,21 @@ export function ClassSpellcastingScreen({
               onCreateSlotFromPoints={createSlotFromPoints}
             />
             <span className="text-xs text-muted-foreground">Sorcery Points</span>
+          </div>
+        )}
+
+        {/* Channel Divinity (Cleric only) */}
+        {hasChannelDivinity && (
+          <div className="mt-3 flex items-center gap-2">
+            <ChannelDivinityTracker
+              current={channelDivinityCurrent}
+              max={channelDivinityMax}
+              clericLevel={characterLevel}
+              compact
+              onUseChannelDivinity={useChannelDivinity}
+              onRestoreChannelDivinity={restoreChannelDivinity}
+            />
+            <span className="text-xs text-muted-foreground">Channel Divinity</span>
           </div>
         )}
 
