@@ -51,6 +51,8 @@ interface ClassSpellcastingScreenProps {
   proficiencyBonus?: number;
   /** Whether proficient in CON saves */
   isProficientInConSaves?: boolean;
+  /** Callback to switch to a different class (or back to rogue paths) */
+  onChangeClass?: (classId: DnDClass) => void;
 }
 
 export function ClassSpellcastingScreen({
@@ -61,6 +63,7 @@ export function ClassSpellcastingScreen({
   conModifier = 0,
   proficiencyBonus = 2,
   isProficientInConSaves = false,
+  onChangeClass,
 }: ClassSpellcastingScreenProps) {
   const {
     state,
@@ -565,6 +568,18 @@ export function ClassSpellcastingScreen({
                         {classConfig.flavorText}
                       </p>
                     </div>
+                  )}
+
+                  {/* Change Class Button */}
+                  {onChangeClass && (
+                    <Button
+                      variant="outline"
+                      className="w-full border-muted-foreground/30 text-muted-foreground hover:text-foreground"
+                      onClick={() => onChangeClass('rogue')}
+                    >
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Change Magic Class
+                    </Button>
                   )}
                 </div>
               </CardContent>

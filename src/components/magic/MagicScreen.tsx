@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Wand2, Lock, Sparkles, BookOpen, Zap, Settings, Eye, X, RefreshCw, Package } from 'lucide-react';
+import { Wand2, Lock, Sparkles, BookOpen, Zap, Settings, Eye, X, RefreshCw, Package, GraduationCap } from 'lucide-react';
 import { MagicPath, PathConfig, SpellDefinition } from '@/lib/magic/types';
+import { DnDClass, ClassConfig } from '@/lib/classes/types';
+import { getSpellcasterClasses } from '@/lib/classes';
 import { PATH_LIST, getPathConfig } from '@/lib/magic/paths';
 import { getSpellById } from '@/lib/magic/spells';
 import { Button } from '@/components/ui/button';
@@ -29,6 +31,8 @@ interface MagicScreenProps {
   proficiencyBonus?: number;
   /** Whether proficient in CON saves */
   isProficientInConSaves?: boolean;
+  /** Callback to switch to a full caster class */
+  onChangeClass?: (classId: DnDClass) => void;
 }
 
 export function MagicScreen({ 
@@ -38,6 +42,7 @@ export function MagicScreen({
   conModifier = 0,
   proficiencyBonus = 2,
   isProficientInConSaves = false,
+  onChangeClass,
 }: MagicScreenProps) {
   const { 
     state, 
@@ -63,6 +68,7 @@ export function MagicScreen({
         characterLevel={characterLevel}
         characterName={characterName}
         onSelectPath={selectPath}
+        onChangeClass={onChangeClass}
       />
     );
   }
@@ -353,13 +359,17 @@ interface PathSelectionScreenProps {
   characterLevel: number;
   characterName: string;
   onSelectPath: (path: MagicPath) => void;
+  onChangeClass?: (classId: DnDClass) => void;
 }
 
 function PathSelectionScreen({ 
   characterLevel, 
   characterName, 
-  onSelectPath 
+  onSelectPath,
+  onChangeClass,
 }: PathSelectionScreenProps) {
+  const spellcasterClasses = getSpellcasterClasses();
+
   return (
     <div className="relative min-h-screen pb-24">
       {/* Background Image */}
@@ -379,21 +389,48 @@ function PathSelectionScreen({
         </p>
       </div>
 
-      {/* Path Cards */}
-      <div className="relative z-10 p-4 grid gap-4">
-        {PATH_LIST.map((path) => {
-          const isLocked = (path.id === 'hexblade' ? characterLevel < 1 : characterLevel < 3);
-          
-          return (
-            <PathCard
-              key={path.id}
-              path={path}
-              isLocked={isLocked}
-              onSelect={() => onSelectPath(path.id)}
-            />
-          );
-        })}
+      {/* Rogue Magic Path Cards */}
+      <div className="relative z-10 px-4 pt-4 pb-2">
+        <h2 className="font-cinzel text-xs uppercase tracking-widest text-muted-foreground mb-3 px-1">
+          Rogue Subclass Paths
+        </h2>
+        <div className="grid gap-4">
+          {PATH_LIST.map((path) => {
+            const isLocked = (path.id === 'hexblade' ? characterLevel < 1 : characterLevel < 3);
+            
+            return (
+              <PathCard
+                key={path.id}
+                path={path}
+                isLocked={isLocked}
+                onSelect={() => onSelectPath(path.id)}
+              />
+            );
+          })}
+        </div>
       </div>
+
+      {/* Full Caster Class Cards */}
+      {onChangeClass && (
+        <div className="relative z-10 px-4 pt-6 pb-4">
+          <div className="flex items-center gap-2 mb-3 px-1">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-muted-foreground/30 to-transparent" />
+            <span className="font-cinzel text-xs uppercase tracking-widest text-muted-foreground">
+              or switch to a full caster
+            </span>
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-muted-foreground/30 to-transparent" />
+          </div>
+          <div className="grid gap-3">
+            {spellcasterClasses.map((classConfig) => (
+              <ClassOptionCard
+                key={classConfig.id}
+                classConfig={classConfig}
+                onSelect={() => onChangeClass(classConfig.id)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -480,6 +517,64 @@ function PathCard({ path, isLocked, onSelect }: PathCardProps) {
             )}
           >
             {isLocked ? 'Locked (Level 3 Required)' : 'Choose This Path'}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ============================================
+// CLASS OPTION CARD (Full Caster)
+// ============================================
+
+const CLASS_THEME_COLORS: Record<string, { border: string; bg: string; text: string; accent: string }> = {
+  wizard: { border: 'border-blue-800/50', bg: 'from-blue-950/50', text: 'text-blue-400', accent: 'bg-blue-600' },
+  sorcerer: { border: 'border-red-800/50', bg: 'from-red-950/50', text: 'text-red-400', accent: 'bg-red-600' },
+  warlock: { border: 'border-purple-800/50', bg: 'from-purple-950/50', text: 'text-purple-400', accent: 'bg-purple-600' },
+  cleric: { border: 'border-amber-800/50', bg: 'from-amber-950/50', text: 'text-amber-400', accent: 'bg-amber-600' },
+  druid: { border: 'border-green-800/50', bg: 'from-green-950/50', text: 'text-green-400', accent: 'bg-green-600' },
+  bard: { border: 'border-pink-800/50', bg: 'from-pink-950/50', text: 'text-pink-400', accent: 'bg-pink-600' },
+};
+
+interface ClassOptionCardProps {
+  classConfig: ClassConfig;
+  onSelect: () => void;
+}
+
+function ClassOptionCard({ classConfig, onSelect }: ClassOptionCardProps) {
+  const theme = CLASS_THEME_COLORS[classConfig.id] ?? CLASS_THEME_COLORS.wizard;
+  const castingLabel = classConfig.spellcasting.type === 'pact' ? 'Pact' : 'Full';
+
+  return (
+    <Card className={cn("overflow-hidden transition-all hover:border-opacity-80", theme.border)}>
+      <CardContent className="p-0">
+        <div className={cn("p-4 flex items-center gap-3 bg-gradient-to-r to-transparent", theme.bg)}>
+          <div className={cn(
+            "w-10 h-10 rounded-full flex items-center justify-center border",
+            `${theme.accent}/30 border-current/50`
+          )}>
+            <GraduationCap className={cn("w-5 h-5", theme.text)} />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-cinzel text-lg">{classConfig.name}</h3>
+            <p className="text-xs text-muted-foreground">{classConfig.flavorText}</p>
+          </div>
+          <div className="text-right">
+            <div className={cn("text-xs font-mono", theme.text)}>
+              {classConfig.spellcasting.ability}
+            </div>
+            <div className="text-[10px] text-muted-foreground uppercase">
+              {castingLabel} Caster
+            </div>
+          </div>
+        </div>
+        <div className="px-4 pb-4">
+          <Button
+            onClick={onSelect}
+            className={cn("w-full mt-2", `${theme.accent} hover:opacity-90`)}
+          >
+            Switch to {classConfig.name}
           </Button>
         </div>
       </CardContent>
