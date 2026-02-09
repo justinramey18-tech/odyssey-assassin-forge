@@ -8,7 +8,7 @@ export * from './types';
 // School visual configs
 export * from './schools';
 
-// Path definitions
+// Path definitions (for Rogue MagicPath system)
 export * from './paths';
 
 // Spell database
@@ -22,3 +22,27 @@ export * from './durations';
 
 // Range and area utilities
 export * from './rangeUtils';
+
+// Full caster slot progression (avoid re-exporting conflicting names)
+export type { SpellSlotsByLevel } from './fullCasterSlots';
+export { 
+  FULL_CASTER_SLOTS,
+  getSpellSlotsForLevel,
+  getFullCasterMaxSpellLevel,
+} from './fullCasterSlots';
+
+// Pact magic (Warlock) slot progression (avoid re-exporting conflicting names)
+export type { PactSlots as PactSlotsConfig } from './pactMagicSlots';
+export { 
+  PACT_MAGIC_SLOTS,
+  getPactSlotsForLevel as getPactMagicSlotsForLevel,
+  pactSlotsRegenerateOnShortRest,
+} from './pactMagicSlots';
+
+// Multiclass spell slot calculation
+export type { MulticlassSpellSlots } from './multiclassSlots';
+export { 
+  getMulticlassSpellSlots,
+  getMulticlassMaxSpellLevel,
+  hasSpellcasting,
+} from './multiclassSlots';

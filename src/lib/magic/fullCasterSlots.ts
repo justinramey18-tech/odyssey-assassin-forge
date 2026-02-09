@@ -1,7 +1,11 @@
 // Full Caster Spell Slot Progression Table
 // D&D 5e PHB Table - Spell Slots per Spell Level
 
-export interface SpellSlotLevel {
+/**
+ * Slot counts by spell level for a caster
+ * Maps spell level (1-9) to number of slots
+ */
+export interface SpellSlotsByLevel {
   1?: number;
   2?: number;
   3?: number;
@@ -13,11 +17,14 @@ export interface SpellSlotLevel {
   9?: number;
 }
 
+// Re-export with original name for backward compatibility
+export type SpellSlotLevel = SpellSlotsByLevel;
+
 /**
  * Full caster spell slot progression (Wizard, Sorcerer, Cleric, Druid, Bard)
  * Key = caster level, Value = slots per spell level
  */
-export const FULL_CASTER_SLOTS: Record<number, SpellSlotLevel> = {
+export const FULL_CASTER_SLOTS: Record<number, SpellSlotsByLevel> = {
   1:  { 1: 2 },
   2:  { 1: 3 },
   3:  { 1: 4, 2: 2 },
@@ -43,15 +50,15 @@ export const FULL_CASTER_SLOTS: Record<number, SpellSlotLevel> = {
 /**
  * Get spell slots for a given caster level
  */
-export function getSpellSlotsForLevel(casterLevel: number): SpellSlotLevel {
+export function getSpellSlotsForLevel(casterLevel: number): SpellSlotsByLevel {
   const clampedLevel = Math.max(0, Math.min(casterLevel, 20));
   return FULL_CASTER_SLOTS[clampedLevel] ?? {};
 }
 
 /**
- * Get maximum spell level available at a caster level
+ * Get maximum spell level available at a caster level (full casters)
  */
-export function getMaxSpellLevel(casterLevel: number): number {
+export function getFullCasterMaxSpellLevel(casterLevel: number): number {
   if (casterLevel < 1) return 0;
   if (casterLevel < 3) return 1;
   if (casterLevel < 5) return 2;
@@ -63,3 +70,6 @@ export function getMaxSpellLevel(casterLevel: number): number {
   if (casterLevel < 17) return 8;
   return 9;
 }
+
+// Backward compatibility alias
+export const getMaxSpellLevel = getFullCasterMaxSpellLevel;
