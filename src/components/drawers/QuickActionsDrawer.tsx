@@ -1060,7 +1060,7 @@ export function QuickActionsDrawer({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent 
         side="bottom" 
-        className="h-[85vh] max-h-[85vh] rounded-t-xl flex flex-col p-0"
+        className="h-[100dvh] max-h-[100dvh] sm:h-[85vh] sm:max-h-[85vh] rounded-t-xl sm:rounded-t-xl flex flex-col p-0"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <div className="w-12 h-1 bg-muted rounded-full mx-auto mt-3 mb-1 shrink-0" />
