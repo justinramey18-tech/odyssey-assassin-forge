@@ -74,10 +74,10 @@ export function WildShapeLightningBorder({ cr }: CRProps) {
 
   const horizontalBolts = useMemo(() => {
     const all = [
-      { delay: 0.4, side: 'top' as Edge, path: 'M0,0 Q8,12 2,25 Q10,40 0,55 Q7,70 3,85 Q9,95 0,100' },
-      { delay: 1.1, side: 'top' as Edge, path: 'M0,10 Q6,22 1,38 Q9,50 3,65 Q8,80 0,92' },
-      { delay: 1.6, side: 'bottom' as Edge, path: 'M10,0 Q2,15 8,28 Q0,42 7,58 Q1,72 10,88 Q3,96 10,100' },
-      { delay: 0.9, side: 'bottom' as Edge, path: 'M10,5 Q4,18 9,32 Q1,48 6,62 Q2,78 10,93' },
+      { delay: 0.4, side: 'top' as Edge, path: 'M0,0 Q12,8 25,2 Q40,10 55,0 Q70,7 85,3 Q95,9 100,0' },
+      { delay: 1.1, side: 'top' as Edge, path: 'M5,0 Q18,6 30,1 Q45,9 60,3 Q78,8 90,0' },
+      { delay: 1.6, side: 'bottom' as Edge, path: 'M0,10 Q15,2 28,8 Q42,0 58,7 Q72,1 88,10 Q96,3 100,10' },
+      { delay: 0.9, side: 'bottom' as Edge, path: 'M5,10 Q18,4 32,9 Q48,1 62,6 Q78,2 93,10' },
     ];
     // Only show horizontal bolts above ~40% intensity (CR ~3+)
     if (intensity < 0.35) return [];
@@ -165,6 +165,7 @@ function EdgeGlow({ direction, opacity }: { direction: 'left' | 'right' | 'top' 
 
 function LightningBolt({ path, delay, orientation, intensity }: { path: string; delay: number; orientation: 'vertical' | 'horizontal'; intensity: number }) {
   const isHorizontal = orientation === 'horizontal';
+  const viewBox = isHorizontal ? '0 0 100 10' : '0 0 10 100';
 
   // Scale opacity peaks and pause duration with intensity
   const peakOpacity = 0.4 + intensity * 0.6; // 0.4–1.0
@@ -172,14 +173,9 @@ function LightningBolt({ path, delay, orientation, intensity }: { path: string; 
 
   return (
     <motion.svg
-      viewBox="0 0 10 100"
+      viewBox={viewBox}
       preserveAspectRatio="none"
-      className="absolute"
-      style={{
-        ...(isHorizontal
-          ? { top: 0, left: 0, width: '100%', height: '100%', transform: 'rotate(90deg) scaleY(-1)', transformOrigin: 'center center' }
-          : { top: 0, left: 0, width: '100%', height: '100%' }),
-      }}
+      className="absolute top-0 left-0 w-full h-full"
       initial={{ opacity: 0 }}
       animate={{ opacity: [0, peakOpacity * 0.9, peakOpacity, peakOpacity * 0.8, 0, 0, 0] }}
       transition={{
