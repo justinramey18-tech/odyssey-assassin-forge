@@ -8,6 +8,7 @@ import { FOURTH_LEVEL_SPELLS, getFourthLevelSpellsByPath } from './4th-level';
 import { FIFTH_LEVEL_SPELLS, getFifthLevelSpellsByPath } from './5th-level';
 import { WIZARD_SPELLS } from './wizard-spells';
 import { SORCERER_SPELLS } from './sorcerer-spells';
+import { WARLOCK_SPELLS } from './warlock-spells';
 import { SpellFilter, SpellListResult, SpellRegistry } from './types';
 
 // ============================================
@@ -25,6 +26,7 @@ export const ALL_SPELLS: SpellDefinition[] = [
   // Full caster class spells
   ...WIZARD_SPELLS,
   ...SORCERER_SPELLS,
+  ...WARLOCK_SPELLS,
 ];
 
 export const SPELL_REGISTRY: SpellRegistry = ALL_SPELLS.reduce((acc, spell) => {
