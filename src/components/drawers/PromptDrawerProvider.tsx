@@ -24,6 +24,7 @@ import { useCooldowns } from '@/hooks/use-cooldowns';
 import { useConditions, UseConditionsReturn } from '@/hooks/use-conditions';
 import { Personality } from '@/components/oracle/types';
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
+import { UseWildShapeReturn } from '@/hooks/use-wild-shape';
 import { AbilityName, BaseAbilityScores, AbilityScoreBreakdown } from '@/lib/abilityScores/types';
 
 interface PromptDrawerContextValue {
@@ -88,6 +89,8 @@ interface PromptDrawerProviderProps {
   prestigeAbilities?: string[];
   // Spellcasting
   spellcasting?: UseSpellcastingReturn;
+  // Wild Shape
+  wildShape?: UseWildShapeReturn;
   // Ability Scores
   baseScores?: BaseAbilityScores;
   getScoreBreakdown?: (ability: AbilityName) => AbilityScoreBreakdown;
@@ -130,6 +133,7 @@ export function PromptDrawerProvider({
   prestigeLevel = 0,
   prestigeAbilities = [],
   spellcasting,
+  wildShape,
   // Ability Scores
   baseScores,
   getScoreBreakdown,
@@ -418,6 +422,7 @@ export function PromptDrawerProvider({
             characterName={character.name}
             consumablesInventory={consumables}
             onUseConsumable={onUseConsumable}
+            wildShape={wildShape}
           />
         </>
       )}

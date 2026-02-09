@@ -1,11 +1,11 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Swords, Sparkles, Zap, Wand2, 
   ChevronDown, Copy, Check, Timer, Shield, Play, Dices, Target,
-  Beaker, Skull, ScrollText, FlaskConical
+  Beaker, Skull, ScrollText, FlaskConical, PawPrint, Clock, Heart
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -18,6 +18,8 @@ import { InventoryItem, typeConfig as consumableTypeConfig } from '@/lib/consuma
 import { generateConsumablePrompt } from '@/lib/consumables/prompts';
 import { getSpellById } from '@/lib/magic/spells';
 import { SpellDefinition } from '@/lib/magic/types';
+import { UseWildShapeReturn } from '@/hooks/use-wild-shape';
+import { formatCR } from '@/lib/magic/wildShape';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
 import { applyOverrides, homebrewToAbility } from '@/lib/abilityCustomization/utils';
 import { isLegacyAbilityId, resolveLegacyAbility } from '@/lib/prestigeTree/abilityConverter';
@@ -57,6 +59,7 @@ interface QuickActionsDrawerProps {
   characterName: string;
   consumablesInventory?: InventoryItem[];
   onUseConsumable?: (consumableId: string) => boolean;
+  wildShape?: UseWildShapeReturn;
 }
 
 // ── Prompt generators (static, no roll data) ──
@@ -488,6 +491,219 @@ function CategoryHeader({
   );
 }
 
+// ── Wild Shape Status Bar ──
+
+function WildShapeStatusBar({ wildShape }: { wildShape: UseWildShapeReturn }) {
+  const [, setTick] = useState(0);
+
+  // Tick every 30s for live timer
+  useEffect(() => {
+    if (!wildShape.state.isTransformed || !wildShape.state.transformDurationMinutes) return;
+    const interval = setInterval(() => setTick(t => t + 1), 30000);
+    return () => clearInterval(interval);
+  }, [wildShape.state.isTransformed, wildShape.state.transformDurationMinutes]);
+
+  const remaining = wildShape.getRemainingDuration();
+  const formatDuration = (mins: number): string => {
+    const h = Math.floor(mins / 60);
+    const m = Math.floor(mins % 60);
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  };
+
+  return (
+    <div className="mx-4 mb-2 px-3 py-2 rounded-lg bg-green-500/10 border border-green-500/20 shrink-0">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <PawPrint className="w-4 h-4 text-green-400" />
+          <span className="text-xs font-mono text-green-300">
+            {wildShape.state.isTransformed
+              ? `🐻 ${wildShape.state.currentForm?.name ?? 'Beast Form'}`
+              : 'Wild Shape'}
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          {/* Uses */}
+          <div className="flex items-center gap-1">
+            {Array.from({ length: wildShape.state.maxUses }).map((_, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "w-2 h-2 rounded-full",
+                  i < wildShape.state.usesRemaining ? "bg-green-400" : "bg-muted/40"
+                )}
+              />
+            ))}
+            <span className="text-[10px] text-muted-foreground ml-0.5">
+              {wildShape.state.usesRemaining}/{wildShape.state.maxUses}
+            </span>
+          </div>
+          {/* Timer */}
+          {wildShape.state.isTransformed && remaining !== null && (
+            <div className="flex items-center gap-1">
+              <Clock className={cn("w-3 h-3", remaining <= 10 ? "text-amber-400" : "text-green-400")} />
+              <span className={cn("text-[10px] font-mono", remaining <= 10 ? "text-amber-400" : "text-green-300")}>
+                {formatDuration(remaining)}
+              </span>
+            </div>
+          )}
+          {/* Beast HP */}
+          {wildShape.state.isTransformed && (
+            <div className="flex items-center gap-1">
+              <Heart className="w-3 h-3 text-green-400" />
+              <span className="text-[10px] font-mono text-green-300">
+                {wildShape.state.formHP}/{wildShape.state.formMaxHP}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Wild Shape Beast Form Section ──
+
+function WildShapeSection({ wildShape, characterName }: { wildShape: UseWildShapeReturn; characterName: string }) {
+  const handleTransform = useCallback((form: any) => {
+    wildShape.transform(form);
+  }, [wildShape]);
+
+  const handleRevert = useCallback(() => {
+    wildShape.revert();
+  }, [wildShape]);
+
+  if (wildShape.state.isTransformed && wildShape.state.currentForm) {
+    const form = wildShape.state.currentForm;
+    return (
+      <Collapsible defaultOpen className="group">
+        <CollapsibleTrigger className="w-full">
+          <CategoryHeader icon={PawPrint} label="Wild Shape" count={1} color="bg-green-500/20 text-green-400" />
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="space-y-1 pl-2 pr-1 pb-2">
+            <div className="px-3 py-3 rounded-lg bg-green-500/10 border border-green-500/30">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <PawPrint className="w-4 h-4 text-green-400" />
+                  <span className="text-sm font-semibold text-green-300">{form.name}</span>
+                  <span className="text-[10px] text-muted-foreground font-mono">CR {formatCR(form.cr)}</span>
+                </div>
+                <button
+                  onClick={handleRevert}
+                  className="px-2.5 py-1 rounded-md bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[11px] font-semibold hover:bg-amber-500/25 active:scale-95 transition-all"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  Dismiss
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center mb-2">
+                <div className="bg-card/40 rounded px-2 py-1">
+                  <p className="text-[10px] text-muted-foreground">HP</p>
+                  <p className="text-sm font-bold text-green-400">{wildShape.state.formHP}/{wildShape.state.formMaxHP}</p>
+                </div>
+                <div className="bg-card/40 rounded px-2 py-1">
+                  <p className="text-[10px] text-muted-foreground">AC</p>
+                  <p className="text-sm font-bold">{form.ac}</p>
+                </div>
+                <div className="bg-card/40 rounded px-2 py-1">
+                  <p className="text-[10px] text-muted-foreground">Speed</p>
+                  <p className="text-[11px] font-medium">{form.speed}</p>
+                </div>
+              </div>
+              {form.specialAbilities && form.specialAbilities.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {form.specialAbilities.map(ab => (
+                    <span key={ab} className="text-[10px] px-1.5 py-0.5 bg-green-500/10 border border-green-500/20 rounded text-green-300">
+                      {ab}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end px-1">
+              <CopyButton text={applyTimePrefix(
+                `## 🐻 Wild Shape: ${form.name}\n\n**Character:** ${characterName}\n**Form:** ${form.name} (CR ${formatCR(form.cr)})\n**HP:** ${wildShape.state.formHP}/${wildShape.state.formMaxHP} · **AC:** ${form.ac}\n**Speed:** ${form.speed}\n${form.specialAbilities ? `**Abilities:** ${form.specialAbilities.join(', ')}\n` : ''}\nNarrate ${characterName} in their ${form.name} form. Describe the beast's movements, senses, and primal power.`
+              )} />
+            </div>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  }
+
+  const forms = wildShape.availableForms;
+  const elementals = wildShape.elementalForms;
+  const totalForms = forms.length + elementals.length;
+
+  return (
+    <Collapsible className="group">
+      <CollapsibleTrigger className="w-full">
+        <CategoryHeader icon={PawPrint} label="Wild Shape" count={totalForms} color="bg-green-500/20 text-green-400" />
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="space-y-1 pl-2 pr-1 pb-2">
+          {!wildShape.canTransform && (
+            <p className="text-xs text-muted-foreground text-center py-2">
+              {wildShape.state.usesRemaining <= 0 ? 'No uses remaining. Take a rest to recover.' : 'Wild Shape unavailable.'}
+            </p>
+          )}
+          {forms.map(form => (
+            <button
+              key={form.id}
+              onClick={() => handleTransform(form)}
+              disabled={!wildShape.canTransform}
+              className={cn(
+                "w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-colors text-left",
+                wildShape.canTransform
+                  ? "bg-card/40 border-border/30 hover:bg-green-500/10 hover:border-green-500/30 active:bg-green-500/15"
+                  : "bg-card/40 border-border/30 opacity-50 cursor-not-allowed"
+              )}
+              style={{ touchAction: 'manipulation' }}
+            >
+              <PawPrint className="w-4 h-4 text-green-400 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-medium truncate">{form.name}</p>
+                  <span className="text-[10px] text-green-400/70 font-mono">CR {formatCR(form.cr)}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  HP {form.hp} · AC {form.ac} · {form.speed}
+                </p>
+              </div>
+            </button>
+          ))}
+          {elementals.map(form => (
+            <button
+              key={form.id}
+              onClick={() => wildShape.transformElemental(form)}
+              disabled={wildShape.state.usesRemaining < 2 || wildShape.state.isTransformed}
+              className={cn(
+                "w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-colors text-left",
+                wildShape.state.usesRemaining >= 2
+                  ? "bg-card/40 border-orange-500/30 hover:bg-orange-500/10 active:bg-orange-500/15"
+                  : "bg-card/40 border-border/30 opacity-50 cursor-not-allowed"
+              )}
+              style={{ touchAction: 'manipulation' }}
+            >
+              <PawPrint className="w-4 h-4 text-orange-400 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-medium truncate">{form.name}</p>
+                  <span className="text-[10px] text-orange-400/70 font-mono">CR {formatCR(form.cr)}</span>
+                  <span className="text-[10px] text-orange-400 font-mono">2 uses</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  HP {form.hp} · AC {form.ac} · {form.speed}
+                </p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
 export function QuickActionsDrawer({
   open,
   onOpenChange,
@@ -498,6 +714,7 @@ export function QuickActionsDrawer({
   characterName,
   consumablesInventory = [],
   onUseConsumable,
+  wildShape,
 }: QuickActionsDrawerProps) {
   // Track which item has an active inline roll
   const [activeRoll, setActiveRoll] = useState<{ 
@@ -709,8 +926,18 @@ export function QuickActionsDrawer({
           </div>
         )}
 
+        {/* Wild Shape Status Bar */}
+        {wildShape && wildShape.config && (
+          <WildShapeStatusBar wildShape={wildShape} />
+        )}
+
         <ScrollArea className="flex-1 px-4 pb-6">
           <div className="space-y-1.5">
+
+            {/* ── WILD SHAPE (Druid only) ── */}
+            {wildShape && wildShape.config && (
+              <WildShapeSection wildShape={wildShape} characterName={characterName} />
+            )}
 
             {/* ── BASICS (Weapons / Actions) ── */}
             <Collapsible className="group">
