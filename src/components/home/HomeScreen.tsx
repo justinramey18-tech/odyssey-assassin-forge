@@ -32,7 +32,7 @@ import { EnlargedD20Section } from './EnlargedD20Section';
 import { CloudSyncStatusWidget } from './CloudSyncStatusWidget';
 import { PrimaryNavigationCards } from './PrimaryNavigationCards';
 import { BackgroundUploadButton } from './BackgroundUploadButton';
-import { WildShapeLightningBorder, CRScaledPulse } from './WildShapeLightningBorder';
+import { WildShapeLightningBorder, CRScaledPulse, TransformationBurst } from './WildShapeLightningBorder';
 import { XPProgressBar } from './XPProgressBar';
 import { PrestigeData } from '@/lib/prestige';
 import { PRESTIGE_CONFIG } from '@/lib/prestige/config';
@@ -367,6 +367,13 @@ export function HomeScreen({
             {/* DBZ-style crackling lightning on all edges — scales with CR */}
             <WildShapeLightningBorder cr={wildShapeFormCR ?? 0} />
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* One-shot transformation burst (flash + shake) for high-CR forms */}
+      <AnimatePresence>
+        {hasWildShapeBg && (
+          <TransformationBurst key={`burst-${wildShapeFormName}`} cr={wildShapeFormCR ?? 0} />
         )}
       </AnimatePresence>
 
