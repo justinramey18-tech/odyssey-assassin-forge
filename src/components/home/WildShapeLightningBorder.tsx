@@ -226,3 +226,44 @@ function LightningBolt({ path, delay, orientation, intensity }: { path: string; 
     </motion.svg>
   );
 }
+
+/**
+ * One-shot transformation burst: white flash + screen shake.
+ * Scales with CR — subtle at low CR, dramatic at high CR.
+ * Plays once on mount, then removes itself.
+ */
+export function TransformationBurst({ cr }: CRProps) {
+  const intensity = crToIntensity(cr);
+
+  // Flash opacity: barely visible at low CR, blinding at high CR
+  const flashPeak = 0.1 + intensity * 0.5; // 0.1–0.6
+  // Shake magnitude in pixels
+  const shakePx = Math.round(1 + intensity * 5); // 1–6px
+  // Duration scales slightly with intensity
+  const duration = 0.3 + intensity * 0.3; // 0.3–0.6s
+
+  // Build a rapid shake sequence
+  const shakeX = [0, -shakePx, shakePx, -shakePx * 0.6, shakePx * 0.4, 0];
+  const shakeY = [0, shakePx * 0.5, -shakePx * 0.3, shakePx * 0.4, -shakePx * 0.2, 0];
+
+  return (
+    <>
+      {/* Flash overlay */}
+      <motion.div
+        className="fixed inset-0 z-[60] pointer-events-none"
+        style={{ background: `radial-gradient(ellipse at center, rgba(34,197,94,0.8), rgba(202,178,52,0.4), transparent 70%)` }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: [0, flashPeak, flashPeak * 0.3, 0] }}
+        transition={{ duration: duration + 0.2, ease: 'easeOut', times: [0, 0.15, 0.5, 1] }}
+      />
+
+      {/* Screen shake — applied to a full-screen wrapper that nudges the viewport */}
+      <motion.div
+        className="fixed inset-0 z-[59] pointer-events-none"
+        initial={{ x: 0, y: 0 }}
+        animate={{ x: shakeX, y: shakeY }}
+        transition={{ duration, ease: 'easeOut' }}
+      />
+    </>
+  );
+}
