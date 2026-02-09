@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useCallback } from 'react';
+import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Character, getAbilityPointsForLevel, getTotalPointsSpent } from '@/lib/types';
 import { CharacterEquipment } from '@/lib/inventory';
@@ -160,6 +160,24 @@ export function HomeScreen({
   onDismissWildShape,
 }: HomeScreenProps) {
   const isMobile = useIsMobile();
+
+  // CR-scaled haptic burst on Wild Shape activation
+  const wasWildShape = useRef(false);
+  useEffect(() => {
+    if (isWildShape && !wasWildShape.current && 'vibrate' in navigator) {
+      const cr = wildShapeFormCR ?? 0;
+      if (cr <= 2) {
+        navigator.vibrate(15);
+      } else if (cr <= 6) {
+        navigator.vibrate([20, 30, 25]);
+      } else if (cr <= 12) {
+        navigator.vibrate([30, 20, 35, 20, 30]);
+      } else {
+        navigator.vibrate([40, 15, 50, 15, 40, 15, 50]);
+      }
+    }
+    wasWildShape.current = isWildShape;
+  }, [isWildShape, wildShapeFormCR]);
   const stats = useEquipmentStats(equipment);
   const multiplier = XP_PRESETS[xpPreset].multiplier;
   const [showDrawersMenu, setShowDrawersMenu] = useState(false);
