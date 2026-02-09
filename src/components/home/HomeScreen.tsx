@@ -87,6 +87,9 @@ interface HomeScreenProps {
   onCloudSyncClick?: () => void;
   // Character saves drawer props
   onLoadSave?: (data: SaveData) => void;
+  // Wild Shape props
+  isWildShape?: boolean;
+  wildShapeFormName?: string;
 }
 
 // Haptic feedback helper
@@ -126,6 +129,8 @@ export function HomeScreen({
   isCloudSyncing = false,
   onCloudSyncClick,
   onLoadSave,
+  isWildShape = false,
+  wildShapeFormName,
 }: HomeScreenProps) {
   const isMobile = useIsMobile();
   const stats = useEquipmentStats(equipment);
@@ -383,6 +388,8 @@ export function HomeScreen({
               initiative={initiativeModifier}
               onTap={() => drawerContext?.openStatsDrawer()}
               onInitiativeClick={handleInitiativeRoll}
+              isWildShape={isWildShape}
+              wildShapeFormName={wildShapeFormName}
             />
 
             {/* XP Progress Bar - Synced with Skills Tab */}

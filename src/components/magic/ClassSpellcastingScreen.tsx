@@ -26,7 +26,7 @@ import { ChannelDivinityTracker } from './ChannelDivinityTracker';
 import { WildShapeTracker } from './WildShapeTracker';
 import { DruidCirclePanel } from './DruidCirclePanel';
 import { ClericDomainPanel } from './ClericDomainPanel';
-import { useWildShape } from '@/hooks/use-wild-shape';
+import { UseWildShapeReturn } from '@/hooks/use-wild-shape';
 import { DruidCircle, LandType } from '@/lib/classes/druidCircles';
 import { ClericDomain, getDomainChannelDivinity } from '@/lib/classes/clericDomains';
 import { useInvocations } from '@/hooks/use-invocations';
@@ -54,6 +54,8 @@ interface ClassSpellcastingScreenProps {
   isProficientInConSaves?: boolean;
   /** Callback to switch to a different class (or back to rogue paths) */
   onChangeClass?: (classId: DnDClass) => void;
+  /** Wild Shape instance passed from Index.tsx (prevents duplicate hooks) */
+  wildShapeInstance?: UseWildShapeReturn;
 }
 
 export function ClassSpellcastingScreen({
@@ -65,6 +67,7 @@ export function ClassSpellcastingScreen({
   proficiencyBonus = 2,
   isProficientInConSaves = false,
   onChangeClass,
+  wildShapeInstance,
 }: ClassSpellcastingScreenProps) {
   const {
     state,
@@ -145,13 +148,10 @@ export function ClassSpellcastingScreen({
   // Get class configuration
   const classConfig = CLASS_REGISTRY[primaryClass];
 
-  // Wild Shape for Druids (pass circle for Moon enhancements)
-  const wildShape = useWildShape(
-    primaryClass === 'druid' ? characterLevel : 0,
-    primaryClass === 'druid' ? druidCircle : null
-  );
+  // Wild Shape for Druids - use instance from Index.tsx if provided, prevents duplicate state
+  const wildShape = wildShapeInstance!;
   const isDruid = primaryClass === 'druid';
-  const hasWildShape = isDruid && characterLevel >= 2;
+  const hasWildShape = isDruid && characterLevel >= 2 && wildShapeInstance != null;
 
   // Warlock flags
   const isWarlock = primaryClass === 'warlock';

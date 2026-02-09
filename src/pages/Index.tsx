@@ -82,6 +82,8 @@ import { useTargets } from '@/hooks/use-targets';
 import { useCombatLog } from '@/hooks/use-combat-log';
 import { useInitiative } from '@/hooks/use-initiative';
 import { useCombatStats } from '@/hooks/use-combat-stats';
+import { useWildShape } from '@/hooks/use-wild-shape';
+import { DruidCircle } from '@/lib/classes/druidCircles';
 
 // Stable empty object to prevent re-renders from `character.multiclassLevels ?? {}`
 const EMPTY_MULTICLASS_LEVELS: Record<string, never> = {};
@@ -362,6 +364,27 @@ const Index = () => {
   
   // Determine if character is using Rogue class (legacy Magic Path system)
   const isRogueClass = (character.primaryClass ?? 'rogue') === 'rogue';
+
+  // Wild Shape - lifted to app level for cross-tab sync
+  const druidCircle = useMemo<DruidCircle | null>(() => {
+    try {
+      const saved = localStorage.getItem('dnd-druid-circle');
+      return saved as DruidCircle | null;
+    } catch { return null; }
+  }, []);
+  const isDruidClass = (character.primaryClass ?? 'rogue') === 'druid';
+  const wildShape = useWildShape(
+    isDruidClass ? character.level : 0,
+    isDruidClass ? druidCircle : null
+  );
+
+  // Effective HP/AC values that auto-switch between beast and character stats
+  const effectiveCurrentHP = wildShape.state.isTransformed ? wildShape.state.formHP : hpState.current;
+  const effectiveMaxHP = wildShape.state.isTransformed ? wildShape.state.formMaxHP : hpState.max;
+  const effectiveTempHP = wildShape.state.isTransformed ? 0 : hpState.temp;
+  const effectiveAC = wildShape.state.isTransformed && wildShape.state.currentForm
+    ? wildShape.state.currentForm.ac
+    : aggregatedStats.totalAC;
   
   // Spellcasting system for Rogue (Magic Paths - uses ability scores for auto-calculation)
   const spellcasting = useSpellcasting(character.level, character.name, {
@@ -431,8 +454,29 @@ const Index = () => {
   const { toast } = useToast();
   const { requiresOrganicLevelUp, requiresGearUnlocks, rerollsDisabled, infinityStonesLocked } = useGameMode();
   
-  // HP change handler with localStorage persistence and concentration check
+  // HP change handler with localStorage persistence, concentration check, and Wild Shape routing
   const handleHPChange = useCallback((current: number, max: number, temp: number) => {
+    // If transformed, route damage through Wild Shape
+    if (wildShape.state.isTransformed) {
+      const previousFormHP = wildShape.state.formHP;
+      const damageTaken = previousFormHP - current;
+      
+      if (damageTaken > 0) {
+        const result = wildShape.takeDamage(damageTaken);
+        if (result.reverted && result.overflow > 0) {
+          // Overflow damage applies to real character HP
+          const newCharHP = Math.max(0, hpState.current - result.overflow);
+          const newState = { current: newCharHP, max: hpState.max, temp: hpState.temp };
+          setHpState(newState);
+          localStorage.setItem('odyssey-hp-state', JSON.stringify(newState));
+        }
+      } else if (damageTaken < 0) {
+        // Healing in beast form
+        wildShape.heal(Math.abs(damageTaken));
+      }
+      return;
+    }
+
     const previousTotal = hpState.current + hpState.temp;
     const newTotal = current + temp;
     const damageTaken = previousTotal - newTotal;
@@ -483,7 +527,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         duration: 8000,
       });
     }
-  }, [deathSaves, hpState, character.name, toast]);
+  }, [deathSaves, hpState, character.name, toast, wildShape]);
   // Auto-update max HP when calculation changes (level up, CON change, prestige)
   useEffect(() => {
     if (calculatedMaxHP !== hpState.max) {
@@ -1120,6 +1164,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     // Restore pact slots
     spellcasting.onShortRest();
     
+    // Wild Shape rest (revert and restore uses)
+    wildShape.onShortRest();
+    
     toast({
       title: "☕ Short Rest Complete",
       description: actualHealed > 0 
@@ -1147,6 +1194,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     
     // Restore all spell slots
     spellcasting.onLongRest();
+    
+    // Wild Shape rest (revert and restore uses)
+    wildShape.onLongRest();
     
     toast({
       title: "🌙 Long Rest Complete", 
@@ -1532,10 +1582,10 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         xpPreset={xpPreset}
         onAddXP={handleAddXP}
         equipment={equipment}
-        currentHP={hpState.current}
-        maxHP={hpState.max}
-        tempHP={hpState.temp}
-        onHPChange={(current, temp) => handleHPChange(current, hpState.max, temp)}
+        currentHP={effectiveCurrentHP}
+        maxHP={effectiveMaxHP}
+        tempHP={effectiveTempHP}
+        onHPChange={(current, temp) => handleHPChange(current, wildShape.state.isTransformed ? effectiveMaxHP : hpState.max, temp)}
         consumables={consumablesInventory}
         onUseConsumable={useConsumableItem}
         prestigeLevel={prestigeData.prestigeLevel}
@@ -1579,11 +1629,13 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
             setSettingsInitialTab('faq');
             setShowSettingsModal(true);
           }}
-          currentHP={hpState.current}
-          maxHP={hpState.max}
-          tempHP={hpState.temp}
+          currentHP={effectiveCurrentHP}
+          maxHP={effectiveMaxHP}
+          tempHP={effectiveTempHP}
           shopItems={shop.shopItems}
           initiativeModifier={combatStats.initiativeBonus}
+          isWildShape={wildShape.state.isTransformed}
+          wildShapeFormName={wildShape.state.currentForm?.name}
           customBackground={customBackground.customBackground}
           onCustomBackgroundUpload={customBackground.handleImageUpload}
           onCustomBackgroundClear={customBackground.clearCustomBackground}
@@ -1624,10 +1676,10 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       xpPreset={xpPreset}
       onAddXP={handleAddXP}
       equipment={equipment}
-      currentHP={hpState.current}
-      maxHP={hpState.max}
-      tempHP={hpState.temp}
-      onHPChange={(current, temp) => handleHPChange(current, hpState.max, temp)}
+        currentHP={effectiveCurrentHP}
+        maxHP={effectiveMaxHP}
+        tempHP={effectiveTempHP}
+        onHPChange={(current, temp) => handleHPChange(current, wildShape.state.isTransformed ? effectiveMaxHP : hpState.max, temp)}
       consumables={consumablesInventory}
       onUseConsumable={useConsumableItem}
       prestigeLevel={prestigeData.prestigeLevel}
@@ -1659,9 +1711,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         currentXP={currentXP} 
         prestigeData={prestigeData}
         availableAbilityPoints={availableAbilityPoints}
-        currentHP={hpState.current}
-        maxHP={hpState.max}
-        tempHP={hpState.temp}
+        currentHP={effectiveCurrentHP}
+        maxHP={effectiveMaxHP}
+        tempHP={effectiveTempHP}
         deathSaves={deathSaves}
         onHPChange={handleHPChange}
         onDeathSavesChange={handleDeathSavesChange}
@@ -1702,9 +1754,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
               onNavigateToConsumables={handleNavigateToConsumables}
               equipmentStats={aggregatedStats}
               abilityModifiers={abilityScores.finalModifiers}
-              currentHP={hpState.current}
-              maxHP={hpState.max}
-              tempHP={hpState.temp}
+              currentHP={effectiveCurrentHP}
+              maxHP={effectiveMaxHP}
+              tempHP={effectiveTempHP}
               actionEconomyState={actionEconomy}
               globalConditions={convertConditionsToPromptFormat(conditions.conditions)}
               activeSetBonuses={convertSetBonusesToPromptFormat(aggregatedStats.activeSetBonuses)}
@@ -1857,6 +1909,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
                   onChangeClass={(classId) => {
                     setCharacter(prev => ({ ...prev, primaryClass: classId }));
                   }}
+                  wildShapeInstance={wildShape}
                 />
               )}
             </BackgroundWrapper>
