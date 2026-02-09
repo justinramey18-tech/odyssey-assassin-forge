@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Heart, Sparkles, Plus, Minus, Shield, Zap, Swords, Weight, Target, Eye, Save, Move, Gem, Info, ChevronDown, ChevronUp, Users } from 'lucide-react';
+import { Heart, Sparkles, Plus, Minus, Shield, Zap, Swords, Weight, Target, Eye, Save, Move, Gem, Info, ChevronDown, ChevronUp, Users, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { EdgeDrawer } from './EdgeDrawer';
@@ -203,17 +203,36 @@ export function StatsDrawer({
     );
   };
 
+  if (!open) return null;
+
   return (
-    <EdgeDrawer
-      side="left"
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Stats"
-      icon={<Heart className="w-5 h-5" />}
-      accentColor="#ef4444"
-    >
-      <ScrollArea className="h-[calc(100vh-120px)]">
-        <div className="space-y-6 pr-2">
+    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+      {/* Header with close button */}
+      <div 
+        className="flex items-center justify-between p-4 border-b"
+        style={{ borderColor: '#ef444430' }}
+      >
+        <div className="flex items-center gap-3">
+          <span 
+            className="w-8 h-8 rounded-lg flex items-center justify-center"
+            style={{ backgroundColor: '#ef444420', color: '#ef4444' }}
+          >
+            <Heart className="w-5 h-5" />
+          </span>
+          <h2 className="text-lg font-cinzel" style={{ color: '#ef4444' }}>Stats</h2>
+        </div>
+        <button
+          onClick={() => onOpenChange(false)}
+          className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-muted/50 transition-colors"
+          aria-label="Close stats"
+        >
+          <X className="w-6 h-6 text-muted-foreground" />
+        </button>
+      </div>
+
+      {/* Scrollable content */}
+      <ScrollArea className="flex-1">
+        <div className="space-y-6 p-4">
           {/* Equipment Stats Section */}
           {equipmentStats && (
             <div className="space-y-3">
@@ -598,6 +617,6 @@ export function StatsDrawer({
           )}
         </div>
       </ScrollArea>
-    </EdgeDrawer>
+    </div>
   );
 }
