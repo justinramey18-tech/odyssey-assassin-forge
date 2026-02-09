@@ -57,8 +57,10 @@ export function useWildShape(druidLevel: number, circle: DruidCircle | null = nu
   const moonConfig = circle === 'moon' ? getMoonCircleWildShape(druidLevel) : null;
   
   // Use Moon Circle config if available, otherwise base
+  // Moon Circle at level 18+ gets 3 uses to support dragon transformation (costs 3)
+  const moonMaxUses = (circle === 'moon' && druidLevel >= 18) ? 3 : (baseConfig?.maxUses ?? 0);
   const config = moonConfig ? {
-    maxUses: baseConfig?.maxUses ?? 0,
+    maxUses: moonMaxUses,
     maxCR: moonConfig.maxCR,
     canSwim: moonConfig.canSwim,
     canFly: moonConfig.canFly,

@@ -543,7 +543,11 @@ export function ClassSpellcastingScreen({
                 formMaxHP={wildShape.state.formMaxHP}
                 config={wildShape.config}
                 availableForms={wildShape.availableForms}
+                elementalForms={wildShape.elementalForms}
+                dragonForms={wildShape.dragonForms}
                 onTransform={wildShape.transform}
+                onTransformElemental={wildShape.transformElemental}
+                onTransformDragon={wildShape.transformDragon}
                 onRevert={() => wildShape.revert()}
                 onRestoreUse={wildShape.restoreUse}
               />

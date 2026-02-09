@@ -37,6 +37,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { BeastForm, formatCR, WildShapeConfig } from '@/lib/magic/wildShape';
+import { ElementalForm, DragonForm } from '@/lib/classes/druidCircles';
 
 interface WildShapeTrackerProps {
   usesRemaining: number;
@@ -47,8 +48,12 @@ interface WildShapeTrackerProps {
   formMaxHP: number;
   config: WildShapeConfig | null;
   availableForms: BeastForm[];
+  elementalForms?: ElementalForm[];
+  dragonForms?: DragonForm[];
   compact?: boolean;
   onTransform: (form: BeastForm) => void;
+  onTransformElemental?: (form: ElementalForm) => boolean;
+  onTransformDragon?: (form: DragonForm) => boolean;
   onRevert: () => void;
   onRestoreUse?: () => void;
 }
@@ -62,8 +67,12 @@ export function WildShapeTracker({
   formMaxHP,
   config,
   availableForms,
+  elementalForms,
+  dragonForms,
   compact = false,
   onTransform,
+  onTransformElemental,
+  onTransformDragon,
   onRevert,
   onRestoreUse,
 }: WildShapeTrackerProps) {
@@ -322,6 +331,68 @@ export function WildShapeTracker({
                         </CollapsibleContent>
                       </Collapsible>
                     ))}
+
+                  {/* Elemental Forms */}
+                  {elementalForms && elementalForms.length > 0 && onTransformElemental && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 px-2 pt-2">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-orange-400">Elemental Forms</span>
+                        <span className="text-[10px] text-orange-400/60 font-mono">2 uses each</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {elementalForms.map(form => (
+                          <button
+                            key={form.id}
+                            onClick={() => {
+                              onTransformElemental(form);
+                              setIsFormSheetOpen(false);
+                            }}
+                            disabled={usesRemaining < 2 || isTransformed}
+                            className="p-3 rounded-lg border border-orange-500/30 hover:border-orange-500/50 hover:bg-orange-500/5 transition-all text-left disabled:opacity-40"
+                          >
+                            <p className="font-medium text-foreground">{form.name}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{form.description}</p>
+                            <div className="flex items-center gap-3 mt-2 text-xs">
+                              <span className="flex items-center gap-1 text-red-400"><Heart className="w-3 h-3" /> {form.hp}</span>
+                              <span className="flex items-center gap-1 text-blue-400"><Shield className="w-3 h-3" /> {form.ac}</span>
+                              <span className="text-muted-foreground">{form.speed}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Dragon Forms */}
+                  {dragonForms && dragonForms.length > 0 && onTransformDragon && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 px-2 pt-2">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-purple-400">Dragon Forms</span>
+                        <span className="text-[10px] text-purple-400/60 font-mono">3 uses each</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {dragonForms.map(form => (
+                          <button
+                            key={form.id}
+                            onClick={() => {
+                              onTransformDragon(form);
+                              setIsFormSheetOpen(false);
+                            }}
+                            disabled={usesRemaining < 3 || isTransformed}
+                            className="p-3 rounded-lg border border-purple-500/30 hover:border-purple-500/50 hover:bg-purple-500/5 transition-all text-left disabled:opacity-40"
+                          >
+                            <p className="font-medium text-foreground">{form.name}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{form.description}</p>
+                            <div className="flex items-center gap-3 mt-2 text-xs">
+                              <span className="flex items-center gap-1 text-red-400"><Heart className="w-3 h-3" /> {form.hp}</span>
+                              <span className="flex items-center gap-1 text-blue-400"><Shield className="w-3 h-3" /> {form.ac}</span>
+                              <span className="text-muted-foreground">CR {formatCR(form.cr)}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </ScrollArea>
             </SheetContent>
