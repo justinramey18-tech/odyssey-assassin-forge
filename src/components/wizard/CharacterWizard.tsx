@@ -83,17 +83,27 @@ export function CharacterWizard({
     setMode('wizard');
   }, [clearProgress, reset]);
 
-  // Navigation handlers
+  // Navigation handlers - with auto-skip for Magic Path step (step 4) for non-Rogue
   const handleNext = useCallback(() => {
     const validation = getValidation(state.currentStep);
     if (validation.isValid) {
-      wizard.goNext();
+      // Skip Magic Path (step 4) if not a Rogue
+      if (state.currentStep === 3 && state.primaryClass !== 'rogue') {
+        wizard.jumpToStep(5); // Jump directly to Skill Trees
+      } else {
+        wizard.goNext();
+      }
     }
-  }, [wizard, getValidation, state.currentStep]);
+  }, [wizard, getValidation, state.currentStep, state.primaryClass]);
 
   const handleBack = useCallback(() => {
-    wizard.goBack();
-  }, [wizard]);
+    // Skip Magic Path (step 4) when going back if not a Rogue
+    if (state.currentStep === 5 && state.primaryClass !== 'rogue') {
+      wizard.jumpToStep(3); // Jump back to Game Mode
+    } else {
+      wizard.goBack();
+    }
+  }, [wizard, state.currentStep, state.primaryClass]);
 
   const handleGoToStep = useCallback((step: number) => {
     wizard.jumpToStep(step);
