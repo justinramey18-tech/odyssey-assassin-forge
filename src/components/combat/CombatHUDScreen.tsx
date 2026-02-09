@@ -9,6 +9,7 @@ import { rollDice, getAbilityDice, DiceRoll, DieType } from '@/lib/diceRoller';
 import { generateRPPrompt } from '@/lib/rpPromptGenerator';
 import { useAbilityCustomization } from '@/hooks/use-ability-customization';
 import { applyOverrides, homebrewToAbility } from '@/lib/abilityCustomization/utils';
+import { isLegacyAbilityId, resolveLegacyAbility } from '@/lib/prestigeTree/abilityConverter';
 import { 
   Crosshair, Target, Shield, Sword, Zap, Heart, 
   Dices, Activity, Skull, Eye, Flame, Ghost,
@@ -105,6 +106,10 @@ export function CombatHUDScreen({ character, prestigePoints = 0 }: CombatHUDScre
     return character.equippedAbilities
       .filter(Boolean)
       .map(id => {
+        // Legacy prestige ability
+        if (isLegacyAbilityId(id)) {
+          return resolveLegacyAbility(id);
+        }
         // Check if it's a homebrew ability
         if (id.startsWith('homebrew_')) {
           const homebrew = abilityCustomization.state.homebrewAbilities.find(h => h.id === id);
@@ -122,7 +127,7 @@ export function CombatHUDScreen({ character, prestigePoints = 0 }: CombatHUDScre
 
   // Handle ability activation
   const handleUseAbility = (ability: Ability) => {
-    const charAbility = character.abilities.find(ca => ca.abilityId === ability.id);
+    const charAbility = isLegacyAbilityId(ability.id) ? null : character.abilities.find(ca => ca.abilityId === ability.id);
     const tier = (charAbility?.currentTier || 1) as 1 | 2 | 3;
     
     const { die, count } = getAbilityDice(tier);
@@ -346,7 +351,7 @@ ${isCrit ? 'Describe an exceptional success with dramatic flair. The action succ
               </div>
             ) : (
               equippedAbilities.map((ability, index) => {
-                const charAbility = character.abilities.find(ca => ca.abilityId === ability.id);
+                const charAbility = isLegacyAbilityId(ability.id) ? null : character.abilities.find(ca => ca.abilityId === ability.id);
                 const tier = charAbility?.currentTier || 1;
                 const { die, count } = getAbilityDice(tier as 1 | 2 | 3);
                 

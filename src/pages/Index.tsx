@@ -1762,6 +1762,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
                   <EquippedLoadout
                     character={character}
                     prestigePoints={prestigeData.totalPrestigePoints}
+                    unlockedPrestigeAbilities={prestigeTree.progress.unlockedAbilities}
                     onEquip={handleEquipAbility}
                     onUnequip={handleUnequipAbility}
                   />
