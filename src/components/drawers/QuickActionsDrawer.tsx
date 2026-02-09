@@ -745,7 +745,7 @@ function WildShapeSection({ wildShape, characterName }: { wildShape: UseWildShap
             </p>
           )}
           {sortedCRKeys.map(crKey => (
-            <Collapsible key={crKey} defaultOpen>
+            <Collapsible key={crKey}>
               <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-1.5 rounded-md bg-card/30 hover:bg-card/50 transition-colors">
                 <span className="text-xs font-semibold text-muted-foreground">CR {crKey}</span>
                 <span className="text-[10px] text-muted-foreground">{formsByCR[crKey].length} forms</span>
