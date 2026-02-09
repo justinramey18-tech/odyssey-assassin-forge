@@ -39,6 +39,20 @@ export {
   pactSlotsRegenerateOnShortRest,
 } from './pactMagicSlots';
 
+// Sorcery Points (Sorcerer) class resource
+export type { SorceryPointsConfig, MetamagicOption } from './sorceryPoints';
+export {
+  SORCERY_POINTS_BY_LEVEL,
+  SORCERY_POINT_SLOT_COST,
+  METAMAGIC_OPTIONS,
+  getSorceryPointsForLevel,
+  getSlotCreationCost,
+  getPointsFromSlotLevel,
+  sorceryPointsRegenerateOnLongRest,
+  getAvailableMetamagic,
+  getTwinnedSpellCost,
+} from './sorceryPoints';
+
 // Multiclass spell slot calculation
 export type { MulticlassSpellSlots } from './multiclassSlots';
 export { 
