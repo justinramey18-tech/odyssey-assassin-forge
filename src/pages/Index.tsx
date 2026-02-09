@@ -72,6 +72,7 @@ import { useLoot } from '@/hooks/use-loot';
 import { ParsedShopItem } from '@/lib/shop/types';
 import { useSpellcasting } from '@/hooks/use-spellcasting';
 import { useClassSpellcasting } from '@/hooks/use-class-spellcasting';
+import { adaptClassSpellcastingForCombat } from '@/hooks/use-combat-spellcasting-adapter';
 import { Consumable } from '@/lib/consumables/types';
 import { EquipmentItem as ShopEquipmentItem } from '@/lib/inventory/types';
 import { useCustomBackground } from '@/hooks/use-custom-background';
@@ -383,6 +384,12 @@ const Index = () => {
     }
   );
   
+  // Adapt class spellcasting for combat tab (so prepared spells auto-populate)
+  const combatSpellcasting = useMemo(() => {
+    if (isRogueClass) return spellcasting;
+    return adaptClassSpellcastingForCombat(classSpellcasting, character.primaryClass ?? 'wizard');
+  }, [isRogueClass, spellcasting, classSpellcasting, character.primaryClass]);
+
   // Conditions system with concentration sync to spellcasting
   // Using refs to avoid stale closure issues in callbacks
   const spellcastingRef = useRef(spellcasting);
@@ -1634,7 +1641,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
             <CombatTabScreen 
               character={character} 
               prestigePoints={prestigeData.totalPrestigePoints}
-              spellcasting={spellcasting}
+              spellcasting={combatSpellcasting}
               equipment={equipment}
               onNavigateToConsumables={handleNavigateToConsumables}
               equipmentStats={aggregatedStats}
@@ -1645,7 +1652,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
               actionEconomyState={actionEconomy}
               globalConditions={convertConditionsToPromptFormat(conditions.conditions)}
               activeSetBonuses={convertSetBonusesToPromptFormat(aggregatedStats.activeSetBonuses)}
-              concentrationSpell={spellcasting.state.concentratingOn}
+              concentrationSpell={combatSpellcasting.state.concentratingOn}
               lootItemsWithDice={loot.itemsWithDiceMechanics}
               onUseLootItem={(item) => {
                 // Generate and copy AI prompt for loot use
