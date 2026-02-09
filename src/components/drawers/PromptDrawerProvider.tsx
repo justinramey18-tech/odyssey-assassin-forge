@@ -397,6 +397,7 @@ export function PromptDrawerProvider({
               isOnCooldown: cooldownSystem.isOnCooldown,
               getRemainingTime: cooldownSystem.getRemainingTime,
               formatRemainingTime: cooldownSystem.formatRemainingTime,
+              triggerCooldown: cooldownSystem.triggerCooldown,
             }}
             spellcasting={spellcasting ? {
               preparedSpells: spellcasting.state.preparedSpells,
@@ -409,6 +410,8 @@ export function PromptDrawerProvider({
                 level: spellcasting.state.pactSlots.level,
               } : undefined,
               concentratingOn: spellcasting.state.concentratingOn,
+              castSpell: spellcasting.castSpell,
+              useSlot: spellcasting.useSlot,
             } : undefined}
             characterName={character.name}
           />
