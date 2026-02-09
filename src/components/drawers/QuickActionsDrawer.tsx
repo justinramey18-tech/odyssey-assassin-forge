@@ -719,11 +719,11 @@ function WildShapeSection({ wildShape, characterName }: { wildShape: UseWildShap
     return acc;
   }, {} as Record<string, UnifiedForm[]>);
 
-  // Sort CR keys by numeric value (highest first)
+  // Sort CR keys by numeric value (lowest first)
   const sortedCRKeys = Object.keys(formsByCR).sort((a, b) => {
     const numA = formsByCR[a][0].form.cr;
     const numB = formsByCR[b][0].form.cr;
-    return numB - numA;
+    return numA - numB;
   });
 
   const categoryColors = {
