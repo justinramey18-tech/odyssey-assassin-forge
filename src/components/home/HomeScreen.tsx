@@ -533,16 +533,26 @@ export function HomeScreen({
           {/* Collapse toggle tab */}
           <button
             onClick={toggleFooter}
-            className="w-full flex items-center justify-center py-1.5 hover:bg-white/5 transition-colors"
+            className="w-full flex items-center justify-center gap-2 py-1.5 hover:bg-white/5 transition-colors"
             style={{ touchAction: 'manipulation' }}
             aria-label={footerCollapsed ? 'Expand navigation' : 'Collapse navigation'}
           >
+            {footerCollapsed && (
+              <span className="text-[10px] font-mono uppercase tracking-widest text-white/30">Navigation</span>
+            )}
             <motion.div
               animate={{ rotate: footerCollapsed ? 0 : 180 }}
               transition={{ duration: 0.2 }}
             >
               <ChevronUp className="w-4 h-4 text-white/40" />
             </motion.div>
+            {footerCollapsed && (
+              <div className="flex gap-1">
+                <span className="w-1 h-1 rounded-full bg-white/30" />
+                <span className="w-1 h-1 rounded-full bg-white/30" />
+                <span className="w-1 h-1 rounded-full bg-white/30" />
+              </div>
+            )}
           </button>
 
           {/* Collapsible content */}
