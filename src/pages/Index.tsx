@@ -1828,6 +1828,14 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
                   storyContext: item.sourceText,
                 });
                 navigator.clipboard.writeText(prompt);
+                
+                // Log to combat log
+                combatLog.addEntry({
+                  actionType: 'item',
+                  actionName: `Use ${item.name}`,
+                  prompt,
+                });
+                
                 toast({
                   title: `⚡ Using ${item.name}`,
                   description: "AI DM prompt copied to clipboard",
