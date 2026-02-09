@@ -57,6 +57,7 @@ function createTestWizardState(overrides: Partial<WizardState> = {}): WizardStat
       prestigePointsRequireXP: true,
       prestigeRespecDisabled: true,
       enforceCooldowns: true,
+      enforceWildShapeDuration: true,
     },
     xpPreset: 'standard',
     diceOddsMode: 'fair',

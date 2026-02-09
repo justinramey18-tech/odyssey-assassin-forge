@@ -28,6 +28,7 @@ const DEFAULT_HONEST_RULES: HonestModeRules = {
   prestigePointsRequireXP: true,
   prestigeRespecDisabled: true,
   enforceCooldowns: true,
+  enforceWildShapeDuration: true,
 };
 
 // Empty equipment state

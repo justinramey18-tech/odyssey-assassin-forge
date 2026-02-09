@@ -59,6 +59,7 @@ export function useGameMode() {
   const prestigePointsRequireXP = checkRule('prestigePointsRequireXP');
   const prestigeRespecDisabled = checkRule('prestigeRespecDisabled');
   const enforceCooldowns = checkRule('enforceCooldowns');
+  const enforceWildShapeDuration = checkRule('enforceWildShapeDuration');
 
   return {
     settings,
@@ -75,6 +76,7 @@ export function useGameMode() {
     prestigePointsRequireXP,
     prestigeRespecDisabled,
     enforceCooldowns,
+    enforceWildShapeDuration,
   };
 }
 
