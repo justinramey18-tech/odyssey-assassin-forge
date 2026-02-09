@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Heart, Sparkles, Plus, Minus, Shield, Zap, Swords, Weight, Target, Eye, Save, Move, Gem, Info, ChevronDown, ChevronUp } from 'lucide-react';
+import { Heart, Sparkles, Plus, Minus, Shield, Zap, Swords, Weight, Target, Eye, Save, Move, Gem, Info, ChevronDown, ChevronUp, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { EdgeDrawer } from './EdgeDrawer';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   XP_REWARDS, 
   XPRewardType,
@@ -23,6 +24,11 @@ import {
   AbilityScoreBreakdown,
 } from '@/lib/abilityScores/types';
 import { getHPBreakdown, HP_CONFIG } from '@/lib/hpCalculation';
+import { DnDClass, ClassLevelMap } from '@/lib/classes';
+import { FEATURE_FLAGS } from '@/lib/featureFlags';
+import { ClassLevelBadge } from '@/components/character/ClassLevelBadge';
+import { ClassFeaturesPanel } from '@/components/character/ClassFeaturesPanel';
+import { HitDicePool } from '@/components/character/HitDicePool';
 
 interface StatsDrawerProps {
   open: boolean;
@@ -49,6 +55,10 @@ interface StatsDrawerProps {
   onDecrementScore?: (ability: AbilityName) => void;
   onRandomizeScores?: () => number[];
   onApplyScores?: (scores: BaseAbilityScores) => void;
+  // Class system (Phase 8)
+  primaryClass?: DnDClass;
+  multiclassLevels?: ClassLevelMap;
+  onHeal?: (amount: number) => void;
 }
 
 export function StatsDrawer({ 
@@ -73,6 +83,10 @@ export function StatsDrawer({
   onDecrementScore,
   onRandomizeScores,
   onApplyScores,
+  // Class system
+  primaryClass = 'rogue',
+  multiclassLevels = {},
+  onHeal,
 }: StatsDrawerProps) {
   // Local HP state (with default values based on level)
   const defaultMaxHP = 8 + (level - 1) * 5; // Simple formula: 8 + 5 per level
@@ -82,6 +96,8 @@ export function StatsDrawer({
   const [customXP, setCustomXP] = useState('');
   const [hpDelta, setHpDelta] = useState('');
   const [showHPBreakdown, setShowHPBreakdown] = useState(false);
+  const [showClassSection, setShowClassSection] = useState(false);
+  const [showClassFeatures, setShowClassFeatures] = useState(false);
 
   const currentHP = propCurrentHP ?? localCurrentHP;
   const maxHP = propMaxHP ?? localMaxHP;
@@ -303,6 +319,72 @@ export function StatsDrawer({
                 </div>
               )}
             </div>
+          )}
+
+          {/* Class Section - Phase 8 */}
+          {FEATURE_FLAGS.MULTICLASS_ENABLED && (
+            <Collapsible open={showClassSection} onOpenChange={setShowClassSection}>
+              <CollapsibleTrigger asChild>
+                <button className="w-full flex items-center justify-between py-2 px-3 rounded-md border border-border/50 bg-card/50 hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-primary" />
+                    <span className="text-xs font-semibold uppercase tracking-wider">Class & Hit Dice</span>
+                  </div>
+                  {showClassSection ? (
+                    <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                  )}
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-4 pt-3">
+                {/* Class Badge */}
+                <div className="space-y-2">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Current Class
+                  </div>
+                  <ClassLevelBadge
+                    primaryClass={primaryClass}
+                    primaryLevel={level}
+                    multiclassLevels={multiclassLevels}
+                    size="md"
+                    showTotalLevel
+                  />
+                </div>
+
+                {/* Hit Dice Pool */}
+                <HitDicePool
+                  primaryClass={primaryClass}
+                  primaryLevel={level}
+                  multiclassLevels={multiclassLevels}
+                  constitutionModifier={constitutionModifier}
+                  currentHP={currentHP}
+                  maxHP={maxHP}
+                  onHeal={onHeal}
+                />
+
+                {/* Class Features (Collapsible) */}
+                <Collapsible open={showClassFeatures} onOpenChange={setShowClassFeatures}>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className="w-full justify-between">
+                      <span>Class Features</span>
+                      {showClassFeatures ? (
+                        <ChevronUp className="w-4 h-4" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <ClassFeaturesPanel
+                      primaryClass={primaryClass}
+                      primaryLevel={level}
+                      multiclassLevels={multiclassLevels}
+                    />
+                  </CollapsibleContent>
+                </Collapsible>
+              </CollapsibleContent>
+            </Collapsible>
           )}
 
           {/* HP Section */}
