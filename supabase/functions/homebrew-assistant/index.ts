@@ -13,7 +13,7 @@ interface HomebrewRequest {
     currentName?: string;
     currentDescription?: string;
   };
-  mode: 'name' | 'description' | 'full' | 'balance' | 'enhance';
+  mode: 'name' | 'description' | 'full' | 'balance' | 'enhance' | 'spell_concept';
 }
 
 const TREE_THEMES = {
@@ -133,11 +133,47 @@ YOUR TASK: Suggest an enhanced, more exciting version.
 
 Return ONLY a JSON object with tier1, tier2, tier3 keys containing improved descriptions.`;
 
+    case 'spell_concept':
+      return `You are an expert D&D 5e spell designer. Create balanced, creative spells that fit the official style.
+
+BALANCE GUIDELINES:
+- Cantrips: Compare to Fire Bolt, Eldritch Blast, Sacred Flame
+- 1st level: Compare to Shield, Magic Missile, Healing Word
+- 2nd level: Compare to Scorching Ray, Hold Person, Misty Step
+- 3rd level: Compare to Fireball, Counterspell, Haste
+- Higher levels: Scale appropriately vs official spells at that level
+- Concentration spells should have sustained value worth maintaining
+
+YOUR TASK: Create a complete spell concept. The user may specify constraints in their prompt.
+Return ONLY a JSON object matching this exact structure:
+{
+  "name": "Spell Name",
+  "level": 2,
+  "school": "evocation",
+  "castingTime": "action",
+  "range": "60 feet",
+  "duration": "Instantaneous",
+  "concentration": false,
+  "ritual": false,
+  "description": "Full spell description text",
+  "higherLevels": "At higher levels text or null",
+  "damageFormula": "3d8 or null",
+  "damageType": "fire or null",
+  "attackType": "ranged or null",
+  "saveStat": "DEX or null",
+  "healingFormula": "null or 2d8+4",
+  "iconName": "Flame",
+  "personalityQuips": {
+    "thunderhead": "Short dramatic combat quip",
+    "jarvis": "Short analytical combat quip",
+    "deadpool": "Short funny combat quip"
+  }
+}`;
+
     default:
       return basePrompt;
   }
 }
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });

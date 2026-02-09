@@ -95,6 +95,13 @@ export function SpellCard({
       {isFavorite && (
         <Star className="absolute top-2 right-2 w-4 h-4 text-amber-400 fill-amber-400" />
       )}
+      
+      {/* Homebrew badge */}
+      {(spell as any).isHomebrew && (
+        <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-[9px] font-medium bg-indigo-600/40 text-indigo-300 border border-indigo-500/30">
+          Homebrew
+        </span>
+      )}
 
       {/* Header */}
       <div className="flex items-start gap-3 mb-2">

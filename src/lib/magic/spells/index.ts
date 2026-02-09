@@ -41,11 +41,27 @@ export const SPELL_REGISTRY: SpellRegistry = ALL_SPELLS.reduce((acc, spell) => {
 }, {} as SpellRegistry);
 
 // ============================================
+// CUSTOM SPELL REGISTRY (for homebrew spells)
+// ============================================
+
+/** Mutable registry for player-created homebrew spells */
+export const customSpellRegistry: SpellRegistry = {};
+
+export function registerCustomSpell(spell: SpellDefinition): void {
+  customSpellRegistry[spell.id] = spell;
+}
+
+export function unregisterCustomSpell(id: string): void {
+  delete customSpellRegistry[id];
+}
+
+// ============================================
 // SPELL LOOKUP
 // ============================================
 
 export function getSpellById(id: string): SpellDefinition | undefined {
-  return SPELL_REGISTRY[id];
+  // Check custom registry first, then static registry
+  return customSpellRegistry[id] || SPELL_REGISTRY[id];
 }
 
 export function getSpellsByLevel(level: number): SpellDefinition[] {

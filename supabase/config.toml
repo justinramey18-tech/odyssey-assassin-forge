@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.combat-log-synthesize]
 verify_jwt = false
+
+[functions.homebrew-assistant]
+verify_jwt = false
