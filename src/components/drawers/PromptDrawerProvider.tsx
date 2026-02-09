@@ -91,6 +91,10 @@ interface PromptDrawerProviderProps {
   spellcasting?: UseSpellcastingReturn;
   // Wild Shape
   wildShape?: UseWildShapeReturn;
+  // Wild Shape backgrounds
+  onAssignWildShapeBackground?: (formId: string, file: File) => Promise<void>;
+  onRemoveWildShapeBackground?: (formId: string) => void;
+  hasWildShapeBackground?: (formId: string) => boolean;
   // Ability Scores
   baseScores?: BaseAbilityScores;
   getScoreBreakdown?: (ability: AbilityName) => AbilityScoreBreakdown;
@@ -134,6 +138,9 @@ export function PromptDrawerProvider({
   prestigeAbilities = [],
   spellcasting,
   wildShape,
+  onAssignWildShapeBackground,
+  onRemoveWildShapeBackground,
+  hasWildShapeBackground,
   // Ability Scores
   baseScores,
   getScoreBreakdown,
@@ -423,6 +430,9 @@ export function PromptDrawerProvider({
             consumablesInventory={consumables}
             onUseConsumable={onUseConsumable}
             wildShape={wildShape}
+            onAssignWildShapeBackground={onAssignWildShapeBackground}
+            onRemoveWildShapeBackground={onRemoveWildShapeBackground}
+            hasWildShapeBackground={hasWildShapeBackground}
           />
         </>
       )}

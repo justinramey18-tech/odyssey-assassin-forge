@@ -1619,6 +1619,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         prestigeAbilities={prestigeTree.progress.unlockedAbilities}
         spellcasting={spellcasting}
         wildShape={isDruidClass ? wildShape : undefined}
+        onAssignWildShapeBackground={wildShapeBgs.assignBackground}
+        onRemoveWildShapeBackground={wildShapeBgs.removeBackground}
+        hasWildShapeBackground={wildShapeBgs.hasBackground}
         baseScores={abilityScores.baseScores}
         getScoreBreakdown={abilityScores.getScoreBreakdown}
         onIncrementScore={abilityScores.incrementScore}
@@ -1726,6 +1729,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       prestigeAbilities={prestigeTree.progress.unlockedAbilities}
       spellcasting={spellcasting}
       wildShape={isDruidClass ? wildShape : undefined}
+      onAssignWildShapeBackground={wildShapeBgs.assignBackground}
+      onRemoveWildShapeBackground={wildShapeBgs.removeBackground}
+      hasWildShapeBackground={wildShapeBgs.hasBackground}
       baseScores={abilityScores.baseScores}
       getScoreBreakdown={abilityScores.getScoreBreakdown}
       onIncrementScore={abilityScores.incrementScore}
