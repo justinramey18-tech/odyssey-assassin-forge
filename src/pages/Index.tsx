@@ -1537,6 +1537,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         tempHP={hpState.temp}
         onHPChange={(current, temp) => handleHPChange(current, hpState.max, temp)}
         consumables={consumablesInventory}
+        onUseConsumable={useConsumableItem}
         prestigeLevel={prestigeData.prestigeLevel}
         prestigeAbilities={prestigeTree.progress.unlockedAbilities}
         spellcasting={spellcasting}
@@ -1628,6 +1629,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       tempHP={hpState.temp}
       onHPChange={(current, temp) => handleHPChange(current, hpState.max, temp)}
       consumables={consumablesInventory}
+      onUseConsumable={useConsumableItem}
       prestigeLevel={prestigeData.prestigeLevel}
       prestigeAbilities={prestigeTree.progress.unlockedAbilities}
       spellcasting={spellcasting}

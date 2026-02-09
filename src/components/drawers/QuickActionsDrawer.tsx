@@ -4,7 +4,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Swords, Sparkles, Zap, Wand2, 
-  ChevronDown, Copy, Check, Timer, Shield, Play, Dices, Target
+  ChevronDown, Copy, Check, Timer, Shield, Play, Dices, Target,
+  Beaker, Skull, ScrollText, FlaskConical
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -13,6 +14,8 @@ import { allAbilities, getAbilityById } from '@/lib/abilities';
 import { WeaponAttack, UNARMED_STRIKE } from '@/lib/combat/combatTypes';
 import { getEquippedWeapons } from '@/lib/combat/weaponConverter';
 import { CharacterEquipment } from '@/lib/inventory/types';
+import { InventoryItem, typeConfig as consumableTypeConfig } from '@/lib/consumables/types';
+import { generateConsumablePrompt } from '@/lib/consumables/prompts';
 import { getSpellById } from '@/lib/magic/spells';
 import { SpellDefinition } from '@/lib/magic/types';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
@@ -52,6 +55,8 @@ interface QuickActionsDrawerProps {
   cooldowns: CooldownInfo;
   spellcasting?: SpellcastingInfo;
   characterName: string;
+  consumablesInventory?: InventoryItem[];
+  onUseConsumable?: (consumableId: string) => boolean;
 }
 
 // ── Prompt generators (static, no roll data) ──
@@ -491,6 +496,8 @@ export function QuickActionsDrawer({
   cooldowns,
   spellcasting,
   characterName,
+  consumablesInventory = [],
+  onUseConsumable,
 }: QuickActionsDrawerProps) {
   // Track which item has an active inline roll
   const [activeRoll, setActiveRoll] = useState<{ 
@@ -667,6 +674,21 @@ export function QuickActionsDrawer({
       description: 'Cooldown started · Prompt copied',
     });
   }, [cooldowns]);
+
+  // ── Consumable use handler ──
+  const handleUseConsumable = useCallback((item: InventoryItem) => {
+    if (!onUseConsumable) return;
+    const success = onUseConsumable(item.consumable.id);
+    if (success) {
+      const prompt = generateConsumablePrompt(item.consumable, characterName);
+      navigator.clipboard.writeText(prompt).catch(() => {});
+      toast.success(`Used ${item.consumable.name}!`, {
+        description: `${item.quantity - 1} remaining · Prompt copied`,
+      });
+    } else {
+      toast.error(`Cannot use ${item.consumable.name}`, { description: 'Insufficient quantity' });
+    }
+  }, [onUseConsumable, characterName]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -916,6 +938,46 @@ export function QuickActionsDrawer({
                 </div>
               </CollapsibleContent>
             </Collapsible>
+
+            {/* ── CONSUMABLES ── */}
+            {consumablesInventory.length > 0 && (
+              <Collapsible className="group">
+                <CollapsibleTrigger className="w-full">
+                  <CategoryHeader icon={FlaskConical} label="Consumables" count={consumablesInventory.length} color="bg-rose-500/20 text-rose-400" />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="space-y-1 pl-2 pr-1 pb-2">
+                    {consumablesInventory.map(item => {
+                      const prompt = generateConsumablePrompt(item.consumable, characterName);
+                      const TypeIcon = item.consumable.type === 'potion' ? Beaker 
+                        : item.consumable.type === 'poison' ? Skull : ScrollText;
+                      const typeColor = consumableTypeConfig[item.consumable.type].color;
+                      return (
+                        <div key={item.consumable.id} className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-card/40 border border-border/30">
+                          <TypeIcon className={cn("w-4 h-4 shrink-0", typeColor)} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-medium truncate">{item.consumable.name}</p>
+                              <span className="text-[10px] text-muted-foreground font-mono">×{item.quantity}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">{item.consumable.effect}</p>
+                          </div>
+                          {onUseConsumable && (
+                            <QuickCastButton
+                              label="Use"
+                              disabled={item.quantity <= 0}
+                              onCast={() => handleUseConsumable(item)}
+                              prompt={prompt}
+                            />
+                          )}
+                          <CopyButton text={prompt} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
 
           </div>
         </ScrollArea>

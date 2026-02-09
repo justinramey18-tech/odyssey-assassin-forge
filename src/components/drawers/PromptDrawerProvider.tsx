@@ -80,8 +80,9 @@ interface PromptDrawerProviderProps {
   maxHP?: number;
   tempHP?: number;
   onHPChange?: (current: number, temp: number) => void;
-  // Consumables for Oracle
+  // Consumables for Oracle and Quick Actions
   consumables?: ConsumableItem[];
+  onUseConsumable?: (consumableId: string) => boolean;
   // Prestige for Oracle
   prestigeLevel?: number;
   prestigeAbilities?: string[];
@@ -125,6 +126,7 @@ export function PromptDrawerProvider({
   tempHP = 0,
   onHPChange,
   consumables = [],
+  onUseConsumable,
   prestigeLevel = 0,
   prestigeAbilities = [],
   spellcasting,
@@ -414,6 +416,8 @@ export function PromptDrawerProvider({
               useSlot: spellcasting.useSlot,
             } : undefined}
             characterName={character.name}
+            consumablesInventory={consumables}
+            onUseConsumable={onUseConsumable}
           />
         </>
       )}
