@@ -63,6 +63,10 @@ interface MobileItemsGridProps {
   // Loot items with dice mechanics
   lootItemsWithDice?: LootItem[];
   onUseLootItem?: (item: LootItem) => void;
+  // Combat log integration
+  characterName?: string;
+  onLogEntry?: (entry: { actionType: 'item'; actionName: string; prompt: string }) => void;
+  onRemoveLogEntry?: (actionName: string) => void;
 }
 
 export function MobileItemsGrid({
@@ -74,6 +78,9 @@ export function MobileItemsGrid({
   concentrationSpell,
   lootItemsWithDice = [],
   onUseLootItem,
+  characterName = 'The Assassin',
+  onLogEntry,
+  onRemoveLogEntry,
 }: MobileItemsGridProps) {
   const { toast, dismiss } = useToast();
   const { inventory, useItem, addItem, setItemQuantity, isLoaded } = useConsumables();
@@ -125,12 +132,17 @@ export function MobileItemsGrid({
       onRemoveFromTurn(`Use ${entry.consumable.name}`);
     }
     
+    // Remove from combat log
+    if (onRemoveLogEntry) {
+      onRemoveLogEntry(`Use ${entry.consumable.name}`);
+    }
+    
     toast({
       title: "Undo Successful",
       description: `${entry.consumable.name} restored to inventory`,
       className: "border-amber-500/50 bg-amber-500/10",
     });
-  }, [addItem, onRemoveFromTurn, toast]);
+  }, [addItem, onRemoveFromTurn, onRemoveLogEntry, toast]);
 
   // Handle using an item (from detail sheet or quick use)
   const handleUseItem = useCallback((item: InventoryItem, closeSheet: boolean = false) => {
@@ -138,6 +150,21 @@ export function MobileItemsGrid({
     if (success) {
       const actionType = getActionType(item.consumable);
       onAddToTurn(actionType, `Use ${item.consumable.name}`);
+      
+      // Log to combat log with generated prompt
+      if (onLogEntry) {
+        const combatContext: ConsumableCombatContext = {
+          conditions: globalConditions,
+          setBonus: activeSetBonus,
+          concentrationSpell: concentrationSpell,
+        };
+        const prompt = generateConsumablePrompt(item.consumable, characterName, combatContext);
+        onLogEntry({
+          actionType: 'item',
+          actionName: `Use ${item.consumable.name}`,
+          prompt,
+        });
+      }
       
       // Create undo entry
       const entry: UndoEntry = {
@@ -182,7 +209,7 @@ export function MobileItemsGrid({
         );
       }
     }
-  }, [useItem, onAddToTurn, toast, handleUndo]);
+  }, [useItem, onAddToTurn, onLogEntry, globalConditions, activeSetBonus, concentrationSpell, characterName, toast, handleUndo]);
 
   // Quick use from grid (no sheet open)
   const handleQuickUse = useCallback((e: React.MouseEvent, item: InventoryItem) => {
@@ -199,7 +226,7 @@ export function MobileItemsGrid({
       concentrationSpell: concentrationSpell,
     };
     
-    const prompt = generateConsumablePrompt(consumable, 'The Assassin', combatContext);
+    const prompt = generateConsumablePrompt(consumable, characterName, combatContext);
     await navigator.clipboard.writeText(prompt);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
