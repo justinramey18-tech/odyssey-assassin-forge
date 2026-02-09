@@ -17,6 +17,7 @@ export * from './types';
 export * from './hitDice';
 export * from './proficiencies';
 export * from './prerequisites';
+export * from './features';
 
 /**
  * Complete registry of all D&D class configurations
