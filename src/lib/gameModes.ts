@@ -10,6 +10,7 @@ export interface HonestModeRules {
   prestigePointsRequireXP: boolean; // Can't manually award prestige points
   prestigeRespecDisabled: boolean;  // Can't reset prestige point allocation
   enforceCooldowns: boolean;        // Prevents manual cooldown resets
+  enforceWildShapeDuration: boolean; // Wild Shape expires after timed duration
 }
 
 export interface GameModeSettings {
@@ -28,6 +29,7 @@ const DEFAULT_HONEST_RULES: HonestModeRules = {
   prestigePointsRequireXP: true,
   prestigeRespecDisabled: true,
   enforceCooldowns: true,
+  enforceWildShapeDuration: true,
 };
 
 const DEFAULT_SETTINGS: GameModeSettings = {
@@ -123,6 +125,10 @@ export function getRuleDescription(rule: keyof HonestModeRules): { label: string
       label: 'Enforce Cooldowns',
       description: 'Manual cooldown resets are disabled. Use rest mechanics to reset abilities.',
     },
+    enforceWildShapeDuration: {
+      label: 'Wild Shape Duration Timers',
+      description: 'Wild Shape expires after its timed duration (½ druid level hours). When off, forms last until 0 HP, manual dismissal, or long rest.',
+    },
   };
   return descriptions[rule];
 }
@@ -138,5 +144,6 @@ export function getAllRuleKeys(): (keyof HonestModeRules)[] {
     'prestigePointsRequireXP',
     'prestigeRespecDisabled',
     'enforceCooldowns',
+    'enforceWildShapeDuration',
   ];
 }

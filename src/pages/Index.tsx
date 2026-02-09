@@ -365,6 +365,8 @@ const Index = () => {
   // Determine if character is using Rogue class (legacy Magic Path system)
   const isRogueClass = (character.primaryClass ?? 'rogue') === 'rogue';
 
+  const { requiresOrganicLevelUp, requiresGearUnlocks, rerollsDisabled, infinityStonesLocked, enforceWildShapeDuration } = useGameMode();
+
   // Wild Shape - lifted to app level for cross-tab sync
   const druidCircle = useMemo<DruidCircle | null>(() => {
     try {
@@ -375,7 +377,8 @@ const Index = () => {
   const isDruidClass = (character.primaryClass ?? 'rogue') === 'druid';
   const wildShape = useWildShape(
     isDruidClass ? character.level : 0,
-    isDruidClass ? druidCircle : null
+    isDruidClass ? druidCircle : null,
+    enforceWildShapeDuration
   );
 
   // Effective HP/AC values that auto-switch between beast and character stats
@@ -452,7 +455,7 @@ const Index = () => {
   } = useConsumables();
   
   const { toast } = useToast();
-  const { requiresOrganicLevelUp, requiresGearUnlocks, rerollsDisabled, infinityStonesLocked } = useGameMode();
+  
   
   // HP change handler with localStorage persistence, concentration check, and Wild Shape routing
   const handleHPChange = useCallback((current: number, max: number, temp: number) => {

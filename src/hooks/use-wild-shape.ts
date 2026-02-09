@@ -46,7 +46,7 @@ export interface UseWildShapeReturn {
   healWithSpellSlot: (slotLevel: number) => void;
 }
 
-export function useWildShape(druidLevel: number, circle: DruidCircle | null = null): UseWildShapeReturn {
+export function useWildShape(druidLevel: number, circle: DruidCircle | null = null, enforceDuration: boolean = true): UseWildShapeReturn {
   const { toast } = useToast();
   const baseConfig = getWildShapeForLevel(druidLevel);
   const moonConfig = circle === 'moon' ? getMoonCircleWildShape(druidLevel) : null;
@@ -148,7 +148,7 @@ export function useWildShape(druidLevel: number, circle: DruidCircle | null = nu
       formHP: form.hp,
       formMaxHP: form.hp,
       transformedAt: Date.now(),
-      transformDurationMinutes: (config?.maxHours ?? 1) * 60,
+      transformDurationMinutes: enforceDuration ? (config?.maxHours ?? 1) * 60 : undefined,
     }));
 
     toast({
@@ -342,7 +342,7 @@ export function useWildShape(druidLevel: number, circle: DruidCircle | null = nu
       formHP: form.hp,
       formMaxHP: form.hp,
       transformedAt: Date.now(),
-      transformDurationMinutes: (config?.maxHours ?? 1) * 60,
+      transformDurationMinutes: enforceDuration ? (config?.maxHours ?? 1) * 60 : undefined,
     }));
 
     toast({
