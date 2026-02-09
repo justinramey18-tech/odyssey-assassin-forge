@@ -19,7 +19,7 @@ import { SpellDefinition } from '@/lib/magic/types';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
 import { applyOverrides, homebrewToAbility } from '@/lib/abilityCustomization/utils';
 import { isLegacyAbilityId, resolveLegacyAbility } from '@/lib/prestigeTree/abilityConverter';
-import { rollDice, getAbilityDice, DiceRoll, isCriticalHit, isCriticalMiss, inferRollMode } from '@/lib/diceRoller';
+import { rollDice, getAbilityDice, DiceRoll, RollMode, isCriticalHit, isCriticalMiss, inferRollMode } from '@/lib/diceRoller';
 import { generateRPPrompt } from '@/lib/rpPromptGenerator';
 
 // Types for cooldown info passed in
@@ -109,25 +109,36 @@ Narrate ${characterName} casting **${spell.name}**. Describe the arcane gestures
 
 // ── Roll-enhanced prompt generators ──
 
-function generateWeaponRollPrompt(weapon: WeaponAttack, roll: DiceRoll, characterName: string): string {
+function generateWeaponRollPrompt(weapon: WeaponAttack, roll: DiceRoll, characterName: string, rollMode: RollMode): string {
   const maxVal = parseInt(roll.die.slice(1));
-  const isCrit = roll.die === 'd20' 
-    ? isCriticalHit(roll.rolls, inferRollMode(roll.rolls, roll.total, roll.modifier), roll.die) 
+  const isCrit = roll.die === 'd20'
+    ? isCriticalHit(roll.rolls, rollMode, roll.die)
     : roll.rolls.some(r => r === maxVal);
   const isFumble = roll.die === 'd20'
-    ? isCriticalMiss(roll.rolls, inferRollMode(roll.rolls, roll.total, roll.modifier), roll.die)
+    ? isCriticalMiss(roll.rolls, rollMode, roll.die)
     : roll.rolls.every(r => r === 1);
-  const quality = isCrit ? 'CRITICAL HIT!' : isFumble ? 'CRITICAL MISS!' : roll.total >= maxVal * 0.7 ? 'Solid Hit' : 'Glancing Blow';
+  
+  // For adv/disadv, show which die was kept
+  let rollDisplay = `[${roll.rolls.join(', ')}]`;
+  let effectiveTotal = roll.total;
+  if (rollMode !== 'normal' && roll.rolls.length === 2 && roll.die === 'd20') {
+    const kept = rollMode === 'advantage' ? Math.max(...roll.rolls) : Math.min(...roll.rolls);
+    effectiveTotal = kept + roll.modifier;
+    rollDisplay = `[${roll.rolls.join(', ')}] → **${kept}**`;
+  }
+  
+  const quality = isCrit ? 'CRITICAL HIT!' : isFumble ? 'CRITICAL MISS!' : effectiveTotal >= maxVal * 0.7 + roll.modifier ? 'Solid Hit' : 'Glancing Blow';
+  const modeLabel = rollMode === 'advantage' ? ' (Advantage)' : rollMode === 'disadvantage' ? ' (Disadvantage)' : '';
 
   return applyTimePrefix(
-    `## ⚔️ ${weapon.name} Attack — ${quality}
+    `## ⚔️ ${weapon.name} Attack${modeLabel} — ${quality}
 
 **Character:** ${characterName}
 **Weapon:** ${weapon.name} | **Damage:** ${weapon.damage} ${weapon.damageType}
 **Properties:** ${weapon.properties.join(', ') || 'Standard'}
 
-### 🎲 Dice Roll
-**Roll:** ${roll.count}${roll.die} → [${roll.rolls.join(', ')}]${roll.modifier ? ` + ${roll.modifier}` : ''} = **${roll.total}**
+### 🎲 Dice Roll${modeLabel}
+**Roll:** ${roll.count}${roll.die} → ${rollDisplay}${roll.modifier ? ` + ${roll.modifier}` : ''} = **${effectiveTotal}**
 **Result:** ${quality}
 
 ${isCrit ? '**The strike lands with devastating precision! Double damage dice!**\n\n' : ''}${isFumble ? '**The attack goes wildly astray! Describe the embarrassing miss.**\n\n' : ''}Narrate ${characterName}'s attack with their ${weapon.name}. Factor in the ${quality.toLowerCase()} — describe the weapon's arc, impact, and battlefield consequence.`
@@ -147,22 +158,34 @@ function InlineRollResult({
   onReroll, 
   label,
   colorClass,
+  rollMode,
+  onRollModeChange,
 }: { 
   roll: DiceRoll; 
   prompt: string; 
   onReroll: () => void;
   label: string;
   colorClass: string;
+  rollMode?: RollMode;
+  onRollModeChange?: (mode: RollMode) => void;
 }) {
   const [copied, setCopied] = useState(false);
   const maxVal = parseInt(roll.die.slice(1));
   
+  const effectiveMode = rollMode ?? inferRollMode(roll.rolls, roll.total, roll.modifier);
   const isCrit = roll.die === 'd20'
-    ? isCriticalHit(roll.rolls, inferRollMode(roll.rolls, roll.total, roll.modifier), roll.die)
+    ? isCriticalHit(roll.rolls, effectiveMode, roll.die)
     : roll.rolls.some(r => r === maxVal);
   const isFumble = roll.die === 'd20'
-    ? isCriticalMiss(roll.rolls, inferRollMode(roll.rolls, roll.total, roll.modifier), roll.die)
+    ? isCriticalMiss(roll.rolls, effectiveMode, roll.die)
     : roll.rolls.every(r => r === 1);
+
+  // For adv/disadv, compute effective total
+  let effectiveTotal = roll.total;
+  if (rollMode && rollMode !== 'normal' && roll.rolls.length === 2 && roll.die === 'd20') {
+    const kept = rollMode === 'advantage' ? Math.max(...roll.rolls) : Math.min(...roll.rolls);
+    effectiveTotal = kept + roll.modifier;
+  }
 
   const handleCopy = useCallback(async () => {
     try {
@@ -189,20 +212,52 @@ function InlineRollResult({
         : isFumble ? "border-red-500/50 bg-red-500/10" 
         : `border-border/40 bg-card/60`
       )}>
+        {/* Advantage/Disadvantage Toggle (weapons only) */}
+        {onRollModeChange && (
+          <div className="flex items-center justify-center gap-1 mb-2">
+            {(['normal', 'advantage', 'disadvantage'] as const).map(mode => (
+              <button
+                key={mode}
+                onClick={() => onRollModeChange(mode)}
+                className={cn(
+                  "px-2.5 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wide transition-all",
+                  rollMode === mode
+                    ? mode === 'advantage'
+                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                      : mode === 'disadvantage'
+                        ? "bg-red-500/20 text-red-400 border border-red-500/40"
+                        : "bg-muted/50 text-foreground border border-border/50"
+                    : "bg-transparent text-muted-foreground/60 border border-transparent hover:text-muted-foreground"
+                )}
+              >
+                {mode === 'normal' ? 'Normal' : mode === 'advantage' ? 'ADV' : 'DIS'}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Roll result header */}
         <div className="flex items-center justify-between mb-2">
           <span className="text-[11px] text-muted-foreground font-mono uppercase">{label}</span>
           <div className="flex items-center gap-1">
-            {roll.rolls.map((r, i) => (
-              <span key={i} className={cn(
-                "inline-flex items-center justify-center w-7 h-7 rounded-md text-xs font-bold border",
-                r === maxVal ? "bg-amber-500/20 border-amber-500/50 text-amber-300"
-                : r === 1 ? "bg-red-500/20 border-red-500/50 text-red-300"
-                : "bg-muted/30 border-border/30 text-foreground"
-              )}>
-                {r}
-              </span>
-            ))}
+            {roll.rolls.map((r, i) => {
+              // Dim the "dropped" die for adv/disadv
+              const isDropped = rollMode && rollMode !== 'normal' && roll.rolls.length === 2 && roll.die === 'd20' && (
+                (rollMode === 'advantage' && r !== Math.max(...roll.rolls)) ||
+                (rollMode === 'disadvantage' && r !== Math.min(...roll.rolls))
+              );
+              return (
+                <span key={i} className={cn(
+                  "inline-flex items-center justify-center w-7 h-7 rounded-md text-xs font-bold border transition-opacity",
+                  isDropped ? "opacity-35" : "",
+                  r === maxVal ? "bg-amber-500/20 border-amber-500/50 text-amber-300"
+                  : r === 1 ? "bg-red-500/20 border-red-500/50 text-red-300"
+                  : "bg-muted/30 border-border/30 text-foreground"
+                )}>
+                  {r}
+                </span>
+              );
+            })}
             {roll.modifier !== 0 && (
               <span className="text-xs text-muted-foreground ml-1">
                 {roll.modifier > 0 ? '+' : ''}{roll.modifier}
@@ -217,7 +272,7 @@ function InlineRollResult({
             "text-2xl font-cinzel font-bold",
             isCrit ? "text-amber-400 animate-pulse" : isFumble ? "text-red-400" : colorClass
           )}>
-            {roll.total}
+            {effectiveTotal}
           </span>
           {isCrit && <span className="block text-[10px] text-amber-400 font-semibold uppercase tracking-wider mt-0.5">✦ Critical! ✦</span>}
           {isFumble && <span className="block text-[10px] text-red-400 font-semibold uppercase tracking-wider mt-0.5">✗ Fumble ✗</span>}
@@ -370,6 +425,8 @@ export function QuickActionsDrawer({
 }: QuickActionsDrawerProps) {
   // Track which item has an active inline roll
   const [activeRoll, setActiveRoll] = useState<{ id: string; roll: DiceRoll; prompt: string } | null>(null);
+  // Track roll mode for weapon attacks
+  const [weaponRollMode, setWeaponRollMode] = useState<RollMode>('normal');
 
   // ── Basics: Equipped weapons + unarmed strike ──
   const weapons = useMemo((): WeaponAttack[] => {
@@ -442,17 +499,34 @@ export function QuickActionsDrawer({
   // ── Roll handlers ──
 
   const handleWeaponRoll = useCallback((weapon: WeaponAttack) => {
-    // Parse weapon damage for die info, default to d20 attack roll
-    const roll = rollDice('d20', 1, weapon.attackBonus);
-    const prompt = generateWeaponRollPrompt(weapon, roll, characterName);
+    const diceCount = weaponRollMode === 'normal' ? 1 : 2;
+    const roll = rollDice('d20', diceCount, weapon.attackBonus);
+    const prompt = generateWeaponRollPrompt(weapon, roll, characterName, weaponRollMode);
     setActiveRoll({ id: `weapon-${weapon.id}`, roll, prompt });
-  }, [characterName]);
+  }, [characterName, weaponRollMode]);
 
   const handleWeaponReroll = useCallback((weapon: WeaponAttack) => {
-    const roll = rollDice('d20', 1, weapon.attackBonus);
-    const prompt = generateWeaponRollPrompt(weapon, roll, characterName);
+    const diceCount = weaponRollMode === 'normal' ? 1 : 2;
+    const roll = rollDice('d20', diceCount, weapon.attackBonus);
+    const prompt = generateWeaponRollPrompt(weapon, roll, characterName, weaponRollMode);
     setActiveRoll({ id: `weapon-${weapon.id}`, roll, prompt });
-  }, [characterName]);
+  }, [characterName, weaponRollMode]);
+
+  // When roll mode changes, re-roll if a weapon roll is active
+  const handleWeaponRollModeChange = useCallback((mode: RollMode) => {
+    setWeaponRollMode(mode);
+    if (activeRoll?.id.startsWith('weapon-')) {
+      // Find the weapon and re-roll with new mode
+      const weaponId = activeRoll.id.replace('weapon-', '');
+      const weapon = weapons.find(w => w.id === weaponId);
+      if (weapon) {
+        const diceCount = mode === 'normal' ? 1 : 2;
+        const roll = rollDice('d20', diceCount, weapon.attackBonus);
+        const prompt = generateWeaponRollPrompt(weapon, roll, characterName, mode);
+        setActiveRoll({ id: `weapon-${weapon.id}`, roll, prompt });
+      }
+    }
+  }, [activeRoll, weapons, characterName]);
 
   const handleAbilityRoll = useCallback((ability: Ability, tier: 1 | 2 | 3) => {
     const { die, count } = getAbilityDice(tier);
@@ -558,6 +632,8 @@ export function QuickActionsDrawer({
                               onReroll={() => handleWeaponReroll(weapon)}
                               label={`${weapon.name} Attack`}
                               colorClass="text-red-400"
+                              rollMode={weaponRollMode}
+                              onRollModeChange={handleWeaponRollModeChange}
                             />
                           )}
                         </AnimatePresence>
