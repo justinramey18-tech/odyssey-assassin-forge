@@ -10,6 +10,7 @@ import { WIZARD_SPELLS } from './wizard-spells';
 import { SORCERER_SPELLS } from './sorcerer-spells';
 import { WARLOCK_SPELLS } from './warlock-spells';
 import { CLERIC_SPELLS } from './cleric-spells';
+import { DRUID_SPELLS } from './druid-spells';
 import { SpellFilter, SpellListResult, SpellRegistry } from './types';
 
 // ============================================
@@ -29,6 +30,7 @@ export const ALL_SPELLS: SpellDefinition[] = [
   ...SORCERER_SPELLS,
   ...WARLOCK_SPELLS,
   ...CLERIC_SPELLS,
+  ...DRUID_SPELLS,
 ];
 
 export const SPELL_REGISTRY: SpellRegistry = ALL_SPELLS.reduce((acc, spell) => {
