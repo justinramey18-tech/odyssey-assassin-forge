@@ -36,7 +36,24 @@ function validateIdentityStep(state: WizardState): StepValidation {
   };
 }
 
-// Validate Step 2: Ability Scores
+// Validate Step 2: Class Selection
+function validateClassSelectionStep(state: WizardState): StepValidation {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  
+  // A class must be selected
+  if (!state.primaryClass) {
+    errors.push('Please select a class');
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors,
+    warnings,
+  };
+}
+
+// Validate Step 3: Ability Scores
 function validateAbilityScoresStep(state: WizardState): StepValidation {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -76,7 +93,7 @@ function validateAbilityScoresStep(state: WizardState): StepValidation {
   };
 }
 
-// Validate Step 3: Game Mode
+// Validate Step 4: Game Mode
 function validateGameModeStep(state: WizardState): StepValidation {
   // Game mode step has no validation requirements
   // All options are valid
@@ -87,10 +104,15 @@ function validateGameModeStep(state: WizardState): StepValidation {
   };
 }
 
-// Validate Step 4: Magic Path
+// Validate Step 5: Magic Path
 function validateMagicPathStep(state: WizardState): StepValidation {
   const errors: string[] = [];
   const warnings: string[] = [];
+  
+  // Only validate if class is rogue (others skip this step)
+  if (state.primaryClass !== 'rogue') {
+    return { isValid: true, errors: [], warnings: [] };
+  }
   
   // Check level requirements for magic paths
   if (state.selectedPath) {
@@ -111,7 +133,7 @@ function validateMagicPathStep(state: WizardState): StepValidation {
   };
 }
 
-// Validate Step 5: Skill Trees
+// Validate Step 6: Skill Trees
 function validateSkillTreesStep(state: WizardState): StepValidation {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -134,7 +156,7 @@ function validateSkillTreesStep(state: WizardState): StepValidation {
   };
 }
 
-// Validate Step 6: Equipment
+// Validate Step 7: Equipment
 function validateEquipmentStep(state: WizardState): StepValidation {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -156,7 +178,7 @@ function validateEquipmentStep(state: WizardState): StepValidation {
   };
 }
 
-// Validate Step 7: Combat Primer (informational only)
+// Validate Step 8: Combat Primer (informational only)
 function validateCombatPrimerStep(_state: WizardState): StepValidation {
   // Informational step - always valid
   return {
@@ -166,7 +188,7 @@ function validateCombatPrimerStep(_state: WizardState): StepValidation {
   };
 }
 
-// Validate Step 8: Summary (final validation)
+// Validate Step 9: Summary (final validation)
 function validateSummaryStep(state: WizardState): StepValidation {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -178,6 +200,11 @@ function validateSummaryStep(state: WizardState): StepValidation {
   
   if (state.level < 1 || state.level > 20) {
     errors.push('Invalid character level');
+  }
+  
+  // Check class is selected
+  if (!state.primaryClass) {
+    errors.push('No class selected');
   }
   
   // Check ability scores are assigned
@@ -199,18 +226,20 @@ export function validateStep(step: number, state: WizardState): StepValidation {
     case 0:
       return validateIdentityStep(state);
     case 1:
-      return validateAbilityScoresStep(state);
+      return validateClassSelectionStep(state);
     case 2:
-      return validateGameModeStep(state);
+      return validateAbilityScoresStep(state);
     case 3:
-      return validateMagicPathStep(state);
+      return validateGameModeStep(state);
     case 4:
-      return validateSkillTreesStep(state);
+      return validateMagicPathStep(state);
     case 5:
-      return validateEquipmentStep(state);
+      return validateSkillTreesStep(state);
     case 6:
-      return validateCombatPrimerStep(state);
+      return validateEquipmentStep(state);
     case 7:
+      return validateCombatPrimerStep(state);
+    case 8:
       return validateSummaryStep(state);
     default:
       return { isValid: false, errors: ['Invalid step'], warnings: [] };
