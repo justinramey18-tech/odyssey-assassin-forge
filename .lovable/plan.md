@@ -1,671 +1,345 @@
 
-# Multiclass Spellcaster System - Implementation Plan
+# Implementation Plan: Wizard as First Full Spellcaster Class
 
-## Status: Phases 0-9 COMPLETE ✅
-
-**Last Updated:** 2026-02-09
-
-This refined plan addresses all 23 issues identified in the quality review, reducing implementation risk from **72/100 to 94/100** (Production Ready).
+## Executive Summary
+This plan implements the **Wizard** class as the first full spellcaster, creating shared infrastructure that all future classes (Sorcerer, Cleric, Druid, Bard, Warlock) will reuse. The Wizard is ideal for this because it's the quintessential prepared caster with Intelligence-based spellcasting and full slot progression.
 
 ---
 
-## Architecture Overview
+## Current State Analysis
+
+### What Already Exists (Backend Ready)
+- `useMulticlass` hook - calculates maxHP, spell slots, hit dice pools
+- `useClassSpellcasting` hook - full spell management for non-Rogue classes
+- `CLASS_REGISTRY` with Wizard configuration (INT-based, prepared caster, d6 hit die)
+- `FULL_CASTER_SLOTS` table - proper 1st-20th level slot progression
+- Multiclass spell slot calculator combining full caster levels
+- Character wizard saves `primaryClass` to character state
+
+### What's Missing (UI Disconnected)
+- **Index.tsx** still uses `useSpellcasting` (Rogue paths) for everyone
+- **MagicScreen** only shows 4 Rogue magic paths (Arcane Trickster, etc.)
+- No UI for class-based spellbooks
+- No Wizard spell list exists (only path-restricted spells)
+- Legacy HP calculation still used instead of multiclass-aware version
+
+---
+
+## Implementation Phases
+
+### Phase 1: Add `classes` Field to Spell Type
+**File:** `src/lib/magic/types.ts`
+
+Extend `SpellDefinition` to support class-based filtering:
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│                      CHARACTER STATE (Extended)                          │
-├─────────────────────────────────────────────────────────────────────────┤
-│  PRESERVED FIELDS:              │  NEW OPTIONAL FIELDS:                 │
-│  • name: string                 │  • primaryClass?: DnDClass            │
-│  • level: number ◄─────────────────► (maps to primaryClassLevel)        │
-│  • abilities: CharacterAbility[]│  • multiclassLevels?: Record<...>     │
-│  • equippedAbilities: string[]  │  • classFeatureSelections?: Record<>  │
-│                                 │                                       │
-│  BACKWARD COMPATIBLE: character.level remains the single source of      │
-│  truth. New classes use it directly - no migration needed.              │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Critical Risk Mitigations
-
-### Risk 1: Backward Compatibility (RESOLVED)
-
-**Original Problem:** Plan proposed changing `character.level` to `primaryClassLevel`, breaking 352 references across 16 files.
-
-**Solution:** Keep `character.level` as-is. Add optional `primaryClass` field that defaults to `'rogue'` for existing characters.
-
-```typescript
-// src/lib/types.ts - MINIMAL CHANGE
-interface Character {
-  name: string;
-  level: number;  // ◄── PRESERVED, no migration needed
-  abilities: CharacterAbility[];
-  equippedAbilities: string[];
-  primaryClass?: DnDClass;  // ◄── NEW, optional, defaults to 'rogue'
-  multiclassLevels?: Partial<Record<DnDClass, number>>;  // ◄── NEW, optional
+interface SpellDefinition {
+  // ... existing fields ...
+  pathRestrictions?: MagicPath[];  // Existing (for Rogue paths)
+  classes?: DnDClass[];            // NEW: Which classes can learn this
 }
 ```
 
-**Result:** Zero breaking changes. Existing saves load without migration.
+This allows spells to be tagged for both systems - backward compatible with existing Rogue paths.
 
 ---
 
-### Risk 2: HP Calculation Signature (RESOLVED)
+### Phase 2: Create Wizard Spell List
+**New File:** `src/lib/magic/spells/wizard-spells.ts`
 
-**Original Problem:** Modifying `calculateMaxHP()` signature would break `BuildConfig.progression.calculateMaxHP`.
+Add Wizard-specific spells organized by level:
 
-**Solution:** Create a parallel function for multiclass HP, leave original untouched.
+**Cantrips (8-10 spells):**
+- Fire Bolt, Ray of Frost, Prestidigitation, Light, Mage Hand
+- Minor Illusion, Shocking Grasp, Chill Touch, Message, Mending
 
-```typescript
-// src/lib/hpCalculation.ts - ADD NEW FUNCTION, DON'T MODIFY EXISTING
+**1st Level (10-12 spells):**
+- Magic Missile, Shield, Mage Armor, Detect Magic, Find Familiar
+- Sleep, Charm Person, Disguise Self, Identify, Feather Fall
 
-// EXISTING - unchanged
-export function calculateMaxHP(
-  level: number,
-  constitutionModifier: number,
-  prestigeLevel: number
-): number { ... }
+**2nd Level (8-10 spells):**
+- Misty Step, Invisibility, Hold Person, Mirror Image, Scorching Ray
+- Shatter, Suggestion, Web, Darkness, See Invisibility
 
-// NEW - for multiclass characters
-export function calculateMulticlassMaxHP(
-  classLevels: { classId: DnDClass; levels: number }[],
-  constitutionModifier: number,
-  prestigeLevel: number
-): number {
-  // Level 1: Use primary class hit die max
-  // Levels 2+: Use appropriate hit die average per class
-  // Sum all contributions + CON per total level + prestige bonus
-}
-```
+**3rd Level (6-8 spells):**
+- Fireball, Counterspell, Dispel Magic, Fly, Haste
+- Lightning Bolt, Slow, Hypnotic Pattern
 
-**Files affected:**
-- `src/lib/hpCalculation.ts` - Add new function
-- `src/hooks/use-multiclass.ts` - New hook calls appropriate function
+**4th Level (4-6 spells):**
+- Polymorph, Greater Invisibility, Dimension Door, Wall of Fire
+- Banishment, Ice Storm
 
----
+**5th Level (4-6 spells):**
+- Telekinesis, Hold Monster, Cone of Cold, Wall of Force
+- Animate Objects, Scrying
 
-### Risk 3: 5e Rules Accuracy (RESOLVED)
-
-**Corrections made:**
-
-| Original Claim | Corrected Rule |
-|----------------|----------------|
-| "Half casters add half levels" | All 6 proposed classes are **full casters** - sum levels directly |
-| "Saves: Primary + 1 per multiclass" | Multiclassing does **NOT** grant additional saving throw proficiencies |
-| "Features from level 1-2 only" | Multiclass grants features at each level in that class (except starting proficiencies) |
-
-**Implementation:**
-```typescript
-// src/lib/classes/multiclassRules.ts
-export const MULTICLASS_SPELL_LEVEL = (levels: ClassLevelMap): number => {
-  let casterLevel = 0;
-  // All 6 spellcasters are full casters
-  FULL_CASTER_CLASSES.forEach(cls => {
-    casterLevel += levels[cls] ?? 0;
-  });
-  // Warlock pact magic is separate - handled independently
-  return casterLevel;
-};
-
-export const MULTICLASS_PROFICIENCY_GRANTS: Record<DnDClass, MulticlassProficiencies> = {
-  wizard: { armor: [], weapons: [], skills: 0, savingThrows: [] },  // No new saves
-  cleric: { armor: ['light', 'medium', 'shields'], weapons: [], skills: 0, savingThrows: [] },
-  // ... etc
-};
-```
+Each spell includes:
+- `classes: ['wizard']` tag
+- Full 5e-accurate mechanics (save DC, damage, duration)
+- Oracle personality quips (thunderhead/jarvis/deadpool)
 
 ---
 
-### Risk 4: Wizard Step Ordering (RESOLVED)
+### Phase 3: Update Spell Index
+**File:** `src/lib/magic/spells/index.ts`
 
-**Problem:** Class Selection needed before Ability Scores for optimization suggestions.
-
-**Solution:** Insert `classSelection` step at position 2 (between Identity and Ability Scores).
-
-```typescript
-// src/components/wizard/types.ts
-export type WizardStep = 
-  | 'identity'
-  | 'classSelection'   // ◄── NEW - position 2
-  | 'abilityScores'
-  | 'gameMode'
-  | 'magicPath'        // Becomes Rogue-only
-  | 'skillTrees'
-  | 'equipment'
-  | 'combatPrimer'
-  | 'summary';
-
-export const WIZARD_STEPS: WizardStep[] = [
-  'identity',
-  'classSelection',    // ◄── Before ability scores
-  'abilityScores',
-  'gameMode',
-  'magicPath',
-  'skillTrees',
-  'equipment',
-  'combatPrimer',
-  'summary',
-];
-```
-
-**Conditional Logic:**
-- `magicPath` step only shows if `primaryClass === 'rogue'`
-- Non-Rogue classes skip to `skillTrees` (Odyssey trees remain as homebrew training)
-
----
-
-### Risk 5: MagicPath vs Class Conflict (RESOLVED)
-
-**Clarification:** MagicPath is a **Rogue-specific subclass** system. New classes have their own spellcasting built-in.
+Add utility functions for class-based spell retrieval:
 
 ```text
-Character Class Hierarchy:
-├── Rogue (Odyssey Assassin base)
-│   └── MagicPath Options:
-│       ├── Arcane Trickster (INT, third-caster)
-│       ├── Shadow Blade (WIS, half-caster)
-│       ├── Eldritch Knight (INT, third-caster)
-│       └── Hexblade (CHA, pact magic)
-│
-├── Wizard (NEW - full caster, INT)
-├── Sorcerer (NEW - full caster, CHA)
-├── Warlock (NEW - pact magic, CHA)
-├── Cleric (NEW - full caster, WIS)
-├── Druid (NEW - full caster, WIS)
-└── Bard (NEW - full caster, CHA)
-```
-
-**Implementation:**
-- If `primaryClass === 'rogue'`: Use existing `MagicPath` system
-- If `primaryClass !== 'rogue'`: Use new `ClassSpellcasting` system
-- Spell lists are mutually exclusive (no merging)
-
----
-
-## Implementation Phases (Revised Order)
-
-### Phase 0: Feature Flag & Safe Defaults (Day 1)
-
-Add feature flag to enable gradual rollout without affecting existing users.
-
-**Files:**
-- `src/lib/featureFlags.ts` (NEW) - Define `MULTICLASS_ENABLED` flag
-- `src/lib/types.ts` (MODIFY) - Add optional fields with safe defaults
-
-```typescript
-// src/lib/featureFlags.ts
-export const FEATURE_FLAGS = {
-  MULTICLASS_ENABLED: true,  // Can toggle for staged rollout
-} as const;
-
-// src/lib/types.ts - Character interface additions
-primaryClass?: DnDClass;  // Default: 'rogue' if undefined
-multiclassLevels?: Partial<Record<DnDClass, number>>;  // Default: {}
-```
-
----
-
-### Phase 1: Core Class Definitions (Day 1-2)
-
-Create the 6 spellcaster class configurations with accurate 5e data.
-
-**New Files:**
-```
-src/lib/classes/
-├── types.ts                 # DnDClass union, ClassConfig interface
-├── index.ts                 # CLASS_REGISTRY export
-├── hitDice.ts               # Hit die constants and calculations
-├── proficiencies.ts         # Armor, weapon, skill proficiencies
-├── prerequisites.ts         # Multiclass ability requirements
-└── spellcasters/
-    ├── wizard.ts            # d6, INT, full caster
-    ├── sorcerer.ts          # d6, CHA, full caster
-    ├── warlock.ts           # d8, CHA, pact magic
-    ├── cleric.ts            # d8, WIS, full caster
-    ├── druid.ts             # d8, WIS, full caster
-    └── bard.ts              # d8, CHA, full caster
-```
-
-**Type Definitions:**
-```typescript
-// src/lib/classes/types.ts
-export type DnDClass = 
-  | 'rogue'     // Odyssey Assassin (legacy)
-  | 'wizard'
-  | 'sorcerer'
-  | 'warlock'
-  | 'cleric'
-  | 'druid'
-  | 'bard';
-
-export interface ClassConfig {
-  id: DnDClass;
-  name: string;
-  hitDie: 'd6' | 'd8' | 'd10' | 'd12';
-  hitDieMax: 6 | 8 | 10 | 12;
-  hitDieAvg: 3 | 4 | 5 | 6;  // Rounded down per 5e
-  primaryAbility: 'INT' | 'WIS' | 'CHA' | 'DEX';
-  spellcasting: {
-    type: 'full' | 'half' | 'third' | 'pact' | 'none';
-    ability: 'INT' | 'WIS' | 'CHA';
-    prepared: boolean;  // true = prepare from list, false = known spells
-  };
-  multiclassRequirements: Partial<Record<AbilityName, number>>;
-  multiclassProficiencies: {
-    armor: string[];
-    weapons: string[];
-    skillCount: number;
-  };
-  iconName: string;       // Lucide icon
-  themeColor: string;     // Tailwind color class
-  flavorText: string;
-}
-```
-
----
-
-### Phase 2: HP Calculation Extension (Day 2)
-
-Add multiclass HP function without modifying existing signature.
-
-**Files:**
-- `src/lib/hpCalculation.ts` (MODIFY) - Add `calculateMulticlassMaxHP()`
-
-```typescript
-// NEW ADDITION to src/lib/hpCalculation.ts
-export function calculateMulticlassMaxHP(
-  primaryClass: DnDClass,
-  primaryLevel: number,
-  multiclassLevels: Partial<Record<DnDClass, number>>,
-  constitutionModifier: number,
-  prestigeLevel: number = 0
-): number {
-  const classRegistry = getClassRegistry();
-  
-  // Level 1: Primary class hit die max + CON
-  const primaryConfig = classRegistry[primaryClass];
-  let maxHP = primaryConfig.hitDieMax + constitutionModifier;
-  
-  // Primary class levels 2+: hit die average + CON
-  if (primaryLevel > 1) {
-    maxHP += (primaryLevel - 1) * (primaryConfig.hitDieAvg + constitutionModifier);
-  }
-  
-  // Multiclass levels: each class's hit die average + CON
-  for (const [classId, levels] of Object.entries(multiclassLevels)) {
-    if (levels && levels > 0) {
-      const mcConfig = classRegistry[classId as DnDClass];
-      maxHP += levels * (mcConfig.hitDieAvg + constitutionModifier);
-    }
-  }
-  
-  // Prestige bonus (unchanged)
-  maxHP += prestigeLevel * HP_CONFIG.PRESTIGE_HP_PER_LEVEL;
-  
-  return Math.max(1, maxHP);
-}
-```
-
----
-
-### Phase 3: Full-Caster Spell Slots (Day 2-3)
-
-Add the full-caster spell slot progression table and multiclass calculation.
-
-**New Files:**
-- `src/lib/magic/fullCasterSlots.ts` - Full caster progression table
-- `src/lib/magic/multiclassSlots.ts` - Combined slot calculator
-
-```typescript
-// src/lib/magic/fullCasterSlots.ts
-export const FULL_CASTER_SLOTS: Record<number, Record<number, number>> = {
-  1:  { 1: 2 },
-  2:  { 1: 3 },
-  3:  { 1: 4, 2: 2 },
-  4:  { 1: 4, 2: 3 },
-  5:  { 1: 4, 2: 3, 3: 2 },
-  6:  { 1: 4, 2: 3, 3: 3 },
-  7:  { 1: 4, 2: 3, 3: 3, 4: 1 },
-  8:  { 1: 4, 2: 3, 3: 3, 4: 2 },
-  9:  { 1: 4, 2: 3, 3: 3, 4: 3, 5: 1 },
-  10: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2 },
-  // ... through level 20 with 6th-9th level slots
-};
-
-// src/lib/magic/multiclassSlots.ts
-export function getMulticlassSpellSlots(
-  classLevels: Partial<Record<DnDClass, number>>
-): Record<number, SpellSlotLevel> {
-  // Calculate combined caster level (all 6 are full casters)
-  let casterLevel = 0;
-  for (const [classId, levels] of Object.entries(classLevels)) {
-    if (FULL_CASTER_CLASSES.includes(classId as DnDClass)) {
-      casterLevel += levels ?? 0;
-    }
-  }
-  
-  // Warlock pact slots handled separately
-  const warlockLevels = classLevels.warlock ?? 0;
-  
-  return {
-    regularSlots: FULL_CASTER_SLOTS[casterLevel] ?? {},
-    pactSlots: warlockLevels > 0 ? getPactSlotsForLevel(warlockLevels) : null,
-  };
-}
-```
-
----
-
-### Phase 4: Multiclass State Hook (Day 3)
-
-Create the central hook for managing multiclass state with validation.
-
-**New File:** `src/hooks/use-multiclass.ts`
-
-```typescript
-export function useMulticlass(character: Character) {
-  const [multiclassState, setMulticlassState] = useState(() => ({
-    primaryClass: character.primaryClass ?? 'rogue',
-    multiclassLevels: character.multiclassLevels ?? {},
-  }));
-
-  // Computed values
-  const totalLevel = useMemo(() => {
-    let total = character.level;  // Primary class level
-    for (const levels of Object.values(multiclassState.multiclassLevels)) {
-      total += levels ?? 0;
-    }
-    return Math.min(total, 20);  // Cap at 20
-  }, [character.level, multiclassState.multiclassLevels]);
-
-  const canAddMulticlass = useCallback((
-    classId: DnDClass,
-    abilityScores: BaseAbilityScores
-  ): { allowed: boolean; reason?: string } => {
-    if (totalLevel >= 20) {
-      return { allowed: false, reason: 'Maximum level (20) reached' };
-    }
-    const prereqs = CLASS_REGISTRY[classId].multiclassRequirements;
-    for (const [ability, minimum] of Object.entries(prereqs)) {
-      if (abilityScores[ability as AbilityName] < minimum) {
-        return { 
-          allowed: false, 
-          reason: `Requires ${minimum} ${ability.toUpperCase()}` 
-        };
-      }
-    }
-    return { allowed: true };
-  }, [totalLevel]);
-
-  const addMulticlassLevel = useCallback((classId: DnDClass) => {
-    setMulticlassState(prev => ({
-      ...prev,
-      multiclassLevels: {
-        ...prev.multiclassLevels,
-        [classId]: (prev.multiclassLevels[classId] ?? 0) + 1,
-      },
-    }));
-  }, []);
-
-  return {
-    primaryClass: multiclassState.primaryClass,
-    multiclassLevels: multiclassState.multiclassLevels,
-    totalLevel,
-    canAddMulticlass,
-    addMulticlassLevel,
-    setPrimaryClass: (classId: DnDClass) => 
-      setMulticlassState(prev => ({ ...prev, primaryClass: classId })),
-  };
-}
-```
-
----
-
-### Phase 5: Wizard UI Steps (Day 4-5)
-
-Add class selection to the character creation wizard.
-
-**New Files:**
-- `src/components/wizard/steps/ClassSelectionStep.tsx`
-- `src/components/wizard/steps/MulticlassStep.tsx` (optional, for level > 1)
-
-**Modified Files:**
-- `src/components/wizard/types.ts` - Add step definitions
-- `src/components/wizard/CharacterWizard.tsx` - Insert new steps
-
-**Class Selection UI:**
-```typescript
-// src/components/wizard/steps/ClassSelectionStep.tsx
-export function ClassSelectionStep({ state, onChange }: StepProps) {
-  const classes = Object.values(CLASS_REGISTRY);
-  
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-      {classes.map(cls => (
-        <ClassCard
-          key={cls.id}
-          config={cls}
-          selected={state.primaryClass === cls.id}
-          onSelect={() => onChange({ primaryClass: cls.id })}
-        />
-      ))}
-    </div>
+// New function
+export function getSpellsByClass(classId: DnDClass): SpellDefinition[] {
+  return ALL_SPELLS.filter(spell => 
+    spell.classes?.includes(classId) ?? false
   );
 }
 
-function ClassCard({ config, selected, onSelect }: ClassCardProps) {
-  const Icon = getIcon(config.iconName);
-  return (
-    <button
-      onClick={onSelect}
-      className={cn(
-        "p-4 rounded-lg border-2 transition-all",
-        selected 
-          ? `border-${config.themeColor} bg-${config.themeColor}/10` 
-          : "border-border hover:border-primary/50"
-      )}
-    >
-      <Icon className="w-8 h-8 mb-2" />
-      <h3 className="font-bold">{config.name}</h3>
-      <p className="text-xs text-muted-foreground">
-        {config.hitDie} • {config.spellcasting.ability}
-      </p>
-      <p className="text-xs mt-1">{config.flavorText}</p>
-    </button>
+// New function
+export function getClassSpellsByLevel(
+  classId: DnDClass, 
+  level: number
+): SpellDefinition[] {
+  return ALL_SPELLS.filter(spell => 
+    spell.level === level && 
+    (spell.classes?.includes(classId) ?? false)
   );
 }
 ```
 
 ---
 
-### Phase 6: Class Features System (Day 5-6)
+### Phase 4: Create ClassSpellcastingScreen Component
+**New File:** `src/components/magic/ClassSpellcastingScreen.tsx`
 
-Implement class feature definitions and unlock logic.
+New UI component for full caster classes (similar to MagicScreen but class-based):
 
-**New Files:**
+**Features:**
+- Header showing class name, spell attack bonus, save DC
+- Spell slot tracker (1st-9th level for full casters)
+- Spellbook tab with class-specific spell grid
+- Preparation panel (Wizard prepares INT mod + level spells)
+- Concentration tracker
+- Material components panel
+- Active spells panel
+
+**Props:**
+```text
+interface ClassSpellcastingScreenProps {
+  primaryClass: DnDClass;
+  characterLevel: number;
+  characterName: string;
+  spellcasting: UseClassSpellcastingReturn;
+  conModifier?: number;
+  proficiencyBonus?: number;
+}
 ```
-src/lib/classes/features/
-├── types.ts           # ClassFeature interface
-├── index.ts           # Feature registry
-├── wizard.ts          # Arcane Recovery, Spell Mastery, etc.
-├── sorcerer.ts        # Font of Magic, Metamagic
-├── warlock.ts         # Pact Boon, Invocations
-├── cleric.ts          # Channel Divinity, Domain
-├── druid.ts           # Wild Shape, Circle
-└── bard.ts            # Bardic Inspiration, College
-```
 
-**Feature Definition:**
-```typescript
-// src/lib/classes/features/types.ts
-export interface ClassFeature {
-  id: string;
+---
+
+### Phase 5: Create ClassSpellbookGrid Component
+**New File:** `src/components/magic/ClassSpellbookGrid.tsx`
+
+Spell display grid filtered by class instead of path:
+
+```text
+interface ClassSpellbookGridProps {
   classId: DnDClass;
-  name: string;
-  level: number;
-  description: string;
-  mechanicalEffect?: string;
-  usageType?: 'at_will' | 'short_rest' | 'long_rest';
-  isSubclassFeature: boolean;
-}
-
-export interface UnlockedFeature {
-  feature: ClassFeature;
-  classLevel: number;
-  selections?: string[];  // For features with choices
+  characterLevel: number;
+  knownSpells: string[];
+  preparedSpells: string[];
+  favoriteSpells: string[];
+  concentratingOn: string | null;
+  maxSpellLevel: number;
+  onSpellSelect: (spell: SpellDefinition) => void;
 }
 ```
 
-**Note:** Subclasses are **deferred to Phase 2** of the project. Initial release supports base class features only. Subclass selection UI and data will be added in a follow-up iteration.
+Displays:
+- Cantrips section (always available)
+- Leveled spell sections (1st through maxSpellLevel)
+- Filter by school, search by name
+- Preparation status indicators
+- Concentration indicators
 
 ---
 
-### Phase 7: Spellcasting Integration (Day 6-7)
+### Phase 6: Wire Up Index.tsx
 
-Update the spellcasting hook to handle full-caster classes.
+**File:** `src/pages/Index.tsx`
 
-**Modified Files:**
-- `src/hooks/use-spellcasting.ts` - Add class-based spellcasting logic
+**Changes:**
 
-**Key Changes:**
-```typescript
-// In use-spellcasting.ts - conditional logic
-export function useSpellcasting(
-  characterLevel: number,
-  abilityScores: FinalAbilityScores,
-  primaryClass: DnDClass = 'rogue',
-  multiclassLevels: Partial<Record<DnDClass, number>> = {}
-) {
-  // Determine spellcasting source
-  const isRogue = primaryClass === 'rogue';
-  
-  if (isRogue) {
-    // Use existing MagicPath logic (unchanged)
-    return useRogueMagicPath(characterLevel, abilityScores, state.path);
-  } else {
-    // Use new class-based spellcasting
-    return useClassSpellcasting(
-      primaryClass,
-      characterLevel,
-      multiclassLevels,
-      abilityScores
-    );
+1. **Import new hook and component:**
+```text
+import { useMulticlass } from '@/hooks/use-multiclass';
+import { useClassSpellcasting } from '@/hooks/use-class-spellcasting';
+import { ClassSpellcastingScreen } from '@/components/magic/ClassSpellcastingScreen';
+```
+
+2. **Instantiate useMulticlass hook (after abilityScores):**
+```text
+const multiclass = useMulticlass({
+  character,
+  abilityScores: abilityScores.baseScores,
+  constitutionModifier: scoreToModifier(abilityScores.finalScores.constitution),
+  prestigeLevel: prestigeData.prestigeLevel,
+});
+```
+
+3. **Determine if Rogue or other class:**
+```text
+const isRogueClass = (character.primaryClass ?? 'rogue') === 'rogue';
+```
+
+4. **Conditional spellcasting hook:**
+```text
+// Existing spellcasting hook for Rogues
+const spellcasting = useSpellcasting(character.level, character.name, {
+  abilityScores: { ... }
+});
+
+// New class spellcasting for non-Rogues
+const classSpellcasting = useClassSpellcasting(
+  character.primaryClass ?? 'rogue',
+  character.level,
+  character.multiclassLevels ?? {},
+  character.name,
+  { abilityScores: { ... } }
+);
+```
+
+5. **Use multiclass-aware HP:**
+```text
+const calculatedMaxHP = useMemo(() => {
+  if (isRogueClass) {
+    // Legacy calculation for backward compatibility
+    const conMod = scoreToModifier(abilityScores.finalScores.constitution);
+    return calculateMaxHP(character.level, conMod, prestigeData.prestigeLevel);
   }
-}
+  // New multiclass-aware calculation
+  return multiclass.maxHP;
+}, [isRogueClass, character.level, abilityScores.finalScores.constitution, prestigeData.prestigeLevel, multiclass.maxHP]);
+```
+
+6. **Conditional Arcana tab rendering:**
+```text
+{activeTab === 'arcana' && (
+  <BackgroundWrapper ...>
+    {isRogueClass ? (
+      <MagicScreen
+        characterLevel={character.level}
+        characterName={character.name}
+        spellcasting={spellcasting}
+        ...
+      />
+    ) : (
+      <ClassSpellcastingScreen
+        primaryClass={character.primaryClass ?? 'wizard'}
+        characterLevel={character.level}
+        characterName={character.name}
+        spellcasting={classSpellcasting}
+        conModifier={...}
+        proficiencyBonus={...}
+      />
+    )}
+  </BackgroundWrapper>
+)}
 ```
 
 ---
 
-### Phase 8: UI Components & Polish (Day 7-8)
+### Phase 7: Update Wizard Summary Step
+**File:** `src/components/wizard/steps/SummaryStep.tsx`
 
-Create display components for class information.
-
-**New Files:**
-- `src/components/character/ClassLevelBadge.tsx` - Shows class + level
-- `src/components/character/ClassFeaturesPanel.tsx` - Lists unlocked features
-- `src/components/character/HitDicePool.tsx` - Shows combined hit dice
-
-**Modified Files:**
-- `src/components/drawers/StatsDrawer.tsx` - Add class section
-- `src/components/home/HomeScreen.tsx` - Show class icon/name
-- `src/components/character/CharacterHeader.tsx` - Class indicator
+Show class-specific information in summary:
+- Class name and hit die (d6 for Wizard)
+- Primary ability (Intelligence)
+- Spellcasting ability indicator
+- "Prepared Caster" badge
+- Starting spell slots preview
 
 ---
 
-### Phase 9: Testing & Validation (Day 8-9)
+## File Change Summary
 
-**Test Suites:**
-1. **HP Calculation Tests**
-   - Single-class HP (all 7 classes)
-   - Multiclass HP (various combinations)
-   - Edge cases (level 1, level 20, negative CON)
-
-2. **Spell Slot Tests**
-   - Full-caster progression (levels 1-20)
-   - Multiclass combined caster level
-   - Warlock pact slots separation
-
-3. **Prerequisite Validation**
-   - Minimum ability score checks
-   - Level cap enforcement
-   - Invalid multiclass prevention
-
-4. **Save/Load Tests**
-   - New character with class saves correctly
-   - Legacy character loads with default 'rogue'
-   - Cloud sync includes class data
-
-**Manual Testing Checklist:**
-- [ ] Create Wizard character, verify d6 HP
-- [ ] Create Cleric character, verify d8 HP
-- [ ] Multiclass Wizard 3 / Cleric 2, verify combined slots
-- [ ] Load pre-multiclass save, verify works as Rogue
-- [ ] Cloud save/load preserves class selection
+| File | Action | Description |
+|------|--------|-------------|
+| `src/lib/magic/types.ts` | Modify | Add `classes?: DnDClass[]` to SpellDefinition |
+| `src/lib/magic/spells/wizard-spells.ts` | Create | 40+ Wizard spells (cantrips through 5th level) |
+| `src/lib/magic/spells/index.ts` | Modify | Add `getSpellsByClass()` utility |
+| `src/components/magic/ClassSpellcastingScreen.tsx` | Create | Main UI for class-based spellcasting |
+| `src/components/magic/ClassSpellbookGrid.tsx` | Create | Spell grid filtered by class |
+| `src/components/magic/index.ts` | Modify | Export new components |
+| `src/pages/Index.tsx` | Modify | Wire up useMulticlass, conditional rendering |
+| `src/components/wizard/steps/SummaryStep.tsx` | Modify | Show class info in summary |
 
 ---
 
-## File Summary
+## Testing Criteria
 
-### New Files (22)
-```
-src/lib/classes/
-├── types.ts
-├── index.ts
-├── hitDice.ts
-├── proficiencies.ts
-├── prerequisites.ts
-└── spellcasters/ (6 files)
-src/lib/classes/features/ (7 files)
-src/lib/magic/fullCasterSlots.ts
-src/lib/magic/multiclassSlots.ts
-src/lib/featureFlags.ts
-src/hooks/use-multiclass.ts
-src/components/wizard/steps/ClassSelectionStep.tsx
-src/components/wizard/steps/MulticlassStep.tsx
-src/components/character/ClassLevelBadge.tsx
-src/components/character/ClassFeaturesPanel.tsx
-src/components/character/HitDicePool.tsx
-```
+### Create Wizard Character Flow
+1. Start character wizard, select Wizard class
+2. Complete wizard through to summary
+3. Verify "Wizard" and "d6" shown in summary
+4. Finish wizard, verify character is saved with `primaryClass: 'wizard'`
 
-### Modified Files (12)
-```
-src/lib/types.ts (add optional fields)
-src/lib/hpCalculation.ts (add new function)
-src/hooks/use-auto-save.ts (add class fields to SaveData)
-src/hooks/use-spellcasting.ts (add class routing)
-src/components/wizard/types.ts (add steps)
-src/components/wizard/CharacterWizard.tsx (render steps)
-src/components/drawers/StatsDrawer.tsx (class section)
-src/components/home/HomeScreen.tsx (class display)
-src/components/character/CharacterHeader.tsx (class badge)
-src/pages/Index.tsx (wire up multiclass hook)
-src/lib/buildConfig/BuildContext.tsx (dynamic config)
-src/lib/buildConfig/types.ts (class-aware progression)
-```
+### Arcana Tab Rendering
+1. Open Arcana tab as Wizard
+2. Verify ClassSpellcastingScreen renders (not MagicScreen)
+3. Verify Wizard spell list is shown (Fire Bolt, Magic Missile, etc.)
+4. Verify spell slots are full caster progression (2 slots at level 1)
 
-**Total: 34 files** (within revised estimate of 35-45)
+### Spell Management
+1. Learn a spell (e.g., Magic Missile)
+2. Prepare the spell
+3. Cast the spell, verify slot is consumed
+4. Long rest, verify slots restored
+
+### HP Calculation
+1. Create Level 1 Wizard with +2 CON mod
+2. Verify max HP = 6 (d6 max) + 2 (CON) = 8
+3. Level up to 2, verify HP = 8 + 4 (d6 avg) + 2 (CON) = 14
+
+### Backward Compatibility
+1. Load existing Rogue character
+2. Verify MagicScreen still shows with path selection
+3. Verify HP calculation unchanged
+4. Verify all existing functionality works
 
 ---
 
-## Revised Quality Score: 94/100
+## Shared Infrastructure Benefit
 
-| Category | Before | After | Notes |
-|----------|--------|-------|-------|
-| Architecture Design | 80 | 95 | No breaking changes, clean extension |
-| 5e Rules Accuracy | 65 | 95 | All corrections applied |
-| Migration Strategy | 50 | 98 | Zero migration needed |
-| Completeness | 70 | 90 | Subclasses deferred to Phase 2 |
-| Implementation Risk | 75 | 95 | Feature flag + backward compat |
-| Maintenance | 80 | 92 | Clear separation of concerns |
+Once Wizard is complete, adding other classes requires only:
+
+| Class | Effort | Notes |
+|-------|--------|-------|
+| Sorcerer | Low | Same UI, just needs spell list + Sorcery Points |
+| Cleric | Low | Prepared caster like Wizard, needs domain spells |
+| Druid | Low | Prepared caster, needs Wild Shape UI later |
+| Bard | Medium | Known caster, needs different UI flow |
+| Warlock | Medium | Pact Magic already calculated, needs Invocations |
+
+The `ClassSpellcastingScreen`, `ClassSpellbookGrid`, and `useClassSpellcasting` hook will be reused by all of these.
 
 ---
 
-## Deferred to Phase 2
+## Estimated Effort
 
-1. **Subclass Selection** - Wizard Traditions, Cleric Domains, etc.
-2. **Class-Specific Spell Lists** - Full spell catalogs per class
-3. **Multiclass Level Redistribution** - Respec UI
-4. **AI Prompt Integration** - Class-aware personality prompts
-5. **Prestige Tree Theming** - Non-Rogue prestige trees
+- **Phase 1**: ~20 lines (type extension)
+- **Phase 2**: ~600 lines (spell definitions with quips)
+- **Phase 3**: ~30 lines (utility functions)
+- **Phase 4**: ~350 lines (main screen component)
+- **Phase 5**: ~200 lines (spellbook grid)
+- **Phase 6**: ~80 lines (Index.tsx wiring)
+- **Phase 7**: ~50 lines (summary step update)
+
+**Total**: ~1,300 lines of code across 8 files
+
+---
+
+## Risk Mitigation
+
+1. **Backward Compatibility**: All Rogue functionality preserved via `isRogueClass` checks
+2. **Data Migration**: Existing characters without `primaryClass` default to `'rogue'`
+3. **Incremental Testing**: Each phase is independently testable
+4. **Fallback**: If class spellcasting fails, gracefully fall back to existing MagicScreen
