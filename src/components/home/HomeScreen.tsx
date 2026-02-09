@@ -533,25 +533,44 @@ export function HomeScreen({
           {/* Collapse toggle tab */}
           <button
             onClick={toggleFooter}
-            className="w-full flex items-center justify-center gap-2 py-1.5 hover:bg-white/5 transition-colors"
+            className={cn(
+              "w-full flex items-center justify-center gap-2 py-3 min-h-[48px] transition-all duration-200",
+              footerCollapsed
+                ? "bg-white/5 hover:bg-white/10 border-b border-white/5"
+                : "hover:bg-white/5"
+            )}
             style={{ touchAction: 'manipulation' }}
             aria-label={footerCollapsed ? 'Expand navigation' : 'Collapse navigation'}
           >
-            {footerCollapsed && (
-              <span className="text-[10px] font-mono uppercase tracking-widest text-white/30">Navigation</span>
-            )}
-            <motion.div
-              animate={{ rotate: footerCollapsed ? 0 : 180 }}
-              transition={{ duration: 0.2 }}
-            >
-              <ChevronUp className="w-4 h-4 text-white/40" />
-            </motion.div>
-            {footerCollapsed && (
-              <div className="flex gap-1">
-                <span className="w-1 h-1 rounded-full bg-white/30" />
-                <span className="w-1 h-1 rounded-full bg-white/30" />
-                <span className="w-1 h-1 rounded-full bg-white/30" />
-              </div>
+            {footerCollapsed ? (
+              <>
+                <div className="flex gap-1.5 items-center">
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400/50" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-400/50" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400/50" />
+                </div>
+                <span className="text-[11px] font-cinzel uppercase tracking-widest text-white/50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                  Navigation
+                </span>
+                <motion.div
+                  animate={{ rotate: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <ChevronUp className="w-5 h-5 text-white/50" />
+                </motion.div>
+              </>
+            ) : (
+              <>
+                <span className="text-[10px] font-mono uppercase tracking-widest text-white/30">
+                  Collapse
+                </span>
+                <motion.div
+                  animate={{ rotate: 180 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <ChevronUp className="w-5 h-5 text-white/40" />
+                </motion.div>
+              </>
             )}
           </button>
 
