@@ -22,6 +22,8 @@ import { ConcentrationCheckPanel } from './ConcentrationCheckPanel';
 import { ActiveSpellsPanel } from './ActiveSpellsPanel';
 import { SorceryPointsTracker } from './SorceryPointsTracker';
 import { ChannelDivinityTracker } from './ChannelDivinityTracker';
+import { WildShapeTracker } from './WildShapeTracker';
+import { useWildShape } from '@/hooks/use-wild-shape';
 
 // Background image
 import arcanaBackground from '@/assets/trees/arcana-wizards-mobile.jpg';
@@ -100,6 +102,11 @@ export function ClassSpellcastingScreen({
 
   // Get class configuration
   const classConfig = CLASS_REGISTRY[primaryClass];
+
+  // Wild Shape for Druids
+  const wildShape = useWildShape(primaryClass === 'druid' ? characterLevel : 0);
+  const isDruid = primaryClass === 'druid';
+  const hasWildShape = isDruid && characterLevel >= 2;
 
   const handleSpellSelect = (spell: SpellDefinition) => {
     setSelectedSpell(spell);
@@ -267,6 +274,28 @@ export function ClassSpellcastingScreen({
           </div>
         )}
 
+        {/* Wild Shape (Druid only) - Compact */}
+        {hasWildShape && (
+          <div className="mt-3 flex items-center gap-2">
+            <WildShapeTracker
+              usesRemaining={wildShape.state.usesRemaining}
+              maxUses={wildShape.state.maxUses}
+              isTransformed={wildShape.state.isTransformed}
+              currentForm={wildShape.state.currentForm}
+              formHP={wildShape.state.formHP}
+              formMaxHP={wildShape.state.formMaxHP}
+              config={wildShape.config}
+              availableForms={wildShape.availableForms}
+              compact
+              onTransform={wildShape.transform}
+              onRevert={() => wildShape.revert()}
+            />
+            {!wildShape.state.isTransformed && (
+              <span className="text-xs text-muted-foreground">Wild Shape</span>
+            )}
+          </div>
+        )}
+
         {/* Compact Slot Display */}
         <div className="mt-3 p-2 bg-background/30 rounded-lg">
           <SpellSlotTracker
@@ -368,7 +397,24 @@ export function ClassSpellcastingScreen({
         </TabsContent>
 
         <TabsContent value="features" className="mt-0 flex-1 overflow-y-auto">
-          <div className="p-4 pb-24">
+          <div className="p-4 pb-24 space-y-4">
+            {/* Wild Shape Panel (Druid only) */}
+            {hasWildShape && (
+              <WildShapeTracker
+                usesRemaining={wildShape.state.usesRemaining}
+                maxUses={wildShape.state.maxUses}
+                isTransformed={wildShape.state.isTransformed}
+                currentForm={wildShape.state.currentForm}
+                formHP={wildShape.state.formHP}
+                formMaxHP={wildShape.state.formMaxHP}
+                config={wildShape.config}
+                availableForms={wildShape.availableForms}
+                onTransform={wildShape.transform}
+                onRevert={() => wildShape.revert()}
+                onRestoreUse={wildShape.restoreUse}
+              />
+            )}
+
             <Card className="bg-background/40 border-white/10">
               <CardContent className="p-4">
                 <h3 className="font-cinzel text-sm text-muted-foreground mb-3 uppercase tracking-wider">

@@ -66,6 +66,20 @@ export {
   channelDivinityRegeneratesOnLongRest,
 } from './channelDivinity';
 
+// Wild Shape (Druid) class feature
+export type { WildShapeConfig, WildShapeState, BeastForm } from './wildShape';
+export {
+  WILD_SHAPE_BY_LEVEL,
+  BEAST_FORMS,
+  getWildShapeForLevel,
+  getWildShapeDuration,
+  getAvailableBeastForms,
+  getDefaultWildShapeState,
+  formatCR,
+  wildShapeRegeneratesOnShortRest,
+  wildShapeRegeneratesOnLongRest,
+} from './wildShape';
+
 // Multiclass spell slot calculation
 export type { MulticlassSpellSlots } from './multiclassSlots';
 export { 
