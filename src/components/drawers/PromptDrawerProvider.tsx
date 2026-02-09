@@ -401,6 +401,7 @@ export function PromptDrawerProvider({
             spellcasting={spellcasting ? {
               preparedSpells: spellcasting.state.preparedSpells,
               knownSpells: spellcasting.state.knownSpells,
+              favoriteSpells: spellcasting.state.favoriteSpells,
               spellSlots: spellcasting.state.spellSlots as Record<number, { current: number; max: number }>,
               pactSlots: spellcasting.state.pactSlots ? {
                 current: spellcasting.state.pactSlots.current,

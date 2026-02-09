@@ -30,6 +30,7 @@ interface CooldownInfo {
 interface SpellcastingInfo {
   preparedSpells: string[];
   knownSpells: string[];
+  favoriteSpells: string[];
   spellSlots: Record<number, { current: number; max: number }>;
   pactSlots?: { current: number; max: number; level: number };
   concentratingOn: string | null;
@@ -190,18 +191,28 @@ export function QuickActionsDrawer({
     }).filter(Boolean) as { ability: Ability; tier: 1 | 2 | 3 }[];
   }, [character.equippedAbilities, character.abilities]);
 
-  // ── Magic: Prepared spells (non-cantrips) ──
+  // ── Magic: Favorited spells (non-cantrips) auto-populate; fall back to prepared/known ──
   const preparedSpells = useMemo((): SpellDefinition[] => {
     if (!spellcasting) return [];
+    const favoriteNonCantrips = spellcasting.favoriteSpells
+      .map(id => getSpellById(id))
+      .filter((s): s is SpellDefinition => !!s && s.level > 0);
+    if (favoriteNonCantrips.length > 0) return favoriteNonCantrips;
+    // Fallback: all prepared/known non-cantrips
     const allIds = [...new Set([...spellcasting.preparedSpells, ...spellcasting.knownSpells])];
     return allIds
       .map(id => getSpellById(id))
       .filter((s): s is SpellDefinition => !!s && s.level > 0);
   }, [spellcasting]);
 
-  // ── Cantrips: Level 0 spells from prepared/known ──
+  // ── Cantrips: Favorited cantrips auto-populate; fall back to all known ──
   const cantrips = useMemo((): SpellDefinition[] => {
     if (!spellcasting) return [];
+    const favoriteCantrips = spellcasting.favoriteSpells
+      .map(id => getSpellById(id))
+      .filter((s): s is SpellDefinition => !!s && s.level === 0);
+    if (favoriteCantrips.length > 0) return favoriteCantrips;
+    // Fallback: all known cantrips
     const allIds = [...new Set([...spellcasting.preparedSpells, ...spellcasting.knownSpells])];
     return allIds
       .map(id => getSpellById(id))
@@ -247,7 +258,7 @@ export function QuickActionsDrawer({
           <div className="space-y-1.5">
 
             {/* ── BASICS (Weapons / Actions) ── */}
-            <Collapsible defaultOpen className="group">
+            <Collapsible className="group">
               <CollapsibleTrigger className="w-full">
                 <CategoryHeader icon={Swords} label="Basics" count={weapons.length} color="bg-red-500/20 text-red-400" />
               </CollapsibleTrigger>
@@ -284,7 +295,7 @@ export function QuickActionsDrawer({
             </Collapsible>
 
             {/* ── ABILITIES (Equipped Loadout) ── */}
-            <Collapsible defaultOpen className="group">
+            <Collapsible className="group">
               <CollapsibleTrigger className="w-full">
                 <CategoryHeader icon={Zap} label="Abilities" count={equippedAbilities.length} color="bg-purple-500/20 text-purple-400" />
               </CollapsibleTrigger>
@@ -330,7 +341,7 @@ export function QuickActionsDrawer({
             </Collapsible>
 
             {/* ── MAGIC (Prepared Spells) ── */}
-            <Collapsible defaultOpen={preparedSpells.length > 0} className="group">
+            <Collapsible className="group">
               <CollapsibleTrigger className="w-full">
                 <CategoryHeader icon={Wand2} label="Magic" count={preparedSpells.length} color="bg-indigo-500/20 text-indigo-400" />
               </CollapsibleTrigger>
@@ -368,7 +379,7 @@ export function QuickActionsDrawer({
             </Collapsible>
 
             {/* ── CANTRIPS ── */}
-            <Collapsible defaultOpen={cantrips.length > 0} className="group">
+            <Collapsible className="group">
               <CollapsibleTrigger className="w-full">
                 <CategoryHeader icon={Sparkles} label="Cantrips" count={cantrips.length} color="bg-cyan-500/20 text-cyan-400" />
               </CollapsibleTrigger>
