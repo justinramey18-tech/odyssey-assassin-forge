@@ -221,6 +221,109 @@ export type Database = {
         }
         Relationships: []
       }
+      parties: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          is_active: boolean
+          link_code: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          is_active?: boolean
+          link_code: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_active?: boolean
+          link_code?: string
+        }
+        Relationships: []
+      }
+      party_actions: {
+        Row: {
+          action_data: Json
+          action_type: string
+          applied: boolean
+          created_at: string
+          id: string
+          party_id: string
+          sender_user_id: string
+          target_user_id: string
+        }
+        Insert: {
+          action_data?: Json
+          action_type: string
+          applied?: boolean
+          created_at?: string
+          id?: string
+          party_id: string
+          sender_user_id: string
+          target_user_id: string
+        }
+        Update: {
+          action_data?: Json
+          action_type?: string
+          applied?: boolean
+          created_at?: string
+          id?: string
+          party_id?: string
+          sender_user_id?: string
+          target_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_actions_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      party_members: {
+        Row: {
+          character_name: string
+          character_status: Json
+          id: string
+          joined_at: string
+          party_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          character_name?: string
+          character_status?: Json
+          id?: string
+          joined_at?: string
+          party_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          character_name?: string
+          character_status?: Json
+          id?: string
+          joined_at?: string
+          party_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_members_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
