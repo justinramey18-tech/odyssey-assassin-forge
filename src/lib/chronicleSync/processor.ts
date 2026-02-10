@@ -33,6 +33,7 @@ import { findBestConsumableMatch, parseItemQuantity } from './fuzzyMatch';
 import { extractAssistantContent } from '@/lib/scribe/smartParsing';
 import { parseShopItemMatches } from './patterns/shopItems';
 import { deduplicateByProximity, deduplicateBySourceText } from './deduplication';
+import { applyCrossCategoryValidation } from './crossCategoryValidation';
 
 /**
  * Parse session log using offline regex patterns
@@ -192,7 +193,7 @@ export function parseLogOffline(rawInput: string): ChronicleParseResult {
   // Gap 1: Parse shop items offline
   const shopItems = parseShopItemMatches(input);
   
-  return {
+  const rawResult: ChronicleParseResult = {
     xpChanges,
     hpChanges,
     itemChanges,
@@ -207,6 +208,9 @@ export function parseLogOffline(rawInput: string): ChronicleParseResult {
     parsedAt: new Date().toISOString(),
     inputLength: rawInput.length,
   };
+
+  // Cross-category validation: boost confidence when related detections corroborate
+  return applyCrossCategoryValidation(rawResult, input);
 }
 
 /**
