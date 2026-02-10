@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
+import type { PendingHealAction } from '@/components/party/IncomingHealNotification';
 
 export interface PartyMember {
   id: string;
@@ -49,6 +50,7 @@ export interface PartyState {
 
 export interface UsePartySyncReturn {
   party: PartyState;
+  pendingHeals: PendingHealAction[];
   createParty: (characterName: string, status: PartyMember['character_status']) => Promise<string | null>;
   joinParty: (linkCode: string, characterName: string, status: PartyMember['character_status']) => Promise<boolean>;
   leaveParty: () => Promise<void>;
@@ -56,6 +58,8 @@ export interface UsePartySyncReturn {
   broadcastStatus: (status: PartyMember['character_status']) => void;
   sendHealAction: (targetUserId: string, actionData: PartyAction['action_data']) => Promise<void>;
   sendPing: (pingType: string, senderName: string) => Promise<void>;
+  acceptHeal: (actionId: string) => Promise<void>;
+  rejectHeal: (actionId: string) => Promise<void>;
   onIncomingHeal: React.MutableRefObject<((hpHealed: number, senderName: string, source: string) => void) | null>;
 }
 
@@ -69,6 +73,7 @@ export function usePartySync(): UsePartySyncReturn {
     isLoading: false,
   });
 
+  const [pendingHeals, setPendingHeals] = useState<PendingHealAction[]>([]);
   const onIncomingHeal = useRef<((hpHealed: number, senderName: string, source: string) => void) | null>(null);
   const statusTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastStatusRef = useRef<string>('');
@@ -162,7 +167,7 @@ export function usePartySync(): UsePartySyncReturn {
       )
       .subscribe();
 
-    // Subscribe to incoming heal actions
+    // Subscribe to incoming heal actions (target receives pending heals)
     const actionsChannel = supabase
       .channel(`party-actions-${party.partyId}`)
       .on(
@@ -173,28 +178,43 @@ export function usePartySync(): UsePartySyncReturn {
           table: 'party_actions',
           filter: `target_user_id=eq.${user.id}`,
         },
-        async (payload) => {
-          const action = payload.new as PartyAction;
-          if (action.applied) return;
+        (payload) => {
+          const action = payload.new as PartyAction & { status?: string };
+          if (action.status && action.status !== 'pending') return;
 
           const hpHealed = action.action_data.hpHealed || 0;
           const senderName = action.action_data.senderName || 'A party member';
           const source = action.action_data.spellName || action.action_data.itemName || 'unknown';
 
-          // Call the heal callback
-          if (onIncomingHeal.current && hpHealed > 0) {
-            onIncomingHeal.current(hpHealed, senderName, source);
+          if (hpHealed > 0) {
+            setPendingHeals(prev => [...prev, { id: action.id, senderName, source, hpHealed }]);
           }
+        }
+      )
+      .subscribe();
 
-          // Mark as applied
-          await supabase
-            .from('party_actions')
-            .update({ applied: true })
-            .eq('id', action.id);
+    // Subscribe to responses on actions we sent (sender gets accept/reject notifications)
+    const sentActionsChannel = supabase
+      .channel(`party-sent-actions-${party.partyId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'party_actions',
+          filter: `sender_user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const action = payload.new as PartyAction & { status?: string };
+          const targetMember = party.members.find(m => m.user_id === action.target_user_id);
+          const targetName = targetMember?.character_name || 'A party member';
+          const source = action.action_data.spellName || action.action_data.itemName || 'heal';
 
-          toast.success(`${senderName} healed you for ${hpHealed} HP with ${source}!`, {
-            duration: 5000,
-          });
+          if (action.status === 'accepted') {
+            toast.success(`${targetName} accepted your ${source}! (+${action.action_data.hpHealed} HP)`, { duration: 4000 });
+          } else if (action.status === 'rejected') {
+            toast(`${targetName} declined your ${source}.`, { duration: 4000 });
+          }
         }
       )
       .subscribe();
@@ -236,6 +256,7 @@ export function usePartySync(): UsePartySyncReturn {
     return () => {
       supabase.removeChannel(membersChannel);
       supabase.removeChannel(actionsChannel);
+      supabase.removeChannel(sentActionsChannel);
       supabase.removeChannel(pingsChannel);
     };
   }, [party.partyId, user]);
@@ -399,8 +420,40 @@ export function usePartySync(): UsePartySyncReturn {
     });
   }, [user, party.partyId]);
 
+  const acceptHeal = useCallback(async (actionId: string) => {
+    const heal = pendingHeals.find(h => h.id === actionId);
+    if (!heal) return;
+
+    // Apply the heal via callback
+    if (onIncomingHeal.current) {
+      onIncomingHeal.current(heal.hpHealed, heal.senderName, heal.source);
+    }
+
+    // Update status to accepted
+    await supabase
+      .from('party_actions')
+      .update({ applied: true, status: 'accepted' } as Record<string, unknown>)
+      .eq('id', actionId);
+
+    setPendingHeals(prev => prev.filter(h => h.id !== actionId));
+    toast.success(`Accepted heal from ${heal.senderName}! +${heal.hpHealed} HP`);
+  }, [pendingHeals]);
+
+  const rejectHeal = useCallback(async (actionId: string) => {
+    const heal = pendingHeals.find(h => h.id === actionId);
+
+    await supabase
+      .from('party_actions')
+      .update({ applied: false, status: 'rejected' } as Record<string, unknown>)
+      .eq('id', actionId);
+
+    setPendingHeals(prev => prev.filter(h => h.id !== actionId));
+    toast('Heal declined', { description: heal ? `From ${heal.senderName}` : undefined });
+  }, [pendingHeals]);
+
   return {
     party,
+    pendingHeals,
     createParty,
     joinParty,
     leaveParty,
@@ -408,6 +461,8 @@ export function usePartySync(): UsePartySyncReturn {
     broadcastStatus,
     sendHealAction,
     sendPing,
+    acceptHeal,
+    rejectHeal,
     onIncomingHeal,
   };
 }
