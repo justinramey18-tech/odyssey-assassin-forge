@@ -30,6 +30,7 @@ import {
   Edit2,
   Sparkles,
   HelpCircle,
+  Users,
 } from 'lucide-react';
 import { UseInitiativeReturn, InitiativeCombatant } from '@/hooks/use-initiative';
 import { Enemy } from '@/lib/combat/targetTypes';
@@ -38,6 +39,7 @@ import {
   CREATURE_DEX_LABELS 
 } from '@/lib/combat/initiativeUtils';
 import { CombatPrimerDrawer } from './CombatPrimerDrawer';
+import { PartyInitiativeState } from '@/hooks/use-party-sync';
 
 interface InitiativeTrackerProps {
   initiative: UseInitiativeReturn;
@@ -49,6 +51,7 @@ interface InitiativeTrackerProps {
   characterLevel?: number;
   onBroadcastInitiative?: (order: Array<{ name: string; initiative: number; isCurrentTurn: boolean }>, round: number) => void;
   onClearInitiative?: () => void;
+  partyInitiatives?: PartyInitiativeState[];
 }
 
 export function InitiativeTracker({
@@ -61,6 +64,7 @@ export function InitiativeTracker({
   characterLevel = 1,
   onBroadcastInitiative,
   onClearInitiative,
+  partyInitiatives = [],
 }: InitiativeTrackerProps) {
   const [showEditSheet, setShowEditSheet] = useState(false);
   const [showPrimerDrawer, setShowPrimerDrawer] = useState(false);
@@ -352,6 +356,43 @@ export function InitiativeTracker({
             </Button>
           )}
         </div>
+
+        {/* Party Initiative Display */}
+        {partyInitiatives.length > 0 && (
+          <div className="border-t border-muted/20 px-3 py-2">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <Users className="w-3 h-3 text-primary/70" />
+              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Party Initiative</span>
+            </div>
+            <div className="space-y-1">
+              {partyInitiatives.map((pi) => (
+                <div key={pi.broadcasterId} className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground truncate max-w-[80px]">
+                    {pi.broadcasterName}
+                  </span>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-mono">
+                    R{pi.round}
+                  </Badge>
+                  <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
+                    {pi.order.map((entry, idx) => (
+                      <span
+                        key={idx}
+                        className={cn(
+                          "text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap",
+                          entry.isCurrentTurn
+                            ? "bg-primary/20 text-primary font-semibold border border-primary/40"
+                            : "bg-muted/20 text-muted-foreground"
+                        )}
+                      >
+                        {entry.name} <span className="font-mono">{entry.initiative}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Edit Initiative Sheet */}
