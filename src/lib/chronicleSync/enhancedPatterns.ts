@@ -249,8 +249,9 @@ export function parseSpellSlotUsage(text: string): ParsedSpellSlotUsage[] {
   const usage: ParsedSpellSlotUsage[] = [];
   const seen = new Set<number>();
 
-  // Patterns 0-2 and 4: explicit slot level mentions (skip named casts, rituals, concentration, and new patterns handled separately)
-  const explicitPatterns = [0, 1, 2, 4, 7, 8, 9].filter(i => i < SPELL_SLOT_PATTERNS.length).map(i => SPELL_SLOT_PATTERNS[i]);
+  // Patterns 0-2 and 4: explicit slot level mentions
+  // Patterns 8, 9 (reaction/bonus action) DON'T contain level info, so handle them separately via named-cast lookup
+  const explicitPatterns = [0, 1, 2, 4, 7].filter(i => i < SPELL_SLOT_PATTERNS.length).map(i => SPELL_SLOT_PATTERNS[i]);
   for (const pattern of explicitPatterns) {
     let match;
     const regex = new RegExp(pattern.source, pattern.flags);
@@ -274,28 +275,34 @@ export function parseSpellSlotUsage(text: string): ParsedSpellSlotUsage[] {
     }
   }
 
-  // Pattern 4: named spell casts "casts X" - lookup in SPELL_LEVELS
-  const namedCastPattern = /casts?\s+([a-zA-Z][a-zA-Z\s']+?)(?:\s+(?:at|on|against|toward)|\s*[.!,]|\s*$)/gi;
-  let match;
-  while ((match = namedCastPattern.exec(text)) !== null) {
-    if (seen.has(match.index)) continue;
-    const spellName = match[1].toLowerCase().trim();
-    const level = SPELL_LEVELS[spellName];
-    if (level !== undefined) {
-      seen.add(match.index);
-      // Cantrips (level 0) don't use a slot
-      if (level === 0) continue;
-      usage.push({
-        level,
-        spellName,
-        sourceText: match[0],
-        confidence: 'medium',
-      });
+  // Patterns 3, 8, 9: named spell casts, reaction spells, bonus action spells
+  // All capture spell name in group 1 — look up level from SPELL_LEVELS
+  const namedCastPatterns = [3, 8, 9].filter(i => i < SPELL_SLOT_PATTERNS.length).map(i => SPELL_SLOT_PATTERNS[i]);
+  for (const pattern of namedCastPatterns) {
+    const regex = new RegExp(pattern.source, pattern.flags);
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      if (seen.has(match.index)) continue;
+      const spellName = match[1]?.toLowerCase().trim();
+      if (!spellName) continue;
+      const level = SPELL_LEVELS[spellName];
+      if (level !== undefined) {
+        seen.add(match.index);
+        // Cantrips (level 0) don't use a slot
+        if (level === 0) continue;
+        usage.push({
+          level,
+          spellName,
+          sourceText: match[0],
+          confidence: 'medium',
+        });
+      }
     }
   }
 
   // Gap 7: Ritual casting detection - "casts X as a ritual" (no slot used, but track it)
   const ritualPattern = /casts?\s+([a-zA-Z][a-zA-Z\s']+?)\s+as\s+a\s+ritual/gi;
+  let match;
   while ((match = ritualPattern.exec(text)) !== null) {
     // Rituals don't consume slots, so we skip adding them to usage
     // but we track them for analytics by marking with level 0
@@ -440,21 +447,24 @@ export function parseKillEvents(text: string): ParsedKillEvent[] {
     const regex = new RegExp(pattern.source, pattern.flags);
     
     while ((match = regex.exec(text)) !== null) {
-      let targetName = match[1]?.trim().toLowerCase();
+      let targetName = match[1]?.trim();
       if (!targetName || targetName.length < 3 || targetName.length > 30) continue;
       
       // Clean up the target name
       targetName = targetName.replace(/^(the|a|an)\s+/i, '').trim();
       
       // Skip excluded words
-      if (KILL_EXCLUDED.has(targetName)) continue;
+      if (KILL_EXCLUDED.has(targetName.toLowerCase())) continue;
       
-      // Deduplicate by name
-      if (seen.has(targetName)) continue;
-      seen.add(targetName);
+      // Deduplicate by lowercase name
+      if (seen.has(targetName.toLowerCase())) continue;
+      seen.add(targetName.toLowerCase());
+      
+      // Title-case each word for consistent display
+      const displayName = targetName.replace(/\b\w/g, c => c.toUpperCase());
       
       kills.push({
-        targetName: targetName.charAt(0).toUpperCase() + targetName.slice(1),
+        targetName: displayName,
         sourceText: match[0],
       });
     }

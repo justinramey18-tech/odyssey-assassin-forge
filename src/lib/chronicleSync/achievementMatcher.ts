@@ -302,8 +302,9 @@ export function matchAchievements(text: string): AchievementMatch[] {
           confidence = 'high';
         }
         
-        // Low confidence: partial word match or very short keyword
-        if (keyword.length < 5) {
+        // Low confidence: partial word match (no word boundary) AND very short keyword
+        // Short keywords WITH word boundary should stay at their earned confidence
+        if (keyword.length < 5 && confidence !== 'high') {
           confidence = 'low';
         }
         
