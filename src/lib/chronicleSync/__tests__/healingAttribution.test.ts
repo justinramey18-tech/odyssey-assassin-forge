@@ -7,16 +7,15 @@ describe('attributeHealing', () => {
   it('attributes Cure Wounds as a spell with correct level', () => {
     const result = attributeHealing(8, 'The cleric casts Cure Wounds on the fighter', 'source');
     expect(result.sourceType).toBe('spell');
-    expect(result.source).toBe('Cure wounds');
+    expect(result.source).toBe('Cure Wounds');
     expect(result.spellLevel).toBe(1);
     expect(result.confidence).toBe('high');
   });
 
-  // Known bug: "mass cure wounds" contains "cure wounds" substring, matches level 1
-  it('matches "mass cure wounds" (hits "cure wounds" first — ordering bug)', () => {
+  it('attributes Mass Cure Wounds as level 5 (longest-first ordering)', () => {
     const result = attributeHealing(20, 'The cleric uses mass cure wounds', 'source');
     expect(result.sourceType).toBe('spell');
-    expect(result.spellLevel).toBe(1); // Should ideally be 5
+    expect(result.spellLevel).toBe(5);
   });
 
   it('attributes Heal spell as level 6', () => {
@@ -46,22 +45,23 @@ describe('attributeHealing', () => {
     expect(result.source).toBe('Second Wind');
   });
 
-  it('attributes Hit Dice as a feature', () => {
-    const result = attributeHealing(6, 'rolls hit dice during rest', 'source');
+  it('attributes Hit Dice as a feature (rest checked first, but no rest keyword → feature)', () => {
+    const result = attributeHealing(6, 'rolls hit dice', 'source');
     expect(result.sourceType).toBe('feature');
   });
 
   // ===== Potions =====
 
-  // Known bug: "potion of healing" contains "heal" → matches spell (level 6) first
-  it('"potion of healing" hits "heal" spell before potion check (ordering bug)', () => {
+  it('attributes "potion of healing" as potion (potions checked before spells)', () => {
     const result = attributeHealing(10, 'drinks a potion of healing', 'source');
-    expect(result.sourceType).toBe('spell'); // Should be 'potion'
+    expect(result.sourceType).toBe('potion');
+    expect(result.confidence).toBe('medium');
   });
 
-  it('"potion of greater healing" hits "heal" spell before potion check (ordering bug)', () => {
+  it('attributes "potion of greater healing" as potion', () => {
     const result = attributeHealing(14, 'drinks a potion of greater healing', 'source');
-    expect(result.sourceType).toBe('spell'); // Should be 'potion'
+    expect(result.sourceType).toBe('potion');
+    expect(result.source).toContain('potion of greater healing');
   });
 
   it('matches elixir as a potion type', () => {
@@ -78,10 +78,10 @@ describe('attributeHealing', () => {
     expect(result.confidence).toBe('medium');
   });
 
-  // Known bug: "heals during a short rest" contains "heal" → matches spell first
-  it('"heals during short rest" hits "heal" spell (ordering bug)', () => {
+  it('attributes short rest (rest checked before spells)', () => {
     const result = attributeHealing(8, 'heals during a short rest', 'source');
-    expect(result.sourceType).toBe('spell'); // Should be 'rest'
+    expect(result.sourceType).toBe('rest');
+    expect(result.source).toBe('Short Rest');
   });
 
   it('attributes overnight sleep as long rest', () => {
