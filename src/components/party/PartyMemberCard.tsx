@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Heart, Shield, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { Heart, Shield, Sparkles, ChevronDown, ChevronUp, Eye } from 'lucide-react';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import type { PartyMember } from '@/hooks/use-party-sync';
 
 interface PartyMemberCardProps {
   member: PartyMember;
   isSelf: boolean;
+  onViewActions?: (member: PartyMember) => void;
 }
 
-export function PartyMemberCard({ member, isSelf }: PartyMemberCardProps) {
+export function PartyMemberCard({ member, isSelf, onViewActions }: PartyMemberCardProps) {
   const [showSlots, setShowSlots] = useState(false);
   const status = member.character_status;
   const currentHP = status.currentHP ?? 0;
@@ -19,16 +21,37 @@ export function PartyMemberCard({ member, isSelf }: PartyMemberCardProps) {
   const conditions = status.conditions ?? [];
   const spellSlots = status.spellSlots ?? {};
   const hasSpellSlots = Object.keys(spellSlots).length > 0;
+  const profileImage = status.profileImage;
+
+  const isTappable = !isSelf && onViewActions;
+
+  const handleCardClick = () => {
+    if (isTappable) {
+      onViewActions(member);
+    }
+  };
 
   return (
-    <div className={cn(
-      "p-3 rounded-lg border bg-card/60 backdrop-blur-sm space-y-2",
-      isSelf ? "border-primary/40" : "border-border/40"
-    )}>
-      {/* Name + Level + Class */}
+    <div
+      className={cn(
+        "p-3 rounded-lg border bg-card/60 backdrop-blur-sm space-y-2 transition-colors",
+        isSelf ? "border-primary/40" : "border-border/40",
+        isTappable && "cursor-pointer hover:bg-card/80 active:bg-card/90"
+      )}
+      onClick={handleCardClick}
+    >
+      {/* Name + Level + Class + Avatar */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="font-cinzel font-semibold text-sm truncate max-w-[140px]">
+          <Avatar className="w-7 h-7">
+            {profileImage ? (
+              <AvatarImage src={profileImage} alt={member.character_name} />
+            ) : null}
+            <AvatarFallback className="text-[10px] font-bold bg-primary/20 text-primary">
+              {member.character_name.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <span className="font-cinzel font-semibold text-sm truncate max-w-[120px]">
             {member.character_name}
           </span>
           {isSelf && (
@@ -41,6 +64,9 @@ export function PartyMemberCard({ member, isSelf }: PartyMemberCardProps) {
           )}
           {status.level && (
             <span className="text-[10px] text-muted-foreground">Lv.{status.level}</span>
+          )}
+          {isTappable && (
+            <Eye className="w-3 h-3 text-muted-foreground/50" />
           )}
         </div>
       </div>
@@ -85,7 +111,7 @@ export function PartyMemberCard({ member, isSelf }: PartyMemberCardProps) {
       {hasSpellSlots && (
         <div className="space-y-1">
           <button
-            onClick={() => setShowSlots(!showSlots)}
+            onClick={(e) => { e.stopPropagation(); setShowSlots(!showSlots); }}
             className="flex items-center gap-1 w-full hover:bg-muted/10 rounded px-0.5 py-0.5 transition-colors"
           >
             <Sparkles className="w-3 h-3 text-purple-400" />
