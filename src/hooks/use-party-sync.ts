@@ -1043,6 +1043,12 @@ export function usePartySync(): UsePartySyncReturn {
   const startVote = useCallback(async (question: string, options: string[], creatorName: string) => {
     if (!user || !party.partyId) return;
 
+    // Clean up any existing vote rows from any creator before starting a new one
+    await (supabase.from('party_shared_state') as any)
+      .delete()
+      .eq('party_id', party.partyId)
+      .eq('state_type', 'vote');
+
     const voteData: ActiveVote = {
       question,
       options: options.map(label => ({ label, voters: [] })),
@@ -1051,12 +1057,12 @@ export function usePartySync(): UsePartySyncReturn {
       closed: false,
     };
 
-    await (supabase.from('party_shared_state') as any).upsert({
+    await (supabase.from('party_shared_state') as any).insert({
       party_id: party.partyId,
       user_id: user.id,
       state_type: 'vote',
       state_data: voteData,
-    }, { onConflict: 'party_id,user_id,state_type' });
+    });
   }, [user, party.partyId]);
 
   const castVote = useCallback(async (optionLabel: string, voterName: string) => {
@@ -1095,23 +1101,33 @@ export function usePartySync(): UsePartySyncReturn {
     const updatedVote = { ...activeVote, closed: true };
     delete (updatedVote as any).myVote;
 
-    await (supabase.from('party_shared_state') as any).upsert({
-      party_id: party.partyId,
-      user_id: updatedVote.creatorUserId,
-      state_type: 'vote',
-      state_data: updatedVote,
-    }, { onConflict: 'party_id,user_id,state_type' });
+    // Use .update() for consistency — only the creator calls this, targeting their own row
+    await (supabase.from('party_shared_state') as any)
+      .update({ state_data: updatedVote })
+      .eq('party_id', party.partyId)
+      .eq('user_id', updatedVote.creatorUserId)
+      .eq('state_type', 'vote');
   }, [user, party.partyId, activeVote]);
 
   const updateMapMarkers = useCallback(async (markers: MapMarker[]) => {
     if (!user || !party.partyId) return;
 
-    await (supabase.from('party_shared_state') as any).upsert({
-      party_id: party.partyId,
-      user_id: user.id,
-      state_type: 'map_markers',
-      state_data: { markers },
-    }, { onConflict: 'party_id,user_id,state_type' });
+    // Try to update any existing map_markers row first (any user's row)
+    const { count } = await (supabase.from('party_shared_state') as any)
+      .update({ state_data: { markers }, updated_at: new Date().toISOString() })
+      .eq('party_id', party.partyId)
+      .eq('state_type', 'map_markers')
+      .select('id', { count: 'exact', head: true });
+
+    // If no existing row, insert a new one under our user_id
+    if (!count || count === 0) {
+      await (supabase.from('party_shared_state') as any).insert({
+        party_id: party.partyId,
+        user_id: user.id,
+        state_type: 'map_markers',
+        state_data: { markers },
+      });
+    }
   }, [user, party.partyId]);
 
   const logCombatEvent = useCallback(async (characterName: string, actionType: string, description: string, metadata: Record<string, unknown> = {}) => {
