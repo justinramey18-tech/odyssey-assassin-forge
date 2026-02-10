@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { GM_GUIDE_PROMPTS, GMGuidePrompt, getCombinedGMGuide, PROMPT_CATEGORIES, getPromptsByCategory } from '@/lib/gmGuidePrompts';
+import { GM_GUIDE_PROMPTS, GMGuidePrompt, getCombinedGMGuidePart1, getCombinedGMGuidePart2, GM_GUIDE_PART1, GM_GUIDE_PART2, PROMPT_CATEGORIES, getPromptsByCategory } from '@/lib/gmGuidePrompts';
 
 interface GMGuidePromptsProps {
   className?: string;
@@ -17,7 +17,7 @@ type CategoryFilter = GMGuidePrompt['category'] | 'all';
 
 export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [copiedAll, setCopiedAll] = useState(false);
+  const [copiedPart, setCopiedPart] = useState<1 | 2 | null>(null);
   const [selectedPrompt, setSelectedPrompt] = useState<GMGuidePrompt | null>(null);
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>('all');
 
@@ -62,13 +62,13 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
     }
   };
 
-  const handleCopyAll = async () => {
+  const handleCopyPart = async (part: 1 | 2) => {
     try {
-      const fullGuide = getCombinedGMGuide();
-      await navigator.clipboard.writeText(fullGuide);
-      setCopiedAll(true);
-      toast.success('📚 All 20 prompts copied!');
-      setTimeout(() => setCopiedAll(false), 2000);
+      const guide = part === 1 ? getCombinedGMGuidePart1() : getCombinedGMGuidePart2();
+      await navigator.clipboard.writeText(guide);
+      setCopiedPart(part);
+      toast.success(`📚 Part ${part} (prompts ${part === 1 ? '1-10' : '11-20'}) copied!`);
+      setTimeout(() => setCopiedPart(null), 2000);
     } catch (err) {
       toast.error('Failed to copy');
     }
@@ -89,27 +89,32 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
               {filteredPrompts.length} prompts • Tap to view
             </p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleCopyAll}
-            className={cn(
-              "gap-1.5 h-8 text-xs shrink-0",
-              copiedAll && "border-green-500/50 bg-green-500/10 text-green-400"
-            )}
-          >
-            {copiedAll ? (
-              <>
-                <Check className="w-3.5 h-3.5" />
-                Copied!
-              </>
-            ) : (
-              <>
-                <Layers className="w-3.5 h-3.5" />
-                All 20
-              </>
-            )}
-          </Button>
+          <div className="flex gap-1.5 shrink-0">
+            {([1, 2] as const).map((part) => (
+              <Button
+                key={part}
+                variant="outline"
+                size="sm"
+                onClick={() => handleCopyPart(part)}
+                className={cn(
+                  "gap-1 h-8 text-xs",
+                  copiedPart === part && "border-green-500/50 bg-green-500/10 text-green-400"
+                )}
+              >
+                {copiedPart === part ? (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <Layers className="w-3.5 h-3.5" />
+                    Pt {part}
+                  </>
+                )}
+              </Button>
+            ))}
+          </div>
         </div>
 
         {/* Category Filter - Single active category with navigation */}
@@ -194,8 +199,9 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
 
       {/* Quick-Copy Footer - Grid for mobile */}
       <div className="pt-3 border-t border-border/30 shrink-0 w-full max-w-full">
+        <p className="text-[10px] text-muted-foreground mb-1">Part 1 (1-10)</p>
         <div className="grid grid-cols-10 gap-0.5 mb-2 w-full">
-          {GM_GUIDE_PROMPTS.slice(0, 10).map((prompt) => (
+          {GM_GUIDE_PART1.map((prompt) => (
             <button
               key={prompt.id}
               className={cn(
@@ -214,8 +220,9 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
             </button>
           ))}
         </div>
+        <p className="text-[10px] text-muted-foreground mb-1">Part 2 (11-20)</p>
         <div className="grid grid-cols-10 gap-0.5 w-full">
-          {GM_GUIDE_PROMPTS.slice(10, 20).map((prompt) => (
+          {GM_GUIDE_PART2.map((prompt) => (
             <button
               key={prompt.id}
               className={cn(

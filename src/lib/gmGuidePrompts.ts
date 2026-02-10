@@ -1602,6 +1602,18 @@ export function getCombinedGMGuide(): string {
   return GM_GUIDE_PROMPTS.map(p => p.content).join('\n\n' + '═'.repeat(80) + '\n\n');
 }
 
+// Split guides into two halves
+export const GM_GUIDE_PART1 = GM_GUIDE_PROMPTS.slice(0, 10);
+export const GM_GUIDE_PART2 = GM_GUIDE_PROMPTS.slice(10, 20);
+
+export function getCombinedGMGuidePart1(): string {
+  return GM_GUIDE_PART1.map(p => p.content).join('\n\n' + '═'.repeat(80) + '\n\n');
+}
+
+export function getCombinedGMGuidePart2(): string {
+  return GM_GUIDE_PART2.map(p => p.content).join('\n\n' + '═'.repeat(80) + '\n\n');
+}
+
 // Helper to get a specific prompt by ID
 export function getGMPromptById(id: string): GMGuidePrompt | undefined {
   return GM_GUIDE_PROMPTS.find(p => p.id === id);
