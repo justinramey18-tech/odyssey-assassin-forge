@@ -34,6 +34,10 @@ import { extractAssistantContent } from '@/lib/scribe/smartParsing';
 import { parseShopItemMatches } from './patterns/shopItems';
 import { deduplicateByProximity, deduplicateBySourceText } from './deduplication';
 import { applyCrossCategoryValidation } from './crossCategoryValidation';
+import { extractDamageType } from './patterns/damageTypes';
+import { attributeHealing } from './patterns/healingAttribution';
+import { applyPriceBasedRarity } from './confidenceAndRarity';
+import { consolidateMultiHits } from './patterns/diceAndMultiHit';
 
 /**
  * Parse session log using offline regex patterns
@@ -63,24 +67,28 @@ export function parseLogOffline(rawInput: string): ChronicleParseResult {
     });
   }
   
-  // Parse Damage (Gap 4: expanded patterns now included in patterns.ts)
+  // Parse Damage with damage type extraction
   const damageMatches = parseDamageMatches(input);
   for (const match of damageMatches) {
+    const damageTypeResult = extractDamageType(match.context);
     hpChanges.push({
       amount: -(match.value as number),
       type: 'damage',
       source: match.context,
+      damageType: damageTypeResult.type ?? undefined,
       sourceText: match.fullMatch,
     });
   }
   
-  // Parse Healing
+  // Parse Healing with source attribution
   const healingMatches = parseHealingMatches(input);
   for (const match of healingMatches) {
+    const attribution = attributeHealing(match.value as number, match.context, match.fullMatch);
     hpChanges.push({
       amount: match.value as number,
       type: 'healing',
-      source: match.context,
+      source: attribution.source,
+      healingSource: attribution.sourceType,
       sourceText: match.fullMatch,
     });
   }
@@ -190,9 +198,15 @@ export function parseLogOffline(rawInput: string): ChronicleParseResult {
   // Parse enemies from the log
   const enemies = parseEnemyMatches(input);
 
-  // Gap 1: Parse shop items offline
-  const shopItems = parseShopItemMatches(input);
+  // Gap 1: Parse shop items offline + price-based rarity estimation
+  const shopItemsRaw = parseShopItemMatches(input);
+  const shopItems = applyPriceBasedRarity(shopItemsRaw);
   
+  // Multi-hit consolidation: group sequential damage events
+  const damageForConsolidation = hpChanges
+    .filter(h => h.type === 'damage')
+    .map(h => ({ amount: h.amount, source: h.source, sourceText: h.sourceText }));
+  const _consolidatedHits = consolidateMultiHits(damageForConsolidation, input);
   const rawResult: ChronicleParseResult = {
     xpChanges,
     hpChanges,
