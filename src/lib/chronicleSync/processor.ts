@@ -183,7 +183,12 @@ export function parseLogOffline(rawInput: string): ChronicleParseResult {
   // Parse Conditions (Gap 5: expanded removal detection in patterns.ts)
   const conditionMatches = parseConditionMatches(input);
   for (const match of conditionMatches) {
-    const [action, name] = (match.value as string).split(':');
+    const valueStr = match.value as string;
+    const colonIndex = valueStr.indexOf(':');
+    if (colonIndex === -1) continue; // Safety: skip malformed condition values
+    const action = valueStr.slice(0, colonIndex);
+    const name = valueStr.slice(colonIndex + 1);
+    if (!name) continue; // Skip if no condition name
     conditions.push({
       name,
       action: action as 'applied' | 'removed',
@@ -202,11 +207,26 @@ export function parseLogOffline(rawInput: string): ChronicleParseResult {
   const shopItemsRaw = parseShopItemMatches(input);
   const shopItems = applyPriceBasedRarity(shopItemsRaw);
   
-  // Multi-hit consolidation: group sequential damage events
+  // Multi-hit consolidation: group sequential damage events into combined entries
   const damageForConsolidation = hpChanges
     .filter(h => h.type === 'damage')
     .map(h => ({ amount: h.amount, source: h.source, sourceText: h.sourceText }));
-  const _consolidatedHits = consolidateMultiHits(damageForConsolidation, input);
+  const consolidatedHits = consolidateMultiHits(damageForConsolidation, input);
+  
+  // Replace raw damage entries with consolidated ones when multi-hits were found
+  if (consolidatedHits.length > 0 && consolidatedHits.length < damageForConsolidation.length) {
+    // Keep non-damage entries, replace damage entries with consolidated results
+    const nonDamage = hpChanges.filter(h => h.type !== 'damage');
+    const consolidatedDamage: ParsedHPChange[] = consolidatedHits.map(ch => ({
+      amount: -ch.totalDamage,
+      type: 'damage' as const,
+      source: ch.source,
+      sourceText: ch.sourceText,
+    }));
+    hpChanges.length = 0;
+    hpChanges.push(...nonDamage, ...consolidatedDamage);
+  }
+
   const rawResult: ChronicleParseResult = {
     xpChanges,
     hpChanges,

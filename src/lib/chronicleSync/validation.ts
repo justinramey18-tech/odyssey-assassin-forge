@@ -219,6 +219,8 @@ export function hasActionableChanges(result: ChronicleParseResult): boolean {
     result.xpChanges.length > 0 ||
     result.itemChanges.length > 0 ||
     result.achievementTriggers.length > 0 ||
+    result.goldChanges.length > 0 ||
+    result.shopItems.length > 0 ||
     result.levelUp !== null
   );
 }
