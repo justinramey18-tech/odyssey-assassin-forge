@@ -13,6 +13,8 @@ export interface ParsedAttackRoll {
   sneakAttackDamage?: number;
   sourceText: string;
   confidence: ConfidenceLevel;
+  /** @internal Match position for sneak attack proximity linking */
+  _matchIndex?: number;
 }
 
 // ===== ATTACK ROLL PATTERNS =====
@@ -106,21 +108,24 @@ export function parseAttackRolls(text: string): ParsedAttackRoll[] {
         weaponName,
         sourceText: fullMatch,
         confidence: roll !== undefined ? (targetAC !== undefined ? 'high' : 'medium') : 'low',
+        _matchIndex: match.index, // Store for sneak attack proximity linking
       });
     }
   }
 
-  // Check for sneak attack on nearby attacks
+  // Check for sneak attack on nearby attacks (use stored _matchIndex for accurate proximity)
   for (const pattern of SNEAK_ATTACK_PATTERNS) {
     let match;
     const regex = new RegExp(pattern.source, pattern.flags);
     while ((match = regex.exec(text)) !== null) {
       const sneakDmg = parseInt(match[1], 10);
-      // Find nearest attack within 200 chars
+      // Find nearest attack within 200 chars using stored index
       const nearest = attacks.reduce<ParsedAttackRoll | null>((best, atk) => {
-        const atkPos = text.indexOf(atk.sourceText);
+        const atkPos = atk._matchIndex ?? -1;
+        if (atkPos === -1) return best;
         const dist = Math.abs(atkPos - match!.index);
-        if (dist < 200 && (!best || dist < Math.abs(text.indexOf(best.sourceText) - match!.index))) {
+        const bestPos = best?._matchIndex ?? -1;
+        if (dist < 200 && (bestPos === -1 || dist < Math.abs(bestPos - match!.index))) {
           return atk;
         }
         return best;
@@ -131,6 +136,11 @@ export function parseAttackRolls(text: string): ParsedAttackRoll[] {
         nearest.sneakAttackDamage = sneakDmg;
       }
     }
+  }
+
+  // Clean up internal index before returning
+  for (const atk of attacks) {
+    delete atk._matchIndex;
   }
 
   return attacks;
