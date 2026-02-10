@@ -55,6 +55,7 @@ export interface UsePartySyncReturn {
   disbandParty: () => Promise<void>;
   broadcastStatus: (status: PartyMember['character_status']) => void;
   sendHealAction: (targetUserId: string, actionData: PartyAction['action_data']) => Promise<void>;
+  sendPing: (pingType: string, senderName: string) => Promise<void>;
   onIncomingHeal: React.MutableRefObject<((hpHealed: number, senderName: string, source: string) => void) | null>;
 }
 
@@ -198,9 +199,44 @@ export function usePartySync(): UsePartySyncReturn {
       )
       .subscribe();
 
+    // Subscribe to party pings
+    const pingsChannel = supabase
+      .channel(`party-pings-${party.partyId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'party_pings',
+          filter: `party_id=eq.${party.partyId}`,
+        },
+        (payload) => {
+          const ping = payload.new as { sender_user_id: string; sender_name: string; ping_type: string; message?: string };
+          if (ping.sender_user_id === user.id) return; // Don't show own pings
+          
+          const pingEmojis: Record<string, string> = {
+            need_heal: '❤️‍🩹', danger: '⚠️', focus_target: '🎯',
+            ready: '✅', help: '🆘', retreat: '🏃',
+          };
+          const pingLabels: Record<string, string> = {
+            need_heal: 'needs healing!', danger: 'signals DANGER!', focus_target: 'calls FOCUS FIRE!',
+            ready: 'is ready!', help: 'needs HELP!', retreat: 'calls RETREAT!',
+          };
+          const emoji = pingEmojis[ping.ping_type] || '📢';
+          const label = pingLabels[ping.ping_type] || 'pinged!';
+          
+          toast(`${emoji} ${ping.sender_name} ${label}`, {
+            description: ping.message || undefined,
+            duration: 5000,
+          });
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(membersChannel);
       supabase.removeChannel(actionsChannel);
+      supabase.removeChannel(pingsChannel);
     };
   }, [party.partyId, user]);
 
@@ -352,6 +388,17 @@ export function usePartySync(): UsePartySyncReturn {
     });
   }, [user, party.partyId]);
 
+  const sendPing = useCallback(async (pingType: string, senderName: string) => {
+    if (!user || !party.partyId) return;
+
+    await (supabase.from('party_pings') as any).insert({
+      party_id: party.partyId,
+      sender_user_id: user.id,
+      sender_name: senderName,
+      ping_type: pingType,
+    });
+  }, [user, party.partyId]);
+
   return {
     party,
     createParty,
@@ -360,6 +407,7 @@ export function usePartySync(): UsePartySyncReturn {
     disbandParty,
     broadcastStatus,
     sendHealAction,
+    sendPing,
     onIncomingHeal,
   };
 }

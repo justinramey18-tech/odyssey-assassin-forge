@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { PartyMemberCard } from './PartyMemberCard';
+import { PartyPingBar } from './PartyPingBar';
 import { CreatePartyDialog } from './CreatePartyDialog';
 import { JoinPartyDialog } from './JoinPartyDialog';
 import type { UsePartySyncReturn } from '@/hooks/use-party-sync';
@@ -142,6 +143,13 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
             isSelf={member.user_id === userId}
           />
         ))}
+      </div>
+
+      {/* Tactical Pings */}
+      <div className="pt-2 border-t border-border/30">
+        <PartyPingBar
+          onSendPing={(pingType) => partySync.sendPing(pingType, characterName)}
+        />
       </div>
 
       {/* Actions */}
