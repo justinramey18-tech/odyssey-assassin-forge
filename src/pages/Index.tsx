@@ -678,8 +678,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     return { weapons, abilities, spells, cantrips, consumables };
   }, [equipment.slots, character.equippedAbilities, character.abilities, isRogueClass, classSpellcasting.state.preparedSpells, classSpellcasting.state.knownSpells, consumablesInventory]);
 
-  // Profile image thumbnail ref (cached to avoid re-resizing every broadcast)
-  const profileImageRef = useRef<string | null>(null);
+  // Profile image thumbnail (state so broadcasts re-trigger when ready)
+  const [profileImageThumb, setProfileImageThumb] = useState<string | null>(null);
   const lastBgRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -688,15 +688,15 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     lastBgRef.current = bg;
     
     if (!bg) {
-      profileImageRef.current = null;
+      setProfileImageThumb(null);
       return;
     }
 
     import('@/lib/utils/image-resize').then(({ resizeImageToThumbnail }) => {
       resizeImageToThumbnail(bg, 64, 0.6).then(thumb => {
-        profileImageRef.current = thumb;
+        setProfileImageThumb(thumb);
       }).catch(() => {
-        profileImageRef.current = null;
+        setProfileImageThumb(null);
       });
     });
   }, [customBackground.customBackground]);
@@ -713,9 +713,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       level: character.level,
       className: character.primaryClass,
       quickActions: quickActionsSummary,
-      profileImage: profileImageRef.current,
+      profileImage: profileImageThumb,
     });
-  }, [partySync, effectiveCurrentHP, effectiveMaxHP, effectiveTempHP, effectiveAC, conditions.conditions, character.level, character.primaryClass, quickActionsSummary]);
+  }, [partySync, effectiveCurrentHP, effectiveMaxHP, effectiveTempHP, effectiveAC, conditions.conditions, character.level, character.primaryClass, quickActionsSummary, profileImageThumb]);
 
   // Legacy spentPoints for compatibility
   const spentPoints = getTotalPointsSpent(character.abilities);

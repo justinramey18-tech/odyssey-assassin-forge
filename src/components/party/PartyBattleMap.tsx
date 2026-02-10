@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Plus, X, Map } from 'lucide-react';
+import { Plus, X, Map, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 export interface MapMarker {
   x: number;
@@ -17,7 +18,7 @@ interface PartyBattleMapProps {
   markers: MapMarker[];
   currentUserId?: string;
   characterName: string;
-  memberColors: Record<string, string>; // userId -> color
+  memberColors: Record<string, string>;
   onPlaceMarker: (marker: Omit<MapMarker, 'ownerUserId'>) => Promise<void>;
   onRemoveMarker: (x: number, y: number) => Promise<void>;
 }
@@ -29,6 +30,7 @@ export function PartyBattleMap({ markers, currentUserId, characterName, memberCo
   const [addingEnemy, setAddingEnemy] = useState(false);
   const [enemyName, setEnemyName] = useState('');
   const [placingMode, setPlacingMode] = useState<'self' | 'enemy' | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
 
   const getMarkerAt = (x: number, y: number) => markers.find(m => m.x === x && m.y === y);
   const myMarker = markers.find(m => !m.isEnemy && m.ownerUserId === currentUserId);
@@ -37,7 +39,6 @@ export function PartyBattleMap({ markers, currentUserId, characterName, memberCo
     const existing = getMarkerAt(x, y);
 
     if (existing) {
-      // Can remove own marker or enemy markers
       if (existing.ownerUserId === currentUserId || existing.isEnemy) {
         await onRemoveMarker(x, y);
       }
@@ -56,28 +57,8 @@ export function PartyBattleMap({ markers, currentUserId, characterName, memberCo
     }
   };
 
-  if (markers.length === 0 && !placingMode) {
-    return (
-      <div className="space-y-2">
-        <div className="text-center py-3">
-          <Map className="w-5 h-5 text-muted-foreground mx-auto mb-1" />
-          <p className="text-[10px] text-muted-foreground mb-2">No markers placed</p>
-        </div>
-        <MapControls
-          myMarker={myMarker}
-          addingEnemy={addingEnemy}
-          enemyName={enemyName}
-          placingMode={placingMode}
-          setAddingEnemy={setAddingEnemy}
-          setEnemyName={setEnemyName}
-          setPlacingMode={setPlacingMode}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
+  const gridContent = (isFullscreen: boolean) => (
+    <div className={cn("space-y-2", isFullscreen && "flex flex-col h-full")}>
       {placingMode && (
         <div className="text-[10px] text-center text-primary animate-pulse">
           Tap a cell to place {placingMode === 'self' ? 'your marker' : enemyName || 'enemy'}
@@ -85,7 +66,16 @@ export function PartyBattleMap({ markers, currentUserId, characterName, memberCo
       )}
 
       {/* Grid */}
-      <div className="grid gap-0 border border-border/30 rounded-md overflow-hidden" style={{ gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)` }}>
+      <div
+        className={cn(
+          "grid gap-0 border border-border/30 rounded-md overflow-hidden",
+          isFullscreen && "flex-1"
+        )}
+        style={{
+          gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
+          gridTemplateRows: isFullscreen ? `repeat(${GRID_SIZE}, 1fr)` : undefined,
+        }}
+      >
         {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, i) => {
           const x = i % GRID_SIZE;
           const y = Math.floor(i / GRID_SIZE);
@@ -96,7 +86,8 @@ export function PartyBattleMap({ markers, currentUserId, characterName, memberCo
               key={`${x}-${y}`}
               onClick={() => handleCellClick(x, y)}
               className={cn(
-                "aspect-square border border-border/10 flex items-center justify-center text-[8px] font-bold transition-colors",
+                "aspect-square border border-border/10 flex items-center justify-center transition-colors",
+                isFullscreen ? "text-sm font-bold" : "text-[8px] font-bold",
                 marker ? "" : "hover:bg-muted/20",
                 placingMode && !marker && "cursor-crosshair hover:bg-primary/10"
               )}
@@ -105,7 +96,10 @@ export function PartyBattleMap({ markers, currentUserId, characterName, memberCo
             >
               {marker && (
                 <span
-                  className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-white"
+                  className={cn(
+                    "rounded-full flex items-center justify-center text-white",
+                    isFullscreen ? "w-6 h-6 text-xs" : "w-3.5 h-3.5"
+                  )}
                   style={{ backgroundColor: marker.color }}
                 >
                   {marker.isEnemy ? '!' : marker.name.charAt(0).toUpperCase()}
@@ -120,7 +114,7 @@ export function PartyBattleMap({ markers, currentUserId, characterName, memberCo
       {markers.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {markers.map((m, i) => (
-            <span key={`${m.x}-${m.y}-${i}`} className="flex items-center gap-1 text-[9px]">
+            <span key={`${m.x}-${m.y}-${i}`} className={cn("flex items-center gap-1", isFullscreen ? "text-xs" : "text-[9px]")}>
               <span className="w-2 h-2 rounded-full" style={{ backgroundColor: m.color }} />
               {m.name}
             </span>
@@ -138,6 +132,47 @@ export function PartyBattleMap({ markers, currentUserId, characterName, memberCo
         setPlacingMode={setPlacingMode}
       />
     </div>
+  );
+
+  return (
+    <>
+      {/* Inline preview with fullscreen button */}
+      <div className="space-y-2">
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-[10px] h-6 gap-1"
+            onClick={() => setFullscreen(true)}
+          >
+            <Maximize2 className="w-3 h-3" /> Fullscreen
+          </Button>
+        </div>
+        {gridContent(false)}
+      </div>
+
+      {/* Fullscreen dialog */}
+      <Dialog open={fullscreen} onOpenChange={setFullscreen}>
+        <DialogContent className="max-w-[100vw] max-h-[100dvh] w-screen h-[100dvh] p-4 flex flex-col border-none rounded-none bg-background">
+          <div className="flex items-center justify-between mb-2">
+            <DialogTitle className="font-cinzel font-semibold text-sm flex items-center gap-2">
+              <Map className="w-4 h-4 text-primary" /> Battle Map
+            </DialogTitle>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-[10px] h-6 gap-1"
+              onClick={() => setFullscreen(false)}
+            >
+              <Minimize2 className="w-3 h-3" /> Exit
+            </Button>
+          </div>
+          <div className="flex-1 min-h-0">
+            {gridContent(true)}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
