@@ -161,11 +161,11 @@ export function parseLogOffline(rawInput: string): ChronicleParseResult {
     });
   }
   
-  // Parse Crits/Combat Events
+  // Parse Crits/Combat Events (including fumbles)
   const critMatches = parseCritMatches(input);
   for (const match of critMatches) {
     combatEvents.push({
-      type: 'critical_hit',
+      type: match.value === 'fumble' ? 'fumble' : 'critical_hit',
       sourceText: match.context,
     });
   }

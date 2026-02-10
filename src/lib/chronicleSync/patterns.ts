@@ -239,9 +239,9 @@ export const ITEM_USE_PATTERNS = [
   // Throwing items: "throws a flask of oil", "throws an alchemist's fire"
   /(?:throw|hurl|toss|lob)(?:s|ed|ing)?\s+(?:a\s+|an\s+|the\s+)?(\d+)?\s*([a-zA-Z][a-zA-Z\s']+(?:flask|vial|bomb|fire|acid|oil|grenade))/gi,
   // Breaking/destroying items: "shatters the phylactery", "breaks the crystal"
-  /(?:shatter|break|destroy|crush|smash)(?:s|ed|ing)?\s+(?:the\s+|a\s+)?(\d+)?\s*([A-Z][a-zA-Z\s]+)/gi,
+  /(?:shatter|break|destroy|crush|smash)(?:s|ed|ing)?\s+(?:the\s+|a\s+)?(\d+)?\s*([A-Z][a-zA-Z\s]+?(?:phylactery|crystal|orb|gem|amulet|idol|totem|artifact|relic|seal|ward|focus|talisman|fetish|icon|statue|mirror|vessel|urn|skull|bone|stone|tablet|scroll|tome|book|key|lock|chain|cage|jar|flask|vial|crown|scepter|rod|staff|wand))/gi,
   // Equipping gear: "equips the +1 Shield", "dons the Cloak of Protection"
-  /(?:equip|don|wear|wield|strap\s+on|put\s+on)(?:s|ed|ning)?\s+(?:the\s+|a\s+|an\s+)?(\d+)?\s*([A-Z][a-zA-Z\s+]+)/gi,
+  /(?:equip|don|wear|wield|strap\s+on|put\s+on)(?:s|ed|ning)?\s+(?:the\s+|a\s+|an\s+)?(\d+)?\s*(\+\d+\s+[A-Z][a-zA-Z\s]+|[A-Z][a-zA-Z\s]+?(?:of\s+[A-Z][a-zA-Z\s]+|Shield|Armor|Armour|Sword|Bow|Axe|Mace|Staff|Wand|Ring|Amulet|Cloak|Boots|Gauntlets?|Helm|Helmet|Bracers?|Belt|Robe|Cape|Mantle))/gi,
   // Feeding/administering: "feeds them a potion", "administers the antidote"
   /(?:feed|administer|pour|give|force-feed)(?:s|ed|ing)?\s+(?:them|him|her|you)\s+(?:a\s+|an\s+|the\s+)?(\d+)?\s*([a-zA-Z][a-zA-Z\s]+(?:potion|antidote|elixir|draught|tonic))/gi,
 ];
@@ -499,12 +499,17 @@ const CONDITION_REMOVAL_PHRASES = [
   /saves?\s+against/i,
 ];
 
+// Fumble pattern indices (natural 1, critical miss/fail/fumble, fumbles)
+const FUMBLE_PATTERN_INDICES = new Set([6, 7, 8]);
+
 export function parseCritMatches(text: string): PatternMatch[] {
   const matches: PatternMatch[] = [];
   
-  for (const pattern of CRIT_PATTERNS) {
+  for (let i = 0; i < CRIT_PATTERNS.length; i++) {
+    const pattern = CRIT_PATTERNS[i];
     let match;
     const regex = new RegExp(pattern.source, pattern.flags);
+    const isFumblePattern = FUMBLE_PATTERN_INDICES.has(i);
     
     while ((match = regex.exec(text)) !== null) {
       const start = Math.max(0, match.index - 40);
@@ -513,7 +518,7 @@ export function parseCritMatches(text: string): PatternMatch[] {
       
       matches.push({
         fullMatch: match[0],
-        value: 'critical_hit',
+        value: isFumblePattern ? 'fumble' : 'critical_hit',
         context,
         index: match.index,
       });

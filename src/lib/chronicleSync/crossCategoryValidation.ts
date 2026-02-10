@@ -164,21 +164,23 @@ function boostConditionNearDamage(result: ChronicleParseResult, src: string): vo
   }
 }
 
-/** Gold gained near kill/defeat → loot drop, boost gold confidence */
+/** Gold gained near kill/defeat → boost XP near defeated enemies with gold */
 function boostGoldNearCombat(result: ChronicleParseResult, src: string): void {
   const combatSnippets = [
     ...result.combatEvents.map(e => e.sourceText),
     ...result.enemies.filter(e => e.status === 'defeated').map(e => e.sourceText),
   ];
-  if (combatSnippets.length === 0) return;
+  const goldGained = result.goldChanges.filter(g => g.action === 'gained');
+  if (combatSnippets.length === 0 || goldGained.length === 0) return;
 
-  // Gold changes don't have confidence, but we can flag them for UI
-  // For now, boost XP that's near gold (both are loot)
+  // Boost XP confidence when gold is gained near combat (loot corroboration)
   for (const xp of result.xpChanges) {
-    for (const gold of result.goldChanges.filter(g => g.action === 'gained')) {
-      if (areNearby(src, xp.sourceText, gold.sourceText)) {
-        xp.confidence = elevate(xp.confidence);
-        break;
+    for (const combat of combatSnippets) {
+      for (const gold of goldGained) {
+        if (areNearby(src, xp.sourceText, combat) && areNearby(src, gold.sourceText, combat)) {
+          xp.confidence = elevate(xp.confidence);
+          break;
+        }
       }
     }
   }
@@ -203,14 +205,32 @@ function boostCureNearConditionRemoval(result: ChronicleParseResult, src: string
   }
 }
 
-/** Attack roll near damage event → boost damage XP confidence */
+/** Attack roll near damage event → boost item confidence for consumed items near damage */
 function boostDamageNearAttackRoll(result: ChronicleParseResult, src: string): void {
   const combatSnippets = result.combatEvents.map(e => e.sourceText);
   if (combatSnippets.length === 0) return;
 
-  for (const xp of result.xpChanges) {
+  // Boost consumed item confidence when near combat (e.g. thrown weapons, spell scrolls)
+  const consumed = result.itemChanges.filter(i => i.action === 'consumed');
+  for (const item of consumed) {
     for (const combat of combatSnippets) {
-      if (areNearby(src, xp.sourceText, combat)) {
+      if (areNearby(src, item.sourceText, combat)) {
+        item.confidence = elevate(item.confidence);
+        break;
+      }
+    }
+  }
+}
+
+/** Saving throw near condition applied → boost nearby item/XP confidence */
+function boostConditionNearSavingThrow(result: ChronicleParseResult, src: string): void {
+  const applied = result.conditions.filter(c => c.action === 'applied');
+  if (applied.length === 0) return;
+
+  // When a condition is applied near XP (combat reward after debuff), boost XP confidence
+  for (const xp of result.xpChanges) {
+    for (const cond of applied) {
+      if (areNearby(src, xp.sourceText, cond.sourceText)) {
         xp.confidence = elevate(xp.confidence);
         break;
       }
@@ -218,21 +238,37 @@ function boostDamageNearAttackRoll(result: ChronicleParseResult, src: string): v
   }
 }
 
-/** Saving throw near condition applied → boost condition credibility */
-function boostConditionNearSavingThrow(result: ChronicleParseResult, _src: string): void {
-  // Conditions and saving throws near each other corroborate
-  // This is a lightweight check since conditions don't have confidence fields
-  // The proximity itself is the validation
+/** Rest event near healing → boost acquired item confidence (e.g. used potions during rest) */
+function boostHealingNearRest(result: ChronicleParseResult, src: string): void {
+  const healingEvents = result.hpChanges.filter(h => h.type === 'healing');
+  if (healingEvents.length === 0) return;
+
+  // Boost acquired items near healing (rest supplies, rations consumed)
+  const acquired = result.itemChanges.filter(i => i.action === 'acquired');
+  for (const item of acquired) {
+    for (const heal of healingEvents) {
+      if (areNearby(src, item.sourceText, heal.sourceText)) {
+        item.confidence = elevate(item.confidence);
+        break;
+      }
+    }
+  }
 }
 
-/** Rest event near healing → healing is more credible */
-function boostHealingNearRest(result: ChronicleParseResult, _src: string): void {
-  // Rest events near HP recovery corroborate each other
-  // HP changes don't have confidence, but this validates the rest detection
-}
+/** Spell slot usage near damage/healing → boost XP and item confidence */
+function boostEventsNearSpellSlot(result: ChronicleParseResult, src: string): void {
+  // Look for spell-related keywords in combat events
+  const spellSnippets = result.combatEvents
+    .filter(e => /spell|cast|magic/i.test(e.sourceText))
+    .map(e => e.sourceText);
+  if (spellSnippets.length === 0) return;
 
-/** Spell slot usage near damage/healing → boost confidence */
-function boostEventsNearSpellSlot(result: ChronicleParseResult, _src: string): void {
-  // Spell slot consumption near damage or healing events validates both
-  // Spell slots don't need confidence boost as they're already high when explicit
+  for (const xp of result.xpChanges) {
+    for (const spell of spellSnippets) {
+      if (areNearby(src, xp.sourceText, spell)) {
+        xp.confidence = elevate(xp.confidence);
+        break;
+      }
+    }
+  }
 }

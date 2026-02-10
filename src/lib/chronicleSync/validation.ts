@@ -41,8 +41,10 @@ export function validateWithHonestMode(
     achievementTriggers: [...result.achievementTriggers],
     hpChanges: [...result.hpChanges],
     goldChanges: [...result.goldChanges],
+    shopItems: [...result.shopItems],
     conditions: [...result.conditions],
     combatEvents: [...result.combatEvents],
+    enemies: [...result.enemies],
     levelUp: result.levelUp,
   };
   
