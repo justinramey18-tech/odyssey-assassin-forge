@@ -1,155 +1,125 @@
 
 
-# More Regex Patterns for Offline Chronicle
+# More Regex Patterns for Offline Chronicle — Round 3
 
-After thoroughly reviewing every pattern file in the system, here are the concrete gaps where adding more regex patterns will meaningfully improve detection accuracy.
-
----
-
-## 1. Expanded Damage Patterns (patterns.ts)
-
-Current patterns miss several common DM phrasings:
-
-- **Dice result damage**: "The fireball deals 8d6 (28) fire damage" -- the parenthetical total is missed
-- **Named attacker damage**: "The orc hits you for 12" -- no "damage" keyword present
-- **Passive/environmental**: "You fall 30 feet, taking 3d6 (10) damage" or "the lava deals 10 fire damage per round"
-- **Damage on failed save**: "On a failed save, you take 14 radiant damage"
-- **Reduction wording**: "Your HP drops by 15", "HP reduced by 8"
+After reviewing all pattern files post-expansion, these are the remaining concrete gaps.
 
 ---
 
-## 2. Expanded Healing Patterns (patterns.ts)
+## 1. Item Use Patterns (patterns.ts) — Critically Underdeveloped
 
-Missing natural language healing:
+`ITEM_USE_PATTERNS` only has 1 pattern matching potions/scrolls. Missing:
 
-- **Named spell healing**: "Cure Wounds heals you for 12 HP" (verb before amount)
-- **Passive recovery**: "You are healed for 8 hit points"
-- **Dice result healing**: "heals 2d8+3 (14) HP" -- parenthetical total
-- **Generic positive HP**: "You feel 10 hit points return", "recovers to full HP"
-
----
-
-## 3. Expanded XP Patterns (patterns.ts)
-
-Missing variants:
-
-- **Party XP split**: "each party member gains 200 XP", "split 800 XP among 4 players"
-- **Per-creature XP**: "100 XP per goblin", "worth 450 XP each"
-- **Milestone phrasing**: "milestone reached: 1000 XP", "quest reward: 500 XP"
-- **Negative XP phrasing used positively**: "XP reward of 300", "XP bounty: 200"
+- **Activating magic items**: "activates the Wand of Fireballs", "uses the Staff of Healing"
+- **Throwing items**: "throws a flask of oil", "hurls a vial of acid"
+- **Breaking/destroying items**: "breaks the gem", "shatters the phylactery"
+- **Reading scrolls**: "reads the Scroll of Fireball" (only partially caught by current)
+- **Equipping gear**: "equips the +1 Shield", "dons the Cloak of Protection"
+- **Feeding items**: "feeds them a potion", "administers the antidote"
 
 ---
 
-## 4. Expanded Gold Patterns (patterns.ts)
+## 2. Gold Spending in `parseGoldMatches()` — Incomplete
+
+`parseGoldMatches()` hardcodes only 3 patterns (find/loot, found/looted, spend/pay) but `GOLD_PATTERNS` now has 7. The function doesn't use the expanded patterns for gain detection (hoard, reward, informal, mixed currency). Fix: make it iterate `GOLD_PATTERNS` like other parsers do.
+
+---
+
+## 3. Condition Application Context — Only Pattern[0] Used
+
+`parseConditionMatches()` only iterates `CONDITION_PATTERNS[0]` (the standard conditions regex). The 6 new patterns for exhaustion levels, concentration broken, and knocked prone/unconscious are **never parsed**. Fix: iterate all patterns in the array.
+
+---
+
+## 4. Crit Pattern Improvements (patterns.ts)
+
+Current crit patterns are too simple and can false-positive on "rolls 20" (which could be any d20 check, not necessarily a crit). Missing:
+
+- **"crits for 24 damage"** — crit with damage amount
+- **"critical hit on the goblin"** — crit with target
+- **Avoiding false positives**: "rolls 20 on Perception" should NOT be a crit
+- **Natural 1 fumble**: No dedicated fumble detection exists
+
+---
+
+## 5. Rest Pattern Gaps (enhancedPatterns.ts)
+
+Missing rest phrasings:
+
+- **"rest for the night"** — common informal
+- **"set up camp"**, **"make camp"** — implies long rest
+- **"bandage wounds"**, **"patch up"** — implies short rest behavior
+- **"meditation"**, **"trance"** (elf long rest variant)
+
+---
+
+## 6. NPC Learning — Missing Patterns
+
+Current NPC intro patterns miss:
+
+- **Dialogue introductions**: `"I am Garrick"`, `"My name is Thordak"`, `"Call me Vex"`
+- **NPC descriptions with roles**: "Garrick, the town blacksmith", "Captain Thordak"
+- **Returning NPCs**: "Garrick appears again", "you see Thordak once more"
+
+---
+
+## 7. Dice Roll Improvements (diceAndMultiHit.ts)
+
+Missing patterns:
+
+- **Advantage/disadvantage rolls**: "rolls 14 and 18 with advantage (takes 18)"
+- **Saving throw dice**: "rolls 12 on the save", "save result: 16"
+- **Damage dice expressions without totals**: "deals 2d6+3 slashing damage" (extract expression only)
+- **Percentile rolls**: "rolls d100: 73", "percentile: 45"
+
+---
+
+## 8. Initiative Pattern Gaps
 
 Missing:
 
-- **Treasure hoard**: "a hoard containing 500 gold", "the chest holds 200 gp"
-- **Reward phrasing**: "reward of 100 gold", "bounty: 300 gp", "payment of 50 gold"
-- **Informal**: "hands you 100 gold", "gives the party 250 gp"
-- **Mixed currency in one phrase**: "2 pp, 15 gp, 30 sp" (comma-separated list)
+- **"goes first"**, **"acts first"** — implies high initiative
+- **Surprise round**: "surprised", "caught off guard", "surprise round"
+- **"wins initiative"**, **"loses initiative"**
 
 ---
 
-## 5. Expanded Item Detection (patterns.ts)
-
-Missing item types and phrasings:
-
-- **Non-consumable magic items**: "find a +1 Longsword", "loot a Ring of Protection"
-- **Wondrous items**: "Bag of Holding", "Cloak of Elvenkind", "Boots of Speed"
-- **Ammunition**: "20 arrows", "a quiver of bolts", "3 silvered arrows"
-- **Generic loot phrasing**: "takes the amulet", "picks up the staff", "pockets the gem"
-- **Gift/reward items**: "the king gives you a magical sword", "rewards you with a ring"
-
----
-
-## 6. Expanded Condition Patterns (patterns.ts)
-
-Missing conditions and phrasings:
-
-- **Exhaustion levels**: "gains 1 level of exhaustion", "exhaustion level increases to 3"
-- **Concentration broken**: "loses concentration", "concentration is broken"
-- **Temp conditions**: "is knocked prone", "falls prone", "knocked unconscious"
-- **Advantage/disadvantage context**: "has advantage on attacks", "disadvantage on saves"
-- **More removal phrases**: "recovers from", "throws off the", "resists the", "saves against the"
-
----
-
-## 7. Expanded Shop Item Patterns (shopItems.ts)
-
-Missing merchant interaction styles:
-
-- **List format with bullets**: "* Healing Potion - 50 gp" (asterisk/bullet lists)
-- **Numbered lists**: "1. Longsword - 15 gp"
-- **Quantity in shop**: "3x Potion of Healing at 50 gp each", "Arrows (20) - 1 gp"
-- **Discount/haggle**: "reduced to 40 gp", "offers it for 80 gp instead"
-- **Multi-currency shop prices**: "costs 5 pp" or "selling for 50 sp"
-
----
-
-## 8. Expanded Enemy Detection (enemies.ts)
-
-Missing encounter phrasings:
-
-- **Summoned creatures**: "summons a fire elemental", "conjures 4 wolves"
-- **Revealed enemies**: "a mimic reveals itself", "the chest is actually a mimic"
-- **Lair/environmental**: "the dragon's lair contains", "guarded by 2 wights"
-- **Multi-enemy in one line**: "3 goblins and 2 hobgoblins" (split on "and")
-- **Reinforcements**: "reinforcements arrive: 4 more orcs", "2 additional skeletons rise"
-
----
-
-## 9. Expanded Saving Throw Patterns (savesAndChecks.ts)
+## 9. Inspiration Pattern Gaps
 
 Missing:
 
-- **Group saves**: "everyone makes a DEX save", "the party rolls WIS saves"
-- **Contested checks**: "contested Strength check", "opposed Athletics vs Acrobatics"
-- **Flat check**: "DC 10 flat check", "make a flat DC 15 check"
-- **Advantage/disadvantage on saves**: "save with advantage", "disadvantage on the save"
-- **Aura/AoE saves**: "all creatures within 20 feet must make a CON save"
+- **Lucky feat**: "uses Lucky", "spends a luck point"
+- **Hero/heroic points**: "spends a hero point", "uses heroic inspiration"  
+- **Narrative inspiration**: "inspired by the speech", "gains courage"
 
 ---
 
-## 10. New Pattern Category: Attack Roll Detection
+## 10. Cross-Category Validation Gaps
 
-Currently no dedicated attack roll parsing. Add:
+Missing rules in `crossCategoryValidation.ts`:
 
-- **Hit/miss**: "rolls 18 to hit (AC 15) -- hit!", "attack roll: 12 vs AC 16 -- miss"
-- **Named weapon attacks**: "swings the greataxe -- 22 to hit", "fires an arrow -- 17 to hit"
-- **Attack modifiers**: "+7 to hit", "attack bonus: +5"
-- **Sneak attack**: "adds 3d6 sneak attack damage", "sneak attack for 14 extra damage"
-
----
-
-## 11. New Pattern Category: Movement & Positioning
-
-- **Distance moved**: "moves 30 feet", "dashes 60 feet"
-- **Positioning**: "flanking the orc", "within 5 feet of", "30 feet away"
-- **Opportunity attacks**: "provokes an opportunity attack", "AoO from the guard"
-- **Disengage/Dodge**: "takes the Disengage action", "uses Dodge"
+- **Attack roll near damage** → boost damage confidence
+- **Saving throw near condition** → boost condition confidence (failed save = condition applied)
+- **Movement near opportunity attack** → boost both
+- **Rest event near healing** → boost healing confidence
+- **Spell slot usage near damage/healing** → boost damage/healing confidence
 
 ---
 
-## 12. Expanded Healing Attribution (healingAttribution.ts)
+## 11. Enhanced Spell Detection
 
-Missing healing sources:
+Current `SPELL_LEVELS` map is extensive but the cast detection pattern is fragile. Missing:
 
-- **Racial features**: "dwarven fortitude", "relentless endurance" (not healing but related)
-- **Subclass features**: "twilight sanctuary", "circle of dreams healing", "life transference"
-- **Magic items**: "staff of healing", "ring of regeneration", "periapt of wound closure"
-- **Environmental**: "the fountain heals you", "blessed water restores HP"
+- **"casts at higher level"**: "casts Fireball at 5th level" (upcast detection)
+- **Reaction spells**: "uses Shield as a reaction", "casts Counterspell in response"
+- **Bonus action spells**: "casts Healing Word as a bonus action"
+- **Wild Magic Surge**: "wild magic surge", "rolls on the wild magic table"
 
 ---
 
-## 13. Expanded Damage Type Context (damageTypes.ts)
+## 12. Multi-Currency in `parseGoldMatches()` — Not Integrated
 
-Missing context words:
-
-- **Weapons**: "longbow" -> piercing, "greataxe" -> slashing, "warhammer" -> bludgeoning
-- **Spells**: "toll the dead" -> necrotic, "spiritual weapon" -> force, "moonbeam" -> radiant
-- **Environmental**: "lava" -> fire, "drowning" -> bludgeoning, "falling" -> bludgeoning
-- **Monster abilities**: "breath weapon" -> varies, "bite" -> piercing, "tail swipe" -> bludgeoning
+The `parseMultiCurrencyMatches()` function exists but `parseGoldMatches()` doesn't call it. Multi-currency gains/spends are parsed separately and may not be aggregated into the gold total during offline processing.
 
 ---
 
@@ -159,21 +129,16 @@ Missing context words:
 
 | File | Changes |
 |------|---------|
-| `src/lib/chronicleSync/patterns.ts` | Add ~20 new regex patterns across XP, damage, healing, gold, items, conditions |
-| `src/lib/chronicleSync/patterns/shopItems.ts` | Add ~6 new shop detection patterns (bullets, numbered lists, multi-currency) |
-| `src/lib/chronicleSync/patterns/enemies.ts` | Add ~5 new enemy detection patterns (summons, reveals, reinforcements, multi-enemy split) |
-| `src/lib/chronicleSync/patterns/savesAndChecks.ts` | Add ~4 new save/check patterns (group saves, contested, flat checks) |
-| `src/lib/chronicleSync/patterns/damageTypes.ts` | Add ~30 new context words (weapons, spells, environmental) |
-| `src/lib/chronicleSync/patterns/healingAttribution.ts` | Add ~12 new healing source entries (subclass features, magic items) |
-| `src/lib/chronicleSync/patterns/attackRolls.ts` | New file: attack roll detection (hit/miss, modifiers, sneak attack) |
-| `src/lib/chronicleSync/patterns/movement.ts` | New file: movement/positioning detection (distance, flanking, AoO) |
-| `src/lib/chronicleSync/enhancedPatterns.ts` | Integrate new attack roll and movement parsers into `parseEnhancedPatterns()` |
-| `src/lib/chronicleSync/enhancedTypes.ts` | Add `ParsedAttackRoll` and `ParsedMovement` types |
+| `src/lib/chronicleSync/patterns.ts` | Expand `ITEM_USE_PATTERNS` (+5 patterns), fix `parseGoldMatches()` to use `GOLD_PATTERNS` array, fix `parseConditionMatches()` to iterate all `CONDITION_PATTERNS`, improve `CRIT_PATTERNS` (+3 patterns, add fumble), integrate multi-currency into gold parser |
+| `src/lib/chronicleSync/enhancedPatterns.ts` | Expand rest patterns (+4), improve spell detection (+4 upcast/reaction/bonus patterns) |
+| `src/lib/chronicleSync/patterns/npcLearning.ts` | Add dialogue intro patterns (+3), role/title patterns |
+| `src/lib/chronicleSync/patterns/diceAndMultiHit.ts` | Add advantage/disadvantage rolls (+3), percentile, saving throw dice |
+| `src/lib/chronicleSync/patterns/initiative.ts` | Add surprise round, "goes first", "wins initiative" patterns |
+| `src/lib/chronicleSync/patterns/inspiration.ts` | Add Lucky feat, hero points, narrative inspiration |
+| `src/lib/chronicleSync/crossCategoryValidation.ts` | Add 5 new cross-category rules (attack→damage, save→condition, movement→AoO, rest→healing, spell→damage) |
 
 ### Approach:
 
-- All new patterns follow the existing `PatternMatch` structure and regex style
-- New patterns are added to existing arrays (e.g., appending to `DAMAGE_PATTERNS`, `XP_PATTERNS`) so the existing parse functions automatically pick them up
-- Attack rolls and movement are new categories requiring new parser functions, types, and integration into the enhanced patterns pipeline
-- No changes to the processor pipeline itself -- new patterns in existing categories work immediately; new categories get wired through `enhancedPatterns.ts`
-
+- Fix 2 parser bugs first (condition parsing + gold parsing only use subset of their patterns)
+- Then add new patterns to existing arrays
+- Finally add new cross-validation rules
