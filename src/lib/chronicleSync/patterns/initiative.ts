@@ -12,6 +12,13 @@ export const INITIATIVE_PATTERNS = [
   /roll(?:s|ed)?\s+(?:a\s+)?(\d+)\s+(?:for\s+)?initiative/gi,
   // "gets 15 on initiative"
   /get(?:s)?\s+(?:a\s+)?(\d+)\s+(?:on\s+)?initiative/gi,
+  // Surprise: "surprise round", "caught off guard", "surprised"
+  /surprise\s+round/gi,
+  /caught\s+(?:off\s+guard|by\s+surprise|unaware)/gi,
+  // Priority: "goes first", "acts first"
+  /(?:goes?|acts?)\s+first\s+(?:in\s+)?(?:initiative|combat)?/gi,
+  // Win/lose initiative: "wins initiative", "loses initiative"
+  /(?:wins?|loses?)\s+initiative/gi,
 ];
 
 export interface InitiativeEntry {

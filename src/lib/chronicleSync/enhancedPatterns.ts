@@ -48,6 +48,8 @@ export const SHORT_REST_PATTERNS = [
   /resting\s+(?:for\s+)?(?:an?\s+)?hour/gi,
   /catch(?:ing)?\s+(?:your|their)\s+breath/gi,
   /spend(?:ing)?\s+hit\s+dice/gi,
+  // "bandage wounds", "patch up", "tend to wounds"
+  /(?:bandage|patch\s+up|tend\s+to)\s+(?:your|their|the)?\s*wounds?/gi,
 ];
 
 export const LONG_REST_PATTERNS = [
@@ -58,6 +60,12 @@ export const LONG_REST_PATTERNS = [
   /(?:8|eight)\s+hours?\s+(?:of\s+)?(?:rest|sleep)/gi,
   /wake\s+up\s+(?:fully\s+)?(?:rested|refreshed)/gi,
   /overnight\s+(?:rest|camp|stay)/gi,
+  // "rest for the night", "set up camp", "make camp"
+  /(?:rest|settle)\s+for\s+the\s+night/gi,
+  /(?:set\s+up|make|establish)\s+camp/gi,
+  // Elf trance variant
+  /(?:enter|begin|start)(?:s|ed)?\s+(?:a\s+)?(?:meditation|trance)/gi,
+  /(?:meditat|tranc)(?:es?|ing|ed)\s+(?:for\s+)?(?:the\s+)?(?:night|4\s+hours|four\s+hours)/gi,
 ];
 
 export function parseRestEvents(text: string): ParsedRestEvent[] {
@@ -116,6 +124,15 @@ export const SPELL_SLOT_PATTERNS = [
   /casts?\s+([a-zA-Z][a-zA-Z\s']+?)\s+as\s+a\s+ritual/gi,
   // Gap 7: Concentration "concentrating on X", "loses concentration on X"
   /(?:concentrat(?:ing|es?|ed)|loses?\s+concentration)\s+(?:on\s+)?([a-zA-Z][a-zA-Z\s']+?)(?:\s*[.!,]|\s*$)/gi,
+  // Upcast: "casts Fireball at 5th level", "upcasts Hold Person at 4th level"
+  /(?:upcast|cast)s?\s+([a-zA-Z][a-zA-Z\s']+?)\s+at\s+(\d)(?:st|nd|rd|th)\s*(?:-?\s*level)/gi,
+  // Reaction spells: "uses Shield as a reaction", "casts Counterspell as a reaction"
+  /(?:cast|use)s?\s+([a-zA-Z][a-zA-Z\s']+?)\s+as\s+a\s+reaction/gi,
+  // Bonus action spells: "casts Healing Word as a bonus action"
+  /(?:cast|use)s?\s+([a-zA-Z][a-zA-Z\s']+?)\s+as\s+a\s+bonus\s+action/gi,
+  // Wild Magic Surge
+  /wild\s+magic\s+surge/gi,
+  /rolls?\s+(?:on\s+)?(?:the\s+)?wild\s+magic\s+(?:surge\s+)?table/gi,
 ];
 
 // Expanded spell level mapping (Gap 7) - PHB cantrips through 9th level

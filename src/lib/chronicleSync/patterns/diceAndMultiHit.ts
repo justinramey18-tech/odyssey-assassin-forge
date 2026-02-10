@@ -31,6 +31,14 @@ const DICE_PATTERNS = [
   /\((\d+)\s*\+\s*(\d+)\s*=\s*(\d+)\)/g,
   // "total: 19", "result: 15"
   /(?:total|result)[\s:]+(\d+)/gi,
+  // Advantage/disadvantage: "rolls 14 and 18 with advantage (takes 18)"
+  /rolls?\s+(\d+)\s+and\s+(\d+)\s+with\s+(?:advantage|disadvantage)/gi,
+  // Saving throw dice: "rolls 12 on the save", "rolled a 16 for the saving throw"
+  /rolls?\s+(?:a\s+)?(\d+)\s+(?:on|for)\s+(?:the\s+)?(?:save|saving\s+throw)/gi,
+  // Damage dice without totals: "deals 2d6+3 slashing damage"
+  /deals?\s+(\d+d\d+)\s*(?:[+\-]\s*(\d+))?\s+\w+\s+damage/gi,
+  // Percentile rolls: "rolls d100: 73", "percentile: 45"
+  /(?:rolls?\s+d100|percentile)[:\s]+(\d+)/gi,
 ];
 
 export function parseDiceRolls(text: string): ParsedDiceRoll[] {

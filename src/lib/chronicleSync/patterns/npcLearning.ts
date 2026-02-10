@@ -15,6 +15,12 @@ const NPC_INTRO_PATTERNS = [
   /introduces?\s+(?:him|her|them)self\s+as\s+([A-Z][a-zA-Z']+(?:\s+[A-Z][a-zA-Z']+){0,2})/g,
   // "Garrick the Merchant", "Thordak the Red" (Title pattern)
   /([A-Z][a-zA-Z']+)\s+the\s+([A-Z][a-zA-Z']+)/g,
+  // Dialogue introductions: "I am Garrick", "My name is Thordak", "Call me Vex"
+  /["'""](?:I\s+am|My\s+name\s+is|They\s+call\s+me|Call\s+me|I'm)\s+([A-Z][a-zA-Z']+(?:\s+[A-Z][a-zA-Z']+)?)/g,
+  // Role/title: "Captain Thordak", "Mayor Garrick", "Priestess Elara"
+  /(?:Captain|Mayor|Lord|Lady|King|Queen|Prince|Princess|Duke|Duchess|Baron|Baroness|Count|Countess|Chief|Elder|Priestess|Priest|Commander|General|Admiral|Archmage|Archdruid|High\s+Priest(?:ess)?)\s+([A-Z][a-zA-Z']+(?:\s+[A-Z][a-zA-Z']+)?)/g,
+  // "Garrick, the town blacksmith", "Elara, a local healer"
+  /([A-Z][a-zA-Z']+),\s+(?:the|a|an)\s+(?:\w+\s+){0,2}(?:blacksmith|healer|merchant|innkeeper|guard|wizard|sorcerer|priest|cleric|ranger|knight|soldier|farmer|scholar|sage|bard|druid|monk|paladin|warlock|rogue|thief|assassin|noble|king|queen|chief|elder)/g,
 ];
 
 // Words that shouldn't be treated as NPC names
