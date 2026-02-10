@@ -207,17 +207,14 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Delete all members (cascade will handle via FK)
+      // Delete the party row entirely — ON DELETE CASCADE on all child tables
+      // (party_members, party_shared_state, party_messages, party_combat_log,
+      //  party_dice_rolls, party_loot_queue, party_pings, party_actions)
+      // ensures all related data is cleaned up automatically.
       await supabase
         .from('parties')
-        .update({ is_active: false })
-        .eq('id', body.partyId);
-
-      // Also remove all members
-      await supabase
-        .from('party_members')
         .delete()
-        .eq('party_id', body.partyId);
+        .eq('id', body.partyId);
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
