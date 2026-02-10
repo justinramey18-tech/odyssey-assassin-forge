@@ -1224,6 +1224,7 @@ export function MobileCombatLayout({
           onClearInitiative={partySync?.party.partyId ? () => {
             partySync?.clearInitiative();
           } : undefined}
+          partyInitiatives={partySync?.partyInitiatives}
         />
         
         {/* Action Economy Bar */}
