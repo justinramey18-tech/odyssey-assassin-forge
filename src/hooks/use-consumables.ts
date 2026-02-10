@@ -7,6 +7,8 @@ const STORAGE_KEY = 'odyssey-consumables-inventory';
 interface StoredItem {
   consumableId: string;
   quantity: number;
+  // Store full consumable data for custom/shop items not in the static registry
+  customConsumable?: Consumable;
 }
 
 export function useConsumables() {
@@ -22,7 +24,8 @@ export function useConsumables() {
         const loadedInventory: InventoryItem[] = [];
         
         for (const item of storedItems) {
-          const consumable = getConsumableById(item.consumableId);
+          // Try static registry first, fall back to stored custom data
+          const consumable = getConsumableById(item.consumableId) || item.customConsumable;
           if (consumable && item.quantity > 0) {
             loadedInventory.push({ consumable, quantity: item.quantity });
           }
@@ -41,10 +44,15 @@ export function useConsumables() {
     if (!isLoaded) return;
     
     try {
-      const toStore: StoredItem[] = inventory.map(item => ({
-        consumableId: item.consumable.id,
-        quantity: item.quantity,
-      }));
+      const toStore: StoredItem[] = inventory.map(item => {
+        const isInRegistry = !!getConsumableById(item.consumable.id);
+        return {
+          consumableId: item.consumable.id,
+          quantity: item.quantity,
+          // Only store full object for custom items not in the static registry
+          ...(isInRegistry ? {} : { customConsumable: item.consumable }),
+        };
+      });
       localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
     } catch (error) {
       console.error('Failed to save consumables inventory:', error);
