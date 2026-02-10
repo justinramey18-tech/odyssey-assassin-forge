@@ -53,11 +53,13 @@ import { CombatDiceRoller } from './CombatDiceRoller';
 import { DeathSavesTracker } from '@/components/character/DeathSavesTracker';
 import { EdgeDrawer } from '@/components/drawers/EdgeDrawer';
 import { PartyPanel } from '@/components/party/PartyPanel';
+import { HealTargetPicker } from '@/components/party/HealTargetPicker';
 import { Users } from 'lucide-react';
 import { useCombatLog } from '@/hooks/use-combat-log';
 import { useTargets } from '@/hooks/use-targets';
 import { useInitiative } from '@/hooks/use-initiative';
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
+import { getSpellById } from '@/lib/magic/spells';
 import { usePromptDrawers } from '@/components/drawers';
 import { CharacterEquipment, EquipmentSlotType } from '@/lib/inventory/types';
 import { getEquippedWeapons, convertToWeaponAttack } from '@/lib/combat/weaponConverter';
@@ -144,6 +146,7 @@ export function MobileCombatLayout({
   const [activeTab, setActiveTab] = useState<CombatTab>('combat');
   const [showPartyDrawer, setShowPartyDrawer] = useState(false);
   const [actionsFilter, setActionsFilter] = useState<'all' | 'action' | 'bonus_action' | 'reaction'>('all');
+  const [pendingHealSpell, setPendingHealSpell] = useState<{ spellName: string; amount: number } | null>(null);
   const [round, setRound] = useState(1);
   const [isYourTurn, setIsYourTurn] = useState(true);
   const { rerollsDisabled, isHonestMode, enforceCooldowns } = useGameMode();
@@ -821,6 +824,42 @@ export function MobileCombatLayout({
     );
   };
 
+  // Helper: roll healing from a spell's healingFormula
+  const rollHealingFormula = useCallback((formula: string): number => {
+    if (!formula) return 0;
+    const mod = 3; // default spellcasting modifier
+    const resolved = formula.replace(/mod/gi, String(mod));
+    const diceMatch = resolved.match(/(\d+)d(\d+)(?:\s*\+\s*(\d+))?/);
+    if (diceMatch) {
+      const count = parseInt(diceMatch[1]);
+      const sides = parseInt(diceMatch[2]);
+      const bonus = parseInt(diceMatch[3] || '0');
+      let total = bonus;
+      for (let i = 0; i < count; i++) total += Math.floor(Math.random() * sides) + 1;
+      return Math.max(1, total);
+    }
+    const plain = parseInt(resolved);
+    return isNaN(plain) ? 0 : plain;
+  }, []);
+
+  // Check if a cast spell is a healing spell and intercept for party targeting
+  const handleSpellCastResult = useCallback((spellName: string) => {
+    // Look up spell to check for healingFormula
+    const allSpellIds = spellcasting?.state.preparedSpells ?? [];
+    const spell = allSpellIds.map(id => getSpellById(id)).find(s => s?.name === spellName);
+    if (spell?.healingFormula && onHPChange && currentHP !== undefined && maxHP !== undefined) {
+      const healAmount = rollHealingFormula(spell.healingFormula);
+      const otherMembers = (partySync?.party.members ?? []).filter(m => m.user_id !== userId);
+      if (otherMembers.length > 0 && partySync?.sendHealAction && userId) {
+        setPendingHealSpell({ spellName, amount: healAmount });
+        return; // Don't apply yet
+      }
+      // Solo: auto-apply
+      const newHP = Math.min(maxHP, currentHP + healAmount);
+      onHPChange(newHP, maxHP, tempHP ?? 0);
+    }
+  }, [spellcasting, onHPChange, currentHP, maxHP, tempHP, partySync, userId, rollHealingFormula]);
+
   // Render combat section content (inline, not wrapped in overflow containers)
   const renderCombatContent = () => (
     <div className="p-4 space-y-4">
@@ -840,6 +879,7 @@ export function MobileCombatLayout({
             if (result.success) {
               handleAddToTurn('action', `Cast ${result.spellName}`);
               setLastAction(`${result.spellName.toUpperCase()} CAST`);
+              handleSpellCastResult(result.spellName);
             }
           }}
         />
@@ -1057,6 +1097,7 @@ export function MobileCombatLayout({
               actionName: result.spellName,
               prompt: `## 🔮 SPELL CAST: ${result.spellName.toUpperCase()}\n\n**Character:** ${character.name}\n\n---\n\n*Narrate ${character.name} casting ${result.spellName}.*`,
             });
+            handleSpellCastResult(result.spellName);
           }
         }}
       />
@@ -1313,6 +1354,33 @@ export function MobileCombatLayout({
           />
         </EdgeDrawer>
       )}
+
+      {/* Heal Target Picker for spell healing */}
+      <HealTargetPicker
+        open={!!pendingHealSpell}
+        onOpenChange={(open) => { if (!open) setPendingHealSpell(null); }}
+        selfName={characterName || character.name}
+        partyMembers={partySync?.party.members ?? []}
+        currentUserId={userId || ''}
+        healDescription={pendingHealSpell ? `${pendingHealSpell.spellName} — ${pendingHealSpell.amount} HP` : ''}
+        onSelectSelf={() => {
+          if (onHPChange && currentHP !== undefined && maxHP !== undefined && pendingHealSpell) {
+            const newHP = Math.min(maxHP, currentHP + pendingHealSpell.amount);
+            onHPChange(newHP, maxHP, tempHP ?? 0);
+          }
+          setPendingHealSpell(null);
+        }}
+        onSelectMember={(member) => {
+          if (partySync?.sendHealAction && pendingHealSpell) {
+            partySync.sendHealAction(member.user_id, {
+              senderName: characterName || character.name,
+              itemName: pendingHealSpell.spellName,
+              hpHealed: pendingHealSpell.amount,
+            });
+          }
+          setPendingHealSpell(null);
+        }}
+      />
     </div>
   );
 }
