@@ -9,7 +9,7 @@ import { SettingsContent } from './SettingsContent';
 import { DiceOddsMode, loadDiceOddsMode, saveDiceOddsMode } from '@/lib/diceOdds';
 import { GameModeSettings as GameModeSettingsType, loadGameModeSettings, saveGameModeSettings } from '@/lib/gameModes';
 import { XPProgressionMode, loadXPProgressionMode, saveXPProgressionMode } from './XPProgressionWidget';
-import { generateDynamicGMGuide, generateCurrentStateSummary, STATIC_GM_GUIDE, CharacterBuildData } from '@/lib/gmGuideGenerator';
+import { generateDynamicGMGuide, generateCurrentStateSummary, CLEAN_STATIC_GM_GUIDE, CharacterBuildData } from '@/lib/gmGuideGenerator';
 import { Character, Ability } from '@/lib/types';
 import { EquipmentItem, EquipmentSlotType } from '@/lib/inventory/types';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -137,9 +137,9 @@ export function SettingsModal({
   // Combined guide for copying
   const fullGuide = useMemo(() => {
     if (dynamicGuide) {
-      return `${dynamicGuide}\n\n${'='.repeat(60)}\n\n${STATIC_GM_GUIDE}`;
+      return `${dynamicGuide}\n\n---\n\n${CLEAN_STATIC_GM_GUIDE}`;
     }
-    return STATIC_GM_GUIDE;
+    return CLEAN_STATIC_GM_GUIDE;
   }, [dynamicGuide]);
 
   const handleGameModeChange = (settings: GameModeSettingsType) => {
