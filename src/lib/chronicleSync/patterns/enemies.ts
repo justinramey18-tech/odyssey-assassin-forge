@@ -250,6 +250,11 @@ function getContext(text: string, index: number, length: number): string {
   return text.slice(start, end).replace(/\s+/g, ' ').trim();
 }
 
+/** Title-case each word: "fire elemental" → "Fire Elemental" */
+function toTitleCase(name: string): string {
+  return name.replace(/\b\w/g, c => c.toUpperCase());
+}
+
 // ===== ENHANCED DETECTION FUNCTIONS =====
 
 /**
@@ -465,9 +470,9 @@ export function parseEnemyMatches(text: string, playerName?: string): ParsedEnem
     else if (fledNames.has(key)) status = 'fled';
     
     if (!matches.has(key)) {
-      matches.set(key, {
-        fullMatch: enemyName,
-        name: enemyName.charAt(0).toUpperCase() + enemyName.slice(1),
+        matches.set(key, {
+          fullMatch: enemyName,
+          name: toTitleCase(enemyName),
         quantity: 1,
         status,
         index: 0,
@@ -477,33 +482,55 @@ export function parseEnemyMatches(text: string, playerName?: string): ParsedEnem
   }
   
   // Legacy pass: find enemies from encounter patterns
-  for (const pattern of ENCOUNTER_PATTERNS) {
+  for (let patIdx = 0; patIdx < ENCOUNTER_PATTERNS.length; patIdx++) {
+    const pattern = ENCOUNTER_PATTERNS[patIdx];
     let match;
     const regex = new RegExp(pattern.source, pattern.flags);
     while ((match = regex.exec(text)) !== null) {
-      const quantity = match[1] ? parseInt(match[1], 10) : 1;
-      const name = cleanEnemyName(match[2] || match[1]);
-      
-      if (!isValidEnemyName(name)) continue;
-      if (isPlayerEntry(name, playerName)) continue;
-      
-      const key = removeInstanceNumber(name).toLowerCase();
-      
-      // Determine status
-      let status: 'active' | 'defeated' | 'fled' = 'active';
-      if (defeatedNames.has(key)) status = 'defeated';
-      else if (fledNames.has(key)) status = 'fled';
-      
-      // Only add if not already tracked or if this has more info
-      if (!matches.has(key) || quantity > (matches.get(key)?.quantity || 0)) {
-        matches.set(key, {
-          fullMatch: match[0],
-          name: name.charAt(0).toUpperCase() + name.slice(1).toLowerCase(),
-          quantity,
-          status,
-          index: match.index,
-          context: getContext(text, match.index, match[0].length),
+      // Collect enemy entries from this match (most patterns yield 1, pattern 7 yields 2)
+      const entries: Array<{ name: string; quantity: number }> = [];
+
+      if (patIdx === 7) {
+        // Multi-enemy pattern: "3 goblins and 2 hobgoblins" → 4 capture groups
+        entries.push(
+          { name: cleanEnemyName(match[2] || ''), quantity: parseInt(match[1], 10) || 1 },
+          { name: cleanEnemyName(match[4] || ''), quantity: parseInt(match[3], 10) || 1 },
+        );
+      } else if (match[2]) {
+        // Two capture groups: first is quantity (or name), second is name
+        const parsedQty = parseInt(match[1], 10);
+        entries.push({
+          name: cleanEnemyName(match[2]),
+          quantity: isNaN(parsedQty) ? 1 : parsedQty,
         });
+      } else {
+        // Single capture group: name only, quantity defaults to 1
+        entries.push({
+          name: cleanEnemyName(match[1]),
+          quantity: 1,
+        });
+      }
+
+      for (const entry of entries) {
+        if (!isValidEnemyName(entry.name)) continue;
+        if (isPlayerEntry(entry.name, playerName)) continue;
+
+        const key = removeInstanceNumber(entry.name).toLowerCase();
+
+        let status: 'active' | 'defeated' | 'fled' = 'active';
+        if (defeatedNames.has(key)) status = 'defeated';
+        else if (fledNames.has(key)) status = 'fled';
+
+        if (!matches.has(key) || entry.quantity > (matches.get(key)?.quantity || 0)) {
+          matches.set(key, {
+            fullMatch: match[0],
+            name: toTitleCase(entry.name),
+            quantity: entry.quantity,
+            status,
+            index: match.index,
+            context: getContext(text, match.index, match[0].length),
+          });
+        }
       }
     }
   }
@@ -527,7 +554,7 @@ export function parseEnemyMatches(text: string, playerName?: string): ParsedEnem
       } else if (ac >= 5 && ac <= 30) {
         matches.set(key, {
           fullMatch: match[0],
-          name: name.charAt(0).toUpperCase() + name.slice(1).toLowerCase(),
+          name: toTitleCase(name),
           quantity: 1,
           ac,
           status: defeatedNames.has(key) ? 'defeated' : fledNames.has(key) ? 'fled' : 'active',
@@ -557,7 +584,7 @@ export function parseEnemyMatches(text: string, playerName?: string): ParsedEnem
       } else if (hp > 0) {
         matches.set(key, {
           fullMatch: match[0],
-          name: name.charAt(0).toUpperCase() + name.slice(1).toLowerCase(),
+          name: toTitleCase(name),
           quantity: 1,
           hp,
           status: defeatedNames.has(key) ? 'defeated' : fledNames.has(key) ? 'fled' : 'active',
