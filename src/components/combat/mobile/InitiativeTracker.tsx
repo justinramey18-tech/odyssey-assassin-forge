@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -110,6 +110,27 @@ export function InitiativeTracker({
       }
     });
   }, [playerInitiative, enemies, rollPlayerInitiative, dexModifier, handleRollEnemyInitiative]);
+
+  // Auto-broadcast initiative whenever current turn or round changes during combat
+  const prevTurnIdRef = useRef<string | null>(null);
+  const prevRoundRef = useRef<number>(roundNumber);
+
+  useEffect(() => {
+    if (!combatStarted || !onBroadcastInitiative || initiativeOrder.length === 0) return;
+    const currentId = currentCombatant?.id ?? null;
+    if (currentId === prevTurnIdRef.current && roundNumber === prevRoundRef.current) return;
+    prevTurnIdRef.current = currentId;
+    prevRoundRef.current = roundNumber;
+
+    onBroadcastInitiative(
+      initiativeOrder.map(c => ({
+        name: c.name,
+        initiative: c.initiative,
+        isCurrentTurn: c.id === currentId,
+      })),
+      roundNumber
+    );
+  }, [combatStarted, currentCombatant?.id, roundNumber, initiativeOrder, onBroadcastInitiative]);
 
   // Open edit sheet
   const handleEditInitiative = useCallback((combatant: InitiativeCombatant) => {
