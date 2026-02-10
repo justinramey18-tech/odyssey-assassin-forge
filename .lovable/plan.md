@@ -1,105 +1,77 @@
 
 
-# Offline Chronicle Pattern Expansion - Round 3
+# Combat Tab: Continuous Vertical Scroll Redesign
 
-This plan implements 12 categories of improvements including 2 bug fixes and ~40 new regex patterns across 7 files.
+## What This Changes
 
----
+Right now, the Combat screen works like separate "pages" -- tapping a tab (Combat, Actions, Magic, Items, Log) swipes away the current content and replaces it with a different set of content. You can only see one tab's content at a time.
 
-## Bug Fixes (Critical)
+**After this change**, all five sections will be stacked on top of each other in one long scrollable page. You scroll down through Combat content, then Actions content appears below that, then Magic, then Items, then Log at the very bottom. Tapping a tab in the bottom navigation bar will instantly jump you to that section instead of switching pages.
 
-### Fix 1: `parseConditionMatches()` only uses `CONDITION_PATTERNS[0]`
-**File:** `src/lib/chronicleSync/patterns.ts` (lines 542-567)
-- Rewrite to iterate ALL patterns in the `CONDITION_PATTERNS` array instead of just index 0
-- This unlocks the 6 existing patterns for exhaustion levels, concentration broken, and prone/unconscious that are currently dead code
+## How It Will Feel
 
-### Fix 2: `parseGoldMatches()` hardcodes 3 patterns instead of using `GOLD_PATTERNS`
-**File:** `src/lib/chronicleSync/patterns.ts` (lines 386-433)
-- Rewrite to iterate the full `GOLD_PATTERNS` array (7 patterns) for gain detection
-- Keep spend detection as a separate loop using only spend-specific patterns (index 2)
-- This unlocks hoard, reward, informal, and mixed currency gold detection
+- Open the Combat tab and you start at the top (Combat section with weapons, stealth abilities, etc.)
+- Scroll down naturally and you flow into Actions, then Magic, then Items, then Log
+- The bottom nav bar stays fixed at the bottom of the screen
+- Tapping any tab label (e.g., "MAGIC") smoothly scrolls you up or down to that section's header
+- Each section has a clear visual header/divider so you know where one ends and the next begins
+- You cannot scroll past the bottom of the Log section (it's the end of the page)
 
----
+## What Gets Removed
 
-## New Patterns
+- The swipe-left/swipe-right gesture to switch between tabs (no longer needed since everything is on one page)
+- The slide animation when switching tabs
+- The tab-switching logic that hides/shows content
 
-### 1. Expanded Item Use Patterns (`patterns.ts`)
-Add 5 new patterns to `ITEM_USE_PATTERNS`:
-- Activating magic items ("activates the Wand of Fireballs")
-- Throwing items ("throws a flask of oil")
-- Breaking/destroying items ("shatters the phylactery")
-- Equipping gear ("equips the +1 Shield", "dons the Cloak")
-- Feeding/administering ("feeds them a potion", "administers the antidote")
+## What Stays the Same
 
-### 2. Improved Crit Patterns (`patterns.ts`)
-Add 3 new patterns and fumble detection to `CRIT_PATTERNS`:
-- "crits for 24 damage" (crit with damage amount)
-- "critical hit on the goblin" (crit with target)
-- "natural 1" / "fumble" (fumble/critical miss detection)
-- Guard against false positives by requiring attack/combat context
-
-### 3. Rest Pattern Expansion (`enhancedPatterns.ts`)
-Add 4 new patterns:
-- Short rest: "bandage wounds", "patch up", "catch your breath"
-- Long rest: "rest for the night", "set up camp", "make camp"
-- Long rest: "meditation", "trance" (elf long rest variant)
-
-### 4. NPC Learning Expansion (`npcLearning.ts`)
-Add 3 new intro patterns:
-- Dialogue: `"I am Garrick"`, `"My name is Thordak"`, `"Call me Vex"`
-- Role/title: "Garrick, the town blacksmith", "Captain Thordak"
-- Returning NPCs: "Garrick appears again"
-
-### 5. Dice Roll Improvements (`diceAndMultiHit.ts`)
-Add 4 new patterns:
-- Advantage/disadvantage: "rolls 14 and 18 with advantage (takes 18)"
-- Saving throw dice: "rolls 12 on the save"
-- Damage dice without totals: "deals 2d6+3 slashing damage"
-- Percentile rolls: "rolls d100: 73", "percentile: 45"
-
-### 6. Initiative Expansion (`initiative.ts`)
-Add 3 new patterns:
-- Surprise: "surprise round", "caught off guard", "surprised"
-- Priority: "goes first", "acts first"
-- Win/lose: "wins initiative", "loses initiative"
-
-### 7. Inspiration Expansion (`inspiration.ts`)
-Add 3 new pattern categories:
-- Lucky feat: "uses Lucky", "spends a luck point"
-- Hero points: "spends a hero point", "uses heroic inspiration"
-- Narrative: "inspired by the speech"
-
-### 8. Cross-Category Validation (`crossCategoryValidation.ts`)
-Add 5 new rules:
-- Attack roll near damage --> boost damage confidence
-- Saving throw near condition --> boost condition confidence
-- Movement near opportunity attack --> boost both
-- Rest event near healing --> boost healing confidence
-- Spell slot usage near damage/healing --> boost confidence
-
-### 9. Spell Detection Expansion (`enhancedPatterns.ts`)
-Add 4 new patterns to `SPELL_SLOT_PATTERNS`:
-- Upcast: "casts Fireball at 5th level" (detect higher level)
-- Reaction spells: "uses Shield as a reaction"
-- Bonus action spells: "casts Healing Word as a bonus action"
-- Wild Magic Surge: "wild magic surge", "rolls on the wild magic table"
+- The bottom navigation bar appearance and icons (Combat, Actions, Magic, Items, Log)
+- The top bar with HP, AC, round info
+- All the shared header elements (Situation Strip, Dice Roller, Target Tracker, Initiative Tracker, Action Economy Bar, Turn Wizard)
+- All the actual content inside each section (weapon cards, ability cards, spell list, items grid, combat log)
+- The floating action button, dice modal, and smart prompt sheet
 
 ---
 
 ## Technical Details
 
-### Files Modified
+### File: `src/components/combat/mobile/MobileCombatLayout.tsx`
 
-| File | Type of Change |
-|------|---------------|
-| `src/lib/chronicleSync/patterns.ts` | Bug fix in `parseConditionMatches()` and `parseGoldMatches()`, expand `ITEM_USE_PATTERNS` (+5), improve `CRIT_PATTERNS` (+3 including fumble) |
-| `src/lib/chronicleSync/enhancedPatterns.ts` | Expand rest patterns (+4), expand spell detection (+4) |
-| `src/lib/chronicleSync/patterns/npcLearning.ts` | Add dialogue intro patterns (+3) |
-| `src/lib/chronicleSync/patterns/diceAndMultiHit.ts` | Add advantage/disadvantage, percentile, save dice patterns (+4) |
-| `src/lib/chronicleSync/patterns/initiative.ts` | Add surprise round, goes first, wins initiative (+3) |
-| `src/lib/chronicleSync/patterns/inspiration.ts` | Add Lucky feat, hero points, narrative inspiration (+3) |
-| `src/lib/chronicleSync/crossCategoryValidation.ts` | Add 5 new cross-category validation rules |
+**1. Remove swipe navigation**
+- Remove the `useSwipe` hook call and related state (`slideDirection`, `swipeOffset`, `swiping`)
+- Remove the swipe handler callbacks (`handleSwipeLeft`, `handleSwipeRight`)
+- Remove the `TAB_ORDER` constant (no longer needed for swipe indexing)
 
-### No new files created
-All changes extend existing pattern arrays and functions, so existing parsers automatically pick them up without pipeline changes.
+**2. Replace `renderTabContent()` with `renderAllSections()`**
+- Instead of a switch/case that shows one tab, render all five sections stacked vertically
+- Each section gets a `ref` (using `useRef`) and an `id` attribute so we can scroll to it
+- Each section gets a visible header label (e.g., "COMBAT", "ACTIONS", "MAGIC", "ITEMS", "LOG") styled as a divider
+
+**3. Add section refs and scroll-to behavior**
+- Create refs: `combatRef`, `actionsRef`, `spellsRef`, `itemsRef`, `logRef`
+- Create a `scrollContainerRef` for the main scrollable area
+- When a bottom nav tab is tapped, call `sectionRef.current.scrollIntoView({ behavior: 'smooth' })` to jump to that section
+- Keep `activeTab` state to highlight the currently selected tab in the bottom nav
+
+**4. Update the bottom nav `onTabChange` handler**
+- Instead of `setActiveTab(tab)` switching content, it now sets the active tab AND triggers `scrollIntoView` on the corresponding ref
+
+**5. Update the main content JSX**
+- Replace the swipe wrapper `<div {...swipeHandlers}>` with a simple scrollable container
+- Inside it, render all sections sequentially with section headers between them
+- The last section (Log) gets no extra bottom padding beyond what's needed to clear the bottom nav
+
+### File: `src/components/combat/mobile/CombatBottomNav.tsx`
+- No structural changes needed -- it already accepts `activeTab` and `onTabChange` props
+- The behavior change is entirely in how `MobileCombatLayout` responds to `onTabChange`
+
+### Section Header Style
+Each section will have a small sticky-ish label like:
+```
+--- ACTIONS -------
+```
+Styled with the existing font-mono, color-coded to match the tab icon colors (red for Combat, amber for Actions, indigo for Magic, green for Items, primary for Log), with a subtle top border to visually separate sections.
+
+### Scroll Position Tracking (Optional Enhancement)
+To auto-highlight the correct tab as the user scrolls naturally (not just when tapping), an `IntersectionObserver` can watch each section header. When a section enters the viewport, the bottom nav updates to highlight that tab. This keeps the nav bar accurate without the user needing to tap it.
 
