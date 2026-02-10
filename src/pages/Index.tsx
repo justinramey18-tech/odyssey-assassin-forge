@@ -586,6 +586,25 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     };
   }, [partySync, hpState, handleHPChange]);
 
+  // Auto-apply incoming party buffs as conditions
+  useEffect(() => {
+    if (partySync.incomingBuffs.length === 0) return;
+
+    partySync.incomingBuffs.forEach((buff, index) => {
+      conditions.addCondition({
+        conditionId: buff.conditionName.toLowerCase().replace(/[^a-z0-9_]/g, '_'),
+        name: buff.conditionName,
+        category: 'buff',
+        severity: 'minor',
+        durationType: buff.durationType as 'rounds' | 'minutes' | 'hours' | 'save_ends' | 'indefinite',
+        durationValue: buff.duration,
+        source: `${buff.casterName} (Party)`,
+        spellLevel: buff.spellLevel,
+      });
+      partySync.clearIncomingBuff(index);
+    });
+  }, [partySync.incomingBuffs]);
+
   // Broadcast status to party every time relevant state changes
   useEffect(() => {
     if (!partySync.party.partyId) return;
