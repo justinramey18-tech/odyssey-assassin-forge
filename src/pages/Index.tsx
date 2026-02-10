@@ -1977,9 +1977,17 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
                   onRemoveWildShapeBackground={wildShapeBgs.removeBackground}
                   hasWildShapeBackground={wildShapeBgs.hasBackground}
                   homebrewSpells={spellCustomization.homebrewSpells}
-                  onAddHomebrewSpell={spellCustomization.addSpell}
+                  onAddHomebrewSpell={(spell) => {
+                    spellCustomization.addSpell(spell);
+                    // Auto-learn homebrew spells so they appear in combat/quick-actions
+                    classSpellcasting.learnSpell(spell.id);
+                  }}
                   onUpdateHomebrewSpell={spellCustomization.updateSpell}
-                  onRemoveHomebrewSpell={spellCustomization.removeSpell}
+                  onRemoveHomebrewSpell={(id) => {
+                    spellCustomization.removeSpell(id);
+                    // Also forget from class spellcasting
+                    classSpellcasting.forgetSpell(id);
+                  }}
                 />
               )}
             </BackgroundWrapper>

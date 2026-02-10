@@ -899,15 +899,17 @@ export function QuickActionsDrawer({
     }).filter(Boolean) as { ability: Ability; tier: 1 | 2 | 3 }[];
   }, [character.equippedAbilities, character.abilities]);
 
-  // ── Magic: Favorited spells auto-populate; fall back to prepared/known ──
+  // ── Magic: Favorited spells auto-populate; fall back to prepared only ──
   const preparedSpells = useMemo((): SpellDefinition[] => {
     if (!spellcasting) return [];
+    // If user has favorites, show only favorited non-cantrips that are also prepared/known
     const favoriteNonCantrips = spellcasting.favoriteSpells
       .map(id => getSpellById(id))
-      .filter((s): s is SpellDefinition => !!s && s.level > 0);
+      .filter((s): s is SpellDefinition => !!s && s.level > 0 && 
+        (spellcasting!.preparedSpells.includes(s.id) || spellcasting!.knownSpells.includes(s.id)));
     if (favoriteNonCantrips.length > 0) return favoriteNonCantrips;
-    const allIds = [...new Set([...spellcasting.preparedSpells, ...spellcasting.knownSpells])];
-    return allIds
+    // Fallback: show ONLY prepared spells (not all known — prevents unprepared from leaking)
+    return spellcasting.preparedSpells
       .map(id => getSpellById(id))
       .filter((s): s is SpellDefinition => !!s && s.level > 0);
   }, [spellcasting]);
@@ -915,12 +917,13 @@ export function QuickActionsDrawer({
   // ── Cantrips ──
   const cantrips = useMemo((): SpellDefinition[] => {
     if (!spellcasting) return [];
+    // Cantrips: favorites first, else all known cantrips (cantrips are always "prepared")
     const favoriteCantrips = spellcasting.favoriteSpells
       .map(id => getSpellById(id))
-      .filter((s): s is SpellDefinition => !!s && s.level === 0);
+      .filter((s): s is SpellDefinition => !!s && s.level === 0 &&
+        spellcasting!.knownSpells.includes(s.id));
     if (favoriteCantrips.length > 0) return favoriteCantrips;
-    const allIds = [...new Set([...spellcasting.preparedSpells, ...spellcasting.knownSpells])];
-    return allIds
+    return spellcasting.knownSpells
       .map(id => getSpellById(id))
       .filter((s): s is SpellDefinition => !!s && s.level === 0);
   }, [spellcasting]);
@@ -1016,12 +1019,19 @@ export function QuickActionsDrawer({
   // ── Spell cast handlers ──
   const handleCastSpell = useCallback((spell: SpellDefinition) => {
     if (!spellcasting) return;
+    // Auto-detect whether to use pact slot: prefer regular slots, fall back to pact
+    const regularSlot = spellcasting.spellSlots[spell.level];
+    const hasRegular = regularSlot && regularSlot.current > 0;
+    const pact = spellcasting.pactSlots;
+    const hasPact = pact && pact.current > 0 && pact.level >= spell.level;
+    const usePact = !hasRegular && !!hasPact;
+    
     const result = spellcasting.castSpell(
       spell.id,
       spell.name,
       spell.level,
-      spell.level,
-      false,
+      usePact && pact ? pact.level : spell.level,
+      usePact,
       spell.concentration,
       spell.duration || '1 round'
     );
@@ -1029,7 +1039,7 @@ export function QuickActionsDrawer({
       toast.success(`${spell.name} cast!`, {
         description: result.brokeConcentration
           ? `Concentration on ${result.brokeConcentration} broken`
-          : `Level ${spell.level} slot used`,
+          : usePact ? 'Pact slot used' : `Level ${spell.level} slot used`,
       });
     }
   }, [spellcasting]);
@@ -1245,7 +1255,11 @@ export function QuickActionsDrawer({
                   )}
                   {preparedSpells.map(spell => {
                     const slot = spellcasting?.spellSlots[spell.level];
-                    const hasSlot = slot ? slot.current > 0 : false;
+                    const pact = spellcasting?.pactSlots;
+                    // Can cast if regular slot available OR pact slot available at sufficient level
+                    const hasRegularSlot = slot ? slot.current > 0 : false;
+                    const hasPactSlot = pact ? pact.current > 0 && pact.level >= spell.level : false;
+                    const hasSlot = hasRegularSlot || hasPactSlot;
                     const isConcentrating = spellcasting?.concentratingOn === spell.id;
                     const prompt = generateQuickSpellPrompt(spell, characterName, false);
                     return (
@@ -1263,7 +1277,8 @@ export function QuickActionsDrawer({
                           </div>
                           <p className="text-xs text-muted-foreground">
                             {spell.school} · {spell.castingTime.replace('_', ' ')}
-                            {slot && <span className="ml-1 text-indigo-300/70">({slot.current}/{slot.max})</span>}
+                            {slot && slot.max > 0 && <span className="ml-1 text-indigo-300/70">({slot.current}/{slot.max})</span>}
+                            {!slot?.max && pact && pact.max > 0 && <span className="ml-1 text-purple-300/70">Pact({pact.current}/{pact.max})</span>}
                           </p>
                         </div>
                         <QuickCastButton
