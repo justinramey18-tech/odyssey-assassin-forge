@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Heart, Shield, Sparkles } from 'lucide-react';
+import { Heart, Shield, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import type { PartyMember } from '@/hooks/use-party-sync';
 
 interface PartyMemberCardProps {
@@ -8,6 +9,7 @@ interface PartyMemberCardProps {
 }
 
 export function PartyMemberCard({ member, isSelf }: PartyMemberCardProps) {
+  const [showSlots, setShowSlots] = useState(false);
   const status = member.character_status;
   const currentHP = status.currentHP ?? 0;
   const maxHP = status.maxHP ?? 1;
@@ -15,13 +17,15 @@ export function PartyMemberCard({ member, isSelf }: PartyMemberCardProps) {
   const ac = status.ac ?? 10;
   const hpPercent = Math.max(0, Math.min(100, (currentHP / maxHP) * 100));
   const conditions = status.conditions ?? [];
+  const spellSlots = status.spellSlots ?? {};
+  const hasSpellSlots = Object.keys(spellSlots).length > 0;
 
   return (
     <div className={cn(
       "p-3 rounded-lg border bg-card/60 backdrop-blur-sm space-y-2",
       isSelf ? "border-primary/40" : "border-border/40"
     )}>
-      {/* Name + Level */}
+      {/* Name + Level + Class */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="font-cinzel font-semibold text-sm truncate max-w-[140px]">
@@ -31,9 +35,14 @@ export function PartyMemberCard({ member, isSelf }: PartyMemberCardProps) {
             <span className="text-[9px] uppercase tracking-wider text-primary font-bold">You</span>
           )}
         </div>
-        {status.level && (
-          <span className="text-[10px] text-muted-foreground">Lv.{status.level}</span>
-        )}
+        <div className="flex items-center gap-1.5">
+          {status.className && (
+            <span className="text-[10px] text-muted-foreground">{status.className}</span>
+          )}
+          {status.level && (
+            <span className="text-[10px] text-muted-foreground">Lv.{status.level}</span>
+          )}
+        </div>
       </div>
 
       {/* HP Bar */}
@@ -72,17 +81,54 @@ export function PartyMemberCard({ member, isSelf }: PartyMemberCardProps) {
         </div>
       )}
 
-      {/* Spell Slots Summary */}
-      {status.spellSlots && Object.keys(status.spellSlots).length > 0 && (
-        <div className="flex items-center gap-1">
-          <Sparkles className="w-3 h-3 text-purple-400" />
-          <div className="flex gap-1">
-            {Object.entries(status.spellSlots).slice(0, 5).map(([level, slots]) => (
-              <span key={level} className="text-[9px] text-muted-foreground">
-                L{level}:{slots.current}/{slots.max}
-              </span>
-            ))}
-          </div>
+      {/* Spell Slots - Compact Summary with Expand */}
+      {hasSpellSlots && (
+        <div className="space-y-1">
+          <button
+            onClick={() => setShowSlots(!showSlots)}
+            className="flex items-center gap-1 w-full hover:bg-muted/10 rounded px-0.5 py-0.5 transition-colors"
+          >
+            <Sparkles className="w-3 h-3 text-purple-400" />
+            <span className="text-[10px] text-muted-foreground">Spell Slots</span>
+            {showSlots ? (
+              <ChevronUp className="w-3 h-3 text-muted-foreground ml-auto" />
+            ) : (
+              <>
+                <div className="flex gap-1 ml-1">
+                  {Object.entries(spellSlots).slice(0, 5).map(([level, slots]) => (
+                    <span key={level} className="text-[9px] text-muted-foreground">
+                      L{level}:{slots.current}/{slots.max}
+                    </span>
+                  ))}
+                </div>
+                <ChevronDown className="w-3 h-3 text-muted-foreground ml-auto" />
+              </>
+            )}
+          </button>
+
+          {/* Expanded pip view */}
+          {showSlots && (
+            <div className="grid grid-cols-3 gap-1.5 pt-1">
+              {Object.entries(spellSlots).map(([level, slots]) => (
+                <div key={level} className="flex items-center gap-1">
+                  <span className="text-[9px] text-muted-foreground w-5">L{level}</span>
+                  <div className="flex gap-0.5">
+                    {Array.from({ length: slots.max }).map((_, i) => (
+                      <div
+                        key={i}
+                        className={cn(
+                          "w-2 h-2 rounded-full border",
+                          i < slots.current
+                            ? "bg-purple-400 border-purple-500"
+                            : "bg-muted/30 border-muted-foreground/20"
+                        )}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

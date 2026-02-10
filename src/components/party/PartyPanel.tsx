@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Users, Plus, LogIn, LogOut, Trash2, Copy, Check } from 'lucide-react';
+import { Users, Plus, LogIn, LogOut, Trash2, Copy, Check, Dices, Package, Crosshair } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -7,6 +7,10 @@ import { PartyMemberCard } from './PartyMemberCard';
 import { PartyPingBar } from './PartyPingBar';
 import { CreatePartyDialog } from './CreatePartyDialog';
 import { JoinPartyDialog } from './JoinPartyDialog';
+import { PartyRollFeed } from './PartyRollFeed';
+import { PartyFocusTargetBanner } from './PartyFocusTargetBanner';
+import { PartyLootQueue } from './PartyLootQueue';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import type { UsePartySyncReturn } from '@/hooks/use-party-sync';
 
 interface PartyPanelProps {
@@ -29,6 +33,8 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
+  const [showRolls, setShowRolls] = useState(false);
+  const [showLoot, setShowLoot] = useState(false);
   const { party } = partySync;
 
   if (!isAuthenticated) {
@@ -39,8 +45,6 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
       </div>
     );
   }
-
-  const otherMembers = party.members.filter(m => m.user_id !== userId);
 
   // Not in a party
   if (!party.partyId) {
@@ -134,6 +138,15 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
         </button>
       </div>
 
+      {/* Focus Target Banner */}
+      {partySync.focusTarget && (
+        <PartyFocusTargetBanner
+          target={partySync.focusTarget}
+          onClear={partySync.clearFocusTarget}
+          canClear={true}
+        />
+      )}
+
       {/* Members */}
       <div className="space-y-2">
         {party.members.map(member => (
@@ -150,6 +163,47 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
         <PartyPingBar
           onSendPing={(pingType) => partySync.sendPing(pingType, characterName)}
         />
+      </div>
+
+      {/* Shared Dice Rolls - Collapsible */}
+      <div className="pt-2 border-t border-border/30">
+        <Collapsible open={showRolls} onOpenChange={setShowRolls}>
+          <CollapsibleTrigger className="flex items-center gap-2 w-full py-1 hover:bg-muted/10 rounded px-1 transition-colors">
+            <Dices className="w-3.5 h-3.5 text-primary" />
+            <span className="text-xs font-semibold">Party Rolls</span>
+            {partySync.partyRolls.length > 0 && (
+              <span className="text-[10px] text-muted-foreground ml-auto">
+                {partySync.partyRolls.length}
+              </span>
+            )}
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-2">
+            <PartyRollFeed rolls={partySync.partyRolls} currentUserId={userId} />
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
+
+      {/* Party Loot Queue - Collapsible */}
+      <div className="pt-2 border-t border-border/30">
+        <Collapsible open={showLoot} onOpenChange={setShowLoot}>
+          <CollapsibleTrigger className="flex items-center gap-2 w-full py-1 hover:bg-muted/10 rounded px-1 transition-colors">
+            <Package className="w-3.5 h-3.5 text-amber-400" />
+            <span className="text-xs font-semibold">Party Loot</span>
+            {partySync.partyLoot.filter(l => !l.claimed_by_user_id).length > 0 && (
+              <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 rounded-full ml-auto">
+                {partySync.partyLoot.filter(l => !l.claimed_by_user_id).length}
+              </span>
+            )}
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-2">
+            <PartyLootQueue
+              loot={partySync.partyLoot}
+              currentUserId={userId}
+              characterName={characterName}
+              onClaim={partySync.claimLoot}
+            />
+          </CollapsibleContent>
+        </Collapsible>
       </div>
 
       {/* Actions */}
