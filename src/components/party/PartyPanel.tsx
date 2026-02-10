@@ -10,8 +10,9 @@ import { JoinPartyDialog } from './JoinPartyDialog';
 import { PartyRollFeed } from './PartyRollFeed';
 import { PartyFocusTargetBanner } from './PartyFocusTargetBanner';
 import { PartyLootQueue } from './PartyLootQueue';
+import { PartyMemberQuickActionsViewer } from './PartyMemberQuickActionsViewer';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
-import type { UsePartySyncReturn } from '@/hooks/use-party-sync';
+import type { UsePartySyncReturn, PartyMember } from '@/hooks/use-party-sync';
 
 interface PartyPanelProps {
   partySync: UsePartySyncReturn;
@@ -35,6 +36,7 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
   const [codeCopied, setCodeCopied] = useState(false);
   const [showRolls, setShowRolls] = useState(false);
   const [showLoot, setShowLoot] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<PartyMember | null>(null);
   const { party } = partySync;
 
   if (!isAuthenticated) {
@@ -154,9 +156,17 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
             key={member.id}
             member={member}
             isSelf={member.user_id === userId}
+            onViewActions={(m) => setSelectedMember(m)}
           />
         ))}
       </div>
+
+      {/* Quick Actions Viewer */}
+      <PartyMemberQuickActionsViewer
+        member={selectedMember}
+        open={!!selectedMember}
+        onOpenChange={(open) => { if (!open) setSelectedMember(null); }}
+      />
 
       {/* Tactical Pings */}
       <div className="pt-2 border-t border-border/30">

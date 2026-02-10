@@ -4,6 +4,45 @@ import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
 import type { PendingHealAction } from '@/components/party/IncomingHealNotification';
 
+export interface QuickActionWeapon {
+  name: string;
+  damage: string;
+  damageType: string;
+}
+
+export interface QuickActionAbility {
+  name: string;
+  tree: string;
+  tier: number;
+  actionType: string;
+}
+
+export interface QuickActionSpell {
+  name: string;
+  level: number;
+  school: string;
+  concentration: boolean;
+}
+
+export interface QuickActionCantrip {
+  name: string;
+  school: string;
+}
+
+export interface QuickActionConsumable {
+  name: string;
+  quantity: number;
+  effect: string;
+}
+
+export interface QuickActions {
+  weapons: QuickActionWeapon[];
+  abilities: QuickActionAbility[];
+  spells: QuickActionSpell[];
+  cantrips: QuickActionCantrip[];
+  consumables: QuickActionConsumable[];
+}
+
 export interface PartyMember {
   id: string;
   party_id: string;
@@ -18,6 +57,8 @@ export interface PartyMember {
     spellSlots?: Record<string, { current: number; max: number }>;
     level?: number;
     className?: string;
+    quickActions?: QuickActions;
+    profileImage?: string | null;
   };
   joined_at: string;
   updated_at: string;

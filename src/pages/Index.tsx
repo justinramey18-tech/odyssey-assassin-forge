@@ -65,6 +65,7 @@ import {
   createInitialEquipment,
 } from '@/lib/inventory/index';
 import { MagicScreen, ClassSpellcastingScreen } from '@/components/magic';
+import { getSpellById } from '@/lib/magic/spells/index';
 import { ShopScreen } from '@/components/shop';
 import { LootScreen } from '@/components/loot';
 import { generateLootUsePrompt } from '@/lib/loot/prompts';
@@ -605,6 +606,100 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     });
   }, [partySync.incomingBuffs]);
 
+  // Build quick actions summary for party broadcast
+  const quickActionsSummary = useMemo(() => {
+    // Weapons from equipment
+    const weaponSlotKeys: Array<'primary_weapon' | 'secondary_weapon' | 'ranged_weapon'> = ['primary_weapon', 'secondary_weapon', 'ranged_weapon'];
+    const weapons = weaponSlotKeys
+      .map(slot => equipment.slots[slot])
+      .filter(Boolean)
+      .map(item => ({
+        name: item!.name,
+        damage: item!.stats.damage || '—',
+        damageType: (item!.properties?.find(p => p.toLowerCase().includes('slashing') || p.toLowerCase().includes('piercing') || p.toLowerCase().includes('bludgeoning')) || 'Physical'),
+      }));
+
+    // Equipped abilities
+    const abilities = character.equippedAbilities
+      .filter(Boolean)
+      .map(id => {
+        const ability = allAbilities.find(a => a.id === id);
+        const tier = character.abilities.find(ca => ca.abilityId === id)?.currentTier ?? 0;
+        return ability ? {
+          name: ability.name,
+          tree: ability.tree,
+          tier,
+          actionType: ability.type === 'active' ? 'Action' : 'Passive',
+        } : null;
+      })
+      .filter(Boolean) as { name: string; tree: string; tier: number; actionType: string }[];
+
+    // Spells & cantrips from class spellcasting
+    let spells: { name: string; level: number; school: string; concentration: boolean }[] = [];
+    let cantrips: { name: string; school: string }[] = [];
+    
+    if (!isRogueClass && classSpellcasting.state.preparedSpells) {
+      spells = classSpellcasting.state.preparedSpells
+        .map((id: string) => {
+          const spell = getSpellById(id);
+          if (!spell || spell.level === 0) return null;
+          return {
+            name: spell.name,
+            level: spell.level,
+            school: spell.school || 'Unknown',
+            concentration: spell.concentration || false,
+          };
+        })
+        .filter(Boolean) as typeof spells;
+
+      // Cantrips are level 0 prepared/known spells
+      const allKnown = [...(classSpellcasting.state.knownSpells || []), ...(classSpellcasting.state.preparedSpells || [])];
+      const uniqueIds = [...new Set(allKnown)];
+      cantrips = uniqueIds
+        .map((id: string) => {
+          const spell = getSpellById(id);
+          if (!spell || spell.level !== 0) return null;
+          return { name: spell.name, school: spell.school || 'Unknown' };
+        })
+        .filter(Boolean) as typeof cantrips;
+    }
+
+    // Consumables
+    const consumables = consumablesInventory
+      .filter(item => item.quantity > 0)
+      .slice(0, 10) // Limit to keep payload small
+      .map(item => ({
+        name: item.consumable.name,
+        quantity: item.quantity,
+        effect: item.consumable.effect,
+      }));
+
+    return { weapons, abilities, spells, cantrips, consumables };
+  }, [equipment.slots, character.equippedAbilities, character.abilities, isRogueClass, classSpellcasting.state.preparedSpells, classSpellcasting.state.knownSpells, consumablesInventory]);
+
+  // Profile image thumbnail ref (cached to avoid re-resizing every broadcast)
+  const profileImageRef = useRef<string | null>(null);
+  const lastBgRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const bg = customBackground.customBackground;
+    if (bg === lastBgRef.current) return;
+    lastBgRef.current = bg;
+    
+    if (!bg) {
+      profileImageRef.current = null;
+      return;
+    }
+
+    import('@/lib/utils/image-resize').then(({ resizeImageToThumbnail }) => {
+      resizeImageToThumbnail(bg, 64, 0.6).then(thumb => {
+        profileImageRef.current = thumb;
+      }).catch(() => {
+        profileImageRef.current = null;
+      });
+    });
+  }, [customBackground.customBackground]);
+
   // Broadcast status to party every time relevant state changes
   useEffect(() => {
     if (!partySync.party.partyId) return;
@@ -616,8 +711,10 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       conditions: conditions.conditions.map(c => c.name),
       level: character.level,
       className: character.primaryClass,
+      quickActions: quickActionsSummary,
+      profileImage: profileImageRef.current,
     });
-  }, [partySync, effectiveCurrentHP, effectiveMaxHP, effectiveTempHP, effectiveAC, conditions.conditions, character.level, character.primaryClass]);
+  }, [partySync, effectiveCurrentHP, effectiveMaxHP, effectiveTempHP, effectiveAC, conditions.conditions, character.level, character.primaryClass, quickActionsSummary]);
 
   // Legacy spentPoints for compatibility
   const spentPoints = getTotalPointsSpent(character.abilities);
