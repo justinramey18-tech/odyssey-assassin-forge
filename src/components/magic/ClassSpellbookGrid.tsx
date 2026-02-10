@@ -34,6 +34,8 @@ interface ClassSpellbookGridProps {
   homebrewSpells?: HomebrewSpell[];
   onEditHomebrew?: (spell: HomebrewSpell) => void;
   onDeleteHomebrew?: (id: string) => void;
+  /** Whether this is a prepared caster (default true) */
+  isPreparedCaster?: boolean;
 }
 
 type SpellFilter = 'all' | 'known' | 'prepared' | 'favorites';
@@ -50,6 +52,7 @@ export function ClassSpellbookGrid({
   homebrewSpells = [],
   onEditHomebrew,
   onDeleteHomebrew,
+  isPreparedCaster = true,
 }: ClassSpellbookGridProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterMode, setFilterMode] = useState<SpellFilter>('all');
@@ -170,7 +173,7 @@ export function ClassSpellbookGrid({
             className="h-7 text-xs"
           >
             <Sparkles className="w-3 h-3 mr-1" />
-            Prepared
+            {isPreparedCaster ? 'Prepared' : 'Known'}
           </Button>
           <Button
             variant={filterMode === 'favorites' ? 'secondary' : 'ghost'}

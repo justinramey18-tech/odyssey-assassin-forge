@@ -55,9 +55,11 @@ export function SpellCastSheet({
   useEffect(() => {
     if (spell) {
       setSelectedLevel(spell.level);
-      setUsePactSlot(path === 'hexblade' && !!pactSlots && pactSlots.current > 0);
+      // Auto-select pact slot if pact slots are available (warlock or hexblade path)
+      const hasPactAvailable = !!pactSlots && pactSlots.current > 0;
+      setUsePactSlot(hasPactAvailable);
     }
-  }, [spell, path, pactSlots]);
+  }, [spell, pactSlots]);
 
   // All hooks must be called before early returns - compute derived values
   const schoolConfig = spell ? getSchoolConfig(spell.school) : null;
@@ -274,8 +276,8 @@ ${isUpcast && spell.higherLevels ? `**Upcast Bonus:** ${spell.higherLevels}` : '
                 Select Spell Slot
               </h3>
               
-              {/* Pact Slot Option (for Hexblade) */}
-              {path === 'hexblade' && pactSlots && pactSlots.level >= spell.level && (
+              {/* Pact Slot Option (for Warlock / Hexblade) */}
+              {pactSlots && pactSlots.level >= spell.level && (
                 <div className="mb-3">
                   <button
                     onClick={() => {
