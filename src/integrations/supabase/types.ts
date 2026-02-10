@@ -289,6 +289,103 @@ export type Database = {
           },
         ]
       }
+      party_dice_rolls: {
+        Row: {
+          created_at: string
+          id: string
+          party_id: string
+          roll_details: Json | null
+          roll_expression: string
+          roll_label: string
+          roll_result: number
+          roller_name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          party_id: string
+          roll_details?: Json | null
+          roll_expression: string
+          roll_label?: string
+          roll_result: number
+          roller_name?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          party_id?: string
+          roll_details?: Json | null
+          roll_expression?: string
+          roll_label?: string
+          roll_result?: number
+          roller_name?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_dice_rolls_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      party_loot_queue: {
+        Row: {
+          added_by_name: string
+          added_by_user_id: string
+          claimed_at: string | null
+          claimed_by_name: string | null
+          claimed_by_user_id: string | null
+          created_at: string
+          gold_value: number
+          id: string
+          item_description: string | null
+          item_name: string
+          party_id: string
+          rarity: string
+        }
+        Insert: {
+          added_by_name?: string
+          added_by_user_id: string
+          claimed_at?: string | null
+          claimed_by_name?: string | null
+          claimed_by_user_id?: string | null
+          created_at?: string
+          gold_value?: number
+          id?: string
+          item_description?: string | null
+          item_name: string
+          party_id: string
+          rarity?: string
+        }
+        Update: {
+          added_by_name?: string
+          added_by_user_id?: string
+          claimed_at?: string | null
+          claimed_by_name?: string | null
+          claimed_by_user_id?: string | null
+          created_at?: string
+          gold_value?: number
+          id?: string
+          item_description?: string | null
+          item_name?: string
+          party_id?: string
+          rarity?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_loot_queue_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       party_members: {
         Row: {
           character_name: string
@@ -358,6 +455,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "party_pings_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      party_shared_state: {
+        Row: {
+          created_at: string
+          id: string
+          party_id: string
+          state_data: Json
+          state_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          party_id: string
+          state_data?: Json
+          state_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          party_id?: string
+          state_data?: Json
+          state_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_shared_state_party_id_fkey"
             columns: ["party_id"]
             isOneToOne: false
             referencedRelation: "parties"

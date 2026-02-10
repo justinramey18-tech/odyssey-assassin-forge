@@ -48,9 +48,72 @@ export interface PartyState {
   isLoading: boolean;
 }
 
+// --- New types for party expansion ---
+
+export interface PartyDiceRoll {
+  id: string;
+  party_id: string;
+  user_id: string;
+  roller_name: string;
+  roll_label: string;
+  roll_expression: string;
+  roll_result: number;
+  roll_details: unknown;
+  created_at: string;
+}
+
+export interface PartyLootItem {
+  id: string;
+  party_id: string;
+  added_by_user_id: string;
+  added_by_name: string;
+  item_name: string;
+  item_description: string | null;
+  rarity: string;
+  gold_value: number;
+  claimed_by_user_id: string | null;
+  claimed_by_name: string | null;
+  claimed_at: string | null;
+  created_at: string;
+}
+
+export interface FocusTarget {
+  name: string;
+  ac: number;
+  hpPercent: number;
+  resistances?: string[];
+  vulnerabilities?: string[];
+  immunities?: string[];
+  markedBy: string;
+}
+
+export interface PartyInitiativeEntry {
+  name: string;
+  initiative: number;
+  isCurrentTurn: boolean;
+}
+
+export interface PartyInitiativeState {
+  order: PartyInitiativeEntry[];
+  round: number;
+  broadcasterId: string;
+  broadcasterName: string;
+}
+
+export interface SharedBuff {
+  conditionName: string;
+  duration: number;
+  durationType: string;
+  source: string;
+  casterName: string;
+  spellLevel?: number;
+  targetUserId: string;
+}
+
 export interface UsePartySyncReturn {
   party: PartyState;
   pendingHeals: PendingHealAction[];
+  // Existing
   createParty: (characterName: string, status: PartyMember['character_status']) => Promise<string | null>;
   joinParty: (linkCode: string, characterName: string, status: PartyMember['character_status']) => Promise<boolean>;
   leaveParty: () => Promise<void>;
@@ -61,6 +124,25 @@ export interface UsePartySyncReturn {
   acceptHeal: (actionId: string) => Promise<void>;
   rejectHeal: (actionId: string) => Promise<void>;
   onIncomingHeal: React.MutableRefObject<((hpHealed: number, senderName: string, source: string) => void) | null>;
+  // New: Shared dice rolls
+  shareRoll: (label: string, expression: string, result: number, details: unknown, rollerName: string) => Promise<void>;
+  partyRolls: PartyDiceRoll[];
+  // New: Focus target
+  broadcastFocusTarget: (target: FocusTarget) => Promise<void>;
+  clearFocusTarget: () => Promise<void>;
+  focusTarget: FocusTarget | null;
+  // New: Shared initiative
+  broadcastInitiative: (order: PartyInitiativeEntry[], round: number, broadcasterName: string) => Promise<void>;
+  clearInitiative: () => Promise<void>;
+  partyInitiatives: PartyInitiativeState[];
+  // New: Buff/debuff sharing
+  shareBuff: (buff: SharedBuff) => Promise<void>;
+  incomingBuffs: SharedBuff[];
+  clearIncomingBuff: (index: number) => void;
+  // New: Party loot queue
+  shareLoot: (item: Omit<PartyLootItem, 'id' | 'party_id' | 'added_by_user_id' | 'claimed_by_user_id' | 'claimed_by_name' | 'claimed_at' | 'created_at'>) => Promise<void>;
+  claimLoot: (lootId: string, claimerName: string) => Promise<void>;
+  partyLoot: PartyLootItem[];
 }
 
 export function usePartySync(): UsePartySyncReturn {
@@ -78,6 +160,13 @@ export function usePartySync(): UsePartySyncReturn {
   const statusTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastStatusRef = useRef<string>('');
 
+  // New state
+  const [partyRolls, setPartyRolls] = useState<PartyDiceRoll[]>([]);
+  const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
+  const [partyInitiatives, setPartyInitiatives] = useState<PartyInitiativeState[]>([]);
+  const [incomingBuffs, setIncomingBuffs] = useState<SharedBuff[]>([]);
+  const [partyLoot, setPartyLoot] = useState<PartyLootItem[]>([]);
+
   // On mount, check if user is already in a party
   useEffect(() => {
     if (!user) return;
@@ -91,7 +180,6 @@ export function usePartySync(): UsePartySyncReturn {
 
       if (membership && membership.length > 0) {
         const partyId = membership[0].party_id;
-        // Load party info
         const { data: partyData } = await supabase
           .from('parties')
           .select('*')
@@ -100,7 +188,6 @@ export function usePartySync(): UsePartySyncReturn {
           .maybeSingle() as { data: { id: string; link_code: string; created_by: string; is_active: boolean } | null };
 
         if (partyData) {
-          // Load members
           const { data: members } = await supabase
             .from('party_members')
             .select('*')
@@ -119,6 +206,63 @@ export function usePartySync(): UsePartySyncReturn {
 
     checkExisting();
   }, [user]);
+
+  // Load existing data when joining a party
+  useEffect(() => {
+    if (!party.partyId || !user) return;
+
+    const loadExistingData = async () => {
+      // Load recent dice rolls (last 20)
+      const { data: rolls } = await supabase
+        .from('party_dice_rolls')
+        .select('*')
+        .eq('party_id', party.partyId!)
+        .order('created_at', { ascending: false })
+        .limit(20) as { data: PartyDiceRoll[] | null };
+      if (rolls) setPartyRolls(rolls.reverse());
+
+      // Load loot queue
+      const { data: loot } = await supabase
+        .from('party_loot_queue')
+        .select('*')
+        .eq('party_id', party.partyId!)
+        .order('created_at', { ascending: false }) as { data: PartyLootItem[] | null };
+      if (loot) setPartyLoot(loot);
+
+      // Load shared state (focus targets, initiative, buffs)
+      const { data: sharedState } = await supabase
+        .from('party_shared_state')
+        .select('*')
+        .eq('party_id', party.partyId!) as { data: Array<{ user_id: string; state_type: string; state_data: unknown }> | null };
+
+      if (sharedState) {
+        sharedState.forEach((s) => {
+          const data = s.state_data as Record<string, unknown>;
+          if (s.state_type === 'focus_target' && data) {
+            setFocusTarget(data as unknown as FocusTarget);
+          }
+          if (s.state_type === 'initiative' && data) {
+            const initState = data as unknown as Omit<PartyInitiativeState, 'broadcasterId' | 'broadcasterName'>;
+            setPartyInitiatives(prev => {
+              const filtered = prev.filter(p => p.broadcasterId !== s.user_id);
+              return [...filtered, { ...initState, broadcasterId: s.user_id, broadcasterName: (data as Record<string, string>).broadcasterName || 'Unknown' } as PartyInitiativeState];
+            });
+          }
+          if (s.state_type === 'buff_share' && data) {
+            const buffs = (data as { buffs?: SharedBuff[] }).buffs;
+            if (buffs) {
+              const myBuffs = buffs.filter(b => b.targetUserId === user.id);
+              if (myBuffs.length > 0) {
+                setIncomingBuffs(prev => [...prev, ...myBuffs]);
+              }
+            }
+          }
+        });
+      }
+    };
+
+    loadExistingData();
+  }, [party.partyId, user]);
 
   // Realtime subscriptions
   useEffect(() => {
@@ -152,13 +296,12 @@ export function usePartySync(): UsePartySyncReturn {
               members: prev.members.map(m => m.id === updated.id ? updated : m),
             }));
           } else if (payload.eventType === 'DELETE') {
-            const old = payload.old as { id: string; user_id?: string; character_name?: string };
+            const old = payload.old as { id: string; user_id?: string };
             setParty(prev => ({
               ...prev,
               members: prev.members.filter(m => m.id !== old.id),
             }));
             if (old.user_id === user.id) {
-              // We were removed (party disbanded)
               setParty({ partyId: null, linkCode: null, isCreator: false, members: [], isLoading: false });
               toast.info('Party disbanded');
             }
@@ -167,7 +310,7 @@ export function usePartySync(): UsePartySyncReturn {
       )
       .subscribe();
 
-    // Subscribe to incoming heal actions (target receives pending heals)
+    // Subscribe to incoming heal actions
     const actionsChannel = supabase
       .channel(`party-actions-${party.partyId}`)
       .on(
@@ -193,7 +336,7 @@ export function usePartySync(): UsePartySyncReturn {
       )
       .subscribe();
 
-    // Subscribe to responses on actions we sent (sender gets accept/reject notifications)
+    // Subscribe to responses on sent actions
     const sentActionsChannel = supabase
       .channel(`party-sent-actions-${party.partyId}`)
       .on(
@@ -232,8 +375,8 @@ export function usePartySync(): UsePartySyncReturn {
         },
         (payload) => {
           const ping = payload.new as { sender_user_id: string; sender_name: string; ping_type: string; message?: string };
-          if (ping.sender_user_id === user.id) return; // Don't show own pings
-          
+          if (ping.sender_user_id === user.id) return;
+
           const pingEmojis: Record<string, string> = {
             need_heal: '❤️‍🩹', danger: '⚠️', focus_target: '🎯',
             ready: '✅', help: '🆘', retreat: '🏃',
@@ -244,11 +387,126 @@ export function usePartySync(): UsePartySyncReturn {
           };
           const emoji = pingEmojis[ping.ping_type] || '📢';
           const label = pingLabels[ping.ping_type] || 'pinged!';
-          
+
           toast(`${emoji} ${ping.sender_name} ${label}`, {
             description: ping.message || undefined,
             duration: 5000,
           });
+        }
+      )
+      .subscribe();
+
+    // Subscribe to dice rolls
+    const rollsChannel = supabase
+      .channel(`party-rolls-${party.partyId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'party_dice_rolls',
+          filter: `party_id=eq.${party.partyId}`,
+        },
+        (payload) => {
+          const roll = payload.new as PartyDiceRoll;
+          setPartyRolls(prev => [...prev.slice(-19), roll]);
+
+          if (roll.user_id !== user.id) {
+            toast(`🎲 ${roll.roller_name} rolled ${roll.roll_label}: ${roll.roll_result}`, {
+              description: roll.roll_expression,
+              duration: 4000,
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    // Subscribe to shared state changes (focus target, initiative, buffs)
+    const sharedStateChannel = supabase
+      .channel(`party-shared-state-${party.partyId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'party_shared_state',
+          filter: `party_id=eq.${party.partyId}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+            const old = payload.old as { state_type?: string; user_id?: string };
+            if (old.state_type === 'focus_target') {
+              setFocusTarget(null);
+            }
+            if (old.state_type === 'initiative' && old.user_id) {
+              setPartyInitiatives(prev => prev.filter(p => p.broadcasterId !== old.user_id));
+            }
+            return;
+          }
+
+          const row = payload.new as { user_id: string; state_type: string; state_data: unknown };
+          const data = row.state_data as Record<string, unknown>;
+
+          if (row.state_type === 'focus_target') {
+            const ft = data as unknown as FocusTarget;
+            setFocusTarget(ft);
+            if (row.user_id !== user.id) {
+              toast(`🎯 ${ft.markedBy} marked target: ${ft.name}`, { duration: 4000 });
+            }
+          }
+
+          if (row.state_type === 'initiative') {
+            const initState = data as unknown as PartyInitiativeState;
+            setPartyInitiatives(prev => {
+              const filtered = prev.filter(p => p.broadcasterId !== row.user_id);
+              return [...filtered, { ...initState, broadcasterId: row.user_id }];
+            });
+          }
+
+          if (row.state_type === 'buff_share') {
+            const buffs = (data as { buffs?: SharedBuff[] }).buffs;
+            if (buffs && row.user_id !== user.id) {
+              const myBuffs = buffs.filter(b => b.targetUserId === user.id);
+              myBuffs.forEach(buff => {
+                toast(`✨ ${buff.casterName} cast ${buff.source} on you!`, {
+                  description: `${buff.conditionName} (${buff.duration} ${buff.durationType})`,
+                  duration: 6000,
+                });
+              });
+              if (myBuffs.length > 0) {
+                setIncomingBuffs(prev => [...prev, ...myBuffs]);
+              }
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    // Subscribe to loot queue changes
+    const lootChannel = supabase
+      .channel(`party-loot-${party.partyId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'party_loot_queue',
+          filter: `party_id=eq.${party.partyId}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const item = payload.new as PartyLootItem;
+            setPartyLoot(prev => [item, ...prev]);
+            if (item.added_by_user_id !== user.id) {
+              toast(`💰 ${item.added_by_name} shared loot: ${item.item_name}`, { duration: 4000 });
+            }
+          } else if (payload.eventType === 'UPDATE') {
+            const item = payload.new as PartyLootItem;
+            setPartyLoot(prev => prev.map(l => l.id === item.id ? item : l));
+            if (item.claimed_by_user_id && item.claimed_by_user_id !== user.id) {
+              toast(`${item.claimed_by_name} claimed ${item.item_name}`, { duration: 3000 });
+            }
+          }
         }
       )
       .subscribe();
@@ -258,8 +516,13 @@ export function usePartySync(): UsePartySyncReturn {
       supabase.removeChannel(actionsChannel);
       supabase.removeChannel(sentActionsChannel);
       supabase.removeChannel(pingsChannel);
+      supabase.removeChannel(rollsChannel);
+      supabase.removeChannel(sharedStateChannel);
+      supabase.removeChannel(lootChannel);
     };
   }, [party.partyId, user]);
+
+  // --- Existing functions ---
 
   const createParty = useCallback(async (characterName: string, status: PartyMember['character_status']): Promise<string | null> => {
     if (!user) return null;
@@ -321,8 +584,6 @@ export function usePartySync(): UsePartySyncReturn {
       }
 
       const partyData = res.data.party;
-
-      // Load members
       const { data: members } = await supabase
         .from('party_members')
         .select('*')
@@ -356,6 +617,11 @@ export function usePartySync(): UsePartySyncReturn {
       });
 
       setParty({ partyId: null, linkCode: null, isCreator: false, members: [], isLoading: false });
+      setPartyRolls([]);
+      setPartyLoot([]);
+      setFocusTarget(null);
+      setPartyInitiatives([]);
+      setIncomingBuffs([]);
       toast.info('Left the party');
     } catch {
       toast.error('Failed to leave party');
@@ -373,6 +639,11 @@ export function usePartySync(): UsePartySyncReturn {
       });
 
       setParty({ partyId: null, linkCode: null, isCreator: false, members: [], isLoading: false });
+      setPartyRolls([]);
+      setPartyLoot([]);
+      setFocusTarget(null);
+      setPartyInitiatives([]);
+      setIncomingBuffs([]);
       toast.info('Party disbanded');
     } catch {
       toast.error('Failed to disband party');
@@ -386,7 +657,6 @@ export function usePartySync(): UsePartySyncReturn {
     if (statusStr === lastStatusRef.current) return;
     lastStatusRef.current = statusStr;
 
-    // Debounce: write at most every 2 seconds
     if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
     statusTimerRef.current = setTimeout(async () => {
       await supabase
@@ -424,12 +694,10 @@ export function usePartySync(): UsePartySyncReturn {
     const heal = pendingHeals.find(h => h.id === actionId);
     if (!heal) return;
 
-    // Apply the heal via callback
     if (onIncomingHeal.current) {
       onIncomingHeal.current(heal.hpHealed, heal.senderName, heal.source);
     }
 
-    // Update status to accepted
     await supabase
       .from('party_actions')
       .update({ applied: true, status: 'accepted' } as Record<string, unknown>)
@@ -451,6 +719,114 @@ export function usePartySync(): UsePartySyncReturn {
     toast('Heal declined', { description: heal ? `From ${heal.senderName}` : undefined });
   }, [pendingHeals]);
 
+  // --- New feature functions ---
+
+  const shareRoll = useCallback(async (label: string, expression: string, result: number, details: unknown, rollerName: string) => {
+    if (!user || !party.partyId) return;
+
+    await (supabase.from('party_dice_rolls') as any).insert({
+      party_id: party.partyId,
+      user_id: user.id,
+      roller_name: rollerName,
+      roll_label: label,
+      roll_expression: expression,
+      roll_result: result,
+      roll_details: details,
+    });
+  }, [user, party.partyId]);
+
+  const broadcastFocusTarget = useCallback(async (target: FocusTarget) => {
+    if (!user || !party.partyId) return;
+
+    await (supabase.from('party_shared_state') as any).upsert({
+      party_id: party.partyId,
+      user_id: user.id,
+      state_type: 'focus_target',
+      state_data: target,
+    }, { onConflict: 'party_id,user_id,state_type' });
+  }, [user, party.partyId]);
+
+  const clearFocusTarget = useCallback(async () => {
+    if (!user || !party.partyId) return;
+
+    await (supabase.from('party_shared_state') as any)
+      .delete()
+      .eq('party_id', party.partyId)
+      .eq('user_id', user.id)
+      .eq('state_type', 'focus_target');
+  }, [user, party.partyId]);
+
+  const broadcastInitiative = useCallback(async (order: PartyInitiativeEntry[], round: number, broadcasterName: string) => {
+    if (!user || !party.partyId) return;
+
+    await (supabase.from('party_shared_state') as any).upsert({
+      party_id: party.partyId,
+      user_id: user.id,
+      state_type: 'initiative',
+      state_data: { order, round, broadcasterName },
+    }, { onConflict: 'party_id,user_id,state_type' });
+  }, [user, party.partyId]);
+
+  const clearInitiative = useCallback(async () => {
+    if (!user || !party.partyId) return;
+
+    await (supabase.from('party_shared_state') as any)
+      .delete()
+      .eq('party_id', party.partyId)
+      .eq('user_id', user.id)
+      .eq('state_type', 'initiative');
+  }, [user, party.partyId]);
+
+  const shareBuff = useCallback(async (buff: SharedBuff) => {
+    if (!user || !party.partyId) return;
+
+    await (supabase.from('party_shared_state') as any).upsert({
+      party_id: party.partyId,
+      user_id: user.id,
+      state_type: 'buff_share',
+      state_data: { buffs: [buff] },
+    }, { onConflict: 'party_id,user_id,state_type' });
+  }, [user, party.partyId]);
+
+  const clearIncomingBuff = useCallback((index: number) => {
+    setIncomingBuffs(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const shareLoot = useCallback(async (item: Omit<PartyLootItem, 'id' | 'party_id' | 'added_by_user_id' | 'claimed_by_user_id' | 'claimed_by_name' | 'claimed_at' | 'created_at'>) => {
+    if (!user || !party.partyId) return;
+
+    await (supabase.from('party_loot_queue') as any).insert({
+      party_id: party.partyId,
+      added_by_user_id: user.id,
+      added_by_name: item.added_by_name,
+      item_name: item.item_name,
+      item_description: item.item_description,
+      rarity: item.rarity,
+      gold_value: item.gold_value,
+    });
+
+    toast.success(`Shared ${item.item_name} with party!`);
+  }, [user, party.partyId]);
+
+  const claimLoot = useCallback(async (lootId: string, claimerName: string) => {
+    if (!user || !party.partyId) return;
+
+    const { error } = await (supabase.from('party_loot_queue') as any)
+      .update({
+        claimed_by_user_id: user.id,
+        claimed_by_name: claimerName,
+        claimed_at: new Date().toISOString(),
+      })
+      .eq('id', lootId)
+      .is('claimed_by_user_id', null);
+
+    if (error) {
+      toast.error('Failed to claim loot — someone else may have grabbed it!');
+    } else {
+      toast.success('Loot claimed!');
+    }
+  }, [user, party.partyId]);
+
   return {
     party,
     pendingHeals,
@@ -464,5 +840,20 @@ export function usePartySync(): UsePartySyncReturn {
     acceptHeal,
     rejectHeal,
     onIncomingHeal,
+    // New
+    shareRoll,
+    partyRolls,
+    broadcastFocusTarget,
+    clearFocusTarget,
+    focusTarget,
+    broadcastInitiative,
+    clearInitiative,
+    partyInitiatives,
+    shareBuff,
+    incomingBuffs,
+    clearIncomingBuff,
+    shareLoot,
+    claimLoot,
+    partyLoot,
   };
 }
