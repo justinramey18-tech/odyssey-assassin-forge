@@ -319,8 +319,8 @@ export const GOLD_PATTERNS = [
   /(?:reward|bounty|payment|prize|stipend|fee)\s*(?:of|:)\s*(\d+)\s*(?:gp|gold(?:\s*pieces?)?)/gi,
   // Informal: "hands you 100 gold", "gives the party 250 gp"
   /(?:hands?|gives?|pays?|offers?)\s+(?:you|the\s+party|them)\s+(\d+)\s*(?:gp|gold(?:\s*pieces?)?)/gi,
-  // Mixed currency comma list: "2 pp, 15 gp, 30 sp" - captures gp portion
-  /(\d+)\s*gp\s*(?:,|and)/gi,
+  // Mixed currency comma list: removed — caused double-counting with patterns 0/1
+  // Gold in comma lists like "15 gp, 30 sp" is already captured by the main gain patterns above
 ];
 
 // ===== MULTI-CURRENCY PATTERNS (Gap 3) =====

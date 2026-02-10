@@ -95,18 +95,19 @@ export function extractDamageType(sourceText: string): { type: DamageType | null
     }
   }
 
-  // 3. Check context words
+  // 3. Check multi-word context keys FIRST (e.g. "fire bolt" → fire)
+  // Must come before single-word check to prevent "bolt" → piercing shadowing "fire bolt" → fire
+  for (const [phrase, dt] of Object.entries(DAMAGE_TYPE_CONTEXT)) {
+    if (phrase.includes(' ') && lower.includes(phrase)) {
+      return { type: dt, confidence: 'medium' };
+    }
+  }
+
+  // 4. Check single-word context keys
   const words = lower.split(/\W+/);
   for (const word of words) {
     if (DAMAGE_TYPE_CONTEXT[word]) {
       return { type: DAMAGE_TYPE_CONTEXT[word], confidence: 'medium' };
-    }
-  }
-
-  // 4. Check multi-word context keys
-  for (const [phrase, dt] of Object.entries(DAMAGE_TYPE_CONTEXT)) {
-    if (phrase.includes(' ') && lower.includes(phrase)) {
-      return { type: dt, confidence: 'medium' };
     }
   }
 
