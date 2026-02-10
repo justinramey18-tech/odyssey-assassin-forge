@@ -4,7 +4,8 @@
 import { useState, useCallback, useMemo } from 'react';
 import { 
   Zap, Coins, Heart, AlertCircle, Moon, Skull, Sparkles, Shield, Star,
-  Check, X, ChevronDown, Settings2, Swords, RotateCw, Target, Eye, Focus
+  Check, X, ChevronDown, Settings2, Swords, RotateCw, Target, Eye, Focus,
+  TrendingUp, Award, BookOpen
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -23,6 +24,9 @@ import { ChronicleParseResult, ParsedGoldChange, ParsedHPChange, ParsedCondition
 import { ParsedRestEvent, ParsedDeathSave } from '@/lib/chronicleSync/enhancedTypes';
 import { InitiativeMatch, InitiativeEntry } from '@/lib/chronicleSync/patterns/initiative';
 import { ParsedDamageModifier, ParsedConcentrationCheck } from '@/lib/chronicleSync/patterns/resistanceAndConcentration';
+import { AbilityScoreIncreaseMatch } from '@/lib/chronicleSync/patterns/abilityScoreIncrease';
+import { FeatAcquisitionMatch } from '@/lib/chronicleSync/patterns/featAcquisition';
+import { ClassFeatureUnlockMatch } from '@/lib/chronicleSync/patterns/classFeatureUnlock';
 import { DamageType, DAMAGE_TYPES } from '@/lib/combat/creatureTypes';
 import { similarityScore } from '@/lib/chronicleSync/fuzzyMatch';
 import { Enemy } from '@/lib/combat/targetTypes';
@@ -62,6 +66,9 @@ interface AutoApplyPanelProps {
     kills?: { targetName: string; sourceText: string }[];
     damageModifiers?: ParsedDamageModifier[];
     concentrationChecks?: ParsedConcentrationCheck[];
+    abilityScoreIncreases?: AbilityScoreIncreaseMatch[];
+    featAcquisitions?: FeatAcquisitionMatch[];
+    classFeatureUnlocks?: ClassFeatureUnlockMatch[];
   };
   currentGold: number;
   currentHP: number;
@@ -372,6 +379,13 @@ export function AutoApplyPanel({
       .filter((v, i, a) => a.indexOf(v) === i); // unique
     const hasConcentrationChanges = concentrationChecks.length > 0;
 
+    // Progression detection: ASI, feats, class features
+    const abilityScoreIncreases = enhancedResults?.abilityScoreIncreases || [];
+    const featAcquisitions = enhancedResults?.featAcquisitions || [];
+    const classFeatureUnlocks = enhancedResults?.classFeatureUnlocks || [];
+    const hasProgressionChanges = abilityScoreIncreases.length > 0 || 
+      featAcquisitions.length > 0 || classFeatureUnlocks.length > 0;
+
     return {
       netGold,
       goldGained,
@@ -417,12 +431,17 @@ export function AutoApplyPanel({
       concentrationBroken,
       concentrationSpells,
       hasConcentrationChanges,
+      // Progression
+      abilityScoreIncreases,
+      featAcquisitions,
+      classFeatureUnlocks,
+      hasProgressionChanges,
       hasAnyChanges: netGold !== 0 || damage > 0 || healing > 0 || 
         conditionsToAdd.length > 0 || conditionsToRemove.length > 0 ||
         shortRests > 0 || longRests > 0 || detectedDeathSaves.length > 0 ||
         totalSlotsUsed > 0 || maxTempHPDetected > 0 || inspirationEvents.length > 0 ||
         hasInitiativeChanges || hasRoundChange || hasKillChanges ||
-        hasDamageModifiers || hasConcentrationChanges,
+        hasDamageModifiers || hasConcentrationChanges || hasProgressionChanges,
     };
   }, [parseResult, enhancedResults, activeConditions, currentInspiration, enemies, playerInitiative, currentRound]);
 
@@ -731,6 +750,30 @@ export function AutoApplyPanel({
         colorClass: pendingChanges.concentrationBroken > 0
           ? 'border-rose-500/30 bg-rose-500/10 text-rose-300'
           : 'border-sky-500/30 bg-sky-500/10 text-sky-300',
+      });
+    }
+
+    if (pendingChanges.abilityScoreIncreases.length > 0) {
+      items.push({
+        icon: <TrendingUp className="w-3 h-3" />,
+        label: `${pendingChanges.abilityScoreIncreases.length} ASI`,
+        colorClass: 'border-lime-500/30 bg-lime-500/10 text-lime-300',
+      });
+    }
+
+    if (pendingChanges.featAcquisitions.length > 0) {
+      items.push({
+        icon: <Award className="w-3 h-3" />,
+        label: `${pendingChanges.featAcquisitions.length} feat${pendingChanges.featAcquisitions.length !== 1 ? 's' : ''}`,
+        colorClass: 'border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-300',
+      });
+    }
+
+    if (pendingChanges.classFeatureUnlocks.length > 0) {
+      items.push({
+        icon: <BookOpen className="w-3 h-3" />,
+        label: `${pendingChanges.classFeatureUnlocks.length} feature${pendingChanges.classFeatureUnlocks.length !== 1 ? 's' : ''}`,
+        colorClass: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300',
       });
     }
     
@@ -1097,7 +1140,88 @@ export function AutoApplyPanel({
               />
             )}
 
-            {/* Apply All Button */}
+            {/* Ability Score Increases (display-only) */}
+            {pendingChanges.abilityScoreIncreases.length > 0 && (
+              <AutoApplyRow
+                icon={<TrendingUp className="w-4 h-4 text-lime-400" />}
+                label="Ability Score Increases"
+                description={
+                  <>
+                    {pendingChanges.abilityScoreIncreases.map((asi, i) => (
+                      <span key={i}>
+                        {i > 0 && ', '}
+                        <span className="text-lime-300 capitalize">
+                          {asi.ability}
+                          {asi.increase > 0 ? ` +${asi.increase}` : ''}
+                          {asi.newScore ? ` → ${asi.newScore}` : ''}
+                        </span>
+                        {asi.source && <span className="text-muted-foreground"> ({asi.source})</span>}
+                      </span>
+                    ))}
+                  </>
+                }
+                preview="Review on character sheet"
+                enabled={true}
+                onToggle={() => {}}
+                applied={applied.concentration} // display-only, no actual apply
+                onApply={() => setApplied(prev => ({ ...prev, concentration: true }))}
+                color="lime"
+              />
+            )}
+
+            {/* Feat Acquisitions (display-only) */}
+            {pendingChanges.featAcquisitions.length > 0 && (
+              <AutoApplyRow
+                icon={<Award className="w-4 h-4 text-fuchsia-400" />}
+                label="Feats Detected"
+                description={
+                  <>
+                    {pendingChanges.featAcquisitions.map((feat, i) => (
+                      <span key={i}>
+                        {i > 0 && ', '}
+                        <span className={feat.isKnownFeat ? 'text-fuchsia-300' : 'text-fuchsia-300/70'}>
+                          {feat.featName}
+                        </span>
+                        {!feat.isKnownFeat && <span className="text-muted-foreground"> (homebrew?)</span>}
+                        {feat.source && <span className="text-muted-foreground"> ({feat.source})</span>}
+                      </span>
+                    ))}
+                  </>
+                }
+                preview="Review on character sheet"
+                enabled={true}
+                onToggle={() => {}}
+                applied={applied.concentration}
+                onApply={() => setApplied(prev => ({ ...prev, concentration: true }))}
+                color="fuchsia"
+              />
+            )}
+
+            {/* Class Feature Unlocks (display-only) */}
+            {pendingChanges.classFeatureUnlocks.length > 0 && (
+              <AutoApplyRow
+                icon={<BookOpen className="w-4 h-4 text-emerald-400" />}
+                label="Class Features"
+                description={
+                  <>
+                    {pendingChanges.classFeatureUnlocks.map((feat, i) => (
+                      <span key={i}>
+                        {i > 0 && ', '}
+                        <span className="text-emerald-300">{feat.featureName}</span>
+                        {feat.className && <span className="text-muted-foreground"> ({feat.className})</span>}
+                        {feat.level && <span className="text-muted-foreground"> Lv{feat.level}</span>}
+                      </span>
+                    ))}
+                  </>
+                }
+                preview="Review on character sheet"
+                enabled={true}
+                onToggle={() => {}}
+                applied={applied.concentration}
+                onApply={() => setApplied(prev => ({ ...prev, concentration: true }))}
+                color="emerald"
+              />
+            )}
             <Button
               onClick={handleApplyAll}
               className="w-full gap-2 bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600"
