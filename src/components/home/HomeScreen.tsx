@@ -828,7 +828,12 @@ export function HomeScreen({
       {/* Dice Roller Overlay */}
       {showDiceRoller && (
         <div className="fixed inset-0 z-[60] bg-background">
-          <DiceRollerScreen onBack={() => setShowDiceRoller(false)} />
+          <DiceRollerScreen
+            onBack={() => setShowDiceRoller(false)}
+            onShareToParty={partySync?.party.partyId ? (label, expression, result, details) => {
+              partySync?.shareRoll(label, expression, result, details, character.name || 'Unknown');
+            } : undefined}
+          />
         </div>
       )}
 

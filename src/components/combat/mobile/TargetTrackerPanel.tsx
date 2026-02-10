@@ -20,12 +20,14 @@ interface TargetTrackerPanelProps {
   targets: UseTargetsReturn;
   isCollapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
+  onMarkTarget?: (enemy: Enemy) => void;
 }
 
 export function TargetTrackerPanel({
   targets,
   isCollapsed,
   onCollapsedChange,
+  onMarkTarget,
 }: TargetTrackerPanelProps) {
   const [showAddSheet, setShowAddSheet] = useState(false);
 
@@ -185,6 +187,7 @@ export function TargetTrackerPanel({
                 onUpdate={(updates) => updateEnemy(enemy.id, updates)}
                 onClone={() => cloneEnemy(enemy.id)}
                 onToggleCondition={(condition) => toggleCondition(enemy.id, condition)}
+                onMarkTarget={onMarkTarget ? () => onMarkTarget(enemy) : undefined}
               />
             ))}
           </div>

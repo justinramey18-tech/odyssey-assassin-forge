@@ -49,6 +49,7 @@ interface LootScreenProps {
   conditions?: Array<{ name: string; duration?: string }>;
   activeSetBonus?: { name: string; effect: string };
   totalLootValue: number;
+  onShareToParty?: (item: LootItem) => void;
 }
 
 export function LootScreen({
@@ -64,6 +65,7 @@ export function LootScreen({
   conditions,
   activeSetBonus,
   totalLootValue,
+  onShareToParty,
 }: LootScreenProps) {
   const { toast } = useToast();
   const [activeView, setActiveView] = useState<'items' | 'history'>('items');
@@ -252,6 +254,7 @@ export function LootScreen({
                         onSell={handleSell}
                         onUse={handleUse}
                         onCopyPrompt={handleCopyPrompt}
+                        onShareToParty={onShareToParty}
                         isSelling={sellingId === item.id}
                       />
                     ))}

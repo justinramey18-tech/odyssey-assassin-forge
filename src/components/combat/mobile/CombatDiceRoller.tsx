@@ -8,13 +8,14 @@ import { AnimatedD20Trigger } from '@/components/diceRoller';
 
 interface CombatDiceRollerProps {
   className?: string;
+  onShareToParty?: (label: string, expression: string, result: number, details: unknown) => void;
 }
 
 /**
  * Compact dice roller widget for the Combat tab.
  * Shows a tappable D20 that opens the full dice roller in a sheet.
  */
-export function CombatDiceRoller({ className }: CombatDiceRollerProps) {
+export function CombatDiceRoller({ className, onShareToParty }: CombatDiceRollerProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -154,7 +155,7 @@ export function CombatDiceRoller({ className }: CombatDiceRollerProps) {
           className="h-[90vh] p-0 bg-background border-t border-primary/30"
         >
           <SheetTitle className="sr-only">Dice Roller</SheetTitle>
-          <DiceRollerScreen onBack={() => setIsOpen(false)} />
+          <DiceRollerScreen onBack={() => setIsOpen(false)} onShareToParty={onShareToParty} />
         </SheetContent>
       </Sheet>
     </>

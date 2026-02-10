@@ -47,6 +47,8 @@ interface InitiativeTrackerProps {
   isCollapsed?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
   characterLevel?: number;
+  onBroadcastInitiative?: (order: Array<{ name: string; initiative: number; isCurrentTurn: boolean }>, round: number) => void;
+  onClearInitiative?: () => void;
 }
 
 export function InitiativeTracker({
@@ -57,6 +59,8 @@ export function InitiativeTracker({
   isCollapsed = false,
   onCollapsedChange,
   characterLevel = 1,
+  onBroadcastInitiative,
+  onClearInitiative,
 }: InitiativeTrackerProps) {
   const [showEditSheet, setShowEditSheet] = useState(false);
   const [showPrimerDrawer, setShowPrimerDrawer] = useState(false);
@@ -207,7 +211,19 @@ export function InitiativeTracker({
                 <Button
                   variant="default"
                   size="sm"
-                  onClick={startCombat}
+                  onClick={() => {
+                    startCombat();
+                    if (onBroadcastInitiative && initiativeOrder.length > 0) {
+                      onBroadcastInitiative(
+                        initiativeOrder.map(c => ({
+                          name: c.name,
+                          initiative: c.initiative,
+                          isCurrentTurn: c.id === initiativeOrder[0]?.id,
+                        })),
+                        1
+                      );
+                    }
+                  }}
                   disabled={initiativeOrder.length === 0}
                   className="h-7 text-xs gap-1"
                 >
@@ -231,7 +247,10 @@ export function InitiativeTracker({
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={endCombat}
+                  onClick={() => {
+                    endCombat();
+                    onClearInitiative?.();
+                  }}
                   className="h-7 text-xs gap-1"
                 >
                   <Square className="w-3 h-3" />

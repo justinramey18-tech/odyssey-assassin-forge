@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Copy, Check, Dices, Sparkles, Swords, Eye, MessageCircle, Wrench, Plus, Minus, Settings2, ChevronUp, ChevronDown, Equal, Wand2, RotateCcw, Play, SlidersHorizontal } from 'lucide-react';
+import { ArrowLeft, Copy, Check, Dices, Sparkles, Swords, Eye, MessageCircle, Wrench, Plus, Minus, Settings2, ChevronUp, ChevronDown, Equal, Wand2, RotateCcw, Play, SlidersHorizontal, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -51,6 +51,7 @@ const ABILITY_ORDER: AbilityScore[] = ['str', 'dex', 'con', 'int', 'wis', 'cha']
 
 interface DiceRollerScreenProps {
   onBack: () => void;
+  onShareToParty?: (label: string, expression: string, result: number, details: unknown) => void;
 }
 
 // Roll mode for advantage/disadvantage
@@ -187,7 +188,7 @@ const triggerHaptic = (intensity: 'light' | 'medium' | 'heavy' = 'light') => {
   }
 };
 
-export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
+export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenProps) {
   const { toast } = useToast();
   const [currentRoll, setCurrentRoll] = useState<RollResult | null>(null);
   const [rollHistory, setRollHistory] = useState<RollResult[]>([]);
@@ -711,25 +712,52 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
                 </div>
                 {isCritical && <span className="text-tier-maxed font-bold text-sm">✦ NATURAL 20! ✦</span>}
                 {isFumble && <span className="text-destructive font-bold text-sm">✗ NATURAL 1 ✗</span>}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={copyRollResult}
-                  className="gap-2 mt-1"
-                  disabled={isRolling}
-                >
-                  {copiedId === 'roll-result' ? (
-                    <>
-                      <Check className="w-4 h-4" />
-                      Copied!
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-4 h-4" />
-                      Copy Result
-                    </>
+                <div className="flex items-center gap-2 mt-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={copyRollResult}
+                    className="gap-2"
+                    disabled={isRolling}
+                  >
+                    {copiedId === 'roll-result' ? (
+                      <>
+                        <Check className="w-4 h-4" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4" />
+                        Copy Result
+                      </>
+                    )}
+                  </Button>
+                  {onShareToParty && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (!currentRoll) return;
+                        const label = currentRoll.label || currentRoll.die.toUpperCase();
+                        const expression = currentRoll.isCustom
+                          ? currentRoll.customBreakdown || currentRoll.die
+                          : currentRoll.modifier !== 0
+                            ? `${currentRoll.die}${currentRoll.modifier >= 0 ? '+' : ''}${currentRoll.modifier}`
+                            : currentRoll.die;
+                        onShareToParty(label, expression, currentRoll.result, {
+                          rawRoll: currentRoll.rawRoll,
+                          allRolls: currentRoll.allRolls,
+                          rollMode: currentRoll.rollMode,
+                        });
+                      }}
+                      className="gap-2 border-primary/30 text-primary hover:bg-primary/10"
+                      disabled={isRolling}
+                    >
+                      <Users className="w-4 h-4" />
+                      Share
+                    </Button>
                   )}
-                </Button>
+                </div>
               </>
             ) : (
               <div className="text-center py-4 text-muted-foreground">

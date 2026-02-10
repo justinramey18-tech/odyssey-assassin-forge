@@ -2125,6 +2125,15 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
               conditions={convertConditionsToPromptFormat(conditions.conditions)}
               activeSetBonus={convertSetBonusesToPromptFormat(aggregatedStats.activeSetBonuses)[0]}
               totalLootValue={loot.totalLootValue}
+              onShareToParty={partySync.party.partyId ? (item) => {
+                partySync.shareLoot({
+                  added_by_name: character.name,
+                  item_name: item.name,
+                  item_description: item.description,
+                  rarity: item.rarity,
+                  gold_value: item.goldValue,
+                });
+              } : undefined}
             />
           )}
 

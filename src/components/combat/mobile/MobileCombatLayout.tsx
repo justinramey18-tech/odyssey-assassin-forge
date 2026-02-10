@@ -1183,13 +1183,29 @@ export function MobileCombatLayout({
         />
         
         {/* Compact Dice Roller Widget */}
-        <CombatDiceRoller />
+        <CombatDiceRoller
+          onShareToParty={partySync?.party.partyId ? (label, expression, result, details) => {
+            partySync?.shareRoll(label, expression, result, details, characterName || 'Unknown');
+          } : undefined}
+        />
         
         {/* Target/Enemy Tracker */}
         <TargetTrackerPanel
           targets={targetTracker}
           isCollapsed={targetTrackerCollapsed}
           onCollapsedChange={setTargetTrackerCollapsed}
+          onMarkTarget={partySync?.party.partyId ? (enemy) => {
+            const hpPercent = enemy.maxHP > 0 ? (enemy.currentHP / enemy.maxHP) * 100 : 0;
+            partySync?.broadcastFocusTarget({
+              name: enemy.name,
+              ac: enemy.ac,
+              hpPercent,
+              resistances: enemy.resistances,
+              vulnerabilities: enemy.vulnerabilities,
+              immunities: enemy.immunities,
+              markedBy: characterName || 'Unknown',
+            });
+          } : undefined}
         />
         
         {/* Initiative Tracker */}
@@ -1202,6 +1218,12 @@ export function MobileCombatLayout({
           dexModifier={abilityModifiers?.dexterity ?? 0}
           isCollapsed={initiativeCollapsed}
           onCollapsedChange={setInitiativeCollapsed}
+          onBroadcastInitiative={partySync?.party.partyId ? (order, round) => {
+            partySync?.broadcastInitiative(order, round, characterName || 'Unknown');
+          } : undefined}
+          onClearInitiative={partySync?.party.partyId ? () => {
+            partySync?.clearInitiative();
+          } : undefined}
         />
         
         {/* Action Economy Bar */}
