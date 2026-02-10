@@ -434,6 +434,10 @@ export function PromptDrawerProvider({
             onAssignWildShapeBackground={onAssignWildShapeBackground}
             onRemoveWildShapeBackground={onRemoveWildShapeBackground}
             hasWildShapeBackground={hasWildShapeBackground}
+            currentHP={currentHP}
+            maxHP={maxHP}
+            tempHP={tempHP}
+            onHPChange={onHPChange}
           />
         </>
       )}

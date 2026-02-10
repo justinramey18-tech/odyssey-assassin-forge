@@ -62,6 +62,7 @@ interface CombatTabScreenProps {
   deathSaves?: { successes: number; failures: number };
   onDeathSavesChange?: (saves: { successes: number; failures: number }) => void;
   onRegainHP?: (amount: number) => void;
+  onHPChange?: (current: number, max: number, temp: number) => void;
 }
 
 export function CombatTabScreen({ 
@@ -84,6 +85,7 @@ export function CombatTabScreen({
   deathSaves,
   onDeathSavesChange,
   onRegainHP,
+  onHPChange,
 }: CombatTabScreenProps) {
   const isMobile = useIsMobile();
   const { rerollsDisabled } = useGameMode();
@@ -274,6 +276,7 @@ export function CombatTabScreen({
         deathSaves={deathSaves}
         onDeathSavesChange={onDeathSavesChange}
         onRegainHP={onRegainHP}
+        onHPChange={onHPChange}
       />
     );
   }
