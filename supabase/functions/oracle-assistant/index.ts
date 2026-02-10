@@ -528,6 +528,37 @@ serve(async (req) => {
       );
     }
 
+    // Input validation
+    if (!Array.isArray(messages) || messages.length === 0 || messages.length > 50) {
+      return new Response(
+        JSON.stringify({ error: "Invalid messages array (max 50)" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    for (const msg of messages) {
+      if (!msg.content || typeof msg.content !== 'string' || msg.content.length > 5000) {
+        return new Response(
+          JSON.stringify({ error: "Invalid message content (max 5000 chars)" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    if (!['thunderhead', 'jarvis', 'deadpool', 'gandalf', 'jarlaxle', 'investigator'].includes(personality)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid personality" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!['chat', 'plan', 'choice', 'analyze', 'quick'].includes(mode)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid mode" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       console.error("LOVABLE_API_KEY is not configured");

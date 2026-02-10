@@ -181,7 +181,36 @@ serve(async (req) => {
 
   try {
     const { prompt, context, mode } = await req.json() as HomebrewRequest;
-    
+
+    // Input validation
+    if (!prompt || typeof prompt !== 'string' || prompt.length > 2000) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid prompt (max 2000 chars)' }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!context || typeof context !== 'object') {
+      return new Response(
+        JSON.stringify({ error: 'Invalid context' }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!['hunter', 'warrior', 'assassin'].includes(context.tree) || !['active', 'passive'].includes(context.type)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid context tree or type' }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!['name', 'description', 'full', 'balance', 'enhance', 'spell_concept'].includes(mode)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid mode' }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
