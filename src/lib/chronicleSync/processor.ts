@@ -270,6 +270,9 @@ export function buildAIPrompt(input: string): string {
 5. Identify conditions applied or removed
 6. Identify if a level-up occurred
 7. Match narrative events to achievement categories
+8. Identify ability score increases (ASI) — note which ability, increase amount, new score if stated, and source (e.g. "Tome of Understanding", "ASI at level 4")
+9. Identify feat acquisitions — the feat name, whether it's a standard 5e feat or homebrew, and source (e.g. "variant human", "level 4 ASI choice")
+10. Identify class feature unlocks — the feature name, class name, and class level if stated (e.g. "Extra Attack from Fighter level 5", "Evasion from Rogue level 7")
 
 ## Achievement Categories
 ${achievementList}
@@ -286,7 +289,10 @@ Return ONLY valid JSON with this structure:
   "gold_changes": [{"amount": number, "action": "gained"|"spent", "source_text": "quoted text"}],
   "conditions": [{"name": "condition name", "action": "applied"|"removed", "source_text": "quoted text"}],
   "level_up": {"new_level": number, "source_text": "quoted text"} or null,
-  "achievements": [{"id": "achievement-id", "evidence": "key phrase matched", "confidence": "high"|"medium"|"low", "source_text": "quoted text"}]
+  "achievements": [{"id": "achievement-id", "evidence": "key phrase matched", "confidence": "high"|"medium"|"low", "source_text": "quoted text"}],
+  "ability_score_increases": [{"ability": "str"|"dex"|"con"|"int"|"wis"|"cha", "increase": number, "new_score": number|null, "source": "what granted it", "confidence": "high"|"medium"|"low", "source_text": "quoted text"}],
+  "feat_acquisitions": [{"feat_name": "feat name", "is_known_feat": true|false, "source": "how it was gained", "confidence": "high"|"medium"|"low", "source_text": "quoted text"}],
+  "class_feature_unlocks": [{"feature_name": "feature name", "class_name": "class"|null, "level": number|null, "confidence": "high"|"medium"|"low", "source_text": "quoted text"}]
 }
 
 ## Rules
@@ -295,6 +301,9 @@ Return ONLY valid JSON with this structure:
 - Use "high" confidence for explicit mentions, "medium" for inferred, "low" for uncertain
 - Include the source_text as a short quote from the log
 - Achievement IDs must match the list above exactly
+- For ability scores, use the 3-letter abbreviation (str, dex, con, int, wis, cha)
+- For feats, set is_known_feat to true only for official D&D 5e feats
+- For class features, include class_name and level when determinable from context
 
 ## Session Log
 ${input.slice(0, 45000)}`;
