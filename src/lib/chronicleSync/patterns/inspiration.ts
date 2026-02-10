@@ -51,47 +51,9 @@ export interface InspirationMatch extends PatternMatch {
 export function parseInspirationMatches(text: string): InspirationMatch[] {
   const matches: InspirationMatch[] = [];
   
-  // Granted inspiration
-  for (const pattern of INSPIRATION_PATTERNS.granted) {
-    const regex = new RegExp(pattern.source, pattern.flags);
-    let match;
-    
-    while ((match = regex.exec(text)) !== null) {
-      const start = Math.max(0, match.index - 30);
-      const end = Math.min(text.length, match.index + match[0].length + 30);
-      const context = text.slice(start, end).replace(/\s+/g, ' ').trim();
-      
-      matches.push({
-        fullMatch: match[0],
-        value: 'inspiration_granted',
-        inspirationType: 'granted',
-        context,
-        index: match.index,
-      });
-    }
-  }
+  // Parse bardic FIRST so we can skip those indices for generic granted/used
+  const bardicIndices = new Set<number>();
   
-  // Used inspiration
-  for (const pattern of INSPIRATION_PATTERNS.used) {
-    const regex = new RegExp(pattern.source, pattern.flags);
-    let match;
-    
-    while ((match = regex.exec(text)) !== null) {
-      const start = Math.max(0, match.index - 30);
-      const end = Math.min(text.length, match.index + match[0].length + 30);
-      const context = text.slice(start, end).replace(/\s+/g, ' ').trim();
-      
-      matches.push({
-        fullMatch: match[0],
-        value: 'inspiration_used',
-        inspirationType: 'used',
-        context,
-        index: match.index,
-      });
-    }
-  }
-  
-  // Bardic inspiration
   for (const pattern of INSPIRATION_PATTERNS.bardic) {
     const regex = new RegExp(pattern.source, pattern.flags);
     let match;
@@ -104,11 +66,69 @@ export function parseInspirationMatches(text: string): InspirationMatch[] {
       const end = Math.min(text.length, match.index + match[0].length + 30);
       const context = text.slice(start, end).replace(/\s+/g, ' ').trim();
       
+      bardicIndices.add(match.index);
       matches.push({
         fullMatch: match[0],
         value: isUsed ? 'bardic_used' : 'bardic_granted',
         inspirationType: isUsed ? 'bardic_used' : 'bardic_granted',
         bardicDie,
+        context,
+        index: match.index,
+      });
+    }
+  }
+  
+  // Helper: check if an index overlaps with a bardic match (within 20 chars)
+  const isNearBardic = (idx: number) => {
+    for (const bi of bardicIndices) {
+      if (Math.abs(bi - idx) < 20) return true;
+    }
+    return false;
+  };
+  
+  // Granted inspiration (skip if near bardic)
+  for (const pattern of INSPIRATION_PATTERNS.granted) {
+    const regex = new RegExp(pattern.source, pattern.flags);
+    let match;
+    
+    while ((match = regex.exec(text)) !== null) {
+      if (isNearBardic(match.index)) continue;
+      
+      const start = Math.max(0, match.index - 30);
+      const end = Math.min(text.length, match.index + match[0].length + 30);
+      const context = text.slice(start, end).replace(/\s+/g, ' ').trim();
+      
+      // Also skip if context mentions "bardic"
+      if (/bardic/i.test(context)) continue;
+      
+      matches.push({
+        fullMatch: match[0],
+        value: 'inspiration_granted',
+        inspirationType: 'granted',
+        context,
+        index: match.index,
+      });
+    }
+  }
+  
+  // Used inspiration (skip if near bardic)
+  for (const pattern of INSPIRATION_PATTERNS.used) {
+    const regex = new RegExp(pattern.source, pattern.flags);
+    let match;
+    
+    while ((match = regex.exec(text)) !== null) {
+      if (isNearBardic(match.index)) continue;
+      
+      const start = Math.max(0, match.index - 30);
+      const end = Math.min(text.length, match.index + match[0].length + 30);
+      const context = text.slice(start, end).replace(/\s+/g, ' ').trim();
+      
+      if (/bardic/i.test(context)) continue;
+      
+      matches.push({
+        fullMatch: match[0],
+        value: 'inspiration_used',
+        inspirationType: 'used',
         context,
         index: match.index,
       });
@@ -169,11 +189,11 @@ export function parseInspirationMatches(text: string): InspirationMatch[] {
     }
   }
   
-  // Deduplicate by index
-  const seen = new Set<number>();
-  return matches.filter(m => {
-    if (seen.has(m.index)) return false;
-    seen.add(m.index);
-    return true;
-  });
+  // Deduplicate by proximity (within 5 chars = same event)
+  const kept: InspirationMatch[] = [];
+  for (const m of matches) {
+    const isDup = kept.some(k => Math.abs(k.index - m.index) < 5);
+    if (!isDup) kept.push(m);
+  }
+  return kept;
 }
