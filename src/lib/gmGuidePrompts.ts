@@ -1073,6 +1073,310 @@ The app automatically tracks:
 
 Trust player reports on ability availability.`,
   },
+
+  {
+    id: 'chronicle-sync-format',
+    title: 'Chronicle Sync Format',
+    icon: '📖',
+    category: 'advanced',
+    description: 'Format output for automatic session log parsing',
+    content: `# CHRONICLE SYNC — AI DM OUTPUT FORMAT GUIDE
+
+═══════════════════════════════════════════════════════════════════════════════
+PURPOSE
+═══════════════════════════════════════════════════════════════════════════════
+
+The player uses an **offline session log parser** ("Chronicle Sync") that automatically extracts game events from your narration. By following these formatting conventions, your storytelling will be perfectly recognized and parsed — enabling one-click XP, gold, HP, item, and combat tracking.
+
+**This does NOT limit your creativity.** Simply embed the key phrases naturally within your prose. The parser uses pattern matching, so consistent phrasing ensures nothing is missed.
+
+═══════════════════════════════════════════════════════════════════════════════
+XP AWARDS
+═══════════════════════════════════════════════════════════════════════════════
+
+Use one of these phrasings when awarding XP:
+
+✅ RECOGNIZED FORMATS:
+- "You **gain 450 XP** for defeating the bandits."
+- "The party **earns 800 experience points**."
+- "**XP: +300** for clever diplomacy."
+- "**Each party member gains 200 XP**."
+- "**Quest reward: 500 XP** for returning the artifact."
+- "**Milestone reached: 1000 XP**."
+- "The goblins are **worth 100 XP each**."
+- "**Split 1200 XP among 4 players**."
+
+⚠️ AVOID: "You feel more experienced" (no number = not parsed).
+
+═══════════════════════════════════════════════════════════════════════════════
+DAMAGE
+═══════════════════════════════════════════════════════════════════════════════
+
+Always include the **numeric amount** and ideally the **damage type**:
+
+✅ RECOGNIZED FORMATS:
+- "You **take 18 slashing damage** from the greataxe."
+- "The fireball **deals 8d6 (28) fire damage**."
+- "The orc **hits you for 12**."
+- "On a **failed save, you take 14 radiant damage**."
+- "Your **HP drops by 15** from the poison."
+- "The trap **deals 14 piercing damage**."
+- "You **suffer 10 cold damage** from the blizzard."
+- "You **lose 8 hit points** to the necrotic blast."
+
+💡 Including damage type (fire, cold, slashing, etc.) enables automatic damage type tracking.
+
+═══════════════════════════════════════════════════════════════════════════════
+HEALING
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ RECOGNIZED FORMATS:
+- "Cure Wounds **heals you for 12 HP**."
+- "You **restore 15 hit points**."
+- "You **regain 8 HP** from the potion."
+- "**12 HP healed** by the cleric's touch."
+- "You are **healed for 10 hit points**."
+- "The spell **heals 2d8+3 (14) HP**."
+
+TEMPORARY HP:
+- "You **gain 10 temporary HP** from Armor of Agathys."
+- "The spell **grants 8 temp hit points**."
+
+═══════════════════════════════════════════════════════════════════════════════
+GOLD & TREASURE
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ RECOGNIZED FORMATS:
+- "You **find 75 gold** in the chest."
+- "**Loot 100 gp** from the fallen knight."
+- "The **hoard contains 500 gold**."
+- "**Reward of 200 gold** from the mayor."
+- "The merchant **hands you 150 gold**."
+- "You **spend 50 gold** on supplies."
+- "You **pay 100 gp** for the room."
+- "**2 pp, 15 gp, 30 sp**" (mixed currency detected).
+- "You **find 200 silver pieces** in the vault."
+
+💡 Abbreviations gp, sp, cp, ep, pp are all recognized alongside full words.
+
+═══════════════════════════════════════════════════════════════════════════════
+ITEMS & LOOT
+═══════════════════════════════════════════════════════════════════════════════
+
+ACQUIRING ITEMS:
+- "You **find a Potion of Healing**."
+- "You **loot a +1 Longsword** from the corpse."
+- "You **acquire a Ring of Protection**."
+- "You **pick up 20 arrows**."
+- "The king **gives you a magical sword**."
+- "You **discover a Bag of Holding**."
+
+USING/CONSUMING ITEMS:
+- "You **drink a health potion** — heals 2d4+2 (8) HP."
+- "You **consume the Potion of Healing**."
+- "You **activate the Wand of Fireballs**."
+- "You **throw a flask of oil**."
+- "You **equip the +1 Shield**."
+
+═══════════════════════════════════════════════════════════════════════════════
+CONDITIONS & STATUS EFFECTS
+═══════════════════════════════════════════════════════════════════════════════
+
+APPLYING CONDITIONS — use the exact D&D condition name:
+- "You are now **poisoned**."
+- "The creature is **stunned** until the end of your next turn."
+- "You are **knocked prone** by the blast."
+- "The beholder's ray leaves you **paralyzed**."
+- "You **gain 1 level of exhaustion**."
+- "**Concentration is broken** on Haste."
+- "You are **knocked unconscious**."
+
+REMOVING CONDITIONS:
+- "You are **no longer poisoned**."
+- "The **frightened condition ends**."
+- "You **shake off** the charm."
+- "You **recover from** the stun."
+- "You **save against the** paralysis."
+
+═══════════════════════════════════════════════════════════════════════════════
+COMBAT EVENTS
+═══════════════════════════════════════════════════════════════════════════════
+
+INITIATIVE:
+- "**Initiative: 18**" or "**rolls initiative: 15**"
+- "**Initiative order: Warrior 18, Goblin 12, Rogue 15**"
+- "Rogue **rolls 17 for initiative**."
+- "**Surprise round** — the party catches them off guard."
+
+COMBAT ROUNDS:
+- "**Round 3** begins."
+- "**Start of round 2**."
+- "**Top of round 5** — the dragon acts."
+
+ATTACK ROLLS:
+- "Rolls **18 to hit (AC 15) — hit!**"
+- "Attack roll: **12 vs AC 16 — miss.**"
+- "Swings the greataxe — **22 to hit**."
+- "Adds **3d6 sneak attack damage (14 extra)**."
+
+CRITICAL HITS & MISSES:
+- "**Natural 20!** Critical hit!"
+- "**Critical hit** — double damage dice!"
+- "**Natural 1** — the blade slips from your grip."
+- "**Fumble** — you stumble forward."
+
+KILLS:
+- "You **kill the goblin** with a decisive strike."
+- "The **dragon is slain**!"
+- "The **orc falls** to your blade."
+- "**Finishing blow** on the bandit leader."
+
+═══════════════════════════════════════════════════════════════════════════════
+SPELL CASTING
+═══════════════════════════════════════════════════════════════════════════════
+
+Use the exact spell name for automatic slot tracking:
+
+- "You **cast Fireball** at the cluster of enemies."
+- "**Casts Hold Person using a 3rd level slot**."
+- "You **cast Healing Word as a bonus action**."
+- "**Uses Shield as a reaction** — AC jumps to 22."
+- "**Casts Fireball at 5th level** — upcast for extra dice."
+- "You **cast Detect Magic as a ritual**." (no slot consumed)
+- "**Concentrating on Haste** — don't forget concentration saves!"
+- "**Wild magic surge** — roll on the table!"
+
+═══════════════════════════════════════════════════════════════════════════════
+SAVING THROWS & ABILITY CHECKS
+═══════════════════════════════════════════════════════════════════════════════
+
+- "Make a **DEX saving throw, DC 15**."
+- "**Wisdom save: rolled 14 — success!**"
+- "**CON save DC 12 — failed**."
+- "**Everyone makes a DEX save**."
+- "**Contested Strength check** — you vs the ogre."
+- "Roll an **Athletics check**."
+- "**Perception check: 22** — you spot the hidden passage."
+
+═══════════════════════════════════════════════════════════════════════════════
+DEATH SAVING THROWS
+═══════════════════════════════════════════════════════════════════════════════
+
+- "**Death saving throw — success.**"
+- "**Failed a death save.**"
+- "**Natural 20 on death save** — you wake at 1 HP!"
+- "**Natural 1 on death save** — two failures."
+- "**Rolls death save: 14** — that's a success."
+
+═══════════════════════════════════════════════════════════════════════════════
+REST & RECOVERY
+═══════════════════════════════════════════════════════════════════════════════
+
+- "The party **takes a short rest**."
+- "You **complete a long rest** — all resources restored."
+- "You **set up camp** for the night."
+- "The elf enters a **meditation trance** for 4 hours."
+- "After **8 hours of rest**, you wake refreshed."
+- "You **spend hit dice** to recover HP."
+- "You **catch your breath** after the fight."
+
+═══════════════════════════════════════════════════════════════════════════════
+INSPIRATION
+═══════════════════════════════════════════════════════════════════════════════
+
+- "**DM grants inspiration** for brilliant roleplay."
+- "You **gain inspiration** for that clever plan."
+- "You **use inspiration** to reroll the save."
+- "**Grants bardic inspiration d8** to the fighter."
+- "You **use Lucky** to reroll the attack."
+- "You **spend a hero point** to add to the roll."
+
+═══════════════════════════════════════════════════════════════════════════════
+MOVEMENT & POSITIONING
+═══════════════════════════════════════════════════════════════════════════════
+
+- "You **move 30 feet** toward the enemy."
+- "You **dash**, covering **60 feet**."
+- "**Takes the Disengage action** and retreats."
+- "**Uses Dodge** — attacks have disadvantage."
+- "The guard **provokes an opportunity attack**."
+- "You're **flanking the orc** with the fighter."
+- "The mage is **within 5 feet** of the zombie."
+
+═══════════════════════════════════════════════════════════════════════════════
+NPC INTRODUCTIONS
+═══════════════════════════════════════════════════════════════════════════════
+
+Introduce NPCs with clear name + role for the name registry:
+
+- "**A merchant named Garrick** waves you over."
+- "She **introduces herself as Lady Vex'ahlia**."
+- "**Captain Thordak** steps forward."
+- "**'My name is Elara,'** the healer says."
+- "You meet **Garrick, the town blacksmith**."
+
+═══════════════════════════════════════════════════════════════════════════════
+DICE ROLLS
+═══════════════════════════════════════════════════════════════════════════════
+
+For best parsing, include the **natural roll + modifier = total**:
+
+- "**Rolls 14 + 5 for 19**."
+- "**Rolls a natural 20!**"
+- "**2d6+3 = 11** slashing damage."
+- "**Rolls 14 and 18 with advantage (takes 18)**."
+- "**Rolls d100: 73** on the wild magic table."
+
+═══════════════════════════════════════════════════════════════════════════════
+SHOP & MERCHANT INVENTORY
+═══════════════════════════════════════════════════════════════════════════════
+
+Present shop inventories in list format for automatic detection:
+
+✅ RECOGNIZED FORMATS:
+- "**Healing Potion — 50 gp**"
+- "* **Longsword — 15 gp**" (bulleted list)
+- "1. **Potion of Healing - 50 gp**" (numbered)
+- "**3x Potion of Healing at 50 gp each**"
+- "**Arrows (20) — 1 gp**"
+
+═══════════════════════════════════════════════════════════════════════════════
+ENEMY ENCOUNTERS
+═══════════════════════════════════════════════════════════════════════════════
+
+Introduce enemies clearly for the combat tracker:
+
+- "**3 goblins and 2 hobgoblins** emerge from the shadows."
+- "A mage **summons a fire elemental**."
+- "**Reinforcements arrive: 4 more orcs**."
+- "The chest **is actually a mimic** — roll initiative!"
+- "The cave is **guarded by 2 wights** and a wraith."
+
+═══════════════════════════════════════════════════════════════════════════════
+QUICK REFERENCE CHEAT SHEET
+═══════════════════════════════════════════════════════════════════════════════
+
+| Event | Key Phrase Pattern |
+|-------|-------------------|
+| XP | "gain/earn/receive [NUMBER] XP/experience" |
+| Damage | "take/deal/suffer [NUMBER] [TYPE] damage" |
+| Healing | "heal/restore/regain [NUMBER] HP" |
+| Gold Gain | "find/loot/receive [NUMBER] gold/gp" |
+| Gold Spend | "spend/pay [NUMBER] gold/gp" |
+| Item Get | "find/loot/acquire [ITEM NAME]" |
+| Item Use | "drink/consume/use/activate [ITEM NAME]" |
+| Condition On | "[CONDITION NAME]" in apply context |
+| Condition Off | "no longer [CONDITION]" or "recovers from" |
+| Kill | "kill/slay/defeat [ENEMY]" or "[ENEMY] falls/dies" |
+| Initiative | "Initiative: [NUMBER]" or "rolls [NUMBER] for initiative" |
+| Spell | "casts [SPELL NAME]" |
+| Death Save | "death save — success/failure" |
+| Rest | "takes a short/long rest" or "sets up camp" |
+| Crit | "natural 20" or "critical hit" |
+| Fumble | "natural 1" or "fumble" |
+
+**Remember**: You can narrate as creatively as you want! Just include these key phrases naturally within your prose and the parser handles the rest.`,
+  },
 ];
 
 // Get prompts by category
