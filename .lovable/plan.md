@@ -1,141 +1,81 @@
 
 
-# Multiplayer Party Link System
+## Party Member Quick Actions Viewer and Profile Avatars
 
-## Overview
+### What This Does
 
-This adds a "Party Link" feature where one player generates a short code (e.g., `AX7K2M`), shares it with up to 3 other players, and all linked players can see each other's full status (HP, conditions, spell slots) in real time -- plus send healing spells and potions directly to each other's characters.
+Two enhancements to the party system:
 
-## How It Works for Players
+1. **Tap a party member card** to open a read-only drawer showing their character's quick actions summary (weapons, spells, abilities, consumables). Since party members don't share their full character sheet, we expand the `character_status` broadcast to include lightweight action summaries.
 
-1. **Creating a party**: Open Settings or the Home Screen, tap "Create Party." A 6-character link code appears (e.g., `AX7K2M`) with a copy button.
-2. **Joining a party**: Another player taps "Join Party," enters the code, and instantly connects. Up to 4 total players.
-3. **Seeing teammates**: A new "Party" panel (accessible from Home or Combat) shows each linked player's character name, HP bar, AC, active conditions, and spell slot usage -- all updating in real time.
-4. **Healing a teammate**: When casting a healing spell or using a healing potion, a target picker appears letting you choose yourself OR any party member. Choosing a party member sends the heal to their device, updating their HP bar instantly.
-5. **Leaving**: Any player can leave at any time. The party creator can disband the whole party.
+2. **Profile picture on party cards** using the player's custom home background image (already stored in localStorage). The background image URL is included in the broadcast data so other players can see a cropped avatar on each card.
 
-## Database Design
+---
 
-### New Tables
+### Approach
 
-**`parties`** -- One row per active party
-- `id` (uuid, PK)
-- `link_code` (text, unique, 6-char alphanumeric)
-- `created_by` (uuid, references auth.users)
-- `created_at` (timestamptz)
-- `is_active` (boolean, default true)
+#### Expanding the Broadcast Data
 
-**`party_members`** -- One row per player in a party
-- `id` (uuid, PK)
-- `party_id` (uuid, FK to parties)
-- `user_id` (uuid, references auth.users)
-- `character_name` (text)
-- `character_status` (jsonb) -- HP, maxHP, tempHP, AC, conditions, spell slots snapshot
-- `joined_at` (timestamptz)
-- `updated_at` (timestamptz)
+The `character_status` JSONB currently contains HP, AC, conditions, level, and class. We extend it with:
+- `quickActions`: A lightweight summary object containing:
+  - `weapons`: Array of `{ name, damage, damageType }` (equipped weapons)
+  - `abilities`: Array of `{ name, tree, tier, actionType }` (equipped abilities)
+  - `spells`: Array of `{ name, level, school, concentration }` (prepared spells)
+  - `cantrips`: Array of `{ name, school }` (known cantrips)
+  - `consumables`: Array of `{ name, quantity, effect }` (inventory consumables)
+- `profileImage`: The player's custom background as a data URL (or null). Since this can be large (~5MB), we will compress/resize it to a small thumbnail (~64x64) before broadcasting, keeping JSONB payload manageable.
 
-**`party_actions`** -- Log of cross-player actions (heals, potions)
-- `id` (uuid, PK)
-- `party_id` (uuid, FK to parties)
-- `sender_user_id` (uuid)
-- `target_user_id` (uuid)
-- `action_type` (text) -- 'heal_spell', 'heal_potion'
-- `action_data` (jsonb) -- spell name, dice roll, HP healed, etc.
-- `created_at` (timestamptz)
-- `applied` (boolean, default false)
+#### Profile Image Handling
 
-### RLS Policies
-- Party members can only read/write their own party's data
-- Members can only update their own `character_status` row
-- Anyone authenticated can read a party row (needed for join-by-code lookup)
-- Actions can be inserted by any party member, read by target user
+- When broadcasting status, capture the custom background from localStorage, resize it to a tiny thumbnail (64x64 JPEG, ~2-5KB), and include it in `character_status.profileImage`.
+- On the `PartyMemberCard`, render this as a circular avatar next to the character name using the existing `Avatar` component.
 
-### Realtime
-- Enable realtime on `party_members` (status updates) and `party_actions` (incoming heals)
-- Each client subscribes to their party's channel for instant updates
+#### View-Only Quick Actions Drawer
 
-## Feature Flow
+- A new `PartyMemberQuickActionsViewer` component renders as a bottom Sheet showing the tapped member's action summaries in a read-only format (no roll buttons, no cast buttons -- just a categorized list).
+- Clicking a `PartyMemberCard` (when it's not your own) opens this viewer.
 
-```text
-┌─────────────┐     link code      ┌─────────────┐
-│  Player A   │ ──────────────────> │  Player B   │
-│ (creates)   │                    │  (joins)    │
-└──────┬──────┘                    └──────┬──────┘
-       │                                  │
-       │  writes own status every 1-2s    │
-       ▼                                  ▼
-  ┌──────────────────────────────────────────┐
-  │         party_members table              │
-  │  (realtime subscription broadcasts)      │
-  └──────────────────────────────────────────┘
-       │                                  │
-       │  reads all party member statuses │
-       ▼                                  ▼
-  ┌───────────┐                    ┌───────────┐
-  │ Party UI  │                    │ Party UI  │
-  │ (A sees B)│                    │ (B sees A)│
-  └───────────┘                    └───────────┘
-       │                                  
-       │ "Cast Cure Wounds on Player B"   
-       ▼                                  
-  ┌──────────────────────────────────────────┐
-  │         party_actions table              │
-  │  (insert heal action, target = B)        │
-  └──────────────────────────────────────────┘
-       │
-       ▼  realtime event received by Player B
-  Player B's HP updates automatically
-```
+---
 
-## UI Components
+### Technical Details
 
-### Party Management (new)
-- **PartyPanel**: Shows party members' status cards (name, HP bar, AC, conditions, spell slots). Accessible from Home Screen or Combat tab.
-- **CreatePartyDialog**: Generates link code, shows it with copy button
-- **JoinPartyDialog**: Text input for 6-char code, join button
-- **PartyMemberCard**: Compact card showing one teammate's live status
+#### Files Modified
 
-### Modified Existing Components
-- **Healing spell cast flow**: Add target picker (self vs. party members) before resolving heal
-- **Potion use flow** (QuickActionsDrawer, MobileItemsGrid): Add target picker when healing potion is detected
-- **Home Screen**: Add "Party" button/indicator showing connected count
-- **Settings**: Add Party section for create/join/leave/disband
+| File | Changes |
+|------|---------|
+| `src/hooks/use-party-sync.ts` | Extend `PartyMember.character_status` type with `quickActions` and `profileImage` fields |
+| `src/pages/Index.tsx` | Include quick action summaries and resized profile image in `broadcastStatus` call |
+| `src/components/party/PartyMemberCard.tsx` | Add avatar display, make card tappable (non-self), pass `onClick` |
+| `src/components/party/PartyPanel.tsx` | Track selected member state, render viewer drawer |
 
-## Technical Details
+#### New Files
 
-### Status Broadcasting
-- A custom hook `usePartySync` runs on each client
-- Every 2 seconds (debounced on change), it writes the local character's current HP, maxHP, tempHP, AC, active conditions, and spell slot usage to their `party_members.character_status` row
-- A realtime subscription on `party_members` (filtered to party_id) updates the local Party UI when other members' statuses change
+| File | Purpose |
+|------|---------|
+| `src/components/party/PartyMemberQuickActionsViewer.tsx` | Read-only bottom sheet showing a member's weapons, abilities, spells, cantrips, and consumables |
+| `src/lib/utils/image-resize.ts` | Utility to resize an image data URL to a small thumbnail using canvas |
 
-### Incoming Heal Processing
-- Realtime subscription on `party_actions` (filtered to target_user_id = self)
-- When a heal action arrives, the hook calls the existing `handleHPChange` to apply healing
-- A toast notification appears: "PlayerA healed you for 12 HP with Cure Wounds!"
-- The action is marked `applied = true`
+#### Implementation Steps
 
-### Link Code Generation
-- Server-side (edge function) generates a random 6-char alphanumeric code
-- Checks uniqueness against active parties
-- Codes are reusable after a party is disbanded
+1. **Create `image-resize.ts`**: A utility function `resizeImageToThumbnail(dataUrl: string, size: number): Promise<string>` that uses an offscreen canvas to produce a tiny JPEG thumbnail.
 
-### File Changes Summary
+2. **Extend `character_status` type** in `use-party-sync.ts` to include `quickActions` (object with arrays of summaries) and `profileImage` (string or null).
 
-| File | Change |
-|------|--------|
-| `src/hooks/use-party-sync.ts` | **New** -- Core hook for party state, realtime subscriptions, status broadcasting |
-| `src/components/party/PartyPanel.tsx` | **New** -- Party member status display |
-| `src/components/party/CreatePartyDialog.tsx` | **New** -- Code generation UI |
-| `src/components/party/JoinPartyDialog.tsx` | **New** -- Code input UI |
-| `src/components/party/PartyMemberCard.tsx` | **New** -- Individual member status card |
-| `src/components/party/HealTargetPicker.tsx` | **New** -- Target selection when healing |
-| `src/components/drawers/QuickActionsDrawer.tsx` | **Modified** -- Add target picker for healing potions |
-| `src/components/combat/mobile/MobileItemsGrid.tsx` | **Modified** -- Add target picker for healing potions |
-| `src/pages/Index.tsx` | **Modified** -- Initialize `usePartySync`, pass party context down |
-| `src/components/settings/SettingsContent.tsx` | **Modified** -- Add Party section |
-| DB migration | **New** -- Create parties, party_members, party_actions tables with RLS |
+3. **Update `broadcastStatus` call in `Index.tsx`**: Gather equipped weapons (from equipment), equipped abilities (from character), prepared spells and cantrips (from spellcasting), and consumables. Build lightweight summary arrays. Load custom background from localStorage, resize to thumbnail, and include as `profileImage`.
 
-### Authentication Requirement
-- This feature requires users to be signed in (cloud saves already handle this)
-- The Party buttons will show a prompt to sign in if the user is not authenticated
+4. **Update `PartyMemberCard.tsx`**:
+   - Add an `Avatar` component showing `profileImage` (with a fallback showing the first letter of the character name).
+   - Accept an `onViewActions` callback prop. Make the card tappable for non-self members.
+   - Show a subtle "tap to view" indicator on non-self cards.
+
+5. **Create `PartyMemberQuickActionsViewer.tsx`**:
+   - A `Sheet` (bottom) that receives the selected member's `character_status`.
+   - Renders collapsible sections: Weapons, Abilities, Magic, Cantrips, Consumables.
+   - Each item shows name and key stats in a compact read-only card (no interactive buttons).
+   - Header shows member name, class, level, and avatar.
+
+6. **Update `PartyPanel.tsx`**:
+   - Add `selectedMember` state.
+   - Pass `onViewActions` to each `PartyMemberCard`.
+   - Render `PartyMemberQuickActionsViewer` when a member is selected.
 
