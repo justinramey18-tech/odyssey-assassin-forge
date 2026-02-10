@@ -425,6 +425,7 @@ export function PromptDrawerProvider({
               concentratingOn: spellcasting.state.concentratingOn,
               castSpell: spellcasting.castSpell,
               useSlot: spellcasting.useSlot,
+              toggleFavorite: spellcasting.toggleFavorite,
             } : undefined}
             characterName={character.name}
             consumablesInventory={consumables}
