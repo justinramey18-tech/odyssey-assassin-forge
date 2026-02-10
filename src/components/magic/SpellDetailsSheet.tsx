@@ -30,6 +30,8 @@ interface SpellDetailsSheetProps {
   canCast: boolean;
   canPrepareMore?: boolean;
   characterLevel?: number;
+  /** Whether this is a prepared caster (Wizard, Cleric) vs known caster (Warlock, Sorcerer) */
+  isPreparedCaster?: boolean;
   onPrepare: () => void;
   onUnprepare: () => void;
   onToggleFavorite: () => void;
@@ -46,6 +48,7 @@ export function SpellDetailsSheet({
   canCast,
   canPrepareMore = true,
   characterLevel = 1,
+  isPreparedCaster = true,
   onPrepare,
   onUnprepare,
   onToggleFavorite,
@@ -320,14 +323,19 @@ ${spell.description}${spell.higherLevels ? `\n\n**At Higher Levels:** ${spell.hi
 
           {/* Actions */}
           <div className="flex gap-2 pb-8">
-            {spell.level > 0 && (
+            {/* Prepare/Learn button — show for leveled spells, AND for cantrips on known casters */}
+            {(spell.level > 0 || (!isPreparedCaster && spell.level === 0)) && (
               <Button
                 variant={isPrepared ? "outline" : "default"}
                 className="flex-1"
                 onClick={isPrepared ? onUnprepare : onPrepare}
                 disabled={!isPrepared && !canPrepareMore}
               >
-                {isPrepared ? 'Unprepare' : (canPrepareMore ? 'Prepare' : 'At Limit')}
+                {isPrepared 
+                  ? (isPreparedCaster ? 'Unprepare' : 'Forget') 
+                  : (canPrepareMore 
+                    ? (isPreparedCaster ? 'Prepare' : 'Learn') 
+                    : 'At Limit')}
               </Button>
             )}
             <Button

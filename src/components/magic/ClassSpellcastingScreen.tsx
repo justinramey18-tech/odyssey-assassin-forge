@@ -312,11 +312,15 @@ export function ClassSpellcastingScreen({
             <div className="text-lg font-bold text-violet-400">
               {totalSlotsRemaining}
             </div>
-            <div className="text-[10px] text-muted-foreground uppercase">Slots</div>
+            <div className="text-[10px] text-muted-foreground uppercase">
+              {isWarlock ? 'Pact' : 'Slots'}
+            </div>
           </div>
           <div className="bg-background/40 rounded-lg p-2 text-center">
-            <div className={`text-lg font-bold ${canPrepareMore ? 'text-emerald-400' : 'text-amber-400'}`}>
-              {currentPreparedCount}/{maxPreparedSpells}
+            <div className={`text-lg font-bold ${isPreparedCaster ? (canPrepareMore ? 'text-emerald-400' : 'text-amber-400') : 'text-emerald-400'}`}>
+              {isPreparedCaster 
+                ? `${currentPreparedCount}/${maxPreparedSpells}`
+                : state.knownSpells.length}
             </div>
             <div className="text-[10px] text-muted-foreground uppercase">
               {isPreparedCaster ? 'Prepared' : 'Known'}
@@ -491,6 +495,7 @@ export function ClassSpellcastingScreen({
             maxSpellLevel={maxSpellLevel}
             onSpellSelect={handleSpellSelect}
             homebrewSpells={homebrewSpells}
+            isPreparedCaster={isPreparedCaster}
             onEditHomebrew={(spell) => { setEditingSpell(spell); setShowCreateSpell(true); }}
             onDeleteHomebrew={onRemoveHomebrewSpell}
           />
@@ -658,6 +663,7 @@ export function ClassSpellcastingScreen({
         isConcentrating={selectedSpell ? state.concentratingOn === selectedSpell.id : false}
         canCast={totalSlotsRemaining > 0 || (selectedSpell?.level === 0)}
         canPrepareMore={canPrepareMore}
+        isPreparedCaster={isPreparedCaster}
         characterLevel={characterLevel}
         onPrepare={() => {
           if (selectedSpell) {
