@@ -1597,9 +1597,24 @@ export function getPromptsByCategory(category: GMGuidePrompt['category']): GMGui
   return GM_GUIDE_PROMPTS.filter(p => p.category === category);
 }
 
+/**
+ * Strips border separators (═══) and emojis/symbols from guide text.
+ * Preserves section headers and all other content.
+ */
+export function stripGuideFormatting(text: string): string {
+  return text
+    // Remove lines that are only ═ characters (with optional whitespace)
+    .replace(/^[═]+$/gm, '')
+    // Remove common emoji/symbol characters used in guides
+    .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}\u{20E3}\u{E0020}-\u{E007F}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2702}-\u{27B0}\u{231A}-\u{231B}\u{23E9}-\u{23F3}\u{23F8}-\u{23FA}\u{25AA}-\u{25AB}\u{25B6}\u{25C0}\u{25FB}-\u{25FE}\u{2614}-\u{2615}\u{2648}-\u{2653}\u{267F}\u{2693}\u{26A1}\u{26AA}-\u{26AB}\u{26BD}-\u{26BE}\u{26C4}-\u{26C5}\u{26CE}\u{26D4}\u{26EA}\u{26F2}-\u{26F3}\u{26F5}\u{26FA}\u{26FD}\u{2934}-\u{2935}\u{2B05}-\u{2B07}\u{2B1B}-\u{2B1C}\u{2B50}\u{2B55}\u{3030}\u{303D}\u{3297}\u{3299}✅⚠️💡─]/gu, '')
+    // Clean up resulting double/triple blank lines
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 // Helper to get all prompts combined (for full guide copy)
 export function getCombinedGMGuide(): string {
-  return GM_GUIDE_PROMPTS.map(p => p.content).join('\n\n' + '═'.repeat(80) + '\n\n');
+  return stripGuideFormatting(GM_GUIDE_PROMPTS.map(p => p.content).join('\n\n---\n\n'));
 }
 
 // Split guides into two halves
@@ -1607,11 +1622,16 @@ export const GM_GUIDE_PART1 = GM_GUIDE_PROMPTS.slice(0, 10);
 export const GM_GUIDE_PART2 = GM_GUIDE_PROMPTS.slice(10, 20);
 
 export function getCombinedGMGuidePart1(): string {
-  return GM_GUIDE_PART1.map(p => p.content).join('\n\n' + '═'.repeat(80) + '\n\n');
+  return stripGuideFormatting(GM_GUIDE_PART1.map(p => p.content).join('\n\n---\n\n'));
 }
 
 export function getCombinedGMGuidePart2(): string {
-  return GM_GUIDE_PART2.map(p => p.content).join('\n\n' + '═'.repeat(80) + '\n\n');
+  return stripGuideFormatting(GM_GUIDE_PART2.map(p => p.content).join('\n\n---\n\n'));
+}
+
+/** Get a prompt's content with formatting stripped */
+export function getStrippedPromptContent(prompt: GMGuidePrompt): string {
+  return stripGuideFormatting(prompt.content);
 }
 
 // Helper to get a specific prompt by ID

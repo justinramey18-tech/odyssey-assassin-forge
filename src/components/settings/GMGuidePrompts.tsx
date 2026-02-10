@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { GM_GUIDE_PROMPTS, GMGuidePrompt, getCombinedGMGuidePart1, getCombinedGMGuidePart2, GM_GUIDE_PART1, GM_GUIDE_PART2, PROMPT_CATEGORIES, getPromptsByCategory } from '@/lib/gmGuidePrompts';
+import { GM_GUIDE_PROMPTS, GMGuidePrompt, getCombinedGMGuidePart1, getCombinedGMGuidePart2, GM_GUIDE_PART1, GM_GUIDE_PART2, PROMPT_CATEGORIES, getPromptsByCategory, getStrippedPromptContent } from '@/lib/gmGuidePrompts';
 
 interface GMGuidePromptsProps {
   className?: string;
@@ -53,7 +53,7 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
 
   const handleCopyPrompt = async (prompt: GMGuidePrompt) => {
     try {
-      await navigator.clipboard.writeText(prompt.content);
+      await navigator.clipboard.writeText(getStrippedPromptContent(prompt));
       setCopiedId(prompt.id);
       toast.success(`${prompt.icon} ${prompt.title} copied!`);
       setTimeout(() => setCopiedId(null), 2000);
@@ -266,7 +266,7 @@ export function GMGuidePrompts({ className }: GMGuidePromptsProps) {
                   "p-3 rounded-lg border border-border/30 bg-muted/30 w-full",
                   "text-xs font-mono whitespace-pre-wrap break-words leading-relaxed"
                 )}>
-                  {selectedPrompt.content}
+                  {getStrippedPromptContent(selectedPrompt)}
                 </pre>
               </ScrollArea>
 
