@@ -7,7 +7,8 @@ import {
   Activity,
   Heart,
   Shield,
-  Swords
+  Swords,
+  Users
 } from 'lucide-react';
 
 interface CombatTopBarProps {
@@ -17,6 +18,8 @@ interface CombatTopBarProps {
   onResetTurn: () => void;
   onMenuOpen: () => void;
   onSettingsOpen: () => void;
+  onPartyOpen?: () => void;
+  partyMemberCount?: number;
   // New stats props
   currentHP?: number;
   maxHP?: number;
@@ -32,6 +35,8 @@ export function CombatTopBar({
   onResetTurn,
   onMenuOpen,
   onSettingsOpen,
+  onPartyOpen,
+  partyMemberCount = 0,
   currentHP,
   maxHP,
   tempHP = 0,
@@ -76,6 +81,19 @@ export function CombatTopBar({
 
         {/* Right: Actions */}
         <div className="flex items-center gap-1">
+          {partyMemberCount > 0 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onPartyOpen}
+              className="h-9 w-9 border border-emerald-500/40 relative"
+            >
+              <Users className="h-4 w-4 text-emerald-400" />
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 flex items-center justify-center text-[10px] font-bold rounded-full bg-emerald-500 text-white">
+                {partyMemberCount}
+              </span>
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
