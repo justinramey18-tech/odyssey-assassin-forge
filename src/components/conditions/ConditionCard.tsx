@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Timer, Save, Hourglass, Infinity as InfinityIcon, Focus, LucideIcon, Copy, Check, Users } from 'lucide-react';
+import { X, Timer, Save, Hourglass, Infinity as InfinityIcon, Focus, LucideIcon, Copy, Check, Users, Handshake } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getIconByName } from '@/lib/iconUtils';
 import {
@@ -49,6 +49,10 @@ export function ConditionCard({
   const Icon = getIconByName(getIconForCondition(condition));
   const severityColors = SEVERITY_COLORS[condition.severity];
   const categoryColors = CATEGORY_COLORS[condition.category];
+  const isPartyShared = condition.source?.includes('(Party)') ?? false;
+  const partyCasterName = isPartyShared
+    ? condition.source?.replace(/\s*\(Party\)\s*$/, '') ?? ''
+    : '';
 
   const handleRemove = useCallback(
     (e: React.MouseEvent) => {
@@ -204,6 +208,12 @@ export function ConditionCard({
           {condition.category === 'concentration' && (
             <Focus className="w-3 h-3 text-amber-400 flex-shrink-0" />
           )}
+          {isPartyShared && (
+            <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-primary/15 border border-primary/30 text-[9px] font-bold text-primary flex-shrink-0">
+              <Handshake className="w-2.5 h-2.5" />
+              Party
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2 mt-0.5">
@@ -220,7 +230,7 @@ export function ConditionCard({
 
         {condition.source && (
           <span className="text-[10px] text-muted-foreground/70 truncate block mt-0.5">
-            From: {condition.source}
+            {isPartyShared ? `From: ${partyCasterName}` : `From: ${condition.source}`}
           </span>
         )}
       </div>
