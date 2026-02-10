@@ -4,7 +4,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { 
   Zap, Coins, Heart, AlertCircle, Moon, Skull, Sparkles, Shield, Star,
-  Check, X, ChevronDown, Settings2, Swords, RotateCw, Target
+  Check, X, ChevronDown, Settings2, Swords, RotateCw, Target, Eye, Focus
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -22,6 +22,8 @@ import {
 import { ChronicleParseResult, ParsedGoldChange, ParsedHPChange, ParsedCondition } from '@/lib/chronicleSync/types';
 import { ParsedRestEvent, ParsedDeathSave } from '@/lib/chronicleSync/enhancedTypes';
 import { InitiativeMatch, InitiativeEntry } from '@/lib/chronicleSync/patterns/initiative';
+import { ParsedDamageModifier, ParsedConcentrationCheck } from '@/lib/chronicleSync/patterns/resistanceAndConcentration';
+import { DamageType, DAMAGE_TYPES } from '@/lib/combat/creatureTypes';
 import { similarityScore } from '@/lib/chronicleSync/fuzzyMatch';
 import { Enemy } from '@/lib/combat/targetTypes';
 
@@ -58,6 +60,8 @@ interface AutoApplyPanelProps {
     initiativeRolls?: InitiativeMatch[];
     combatRounds?: { roundNumber: number; sourceText: string }[];
     kills?: { targetName: string; sourceText: string }[];
+    damageModifiers?: ParsedDamageModifier[];
+    concentrationChecks?: ParsedConcentrationCheck[];
   };
   currentGold: number;
   currentHP: number;
@@ -84,6 +88,7 @@ interface AutoApplyPanelProps {
   onApplyEnemyInitiative?: (enemyId: string, value: number) => void;
   onApplyRoundNumber?: (round: number) => void;
   onDefeatEnemy?: (enemyId: string) => void;
+  onApplyEnemyResistances?: (enemyId: string, updates: Partial<{ resistances: DamageType[]; vulnerabilities: DamageType[]; immunities: DamageType[] }>) => void;
 }
 
 // Load/save config from localStorage
@@ -92,7 +97,7 @@ function loadConfig(): AutoApplyConfig {
     const stored = localStorage.getItem(CHRONICLE_AUTO_APPLY_KEY);
     if (stored) return JSON.parse(stored);
   } catch {}
-  return { gold: true, hp: true, conditions: true, restRecovery: true, deathSaves: true, spellSlots: true, tempHP: true, inspiration: true, initiative: true, round: true, kills: true };
+  return { gold: true, hp: true, conditions: true, restRecovery: true, deathSaves: true, spellSlots: true, tempHP: true, inspiration: true, initiative: true, round: true, kills: true, resistances: true, concentration: true };
 }
 
 function saveConfig(config: AutoApplyConfig) {
@@ -189,6 +194,7 @@ export function AutoApplyPanel({
   onApplyEnemyInitiative,
   onApplyRoundNumber,
   onDefeatEnemy,
+  onApplyEnemyResistances,
 }: AutoApplyPanelProps) {
   const [config, setConfig] = useState<AutoApplyConfig>(loadConfig);
   const [isOpen, setIsOpen] = useState(false); // Start collapsed to show preview
@@ -309,6 +315,63 @@ export function AutoApplyPanel({
     const matchedKills = killsToApply.filter(k => k.matchedEnemy !== null);
     const hasKillChanges = matchedKills.length > 0;
 
+    // Resistance/Vulnerability/Immunity detection
+    const damageModifiers = enhancedResults?.damageModifiers || [];
+    // Group by type for display
+    const resistancesDetected = damageModifiers.filter(m => m.type === 'resistance');
+    const vulnerabilitiesDetected = damageModifiers.filter(m => m.type === 'vulnerability');
+    const immunitiesDetected = damageModifiers.filter(m => m.type === 'immunity');
+    const hasDamageModifiers = damageModifiers.length > 0;
+
+    // Match damage modifiers to enemies by looking for enemy names in context
+    const resistancesByEnemy: Map<string, { 
+      enemy: Enemy; 
+      resistances: DamageType[]; 
+      vulnerabilities: DamageType[]; 
+      immunities: DamageType[];
+    }> = new Map();
+
+    for (const mod of damageModifiers) {
+      // Try to match to an enemy from sourceText
+      let bestMatch: { enemy: Enemy; score: number } | null = null;
+      for (const enemy of enemies) {
+        const score = similarityScore(enemy.name, mod.sourceText);
+        if (score > 0.3 && (!bestMatch || score > bestMatch.score)) {
+          bestMatch = { enemy, score };
+        }
+      }
+      if (bestMatch) {
+        const existing = resistancesByEnemy.get(bestMatch.enemy.id) || {
+          enemy: bestMatch.enemy,
+          resistances: [...(bestMatch.enemy.resistances || [])],
+          vulnerabilities: [...(bestMatch.enemy.vulnerabilities || [])],
+          immunities: [...(bestMatch.enemy.immunities || [])],
+        };
+        const dmgType = mod.damageType as DamageType;
+        if (DAMAGE_TYPES.includes(dmgType as any)) {
+          if (mod.type === 'resistance' && !existing.resistances.includes(dmgType)) {
+            existing.resistances.push(dmgType);
+          } else if (mod.type === 'vulnerability' && !existing.vulnerabilities.includes(dmgType)) {
+            existing.vulnerabilities.push(dmgType);
+          } else if (mod.type === 'immunity' && !existing.immunities.includes(dmgType)) {
+            existing.immunities.push(dmgType);
+          }
+        }
+        resistancesByEnemy.set(bestMatch.enemy.id, existing);
+      }
+    }
+    const hasEnemyResistanceChanges = resistancesByEnemy.size > 0;
+
+    // Concentration check detection
+    const concentrationChecks = enhancedResults?.concentrationChecks || [];
+    const concentrationMaintained = concentrationChecks.filter(c => c.result === 'maintained').length;
+    const concentrationBroken = concentrationChecks.filter(c => c.result === 'broken').length;
+    const concentrationSpells = concentrationChecks
+      .filter(c => c.spellName)
+      .map(c => c.spellName!)
+      .filter((v, i, a) => a.indexOf(v) === i); // unique
+    const hasConcentrationChanges = concentrationChecks.length > 0;
+
     return {
       netGold,
       goldGained,
@@ -341,11 +404,25 @@ export function AutoApplyPanel({
       killsToApply,
       matchedKills,
       hasKillChanges,
+      // New categories
+      damageModifiers,
+      resistancesDetected,
+      vulnerabilitiesDetected,
+      immunitiesDetected,
+      hasDamageModifiers,
+      resistancesByEnemy,
+      hasEnemyResistanceChanges,
+      concentrationChecks,
+      concentrationMaintained,
+      concentrationBroken,
+      concentrationSpells,
+      hasConcentrationChanges,
       hasAnyChanges: netGold !== 0 || damage > 0 || healing > 0 || 
         conditionsToAdd.length > 0 || conditionsToRemove.length > 0 ||
         shortRests > 0 || longRests > 0 || detectedDeathSaves.length > 0 ||
         totalSlotsUsed > 0 || maxTempHPDetected > 0 || inspirationEvents.length > 0 ||
-        hasInitiativeChanges || hasRoundChange || hasKillChanges,
+        hasInitiativeChanges || hasRoundChange || hasKillChanges ||
+        hasDamageModifiers || hasConcentrationChanges,
     };
   }, [parseResult, enhancedResults, activeConditions, currentInspiration, enemies, playerInitiative, currentRound]);
 
@@ -467,6 +544,20 @@ export function AutoApplyPanel({
     setApplied(prev => ({ ...prev, kills: true }));
   }, [pendingChanges.hasKillChanges, pendingChanges.matchedKills, onDefeatEnemy]);
 
+  const handleApplyResistances = useCallback(() => {
+    if (!onApplyEnemyResistances || !pendingChanges.hasEnemyResistanceChanges) return;
+    
+    pendingChanges.resistancesByEnemy.forEach((data, enemyId) => {
+      onApplyEnemyResistances(enemyId, {
+        resistances: data.resistances,
+        vulnerabilities: data.vulnerabilities,
+        immunities: data.immunities,
+      });
+    });
+    
+    setApplied(prev => ({ ...prev, resistances: true }));
+  }, [pendingChanges.hasEnemyResistanceChanges, pendingChanges.resistancesByEnemy, onApplyEnemyResistances]);
+
   // Apply all enabled
   const handleApplyAll = useCallback(() => {
     if (config.gold && pendingChanges.netGold !== 0 && !applied.gold) {
@@ -509,7 +600,11 @@ export function AutoApplyPanel({
     if (pendingChanges.hasKillChanges && !applied.kills && onDefeatEnemy) {
       handleApplyKills();
     }
-  }, [config, pendingChanges, applied, handleApplyGold, handleApplyHP, handleApplyConditions, handleApplyRest, handleApplyDeathSaves, handleApplySpellSlots, handleApplyTempHP, handleApplyInspiration, handleApplyInitiative, handleApplyRound, handleApplyKills, onApplyDeathSaves, onApplySpellSlots, onApplyTempHP, onApplyInspiration, onApplyPlayerInitiative, onApplyEnemyInitiative, onApplyRoundNumber, onDefeatEnemy]);
+    // Resistances
+    if (config.resistances && pendingChanges.hasEnemyResistanceChanges && !applied.resistances && onApplyEnemyResistances) {
+      handleApplyResistances();
+    }
+  }, [config, pendingChanges, applied, handleApplyGold, handleApplyHP, handleApplyConditions, handleApplyRest, handleApplyDeathSaves, handleApplySpellSlots, handleApplyTempHP, handleApplyInspiration, handleApplyInitiative, handleApplyRound, handleApplyKills, handleApplyResistances, onApplyDeathSaves, onApplySpellSlots, onApplyTempHP, onApplyInspiration, onApplyPlayerInitiative, onApplyEnemyInitiative, onApplyRoundNumber, onDefeatEnemy, onApplyEnemyResistances]);
 
   // Build compact summary items (must be before early return)
   const summaryItems = useMemo(() => {
@@ -616,6 +711,26 @@ export function AutoApplyPanel({
         icon: <Target className="w-3 h-3" />,
         label: `${pendingChanges.matchedKills.length} kill${pendingChanges.matchedKills.length !== 1 ? 's' : ''}`,
         colorClass: 'border-red-500/30 bg-red-500/10 text-red-300',
+      });
+    }
+
+    if (pendingChanges.hasDamageModifiers) {
+      const count = pendingChanges.damageModifiers.length;
+      items.push({
+        icon: <Eye className="w-3 h-3" />,
+        label: `${count} R/V/I`,
+        colorClass: 'border-teal-500/30 bg-teal-500/10 text-teal-300',
+      });
+    }
+
+    if (pendingChanges.hasConcentrationChanges) {
+      const label = pendingChanges.concentrationBroken > 0 ? 'Conc ✗' : 'Conc ✓';
+      items.push({
+        icon: <Focus className="w-3 h-3" />,
+        label,
+        colorClass: pendingChanges.concentrationBroken > 0
+          ? 'border-rose-500/30 bg-rose-500/10 text-rose-300'
+          : 'border-sky-500/30 bg-sky-500/10 text-sky-300',
       });
     }
     
@@ -919,6 +1034,66 @@ export function AutoApplyPanel({
                 applied={applied.kills}
                 onApply={handleApplyKills}
                 color="red"
+              />
+            )}
+
+            {/* Resistance / Vulnerability / Immunity */}
+            {pendingChanges.hasDamageModifiers && (
+              <AutoApplyRow
+                icon={<Eye className="w-4 h-4 text-teal-400" />}
+                label="Resistances / Immunities"
+                description={
+                  <>
+                    {pendingChanges.resistancesDetected.length > 0 && (
+                      <span className="text-teal-300">R: {pendingChanges.resistancesDetected.map(m => m.damageType).join(', ')}</span>
+                    )}
+                    {pendingChanges.resistancesDetected.length > 0 && pendingChanges.vulnerabilitiesDetected.length > 0 && ' · '}
+                    {pendingChanges.vulnerabilitiesDetected.length > 0 && (
+                      <span className="text-amber-300">V: {pendingChanges.vulnerabilitiesDetected.map(m => m.damageType).join(', ')}</span>
+                    )}
+                    {(pendingChanges.resistancesDetected.length > 0 || pendingChanges.vulnerabilitiesDetected.length > 0) && pendingChanges.immunitiesDetected.length > 0 && ' · '}
+                    {pendingChanges.immunitiesDetected.length > 0 && (
+                      <span className="text-rose-300">I: {pendingChanges.immunitiesDetected.map(m => m.damageType).join(', ')}</span>
+                    )}
+                  </>
+                }
+                preview={
+                  pendingChanges.hasEnemyResistanceChanges
+                    ? `${pendingChanges.resistancesByEnemy.size} enem${pendingChanges.resistancesByEnemy.size !== 1 ? 'ies' : 'y'} matched`
+                    : 'No enemies matched'
+                }
+                enabled={config.resistances}
+                onToggle={(v) => updateConfig('resistances', v)}
+                applied={applied.resistances}
+                onApply={pendingChanges.hasEnemyResistanceChanges ? handleApplyResistances : () => setApplied(prev => ({ ...prev, resistances: true }))}
+                color="teal"
+              />
+            )}
+
+            {/* Concentration Checks (display-only) */}
+            {pendingChanges.hasConcentrationChanges && (
+              <AutoApplyRow
+                icon={<Focus className="w-4 h-4 text-sky-400" />}
+                label="Concentration"
+                description={
+                  <>
+                    {pendingChanges.concentrationMaintained > 0 && (
+                      <span className="text-emerald-300">{pendingChanges.concentrationMaintained} maintained</span>
+                    )}
+                    {pendingChanges.concentrationMaintained > 0 && pendingChanges.concentrationBroken > 0 && ', '}
+                    {pendingChanges.concentrationBroken > 0 && (
+                      <span className="text-rose-300">{pendingChanges.concentrationBroken} broken</span>
+                    )}
+                    {pendingChanges.concentrationSpells.length > 0 && (
+                      <span className="text-muted-foreground"> ({pendingChanges.concentrationSpells.join(', ')})</span>
+                    )}
+                  </>
+                }
+                enabled={config.concentration}
+                onToggle={(v) => updateConfig('concentration', v)}
+                applied={applied.concentration}
+                onApply={() => setApplied(prev => ({ ...prev, concentration: true }))}
+                color="sky"
               />
             )}
 

@@ -721,7 +721,7 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
               )}
 
               {/* Auto-Apply Panel - one-click application for HP, gold, conditions, rests, death saves, initiative */}
-              {parseResult && (hasDisplayOnlyChanges(parseResult) || (enhancedResults && (enhancedResults.deathSaves.length > 0 || enhancedResults.initiativeRolls.length > 0))) && (
+              {parseResult && (hasDisplayOnlyChanges(parseResult) || (enhancedResults && (enhancedResults.deathSaves.length > 0 || enhancedResults.initiativeRolls.length > 0 || enhancedResults.damageModifiers.length > 0 || enhancedResults.concentrationChecks.length > 0))) && (
                 <AutoApplyPanel
                   parseResult={parseResult}
                   enhancedResults={enhancedResults ? {
@@ -733,6 +733,8 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
                     initiativeRolls: enhancedResults.initiativeRolls,
                     combatRounds: enhancedResults.combatRounds,
                     kills: enhancedResults.kills,
+                    damageModifiers: enhancedResults.damageModifiers,
+                    concentrationChecks: enhancedResults.concentrationChecks,
                   } : undefined}
                   currentGold={currentGold}
                   currentHP={currentHP}
@@ -758,6 +760,7 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
                   onApplyEnemyInitiative={onApplyEnemyInitiative}
                   onApplyRoundNumber={onApplyRoundNumber}
                   onDefeatEnemy={onDefeatEnemy}
+                  onApplyEnemyResistances={(enemyId, updates) => onUpdateEnemy(enemyId, updates)}
                 />
               )}
 
