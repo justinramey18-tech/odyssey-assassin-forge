@@ -152,6 +152,49 @@ export interface SharedBuff {
   targetUserId: string;
 }
 
+export interface PartyMessage {
+  id: string;
+  party_id: string;
+  user_id: string;
+  sender_name: string;
+  message: string;
+  created_at: string;
+}
+
+export interface VoteOption {
+  label: string;
+  voters: string[];
+}
+
+export interface ActiveVote {
+  question: string;
+  options: VoteOption[];
+  creatorUserId: string;
+  creatorName: string;
+  closed: boolean;
+  myVote?: string;
+}
+
+export interface MapMarker {
+  x: number;
+  y: number;
+  name: string;
+  color: string;
+  isEnemy: boolean;
+  ownerUserId: string;
+}
+
+export interface CombatLogEntry {
+  id: string;
+  party_id: string;
+  user_id: string;
+  character_name: string;
+  action_type: string;
+  description: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
 export interface UsePartySyncReturn {
   party: PartyState;
   pendingHeals: PendingHealAction[];
@@ -166,25 +209,39 @@ export interface UsePartySyncReturn {
   acceptHeal: (actionId: string) => Promise<void>;
   rejectHeal: (actionId: string) => Promise<void>;
   onIncomingHeal: React.MutableRefObject<((hpHealed: number, senderName: string, source: string) => void) | null>;
-  // New: Shared dice rolls
+  // Shared dice rolls
   shareRoll: (label: string, expression: string, result: number, details: unknown, rollerName: string) => Promise<void>;
   partyRolls: PartyDiceRoll[];
-  // New: Focus target
+  // Focus target
   broadcastFocusTarget: (target: FocusTarget) => Promise<void>;
   clearFocusTarget: () => Promise<void>;
   focusTarget: FocusTarget | null;
-  // New: Shared initiative
+  // Shared initiative
   broadcastInitiative: (order: PartyInitiativeEntry[], round: number, broadcasterName: string) => Promise<void>;
   clearInitiative: () => Promise<void>;
   partyInitiatives: PartyInitiativeState[];
-  // New: Buff/debuff sharing
+  // Buff/debuff sharing
   shareBuff: (buff: SharedBuff) => Promise<void>;
   incomingBuffs: SharedBuff[];
   clearIncomingBuff: (index: number) => void;
-  // New: Party loot queue
+  // Party loot queue
   shareLoot: (item: Omit<PartyLootItem, 'id' | 'party_id' | 'added_by_user_id' | 'claimed_by_user_id' | 'claimed_by_name' | 'claimed_at' | 'created_at'>) => Promise<void>;
   claimLoot: (lootId: string, claimerName: string) => Promise<void>;
   partyLoot: PartyLootItem[];
+  // Party Chat
+  sendMessage: (message: string, senderName: string) => Promise<void>;
+  partyMessages: PartyMessage[];
+  // Party Voting
+  startVote: (question: string, options: string[], creatorName: string) => Promise<void>;
+  castVote: (optionLabel: string, voterName: string) => Promise<void>;
+  closeVote: () => Promise<void>;
+  activeVote: ActiveVote | null;
+  // Battle Map
+  updateMapMarkers: (markers: MapMarker[]) => Promise<void>;
+  mapMarkers: MapMarker[];
+  // Combat Log
+  logCombatEvent: (characterName: string, actionType: string, description: string, metadata?: Record<string, unknown>) => Promise<void>;
+  combatLog: CombatLogEntry[];
 }
 
 export function usePartySync(): UsePartySyncReturn {
@@ -208,6 +265,10 @@ export function usePartySync(): UsePartySyncReturn {
   const [partyInitiatives, setPartyInitiatives] = useState<PartyInitiativeState[]>([]);
   const [incomingBuffs, setIncomingBuffs] = useState<SharedBuff[]>([]);
   const [partyLoot, setPartyLoot] = useState<PartyLootItem[]>([]);
+  const [partyMessages, setPartyMessages] = useState<PartyMessage[]>([]);
+  const [activeVote, setActiveVote] = useState<ActiveVote | null>(null);
+  const [mapMarkers, setMapMarkers] = useState<MapMarker[]>([]);
+  const [combatLog, setCombatLog] = useState<CombatLogEntry[]>([]);
 
   // On mount, check if user is already in a party
   useEffect(() => {
@@ -271,7 +332,25 @@ export function usePartySync(): UsePartySyncReturn {
         .order('created_at', { ascending: false }) as { data: PartyLootItem[] | null };
       if (loot) setPartyLoot(loot);
 
-      // Load shared state (focus targets, initiative, buffs)
+      // Load recent messages (last 50)
+      const { data: msgs } = await supabase
+        .from('party_messages')
+        .select('*')
+        .eq('party_id', party.partyId!)
+        .order('created_at', { ascending: false })
+        .limit(50) as { data: PartyMessage[] | null };
+      if (msgs) setPartyMessages(msgs.reverse());
+
+      // Load recent combat log (last 30)
+      const { data: combatEntries } = await supabase
+        .from('party_combat_log')
+        .select('*')
+        .eq('party_id', party.partyId!)
+        .order('created_at', { ascending: false })
+        .limit(30) as { data: CombatLogEntry[] | null };
+      if (combatEntries) setCombatLog(combatEntries.reverse());
+
+      // Load shared state (focus targets, initiative, buffs, votes, map markers)
       const { data: sharedState } = await supabase
         .from('party_shared_state')
         .select('*')
@@ -298,6 +377,15 @@ export function usePartySync(): UsePartySyncReturn {
                 setIncomingBuffs(prev => [...prev, ...myBuffs]);
               }
             }
+          }
+          if (s.state_type === 'vote' && data) {
+            const vote = data as unknown as ActiveVote;
+            const myVote = vote.options.find(o => o.voters.includes(user.id))?.label;
+            setActiveVote({ ...vote, myVote });
+          }
+          if (s.state_type === 'map_markers' && data) {
+            const markersData = (data as { markers?: MapMarker[] }).markers;
+            if (markersData) setMapMarkers(markersData);
           }
         });
       }
@@ -483,6 +571,12 @@ export function usePartySync(): UsePartySyncReturn {
             if (old.state_type === 'initiative' && old.user_id) {
               setPartyInitiatives(prev => prev.filter(p => p.broadcasterId !== old.user_id));
             }
+            if (old.state_type === 'vote') {
+              setActiveVote(null);
+            }
+            if (old.state_type === 'map_markers') {
+              setMapMarkers([]);
+            }
             return;
           }
 
@@ -520,6 +614,17 @@ export function usePartySync(): UsePartySyncReturn {
               }
             }
           }
+
+          if (row.state_type === 'vote') {
+            const vote = data as unknown as ActiveVote;
+            const myVote = vote.options.find(o => o.voters.includes(user.id))?.label;
+            setActiveVote({ ...vote, myVote });
+          }
+
+          if (row.state_type === 'map_markers') {
+            const markersData = (data as { markers?: MapMarker[] }).markers;
+            setMapMarkers(markersData || []);
+          }
         }
       )
       .subscribe();
@@ -553,6 +658,42 @@ export function usePartySync(): UsePartySyncReturn {
       )
       .subscribe();
 
+    // Subscribe to party messages
+    const messagesChannel = supabase
+      .channel(`party-messages-${party.partyId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'party_messages',
+          filter: `party_id=eq.${party.partyId}`,
+        },
+        (payload) => {
+          const msg = payload.new as PartyMessage;
+          setPartyMessages(prev => [...prev.slice(-49), msg]);
+        }
+      )
+      .subscribe();
+
+    // Subscribe to combat log
+    const combatLogChannel = supabase
+      .channel(`party-combat-log-${party.partyId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'party_combat_log',
+          filter: `party_id=eq.${party.partyId}`,
+        },
+        (payload) => {
+          const entry = payload.new as CombatLogEntry;
+          setCombatLog(prev => [...prev.slice(-29), entry]);
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(membersChannel);
       supabase.removeChannel(actionsChannel);
@@ -561,6 +702,8 @@ export function usePartySync(): UsePartySyncReturn {
       supabase.removeChannel(rollsChannel);
       supabase.removeChannel(sharedStateChannel);
       supabase.removeChannel(lootChannel);
+      supabase.removeChannel(messagesChannel);
+      supabase.removeChannel(combatLogChannel);
     };
   }, [party.partyId, user]);
 
@@ -664,6 +807,10 @@ export function usePartySync(): UsePartySyncReturn {
       setFocusTarget(null);
       setPartyInitiatives([]);
       setIncomingBuffs([]);
+      setPartyMessages([]);
+      setActiveVote(null);
+      setMapMarkers([]);
+      setCombatLog([]);
       toast.info('Left the party');
     } catch {
       toast.error('Failed to leave party');
@@ -686,6 +833,10 @@ export function usePartySync(): UsePartySyncReturn {
       setFocusTarget(null);
       setPartyInitiatives([]);
       setIncomingBuffs([]);
+      setPartyMessages([]);
+      setActiveVote(null);
+      setMapMarkers([]);
+      setCombatLog([]);
       toast.info('Party disbanded');
     } catch {
       toast.error('Failed to disband party');
@@ -869,6 +1020,101 @@ export function usePartySync(): UsePartySyncReturn {
     }
   }, [user, party.partyId]);
 
+  // --- New feature functions ---
+
+  const sendMessage = useCallback(async (message: string, senderName: string) => {
+    if (!user || !party.partyId) return;
+
+    await (supabase.from('party_messages') as any).insert({
+      party_id: party.partyId,
+      user_id: user.id,
+      sender_name: senderName,
+      message: message.slice(0, 200),
+    });
+  }, [user, party.partyId]);
+
+  const startVote = useCallback(async (question: string, options: string[], creatorName: string) => {
+    if (!user || !party.partyId) return;
+
+    const voteData: ActiveVote = {
+      question,
+      options: options.map(label => ({ label, voters: [] })),
+      creatorUserId: user.id,
+      creatorName,
+      closed: false,
+    };
+
+    await (supabase.from('party_shared_state') as any).upsert({
+      party_id: party.partyId,
+      user_id: user.id,
+      state_type: 'vote',
+      state_data: voteData,
+    }, { onConflict: 'party_id,user_id,state_type' });
+  }, [user, party.partyId]);
+
+  const castVote = useCallback(async (optionLabel: string, voterName: string) => {
+    if (!user || !party.partyId || !activeVote) return;
+
+    const updatedOptions = activeVote.options.map(o => ({
+      ...o,
+      voters: o.label === optionLabel ? [...o.voters, voterName] : o.voters,
+    }));
+
+    const updatedVote = { ...activeVote, options: updatedOptions };
+    delete (updatedVote as any).myVote;
+
+    // Check if all members voted
+    const totalVotes = updatedOptions.reduce((sum, o) => sum + o.voters.length, 0);
+    if (totalVotes >= party.members.length) {
+      updatedVote.closed = true;
+    }
+
+    await (supabase.from('party_shared_state') as any).upsert({
+      party_id: party.partyId,
+      user_id: updatedVote.creatorUserId,
+      state_type: 'vote',
+      state_data: updatedVote,
+    }, { onConflict: 'party_id,user_id,state_type' });
+  }, [user, party.partyId, activeVote, party.members.length]);
+
+  const closeVote = useCallback(async () => {
+    if (!user || !party.partyId || !activeVote) return;
+
+    const updatedVote = { ...activeVote, closed: true };
+    delete (updatedVote as any).myVote;
+
+    await (supabase.from('party_shared_state') as any).upsert({
+      party_id: party.partyId,
+      user_id: updatedVote.creatorUserId,
+      state_type: 'vote',
+      state_data: updatedVote,
+    }, { onConflict: 'party_id,user_id,state_type' });
+  }, [user, party.partyId, activeVote]);
+
+  const updateMapMarkers = useCallback(async (markers: MapMarker[]) => {
+    if (!user || !party.partyId) return;
+
+    await (supabase.from('party_shared_state') as any).upsert({
+      party_id: party.partyId,
+      user_id: user.id,
+      state_type: 'map_markers',
+      state_data: { markers },
+    }, { onConflict: 'party_id,user_id,state_type' });
+  }, [user, party.partyId]);
+
+  const logCombatEvent = useCallback(async (characterName: string, actionType: string, description: string, metadata: Record<string, unknown> = {}) => {
+    if (!user || !party.partyId) return;
+
+    await (supabase.from('party_combat_log') as any).insert({
+      party_id: party.partyId,
+      user_id: user.id,
+      character_name: characterName,
+      action_type: actionType,
+      description,
+      metadata,
+    });
+  }, [user, party.partyId]);
+
   return {
     party,
     pendingHeals,
@@ -882,7 +1128,7 @@ export function usePartySync(): UsePartySyncReturn {
     acceptHeal,
     rejectHeal,
     onIncomingHeal,
-    // New
+    // Existing
     shareRoll,
     partyRolls,
     broadcastFocusTarget,
@@ -897,5 +1143,16 @@ export function usePartySync(): UsePartySyncReturn {
     shareLoot,
     claimLoot,
     partyLoot,
+    // New features
+    sendMessage,
+    partyMessages,
+    startVote,
+    castVote,
+    closeVote,
+    activeVote,
+    updateMapMarkers,
+    mapMarkers,
+    logCombatEvent,
+    combatLog,
   };
 }

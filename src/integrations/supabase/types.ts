@@ -289,6 +289,47 @@ export type Database = {
           },
         ]
       }
+      party_combat_log: {
+        Row: {
+          action_type: string
+          character_name: string
+          created_at: string
+          description: string
+          id: string
+          metadata: Json
+          party_id: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          character_name: string
+          created_at?: string
+          description: string
+          id?: string
+          metadata?: Json
+          party_id: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          character_name?: string
+          created_at?: string
+          description?: string
+          id?: string
+          metadata?: Json
+          party_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_combat_log_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       party_dice_rolls: {
         Row: {
           created_at: string
@@ -417,6 +458,41 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "party_members_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      party_messages: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          party_id: string
+          sender_name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          party_id: string
+          sender_name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          party_id?: string
+          sender_name?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_messages_party_id_fkey"
             columns: ["party_id"]
             isOneToOne: false
             referencedRelation: "parties"

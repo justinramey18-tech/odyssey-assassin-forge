@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Users, Plus, LogIn, LogOut, Trash2, Copy, Check, Dices, Package, Crosshair } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Users, Plus, LogIn, LogOut, Trash2, Copy, Check, Dices, Package, Crosshair, MessageSquare, Vote, Map, Swords } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -11,6 +11,10 @@ import { PartyRollFeed } from './PartyRollFeed';
 import { PartyFocusTargetBanner } from './PartyFocusTargetBanner';
 import { PartyLootQueue } from './PartyLootQueue';
 import { PartyMemberQuickActionsViewer } from './PartyMemberQuickActionsViewer';
+import { PartyChat } from './PartyChat';
+import { PartyVote } from './PartyVote';
+import { PartyBattleMap } from './PartyBattleMap';
+import { PartyCombatLog } from './PartyCombatLog';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import type { UsePartySyncReturn, PartyMember } from '@/hooks/use-party-sync';
 
@@ -36,8 +40,21 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
   const [codeCopied, setCodeCopied] = useState(false);
   const [showRolls, setShowRolls] = useState(false);
   const [showLoot, setShowLoot] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [showVotes, setShowVotes] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+  const [showCombatLog, setShowCombatLog] = useState(false);
   const [selectedMember, setSelectedMember] = useState<PartyMember | null>(null);
   const { party } = partySync;
+
+  const MEMBER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7'];
+  const memberColors = useMemo(() => {
+    const colors: Record<string, string> = {};
+    party.members.forEach((m, i) => {
+      colors[m.user_id] = MEMBER_COLORS[i % MEMBER_COLORS.length];
+    });
+    return colors;
+  }, [party.members]);
 
   if (!isAuthenticated) {
     return (
@@ -211,6 +228,106 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
               currentUserId={userId}
               characterName={characterName}
               onClaim={partySync.claimLoot}
+            />
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
+
+      {/* Party Chat - Collapsible */}
+      <div className="pt-2 border-t border-border/30">
+        <Collapsible open={showChat} onOpenChange={setShowChat}>
+          <CollapsibleTrigger className="flex items-center gap-2 w-full py-1 hover:bg-muted/10 rounded px-1 transition-colors">
+            <MessageSquare className="w-3.5 h-3.5 text-primary" />
+            <span className="text-xs font-semibold">Party Chat</span>
+            {!showChat && partySync.partyMessages.length > 0 && (
+              <span className="text-[10px] text-muted-foreground ml-auto">
+                {partySync.partyMessages.length}
+              </span>
+            )}
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-2">
+            <PartyChat
+              messages={partySync.partyMessages}
+              currentUserId={userId}
+              onSend={(msg) => partySync.sendMessage(msg, characterName)}
+            />
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
+
+      {/* Party Votes - Collapsible */}
+      <div className="pt-2 border-t border-border/30">
+        <Collapsible open={showVotes} onOpenChange={setShowVotes}>
+          <CollapsibleTrigger className="flex items-center gap-2 w-full py-1 hover:bg-muted/10 rounded px-1 transition-colors">
+            <Vote className="w-3.5 h-3.5 text-primary" />
+            <span className="text-xs font-semibold">Party Votes</span>
+            {partySync.activeVote && !partySync.activeVote.closed && (
+              <span className="text-[10px] bg-primary/20 text-primary px-1.5 rounded-full ml-auto">
+                Active
+              </span>
+            )}
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-2">
+            <PartyVote
+              activeVote={partySync.activeVote}
+              currentUserId={userId}
+              characterName={characterName}
+              memberCount={party.members.length}
+              onStartVote={(q, opts) => partySync.startVote(q, opts, characterName)}
+              onCastVote={(label) => partySync.castVote(label, characterName)}
+              onCloseVote={partySync.closeVote}
+            />
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
+
+      {/* Battle Map - Collapsible */}
+      <div className="pt-2 border-t border-border/30">
+        <Collapsible open={showMap} onOpenChange={setShowMap}>
+          <CollapsibleTrigger className="flex items-center gap-2 w-full py-1 hover:bg-muted/10 rounded px-1 transition-colors">
+            <Map className="w-3.5 h-3.5 text-primary" />
+            <span className="text-xs font-semibold">Battle Map</span>
+            {partySync.mapMarkers.length > 0 && (
+              <span className="text-[10px] text-muted-foreground ml-auto">
+                {partySync.mapMarkers.length}
+              </span>
+            )}
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-2">
+            <PartyBattleMap
+              markers={partySync.mapMarkers}
+              currentUserId={userId}
+              characterName={characterName}
+              memberColors={memberColors}
+              onPlaceMarker={async (marker) => {
+                const newMarkers = [...partySync.mapMarkers.filter(m => !(m.ownerUserId === userId && !m.isEnemy && !marker.isEnemy)), { ...marker, ownerUserId: userId! }];
+                await partySync.updateMapMarkers(newMarkers);
+              }}
+              onRemoveMarker={async (x, y) => {
+                const newMarkers = partySync.mapMarkers.filter(m => !(m.x === x && m.y === y));
+                await partySync.updateMapMarkers(newMarkers);
+              }}
+            />
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
+
+      {/* Party Combat Log - Collapsible */}
+      <div className="pt-2 border-t border-border/30">
+        <Collapsible open={showCombatLog} onOpenChange={setShowCombatLog}>
+          <CollapsibleTrigger className="flex items-center gap-2 w-full py-1 hover:bg-muted/10 rounded px-1 transition-colors">
+            <Swords className="w-3.5 h-3.5 text-primary" />
+            <span className="text-xs font-semibold">Combat Log</span>
+            {partySync.combatLog.length > 0 && (
+              <span className="text-[10px] text-muted-foreground ml-auto">
+                {partySync.combatLog.length}
+              </span>
+            )}
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-2">
+            <PartyCombatLog
+              entries={partySync.combatLog}
+              currentUserId={userId}
             />
           </CollapsibleContent>
         </Collapsible>
