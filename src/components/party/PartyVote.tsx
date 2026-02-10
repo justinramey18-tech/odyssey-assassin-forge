@@ -29,8 +29,8 @@ export function PartyVote({ activeVote, currentUserId, characterName, memberCoun
     setOptions(['', '']);
   };
 
-  // No active vote — show create UI
-  if (!activeVote) {
+  // Show create UI when no vote exists, or when creating after a closed vote
+  if (!activeVote || (activeVote.closed && creating)) {
     if (!creating) {
       return (
         <div className="text-center py-3">
@@ -139,7 +139,17 @@ export function PartyVote({ activeVote, currentUserId, characterName, memberCoun
         </Button>
       )}
       {activeVote.closed && (
-        <p className="text-[10px] text-center text-muted-foreground">Vote closed</p>
+        <div className="space-y-1.5">
+          <p className="text-[10px] text-center text-muted-foreground">Vote closed</p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-xs h-7 w-full gap-1.5"
+            onClick={() => setCreating(true)}
+          >
+            <Plus className="w-3 h-3" /> Start New Vote
+          </Button>
+        </div>
       )}
     </div>
   );
