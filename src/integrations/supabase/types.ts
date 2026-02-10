@@ -324,6 +324,44 @@ export type Database = {
           },
         ]
       }
+      party_pings: {
+        Row: {
+          created_at: string
+          id: string
+          message: string | null
+          party_id: string
+          ping_type: string
+          sender_name: string
+          sender_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          party_id: string
+          ping_type: string
+          sender_name?: string
+          sender_user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          party_id?: string
+          ping_type?: string
+          sender_name?: string
+          sender_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_pings_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
