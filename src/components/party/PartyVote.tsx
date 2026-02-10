@@ -3,20 +3,7 @@ import { Vote, Plus, X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-
-export interface VoteOption {
-  label: string;
-  voters: string[]; // character names
-}
-
-export interface ActiveVote {
-  question: string;
-  options: VoteOption[];
-  creatorUserId: string;
-  creatorName: string;
-  closed: boolean;
-  myVote?: string; // option label I voted for
-}
+import type { ActiveVote } from '@/hooks/use-party-sync';
 
 interface PartyVoteProps {
   activeVote: ActiveVote | null;
@@ -100,7 +87,6 @@ export function PartyVote({ activeVote, currentUserId, characterName, memberCoun
 
   // Active vote — show ballot
   const totalVotes = activeVote.options.reduce((sum, o) => sum + o.voters.length, 0);
-  const allVoted = totalVotes >= memberCount;
   const isCreator = activeVote.creatorUserId === currentUserId;
   const hasVoted = !!activeVote.myVote;
 
@@ -138,7 +124,9 @@ export function PartyVote({ activeVote, currentUserId, characterName, memberCoun
                 )}
               </div>
               {(hasVoted || activeVote.closed) && opt.voters.length > 0 && (
-                <p className="text-[9px] text-muted-foreground mt-0.5 relative">{opt.voters.join(', ')}</p>
+                <p className="text-[9px] text-muted-foreground mt-0.5 relative">
+                  {opt.voters.map(v => v.name).join(', ')}
+                </p>
               )}
             </button>
           );

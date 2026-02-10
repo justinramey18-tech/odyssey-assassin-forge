@@ -161,9 +161,14 @@ export interface PartyMessage {
   created_at: string;
 }
 
+export interface VoteVoter {
+  userId: string;
+  name: string;
+}
+
 export interface VoteOption {
   label: string;
-  voters: string[];
+  voters: VoteVoter[];
 }
 
 export interface ActiveVote {
@@ -351,10 +356,12 @@ export function usePartySync(): UsePartySyncReturn {
       if (combatEntries) setCombatLog(combatEntries.reverse());
 
       // Load shared state (focus targets, initiative, buffs, votes, map markers)
+      // Order by updated_at so the latest entry wins when multiple exist for same state_type
       const { data: sharedState } = await supabase
         .from('party_shared_state')
         .select('*')
-        .eq('party_id', party.partyId!) as { data: Array<{ user_id: string; state_type: string; state_data: unknown }> | null };
+        .eq('party_id', party.partyId!)
+        .order('updated_at', { ascending: true }) as { data: Array<{ user_id: string; state_type: string; state_data: unknown }> | null };
 
       if (sharedState) {
         sharedState.forEach((s) => {
@@ -380,7 +387,7 @@ export function usePartySync(): UsePartySyncReturn {
           }
           if (s.state_type === 'vote' && data) {
             const vote = data as unknown as ActiveVote;
-            const myVote = vote.options.find(o => o.voters.includes(user.id))?.label;
+            const myVote = vote.options.find(o => o.voters.some(v => v.userId === user.id))?.label;
             setActiveVote({ ...vote, myVote });
           }
           if (s.state_type === 'map_markers' && data) {
@@ -617,7 +624,7 @@ export function usePartySync(): UsePartySyncReturn {
 
           if (row.state_type === 'vote') {
             const vote = data as unknown as ActiveVote;
-            const myVote = vote.options.find(o => o.voters.includes(user.id))?.label;
+            const myVote = vote.options.find(o => o.voters.some(v => v.userId === user.id))?.label;
             setActiveVote({ ...vote, myVote });
           }
 
@@ -1055,9 +1062,13 @@ export function usePartySync(): UsePartySyncReturn {
   const castVote = useCallback(async (optionLabel: string, voterName: string) => {
     if (!user || !party.partyId || !activeVote) return;
 
+    // Prevent double-voting
+    const alreadyVoted = activeVote.options.some(o => o.voters.some(v => v.userId === user.id));
+    if (alreadyVoted) return;
+
     const updatedOptions = activeVote.options.map(o => ({
       ...o,
-      voters: o.label === optionLabel ? [...o.voters, voterName] : o.voters,
+      voters: o.label === optionLabel ? [...o.voters, { userId: user.id, name: voterName }] : o.voters,
     }));
 
     const updatedVote = { ...activeVote, options: updatedOptions };
