@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Check, Copy, RefreshCw, Camera, Star, Lock, RotateCcw, AlertTriangle, HelpCircle, Download, ImageOff } from 'lucide-react';
+import { Check, Copy, RefreshCw, Camera, Star, Lock, RotateCcw, AlertTriangle, HelpCircle, Download, ImageOff, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +27,8 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { SettingsTab } from './MobileSettingsTabs';
 import { FAQ_ITEMS } from '@/lib/faq-data';
+import { PartyPanel } from '@/components/party';
+import type { UsePartySyncReturn } from '@/hooks/use-party-sync';
 
 interface SettingsContentProps {
   activeTab: SettingsTab;
@@ -58,6 +60,15 @@ interface SettingsContentProps {
   onClearEquipmentImages?: () => void;
   onClearAbilityImages?: () => void;
   onClearAllCustomImages?: () => void;
+  // Party system
+  partySync?: UsePartySyncReturn;
+  isAuthenticated?: boolean;
+  userId?: string;
+  currentHP?: number;
+  maxHP?: number;
+  tempHP?: number;
+  ac?: number;
+  characterLevel?: number;
 }
 
 export function SettingsContent({
@@ -82,6 +93,14 @@ export function SettingsContent({
   onClearEquipmentImages,
   onClearAbilityImages,
   onClearAllCustomImages,
+  partySync,
+  isAuthenticated = false,
+  userId,
+  currentHP,
+  maxHP,
+  tempHP,
+  ac,
+  characterLevel,
 }: SettingsContentProps) {
   const [copiedStatic, setCopiedStatic] = useState(false);
   const [copiedDynamic, setCopiedDynamic] = useState(false);
@@ -593,6 +612,28 @@ export function SettingsContent({
               </div>
             </div>
           </div>
+        )}
+
+        {/* Party Link Section */}
+        {partySync && (
+          <>
+            <div className="p-4 rounded-lg border border-primary/30 bg-primary/5 space-y-3">
+              <PartyPanel
+                partySync={partySync}
+                characterName={characterName}
+                currentStatus={{
+                  currentHP,
+                  maxHP,
+                  tempHP,
+                  ac,
+                  level: characterLevel,
+                }}
+                isAuthenticated={isAuthenticated}
+                userId={userId}
+              />
+            </div>
+            <Separator className="bg-border/30" />
+          </>
         )}
 
         <Separator className="bg-border/30" />
