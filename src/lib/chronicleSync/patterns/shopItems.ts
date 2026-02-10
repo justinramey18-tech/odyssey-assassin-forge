@@ -26,8 +26,8 @@ export const SHOP_ITEM_PATTERNS = [
   /\d+x?\s+([A-Z][a-zA-Z\s']+?)\s+(?:at|for)\s+(\d+)\s*(?:gp|gold(?:\s*pieces?)?)\s*(?:each|apiece)?/gi,
   // Discount/haggle: "reduced to 40 gp", "offers it for 80 gp instead"
   /([A-Z][a-zA-Z\s']+?)\s+(?:reduced|marked\s+down|discounted)\s+to\s+(\d+)\s*(?:gp|gold(?:\s*pieces?)?)/gi,
-  // Multi-currency: "costs 5 pp", "selling for 50 sp" (converted in parser)
-  /(?:offers?|sells?|selling|costs?)\s+(?:a\s+|an\s+)?([A-Z][a-zA-Z\s']+?)\s+(?:for|at)\s+(\d+)\s*(?:pp|sp|cp|ep)/gi,
+  // Multi-currency: "costs 5 pp", "selling for 50 sp" (converted to gold in parser)
+  /(?:offers?|sells?|selling|costs?)\s+(?:a\s+|an\s+)?([A-Z][a-zA-Z\s']+?)\s+(?:for|at)\s+(\d+)\s*(pp|sp|cp|ep)/gi,
 ];
 
 // Guess item type from name keywords
@@ -57,6 +57,17 @@ const EXCLUDED_SHOP_NAMES = new Set([
   'the', 'a', 'an', 'it', 'this', 'that', 'he', 'she', 'they', 'you', 'we',
   'room', 'shop', 'store', 'merchant', 'vendor', 'trader',
 ]);
+
+/** Convert non-gold currency amounts to gold equivalent */
+function convertToGold(amount: number, currency: string): number {
+  switch (currency) {
+    case 'pp': return amount * 10;
+    case 'sp': return Math.round(amount / 10 * 100) / 100 || 1; // min 1 gp
+    case 'cp': return Math.round(amount / 100 * 100) / 100 || 1;
+    case 'ep': return Math.round(amount / 2 * 100) / 100 || 1;
+    default: return amount;
+  }
+}
 
 function isValidItemName(name: string): boolean {
   const trimmed = name.trim();
@@ -90,6 +101,13 @@ export function parseShopItemMatches(text: string): ParsedShopItem[] {
       } else {
         itemName = match[1]?.trim() || '';
         cost = parseInt(match[2], 10);
+      }
+
+      // Convert multi-currency to gold equivalent
+      // match[3] will contain the currency type for the multi-currency pattern
+      const currencyType = match[3]?.toLowerCase();
+      if (currencyType) {
+        cost = convertToGold(cost, currencyType);
       }
 
       if (!isValidItemName(itemName) || isNaN(cost) || cost <= 0) continue;

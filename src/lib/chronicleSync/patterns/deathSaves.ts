@@ -117,11 +117,15 @@ export function parseDeathSaveMatches(text: string): DeathSaveMatch[] {
     }
   }
   
-  // Deduplicate by index
-  const seen = new Set<number>();
-  return matches.filter(m => {
-    if (seen.has(m.index)) return false;
-    seen.add(m.index);
-    return true;
-  });
+  // Deduplicate by proximity — two matches within 60 chars of each other 
+  // with the same outcome are likely the same event matched by different patterns
+  const sorted = [...matches].sort((a, b) => a.index - b.index);
+  const kept: DeathSaveMatch[] = [];
+  for (const m of sorted) {
+    const isDup = kept.some(k => 
+      k.outcome === m.outcome && Math.abs(k.index - m.index) < 60
+    );
+    if (!isDup) kept.push(m);
+  }
+  return kept;
 }

@@ -106,6 +106,11 @@ function cleanEnemyName(name: string): string {
     .trim();
 }
 
+/** Title-case each word for consistent display */
+function toTitleCase(name: string): string {
+  return name.replace(/\b\w/g, c => c.toUpperCase());
+}
+
 function isValidEnemyName(name: string): boolean {
   const cleaned = cleanEnemyName(name).toLowerCase();
   if (cleaned.length < 2) return false;
@@ -186,7 +191,7 @@ export function parseEnemyDamageUpdates(text: string): ParsedEnemyUpdate[] {
 
       updates.push({
         id: generateId(),
-        targetName: targetName.charAt(0).toUpperCase() + targetName.slice(1).toLowerCase(),
+        targetName: toTitleCase(targetName),
         updateType: 'damage',
         amount,
         damageType: parseDamageType(damageTypeStr),
@@ -218,7 +223,7 @@ export function parseEnemyHealingUpdates(text: string): ParsedEnemyUpdate[] {
 
       updates.push({
         id: generateId(),
-        targetName: targetName.charAt(0).toUpperCase() + targetName.slice(1).toLowerCase(),
+        targetName: toTitleCase(targetName),
         updateType: 'healing',
         amount,
         sourceText: getContext(text, match.index, match[0].length),
@@ -263,7 +268,7 @@ export function parseEnemyConditionUpdates(text: string): ParsedEnemyUpdate[] {
 
       updates.push({
         id: generateId(),
-        targetName: targetName.charAt(0).toUpperCase() + targetName.slice(1).toLowerCase(),
+        targetName: toTitleCase(targetName),
         updateType: 'condition_add',
         condition,
         sourceText: getContext(text, match.index, match[0].length),
@@ -298,7 +303,7 @@ export function parseEnemyConditionUpdates(text: string): ParsedEnemyUpdate[] {
 
       updates.push({
         id: generateId(),
-        targetName: targetName.charAt(0).toUpperCase() + targetName.slice(1).toLowerCase(),
+        targetName: toTitleCase(targetName),
         updateType: 'condition_remove',
         condition,
         sourceText: getContext(text, match.index, match[0].length),
@@ -328,7 +333,7 @@ export function parseEnemyDefeatUpdates(text: string): ParsedEnemyUpdate[] {
 
       updates.push({
         id: generateId(),
-        targetName: targetName.charAt(0).toUpperCase() + targetName.slice(1).toLowerCase(),
+        targetName: toTitleCase(targetName),
         updateType: 'defeat',
         sourceText: getContext(text, match.index, match[0].length),
         confidence: 'high',
@@ -364,10 +369,10 @@ export function parseAllEnemyUpdates(text: string): ParsedEnemyUpdate[] {
 
   return allUpdates.filter(u => {
     if (u.updateType === 'defeat') return true;
-    // Don't include damage/healing for already-defeated enemies
-    const isDefeated = seenDefeats.has(u.targetName.toLowerCase());
-    if (isDefeated) {
-      return false;
+    // Keep damage/healing for defeated enemies — it's still valid analytics data.
+    // Only filter out condition changes on already-defeated enemies (meaningless).
+    if (u.updateType === 'condition_add' || u.updateType === 'condition_remove') {
+      return !seenDefeats.has(u.targetName.toLowerCase());
     }
     return true;
   });
