@@ -98,6 +98,18 @@ const ENCOUNTER_PATTERNS = [
   /(\d+)\s+([a-zA-Z][a-zA-Z\s'-]*?)\s+(?:attack|approach|emerge|appear|charge|strike|rush|surround)/gi,
   // "the orc" (with definite article suggesting known enemy)
   /the\s+([a-zA-Z][a-zA-Z\s'-]*?)\s+(?:attacks?|strikes?|swings?|casts?|breathes?|lunges?|charges?)/gi,
+  // Summoned creatures: "summons a fire elemental", "conjures 4 wolves"
+  /(?:summons?|conjures?|calls?\s+forth|raises?)\s+(?:a\s+)?(\d+)?\s*([a-zA-Z][a-zA-Z\s'-]+)/gi,
+  // Revealed enemies: "a mimic reveals itself", "the chest is actually a mimic"
+  /(?:a\s+)?([a-zA-Z][a-zA-Z\s'-]*?)\s+(?:reveals?\s+(?:itself|themselves)|springs?\s+to\s+life)/gi,
+  /(?:is\s+actually|turns?\s+out\s+to\s+be|was\s+really)\s+(?:a\s+|an\s+)?(\d+)?\s*([a-zA-Z][a-zA-Z\s'-]+)/gi,
+  // Lair/guarded: "guarded by 2 wights", "protected by a golem"
+  /(?:guarded|protected|watched|defended)\s+by\s+(?:a\s+)?(\d+)?\s*([a-zA-Z][a-zA-Z\s'-]+)/gi,
+  // Multi-enemy: "3 goblins and 2 hobgoblins" (split on "and")
+  /(\d+)\s+([a-zA-Z][a-zA-Z\s'-]*?)\s+and\s+(\d+)\s+([a-zA-Z][a-zA-Z\s'-]+)/gi,
+  // Reinforcements: "reinforcements arrive: 4 more orcs", "2 additional skeletons rise"
+  /(?:reinforcements?|more\s+enemies?)\s*(?:arrive|appear|come)?:?\s*(\d+)\s+(?:more\s+)?([a-zA-Z][a-zA-Z\s'-]+)/gi,
+  /(\d+)\s+(?:additional|more|extra)\s+([a-zA-Z][a-zA-Z\s'-]+)\s+(?:arrive|appear|rise|emerge|join)/gi,
 ];
 
 // Pattern: "goblin (AC 13)", "dragon with AC 18"

@@ -17,6 +17,17 @@ export const XP_PATTERNS = [
   /(\d+)\s*(?:xp|experience(?:\s*points?)?)\s*(?:gained|earned|awarded|received)/gi,
   // "XP: +450", "Experience: 100"
   /(?:xp|experience):\s*\+?(\d+)/gi,
+  // "each party member gains 200 XP", "each player earns 150 XP"
+  /each\s+(?:party\s+member|player|character|adventurer)\s+(?:gain|earn|receive|get)s?\s+(\d+)\s*(?:xp|experience)/gi,
+  // "split 800 XP among 4 players", "divide 1200 XP between the party"
+  /(?:split|divide)\s+(\d+)\s*(?:xp|experience)\s+(?:among|between|amongst)/gi,
+  // "100 XP per goblin", "worth 450 XP each"
+  /(\d+)\s*(?:xp|experience)\s+(?:per|each|apiece)/gi,
+  /worth\s+(\d+)\s*(?:xp|experience)\s*(?:each|apiece)?/gi,
+  // "milestone reached: 1000 XP", "quest reward: 500 XP"
+  /(?:milestone|quest\s+reward|reward|bounty|bonus)(?:\s+reached)?[:\s]+(\d+)\s*(?:xp|experience)/gi,
+  // "XP reward of 300", "XP bounty: 200"
+  /(?:xp|experience)\s+(?:reward|bounty|bonus)\s*(?:of|:)\s*(\d+)/gi,
 ];
 
 export function parseXPMatches(text: string): PatternMatch[] {
@@ -62,12 +73,24 @@ export const DAMAGE_PATTERNS = [
   /(?:deal|inflict)(?:s|ed)?\s*(\d+)\s*(?:\w+\s+)?damage/gi,
   // "18 damage taken", "25 points of damage"
   /(\d+)\s*(?:points?\s+of\s+)?(?:\w+\s+)?damage\s*(?:taken|received)/gi,
-  // Gap 4: "burns you for 28 points", "freezes you for 15"
+  // "burns you for 28 points", "freezes you for 15"
   /(?:burn|freeze|shock|blast|strike|hit|slash|stab|pierce|crush|sear|scorch|rend|tear)(?:s|ed|ing)?\s+(?:you|him|her|them)\s+for\s+(\d+)\s*(?:points?)?/gi,
   // "loses 12 hit points", "lost 8 HP"
   /lose(?:s|d)?\s+(\d+)\s*(?:hp|hit\s*points?|health)/gi,
   // "for 28 points of fire damage"
   /for\s+(\d+)\s+points?\s+of\s+\w+\s+damage/gi,
+  // Dice result damage: "deals 8d6 (28) fire damage", "taking 3d6 (10) damage"
+  /(?:deals?|taking|inflicts?)\s+\d+d\d+(?:\s*[+\-]\s*\d+)?\s*\((\d+)\)\s*(?:\w+\s+)?damage/gi,
+  // Named attacker: "The orc hits you for 12", "The dragon bites for 24"
+  /(?:the\s+)?[A-Z][a-zA-Z\s'-]+?\s+(?:hits?|bites?|claws?|slams?|strikes?)\s+(?:you|him|her|them)\s+for\s+(\d+)/gi,
+  // Environmental/passive: "the lava deals 10 fire damage per round", "the trap deals 14 damage"
+  /(?:the\s+)?(?:lava|fire|trap|spike|acid|water|fall(?:ing)?|poison|environment)\s+(?:deals?|inflicts?|causes?)\s+(\d+)\s*(?:\w+\s+)?damage/gi,
+  // Failed save damage: "On a failed save, you take 14 radiant damage"
+  /(?:on\s+a\s+)?failed\s+sav(?:e|ing)?\s*,?\s*(?:you\s+)?(?:take|suffer|receive)s?\s+(\d+)\s*(?:\w+\s+)?damage/gi,
+  // HP reduction: "Your HP drops by 15", "HP reduced by 8"
+  /(?:hp|hit\s*points?)\s+(?:drops?|reduced?|decreased?|lowered?)\s+by\s+(\d+)/gi,
+  // "You fall 30 feet, taking 3d6 (10) damage"
+  /taking\s+\d+d\d+(?:\s*[+\-]\s*\d+)?\s*\((\d+)\)\s*(?:\w+\s+)?damage/gi,
 ];
 
 export const HEALING_PATTERNS = [
@@ -77,6 +100,14 @@ export const HEALING_PATTERNS = [
   /(\d+)\s*(?:hp|hit\s*points?|health)\s*(?:healed|restored|recovered|regained)/gi,
   // "gains 10 HP", "got 5 HP back"
   /(?:gain|get|got)(?:s|ed)?\s*(\d+)\s*(?:hp|hit\s*points?|health)(?:\s*back)?/gi,
+  // Named spell healing: "Cure Wounds heals you for 12 HP"
+  /[A-Z][a-zA-Z\s']+?\s+heals?\s+(?:you|him|her|them)\s+for\s+(\d+)\s*(?:hp|hit\s*points?)?/gi,
+  // Passive recovery: "You are healed for 8 hit points"
+  /(?:you\s+(?:are|were)|is|was)\s+healed\s+for\s+(\d+)\s*(?:hp|hit\s*points?)?/gi,
+  // Dice result healing: "heals 2d8+3 (14) HP"
+  /heals?\s+\d+d\d+(?:\s*[+\-]\s*\d+)?\s*\((\d+)\)\s*(?:hp|hit\s*points?)/gi,
+  // "recovers to full HP" (no amount - skip), "10 hit points return"
+  /(\d+)\s*(?:hp|hit\s*points?)\s+(?:return|restored|come\s+back)/gi,
 ];
 
 // ===== TEMPORARY HP PATTERNS =====
@@ -188,6 +219,16 @@ export const ITEM_ACQUIRE_PATTERNS = [
   /(?:find|loot|receive|acquire|pick\s*up|discover|obtain|get)(?:s|ed)?\s*(?:a\s+)?(\d+)?\s*([a-zA-Z][a-zA-Z\s]+(?:potion|poison|scroll|vial|elixir)s?)/gi,
   // "3 health potions found", "potion of healing looted"
   /(\d+)?\s*([a-zA-Z][a-zA-Z\s]+(?:potion|poison|scroll|vial|elixir)s?)\s*(?:found|looted|acquired|obtained)/gi,
+  // Magic items: "find a +1 Longsword", "loot a Ring of Protection"
+  /(?:find|loot|receive|acquire|discover|obtain)(?:s|ed)?\s+(?:a\s+|an\s+|the\s+)?(\d+)?\s*(\+\d+\s+[A-Z][a-zA-Z\s]+)/gi,
+  // Wondrous items: "Bag of Holding", "Cloak of Elvenkind" (as loot)
+  /(?:find|loot|receive|acquire|discover|obtain|pick\s*up)(?:s|ed)?\s+(?:a\s+|an\s+|the\s+)?(\d+)?\s*((?:Bag|Cloak|Boots|Ring|Amulet|Belt|Bracers?|Gauntlets?|Helm|Rod|Staff|Wand|Cape|Robe|Mantle|Periapt|Circlet)\s+of\s+[A-Z][a-zA-Z\s]+)/gi,
+  // Ammunition: "20 arrows", "a quiver of bolts", "3 silvered arrows"
+  /(?:find|loot|receive|acquire|obtain)(?:s|ed)?\s+(?:a\s+)?(\d+)\s*((?:silvered?\s+)?(?:arrows?|bolts?|darts?|bullets?|ammunition|ammo))/gi,
+  // Generic loot: "takes the amulet", "picks up the staff", "pockets the gem"
+  /(?:takes?|picks?\s+up|pockets?|grabs?|claims?)(?:\s+the)?\s+(\d+)?\s*([A-Z][a-zA-Z\s]+(?:amulet|staff|wand|ring|gem|jewel|sword|shield|armor|weapon|bow|axe|mace|dagger|cloak|boots|helm|gauntlet))/gi,
+  // Gift/reward items: "the king gives you a magical sword", "rewards you with a ring"
+  /(?:gives?\s+you|rewards?\s+you\s+with|presents?\s+you\s+with|bestows?\s+upon\s+you)\s+(?:a\s+|an\s+|the\s+)?(\d+)?\s*([A-Z][a-zA-Z\s]+)/gi,
 ];
 
 export const ITEM_USE_PATTERNS = [
@@ -262,6 +303,14 @@ export const GOLD_PATTERNS = [
   /(\d+)\s*(?:gp|gold(?:\s*pieces?)?|coins?)\s*(?:found|looted|gained|earned|received)/gi,
   // "spend 50 gold", "pay 100 gp"
   /(?:spend|pay|lose|lost)(?:s|ed)?\s*(\d+)\s*(?:gp|gold(?:\s*pieces?)?|coins?)/gi,
+  // Treasure hoard: "a hoard containing 500 gold", "the chest holds 200 gp"
+  /(?:hoard|chest|coffer|strongbox|vault|stash|cache)\s+(?:containing|holds?|with)\s+(\d+)\s*(?:gp|gold(?:\s*pieces?)?)/gi,
+  // Reward phrasing: "reward of 100 gold", "bounty: 300 gp", "payment of 50 gold"
+  /(?:reward|bounty|payment|prize|stipend|fee)\s*(?:of|:)\s*(\d+)\s*(?:gp|gold(?:\s*pieces?)?)/gi,
+  // Informal: "hands you 100 gold", "gives the party 250 gp"
+  /(?:hands?|gives?|pays?|offers?)\s+(?:you|the\s+party|them)\s+(\d+)\s*(?:gp|gold(?:\s*pieces?)?)/gi,
+  // Mixed currency comma list: "2 pp, 15 gp, 30 sp" - captures gp portion
+  /(\d+)\s*gp\s*(?:,|and)/gi,
 ];
 
 // ===== MULTI-CURRENCY PATTERNS (Gap 3) =====
@@ -402,8 +451,17 @@ export const LEVEL_UP_PATTERNS = [
 ];
 
 export const CONDITION_PATTERNS = [
-  // Conditions to detect
+  // Standard conditions
   /(poisoned|stunned|frightened|charmed|unconscious|blinded|deafened|paralyzed|petrified|prone|restrained|incapacitated|exhausted|invisible|grappled)/gi,
+  // Exhaustion levels: "gains 1 level of exhaustion", "exhaustion level increases to 3"
+  /(?:gains?\s+)?(\d+)\s+levels?\s+of\s+(exhaustion)/gi,
+  /(exhaustion)\s+level\s+(?:increases?\s+to|is\s+now|reaches?)\s+(\d+)/gi,
+  // Concentration broken: "loses concentration", "concentration is broken"
+  /(concentration)\s+(?:is\s+)?(?:broken|lost|ended|disrupted)/gi,
+  /loses?\s+(concentration)/gi,
+  // Temp conditions: "is knocked prone", "falls prone", "knocked unconscious"
+  /(?:is\s+)?knocked\s+(prone|unconscious)/gi,
+  /falls?\s+(prone)/gi,
 ];
 
 // Gap 5: Expanded removal context phrases
@@ -424,6 +482,10 @@ const CONDITION_REMOVAL_PHRASES = [
   /expires?/i,
   /dissipates?/i,
   /subsides?/i,
+  /recovers?\s+from/i,
+  /throws?\s+off/i,
+  /resists?\s+the/i,
+  /saves?\s+against/i,
 ];
 
 export function parseCritMatches(text: string): PatternMatch[] {

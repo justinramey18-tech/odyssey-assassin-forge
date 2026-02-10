@@ -61,6 +61,17 @@ const SAVE_PATTERNS = [
   /(\w+)\s+sav(?:e|ing)?\s*\(?\s*DC\s*(\d+)\s*\)?/gi,
   // "rolls a 14 on their DEX save"
   /rolls?\s+(?:a\s+)?(\d+)\s+(?:on\s+)?(?:a\s+|the\s+|their\s+)?(\w+)\s+sav(?:e|ing)?/gi,
+  // Group saves: "everyone makes a DEX save", "the party rolls WIS saves"
+  /(?:everyone|all|the\s+party|each\s+(?:player|character))\s+(?:make|roll)s?\s+(?:a\s+)?(\w+)\s+sav(?:e|ing)?s?/gi,
+  // "all creatures within 20 feet must make a CON save"
+  /(?:all\s+)?creatures?\s+(?:within|in)\s+\d+\s*(?:feet|ft\.?)\s+(?:must\s+)?(?:make|roll)\s+(?:a\s+)?(\w+)\s+sav(?:e|ing)?/gi,
+  // "save with advantage", "disadvantage on the save"
+  /(\w+)\s+sav(?:e|ing)?\s+with\s+(advantage|disadvantage)/gi,
+  // Flat check: "DC 10 flat check", "make a flat DC 15 check"
+  /(?:DC\s*)?(\d+)\s+flat\s+check/gi,
+  /flat\s+DC\s*(\d+)\s+check/gi,
+  // Contested: "contested Strength check", "opposed Athletics vs Acrobatics"
+  /contested\s+(\w+)\s+(?:check|roll)/gi,
 ];
 
 export function parseSavingThrows(text: string): ParsedSavingThrow[] {

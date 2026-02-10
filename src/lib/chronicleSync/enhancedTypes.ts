@@ -53,6 +53,8 @@ export type { ParsedDiceRoll, ConsolidatedHit } from './patterns/diceAndMultiHit
 export type { HealingAttribution } from './patterns/healingAttribution';
 export type { NPCEntry } from './patterns/npcLearning';
 export type { DamageType } from './patterns/damageTypes';
+export type { ParsedAttackRoll } from './patterns/attackRolls';
+export type { ParsedMovement } from './patterns/movement';
 
 // ===== SESSION HISTORY TYPES =====
 
