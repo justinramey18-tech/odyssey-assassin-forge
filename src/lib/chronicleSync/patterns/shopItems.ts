@@ -79,8 +79,12 @@ export function parseShopItemMatches(text: string): ParsedShopItem[] {
       let itemName: string;
       let cost: number;
 
-      // Pattern 4 has reversed capture groups (price first, then name)
-      if (/^\(\d/.test(match[0]) || /^\d+\s*(?:gp|gold)/.test(match[0])) {
+      // Pattern index 3 has reversed capture groups (price first, then name)
+      // Detect by checking if match[1] is a number and match[2] is a name
+      const firstIsNumber = /^\d+$/.test(match[1]?.trim() || '');
+      const secondIsName = match[2] && /[a-zA-Z]/.test(match[2]);
+      
+      if (firstIsNumber && secondIsName) {
         cost = parseInt(match[1], 10);
         itemName = match[2]?.trim() || '';
       } else {

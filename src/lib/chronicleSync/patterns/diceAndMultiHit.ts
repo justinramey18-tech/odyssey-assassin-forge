@@ -70,6 +70,14 @@ export function parseDiceRolls(text: string): ParsedDiceRoll[] {
           total = natVal;
         }
       }
+      // Advantage/disadvantage pattern: "rolls 14 and 18 with advantage (takes 18)"
+      else if (/advantage|disadvantage/i.test(fullMatch) && match[1] && match[2]) {
+        const roll1 = parseInt(match[1], 10);
+        const roll2 = parseInt(match[2], 10);
+        const hasAdvantage = /advantage/i.test(fullMatch);
+        total = hasAdvantage ? Math.max(roll1, roll2) : Math.min(roll1, roll2);
+        naturalRoll = total;
+      }
       // Dice expression pattern (XdY+Z)
       else if (/\d+d\d+/i.test(fullMatch)) {
         expression = match[1];
