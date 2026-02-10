@@ -1,81 +1,130 @@
 
 
-## Party Member Quick Actions Viewer and Profile Avatars
-
-### What This Does
-
-Two enhancements to the party system:
-
-1. **Tap a party member card** to open a read-only drawer showing their character's quick actions summary (weapons, spells, abilities, consumables). Since party members don't share their full character sheet, we expand the `character_status` broadcast to include lightweight action summaries.
-
-2. **Profile picture on party cards** using the player's custom home background image (already stored in localStorage). The background image URL is included in the broadcast data so other players can see a cropped avatar on each card.
+## Multiplayer Feature Pack: 1 Low-Risk + 3 Medium-Risk
 
 ---
 
-### Approach
+### Feature 1: Party Chat (Low Risk)
 
-#### Expanding the Broadcast Data
+Real-time text messaging within the Party Panel.
 
-The `character_status` JSONB currently contains HP, AC, conditions, level, and class. We extend it with:
-- `quickActions`: A lightweight summary object containing:
-  - `weapons`: Array of `{ name, damage, damageType }` (equipped weapons)
-  - `abilities`: Array of `{ name, tree, tier, actionType }` (equipped abilities)
-  - `spells`: Array of `{ name, level, school, concentration }` (prepared spells)
-  - `cantrips`: Array of `{ name, school }` (known cantrips)
-  - `consumables`: Array of `{ name, quantity, effect }` (inventory consumables)
-- `profileImage`: The player's custom background as a data URL (or null). Since this can be large (~5MB), we will compress/resize it to a small thumbnail (~64x64) before broadcasting, keeping JSONB payload manageable.
+**What it does:**
+- Collapsible "Party Chat" section matching existing Rolls/Loot pattern
+- Text input (max 200 chars) with send button
+- Shows sender name, message, relative timestamp
+- Real-time via Realtime subscription on a new `party_messages` table
+- Loads last 50 messages on open, auto-scrolls to newest
+- Unread count badge on collapsed header
 
-#### Profile Image Handling
+---
 
-- When broadcasting status, capture the custom background from localStorage, resize it to a tiny thumbnail (64x64 JPEG, ~2-5KB), and include it in `character_status.profileImage`.
-- On the `PartyMemberCard`, render this as a circular avatar next to the character name using the existing `Avatar` component.
+### Feature 2: Party Encounter Voting (Medium Risk)
 
-#### View-Only Quick Actions Drawer
+A polling system where any member can propose a decision for the group (e.g., "Sneak past the guards or fight?", "Rest or push forward?").
 
-- A new `PartyMemberQuickActionsViewer` component renders as a bottom Sheet showing the tapped member's action summaries in a read-only format (no roll buttons, no cast buttons -- just a categorized list).
-- Clicking a `PartyMemberCard` (when it's not your own) opens this viewer.
+**What it does:**
+- "Start Vote" button in a new collapsible "Party Votes" section
+- Creator enters a question + 2-4 options
+- All members see the poll and can cast one vote each
+- Results update in real-time showing vote counts and who voted for what
+- Poll auto-closes after all members vote (or creator can force-close)
+- Uses `party_shared_state` with `state_type: 'vote'`
+
+**Why medium risk:** Introduces interactive decision-making that affects party flow. Requires conflict resolution (simultaneous votes, edge cases with members leaving mid-vote).
+
+---
+
+### Feature 3: Party Battlefield Map Markers (Medium Risk)
+
+A shared coordinate-based marker system where members can place named tokens on a simple grid, giving the party a lightweight tactical overview.
+
+**What it does:**
+- Collapsible "Battle Map" section showing a 10x10 grid
+- Each member can place/move their own marker (color-coded by member)
+- Anyone can place enemy markers (red, named)
+- Markers sync in real-time via `party_shared_state` with `state_type: 'map_markers'`
+- Tap a cell to place, tap your marker to remove
+- Shows marker legend with names below the grid
+
+**Why medium risk:** Visual state synchronization with potential race conditions when multiple members move markers simultaneously. Grid rendering adds UI complexity.
+
+---
+
+### Feature 4: Party Combat Log (Medium Risk)
+
+An aggregated, real-time feed of combat actions across all party members, creating a shared narrative of what is happening in the fight.
+
+**What it does:**
+- Collapsible "Combat Log" section in the Party Panel
+- Automatically broadcasts key actions: damage dealt, damage taken, heals, spell casts, kills, death saves
+- Each entry shows: timestamp, member name, action icon, description (e.g., "Aric dealt 14 slashing damage", "Luna cast Fireball")
+- Color-coded by action type (red for damage taken, green for heals, orange for attacks, purple for spells)
+- Keeps last 30 entries, auto-scrolls
+- New `party_combat_log` table with RLS for persistence and Realtime
+
+**Why medium risk:** Requires integration points with existing combat/spell systems to auto-broadcast events. The hook needs to expose a `logCombatEvent` function that other parts of the app call at the right moments.
 
 ---
 
 ### Technical Details
 
-#### Files Modified
+#### Database Changes
+
+Two new tables:
+
+```text
+party_messages
+  id            UUID PK default gen_random_uuid()
+  party_id      UUID NOT NULL FK -> parties(id) ON DELETE CASCADE
+  user_id       UUID NOT NULL
+  sender_name   TEXT NOT NULL
+  message       TEXT NOT NULL
+  created_at    TIMESTAMPTZ default now()
+
+  RLS: SELECT/INSERT restricted to is_party_member(auth.uid(), party_id)
+  Realtime enabled
+
+party_combat_log
+  id            UUID PK default gen_random_uuid()
+  party_id      UUID NOT NULL FK -> parties(id) ON DELETE CASCADE
+  user_id       UUID NOT NULL
+  character_name TEXT NOT NULL
+  action_type   TEXT NOT NULL (attack, damage_taken, heal, spell, kill, death_save)
+  description   TEXT NOT NULL
+  metadata      JSONB default '{}'
+  created_at    TIMESTAMPTZ default now()
+
+  RLS: SELECT/INSERT restricted to is_party_member(auth.uid(), party_id)
+  Realtime enabled
+```
+
+Features 2 (Voting) and 3 (Map Markers) use existing `party_shared_state` with new `state_type` values -- no additional tables.
+
+#### New Components
+
+| Component | Purpose |
+|---|---|
+| `src/components/party/PartyChat.tsx` | Message list with ScrollArea + text input |
+| `src/components/party/PartyVote.tsx` | Vote creation form + ballot UI + results display |
+| `src/components/party/PartyBattleMap.tsx` | 10x10 grid with color-coded markers |
+| `src/components/party/PartyCombatLog.tsx` | Aggregated combat event feed |
+
+#### Modified Files
 
 | File | Changes |
-|------|---------|
-| `src/hooks/use-party-sync.ts` | Extend `PartyMember.character_status` type with `quickActions` and `profileImage` fields |
-| `src/pages/Index.tsx` | Include quick action summaries and resized profile image in `broadcastStatus` call |
-| `src/components/party/PartyMemberCard.tsx` | Add avatar display, make card tappable (non-self), pass `onClick` |
-| `src/components/party/PartyPanel.tsx` | Track selected member state, render viewer drawer |
+|---|---|
+| `src/hooks/use-party-sync.ts` | Add state, subscriptions, and functions for all 4 features: `sendMessage`, `partyMessages`, `startVote`, `castVote`, `closeVote`, `activeVote`, `updateMapMarkers`, `mapMarkers`, `logCombatEvent`, `combatLog`. Add Realtime channels for `party_messages` and `party_combat_log`. |
+| `src/components/party/PartyPanel.tsx` | Add 4 new collapsible sections using existing Collapsible pattern |
+| `src/components/party/index.ts` | Export new components |
 
-#### New Files
+#### Risk Assessment
 
-| File | Purpose |
-|------|---------|
-| `src/components/party/PartyMemberQuickActionsViewer.tsx` | Read-only bottom sheet showing a member's weapons, abilities, spells, cantrips, and consumables |
-| `src/lib/utils/image-resize.ts` | Utility to resize an image data URL to a small thumbnail using canvas |
+| Feature | Risk | Reason |
+|---|---|---|
+| Party Chat | Low | Follows exact pattern of `party_dice_rolls`. Simple insert/read. |
+| Encounter Voting | Medium | State machine logic (open/closed/expired). Edge cases with members leaving mid-vote. |
+| Battle Map Markers | Medium | Concurrent upserts to shared state. Grid UI complexity. |
+| Combat Log | Medium | Requires integration hooks into existing combat flows. New table + subscription. |
 
-#### Implementation Steps
-
-1. **Create `image-resize.ts`**: A utility function `resizeImageToThumbnail(dataUrl: string, size: number): Promise<string>` that uses an offscreen canvas to produce a tiny JPEG thumbnail.
-
-2. **Extend `character_status` type** in `use-party-sync.ts` to include `quickActions` (object with arrays of summaries) and `profileImage` (string or null).
-
-3. **Update `broadcastStatus` call in `Index.tsx`**: Gather equipped weapons (from equipment), equipped abilities (from character), prepared spells and cantrips (from spellcasting), and consumables. Build lightweight summary arrays. Load custom background from localStorage, resize to thumbnail, and include as `profileImage`.
-
-4. **Update `PartyMemberCard.tsx`**:
-   - Add an `Avatar` component showing `profileImage` (with a fallback showing the first letter of the character name).
-   - Accept an `onViewActions` callback prop. Make the card tappable for non-self members.
-   - Show a subtle "tap to view" indicator on non-self cards.
-
-5. **Create `PartyMemberQuickActionsViewer.tsx`**:
-   - A `Sheet` (bottom) that receives the selected member's `character_status`.
-   - Renders collapsible sections: Weapons, Abilities, Magic, Cantrips, Consumables.
-   - Each item shows name and key stats in a compact read-only card (no interactive buttons).
-   - Header shows member name, class, level, and avatar.
-
-6. **Update `PartyPanel.tsx`**:
-   - Add `selectedMember` state.
-   - Pass `onViewActions` to each `PartyMemberCard`.
-   - Render `PartyMemberQuickActionsViewer` when a member is selected.
+No changes to core character state, HP calculations, ability systems, or prestige mechanics.
 
