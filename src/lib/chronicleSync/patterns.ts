@@ -182,7 +182,16 @@ export function parseDamageMatches(text: string): PatternMatch[] {
     }
   }
   
-  return matches;
+  // Deduplicate by proximity — same damage amount within 20 chars is the same event
+  const sorted = [...matches].sort((a, b) => a.index - b.index);
+  const kept: PatternMatch[] = [];
+  for (const m of sorted) {
+    const isDup = kept.some(k => 
+      k.value === m.value && Math.abs(k.index - m.index) < 20
+    );
+    if (!isDup) kept.push(m);
+  }
+  return kept;
 }
 
 export function parseHealingMatches(text: string): PatternMatch[] {
@@ -209,7 +218,16 @@ export function parseHealingMatches(text: string): PatternMatch[] {
     }
   }
   
-  return matches;
+  // Deduplicate by proximity — same healing amount within 20 chars is the same event
+  const sorted = [...matches].sort((a, b) => a.index - b.index);
+  const kept: PatternMatch[] = [];
+  for (const m of sorted) {
+    const isDup = kept.some(k => 
+      k.value === m.value && Math.abs(k.index - m.index) < 20
+    );
+    if (!isDup) kept.push(m);
+  }
+  return kept;
 }
 
 // ===== ITEM PATTERNS =====
@@ -441,15 +459,16 @@ export const CRIT_PATTERNS = [
   /natural\s*20/gi,
   /crit(?:ical)?\s*(?:hit|success)/gi,
   /critical\s*strike/gi,
-  /rolls?\s*(?:a\s+)?20/gi,
+  // Require "to hit" or "attack" context to avoid matching skill checks/saves
+  /rolls?\s*(?:a\s+)?(?:natural\s+)?20\s+(?:to\s+hit|on\s+(?:the\s+)?attack)/gi,
   // "crits for 24 damage", "crits dealing 30"
   /crits?\s+(?:for|dealing)\s+(\d+)\s*(?:\w+\s+)?damage/gi,
   // "critical hit on the goblin", "crits on the orc"
   /crit(?:ical)?\s*(?:hit|strike)?\s+(?:on|against)\s+(?:the\s+)?([a-zA-Z\s]+)/gi,
   // Fumble/critical miss detection
-  /natural\s*1/gi,
+  /natural\s*1\b(?!\s*(?:for|on)\s+(?:perception|stealth|athletics|acrobatics|arcana|history|insight|intimidation|investigation|medicine|nature|performance|persuasion|religion|sleight|survival|strength|dexterity|constitution|intelligence|wisdom|charisma))/gi,
   /crit(?:ical)?\s*(?:miss|fail(?:ure)?|fumble)/gi,
-  /fumbles?/gi,
+  /fumbles?\s+(?:the\s+)?(?:attack|swing|strike|shot)/gi,
 ];
 
 export const LEVEL_UP_PATTERNS = [
@@ -525,7 +544,16 @@ export function parseCritMatches(text: string): PatternMatch[] {
     }
   }
   
-  return matches;
+  // Deduplicate by proximity — same event type within 30 chars is the same crit/fumble
+  const sorted = [...matches].sort((a, b) => a.index - b.index);
+  const kept: PatternMatch[] = [];
+  for (const m of sorted) {
+    const isDup = kept.some(k => 
+      k.value === m.value && Math.abs(k.index - m.index) < 30
+    );
+    if (!isDup) kept.push(m);
+  }
+  return kept;
 }
 
 export function parseLevelUpMatches(text: string): PatternMatch[] {

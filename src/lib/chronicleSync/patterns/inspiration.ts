@@ -59,7 +59,8 @@ export function parseInspirationMatches(text: string): InspirationMatch[] {
     let match;
     
     while ((match = regex.exec(text)) !== null) {
-      const isUsed = /use|uses|add|adds/i.test(match[0]);
+      // "grants/gives bardic inspiration" = bestowing it; "uses/adds bardic inspiration" = consuming it
+      const isUsed = /\b(?:use[sd]?|adds?)\b/i.test(match[0]) && !/\b(?:grant|give)s?\b/i.test(match[0]);
       const bardicDie = match[1] ? parseInt(match[1], 10) : undefined;
       
       const start = Math.max(0, match.index - 30);
