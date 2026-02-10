@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronDown, User, Cloud, Loader2, LogIn } from 'lucide-react';
+import { ChevronDown, User, Cloud, Loader2, LogIn, LogOut } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,7 +27,7 @@ export function CharacterQuickSwitcher({
   onLoadSave,
   onCloudClick,
 }: CharacterQuickSwitcherProps) {
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const { loading, cloudSaves, fetchSaves, loadFromCloud } = useCloudSave(user?.id);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -164,6 +164,23 @@ export function CharacterQuickSwitcher({
           <Cloud className="w-4 h-4" />
           <span className="text-sm">Manage Saves...</span>
         </DropdownMenuItem>
+
+        {isAuthenticated && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="flex items-center gap-2 py-2 cursor-pointer text-destructive"
+              onClick={async () => {
+                setIsOpen(false);
+                await signOut();
+                toast.success('Signed out from cloud');
+              }}
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="text-sm">Sign Out</span>
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
