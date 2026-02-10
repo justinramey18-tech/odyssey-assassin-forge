@@ -1086,7 +1086,7 @@ Trust player reports on ability availability.`,
 PURPOSE
 ═══════════════════════════════════════════════════════════════════════════════
 
-The player uses an **offline session log parser** ("Chronicle Sync") that automatically extracts game events from your narration. By following these formatting conventions, your storytelling will be perfectly recognized and parsed — enabling one-click XP, gold, HP, item, and combat tracking.
+The player uses an **offline session log parser** ("Chronicle Sync") that automatically extracts game events from your narration. By following these formatting conventions, your storytelling will be perfectly recognized and parsed — enabling one-click XP, gold, HP, item, combat, progression, and enemy tracking.
 
 **This does NOT limit your creativity.** Simply embed the key phrases naturally within your prose. The parser uses pattern matching, so consistent phrasing ensures nothing is missed.
 
@@ -1109,7 +1109,7 @@ Use one of these phrasings when awarding XP:
 ⚠️ AVOID: "You feel more experienced" (no number = not parsed).
 
 ═══════════════════════════════════════════════════════════════════════════════
-DAMAGE
+DAMAGE (TO PLAYER)
 ═══════════════════════════════════════════════════════════════════════════════
 
 Always include the **numeric amount** and ideally the **damage type**:
@@ -1124,7 +1124,25 @@ Always include the **numeric amount** and ideally the **damage type**:
 - "You **suffer 10 cold damage** from the blizzard."
 - "You **lose 8 hit points** to the necrotic blast."
 
-💡 Including damage type (fire, cold, slashing, etc.) enables automatic damage type tracking.
+💡 Including damage type (fire, cold, slashing, etc.) enables automatic damage type tracking and resistance/vulnerability analysis.
+
+═══════════════════════════════════════════════════════════════════════════════
+DAMAGE (TO ENEMIES)
+═══════════════════════════════════════════════════════════════════════════════
+
+Include the **enemy name** and **damage amount** for automatic enemy HP tracking:
+
+✅ RECOGNIZED FORMATS:
+- "You **deal 15 slashing damage to the orc**."
+- "**Hit the goblin for 12 fire damage**."
+- "The **dragon takes 28 radiant damage**."
+- "You **strike the bandit for 14 damage**."
+- "The **orc is hit for 20 piercing damage**."
+- "**Critical hit on the troll for 32 fire damage!**"
+- "You **blast the skeleton for 18 force damage**."
+- "The **hobgoblin suffers 10 cold damage** from the spell."
+
+💡 Naming enemies consistently (e.g. always "the orc" not sometimes "the greenskin") ensures proper tracking.
 
 ═══════════════════════════════════════════════════════════════════════════════
 HEALING
@@ -1141,6 +1159,13 @@ HEALING
 TEMPORARY HP:
 - "You **gain 10 temporary HP** from Armor of Agathys."
 - "The spell **grants 8 temp hit points**."
+
+HEALING SOURCE ATTRIBUTION:
+The parser categorizes healing by source. For best results:
+- **Spell**: "Cure Wounds heals..." / "Healing Word restores..."
+- **Potion**: "drink a healing potion — regain 8 HP"
+- **Feature**: "Second Wind heals for 1d10+5 (11) HP"
+- **Rest**: "During the long rest, you regain all HP"
 
 ═══════════════════════════════════════════════════════════════════════════════
 GOLD & TREASURE
@@ -1188,7 +1213,6 @@ APPLYING CONDITIONS — use the exact D&D condition name:
 - "You are **knocked prone** by the blast."
 - "The beholder's ray leaves you **paralyzed**."
 - "You **gain 1 level of exhaustion**."
-- "**Concentration is broken** on Haste."
 - "You are **knocked unconscious**."
 
 REMOVING CONDITIONS:
@@ -1197,6 +1221,54 @@ REMOVING CONDITIONS:
 - "You **shake off** the charm."
 - "You **recover from** the stun."
 - "You **save against the** paralysis."
+
+ENEMY CONDITIONS (tracked per-enemy):
+- "The **goblin is stunned** until the end of your turn."
+- "The **dragon becomes frightened**."
+- "The **orc is no longer paralyzed**."
+- "The **zombie is restrained** by the vines."
+
+═══════════════════════════════════════════════════════════════════════════════
+RESISTANCE, VULNERABILITY & IMMUNITY
+═══════════════════════════════════════════════════════════════════════════════
+
+These are auto-detected and associated with enemies in the tracker:
+
+✅ RESISTANCE:
+- "The **troll has resistance to cold damage**."
+- "The **golem is resistant to piercing**."
+- "The dragon **resists the fire damage**."
+- "It **takes half damage from lightning**."
+- "The demon has **fire resistance**."
+
+✅ VULNERABILITY:
+- "The **skeleton is vulnerable to bludgeoning damage**."
+- "The **treant has vulnerability to fire**."
+- "It **takes double damage from radiant**."
+
+✅ IMMUNITY:
+- "The **golem is immune to poison damage**."
+- "The **ghost has immunity to necrotic**."
+- "It's **immune to fire and cold damage**."
+
+💡 These are automatically matched to enemies in your Target Tracker when you apply them.
+
+═══════════════════════════════════════════════════════════════════════════════
+CONCENTRATION
+═══════════════════════════════════════════════════════════════════════════════
+
+Concentration checks and breaks are tracked:
+
+✅ RECOGNIZED FORMATS:
+- "**Concentration check DC 10** — you maintain **Haste**."
+- "**Concentration is broken** on Bless."
+- "You **fail the concentration save** — **Hold Person** drops."
+- "You **maintain concentration** on Shield of Faith."
+- "**Concentration lost** — Fly ends."
+- "**CON save to maintain concentration: 14 vs DC 12** — success."
+- "You **lose concentration** on Wall of Fire."
+
+💡 Include the spell name for best tracking: "concentration on [Spell Name]".
 
 ═══════════════════════════════════════════════════════════════════════════════
 COMBAT EVENTS
@@ -1222,14 +1294,18 @@ ATTACK ROLLS:
 CRITICAL HITS & MISSES:
 - "**Natural 20!** Critical hit!"
 - "**Critical hit** — double damage dice!"
-- "**Natural 1** — the blade slips from your grip."
-- "**Fumble** — you stumble forward."
+- "**Natural 1** on the attack — the blade slips from your grip."
+- "**Fumble** on the attack — you stumble forward."
+
+⚠️ For crits/fumbles, include attack context ("on the attack", "to hit") so the parser doesn't confuse them with skill checks rolling 20 or 1.
 
 KILLS:
 - "You **kill the goblin** with a decisive strike."
 - "The **dragon is slain**!"
 - "The **orc falls** to your blade."
 - "**Finishing blow** on the bandit leader."
+
+💡 Kills auto-mark enemies as "defeated" in the Target Tracker.
 
 ═══════════════════════════════════════════════════════════════════════════════
 SPELL CASTING
@@ -1245,6 +1321,9 @@ Use the exact spell name for automatic slot tracking:
 - "You **cast Detect Magic as a ritual**." (no slot consumed)
 - "**Concentrating on Haste** — don't forget concentration saves!"
 - "**Wild magic surge** — roll on the table!"
+- "You **expend a 2nd level spell slot** to cast Scorching Ray."
+
+💡 Explicitly stating the slot level ("3rd level slot", "2nd level spell slot") enables precise slot tracking.
 
 ═══════════════════════════════════════════════════════════════════════════════
 SAVING THROWS & ABILITY CHECKS
@@ -1280,14 +1359,32 @@ REST & RECOVERY
 - "You **spend hit dice** to recover HP."
 - "You **catch your breath** after the fight."
 
+DOWNTIME ACTIVITIES:
+- "You **spend 5 days training** with the sword master."
+- "**3 days of downtime** pass as you study the tome."
+- "You **craft a potion** over the course of 2 days."
+- "You **work as a laborer** for 10 days, earning 20 gp."
+- "**1 week of downtime**: you research the ancient language."
+
 ═══════════════════════════════════════════════════════════════════════════════
 INSPIRATION
 ═══════════════════════════════════════════════════════════════════════════════
 
+DM INSPIRATION:
 - "**DM grants inspiration** for brilliant roleplay."
 - "You **gain inspiration** for that clever plan."
 - "You **use inspiration** to reroll the save."
+
+BARDIC INSPIRATION:
 - "**Grants bardic inspiration d8** to the fighter."
+- "The bard **gives bardic inspiration** to the rogue."
+- "You **add bardic inspiration** to the attack roll — it's a hit!"
+- "**Uses the bardic inspiration die** on the saving throw."
+
+💡 "adds bardic inspiration" / "uses bardic inspiration" = using the die on a roll.
+   "grants bardic inspiration" / "gives bardic inspiration" = granting the die.
+
+OTHER RESOURCES:
 - "You **use Lucky** to reroll the attack."
 - "You **spend a hero point** to add to the roll."
 
@@ -1302,6 +1399,26 @@ MOVEMENT & POSITIONING
 - "The guard **provokes an opportunity attack**."
 - "You're **flanking the orc** with the fighter."
 - "The mage is **within 5 feet** of the zombie."
+
+═══════════════════════════════════════════════════════════════════════════════
+ENEMY ENCOUNTERS
+═══════════════════════════════════════════════════════════════════════════════
+
+Introduce enemies clearly for the combat tracker:
+
+- "**3 goblins and 2 hobgoblins** emerge from the shadows."
+- "A mage **summons a fire elemental**."
+- "**Reinforcements arrive: 4 more orcs**."
+- "The chest **is actually a mimic** — roll initiative!"
+- "The cave is **guarded by 2 wights** and a wraith."
+
+ENEMY STATE UPDATES:
+- "The **goblin is bloodied** (below half HP)."
+- "The **orc staggers**, looking badly wounded."
+- "The **skeleton crumbles** to dust."  
+- "The **bandit surrenders** and throws down their weapon."
+- "The **troll regenerates 10 HP** at the start of its turn."
+- "The **orc flees** from combat."
 
 ═══════════════════════════════════════════════════════════════════════════════
 NPC INTRODUCTIONS
@@ -1341,16 +1458,76 @@ Present shop inventories in list format for automatic detection:
 - "**Arrows (20) — 1 gp**"
 
 ═══════════════════════════════════════════════════════════════════════════════
-ENEMY ENCOUNTERS
+ABILITY SCORE INCREASES
 ═══════════════════════════════════════════════════════════════════════════════
 
-Introduce enemies clearly for the combat tracker:
+When a character's ability scores change, use explicit phrasing:
 
-- "**3 goblins and 2 hobgoblins** emerge from the shadows."
-- "A mage **summons a fire elemental**."
-- "**Reinforcements arrive: 4 more orcs**."
-- "The chest **is actually a mimic** — roll initiative!"
-- "The cave is **guarded by 2 wights** and a wraith."
+✅ RECOGNIZED FORMATS:
+- "You **increase Strength by 2**."
+- "Your **DEX increases by 1** from the training."
+- "**Wisdom is now 18** after applying the ASI."
+- "You **gain +2 to Constitution**."
+- "**Ability Score Improvement: +1 WIS, +1 CON**."
+- "**STR goes up to 20** — maximum reached!"
+- "You **raise your Charisma by 2**."
+
+MAGICAL ITEMS:
+- "You **read the Tome of Understanding** — Wisdom increases by 2."
+- "After studying the **Manual of Gainful Exercise**, Strength is now 20."
+- "The **Tome of Clear Thought** raises your Intelligence by 2."
+- "You **use the Manual of Bodily Health** — Constitution improves."
+
+💡 The parser recognizes Tomes of Understanding/Clear Thought/Leadership and Manuals of Gainful Exercise/Quickness of Action/Bodily Health.
+
+═══════════════════════════════════════════════════════════════════════════════
+FEAT ACQUISITIONS
+═══════════════════════════════════════════════════════════════════════════════
+
+When a character gains a feat, state it clearly:
+
+✅ RECOGNIZED FORMATS:
+- "You **take the Sentinel feat**."
+- "**Gains feat: Great Weapon Master**."
+- "You **choose Lucky** as your feat."
+- "You **select the War Caster feat** for concentration advantage."
+- "At level 4, you **pick Sharpshooter**."
+- "**New feat: Alert** — you can't be surprised."
+- "**Variant Human feat: Lucky**."
+
+💡 The parser recognizes 50+ standard D&D 5e feats plus Tasha's/2024 additions.
+   Homebrew feats are also detected with "new feat: [Name]" format.
+
+═══════════════════════════════════════════════════════════════════════════════
+CLASS FEATURE UNLOCKS
+═══════════════════════════════════════════════════════════════════════════════
+
+When a character gains a new class feature, state the feature name:
+
+✅ RECOGNIZED FORMATS:
+- "You **unlock Uncanny Dodge** at Rogue level 5."
+- "You **gain the Extra Attack feature**."
+- "At level 3, you **learn Metamagic**."
+- "**Evasion unlocked** — half damage on failed DEX saves!"
+- "**New class feature: Wild Shape**."
+- "**Rogue level 5: Uncanny Dodge**."
+- "At **level 2, you gain Channel Divinity**."
+- "Upon **reaching level 3, the monk unlocks Ki**."
+
+SUPPORTED CLASSES (13 classes, 100+ features recognized):
+Rogue, Wizard, Sorcerer, Warlock, Cleric, Druid, Bard,
+Fighter, Paladin, Ranger, Barbarian, Monk + subclass features.
+
+💡 For homebrew features, use "new class feature: [Name]" format.
+
+═══════════════════════════════════════════════════════════════════════════════
+LEVEL UPS
+═══════════════════════════════════════════════════════════════════════════════
+
+- "You **reach level 5**!"
+- "**Level up! You are now level 8.**"
+- "**Rogue level 5: Uncanny Dodge** unlocked."
+- "Congratulations — you've **reached level 10**."
 
 ═══════════════════════════════════════════════════════════════════════════════
 QUICK REFERENCE CHEAT SHEET
@@ -1359,7 +1536,8 @@ QUICK REFERENCE CHEAT SHEET
 | Event | Key Phrase Pattern |
 |-------|-------------------|
 | XP | "gain/earn/receive [NUMBER] XP/experience" |
-| Damage | "take/deal/suffer [NUMBER] [TYPE] damage" |
+| Damage (self) | "take/deal/suffer [NUMBER] [TYPE] damage" |
+| Damage (enemy) | "deal [NUMBER] damage to [ENEMY]" / "[ENEMY] takes [NUMBER] damage" |
 | Healing | "heal/restore/regain [NUMBER] HP" |
 | Gold Gain | "find/loot/receive [NUMBER] gold/gp" |
 | Gold Spend | "spend/pay [NUMBER] gold/gp" |
@@ -1367,13 +1545,48 @@ QUICK REFERENCE CHEAT SHEET
 | Item Use | "drink/consume/use/activate [ITEM NAME]" |
 | Condition On | "[CONDITION NAME]" in apply context |
 | Condition Off | "no longer [CONDITION]" or "recovers from" |
+| Enemy Condition | "[ENEMY] is [CONDITION]" |
 | Kill | "kill/slay/defeat [ENEMY]" or "[ENEMY] falls/dies" |
 | Initiative | "Initiative: [NUMBER]" or "rolls [NUMBER] for initiative" |
-| Spell | "casts [SPELL NAME]" |
+| Spell | "casts [SPELL NAME]" or "expend [LEVEL] slot" |
+| Concentration | "maintain/lose concentration on [SPELL]" |
+| Resistance | "[ENEMY] resistant/resistance to [TYPE]" |
+| Vulnerability | "[ENEMY] vulnerable to [TYPE]" |
+| Immunity | "[ENEMY] immune to [TYPE]" |
 | Death Save | "death save — success/failure" |
 | Rest | "takes a short/long rest" or "sets up camp" |
-| Crit | "natural 20" or "critical hit" |
-| Fumble | "natural 1" or "fumble" |
+| Downtime | "spend [NUMBER] days [ACTIVITY]" |
+| Crit | "natural 20" on attack / "critical hit" |
+| Fumble | "natural 1" on attack / "fumble" |
+| ASI | "increase [ABILITY] by [NUMBER]" / "[ABILITY] is now [NUMBER]" |
+| Feat | "take/gain/select [FEAT] feat" / "new feat: [NAME]" |
+| Class Feature | "unlock/gain [FEATURE]" / "new class feature: [NAME]" |
+| Level Up | "reach level [NUMBER]" / "level up" |
+| Bardic Insp. | "grants/gives bardic inspiration" or "adds/uses bardic inspiration" |
+
+═══════════════════════════════════════════════════════════════════════════════
+BEST PRACTICES FOR AI DMs
+═══════════════════════════════════════════════════════════════════════════════
+
+1. **Be numerically explicit**: Always include numbers for XP, damage, healing, gold. "You feel richer" won't parse — "You find 50 gold" will.
+
+2. **Name enemies consistently**: Use the same name throughout combat. "The orc" every time, not "the greenskin" sometimes.
+
+3. **State damage types**: "18 slashing damage" is better than "18 damage" for type tracking and resistance analysis.
+
+4. **Announce spell names**: "Casts Fireball" enables slot tracking. "Casts a fire spell" does not.
+
+5. **Mark concentrations**: "Concentrating on Haste" / "Concentration broken on Haste" enables full concentration tracking.
+
+6. **Declare R/V/I explicitly**: "The troll has fire vulnerability" or "immune to poison" — these are matched to enemies automatically.
+
+7. **Use attack context for crits**: "Natural 20 on the attack" not just "Natural 20" (avoids confusion with ability checks).
+
+8. **State feat/feature names**: "Takes the Sentinel feat" or "Unlocks Uncanny Dodge" — the parser knows 50+ feats and 100+ class features by name.
+
+9. **Differentiate bardic inspiration**: "Grants bardic inspiration" (giving) vs "Uses bardic inspiration" (spending on a roll).
+
+10. **Include ASI specifics**: "Increases Strength by 2" or "Wisdom is now 18" — both formats are recognized.
 
 **Remember**: You can narrate as creatively as you want! Just include these key phrases naturally within your prose and the parser handles the rest.`,
   },
