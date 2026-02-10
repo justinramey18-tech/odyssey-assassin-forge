@@ -57,7 +57,7 @@ export interface ParsedCondition {
 }
 
 export interface ParsedCombatEvent {
-  type: 'critical_hit' | 'sneak_attack' | 'kill' | 'counterattack';
+  type: 'critical_hit' | 'fumble' | 'sneak_attack' | 'kill' | 'counterattack';
   sourceText: string;
 }
 
