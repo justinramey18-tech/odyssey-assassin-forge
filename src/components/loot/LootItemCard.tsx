@@ -18,6 +18,7 @@ import {
   Package,
   Sparkles,
   DollarSign,
+  Users,
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -49,6 +50,7 @@ interface LootItemCardProps {
   onSell: (itemId: string) => void;
   onUse?: (item: LootItem) => void;
   onCopyPrompt?: (item: LootItem) => void;
+  onShareToParty?: (item: LootItem) => void;
   isSelling?: boolean;
 }
 
@@ -59,6 +61,7 @@ export function LootItemCard({
   onSell,
   onUse,
   onCopyPrompt,
+  onShareToParty,
   isSelling = false,
 }: LootItemCardProps) {
   const [copied, setCopied] = useState(false);
@@ -184,6 +187,19 @@ export function LootItemCard({
           </Button>
         )}
         
+        {/* Share to Party */}
+        {onShareToParty && (
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => onShareToParty(item)}
+            className="h-9 w-9 text-primary hover:text-primary hover:bg-primary/10"
+            title="Share to Party"
+          >
+            <Users className="w-4 h-4" />
+          </Button>
+        )}
+
         {/* Copy AI prompt */}
         {onCopyPrompt && (
           <Button

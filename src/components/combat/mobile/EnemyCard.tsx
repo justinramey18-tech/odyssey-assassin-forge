@@ -25,6 +25,7 @@ import {
   Copy,
   ChevronDown,
   ChevronUp,
+  Crosshair,
 } from 'lucide-react';
 
 interface EnemyCardProps {
@@ -37,6 +38,7 @@ interface EnemyCardProps {
   onUpdate: (updates: Partial<Enemy>) => void;
   onClone: () => void;
   onToggleCondition: (condition: EnemyCondition) => void;
+  onMarkTarget?: () => void;
 }
 
 export function EnemyCard({
@@ -49,6 +51,7 @@ export function EnemyCard({
   onUpdate,
   onClone,
   onToggleCondition,
+  onMarkTarget,
 }: EnemyCardProps) {
   const [damageInput, setDamageInput] = useState('');
   const [showDetails, setShowDetails] = useState(false);
@@ -371,6 +374,17 @@ export function EnemyCard({
               
               {/* Actions */}
               <div className="flex gap-2">
+                {onMarkTarget && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onMarkTarget}
+                    className="flex-1 h-8 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                  >
+                    <Crosshair className="w-3 h-3 mr-1" />
+                    Mark
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="sm"
