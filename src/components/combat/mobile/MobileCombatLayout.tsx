@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Character, Ability } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
 import { cn } from '@/lib/utils';
@@ -18,7 +18,6 @@ import { generateMultiAttackPrompt, generateQueuedAttackPrompt } from '@/lib/com
 import { DiceRoll, rollDice, getAbilityDice, isCriticalHit, isCriticalMiss, inferRollMode } from '@/lib/diceRoller';
 import { generateRPPrompt } from '@/lib/rpPromptGenerator';
 import { DiceRollModal } from '@/components/character/DiceRollModal';
-import { useSwipe } from '@/hooks/use-swipe';
 import { useGameMode } from '@/hooks/use-game-mode';
 import { useCooldowns } from '@/hooks/use-cooldowns';
 import { useCombatStats } from '@/hooks/use-combat-stats';
@@ -66,8 +65,17 @@ import { AggregatedStats } from '@/hooks/use-equipment-stats';
 import { BaseAbilityScores } from '@/lib/abilityScores/types';
 import { UseActionEconomyReturn } from '@/hooks/use-action-economy';
 
-// Tab order for swipe navigation (consolidated 5-tab layout)
-const TAB_ORDER: CombatTab[] = ['combat', 'actions', 'spells', 'items', 'log'];
+// Section order for vertical scroll layout
+const SECTION_ORDER: CombatTab[] = ['combat', 'actions', 'spells', 'items', 'log'];
+
+// Section header config matching bottom nav colors
+const SECTION_HEADERS: Record<CombatTab, { label: string; icon: string; color: string }> = {
+  combat: { label: 'COMBAT', icon: '🎯', color: 'text-red-400 border-red-500/40' },
+  actions: { label: 'ACTIONS', icon: '⚡', color: 'text-amber-400 border-amber-500/40' },
+  spells: { label: 'MAGIC', icon: '✨', color: 'text-indigo-400 border-indigo-500/40' },
+  items: { label: 'ITEMS', icon: '🎒', color: 'text-green-400 border-green-500/40' },
+  log: { label: 'LOG', icon: '📜', color: 'text-primary border-primary/40' },
+};
 
 interface MobileCombatLayoutProps {
   character: Character;
@@ -123,8 +131,23 @@ export function MobileCombatLayout({
   const [actionsFilter, setActionsFilter] = useState<'all' | 'action' | 'bonus_action' | 'reaction'>('all');
   const [round, setRound] = useState(1);
   const [isYourTurn, setIsYourTurn] = useState(true);
-  const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
   const { rerollsDisabled, isHonestMode, enforceCooldowns } = useGameMode();
+  
+  // Section refs for scroll-to navigation
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const combatRef = useRef<HTMLDivElement>(null);
+  const actionsRef = useRef<HTMLDivElement>(null);
+  const spellsRef = useRef<HTMLDivElement>(null);
+  const itemsRef = useRef<HTMLDivElement>(null);
+  const logRef = useRef<HTMLDivElement>(null);
+  
+  const sectionRefs: Record<CombatTab, React.RefObject<HTMLDivElement>> = {
+    combat: combatRef,
+    actions: actionsRef,
+    spells: spellsRef,
+    items: itemsRef,
+    log: logRef,
+  };
   
   // Use unified combat stats hook
   const combatStats = useCombatStats({
@@ -181,32 +204,36 @@ export function MobileCombatLayout({
     return () => window.removeEventListener(COMBAT_SETTINGS_CHANGE_EVENT, handleChange);
   }, []);
   
-  // Swipe navigation handlers
-  const handleSwipeLeft = useCallback(() => {
-    const currentIndex = TAB_ORDER.indexOf(activeTab);
-    if (currentIndex < TAB_ORDER.length - 1) {
-      setSlideDirection('left');
-      setActiveTab(TAB_ORDER[currentIndex + 1]);
-      // Reset animation after it completes
-      setTimeout(() => setSlideDirection(null), 300);
-    }
-  }, [activeTab]);
+  // Handle tab click: scroll to section
+  const handleTabChange = useCallback((tab: CombatTab) => {
+    setActiveTab(tab);
+    const ref = sectionRefs[tab];
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [sectionRefs]);
   
-  const handleSwipeRight = useCallback(() => {
-    const currentIndex = TAB_ORDER.indexOf(activeTab);
-    if (currentIndex > 0) {
-      setSlideDirection('right');
-      setActiveTab(TAB_ORDER[currentIndex - 1]);
-      // Reset animation after it completes
-      setTimeout(() => setSlideDirection(null), 300);
-    }
-  }, [activeTab]);
-  
-  const { handlers: swipeHandlers, swiping, swipeOffset } = useSwipe(
-    handleSwipeLeft,
-    handleSwipeRight,
-    { threshold: 60, velocityThreshold: 0.4 }
-  );
+  // IntersectionObserver to auto-highlight active tab on scroll
+  useEffect(() => {
+    const observers: IntersectionObserver[] = [];
+    const refEntries = Object.entries(sectionRefs) as [CombatTab, React.RefObject<HTMLDivElement>][];
+    
+    refEntries.forEach(([tab, ref]) => {
+      if (!ref.current) return;
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              setActiveTab(tab);
+            }
+          });
+        },
+        { threshold: 0.15, rootMargin: '-80px 0px -60% 0px' }
+      );
+      observer.observe(ref.current);
+      observers.push(observer);
+    });
+    
+    return () => observers.forEach(o => o.disconnect());
+  }, [sectionRefs]);
   
   // Situation state
   const [conditions, setConditions] = useState<string[]>([]);
@@ -764,315 +791,303 @@ export function MobileCombatLayout({
     setLastAction('SUMMARY COPIED');
   };
   
-  // Render tab content
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'combat':
-        // Combined Attacks + Stealth
-        return (
-          <div className="flex-1 overflow-y-auto">
-            <div className="p-4 pb-24 space-y-4">
-              {/* Death Saves Panel - appears when HP is 0 */}
-              {currentHP === 0 && deathSaves && onDeathSavesChange && onRegainHP && (
-                <DeathSavesTracker
-                  deathSaves={deathSaves}
-                  onDeathSavesChange={onDeathSavesChange}
-                  onRegainHP={onRegainHP}
-                />
-              )}
-              {/* Quick Cast Panel - Magic Integration */}
-              {spellcasting && spellcasting.state.path && (
-                <QuickCastPanel
-                  spellcasting={spellcasting}
-                  characterName={character.name}
-                  characterLevel={character.level}
-                  onCast={(result) => {
-                    if (result.success) {
-                      handleAddToTurn('action', `Cast ${result.spellName}`);
-                      setLastAction(`${result.spellName.toUpperCase()} CAST`);
-                    }
-                  }}
-                />
-              )}
-              
-              {/* Sneak Attack Status */}
-              <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-xl">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-mono text-green-400">SNEAK ATTACK</span>
-                  <span className="text-lg font-bold text-green-300">{sneakAttackDice}</span>
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Once per turn with advantage OR ally within 5ft (no disadvantage)
-                </p>
-              </div>
-              
-              {/* Attack Queue Panel */}
-              <AttackQueuePanel
-                queue={attackQueue.sortedQueue}
-                enemies={targetTracker.enemies}
-                actionEconomy={attackQueue.actionEconomy}
-                onRemove={attackQueue.removeFromQueue}
-                onReorder={attackQueue.reorderAttack}
-                onUpdateTarget={attackQueue.updateAttackTarget}
-                onExecute={handleExecuteQueue}
-                onClear={attackQueue.clearQueue}
-              />
-              
-              {/* Weapon Cards Section */}
-              <div className="space-y-3">
-                <h3 className="text-xs font-mono text-destructive uppercase tracking-wide">⚔️ Weapons</h3>
-                {equippedWeapons.map(weapon => (
-                  <MobileWeaponCard
-                    key={weapon.id}
-                    weapon={weapon}
-                    level={character.level}
-                    attackBonus={combatStats.attackBonus}
-                    damageBonus={combatStats.damageBonus}
-                    conditions={conditions}
-                    hasPoisonedWeapon={hasPoisonedWeapon}
-                    isExpanded={expandedWeaponId === weapon.id}
-                    onToggleExpand={() => setExpandedWeaponId(
-                      expandedWeaponId === weapon.id ? null : weapon.id
-                    )}
-                    onRoll={handleWeaponRoll}
-                    customImage={weapon.slotType ? equipmentImages[weapon.slotType] : undefined}
-                    enemies={targetTracker.enemies}
-                    selectedTargetId={attackQueue.defaultTargetId}
-                    onQueueAttack={handleQueueAttack}
-                  />
-                ))}
-                {equippedWeapons.length === 0 && (
-                  <div className="text-center py-4 text-muted-foreground">
-                    <p className="text-sm">No weapons equipped</p>
-                  </div>
-                )}
-              </div>
-              
-              {/* Offhand Attack (Two-Weapon Fighting) */}
-              {weaponsMap.secondary && (
-                <OffhandAttackCard
-                  secondaryWeapon={weaponsMap.secondary}
-                  primaryWeapon={weaponsMap.primary}
-                  level={character.level}
-                  attackBonus={combatStats.attackBonus}
-                  hasTwoWeaponFightingStyle={combatSettings.hasTwoWeaponFightingStyle}
-                  hasDualWielderFeat={combatSettings.hasDualWielderFeat}
-                  damageBonus={combatStats.damageBonus}
-                  conditions={conditions}
-                  hasPoisonedWeapon={hasPoisonedWeapon}
-                  bonusActionUsed={actionEconomy.bonusActionUsed}
-                  onRoll={handleOffhandRoll}
-                  onUseBonus={() => actionEconomyState?.useBonus?.() ?? setActionEconomy({...actionEconomy, bonusActionUsed: true})}
-                  customImage={equipmentImages.secondary_weapon}
-                />
-              )}
-              
-              {/* Stealth Abilities Section */}
-              {stealthAbilities.length > 0 && (
-                <div className="space-y-3 pt-2 border-t border-muted/20">
-                  <h3 className="text-xs font-mono text-purple-400 uppercase tracking-wide">🌙 Stealth & Assassin</h3>
-                  {stealthAbilities.map(ability => {
-                    const cdState = cooldownStateMap.get(ability.id);
-                    return (
-                      <div key={ability.id}>
-                        <CombatAbilityCard
-                          ability={ability}
-                          characterName={character.name}
-                          weapons={weaponsMap}
-                          cooldownState={cdState ? {
-                            isOnCooldown: cdState.isOnCooldown,
-                            remaining: cdState.remaining,
-                            total: cdState.total,
-                          } : undefined}
-                          customImage={abilityImages[ability.id]}
-                          activeConditions={globalConditions}
-                          activeSetBonuses={activeSetBonuses}
-                          concentrationSpell={concentrationSpell}
-                          currentTarget={targetTracker.getTargetForPrompt()}
-                          onUse={handleEnhancedAbilityUse}
-                          onTriggerCooldown={cooldownSystem.triggerCooldown}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      
-      case 'actions':
-        // Combined Abilities + Reactions with filter
-        const filteredAbilities = actionsFilter === 'all' 
-          ? [...specialAbilities, ...unlockedAbilities.filter(a => a.actionType === 'reaction')]
-          : actionsFilter === 'reaction'
-            ? unlockedAbilities.filter(a => a.actionType === 'reaction')
-            : specialAbilities.filter(a => a.actionType === actionsFilter);
-        
-        return (
-          <div className="flex-1 overflow-y-auto">
-            <div className="p-4 pb-24 space-y-4">
-              {/* Filter Chips */}
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {(['all', 'action', 'bonus_action', 'reaction'] as const).map(filter => (
-                  <button
-                    key={filter}
-                    onClick={() => setActionsFilter(filter)}
-                    className={cn(
-                      "flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-mono whitespace-nowrap transition-all active:scale-95",
-                      actionsFilter === filter
-                        ? "bg-amber-500/20 text-amber-300 border border-amber-500/50"
-                        : "bg-muted/20 text-muted-foreground border border-muted/30"
-                    )}
-                  >
-                    {filter === 'all' ? 'All' : 
-                     filter === 'action' ? '⚔️ Action' : 
-                     filter === 'bonus_action' ? '⚡ Bonus' : 
-                     '🛡️ Reaction'}
-                  </button>
-                ))}
-              </div>
-              
-              {/* Reaction Spent Warning */}
-              {actionsFilter === 'reaction' && actionEconomy.reactionUsed && (
-                <div className="p-2 bg-red-500/10 border border-red-500/30 rounded-lg text-center">
-                  <span className="text-xs text-red-400 font-mono">⚠️ REACTION USED THIS ROUND</span>
-                </div>
-              )}
-              
-              {/* Abilities List */}
-              {filteredAbilities.length > 0 ? (
-                <div className="space-y-3">
-                  {filteredAbilities.map(ability => {
-                    const cdState = cooldownStateMap.get(ability.id);
-                    const isReaction = ability.actionType === 'reaction';
-                    return (
-                      <div key={ability.id} className={cn(
-                        isReaction && "border-l-2 border-cyan-500 pl-2"
-                      )}>
-                        <CombatAbilityCard
-                          ability={ability}
-                          characterName={character.name}
-                          weapons={weaponsMap}
-                          cooldownState={cdState ? {
-                            isOnCooldown: cdState.isOnCooldown,
-                            remaining: cdState.remaining,
-                            total: cdState.total,
-                          } : undefined}
-                          customImage={abilityImages[ability.id]}
-                          activeConditions={globalConditions}
-                          activeSetBonuses={activeSetBonuses}
-                          concentrationSpell={concentrationSpell}
-                          currentTarget={targetTracker.getTargetForPrompt()}
-                          onUse={(ability, roll, prompt, combinedDamage) => {
-                            handleEnhancedAbilityUse(ability, roll, prompt, combinedDamage);
-                            // Mark reaction as used if it's a reaction ability
-                            if (ability.actionType === 'reaction') {
-                              setActionEconomy(prev => ({ ...prev, reactionUsed: true }));
-                            }
-                          }}
-                          onTriggerCooldown={cooldownSystem.triggerCooldown}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No {actionsFilter === 'all' ? 'abilities' : actionsFilter.replace('_', ' ') + 's'} unlocked</p>
-                </div>
-              )}
-              
-              {/* Built-in Reactions (from MobileReactionsList) */}
-              {(actionsFilter === 'all' || actionsFilter === 'reaction') && (
-                <div className="pt-2 border-t border-muted/20">
-                  <MobileReactionsList
-                    reactionUsed={actionEconomy.reactionUsed}
-                    onUseReaction={(reaction) => {
-                      setActionEconomy(prev => ({ ...prev, reactionUsed: true }));
-                      setLastAction(`⚡ ${reaction.name.toUpperCase()}`);
-                      handleAddToTurn('reaction', reaction.name);
-                      
-                      combatLog.addEntry({
-                        actionType: 'reaction',
-                        actionName: reaction.name,
-                        prompt: reaction.dmPrompt || `## ⚡ REACTION: ${reaction.name.toUpperCase()}\n\n**Character:** ${character.name}\n**Trigger:** ${reaction.trigger}\n\n### Effect\n${reaction.effect}\n\n---\n\n*Narrate how ${character.name} instinctively responds with ${reaction.name}.*`,
-                      });
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      
-      case 'spells':
-        return spellcasting ? (
-          <MobileSpellList
-            spellcasting={spellcasting}
-            characterName={character.name}
-            onCast={(result) => {
-              if (result.success) {
-                setLastAction(`${result.spellName.toUpperCase()} CAST`);
-                handleAddToTurn('action', `Cast ${result.spellName}`);
-                
-                combatLog.addEntry({
-                  actionType: 'spell',
-                  actionName: result.spellName,
-                  prompt: `## 🔮 SPELL CAST: ${result.spellName.toUpperCase()}\n\n**Character:** ${character.name}\n\n---\n\n*Narrate ${character.name} casting ${result.spellName}.*`,
-                });
-              }
-            }}
-          />
-        ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-center py-16 px-4">
-            <p className="text-muted-foreground">Spellcasting not available</p>
-          </div>
-        );
-      
-      case 'items':
-        // Convert set bonuses to the format expected by MobileItemsGrid
-        const activeSetForItems = activeSetBonuses.length > 0 ? {
-          name: activeSetBonuses[0].name,
-          effect: activeSetBonuses[0].effect,
-        } : undefined;
-        
-        // Convert concentration spell to format expected by MobileItemsGrid
-        const concentrationForItems = concentrationSpell ? {
-          name: concentrationSpell,
-          level: undefined,
-        } : undefined;
-        
-        return (
-          <MobileItemsGrid
-            onAddToTurn={handleAddToTurn}
-            onRemoveFromTurn={handleRemoveActionByDescription}
-            onNavigateToConsumables={onNavigateToConsumables}
-            globalConditions={globalConditions}
-            activeSetBonus={activeSetForItems}
-            concentrationSpell={concentrationForItems}
-            lootItemsWithDice={lootItemsWithDice}
-            onUseLootItem={onUseLootItem}
-            characterName={character.name}
-            onLogEntry={(entry) => combatLog.addEntry(entry)}
-            onRemoveLogEntry={(actionName) => {
-              const match = combatLog.entries.find(e => e.actionType === 'item' && e.actionName === actionName);
-              if (match) combatLog.removeEntry(match.id);
-            }}
-          />
-        );
-      
-      case 'log':
-        return (
-          <CombatLogPanel
-            entries={combatLog.entries}
-            onClearLog={combatLog.clearLog}
-            onRemoveEntry={combatLog.removeEntry}
-            onSmartPrompt={() => setShowSmartPromptSheet(true)}
-          />
-        );
-    }
+  // Helper: render section header divider
+  const renderSectionHeader = (tab: CombatTab) => {
+    const config = SECTION_HEADERS[tab];
+    return (
+      <div className={cn(
+        "flex items-center gap-2 px-4 py-3 border-t",
+        config.color
+      )}>
+        <span className="text-sm">{config.icon}</span>
+        <span className="text-xs font-mono tracking-widest">{config.label}</span>
+        <div className={cn("flex-1 h-px", config.color.replace('text-', 'bg-').replace(' border-', ' '))} />
+      </div>
+    );
   };
+
+  // Render combat section content (inline, not wrapped in overflow containers)
+  const renderCombatContent = () => (
+    <div className="p-4 space-y-4">
+      {currentHP === 0 && deathSaves && onDeathSavesChange && onRegainHP && (
+        <DeathSavesTracker
+          deathSaves={deathSaves}
+          onDeathSavesChange={onDeathSavesChange}
+          onRegainHP={onRegainHP}
+        />
+      )}
+      {spellcasting && spellcasting.state.path && (
+        <QuickCastPanel
+          spellcasting={spellcasting}
+          characterName={character.name}
+          characterLevel={character.level}
+          onCast={(result) => {
+            if (result.success) {
+              handleAddToTurn('action', `Cast ${result.spellName}`);
+              setLastAction(`${result.spellName.toUpperCase()} CAST`);
+            }
+          }}
+        />
+      )}
+      <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-xl">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs font-mono text-green-400">SNEAK ATTACK</span>
+          <span className="text-lg font-bold text-green-300">{sneakAttackDice}</span>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Once per turn with advantage OR ally within 5ft (no disadvantage)
+        </p>
+      </div>
+      <AttackQueuePanel
+        queue={attackQueue.sortedQueue}
+        enemies={targetTracker.enemies}
+        actionEconomy={attackQueue.actionEconomy}
+        onRemove={attackQueue.removeFromQueue}
+        onReorder={attackQueue.reorderAttack}
+        onUpdateTarget={attackQueue.updateAttackTarget}
+        onExecute={handleExecuteQueue}
+        onClear={attackQueue.clearQueue}
+      />
+      <div className="space-y-3">
+        <h3 className="text-xs font-mono text-destructive uppercase tracking-wide">⚔️ Weapons</h3>
+        {equippedWeapons.map(weapon => (
+          <MobileWeaponCard
+            key={weapon.id}
+            weapon={weapon}
+            level={character.level}
+            attackBonus={combatStats.attackBonus}
+            damageBonus={combatStats.damageBonus}
+            conditions={conditions}
+            hasPoisonedWeapon={hasPoisonedWeapon}
+            isExpanded={expandedWeaponId === weapon.id}
+            onToggleExpand={() => setExpandedWeaponId(
+              expandedWeaponId === weapon.id ? null : weapon.id
+            )}
+            onRoll={handleWeaponRoll}
+            customImage={weapon.slotType ? equipmentImages[weapon.slotType] : undefined}
+            enemies={targetTracker.enemies}
+            selectedTargetId={attackQueue.defaultTargetId}
+            onQueueAttack={handleQueueAttack}
+          />
+        ))}
+        {equippedWeapons.length === 0 && (
+          <div className="text-center py-4 text-muted-foreground">
+            <p className="text-sm">No weapons equipped</p>
+          </div>
+        )}
+      </div>
+      {weaponsMap.secondary && (
+        <OffhandAttackCard
+          secondaryWeapon={weaponsMap.secondary}
+          primaryWeapon={weaponsMap.primary}
+          level={character.level}
+          attackBonus={combatStats.attackBonus}
+          hasTwoWeaponFightingStyle={combatSettings.hasTwoWeaponFightingStyle}
+          hasDualWielderFeat={combatSettings.hasDualWielderFeat}
+          damageBonus={combatStats.damageBonus}
+          conditions={conditions}
+          hasPoisonedWeapon={hasPoisonedWeapon}
+          bonusActionUsed={actionEconomy.bonusActionUsed}
+          onRoll={handleOffhandRoll}
+          onUseBonus={() => actionEconomyState?.useBonus?.() ?? setActionEconomy({...actionEconomy, bonusActionUsed: true})}
+          customImage={equipmentImages.secondary_weapon}
+        />
+      )}
+      {stealthAbilities.length > 0 && (
+        <div className="space-y-3 pt-2 border-t border-muted/20">
+          <h3 className="text-xs font-mono text-purple-400 uppercase tracking-wide">🌙 Stealth & Assassin</h3>
+          {stealthAbilities.map(ability => {
+            const cdState = cooldownStateMap.get(ability.id);
+            return (
+              <div key={ability.id}>
+                <CombatAbilityCard
+                  ability={ability}
+                  characterName={character.name}
+                  weapons={weaponsMap}
+                  cooldownState={cdState ? {
+                    isOnCooldown: cdState.isOnCooldown,
+                    remaining: cdState.remaining,
+                    total: cdState.total,
+                  } : undefined}
+                  customImage={abilityImages[ability.id]}
+                  activeConditions={globalConditions}
+                  activeSetBonuses={activeSetBonuses}
+                  concentrationSpell={concentrationSpell}
+                  currentTarget={targetTracker.getTargetForPrompt()}
+                  onUse={handleEnhancedAbilityUse}
+                  onTriggerCooldown={cooldownSystem.triggerCooldown}
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  // Render actions section content
+  const renderActionsContent = () => {
+    const filteredAbilities = actionsFilter === 'all' 
+      ? [...specialAbilities, ...unlockedAbilities.filter(a => a.actionType === 'reaction')]
+      : actionsFilter === 'reaction'
+        ? unlockedAbilities.filter(a => a.actionType === 'reaction')
+        : specialAbilities.filter(a => a.actionType === actionsFilter);
+    
+    return (
+      <div className="p-4 space-y-4">
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {(['all', 'action', 'bonus_action', 'reaction'] as const).map(filter => (
+            <button
+              key={filter}
+              onClick={() => setActionsFilter(filter)}
+              className={cn(
+                "flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-mono whitespace-nowrap transition-all active:scale-95",
+                actionsFilter === filter
+                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/50"
+                  : "bg-muted/20 text-muted-foreground border border-muted/30"
+              )}
+            >
+              {filter === 'all' ? 'All' : 
+               filter === 'action' ? '⚔️ Action' : 
+               filter === 'bonus_action' ? '⚡ Bonus' : 
+               '🛡️ Reaction'}
+            </button>
+          ))}
+        </div>
+        {actionsFilter === 'reaction' && actionEconomy.reactionUsed && (
+          <div className="p-2 bg-red-500/10 border border-red-500/30 rounded-lg text-center">
+            <span className="text-xs text-red-400 font-mono">⚠️ REACTION USED THIS ROUND</span>
+          </div>
+        )}
+        {filteredAbilities.length > 0 ? (
+          <div className="space-y-3">
+            {filteredAbilities.map(ability => {
+              const cdState = cooldownStateMap.get(ability.id);
+              const isReaction = ability.actionType === 'reaction';
+              return (
+                <div key={ability.id} className={cn(
+                  isReaction && "border-l-2 border-cyan-500 pl-2"
+                )}>
+                  <CombatAbilityCard
+                    ability={ability}
+                    characterName={character.name}
+                    weapons={weaponsMap}
+                    cooldownState={cdState ? {
+                      isOnCooldown: cdState.isOnCooldown,
+                      remaining: cdState.remaining,
+                      total: cdState.total,
+                    } : undefined}
+                    customImage={abilityImages[ability.id]}
+                    activeConditions={globalConditions}
+                    activeSetBonuses={activeSetBonuses}
+                    concentrationSpell={concentrationSpell}
+                    currentTarget={targetTracker.getTargetForPrompt()}
+                    onUse={(ability, roll, prompt, combinedDamage) => {
+                      handleEnhancedAbilityUse(ability, roll, prompt, combinedDamage);
+                      if (ability.actionType === 'reaction') {
+                        setActionEconomy(prev => ({ ...prev, reactionUsed: true }));
+                      }
+                    }}
+                    onTriggerCooldown={cooldownSystem.triggerCooldown}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-muted-foreground">
+            <p>No {actionsFilter === 'all' ? 'abilities' : actionsFilter.replace('_', ' ') + 's'} unlocked</p>
+          </div>
+        )}
+        {(actionsFilter === 'all' || actionsFilter === 'reaction') && (
+          <div className="pt-2 border-t border-muted/20">
+            <MobileReactionsList
+              reactionUsed={actionEconomy.reactionUsed}
+              onUseReaction={(reaction) => {
+                setActionEconomy(prev => ({ ...prev, reactionUsed: true }));
+                setLastAction(`⚡ ${reaction.name.toUpperCase()}`);
+                handleAddToTurn('reaction', reaction.name);
+                combatLog.addEntry({
+                  actionType: 'reaction',
+                  actionName: reaction.name,
+                  prompt: reaction.dmPrompt || `## ⚡ REACTION: ${reaction.name.toUpperCase()}\n\n**Character:** ${character.name}\n**Trigger:** ${reaction.trigger}\n\n### Effect\n${reaction.effect}\n\n---\n\n*Narrate how ${character.name} instinctively responds with ${reaction.name}.*`,
+                });
+              }}
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Render spells section content
+  const renderSpellsContent = () => {
+    if (!spellcasting) {
+      return (
+        <div className="flex flex-col items-center justify-center text-center py-16 px-4">
+          <p className="text-muted-foreground">Spellcasting not available</p>
+        </div>
+      );
+    }
+    return (
+      <MobileSpellList
+        spellcasting={spellcasting}
+        characterName={character.name}
+        onCast={(result) => {
+          if (result.success) {
+            setLastAction(`${result.spellName.toUpperCase()} CAST`);
+            handleAddToTurn('action', `Cast ${result.spellName}`);
+            combatLog.addEntry({
+              actionType: 'spell',
+              actionName: result.spellName,
+              prompt: `## 🔮 SPELL CAST: ${result.spellName.toUpperCase()}\n\n**Character:** ${character.name}\n\n---\n\n*Narrate ${character.name} casting ${result.spellName}.*`,
+            });
+          }
+        }}
+      />
+    );
+  };
+
+  // Render items section content
+  const renderItemsContent = () => {
+    const activeSetForItems = activeSetBonuses.length > 0 ? {
+      name: activeSetBonuses[0].name,
+      effect: activeSetBonuses[0].effect,
+    } : undefined;
+    const concentrationForItems = concentrationSpell ? {
+      name: concentrationSpell,
+      level: undefined,
+    } : undefined;
+    
+    return (
+      <MobileItemsGrid
+        onAddToTurn={handleAddToTurn}
+        onRemoveFromTurn={handleRemoveActionByDescription}
+        onNavigateToConsumables={onNavigateToConsumables}
+        globalConditions={globalConditions}
+        activeSetBonus={activeSetForItems}
+        concentrationSpell={concentrationForItems}
+        lootItemsWithDice={lootItemsWithDice}
+        onUseLootItem={onUseLootItem}
+        characterName={character.name}
+        onLogEntry={(entry) => combatLog.addEntry(entry)}
+        onRemoveLogEntry={(actionName) => {
+          const match = combatLog.entries.find(e => e.actionType === 'item' && e.actionName === actionName);
+          if (match) combatLog.removeEntry(match.id);
+        }}
+      />
+    );
+  };
+
+  // Render log section content
+  const renderLogContent = () => (
+    <CombatLogPanel
+      entries={combatLog.entries}
+      onClearLog={combatLog.clearLog}
+      onRemoveEntry={combatLog.removeEntry}
+      onSmartPrompt={() => setShowSmartPromptSheet(true)}
+    />
+  );
   
   return (
     <div className="min-h-screen bg-background">
@@ -1167,39 +1182,49 @@ export function MobileCombatLayout({
           maxHP={maxHP}
           sneakAttackAvailable={conditions.includes('ally_adjacent')}
           onSuggestAttack={() => {
-            setActiveTab('combat');
+            handleTabChange('combat');
             setLastAction('WIZARD: ATTACK');
           }}
           onSuggestHide={() => {
-            setActiveTab('combat');
+            handleTabChange('combat');
             handleQuickHide();
           }}
           onSuggestAbility={(ability) => {
-            setActiveTab('actions');
+            handleTabChange('actions');
             setLastAction(`WIZARD: ${ability.name.toUpperCase()}`);
           }}
         />
         
-        {/* Tab Content - Swipeable */}
-        <div 
-          {...swipeHandlers}
-          className="overflow-auto touch-pan-y"
-          style={{ 
-            touchAction: 'pan-y pinch-zoom',
-          }}
-        >
-          <div 
-            className={cn(
-              "transition-transform duration-300 ease-out",
-              slideDirection === 'left' && "animate-slide-in-from-right",
-              slideDirection === 'right' && "animate-slide-in-from-left"
-            )}
-            style={{
-              transform: swiping ? `translateX(${swipeOffset}px)` : undefined,
-              transition: swiping ? 'none' : undefined,
-            }}
-          >
-            {renderTabContent()}
+        {/* All Sections - Continuous Vertical Scroll */}
+        <div ref={scrollContainerRef}>
+          {/* COMBAT Section */}
+          <div ref={combatRef} id="section-combat">
+            {renderSectionHeader('combat')}
+            {renderCombatContent()}
+          </div>
+          
+          {/* ACTIONS Section */}
+          <div ref={actionsRef} id="section-actions">
+            {renderSectionHeader('actions')}
+            {renderActionsContent()}
+          </div>
+          
+          {/* MAGIC Section */}
+          <div ref={spellsRef} id="section-spells">
+            {renderSectionHeader('spells')}
+            {renderSpellsContent()}
+          </div>
+          
+          {/* ITEMS Section */}
+          <div ref={itemsRef} id="section-items">
+            {renderSectionHeader('items')}
+            {renderItemsContent()}
+          </div>
+          
+          {/* LOG Section */}
+          <div ref={logRef} id="section-log" className="pb-24">
+            {renderSectionHeader('log')}
+            {renderLogContent()}
           </div>
         </div>
       </main>
@@ -1207,7 +1232,7 @@ export function MobileCombatLayout({
       {/* Bottom Navigation */}
       <CombatBottomNav
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
         abilityCounts={{
           combat: equippedWeapons.length + stealthAbilities.length,
           actions: specialAbilities.length + unlockedAbilities.filter(a => a.actionType === 'reaction').length,
