@@ -42,6 +42,31 @@ const HEALING_FEATURES = [
   'balm of the summer court',
   'wholeness of body',
   'celestial resilience',
+  // Subclass features
+  'twilight sanctuary',
+  'circle of dreams',
+  'life transference',
+  'healing spirit',
+  'aura of vitality',
+  'inspiring leader',
+  'chef feat',
+  'gift of the ever-living ones',
+  'blessed healer',
+  'supreme healing',
+  'preserve life',
+  'disciple of life',
+  // Racial features (HP-related)
+  'dwarven fortitude',
+  'relentless endurance',
+  'durable feat',
+  'periapt of wound closure',
+  'staff of healing',
+  'ring of regeneration',
+  // Environmental
+  'fountain',
+  'blessed water',
+  'healing spring',
+  'pool of radiance',
 ];
 
 // Potion keywords

@@ -20,37 +20,59 @@ const DAMAGE_TYPE_CONTEXT: Record<string, DamageType> = {
   scorch: 'fire', scorched: 'fire', searing: 'fire', sear: 'fire',
   ignite: 'fire', incinerate: 'fire', blaze: 'fire',
   fireball: 'fire', 'fire bolt': 'fire',
+  lava: 'fire', magma: 'fire', inferno: 'fire', conflagration: 'fire',
   // Cold
   freeze: 'cold', freezes: 'cold', frozen: 'cold', freezing: 'cold',
   frost: 'cold', frostbite: 'cold', icy: 'cold', chill: 'cold',
   'ray of frost': 'cold', 'cone of cold': 'cold',
+  glacial: 'cold', hypothermia: 'cold', blizzard: 'cold',
   // Lightning
   shock: 'lightning', shocks: 'lightning', shocked: 'lightning',
   electrocute: 'lightning', electrified: 'lightning', jolt: 'lightning',
   'lightning bolt': 'lightning', 'chain lightning': 'lightning',
+  zap: 'lightning', spark: 'lightning',
   // Thunder
   thunder: 'thunder', thunderous: 'thunder', sonic: 'thunder',
   deafen: 'thunder', shatter: 'thunder', thunderwave: 'thunder',
+  concussive: 'thunder', boom: 'thunder',
   // Poison
   venom: 'poison', venomous: 'poison', toxic: 'poison', toxin: 'poison',
   // Necrotic
   necrotic: 'necrotic', wither: 'necrotic', withering: 'necrotic',
   decay: 'necrotic', rot: 'necrotic', rotting: 'necrotic',
   'chill touch': 'necrotic', blight: 'necrotic',
+  'toll the dead': 'necrotic', 'finger of death': 'necrotic',
+  drain: 'necrotic', 'life drain': 'necrotic',
   // Radiant
   radiant: 'radiant', holy: 'radiant', divine: 'radiant',
   smite: 'radiant', 'guiding bolt': 'radiant', 'sacred flame': 'radiant',
+  'moonbeam': 'radiant', 'dawn': 'radiant', 'sunbeam': 'radiant',
+  'sunburst': 'radiant', 'word of radiance': 'radiant',
   // Psychic
   psychic: 'psychic', mental: 'psychic', 'mind blast': 'psychic',
+  'psychic scream': 'psychic', 'mind spike': 'psychic', 'synaptic static': 'psychic',
   // Force
   force: 'force', 'magic missile': 'force', 'eldritch blast': 'force',
+  'spiritual weapon': 'force', 'bigby\'s hand': 'force', 'disintegrate': 'force',
   // Acid
   acid: 'acid', corrode: 'acid', corrosive: 'acid', dissolve: 'acid',
-  // Physical
+  'acid splash': 'acid', 'melf\'s acid arrow': 'acid',
+  // Physical - weapons
   slash: 'slashing', slashing: 'slashing', cleave: 'slashing', cut: 'slashing',
+  longsword: 'slashing', greatsword: 'slashing', scimitar: 'slashing',
+  greataxe: 'slashing', handaxe: 'slashing', glaive: 'slashing',
+  halberd: 'slashing', sickle: 'slashing', whip: 'slashing',
   pierce: 'piercing', piercing: 'piercing', stab: 'piercing', impale: 'piercing',
+  longbow: 'piercing', shortbow: 'piercing', crossbow: 'piercing',
+  rapier: 'piercing', spear: 'piercing', javelin: 'piercing', pike: 'piercing',
+  arrow: 'piercing', bolt: 'piercing', dart: 'piercing', trident: 'piercing',
+  bite: 'piercing', fang: 'piercing', sting: 'piercing',
   bludgeon: 'bludgeoning', bludgeoning: 'bludgeoning', crush: 'bludgeoning',
   smash: 'bludgeoning', slam: 'bludgeoning', pummel: 'bludgeoning',
+  warhammer: 'bludgeoning', mace: 'bludgeoning', flail: 'bludgeoning',
+  quarterstaff: 'bludgeoning', maul: 'bludgeoning', club: 'bludgeoning',
+  falling: 'bludgeoning', drowning: 'bludgeoning', constrict: 'bludgeoning',
+  'tail swipe': 'bludgeoning', 'tail attack': 'bludgeoning',
 };
 
 /**

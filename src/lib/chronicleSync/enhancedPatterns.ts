@@ -10,6 +10,8 @@ import { parseDiceRolls, consolidateMultiHits } from './patterns/diceAndMultiHit
 import { buildNPCRegistry } from './patterns/npcLearning';
 import { attributeHealing } from './patterns/healingAttribution';
 import { extractDamageType } from './patterns/damageTypes';
+import { parseAttackRolls } from './patterns/attackRolls';
+import { parseMovementEvents } from './patterns/movement';
 import { 
   ParsedRestEvent, 
   ParsedSpellSlotUsage, 
@@ -24,6 +26,8 @@ import type { ParsedDiceRoll, ConsolidatedHit } from './patterns/diceAndMultiHit
 import type { HealingAttribution } from './patterns/healingAttribution';
 import type { NPCEntry } from './patterns/npcLearning';
 import type { DamageType } from './patterns/damageTypes';
+import type { ParsedAttackRoll } from './patterns/attackRolls';
+import type { ParsedMovement } from './patterns/movement';
 
 // Re-export types
 export type { InitiativeMatch } from './patterns/initiative';
@@ -32,6 +36,8 @@ export type { ParsedDiceRoll, ConsolidatedHit } from './patterns/diceAndMultiHit
 export type { HealingAttribution } from './patterns/healingAttribution';
 export type { NPCEntry } from './patterns/npcLearning';
 export type { DamageType } from './patterns/damageTypes';
+export type { ParsedAttackRoll } from './patterns/attackRolls';
+export type { ParsedMovement } from './patterns/movement';
 
 // ===== REST PATTERNS =====
 
@@ -476,11 +482,14 @@ export interface EnhancedPatternResults {
   tempHPGains: ParsedTempHP[];
   inspirationEvents: ParsedInspiration[];
   initiativeRolls: InitiativeMatch[];
-  // New: 9 improvements
+  // 9 improvements
   savingThrows: ParsedSavingThrow[];
   abilityChecks: ParsedAbilityCheck[];
   diceRolls: ParsedDiceRoll[];
   npcRegistry: NPCEntry[];
+  // New categories
+  attackRolls: ParsedAttackRoll[];
+  movementEvents: ParsedMovement[];
 }
 
 export function parseEnhancedPatterns(text: string): EnhancedPatternResults {
@@ -493,11 +502,14 @@ export function parseEnhancedPatterns(text: string): EnhancedPatternResults {
     tempHPGains: parseTempHPGains(text),
     inspirationEvents: parseInspirationEvents(text),
     initiativeRolls: parseInitiativeMatches(text),
-    // New detections
+    // Enhanced detections
     savingThrows: parseSavingThrows(text),
     abilityChecks: parseAbilityChecks(text),
     diceRolls: parseDiceRolls(text),
     npcRegistry: buildNPCRegistry(text),
+    // New categories
+    attackRolls: parseAttackRolls(text),
+    movementEvents: parseMovementEvents(text),
   };
 }
 
@@ -511,6 +523,8 @@ export function computeEnhancedAnalytics(results: EnhancedPatternResults): {
   killCount: number;
   savingThrowCount: { successes: number; failures: number };
   abilityCheckCount: number;
+  attackRollCount: { hits: number; misses: number; criticalHits: number };
+  movementCount: number;
 } {
   // Spell slots by level
   const spellSlotsByLevel: Record<string, number> = {};
@@ -550,6 +564,17 @@ export function computeEnhancedAnalytics(results: EnhancedPatternResults): {
     else if (st.result === 'failure') saveFailures++;
   }
   
+  // Attack rolls
+  let attackHits = 0;
+  let attackMisses = 0;
+  let attackCrits = 0;
+  for (const atk of results.attackRolls) {
+    if (atk.result === 'hit') attackHits++;
+    else if (atk.result === 'miss') attackMisses++;
+    else if (atk.result === 'critical_hit') { attackHits++; attackCrits++; }
+    else if (atk.result === 'critical_miss') attackMisses++;
+  }
+
   return {
     spellSlotsByLevel,
     deathSaveResults: { successes, failures },
@@ -558,5 +583,7 @@ export function computeEnhancedAnalytics(results: EnhancedPatternResults): {
     killCount: results.kills.length,
     savingThrowCount: { successes: saveSuccesses, failures: saveFailures },
     abilityCheckCount: results.abilityChecks.length,
+    attackRollCount: { hits: attackHits, misses: attackMisses, criticalHits: attackCrits },
+    movementCount: results.movementEvents.length,
   };
 }

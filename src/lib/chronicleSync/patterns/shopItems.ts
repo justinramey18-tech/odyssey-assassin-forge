@@ -18,6 +18,16 @@ export const SHOP_ITEM_PATTERNS = [
   /(?:buy|purchase)\s+(?:a\s+|an\s+)?([A-Z][a-zA-Z\s']+?)\s+(?:for|at)\s+(\d+)\s*(?:gp|gold(?:\s*pieces?)?)/gi,
   // "Potion of Healing: 50 gp" (colon-separated price list format)
   /^([A-Z][a-zA-Z\s']+?):\s*(\d+)\s*(?:gp|gold(?:\s*pieces?)?)\s*$/gm,
+  // Bullet list: "* Healing Potion - 50 gp", "- Longsword - 15 gp", "• Shield - 10 gp"
+  /^[\s]*[*•\-]\s+([A-Z][a-zA-Z\s']+?)\s*[–—-]\s*(\d+)\s*(?:gp|gold(?:\s*pieces?)?)/gm,
+  // Numbered list: "1. Longsword - 15 gp", "2) Healing Potion - 50 gp"
+  /^\s*\d+[.)]\s+([A-Z][a-zA-Z\s']+?)\s*[–—-]\s*(\d+)\s*(?:gp|gold(?:\s*pieces?)?)/gm,
+  // Quantity in shop: "3x Potion of Healing at 50 gp each", "Arrows (20) - 1 gp"
+  /\d+x?\s+([A-Z][a-zA-Z\s']+?)\s+(?:at|for)\s+(\d+)\s*(?:gp|gold(?:\s*pieces?)?)\s*(?:each|apiece)?/gi,
+  // Discount/haggle: "reduced to 40 gp", "offers it for 80 gp instead"
+  /([A-Z][a-zA-Z\s']+?)\s+(?:reduced|marked\s+down|discounted)\s+to\s+(\d+)\s*(?:gp|gold(?:\s*pieces?)?)/gi,
+  // Multi-currency: "costs 5 pp", "selling for 50 sp" (converted in parser)
+  /(?:offers?|sells?|selling|costs?)\s+(?:a\s+|an\s+)?([A-Z][a-zA-Z\s']+?)\s+(?:for|at)\s+(\d+)\s*(?:pp|sp|cp|ep)/gi,
 ];
 
 // Guess item type from name keywords
