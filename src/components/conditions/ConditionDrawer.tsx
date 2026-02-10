@@ -15,7 +15,7 @@ import {
   NewConditionInput,
   formatDuration,
 } from '@/lib/conditions';
-import { ConditionCard } from './ConditionCard';
+import { ConditionCard, ShareTargetMember } from './ConditionCard';
 import { AddConditionSheet } from './AddConditionSheet';
 import {
   Plus,
@@ -55,6 +55,9 @@ interface ConditionDrawerProps {
   onLongRest: () => void;
   onBreakConcentration: (reason?: string) => void;
   onClearAll: () => void;
+  // Party buff sharing
+  shareTargets?: ShareTargetMember[];
+  onShareToParty?: (condition: ActiveCondition, targetUserId: string) => void;
 }
 
 export function ConditionDrawer({
@@ -78,6 +81,8 @@ export function ConditionDrawer({
   onLongRest,
   onBreakConcentration,
   onClearAll,
+  shareTargets,
+  onShareToParty,
 }: ConditionDrawerProps) {
   const [addSheetOpen, setAddSheetOpen] = useState(false);
   const [selectedCondition, setSelectedCondition] = useState<ActiveCondition | null>(null);
@@ -236,6 +241,8 @@ export function ConditionDrawer({
                             condition={condition}
                             onRemove={onRemoveCondition}
                             onTap={handleConditionTap}
+                            shareTargets={shareTargets}
+                            onShareToParty={onShareToParty}
                           />
                         </motion.div>
                       ))}
@@ -267,6 +274,8 @@ export function ConditionDrawer({
                             condition={condition}
                             onRemove={onRemoveCondition}
                             onTap={handleConditionTap}
+                            shareTargets={shareTargets}
+                            onShareToParty={onShareToParty}
                           />
                         </motion.div>
                       ))}

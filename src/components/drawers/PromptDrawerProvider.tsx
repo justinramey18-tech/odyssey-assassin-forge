@@ -121,6 +121,8 @@ interface PromptDrawerProviderProps {
   partyMembers?: import('@/hooks/use-party-sync').PartyMember[];
   userId?: string;
   onSendHeal?: (targetUserId: string, actionData: { senderName?: string; itemName?: string; hpHealed?: number }) => Promise<void>;
+  // Party buff sharing
+  onShareBuffToParty?: (condition: import('@/lib/conditions').ActiveCondition, targetUserId: string) => void;
 }
 
 export function PromptDrawerProvider({
@@ -159,6 +161,7 @@ export function PromptDrawerProvider({
   partyMembers = [],
   userId,
   onSendHeal,
+  onShareBuffToParty,
 }: PromptDrawerProviderProps) {
   const [infinityOpen, setInfinityOpen] = useState(false);
   const [abilitiesOpen, setAbilitiesOpen] = useState(false);
@@ -406,6 +409,11 @@ export function PromptDrawerProvider({
             onLongRest={conditionsSystem.longRest}
             onBreakConcentration={conditionsSystem.breakConcentration}
             onClearAll={conditionsSystem.clearAll}
+            shareTargets={onShareBuffToParty ? partyMembers
+              .filter(m => m.user_id !== userId)
+              .map(m => ({ user_id: m.user_id, character_name: m.character_name }))
+              : undefined}
+            onShareToParty={onShareBuffToParty}
           />
 
           <QuickActionsDrawer

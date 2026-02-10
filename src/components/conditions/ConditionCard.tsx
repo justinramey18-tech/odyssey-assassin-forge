@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Timer, Save, Hourglass, Infinity as InfinityIcon, Focus, LucideIcon, Copy, Check } from 'lucide-react';
+import { X, Timer, Save, Hourglass, Infinity as InfinityIcon, Focus, LucideIcon, Copy, Check, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getIconByName } from '@/lib/iconUtils';
 import {
@@ -12,6 +12,16 @@ import {
 } from '@/lib/conditions';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+
+export interface ShareTargetMember {
+  user_id: string;
+  character_name: string;
+}
 
 interface ConditionCardProps {
   condition: ActiveCondition;
@@ -19,6 +29,9 @@ interface ConditionCardProps {
   onTap?: (condition: ActiveCondition) => void;
   compact?: boolean;
   characterName?: string;
+  /** Available party members to share buff to (only shown for buff/concentration) */
+  shareTargets?: ShareTargetMember[];
+  onShareToParty?: (condition: ActiveCondition, targetUserId: string) => void;
 }
 
 export function ConditionCard({
@@ -27,9 +40,12 @@ export function ConditionCard({
   onTap,
   compact = false,
   characterName,
+  shareTargets,
+  onShareToParty,
 }: ConditionCardProps) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const Icon = getIconByName(getIconForCondition(condition));
   const severityColors = SEVERITY_COLORS[condition.severity];
   const categoryColors = CATEGORY_COLORS[condition.category];
@@ -211,6 +227,49 @@ export function ConditionCard({
 
       {/* Action buttons */}
       <div className="flex items-center gap-1">
+        {/* Share to party button (buff/concentration only) */}
+        {onShareToParty && shareTargets && shareTargets.length > 0 &&
+          (condition.category === 'buff' || condition.category === 'concentration') && (
+          <Popover open={shareOpen} onOpenChange={setShareOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => e.stopPropagation()}
+                className="h-8 w-8 rounded-full flex-shrink-0 hover:bg-primary/20 hover:text-primary"
+                title="Share to Party"
+              >
+                <Users className="w-4 h-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              className="w-48 p-1"
+              align="end"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <p className="text-xs text-muted-foreground px-2 py-1.5 font-medium">Share to...</p>
+              {shareTargets.map((member) => (
+                <button
+                  key={member.user_id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onShareToParty(condition, member.user_id);
+                    setShareOpen(false);
+                    toast({
+                      title: `Shared ${condition.name}`,
+                      description: `Sent to ${member.character_name}`,
+                      duration: 3000,
+                    });
+                  }}
+                  className="w-full text-left text-sm px-2 py-1.5 rounded hover:bg-accent transition-colors"
+                >
+                  {member.character_name}
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
+        )}
+
         {/* Copy prompt button */}
         <Button
           variant="ghost"
