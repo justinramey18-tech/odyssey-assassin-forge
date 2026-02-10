@@ -63,6 +63,11 @@ interface CombatTabScreenProps {
   onDeathSavesChange?: (saves: { successes: number; failures: number }) => void;
   onRegainHP?: (amount: number) => void;
   onHPChange?: (current: number, max: number, temp: number) => void;
+  // Party props
+  partySync?: import('@/hooks/use-party-sync').UsePartySyncReturn;
+  isAuthenticated?: boolean;
+  userId?: string;
+  characterName?: string;
 }
 
 export function CombatTabScreen({ 
@@ -86,6 +91,10 @@ export function CombatTabScreen({
   onDeathSavesChange,
   onRegainHP,
   onHPChange,
+  partySync,
+  isAuthenticated,
+  userId,
+  characterName,
 }: CombatTabScreenProps) {
   const isMobile = useIsMobile();
   const { rerollsDisabled } = useGameMode();
@@ -277,6 +286,10 @@ export function CombatTabScreen({
         onDeathSavesChange={onDeathSavesChange}
         onRegainHP={onRegainHP}
         onHPChange={onHPChange}
+        partySync={partySync}
+        isAuthenticated={isAuthenticated}
+        userId={userId}
+        characterName={characterName}
       />
     );
   }

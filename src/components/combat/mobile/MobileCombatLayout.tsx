@@ -51,6 +51,9 @@ import { AttackQueuePanel } from './AttackQueuePanel';
 import { InitiativeTracker } from './InitiativeTracker';
 import { CombatDiceRoller } from './CombatDiceRoller';
 import { DeathSavesTracker } from '@/components/character/DeathSavesTracker';
+import { EdgeDrawer } from '@/components/drawers/EdgeDrawer';
+import { PartyPanel } from '@/components/party/PartyPanel';
+import { Users } from 'lucide-react';
 import { useCombatLog } from '@/hooks/use-combat-log';
 import { useTargets } from '@/hooks/use-targets';
 import { useInitiative } from '@/hooks/use-initiative';
@@ -105,6 +108,11 @@ interface MobileCombatLayoutProps {
   onDeathSavesChange?: (saves: { successes: number; failures: number }) => void;
   onRegainHP?: (amount: number) => void;
   onHPChange?: (current: number, max: number, temp: number) => void;
+  // Party props
+  partySync?: import('@/hooks/use-party-sync').UsePartySyncReturn;
+  isAuthenticated?: boolean;
+  userId?: string;
+  characterName?: string;
 }
 
 export function MobileCombatLayout({ 
@@ -127,9 +135,14 @@ export function MobileCombatLayout({
   onDeathSavesChange,
   onRegainHP,
   onHPChange,
+  partySync,
+  isAuthenticated = false,
+  userId,
+  characterName,
 }: MobileCombatLayoutProps) {
   // Navigation state
   const [activeTab, setActiveTab] = useState<CombatTab>('combat');
+  const [showPartyDrawer, setShowPartyDrawer] = useState(false);
   const [actionsFilter, setActionsFilter] = useState<'all' | 'action' | 'bonus_action' | 'reaction'>('all');
   const [round, setRound] = useState(1);
   const [isYourTurn, setIsYourTurn] = useState(true);
@@ -1105,6 +1118,8 @@ export function MobileCombatLayout({
         onResetTurn={handleResetTurn}
         onMenuOpen={() => {}}
         onSettingsOpen={() => {}}
+        onPartyOpen={() => setShowPartyDrawer(true)}
+        partyMemberCount={partySync?.party.members.length ?? 0}
         currentHP={currentHP}
         maxHP={maxHP}
         tempHP={tempHP}
@@ -1268,6 +1283,33 @@ export function MobileCombatLayout({
         entries={combatLog.entries}
         characterName={character.name}
       />
+
+      {/* Party Drawer */}
+      {partySync && (
+        <EdgeDrawer
+          side="right"
+          open={showPartyDrawer}
+          onOpenChange={setShowPartyDrawer}
+          title="Party"
+          icon={<Users className="w-4 h-4" />}
+          accentColor="#10b981"
+        >
+          <PartyPanel
+            partySync={partySync}
+            characterName={characterName || character.name}
+            currentStatus={{
+              currentHP,
+              maxHP,
+              tempHP,
+              ac: combatStats.ac,
+              level: character.level,
+              className: character.primaryClass,
+            }}
+            isAuthenticated={isAuthenticated}
+            userId={userId}
+          />
+        </EdgeDrawer>
+      )}
     </div>
   );
 }

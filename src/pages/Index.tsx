@@ -1884,6 +1884,10 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
                 handleHPChange(Math.min(amount, hpState.max), hpState.max, hpState.temp);
               }}
               onHPChange={handleHPChange}
+              partySync={partySync}
+              isAuthenticated={isAuthenticated}
+              userId={user?.id}
+              characterName={character.name}
             />
           )}
 
