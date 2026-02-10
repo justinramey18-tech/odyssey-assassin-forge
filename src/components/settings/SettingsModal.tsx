@@ -16,6 +16,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useEquipmentImages } from '@/hooks/use-equipment-images';
 import { useAbilityImages } from '@/hooks/use-ability-images';
 import { cn } from '@/lib/utils';
+import type { UsePartySyncReturn } from '@/hooks/use-party-sync';
 
 interface SettingsModalProps {
   characterName: string;
@@ -37,6 +38,15 @@ interface SettingsModalProps {
   equippedGear?: Record<EquipmentSlotType, EquipmentItem | null>;
   prestigeLevel?: number;
   aggregatedStats?: CharacterBuildData['aggregatedStats'];
+  // Party system
+  partySync?: UsePartySyncReturn;
+  isAuthenticated?: boolean;
+  userId?: string;
+  currentHP?: number;
+  maxHP?: number;
+  tempHP?: number;
+  ac?: number;
+  characterLevel?: number;
 }
 
 export function SettingsModal({ 
@@ -55,6 +65,14 @@ export function SettingsModal({
   equippedGear,
   prestigeLevel,
   aggregatedStats,
+  partySync,
+  isAuthenticated,
+  userId,
+  currentHP,
+  maxHP,
+  tempHP,
+  ac,
+  characterLevel,
 }: SettingsModalProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<SettingsTab>('game');
@@ -224,6 +242,14 @@ export function SettingsModal({
                   onClearEquipmentImages={handleClearEquipmentImages}
                   onClearAbilityImages={handleClearAbilityImages}
                   onClearAllCustomImages={handleClearAllCustomImages}
+                  partySync={partySync}
+                  isAuthenticated={isAuthenticated}
+                  userId={userId}
+                  currentHP={currentHP}
+                  maxHP={maxHP}
+                  tempHP={tempHP}
+                  ac={ac}
+                  characterLevel={characterLevel}
               />
               ) : (
                 <MobileSettingsTabs
@@ -283,6 +309,14 @@ export function SettingsModal({
                 onClearEquipmentImages={handleClearEquipmentImages}
                 onClearAbilityImages={handleClearAbilityImages}
                 onClearAllCustomImages={handleClearAllCustomImages}
+                partySync={partySync}
+                isAuthenticated={isAuthenticated}
+                userId={userId}
+                currentHP={currentHP}
+                maxHP={maxHP}
+                tempHP={tempHP}
+                ac={ac}
+                characterLevel={characterLevel}
               />
             </div>
           </ScrollArea>

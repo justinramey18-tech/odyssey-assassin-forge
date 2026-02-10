@@ -86,6 +86,8 @@ import { useCombatStats } from '@/hooks/use-combat-stats';
 import { useWildShape } from '@/hooks/use-wild-shape';
 import { DruidCircle } from '@/lib/classes/druidCircles';
 import { useSpellCustomization } from '@/hooks/use-spell-customization';
+import { usePartySync } from '@/hooks/use-party-sync';
+import { useAuth } from '@/hooks/use-auth';
 
 // Stable empty object to prevent re-renders from `character.multiclassLevels ?? {}`
 const EMPTY_MULTICLASS_LEVELS: Record<string, never> = {};
@@ -464,6 +466,10 @@ const Index = () => {
   // Spell Customization (homebrew spells)
   const spellCustomization = useSpellCustomization();
 
+  // Auth & Party system
+  const { user, isAuthenticated } = useAuth();
+  const partySync = usePartySync();
+
   // HP change handler with localStorage persistence, concentration check, and Wild Shape routing
   const handleHPChange = useCallback((current: number, max: number, temp: number) => {
     // If transformed, route damage through Wild Shape
@@ -571,6 +577,27 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     }
     hasInitialHPSynced.current = true;
   }, [calculatedMaxHP, hpState.max, hpState.current, hpState.temp, toast]);
+  // Wire party incoming heal callback
+  useEffect(() => {
+    partySync.onIncomingHeal.current = (hpHealed: number, _senderName: string, _source: string) => {
+      const newHP = Math.min(hpState.max, hpState.current + hpHealed);
+      handleHPChange(newHP, hpState.max, hpState.temp);
+    };
+  }, [partySync, hpState, handleHPChange]);
+
+  // Broadcast status to party every time relevant state changes
+  useEffect(() => {
+    if (!partySync.party.partyId) return;
+    partySync.broadcastStatus({
+      currentHP: effectiveCurrentHP,
+      maxHP: effectiveMaxHP,
+      tempHP: effectiveTempHP,
+      ac: effectiveAC,
+      conditions: conditions.conditions.map(c => c.name),
+      level: character.level,
+      className: character.primaryClass,
+    });
+  }, [partySync, effectiveCurrentHP, effectiveMaxHP, effectiveTempHP, effectiveAC, conditions.conditions, character.level, character.primaryClass]);
 
   // Legacy spentPoints for compatibility
   const spentPoints = getTotalPointsSpent(character.abilities);
@@ -1713,6 +1740,14 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
             prestigeLevel: prestigeData.prestigeLevel,
           }}
           onResetComplete={handleResetApp}
+          partySync={partySync}
+          isAuthenticated={isAuthenticated}
+          userId={user?.id}
+          currentHP={effectiveCurrentHP}
+          maxHP={effectiveMaxHP}
+          tempHP={effectiveTempHP}
+          ac={effectiveAC}
+          characterLevel={character.level}
         />
       </PromptDrawerProvider>
     );
@@ -2243,6 +2278,14 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
             wisdom: aggregatedStats.wisdom,
             charisma: aggregatedStats.charisma,
           }}
+          partySync={partySync}
+          isAuthenticated={isAuthenticated}
+          userId={user?.id}
+          currentHP={effectiveCurrentHP}
+          maxHP={effectiveMaxHP}
+          tempHP={effectiveTempHP}
+          ac={effectiveAC}
+          characterLevel={character.level}
         />
       </div>
 
