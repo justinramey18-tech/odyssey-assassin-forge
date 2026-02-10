@@ -146,6 +146,8 @@ export interface AutoApplyConfig {
   initiative: boolean;
   round: boolean;
   kills: boolean;
+  resistances: boolean;
+  concentration: boolean;
 }
 
 export interface AutoApplyResult {
