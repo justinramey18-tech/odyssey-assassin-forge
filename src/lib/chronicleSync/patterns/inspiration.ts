@@ -26,9 +26,22 @@ export const INSPIRATION_PATTERNS = {
     /bardic\s+inspiration[:\s]+d(\d+)/gi,
     /add(?:s|ed)?\s+(?:a\s+)?bardic\s+inspiration(?:\s+d(\d+))?/gi,
   ],
+  lucky: [
+    // "uses Lucky", "spends a luck point", "Lucky feat"
+    /(?:use|uses|used|spend|spends|spent)\s+(?:a\s+)?(?:Lucky|luck\s+point)/gi,
+    /Lucky\s+(?:feat|reroll)/gi,
+  ],
+  heroPoints: [
+    // "spends a hero point", "uses heroic inspiration"
+    /(?:spend|spends|spent|use|uses|used)\s+(?:a\s+)?hero(?:ic)?\s+(?:point|inspiration)/gi,
+  ],
+  narrative: [
+    // "inspired by the speech", "finds inspiration in"
+    /(?:inspired|finds?\s+inspiration)\s+(?:by|in|from)\s+(?:the\s+)?/gi,
+  ],
 };
 
-export type InspirationType = 'granted' | 'used' | 'bardic_granted' | 'bardic_used';
+export type InspirationType = 'granted' | 'used' | 'bardic_granted' | 'bardic_used' | 'lucky_used' | 'hero_point_used' | 'narrative';
 
 export interface InspirationMatch extends PatternMatch {
   inspirationType: InspirationType;
@@ -96,6 +109,60 @@ export function parseInspirationMatches(text: string): InspirationMatch[] {
         value: isUsed ? 'bardic_used' : 'bardic_granted',
         inspirationType: isUsed ? 'bardic_used' : 'bardic_granted',
         bardicDie,
+        context,
+        index: match.index,
+      });
+    }
+  }
+  
+  // Lucky feat
+  for (const pattern of INSPIRATION_PATTERNS.lucky) {
+    const regex = new RegExp(pattern.source, pattern.flags);
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      const start = Math.max(0, match.index - 30);
+      const end = Math.min(text.length, match.index + match[0].length + 30);
+      const context = text.slice(start, end).replace(/\s+/g, ' ').trim();
+      matches.push({
+        fullMatch: match[0],
+        value: 'lucky_used',
+        inspirationType: 'lucky_used',
+        context,
+        index: match.index,
+      });
+    }
+  }
+  
+  // Hero points
+  for (const pattern of INSPIRATION_PATTERNS.heroPoints) {
+    const regex = new RegExp(pattern.source, pattern.flags);
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      const start = Math.max(0, match.index - 30);
+      const end = Math.min(text.length, match.index + match[0].length + 30);
+      const context = text.slice(start, end).replace(/\s+/g, ' ').trim();
+      matches.push({
+        fullMatch: match[0],
+        value: 'hero_point_used',
+        inspirationType: 'hero_point_used',
+        context,
+        index: match.index,
+      });
+    }
+  }
+  
+  // Narrative inspiration
+  for (const pattern of INSPIRATION_PATTERNS.narrative) {
+    const regex = new RegExp(pattern.source, pattern.flags);
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      const start = Math.max(0, match.index - 30);
+      const end = Math.min(text.length, match.index + match[0].length + 30);
+      const context = text.slice(start, end).replace(/\s+/g, ' ').trim();
+      matches.push({
+        fullMatch: match[0],
+        value: 'narrative',
+        inspirationType: 'narrative',
         context,
         index: match.index,
       });

@@ -234,6 +234,16 @@ export const ITEM_ACQUIRE_PATTERNS = [
 export const ITEM_USE_PATTERNS = [
   // "drink a health potion", "consume potion of healing"
   /(?:drink|consume|use|apply|read|quaff)(?:s|ed)?\s*(?:a\s+|the\s+)?(\d+)?\s*([a-zA-Z][a-zA-Z\s]+(?:potion|poison|scroll|vial|elixir)s?)/gi,
+  // Activating magic items: "activates the Wand of Fireballs", "activates their Staff of Power"
+  /(?:activate|invoke|trigger|channel)(?:s|ed|ing)?\s+(?:the\s+|their\s+|a\s+)?(\d+)?\s*([A-Z][a-zA-Z\s]+(?:Wand|Staff|Rod|Ring|Amulet|Orb|Gem|Crystal|Horn|Lantern|Figurine)(?:\s+of\s+[A-Z][a-zA-Z\s]+)?)/gi,
+  // Throwing items: "throws a flask of oil", "throws an alchemist's fire"
+  /(?:throw|hurl|toss|lob)(?:s|ed|ing)?\s+(?:a\s+|an\s+|the\s+)?(\d+)?\s*([a-zA-Z][a-zA-Z\s']+(?:flask|vial|bomb|fire|acid|oil|grenade))/gi,
+  // Breaking/destroying items: "shatters the phylactery", "breaks the crystal"
+  /(?:shatter|break|destroy|crush|smash)(?:s|ed|ing)?\s+(?:the\s+|a\s+)?(\d+)?\s*([A-Z][a-zA-Z\s]+)/gi,
+  // Equipping gear: "equips the +1 Shield", "dons the Cloak of Protection"
+  /(?:equip|don|wear|wield|strap\s+on|put\s+on)(?:s|ed|ning)?\s+(?:the\s+|a\s+|an\s+)?(\d+)?\s*([A-Z][a-zA-Z\s+]+)/gi,
+  // Feeding/administering: "feeds them a potion", "administers the antidote"
+  /(?:feed|administer|pour|give|force-feed)(?:s|ed|ing)?\s+(?:them|him|her|you)\s+(?:a\s+|an\s+|the\s+)?(\d+)?\s*([a-zA-Z][a-zA-Z\s]+(?:potion|antidote|elixir|draught|tonic))/gi,
 ];
 
 export function parseItemAcquireMatches(text: string): PatternMatch[] {
@@ -386,46 +396,39 @@ export function parseMultiCurrencyMatches(text: string): { gained: PatternMatch[
 export function parseGoldMatches(text: string): { gained: PatternMatch[]; spent: PatternMatch[] } {
   const gained: PatternMatch[] = [];
   const spent: PatternMatch[] = [];
+  const seen = new Set<number>();
   
-  // Gain patterns
-  const gainPattern = /(?:find|loot|receive|gain|get|got|earn)(?:s|ed)?\s*(\d+)\s*(?:gp|gold(?:\s*pieces?)?|coins?)/gi;
-  const foundPattern = /(\d+)\s*(?:gp|gold(?:\s*pieces?)?|coins?)\s*(?:found|looted|gained|earned|received)/gi;
-  
-  for (const pattern of [gainPattern, foundPattern]) {
+  // Gain patterns: all GOLD_PATTERNS except index 2 (spend pattern)
+  for (let i = 0; i < GOLD_PATTERNS.length; i++) {
+    if (i === 2) continue; // skip spend pattern
+    const pattern = GOLD_PATTERNS[i];
     let match;
-    while ((match = pattern.exec(text)) !== null) {
+    const regex = new RegExp(pattern.source, pattern.flags);
+    while ((match = regex.exec(text)) !== null) {
+      if (seen.has(match.index)) continue;
+      seen.add(match.index);
       const amount = parseInt(match[1], 10);
       if (!isNaN(amount) && amount > 0) {
         const start = Math.max(0, match.index - 30);
         const end = Math.min(text.length, match.index + match[0].length + 30);
         const context = text.slice(start, end).replace(/\s+/g, ' ').trim();
-        
-        gained.push({
-          fullMatch: match[0],
-          value: amount,
-          context,
-          index: match.index,
-        });
+        gained.push({ fullMatch: match[0], value: amount, context, index: match.index });
       }
     }
   }
   
-  // Spend patterns
-  const spendPattern = /(?:spend|pay|lose|lost)(?:s|ed)?\s*(\d+)\s*(?:gp|gold(?:\s*pieces?)?|coins?)/gi;
+  // Spend patterns: only index 2
+  const spendRegex = new RegExp(GOLD_PATTERNS[2].source, GOLD_PATTERNS[2].flags);
   let match;
-  while ((match = spendPattern.exec(text)) !== null) {
+  while ((match = spendRegex.exec(text)) !== null) {
+    if (seen.has(match.index)) continue;
+    seen.add(match.index);
     const amount = parseInt(match[1], 10);
     if (!isNaN(amount) && amount > 0) {
       const start = Math.max(0, match.index - 30);
       const end = Math.min(text.length, match.index + match[0].length + 30);
       const context = text.slice(start, end).replace(/\s+/g, ' ').trim();
-      
-      spent.push({
-        fullMatch: match[0],
-        value: amount,
-        context,
-        index: match.index,
-      });
+      spent.push({ fullMatch: match[0], value: amount, context, index: match.index });
     }
   }
   
@@ -439,6 +442,14 @@ export const CRIT_PATTERNS = [
   /crit(?:ical)?\s*(?:hit|success)/gi,
   /critical\s*strike/gi,
   /rolls?\s*(?:a\s+)?20/gi,
+  // "crits for 24 damage", "crits dealing 30"
+  /crits?\s+(?:for|dealing)\s+(\d+)\s*(?:\w+\s+)?damage/gi,
+  // "critical hit on the goblin", "crits on the orc"
+  /crit(?:ical)?\s*(?:hit|strike)?\s+(?:on|against)\s+(?:the\s+)?([a-zA-Z\s]+)/gi,
+  // Fumble/critical miss detection
+  /natural\s*1/gi,
+  /crit(?:ical)?\s*(?:miss|fail(?:ure)?|fumble)/gi,
+  /fumbles?/gi,
 ];
 
 export const LEVEL_UP_PATTERNS = [
@@ -541,26 +552,32 @@ export function parseLevelUpMatches(text: string): PatternMatch[] {
 
 export function parseConditionMatches(text: string): PatternMatch[] {
   const matches: PatternMatch[] = [];
-  const pattern = CONDITION_PATTERNS[0];
+  const seen = new Set<number>();
   
-  let match;
-  const regex = new RegExp(pattern.source, pattern.flags);
-  
-  while ((match = regex.exec(text)) !== null) {
-    const condition = match[1].toLowerCase();
-    const start = Math.max(0, match.index - 40);
-    const end = Math.min(text.length, match.index + match[0].length + 40);
-    const context = text.slice(start, end).replace(/\s+/g, ' ').trim();
+  for (const pattern of CONDITION_PATTERNS) {
+    let match;
+    const regex = new RegExp(pattern.source, pattern.flags);
     
-    // Check context to determine if applied or removed (Gap 5: expanded phrases)
-    const isRemoved = CONDITION_REMOVAL_PHRASES.some(p => p.test(context));
-    
-    matches.push({
-      fullMatch: match[0],
-      value: `${isRemoved ? 'removed' : 'applied'}:${condition}`,
-      context,
-      index: match.index,
-    });
+    while ((match = regex.exec(text)) !== null) {
+      if (seen.has(match.index)) continue;
+      seen.add(match.index);
+      
+      // Extract condition name from whichever capture group has it
+      const condition = (match[1] || match[2] || match[0]).toLowerCase().trim();
+      const start = Math.max(0, match.index - 40);
+      const end = Math.min(text.length, match.index + match[0].length + 40);
+      const context = text.slice(start, end).replace(/\s+/g, ' ').trim();
+      
+      // Check context to determine if applied or removed
+      const isRemoved = CONDITION_REMOVAL_PHRASES.some(p => p.test(context));
+      
+      matches.push({
+        fullMatch: match[0],
+        value: `${isRemoved ? 'removed' : 'applied'}:${condition}`,
+        context,
+        index: match.index,
+      });
+    }
   }
   
   return matches;
