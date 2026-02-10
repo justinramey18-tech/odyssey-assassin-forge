@@ -13,6 +13,9 @@ export * from './initiative';
 export * from './inspiration';
 export * from './enemies';
 export * from './enemyUpdates';
+export * from './abilityScoreIncrease';
+export * from './featAcquisition';
+export * from './classFeatureUnlock';
 
 // Convenience aggregate parser
 import { parseSpellSlotMatches, SpellSlotMatch } from './spellSlots';
@@ -23,6 +26,9 @@ import { parseInitiativeMatches, InitiativeMatch } from './initiative';
 import { parseInspirationMatches, InspirationMatch } from './inspiration';
 import { parseEnemyMatches, ParsedEnemy, detectEnemies } from './enemies';
 import { parseAllEnemyUpdates, ParsedEnemyUpdate } from './enemyUpdates';
+import { parseAbilityScoreIncreaseMatches, AbilityScoreIncreaseMatch } from './abilityScoreIncrease';
+import { parseFeatAcquisitionMatches, FeatAcquisitionMatch } from './featAcquisition';
+import { parseClassFeatureUnlockMatches, ClassFeatureUnlockMatch } from './classFeatureUnlock';
 
 export interface EnhancedPatternResults {
   spellSlots: SpellSlotMatch[];
@@ -35,6 +41,9 @@ export interface EnhancedPatternResults {
   inspiration: InspirationMatch[];
   enemies: ParsedEnemy[];
   enemyUpdates: ParsedEnemyUpdate[];
+  abilityScoreIncreases: AbilityScoreIncreaseMatch[];
+  featAcquisitions: FeatAcquisitionMatch[];
+  classFeatureUnlocks: ClassFeatureUnlockMatch[];
 }
 
 /**
@@ -53,5 +62,8 @@ export function parseEnhancedPatterns(text: string): EnhancedPatternResults {
     inspiration: parseInspirationMatches(text),
     enemies: parseEnemyMatches(text),
     enemyUpdates: parseAllEnemyUpdates(text),
+    abilityScoreIncreases: parseAbilityScoreIncreaseMatches(text),
+    featAcquisitions: parseFeatAcquisitionMatches(text),
+    classFeatureUnlocks: parseClassFeatureUnlockMatches(text),
   };
 }
