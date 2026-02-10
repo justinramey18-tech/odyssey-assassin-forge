@@ -47,6 +47,13 @@ export interface ParsedInspiration {
   context?: string;
 }
 
+// Re-export new detection types for convenience
+export type { ParsedSavingThrow, ParsedAbilityCheck } from './patterns/savesAndChecks';
+export type { ParsedDiceRoll, ConsolidatedHit } from './patterns/diceAndMultiHit';
+export type { HealingAttribution } from './patterns/healingAttribution';
+export type { NPCEntry } from './patterns/npcLearning';
+export type { DamageType } from './patterns/damageTypes';
+
 // ===== SESSION HISTORY TYPES =====
 
 export interface ChronicleSession {

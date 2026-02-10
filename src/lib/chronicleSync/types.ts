@@ -16,6 +16,8 @@ export interface ParsedHPChange {
   amount: number;
   type: 'damage' | 'healing';
   source: string;
+  damageType?: string;  // e.g. 'fire', 'slashing' — extracted from context
+  healingSource?: 'spell' | 'potion' | 'feature' | 'rest' | 'unknown'; // attribution
   sourceText: string;
 }
 
