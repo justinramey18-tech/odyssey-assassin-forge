@@ -1,144 +1,105 @@
 
 
-# More Regex Patterns for Offline Chronicle — Round 3
+# Offline Chronicle Pattern Expansion - Round 3
 
-After reviewing all pattern files post-expansion, these are the remaining concrete gaps.
-
----
-
-## 1. Item Use Patterns (patterns.ts) — Critically Underdeveloped
-
-`ITEM_USE_PATTERNS` only has 1 pattern matching potions/scrolls. Missing:
-
-- **Activating magic items**: "activates the Wand of Fireballs", "uses the Staff of Healing"
-- **Throwing items**: "throws a flask of oil", "hurls a vial of acid"
-- **Breaking/destroying items**: "breaks the gem", "shatters the phylactery"
-- **Reading scrolls**: "reads the Scroll of Fireball" (only partially caught by current)
-- **Equipping gear**: "equips the +1 Shield", "dons the Cloak of Protection"
-- **Feeding items**: "feeds them a potion", "administers the antidote"
+This plan implements 12 categories of improvements including 2 bug fixes and ~40 new regex patterns across 7 files.
 
 ---
 
-## 2. Gold Spending in `parseGoldMatches()` — Incomplete
+## Bug Fixes (Critical)
 
-`parseGoldMatches()` hardcodes only 3 patterns (find/loot, found/looted, spend/pay) but `GOLD_PATTERNS` now has 7. The function doesn't use the expanded patterns for gain detection (hoard, reward, informal, mixed currency). Fix: make it iterate `GOLD_PATTERNS` like other parsers do.
+### Fix 1: `parseConditionMatches()` only uses `CONDITION_PATTERNS[0]`
+**File:** `src/lib/chronicleSync/patterns.ts` (lines 542-567)
+- Rewrite to iterate ALL patterns in the `CONDITION_PATTERNS` array instead of just index 0
+- This unlocks the 6 existing patterns for exhaustion levels, concentration broken, and prone/unconscious that are currently dead code
 
----
-
-## 3. Condition Application Context — Only Pattern[0] Used
-
-`parseConditionMatches()` only iterates `CONDITION_PATTERNS[0]` (the standard conditions regex). The 6 new patterns for exhaustion levels, concentration broken, and knocked prone/unconscious are **never parsed**. Fix: iterate all patterns in the array.
-
----
-
-## 4. Crit Pattern Improvements (patterns.ts)
-
-Current crit patterns are too simple and can false-positive on "rolls 20" (which could be any d20 check, not necessarily a crit). Missing:
-
-- **"crits for 24 damage"** — crit with damage amount
-- **"critical hit on the goblin"** — crit with target
-- **Avoiding false positives**: "rolls 20 on Perception" should NOT be a crit
-- **Natural 1 fumble**: No dedicated fumble detection exists
+### Fix 2: `parseGoldMatches()` hardcodes 3 patterns instead of using `GOLD_PATTERNS`
+**File:** `src/lib/chronicleSync/patterns.ts` (lines 386-433)
+- Rewrite to iterate the full `GOLD_PATTERNS` array (7 patterns) for gain detection
+- Keep spend detection as a separate loop using only spend-specific patterns (index 2)
+- This unlocks hoard, reward, informal, and mixed currency gold detection
 
 ---
 
-## 5. Rest Pattern Gaps (enhancedPatterns.ts)
+## New Patterns
 
-Missing rest phrasings:
+### 1. Expanded Item Use Patterns (`patterns.ts`)
+Add 5 new patterns to `ITEM_USE_PATTERNS`:
+- Activating magic items ("activates the Wand of Fireballs")
+- Throwing items ("throws a flask of oil")
+- Breaking/destroying items ("shatters the phylactery")
+- Equipping gear ("equips the +1 Shield", "dons the Cloak")
+- Feeding/administering ("feeds them a potion", "administers the antidote")
 
-- **"rest for the night"** — common informal
-- **"set up camp"**, **"make camp"** — implies long rest
-- **"bandage wounds"**, **"patch up"** — implies short rest behavior
-- **"meditation"**, **"trance"** (elf long rest variant)
+### 2. Improved Crit Patterns (`patterns.ts`)
+Add 3 new patterns and fumble detection to `CRIT_PATTERNS`:
+- "crits for 24 damage" (crit with damage amount)
+- "critical hit on the goblin" (crit with target)
+- "natural 1" / "fumble" (fumble/critical miss detection)
+- Guard against false positives by requiring attack/combat context
 
----
+### 3. Rest Pattern Expansion (`enhancedPatterns.ts`)
+Add 4 new patterns:
+- Short rest: "bandage wounds", "patch up", "catch your breath"
+- Long rest: "rest for the night", "set up camp", "make camp"
+- Long rest: "meditation", "trance" (elf long rest variant)
 
-## 6. NPC Learning — Missing Patterns
+### 4. NPC Learning Expansion (`npcLearning.ts`)
+Add 3 new intro patterns:
+- Dialogue: `"I am Garrick"`, `"My name is Thordak"`, `"Call me Vex"`
+- Role/title: "Garrick, the town blacksmith", "Captain Thordak"
+- Returning NPCs: "Garrick appears again"
 
-Current NPC intro patterns miss:
+### 5. Dice Roll Improvements (`diceAndMultiHit.ts`)
+Add 4 new patterns:
+- Advantage/disadvantage: "rolls 14 and 18 with advantage (takes 18)"
+- Saving throw dice: "rolls 12 on the save"
+- Damage dice without totals: "deals 2d6+3 slashing damage"
+- Percentile rolls: "rolls d100: 73", "percentile: 45"
 
-- **Dialogue introductions**: `"I am Garrick"`, `"My name is Thordak"`, `"Call me Vex"`
-- **NPC descriptions with roles**: "Garrick, the town blacksmith", "Captain Thordak"
-- **Returning NPCs**: "Garrick appears again", "you see Thordak once more"
+### 6. Initiative Expansion (`initiative.ts`)
+Add 3 new patterns:
+- Surprise: "surprise round", "caught off guard", "surprised"
+- Priority: "goes first", "acts first"
+- Win/lose: "wins initiative", "loses initiative"
 
----
+### 7. Inspiration Expansion (`inspiration.ts`)
+Add 3 new pattern categories:
+- Lucky feat: "uses Lucky", "spends a luck point"
+- Hero points: "spends a hero point", "uses heroic inspiration"
+- Narrative: "inspired by the speech"
 
-## 7. Dice Roll Improvements (diceAndMultiHit.ts)
+### 8. Cross-Category Validation (`crossCategoryValidation.ts`)
+Add 5 new rules:
+- Attack roll near damage --> boost damage confidence
+- Saving throw near condition --> boost condition confidence
+- Movement near opportunity attack --> boost both
+- Rest event near healing --> boost healing confidence
+- Spell slot usage near damage/healing --> boost confidence
 
-Missing patterns:
-
-- **Advantage/disadvantage rolls**: "rolls 14 and 18 with advantage (takes 18)"
-- **Saving throw dice**: "rolls 12 on the save", "save result: 16"
-- **Damage dice expressions without totals**: "deals 2d6+3 slashing damage" (extract expression only)
-- **Percentile rolls**: "rolls d100: 73", "percentile: 45"
-
----
-
-## 8. Initiative Pattern Gaps
-
-Missing:
-
-- **"goes first"**, **"acts first"** — implies high initiative
-- **Surprise round**: "surprised", "caught off guard", "surprise round"
-- **"wins initiative"**, **"loses initiative"**
-
----
-
-## 9. Inspiration Pattern Gaps
-
-Missing:
-
-- **Lucky feat**: "uses Lucky", "spends a luck point"
-- **Hero/heroic points**: "spends a hero point", "uses heroic inspiration"  
-- **Narrative inspiration**: "inspired by the speech", "gains courage"
-
----
-
-## 10. Cross-Category Validation Gaps
-
-Missing rules in `crossCategoryValidation.ts`:
-
-- **Attack roll near damage** → boost damage confidence
-- **Saving throw near condition** → boost condition confidence (failed save = condition applied)
-- **Movement near opportunity attack** → boost both
-- **Rest event near healing** → boost healing confidence
-- **Spell slot usage near damage/healing** → boost damage/healing confidence
-
----
-
-## 11. Enhanced Spell Detection
-
-Current `SPELL_LEVELS` map is extensive but the cast detection pattern is fragile. Missing:
-
-- **"casts at higher level"**: "casts Fireball at 5th level" (upcast detection)
-- **Reaction spells**: "uses Shield as a reaction", "casts Counterspell in response"
-- **Bonus action spells**: "casts Healing Word as a bonus action"
-- **Wild Magic Surge**: "wild magic surge", "rolls on the wild magic table"
-
----
-
-## 12. Multi-Currency in `parseGoldMatches()` — Not Integrated
-
-The `parseMultiCurrencyMatches()` function exists but `parseGoldMatches()` doesn't call it. Multi-currency gains/spends are parsed separately and may not be aggregated into the gold total during offline processing.
+### 9. Spell Detection Expansion (`enhancedPatterns.ts`)
+Add 4 new patterns to `SPELL_SLOT_PATTERNS`:
+- Upcast: "casts Fireball at 5th level" (detect higher level)
+- Reaction spells: "uses Shield as a reaction"
+- Bonus action spells: "casts Healing Word as a bonus action"
+- Wild Magic Surge: "wild magic surge", "rolls on the wild magic table"
 
 ---
 
 ## Technical Details
 
-### Files to modify:
+### Files Modified
 
-| File | Changes |
-|------|---------|
-| `src/lib/chronicleSync/patterns.ts` | Expand `ITEM_USE_PATTERNS` (+5 patterns), fix `parseGoldMatches()` to use `GOLD_PATTERNS` array, fix `parseConditionMatches()` to iterate all `CONDITION_PATTERNS`, improve `CRIT_PATTERNS` (+3 patterns, add fumble), integrate multi-currency into gold parser |
-| `src/lib/chronicleSync/enhancedPatterns.ts` | Expand rest patterns (+4), improve spell detection (+4 upcast/reaction/bonus patterns) |
-| `src/lib/chronicleSync/patterns/npcLearning.ts` | Add dialogue intro patterns (+3), role/title patterns |
-| `src/lib/chronicleSync/patterns/diceAndMultiHit.ts` | Add advantage/disadvantage rolls (+3), percentile, saving throw dice |
-| `src/lib/chronicleSync/patterns/initiative.ts` | Add surprise round, "goes first", "wins initiative" patterns |
-| `src/lib/chronicleSync/patterns/inspiration.ts` | Add Lucky feat, hero points, narrative inspiration |
-| `src/lib/chronicleSync/crossCategoryValidation.ts` | Add 5 new cross-category rules (attack→damage, save→condition, movement→AoO, rest→healing, spell→damage) |
+| File | Type of Change |
+|------|---------------|
+| `src/lib/chronicleSync/patterns.ts` | Bug fix in `parseConditionMatches()` and `parseGoldMatches()`, expand `ITEM_USE_PATTERNS` (+5), improve `CRIT_PATTERNS` (+3 including fumble) |
+| `src/lib/chronicleSync/enhancedPatterns.ts` | Expand rest patterns (+4), expand spell detection (+4) |
+| `src/lib/chronicleSync/patterns/npcLearning.ts` | Add dialogue intro patterns (+3) |
+| `src/lib/chronicleSync/patterns/diceAndMultiHit.ts` | Add advantage/disadvantage, percentile, save dice patterns (+4) |
+| `src/lib/chronicleSync/patterns/initiative.ts` | Add surprise round, goes first, wins initiative (+3) |
+| `src/lib/chronicleSync/patterns/inspiration.ts` | Add Lucky feat, hero points, narrative inspiration (+3) |
+| `src/lib/chronicleSync/crossCategoryValidation.ts` | Add 5 new cross-category validation rules |
 
-### Approach:
+### No new files created
+All changes extend existing pattern arrays and functions, so existing parsers automatically pick them up without pipeline changes.
 
-- Fix 2 parser bugs first (condition parsing + gold parsing only use subset of their patterns)
-- Then add new patterns to existing arrays
-- Finally add new cross-validation rules
