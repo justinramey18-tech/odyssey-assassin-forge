@@ -1690,6 +1690,17 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         partyMembers={partySync.party.members}
         userId={user?.id}
         onSendHeal={partySync.sendHealAction}
+        onShareBuffToParty={partySync.party.partyId ? (condition, targetUserId) => {
+          partySync.shareBuff({
+            conditionName: condition.name,
+            duration: condition.durationValue,
+            durationType: condition.durationType,
+            source: condition.source || condition.name,
+            casterName: character.name,
+            spellLevel: condition.spellLevel,
+            targetUserId,
+          });
+        } : undefined}
       >
         <IncomingHealOverlay
           pendingHeals={partySync.pendingHeals}
@@ -1819,6 +1830,17 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         partyMembers={partySync.party.members}
         userId={user?.id}
         onSendHeal={partySync.sendHealAction}
+        onShareBuffToParty={partySync.party.partyId ? (condition, targetUserId) => {
+          partySync.shareBuff({
+            conditionName: condition.name,
+            duration: condition.durationValue,
+            durationType: condition.durationType,
+            source: condition.source || condition.name,
+            casterName: character.name,
+            spellLevel: condition.spellLevel,
+            targetUserId,
+          });
+        } : undefined}
       >
       <IncomingHealOverlay
         pendingHeals={partySync.pendingHeals}
