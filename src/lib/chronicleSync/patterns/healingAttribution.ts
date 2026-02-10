@@ -75,6 +75,16 @@ const POTION_KEYWORDS = /potion|elixir|draught|balm|salve|tonic|vial/i;
 /**
  * Attribute a healing event to its most likely source based on surrounding context
  */
+// Sort spells by name length descending so "mass cure wounds" matches before "cure wounds"
+const HEALING_SPELLS_SORTED = Object.entries(HEALING_SPELLS)
+  .sort((a, b) => b[0].length - a[0].length);
+
+/**
+ * Attribute a healing event to its most likely source based on surrounding context.
+ * 
+ * Priority: rest/potion keywords checked first when context contains them,
+ * then spells (longest-first to avoid substring false positives), then features.
+ */
 export function attributeHealing(
   amount: number,
   sourceContext: string,
@@ -82,36 +92,19 @@ export function attributeHealing(
 ): HealingAttribution {
   const lower = sourceContext.toLowerCase();
 
-  // 1. Check for healing spells
-  for (const [spell, level] of Object.entries(HEALING_SPELLS)) {
-    if (lower.includes(spell)) {
-      return {
-        amount,
-        source: spell.charAt(0).toUpperCase() + spell.slice(1),
-        sourceType: 'spell',
-        spellLevel: level,
-        sourceText,
-        confidence: 'high',
-      };
-    }
+  // 1. Check rest FIRST — rest keywords are unambiguous and prevent "heals" matching "heal" spell
+  if (/short\s+rest|long\s+rest|overnight|sleep|camp/i.test(lower)) {
+    return {
+      amount,
+      source: /long\s+rest|overnight|sleep/i.test(lower) ? 'Long Rest' : 'Short Rest',
+      sourceType: 'rest',
+      sourceText,
+      confidence: 'medium',
+    };
   }
 
-  // 2. Check for class features
-  for (const feature of HEALING_FEATURES) {
-    if (lower.includes(feature)) {
-      return {
-        amount,
-        source: feature.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-        sourceType: 'feature',
-        sourceText,
-        confidence: 'high',
-      };
-    }
-  }
-
-  // 3. Check for potions
+  // 2. Check potions BEFORE spells — "potion of healing" should not match "heal" spell
   if (POTION_KEYWORDS.test(lower)) {
-    // Try to extract potion name
     const potionMatch = lower.match(/((?:potion|elixir|draught)\s+of\s+[\w\s]+)/i);
     return {
       amount,
@@ -122,15 +115,31 @@ export function attributeHealing(
     };
   }
 
-  // 4. Check for rest
-  if (/short\s+rest|long\s+rest|overnight|sleep|camp/i.test(lower)) {
-    return {
-      amount,
-      source: /long\s+rest|overnight|sleep/i.test(lower) ? 'Long Rest' : 'Short Rest',
-      sourceType: 'rest',
-      sourceText,
-      confidence: 'medium',
-    };
+  // 3. Check for healing spells (sorted longest-first to prevent substring collisions)
+  for (const [spell, level] of HEALING_SPELLS_SORTED) {
+    if (lower.includes(spell)) {
+      return {
+        amount,
+        source: spell.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+        sourceType: 'spell',
+        spellLevel: level,
+        sourceText,
+        confidence: 'high',
+      };
+    }
+  }
+
+  // 4. Check for class features
+  for (const feature of HEALING_FEATURES) {
+    if (lower.includes(feature)) {
+      return {
+        amount,
+        source: feature.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+        sourceType: 'feature',
+        sourceText,
+        confidence: 'high',
+      };
+    }
   }
 
   // 5. Unknown source
