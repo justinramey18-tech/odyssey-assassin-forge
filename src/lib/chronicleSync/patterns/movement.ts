@@ -19,11 +19,12 @@ const MOVEMENT_PATTERNS: Array<{ pattern: RegExp; type: ParsedMovement['type'] }
   // Dashing: "dashes 60 feet", "uses Dash to move 60 feet"
   { pattern: /(?:dashes?|sprints?)\s+(\d+)\s*(?:feet|ft\.?)/gi, type: 'dash' },
   { pattern: /(?:uses?\s+)?(?:the\s+)?Dash(?:\s+action)?\s+(?:to\s+)?(?:move\s+)?(\d+)?\s*(?:feet|ft\.?)?/gi, type: 'dash' },
-  // Disengage: "takes the Disengage action", "disengages"
-  { pattern: /(?:takes?\s+(?:the\s+)?)?Disengage(?:\s+action)?/gi, type: 'disengage' },
+  // Disengage: "takes the Disengage action", "disengages from"
+  { pattern: /(?:takes?\s+(?:the\s+)?)Disengage(?:\s+action)/gi, type: 'disengage' },
   { pattern: /disengages?\s+(?:from|and)/gi, type: 'disengage' },
-  // Dodge: "takes the Dodge action", "uses Dodge"
-  { pattern: /(?:takes?\s+(?:the\s+)?|uses?\s+)?Dodge(?:\s+action)?/gi, type: 'dodge' },
+  // Dodge: "takes the Dodge action", "uses Dodge action" (require "action" or "takes/uses" prefix to avoid false positives)
+  { pattern: /(?:takes?\s+(?:the\s+)?)Dodge\s+action/gi, type: 'dodge' },
+  { pattern: /uses?\s+(?:the\s+)?Dodge(?:\s+action)?/gi, type: 'dodge' },
   // Opportunity attacks: "provokes an opportunity attack", "AoO from the guard"
   { pattern: /(?:provokes?\s+)?(?:an?\s+)?opportunity\s+attack/gi, type: 'opportunity_attack' },
   { pattern: /AoO\s+(?:from|against|by)/gi, type: 'opportunity_attack' },

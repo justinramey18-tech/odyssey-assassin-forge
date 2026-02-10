@@ -12,6 +12,7 @@ import { attributeHealing } from './patterns/healingAttribution';
 import { extractDamageType } from './patterns/damageTypes';
 import { parseAttackRolls } from './patterns/attackRolls';
 import { parseMovementEvents } from './patterns/movement';
+import { parseDamageModifiers, parseConcentrationChecks } from './patterns/resistanceAndConcentration';
 import { 
   ParsedRestEvent, 
   ParsedSpellSlotUsage, 
@@ -28,6 +29,7 @@ import type { NPCEntry } from './patterns/npcLearning';
 import type { DamageType } from './patterns/damageTypes';
 import type { ParsedAttackRoll } from './patterns/attackRolls';
 import type { ParsedMovement } from './patterns/movement';
+import type { ParsedDamageModifier, ParsedConcentrationCheck } from './patterns/resistanceAndConcentration';
 
 // Re-export types
 export type { InitiativeMatch } from './patterns/initiative';
@@ -38,6 +40,7 @@ export type { NPCEntry } from './patterns/npcLearning';
 export type { DamageType } from './patterns/damageTypes';
 export type { ParsedAttackRoll } from './patterns/attackRolls';
 export type { ParsedMovement } from './patterns/movement';
+export type { ParsedDamageModifier, ParsedConcentrationCheck } from './patterns/resistanceAndConcentration';
 
 // ===== REST PATTERNS =====
 
@@ -531,6 +534,8 @@ export interface EnhancedPatternResults {
   // New categories
   attackRolls: ParsedAttackRoll[];
   movementEvents: ParsedMovement[];
+  damageModifiers: ParsedDamageModifier[];
+  concentrationChecks: ParsedConcentrationCheck[];
 }
 
 export function parseEnhancedPatterns(text: string): EnhancedPatternResults {
@@ -551,6 +556,8 @@ export function parseEnhancedPatterns(text: string): EnhancedPatternResults {
     // New categories
     attackRolls: parseAttackRolls(text),
     movementEvents: parseMovementEvents(text),
+    damageModifiers: parseDamageModifiers(text),
+    concentrationChecks: parseConcentrationChecks(text),
   };
 }
 

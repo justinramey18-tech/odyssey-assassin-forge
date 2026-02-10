@@ -34,7 +34,7 @@ export interface InitiativeMatch extends PatternMatch {
 export function parseInitiativeMatches(text: string): InitiativeMatch[] {
   const matches: InitiativeMatch[] = [];
   
-  // Pattern 1: Simple "Initiative: X"
+  // Pattern 1: Simple "Initiative: X" (but NOT "initiative order:" which is pattern 2)
   const pattern1 = /(?:roll(?:s|ed)?)?(?:\s+)?initiative[:\s]+(\d+)/gi;
   let match;
   
@@ -42,6 +42,10 @@ export function parseInitiativeMatches(text: string): InitiativeMatch[] {
     const roll = parseInt(match[1], 10);
     
     if (roll >= 1 && roll <= 40) {
+      // Skip if this is part of an "initiative order:" block (pattern 2 handles that)
+      const beforeSlice = text.slice(Math.max(0, match.index - 10), match.index + 15).toLowerCase();
+      if (/initiative\s+order/i.test(beforeSlice)) continue;
+      
       const start = Math.max(0, match.index - 40);
       const end = Math.min(text.length, match.index + match[0].length + 20);
       const context = text.slice(start, end).replace(/\s+/g, ' ').trim();
@@ -122,11 +126,11 @@ export function parseInitiativeMatches(text: string): InitiativeMatch[] {
     }
   }
   
-  // Deduplicate by index
-  const seen = new Set<number>();
-  return matches.filter(m => {
-    if (seen.has(m.index)) return false;
-    seen.add(m.index);
-    return true;
-  });
+  // Deduplicate by proximity (within 10 chars = same event)
+  const kept: InitiativeMatch[] = [];
+  for (const m of matches) {
+    const isDup = kept.some(k => Math.abs(k.index - m.index) < 10);
+    if (!isDup) kept.push(m);
+  }
+  return kept;
 }
