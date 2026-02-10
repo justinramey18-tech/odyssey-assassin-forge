@@ -27,6 +27,7 @@ import { applyOverrides, homebrewToAbility } from '@/lib/abilityCustomization/ut
 import { isLegacyAbilityId, resolveLegacyAbility } from '@/lib/prestigeTree/abilityConverter';
 import { rollDice, getAbilityDice, DiceRoll, DieType, RollMode, isCriticalHit, isCriticalMiss, inferRollMode } from '@/lib/diceRoller';
 import { generateRPPrompt } from '@/lib/rpPromptGenerator';
+import { HealTargetPicker } from '@/components/party/HealTargetPicker';
 
 // Types for cooldown info passed in
 interface CooldownInfo {
@@ -72,6 +73,10 @@ interface QuickActionsDrawerProps {
   maxHP?: number;
   tempHP?: number;
   onHPChange?: (current: number, temp: number) => void;
+  // Party props for heal target picker
+  partyMembers?: import('@/hooks/use-party-sync').PartyMember[];
+  userId?: string;
+  onSendHeal?: (targetUserId: string, actionData: { senderName?: string; itemName?: string; hpHealed?: number }) => Promise<void>;
 }
 
 // ── Prompt generators (static, no roll data) ──
@@ -874,8 +879,12 @@ export function QuickActionsDrawer({
   maxHP,
   tempHP = 0,
   onHPChange,
+  partyMembers = [],
+  userId,
+  onSendHeal,
 }: QuickActionsDrawerProps) {
   // Track which item has an active inline roll
+  const [pendingHealConsumable, setPendingHealConsumable] = useState<{ item: InventoryItem; amount: number } | null>(null);
   const [activeRoll, setActiveRoll] = useState<{ 
     id: string; roll: DiceRoll; prompt: string; 
     damageRoll?: DiceRoll; damageFormula?: string; isCrit?: boolean;
@@ -1098,7 +1107,6 @@ export function QuickActionsDrawer({
         const diceCount = parseInt(healMatch[1]);
         const diceSides = parseInt(healMatch[2]);
         const modifier = parseInt(healMatch[3] || '0');
-        // Roll the healing dice
         let total = modifier;
         const rolls: number[] = [];
         for (let i = 0; i < diceCount; i++) {
@@ -1106,6 +1114,15 @@ export function QuickActionsDrawer({
           rolls.push(roll);
           total += roll;
         }
+        
+        // If in a party with other members, show target picker
+        const otherMembers = partyMembers.filter(m => m.user_id !== userId);
+        if (otherMembers.length > 0 && onSendHeal && userId) {
+          setPendingHealConsumable({ item, amount: total });
+          // Don't apply yet — wait for target selection
+          return;
+        }
+        
         const newHP = Math.min(maxHP, currentHP + total);
         onHPChange(newHP, tempHP);
         toast.success(`Used ${item.consumable.name}!`, {
@@ -1122,6 +1139,7 @@ export function QuickActionsDrawer({
   }, [onUseConsumable, characterName, onHPChange, currentHP, maxHP, tempHP]);
 
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent 
         side="bottom" 
@@ -1529,5 +1547,39 @@ export function QuickActionsDrawer({
         </ScrollArea>
       </SheetContent>
     </Sheet>
+    
+    {/* Heal Target Picker for party healing */}
+    <HealTargetPicker
+      open={!!pendingHealConsumable}
+      onOpenChange={(open) => { if (!open) setPendingHealConsumable(null); }}
+      selfName={characterName}
+      partyMembers={partyMembers}
+      currentUserId={userId || ''}
+      healDescription={pendingHealConsumable ? `${pendingHealConsumable.item.consumable.name} — ${pendingHealConsumable.amount} HP` : ''}
+      onSelectSelf={() => {
+        if (onHPChange && currentHP !== undefined && maxHP !== undefined && pendingHealConsumable) {
+          const newHP = Math.min(maxHP, currentHP + pendingHealConsumable.amount);
+          onHPChange(newHP, tempHP);
+          toast.success(`Used ${pendingHealConsumable.item.consumable.name}!`, {
+            description: `Healed ${pendingHealConsumable.amount} HP`,
+          });
+        }
+        setPendingHealConsumable(null);
+      }}
+      onSelectMember={(member) => {
+        if (onSendHeal && pendingHealConsumable) {
+          onSendHeal(member.user_id, {
+            senderName: characterName,
+            itemName: pendingHealConsumable.item.consumable.name,
+            hpHealed: pendingHealConsumable.amount,
+          });
+          toast.success(`Healed ${member.character_name}!`, {
+            description: `Sent ${pendingHealConsumable.amount} HP via ${pendingHealConsumable.item.consumable.name}`,
+          });
+        }
+        setPendingHealConsumable(null);
+      }}
+    />
+    </>
   );
 }

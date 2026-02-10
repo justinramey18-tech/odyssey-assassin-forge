@@ -117,6 +117,10 @@ interface PromptDrawerProviderProps {
     enemies: Enemy[];
     recentLogEntries: CombatLogEntry[];
   };
+  // Party props for heal target picker
+  partyMembers?: import('@/hooks/use-party-sync').PartyMember[];
+  userId?: string;
+  onSendHeal?: (targetUserId: string, actionData: { senderName?: string; itemName?: string; hpHealed?: number }) => Promise<void>;
 }
 
 export function PromptDrawerProvider({
@@ -152,6 +156,9 @@ export function PromptDrawerProvider({
   lootItems = [],
   totalLootValue = 0,
   combatContext,
+  partyMembers = [],
+  userId,
+  onSendHeal,
 }: PromptDrawerProviderProps) {
   const [infinityOpen, setInfinityOpen] = useState(false);
   const [abilitiesOpen, setAbilitiesOpen] = useState(false);
@@ -438,6 +445,9 @@ export function PromptDrawerProvider({
             maxHP={maxHP}
             tempHP={tempHP}
             onHPChange={onHPChange}
+            partyMembers={partyMembers}
+            userId={userId}
+            onSendHeal={onSendHeal}
           />
         </>
       )}

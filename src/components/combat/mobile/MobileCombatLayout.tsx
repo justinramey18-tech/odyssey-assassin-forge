@@ -1094,6 +1094,9 @@ export function MobileCombatLayout({
         maxHP={maxHP}
         tempHP={tempHP}
         onHPChange={onHPChange}
+        partyMembers={partySync?.party.members}
+        userId={userId}
+        onSendHeal={partySync?.sendHealAction}
       />
     );
   };
