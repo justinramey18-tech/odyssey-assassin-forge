@@ -132,6 +132,28 @@ serve(async (req) => {
       );
     }
 
+    if (entries.length > 100) {
+      return new Response(
+        JSON.stringify({ error: "Too many entries (max 100)" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    for (const entry of entries) {
+      if (!entry.actionType || !entry.actionName || !entry.prompt) {
+        return new Response(
+          JSON.stringify({ error: "Invalid entry structure" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (typeof entry.prompt === 'string' && entry.prompt.length > 1000) {
+        return new Response(
+          JSON.stringify({ error: "Entry prompt too long (max 1000 chars)" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     if (!['simplified', 'high-rp', 'deadpool'].includes(mode)) {
       return new Response(
         JSON.stringify({ error: "Invalid mode. Use: simplified, high-rp, or deadpool" }),
