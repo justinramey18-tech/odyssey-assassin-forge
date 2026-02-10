@@ -249,8 +249,8 @@ export function parseSpellSlotUsage(text: string): ParsedSpellSlotUsage[] {
   const usage: ParsedSpellSlotUsage[] = [];
   const seen = new Set<number>();
 
-  // Patterns 1-3 and 5: explicit slot level mentions
-  const explicitPatterns = SPELL_SLOT_PATTERNS.slice(0, 3).concat(SPELL_SLOT_PATTERNS[4] ? [SPELL_SLOT_PATTERNS[4]] : []);
+  // Patterns 0-2 and 4: explicit slot level mentions (skip named casts, rituals, concentration, and new patterns handled separately)
+  const explicitPatterns = [0, 1, 2, 4, 7, 8, 9].filter(i => i < SPELL_SLOT_PATTERNS.length).map(i => SPELL_SLOT_PATTERNS[i]);
   for (const pattern of explicitPatterns) {
     let match;
     const regex = new RegExp(pattern.source, pattern.flags);
@@ -480,12 +480,26 @@ export function parseTempHPGains(text: string): ParsedTempHP[] {
 export function parseInspirationEvents(text: string): ParsedInspiration[] {
   const matches = parseInspirationMatches(text);
   return matches
-    .filter(m => m.inspirationType === 'granted' || m.inspirationType === 'used')
-    .map(match => ({
-      type: (match.inspirationType === 'granted' ? 'gained' : 'used') as 'gained' | 'used',
-      sourceText: match.fullMatch,
-      context: match.context,
-    }));
+    .filter(m => 
+      m.inspirationType === 'granted' || 
+      m.inspirationType === 'used' ||
+      m.inspirationType === 'lucky_used' ||
+      m.inspirationType === 'hero_point_used' ||
+      m.inspirationType === 'bardic_granted' ||
+      m.inspirationType === 'bardic_used' ||
+      m.inspirationType === 'narrative'
+    )
+    .map(match => {
+      let type: 'gained' | 'used' = 'used';
+      if (match.inspirationType === 'granted' || match.inspirationType === 'bardic_granted' || match.inspirationType === 'narrative') {
+        type = 'gained';
+      }
+      return {
+        type,
+        sourceText: match.fullMatch,
+        context: match.context,
+      };
+    });
 }
 
 // ===== COMBINED ENHANCED PARSING =====
@@ -555,7 +569,7 @@ export function computeEnhancedAnalytics(results: EnhancedPatternResults): {
   let failures = 0;
   for (const save of results.deathSaves) {
     if (save.type === 'success') successes++;
-    else if (save.type === 'critical_success') successes += 3; // Nat 20 = back up
+    else if (save.type === 'critical_success') successes++; // Nat 20 = 1 success + regain 1 HP (special D&D 5e rule)
     else if (save.type === 'failure') failures++;
     else if (save.type === 'critical_failure') failures += 2; // Nat 1 = 2 failures
   }

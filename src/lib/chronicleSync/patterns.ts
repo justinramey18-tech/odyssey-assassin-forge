@@ -82,7 +82,7 @@ export const DAMAGE_PATTERNS = [
   // Dice result damage: "deals 8d6 (28) fire damage", "taking 3d6 (10) damage"
   /(?:deals?|taking|inflicts?)\s+\d+d\d+(?:\s*[+\-]\s*\d+)?\s*\((\d+)\)\s*(?:\w+\s+)?damage/gi,
   // Named attacker: "The orc hits you for 12", "The dragon bites for 24"
-  /(?:the\s+)?[A-Z][a-zA-Z\s'-]+?\s+(?:hits?|bites?|claws?|slams?|strikes?)\s+(?:you|him|her|them)\s+for\s+(\d+)/gi,
+  /(?:the\s+)?(?:[A-Z][a-zA-Z'-]+(?:\s+[A-Z][a-zA-Z'-]+)?)\s+(?:hits?|bites?|claws?|slams?|strikes?)\s+(?:you|him|her|them)\s+for\s+(\d+)/gi,
   // Environmental/passive: "the lava deals 10 fire damage per round", "the trap deals 14 damage"
   /(?:the\s+)?(?:lava|fire|trap|spike|acid|water|fall(?:ing)?|poison|environment)\s+(?:deals?|inflicts?|causes?)\s+(\d+)\s*(?:\w+\s+)?damage/gi,
   // Failed save damage: "On a failed save, you take 14 radiant damage"
