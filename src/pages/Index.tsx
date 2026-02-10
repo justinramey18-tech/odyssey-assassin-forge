@@ -1667,6 +1667,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         lootItems={loot.lootItems}
         totalLootValue={loot.totalLootValue}
         combatContext={combatContext}
+        partyMembers={partySync.party.members}
+        userId={user?.id}
+        onSendHeal={partySync.sendHealAction}
       >
         <HomeScreen 
           character={character}
@@ -1785,6 +1788,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         lootItems={loot.lootItems}
         totalLootValue={loot.totalLootValue}
         combatContext={combatContext}
+        partyMembers={partySync.party.members}
+        userId={user?.id}
+        onSendHeal={partySync.sendHealAction}
       >
       <div className="min-h-screen relative">
       {/* Builder Background Image - fixed behind everything */}

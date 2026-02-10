@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useRef } from 'react';
+import { HealTargetPicker } from '@/components/party/HealTargetPicker';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -72,6 +73,10 @@ interface MobileItemsGridProps {
   maxHP?: number;
   tempHP?: number;
   onHPChange?: (current: number, max: number, temp: number) => void;
+  // Party props for heal target picker
+  partyMembers?: import('@/hooks/use-party-sync').PartyMember[];
+  userId?: string;
+  onSendHeal?: (targetUserId: string, actionData: { senderName?: string; itemName?: string; hpHealed?: number }) => Promise<void>;
 }
 
 export function MobileItemsGrid({
@@ -90,6 +95,9 @@ export function MobileItemsGrid({
   maxHP,
   tempHP = 0,
   onHPChange,
+  partyMembers = [],
+  userId,
+  onSendHeal,
 }: MobileItemsGridProps) {
   const { toast, dismiss } = useToast();
   const { inventory, useItem, addItem, setItemQuantity, isLoaded } = useConsumables();
@@ -100,6 +108,11 @@ export function MobileItemsGrid({
   // Undo state
   const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
   const undoTimeoutRef = useRef<Record<string, NodeJS.Timeout>>({});
+  
+  // Heal target picker state
+  const [pendingHealItem, setPendingHealItem] = useState<InventoryItem | null>(null);
+  const [pendingHealAmount, setPendingHealAmount] = useState(0);
+  const [pendingHealCloseSheet, setPendingHealCloseSheet] = useState(false);
 
   // Filter inventory by type
   const filteredInventory = useMemo(() => {
@@ -170,8 +183,19 @@ export function MobileItemsGrid({
         for (let i = 0; i < diceCount; i++) {
           total += Math.floor(Math.random() * diceSides) + 1;
         }
-        const newHP = Math.min(maxHP, currentHP + total);
-        onHPChange(newHP, maxHP, tempHP);
+        
+        // If in a party with other members, show target picker
+        const otherMembers = partyMembers.filter(m => m.user_id !== userId);
+        if (otherMembers.length > 0 && onSendHeal && userId) {
+          setPendingHealItem(item);
+          setPendingHealAmount(total);
+          setPendingHealCloseSheet(closeSheet);
+          // Don't apply heal yet — wait for target selection
+        } else {
+          // Solo: heal self immediately
+          const newHP = Math.min(maxHP, currentHP + total);
+          onHPChange(newHP, maxHP, tempHP);
+        }
       }
       
       // Log to combat log with generated prompt
@@ -599,6 +623,35 @@ export function MobileItemsGrid({
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Heal Target Picker for party healing */}
+      <HealTargetPicker
+        open={!!pendingHealItem}
+        onOpenChange={(open) => { if (!open) { setPendingHealItem(null); setPendingHealAmount(0); } }}
+        selfName={characterName}
+        partyMembers={partyMembers}
+        currentUserId={userId || ''}
+        healDescription={pendingHealItem ? `${pendingHealItem.consumable.name} — ${pendingHealAmount} HP` : ''}
+        onSelectSelf={() => {
+          if (onHPChange && currentHP !== undefined && maxHP !== undefined) {
+            const newHP = Math.min(maxHP, currentHP + pendingHealAmount);
+            onHPChange(newHP, maxHP, tempHP);
+          }
+          setPendingHealItem(null);
+          setPendingHealAmount(0);
+        }}
+        onSelectMember={(member) => {
+          if (onSendHeal && pendingHealItem) {
+            onSendHeal(member.user_id, {
+              senderName: characterName,
+              itemName: pendingHealItem.consumable.name,
+              hpHealed: pendingHealAmount,
+            });
+          }
+          setPendingHealItem(null);
+          setPendingHealAmount(0);
+        }}
+      />
     </>
   );
 }
