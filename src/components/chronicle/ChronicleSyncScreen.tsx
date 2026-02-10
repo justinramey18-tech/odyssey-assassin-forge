@@ -32,6 +32,15 @@ import {
 } from '@/lib/chronicleSync/types';
 import { ChronicleSession } from '@/lib/chronicleSync/enhancedTypes';
 import { parseLogOffline, parseAIResponse, calculateChangeSummary } from '@/lib/chronicleSync/processor';
+import {
+  parseAIProgressionFields,
+  convertAIAbilityScoreIncreases,
+  convertAIFeatAcquisitions,
+  convertAIClassFeatureUnlocks,
+  deduplicateASIs,
+  deduplicateFeats,
+  deduplicateClassFeatures,
+} from '@/lib/chronicleSync/progressionDedup';
 import { parseEnhancedPatterns, computeEnhancedAnalytics } from '@/lib/chronicleSync/enhancedPatterns';
 import { SAMPLE_LOGS, SampleLogKey, getSampleLogKeys } from '@/lib/chronicleSync/sampleLogs';
 import { hasActionableChanges, hasDisplayOnlyChanges } from '@/lib/chronicleSync/validation';
@@ -337,8 +346,32 @@ export function ChronicleSyncScreen({
           result.inputLength = inputText.length;
           setParseResult(result);
           setReviewableChanges(buildReviewableChanges(result));
+          
           // Run enhanced patterns alongside AI results
-          setEnhancedResults(parseEnhancedPatterns(inputText));
+          const offlineEnhanced = parseEnhancedPatterns(inputText);
+          
+          // Parse AI progression fields and merge/deduplicate with offline results
+          const aiProgression = parseAIProgressionFields(data as Record<string, unknown>);
+          const mergedASIs = deduplicateASIs(
+            offlineEnhanced.abilityScoreIncreases,
+            convertAIAbilityScoreIncreases(aiProgression.abilityScoreIncreases)
+          );
+          const mergedFeats = deduplicateFeats(
+            offlineEnhanced.featAcquisitions,
+            convertAIFeatAcquisitions(aiProgression.featAcquisitions)
+          );
+          const mergedFeatures = deduplicateClassFeatures(
+            offlineEnhanced.classFeatureUnlocks,
+            convertAIClassFeatureUnlocks(aiProgression.classFeatureUnlocks)
+          );
+          
+          setEnhancedResults({
+            ...offlineEnhanced,
+            abilityScoreIncreases: mergedASIs,
+            featAcquisitions: mergedFeats,
+            classFeatureUnlocks: mergedFeatures,
+          });
+          
           // Parse enemy updates for AI mode as well
           setEnemyUpdates(parseAllEnemyUpdates(inputText));
           

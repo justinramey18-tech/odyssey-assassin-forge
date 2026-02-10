@@ -50,4 +50,5 @@ export * from './aiCapabilities';
 export * from './achievementMatcher';
 export * from './fuzzyMatch';
 export * from './processor';
+export * from './progressionDedup';
 export * from './validation';
