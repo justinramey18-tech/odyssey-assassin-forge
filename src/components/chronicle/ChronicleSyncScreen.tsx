@@ -285,6 +285,9 @@ export function ChronicleSyncScreen({
         setParseResult(result);
         setReviewableChanges(buildReviewableChanges(result));
         
+        // Run enhanced patterns (spell slots, rests, death saves, skill checks, initiative, etc.)
+        setEnhancedResults(parseEnhancedPatterns(inputText));
+        
         // Parse enemy updates (damage, healing, conditions)
         const detectedEnemyUpdates = parseAllEnemyUpdates(inputText);
         setEnemyUpdates(detectedEnemyUpdates);
@@ -321,6 +324,8 @@ export function ChronicleSyncScreen({
           const result = parseLogOffline(inputText);
           setParseResult(result);
           setReviewableChanges(buildReviewableChanges(result));
+          // Run enhanced patterns in fallback mode too
+          setEnhancedResults(parseEnhancedPatterns(inputText));
           // Also parse enemy updates in fallback mode
           setEnemyUpdates(parseAllEnemyUpdates(inputText));
         } else {
@@ -332,6 +337,8 @@ export function ChronicleSyncScreen({
           result.inputLength = inputText.length;
           setParseResult(result);
           setReviewableChanges(buildReviewableChanges(result));
+          // Run enhanced patterns alongside AI results
+          setEnhancedResults(parseEnhancedPatterns(inputText));
           // Parse enemy updates for AI mode as well
           setEnemyUpdates(parseAllEnemyUpdates(inputText));
           
