@@ -656,14 +656,7 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
 
       {/* Current Roll Display */}
       <div className="p-4 border-b border-border bg-gradient-to-b from-card/80 to-transparent">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentRoll?.timestamp ?? 'empty'}
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.8, opacity: 0 }}
-            className="flex flex-col items-center gap-2"
-          >
+        <div className="flex flex-col items-center gap-2">
             {currentRoll ? (
               <>
                 <motion.div
@@ -744,8 +737,7 @@ export function DiceRollerScreen({ onBack }: DiceRollerScreenProps) {
                 <p>Tap a die to roll</p>
               </div>
             )}
-          </motion.div>
-        </AnimatePresence>
+        </div>
       </div>
 
       {/* Tabbed Content */}
