@@ -12,7 +12,7 @@ import { SaveData } from '@/hooks/use-auto-save';
 import { 
   Settings, Coffee, Moon, TrendingUp,
   BookOpen, Sparkles, Timer, MessageCircle, Activity, Heart, Gem, Zap, PanelLeft, HelpCircle,
-  Swords, Wand2, ListChecks, ChevronUp,
+  Swords, Wand2, ListChecks, ChevronUp, Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
@@ -32,6 +32,8 @@ import { EnlargedD20Section } from './EnlargedD20Section';
 import { CloudSyncStatusWidget } from './CloudSyncStatusWidget';
 import { PrimaryNavigationCards } from './PrimaryNavigationCards';
 import { BackgroundUploadButton } from './BackgroundUploadButton';
+import { PartyPanel } from '@/components/party/PartyPanel';
+import type { UsePartySyncReturn } from '@/hooks/use-party-sync';
 import { WildShapeLightningBorder, CRScaledPulse, TransformationBurst } from './WildShapeLightningBorder';
 import { DragonParticles } from './DragonParticles';
 import { XPProgressBar } from './XPProgressBar';
@@ -106,6 +108,10 @@ interface HomeScreenProps {
   wildShapeFormMaxHP?: number;
   wildShapeFormAC?: number;
   onDismissWildShape?: () => void;
+  // Party props
+  partySync?: UsePartySyncReturn;
+  isAuthenticated?: boolean;
+  userId?: string;
 }
 
 /** Map dragon form names to element-appropriate tint colors */
@@ -174,6 +180,9 @@ export function HomeScreen({
   wildShapeFormMaxHP,
   wildShapeFormAC,
   onDismissWildShape,
+  partySync,
+  isAuthenticated = false,
+  userId,
 }: HomeScreenProps) {
   const isMobile = useIsMobile();
 
@@ -199,6 +208,7 @@ export function HomeScreen({
   const [showDrawersMenu, setShowDrawersMenu] = useState(false);
   const [showDiceRoller, setShowDiceRoller] = useState(false);
   const [showCharacterSaves, setShowCharacterSaves] = useState(false);
+  const [showPartyDrawer, setShowPartyDrawer] = useState(false);
   const [initiativeRollResult, setInitiativeRollResult] = useState<{ roll: number; total: number; prompt: string } | null>(null);
   const [footerCollapsed, setFooterCollapsed] = useState(() => {
     try { return localStorage.getItem('odyssey-home-footer-collapsed') === 'true'; } catch { return false; }
@@ -442,6 +452,24 @@ export function HomeScreen({
               />
             )}
             
+            {/* Party Indicator */}
+            {partySync && partySync.party.partyId && (
+              <button
+                onClick={() => {
+                  triggerHaptic('light');
+                  setShowPartyDrawer(true);
+                }}
+                className="p-2 rounded-lg hover:bg-white/10 transition-colors relative"
+                style={{ touchAction: 'manipulation' }}
+                aria-label={`Party — ${partySync.party.members.length} members`}
+              >
+                <Users className="w-5 h-5 text-emerald-400" />
+                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center text-[10px] font-bold rounded-full bg-emerald-500 text-white">
+                  {partySync.party.members.length}
+                </span>
+              </button>
+            )}
+
             {onOpenFAQ && (
               <button 
                 onClick={() => {
@@ -805,6 +833,27 @@ export function HomeScreen({
           onLoadSave={onLoadSave}
           onOpenCloudSettings={onCloudSyncClick}
         />
+      )}
+
+      {/* Party Drawer */}
+      {partySync && (
+        <Sheet open={showPartyDrawer} onOpenChange={setShowPartyDrawer}>
+          <SheetContent side="right" className="w-[320px] bg-background/95 backdrop-blur-md border-l border-emerald-900/30 p-4">
+            <SheetTitle className="sr-only">Party</SheetTitle>
+            <PartyPanel
+              partySync={partySync}
+              characterName={character.name}
+              currentStatus={{
+                currentHP: currentHP,
+                maxHP: maxHP,
+                tempHP: tempHP,
+                level: character.level,
+              }}
+              isAuthenticated={isAuthenticated}
+              userId={userId}
+            />
+          </SheetContent>
+        </Sheet>
       )}
       </div>
     </div>

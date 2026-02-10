@@ -1725,6 +1725,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           isCloudSyncing={autoSync.isSyncing}
           onCloudSyncClick={() => setShowCloudSaveModal(true)}
           onLoadSave={handleLoadCloudSave}
+          partySync={partySync}
+          isAuthenticated={!!user}
+          userId={user?.id}
         />
         
         {/* Settings Modal */}
