@@ -70,13 +70,16 @@ export function parseRestMatches(text: string): RestMatch[] {
     }
   }
   
-  // Deduplicate by index
-  const seen = new Set<number>();
-  return matches.filter(m => {
-    if (seen.has(m.index)) return false;
-    seen.add(m.index);
-    return true;
-  });
+  // Deduplicate by proximity — same rest type within 100 chars is likely the same event
+  const sorted = [...matches].sort((a, b) => a.index - b.index);
+  const kept: RestMatch[] = [];
+  for (const m of sorted) {
+    const isDup = kept.some(k => 
+      k.restType === m.restType && Math.abs(k.index - m.index) < 100
+    );
+    if (!isDup) kept.push(m);
+  }
+  return kept;
 }
 
 // ===== DOWNTIME ACTIVITY PATTERNS =====
