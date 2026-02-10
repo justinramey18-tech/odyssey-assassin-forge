@@ -459,6 +459,17 @@ export function useClassSpellcasting(
     }
   }, [abilityScores, spellcastingAbility, state.abilityModifier]);
 
+  // Auto-sync known spells to prepared for non-prepared casters (Warlock, Sorcerer, Bard)
+  // This fixes existing characters where knownSpells weren't mirrored to preparedSpells
+  useEffect(() => {
+    if (isPreparedCaster) return;
+    setState(prev => {
+      const missing = prev.knownSpells.filter(id => !prev.preparedSpells.includes(id));
+      if (missing.length === 0) return prev;
+      return { ...prev, preparedSpells: [...prev.preparedSpells, ...missing] };
+    });
+  }, [isPreparedCaster, state.knownSpells]);
+
   // Sync slots when level changes — preserve current values if max hasn't changed
   const prevSlotInfoRef = useRef<string>('');
   useEffect(() => {
@@ -575,9 +586,15 @@ export function useClassSpellcasting(
   const learnSpell = useCallback((spellId: string) => {
     setState(prev => {
       if (prev.knownSpells.includes(spellId)) return prev;
-      return { ...prev, knownSpells: [...prev.knownSpells, spellId] };
+      const newState = { ...prev, knownSpells: [...prev.knownSpells, spellId] };
+      // For known-spell casters (non-prepared like Warlock, Sorcerer, Bard),
+      // auto-add to preparedSpells so they appear in combat/quick-actions
+      if (!isPreparedCaster && !prev.preparedSpells.includes(spellId)) {
+        newState.preparedSpells = [...prev.preparedSpells, spellId];
+      }
+      return newState;
     });
-  }, []);
+  }, [isPreparedCaster]);
 
   const forgetSpell = useCallback((spellId: string) => {
     setState(prev => ({
