@@ -67,6 +67,11 @@ interface QuickActionsDrawerProps {
   onAssignWildShapeBackground?: (formId: string, file: File) => Promise<void>;
   onRemoveWildShapeBackground?: (formId: string) => void;
   hasWildShapeBackground?: (formId: string) => boolean;
+  // HP props for healing potions
+  currentHP?: number;
+  maxHP?: number;
+  tempHP?: number;
+  onHPChange?: (current: number, temp: number) => void;
 }
 
 // ── Prompt generators (static, no roll data) ──
@@ -865,6 +870,10 @@ export function QuickActionsDrawer({
   onAssignWildShapeBackground,
   onRemoveWildShapeBackground,
   hasWildShapeBackground,
+  currentHP,
+  maxHP,
+  tempHP = 0,
+  onHPChange,
 }: QuickActionsDrawerProps) {
   // Track which item has an active inline roll
   const [activeRoll, setActiveRoll] = useState<{ 
@@ -1082,13 +1091,35 @@ export function QuickActionsDrawer({
     if (success) {
       const prompt = generateConsumablePrompt(item.consumable, characterName);
       navigator.clipboard.writeText(prompt).catch(() => {});
-      toast.success(`Used ${item.consumable.name}!`, {
-        description: `${item.quantity - 1} remaining · Prompt copied`,
-      });
+
+      // Auto-apply healing for healing potions
+      const healMatch = item.consumable.effect.match(/restores?\s+(\d+)d(\d+)(?:\s*\+\s*(\d+))?\s*(?:hit\s*points|hp)/i);
+      if (healMatch && onHPChange && currentHP !== undefined && maxHP !== undefined) {
+        const diceCount = parseInt(healMatch[1]);
+        const diceSides = parseInt(healMatch[2]);
+        const modifier = parseInt(healMatch[3] || '0');
+        // Roll the healing dice
+        let total = modifier;
+        const rolls: number[] = [];
+        for (let i = 0; i < diceCount; i++) {
+          const roll = Math.floor(Math.random() * diceSides) + 1;
+          rolls.push(roll);
+          total += roll;
+        }
+        const newHP = Math.min(maxHP, currentHP + total);
+        onHPChange(newHP, tempHP);
+        toast.success(`Used ${item.consumable.name}!`, {
+          description: `Healed ${total} HP [${rolls.join('+')}${modifier ? `+${modifier}` : ''}] · ${item.quantity - 1} remaining`,
+        });
+      } else {
+        toast.success(`Used ${item.consumable.name}!`, {
+          description: `${item.quantity - 1} remaining · Prompt copied`,
+        });
+      }
     } else {
       toast.error(`Cannot use ${item.consumable.name}`, { description: 'Insufficient quantity' });
     }
-  }, [onUseConsumable, characterName]);
+  }, [onUseConsumable, characterName, onHPChange, currentHP, maxHP, tempHP]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

@@ -67,6 +67,11 @@ interface MobileItemsGridProps {
   characterName?: string;
   onLogEntry?: (entry: { actionType: 'item'; actionName: string; prompt: string }) => void;
   onRemoveLogEntry?: (actionName: string) => void;
+  // HP props for healing potions
+  currentHP?: number;
+  maxHP?: number;
+  tempHP?: number;
+  onHPChange?: (current: number, max: number, temp: number) => void;
 }
 
 export function MobileItemsGrid({
@@ -81,6 +86,10 @@ export function MobileItemsGrid({
   characterName = 'The Assassin',
   onLogEntry,
   onRemoveLogEntry,
+  currentHP,
+  maxHP,
+  tempHP = 0,
+  onHPChange,
 }: MobileItemsGridProps) {
   const { toast, dismiss } = useToast();
   const { inventory, useItem, addItem, setItemQuantity, isLoaded } = useConsumables();
@@ -150,6 +159,20 @@ export function MobileItemsGrid({
     if (success) {
       const actionType = getActionType(item.consumable);
       onAddToTurn(actionType, `Use ${item.consumable.name}`);
+      
+      // Auto-apply healing for healing potions
+      const healMatch = item.consumable.effect.match(/restores?\s+(\d+)d(\d+)(?:\s*\+\s*(\d+))?\s*(?:hit\s*points|hp)/i);
+      if (healMatch && onHPChange && currentHP !== undefined && maxHP !== undefined) {
+        const diceCount = parseInt(healMatch[1]);
+        const diceSides = parseInt(healMatch[2]);
+        const modifier = parseInt(healMatch[3] || '0');
+        let total = modifier;
+        for (let i = 0; i < diceCount; i++) {
+          total += Math.floor(Math.random() * diceSides) + 1;
+        }
+        const newHP = Math.min(maxHP, currentHP + total);
+        onHPChange(newHP, maxHP, tempHP);
+      }
       
       // Log to combat log with generated prompt
       if (onLogEntry) {

@@ -104,6 +104,7 @@ interface MobileCombatLayoutProps {
   deathSaves?: { successes: number; failures: number };
   onDeathSavesChange?: (saves: { successes: number; failures: number }) => void;
   onRegainHP?: (amount: number) => void;
+  onHPChange?: (current: number, max: number, temp: number) => void;
 }
 
 export function MobileCombatLayout({ 
@@ -125,6 +126,7 @@ export function MobileCombatLayout({
   deathSaves,
   onDeathSavesChange,
   onRegainHP,
+  onHPChange,
 }: MobileCombatLayoutProps) {
   // Navigation state
   const [activeTab, setActiveTab] = useState<CombatTab>('combat');
@@ -1075,6 +1077,10 @@ export function MobileCombatLayout({
           const match = combatLog.entries.find(e => e.actionType === 'item' && e.actionName === actionName);
           if (match) combatLog.removeEntry(match.id);
         }}
+        currentHP={currentHP}
+        maxHP={maxHP}
+        tempHP={tempHP}
+        onHPChange={onHPChange}
       />
     );
   };

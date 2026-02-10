@@ -1848,6 +1848,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
                 // Regain HP from death saves (nat 20)
                 handleHPChange(Math.min(amount, hpState.max), hpState.max, hpState.temp);
               }}
+              onHPChange={handleHPChange}
             />
           )}
 
