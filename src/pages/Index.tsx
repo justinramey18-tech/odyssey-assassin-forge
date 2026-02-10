@@ -1625,7 +1625,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         onUseConsumable={useConsumableItem}
         prestigeLevel={prestigeData.prestigeLevel}
         prestigeAbilities={prestigeTree.progress.unlockedAbilities}
-        spellcasting={spellcasting}
+        spellcasting={combatSpellcasting}
         wildShape={isDruidClass ? wildShape : undefined}
         onAssignWildShapeBackground={wildShapeBgs.assignBackground}
         onRemoveWildShapeBackground={wildShapeBgs.removeBackground}
@@ -1735,7 +1735,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       onUseConsumable={useConsumableItem}
       prestigeLevel={prestigeData.prestigeLevel}
       prestigeAbilities={prestigeTree.progress.unlockedAbilities}
-      spellcasting={spellcasting}
+      spellcasting={combatSpellcasting}
       wildShape={isDruidClass ? wildShape : undefined}
       onAssignWildShapeBackground={wildShapeBgs.assignBackground}
       onRemoveWildShapeBackground={wildShapeBgs.removeBackground}
