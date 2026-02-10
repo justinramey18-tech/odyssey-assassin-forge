@@ -1080,12 +1080,13 @@ export function usePartySync(): UsePartySyncReturn {
       updatedVote.closed = true;
     }
 
-    await (supabase.from('party_shared_state') as any).upsert({
-      party_id: party.partyId,
-      user_id: updatedVote.creatorUserId,
-      state_type: 'vote',
-      state_data: updatedVote,
-    }, { onConflict: 'party_id,user_id,state_type' });
+    // Use .update() instead of .upsert() — non-creators can't insert with another user's id (RLS),
+    // but the new "Members can update vote shared state" policy allows any member to update vote rows.
+    await (supabase.from('party_shared_state') as any)
+      .update({ state_data: updatedVote })
+      .eq('party_id', party.partyId)
+      .eq('user_id', updatedVote.creatorUserId)
+      .eq('state_type', 'vote');
   }, [user, party.partyId, activeVote, party.members.length]);
 
   const closeVote = useCallback(async () => {
