@@ -885,6 +885,7 @@ export function QuickActionsDrawer({
 }: QuickActionsDrawerProps) {
   // Track which item has an active inline roll
   const [pendingHealConsumable, setPendingHealConsumable] = useState<{ item: InventoryItem; amount: number } | null>(null);
+  const [pendingHealSpell, setPendingHealSpell] = useState<{ spellName: string; amount: number } | null>(null);
   const [activeRoll, setActiveRoll] = useState<{ 
     id: string; roll: DiceRoll; prompt: string; 
     damageRoll?: DiceRoll; damageFormula?: string; isCrit?: boolean;
@@ -1058,6 +1059,31 @@ export function QuickActionsDrawer({
     setActiveRoll({ id: `ability-${ability.id}`, roll, prompt });
   }, [characterName]);
 
+  // ── Healing formula roller ──
+  const rollHealingFormula = useCallback((formula: string): number => {
+    if (!formula) return 0;
+    // Parse formulas like "1d8+mod", "2d8+mod", "1d4+mod", "1", "3d8+mod"
+    // Use +3 as default spellcasting modifier (reasonable for mid-tier casters)
+    const mod = 3;
+    
+    const resolved = formula.replace(/mod/gi, String(mod));
+    // Match dice pattern: NdM+X
+    const diceMatch = resolved.match(/(\d+)d(\d+)(?:\s*\+\s*(\d+))?/);
+    if (diceMatch) {
+      const count = parseInt(diceMatch[1]);
+      const sides = parseInt(diceMatch[2]);
+      const bonus = parseInt(diceMatch[3] || '0');
+      let total = bonus;
+      for (let i = 0; i < count; i++) {
+        total += Math.floor(Math.random() * sides) + 1;
+      }
+      return Math.max(1, total);
+    }
+    // Plain number
+    const plain = parseInt(resolved);
+    return isNaN(plain) ? 0 : plain;
+  }, []);
+
   // ── Spell cast handlers ──
   const handleCastSpell = useCallback((spell: SpellDefinition) => {
     if (!spellcasting) return;
@@ -1078,13 +1104,36 @@ export function QuickActionsDrawer({
       spell.duration || '1 round'
     );
     if (result.success) {
+      // Check if this is a healing spell and we're in a party
+      if (spell.healingFormula && onHPChange && currentHP !== undefined && maxHP !== undefined) {
+        const healAmount = rollHealingFormula(spell.healingFormula);
+        const otherMembers = partyMembers.filter(m => m.user_id !== userId);
+        
+        if (otherMembers.length > 0 && onSendHeal && userId) {
+          // Show target picker
+          setPendingHealSpell({ spellName: spell.name, amount: healAmount });
+          toast.success(`${spell.name} cast!`, {
+            description: `Choose a target to heal ${healAmount} HP`,
+          });
+          return;
+        }
+        
+        // Solo: auto-apply healing
+        const newHP = Math.min(maxHP, currentHP + healAmount);
+        onHPChange(newHP, tempHP);
+        toast.success(`${spell.name} cast!`, {
+          description: `Healed ${healAmount} HP${result.brokeConcentration ? ` · Broke ${result.brokeConcentration}` : ''}`,
+        });
+        return;
+      }
+      
       toast.success(`${spell.name} cast!`, {
         description: result.brokeConcentration
           ? `Concentration on ${result.brokeConcentration} broken`
           : usePact ? 'Pact slot used' : `Level ${spell.level} slot used`,
       });
     }
-  }, [spellcasting]);
+  }, [spellcasting, partyMembers, userId, onSendHeal, onHPChange, currentHP, maxHP, tempHP, rollHealingFormula]);
 
   const handleUseAbility = useCallback((abilityId: string, abilityName: string) => {
     cooldowns.triggerCooldown(abilityId);
@@ -1578,6 +1627,39 @@ export function QuickActionsDrawer({
           });
         }
         setPendingHealConsumable(null);
+      }}
+    />
+
+    {/* Heal Target Picker for spell healing */}
+    <HealTargetPicker
+      open={!!pendingHealSpell}
+      onOpenChange={(open) => { if (!open) setPendingHealSpell(null); }}
+      selfName={characterName}
+      partyMembers={partyMembers}
+      currentUserId={userId || ''}
+      healDescription={pendingHealSpell ? `${pendingHealSpell.spellName} — ${pendingHealSpell.amount} HP` : ''}
+      onSelectSelf={() => {
+        if (onHPChange && currentHP !== undefined && maxHP !== undefined && pendingHealSpell) {
+          const newHP = Math.min(maxHP, currentHP + pendingHealSpell.amount);
+          onHPChange(newHP, tempHP);
+          toast.success(`${pendingHealSpell.spellName} healed you!`, {
+            description: `Restored ${pendingHealSpell.amount} HP`,
+          });
+        }
+        setPendingHealSpell(null);
+      }}
+      onSelectMember={(member) => {
+        if (onSendHeal && pendingHealSpell) {
+          onSendHeal(member.user_id, {
+            senderName: characterName,
+            itemName: pendingHealSpell.spellName,
+            hpHealed: pendingHealSpell.amount,
+          });
+          toast.success(`Healed ${member.character_name}!`, {
+            description: `Sent ${pendingHealSpell.amount} HP via ${pendingHealSpell.spellName}`,
+          });
+        }
+        setPendingHealSpell(null);
       }}
     />
     </>
