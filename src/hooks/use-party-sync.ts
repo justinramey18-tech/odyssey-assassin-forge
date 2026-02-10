@@ -419,9 +419,11 @@ export function usePartySync(): UsePartySyncReturn {
         (payload) => {
           if (payload.eventType === 'INSERT') {
             const newMember = payload.new as PartyMember;
+            // Deduplicate by user_id (not id) to handle the case where createParty
+            // sets a client-generated id that differs from the DB-generated one
             setParty(prev => ({
               ...prev,
-              members: [...prev.members.filter(m => m.id !== newMember.id), newMember],
+              members: [...prev.members.filter(m => m.user_id !== newMember.user_id), newMember],
             }));
             if (newMember.user_id !== user.id) {
               toast.success(`${newMember.character_name} joined the party!`);
