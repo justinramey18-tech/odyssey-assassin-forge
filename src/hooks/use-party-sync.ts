@@ -148,6 +148,7 @@ export interface SharedBuff {
   source: string;
   casterName: string;
   spellLevel?: number;
+  category?: 'buff' | 'concentration' | 'debuff';
   targetUserId: string;
 }
 
