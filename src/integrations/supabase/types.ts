@@ -254,6 +254,7 @@ export type Database = {
           id: string
           party_id: string
           sender_user_id: string
+          status: string
           target_user_id: string
         }
         Insert: {
@@ -264,6 +265,7 @@ export type Database = {
           id?: string
           party_id: string
           sender_user_id: string
+          status?: string
           target_user_id: string
         }
         Update: {
@@ -274,6 +276,7 @@ export type Database = {
           id?: string
           party_id?: string
           sender_user_id?: string
+          status?: string
           target_user_id?: string
         }
         Relationships: [

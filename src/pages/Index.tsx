@@ -25,6 +25,7 @@ import { AchievementsScreen } from '@/components/achievements/AchievementsScreen
 import { ConstellationScreen } from '@/components/constellation/ConstellationScreen';
 import { HomeScreen } from '@/components/home/HomeScreen';
 import { IntroSplashScreen } from '@/components/home/IntroSplashScreen';
+import { IncomingHealOverlay } from '@/components/party/IncomingHealNotification';
 import { NarrativeForgeScreen } from '@/components/scribe/NarrativeForgeScreen';
 import { ChronicleSyncScreen } from '@/components/chronicle';
 import { PromptDrawerProvider } from '@/components/drawers';
@@ -1671,6 +1672,11 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         userId={user?.id}
         onSendHeal={partySync.sendHealAction}
       >
+        <IncomingHealOverlay
+          pendingHeals={partySync.pendingHeals}
+          onAccept={partySync.acceptHeal}
+          onReject={partySync.rejectHeal}
+        />
         <HomeScreen 
           character={character}
           equipment={equipment}
@@ -1795,6 +1801,11 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         userId={user?.id}
         onSendHeal={partySync.sendHealAction}
       >
+      <IncomingHealOverlay
+        pendingHeals={partySync.pendingHeals}
+        onAccept={partySync.acceptHeal}
+        onReject={partySync.rejectHeal}
+      />
       <div className="min-h-screen relative">
       {/* Builder Background Image - fixed behind everything */}
       <div 
