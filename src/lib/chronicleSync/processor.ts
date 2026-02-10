@@ -25,16 +25,24 @@ import {
   parseCritMatches,
   parseLevelUpMatches,
   parseConditionMatches,
+  parseMultiCurrencyMatches,
 } from './patterns';
 import { parseEnemyMatches } from './patterns/enemies';
 import { matchAchievements, buildAchievementTriggers } from './achievementMatcher';
 import { findBestConsumableMatch, parseItemQuantity } from './fuzzyMatch';
+import { extractAssistantContent } from '@/lib/scribe/smartParsing';
+import { parseShopItemMatches } from './patterns/shopItems';
+import { deduplicateByProximity, deduplicateBySourceText } from './deduplication';
 
 /**
  * Parse session log using offline regex patterns
  * No AI required - instant results
  */
-export function parseLogOffline(input: string): ChronicleParseResult {
+export function parseLogOffline(rawInput: string): ChronicleParseResult {
+  // Gap 2: Smart Parse filtering - strip player messages from chat logs
+  const parseResult = extractAssistantContent(rawInput);
+  const input = parseResult.isChatFormat ? parseResult.filteredText : rawInput;
+
   const xpChanges: ParsedXPChange[] = [];
   const hpChanges: ParsedHPChange[] = [];
   const itemChanges: ParsedItemChange[] = [];
@@ -43,22 +51,22 @@ export function parseLogOffline(input: string): ChronicleParseResult {
   const combatEvents: ParsedCombatEvent[] = [];
   let levelUp: ParsedLevelUp | null = null;
   
-  // Parse XP
-  const xpMatches = parseXPMatches(input);
+  // Parse XP (with deduplication - Gap 6)
+  const xpMatches = deduplicateByProximity(parseXPMatches(input), 500, input);
   for (const match of xpMatches) {
     xpChanges.push({
       amount: match.value as number,
       context: match.context,
-      confidence: 'high', // Regex matches are explicit
+      confidence: 'high',
       sourceText: match.fullMatch,
     });
   }
   
-  // Parse Damage
+  // Parse Damage (Gap 4: expanded patterns now included in patterns.ts)
   const damageMatches = parseDamageMatches(input);
   for (const match of damageMatches) {
     hpChanges.push({
-      amount: -(match.value as number), // Negative for damage
+      amount: -(match.value as number),
       type: 'damage',
       source: match.context,
       sourceText: match.fullMatch,
@@ -108,16 +116,35 @@ export function parseLogOffline(input: string): ChronicleParseResult {
     });
   }
   
-  // Parse Gold
+  // Parse Gold (with deduplication - Gap 6)
   const goldMatches = parseGoldMatches(input);
-  for (const match of goldMatches.gained) {
+  const dedupedGoldGained = deduplicateByProximity(goldMatches.gained, 500, input);
+  const dedupedGoldSpent = deduplicateByProximity(goldMatches.spent, 500, input);
+  for (const match of dedupedGoldGained) {
     goldChanges.push({
       amount: match.value as number,
       action: 'gained',
       sourceText: match.fullMatch,
     });
   }
-  for (const match of goldMatches.spent) {
+  for (const match of dedupedGoldSpent) {
+    goldChanges.push({
+      amount: match.value as number,
+      action: 'spent',
+      sourceText: match.fullMatch,
+    });
+  }
+
+  // Gap 3: Multi-currency support (sp, cp, ep, pp → gold equivalent)
+  const multiCurrency = parseMultiCurrencyMatches(input);
+  for (const match of multiCurrency.gained) {
+    goldChanges.push({
+      amount: match.value as number,
+      action: 'gained',
+      sourceText: match.fullMatch,
+    });
+  }
+  for (const match of multiCurrency.spent) {
     goldChanges.push({
       amount: match.value as number,
       action: 'spent',
@@ -137,7 +164,6 @@ export function parseLogOffline(input: string): ChronicleParseResult {
   // Parse Level Up
   const levelUpMatches = parseLevelUpMatches(input);
   if (levelUpMatches.length > 0) {
-    // Take highest level found
     const highestLevel = Math.max(...levelUpMatches.map(m => m.value as number));
     levelUp = {
       newLevel: highestLevel,
@@ -145,7 +171,7 @@ export function parseLogOffline(input: string): ChronicleParseResult {
     };
   }
   
-  // Parse Conditions
+  // Parse Conditions (Gap 5: expanded removal detection in patterns.ts)
   const conditionMatches = parseConditionMatches(input);
   for (const match of conditionMatches) {
     const [action, name] = (match.value as string).split(':');
@@ -162,7 +188,9 @@ export function parseLogOffline(input: string): ChronicleParseResult {
   
   // Parse enemies from the log
   const enemies = parseEnemyMatches(input);
-  
+
+  // Gap 1: Parse shop items offline
+  const shopItems = parseShopItemMatches(input);
   
   return {
     xpChanges,
@@ -170,14 +198,14 @@ export function parseLogOffline(input: string): ChronicleParseResult {
     itemChanges,
     achievementTriggers,
     goldChanges,
-    shopItems: [], // Offline parsing doesn't detect shop items (requires AI)
+    shopItems,
     conditions,
     combatEvents,
     enemies,
     levelUp,
     parseMode: 'offline',
     parsedAt: new Date().toISOString(),
-    inputLength: input.length,
+    inputLength: rawInput.length,
   };
 }
 

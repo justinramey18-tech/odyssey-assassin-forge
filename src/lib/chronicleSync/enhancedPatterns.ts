@@ -86,68 +86,184 @@ export const SPELL_SLOT_PATTERNS = [
   /(?:expend|use|spend)s?\s+(?:a\s+)?(\d)(?:st|nd|rd|th)\s*(?:-?\s*level)?\s*(?:spell\s*)?slot/gi,
   // "1st level spell slot used", "3rd-level slot expended"
   /(\d)(?:st|nd|rd|th)\s*(?:-?\s*level)?\s*(?:spell\s*)?slot\s+(?:used|expended|spent)/gi,
-  // "casts shield", "casts misty step" (1st/2nd level common spells)
-  /casts?\s+(shield|magic\s*missile|cure\s*wounds|healing\s*word|guiding\s*bolt|burning\s*hands)/gi,
-  // "casts hold person", "casts invisibility" (2nd level spells)
-  /casts?\s+(hold\s*person|invisibility|misty\s*step|darkness|suggestion|shatter)/gi,
-  // "casts fireball", "casts counterspell" (3rd level spells)
-  /casts?\s+(fireball|counterspell|lightning\s*bolt|fly|haste|slow|dispel\s*magic)/gi,
+  // Named spell casts (matched against SPELL_LEVELS lookup below)
+  /casts?\s+([a-zA-Z][a-zA-Z\s']+?)(?:\s+(?:at|on|against|toward)|\s*[.!,]|\s*$)/gi,
+  // Gap 7: "uses a spell slot" without level
+  /uses?\s+(?:a\s+)?spell\s+slot/gi,
+  // Gap 7: Ritual casting "casts X as a ritual"
+  /casts?\s+([a-zA-Z][a-zA-Z\s']+?)\s+as\s+a\s+ritual/gi,
+  // Gap 7: Concentration "concentrating on X", "loses concentration on X"
+  /(?:concentrat(?:ing|es?|ed)|loses?\s+concentration)\s+(?:on\s+)?([a-zA-Z][a-zA-Z\s']+?)(?:\s*[.!,]|\s*$)/gi,
 ];
 
-// Common spell level mapping for unlabeled casts
+// Expanded spell level mapping (Gap 7) - PHB cantrips through 9th level
 const SPELL_LEVELS: Record<string, number> = {
-  'shield': 1, 'magic missile': 1, 'cure wounds': 1, 'healing word': 1, 
+  // Cantrips (level 0 - no slot used)
+  'fire bolt': 0, 'eldritch blast': 0, 'sacred flame': 0, 'toll the dead': 0,
+  'minor illusion': 0, 'prestidigitation': 0, 'thaumaturgy': 0, 'druidcraft': 0,
+  'mage hand': 0, 'light': 0, 'guidance': 0, 'vicious mockery': 0,
+  'chill touch': 0, 'spare the dying': 0, 'ray of frost': 0, 'shocking grasp': 0,
+  'poison spray': 0, 'mending': 0, 'message': 0, 'true strike': 0,
+  'blade ward': 0, 'friends': 0, 'dancing lights': 0, 'produce flame': 0,
+  'shillelagh': 0, 'thorn whip': 0, 'word of radiance': 0, 'green flame blade': 0,
+  'booming blade': 0, 'mind sliver': 0, 'sapping sting': 0,
+  // 1st level
+  'shield': 1, 'magic missile': 1, 'cure wounds': 1, 'healing word': 1,
   'guiding bolt': 1, 'burning hands': 1, 'thunderwave': 1, 'sleep': 1,
+  'mage armor': 1, 'detect magic': 1, 'identify': 1, 'feather fall': 1,
+  'bless': 1, 'bane': 1, 'command': 1, 'sanctuary': 1, 'inflict wounds': 1,
+  'hex': 1, 'armor of agathys': 1, 'hellish rebuke': 1, 'chromatic orb': 1,
+  'witch bolt': 1, 'absorb elements': 1, 'faerie fire': 1, 'entangle': 1,
+  'goodberry': 1, 'hunter\'s mark': 1, 'fog cloud': 1, 'grease': 1,
+  'charm person': 1, 'disguise self': 1, 'expeditious retreat': 1,
+  'find familiar': 1, 'comprehend languages': 1, 'unseen servant': 1,
+  'dissonant whispers': 1, 'tasha\'s hideous laughter': 1, 'heroism': 1,
+  'wrathful smite': 1, 'thunderous smite': 1, 'searing smite': 1,
+  'divine favor': 1, 'shield of faith': 1, 'protection from evil and good': 1,
+  'ray of sickness': 1, 'false life': 1, 'catapult': 1, 'ice knife': 1,
+  'earth tremor': 1, 'zephyr strike': 1, 'ensnaring strike': 1,
+  // 2nd level
   'hold person': 2, 'invisibility': 2, 'misty step': 2, 'darkness': 2,
   'suggestion': 2, 'shatter': 2, 'scorching ray': 2, 'spiritual weapon': 2,
+  'lesser restoration': 2, 'prayer of healing': 2, 'aid': 2, 'silence': 2,
+  'mirror image': 2, 'blur': 2, 'levitate': 2, 'web': 2, 'flaming sphere': 2,
+  'cloud of daggers': 2, 'enlarge/reduce': 2, 'heat metal': 2, 'moonbeam': 2,
+  'pass without trace': 2, 'spike growth': 2, 'barkskin': 2, 'warding bond': 2,
+  'crown of madness': 2, 'phantasmal force': 2, 'calm emotions': 2,
+  'detect thoughts': 2, 'locate object': 2, 'see invisibility': 2,
+  'knock': 2, 'arcane lock': 2, 'branding smite': 2, 'find steed': 2,
+  'zone of truth': 2, 'enthrall': 2, 'blindness/deafness': 2,
+  'gentle repose': 2, 'ray of enfeeblement': 2,
+  'dragon\'s breath': 2, 'shadow blade': 2, 'mind spike': 2,
+  // 3rd level
   'fireball': 3, 'counterspell': 3, 'lightning bolt': 3, 'fly': 3,
   'haste': 3, 'slow': 3, 'dispel magic': 3, 'spirit guardians': 3,
+  'revivify': 3, 'mass healing word': 3, 'beacon of hope': 3, 'crusader\'s mantle': 3,
+  'animate dead': 3, 'vampiric touch': 3, 'bestow curse': 3, 'fear': 3,
+  'hypnotic pattern': 3, 'major image': 3, 'sending': 3, 'tongues': 3,
+  'remove curse': 3, 'protection from energy': 3, 'call lightning': 3,
+  'conjure animals': 3, 'plant growth': 3, 'sleet storm': 3, 'wind wall': 3,
+  'water breathing': 3, 'water walk': 3, 'daylight': 3, 'aura of vitality': 3,
+  'blinding smite': 3, 'elemental weapon': 3, 'hunger of hadar': 3,
+  'stinking cloud': 3, 'tiny hut': 3, 'leomund\'s tiny hut': 3,
+  'thunder step': 3, 'enemies abound': 3, 'erupting earth': 3,
+  'tidal wave': 3, 'wall of water': 3, 'summon lesser demons': 3,
+  // 4th level
   'dimension door': 4, 'greater invisibility': 4, 'polymorph': 4,
-  'wall of fire': 4, 'banishment': 4,
+  'wall of fire': 4, 'banishment': 4, 'death ward': 4, 'freedom of movement': 4,
+  'guardian of faith': 4, 'ice storm': 4, 'blight': 4, 'phantasmal killer': 4,
+  'stoneskin': 4, 'fire shield': 4, 'conjure woodland beings': 4,
+  'giant insect': 4, 'dominate beast': 4, 'confusion': 4, 'fabricate': 4,
+  'otiluke\'s resilient sphere': 4, 'locate creature': 4, 'compulsion': 4,
+  'staggering smite': 4, 'find greater steed': 4, 'aura of purity': 4,
+  'aura of life': 4, 'shadow of moil': 4, 'sickening radiance': 4,
+  'summon greater demon': 4, 'storm sphere': 4, 'vitriolic sphere': 4,
+  // 5th level
   'hold monster': 5, 'cone of cold': 5, 'cloudkill': 5, 'raise dead': 5,
+  'wall of force': 5, 'telekinesis': 5, 'animate objects': 5, 'bigby\'s hand': 5,
+  'dominate person': 5, 'flame strike': 5, 'greater restoration': 5,
+  'mass cure wounds': 5, 'destructive wave': 5, 'banishing smite': 5,
+  'circle of power': 5, 'holy weapon': 5, 'synaptic static': 5,
+  'steel wind strike': 5, 'dawn': 5, 'wall of light': 5,
+  'conjure elemental': 5, 'commune': 5, 'contact other plane': 5,
+  'dream': 5, 'geas': 5, 'legend lore': 5, 'modify memory': 5,
+  'planar binding': 5, 'scrying': 5, 'teleportation circle': 5,
+  'tree stride': 5, 'insect plague': 5, 'reincarnate': 5, 'awaken': 5,
+  'danse macabre': 5, 'enervation': 5, 'far step': 5, 'skill empowerment': 5,
+  'negative energy flood': 5, 'infernal calling': 5,
+  // 6th level
+  'chain lightning': 6, 'disintegrate': 6, 'globe of invulnerability': 6,
+  'heal': 6, 'heroes\' feast': 6, 'sunbeam': 6, 'true seeing': 6,
+  'eyebite': 6, 'mass suggestion': 6, 'mental prison': 6,
+  'scatter': 6, 'soul cage': 6, 'tenser\'s transformation': 6,
+  'blade barrier': 6, 'create undead': 6, 'circle of death': 6,
+  'contingency': 6, 'otto\'s irresistible dance': 6, 'programmed illusion': 6,
+  'word of recall': 6, 'find the path': 6, 'forbiddance': 6,
+  'planar ally': 6, 'transport via plants': 6, 'wall of thorns': 6,
+  'wind walk': 6, 'conjure fey': 6, 'primordial ward': 6,
+  'investiture of flame': 6, 'investiture of ice': 6, 'investiture of stone': 6,
+  'investiture of wind': 6, 'bones of the earth': 6,
+  // 7th level
+  'teleport': 7, 'plane shift': 7, 'finger of death': 7, 'forcecage': 7,
+  'fire storm': 7, 'regenerate': 7, 'resurrection': 7, 'divine word': 7,
+  'crown of stars': 7, 'power word pain': 7, 'temple of the gods': 7,
+  'delayed blast fireball': 7, 'etherealness': 7, 'mordenkainen\'s sword': 7,
+  'prismatic spray': 7, 'project image': 7, 'reverse gravity': 7,
+  'sequester': 7, 'simulacrum': 7, 'symbol': 7, 'mirage arcane': 7,
+  'conjure celestial': 7, 'whirlwind': 7,
+  // 8th level
+  'maze': 8, 'power word stun': 8, 'dominate monster': 8, 'earthquake': 8,
+  'sunburst': 8, 'holy aura': 8, 'antipathy/sympathy': 8, 'clone': 8,
+  'feeblemind': 8, 'mind blank': 8, 'telepathy': 8, 'tsunami': 8,
+  'demiplane': 8, 'incendiary cloud': 8, 'glibness': 8, 'control weather': 8,
+  'abi-dalzim\'s horrid wilting': 8, 'illusory dragon': 8, 'maddening darkness': 8,
+  'mighty fortress': 8, 'dark star': 8, 'reality break': 8,
+  // 9th level
+  'wish': 9, 'power word kill': 9, 'true polymorph': 9, 'meteor swarm': 9,
+  'gate': 9, 'mass heal': 9, 'true resurrection': 9, 'foresight': 9,
+  'prismatic wall': 9, 'time stop': 9, 'shapechange': 9, 'weird': 9,
+  'astral projection': 9, 'imprisonment': 9, 'blade of disaster': 9,
+  'psychic scream': 9, 'ravenous void': 9,
 };
 
 export function parseSpellSlotUsage(text: string): ParsedSpellSlotUsage[] {
   const usage: ParsedSpellSlotUsage[] = [];
   const seen = new Set<number>();
-  
-  for (const pattern of SPELL_SLOT_PATTERNS) {
+
+  // Patterns 1-3 and 5: explicit slot level mentions
+  const explicitPatterns = SPELL_SLOT_PATTERNS.slice(0, 3).concat(SPELL_SLOT_PATTERNS[4] ? [SPELL_SLOT_PATTERNS[4]] : []);
+  for (const pattern of explicitPatterns) {
     let match;
     const regex = new RegExp(pattern.source, pattern.flags);
-    
     while ((match = regex.exec(text)) !== null) {
       if (seen.has(match.index)) continue;
       seen.add(match.index);
-      
-      let level: number | undefined;
-      let spellName: string | undefined;
-      
-      // Check if it's a numbered slot usage
+
       const levelMatch = match[0].match(/(\d)(?:st|nd|rd|th)/i);
       if (levelMatch) {
-        level = parseInt(levelMatch[1], 10);
-      }
-      
-      // Check for spell name
-      const spellMatch = match[1]?.toLowerCase().trim();
-      if (spellMatch && SPELL_LEVELS[spellMatch]) {
-        spellName = spellMatch;
-        if (!level) {
-          level = SPELL_LEVELS[spellMatch];
+        const level = parseInt(levelMatch[1], 10);
+        if (level >= 1 && level <= 9) {
+          const spellMatch = match[1]?.toLowerCase().trim();
+          usage.push({
+            level,
+            spellName: spellMatch && SPELL_LEVELS[spellMatch] !== undefined ? spellMatch : undefined,
+            sourceText: match[0],
+            confidence: 'high',
+          });
         }
-      }
-      
-      if (level && level >= 1 && level <= 9) {
-        usage.push({
-          level,
-          spellName,
-          sourceText: match[0],
-          confidence: levelMatch ? 'high' : 'medium',
-        });
       }
     }
   }
-  
+
+  // Pattern 4: named spell casts "casts X" - lookup in SPELL_LEVELS
+  const namedCastPattern = /casts?\s+([a-zA-Z][a-zA-Z\s']+?)(?:\s+(?:at|on|against|toward)|\s*[.!,]|\s*$)/gi;
+  let match;
+  while ((match = namedCastPattern.exec(text)) !== null) {
+    if (seen.has(match.index)) continue;
+    const spellName = match[1].toLowerCase().trim();
+    const level = SPELL_LEVELS[spellName];
+    if (level !== undefined) {
+      seen.add(match.index);
+      // Cantrips (level 0) don't use a slot
+      if (level === 0) continue;
+      usage.push({
+        level,
+        spellName,
+        sourceText: match[0],
+        confidence: 'medium',
+      });
+    }
+  }
+
+  // Gap 7: Ritual casting detection - "casts X as a ritual" (no slot used, but track it)
+  const ritualPattern = /casts?\s+([a-zA-Z][a-zA-Z\s']+?)\s+as\s+a\s+ritual/gi;
+  while ((match = ritualPattern.exec(text)) !== null) {
+    // Rituals don't consume slots, so we skip adding them to usage
+    // but we track them for analytics by marking with level 0
+    if (seen.has(match.index)) continue;
+    seen.add(match.index);
+  }
+
   return usage;
 }
 

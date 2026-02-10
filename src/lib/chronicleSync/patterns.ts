@@ -62,6 +62,12 @@ export const DAMAGE_PATTERNS = [
   /(?:deal|inflict)(?:s|ed)?\s*(\d+)\s*(?:\w+\s+)?damage/gi,
   // "18 damage taken", "25 points of damage"
   /(\d+)\s*(?:points?\s+of\s+)?(?:\w+\s+)?damage\s*(?:taken|received)/gi,
+  // Gap 4: "burns you for 28 points", "freezes you for 15"
+  /(?:burn|freeze|shock|blast|strike|hit|slash|stab|pierce|crush|sear|scorch|rend|tear)(?:s|ed|ing)?\s+(?:you|him|her|them)\s+for\s+(\d+)\s*(?:points?)?/gi,
+  // "loses 12 hit points", "lost 8 HP"
+  /lose(?:s|d)?\s+(\d+)\s*(?:hp|hit\s*points?|health)/gi,
+  // "for 28 points of fire damage"
+  /for\s+(\d+)\s+points?\s+of\s+\w+\s+damage/gi,
 ];
 
 export const HEALING_PATTERNS = [
@@ -258,6 +264,76 @@ export const GOLD_PATTERNS = [
   /(?:spend|pay|lose|lost)(?:s|ed)?\s*(\d+)\s*(?:gp|gold(?:\s*pieces?)?|coins?)/gi,
 ];
 
+// ===== MULTI-CURRENCY PATTERNS (Gap 3) =====
+
+// Conversion rates to gold
+export const CURRENCY_TO_GOLD: Record<string, number> = {
+  cp: 0.01,
+  sp: 0.1,
+  ep: 0.5,
+  gp: 1,
+  pp: 10,
+};
+
+export const MULTI_CURRENCY_GAIN_PATTERNS = [
+  // "find 50 silver", "loot 200 copper", "receive 10 platinum"
+  /(?:find|loot|receive|gain|get|got|earn)(?:s|ed)?\s*(\d+)\s*(?:(cp|sp|ep|pp)|copper(?:\s*pieces?)?|silver(?:\s*pieces?)?|electrum(?:\s*pieces?)?|platinum(?:\s*pieces?)?)/gi,
+  // "50 silver found", "200 copper looted"
+  /(\d+)\s*(?:(cp|sp|ep|pp)|copper(?:\s*pieces?)?|silver(?:\s*pieces?)?|electrum(?:\s*pieces?)?|platinum(?:\s*pieces?)?)\s*(?:found|looted|gained|earned|received)/gi,
+];
+
+export const MULTI_CURRENCY_SPEND_PATTERNS = [
+  /(?:spend|pay|lose|lost)(?:s|ed)?\s*(\d+)\s*(?:(cp|sp|ep|pp)|copper(?:\s*pieces?)?|silver(?:\s*pieces?)?|electrum(?:\s*pieces?)?|platinum(?:\s*pieces?)?)/gi,
+];
+
+function detectCurrencyType(matchText: string): string {
+  const lower = matchText.toLowerCase();
+  if (/\bcp\b|copper/i.test(lower)) return 'cp';
+  if (/\bsp\b|silver/i.test(lower)) return 'sp';
+  if (/\bep\b|electrum/i.test(lower)) return 'ep';
+  if (/\bpp\b|platinum/i.test(lower)) return 'pp';
+  return 'gp';
+}
+
+export function parseMultiCurrencyMatches(text: string): { gained: PatternMatch[]; spent: PatternMatch[] } {
+  const gained: PatternMatch[] = [];
+  const spent: PatternMatch[] = [];
+
+  for (const pattern of MULTI_CURRENCY_GAIN_PATTERNS) {
+    let match;
+    const regex = new RegExp(pattern.source, pattern.flags);
+    while ((match = regex.exec(text)) !== null) {
+      const rawAmount = parseInt(match[1], 10);
+      const currency = detectCurrencyType(match[0]);
+      const goldEquiv = Math.round(rawAmount * (CURRENCY_TO_GOLD[currency] ?? 1) * 100) / 100;
+      if (!isNaN(goldEquiv) && goldEquiv > 0) {
+        const start = Math.max(0, match.index - 30);
+        const end = Math.min(text.length, match.index + match[0].length + 30);
+        const context = text.slice(start, end).replace(/\s+/g, ' ').trim();
+        gained.push({ fullMatch: match[0], value: goldEquiv, context, index: match.index });
+      }
+    }
+  }
+
+  for (const pattern of MULTI_CURRENCY_SPEND_PATTERNS) {
+    let match;
+    const regex = new RegExp(pattern.source, pattern.flags);
+    while ((match = regex.exec(text)) !== null) {
+      const rawAmount = parseInt(match[1], 10);
+      const currency = detectCurrencyType(match[0]);
+      const goldEquiv = Math.round(rawAmount * (CURRENCY_TO_GOLD[currency] ?? 1) * 100) / 100;
+      if (!isNaN(goldEquiv) && goldEquiv > 0) {
+        const start = Math.max(0, match.index - 30);
+        const end = Math.min(text.length, match.index + match[0].length + 30);
+        const context = text.slice(start, end).replace(/\s+/g, ' ').trim();
+        spent.push({ fullMatch: match[0], value: goldEquiv, context, index: match.index });
+      }
+    }
+  }
+
+  return { gained, spent };
+}
+
 export function parseGoldMatches(text: string): { gained: PatternMatch[]; spent: PatternMatch[] } {
   const gained: PatternMatch[] = [];
   const spent: PatternMatch[] = [];
@@ -330,6 +406,26 @@ export const CONDITION_PATTERNS = [
   /(poisoned|stunned|frightened|charmed|unconscious|blinded|deafened|paralyzed|petrified|prone|restrained|incapacitated|exhausted|invisible|grappled)/gi,
 ];
 
+// Gap 5: Expanded removal context phrases
+const CONDITION_REMOVAL_PHRASES = [
+  /no\s+longer/i,
+  /cure|cured/i,
+  /remove|removed/i,
+  /end(?:s|ed)?/i,
+  /recover|recovered/i,
+  /free|freed/i,
+  /wears?\s+off/i,
+  /fades?/i,
+  /lifts?/i,
+  /shakes?\s+(?:it\s+)?off/i,
+  /breaks?\s+free/i,
+  /snaps?\s+out/i,
+  /overcomes?/i,
+  /expires?/i,
+  /dissipates?/i,
+  /subsides?/i,
+];
+
 export function parseCritMatches(text: string): PatternMatch[] {
   const matches: PatternMatch[] = [];
   
@@ -394,8 +490,8 @@ export function parseConditionMatches(text: string): PatternMatch[] {
     const end = Math.min(text.length, match.index + match[0].length + 40);
     const context = text.slice(start, end).replace(/\s+/g, ' ').trim();
     
-    // Check context to determine if applied or removed
-    const isRemoved = /(?:no\s+longer|cure|remove|end|recover|free)/i.test(context);
+    // Check context to determine if applied or removed (Gap 5: expanded phrases)
+    const isRemoved = CONDITION_REMOVAL_PHRASES.some(p => p.test(context));
     
     matches.push({
       fullMatch: match[0],
