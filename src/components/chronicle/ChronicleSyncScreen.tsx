@@ -721,7 +721,7 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
               )}
 
               {/* Auto-Apply Panel - one-click application for HP, gold, conditions, rests, death saves, initiative */}
-              {parseResult && (hasDisplayOnlyChanges(parseResult) || (enhancedResults && (enhancedResults.deathSaves.length > 0 || enhancedResults.initiativeRolls.length > 0 || enhancedResults.damageModifiers.length > 0 || enhancedResults.concentrationChecks.length > 0))) && (
+              {parseResult && (hasDisplayOnlyChanges(parseResult) || (enhancedResults && (enhancedResults.deathSaves.length > 0 || enhancedResults.initiativeRolls.length > 0 || enhancedResults.damageModifiers.length > 0 || enhancedResults.concentrationChecks.length > 0 || enhancedResults.abilityScoreIncreases.length > 0 || enhancedResults.featAcquisitions.length > 0 || enhancedResults.classFeatureUnlocks.length > 0))) && (
                 <AutoApplyPanel
                   parseResult={parseResult}
                   enhancedResults={enhancedResults ? {
@@ -735,6 +735,9 @@ Searching the bodies, you find 2 health potions and 35 gold pieces."
                     kills: enhancedResults.kills,
                     damageModifiers: enhancedResults.damageModifiers,
                     concentrationChecks: enhancedResults.concentrationChecks,
+                    abilityScoreIncreases: enhancedResults.abilityScoreIncreases,
+                    featAcquisitions: enhancedResults.featAcquisitions,
+                    classFeatureUnlocks: enhancedResults.classFeatureUnlocks,
                   } : undefined}
                   currentGold={currentGold}
                   currentHP={currentHP}

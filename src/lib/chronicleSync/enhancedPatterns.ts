@@ -13,6 +13,12 @@ import { extractDamageType } from './patterns/damageTypes';
 import { parseAttackRolls } from './patterns/attackRolls';
 import { parseMovementEvents } from './patterns/movement';
 import { parseDamageModifiers, parseConcentrationChecks } from './patterns/resistanceAndConcentration';
+import { parseAbilityScoreIncreaseMatches } from './patterns/abilityScoreIncrease';
+import { parseFeatAcquisitionMatches } from './patterns/featAcquisition';
+import { parseClassFeatureUnlockMatches } from './patterns/classFeatureUnlock';
+import type { AbilityScoreIncreaseMatch } from './patterns/abilityScoreIncrease';
+import type { FeatAcquisitionMatch } from './patterns/featAcquisition';
+import type { ClassFeatureUnlockMatch } from './patterns/classFeatureUnlock';
 import { 
   ParsedRestEvent, 
   ParsedSpellSlotUsage, 
@@ -41,6 +47,9 @@ export type { DamageType } from './patterns/damageTypes';
 export type { ParsedAttackRoll } from './patterns/attackRolls';
 export type { ParsedMovement } from './patterns/movement';
 export type { ParsedDamageModifier, ParsedConcentrationCheck } from './patterns/resistanceAndConcentration';
+export type { AbilityScoreIncreaseMatch } from './patterns/abilityScoreIncrease';
+export type { FeatAcquisitionMatch } from './patterns/featAcquisition';
+export type { ClassFeatureUnlockMatch } from './patterns/classFeatureUnlock';
 
 // ===== REST PATTERNS =====
 
@@ -536,6 +545,10 @@ export interface EnhancedPatternResults {
   movementEvents: ParsedMovement[];
   damageModifiers: ParsedDamageModifier[];
   concentrationChecks: ParsedConcentrationCheck[];
+  // Progression detections
+  abilityScoreIncreases: AbilityScoreIncreaseMatch[];
+  featAcquisitions: FeatAcquisitionMatch[];
+  classFeatureUnlocks: ClassFeatureUnlockMatch[];
 }
 
 export function parseEnhancedPatterns(text: string): EnhancedPatternResults {
@@ -558,6 +571,10 @@ export function parseEnhancedPatterns(text: string): EnhancedPatternResults {
     movementEvents: parseMovementEvents(text),
     damageModifiers: parseDamageModifiers(text),
     concentrationChecks: parseConcentrationChecks(text),
+    // Progression detections
+    abilityScoreIncreases: parseAbilityScoreIncreaseMatches(text),
+    featAcquisitions: parseFeatAcquisitionMatches(text),
+    classFeatureUnlocks: parseClassFeatureUnlockMatches(text),
   };
 }
 
