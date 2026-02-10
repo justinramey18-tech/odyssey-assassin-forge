@@ -452,21 +452,30 @@ export function HomeScreen({
               />
             )}
             
-            {/* Party Indicator */}
-            {partySync && partySync.party.partyId && (
+            {/* Party Indicator / Create+Join */}
+            {partySync && (
               <button
                 onClick={() => {
                   triggerHaptic('light');
                   setShowPartyDrawer(true);
                 }}
-                className="p-2 rounded-lg hover:bg-white/10 transition-colors relative"
+                className={cn(
+                  "rounded-lg transition-colors relative flex items-center gap-1.5",
+                  partySync.party.partyId
+                    ? "p-2 hover:bg-white/10"
+                    : "px-2.5 py-1.5 hover:bg-emerald-900/20 border border-emerald-500/30"
+                )}
                 style={{ touchAction: 'manipulation' }}
-                aria-label={`Party — ${partySync.party.members.length} members`}
+                aria-label={partySync.party.partyId ? `Party — ${partySync.party.members.length} members` : 'Create or Join Party'}
               >
-                <Users className="w-5 h-5 text-emerald-400" />
-                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center text-[10px] font-bold rounded-full bg-emerald-500 text-white">
-                  {partySync.party.members.length}
-                </span>
+                <Users className={cn("w-4 h-4", partySync.party.partyId ? "text-emerald-400 w-5 h-5" : "text-emerald-400/70")} />
+                {partySync.party.partyId ? (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center text-[10px] font-bold rounded-full bg-emerald-500 text-white">
+                    {partySync.party.members.length}
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-cinzel uppercase tracking-wider text-emerald-400/70">Party</span>
+                )}
               </button>
             )}
 
