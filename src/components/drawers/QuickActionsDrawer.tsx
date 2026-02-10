@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { Swords, Sparkles, Zap, Wand2, 
   ChevronDown, Copy, Check, Timer, Shield, Play, Dices, Target,
   Beaker, Skull, ScrollText, FlaskConical, PawPrint, Clock, Heart,
-  ImagePlus, ImageOff
+  ImagePlus, ImageOff, Star, X, Plus
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -49,6 +49,7 @@ interface SpellcastingInfo {
     brokeConcentration: string | null;
   };
   useSlot: (level: number) => boolean;
+  toggleFavorite: (spellId: string) => void;
 }
 
 interface QuickActionsDrawerProps {
@@ -872,6 +873,9 @@ export function QuickActionsDrawer({
   } | null>(null);
   // Track roll mode for weapon attacks
   const [weaponRollMode, setWeaponRollMode] = useState<RollMode>('normal');
+  // Track add-spell picker visibility
+  const [showAddSpells, setShowAddSpells] = useState(false);
+  const [showAddCantrips, setShowAddCantrips] = useState(false);
 
   // ── Basics: Equipped weapons + unarmed strike ──
   const weapons = useMemo((): WeaponAttack[] => {
@@ -928,7 +932,27 @@ export function QuickActionsDrawer({
       .filter((s): s is SpellDefinition => !!s && s.level === 0);
   }, [spellcasting]);
 
-  // Slot summary
+  // Available spells to add (prepared/known but NOT favorited, non-cantrip)
+  const availableSpellsToAdd = useMemo((): SpellDefinition[] => {
+    if (!spellcasting) return [];
+    const favoriteSet = new Set(spellcasting.favoriteSpells);
+    const allPreparedOrKnown = new Set([...spellcasting.preparedSpells, ...spellcasting.knownSpells]);
+    return Array.from(allPreparedOrKnown)
+      .filter(id => !favoriteSet.has(id))
+      .map(id => getSpellById(id))
+      .filter((s): s is SpellDefinition => !!s && s.level > 0);
+  }, [spellcasting]);
+
+  // Available cantrips to add (known but NOT favorited)
+  const availableCantripsToAdd = useMemo((): SpellDefinition[] => {
+    if (!spellcasting) return [];
+    const favoriteSet = new Set(spellcasting.favoriteSpells);
+    return spellcasting.knownSpells
+      .filter(id => !favoriteSet.has(id))
+      .map(id => getSpellById(id))
+      .filter((s): s is SpellDefinition => !!s && s.level === 0);
+  }, [spellcasting]);
+
   const slotSummary = useMemo(() => {
     if (!spellcasting) return '';
     const parts: string[] = [];
@@ -1250,17 +1274,17 @@ export function QuickActionsDrawer({
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <div className="space-y-1 pl-2 pr-1 pb-2">
-                  {preparedSpells.length === 0 && (
+                  {preparedSpells.length === 0 && !showAddSpells && (
                     <p className="text-xs text-muted-foreground text-center py-3">No spells prepared. Visit the Arcana tab.</p>
                   )}
                   {preparedSpells.map(spell => {
                     const slot = spellcasting?.spellSlots[spell.level];
                     const pact = spellcasting?.pactSlots;
-                    // Can cast if regular slot available OR pact slot available at sufficient level
                     const hasRegularSlot = slot ? slot.current > 0 : false;
                     const hasPactSlot = pact ? pact.current > 0 && pact.level >= spell.level : false;
                     const hasSlot = hasRegularSlot || hasPactSlot;
                     const isConcentrating = spellcasting?.concentratingOn === spell.id;
+                    const isFav = spellcasting?.favoriteSpells.includes(spell.id);
                     const prompt = generateQuickSpellPrompt(spell, characterName, false);
                     return (
                       <div key={spell.id} className={cn(
@@ -1287,10 +1311,59 @@ export function QuickActionsDrawer({
                           onCast={() => handleCastSpell(spell)}
                           prompt={prompt}
                         />
-                        <CopyButton text={prompt} />
+                        {isFav && spellcasting && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); spellcasting.toggleFavorite(spell.id); }}
+                            className="p-1.5 rounded-md hover:bg-red-500/20 transition-colors shrink-0"
+                            aria-label="Remove from quick actions"
+                            style={{ touchAction: 'manipulation' }}
+                          >
+                            <X className="w-3.5 h-3.5 text-muted-foreground hover:text-red-400" />
+                          </button>
+                        )}
+                        {!isFav && <CopyButton text={prompt} />}
                       </div>
                     );
                   })}
+                  {/* Add spell picker */}
+                  {showAddSpells && spellcasting && (
+                    <div className="space-y-1 pt-1 border-t border-border/20 mt-1">
+                      <p className="text-[10px] text-muted-foreground font-mono uppercase px-1 pt-1">Add to Quick Actions</p>
+                      {availableSpellsToAdd.length === 0 && (
+                        <p className="text-xs text-muted-foreground text-center py-2">All prepared spells are already added.</p>
+                      )}
+                      {availableSpellsToAdd.map(spell => (
+                        <button
+                          key={spell.id}
+                          onClick={() => { spellcasting.toggleFavorite(spell.id); toast.success(`${spell.name} added!`); }}
+                          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-card/20 border border-dashed border-border/30 hover:bg-card/40 transition-colors text-left"
+                          style={{ touchAction: 'manipulation' }}
+                        >
+                          <Plus className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{spell.name}</p>
+                            <p className="text-xs text-muted-foreground">{spell.school} · L{spell.level}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {/* Add button */}
+                  {spellcasting && (
+                    <button
+                      onClick={() => setShowAddSpells(!showAddSpells)}
+                      className={cn(
+                        "w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-dashed transition-colors text-xs font-medium",
+                        showAddSpells
+                          ? "border-indigo-500/40 bg-indigo-500/10 text-indigo-400"
+                          : "border-border/30 text-muted-foreground hover:text-indigo-400 hover:border-indigo-500/30"
+                      )}
+                      style={{ touchAction: 'manipulation' }}
+                    >
+                      {showAddSpells ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                      {showAddSpells ? 'Done' : 'Add Spell'}
+                    </button>
+                  )}
                 </div>
               </CollapsibleContent>
             </Collapsible>
@@ -1302,10 +1375,11 @@ export function QuickActionsDrawer({
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <div className="space-y-1 pl-2 pr-1 pb-2">
-                  {cantrips.length === 0 && (
+                  {cantrips.length === 0 && !showAddCantrips && (
                     <p className="text-xs text-muted-foreground text-center py-3">No cantrips known. Visit the Arcana tab.</p>
                   )}
                   {cantrips.map(spell => {
+                    const isFav = spellcasting?.favoriteSpells.includes(spell.id);
                     const prompt = generateQuickSpellPrompt(spell, characterName, true);
                     return (
                       <div key={spell.id} className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-card/40 border border-border/30">
@@ -1322,6 +1396,96 @@ export function QuickActionsDrawer({
                           }}
                           prompt={prompt}
                         />
+                        {isFav && spellcasting && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); spellcasting.toggleFavorite(spell.id); }}
+                            className="p-1.5 rounded-md hover:bg-red-500/20 transition-colors shrink-0"
+                            aria-label="Remove from quick actions"
+                            style={{ touchAction: 'manipulation' }}
+                          >
+                            <X className="w-3.5 h-3.5 text-muted-foreground hover:text-red-400" />
+                          </button>
+                        )}
+                        {!isFav && <CopyButton text={prompt} />}
+                      </div>
+                    );
+                  })}
+                  {/* Add cantrip picker */}
+                  {showAddCantrips && spellcasting && (
+                    <div className="space-y-1 pt-1 border-t border-border/20 mt-1">
+                      <p className="text-[10px] text-muted-foreground font-mono uppercase px-1 pt-1">Add to Quick Actions</p>
+                      {availableCantripsToAdd.length === 0 && (
+                        <p className="text-xs text-muted-foreground text-center py-2">All known cantrips are already added.</p>
+                      )}
+                      {availableCantripsToAdd.map(spell => (
+                        <button
+                          key={spell.id}
+                          onClick={() => { spellcasting.toggleFavorite(spell.id); toast.success(`${spell.name} added!`); }}
+                          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-card/20 border border-dashed border-border/30 hover:bg-card/40 transition-colors text-left"
+                          style={{ touchAction: 'manipulation' }}
+                        >
+                          <Plus className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{spell.name}</p>
+                            <p className="text-xs text-muted-foreground">{spell.school}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {/* Add button */}
+                  {spellcasting && (
+                    <button
+                      onClick={() => setShowAddCantrips(!showAddCantrips)}
+                      className={cn(
+                        "w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-dashed transition-colors text-xs font-medium",
+                        showAddCantrips
+                          ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-400"
+                          : "border-border/30 text-muted-foreground hover:text-cyan-400 hover:border-cyan-500/30"
+                      )}
+                      style={{ touchAction: 'manipulation' }}
+                    >
+                      {showAddCantrips ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                      {showAddCantrips ? 'Done' : 'Add Cantrip'}
+                    </button>
+                  )}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* ── CONSUMABLES ── */}
+            <Collapsible className="group">
+              <CollapsibleTrigger className="w-full">
+                <CategoryHeader icon={FlaskConical} label="Consumables" count={consumablesInventory.length} color="bg-rose-500/20 text-rose-400" />
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="space-y-1 pl-2 pr-1 pb-2">
+                  {consumablesInventory.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-3">No consumables in inventory. Visit the Shop or Consumables tab.</p>
+                  )}
+                  {consumablesInventory.map(item => {
+                    const prompt = generateConsumablePrompt(item.consumable, characterName);
+                    const TypeIcon = item.consumable.type === 'potion' ? Beaker 
+                      : item.consumable.type === 'poison' ? Skull : ScrollText;
+                    const typeColor = consumableTypeConfig[item.consumable.type].color;
+                    return (
+                      <div key={item.consumable.id} className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-card/40 border border-border/30">
+                        <TypeIcon className={cn("w-4 h-4 shrink-0", typeColor)} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-medium truncate">{item.consumable.name}</p>
+                            <span className="text-[10px] text-muted-foreground font-mono">×{item.quantity}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate">{item.consumable.effect}</p>
+                        </div>
+                        {onUseConsumable && (
+                          <QuickCastButton
+                            label="Use"
+                            disabled={item.quantity <= 0}
+                            onCast={() => handleUseConsumable(item)}
+                            prompt={prompt}
+                          />
+                        )}
                         <CopyButton text={prompt} />
                       </div>
                     );
@@ -1329,46 +1493,6 @@ export function QuickActionsDrawer({
                 </div>
               </CollapsibleContent>
             </Collapsible>
-
-            {/* ── CONSUMABLES ── */}
-            {consumablesInventory.length > 0 && (
-              <Collapsible className="group">
-                <CollapsibleTrigger className="w-full">
-                  <CategoryHeader icon={FlaskConical} label="Consumables" count={consumablesInventory.length} color="bg-rose-500/20 text-rose-400" />
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="space-y-1 pl-2 pr-1 pb-2">
-                    {consumablesInventory.map(item => {
-                      const prompt = generateConsumablePrompt(item.consumable, characterName);
-                      const TypeIcon = item.consumable.type === 'potion' ? Beaker 
-                        : item.consumable.type === 'poison' ? Skull : ScrollText;
-                      const typeColor = consumableTypeConfig[item.consumable.type].color;
-                      return (
-                        <div key={item.consumable.id} className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-card/40 border border-border/30">
-                          <TypeIcon className={cn("w-4 h-4 shrink-0", typeColor)} />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <p className="text-sm font-medium truncate">{item.consumable.name}</p>
-                              <span className="text-[10px] text-muted-foreground font-mono">×{item.quantity}</span>
-                            </div>
-                            <p className="text-xs text-muted-foreground truncate">{item.consumable.effect}</p>
-                          </div>
-                          {onUseConsumable && (
-                            <QuickCastButton
-                              label="Use"
-                              disabled={item.quantity <= 0}
-                              onCast={() => handleUseConsumable(item)}
-                              prompt={prompt}
-                            />
-                          )}
-                          <CopyButton text={prompt} />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-            )}
 
           </div>
         </ScrollArea>
