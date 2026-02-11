@@ -3,14 +3,16 @@ import { cn } from '@/lib/utils';
 import { Heart, Shield, Sparkles, ChevronDown, ChevronUp, Eye } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import type { PartyMember } from '@/hooks/use-party-sync';
+import type { OnlineInfo } from '@/hooks/use-online-status';
 
 interface PartyMemberCardProps {
   member: PartyMember;
   isSelf: boolean;
   onViewActions?: (member: PartyMember) => void;
+  onlineInfo?: OnlineInfo;
 }
 
-export function PartyMemberCard({ member, isSelf, onViewActions }: PartyMemberCardProps) {
+export function PartyMemberCard({ member, isSelf, onViewActions, onlineInfo }: PartyMemberCardProps) {
   const [showSlots, setShowSlots] = useState(false);
   const status = member.character_status;
   const currentHP = status.currentHP ?? 0;
@@ -43,14 +45,25 @@ export function PartyMemberCard({ member, isSelf, onViewActions }: PartyMemberCa
       {/* Name + Level + Class + Avatar */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Avatar className="w-7 h-7">
-            {profileImage ? (
-              <AvatarImage src={profileImage} alt={member.character_name} />
-            ) : null}
-            <AvatarFallback className="text-[10px] font-bold bg-primary/20 text-primary">
-              {member.character_name.charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+          <div className="relative">
+            <Avatar className="w-7 h-7">
+              {profileImage ? (
+                <AvatarImage src={profileImage} alt={member.character_name} />
+              ) : null}
+              <AvatarFallback className="text-[10px] font-bold bg-primary/20 text-primary">
+                {member.character_name.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            {/* Online indicator dot */}
+            {onlineInfo && (
+              <div
+                className={cn(
+                  "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-card",
+                  onlineInfo.isOnline ? "bg-emerald-500" : "bg-muted-foreground/40"
+                )}
+              />
+            )}
+          </div>
           <span className="font-cinzel font-semibold text-sm truncate max-w-[120px]">
             {member.character_name}
           </span>
@@ -70,6 +83,11 @@ export function PartyMemberCard({ member, isSelf, onViewActions }: PartyMemberCa
           )}
         </div>
       </div>
+
+      {/* Last seen label (when offline) */}
+      {onlineInfo && !onlineInfo.isOnline && onlineInfo.lastSeenLabel && (
+        <p className="text-[9px] text-muted-foreground/60 -mt-1 pl-9">{onlineInfo.lastSeenLabel}</p>
+      )}
 
       {/* HP Bar */}
       <div className="space-y-1">
