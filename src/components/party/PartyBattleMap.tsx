@@ -160,6 +160,10 @@ export function PartyBattleMap({ markers, currentUserId, characterName, memberCo
     }
   }, [spellOrigin, spellShape, spellSizeFt, spellColor]);
 
+  const handleDeleteSpell = useCallback((id: string) => {
+    setSpellTemplates(prev => prev.filter(t => t.id !== id));
+  }, []);
+
   const handleClearSpells = useCallback(() => {
     setSpellTemplates([]);
     setSpellOrigin(null);
@@ -326,6 +330,7 @@ export function PartyBattleMap({ markers, currentUserId, characterName, memberCo
             setSpellSizeFt={setSpellSizeFt}
             setSpellColor={setSpellColor}
             onSpellClick={handleSpellClick}
+            onDeleteSpell={handleDeleteSpell}
             onClearSpells={handleClearSpells}
           />
         </DialogContent>

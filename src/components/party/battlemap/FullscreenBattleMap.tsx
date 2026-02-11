@@ -51,6 +51,7 @@ interface FullscreenBattleMapProps {
   setSpellSizeFt: (v: number) => void;
   setSpellColor: (v: SpellColorId) => void;
   onSpellClick: (x: number, y: number) => void;
+  onDeleteSpell: (id: string) => void;
   onClearSpells: () => void;
 }
 
@@ -60,7 +61,7 @@ export function FullscreenBattleMap({
   onUndo, getMarkerAt, onMeasureClick, onAreaClick, measureStart, measureEnd, highlightedCells,
   areaColor, setAreaColor, onClearArea,
   spellTemplates, spellShape, spellSizeFt, spellColor, spellOrigin,
-  setSpellShape, setSpellSizeFt, setSpellColor, onSpellClick, onClearSpells,
+  setSpellShape, setSpellSizeFt, setSpellColor, onSpellClick, onDeleteSpell, onClearSpells,
 }: FullscreenBattleMapProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -362,6 +363,7 @@ export function FullscreenBattleMap({
                 templates={spellTemplates}
                 gridSize={gridSize}
                 cellSize={cellSize}
+                onDeleteTemplate={onDeleteSpell}
               />
 
               {/* Spell origin indicator */}

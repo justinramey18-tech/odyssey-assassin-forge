@@ -5,9 +5,10 @@ interface SpellTemplateOverlayProps {
   templates: SpellTemplate[];
   gridSize: GridSize;
   cellSize: number;
+  onDeleteTemplate?: (id: string) => void;
 }
 
-export function SpellTemplateOverlay({ templates, gridSize, cellSize }: SpellTemplateOverlayProps) {
+export function SpellTemplateOverlay({ templates, gridSize, cellSize, onDeleteTemplate }: SpellTemplateOverlayProps) {
   const renderedTemplates = useMemo(() => {
     return templates.map(template => {
       const cells = getSpellTemplateCells(template, gridSize);
@@ -37,18 +38,20 @@ export function SpellTemplateOverlay({ templates, gridSize, cellSize }: SpellTem
               }}
             />
           ))}
-          {/* Origin marker */}
-          <div
-            className="absolute pointer-events-none z-20 flex items-center justify-center"
+          {/* Origin marker — clickable to delete */}
+          <button
+            className="absolute z-20 flex items-center justify-center group cursor-pointer"
             style={{
               left: template.originX * cellSize,
               top: template.originY * cellSize,
               width: cellSize,
               height: cellSize,
             }}
+            title="Click to remove this spell template"
+            onClick={() => onDeleteTemplate?.(template.id)}
           >
             <div
-              className="rounded-full border-2 border-white/80"
+              className="rounded-full border-2 border-white/80 transition-transform group-hover:scale-125 group-hover:border-destructive"
               style={{
                 width: cellSize * 0.35,
                 height: cellSize * 0.35,
@@ -56,7 +59,7 @@ export function SpellTemplateOverlay({ templates, gridSize, cellSize }: SpellTem
                 boxShadow: `0 0 6px ${colorInfo.color}`,
               }}
             />
-          </div>
+          </button>
           {/* Direction indicator line */}
           <svg
             className="absolute inset-0 pointer-events-none z-20"
