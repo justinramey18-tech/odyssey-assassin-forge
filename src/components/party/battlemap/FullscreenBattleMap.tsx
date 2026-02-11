@@ -10,7 +10,7 @@ import { MeasureOverlay } from './MeasureOverlay';
 import { AreaOverlay } from './AreaOverlay';
 import {
   type MapMarker, type GridSize, type ToolMode, type UndoAction, type AreaColorId,
-  GRID_SIZE_OPTIONS, CELL_SIZE, getFeetPerSquare,
+  GRID_SIZE_OPTIONS, CELL_SIZE, getFeetPerSquare, getAreaColorById,
 } from './types';
 
 interface FullscreenBattleMapProps {
@@ -287,7 +287,8 @@ export function FullscreenBattleMap({
                   const x = i % gridSize;
                   const y = Math.floor(i / gridSize);
                   const marker = markerMap.get(`${x},${y}`);
-                  const isHighlighted = highlightedCells.has(`${x},${y}`);
+                  const highlightColorId = highlightedCells.get(`${x},${y}`);
+                  const isHighlighted = !!highlightColorId;
                   const isMeasurePoint = (measureStart?.x === x && measureStart?.y === y) || (measureEnd?.x === x && measureEnd?.y === y);
                   return (
                     <button
@@ -309,12 +310,15 @@ export function FullscreenBattleMap({
                         "border border-border/10 flex items-center justify-center transition-colors",
                         marker ? "" : "hover:bg-muted/20",
                         (toolMode === 'place-self' || toolMode === 'place-enemy') && !marker && "hover:bg-primary/10",
-                        isHighlighted && "bg-primary/20 border-primary/40",
                         isMeasurePoint && "ring-2 ring-primary/60",
                       )}
                       style={{
                         width: cellSize, height: cellSize,
                         ...(marker ? { backgroundColor: `${marker.color}30` } : {}),
+                        ...(isHighlighted && highlightColorId ? {
+                          backgroundColor: getAreaColorById(highlightColorId).bg,
+                          borderColor: getAreaColorById(highlightColorId).border,
+                        } : {}),
                       }}
                       title={marker?.name}
                     >
