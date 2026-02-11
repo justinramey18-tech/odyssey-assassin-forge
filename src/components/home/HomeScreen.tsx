@@ -732,6 +732,8 @@ export function HomeScreen({
                   onNavigateToTab(subTabId as NavigableTab);
                 }}
                 isLegacyUnlocked={false}
+                onOpenCloud={onCloudSyncClick}
+                onOpenSettings={onOpenSettings}
               />
 
               <PrimaryNavigationCards
