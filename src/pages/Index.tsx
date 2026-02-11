@@ -118,6 +118,7 @@ const Index = () => {
   const [settingsInitialTab, setSettingsInitialTab] = useState<'game' | 'setup' | 'faq' | 'character' | 'tools' | undefined>(undefined);
   const [showCloudSaveModal, setShowCloudSaveModal] = useState(false);
   const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string | null>(null);
+  const [isSwitchingCharacter, setIsSwitchingCharacter] = useState(false);
   const [character, setCharacter] = useState<Character>({
     name: '',
     level: 1,
@@ -828,6 +829,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
   // Handle loading cloud save - RESTORES ALL CHARACTER STATE
   const handleLoadCloudSave = useCallback(async (data: SaveData) => {
     console.log('[CloudSave] Loading character:', data.character.name);
+    setIsSwitchingCharacter(true);
     
     // CRITICAL: Save current character to cloud BEFORE switching
     // This preserves background URL, party association, and all state for the current character
@@ -1763,6 +1765,16 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       });
     }
   };
+
+  // Fullscreen loading overlay while switching characters
+  if (isSwitchingCharacter) {
+    return (
+      <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm">
+        <div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full mb-4" />
+        <p className="text-lg font-cinzel text-foreground/80 animate-pulse">Switching Character…</p>
+      </div>
+    );
+  }
 
   // Show wizard on first load
   if (showWizard) {
