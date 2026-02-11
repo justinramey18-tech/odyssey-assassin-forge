@@ -307,18 +307,18 @@ export function FullscreenBattleMap({
                       }}
                       onMouseLeave={() => setHoveredMarker(null)}
                       className={cn(
-                        "border border-border/10 flex items-center justify-center transition-colors",
-                        marker ? "" : "hover:bg-muted/20",
+                        "flex items-center justify-center transition-colors",
+                        !isHighlighted && "border border-border/10",
+                        !isHighlighted && !marker && "hover:bg-muted/20",
                         (toolMode === 'place-self' || toolMode === 'place-enemy') && !marker && "hover:bg-primary/10",
                         isMeasurePoint && "ring-2 ring-primary/60",
                       )}
                       style={{
                         width: cellSize, height: cellSize,
-                        ...(marker ? { backgroundColor: `${marker.color}30` } : {}),
                         ...(isHighlighted && highlightColorId ? {
                           backgroundColor: getAreaColorById(highlightColorId).bg,
-                          borderColor: getAreaColorById(highlightColorId).border,
-                        } : {}),
+                          border: `1px solid ${getAreaColorById(highlightColorId).border}`,
+                        } : marker ? { backgroundColor: `${marker.color}30`, border: '1px solid hsl(var(--border) / 0.1)' } : {}),
                       }}
                       title={marker?.name}
                     >
