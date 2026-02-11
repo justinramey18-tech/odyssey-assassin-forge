@@ -56,6 +56,7 @@ const ALL_STORAGE_KEYS = [
   // Navigation & UI
   'odyssey-category-navigation',
   'odyssey-custom-home-background',
+  'odyssey-custom-home-background-url',
   
   // Onboarding & Wizard
   'odyssey-onboarding-v2',

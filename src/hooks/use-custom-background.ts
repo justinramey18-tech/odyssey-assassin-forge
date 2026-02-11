@@ -14,14 +14,6 @@ export interface CustomBackgroundState {
 }
 
 export function useCustomBackground(): CustomBackgroundState {
-  const [customBackground, setCustomBackgroundState] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem(STORAGE_KEY);
-    } catch {
-      return null;
-    }
-  });
-
   const [backgroundUrl, setBackgroundUrl] = useState<string | null>(() => {
     try {
       return localStorage.getItem(STORAGE_URL_KEY);
@@ -30,7 +22,21 @@ export function useCustomBackground(): CustomBackgroundState {
     }
   });
 
-  // Persist to localStorage whenever it changes
+  const [customBackground, setCustomBackgroundState] = useState<string | null>(() => {
+    try {
+      // First try the cached dataURL
+      const cached = localStorage.getItem(STORAGE_KEY);
+      if (cached) return cached;
+      // Fallback: use the cloud URL directly (dataURL may have failed to save due to quota)
+      const url = localStorage.getItem(STORAGE_URL_KEY);
+      if (url) return url;
+      return null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Persist dataURL to localStorage (best-effort, may fail for large images)
   useEffect(() => {
     try {
       if (customBackground) {
@@ -39,7 +45,9 @@ export function useCustomBackground(): CustomBackgroundState {
         localStorage.removeItem(STORAGE_KEY);
       }
     } catch (error) {
-      console.error('Failed to save custom background:', error);
+      // Quota exceeded is expected for large images - the URL fallback handles this
+      console.warn('[Background] localStorage cache failed (likely quota exceeded), using URL fallback');
+      localStorage.removeItem(STORAGE_KEY);
     }
   }, [customBackground]);
 
@@ -71,11 +79,13 @@ export function useCustomBackground(): CustomBackgroundState {
   const setBackgroundFromUrl = useCallback((url: string | null) => {
     setBackgroundUrl(url);
     if (url) {
-      // Load the image from URL into the local state for display
+      // Immediately use the URL as background (no waiting for canvas conversion)
+      setCustomBackgroundState(url);
+      
+      // Optionally try to cache as dataURL for faster loads, but URL is the reliable fallback
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.onload = () => {
-        // Create a canvas to convert to dataURL for local caching
         const canvas = document.createElement('canvas');
         canvas.width = img.naturalWidth;
         canvas.height = img.naturalHeight;
@@ -86,15 +96,11 @@ export function useCustomBackground(): CustomBackgroundState {
             const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
             setCustomBackgroundState(dataUrl);
           } catch {
-            // CORS issue, just set the URL directly
-            setCustomBackgroundState(url);
+            // CORS or quota — URL is already set, no action needed
           }
         }
       };
-      img.onerror = () => {
-        // Fallback: use URL directly as background
-        setCustomBackgroundState(url);
-      };
+      // Don't set onerror — URL is already set as background
       img.src = url;
     } else {
       setCustomBackgroundState(null);
