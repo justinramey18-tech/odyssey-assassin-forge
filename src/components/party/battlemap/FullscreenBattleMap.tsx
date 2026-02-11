@@ -8,8 +8,10 @@ import { MapControls } from './MapControls';
 import { MarkerTooltip } from './MarkerTooltip';
 import { MeasureOverlay } from './MeasureOverlay';
 import { AreaOverlay } from './AreaOverlay';
+import { SpellTemplateOverlay } from './SpellTemplateOverlay';
 import {
   type MapMarker, type GridSize, type ToolMode, type UndoAction, type AreaColorId,
+  type SpellTemplate, type SpellShape, type SpellColorId,
   GRID_SIZE_OPTIONS, CELL_SIZE, getFeetPerSquare, getAreaColorById,
 } from './types';
 
@@ -39,6 +41,17 @@ interface FullscreenBattleMapProps {
   areaColor: AreaColorId;
   setAreaColor: (v: AreaColorId) => void;
   onClearArea: () => void;
+  // Spell template props
+  spellTemplates: SpellTemplate[];
+  spellShape: SpellShape;
+  spellSizeFt: number;
+  spellColor: SpellColorId;
+  spellOrigin: { x: number; y: number } | null;
+  setSpellShape: (v: SpellShape) => void;
+  setSpellSizeFt: (v: number) => void;
+  setSpellColor: (v: SpellColorId) => void;
+  onSpellClick: (x: number, y: number) => void;
+  onClearSpells: () => void;
 }
 
 export function FullscreenBattleMap({
@@ -46,6 +59,8 @@ export function FullscreenBattleMap({
   onGridSizeChange, onCellClick, onCellDrop, onClose, setToolMode, setAddingEnemy, setEnemyName,
   onUndo, getMarkerAt, onMeasureClick, onAreaClick, measureStart, measureEnd, highlightedCells,
   areaColor, setAreaColor, onClearArea,
+  spellTemplates, spellShape, spellSizeFt, spellColor, spellOrigin,
+  setSpellShape, setSpellSizeFt, setSpellColor, onSpellClick, onClearSpells,
 }: FullscreenBattleMapProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -147,6 +162,8 @@ export function FullscreenBattleMap({
       onMeasureClick(x, y);
     } else if (toolMode === 'area') {
       onAreaClick(x, y);
+    } else if (toolMode === 'spell') {
+      onSpellClick(x, y);
     } else {
       onCellClick(x, y);
     }
@@ -171,7 +188,7 @@ export function FullscreenBattleMap({
   };
 
   const getCursor = () => {
-    if (toolMode === 'measure') return 'crosshair';
+    if (toolMode === 'measure' || toolMode === 'spell') return 'crosshair';
     if (toolMode === 'area') return 'cell';
     if (toolMode === 'place-self' || toolMode === 'place-enemy') return 'crosshair';
     return 'default';
@@ -237,6 +254,7 @@ export function FullscreenBattleMap({
           {toolMode === 'place-enemy' && `Tap a cell to place ${enemyName || 'enemy'}`}
           {toolMode === 'measure' && (measureStart ? 'Tap second cell to measure distance' : 'Tap first cell to start measuring')}
           {toolMode === 'area' && 'Click cells to highlight/unhighlight area'}
+          {toolMode === 'spell' && (spellOrigin ? 'Tap second cell to set direction' : 'Tap a cell to set spell origin')}
         </div>
       )}
 
@@ -339,6 +357,28 @@ export function FullscreenBattleMap({
                 })}
               </div>
 
+              {/* Spell template overlay */}
+              <SpellTemplateOverlay
+                templates={spellTemplates}
+                gridSize={gridSize}
+                cellSize={cellSize}
+              />
+
+              {/* Spell origin indicator */}
+              {spellOrigin && (
+                <div
+                  className="absolute pointer-events-none z-20 flex items-center justify-center animate-pulse"
+                  style={{
+                    left: spellOrigin.x * cellSize,
+                    top: spellOrigin.y * cellSize,
+                    width: cellSize,
+                    height: cellSize,
+                  }}
+                >
+                  <div className="w-3 h-3 rounded-full bg-primary border-2 border-white/80" style={{ boxShadow: '0 0 8px hsl(var(--primary))' }} />
+                </div>
+              )}
+
               {/* Measure line overlay */}
               <MeasureOverlay
                 startCell={measureStart}
@@ -410,12 +450,20 @@ export function FullscreenBattleMap({
             undoStack={undoStack}
             areaColor={areaColor}
             highlightedCellCount={highlightedCells.size}
+            spellShape={spellShape}
+            spellSizeFt={spellSizeFt}
+            spellColor={spellColor}
+            spellTemplateCount={spellTemplates.length}
             setAddingEnemy={setAddingEnemy}
             setEnemyName={setEnemyName}
             setToolMode={setToolMode}
             setAreaColor={setAreaColor}
+            setSpellShape={setSpellShape}
+            setSpellSizeFt={setSpellSizeFt}
+            setSpellColor={setSpellColor}
             onUndo={onUndo}
             onClearArea={onClearArea}
+            onClearSpells={onClearSpells}
           />
         </div>
         {/* Feet-per-square info */}

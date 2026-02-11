@@ -7,6 +7,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { FullscreenBattleMap } from './battlemap/FullscreenBattleMap';
 import {
   type MapMarker, type GridSize, type ToolMode, type UndoAction, type AreaColorId,
+  type SpellTemplate, type SpellShape, type SpellColorId,
   GRID_SIZE_OPTIONS, INLINE_GRID_SIZE, MEMBER_COLORS, STORAGE_KEY_GRID_SIZE,
 } from './battlemap/types';
 
@@ -43,6 +44,13 @@ export function PartyBattleMap({ markers, currentUserId, characterName, memberCo
   // Area highlight state
   const [highlightedCells, setHighlightedCells] = useState<Map<string, AreaColorId>>(new Map());
   const [areaColor, setAreaColor] = useState<AreaColorId>('danger');
+
+  // Spell template state
+  const [spellTemplates, setSpellTemplates] = useState<SpellTemplate[]>([]);
+  const [spellShape, setSpellShape] = useState<SpellShape>('cone');
+  const [spellSizeFt, setSpellSizeFt] = useState<number>(15);
+  const [spellColor, setSpellColor] = useState<SpellColorId>('fire');
+  const [spellOrigin, setSpellOrigin] = useState<{ x: number; y: number } | null>(null);
 
   const handleGridSizeChange = useCallback((size: GridSize) => {
     setGridSize(size);
@@ -133,12 +141,39 @@ export function PartyBattleMap({ markers, currentUserId, characterName, memberCo
     setHighlightedCells(new Map());
   }, []);
 
-  // Reset measure when switching tools
+  const handleSpellClick = useCallback((x: number, y: number) => {
+    if (!spellOrigin) {
+      setSpellOrigin({ x, y });
+    } else {
+      const template: SpellTemplate = {
+        id: `spell-${Date.now()}`,
+        shape: spellShape,
+        sizeFt: spellSizeFt,
+        originX: spellOrigin.x,
+        originY: spellOrigin.y,
+        directionX: x,
+        directionY: y,
+        color: spellColor,
+      };
+      setSpellTemplates(prev => [...prev, template]);
+      setSpellOrigin(null);
+    }
+  }, [spellOrigin, spellShape, spellSizeFt, spellColor]);
+
+  const handleClearSpells = useCallback(() => {
+    setSpellTemplates([]);
+    setSpellOrigin(null);
+  }, []);
+
+  // Reset measure/spell when switching tools
   const handleSetToolMode = useCallback((mode: ToolMode) => {
     setToolMode(mode);
     if (mode !== 'measure') {
       setMeasureStart(null);
       setMeasureEnd(null);
+    }
+    if (mode !== 'spell') {
+      setSpellOrigin(null);
     }
   }, []);
 
@@ -282,6 +317,16 @@ export function PartyBattleMap({ markers, currentUserId, characterName, memberCo
             areaColor={areaColor}
             setAreaColor={setAreaColor}
             onClearArea={handleClearArea}
+            spellTemplates={spellTemplates}
+            spellShape={spellShape}
+            spellSizeFt={spellSizeFt}
+            spellColor={spellColor}
+            spellOrigin={spellOrigin}
+            setSpellShape={setSpellShape}
+            setSpellSizeFt={setSpellSizeFt}
+            setSpellColor={setSpellColor}
+            onSpellClick={handleSpellClick}
+            onClearSpells={handleClearSpells}
           />
         </DialogContent>
       </Dialog>
