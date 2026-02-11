@@ -16,6 +16,20 @@ export const STORAGE_KEY_GRID_SIZE = 'dnd-battlemap-grid-size';
 
 export type ToolMode = 'place-self' | 'place-enemy' | 'measure' | 'area' | null;
 
+export const AREA_COLORS = [
+  { id: 'danger', label: 'Danger', color: '#ef4444', bg: 'rgba(239,68,68,0.2)', border: 'rgba(239,68,68,0.4)' },
+  { id: 'buff', label: 'Buff', color: '#3b82f6', bg: 'rgba(59,130,246,0.2)', border: 'rgba(59,130,246,0.4)' },
+  { id: 'heal', label: 'Heal', color: '#10b981', bg: 'rgba(16,185,129,0.2)', border: 'rgba(16,185,129,0.4)' },
+  { id: 'warning', label: 'Warning', color: '#f59e0b', bg: 'rgba(245,158,11,0.2)', border: 'rgba(245,158,11,0.4)' },
+  { id: 'arcane', label: 'Arcane', color: '#a855f7', bg: 'rgba(168,85,247,0.2)', border: 'rgba(168,85,247,0.4)' },
+] as const;
+
+export type AreaColorId = typeof AREA_COLORS[number]['id'];
+
+export function getAreaColorById(id: AreaColorId) {
+  return AREA_COLORS.find(c => c.id === id)!;
+}
+
 /** 300ft total battlefield, so feet per square = 300 / gridSize */
 export function getFeetPerSquare(gridSize: GridSize): number {
   return 300 / gridSize;
