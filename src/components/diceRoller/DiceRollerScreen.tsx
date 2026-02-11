@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Copy, Check, Dices, Sparkles, Swords, Eye, MessageCircle, Wrench, Plus, Minus, Settings2, ChevronUp, ChevronDown, Equal, Wand2, RotateCcw, Play, SlidersHorizontal, Users } from 'lucide-react';
+import { ArrowLeft, Copy, Check, Dices, Sparkles, Swords, Eye, MessageCircle, Wrench, Plus, Minus, Settings2, ChevronUp, ChevronDown, Equal, Wand2, RotateCcw, Play, SlidersHorizontal, Users, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -839,6 +839,32 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
                 </button>
               </div>
             </div>
+
+            {/* Initiative Roll Button */}
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                const dexMod = abilityModifiers.dex;
+                rollDice('d20', `⚡ Initiative (DEX)`, dexMod, true);
+              }}
+              disabled={isRolling}
+              className={cn(
+                'w-full flex items-center justify-center gap-3 py-3 rounded-xl',
+                'bg-yellow-500/10 border-2 border-yellow-500/30',
+                'hover:bg-yellow-500/20 hover:border-yellow-500/50',
+                'transition-all duration-150',
+                'disabled:opacity-50 disabled:cursor-not-allowed',
+              )}
+              style={{ touchAction: 'manipulation' }}
+            >
+              <Zap className="w-5 h-5 text-yellow-400" />
+              <span className="font-cinzel font-bold text-yellow-400">
+                Roll Initiative
+              </span>
+              <span className="text-xs text-yellow-400/60 font-mono">
+                (d20{abilityModifiers.dex >= 0 ? '+' : ''}{abilityModifiers.dex})
+              </span>
+            </motion.button>
 
             <div className="grid grid-cols-4 gap-3">
               {DICE_ORDER.map((die) => {

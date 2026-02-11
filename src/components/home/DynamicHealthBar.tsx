@@ -1,15 +1,12 @@
 import { motion } from 'framer-motion';
-import { Heart, Shield, Zap, Dices } from 'lucide-react';
+import { Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface DynamicHealthBarProps {
   currentHP: number;
   maxHP: number;
   tempHP?: number;
-  ac: number;
-  initiative: number;
   onTap?: () => void;
-  onInitiativeClick?: () => void;
   isWildShape?: boolean;
   wildShapeFormName?: string;
 }
@@ -18,10 +15,7 @@ export function DynamicHealthBar({
   currentHP,
   maxHP,
   tempHP = 0,
-  ac,
-  initiative,
   onTap,
-  onInitiativeClick,
   isWildShape = false,
   wildShapeFormName,
 }: DynamicHealthBarProps) {
@@ -163,44 +157,6 @@ export function DynamicHealthBar({
         </div>
       </button>
       
-      {/* Compact Stat Row */}
-      <div className="flex justify-center gap-6">
-        {/* AC Badge */}
-        <div 
-          className={cn(
-            "flex items-center gap-2 px-4 py-2 rounded-lg",
-            "bg-black/40 border border-blue-500/30 backdrop-blur-sm"
-          )}
-        >
-          <Shield className="w-4 h-4 text-blue-400" />
-          <span className="font-cinzel font-bold text-blue-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-            AC: {ac}
-          </span>
-        </div>
-        
-        {/* Initiative Badge - Now Clickable */}
-        <button
-          onClick={() => {
-            triggerHaptic();
-            onInitiativeClick?.();
-          }}
-          className={cn(
-            "flex items-center gap-2 px-4 py-2 rounded-lg",
-            "bg-black/40 border border-yellow-500/30 backdrop-blur-sm",
-            "hover:bg-yellow-500/10 hover:border-yellow-500/50",
-            "active:scale-95 transition-all duration-150",
-            "group cursor-pointer"
-          )}
-          style={{ touchAction: 'manipulation' }}
-          aria-label="Roll initiative"
-        >
-          <Zap className="w-4 h-4 text-yellow-400" />
-          <span className="font-cinzel font-bold text-yellow-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-            Init: {initiative >= 0 ? `+${initiative}` : initiative}
-          </span>
-          <Dices className="w-3.5 h-3.5 text-yellow-400/60 group-hover:text-yellow-400 transition-colors" />
-        </button>
-      </div>
     </motion.div>
   );
 }
