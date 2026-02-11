@@ -906,11 +906,14 @@ export function HomeScreen({
           messages={partySync.partyMessages}
           currentUserId={userId}
           isPartyCreator={partySync.party.isCreator}
-          onSend={(msg) => partySync.sendMessage(msg, character.name)}
+          onSend={(msg, opts) => partySync.sendMessage(msg, character.name, opts)}
           onEdit={partySync.editMessage}
           onDelete={partySync.deleteMessage}
           onBulkDelete={partySync.bulkDeleteMessages}
           onClearAll={partySync.clearAllMessages}
+          onPin={partySync.pinMessage}
+          onUnpin={partySync.unpinMessage}
+          onUploadImage={partySync.uploadChatImage}
         />
       )}
       </div>
