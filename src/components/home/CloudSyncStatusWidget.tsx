@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Cloud, CloudOff, User, Loader2 } from 'lucide-react';
+import { Cloud, CloudOff, User, Loader2, Save, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
+import { toast } from 'sonner';
 
 interface CloudSyncStatusWidgetProps {
   characterName: string;
@@ -10,6 +11,7 @@ interface CloudSyncStatusWidgetProps {
   lastSyncTime?: string | null;
   isSyncing?: boolean;
   onClick?: () => void;
+  onQuickSave?: () => Promise<void>;
 }
 
 export function CloudSyncStatusWidget({
@@ -18,8 +20,28 @@ export function CloudSyncStatusWidget({
   lastSyncTime,
   isSyncing = false,
   onClick,
+  onQuickSave,
 }: CloudSyncStatusWidgetProps) {
   const { isAuthenticated } = useAuth();
+  const [quickSaving, setQuickSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
+
+  const handleQuickSave = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!onQuickSave || quickSaving || isSyncing) return;
+    
+    setQuickSaving(true);
+    try {
+      await onQuickSave();
+      setJustSaved(true);
+      toast.success('Saved!', { duration: 1500 });
+      setTimeout(() => setJustSaved(false), 2000);
+    } catch {
+      toast.error('Save failed');
+    } finally {
+      setQuickSaving(false);
+    }
+  };
 
   const formatLastSync = useMemo(() => {
     if (!lastSyncTime) return null;
@@ -96,6 +118,28 @@ export function CloudSyncStatusWidget({
           )}
         </div>
       </div>
+
+      {/* Quick Save Button */}
+      {isAuthenticated && onQuickSave && (
+        <button
+          onClick={handleQuickSave}
+          disabled={quickSaving || isSyncing}
+          className={cn(
+            "w-8 h-8 rounded-lg flex items-center justify-center transition-all",
+            justSaved 
+              ? "bg-emerald-500/30" 
+              : "bg-white/10 hover:bg-white/20 active:scale-95"
+          )}
+        >
+          {quickSaving ? (
+            <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />
+          ) : justSaved ? (
+            <Check className="w-4 h-4 text-emerald-400" />
+          ) : (
+            <Save className="w-4 h-4 text-white/70" />
+          )}
+        </button>
+      )}
 
       {/* Cloud Icon / Status */}
       <div className={cn(

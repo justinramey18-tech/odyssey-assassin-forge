@@ -1909,6 +1909,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           lastCloudSyncTime={autoSync.lastCloudSyncTime || lastCloudSyncTime}
           isCloudSyncing={autoSync.isSyncing}
           onCloudSyncClick={() => setShowCloudSaveModal(true)}
+          onQuickSave={autoSync.syncNow}
           onLoadSave={handleLoadCloudSave}
           partySync={partySync}
           isAuthenticated={!!user}

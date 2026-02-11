@@ -93,6 +93,7 @@ interface HomeScreenProps {
   lastCloudSyncTime?: string | null;
   isCloudSyncing?: boolean;
   onCloudSyncClick?: () => void;
+  onQuickSave?: () => Promise<void>;
   // Character saves drawer props
   onLoadSave?: (data: SaveData) => void;
   // Wild Shape props
@@ -167,6 +168,7 @@ export function HomeScreen({
   lastCloudSyncTime,
   isCloudSyncing = false,
   onCloudSyncClick,
+  onQuickSave,
   onLoadSave,
   isWildShape = false,
   wildShapeFormName,
@@ -549,6 +551,7 @@ export function HomeScreen({
               lastSyncTime={lastCloudSyncTime}
               isSyncing={isCloudSyncing}
               onClick={onCloudSyncClick}
+              onQuickSave={onQuickSave}
             />
 
             {/* Dynamic Health Bar */}
