@@ -228,7 +228,7 @@ export function HomeScreen({
   const [showPartyDrawer, setShowPartyDrawer] = useState(false);
   const [showPartyChatFullscreen, setShowPartyChatFullscreen] = useState(false);
   const lastSeenMessageCount = useRef(0);
-  const [initiativeRollResult, setInitiativeRollResult] = useState<{ roll: number; total: number; prompt: string } | null>(null);
+  
   const [footerCollapsed, setFooterCollapsed] = useState(() => {
     try { return localStorage.getItem('odyssey-home-footer-collapsed') === 'true'; } catch { return false; }
   });
@@ -296,22 +296,6 @@ export function HomeScreen({
   const readyCooldownCount = drawerContext?.cooldownSummary.readyCount ?? 0;
   const coolingCooldownCount = drawerContext?.cooldownSummary.coolingCount ?? 0;
 
-  // Initiative roll handler
-  const handleInitiativeRoll = useCallback(() => {
-    const roll = Math.floor(Math.random() * 20) + 1;
-    const total = roll + initiativeModifier;
-    
-    // Generate AI DM prompt
-    const rollQuality = roll === 20 ? 'NATURAL 20!' : roll === 1 ? 'NATURAL 1...' : roll >= 15 ? 'high' : roll <= 5 ? 'low' : 'moderate';
-    const prompt = `🎲 **INITIATIVE ROLL**\n\n${character.name} rolls for initiative!\n\n**Roll:** ${roll} + ${initiativeModifier} (DEX) = **${total}**\n\n${roll === 20 ? '⚡ CRITICAL AWARENESS! ' + character.name + ' reacts with lightning reflexes, ready to strike before anyone else can blink.' : roll === 1 ? '😴 Caught completely off-guard... ' + character.name + ' is the last to realize combat has begun.' : `${character.name} enters the fray with ${rollQuality} awareness.`}\n\n*Narrate how ${character.name} enters combat with an initiative of ${total}.*`;
-    
-    setInitiativeRollResult({ roll, total, prompt });
-    
-    // Copy to clipboard
-    navigator.clipboard.writeText(prompt).then(() => {
-      triggerHaptic('medium');
-    });
-  }, [initiativeModifier, character.name]);
 
   const handleQuickAction = (action: 'shortRest' | 'longRest' | 'levelUp') => {
     triggerHaptic('medium');
@@ -582,10 +566,7 @@ export function HomeScreen({
               currentHP={currentHP}
               maxHP={maxHP}
               tempHP={tempHP}
-              ac={stats.totalAC}
-              initiative={initiativeModifier}
               onTap={() => drawerContext?.openStatsDrawer()}
-              onInitiativeClick={handleInitiativeRoll}
               isWildShape={isWildShape}
               wildShapeFormName={wildShapeFormName}
             />
@@ -609,41 +590,6 @@ export function HomeScreen({
               />
             )}
 
-            {/* Initiative Roll Result Toast */}
-            {initiativeRollResult && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="mx-4 p-3 rounded-lg bg-yellow-500/20 border border-yellow-500/40 backdrop-blur-sm"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "w-10 h-10 rounded-lg flex items-center justify-center font-bold text-lg",
-                      initiativeRollResult.roll === 20 ? "bg-yellow-500 text-black" :
-                      initiativeRollResult.roll === 1 ? "bg-red-500 text-white" :
-                      "bg-yellow-500/30 text-yellow-400"
-                    )}>
-                      {initiativeRollResult.roll}
-                    </div>
-                    <div>
-                      <p className="text-xs text-yellow-400/80 font-cinzel uppercase">Initiative</p>
-                      <p className="font-bold text-white text-lg">
-                        Total: {initiativeRollResult.total}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setInitiativeRollResult(null)}
-                    className="text-white/60 hover:text-white p-1"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <p className="text-xs text-yellow-400/60 mt-2">✓ Copied to clipboard for AI DM</p>
-              </motion.div>
-            )}
 
             {/* Enlarged D20 Section */}
             <EnlargedD20Section 
