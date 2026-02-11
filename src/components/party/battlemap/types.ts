@@ -30,9 +30,14 @@ export function getAreaColorById(id: AreaColorId) {
   return AREA_COLORS.find(c => c.id === id)!;
 }
 
-/** 300ft total battlefield, so feet per square = 300 / gridSize */
+/** Feet per square based on grid size */
 export function getFeetPerSquare(gridSize: GridSize): number {
-  return 300 / gridSize;
+  switch (gridSize) {
+    case 100: return 1;
+    case 50: return 2;
+    case 25: return 4;
+    case 10: return 10;
+  }
 }
 
 export function gridDistance(x1: number, y1: number, x2: number, y2: number): number {
