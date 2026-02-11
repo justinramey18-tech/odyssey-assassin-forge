@@ -1000,8 +1000,16 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         console.warn('[CloudSave] Failed to leave party:', e);
       }
     }
+    // If the loaded character has a saved party, reconnect to it
     if (data.partyId) {
-      console.log('[CloudSave] Character has saved party:', data.partyId);
+      console.log('[CloudSave] Reconnecting to saved party:', data.partyId);
+      partySync.reconnectToParty(data.partyId).then(success => {
+        if (success) {
+          console.log('[CloudSave] Successfully reconnected to party');
+        } else {
+          console.log('[CloudSave] Party no longer exists or user removed');
+        }
+      });
     }
     
     // 20. Restore custom background from cloud URL
