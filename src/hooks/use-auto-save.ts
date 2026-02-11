@@ -70,6 +70,10 @@ export interface SaveData {
   conditions?: ConditionsState;
   // Cooldown state (ability timers and session)
   cooldownState?: CooldownSaveState;
+  // Party association (persists across sessions)
+  partyId?: string | null;
+  // Custom home background URL (cloud storage)
+  backgroundUrl?: string | null;
   savedAt: string;
   version: number;
 }
