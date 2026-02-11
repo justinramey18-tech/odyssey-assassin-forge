@@ -160,6 +160,9 @@ export interface PartyMessage {
   message: string;
   created_at: string;
   updated_at?: string | null;
+  reply_to_id?: string | null;
+  image_url?: string | null;
+  is_pinned?: boolean;
 }
 
 export interface VoteVoter {
@@ -237,11 +240,14 @@ export interface UsePartySyncReturn {
   claimLoot: (lootId: string, claimerName: string) => Promise<void>;
   partyLoot: PartyLootItem[];
   // Party Chat
-  sendMessage: (message: string, senderName: string) => Promise<void>;
+  sendMessage: (message: string, senderName: string, options?: { replyToId?: string; imageUrl?: string }) => Promise<void>;
   editMessage: (messageId: string, newText: string) => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;
   bulkDeleteMessages: (messageIds: string[]) => Promise<void>;
   clearAllMessages: () => Promise<void>;
+  pinMessage: (messageId: string) => Promise<void>;
+  unpinMessage: (messageId: string) => Promise<void>;
+  uploadChatImage: (file: File) => Promise<string | null>;
   partyMessages: PartyMessage[];
   // Party Voting
   startVote: (question: string, options: string[], creatorName: string) => Promise<void>;
@@ -1138,15 +1144,19 @@ export function usePartySync(): UsePartySyncReturn {
 
   // --- New feature functions ---
 
-  const sendMessage = useCallback(async (message: string, senderName: string) => {
+  const sendMessage = useCallback(async (message: string, senderName: string, options?: { replyToId?: string; imageUrl?: string }) => {
     if (!user || !party.partyId) return;
 
-    await (supabase.from('party_messages') as any).insert({
+    const insertData: Record<string, unknown> = {
       party_id: party.partyId,
       user_id: user.id,
       sender_name: senderName,
-      message: message.slice(0, 200),
-    });
+      message: message.slice(0, 500),
+    };
+    if (options?.replyToId) insertData.reply_to_id = options.replyToId;
+    if (options?.imageUrl) insertData.image_url = options.imageUrl;
+
+    await (supabase.from('party_messages') as any).insert(insertData);
   }, [user, party.partyId]);
 
   const editMessage = useCallback(async (messageId: string, newText: string) => {
@@ -1180,6 +1190,43 @@ export function usePartySync(): UsePartySyncReturn {
     await (supabase.from('party_messages') as any)
       .delete()
       .eq('party_id', party.partyId);
+  }, [user, party.partyId]);
+
+  const pinMessage = useCallback(async (messageId: string) => {
+    if (!user || !party.partyId) return;
+    // Check if already at 3 pins
+    const pinned = partyMessages.filter(m => m.is_pinned);
+    if (pinned.length >= 3) {
+      toast.error('Maximum 3 pinned messages allowed');
+      return;
+    }
+    await (supabase.from('party_messages') as any)
+      .update({ is_pinned: true })
+      .eq('id', messageId);
+  }, [user, party.partyId, partyMessages]);
+
+  const unpinMessage = useCallback(async (messageId: string) => {
+    if (!user || !party.partyId) return;
+    await (supabase.from('party_messages') as any)
+      .update({ is_pinned: false })
+      .eq('id', messageId);
+  }, [user, party.partyId]);
+
+  const uploadChatImage = useCallback(async (file: File): Promise<string | null> => {
+    if (!user || !party.partyId) return null;
+    const ext = file.name.split('.').pop() || 'jpg';
+    const path = `${user.id}/${party.partyId}/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage
+      .from('party-chat-images')
+      .upload(path, file, { cacheControl: '3600', upsert: false });
+    if (error) {
+      toast.error('Failed to upload image');
+      return null;
+    }
+    const { data: urlData } = supabase.storage
+      .from('party-chat-images')
+      .getPublicUrl(path);
+    return urlData.publicUrl;
   }, [user, party.partyId]);
 
   const startVote = useCallback(async (question: string, options: string[], creatorName: string) => {
@@ -1321,6 +1368,9 @@ export function usePartySync(): UsePartySyncReturn {
     deleteMessage,
     bulkDeleteMessages,
     clearAllMessages,
+    pinMessage,
+    unpinMessage,
+    uploadChatImage,
     partyMessages,
     startVote,
     castVote,
