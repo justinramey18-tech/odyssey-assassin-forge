@@ -385,6 +385,7 @@ export function FullscreenBattleMap({
                   movementSpeedFt={movementSpeedFt}
                   gridSize={gridSize}
                   cellSize={cellSize}
+                  difficultTerrain={highlightedCells}
                 />
               )}
 
