@@ -134,8 +134,8 @@ export function CategoryQuickNav({ onSubTabSelect, isLegacyUnlocked = false, onO
 
                 const handleClick = () => {
                   if (isLocked) return;
-                  if (tab.id === 'cloud' && onOpenCloud) { onOpenCloud(); return; }
-                  if (tab.id === 'settings' && onOpenSettings) { onOpenSettings(); return; }
+                  if (tab.id === 'cloud') { onOpenCloud?.(); return; }
+                  if (tab.id === 'settings') { onOpenSettings?.(); return; }
                   onSubTabSelect(category, tab.id);
                 };
 
