@@ -50,6 +50,7 @@ type NavigableTab =
   | 'skills' 
   | 'abilities' 
   | 'arcana'
+  | 'legacy'
   | 'gear' 
   | 'feats' 
   | 'stars' 
@@ -57,7 +58,8 @@ type NavigableTab =
   | 'combat' 
   | 'consumables' 
   | 'chronicle'
-  | 'shop';
+  | 'shop'
+  | 'loot';
 
 interface HomeScreenProps {
   character: Character;
