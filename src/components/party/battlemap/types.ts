@@ -14,7 +14,9 @@ export const INLINE_GRID_SIZE = 10;
 export const MEMBER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7'];
 export const STORAGE_KEY_GRID_SIZE = 'dnd-battlemap-grid-size';
 
-export type ToolMode = 'place-self' | 'place-enemy' | 'measure' | 'area' | 'spell' | null;
+export type ToolMode = 'place-self' | 'place-enemy' | 'measure' | 'area' | 'spell' | 'move-range' | null;
+
+export const MOVEMENT_SPEED_OPTIONS = [15, 20, 25, 30, 35, 40, 50, 60, 80] as const;
 
 export const AREA_COLORS = [
   { id: 'danger', label: 'Danger', color: '#ef4444', bg: 'rgba(239,68,68,0.2)', border: 'rgba(239,68,68,0.4)' },
