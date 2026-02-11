@@ -213,6 +213,7 @@ export function HomeScreen({
   const [showCharacterSaves, setShowCharacterSaves] = useState(false);
   const [showPartyDrawer, setShowPartyDrawer] = useState(false);
   const [showPartyChatFullscreen, setShowPartyChatFullscreen] = useState(false);
+  const lastSeenMessageCount = useRef(0);
   const [initiativeRollResult, setInitiativeRollResult] = useState<{ roll: number; total: number; prompt: string } | null>(null);
   const [footerCollapsed, setFooterCollapsed] = useState(() => {
     try { return localStorage.getItem('odyssey-home-footer-collapsed') === 'true'; } catch { return false; }
@@ -529,6 +530,7 @@ export function HomeScreen({
                 transition={{ delay: 0.1 }}
                 onClick={() => {
                   triggerHaptic('light');
+                  lastSeenMessageCount.current = partySync.partyMessages.length;
                   setShowPartyChatFullscreen(true);
                 }}
                 className="mx-4 flex items-center justify-center gap-2 py-2.5 rounded-lg border border-emerald-500/30 bg-emerald-900/20 hover:bg-emerald-900/30 transition-colors"
@@ -536,9 +538,9 @@ export function HomeScreen({
               >
                 <MessageCircle className="w-4 h-4 text-emerald-400" />
                 <span className="text-sm font-cinzel uppercase tracking-wider text-emerald-300">Party Chat</span>
-                {partySync.partyMessages.length > 0 && (
+                {partySync.partyMessages.length > lastSeenMessageCount.current && (
                   <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-bold rounded-full bg-emerald-500 text-white">
-                    {partySync.partyMessages.length}
+                    {partySync.partyMessages.length - lastSeenMessageCount.current}
                   </span>
                 )}
               </motion.button>
@@ -902,7 +904,10 @@ export function HomeScreen({
       {partySync?.party?.partyId && (
         <FullscreenPartyChat
           open={showPartyChatFullscreen}
-          onClose={() => setShowPartyChatFullscreen(false)}
+          onClose={() => {
+            lastSeenMessageCount.current = partySync.partyMessages.length;
+            setShowPartyChatFullscreen(false);
+          }}
           messages={partySync.partyMessages}
           currentUserId={userId}
           isPartyCreator={partySync.party.isCreator}
