@@ -106,10 +106,7 @@ export function FullscreenPartyChat({
     }
   }, [messages.length, open, editingId, bulkMode]);
 
-  // Focus input
-  useEffect(() => {
-    if (open && !editingId) setTimeout(() => inputRef.current?.focus(), 300);
-  }, [open, editingId]);
+   // Don't auto-focus input on open (prevents keyboard from popping up on mobile)
 
   useEffect(() => {
     if (editingId) setTimeout(() => editInputRef.current?.focus(), 50);
@@ -587,7 +584,6 @@ export function FullscreenPartyChat({
                 </Button>
               )}
                <Input ref={inputRef} value={text}
-                autoFocus
                 onChange={(e) => {
                   setText(e.target.value.slice(0, 500));
                   if (e.target.value.length > 0 && onTyping) onTyping();
