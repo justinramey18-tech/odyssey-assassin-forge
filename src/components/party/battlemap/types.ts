@@ -14,7 +14,7 @@ export const INLINE_GRID_SIZE = 10;
 export const MEMBER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7'];
 export const STORAGE_KEY_GRID_SIZE = 'dnd-battlemap-grid-size';
 
-export type ToolMode = 'place-self' | 'place-enemy' | 'measure' | 'area' | null;
+export type ToolMode = 'place-self' | 'place-enemy' | 'measure' | 'area' | 'spell' | null;
 
 export const AREA_COLORS = [
   { id: 'danger', label: 'Danger', color: '#ef4444', bg: 'rgba(239,68,68,0.2)', border: 'rgba(239,68,68,0.4)' },
@@ -44,4 +44,134 @@ export interface UndoAction {
   type: 'place' | 'remove' | 'move';
   marker: MapMarker;
   previousPosition?: { x: number; y: number };
+}
+
+// ── Spell Template Types ──
+
+export type SpellShape = 'cone' | 'sphere' | 'cube' | 'line';
+
+export const SPELL_SHAPE_LABELS: Record<SpellShape, string> = {
+  cone: 'Cone',
+  sphere: 'Sphere',
+  cube: 'Cube',
+  line: 'Line',
+};
+
+export const SPELL_SIZE_OPTIONS = [5, 10, 15, 20, 30, 40, 60, 100] as const;
+
+export interface SpellTemplate {
+  id: string;
+  shape: SpellShape;
+  /** Size in feet */
+  sizeFt: number;
+  /** Origin cell */
+  originX: number;
+  originY: number;
+  /** Direction cell (for cone/line/cube direction) */
+  directionX: number;
+  directionY: number;
+  color: string;
+}
+
+export const SPELL_TEMPLATE_COLORS = [
+  { id: 'fire', label: 'Fire', color: '#ef4444', fill: 'rgba(239,68,68,0.25)', stroke: 'rgba(239,68,68,0.7)' },
+  { id: 'ice', label: 'Ice', color: '#38bdf8', fill: 'rgba(56,189,248,0.25)', stroke: 'rgba(56,189,248,0.7)' },
+  { id: 'nature', label: 'Nature', color: '#22c55e', fill: 'rgba(34,197,94,0.25)', stroke: 'rgba(34,197,94,0.7)' },
+  { id: 'arcane', label: 'Arcane', color: '#a855f7', fill: 'rgba(168,85,247,0.25)', stroke: 'rgba(168,85,247,0.7)' },
+  { id: 'divine', label: 'Divine', color: '#facc15', fill: 'rgba(250,204,21,0.25)', stroke: 'rgba(250,204,21,0.7)' },
+] as const;
+
+export type SpellColorId = typeof SPELL_TEMPLATE_COLORS[number]['id'];
+
+export function getSpellColorById(id: SpellColorId) {
+  return SPELL_TEMPLATE_COLORS.find(c => c.id === id)!;
+}
+
+/**
+ * Compute the cells covered by a spell template.
+ * Returns array of {x,y} grid coordinates.
+ */
+export function getSpellTemplateCells(
+  template: SpellTemplate,
+  gridSize: GridSize
+): { x: number; y: number }[] {
+  const feetPerSq = getFeetPerSquare(gridSize);
+  const radiusSq = template.sizeFt / feetPerSq;
+  const cells: { x: number; y: number }[] = [];
+
+  const { originX: ox, originY: oy, directionX: dx, directionY: dy } = template;
+  const angle = Math.atan2(dy - oy, dx - ox);
+
+  switch (template.shape) {
+    case 'sphere': {
+      // Circle centered on origin
+      const r = radiusSq;
+      for (let x = Math.floor(ox - r); x <= Math.ceil(ox + r); x++) {
+        for (let y = Math.floor(oy - r); y <= Math.ceil(oy + r); y++) {
+          if (x < 0 || y < 0 || x >= gridSize || y >= gridSize) continue;
+          const dist = Math.sqrt((x - ox) ** 2 + (y - oy) ** 2);
+          if (dist <= r + 0.5) cells.push({ x, y });
+        }
+      }
+      break;
+    }
+    case 'cube': {
+      // Square of side = sizeFt, extending from origin in direction
+      const side = radiusSq;
+      const cosA = Math.cos(angle);
+      const sinA = Math.sin(angle);
+      // Check cells in bounding box
+      for (let x = Math.floor(ox - side); x <= Math.ceil(ox + side); x++) {
+        for (let y = Math.floor(oy - side); y <= Math.ceil(oy + side); y++) {
+          if (x < 0 || y < 0 || x >= gridSize || y >= gridSize) continue;
+          // Rotate point into cube's local frame
+          const lx = (x - ox) * cosA + (y - oy) * sinA;
+          const ly = -(x - ox) * sinA + (y - oy) * cosA;
+          if (lx >= -0.5 && lx < side + 0.5 && Math.abs(ly) <= side / 2 + 0.5) {
+            cells.push({ x, y });
+          }
+        }
+      }
+      break;
+    }
+    case 'cone': {
+      // 53-degree cone (D&D standard) from origin in direction
+      const length = radiusSq;
+      const halfAngle = (53 / 2) * (Math.PI / 180);
+      for (let x = Math.floor(ox - length); x <= Math.ceil(ox + length); x++) {
+        for (let y = Math.floor(oy - length); y <= Math.ceil(oy + length); y++) {
+          if (x < 0 || y < 0 || x >= gridSize || y >= gridSize) continue;
+          const relX = x - ox;
+          const relY = y - oy;
+          const dist = Math.sqrt(relX * relX + relY * relY);
+          if (dist > length + 0.5 || dist < 0.1) continue;
+          const cellAngle = Math.atan2(relY, relX);
+          let angleDiff = Math.abs(cellAngle - angle);
+          if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
+          if (angleDiff <= halfAngle + 0.1) cells.push({ x, y });
+        }
+      }
+      break;
+    }
+    case 'line': {
+      // 5ft wide line from origin in direction for sizeFt length
+      const length = radiusSq;
+      const cosA = Math.cos(angle);
+      const sinA = Math.sin(angle);
+      const halfWidth = 0.5 + 0.3; // ~5ft wide
+      for (let x = Math.floor(ox - length); x <= Math.ceil(ox + length); x++) {
+        for (let y = Math.floor(oy - length); y <= Math.ceil(oy + length); y++) {
+          if (x < 0 || y < 0 || x >= gridSize || y >= gridSize) continue;
+          const lx = (x - ox) * cosA + (y - oy) * sinA;
+          const ly = -(x - ox) * sinA + (y - oy) * cosA;
+          if (lx >= -0.5 && lx <= length + 0.5 && Math.abs(ly) <= halfWidth) {
+            cells.push({ x, y });
+          }
+        }
+      }
+      break;
+    }
+  }
+
+  return cells;
 }
