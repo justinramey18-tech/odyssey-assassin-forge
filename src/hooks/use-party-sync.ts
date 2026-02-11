@@ -283,39 +283,66 @@ export function usePartySync(): UsePartySyncReturn {
   const [combatLog, setCombatLog] = useState<CombatLogEntry[]>([]);
 
   // On mount, check if user is already in a party
+  // Respects the 'odyssey-active-party-id' localStorage flag set during character switching.
+  // If the flag exists, only reconnect to that specific party (or none if flag is empty/removed).
+  // If no flag exists (fresh page load, not a character switch), auto-detect from DB.
   useEffect(() => {
     if (!user) return;
 
     const checkExisting = async () => {
-      const { data: membership } = await supabase
-        .from('party_members')
-        .select('party_id')
-        .eq('user_id', user.id)
-        .limit(1) as { data: Array<{ party_id: string }> | null };
+      // Check if a character switch set a specific party expectation
+      const activePartyId = localStorage.getItem('odyssey-active-party-id');
+      const hasPartyFlag = activePartyId !== null;
+      
+      // Clean up the flag — it's a one-shot signal from the character switch
+      if (hasPartyFlag) {
+        localStorage.removeItem('odyssey-active-party-id');
+      }
 
-      if (membership && membership.length > 0) {
-        const partyId = membership[0].party_id;
-        const { data: partyData } = await supabase
-          .from('parties')
-          .select('*')
-          .eq('id', partyId)
-          .eq('is_active', true)
-          .maybeSingle() as { data: { id: string; link_code: string; created_by: string; is_active: boolean } | null };
+      // If the flag was set but empty/null, the loaded character has no party — skip reconnect
+      if (hasPartyFlag && !activePartyId) {
+        console.log('[PartySync] Active party flag was cleared — no party for this character');
+        return;
+      }
 
-        if (partyData) {
-          const { data: members } = await supabase
-            .from('party_members')
-            .select('*')
-            .eq('party_id', partyId) as { data: PartyMember[] | null };
+      // Determine which party to look for
+      let targetPartyId: string | null = activePartyId;
 
-          setParty({
-            partyId,
-            linkCode: partyData.link_code,
-            isCreator: partyData.created_by === user.id,
-            members: members || [],
-            isLoading: false,
-          });
+      if (!targetPartyId) {
+        // No flag set (fresh load) — check DB for any existing membership
+        const { data: membership } = await supabase
+          .from('party_members')
+          .select('party_id')
+          .eq('user_id', user.id)
+          .limit(1) as { data: Array<{ party_id: string }> | null };
+
+        if (membership && membership.length > 0) {
+          targetPartyId = membership[0].party_id;
         }
+      }
+
+      if (!targetPartyId) return;
+
+      const { data: partyData } = await supabase
+        .from('parties')
+        .select('*')
+        .eq('id', targetPartyId)
+        .eq('is_active', true)
+        .maybeSingle() as { data: { id: string; link_code: string; created_by: string; is_active: boolean } | null };
+
+      if (partyData) {
+        const { data: members } = await supabase
+          .from('party_members')
+          .select('*')
+          .eq('party_id', targetPartyId) as { data: PartyMember[] | null };
+
+        setParty({
+          partyId: targetPartyId,
+          linkCode: partyData.link_code,
+          isCreator: partyData.created_by === user.id,
+          members: members || [],
+          isLoading: false,
+        });
       }
     };
 
