@@ -469,8 +469,11 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          image_url: string | null
+          is_pinned: boolean
           message: string
           party_id: string
+          reply_to_id: string | null
           sender_name: string
           updated_at: string | null
           user_id: string
@@ -478,8 +481,11 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          image_url?: string | null
+          is_pinned?: boolean
           message: string
           party_id: string
+          reply_to_id?: string | null
           sender_name: string
           updated_at?: string | null
           user_id: string
@@ -487,8 +493,11 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          image_url?: string | null
+          is_pinned?: boolean
           message?: string
           party_id?: string
+          reply_to_id?: string | null
           sender_name?: string
           updated_at?: string | null
           user_id?: string
@@ -499,6 +508,13 @@ export type Database = {
             columns: ["party_id"]
             isOneToOne: false
             referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "party_messages_reply_to_id_fkey"
+            columns: ["reply_to_id"]
+            isOneToOne: false
+            referencedRelation: "party_messages"
             referencedColumns: ["id"]
           },
         ]
