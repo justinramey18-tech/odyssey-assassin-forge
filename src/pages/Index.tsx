@@ -982,24 +982,10 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     }
     
     // 19. Restore party association — leave current party if loaded character has different/no party
-    if (partySync.party.partyId && data.partyId !== partySync.party.partyId) {
-      console.log('[CloudSave] Leaving current party (loaded character has different/no party)');
-      try {
-        partySync.disconnectLocally();
-        console.log('[CloudSave] Disconnected locally from party before switch');
-      } catch (e) {
-        console.warn('[CloudSave] Failed to leave party:', e);
-      }
-    } else if (!data.partyId && partySync.party.partyId) {
-      // Loaded character has no party but we're currently in one — leave it
-      console.log('[CloudSave] Leaving current party (loaded character has no party)');
-      try {
-        partySync.disconnectLocally();
-        console.log('[CloudSave] Disconnected locally from party before switch');
-      } catch (e) {
-        console.warn('[CloudSave] Failed to leave party:', e);
-      }
-    }
+    // Always disconnect locally first to ensure clean slate for the new character
+    partySync.disconnectLocally();
+    console.log('[CloudSave] Disconnected locally — clean slate for new character');
+
     // If the loaded character has a saved party, reconnect to it
     if (data.partyId) {
       console.log('[CloudSave] Reconnecting to saved party:', data.partyId);
