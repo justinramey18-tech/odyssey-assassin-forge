@@ -34,6 +34,7 @@ import { CloudSyncStatusWidget } from './CloudSyncStatusWidget';
 import { CategoryQuickNav } from './CategoryQuickNav';
 import { BackgroundUploadButton } from './BackgroundUploadButton';
 import { PartyPanel } from '@/components/party/PartyPanel';
+import { StandaloneBattleMap } from './StandaloneBattleMap';
 import { FullscreenPartyChat } from '@/components/party/FullscreenPartyChat';
 import type { UsePartySyncReturn } from '@/hooks/use-party-sync';
 import { useOnlineStatus, useOnlineCount } from '@/hooks/use-online-status';
@@ -229,6 +230,7 @@ export function HomeScreen({
   const multiplier = XP_PRESETS[xpPreset].multiplier;
   const [showDrawersMenu, setShowDrawersMenu] = useState(false);
   const [showDiceRoller, setShowDiceRoller] = useState(false);
+  const [showBattleMap, setShowBattleMap] = useState(false);
   const [showCharacterSaves, setShowCharacterSaves] = useState(false);
   const [showPartyDrawer, setShowPartyDrawer] = useState(false);
   const [showPartyChatFullscreen, setShowPartyChatFullscreen] = useState(false);
@@ -599,6 +601,7 @@ export function HomeScreen({
             {/* Enlarged D20 Section */}
             <EnlargedD20Section 
               onClick={() => setShowDiceRoller(true)}
+              onMapClick={() => setShowBattleMap(true)}
               onMenusClick={() => {
                 triggerHaptic('light');
                 setShowDrawersMenu(true);
@@ -784,6 +787,13 @@ export function HomeScreen({
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Standalone Battle Map */}
+      <StandaloneBattleMap
+        open={showBattleMap}
+        onClose={() => setShowBattleMap(false)}
+        characterName={character.name || 'Me'}
+      />
 
       {/* Dice Roller Overlay */}
       {showDiceRoller && (
