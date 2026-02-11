@@ -30,7 +30,7 @@ import { WildShapeOverlay } from './WildShapeOverlay';
 import { AvailablePointsWidget } from './AvailablePointsWidget';
 import { EnlargedD20Section } from './EnlargedD20Section';
 import { CloudSyncStatusWidget } from './CloudSyncStatusWidget';
-import { PrimaryNavigationCards } from './PrimaryNavigationCards';
+
 import { CategoryQuickNav } from './CategoryQuickNav';
 import { BackgroundUploadButton } from './BackgroundUploadButton';
 import { PartyPanel } from '@/components/party/PartyPanel';
@@ -594,7 +594,11 @@ export function HomeScreen({
 
             {/* Enlarged D20 Section */}
             <EnlargedD20Section 
-              onClick={() => setShowDiceRoller(true)} 
+              onClick={() => setShowDiceRoller(true)}
+              onMenusClick={() => {
+                triggerHaptic('light');
+                setShowDrawersMenu(true);
+              }}
             />
 
             {/* Quick Actions (moved from footer) */}
@@ -736,32 +740,6 @@ export function HomeScreen({
                 onOpenSettings={onOpenSettings}
               />
 
-              <PrimaryNavigationCards
-                onQuickMenusClick={() => {
-                  triggerHaptic('light');
-                  setShowDrawersMenu(true);
-                }}
-                onCombatClick={() => {
-                  triggerHaptic('light');
-                  onNavigateToTab('combat');
-                }}
-                onContextualClick={handleContextualCardClick}
-                onChronicleClick={() => {
-                  triggerHaptic('light');
-                  onNavigateToTab('chronicle');
-                }}
-                onScribeClick={() => {
-                  triggerHaptic('light');
-                  onNavigateToTab('scribe');
-                }}
-                onOracleClick={() => {
-                  triggerHaptic('light');
-                  drawerContext?.openOracleDrawer?.();
-                }}
-                achievements={achievements}
-                hasChronicleUndo={hasChronicleUndo}
-                hasNewShopItems={hasNewShopItems}
-              />
             </div>
           </motion.div>
         </motion.footer>
