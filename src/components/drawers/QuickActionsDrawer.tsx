@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Character, Ability } from '@/lib/types';
 import { allAbilities, getAbilityById } from '@/lib/abilities';
+import { useAbilityCustomization } from '@/hooks/use-ability-customization';
 import { WeaponAttack, UNARMED_STRIKE } from '@/lib/combat/combatTypes';
 import { getEquippedWeapons } from '@/lib/combat/weaponConverter';
 import { CharacterEquipment } from '@/lib/inventory/types';
@@ -906,21 +907,35 @@ export function QuickActionsDrawer({
   }, [equipment]);
 
   // ── Abilities: Equipped active abilities from loadout ──
+  const abilityCustomization = useAbilityCustomization();
+
   const equippedAbilities = useMemo(() => {
     const ids = character.equippedAbilities || [];
     return ids.map(id => {
+      // Legacy prestige abilities
       if (isLegacyAbilityId(id)) {
         const legacy = resolveLegacyAbility(id);
         if (legacy) return { ability: legacy, tier: 1 as const };
         return null;
       }
-      const ability = getAbilityById(id);
-      if (!ability) return null;
+      // Homebrew abilities
+      if (id.startsWith('homebrew_')) {
+        const homebrew = abilityCustomization.state.homebrewAbilities.find(h => h.id === id);
+        if (!homebrew) return null;
+        const converted = homebrewToAbility(homebrew);
+        const charAbility = character.abilities.find(a => a.abilityId === id);
+        const tier = (charAbility?.currentTier || 1) as 1 | 2 | 3;
+        return { ability: converted as Ability, tier };
+      }
+      // Base abilities (with overrides)
+      const baseAbility = getAbilityById(id);
+      if (!baseAbility) return null;
+      const ability = applyOverrides(baseAbility, abilityCustomization.getOverride(id));
       const charAbility = character.abilities.find(a => a.abilityId === id);
       const tier = (charAbility?.currentTier || 1) as 1 | 2 | 3;
       return { ability, tier };
     }).filter(Boolean) as { ability: Ability; tier: 1 | 2 | 3 }[];
-  }, [character.equippedAbilities, character.abilities]);
+  }, [character.equippedAbilities, character.abilities, abilityCustomization.state.homebrewAbilities, abilityCustomization.getOverride]);
 
   // ── Magic: Favorited spells auto-populate; fall back to prepared only ──
   const preparedSpells = useMemo((): SpellDefinition[] => {

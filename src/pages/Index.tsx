@@ -89,6 +89,8 @@ import { useWildShape } from '@/hooks/use-wild-shape';
 import { DruidCircle } from '@/lib/classes/druidCircles';
 import { useSpellCustomization } from '@/hooks/use-spell-customization';
 import { usePartySync } from '@/hooks/use-party-sync';
+import { useAbilityCustomization } from '@/hooks/use-ability-customization';
+import { homebrewToAbility } from '@/lib/abilityCustomization/utils';
 import { useAuth } from '@/hooks/use-auth';
 
 // Stable empty object to prevent re-renders from `character.multiclassLevels ?? {}`
@@ -469,6 +471,9 @@ const Index = () => {
   // Spell Customization (homebrew spells)
   const spellCustomization = useSpellCustomization();
 
+  // Ability Customization (homebrew abilities)
+  const abilityCustomization = useAbilityCustomization();
+
   // Auth & Party system
   const { user, isAuthenticated } = useAuth();
   const partySync = usePartySync();
@@ -621,10 +626,23 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         damageType: (item!.properties?.find(p => p.toLowerCase().includes('slashing') || p.toLowerCase().includes('piercing') || p.toLowerCase().includes('bludgeoning')) || 'Physical'),
       }));
 
-    // Equipped abilities
+    // Equipped abilities (including homebrew)
     const abilities = character.equippedAbilities
       .filter(Boolean)
       .map(id => {
+        // Homebrew abilities
+        if (id.startsWith('homebrew_')) {
+          const homebrew = abilityCustomization.state.homebrewAbilities.find(h => h.id === id);
+          if (!homebrew) return null;
+          const converted = homebrewToAbility(homebrew);
+          const tier = character.abilities.find(ca => ca.abilityId === id)?.currentTier ?? 0;
+          return {
+            name: converted.name,
+            tree: converted.tree,
+            tier,
+            actionType: converted.type === 'active' ? 'Action' : 'Passive',
+          };
+        }
         const ability = allAbilities.find(a => a.id === id);
         const tier = character.abilities.find(ca => ca.abilityId === id)?.currentTier ?? 0;
         return ability ? {
@@ -677,7 +695,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       }));
 
     return { weapons, abilities, spells, cantrips, consumables };
-  }, [equipment.slots, character.equippedAbilities, character.abilities, isRogueClass, classSpellcasting.state.preparedSpells, classSpellcasting.state.knownSpells, consumablesInventory]);
+  }, [equipment.slots, character.equippedAbilities, character.abilities, isRogueClass, classSpellcasting.state.preparedSpells, classSpellcasting.state.knownSpells, consumablesInventory, abilityCustomization.state.homebrewAbilities]);
 
   // Profile image thumbnail (state so broadcasts re-trigger when ready)
   const [profileImageThumb, setProfileImageThumb] = useState<string | null>(null);
