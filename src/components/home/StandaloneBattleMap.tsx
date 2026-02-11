@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { FullscreenBattleMap } from '@/components/party/battlemap/FullscreenBattleMap';
 import {
@@ -6,6 +6,33 @@ import {
   type SpellTemplate, type SpellShape, type SpellColorId,
   GRID_SIZE_OPTIONS, MEMBER_COLORS, STORAGE_KEY_GRID_SIZE,
 } from '@/components/party/battlemap/types';
+
+const STORAGE_KEY_MAP_STATE = 'dnd-battlemap-state';
+
+interface SavedMapState {
+  markers: MapMarker[];
+  highlightedCells: [string, AreaColorId][];
+  spellTemplates: SpellTemplate[];
+  gridSize: GridSize;
+}
+
+function loadMapState(): SavedMapState | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_MAP_STATE);
+    if (!raw) return null;
+    return JSON.parse(raw) as SavedMapState;
+  } catch {
+    return null;
+  }
+}
+
+function saveMapState(state: SavedMapState): void {
+  try {
+    localStorage.setItem(STORAGE_KEY_MAP_STATE, JSON.stringify(state));
+  } catch (e) {
+    console.error('Failed to save battle map state:', e);
+  }
+}
 
 interface StandaloneBattleMapProps {
   open: boolean;
@@ -15,30 +42,50 @@ interface StandaloneBattleMapProps {
 
 /**
  * A self-contained battle map dialog for solo use (no party/Supabase needed).
- * All marker state is local.
+ * Markers, areas, and spell templates persist to localStorage.
  */
 export function StandaloneBattleMap({ open, onClose, characterName = 'Me' }: StandaloneBattleMapProps) {
-  const [markers, setMarkers] = useState<MapMarker[]>([]);
+  const [markers, setMarkers] = useState<MapMarker[]>(() => loadMapState()?.markers ?? []);
   const [addingEnemy, setAddingEnemy] = useState(false);
   const [enemyName, setEnemyName] = useState('');
   const [toolMode, setToolMode] = useState<ToolMode>(null);
   const [gridSize, setGridSize] = useState<GridSize>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_GRID_SIZE);
-    const parsed = saved ? parseInt(saved, 10) : null;
+    const saved = loadMapState()?.gridSize;
+    if (saved && GRID_SIZE_OPTIONS.includes(saved)) return saved;
+    const legacy = localStorage.getItem(STORAGE_KEY_GRID_SIZE);
+    const parsed = legacy ? parseInt(legacy, 10) : null;
     return (parsed && GRID_SIZE_OPTIONS.includes(parsed as GridSize)) ? parsed as GridSize : 25;
   });
   const [undoStack, setUndoStack] = useState<UndoAction[]>([]);
   const [measureStart, setMeasureStart] = useState<{ x: number; y: number } | null>(null);
   const [measureEnd, setMeasureEnd] = useState<{ x: number; y: number } | null>(null);
-  const [highlightedCells, setHighlightedCells] = useState<Map<string, AreaColorId>>(new Map());
+  const [highlightedCells, setHighlightedCells] = useState<Map<string, AreaColorId>>(() => {
+    const saved = loadMapState()?.highlightedCells;
+    return saved ? new Map(saved) : new Map();
+  });
   const [areaColor, setAreaColor] = useState<AreaColorId>('danger');
-  const [spellTemplates, setSpellTemplates] = useState<SpellTemplate[]>([]);
+  const [spellTemplates, setSpellTemplates] = useState<SpellTemplate[]>(() => loadMapState()?.spellTemplates ?? []);
   const [spellShape, setSpellShape] = useState<SpellShape>('cone');
   const [spellSizeFt, setSpellSizeFt] = useState<number>(15);
   const [spellColor, setSpellColor] = useState<SpellColorId>('fire');
   const [spellOrigin, setSpellOrigin] = useState<{ x: number; y: number } | null>(null);
   const [movementSpeedFt, setMovementSpeedFt] = useState<number>(30);
   const [moveRangeOrigin, setMoveRangeOrigin] = useState<{ x: number; y: number } | null>(null);
+
+  // Auto-save to localStorage on state changes (debounced via ref)
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      saveMapState({
+        markers,
+        highlightedCells: Array.from(highlightedCells.entries()),
+        spellTemplates,
+        gridSize,
+      });
+    }, 500);
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
+  }, [markers, highlightedCells, spellTemplates, gridSize]);
 
   const currentUserId = 'solo-user';
   const myMarker = markers.find(m => !m.isEnemy && m.ownerUserId === currentUserId);
