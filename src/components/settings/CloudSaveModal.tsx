@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Cloud, Download, Upload, Trash2, Loader2, LogIn, LogOut, Check, AlertCircle, Plus, Edit2, User, Sparkles, Package, Coins, Wand2, Shield, Heart, Swords } from 'lucide-react';
+import { AccountSettings } from './AccountSettings';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -217,6 +218,9 @@ export function CloudSaveModal({ open, onOpenChange, currentData, onLoadSave }: 
                 <LogOut className="w-4 h-4" />
               </Button>
             </div>
+
+            {/* Account Settings */}
+            <AccountSettings userEmail={user?.email ?? ''} />
 
             {/* View: Save New Character */}
             {view === 'save-new' && (
