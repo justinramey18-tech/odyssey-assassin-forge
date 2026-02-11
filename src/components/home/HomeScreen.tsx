@@ -537,7 +537,9 @@ export function HomeScreen({
             {/* Character Name Plaque - Full width thin bar */}
             <CharacterNamePlaque 
               name={character.name} 
-              level={character.level} 
+              level={character.level}
+              currentXP={currentXP}
+              multiplier={multiplier}
             />
 
             {/* Party Chat Button - only visible when in a party */}
