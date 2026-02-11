@@ -159,6 +159,7 @@ export interface PartyMessage {
   sender_name: string;
   message: string;
   created_at: string;
+  updated_at?: string | null;
 }
 
 export interface VoteVoter {
@@ -235,6 +236,10 @@ export interface UsePartySyncReturn {
   partyLoot: PartyLootItem[];
   // Party Chat
   sendMessage: (message: string, senderName: string) => Promise<void>;
+  editMessage: (messageId: string, newText: string) => Promise<void>;
+  deleteMessage: (messageId: string) => Promise<void>;
+  bulkDeleteMessages: (messageIds: string[]) => Promise<void>;
+  clearAllMessages: () => Promise<void>;
   partyMessages: PartyMessage[];
   // Party Voting
   startVote: (question: string, options: string[], creatorName: string) => Promise<void>;
@@ -667,20 +672,28 @@ export function usePartySync(): UsePartySyncReturn {
       )
       .subscribe();
 
-    // Subscribe to party messages
+    // Subscribe to party messages (INSERT, UPDATE, DELETE)
     const messagesChannel = supabase
       .channel(`party-messages-${party.partyId}`)
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'party_messages',
           filter: `party_id=eq.${party.partyId}`,
         },
         (payload) => {
-          const msg = payload.new as PartyMessage;
-          setPartyMessages(prev => [...prev.slice(-49), msg]);
+          if (payload.eventType === 'INSERT') {
+            const msg = payload.new as PartyMessage;
+            setPartyMessages(prev => [...prev.slice(-49), msg]);
+          } else if (payload.eventType === 'UPDATE') {
+            const msg = payload.new as PartyMessage;
+            setPartyMessages(prev => prev.map(m => m.id === msg.id ? msg : m));
+          } else if (payload.eventType === 'DELETE') {
+            const old = payload.old as { id: string };
+            setPartyMessages(prev => prev.filter(m => m.id !== old.id));
+          }
         }
       )
       .subscribe();
@@ -1042,6 +1055,39 @@ export function usePartySync(): UsePartySyncReturn {
     });
   }, [user, party.partyId]);
 
+  const editMessage = useCallback(async (messageId: string, newText: string) => {
+    if (!user || !party.partyId) return;
+
+    await (supabase.from('party_messages') as any)
+      .update({ message: newText.slice(0, 200), updated_at: new Date().toISOString() })
+      .eq('id', messageId)
+      .eq('user_id', user.id);
+  }, [user, party.partyId]);
+
+  const deleteMessage = useCallback(async (messageId: string) => {
+    if (!user || !party.partyId) return;
+
+    await (supabase.from('party_messages') as any)
+      .delete()
+      .eq('id', messageId);
+  }, [user, party.partyId]);
+
+  const bulkDeleteMessages = useCallback(async (messageIds: string[]) => {
+    if (!user || !party.partyId || messageIds.length === 0) return;
+
+    await (supabase.from('party_messages') as any)
+      .delete()
+      .in('id', messageIds);
+  }, [user, party.partyId]);
+
+  const clearAllMessages = useCallback(async () => {
+    if (!user || !party.partyId) return;
+
+    await (supabase.from('party_messages') as any)
+      .delete()
+      .eq('party_id', party.partyId);
+  }, [user, party.partyId]);
+
   const startVote = useCallback(async (question: string, options: string[], creatorName: string) => {
     if (!user || !party.partyId) return;
 
@@ -1175,6 +1221,10 @@ export function usePartySync(): UsePartySyncReturn {
     partyLoot,
     // New features
     sendMessage,
+    editMessage,
+    deleteMessage,
+    bulkDeleteMessages,
+    clearAllMessages,
     partyMessages,
     startVote,
     castVote,

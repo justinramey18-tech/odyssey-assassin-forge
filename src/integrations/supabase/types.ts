@@ -472,6 +472,7 @@ export type Database = {
           message: string
           party_id: string
           sender_name: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
@@ -480,6 +481,7 @@ export type Database = {
           message: string
           party_id: string
           sender_name: string
+          updated_at?: string | null
           user_id: string
         }
         Update: {
@@ -488,6 +490,7 @@ export type Database = {
           message?: string
           party_id?: string
           sender_name?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: [
