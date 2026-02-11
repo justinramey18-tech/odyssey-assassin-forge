@@ -73,7 +73,12 @@ export function PartyChat({ messages, currentUserId, onSend }: PartyChatProps) {
                 <span className="font-medium truncate max-w-[100px]">{msg.sender_name}</span>
                 <span className="text-[9px] text-muted-foreground shrink-0">{getTimeAgo(msg.created_at)}</span>
               </div>
-              <p className="text-foreground/80 mt-0.5 break-words">{msg.message}</p>
+              <p className="text-foreground/80 mt-0.5 break-words">
+                {msg.message}
+                {msg.updated_at && (
+                  <span className="text-[9px] text-muted-foreground/60 ml-1 italic">(edited)</span>
+                )}
+              </p>
             </div>
           );
         })}

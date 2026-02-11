@@ -902,7 +902,12 @@ export function HomeScreen({
           onClose={() => setShowPartyChatFullscreen(false)}
           messages={partySync.partyMessages}
           currentUserId={userId}
+          isPartyCreator={partySync.party.isCreator}
           onSend={(msg) => partySync.sendMessage(msg, character.name)}
+          onEdit={partySync.editMessage}
+          onDelete={partySync.deleteMessage}
+          onBulkDelete={partySync.bulkDeleteMessages}
+          onClearAll={partySync.clearAllMessages}
         />
       )}
       </div>
