@@ -12,6 +12,7 @@ export interface PartyChatMessage {
   sender_name: string;
   message: string;
   created_at: string;
+  updated_at?: string | null;
 }
 
 interface PartyChatProps {
