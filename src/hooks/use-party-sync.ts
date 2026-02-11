@@ -208,6 +208,7 @@ export interface UsePartySyncReturn {
   createParty: (characterName: string, status: PartyMember['character_status']) => Promise<string | null>;
   joinParty: (linkCode: string, characterName: string, status: PartyMember['character_status']) => Promise<boolean>;
   leaveParty: () => Promise<void>;
+  disconnectLocally: () => void;
   disbandParty: () => Promise<void>;
   broadcastStatus: (status: PartyMember['character_status']) => void;
   sendHealAction: (targetUserId: string, actionData: PartyAction['action_data']) => Promise<void>;
@@ -839,6 +840,21 @@ export function usePartySync(): UsePartySyncReturn {
     }
   }, [user, party.partyId]);
 
+  // Local-only disconnect: resets all party state without touching the database.
+  // Used during character switching to preserve server-side party membership.
+  const disconnectLocally = useCallback(() => {
+    setParty({ partyId: null, linkCode: null, isCreator: false, members: [], isLoading: false });
+    setPartyRolls([]);
+    setPartyLoot([]);
+    setFocusTarget(null);
+    setPartyInitiatives([]);
+    setIncomingBuffs([]);
+    setPartyMessages([]);
+    setActiveVote(null);
+    setMapMarkers([]);
+    setCombatLog([]);
+  }, []);
+
   const disbandParty = useCallback(async () => {
     if (!user || !party.partyId) return;
 
@@ -1197,6 +1213,7 @@ export function usePartySync(): UsePartySyncReturn {
     createParty,
     joinParty,
     leaveParty,
+    disconnectLocally,
     disbandParty,
     broadcastStatus,
     sendHealAction,

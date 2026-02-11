@@ -985,8 +985,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     if (partySync.party.partyId && data.partyId !== partySync.party.partyId) {
       console.log('[CloudSave] Leaving current party (loaded character has different/no party)');
       try {
-        await partySync.leaveParty();
-        console.log('[CloudSave] Successfully left party before switch');
+        partySync.disconnectLocally();
+        console.log('[CloudSave] Disconnected locally from party before switch');
       } catch (e) {
         console.warn('[CloudSave] Failed to leave party:', e);
       }
@@ -994,8 +994,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       // Loaded character has no party but we're currently in one — leave it
       console.log('[CloudSave] Leaving current party (loaded character has no party)');
       try {
-        await partySync.leaveParty();
-        console.log('[CloudSave] Successfully left party before switch');
+        partySync.disconnectLocally();
+        console.log('[CloudSave] Disconnected locally from party before switch');
       } catch (e) {
         console.warn('[CloudSave] Failed to leave party:', e);
       }
