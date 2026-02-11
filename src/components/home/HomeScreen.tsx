@@ -606,28 +606,6 @@ export function HomeScreen({
               />
             )}
 
-            <XPProgressBar
-              currentLevel={character.level}
-              currentXP={currentXP}
-              prestigeData={prestigeData}
-              nextPrestigeXPRequired={PRESTIGE_CONFIG.XP_PER_PRESTIGE_LEVEL}
-              onClick={() => onNavigateToTab('skills')}
-            />
-
-            {/* Live Status Indicator Row - Centered below AC/Init */}
-            <StatusIndicatorRow
-              activeConditionCount={activeConditionCount}
-              mostSevereCondition={mostSevereCondition}
-              hasConcentration={hasConcentration}
-              concentrationSpellName={concentrationSpellName}
-              readyCooldownCount={readyCooldownCount}
-              coolingCooldownCount={coolingCooldownCount}
-              shopItems={shopItems}
-              onConditionsClick={() => drawerContext?.openConditionsDrawer()}
-              onCooldownsClick={() => drawerContext?.openCooldownDrawer()}
-              onShopClick={() => onNavigateToTab('consumables')}
-            />
-
             {/* Initiative Roll Result Toast */}
             {initiativeRollResult && (
               <motion.div
@@ -663,15 +641,6 @@ export function HomeScreen({
                 <p className="text-xs text-yellow-400/60 mt-2">✓ Copied to clipboard for AI DM</p>
               </motion.div>
             )}
-
-            {/* Available Points Widget (Conditional) */}
-            <AvailablePointsWidget
-              availablePoints={availableAbilityPoints}
-              onSpendClick={() => {
-                triggerHaptic('light');
-                onNavigateToTab('abilities');
-              }}
-            />
 
             {/* Enlarged D20 Section */}
             <EnlargedD20Section 
