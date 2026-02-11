@@ -540,6 +540,7 @@ export function HomeScreen({
               level={character.level}
               currentXP={currentXP}
               multiplier={multiplier}
+              onXPClick={() => onNavigateToTab('skills')}
             />
 
             {/* Party Chat Button - only visible when in a party */}

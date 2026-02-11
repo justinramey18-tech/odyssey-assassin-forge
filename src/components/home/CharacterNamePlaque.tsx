@@ -7,9 +7,10 @@ interface CharacterNamePlaqueProps {
   level: number;
   currentXP?: number;
   multiplier?: number;
+  onXPClick?: () => void;
 }
 
-export function CharacterNamePlaque({ name, level, currentXP = 0, multiplier = 1 }: CharacterNamePlaqueProps) {
+export function CharacterNamePlaque({ name, level, currentXP = 0, multiplier = 1, onXPClick }: CharacterNamePlaqueProps) {
   const isMaxLevel = level >= 20;
   const progress = isMaxLevel ? 100 : getLevelProgress(level, currentXP, multiplier);
   const currentLevelXP = getXPForLevel(level, multiplier);
@@ -59,8 +60,13 @@ export function CharacterNamePlaque({ name, level, currentXP = 0, multiplier = 1
           </span>
         </div>
 
-        {/* Compact XP Progress Bar */}
-        <div className="w-full flex items-center gap-2">
+        {/* Compact XP Progress Bar - Tappable */}
+        <button
+          onClick={onXPClick}
+          className="w-full flex items-center gap-2 -mx-1 px-1 py-0.5 rounded hover:bg-white/5 active:bg-white/10 transition-colors"
+          style={{ touchAction: 'manipulation' }}
+          aria-label="Tap to add XP"
+        >
           <div className="flex-1 h-1 rounded-full bg-muted/30 overflow-hidden">
             <motion.div
               className="h-full rounded-full bg-primary/70"
@@ -72,7 +78,7 @@ export function CharacterNamePlaque({ name, level, currentXP = 0, multiplier = 1
           <span className="text-[9px] text-muted-foreground font-body whitespace-nowrap">
             {isMaxLevel ? 'MAX' : `${xpInLevel.toLocaleString()} / ${xpNeeded.toLocaleString()}`}
           </span>
-        </div>
+        </button>
       </div>
     </motion.div>
   );
