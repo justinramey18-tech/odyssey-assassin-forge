@@ -914,6 +914,8 @@ export function HomeScreen({
           onPin={partySync.pinMessage}
           onUnpin={partySync.unpinMessage}
           onUploadImage={partySync.uploadChatImage}
+          typingUsers={partySync.typingUsers}
+          onTyping={() => partySync.broadcastTyping(character.name)}
         />
       )}
       </div>

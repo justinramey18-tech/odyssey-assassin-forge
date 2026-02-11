@@ -20,6 +20,8 @@ interface FullscreenPartyChatProps {
   onPin?: (messageId: string) => Promise<void>;
   onUnpin?: (messageId: string) => Promise<void>;
   onUploadImage?: (file: File) => Promise<string | null>;
+  typingUsers?: { userId: string; name: string }[];
+  onTyping?: () => void;
 }
 
 const SENDER_COLORS = [
@@ -39,7 +41,7 @@ function formatTimestamp(dateStr: string): string {
 export function FullscreenPartyChat({
   open, onClose, messages, currentUserId, isPartyCreator,
   onSend, onEdit, onDelete, onBulkDelete, onClearAll,
-  onPin, onUnpin, onUploadImage,
+  onPin, onUnpin, onUploadImage, typingUsers, onTyping,
 }: FullscreenPartyChatProps) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
@@ -463,6 +465,23 @@ export function FullscreenPartyChat({
             </div>
           )}
 
+          {/* Typing indicator */}
+          {typingUsers && typingUsers.length > 0 && (
+            <div className="px-4 py-1.5 text-xs text-muted-foreground flex items-center gap-1.5">
+              <span className="flex gap-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+              </span>
+              <span className="italic">
+                {typingUsers.length === 1
+                  ? `${typingUsers[0].name} is typing...`
+                  : `${typingUsers.map(t => t.name).join(', ')} are typing...`
+                }
+              </span>
+            </div>
+          )}
+
           {/* Input Area */}
           <div className="border-t border-border/40 px-4 py-3 bg-background/95 backdrop-blur-sm safe-area-bottom">
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
@@ -474,7 +493,10 @@ export function FullscreenPartyChat({
                 </Button>
               )}
               <Input ref={inputRef} value={text}
-                onChange={(e) => setText(e.target.value.slice(0, 500))}
+                onChange={(e) => {
+                  setText(e.target.value.slice(0, 500));
+                  if (e.target.value.length > 0 && onTyping) onTyping();
+                }}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
                 placeholder="Type a message..."
                 className="h-11 text-sm"
