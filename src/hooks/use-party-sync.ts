@@ -209,6 +209,7 @@ export interface UsePartySyncReturn {
   joinParty: (linkCode: string, characterName: string, status: PartyMember['character_status']) => Promise<boolean>;
   leaveParty: () => Promise<void>;
   disconnectLocally: () => void;
+  reconnectToParty: (partyId: string) => Promise<boolean>;
   disbandParty: () => Promise<void>;
   broadcastStatus: (status: PartyMember['character_status']) => void;
   sendHealAction: (targetUserId: string, actionData: PartyAction['action_data']) => Promise<void>;
@@ -855,6 +856,56 @@ export function usePartySync(): UsePartySyncReturn {
     setCombatLog([]);
   }, []);
 
+  // Reconnect to an existing party by ID (user is already a member on the server)
+  const reconnectToParty = useCallback(async (partyId: string): Promise<boolean> => {
+    if (!user) return false;
+    setParty(prev => ({ ...prev, isLoading: true }));
+
+    try {
+      // Fetch party info
+      const { data: partyData, error: partyError } = await supabase
+        .from('parties')
+        .select('*')
+        .eq('id', partyId)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (partyError || !partyData) {
+        console.warn('[PartySync] Party not found or inactive:', partyId);
+        setParty({ partyId: null, linkCode: null, isCreator: false, members: [], isLoading: false });
+        return false;
+      }
+
+      // Verify user is still a member
+      const { data: members } = await supabase
+        .from('party_members')
+        .select('*')
+        .eq('party_id', partyId) as { data: PartyMember[] | null };
+
+      const isMember = members?.some(m => m.user_id === user.id);
+      if (!isMember) {
+        console.warn('[PartySync] User is no longer a member of party:', partyId);
+        setParty({ partyId: null, linkCode: null, isCreator: false, members: [], isLoading: false });
+        return false;
+      }
+
+      setParty({
+        partyId: partyData.id,
+        linkCode: partyData.link_code,
+        isCreator: partyData.created_by === user.id,
+        members: members || [],
+        isLoading: false,
+      });
+
+      console.log('[PartySync] Reconnected to party:', partyData.link_code);
+      return true;
+    } catch (err) {
+      console.error('[PartySync] Failed to reconnect:', err);
+      setParty({ partyId: null, linkCode: null, isCreator: false, members: [], isLoading: false });
+      return false;
+    }
+  }, [user]);
+
   const disbandParty = useCallback(async () => {
     if (!user || !party.partyId) return;
 
@@ -1214,6 +1265,7 @@ export function usePartySync(): UsePartySyncReturn {
     joinParty,
     leaveParty,
     disconnectLocally,
+    reconnectToParty,
     disbandParty,
     broadcastStatus,
     sendHealAction,
