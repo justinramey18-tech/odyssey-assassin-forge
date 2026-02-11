@@ -981,21 +981,20 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       console.log('[CloudSave] Restored cooldown state');
     }
     
-    // 19. Restore party association — leave current party if loaded character has different/no party
+    // 19. Restore party association
     // Always disconnect locally first to ensure clean slate for the new character
     partySync.disconnectLocally();
     console.log('[CloudSave] Disconnected locally — clean slate for new character');
 
-    // If the loaded character has a saved party, reconnect to it
+    // Store the loaded character's partyId so the on-mount effect knows which party to reconnect to
+    // (the page reloads after load, so in-memory reconnect won't persist — this localStorage flag
+    // tells the mount effect which party is valid for the active character)
     if (data.partyId) {
-      console.log('[CloudSave] Reconnecting to saved party:', data.partyId);
-      partySync.reconnectToParty(data.partyId).then(success => {
-        if (success) {
-          console.log('[CloudSave] Successfully reconnected to party');
-        } else {
-          console.log('[CloudSave] Party no longer exists or user removed');
-        }
-      });
+      localStorage.setItem('odyssey-active-party-id', data.partyId);
+      console.log('[CloudSave] Set active party ID for reconnect after reload:', data.partyId);
+    } else {
+      localStorage.removeItem('odyssey-active-party-id');
+      console.log('[CloudSave] No party for this character — cleared active party ID');
     }
     
     // 20. Restore custom background from cloud URL
