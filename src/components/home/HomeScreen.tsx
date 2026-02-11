@@ -809,23 +809,25 @@ export function HomeScreen({
         />
       )}
 
-      {/* Party Drawer */}
+      {/* Party Drawer - Fullscreen on mobile */}
       {partySync && (
         <Sheet open={showPartyDrawer} onOpenChange={setShowPartyDrawer}>
-          <SheetContent side="right" className="w-[320px] bg-background/95 backdrop-blur-md border-l border-emerald-900/30 p-4">
+          <SheetContent side="right" className="w-full sm:w-[380px] sm:max-w-[380px] bg-background/95 backdrop-blur-md border-l border-emerald-900/30 p-0 overflow-hidden">
             <SheetTitle className="sr-only">Party</SheetTitle>
-            <PartyPanel
-              partySync={partySync}
-              characterName={character.name}
-              currentStatus={{
-                currentHP: currentHP,
-                maxHP: maxHP,
-                tempHP: tempHP,
-                level: character.level,
-              }}
-              isAuthenticated={isAuthenticated}
-              userId={userId}
-            />
+            <div className="h-full overflow-y-auto overscroll-contain p-4 pb-8">
+              <PartyPanel
+                partySync={partySync}
+                characterName={character.name}
+                currentStatus={{
+                  currentHP: currentHP,
+                  maxHP: maxHP,
+                  tempHP: tempHP,
+                  level: character.level,
+                }}
+                isAuthenticated={isAuthenticated}
+                userId={userId}
+              />
+            </div>
           </SheetContent>
         </Sheet>
       )}
