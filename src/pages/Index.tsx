@@ -826,8 +826,17 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
   }, []);
 
   // Handle loading cloud save - RESTORES ALL CHARACTER STATE
-  const handleLoadCloudSave = useCallback((data: SaveData) => {
+  const handleLoadCloudSave = useCallback(async (data: SaveData) => {
     console.log('[CloudSave] Loading character:', data.character.name);
+    
+    // CRITICAL: Save current character to cloud BEFORE switching
+    // This preserves background URL, party association, and all state for the current character
+    try {
+      await autoSync.syncNow();
+      console.log('[CloudSave] Saved current character before switching');
+    } catch (e) {
+      console.warn('[CloudSave] Pre-switch save failed:', e);
+    }
     
     // 1. Core character data
     setCharacter(data.character);
@@ -970,15 +979,27 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       console.log('[CloudSave] Restored cooldown state');
     }
     
-    // 19. Restore party association — leave current party if switching characters
+    // 19. Restore party association — leave current party if loaded character has different/no party
     if (partySync.party.partyId && data.partyId !== partySync.party.partyId) {
-      console.log('[CloudSave] Leaving current party to switch characters');
-      partySync.leaveParty().catch(e => console.warn('[CloudSave] Failed to leave party:', e));
+      console.log('[CloudSave] Leaving current party (loaded character has different/no party)');
+      try {
+        await partySync.leaveParty();
+        console.log('[CloudSave] Successfully left party before switch');
+      } catch (e) {
+        console.warn('[CloudSave] Failed to leave party:', e);
+      }
+    } else if (!data.partyId && partySync.party.partyId) {
+      // Loaded character has no party but we're currently in one — leave it
+      console.log('[CloudSave] Leaving current party (loaded character has no party)');
+      try {
+        await partySync.leaveParty();
+        console.log('[CloudSave] Successfully left party before switch');
+      } catch (e) {
+        console.warn('[CloudSave] Failed to leave party:', e);
+      }
     }
     if (data.partyId) {
       console.log('[CloudSave] Character has saved party:', data.partyId);
-      // The usePartySync hook auto-reconnects on mount by checking party_members table,
-      // so after reload it will reconnect to the saved party automatically
     }
     
     // 20. Restore custom background from cloud URL
@@ -1007,7 +1028,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     setTimeout(() => {
       window.location.reload();
     }, 500);
-  }, [abilityScores.applyScores, setPrestigeData, toast, partySync, customBackground]);
+  }, [abilityScores.applyScores, setPrestigeData, toast, partySync, customBackground, autoSync]);
 
   // Calculate unlocked abilities map for drawer
   const unlockedAbilities = useMemo(() => {
