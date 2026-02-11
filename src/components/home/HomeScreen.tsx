@@ -921,6 +921,9 @@ export function HomeScreen({
           onUploadImage={partySync.uploadChatImage}
           typingUsers={partySync.typingUsers}
           onTyping={() => partySync.broadcastTyping(character.name)}
+          reactions={partySync.messageReactions}
+          onAddReaction={(msgId, emoji) => partySync.addReaction(msgId, emoji, character.name)}
+          onRemoveReaction={(msgId, emoji) => partySync.removeReaction(msgId, emoji)}
         />
       )}
       </div>

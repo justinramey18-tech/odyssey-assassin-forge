@@ -165,6 +165,16 @@ export interface PartyMessage {
   is_pinned?: boolean;
 }
 
+export interface MessageReaction {
+  id: string;
+  message_id: string;
+  party_id: string;
+  user_id: string;
+  sender_name: string;
+  emoji: string;
+  created_at: string;
+}
+
 export interface VoteVoter {
   userId: string;
   name: string;
@@ -249,6 +259,10 @@ export interface UsePartySyncReturn {
   unpinMessage: (messageId: string) => Promise<void>;
   uploadChatImage: (file: File) => Promise<string | null>;
   partyMessages: PartyMessage[];
+  // Reactions
+  messageReactions: MessageReaction[];
+  addReaction: (messageId: string, emoji: string, senderName: string) => Promise<void>;
+  removeReaction: (messageId: string, emoji: string) => Promise<void>;
   // Party Voting
   startVote: (question: string, options: string[], creatorName: string) => Promise<void>;
   castVote: (optionLabel: string, voterName: string) => Promise<void>;
@@ -291,6 +305,7 @@ export function usePartySync(): UsePartySyncReturn {
   const [mapMarkers, setMapMarkers] = useState<MapMarker[]>([]);
   const [combatLog, setCombatLog] = useState<CombatLogEntry[]>([]);
   const [typingUsers, setTypingUsers] = useState<{ userId: string; name: string }[]>([]);
+  const [messageReactions, setMessageReactions] = useState<MessageReaction[]>([]);
   const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -391,6 +406,17 @@ export function usePartySync(): UsePartySyncReturn {
         .order('created_at', { ascending: false })
         .limit(50) as { data: PartyMessage[] | null };
       if (msgs) setPartyMessages(msgs.reverse());
+
+      // Load reactions for loaded messages
+      if (msgs && msgs.length > 0) {
+        const msgIds = msgs.map(m => m.id);
+        const { data: reactions } = await supabase
+          .from('party_message_reactions')
+          .select('*')
+          .eq('party_id', party.partyId!)
+          .in('message_id', msgIds) as { data: MessageReaction[] | null };
+        if (reactions) setMessageReactions(reactions);
+      }
 
       // Load recent combat log (last 30)
       const { data: combatEntries } = await supabase
@@ -776,6 +802,24 @@ export function usePartySync(): UsePartySyncReturn {
       .subscribe();
     typingChannelRef.current = typingChannel;
 
+    // Reactions realtime
+    const reactionsChannel = supabase
+      .channel(`party-reactions-${party.partyId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'party_message_reactions', filter: `party_id=eq.${party.partyId}` },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const r = payload.new as MessageReaction;
+            setMessageReactions(prev => [...prev, r]);
+          } else if (payload.eventType === 'DELETE') {
+            const old = payload.old as { id: string };
+            setMessageReactions(prev => prev.filter(r => r.id !== old.id));
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(membersChannel);
       supabase.removeChannel(actionsChannel);
@@ -787,6 +831,7 @@ export function usePartySync(): UsePartySyncReturn {
       supabase.removeChannel(messagesChannel);
       supabase.removeChannel(combatLogChannel);
       supabase.removeChannel(typingChannel);
+      supabase.removeChannel(reactionsChannel);
       typingChannelRef.current = null;
     };
   }, [party.partyId, user]);
@@ -1369,6 +1414,26 @@ export function usePartySync(): UsePartySyncReturn {
     }, 3000);
   }, [user]);
 
+  const addReaction = useCallback(async (messageId: string, emoji: string, senderName: string) => {
+    if (!user || !party.partyId) return;
+    await (supabase.from('party_message_reactions') as any).upsert({
+      message_id: messageId,
+      party_id: party.partyId,
+      user_id: user.id,
+      sender_name: senderName,
+      emoji,
+    }, { onConflict: 'message_id,user_id,emoji' });
+  }, [user, party.partyId]);
+
+  const removeReaction = useCallback(async (messageId: string, emoji: string) => {
+    if (!user || !party.partyId) return;
+    await (supabase.from('party_message_reactions') as any)
+      .delete()
+      .eq('message_id', messageId)
+      .eq('user_id', user.id)
+      .eq('emoji', emoji);
+  }, [user, party.partyId]);
+
   return {
     party,
     pendingHeals,
@@ -1407,6 +1472,9 @@ export function usePartySync(): UsePartySyncReturn {
     unpinMessage,
     uploadChatImage,
     partyMessages,
+    messageReactions,
+    addReaction,
+    removeReaction,
     startVote,
     castVote,
     closeVote,
