@@ -260,6 +260,9 @@ export interface UsePartySyncReturn {
   // Combat Log
   logCombatEvent: (characterName: string, actionType: string, description: string, metadata?: Record<string, unknown>) => Promise<void>;
   combatLog: CombatLogEntry[];
+  // Typing indicators
+  typingUsers: { userId: string; name: string }[];
+  broadcastTyping: (senderName: string) => void;
 }
 
 export function usePartySync(): UsePartySyncReturn {
@@ -287,6 +290,9 @@ export function usePartySync(): UsePartySyncReturn {
   const [activeVote, setActiveVote] = useState<ActiveVote | null>(null);
   const [mapMarkers, setMapMarkers] = useState<MapMarker[]>([]);
   const [combatLog, setCombatLog] = useState<CombatLogEntry[]>([]);
+  const [typingUsers, setTypingUsers] = useState<{ userId: string; name: string }[]>([]);
+  const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // On mount, check if user is already in a party
   // Respects the 'odyssey-active-party-id' localStorage flag set during character switching.
@@ -751,6 +757,25 @@ export function usePartySync(): UsePartySyncReturn {
       )
       .subscribe();
 
+    // Typing presence channel
+    const typingChannel = supabase
+      .channel(`party-typing-${party.partyId}`)
+      .on('presence', { event: 'sync' }, () => {
+        const state = typingChannel.presenceState();
+        const typers: { userId: string; name: string }[] = [];
+        for (const key of Object.keys(state)) {
+          const presences = state[key] as unknown as Array<{ userId: string; name: string }>;
+          for (const p of presences) {
+            if (p.userId !== user?.id) {
+              typers.push({ userId: p.userId, name: p.name });
+            }
+          }
+        }
+        setTypingUsers(typers);
+      })
+      .subscribe();
+    typingChannelRef.current = typingChannel;
+
     return () => {
       supabase.removeChannel(membersChannel);
       supabase.removeChannel(actionsChannel);
@@ -761,6 +786,8 @@ export function usePartySync(): UsePartySyncReturn {
       supabase.removeChannel(lootChannel);
       supabase.removeChannel(messagesChannel);
       supabase.removeChannel(combatLogChannel);
+      supabase.removeChannel(typingChannel);
+      typingChannelRef.current = null;
     };
   }, [party.partyId, user]);
 
@@ -1332,6 +1359,16 @@ export function usePartySync(): UsePartySyncReturn {
     });
   }, [user, party.partyId]);
 
+  const broadcastTyping = useCallback((senderName: string) => {
+    if (!typingChannelRef.current || !user) return;
+    typingChannelRef.current.track({ userId: user.id, name: senderName });
+    // Auto-untrack after 3 seconds of inactivity
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      typingChannelRef.current?.untrack();
+    }, 3000);
+  }, [user]);
+
   return {
     party,
     pendingHeals,
@@ -1347,7 +1384,6 @@ export function usePartySync(): UsePartySyncReturn {
     acceptHeal,
     rejectHeal,
     onIncomingHeal,
-    // Existing
     shareRoll,
     partyRolls,
     broadcastFocusTarget,
@@ -1362,7 +1398,6 @@ export function usePartySync(): UsePartySyncReturn {
     shareLoot,
     claimLoot,
     partyLoot,
-    // New features
     sendMessage,
     editMessage,
     deleteMessage,
@@ -1380,5 +1415,7 @@ export function usePartySync(): UsePartySyncReturn {
     mapMarkers,
     logCombatEvent,
     combatLog,
+    typingUsers,
+    broadcastTyping,
   };
 }
