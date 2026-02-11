@@ -1,10 +1,10 @@
-import { Plus, X, Ruler, Paintbrush, Undo2, Trash2, Sparkles } from 'lucide-react';
+import { Plus, X, Ruler, Paintbrush, Undo2, Trash2, Sparkles, Footprints } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   type MapMarker, type ToolMode, type UndoAction, type AreaColorId, type SpellShape, type SpellColorId,
-  AREA_COLORS, SPELL_SHAPE_LABELS, SPELL_SIZE_OPTIONS, SPELL_TEMPLATE_COLORS,
+  AREA_COLORS, SPELL_SHAPE_LABELS, SPELL_SIZE_OPTIONS, SPELL_TEMPLATE_COLORS, MOVEMENT_SPEED_OPTIONS,
 } from './types';
 
 interface MapControlsProps {
@@ -19,6 +19,8 @@ interface MapControlsProps {
   spellSizeFt: number;
   spellColor: SpellColorId;
   spellTemplateCount: number;
+  movementSpeedFt: number;
+  moveRangeActive: boolean;
   setAddingEnemy: (v: boolean) => void;
   setEnemyName: (v: string) => void;
   setToolMode: (v: ToolMode) => void;
@@ -26,6 +28,7 @@ interface MapControlsProps {
   setSpellShape: (v: SpellShape) => void;
   setSpellSizeFt: (v: number) => void;
   setSpellColor: (v: SpellColorId) => void;
+  setMovementSpeedFt: (v: number) => void;
   onUndo: () => void;
   onClearArea: () => void;
   onClearSpells: () => void;
@@ -35,8 +38,9 @@ export function MapControls({
   myMarker, addingEnemy, enemyName, toolMode,
   undoStack, areaColor, highlightedCellCount,
   spellShape, spellSizeFt, spellColor, spellTemplateCount,
+  movementSpeedFt, moveRangeActive,
   setAddingEnemy, setEnemyName, setToolMode, setAreaColor,
-  setSpellShape, setSpellSizeFt, setSpellColor,
+  setSpellShape, setSpellSizeFt, setSpellColor, setMovementSpeedFt,
   onUndo, onClearArea, onClearSpells,
 }: MapControlsProps) {
   return (
@@ -101,6 +105,14 @@ export function MapControls({
       >
         <Sparkles className="w-3 h-3" /> Spell
       </Button>
+      <Button
+        size="sm"
+        variant={toolMode === 'move-range' ? 'default' : 'outline'}
+        className="text-[10px] h-6 gap-1"
+        onClick={() => setToolMode(toolMode === 'move-range' ? null : 'move-range')}
+      >
+        <Footprints className="w-3 h-3" /> Move
+      </Button>
 
       {/* Area color picker — shown when area tool is active */}
       {toolMode === 'area' && (
@@ -129,7 +141,6 @@ export function MapControls({
       {/* Spell template controls — shown when spell tool is active */}
       {toolMode === 'spell' && (
         <div className="flex items-center gap-1.5 ml-1 border-l border-border/30 pl-2 flex-wrap">
-          {/* Shape selector */}
           <Select value={spellShape} onValueChange={(v) => setSpellShape(v as SpellShape)}>
             <SelectTrigger className="h-6 w-[5rem] text-[10px] border-border/30 bg-muted/30">
               <SelectValue />
@@ -140,7 +151,6 @@ export function MapControls({
               ))}
             </SelectContent>
           </Select>
-          {/* Size selector */}
           <Select value={String(spellSizeFt)} onValueChange={(v) => setSpellSizeFt(Number(v))}>
             <SelectTrigger className="h-6 w-[4.5rem] text-[10px] border-border/30 bg-muted/30">
               <SelectValue />
@@ -151,7 +161,6 @@ export function MapControls({
               ))}
             </SelectContent>
           </Select>
-          {/* Color picker */}
           {SPELL_TEMPLATE_COLORS.map(c => (
             <button
               key={c.id}
@@ -169,6 +178,25 @@ export function MapControls({
             <Button size="sm" variant="ghost" className="text-[10px] h-5 gap-1 ml-1" onClick={onClearSpells}>
               <Trash2 className="w-3 h-3" /> Clear All
             </Button>
+          )}
+        </div>
+      )}
+
+      {/* Movement range speed picker */}
+      {toolMode === 'move-range' && (
+        <div className="flex items-center gap-1.5 ml-1 border-l border-border/30 pl-2">
+          <Select value={String(movementSpeedFt)} onValueChange={(v) => setMovementSpeedFt(Number(v))}>
+            <SelectTrigger className="h-6 w-[5rem] text-[10px] border-border/30 bg-muted/30">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MOVEMENT_SPEED_OPTIONS.map(s => (
+                <SelectItem key={s} value={String(s)} className="text-[11px]">{s} ft</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {moveRangeActive && (
+            <span className="text-[9px] text-muted-foreground">Dash: {movementSpeedFt * 2}ft</span>
           )}
         </div>
       )}

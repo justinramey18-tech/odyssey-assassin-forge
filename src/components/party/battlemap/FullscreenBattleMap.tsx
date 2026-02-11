@@ -9,6 +9,7 @@ import { MarkerTooltip } from './MarkerTooltip';
 import { MeasureOverlay } from './MeasureOverlay';
 import { AreaOverlay } from './AreaOverlay';
 import { SpellTemplateOverlay } from './SpellTemplateOverlay';
+import { MovementRangeOverlay } from './MovementRangeOverlay';
 import {
   type MapMarker, type GridSize, type ToolMode, type UndoAction, type AreaColorId,
   type SpellTemplate, type SpellShape, type SpellColorId,
@@ -53,6 +54,11 @@ interface FullscreenBattleMapProps {
   onSpellClick: (x: number, y: number) => void;
   onDeleteSpell: (id: string) => void;
   onClearSpells: () => void;
+  // Movement range props
+  movementSpeedFt: number;
+  setMovementSpeedFt: (v: number) => void;
+  moveRangeOrigin: { x: number; y: number } | null;
+  onMoveRangeClick: (x: number, y: number) => void;
 }
 
 export function FullscreenBattleMap({
@@ -62,6 +68,7 @@ export function FullscreenBattleMap({
   areaColor, setAreaColor, onClearArea,
   spellTemplates, spellShape, spellSizeFt, spellColor, spellOrigin,
   setSpellShape, setSpellSizeFt, setSpellColor, onSpellClick, onDeleteSpell, onClearSpells,
+  movementSpeedFt, setMovementSpeedFt, moveRangeOrigin, onMoveRangeClick,
 }: FullscreenBattleMapProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -165,6 +172,8 @@ export function FullscreenBattleMap({
       onAreaClick(x, y);
     } else if (toolMode === 'spell') {
       onSpellClick(x, y);
+    } else if (toolMode === 'move-range') {
+      onMoveRangeClick(x, y);
     } else {
       onCellClick(x, y);
     }
@@ -192,6 +201,7 @@ export function FullscreenBattleMap({
     if (toolMode === 'measure' || toolMode === 'spell') return 'crosshair';
     if (toolMode === 'area') return 'cell';
     if (toolMode === 'place-self' || toolMode === 'place-enemy') return 'crosshair';
+    if (toolMode === 'move-range') return 'pointer';
     return 'default';
   };
 
@@ -256,6 +266,7 @@ export function FullscreenBattleMap({
           {toolMode === 'measure' && (measureStart ? 'Tap second cell to measure distance' : 'Tap first cell to start measuring')}
           {toolMode === 'area' && 'Click cells to highlight/unhighlight area'}
           {toolMode === 'spell' && (spellOrigin ? 'Tap second cell to set direction' : 'Tap a cell to set spell origin')}
+          {toolMode === 'move-range' && (moveRangeOrigin ? 'Tap a different token or empty cell to clear' : 'Tap a token to show its movement range')}
         </div>
       )}
 
@@ -366,6 +377,17 @@ export function FullscreenBattleMap({
                 onDeleteTemplate={onDeleteSpell}
               />
 
+              {/* Movement range overlay */}
+              {moveRangeOrigin && (
+                <MovementRangeOverlay
+                  originX={moveRangeOrigin.x}
+                  originY={moveRangeOrigin.y}
+                  movementSpeedFt={movementSpeedFt}
+                  gridSize={gridSize}
+                  cellSize={cellSize}
+                />
+              )}
+
               {/* Spell origin indicator */}
               {spellOrigin && (
                 <div
@@ -456,6 +478,8 @@ export function FullscreenBattleMap({
             spellSizeFt={spellSizeFt}
             spellColor={spellColor}
             spellTemplateCount={spellTemplates.length}
+            movementSpeedFt={movementSpeedFt}
+            moveRangeActive={!!moveRangeOrigin}
             setAddingEnemy={setAddingEnemy}
             setEnemyName={setEnemyName}
             setToolMode={setToolMode}
@@ -463,6 +487,7 @@ export function FullscreenBattleMap({
             setSpellShape={setSpellShape}
             setSpellSizeFt={setSpellSizeFt}
             setSpellColor={setSpellColor}
+            setMovementSpeedFt={setMovementSpeedFt}
             onUndo={onUndo}
             onClearArea={onClearArea}
             onClearSpells={onClearSpells}

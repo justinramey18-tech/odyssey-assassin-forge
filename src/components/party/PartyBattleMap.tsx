@@ -52,6 +52,10 @@ export function PartyBattleMap({ markers, currentUserId, characterName, memberCo
   const [spellColor, setSpellColor] = useState<SpellColorId>('fire');
   const [spellOrigin, setSpellOrigin] = useState<{ x: number; y: number } | null>(null);
 
+  // Movement range state
+  const [movementSpeedFt, setMovementSpeedFt] = useState<number>(30);
+  const [moveRangeOrigin, setMoveRangeOrigin] = useState<{ x: number; y: number } | null>(null);
+
   const handleGridSizeChange = useCallback((size: GridSize) => {
     setGridSize(size);
     localStorage.setItem(STORAGE_KEY_GRID_SIZE, String(size));
@@ -169,7 +173,22 @@ export function PartyBattleMap({ markers, currentUserId, characterName, memberCo
     setSpellOrigin(null);
   }, []);
 
-  // Reset measure/spell when switching tools
+  const handleMoveRangeClick = useCallback((x: number, y: number) => {
+    const marker = markers.find(m => m.x === x && m.y === y);
+    if (marker) {
+      // Toggle: click same marker to clear, or click new marker to switch
+      if (moveRangeOrigin?.x === x && moveRangeOrigin?.y === y) {
+        setMoveRangeOrigin(null);
+      } else {
+        setMoveRangeOrigin({ x, y });
+      }
+    } else if (moveRangeOrigin) {
+      // Clicking empty cell clears
+      setMoveRangeOrigin(null);
+    }
+  }, [markers, moveRangeOrigin]);
+
+  // Reset measure/spell/move-range when switching tools
   const handleSetToolMode = useCallback((mode: ToolMode) => {
     setToolMode(mode);
     if (mode !== 'measure') {
@@ -178,6 +197,9 @@ export function PartyBattleMap({ markers, currentUserId, characterName, memberCo
     }
     if (mode !== 'spell') {
       setSpellOrigin(null);
+    }
+    if (mode !== 'move-range') {
+      setMoveRangeOrigin(null);
     }
   }, []);
 
@@ -332,6 +354,10 @@ export function PartyBattleMap({ markers, currentUserId, characterName, memberCo
             onSpellClick={handleSpellClick}
             onDeleteSpell={handleDeleteSpell}
             onClearSpells={handleClearSpells}
+            movementSpeedFt={movementSpeedFt}
+            setMovementSpeedFt={setMovementSpeedFt}
+            moveRangeOrigin={moveRangeOrigin}
+            onMoveRangeClick={handleMoveRangeClick}
           />
         </DialogContent>
       </Dialog>
