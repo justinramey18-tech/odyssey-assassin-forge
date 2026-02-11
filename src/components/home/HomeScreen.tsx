@@ -33,6 +33,7 @@ import { CloudSyncStatusWidget } from './CloudSyncStatusWidget';
 import { PrimaryNavigationCards } from './PrimaryNavigationCards';
 import { BackgroundUploadButton } from './BackgroundUploadButton';
 import { PartyPanel } from '@/components/party/PartyPanel';
+import { FullscreenPartyChat } from '@/components/party/FullscreenPartyChat';
 import type { UsePartySyncReturn } from '@/hooks/use-party-sync';
 import { WildShapeLightningBorder, CRScaledPulse, TransformationBurst } from './WildShapeLightningBorder';
 import { DragonParticles } from './DragonParticles';
@@ -209,6 +210,7 @@ export function HomeScreen({
   const [showDiceRoller, setShowDiceRoller] = useState(false);
   const [showCharacterSaves, setShowCharacterSaves] = useState(false);
   const [showPartyDrawer, setShowPartyDrawer] = useState(false);
+  const [showPartyChatFullscreen, setShowPartyChatFullscreen] = useState(false);
   const [initiativeRollResult, setInitiativeRollResult] = useState<{ roll: number; total: number; prompt: string } | null>(null);
   const [footerCollapsed, setFooterCollapsed] = useState(() => {
     try { return localStorage.getItem('odyssey-home-footer-collapsed') === 'true'; } catch { return false; }
@@ -516,6 +518,29 @@ export function HomeScreen({
               name={character.name} 
               level={character.level} 
             />
+
+            {/* Party Chat Button - only visible when in a party */}
+            {partySync?.party?.partyId && (
+              <motion.button
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                onClick={() => {
+                  triggerHaptic('light');
+                  setShowPartyChatFullscreen(true);
+                }}
+                className="mx-4 flex items-center justify-center gap-2 py-2.5 rounded-lg border border-emerald-500/30 bg-emerald-900/20 hover:bg-emerald-900/30 transition-colors"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <MessageCircle className="w-4 h-4 text-emerald-400" />
+                <span className="text-sm font-cinzel uppercase tracking-wider text-emerald-300">Party Chat</span>
+                {partySync.partyMessages.length > 0 && (
+                  <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-bold rounded-full bg-emerald-500 text-white">
+                    {partySync.partyMessages.length}
+                  </span>
+                )}
+              </motion.button>
+            )}
 
             {/* Cloud Sync Status Widget */}
             <CloudSyncStatusWidget
@@ -868,6 +893,17 @@ export function HomeScreen({
             />
           </SheetContent>
         </Sheet>
+      )}
+
+      {/* Fullscreen Party Chat Drawer */}
+      {partySync?.party?.partyId && (
+        <FullscreenPartyChat
+          open={showPartyChatFullscreen}
+          onClose={() => setShowPartyChatFullscreen(false)}
+          messages={partySync.partyMessages}
+          currentUserId={userId}
+          onSend={(msg) => partySync.sendMessage(msg, character.name)}
+        />
       )}
       </div>
     </div>
