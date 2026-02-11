@@ -31,6 +31,7 @@ import { AvailablePointsWidget } from './AvailablePointsWidget';
 import { EnlargedD20Section } from './EnlargedD20Section';
 import { CloudSyncStatusWidget } from './CloudSyncStatusWidget';
 import { PrimaryNavigationCards } from './PrimaryNavigationCards';
+import { CategoryQuickNav } from './CategoryQuickNav';
 import { BackgroundUploadButton } from './BackgroundUploadButton';
 import { PartyPanel } from '@/components/party/PartyPanel';
 import { FullscreenPartyChat } from '@/components/party/FullscreenPartyChat';
@@ -724,6 +725,15 @@ export function HomeScreen({
             className="overflow-hidden"
           >
             <div className="px-4 pb-4">
+              {/* Category Quick Nav - Fighting/Inventory/Utility with dropdowns */}
+              <CategoryQuickNav
+                onSubTabSelect={(_category, subTabId) => {
+                  triggerHaptic('light');
+                  onNavigateToTab(subTabId as NavigableTab);
+                }}
+                isLegacyUnlocked={false}
+              />
+
               <PrimaryNavigationCards
                 onQuickMenusClick={() => {
                   triggerHaptic('light');
