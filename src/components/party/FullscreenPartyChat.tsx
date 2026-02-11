@@ -586,7 +586,8 @@ export function FullscreenPartyChat({
                   <ImagePlus className="w-4 h-4" />
                 </Button>
               )}
-              <Input ref={inputRef} value={text}
+               <Input ref={inputRef} value={text}
+                autoFocus
                 onChange={(e) => {
                   setText(e.target.value.slice(0, 500));
                   if (e.target.value.length > 0 && onTyping) onTyping();
