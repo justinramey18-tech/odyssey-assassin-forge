@@ -59,7 +59,9 @@ type NavigableTab =
   | 'consumables' 
   | 'chronicle'
   | 'shop'
-  | 'loot';
+  | 'loot'
+  | 'cloud'
+  | 'settings';
 
 interface HomeScreenProps {
   character: Character;
