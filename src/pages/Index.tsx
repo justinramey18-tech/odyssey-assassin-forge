@@ -782,13 +782,18 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       },
       // Cooldown state (ability timers and session)
       cooldownState: cooldownState,
+      // Party association (persists across sessions)
+      partyId: partySync.party.partyId,
+      // Custom home background URL (cloud storage)
+      backgroundUrl: customBackground.backgroundUrl,
     };
   }, [
     character, equipment, achievements, consumablesInventory, 
     currentXP, xpPreset, prestigeData, abilityScores.baseScores, 
     hpState, deathSaves, spellcasting.state, spellcasting.activeSpells,
     prestigeTree.progress, shop.currentGold, loot.lootItems, loot.soldHistory, 
-    hasInspiration, conditions.conditions, conditions.recentConditions
+    hasInspiration, conditions.conditions, conditions.recentConditions,
+    partySync.party.partyId, customBackground.backgroundUrl
   ]);
 
   // Auto-save locally AND to cloud when authenticated (only when not in wizard)
@@ -965,6 +970,25 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       console.log('[CloudSave] Restored cooldown state');
     }
     
+    // 19. Restore party association — leave current party if switching characters
+    if (partySync.party.partyId && data.partyId !== partySync.party.partyId) {
+      console.log('[CloudSave] Leaving current party to switch characters');
+      partySync.leaveParty().catch(e => console.warn('[CloudSave] Failed to leave party:', e));
+    }
+    if (data.partyId) {
+      console.log('[CloudSave] Character has saved party:', data.partyId);
+      // The usePartySync hook auto-reconnects on mount by checking party_members table,
+      // so after reload it will reconnect to the saved party automatically
+    }
+    
+    // 20. Restore custom background from cloud URL
+    if (data.backgroundUrl) {
+      customBackground.setBackgroundFromUrl(data.backgroundUrl);
+      console.log('[CloudSave] Restored background from cloud URL');
+    } else {
+      customBackground.clearCustomBackground();
+    }
+    
     // Track when this was loaded from cloud
     setLastCloudSyncTime(data.savedAt);
     
@@ -983,7 +1007,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     setTimeout(() => {
       window.location.reload();
     }, 500);
-  }, [abilityScores.applyScores, setPrestigeData, toast]);
+  }, [abilityScores.applyScores, setPrestigeData, toast, partySync, customBackground]);
 
   // Calculate unlocked abilities map for drawer
   const unlockedAbilities = useMemo(() => {
@@ -1853,7 +1877,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           onDismissWildShape={() => wildShape.revert()}
           wildShapeBackground={wildShapeBgs.getActiveBackground(wildShape.state.currentForm?.id)}
           customBackground={customBackground.customBackground}
-          onCustomBackgroundUpload={customBackground.handleImageUpload}
+          onCustomBackgroundUpload={(file: File) => customBackground.handleImageUpload(file, user?.id)}
           onCustomBackgroundClear={customBackground.clearCustomBackground}
           prestigeData={prestigeData}
           lastCloudSyncTime={autoSync.lastCloudSyncTime || lastCloudSyncTime}

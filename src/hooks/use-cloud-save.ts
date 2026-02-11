@@ -116,6 +116,8 @@ export function useCloudSave(userId: string | undefined) {
         combatSettings: saveData.combatSettings,
         conditions: saveData.conditions,
         cooldownState: saveData.cooldownState,
+        partyId: saveData.partyId,
+        backgroundUrl: saveData.backgroundUrl,
       };
       
       // Prepare data for database (cast to Json type)
@@ -228,6 +230,8 @@ export function useCloudSave(userId: string | undefined) {
         combatSettings: extendedData.combatSettings as SaveData['combatSettings'],
         conditions: extendedData.conditions as SaveData['conditions'],
         cooldownState: extendedData.cooldownState as SaveData['cooldownState'],
+        partyId: extendedData.partyId as SaveData['partyId'],
+        backgroundUrl: extendedData.backgroundUrl as SaveData['backgroundUrl'],
         savedAt: data.updated_at,
         version: 1,
       };
