@@ -739,7 +739,7 @@ export function HomeScreen({
                   triggerHaptic('light');
                   onNavigateToTab(subTabId as NavigableTab);
                 }}
-                isLegacyUnlocked={false}
+                isLegacyUnlocked={!!prestigeData && prestigeData.prestigeLevel > 0}
                 onOpenCloud={onCloudSyncClick}
                 onOpenSettings={onOpenSettings}
               />
