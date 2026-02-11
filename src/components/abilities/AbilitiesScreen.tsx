@@ -1,8 +1,9 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Character, CharacterAbility, AbilityTree, getAbilityPointsForLevel, getTotalPointsSpent, getPointsSpentInTree } from '@/lib/types';
 import { allAbilities, getAbilityById } from '@/lib/abilities';
-import { TREE_VISUAL_CONFIG } from '@/lib/abilityTrees/colors';
+import { TREE_VISUAL_CONFIG, SelectedTreeTab } from '@/lib/abilityTrees/colors';
 import { TreeColumn } from './TreeColumn';
+import { HomebrewTreeColumn } from './HomebrewTreeColumn';
 import { TreeSelector } from './TreeSelector';
 import { TreeBottomBar } from './TreeBottomBar';
 import { AbilityDetailsPanel } from './AbilityDetailsPanel';
@@ -31,6 +32,7 @@ interface AbilitiesScreenProps {
 }
 
 const TREE_ORDER: AbilityTree[] = ['hunter', 'warrior', 'assassin'];
+const ALL_TABS_WITH_HOMEBREW: SelectedTreeTab[] = ['hunter', 'warrior', 'assassin', 'homebrew'];
 
 export function AbilitiesScreen({
   character,
@@ -42,7 +44,7 @@ export function AbilitiesScreen({
   onBack,
 }: AbilitiesScreenProps) {
   const isMobile = useIsMobile();
-  const [selectedTree, setSelectedTree] = useState<AbilityTree>('hunter');
+  const [selectedTree, setSelectedTree] = useState<SelectedTreeTab>('hunter');
   const [selectedAbility, setSelectedAbility] = useState<string | null>(null);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
   const [editSheetOpen, setEditSheetOpen] = useState(false);
@@ -101,25 +103,28 @@ export function AbilitiesScreen({
   const totalPoints = getAbilityPointsForLevel(character.level);
 
   // Swipe handlers for mobile tree navigation
+  const hasHomebrew = customization.state.homebrewAbilities.length > 0;
+  const currentTabs: SelectedTreeTab[] = hasHomebrew ? ALL_TABS_WITH_HOMEBREW : [...TREE_ORDER];
+
   const handleSwipeLeft = useCallback(() => {
-    const idx = TREE_ORDER.indexOf(selectedTree);
-    if (idx < 2) {
+    const idx = currentTabs.indexOf(selectedTree);
+    if (idx < currentTabs.length - 1) {
       setSlideDirection('left');
-      setSelectedTree(TREE_ORDER[idx + 1]);
+      setSelectedTree(currentTabs[idx + 1]);
       if (navigator.vibrate) navigator.vibrate(10);
       setTimeout(() => setSlideDirection(null), 300);
     }
-  }, [selectedTree]);
+  }, [selectedTree, currentTabs]);
 
   const handleSwipeRight = useCallback(() => {
-    const idx = TREE_ORDER.indexOf(selectedTree);
+    const idx = currentTabs.indexOf(selectedTree);
     if (idx > 0) {
       setSlideDirection('right');
-      setSelectedTree(TREE_ORDER[idx - 1]);
+      setSelectedTree(currentTabs[idx - 1]);
       if (navigator.vibrate) navigator.vibrate(10);
       setTimeout(() => setSlideDirection(null), 300);
     }
-  }, [selectedTree]);
+  }, [selectedTree, currentTabs]);
 
   const { handlers: swipeHandlers, swipeOffset } = useSwipe(
     handleSwipeLeft,
@@ -341,17 +346,29 @@ export function AbilitiesScreen({
               }}
             >
               <ScrollArea ref={mobileScrollRef} className="h-full">
-                <TreeColumn
-                  tree={selectedTree}
-                  abilities={allAbilities}
-                  characterAbilities={character.abilities}
-                  selectedAbilityId={selectedAbility}
-                  isMobile={true}
-                  pointsInvested={pointsByTree[selectedTree]}
-                  abilityImages={abilityImages}
-                  homebrewAbilities={customization.state.homebrewAbilities}
-                  onSelectAbility={setSelectedAbility}
-                />
+                {selectedTree === 'homebrew' ? (
+                  <HomebrewTreeColumn
+                    characterAbilities={character.abilities}
+                    selectedAbilityId={selectedAbility}
+                    isMobile={true}
+                    abilityImages={abilityImages}
+                    homebrewAbilities={customization.state.homebrewAbilities}
+                    onSelectAbility={setSelectedAbility}
+                    onCreateNew={() => setCreateSheetOpen(true)}
+                  />
+                ) : (
+                  <TreeColumn
+                    tree={selectedTree}
+                    abilities={allAbilities}
+                    characterAbilities={character.abilities}
+                    selectedAbilityId={selectedAbility}
+                    isMobile={true}
+                    pointsInvested={pointsByTree[selectedTree]}
+                    abilityImages={abilityImages}
+                    homebrewAbilities={customization.state.homebrewAbilities}
+                    onSelectAbility={setSelectedAbility}
+                  />
+                )}
               </ScrollArea>
             </div>
             
@@ -360,6 +377,7 @@ export function AbilitiesScreen({
               selected={selectedTree}
               onChange={setSelectedTree}
               pointsByTree={pointsByTree}
+              homebrewCount={customization.state.homebrewAbilities.length}
             />
           </div>
         ) : (
@@ -468,7 +486,7 @@ export function AbilitiesScreen({
       <HomebrewCreateSheet
         open={createSheetOpen}
         onOpenChange={handleCreateSheetOpenChange}
-        defaultTree={editingHomebrew?.tree || selectedTree}
+        defaultTree={editingHomebrew?.tree || (selectedTree === 'homebrew' ? 'hunter' : selectedTree)}
         editingAbility={editingHomebrew}
         onSave={handleCreateHomebrew}
         onUpdate={handleUpdateHomebrew}

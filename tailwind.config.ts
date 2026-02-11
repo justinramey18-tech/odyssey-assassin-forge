@@ -77,6 +77,12 @@ export default {
           dim: "hsl(var(--assassin-dim))",
           foreground: "hsl(var(--assassin-foreground))",
         },
+        homebrew: {
+          DEFAULT: "hsl(var(--homebrew))",
+          glow: "hsl(var(--homebrew-glow))",
+          dim: "hsl(var(--homebrew-dim))",
+          foreground: "hsl(var(--homebrew-foreground))",
+        },
         // Tier colors
         tier: {
           maxed: "hsl(var(--tier-maxed))",

@@ -1,5 +1,7 @@
-import { Target, Swords, Eye, LucideIcon } from 'lucide-react';
+import { Target, Swords, Eye, Sparkles, LucideIcon } from 'lucide-react';
 import { AbilityTree } from '@/lib/types';
+
+export type SelectedTreeTab = AbilityTree | 'homebrew';
 
 export interface TreeVisualConfig {
   primary: string;      // Tailwind color class (e.g., 'hunter')
@@ -43,6 +45,17 @@ export const TREE_VISUAL_CONFIG: Record<AbilityTree, TreeVisualConfig> = {
     gradient: 'from-assassin/20 via-transparent to-transparent',
     borderActive: 'border-assassin',
   },
+};
+
+export const HOMEBREW_VISUAL_CONFIG: TreeVisualConfig = {
+  primary: 'homebrew',
+  glow: 'homebrew-glow',
+  dim: 'homebrew-dim',
+  icon: Sparkles,
+  name: 'Homebrew',
+  subtitle: 'Custom Creations',
+  gradient: 'from-homebrew/20 via-transparent to-transparent',
+  borderActive: 'border-homebrew',
 };
 
 // Get tree-specific CSS variable color
