@@ -27,7 +27,7 @@ export function CharacterNamePlaque({ name, level, currentXP = 0, multiplier = 1
     >
       <div 
         className={cn(
-          "bg-plaque relative px-4 pt-2 pb-1.5 rounded-lg w-full",
+          "bg-plaque/50 relative px-4 pt-2 pb-1.5 rounded-lg w-full",
           "border border-primary/30",
           "flex flex-col items-center gap-1"
         )}
