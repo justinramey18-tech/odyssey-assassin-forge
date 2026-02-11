@@ -35,6 +35,7 @@ import { BackgroundUploadButton } from './BackgroundUploadButton';
 import { PartyPanel } from '@/components/party/PartyPanel';
 import { FullscreenPartyChat } from '@/components/party/FullscreenPartyChat';
 import type { UsePartySyncReturn } from '@/hooks/use-party-sync';
+import { useOnlineStatus, useOnlineCount } from '@/hooks/use-online-status';
 import { WildShapeLightningBorder, CRScaledPulse, TransformationBurst } from './WildShapeLightningBorder';
 import { DragonParticles } from './DragonParticles';
 import { XPProgressBar } from './XPProgressBar';
@@ -142,6 +143,18 @@ const triggerHaptic = (intensity: 'light' | 'medium' | 'heavy' = 'light') => {
 // Transparent button style
 const transparentButtonBase = "border border-white/30 rounded-lg bg-transparent hover:bg-white/10 hover:border-white/50 transition-all duration-300";
 
+/** Tiny sub-badge showing online count with a green dot */
+function OnlineCountBadge({ members }: { members: Array<{ user_id: string; updated_at: string }> }) {
+  const onlineCount = useOnlineCount(members);
+  if (onlineCount === 0) return null;
+  return (
+    <span className="absolute -bottom-1 -right-1 min-w-[14px] h-3.5 px-0.5 flex items-center justify-center text-[8px] font-bold rounded-full bg-background border border-emerald-500/60 text-emerald-400 gap-0.5">
+      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+      {onlineCount}
+    </span>
+  );
+}
+
 export function HomeScreen({ 
   character, 
   equipment, 
@@ -188,6 +201,7 @@ export function HomeScreen({
   userId,
 }: HomeScreenProps) {
   const isMobile = useIsMobile();
+  const chatOnlineStatusMap = useOnlineStatus(partySync?.party?.members ?? []);
 
   // CR-scaled haptic burst on Wild Shape activation
   const wasWildShape = useRef(false);
@@ -475,9 +489,13 @@ export function HomeScreen({
               >
                 <Users className={cn("w-4 h-4", partySync.party.partyId ? "text-emerald-400 w-5 h-5" : "text-emerald-400/70")} />
                 {partySync.party.partyId ? (
-                  <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center text-[10px] font-bold rounded-full bg-emerald-500 text-white">
-                    {partySync.party.members.length}
-                  </span>
+                  <>
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center text-[10px] font-bold rounded-full bg-emerald-500 text-white">
+                      {partySync.party.members.length}
+                    </span>
+                    {/* Online count sub-badge */}
+                    <OnlineCountBadge members={partySync.party.members} />
+                  </>
                 ) : (
                   <span className="text-[10px] font-cinzel uppercase tracking-wider text-emerald-400/70">Party</span>
                 )}
@@ -924,6 +942,7 @@ export function HomeScreen({
           reactions={partySync.messageReactions}
           onAddReaction={(msgId, emoji) => partySync.addReaction(msgId, emoji, character.name)}
           onRemoveReaction={(msgId, emoji) => partySync.removeReaction(msgId, emoji)}
+          onlineStatusMap={chatOnlineStatusMap}
         />
       )}
       </div>

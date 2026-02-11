@@ -26,6 +26,8 @@ interface FullscreenPartyChatProps {
   reactions?: MessageReaction[];
   onAddReaction?: (messageId: string, emoji: string) => Promise<void>;
   onRemoveReaction?: (messageId: string, emoji: string) => Promise<void>;
+  /** Map of userId -> online status for showing presence dots next to sender names */
+  onlineStatusMap?: Record<string, { isOnline: boolean }>;
 }
 
 const DND_EMOJIS = ['⚔️', '🛡️', '❤️', '🎲', '💀', '🔥', '✨', '🧙'];
@@ -48,7 +50,7 @@ export function FullscreenPartyChat({
   open, onClose, messages, currentUserId, isPartyCreator,
   onSend, onEdit, onDelete, onBulkDelete, onClearAll,
   onPin, onUnpin, onUploadImage, typingUsers, onTyping,
-  reactions, onAddReaction, onRemoveReaction,
+  reactions, onAddReaction, onRemoveReaction, onlineStatusMap,
 }: FullscreenPartyChatProps) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
@@ -323,7 +325,16 @@ export function FullscreenPartyChat({
                 const senderColor = getSenderColor(group.sender.user_id, uniqueUserIds);
                 return (
                   <div key={group.sender.id + group.msgs[0].id} className="space-y-0.5">
-                    <div className="flex items-baseline gap-2">
+                    <div className="flex items-center gap-2">
+                      {/* Online dot */}
+                      {onlineStatusMap?.[group.sender.user_id] && (
+                        <div
+                          className={cn(
+                            "w-2 h-2 rounded-full shrink-0",
+                            onlineStatusMap[group.sender.user_id].isOnline ? "bg-emerald-500" : "bg-muted-foreground/30"
+                          )}
+                        />
+                      )}
                       <span className={cn("text-sm font-semibold", isSelf ? "text-emerald-400" : senderColor)}>
                         {group.sender.sender_name}
                       </span>

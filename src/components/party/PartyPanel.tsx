@@ -17,6 +17,7 @@ import { PartyBattleMap } from './PartyBattleMap';
 import { PartyCombatLog } from './PartyCombatLog';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import type { UsePartySyncReturn, PartyMember } from '@/hooks/use-party-sync';
+import { useOnlineStatus } from '@/hooks/use-online-status';
 
 interface PartyPanelProps {
   partySync: UsePartySyncReturn;
@@ -46,6 +47,7 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
   const [showCombatLog, setShowCombatLog] = useState(false);
   const [selectedMember, setSelectedMember] = useState<PartyMember | null>(null);
   const { party } = partySync;
+  const onlineStatusMap = useOnlineStatus(party.members);
 
   const MEMBER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7'];
   const memberColors = useMemo(() => {
@@ -174,6 +176,7 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
             member={member}
             isSelf={member.user_id === userId}
             onViewActions={(m) => setSelectedMember(m)}
+            onlineInfo={onlineStatusMap[member.user_id]}
           />
         ))}
       </div>
