@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export interface MapMarker {
   x: number;
@@ -23,7 +24,9 @@ interface PartyBattleMapProps {
   onRemoveMarker: (x: number, y: number) => Promise<void>;
 }
 
-const FULL_GRID_SIZE = 100;
+const GRID_SIZE_OPTIONS = [10, 25, 50, 100] as const;
+type GridSize = typeof GRID_SIZE_OPTIONS[number];
+const STORAGE_KEY_GRID_SIZE = 'dnd-battlemap-grid-size';
 const INLINE_GRID_SIZE = 10;
 const CELL_SIZE = 40;
 const MEMBER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7'];
@@ -33,6 +36,16 @@ export function PartyBattleMap({ markers, currentUserId, characterName, memberCo
   const [enemyName, setEnemyName] = useState('');
   const [placingMode, setPlacingMode] = useState<'self' | 'enemy' | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
+  const [gridSize, setGridSize] = useState<GridSize>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_GRID_SIZE);
+    const parsed = saved ? parseInt(saved, 10) : null;
+    return (parsed && GRID_SIZE_OPTIONS.includes(parsed as GridSize)) ? parsed as GridSize : 25;
+  });
+
+  const handleGridSizeChange = useCallback((size: GridSize) => {
+    setGridSize(size);
+    localStorage.setItem(STORAGE_KEY_GRID_SIZE, String(size));
+  }, []);
 
   const getMarkerAt = (x: number, y: number) => markers.find(m => m.x === x && m.y === y);
   const myMarker = markers.find(m => !m.isEnemy && m.ownerUserId === currentUserId);
@@ -145,6 +158,8 @@ export function PartyBattleMap({ markers, currentUserId, characterName, memberCo
             enemyName={enemyName}
             myMarker={myMarker}
             addingEnemy={addingEnemy}
+            gridSize={gridSize}
+            onGridSizeChange={handleGridSizeChange}
             onCellClick={handleCellClick}
             onClose={() => setFullscreen(false)}
             setPlacingMode={setPlacingMode}
@@ -166,6 +181,8 @@ interface FullscreenBattleMapProps {
   enemyName: string;
   myMarker: MapMarker | undefined;
   addingEnemy: boolean;
+  gridSize: GridSize;
+  onGridSizeChange: (size: GridSize) => void;
   onCellClick: (x: number, y: number) => void;
   onClose: () => void;
   setPlacingMode: (v: 'self' | 'enemy' | null) => void;
@@ -175,14 +192,14 @@ interface FullscreenBattleMapProps {
 }
 
 function FullscreenBattleMap({
-  markers, placingMode, enemyName, myMarker, addingEnemy,
+  markers, placingMode, enemyName, myMarker, addingEnemy, gridSize, onGridSizeChange,
   onCellClick, onClose, setPlacingMode, setAddingEnemy, setEnemyName, getMarkerAt
 }: FullscreenBattleMapProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   const [viewportRect, setViewportRect] = useState({ x: 0, y: 0, w: 1, h: 1 });
 
-  const totalSize = FULL_GRID_SIZE * CELL_SIZE;
+  const totalSize = gridSize * CELL_SIZE;
 
   // Pinch-to-zoom
   useEffect(() => {
@@ -269,7 +286,16 @@ function FullscreenBattleMap({
       <div className="flex items-center justify-between px-3 py-2 border-b border-border/20 shrink-0">
         <DialogTitle className="font-cinzel font-semibold text-sm flex items-center gap-2">
           <MapIcon className="w-4 h-4 text-primary" /> Battle Map
-          <span className="text-[10px] text-muted-foreground font-sans font-normal">100×100</span>
+          <Select value={String(gridSize)} onValueChange={(v) => onGridSizeChange(Number(v) as GridSize)}>
+            <SelectTrigger className="h-6 w-[5.5rem] text-[10px] font-sans font-normal border-border/30 bg-muted/30">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {GRID_SIZE_OPTIONS.map(s => (
+                <SelectItem key={s} value={String(s)} className="text-[11px]">{s}×{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </DialogTitle>
         <div className="flex items-center gap-1">
           <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setZoom(z => Math.max(0.3, z - 0.15))}>
@@ -301,7 +327,7 @@ function FullscreenBattleMap({
         >
           {/* Column coordinate labels */}
           <div className="sticky top-0 z-10 flex" style={{ paddingLeft: 28 * zoom }}>
-            {Array.from({ length: FULL_GRID_SIZE }).map((_, x) => (
+            {Array.from({ length: gridSize }).map((_, x) => (
               <div
                 key={`col-${x}`}
                 className="text-[9px] text-muted-foreground text-center shrink-0 bg-background/90 border-b border-border/10"
@@ -315,7 +341,7 @@ function FullscreenBattleMap({
           <div className="flex">
             {/* Row coordinate labels */}
             <div className="sticky left-0 z-10 flex flex-col" style={{ marginTop: 0 }}>
-              {Array.from({ length: FULL_GRID_SIZE }).map((_, y) => (
+              {Array.from({ length: gridSize }).map((_, y) => (
                 <div
                   key={`row-${y}`}
                   className="text-[9px] text-muted-foreground flex items-center justify-center shrink-0 bg-background/90 border-r border-border/10"
@@ -330,13 +356,13 @@ function FullscreenBattleMap({
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: `repeat(${FULL_GRID_SIZE}, ${cellSize}px)`,
-                gridTemplateRows: `repeat(${FULL_GRID_SIZE}, ${cellSize}px)`,
+                gridTemplateColumns: `repeat(${gridSize}, ${cellSize}px)`,
+                gridTemplateRows: `repeat(${gridSize}, ${cellSize}px)`,
               }}
             >
-              {Array.from({ length: FULL_GRID_SIZE * FULL_GRID_SIZE }).map((_, i) => {
-                const x = i % FULL_GRID_SIZE;
-                const y = Math.floor(i / FULL_GRID_SIZE);
+              {Array.from({ length: gridSize * gridSize }).map((_, i) => {
+                const x = i % gridSize;
+                const y = Math.floor(i / gridSize);
                 const marker = markerMap.get(`${x},${y}`);
                 return (
                   <button
@@ -389,8 +415,8 @@ function FullscreenBattleMap({
                 backgroundColor: m.color,
                 width: 3,
                 height: 3,
-                left: (m.x / FULL_GRID_SIZE) * 100 - 1,
-                top: (m.y / FULL_GRID_SIZE) * 100 - 1,
+                left: (m.x / gridSize) * 100 - 1,
+                top: (m.y / gridSize) * 100 - 1,
               }}
             />
           ))}
