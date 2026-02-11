@@ -69,6 +69,12 @@
     --assassin-dim: 270 35% 22%;
     --assassin-foreground: 270 60% 92%;
 
+    /* ✨ Homebrew Tree - Gold/amber */
+    --homebrew: 40 75% 50%;
+    --homebrew-glow: 40 85% 60%;
+    --homebrew-dim: 40 40% 25%;
+    --homebrew-foreground: 40 80% 92%;
+
     /* ═══════════════════════════════════════════════════
        TIER INDICATOR COLORS
        ═══════════════════════════════════════════════════ */
