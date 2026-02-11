@@ -307,6 +307,12 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
                 const newMarkers = partySync.mapMarkers.filter(m => !(m.x === x && m.y === y));
                 await partySync.updateMapMarkers(newMarkers);
               }}
+              onMoveMarker={async (fromX, fromY, toX, toY) => {
+                const newMarkers = partySync.mapMarkers.map(m =>
+                  m.x === fromX && m.y === fromY ? { ...m, x: toX, y: toY } : m
+                );
+                await partySync.updateMapMarkers(newMarkers);
+              }}
             />
           </CollapsibleContent>
         </Collapsible>
