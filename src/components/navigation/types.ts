@@ -82,7 +82,7 @@ export function getSubTabsForCategory(category: MainCategory): SubTabConfig[] {
 }
 
 // Mapping for HomeScreen navigation cards
-export type NavigableTab = 'combat' | 'skills' | 'abilities' | 'arcana' | 'legacy' | 'consumables' | 'shop' | 'loot' | 'gear' | 'stars' | 'feats' | 'scribe' | 'chronicle';
+export type NavigableTab = 'combat' | 'skills' | 'abilities' | 'arcana' | 'legacy' | 'consumables' | 'shop' | 'loot' | 'gear' | 'stars' | 'feats' | 'scribe' | 'chronicle' | 'cloud' | 'settings';
 
 export function getTabToCategoryMapping(tab: NavigableTab): { category: MainCategory; subTab: string } {
   // Fighting category tabs
@@ -94,7 +94,7 @@ export function getTabToCategoryMapping(tab: NavigableTab): { category: MainCate
     return { category: 'inventory', subTab: tab };
   }
   // Utility category tabs
-  if (['scribe', 'chronicle'].includes(tab)) {
+  if (['scribe', 'chronicle', 'cloud', 'settings'].includes(tab)) {
     return { category: 'utility', subTab: tab };
   }
   // Default
