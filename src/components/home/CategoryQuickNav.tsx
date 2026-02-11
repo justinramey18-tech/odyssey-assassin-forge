@@ -16,6 +16,8 @@ import {
 interface CategoryQuickNavProps {
   onSubTabSelect: (category: MainCategory, subTabId: string) => void;
   isLegacyUnlocked?: boolean;
+  onOpenCloud?: () => void;
+  onOpenSettings?: () => void;
 }
 
 const CATEGORIES: MainCategory[] = ['fighting', 'inventory', 'utility'];
@@ -80,7 +82,7 @@ const cardVariants = {
   }),
 };
 
-export function CategoryQuickNav({ onSubTabSelect, isLegacyUnlocked = false }: CategoryQuickNavProps) {
+export function CategoryQuickNav({ onSubTabSelect, isLegacyUnlocked = false, onOpenCloud, onOpenSettings }: CategoryQuickNavProps) {
   return (
     <div className="grid grid-cols-3 gap-2 px-3 mb-2">
       {CATEGORIES.map((category, i) => {
@@ -128,11 +130,19 @@ export function CategoryQuickNav({ onSubTabSelect, isLegacyUnlocked = false }: C
               {subTabs.map((tab) => {
                 const TabIcon = tab.icon;
                 const isLocked = tab.id === 'legacy' && !isLegacyUnlocked;
+                const isDrawerTab = tab.id === 'cloud' || tab.id === 'settings';
+
+                const handleClick = () => {
+                  if (isLocked) return;
+                  if (tab.id === 'cloud' && onOpenCloud) { onOpenCloud(); return; }
+                  if (tab.id === 'settings' && onOpenSettings) { onOpenSettings(); return; }
+                  onSubTabSelect(category, tab.id);
+                };
 
                 return (
                   <DropdownMenuItem
                     key={tab.id}
-                    onClick={() => !isLocked && onSubTabSelect(category, tab.id)}
+                    onClick={handleClick}
                     disabled={isLocked}
                     className={cn(
                       "flex items-center gap-3 py-3 px-4 cursor-pointer",
