@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, X, MessageSquare, Pencil, Trash2, CheckSquare, Square, XCircle, Pin, PinOff, ImagePlus, Reply, ChevronDown, ChevronUp } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { Send, X, MessageSquare, Pencil, Trash2, CheckSquare, Square, XCircle, Pin, PinOff, ImagePlus, Reply, ChevronDown, ChevronUp, SmilePlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { PartyChatMessage } from './PartyChat';
+import type { MessageReaction } from '@/hooks/use-party-sync';
 
 interface FullscreenPartyChatProps {
   open: boolean;
@@ -22,7 +23,12 @@ interface FullscreenPartyChatProps {
   onUploadImage?: (file: File) => Promise<string | null>;
   typingUsers?: { userId: string; name: string }[];
   onTyping?: () => void;
+  reactions?: MessageReaction[];
+  onAddReaction?: (messageId: string, emoji: string) => Promise<void>;
+  onRemoveReaction?: (messageId: string, emoji: string) => Promise<void>;
 }
+
+const DND_EMOJIS = ['⚔️', '🛡️', '❤️', '🎲', '💀', '🔥', '✨', '🧙'];
 
 const SENDER_COLORS = [
   'text-emerald-400', 'text-sky-400', 'text-amber-400',
@@ -42,6 +48,7 @@ export function FullscreenPartyChat({
   open, onClose, messages, currentUserId, isPartyCreator,
   onSend, onEdit, onDelete, onBulkDelete, onClearAll,
   onPin, onUnpin, onUploadImage, typingUsers, onTyping,
+  reactions, onAddReaction, onRemoveReaction,
 }: FullscreenPartyChatProps) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
@@ -69,6 +76,23 @@ export function FullscreenPartyChat({
   // Image upload
   const [uploadingImage, setUploadingImage] = useState(false);
   const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null);
+
+  // Emoji picker
+  const [emojiPickerMsgId, setEmojiPickerMsgId] = useState<string | null>(null);
+
+  // Build reactions map: messageId -> { emoji -> { count, userReacted, names[] } }
+  const reactionsMap = useMemo(() => {
+    const map: Record<string, Record<string, { count: number; userReacted: boolean; names: string[] }>> = {};
+    if (!reactions) return map;
+    for (const r of reactions) {
+      if (!map[r.message_id]) map[r.message_id] = {};
+      if (!map[r.message_id][r.emoji]) map[r.message_id][r.emoji] = { count: 0, userReacted: false, names: [] };
+      map[r.message_id][r.emoji].count++;
+      map[r.message_id][r.emoji].names.push(r.sender_name);
+      if (r.user_id === currentUserId) map[r.message_id][r.emoji].userReacted = true;
+    }
+    return map;
+  }, [reactions, currentUserId]);
 
   // Pinned messages section
   const [pinnedExpanded, setPinnedExpanded] = useState(true);
@@ -376,6 +400,69 @@ export function FullscreenPartyChat({
                                   <span className="text-[10px] text-muted-foreground/60 ml-1.5 italic">(edited)</span>
                                 )}
                               </p>
+                              {/* Reactions display */}
+                              {reactionsMap[msg.id] && Object.keys(reactionsMap[msg.id]).length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {Object.entries(reactionsMap[msg.id]).map(([emoji, data]) => (
+                                    <button
+                                      key={emoji}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (data.userReacted) {
+                                          onRemoveReaction?.(msg.id, emoji);
+                                        } else {
+                                          onAddReaction?.(msg.id, emoji);
+                                        }
+                                      }}
+                                      className={cn(
+                                        "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs border transition-colors",
+                                        data.userReacted
+                                          ? "border-primary/40 bg-primary/15"
+                                          : "border-border/30 bg-muted/10 hover:bg-muted/20"
+                                      )}
+                                      title={data.names.join(', ')}
+                                    >
+                                      <span>{emoji}</span>
+                                      <span className="text-[10px] text-muted-foreground">{data.count}</span>
+                                    </button>
+                                  ))}
+                                  {/* Quick add reaction button */}
+                                  {onAddReaction && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEmojiPickerMsgId(emojiPickerMsgId === msg.id ? null : msg.id);
+                                      }}
+                                      className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs border border-border/20 bg-muted/5 hover:bg-muted/20 transition-colors text-muted-foreground"
+                                    >
+                                      <SmilePlus className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                              {/* Inline emoji picker */}
+                              {emojiPickerMsgId === msg.id && onAddReaction && (
+                                <div className="flex flex-wrap gap-1 mt-1 p-1.5 rounded-lg bg-card border border-border/40 shadow-lg">
+                                  {DND_EMOJIS.map(emoji => (
+                                    <button
+                                      key={emoji}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const existing = reactionsMap[msg.id]?.[emoji];
+                                        if (existing?.userReacted) {
+                                          onRemoveReaction?.(msg.id, emoji);
+                                        } else {
+                                          onAddReaction(msg.id, emoji);
+                                        }
+                                        setEmojiPickerMsgId(null);
+                                      }}
+                                      className="w-8 h-8 flex items-center justify-center rounded hover:bg-muted/30 text-lg transition-colors"
+                                    >
+                                      {emoji}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -401,6 +488,13 @@ export function FullscreenPartyChat({
                 }}
                 onPointerDown={(e) => e.stopPropagation()}
               >
+                {/* React */}
+                {onAddReaction && (
+                  <button className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted/30 transition-colors"
+                    onClick={() => { setEmojiPickerMsgId(contextMsg.id); setContextMsg(null); setContextPos(null); }}>
+                    <SmilePlus className="w-3.5 h-3.5 text-amber-300" /> React
+                  </button>
+                )}
                 {/* Reply */}
                 <button className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted/30 transition-colors"
                   onClick={() => { setReplyTo(contextMsg); setContextMsg(null); setContextPos(null); }}>
