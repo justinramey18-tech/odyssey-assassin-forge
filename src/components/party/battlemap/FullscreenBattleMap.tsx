@@ -9,7 +9,7 @@ import { MarkerTooltip } from './MarkerTooltip';
 import { MeasureOverlay } from './MeasureOverlay';
 import { AreaOverlay } from './AreaOverlay';
 import {
-  type MapMarker, type GridSize, type ToolMode, type UndoAction,
+  type MapMarker, type GridSize, type ToolMode, type UndoAction, type AreaColorId,
   GRID_SIZE_OPTIONS, CELL_SIZE, getFeetPerSquare,
 } from './types';
 
@@ -35,13 +35,17 @@ interface FullscreenBattleMapProps {
   onAreaClick: (x: number, y: number) => void;
   measureStart: { x: number; y: number } | null;
   measureEnd: { x: number; y: number } | null;
-  highlightedCells: Set<string>;
+  highlightedCells: Map<string, AreaColorId>;
+  areaColor: AreaColorId;
+  setAreaColor: (v: AreaColorId) => void;
+  onClearArea: () => void;
 }
 
 export function FullscreenBattleMap({
   markers, currentUserId, toolMode, enemyName, myMarker, addingEnemy, gridSize, undoStack,
   onGridSizeChange, onCellClick, onCellDrop, onClose, setToolMode, setAddingEnemy, setEnemyName,
   onUndo, getMarkerAt, onMeasureClick, onAreaClick, measureStart, measureEnd, highlightedCells,
+  areaColor, setAreaColor, onClearArea,
 }: FullscreenBattleMapProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -400,10 +404,14 @@ export function FullscreenBattleMap({
             enemyName={enemyName}
             toolMode={toolMode}
             undoStack={undoStack}
+            areaColor={areaColor}
+            highlightedCellCount={highlightedCells.size}
             setAddingEnemy={setAddingEnemy}
             setEnemyName={setEnemyName}
             setToolMode={setToolMode}
+            setAreaColor={setAreaColor}
             onUndo={onUndo}
+            onClearArea={onClearArea}
           />
         </div>
         {/* Feet-per-square info */}

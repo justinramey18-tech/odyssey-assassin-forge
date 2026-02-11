@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { FullscreenBattleMap } from './battlemap/FullscreenBattleMap';
 import {
-  type MapMarker, type GridSize, type ToolMode, type UndoAction,
+  type MapMarker, type GridSize, type ToolMode, type UndoAction, type AreaColorId,
   GRID_SIZE_OPTIONS, INLINE_GRID_SIZE, MEMBER_COLORS, STORAGE_KEY_GRID_SIZE,
 } from './battlemap/types';
 
@@ -41,7 +41,8 @@ export function PartyBattleMap({ markers, currentUserId, characterName, memberCo
   const [measureEnd, setMeasureEnd] = useState<{ x: number; y: number } | null>(null);
 
   // Area highlight state
-  const [highlightedCells, setHighlightedCells] = useState<Set<string>>(new Set());
+  const [highlightedCells, setHighlightedCells] = useState<Map<string, AreaColorId>>(new Map());
+  const [areaColor, setAreaColor] = useState<AreaColorId>('danger');
 
   const handleGridSizeChange = useCallback((size: GridSize) => {
     setGridSize(size);
@@ -121,11 +122,15 @@ export function PartyBattleMap({ markers, currentUserId, characterName, memberCo
   const handleAreaClick = useCallback((x: number, y: number) => {
     const key = `${x},${y}`;
     setHighlightedCells(prev => {
-      const next = new Set(prev);
+      const next = new Map(prev);
       if (next.has(key)) next.delete(key);
-      else next.add(key);
+      else next.set(key, areaColor);
       return next;
     });
+  }, [areaColor]);
+
+  const handleClearArea = useCallback(() => {
+    setHighlightedCells(new Map());
   }, []);
 
   // Reset measure when switching tools
@@ -274,6 +279,9 @@ export function PartyBattleMap({ markers, currentUserId, characterName, memberCo
             measureStart={measureStart}
             measureEnd={measureEnd}
             highlightedCells={highlightedCells}
+            areaColor={areaColor}
+            setAreaColor={setAreaColor}
+            onClearArea={handleClearArea}
           />
         </DialogContent>
       </Dialog>
