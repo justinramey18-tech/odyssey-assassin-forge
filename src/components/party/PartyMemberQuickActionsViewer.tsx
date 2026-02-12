@@ -90,7 +90,10 @@ export function PartyMemberQuickActionsViewer({ member, open, onOpenChange }: Pa
           <Section title="Abilities" icon={<Flame className="w-3.5 h-3.5 text-amber-400" />} count={qa.abilities.length}>
             {qa.abilities.map((a, i) => (
               <div key={i} className="flex items-center justify-between px-2 py-1.5 rounded bg-muted/20 text-xs">
-                <div>
+                <div className="flex items-center gap-1.5">
+                  {a.image ? (
+                    <img src={a.image} alt={a.name} className="w-5 h-5 rounded object-cover shrink-0" />
+                  ) : null}
                   <span className="font-medium">{a.name}</span>
                   <span className="text-[10px] text-muted-foreground ml-1.5">{a.tree} T{a.tier}</span>
                 </div>

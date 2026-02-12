@@ -15,6 +15,7 @@ export interface QuickActionAbility {
   tree: string;
   tier: number;
   actionType: string;
+  image?: string;
 }
 
 export interface QuickActionSpell {
