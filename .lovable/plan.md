@@ -1,45 +1,23 @@
 
-# Fix: Party Deleted When Switching Characters
 
-## Problem
-When switching from Coomlord (party creator) to Xeyle via cloud save, the code calls `partySync.leaveParty()` which **permanently deletes** the user's membership from the `party_members` database table. When switching back to Coomlord, the party membership is gone and the party is effectively destroyed.
+## What We're Doing
 
-## Root Cause
-The `handleLoadCloudSave` function (line 984-1002 in `Index.tsx`) calls `partySync.leaveParty()` during character switches. This function invokes the `party-link` edge function with action `'leave'`, which deletes the row from `party_members`. The party association saved in cloud save metadata then points to a party the user is no longer a member of.
+Right now, the home screen content (Party Chat button, dice roller, HP bar, and the Short Rest / Long Rest / Level Up buttons) sits a bit too high on the screen. The goal is to push all of that content downward by adding more space above the Party Chat button, so that the bottom edge of the three action buttons (Short Rest, Long Rest, Level Up) ends up just 2 pixels above the top edge of the expanded navigation footer.
 
-## Solution
-Replace the server-side `leaveParty()` call during character switching with a **local-only disconnect**. This resets the in-memory party state (so the new character starts clean) without touching the database. The old character's party membership remains intact on the server.
+## How It Will Work
 
-### Changes
+1. **Add top padding/margin above the Party Chat button** -- This is the main lever. By increasing the space at the top of the scrollable content area (specifically above where the Party Chat button sits), everything below it (the dice roller, the HP bar, and the three quick-action buttons) will shift downward together.
 
-**File: `src/hooks/use-party-sync.ts`**
-- Add a new function `disconnectLocally()` that resets all party-related state (partyId, members, rolls, loot, messages, etc.) to defaults **without** calling the server. This is a local-only cleanup.
-- Export it alongside the existing functions.
+2. **Fine-tune the gap** so the bottom of the Short Rest / Long Rest / Level Up row lands exactly 2px above the navigation footer's top border when the footer is expanded.
 
-**File: `src/pages/Index.tsx`**
-- In `handleLoadCloudSave` (around lines 984-1002), replace both calls to `partySync.leaveParty()` with `partySync.disconnectLocally()`.
-- This ensures switching characters only clears local state, preserving the server-side party membership for when the user switches back.
+## What Changes
 
-### Technical Details
+- **One file modified**: `src/components/home/HomeScreen.tsx`
+- **One change**: Increase the top padding or margin on the content wrapper that sits above the Party Chat button (around line 543). This will likely involve adjusting the `pt-` (padding-top) value on the scrollable content container, or adding a spacer/margin above the Party Chat button itself.
+- **Nothing else changes** -- the order of elements, the footer, the header, and all other styling stays exactly the same.
 
-The new `disconnectLocally` function will execute the same local state resets as `leaveParty` (lines 826-835):
-```
-setParty({ partyId: null, linkCode: null, isCreator: false, members: [], isLoading: false });
-setPartyRolls([]);
-setPartyLoot([]);
-setFocusTarget(null);
-setPartyInitiatives([]);
-setIncomingBuffs([]);
-setPartyMessages([]);
-setActiveVote(null);
-setMapMarkers([]);
-setCombatLog([]);
-```
-But it will **not** invoke the `party-link` edge function, so the database row in `party_members` stays intact.
+## Technical Detail
 
-### Testing
-1. Create a party on Character A
-2. Switch to Character B via cloud save
-3. Verify Character B loads without the party
-4. Switch back to Character A
-5. Verify the party is still accessible and functional
+- The exact pixel value for the top padding will need to be calibrated visually since it depends on the heights of the dice roller, HP bar, and button row combined relative to the viewport and the footer height. I'll use Tailwind spacing classes (e.g., `pt-16`, `pt-20`, or a custom `mt-[Xpx]` value) to get the 2px gap right.
+- If the spacing can't be pixel-perfect with standard Tailwind classes alone, I'll use an arbitrary value like `mt-[48px]` to dial it in precisely.
+
