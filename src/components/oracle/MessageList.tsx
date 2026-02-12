@@ -1,10 +1,115 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Message, Personality } from './types';
+import { Message, Personality, PersonalityConfig } from './types';
 import { getPersonalityConfig } from './personalities';
-import { User, Bot, Loader2 } from 'lucide-react';
+import { User, Loader2, Copy, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+
+interface OracleMessageProps {
+  message: Message;
+  isUser: boolean;
+  messageConfig: PersonalityConfig;
+}
+
+function OracleMessage({ message, isUser, messageConfig }: OracleMessageProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(message.content).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [message.content]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      className={cn(
+        'flex gap-2',
+        isUser ? 'justify-end' : 'justify-start'
+      )}
+    >
+      {/* Avatar for assistant */}
+      {!isUser && (
+        <div 
+          className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+          style={{ backgroundColor: `${messageConfig.color}30` }}
+        >
+          <span className="text-sm">{messageConfig.icon}</span>
+        </div>
+      )}
+
+      {/* Message bubble */}
+      <div className="relative group max-w-[80%]">
+        <div
+          className={cn(
+            'rounded-2xl px-4 py-2 select-text',
+            isUser
+              ? 'bg-white/10 text-white rounded-br-sm'
+              : cn(
+                  'rounded-bl-sm',
+                  message.personality === 'deadpool' && 'bg-red-950/60 border border-red-500/30',
+                  message.personality === 'jarvis' && 'bg-cyan-950/60 border border-cyan-500/30',
+                  message.personality === 'thunderhead' && 'bg-blue-950/60 border border-blue-500/30',
+                  !message.personality && `bg-gradient-to-br ${messageConfig.bgGradient} border ${messageConfig.borderColor}`
+                )
+          )}
+        >
+          {isUser ? (
+            <p className="text-sm whitespace-pre-wrap select-text">{message.content}</p>
+          ) : (
+            <div className="text-sm prose prose-invert prose-sm max-w-none select-text cursor-text [&_*]:select-text">
+              <ReactMarkdown
+                components={{
+                  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                  strong: ({ children }) => (
+                    <strong style={{ color: messageConfig.color }}>{children}</strong>
+                  ),
+                  em: ({ children }) => (
+                    <em className="text-white/70">{children}</em>
+                  ),
+                  ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
+                  ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
+                  li: ({ children }) => <li className="mb-1">{children}</li>,
+                  code: ({ children }) => (
+                    <code className="bg-black/30 px-1 rounded text-xs">{children}</code>
+                  ),
+                }}
+              >
+                {message.content || '...'}
+              </ReactMarkdown>
+            </div>
+          )}
+        </div>
+
+        {/* Copy button for assistant messages */}
+        {!isUser && message.content && (
+          <button
+            onClick={handleCopy}
+            className="absolute -bottom-1 right-1 translate-y-full opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-1.5 rounded-md bg-white/10 hover:bg-white/20 text-white/50 hover:text-white/80"
+            aria-label="Copy message"
+          >
+            {copied ? (
+              <Check className="w-3.5 h-3.5 text-green-400" />
+            ) : (
+              <Copy className="w-3.5 h-3.5" />
+            )}
+          </button>
+        )}
+      </div>
+
+      {/* Avatar for user */}
+      {isUser && (
+        <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+          <User className="w-4 h-4 text-white/70" />
+        </div>
+      )}
+    </motion.div>
+  );
+}
 
 interface MessageListProps {
   messages: Message[];
@@ -58,75 +163,12 @@ export function MessageList({ messages, isLoading, currentPersonality }: Message
             : config;
 
           return (
-            <motion.div
+            <OracleMessage
               key={message.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className={cn(
-                'flex gap-2',
-                isUser ? 'justify-end' : 'justify-start'
-              )}
-            >
-              {/* Avatar for assistant */}
-              {!isUser && (
-                <div 
-                  className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: `${messageConfig.color}30` }}
-                >
-                  <span className="text-sm">{messageConfig.icon}</span>
-                </div>
-              )}
-
-              {/* Message bubble */}
-              <div
-                className={cn(
-                  'max-w-[80%] rounded-2xl px-4 py-2 select-text',
-                  isUser
-                    ? 'bg-white/10 text-white rounded-br-sm'
-                    : cn(
-                        'rounded-bl-sm',
-                        message.personality === 'deadpool' && 'bg-red-950/60 border border-red-500/30',
-                        message.personality === 'jarvis' && 'bg-cyan-950/60 border border-cyan-500/30',
-                        message.personality === 'thunderhead' && 'bg-blue-950/60 border border-blue-500/30',
-                        !message.personality && `bg-gradient-to-br ${messageConfig.bgGradient} border ${messageConfig.borderColor}`
-                      )
-                )}
-              >
-                {isUser ? (
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                ) : (
-                  <div className="text-sm prose prose-invert prose-sm max-w-none">
-                    <ReactMarkdown
-                      components={{
-                        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                        strong: ({ children }) => (
-                          <strong style={{ color: messageConfig.color }}>{children}</strong>
-                        ),
-                        em: ({ children }) => (
-                          <em className="text-white/70">{children}</em>
-                        ),
-                        ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
-                        ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
-                        li: ({ children }) => <li className="mb-1">{children}</li>,
-                        code: ({ children }) => (
-                          <code className="bg-black/30 px-1 rounded text-xs">{children}</code>
-                        ),
-                      }}
-                    >
-                      {message.content || '...'}
-                    </ReactMarkdown>
-                  </div>
-                )}
-              </div>
-
-              {/* Avatar for user */}
-              {isUser && (
-                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center shrink-0">
-                  <User className="w-4 h-4 text-white/70" />
-                </div>
-              )}
-            </motion.div>
+              message={message}
+              isUser={isUser}
+              messageConfig={messageConfig}
+            />
           );
         })}
       </AnimatePresence>
