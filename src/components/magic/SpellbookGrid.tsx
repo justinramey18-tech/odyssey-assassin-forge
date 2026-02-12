@@ -189,30 +189,37 @@ export function SpellbookGrid({
           ) : (
             levelKeys.map((level) => (
               <Collapsible key={level}>
-                <CollapsibleTrigger className="flex items-center gap-2 w-full group py-1">
-                  <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90" />
-                  <h3 className="font-cinzel text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    {level === 0 ? 'Cantrips' : `${getSpellLevelLabel(level)} Level`}
-                  </h3>
-                  <div className="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent" />
-                  <span className="text-xs text-muted-foreground">
-                    {groupedSpells[level].length} spell{groupedSpells[level].length !== 1 ? 's' : ''}
+                <CollapsibleTrigger className={cn(
+                  "flex items-center justify-between w-full group px-4 py-3 rounded-lg",
+                  "border border-emerald-500/30 bg-emerald-950/40 backdrop-blur-sm",
+                  "hover:bg-emerald-900/40 transition-colors"
+                )}>
+                  <div className="flex items-center gap-2">
+                    <ChevronDown className="w-4 h-4 text-emerald-400 transition-transform duration-200 group-data-[state=closed]:-rotate-90" />
+                    <h3 className="font-cinzel text-sm font-semibold text-emerald-300 uppercase tracking-widest">
+                      {level === 0 ? 'Cantrips' : `${getSpellLevelLabel(level)} Level`}
+                    </h3>
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    {groupedSpells[level].length} Spell{groupedSpells[level].length !== 1 ? 's' : ''}
                   </span>
                 </CollapsibleTrigger>
 
                 <CollapsibleContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-                    {groupedSpells[level].map((spell) => (
-                      <SpellCard
-                        key={spell.id}
-                        spell={spell}
-                        isPrepared={preparedSpells.includes(spell.id) || spell.level === 0}
-                        isFavorite={favoriteSpells.includes(spell.id)}
-                        isConcentrating={concentratingOn === spell.id}
-                        characterLevel={characterLevel}
-                        onClick={() => onSpellSelect(spell)}
-                      />
-                    ))}
+                  <div className="mt-2 max-h-[50vh] overflow-y-auto rounded-lg border border-white/5 bg-background/30 p-3 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {groupedSpells[level].map((spell) => (
+                        <SpellCard
+                          key={spell.id}
+                          spell={spell}
+                          isPrepared={preparedSpells.includes(spell.id) || spell.level === 0}
+                          isFavorite={favoriteSpells.includes(spell.id)}
+                          isConcentrating={concentratingOn === spell.id}
+                          characterLevel={characterLevel}
+                          onClick={() => onSpellSelect(spell)}
+                        />
+                      ))}
+                    </div>
                   </div>
                 </CollapsibleContent>
               </Collapsible>
