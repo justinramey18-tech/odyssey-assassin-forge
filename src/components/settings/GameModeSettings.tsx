@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, Infinity, Info, Clock, Swords, Bell } from 'lucide-react';
+import { Shield, Infinity, Info, Clock, Swords, Bell, Globe } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
@@ -23,6 +23,12 @@ import {
   getCombatSettingDescription,
   COMBAT_SETTINGS_CHANGE_EVENT,
 } from '@/lib/combat/combatSettings';
+import {
+  TIMEZONE_OPTIONS,
+  loadTimezone,
+  saveTimezone,
+  TIMEZONE_CHANGE_EVENT,
+} from '@/lib/timezone-storage';
 
 interface GameModeSettingsProps {
   settings: GameModeSettingsType;
@@ -83,6 +89,7 @@ export function GameModeSettings({ settings, onChange }: GameModeSettingsProps) 
   const isInfinityPool = settings.mode === 'infinityPool';
   const [fourthWallTime, setFourthWallTime] = useState(() => load4thWallTimeSetting());
   const [combatSettings, setCombatSettings] = useState<CombatSettings>(() => loadCombatSettings());
+  const [timezone, setTimezone] = useState(() => loadTimezone());
 
   // Listen for external changes to 4th Wall Time setting
   useEffect(() => {
@@ -103,6 +110,21 @@ export function GameModeSettings({ settings, onChange }: GameModeSettingsProps) 
     window.addEventListener(COMBAT_SETTINGS_CHANGE_EVENT, handleChange);
     return () => window.removeEventListener(COMBAT_SETTINGS_CHANGE_EVENT, handleChange);
   }, []);
+
+  // Listen for external changes to timezone
+  useEffect(() => {
+    const handleChange = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      setTimezone(customEvent.detail);
+    };
+    window.addEventListener(TIMEZONE_CHANGE_EVENT, handleChange);
+    return () => window.removeEventListener(TIMEZONE_CHANGE_EVENT, handleChange);
+  }, []);
+
+  const handleTimezoneChange = (value: string) => {
+    setTimezone(value);
+    saveTimezone(value);
+  };
 
   const handleModeToggle = (mode: 'honest' | 'infinityPool') => {
     onChange({ ...settings, mode });
@@ -323,6 +345,37 @@ export function GameModeSettings({ settings, onChange }: GameModeSettingsProps) 
               className="data-[state=checked]:bg-cyan-500"
             />
           </div>
+        </div>
+
+        {/* Timezone Selector */}
+        <div
+          className={cn(
+            'p-3 rounded-lg border transition-all',
+            'border-border/30 bg-card/30'
+          )}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <Globe className="w-3.5 h-3.5 text-cyan-400" />
+                <Label className="text-sm font-medium text-foreground cursor-pointer">
+                  Time Zone
+                </Label>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Your local clock is shown on your party card for other players.
+              </p>
+            </div>
+          </div>
+          <select
+            value={timezone}
+            onChange={e => handleTimezoneChange(e.target.value)}
+            className="mt-2 w-full bg-card/60 border border-border/40 rounded-lg px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:border-cyan-500/50"
+          >
+            {TIMEZONE_OPTIONS.map(tz => (
+              <option key={tz.value} value={tz.value}>{tz.label}</option>
+            ))}
+          </select>
         </div>
       </div>
 

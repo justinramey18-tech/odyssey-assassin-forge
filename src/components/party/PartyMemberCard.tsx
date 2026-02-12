@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { Heart, Shield, Sparkles, ChevronDown, ChevronUp, Eye } from 'lucide-react';
+import { Heart, Shield, Sparkles, ChevronDown, ChevronUp, Eye, Clock } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { formatTimeForTimezone, getTimezoneAbbr } from '@/lib/timezone-storage';
 import type { PartyMember } from '@/hooks/use-party-sync';
 import type { OnlineInfo } from '@/hooks/use-online-status';
 
@@ -14,6 +15,18 @@ interface PartyMemberCardProps {
 
 export function PartyMemberCard({ member, isSelf, onViewActions, onlineInfo }: PartyMemberCardProps) {
   const [showSlots, setShowSlots] = useState(false);
+  const [playerTime, setPlayerTime] = useState('');
+  const playerTz = member.character_status.timezone;
+
+  // Update the player's local time every 30s
+  useEffect(() => {
+    if (!playerTz) return;
+    const update = () => setPlayerTime(formatTimeForTimezone(playerTz));
+    update();
+    const interval = setInterval(update, 30000);
+    return () => clearInterval(interval);
+  }, [playerTz]);
+
   const status = member.character_status;
   const currentHP = status.currentHP ?? 0;
   const maxHP = status.maxHP ?? 1;
@@ -72,6 +85,12 @@ export function PartyMemberCard({ member, isSelf, onViewActions, onlineInfo }: P
           )}
         </div>
         <div className="flex items-center gap-1.5">
+          {playerTz && playerTime && (
+            <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground/70 font-mono">
+              <Clock className="w-2.5 h-2.5" />
+              {playerTime}
+            </span>
+          )}
           {status.className && (
             <span className="text-[10px] text-muted-foreground">{status.className}</span>
           )}

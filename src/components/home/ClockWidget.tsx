@@ -2,29 +2,35 @@ import { useState, useEffect, useCallback } from 'react';
 import { Clock, Copy, Check } from 'lucide-react';
 import { Glass } from '@/components/ui/glass';
 import { getCurrentESTTimestamp } from '@/lib/fourthWallTime';
+import { loadTimezone, getTimezoneAbbr, formatTimeForTimezone, TIMEZONE_CHANGE_EVENT } from '@/lib/timezone-storage';
 
 export function ClockWidget() {
   const [time, setTime] = useState<string>('');
+  const [abbr, setAbbr] = useState<string>('');
   const [copied, setCopied] = useState(false);
+  const [tz, setTz] = useState(() => loadTimezone());
+
+  // Listen for timezone changes
+  useEffect(() => {
+    const handleChange = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      setTz(customEvent.detail);
+    };
+    window.addEventListener(TIMEZONE_CHANGE_EVENT, handleChange);
+    return () => window.removeEventListener(TIMEZONE_CHANGE_EVENT, handleChange);
+  }, []);
 
   useEffect(() => {
     const updateTime = () => {
-      const now = new Date();
-      const estTime = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'America/New_York',
-        hour: 'numeric',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true,
-      }).format(now);
-      setTime(estTime);
+      setTime(formatTimeForTimezone(tz));
+      setAbbr(getTimezoneAbbr(tz));
     };
 
     updateTime();
     const interval = setInterval(updateTime, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [tz]);
 
   const handleCopy = useCallback(async () => {
     try {
@@ -44,7 +50,7 @@ export function ClockWidget() {
     >
       <Clock className="w-3 h-3 text-red-400" />
       <span className="text-white">{time}</span>
-      <span className="text-[10px] text-white/60">EST</span>
+      <span className="text-[10px] text-white/60">{abbr}</span>
       <button
         onClick={handleCopy}
         className="p-0.5 rounded hover:bg-white/10 transition-colors"
