@@ -93,6 +93,14 @@ interface PromptDrawerProviderProps {
   prestigeAbilities?: string[];
   // Spellcasting
   spellcasting?: UseSpellcastingReturn;
+  // Channel Divinity (Cleric)
+  channelDivinityInfo?: {
+    current: number;
+    max: number;
+    clericLevel: number;
+    options: Array<{ id: string; name: string; description: string; mechanicalEffect?: string; isDomain: boolean }>;
+    useChannelDivinity: (optionName?: string) => boolean;
+  };
   // Wild Shape
   wildShape?: UseWildShapeReturn;
   // Wild Shape backgrounds
@@ -160,6 +168,7 @@ export function PromptDrawerProvider({
   prestigeLevel = 0,
   prestigeAbilities = [],
   spellcasting,
+  channelDivinityInfo,
   wildShape,
   onAssignWildShapeBackground,
   onRemoveWildShapeBackground,
@@ -596,6 +605,7 @@ export function PromptDrawerProvider({
             partyMembers={partyMembers}
             userId={userId}
             onSendHeal={onSendHeal}
+            channelDivinity={channelDivinityInfo}
           />
 
           {/* AI Dungeon Master Full-Screen Overlay */}
