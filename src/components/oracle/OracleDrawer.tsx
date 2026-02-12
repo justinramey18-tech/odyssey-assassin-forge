@@ -318,7 +318,7 @@ export function OracleDrawer({
         side="right"
         onOpenAutoFocus={(e) => e.preventDefault()}
         className={cn(
-          'w-[90vw] max-w-[400px] p-0 flex flex-col',
+          'w-full sm:w-[90vw] sm:max-w-[400px] p-0 flex flex-col',
           'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950',
           'border-l-2'
         )}
