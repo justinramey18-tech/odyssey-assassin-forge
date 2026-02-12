@@ -103,7 +103,10 @@ interface CharacterContext {
 interface DMRequest {
   messages: Array<{ role: 'user' | 'assistant'; content: string }>;
   characterContext: CharacterContext;
+  customGuides?: string;
 }
+
+const MAX_CUSTOM_GUIDES_CHARS = 200000;
 
 const MAX_MESSAGES = 100;
 
@@ -229,10 +232,10 @@ function buildContextSummary(ctx: CharacterContext): string {
   return lines.join('\n');
 }
 
-function buildDMSystemPrompt(ctx: CharacterContext): string {
+function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string): string {
   const contextSummary = buildContextSummary(ctx);
   
-  return `You are an expert Dungeon Master running a live D&D 5e session for a single player. You are immersive, adaptive, and mechanically precise.
+  let prompt = `You are an expert Dungeon Master running a live D&D 5e session for a single player. You are immersive, adaptive, and mechanically precise.
 
 ## CURRENT CHARACTER STATE
 ${contextSummary}
@@ -279,6 +282,13 @@ ${contextSummary}
 - If the player's stated action requires a check, ask for the roll before describing the outcome
 - Be fair but not adversarial — create challenge, not frustration
 - Celebrate creative solutions even if they bypass your planned encounters`;
+
+  if (customGuides && customGuides.trim()) {
+    const trimmed = customGuides.slice(0, MAX_CUSTOM_GUIDES_CHARS);
+    prompt += `\n\n## CUSTOM GM GUIDES\nThe following custom content has been provided by the player to guide your behavior. Treat it as authoritative campaign context:\n\n${trimmed}`;
+  }
+
+  return prompt;
 }
 
 serve(async (req) => {
@@ -287,7 +297,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, characterContext } = (await req.json()) as DMRequest;
+    const { messages, characterContext, customGuides } = (await req.json()) as DMRequest;
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -299,7 +309,7 @@ serve(async (req) => {
       ? [...messages.slice(0, 2), ...messages.slice(-(MAX_MESSAGES - 2))]
       : messages;
 
-    const systemPrompt = buildDMSystemPrompt(characterContext);
+    const systemPrompt = buildDMSystemPrompt(characterContext, customGuides);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

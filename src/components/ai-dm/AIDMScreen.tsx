@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAIDM } from '@/hooks/use-ai-dm';
+import { useGMGuides } from '@/hooks/use-gm-guides';
 import { CharacterContext, Message } from '@/components/oracle/types';
 import { DMQuickActions } from './DMQuickActions';
+import { GMGuidesManager } from './GMGuidesManager';
 import ReactMarkdown from 'react-markdown';
 
 interface AIDMScreenProps {
@@ -76,9 +78,11 @@ function DMMessageBubble({ message }: { message: Message }) {
 }
 
 export function AIDMScreen({ onBack, characterContext }: AIDMScreenProps) {
-  const { messages, isLoading, sendMessage, cancelRequest, clearMessages, newGame } = useAIDM({ characterContext });
+  const gmGuides = useGMGuides();
+  const { messages, isLoading, sendMessage, cancelRequest, clearMessages, newGame } = useAIDM({ characterContext, customGuidesContent: gmGuides.enabledContent });
   const [input, setInput] = useState('');
   const [showContext, setShowContext] = useState(false);
+  const [showGuides, setShowGuides] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -140,6 +144,22 @@ export function AIDMScreen({ onBack, characterContext }: AIDMScreenProps) {
           </div>
         </div>
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => setShowGuides(true)}
+            className={cn(
+              "px-2.5 py-1.5 rounded-lg text-xs font-cinzel transition-colors relative",
+              gmGuides.guides.some(g => g.enabled) ? "text-amber-300/80 hover:bg-amber-900/30" : "text-white/50 hover:bg-white/10"
+            )}
+            style={{ touchAction: 'manipulation' }}
+          >
+            <BookOpen className="w-3.5 h-3.5 inline mr-1" />
+            Guides
+            {gmGuides.guides.filter(g => g.enabled).length > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-amber-600 text-[8px] flex items-center justify-center text-white">
+                {gmGuides.guides.filter(g => g.enabled).length}
+              </span>
+            )}
+          </button>
           <button
             onClick={newGame}
             className="px-2.5 py-1.5 rounded-lg text-xs font-cinzel text-amber-300/80 hover:bg-amber-900/30 transition-colors"
@@ -292,6 +312,18 @@ export function AIDMScreen({ onBack, characterContext }: AIDMScreenProps) {
           )}
         </div>
       </div>
+      {/* GM Guides Overlay */}
+      {showGuides && (
+        <GMGuidesManager
+          onBack={() => setShowGuides(false)}
+          guides={gmGuides.guides}
+          totalChars={gmGuides.totalChars}
+          onAdd={gmGuides.addGuide}
+          onUpdate={gmGuides.updateGuide}
+          onDelete={gmGuides.deleteGuide}
+          onToggle={gmGuides.toggleGuide}
+        />
+      )}
     </div>
   );
 }
