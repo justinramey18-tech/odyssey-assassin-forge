@@ -10,6 +10,7 @@ import { CooldownDrawer } from './CooldownDrawer';
 import { QuickActionsDrawer } from './QuickActionsDrawer';
 import { OracleDrawer } from '@/components/oracle';
 import { ConditionDrawer } from '@/components/conditions';
+import { AIDMScreen } from '@/components/ai-dm';
 import { Character } from '@/lib/types';
 import { XPPreset } from '@/lib/xpSystem';
 import { CharacterEquipment } from '@/lib/inventory/types';
@@ -22,7 +23,9 @@ import { useGameMode, shouldShowInfinityStones } from '@/hooks/use-game-mode';
 import { useEquipmentStats } from '@/hooks/use-equipment-stats';
 import { useCooldowns } from '@/hooks/use-cooldowns';
 import { useConditions, UseConditionsReturn } from '@/hooks/use-conditions';
-import { Personality } from '@/components/oracle/types';
+import { Personality, CharacterContext } from '@/components/oracle/types';
+import { allAbilities } from '@/lib/abilities';
+import { getSpellById } from '@/lib/magic/spells';
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
 import { UseWildShapeReturn } from '@/hooks/use-wild-shape';
 import { AbilityName, BaseAbilityScores, AbilityScoreBreakdown } from '@/lib/abilityScores/types';
@@ -38,6 +41,7 @@ interface PromptDrawerContextValue {
   openConditionsDrawer: () => void;
   openAddConditionSheet: () => void;
   openQuickActionsDrawer: () => void;
+  openAIDMScreen: () => void;
   closeAllDrawers: () => void;
   // Cooldown system exposure
   triggerCooldown: (abilityId: string) => void;
@@ -172,6 +176,7 @@ export function PromptDrawerProvider({
   const [oracleOpen, setOracleOpen] = useState(false);
   const [conditionsOpen, setConditionsOpen] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
+  const [aiDMOpen, setAiDMOpen] = useState(false);
   const [oraclePersonality, setOraclePersonality] = useState<Personality>('deadpool');
   
   // Game mode integration for Infinity Stones lock and cooldown enforcement
@@ -203,6 +208,7 @@ export function PromptDrawerProvider({
     setOracleOpen(false);
     setConditionsOpen(false);
     setQuickActionsOpen(false);
+    setAiDMOpen(false);
   }, []);
 
   // Edge swipe detection
@@ -270,6 +276,111 @@ export function PromptDrawerProvider({
     return { readyCount, coolingCount };
   }, [cooldownSystem.cooldowns]);
 
+  // Build full character context for AI DM (same logic as OracleDrawer)
+  const aiDMCharacterContext = useMemo<CharacterContext>(() => {
+    const hp = currentHP ?? character.level * 8 + 10;
+    const hpMax = maxHP ?? character.level * 8 + 10;
+
+    const abilitiesList = character.abilities
+      .filter(a => a.currentTier > 0)
+      .map(a => {
+        const ability = allAbilities.find(ab => ab.id === a.abilityId);
+        return { name: ability?.name || a.abilityId, tier: a.currentTier, tree: ability?.tree || 'unknown' };
+      });
+
+    const equippedAbilitiesList = character.equippedAbilities
+      .map(id => allAbilities.find(a => a.id === id)?.name || id)
+      .filter(Boolean) as string[];
+
+    const equipmentList: Array<{ slot: string; name: string; rarity: string }> = [];
+    if (equipment) {
+      Object.entries(equipment.slots).forEach(([slot, item]) => {
+        if (item) equipmentList.push({ slot, name: item.name, rarity: item.rarity });
+      });
+    }
+
+    const consumablesList = consumables.map(c => ({
+      name: c.consumable.name, quantity: c.quantity, type: c.consumable.type,
+    }));
+
+    const activeCooldowns: Array<{ name: string; remainingSeconds: number }> = [];
+    const readyCooldowns: string[] = [];
+    if (cooldownSystem.cooldowns) {
+      cooldownSystem.cooldowns.forEach((state, abilityId) => {
+        const ability = allAbilities.find(a => a.id === abilityId);
+        const name = ability?.name || abilityId;
+        const remaining = cooldownSystem.getRemainingTime(abilityId);
+        if (remaining > 0) activeCooldowns.push({ name, remainingSeconds: remaining });
+        else if (state.lastUsed) readyCooldowns.push(name);
+      });
+    }
+
+    let spellcastingContext: CharacterContext['spellcasting'] = undefined;
+    if (spellcasting?.state.path) {
+      const { state, spellAttackBonus, spellSaveDC, totalSlotsRemaining } = spellcasting;
+      spellcastingContext = {
+        path: state.path,
+        spellAttackBonus,
+        spellSaveDC,
+        totalSlotsRemaining,
+        concentratingOn: state.concentratingOn ? getSpellById(state.concentratingOn)?.name || state.concentratingOn : null,
+        preparedSpells: state.preparedSpells.map(id => getSpellById(id)?.name || id),
+        slots: Object.entries(state.spellSlots).filter(([_, s]) => s.max > 0).map(([l, s]) => ({ level: parseInt(l), current: s.current, max: s.max })),
+        pactSlots: state.pactSlots ? { current: state.pactSlots.current, max: state.pactSlots.max, level: state.pactSlots.level } : undefined,
+      };
+    }
+
+    const lootContext: CharacterContext['loot'] = lootItems.length > 0 ? {
+      items: lootItems.map(item => ({ name: item.name, category: item.category, rarity: item.rarity, goldValue: item.goldValue, hasDiceMechanics: item.hasDiceMechanics })),
+      totalValue: totalLootValue,
+      usableCount: lootItems.filter(i => i.category === 'usable').length,
+      diceMechanicsCount: lootItems.filter(i => i.hasDiceMechanics).length,
+    } : undefined;
+
+    let combatContextData: CharacterContext['combat'] = undefined;
+    if (combatContext?.isInCombat) {
+      combatContextData = {
+        isInCombat: true,
+        roundNumber: combatContext.roundNumber,
+        isPlayerTurn: combatContext.isPlayerTurn,
+        actionUsed: combatContext.economy.actionUsed,
+        bonusActionUsed: combatContext.economy.bonusActionUsed,
+        reactionUsed: combatContext.economy.reactionUsed,
+        movementUsed: combatContext.economy.movementUsed,
+        maxMovement: combatContext.economy.maxMovement,
+        currentTarget: combatContext.currentTarget ? {
+          name: combatContext.currentTarget.name, ac: combatContext.currentTarget.ac,
+          currentHP: combatContext.currentTarget.currentHP, maxHP: combatContext.currentTarget.maxHP,
+          conditions: combatContext.currentTarget.conditions || [], resistances: combatContext.currentTarget.resistances || [],
+          vulnerabilities: combatContext.currentTarget.vulnerabilities || [], immunities: combatContext.currentTarget.immunities || [],
+        } : null,
+        enemies: combatContext.enemies.map(e => ({ name: e.name, currentHP: e.currentHP, maxHP: e.maxHP, isDefeated: e.currentHP <= 0, conditions: e.conditions || [] })),
+        recentActions: combatContext.recentLogEntries.slice(0, 5).map(entry => ({
+          actionType: entry.actionType, actionName: entry.actionName, timestamp: entry.timestamp.toISOString(),
+          damage: entry.damage, wasHit: entry.roll ? entry.roll.total > 0 : undefined, wasCrit: entry.roll?.isCrit,
+        })),
+      };
+    }
+
+    // Map conditions from conditionsSystem
+    const activeConditions = conditionsSystem.debuffs.map(c => ({
+      name: c.name, remainingRounds: c.durationValue ?? 0, source: c.source, severity: c.severity || 'moderate', saveType: c.saveType,
+    }));
+    const activeBuffs = conditionsSystem.buffs.map(b => ({
+      name: b.name, remainingMinutes: b.durationValue ?? 0, concentration: b.category === 'concentration',
+    }));
+
+    return {
+      name: character.name, level: character.level, currentHP: hp, maxHP: hpMax,
+      abilities: abilitiesList, equippedAbilities: equippedAbilitiesList, equipment: equipmentList,
+      activeSetBonuses: [], consumables: consumablesList,
+      cooldowns: { active: activeCooldowns, ready: readyCooldowns },
+      prestigeLevel, prestigeAbilities, activeConditions, activeBuffs,
+      spellcasting: spellcastingContext, loot: lootContext, combat: combatContextData,
+    };
+  }, [character, currentHP, maxHP, equipment, consumables, cooldownSystem.cooldowns, cooldownSystem.getRemainingTime,
+      prestigeLevel, prestigeAbilities, spellcasting, lootItems, totalLootValue, combatContext, conditionsSystem.debuffs, conditionsSystem.buffs]);
+
   const contextValue: PromptDrawerContextValue = {
     openInfinityDrawer: handleOpenInfinityDrawer,
     openAbilitiesDrawer: useCallback(() => { closeAllDrawers(); setAbilitiesOpen(true); }, [closeAllDrawers]),
@@ -281,6 +392,7 @@ export function PromptDrawerProvider({
     openConditionsDrawer: useCallback(() => { closeAllDrawers(); setConditionsOpen(true); }, [closeAllDrawers]),
     openAddConditionSheet: useCallback(() => { setConditionsOpen(true); }, []),
     openQuickActionsDrawer: useCallback(() => { closeAllDrawers(); setQuickActionsOpen(true); }, [closeAllDrawers]),
+    openAIDMScreen: useCallback(() => { closeAllDrawers(); setAiDMOpen(true); }, [closeAllDrawers]),
     closeAllDrawers,
     // Cooldown system exposure
     triggerCooldown: cooldownSystem.triggerCooldown,
@@ -457,6 +569,14 @@ export function PromptDrawerProvider({
             userId={userId}
             onSendHeal={onSendHeal}
           />
+
+          {/* AI Dungeon Master Full-Screen Overlay */}
+          {aiDMOpen && (
+            <AIDMScreen
+              onBack={() => setAiDMOpen(false)}
+              characterContext={aiDMCharacterContext}
+            />
+          )}
         </>
       )}
     </PromptDrawerContext.Provider>
