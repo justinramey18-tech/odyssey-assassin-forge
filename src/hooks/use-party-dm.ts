@@ -194,14 +194,14 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     };
   }, [allReady, isCreator, isGenerating]);
 
-  const startSession = useCallback(async (mode: 'shared' | 'private') => {
+  const startSession = useCallback(async (mode: 'shared' | 'private', initialCampaignSummary?: string | null) => {
     if (!partyId || !user) return;
     const roundId = crypto.randomUUID();
     const config: DmSessionConfig = {
       active: true,
       mode,
       currentRoundId: roundId,
-      campaignSummary: null,
+      campaignSummary: initialCampaignSummary || null,
       isGenerating: false,
     };
 
