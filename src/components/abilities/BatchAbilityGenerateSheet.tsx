@@ -172,9 +172,9 @@ export function BatchAbilityGenerateSheet({ isOpen, onClose, onAddHomebrew }: Ba
           <Textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Describe a theme... e.g. 'shadow-themed assassin abilities'"
-            className="min-h-[80px] bg-card/50 border-border/50"
-            maxLength={500}
+            placeholder="Describe a theme or paste full ability descriptions... e.g. 'shadow-themed assassin abilities'"
+            className="min-h-[120px] max-h-[300px] bg-card/50 border-border/50 text-sm"
+            maxLength={6000}
           />
 
           {/* Constraints */}
