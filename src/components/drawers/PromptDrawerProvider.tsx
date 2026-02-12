@@ -127,6 +127,9 @@ interface PromptDrawerProviderProps {
   onSendHeal?: (targetUserId: string, actionData: { senderName?: string; itemName?: string; hpHealed?: number }) => Promise<void>;
   // Party buff sharing
   onShareBuffToParty?: (condition: import('@/lib/conditions').ActiveCondition, targetUserId: string) => void;
+  // Party DM props
+  partyId?: string | null;
+  isPartyCreator?: boolean;
 }
 
 export function PromptDrawerProvider({
@@ -166,6 +169,8 @@ export function PromptDrawerProvider({
   userId,
   onSendHeal,
   onShareBuffToParty,
+  partyId,
+  isPartyCreator = false,
 }: PromptDrawerProviderProps) {
   const [infinityOpen, setInfinityOpen] = useState(false);
   const [abilitiesOpen, setAbilitiesOpen] = useState(false);
@@ -587,6 +592,11 @@ export function PromptDrawerProvider({
             <AIDMScreen
               onBack={() => setAiDMOpen(false)}
               characterContext={aiDMCharacterContext}
+              partyId={partyId}
+              isPartyCreator={isPartyCreator}
+              partyMembers={partyMembers}
+              userId={userId}
+              characterName={character.name}
             />
           )}
         </>

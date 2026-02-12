@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAIDM } from '@/hooks/use-ai-dm';
 import { useGMGuides } from '@/hooks/use-gm-guides';
@@ -9,11 +9,19 @@ import { CharacterContext, Message } from '@/components/oracle/types';
 import { DMQuickActions } from './DMQuickActions';
 import { GMGuidesManager } from './GMGuidesManager';
 import { CampaignSessionsManager } from './CampaignSessionsManager';
+import { PartyDMScreen } from './PartyDMScreen';
+import { usePartyDm } from '@/hooks/use-party-dm';
 import ReactMarkdown from 'react-markdown';
+import type { PartyMember } from '@/hooks/use-party-sync';
 
 interface AIDMScreenProps {
   onBack: () => void;
   characterContext: CharacterContext;
+  partyId?: string | null;
+  isPartyCreator?: boolean;
+  partyMembers?: PartyMember[];
+  userId?: string;
+  characterName?: string;
 }
 
 function DMMessageBubble({ message }: { message: Message }) {
@@ -79,10 +87,26 @@ function DMMessageBubble({ message }: { message: Message }) {
   );
 }
 
-export function AIDMScreen({ onBack, characterContext }: AIDMScreenProps) {
+export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator = false, partyMembers = [], userId, characterName = 'Adventurer' }: AIDMScreenProps) {
+  const [showPartyDM, setShowPartyDM] = useState(false);
   const gmGuides = useGMGuides();
   const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, loadCampaign, sendMessage, cancelRequest, clearMessages, newGame, activeCampaignId, setActiveCampaignId, lastCloudSyncTime, isCloudSyncing } = useAIDM({ characterContext, customGuidesContent: gmGuides.enabledContent });
   const campaignSessions = useCampaignSessions();
+
+  const partyDm = usePartyDm({
+    partyId: partyId || null,
+    isCreator: isPartyCreator,
+    memberCount: partyMembers.length,
+    characterName,
+    characterContext,
+    partyMembers: partyMembers.map(m => ({
+      character_name: m.character_name,
+      character_status: m.character_status as Record<string, unknown>,
+      user_id: m.user_id,
+    })),
+  });
+
+  const inParty = !!partyId && partyMembers.length > 0;
 
   const handleCampaignSummaryChange = useCallback((summary: string) => {
     updateCampaignSummary(summary);
@@ -164,6 +188,31 @@ export function AIDMScreen({ onBack, characterContext }: AIDMScreenProps) {
           </div>
         </div>
         <div className="flex items-center gap-1">
+          {inParty && (
+            <button
+              onClick={() => {
+                if (partyDm.isActive) {
+                  setShowPartyDM(true);
+                } else if (isPartyCreator) {
+                  partyDm.startSession('shared');
+                  setShowPartyDM(true);
+                }
+              }}
+              className={cn(
+                "px-2.5 py-1.5 rounded-lg text-xs font-cinzel transition-colors",
+                partyDm.isActive ? "text-primary bg-primary/10 hover:bg-primary/20" : "text-white/50 hover:bg-white/10"
+              )}
+              style={{ touchAction: 'manipulation' }}
+              title={partyDm.isActive ? 'Join Party DM' : isPartyCreator ? 'Start Party DM' : 'Party DM (host must start)'}
+              disabled={!partyDm.isActive && !isPartyCreator}
+            >
+              <Users className="w-3.5 h-3.5 inline mr-1" />
+              Party
+              {partyDm.isActive && (
+                <span className="ml-1 w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+              )}
+            </button>
+          )}
           <button
             onClick={() => setShowSessions(true)}
             className="px-2.5 py-1.5 rounded-lg text-xs font-cinzel text-white/50 hover:bg-white/10 transition-colors"
@@ -398,6 +447,17 @@ export function AIDMScreen({ onBack, characterContext }: AIDMScreenProps) {
           onLoad={handleLoadCampaign}
           onDelete={campaignSessions.deleteSession}
           onRename={campaignSessions.renameSession}
+        />
+      )}
+      {/* Party DM Overlay */}
+      {showPartyDM && partyDm.isActive && (
+        <PartyDMScreen
+          onBack={() => setShowPartyDM(false)}
+          partyDm={partyDm}
+          isCreator={isPartyCreator}
+          currentUserId={userId}
+          memberCount={partyMembers.length}
+          members={partyMembers.map(m => ({ user_id: m.user_id, character_name: m.character_name }))}
         />
       )}
     </div>

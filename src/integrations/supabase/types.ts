@@ -407,6 +407,85 @@ export type Database = {
           },
         ]
       }
+      party_dm_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          party_id: string
+          role: string
+          sender_name: string
+          sender_user_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          party_id: string
+          role: string
+          sender_name?: string
+          sender_user_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          party_id?: string
+          role?: string
+          sender_name?: string
+          sender_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_dm_messages_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      party_dm_prompts: {
+        Row: {
+          character_name: string
+          created_at: string
+          id: string
+          is_ready: boolean
+          party_id: string
+          prompt: string
+          round_id: string
+          user_id: string
+        }
+        Insert: {
+          character_name: string
+          created_at?: string
+          id?: string
+          is_ready?: boolean
+          party_id: string
+          prompt: string
+          round_id: string
+          user_id: string
+        }
+        Update: {
+          character_name?: string
+          created_at?: string
+          id?: string
+          is_ready?: boolean
+          party_id?: string
+          prompt?: string
+          round_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_dm_prompts_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       party_loot_queue: {
         Row: {
           added_by_name: string

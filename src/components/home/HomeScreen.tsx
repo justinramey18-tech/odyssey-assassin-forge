@@ -788,6 +788,7 @@ export function HomeScreen({
                 }}
                 isAuthenticated={isAuthenticated}
                 userId={userId}
+                onOpenAIDM={() => drawerContext?.openAIDMScreen()}
               />
             </div>
           </SheetContent>

@@ -1870,6 +1870,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
             targetUserId,
           });
         } : undefined}
+        partyId={partySync.party.partyId}
+        isPartyCreator={partySync.party.isCreator}
       >
         <IncomingHealOverlay
           pendingHeals={partySync.pendingHeals}
@@ -2008,6 +2010,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
             targetUserId,
           });
         } : undefined}
+        partyId={partySync.party.partyId}
+        isPartyCreator={partySync.party.isCreator}
       >
       <IncomingHealOverlay
         pendingHeals={partySync.pendingHeals}
