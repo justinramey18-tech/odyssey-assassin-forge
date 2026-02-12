@@ -446,13 +446,10 @@ export function HomeScreen({
           transition={{ duration: 0.3 }}
           className="flex items-center justify-between px-4 py-3 border-b border-white/10"
         >
-          {/* Hamburger Menu - Character Saves */}
-          <div className="flex items-center gap-2">
-            <CharacterSavesTrigger onClick={() => setShowCharacterSaves(true)} />
-            <ClockWidget />
-          </div>
-          
+          {/* Left: Hamburger, Background Upload, Help */}
           <div className="flex items-center gap-1">
+            <CharacterSavesTrigger onClick={() => setShowCharacterSaves(true)} />
+            
             {/* Custom Background Upload Button */}
             {onCustomBackgroundUpload && onCustomBackgroundClear && (
               <BackgroundUploadButton
@@ -461,8 +458,24 @@ export function HomeScreen({
                 onClear={onCustomBackgroundClear}
               />
             )}
-            
-            {/* Party Indicator / Create+Join */}
+
+            {onOpenFAQ && (
+              <button 
+                onClick={() => {
+                  triggerHaptic('light');
+                  onOpenFAQ();
+                }}
+                className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                style={{ touchAction: 'manipulation' }}
+                aria-label="Help & FAQ"
+              >
+                <HelpCircle className="w-5 h-5 text-white/80" />
+              </button>
+            )}
+          </div>
+          
+          {/* Right: Party, Clock */}
+          <div className="flex items-center gap-2">
             {partySync && (
               <button
                 onClick={() => {
@@ -484,7 +497,6 @@ export function HomeScreen({
                     <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center text-[10px] font-bold rounded-full bg-emerald-500 text-white">
                       {partySync.party.members.length}
                     </span>
-                    {/* Online count sub-badge */}
                     <OnlineCountBadge members={partySync.party.members} />
                   </>
                 ) : (
@@ -492,34 +504,19 @@ export function HomeScreen({
                 )}
               </button>
             )}
-
-            {onOpenFAQ && (
-              <button 
-                onClick={() => {
-                  triggerHaptic('light');
-                  onOpenFAQ();
-                }}
-                className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-                style={{ touchAction: 'manipulation' }}
-                aria-label="Help & FAQ"
-              >
-                <HelpCircle className="w-5 h-5 text-white/80" />
-              </button>
-            )}
+            <ClockWidget />
           </div>
         </motion.header>
+
+        {/* Character Name Plaque - pinned under header */}
+        <CharacterNamePlaque 
+          name={character.name} 
+          level={character.level}
+        />
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-auto flex flex-col">
           <div className="flex flex-col gap-4 pb-[2px] mt-auto">
-            {/* Character Name Plaque - Full width thin bar */}
-            <CharacterNamePlaque 
-              name={character.name} 
-              level={character.level}
-              currentXP={currentXP}
-              multiplier={multiplier}
-              onXPClick={() => onNavigateToTab('skills')}
-            />
 
             {/* Wild Shape Details Overlay */}
             {isWildShape && wildShapeFormName && onDismissWildShape && (
