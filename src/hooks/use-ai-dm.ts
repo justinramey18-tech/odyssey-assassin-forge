@@ -123,6 +123,46 @@ export function useAIDM({ characterContext, customGuidesContent }: UseAIDMOption
   useEffect(() => { campaignSummaryRef.current = campaignSummary; }, [campaignSummary]);
   useEffect(() => { activeCampaignIdRef.current = activeCampaignId; }, [activeCampaignId]);
 
+  // Auto-load most recent cloud campaign if localStorage was empty
+  const hasAttemptedCloudLoad = useRef(false);
+  useEffect(() => {
+    if (hasAttemptedCloudLoad.current) return;
+    hasAttemptedCloudLoad.current = true;
+
+    // Only auto-load if local session is empty
+    if (messages.length > 0) return;
+
+    (async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data, error } = await supabase
+          .from('ai_dm_campaigns')
+          .select('id, name, messages, campaign_summary')
+          .eq('user_id', user.id)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (error || !data) return;
+
+        const loadedMessages: Message[] = Array.isArray(data.messages)
+          ? (data.messages as any[])
+              .filter(isValidMessage)
+              .map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) }))
+          : [];
+
+        if (loadedMessages.length === 0) return;
+
+        // Use loadCampaign to set everything consistently
+        loadCampaign(loadedMessages, data.campaign_summary, data.id);
+      } catch (err) {
+        console.warn('[AI DM] Failed to auto-load cloud campaign:', err);
+      }
+    })();
+  }, []); // Run once on mount
+
   const saveNow = useCallback(() => {
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
