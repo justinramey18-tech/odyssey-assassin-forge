@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_dm_campaigns: {
+        Row: {
+          campaign_summary: string | null
+          created_at: string
+          gm_guide_ids: string[] | null
+          id: string
+          messages: Json
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          campaign_summary?: string | null
+          created_at?: string
+          gm_guide_ids?: string[] | null
+          id?: string
+          messages?: Json
+          name?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          campaign_summary?: string | null
+          created_at?: string
+          gm_guide_ids?: string[] | null
+          id?: string
+          messages?: Json
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       campaign_analytics: {
         Row: {
           created_at: string

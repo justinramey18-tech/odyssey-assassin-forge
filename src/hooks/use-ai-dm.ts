@@ -270,12 +270,25 @@ export function useAIDM({ characterContext, customGuidesContent }: UseAIDMOption
     setCampaignSummary(summary || null);
   }, []);
 
+  const loadCampaign = useCallback((loadedMessages: Message[], summary: string | null) => {
+    setMessages(loadedMessages);
+    saveSession(loadedMessages);
+    if (summary) {
+      saveCampaignSummary(summary);
+      setCampaignSummary(summary);
+    } else {
+      clearCampaignSummary();
+      setCampaignSummary(null);
+    }
+  }, []);
+
   return {
     messages,
     isLoading,
     isSummarizing,
     campaignSummary,
     updateCampaignSummary,
+    loadCampaign,
     sendMessage,
     cancelRequest,
     clearMessages,
