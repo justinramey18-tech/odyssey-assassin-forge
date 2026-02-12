@@ -79,7 +79,11 @@ function DMMessageBubble({ message }: { message: Message }) {
 
 export function AIDMScreen({ onBack, characterContext }: AIDMScreenProps) {
   const gmGuides = useGMGuides();
-  const { messages, isLoading, isSummarizing, campaignSummary, sendMessage, cancelRequest, clearMessages, newGame } = useAIDM({ characterContext, customGuidesContent: gmGuides.enabledContent });
+  const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, sendMessage, cancelRequest, clearMessages, newGame } = useAIDM({ characterContext, customGuidesContent: gmGuides.enabledContent });
+
+  const handleCampaignSummaryChange = useCallback((summary: string) => {
+    updateCampaignSummary(summary);
+  }, [updateCampaignSummary]);
   const [input, setInput] = useState('');
   const [showContext, setShowContext] = useState(false);
   const [showGuides, setShowGuides] = useState(false);
@@ -331,7 +335,8 @@ export function AIDMScreen({ onBack, characterContext }: AIDMScreenProps) {
           onBack={() => setShowGuides(false)}
           guides={gmGuides.guides}
           totalChars={gmGuides.totalChars}
-          campaignSummaryChars={campaignSummary?.length ?? 0}
+          campaignSummary={campaignSummary}
+          onCampaignSummaryChange={handleCampaignSummaryChange}
           onAdd={gmGuides.addGuide}
           onUpdate={gmGuides.updateGuide}
           onDelete={gmGuides.deleteGuide}

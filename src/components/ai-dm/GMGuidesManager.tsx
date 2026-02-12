@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Plus, Edit2, Trash2, BookOpen, Check, X } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, BookOpen, Check, X, ScrollText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { GMGuide, MAX_GUIDE_CHARS, MAX_TOTAL_CHARS } from '@/lib/gm-guides-storage';
@@ -9,7 +9,8 @@ interface GMGuidesManagerProps {
   onBack: () => void;
   guides: GMGuide[];
   totalChars: number;
-  campaignSummaryChars?: number;
+  campaignSummary: string | null;
+  onCampaignSummaryChange: (summary: string) => void;
   onAdd: (name: string, content: string) => boolean;
   onUpdate: (id: string, updates: Partial<Pick<GMGuide, 'name' | 'content' | 'enabled'>>) => boolean;
   onDelete: (id: string) => void;
@@ -29,12 +30,14 @@ function CharCounter({ current, max, className }: { current: number; max: number
   );
 }
 
-export function GMGuidesManager({ onBack, guides, totalChars, campaignSummaryChars = 0, onAdd, onUpdate, onDelete, onToggle }: GMGuidesManagerProps) {
+export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, onCampaignSummaryChange, onAdd, onUpdate, onDelete, onToggle }: GMGuidesManagerProps) {
   const [editingGuide, setEditingGuide] = useState<GMGuide | null>(null);
   const [isNew, setIsNew] = useState(false);
+  const [editingSummary, setEditingSummary] = useState(false);
   const [editorName, setEditorName] = useState('');
   const [editorContent, setEditorContent] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const campaignSummaryChars = campaignSummary?.length ?? 0;
 
   const openNewEditor = useCallback(() => {
     setEditingGuide(null);
@@ -50,8 +53,18 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummaryCha
     setEditorContent(guide.content);
   }, []);
 
+  const openSummaryEditor = useCallback(() => {
+    setEditingSummary(true);
+    setIsNew(false);
+    setEditingGuide(null);
+    setEditorContent(campaignSummary ?? '');
+  }, [campaignSummary]);
+
   const handleSave = useCallback(() => {
-    if (isNew) {
+    if (editingSummary) {
+      onCampaignSummaryChange(editorContent);
+      setEditingSummary(false);
+    } else if (isNew) {
       if (onAdd(editorName, editorContent)) {
         setIsNew(false);
         setEditingGuide(null);
@@ -61,16 +74,17 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummaryCha
         setEditingGuide(null);
       }
     }
-  }, [isNew, editingGuide, editorName, editorContent, onAdd, onUpdate]);
+  }, [editingSummary, isNew, editingGuide, editorName, editorContent, onAdd, onUpdate, onCampaignSummaryChange]);
 
   const handleCancel = useCallback(() => {
     setEditingGuide(null);
     setIsNew(false);
+    setEditingSummary(false);
   }, []);
 
   const combinedChars = totalChars + campaignSummaryChars;
   const budgetPct = (combinedChars / MAX_TOTAL_CHARS) * 100;
-  const showEditor = isNew || editingGuide !== null;
+  const showEditor = isNew || editingGuide !== null || editingSummary;
 
   return (
     <div className="fixed inset-0 z-[70] flex flex-col bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]">
@@ -117,22 +131,33 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummaryCha
         <AnimatePresence mode="wait">
           {showEditor ? (
             <motion.div key="editor" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex flex-col gap-3 h-full">
-              <input
-                type="text"
-                value={editorName}
-                onChange={e => setEditorName(e.target.value)}
-                placeholder="Guide name (e.g. Curse of Strahd Setting)"
-                className="w-full bg-white/5 border border-amber-900/30 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-amber-500/40"
-                maxLength={100}
-              />
+              {editingSummary ? (
+                <div className="flex items-center gap-2 px-1">
+                  <ScrollText className="w-4 h-4 text-purple-400" />
+                  <span className="text-sm font-cinzel text-purple-200">Campaign Summary</span>
+                  <span className="text-[10px] text-white/30">(auto-generated, editable)</span>
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  value={editorName}
+                  onChange={e => setEditorName(e.target.value)}
+                  placeholder="Guide name (e.g. Curse of Strahd Setting)"
+                  className="w-full bg-white/5 border border-amber-900/30 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-amber-500/40"
+                  maxLength={100}
+                />
+              )}
               <div className="flex-1 relative min-h-0">
                 <textarea
                   value={editorContent}
                   onChange={e => {
                     if (e.target.value.length <= MAX_GUIDE_CHARS) setEditorContent(e.target.value);
                   }}
-                  placeholder="Paste or type your GM guide content here..."
-                  className="w-full h-full min-h-[300px] bg-white/5 border border-amber-900/30 rounded-lg px-3 py-2 text-sm text-white/80 placeholder:text-white/30 focus:outline-none focus:border-amber-500/40 resize-none font-mono leading-relaxed"
+                  placeholder={editingSummary ? "Campaign summary will be auto-generated, or you can write your own..." : "Paste or type your GM guide content here..."}
+                  className={cn(
+                    "w-full h-full min-h-[300px] bg-white/5 border rounded-lg px-3 py-2 text-sm text-white/80 placeholder:text-white/30 focus:outline-none resize-none font-mono leading-relaxed",
+                    editingSummary ? "border-purple-900/30 focus:border-purple-500/40" : "border-amber-900/30 focus:border-amber-500/40"
+                  )}
                 />
                 <div className="absolute bottom-2 right-2">
                   <CharCounter current={editorContent.length} max={MAX_GUIDE_CHARS} />
@@ -144,11 +169,13 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummaryCha
                 </button>
                 <button
                   onClick={handleSave}
-                  disabled={!editorContent.trim()}
+                  disabled={editingSummary ? false : !editorContent.trim()}
                   className={cn(
                     "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm transition-colors",
-                    editorContent.trim()
-                      ? "bg-amber-900/40 border border-amber-500/30 text-amber-300 hover:bg-amber-900/60"
+                    (editingSummary || editorContent.trim())
+                      ? editingSummary
+                        ? "bg-purple-900/40 border border-purple-500/30 text-purple-300 hover:bg-purple-900/60"
+                        : "bg-amber-900/40 border border-amber-500/30 text-amber-300 hover:bg-amber-900/60"
                       : "bg-white/5 border border-white/10 text-white/30"
                   )}
                   style={{ touchAction: 'manipulation' }}
@@ -157,24 +184,41 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummaryCha
                 </button>
               </div>
             </motion.div>
-          ) : guides.length === 0 ? (
-            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center h-full text-center px-6 py-12">
-              <BookOpen className="w-10 h-10 text-amber-500/40 mb-3" />
-              <h2 className="text-base font-cinzel text-amber-200 mb-1">No GM Guides</h2>
-              <p className="text-xs text-white/40 max-w-[260px] mb-4">
-                Add custom guides to shape the DM's behavior — homebrew rules, campaign settings, NPC backstories, and more.
-              </p>
-              <button
-                onClick={openNewEditor}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-900/40 border border-amber-500/30 text-amber-300 text-sm hover:bg-amber-900/60 transition-colors"
-                style={{ touchAction: 'manipulation' }}
-              >
-                <Plus className="w-4 h-4" /> Create First Guide
-              </button>
-            </motion.div>
           ) : (
             <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
-              {guides.map(guide => (
+              {/* Campaign Summary Card */}
+              <div className="bg-purple-900/10 border border-purple-500/20 rounded-xl p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <ScrollText className="w-4 h-4 text-purple-400" />
+                    <h3 className="text-sm font-cinzel text-purple-200">Campaign Summary</h3>
+                  </div>
+                  <button onClick={openSummaryEditor} className="p-1.5 rounded hover:bg-white/10 transition-colors" style={{ touchAction: 'manipulation' }}>
+                    <Edit2 className="w-3.5 h-3.5 text-purple-300/50" />
+                  </button>
+                </div>
+                <p className="text-[10px] text-white/30 font-mono">
+                  {campaignSummary ? `${campaignSummary.length.toLocaleString()} chars · Auto-updated every 10 messages` : 'No summary yet · Generated after 10 DM messages'}
+                </p>
+                {campaignSummary && (
+                  <p className="text-[11px] text-white/40 mt-1.5 line-clamp-2">{campaignSummary.slice(0, 200)}</p>
+                )}
+              </div>
+
+              {/* Regular Guides */}
+              {guides.length === 0 ? (
+                <div className="text-center py-6">
+                  <p className="text-xs text-white/40 mb-3">No custom GM guides yet.</p>
+                  <button
+                    onClick={openNewEditor}
+                    className="flex items-center gap-1.5 px-4 py-2 mx-auto rounded-lg bg-amber-900/40 border border-amber-500/30 text-amber-300 text-sm hover:bg-amber-900/60 transition-colors"
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    <Plus className="w-4 h-4" /> Create Guide
+                  </button>
+                </div>
+              ) : (
+                guides.map(guide => (
                 <div key={guide.id} className="bg-white/5 border border-amber-900/20 rounded-xl p-3">
                   <div className="flex items-center justify-between mb-1">
                     <h3 className="text-sm font-cinzel text-amber-200 truncate flex-1 mr-2">{guide.name}</h3>
@@ -207,7 +251,8 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummaryCha
                     </div>
                   </div>
                 </div>
-              ))}
+                ))
+              )}
             </motion.div>
           )}
         </AnimatePresence>
