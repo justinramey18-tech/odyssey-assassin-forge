@@ -796,7 +796,20 @@ export function HomeScreen({
               const SettingsIcon = settings.icon;
               return (
                 <>
-                  <div />
+                  <button
+                    onClick={() => handleDrawerOptionClick(() => { setShowDrawersMenu(false); drawerContext?.openOracleDrawer(); })}
+                    className={cn(
+                      "flex flex-col items-center gap-2 p-4 rounded-lg",
+                      "border border-border/50 bg-card/50",
+                      "hover:bg-card hover:border-border transition-all"
+                    )}
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-muted/50">
+                      <MessageCircle className={cn("w-6 h-6 text-violet-400")} />
+                    </div>
+                    <span className="text-sm font-medium font-cinzel">Oracle</span>
+                  </button>
                   <button
                     onClick={() => handleDrawerOptionClick(features.action)}
                     className={cn(
