@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { Shield, Sword, Backpack, Wand2, Minimize2, Maximize2, User, Sparkles, Lock } from 'lucide-react';
+import { Shield, Sword, Backpack, Wand2, Minimize2, Maximize2, User, Sparkles, Lock, Plus, Bot } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { 
   CharacterEquipment, 
@@ -15,9 +15,12 @@ import {
 import { setImages } from '@/lib/inventory/setImages';
 import { useGearLock } from '@/hooks/use-gear-lock';
 import { useEquipmentImages } from '@/hooks/use-equipment-images';
+import { useHomebrewGear } from '@/hooks/use-homebrew-gear';
 import { achievementCategories, Achievement } from '@/lib/achievements';
 import { toast } from 'sonner';
 import { EquipmentList } from './EquipmentList';
+import { HomebrewGearCreator } from './HomebrewGearCreator';
+import { HomebrewGearAI } from './HomebrewGearAI';
 import { ItemDetailSheet } from './ItemDetailSheet';
 import { ComparisonSheet } from './ComparisonSheet';
 import { SetBonusPanel } from './SetBonusPanel';
@@ -76,6 +79,11 @@ export function InventoryScreen({
     clearSlotImage 
   } = useEquipmentImages();
 
+  // Homebrew gear
+  const { homebrewItems, addGear, addMultipleGear } = useHomebrewGear();
+  const [showHomebrewCreator, setShowHomebrewCreator] = useState(false);
+  const [showHomebrewAI, setShowHomebrewAI] = useState(false);
+
   const handleEquipmentImageUpload = useCallback(async (slotType: EquipmentSlotType, file: File) => {
     try {
       await uploadEquipmentImage(slotType, file);
@@ -92,6 +100,11 @@ export function InventoryScreen({
   
   // Use external equipment if provided, otherwise use internal state
   const equipment = externalEquipment ?? internalEquipment;
+  // Merge homebrew items into inventory
+  const equipmentWithHomebrew = useMemo(() => ({
+    ...equipment,
+    inventory: [...equipment.inventory, ...homebrewItems],
+  }), [equipment, homebrewItems]);
   const setEquipment = onEquipmentChange ?? setInternalEquipment;
   const [highlightedSlot, setHighlightedSlot] = useState<EquipmentSlotType | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<EquipmentSlotType | null>(null);
@@ -280,7 +293,7 @@ export function InventoryScreen({
           <ItemSelectionScreen
             key="selecting"
             slotType={selectedSlot}
-            inventory={equipment.inventory}
+            inventory={equipmentWithHomebrew.inventory}
             onSelectItem={handleEquipFromInventory}
             onBack={() => {
               setScreenMode('equipment');
@@ -311,6 +324,25 @@ export function InventoryScreen({
               </div>
               
               <div className="flex items-center gap-1">
+                {/* Homebrew Gear Buttons */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setShowHomebrewCreator(true)}
+                  title="Create Homebrew Gear"
+                >
+                  <Plus className="w-4 h-4 text-amber-400" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setShowHomebrewAI(true)}
+                  title="AI Gear Forge"
+                >
+                  <Bot className="w-4 h-4 text-amber-400" />
+                </Button>
                 {/* Active Set Bonuses Button - Only show when sets are active */}
                 {activeSetBonuses.length > 0 && (
                   <Button 
@@ -496,6 +528,20 @@ export function InventoryScreen({
         onOpenChange={setShowSetBonusDrawer}
         equipment={equipment}
         characterName={characterName}
+      />
+
+      {/* Homebrew Gear Creator */}
+      <HomebrewGearCreator
+        open={showHomebrewCreator}
+        onOpenChange={setShowHomebrewCreator}
+        onSave={addGear}
+      />
+
+      {/* AI Gear Forge */}
+      <HomebrewGearAI
+        open={showHomebrewAI}
+        onOpenChange={setShowHomebrewAI}
+        onSave={addMultipleGear}
       />
     </div>
   );

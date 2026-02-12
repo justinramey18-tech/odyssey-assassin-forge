@@ -569,8 +569,8 @@ EQUIPMENT SLOTS (11 Total)
 | Arms | Attack, manipulation, crafting | Precision and force |
 | Waist | Utility, storage, resource management | Tactical advantage |
 | Legs | Movement, agility, positioning | Kinetic energy |
-| Primary Weapon | Main melee weapon | Combat style |
-| Secondary Weapon | Off-hand weapon or shield | Defense/versatility |
+| Main Hand | Main melee weapon | Combat style |
+| Offhand | Off-hand weapon or shield | Defense/versatility |
 | Ranged Weapon | Bow, crossbow, throwing weapons | Precision strikes |
 | Amulet | Magical enhancement (saves/abilities) | Mystical protection |
 | Ring 1 | Magical enhancement (stats/effects) | Subtle power |

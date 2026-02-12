@@ -327,7 +327,7 @@ export const FAQ_ITEMS: FAQCategory[] = [
       },
       {
         q: "What equipment slots exist?",
-        a: "Head, Shoulders, Chest, Hands, Waist, Legs, Feet, Ring 1, Ring 2, Amulet, Primary Weapon, Secondary Weapon, and Ranged Weapon.",
+        a: "Head, Shoulders, Chest, Hands, Waist, Legs, Feet, Ring 1, Ring 2, Amulet, Main Hand, Offhand, and Ranged Weapon.",
       },
       {
         q: "How do I equip items?",
