@@ -355,14 +355,17 @@ export function HomeScreen({
 
   // Drawer menu options
   const drawerOptions = [
+    // Row 1: AI DM, RP Prompts, Quick Actions
     { id: 'ai-dm', label: 'AI DM', icon: Crown, color: 'text-amber-400', action: () => { setShowDrawersMenu(false); drawerContext?.openAIDMScreen(); } },
-    { id: 'quick-actions', label: 'Quick Actions', icon: ListChecks, color: 'text-emerald-400', action: drawerContext?.openQuickActionsDrawer },
-    { id: 'combat', label: 'Combat', icon: Swords, color: 'text-red-400', action: () => { setShowDrawersMenu(false); onNavigateToTab('combat'); } },
-    { id: 'arcana', label: 'Arcana', icon: Wand2, color: 'text-indigo-400', action: () => { setShowDrawersMenu(false); onNavigateToTab('arcana'); } },
-    { id: 'abilities', label: 'Abilities', icon: Zap, color: 'text-purple-400', action: () => { setShowDrawersMenu(false); onNavigateToTab('abilities'); } },
     { id: 'prompts', label: 'RP Prompts', icon: Gem, color: 'text-yellow-400', action: drawerContext?.openInfinityDrawer },
-    { id: 'settings', label: 'Settings', icon: Settings, color: 'text-slate-400', action: onOpenSettings },
+    { id: 'quick-actions', label: 'Quick Actions', icon: ListChecks, color: 'text-emerald-400', action: drawerContext?.openQuickActionsDrawer },
+    // Row 2: Combat, Abilities, Arcana
+    { id: 'combat', label: 'Combat', icon: Swords, color: 'text-red-400', action: () => { setShowDrawersMenu(false); onNavigateToTab('combat'); } },
+    { id: 'abilities', label: 'Abilities', icon: Zap, color: 'text-purple-400', action: () => { setShowDrawersMenu(false); onNavigateToTab('abilities'); } },
+    { id: 'arcana', label: 'Arcana', icon: Wand2, color: 'text-indigo-400', action: () => { setShowDrawersMenu(false); onNavigateToTab('arcana'); } },
+    // Row 3: Features (centered), Settings (right)
     { id: 'features', label: 'Features', icon: BookOpen, color: 'text-cyan-400', action: () => { setShowDrawersMenu(false); featuresNavigate('/features'); } },
+    { id: 'settings', label: 'Settings', icon: Settings, color: 'text-slate-400', action: onOpenSettings },
   ];
 
   const handleDrawerOptionClick = (action?: () => void) => {
@@ -750,12 +753,13 @@ export function HomeScreen({
 
       {/* Drawers Quick-Access Sheet */}
       <Sheet open={showDrawersMenu} onOpenChange={setShowDrawersMenu}>
-        <SheetContent side="bottom" className="h-auto max-h-[60vh] rounded-t-xl">
-          <div className="w-12 h-1 bg-muted rounded-full mx-auto mb-4" />
-          <SheetTitle className="text-center font-cinzel mb-4">Quick Access</SheetTitle>
+        <SheetContent side="bottom" className="h-auto max-h-[70vh] rounded-t-xl pb-safe">
+          <div className="w-12 h-1 bg-muted rounded-full mx-auto mb-3" />
+          <SheetTitle className="text-center font-cinzel mb-3">Quick Access</SheetTitle>
           
-          <div className="grid grid-cols-3 gap-3 pb-6">
-            {drawerOptions.map((option) => {
+          {/* Rows 1 & 2: standard 3-col grid */}
+          <div className="grid grid-cols-3 gap-3">
+            {drawerOptions.slice(0, 6).map((option) => {
               const IconComponent = option.icon;
               return (
                 <button
@@ -780,6 +784,50 @@ export function HomeScreen({
                 </button>
               );
             })}
+          </div>
+
+          {/* Row 3: Features centered, Settings to the right */}
+          <div className="grid grid-cols-3 gap-3 mt-3 pb-6">
+            {/* Features in center column */}
+            {(() => {
+              const features = drawerOptions.find(o => o.id === 'features')!;
+              const settings = drawerOptions.find(o => o.id === 'settings')!;
+              const FeaturesIcon = features.icon;
+              const SettingsIcon = settings.icon;
+              return (
+                <>
+                  <div />
+                  <button
+                    onClick={() => handleDrawerOptionClick(features.action)}
+                    className={cn(
+                      "flex flex-col items-center gap-2 p-4 rounded-lg",
+                      "border border-border/50 bg-card/50",
+                      "hover:bg-card hover:border-border transition-all"
+                    )}
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-muted/50">
+                      <FeaturesIcon className={cn("w-6 h-6", features.color)} />
+                    </div>
+                    <span className="text-sm font-medium font-cinzel">{features.label}</span>
+                  </button>
+                  <button
+                    onClick={() => handleDrawerOptionClick(settings.action)}
+                    className={cn(
+                      "flex flex-col items-center gap-2 p-4 rounded-lg",
+                      "border border-border/50 bg-card/50",
+                      "hover:bg-card hover:border-border transition-all"
+                    )}
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-muted/50">
+                      <SettingsIcon className={cn("w-6 h-6", settings.color)} />
+                    </div>
+                    <span className="text-sm font-medium font-cinzel">{settings.label}</span>
+                  </button>
+                </>
+              );
+            })()}
           </div>
         </SheetContent>
       </Sheet>
