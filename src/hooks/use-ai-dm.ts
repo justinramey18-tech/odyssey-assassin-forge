@@ -1,10 +1,17 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Message, CharacterContext } from '@/components/oracle/types';
 import { toast } from 'sonner';
+import {
+  loadCampaignSummary,
+  saveCampaignSummary,
+  clearCampaignSummary,
+} from '@/lib/campaign-summary-storage';
 
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
+const SUMMARIZE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm-summarize`;
 const STORAGE_KEY = 'dnd-ai-dm-session';
 const MAX_MESSAGES = 100;
+const SUMMARY_INTERVAL = 10;
 
 interface UseAIDMOptions {
   characterContext: CharacterContext;
@@ -37,12 +44,52 @@ function saveSession(messages: Message[]): void {
 export function useAIDM({ characterContext, customGuidesContent }: UseAIDMOptions) {
   const [messages, setMessages] = useState<Message[]>(() => loadSession());
   const [isLoading, setIsLoading] = useState(false);
+  const [campaignSummary, setCampaignSummary] = useState<string | null>(() => loadCampaignSummary());
+  const [isSummarizing, setIsSummarizing] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Persist messages to localStorage
   useEffect(() => {
     saveSession(messages);
   }, [messages]);
+
+  // Trigger summary generation after every Nth assistant message
+  const triggerSummaryIfNeeded = useCallback(async (allMessages: Message[]) => {
+    const assistantCount = allMessages.filter(m => m.role === 'assistant' && m.content).length;
+    if (assistantCount === 0 || assistantCount % SUMMARY_INTERVAL !== 0) return;
+
+    setIsSummarizing(true);
+    try {
+      const apiMessages = allMessages.map(m => ({ role: m.role, content: m.content }));
+      const response = await fetch(SUMMARIZE_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          messages: apiMessages,
+          previousSummary: campaignSummary || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        console.error('Summary generation failed:', response.status);
+        return;
+      }
+
+      const data = await response.json();
+      if (data.summary) {
+        saveCampaignSummary(data.summary);
+        setCampaignSummary(data.summary);
+        toast.success('Campaign summary updated', { duration: 2000 });
+      }
+    } catch (error) {
+      console.error('Summary generation error:', error);
+    } finally {
+      setIsSummarizing(false);
+    }
+  }, [campaignSummary]);
 
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim() || isLoading) return;
@@ -82,6 +129,7 @@ export function useAIDM({ characterContext, customGuidesContent }: UseAIDMOption
           messages: apiPayload,
           characterContext,
           customGuides: customGuidesContent || undefined,
+          campaignSummary: campaignSummary || undefined,
         }),
         signal: abortControllerRef.current.signal,
       });
@@ -171,6 +219,18 @@ export function useAIDM({ characterContext, customGuidesContent }: UseAIDMOption
           } catch { /* ignore */ }
         }
       }
+
+      // After successful response, check if we should generate a summary
+      if (assistantContent) {
+        const updatedMessages = [...allMessages, {
+          id: assistantMessageId,
+          role: 'assistant' as const,
+          content: assistantContent,
+          timestamp: new Date(),
+        }];
+        // Fire and forget — don't block the UI
+        triggerSummaryIfNeeded(updatedMessages);
+      }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
 
@@ -184,7 +244,7 @@ export function useAIDM({ characterContext, customGuidesContent }: UseAIDMOption
       setIsLoading(false);
       abortControllerRef.current = null;
     }
-  }, [messages, characterContext, customGuidesContent, isLoading]);
+  }, [messages, characterContext, customGuidesContent, campaignSummary, isLoading, triggerSummaryIfNeeded]);
 
   const cancelRequest = useCallback(() => {
     if (abortControllerRef.current) {
@@ -196,6 +256,8 @@ export function useAIDM({ characterContext, customGuidesContent }: UseAIDMOption
   const clearMessages = useCallback(() => {
     setMessages([]);
     localStorage.removeItem(STORAGE_KEY);
+    clearCampaignSummary();
+    setCampaignSummary(null);
   }, []);
 
   const newGame = useCallback(() => {
@@ -206,6 +268,8 @@ export function useAIDM({ characterContext, customGuidesContent }: UseAIDMOption
   return {
     messages,
     isLoading,
+    isSummarizing,
+    campaignSummary,
     sendMessage,
     cancelRequest,
     clearMessages,
