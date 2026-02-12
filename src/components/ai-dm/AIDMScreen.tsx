@@ -231,7 +231,7 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
             <h1 className="text-base font-cinzel text-amber-200 tracking-wide">Dungeon Master</h1>
           </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide flex-shrink min-w-0">
           {inParty && (
             <button
               onClick={() => {
