@@ -188,7 +188,7 @@ export function SpellbookGrid({
             </div>
           ) : (
             levelKeys.map((level) => (
-              <Collapsible key={level} defaultOpen>
+              <Collapsible key={level}>
                 <CollapsibleTrigger className="flex items-center gap-2 w-full group py-1">
                   <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90" />
                   <h3 className="font-cinzel text-sm font-medium text-muted-foreground uppercase tracking-wider">
