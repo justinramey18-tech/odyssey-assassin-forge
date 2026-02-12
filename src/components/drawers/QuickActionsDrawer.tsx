@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Character, Ability } from '@/lib/types';
 import { allAbilities, getAbilityById } from '@/lib/abilities';
 import { useAbilityCustomization } from '@/hooks/use-ability-customization';
+import { useAbilityImages } from '@/hooks/use-ability-images';
 import { WeaponAttack, UNARMED_STRIKE } from '@/lib/combat/combatTypes';
 import { getEquippedWeapons } from '@/lib/combat/weaponConverter';
 import { CharacterEquipment } from '@/lib/inventory/types';
@@ -924,6 +925,7 @@ export function QuickActionsDrawer({
 
   // ── Abilities: Equipped active abilities from loadout + auto-populated homebrew ──
   const abilityCustomization = useAbilityCustomization();
+  const { images: abilityImages } = useAbilityImages();
 
   const equippedAbilities = useMemo(() => {
     const ids = character.equippedAbilities || [];
@@ -1368,10 +1370,14 @@ export function QuickActionsDrawer({
                           )}
                           style={{ touchAction: 'manipulation' }}
                         >
-                          <Zap className={cn("w-4 h-4 shrink-0", 
-                            ability.tree === 'hunter' ? 'text-green-400' :
-                            ability.tree === 'warrior' ? 'text-red-400' : 'text-purple-400'
-                          )} />
+                          {abilityImages[ability.id] ? (
+                            <img src={abilityImages[ability.id]} alt={ability.name} className="w-6 h-6 rounded object-cover shrink-0" />
+                          ) : (
+                            <Zap className={cn("w-4 h-4 shrink-0", 
+                              ability.tree === 'hunter' ? 'text-green-400' :
+                              ability.tree === 'warrior' ? 'text-red-400' : 'text-purple-400'
+                            )} />
+                          )}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
                               <p className="text-sm font-medium truncate">{ability.name}</p>

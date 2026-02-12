@@ -93,6 +93,7 @@ import { DruidCircle } from '@/lib/classes/druidCircles';
 import { useSpellCustomization } from '@/hooks/use-spell-customization';
 import { usePartySync } from '@/hooks/use-party-sync';
 import { useAbilityCustomization } from '@/hooks/use-ability-customization';
+import { useAbilityImages } from '@/hooks/use-ability-images';
 import { homebrewToAbility } from '@/lib/abilityCustomization/utils';
 import { useAuth } from '@/hooks/use-auth';
 import { usePlayMode } from '@/hooks/use-play-mode';
@@ -473,7 +474,6 @@ const Index = () => {
     };
   }, [isRogueClass, character.primaryClass, character.level, classSpellcasting.hasChannelDivinity, classSpellcasting.channelDivinityCurrent, classSpellcasting.channelDivinityMax, classSpellcasting.useChannelDivinity, classSpellcasting.restoreChannelDivinity]);
 
-
   // Using refs to avoid stale closure issues in callbacks
   const spellcastingRef = useRef(spellcasting);
   spellcastingRef.current = spellcasting;
@@ -515,6 +515,29 @@ const Index = () => {
 
   // Ability Customization (homebrew abilities)
   const abilityCustomization = useAbilityCustomization();
+  const { images: abilityImages } = useAbilityImages();
+
+  // Ability image thumbnails for party broadcast (small compressed versions)
+  const [abilityImageThumbs, setAbilityImageThumbs] = useState<Record<string, string>>({});
+  const lastAbilityImagesRef = useRef<string>('');
+  useEffect(() => {
+    const key = JSON.stringify(abilityImages);
+    if (key === lastAbilityImagesRef.current) return;
+    lastAbilityImagesRef.current = key;
+    const ids = Object.keys(abilityImages);
+    if (ids.length === 0) { setAbilityImageThumbs({}); return; }
+    import('@/lib/utils/image-resize').then(({ resizeImageToThumbnail }) => {
+      Promise.all(ids.map(id =>
+        resizeImageToThumbnail(abilityImages[id], 32, 0.5)
+          .then(thumb => ({ id, thumb }))
+          .catch(() => null)
+      )).then(results => {
+        const thumbs: Record<string, string> = {};
+        results.forEach(r => { if (r) thumbs[r.id] = r.thumb; });
+        setAbilityImageThumbs(thumbs);
+      });
+    });
+  }, [abilityImages]);
 
   // Auth & Party system
   const { user, isAuthenticated } = useAuth();
@@ -688,6 +711,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           tree: converted.tree,
           tier,
           actionType: converted.type === 'active' ? 'Action' : 'Passive',
+          image: abilityImageThumbs[id] || undefined,
         };
       }
       const ability = allAbilities.find(a => a.id === id);
@@ -697,6 +721,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         tree: ability.tree,
         tier,
         actionType: ability.type === 'active' ? 'Action' : 'Passive',
+        image: abilityImageThumbs[id] || undefined,
       } : null;
     };
 
@@ -750,7 +775,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       }));
 
     return { weapons, abilities, spells, cantrips, consumables };
-  }, [equipment.slots, character.equippedAbilities, character.abilities, isRogueClass, classSpellcasting.state.preparedSpells, classSpellcasting.state.knownSpells, consumablesInventory, abilityCustomization.state.homebrewAbilities]);
+  }, [equipment.slots, character.equippedAbilities, character.abilities, isRogueClass, classSpellcasting.state.preparedSpells, classSpellcasting.state.knownSpells, consumablesInventory, abilityCustomization.state.homebrewAbilities, abilityImageThumbs]);
 
   // Profile image thumbnail (state so broadcasts re-trigger when ready)
   const [profileImageThumb, setProfileImageThumb] = useState<string | null>(null);
