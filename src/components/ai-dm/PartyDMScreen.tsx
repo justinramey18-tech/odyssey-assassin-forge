@@ -196,6 +196,12 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
         )}
         <span className="text-[11px] text-white/30">•</span>
         <span className="text-[11px] text-white/40">{partyDm.messages.length} messages</span>
+        {partyDm.isSummarizing && (
+          <>
+            <span className="text-[11px] text-white/30">•</span>
+            <span className="text-[11px] text-purple-400 animate-pulse">Summarizing...</span>
+          </>
+        )}
       </div>
 
       {/* Messages */}

@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 import type { CharacterContext } from '@/components/oracle/types';
 
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
+const SUMMARIZE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm-summarize`;
+const SUMMARY_INTERVAL = 10;
 
 export interface PartyDmMessage {
   id: string;
@@ -48,6 +50,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const { user } = useAuth();
   const [messages, setMessages] = useState<PartyDmMessage[]>([]);
   const [currentPrompts, setCurrentPrompts] = useState<PartyDmPrompt[]>([]);
+  const [isSummarizing, setIsSummarizing] = useState(false);
   const [sessionConfig, setSessionConfig] = useState<DmSessionConfig | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -251,6 +254,51 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       .eq('id', myPrompt.id);
   }, [user, currentPrompts]);
 
+  // Auto-summarize after every Nth assistant message
+  const triggerSummaryIfNeeded = useCallback(async (allMessages: PartyDmMessage[]) => {
+    if (!partyId || !isCreator || !sessionConfig) return;
+    const assistantCount = allMessages.filter(m => m.role === 'assistant' && m.content).length;
+    if (assistantCount === 0 || assistantCount % SUMMARY_INTERVAL !== 0) return;
+
+    setIsSummarizing(true);
+    try {
+      const apiMessages = allMessages.map(m => ({ role: m.role, content: m.content }));
+      const response = await fetch(SUMMARIZE_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          messages: apiMessages,
+          previousSummary: sessionConfig.campaignSummary || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        console.error('Party DM summary generation failed:', response.status);
+        return;
+      }
+
+      const data = await response.json();
+      if (data.summary) {
+        const updatedConfig: DmSessionConfig = {
+          ...sessionConfig,
+          campaignSummary: data.summary,
+        };
+        await (supabase.from('party_shared_state') as any)
+          .update({ state_data: updatedConfig })
+          .eq('party_id', partyId)
+          .eq('state_type', 'dm_session');
+        toast.success('Party campaign summary updated', { duration: 2000 });
+      }
+    } catch (error) {
+      console.error('Party summary generation error:', error);
+    } finally {
+      setIsSummarizing(false);
+    }
+  }, [partyId, isCreator, sessionConfig]);
+
   const generateResponse = useCallback(async () => {
     if (!partyId || !user || !sessionConfig || isGenerating) return;
     if (currentPrompts.length === 0) {
@@ -379,6 +427,15 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         .eq('party_id', partyId)
         .eq('state_type', 'dm_session');
 
+      // Trigger summary generation (fire-and-forget, host only)
+      if (assistantContent) {
+        const updatedMessages = [...messages, 
+          { id: '', party_id: partyId, role: 'user' as const, content: combined, sender_user_id: user.id, sender_name: 'Party', created_at: '' },
+          { id: '', party_id: partyId, role: 'assistant' as const, content: assistantContent, sender_user_id: null, sender_name: 'DM', created_at: '' },
+        ];
+        triggerSummaryIfNeeded(updatedMessages);
+      }
+
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
       console.error('Party DM generation error:', error);
@@ -393,7 +450,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       setIsGenerating(false);
       abortRef.current = null;
     }
-  }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers]);
+  }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, triggerSummaryIfNeeded]);
 
   const myPrompt = currentPrompts.find(p => p.user_id === user?.id) || null;
 
@@ -403,6 +460,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     sessionConfig,
     isActive,
     isGenerating: isGenerating || (sessionConfig?.isGenerating ?? false),
+    isSummarizing,
     allReady,
     myPrompt,
     startSession,
