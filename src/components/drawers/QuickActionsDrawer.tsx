@@ -906,35 +906,52 @@ export function QuickActionsDrawer({
     return items;
   }, [equipment]);
 
-  // ── Abilities: Equipped active abilities from loadout ──
+  // ── Abilities: Equipped active abilities from loadout + auto-populated homebrew ──
   const abilityCustomization = useAbilityCustomization();
 
   const equippedAbilities = useMemo(() => {
     const ids = character.equippedAbilities || [];
-    return ids.map(id => {
+    const seen = new Set<string>();
+    const results: { ability: Ability; tier: 1 | 2 | 3 }[] = [];
+
+    const resolveId = (id: string) => {
+      if (seen.has(id)) return;
+      seen.add(id);
+
       // Legacy prestige abilities
       if (isLegacyAbilityId(id)) {
         const legacy = resolveLegacyAbility(id);
-        if (legacy) return { ability: legacy, tier: 1 as const };
-        return null;
+        if (legacy) results.push({ ability: legacy, tier: 1 as const });
+        return;
       }
       // Homebrew abilities
       if (id.startsWith('homebrew_')) {
         const homebrew = abilityCustomization.state.homebrewAbilities.find(h => h.id === id);
-        if (!homebrew) return null;
+        if (!homebrew) return;
         const converted = homebrewToAbility(homebrew);
         const charAbility = character.abilities.find(a => a.abilityId === id);
         const tier = (charAbility?.currentTier || 1) as 1 | 2 | 3;
-        return { ability: converted as Ability, tier };
+        results.push({ ability: converted as Ability, tier });
+        return;
       }
       // Base abilities (with overrides)
       const baseAbility = getAbilityById(id);
-      if (!baseAbility) return null;
+      if (!baseAbility) return;
       const ability = applyOverrides(baseAbility, abilityCustomization.getOverride(id));
       const charAbility = character.abilities.find(a => a.abilityId === id);
       const tier = (charAbility?.currentTier || 1) as 1 | 2 | 3;
-      return { ability, tier };
-    }).filter(Boolean) as { ability: Ability; tier: 1 | 2 | 3 }[];
+      results.push({ ability, tier });
+    };
+
+    // 1. Resolve loadout abilities
+    ids.forEach(resolveId);
+
+    // 2. Auto-populate all homebrew abilities with invested points
+    character.abilities
+      .filter(a => a.abilityId.startsWith('homebrew_') && a.currentTier > 0)
+      .forEach(a => resolveId(a.abilityId));
+
+    return results;
   }, [character.equippedAbilities, character.abilities, abilityCustomization.state.homebrewAbilities, abilityCustomization.getOverride]);
 
   // ── Magic: Favorited spells auto-populate; fall back to prepared only ──
