@@ -3,7 +3,7 @@ import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Swords, Sparkles, Zap, Wand2, Sunrise,
+import { Swords, Sparkles, Zap, Wand2, Sunrise, RotateCcw,
   ChevronDown, Copy, Check, Timer, Shield, Play, Dices, Target,
   Beaker, Skull, ScrollText, FlaskConical, PawPrint, Clock, Heart,
   ImagePlus, ImageOff, Star, X, Plus
@@ -61,6 +61,7 @@ interface ChannelDivinityInfo {
   clericLevel: number;
   options: Array<{ id: string; name: string; description: string; mechanicalEffect?: string; isDomain: boolean }>;
   useChannelDivinity: (optionName?: string) => boolean;
+  restoreChannelDivinity: () => void;
 }
 
 interface QuickActionsDrawerProps {
@@ -1534,6 +1535,15 @@ export function QuickActionsDrawer({
                       <span className="text-[10px] text-muted-foreground ml-1">
                         {channelDivinity.current}/{channelDivinity.max} uses · Short rest
                       </span>
+                      {channelDivinity.current < channelDivinity.max && (
+                        <button
+                          onClick={channelDivinity.restoreChannelDivinity}
+                          className="ml-1 p-0.5 rounded hover:bg-yellow-500/20 transition-colors"
+                          title="Restore 1 use (Short Rest)"
+                        >
+                          <RotateCcw className="w-3 h-3 text-yellow-400" />
+                        </button>
+                      )}
                     </div>
                     {channelDivinity.options.map(option => (
                       <div key={option.id} className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-card/40 border border-border/30">

@@ -2,7 +2,7 @@
 // Interactive cards for each Channel Divinity option, wired to use CD charges
 
 import { cn } from '@/lib/utils';
-import { Sunrise, Sun, Flame, Zap, Shield, Skull } from 'lucide-react';
+import { Sunrise, Sun, Flame, Zap, Shield, Skull, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -18,6 +18,7 @@ interface ChannelDivinityCardsProps {
   clericLevel: number;
   domainOptions: DomainChannelDivinity[];
   onUseChannelDivinity: (optionName?: string) => boolean;
+  onRestoreChannelDivinity?: () => void;
 }
 
 // Map option IDs to icons
@@ -45,6 +46,7 @@ export function ChannelDivinityCards({
   clericLevel,
   domainOptions,
   onUseChannelDivinity,
+  onRestoreChannelDivinity,
 }: ChannelDivinityCardsProps) {
   const destroyUndeadCR = getDestroyUndeadCR(clericLevel);
   const hasUses = current > 0;
@@ -99,6 +101,15 @@ export function ChannelDivinityCards({
             />
           ))}
           <span className="text-xs text-muted-foreground ml-1">{current}/{max}</span>
+          {onRestoreChannelDivinity && current < max && (
+            <button
+              onClick={onRestoreChannelDivinity}
+              className="ml-1 p-1 rounded hover:bg-yellow-500/20 transition-colors"
+              title="Short Rest — Restore Channel Divinity"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-yellow-400" />
+            </button>
+          )}
         </div>
       </div>
 

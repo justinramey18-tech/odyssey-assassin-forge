@@ -462,8 +462,9 @@ const Index = () => {
       clericLevel,
       options: [...baseOptions, ...domainOptions],
       useChannelDivinity: classSpellcasting.useChannelDivinity,
+      restoreChannelDivinity: classSpellcasting.restoreChannelDivinity,
     };
-  }, [isRogueClass, character.primaryClass, character.level, classSpellcasting.hasChannelDivinity, classSpellcasting.channelDivinityCurrent, classSpellcasting.channelDivinityMax, classSpellcasting.useChannelDivinity]);
+  }, [isRogueClass, character.primaryClass, character.level, classSpellcasting.hasChannelDivinity, classSpellcasting.channelDivinityCurrent, classSpellcasting.channelDivinityMax, classSpellcasting.useChannelDivinity, classSpellcasting.restoreChannelDivinity]);
 
 
   // Using refs to avoid stale closure issues in callbacks

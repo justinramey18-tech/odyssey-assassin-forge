@@ -100,6 +100,7 @@ interface PromptDrawerProviderProps {
     clericLevel: number;
     options: Array<{ id: string; name: string; description: string; mechanicalEffect?: string; isDomain: boolean }>;
     useChannelDivinity: (optionName?: string) => boolean;
+    restoreChannelDivinity: () => void;
   };
   // Wild Shape
   wildShape?: UseWildShapeReturn;
