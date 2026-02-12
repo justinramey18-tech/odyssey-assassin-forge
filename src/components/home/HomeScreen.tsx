@@ -510,8 +510,8 @@ export function HomeScreen({
         </motion.header>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-auto">
-          <div className="flex flex-col gap-4 py-4">
+        <div className="flex-1 overflow-auto flex flex-col">
+          <div className="flex flex-col gap-4 pb-[2px] mt-auto">
             {/* Character Name Plaque - Full width thin bar */}
             <CharacterNamePlaque 
               name={character.name} 
