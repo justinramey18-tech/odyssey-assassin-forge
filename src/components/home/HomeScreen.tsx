@@ -12,7 +12,7 @@ import { SaveData } from '@/hooks/use-auto-save';
 import { 
   Settings, Coffee, Moon, TrendingUp,
   MessageCircle, Gem, Zap, PanelLeft, HelpCircle,
-  Swords, Wand2, ListChecks, ChevronUp, Users,
+  Swords, Wand2, ListChecks, ChevronUp, Users, Crown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
@@ -22,6 +22,7 @@ import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 import { DiceRollerScreen } from '@/components/diceRoller';
 import { CharacterSavesDrawer, CharacterSavesTrigger } from './CharacterSavesDrawer';
 import { FAQDrawer } from './FAQDrawer';
+import { AIDMScreen } from '@/components/ai-dm';
 
 // New redesigned components
 import { CharacterNamePlaque } from './CharacterNamePlaque';
@@ -232,6 +233,7 @@ export function HomeScreen({
   const [showPartyDrawer, setShowPartyDrawer] = useState(false);
   const [showPartyChatFullscreen, setShowPartyChatFullscreen] = useState(false);
   const [showFAQDrawer, setShowFAQDrawer] = useState(false);
+  const [showAIDM, setShowAIDM] = useState(false);
   const lastSeenMessageCount = useRef(0);
   
   const [footerCollapsed, setFooterCollapsed] = useState(() => {
@@ -348,6 +350,7 @@ export function HomeScreen({
 
   // Drawer menu options
   const drawerOptions = [
+    { id: 'ai-dm', label: 'AI DM', icon: Crown, color: 'text-amber-400', action: () => { setShowDrawersMenu(false); setShowAIDM(true); } },
     { id: 'quick-actions', label: 'Quick Actions', icon: ListChecks, color: 'text-emerald-400', action: drawerContext?.openQuickActionsDrawer },
     { id: 'combat', label: 'Combat', icon: Swords, color: 'text-red-400', action: () => { setShowDrawersMenu(false); onNavigateToTab('combat'); } },
     { id: 'arcana', label: 'Arcana', icon: Wand2, color: 'text-indigo-400', action: () => { setShowDrawersMenu(false); onNavigateToTab('arcana'); } },
@@ -823,6 +826,35 @@ export function HomeScreen({
 
       {/* FAQ Drawer */}
       <FAQDrawer open={showFAQDrawer} onOpenChange={setShowFAQDrawer} />
+
+      {/* AI Dungeon Master Overlay */}
+      {showAIDM && (
+        <AIDMScreen
+          onBack={() => setShowAIDM(false)}
+          characterContext={{
+            name: character.name || 'Adventurer',
+            level: character.level,
+            currentHP: currentHP,
+            maxHP: maxHP,
+            abilities: character.abilities.filter(a => a.currentTier > 0).map(a => ({
+              name: a.abilityId,
+              tier: a.currentTier,
+              tree: 'unknown',
+            })),
+            equippedAbilities: character.equippedAbilities || [],
+            equipment: Object.entries(equipment).filter(([_, item]) => item !== null).map(([slot, item]) => ({
+              slot,
+              name: (item as any)?.name || 'Unknown',
+              rarity: (item as any)?.rarity || 'common',
+            })),
+            activeSetBonuses: [],
+            consumables: [],
+            cooldowns: { active: [], ready: [] },
+            prestigeLevel: prestigeData?.prestigeLevel ?? 0,
+            prestigeAbilities: [],
+          }}
+        />
+      )}
     </div>
   );
 }
