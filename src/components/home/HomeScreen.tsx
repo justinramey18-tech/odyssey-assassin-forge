@@ -1,5 +1,6 @@
 import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Character, getAbilityPointsForLevel, getTotalPointsSpent } from '@/lib/types';
 import { CharacterEquipment } from '@/lib/inventory';
 import { Achievement } from '@/lib/achievements';
@@ -11,7 +12,7 @@ import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { SaveData } from '@/hooks/use-auto-save';
 import { 
   Settings, Coffee, Moon, TrendingUp,
-  MessageCircle, Gem, Zap, PanelLeft, HelpCircle,
+  MessageCircle, Gem, Zap, PanelLeft, HelpCircle, BookOpen,
   Swords, Wand2, ListChecks, ChevronUp, Users, Crown, User,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -210,6 +211,7 @@ export function HomeScreen({
 }: HomeScreenProps) {
   const isMobile = useIsMobile();
   const chatOnlineStatusMap = useOnlineStatus(partySync?.party?.members ?? []);
+  const featuresNavigate = useNavigate();
 
   // CR-scaled haptic burst on Wild Shape activation
   const wasWildShape = useRef(false);
@@ -360,6 +362,7 @@ export function HomeScreen({
     { id: 'abilities', label: 'Abilities', icon: Zap, color: 'text-purple-400', action: () => { setShowDrawersMenu(false); onNavigateToTab('abilities'); } },
     { id: 'prompts', label: 'RP Prompts', icon: Gem, color: 'text-yellow-400', action: drawerContext?.openInfinityDrawer },
     { id: 'settings', label: 'Settings', icon: Settings, color: 'text-slate-400', action: onOpenSettings },
+    { id: 'features', label: 'Features', icon: BookOpen, color: 'text-cyan-400', action: () => { setShowDrawersMenu(false); featuresNavigate('/features'); } },
   ];
 
   const handleDrawerOptionClick = (action?: () => void) => {
