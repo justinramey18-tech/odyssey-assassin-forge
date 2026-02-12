@@ -16,6 +16,7 @@ export interface QuickActionAbility {
   tier: number;
   actionType: string;
   image?: string;
+  isHomebrew?: boolean;
 }
 
 export interface QuickActionSpell {
@@ -23,11 +24,13 @@ export interface QuickActionSpell {
   level: number;
   school: string;
   concentration: boolean;
+  isHomebrew?: boolean;
 }
 
 export interface QuickActionCantrip {
   name: string;
   school: string;
+  isHomebrew?: boolean;
 }
 
 export interface QuickActionConsumable {
