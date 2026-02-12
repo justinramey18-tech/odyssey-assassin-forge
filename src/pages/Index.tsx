@@ -93,6 +93,7 @@ import { usePartySync } from '@/hooks/use-party-sync';
 import { useAbilityCustomization } from '@/hooks/use-ability-customization';
 import { homebrewToAbility } from '@/lib/abilityCustomization/utils';
 import { useAuth } from '@/hooks/use-auth';
+import { usePlayMode } from '@/hooks/use-play-mode';
 
 // Stable empty object to prevent re-renders from `character.multiclassLevels ?? {}`
 const EMPTY_MULTICLASS_LEVELS: Record<string, never> = {};
@@ -478,6 +479,7 @@ const Index = () => {
   // Auth & Party system
   const { user, isAuthenticated } = useAuth();
   const partySync = usePartySync();
+  const { playMode, setPlayMode, isSoloMode, isPartyMode } = usePlayMode();
 
   // HP change handler with localStorage persistence, concentration check, and Wild Shape routing
   const handleHPChange = useCallback((current: number, max: number, temp: number) => {
@@ -588,16 +590,18 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       return () => clearTimeout(t);
     }
   }, [calculatedMaxHP, hpState.max, hpState.current, hpState.temp, toast]);
-  // Wire party incoming heal callback
+  // Wire party incoming heal callback (only in party mode)
   useEffect(() => {
+    if (isSoloMode) return;
     partySync.onIncomingHeal.current = (hpHealed: number, _senderName: string, _source: string) => {
       const newHP = Math.min(hpState.max, hpState.current + hpHealed);
       handleHPChange(newHP, hpState.max, hpState.temp);
     };
-  }, [partySync, hpState, handleHPChange]);
+  }, [partySync, hpState, handleHPChange, isSoloMode]);
 
-  // Auto-apply incoming party buffs as conditions
+  // Auto-apply incoming party buffs as conditions (only in party mode)
   useEffect(() => {
+    if (isSoloMode) return;
     if (partySync.incomingBuffs.length === 0) return;
 
     partySync.incomingBuffs.forEach((buff, index) => {
@@ -614,7 +618,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       });
       partySync.clearIncomingBuff(index);
     });
-  }, [partySync.incomingBuffs]);
+  }, [partySync.incomingBuffs, isSoloMode]);
 
   // Build quick actions summary for party broadcast
   const quickActionsSummary = useMemo(() => {
@@ -735,7 +739,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
 
   // Broadcast status to party every time relevant state changes
   useEffect(() => {
-    if (!partySync.party.partyId) return;
+    if (!partySync.party.partyId || isSoloMode) return;
     partySync.broadcastStatus({
       currentHP: effectiveCurrentHP,
       maxHP: effectiveMaxHP,
@@ -1878,10 +1882,10 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         lootItems={loot.lootItems}
         totalLootValue={loot.totalLootValue}
         combatContext={combatContext}
-        partyMembers={partySync.party.members}
+        partyMembers={isPartyMode ? partySync.party.members : []}
         userId={user?.id}
-        onSendHeal={partySync.sendHealAction}
-        onShareBuffToParty={partySync.party.partyId ? (condition, targetUserId) => {
+        onSendHeal={isPartyMode ? partySync.sendHealAction : undefined}
+        onShareBuffToParty={isPartyMode && partySync.party.partyId ? (condition, targetUserId) => {
           partySync.shareBuff({
             conditionName: condition.name,
             duration: condition.durationValue,
@@ -1893,15 +1897,17 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
             targetUserId,
           });
         } : undefined}
-        partyId={partySync.party.partyId}
-        isPartyCreator={partySync.party.isCreator}
+        partyId={isPartyMode ? partySync.party.partyId : null}
+        isPartyCreator={isPartyMode ? partySync.party.isCreator : false}
         autoSyncCallbacks={autoSyncCallbacks}
       >
-        <IncomingHealOverlay
-          pendingHeals={partySync.pendingHeals}
-          onAccept={partySync.acceptHeal}
-          onReject={partySync.rejectHeal}
-        />
+        {isPartyMode && (
+          <IncomingHealOverlay
+            pendingHeals={partySync.pendingHeals}
+            onAccept={partySync.acceptHeal}
+            onReject={partySync.rejectHeal}
+          />
+        )}
         <HomeScreen 
           character={character}
           equipment={equipment}
@@ -1953,9 +1959,11 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           onCloudSyncClick={() => setShowCloudSaveModal(true)}
           onQuickSave={autoSync.syncNow}
           onLoadSave={handleLoadCloudSave}
-          partySync={partySync}
+          partySync={isPartyMode ? partySync : undefined}
           isAuthenticated={!!user}
           userId={user?.id}
+          playMode={playMode}
+          onPlayModeChange={setPlayMode}
         />
         
         {/* Settings Modal */}
@@ -2019,10 +2027,10 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         lootItems={loot.lootItems}
         totalLootValue={loot.totalLootValue}
         combatContext={combatContext}
-        partyMembers={partySync.party.members}
+        partyMembers={isPartyMode ? partySync.party.members : []}
         userId={user?.id}
-        onSendHeal={partySync.sendHealAction}
-        onShareBuffToParty={partySync.party.partyId ? (condition, targetUserId) => {
+        onSendHeal={isPartyMode ? partySync.sendHealAction : undefined}
+        onShareBuffToParty={isPartyMode && partySync.party.partyId ? (condition, targetUserId) => {
           partySync.shareBuff({
             conditionName: condition.name,
             duration: condition.durationValue,
@@ -2034,15 +2042,17 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
             targetUserId,
           });
         } : undefined}
-        partyId={partySync.party.partyId}
-        isPartyCreator={partySync.party.isCreator}
+        partyId={isPartyMode ? partySync.party.partyId : null}
+        isPartyCreator={isPartyMode ? partySync.party.isCreator : false}
         autoSyncCallbacks={autoSyncCallbacks}
       >
-      <IncomingHealOverlay
-        pendingHeals={partySync.pendingHeals}
-        onAccept={partySync.acceptHeal}
-        onReject={partySync.rejectHeal}
-      />
+      {isPartyMode && (
+        <IncomingHealOverlay
+          pendingHeals={partySync.pendingHeals}
+          onAccept={partySync.acceptHeal}
+          onReject={partySync.rejectHeal}
+        />
+      )}
       <div className="min-h-screen relative">
       {/* Builder Background Image - fixed behind everything */}
       <div 

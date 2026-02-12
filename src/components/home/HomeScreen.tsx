@@ -12,7 +12,7 @@ import { SaveData } from '@/hooks/use-auto-save';
 import { 
   Settings, Coffee, Moon, TrendingUp,
   MessageCircle, Gem, Zap, PanelLeft, HelpCircle,
-  Swords, Wand2, ListChecks, ChevronUp, Users, Crown,
+  Swords, Wand2, ListChecks, ChevronUp, Users, Crown, User,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
@@ -118,6 +118,9 @@ interface HomeScreenProps {
   partySync?: UsePartySyncReturn;
   isAuthenticated?: boolean;
   userId?: string;
+  // Play mode
+  playMode?: 'solo' | 'party';
+  onPlayModeChange?: (mode: 'solo' | 'party') => void;
 }
 
 /** Map dragon form names to element-appropriate tint colors */
@@ -202,6 +205,8 @@ export function HomeScreen({
   partySync,
   isAuthenticated = false,
   userId,
+  playMode = 'party',
+  onPlayModeChange,
 }: HomeScreenProps) {
   const isMobile = useIsMobile();
   const chatOnlineStatusMap = useOnlineStatus(partySync?.party?.members ?? []);
@@ -504,40 +509,79 @@ export function HomeScreen({
               />
             )}
 
-            {/* Party Button - centered above chat or dice roller */}
-            {partySync && (
+            {/* Solo/Party Mode Toggle + Party Button */}
+            {partySync && partySync.party.partyId && (
+              <div className="flex items-center justify-center gap-2 mb-[2px]">
+                {/* Mode Toggle */}
+                {onPlayModeChange && (
+                  <button
+                    onClick={() => {
+                      triggerHaptic('light');
+                      onPlayModeChange(playMode === 'solo' ? 'party' : 'solo');
+                    }}
+                    className={cn(
+                      "flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-cinzel uppercase tracking-wider transition-colors border",
+                      playMode === 'party'
+                        ? "border-emerald-500/40 bg-emerald-900/30 text-emerald-300"
+                        : "border-muted-foreground/30 bg-muted/20 text-muted-foreground"
+                    )}
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    {playMode === 'party' ? (
+                      <>
+                        <Users className="w-3 h-3" />
+                        <span>Party</span>
+                      </>
+                    ) : (
+                      <>
+                        <User className="w-3 h-3" />
+                        <span>Solo</span>
+                      </>
+                    )}
+                  </button>
+                )}
+
+                {/* Party Drawer Button (only in party mode) */}
+                {playMode === 'party' && (
+                  <button
+                    onClick={() => {
+                      triggerHaptic('light');
+                      setShowPartyDrawer(true);
+                    }}
+                    className="p-2 rounded-lg hover:bg-white/10 transition-colors relative flex items-center gap-1.5"
+                    style={{ touchAction: 'manipulation' }}
+                    aria-label={`Party — ${partySync.party.members.length} members`}
+                  >
+                    <Users className="w-5 h-5 text-emerald-400" />
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center text-[10px] font-bold rounded-full bg-emerald-500 text-white">
+                      {partySync.party.members.length}
+                    </span>
+                    <OnlineCountBadge members={partySync.party.members} />
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Party Button - when not in a party yet (create/join) */}
+            {partySync && !partySync.party.partyId && (
               <div className="flex justify-center mb-[2px]">
                 <button
                   onClick={() => {
                     triggerHaptic('light');
                     setShowPartyDrawer(true);
                   }}
-                  className={cn(
-                    "rounded-lg transition-colors relative flex items-center gap-1.5",
-                    partySync.party.partyId
-                      ? "p-2 hover:bg-white/10"
-                      : "px-2.5 py-1.5 hover:bg-emerald-900/20 border border-emerald-500/30"
-                  )}
+                  className="rounded-lg transition-colors relative flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-emerald-900/20 border border-emerald-500/30"
                   style={{ touchAction: 'manipulation' }}
-                  aria-label={partySync.party.partyId ? `Party — ${partySync.party.members.length} members` : 'Create or Join Party'}
+                  aria-label="Create or Join Party"
                 >
-                  <Users className={cn("w-4 h-4", partySync.party.partyId ? "text-emerald-400 w-5 h-5" : "text-emerald-400/70")} />
-                  {partySync.party.partyId ? (
-                    <>
-                      <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center text-[10px] font-bold rounded-full bg-emerald-500 text-white">
-                        {partySync.party.members.length}
-                      </span>
-                      <OnlineCountBadge members={partySync.party.members} />
-                    </>
-                  ) : (
-                    <span className="text-[10px] font-cinzel uppercase tracking-wider text-emerald-400/70">Party</span>
-                  )}
+                  <Users className="w-4 h-4 text-emerald-400/70" />
+                  <span className="text-[10px] font-cinzel uppercase tracking-wider text-emerald-400/70">Party</span>
                 </button>
               </div>
             )}
 
-            {/* Party Chat Button - above D20 */}
-            {partySync?.party?.partyId && (
+            {/* Party Chat Button - above D20 (only in party mode) */}
+            {partySync?.party?.partyId && playMode === 'party' && (
               <motion.button
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -749,7 +793,7 @@ export function HomeScreen({
         <div className="fixed inset-0 z-[60] bg-background">
           <DiceRollerScreen
             onBack={() => setShowDiceRoller(false)}
-            onShareToParty={partySync?.party.partyId ? (label, expression, result, details) => {
+            onShareToParty={playMode === 'party' && partySync?.party.partyId ? (label, expression, result, details) => {
               partySync?.shareRoll(label, expression, result, details, character.name || 'Unknown');
             } : undefined}
           />
@@ -796,7 +840,7 @@ export function HomeScreen({
       )}
 
       {/* Fullscreen Party Chat Drawer */}
-      {partySync?.party?.partyId && (
+      {partySync?.party?.partyId && playMode === 'party' && (
         <FullscreenPartyChat
           open={showPartyChatFullscreen}
           onClose={() => {
