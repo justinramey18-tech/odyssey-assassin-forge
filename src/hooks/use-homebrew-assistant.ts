@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 
 const ASSISTANT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/homebrew-assistant`;
 
-export type HomebrewAssistantMode = 'name' | 'description' | 'full' | 'balance' | 'enhance';
+export type HomebrewAssistantMode = 'name' | 'description' | 'full' | 'balance' | 'enhance' | 'batch_spells' | 'batch_abilities';
 
 interface HomebrewContext {
   tree: 'hunter' | 'warrior' | 'assassin';
@@ -37,7 +37,8 @@ export function useHomebrewAssistant() {
   const callAssistant = useCallback(async (
     prompt: string,
     context: HomebrewContext,
-    mode: HomebrewAssistantMode
+    mode: HomebrewAssistantMode,
+    count?: number
   ): Promise<string | null> => {
     setIsLoading(true);
     setLastError(null);
@@ -49,7 +50,7 @@ export function useHomebrewAssistant() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ prompt, context, mode }),
+        body: JSON.stringify({ prompt, context, mode, count }),
       });
 
       if (!response.ok) {
@@ -156,22 +157,56 @@ export function useHomebrewAssistant() {
   ): Promise<TierDescriptions | null> => {
     const prompt = `Enhance the ability "${context.currentName}": ${context.currentDescription}`;
     const result = await callAssistant(prompt, context, 'enhance');
-    
     if (!result) return null;
-    
     try {
       const jsonMatch = result.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
-        return {
-          tier1: parsed.tier1 || '',
-          tier2: parsed.tier2 || '',
-          tier3: parsed.tier3 || '',
-        };
+        return { tier1: parsed.tier1 || '', tier2: parsed.tier2 || '', tier3: parsed.tier3 || '' };
       }
       return null;
     } catch {
       return null;
+    }
+  }, [callAssistant]);
+
+  // Generate batch spells
+  const generateBatchSpells = useCallback(async (
+    prompt: string,
+    count: number = 3
+  ): Promise<FullAbilitySuggestion[]> => {
+    const context: HomebrewContext = { tree: 'hunter', type: 'active' };
+    const result = await callAssistant(prompt, context, 'batch_spells', count);
+    if (!result) return [];
+    try {
+      const jsonMatch = result.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return Array.isArray(parsed) ? parsed : [];
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  }, [callAssistant]);
+
+  // Generate batch abilities
+  const generateBatchAbilities = useCallback(async (
+    prompt: string,
+    context: HomebrewContext,
+    count: number = 3
+  ): Promise<FullAbilitySuggestion[]> => {
+    const result = await callAssistant(prompt, context, 'batch_abilities', count);
+    if (!result) return [];
+    try {
+      const jsonMatch = result.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return Array.isArray(parsed) ? parsed : [];
+      }
+      return [];
+    } catch {
+      return [];
     }
   }, [callAssistant]);
 
@@ -183,5 +218,7 @@ export function useHomebrewAssistant() {
     suggestFullAbility,
     getBalanceFeedback,
     enhanceDescriptions,
+    generateBatchSpells,
+    generateBatchAbilities,
   };
 }
