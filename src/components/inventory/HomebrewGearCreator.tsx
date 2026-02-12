@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { Plus, Sparkles, X } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react';
+import { Plus, Sparkles, X, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { equipmentSlotDefinitions, Rarity, EquipmentSlotType } from '@/lib/inventory/types';
@@ -27,14 +27,43 @@ const RARITY_OPTIONS: { value: Rarity; label: string }[] = [
   { value: 'artifact', label: 'Artifact' },
 ];
 
+function itemToFormState(item: HomebrewGearItem): HomebrewGearFormState {
+  return {
+    name: item.name,
+    slotType: item.slotType,
+    rarity: item.rarity,
+    level: item.level,
+    icon: item.icon,
+    weight: item.weight ?? 1,
+    value: item.value ?? 0,
+    description: item.description ?? '',
+    lore: item.lore ?? '',
+    properties: item.properties ?? [],
+    stats: { ...item.stats },
+    damage: item.stats?.damage ?? '',
+  };
+}
+
 interface HomebrewGearCreatorProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (item: HomebrewGearItem) => void;
+  onUpdate?: (id: string, updates: Partial<HomebrewGearItem>) => void;
+  editItem?: HomebrewGearItem | null;
 }
 
-export function HomebrewGearCreator({ open, onOpenChange, onSave }: HomebrewGearCreatorProps) {
+export function HomebrewGearCreator({ open, onOpenChange, onSave, onUpdate, editItem }: HomebrewGearCreatorProps) {
+  const isEditing = !!editItem;
   const [form, setForm] = useState<HomebrewGearFormState>(DEFAULT_GEAR_FORM);
+
+  // Pre-fill form when editing
+  useEffect(() => {
+    if (open && editItem) {
+      setForm(itemToFormState(editItem));
+    } else if (open && !editItem) {
+      setForm(DEFAULT_GEAR_FORM);
+    }
+  }, [open, editItem]);
 
   const updateForm = useCallback(<K extends keyof HomebrewGearFormState>(key: K, value: HomebrewGearFormState[K]) => {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -61,20 +90,37 @@ export function HomebrewGearCreator({ open, onOpenChange, onSave }: HomebrewGear
       toast.error('Name is required');
       return;
     }
-    const item = formToEquipmentItem(form);
-    onSave(item);
-    setForm(DEFAULT_GEAR_FORM);
-    onOpenChange(false);
-    toast.success(`${item.name} created!`);
-  }, [form, onSave, onOpenChange]);
+
+    if (isEditing && editItem && onUpdate) {
+      // Build updated item preserving original id and createdAt
+      const updatedItem = formToEquipmentItem(form);
+      onUpdate(editItem.id, {
+        ...updatedItem,
+        id: editItem.id,
+        createdAt: editItem.createdAt,
+      });
+      onOpenChange(false);
+      toast.success(`${form.name} updated!`);
+    } else {
+      const item = formToEquipmentItem(form);
+      onSave(item);
+      setForm(DEFAULT_GEAR_FORM);
+      onOpenChange(false);
+      toast.success(`${item.name} created!`);
+    }
+  }, [form, onSave, onUpdate, onOpenChange, isEditing, editItem]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[90vw] max-w-[400px] p-0 bg-background">
         <SheetHeader className="p-4 border-b border-border/50">
           <SheetTitle className="flex items-center gap-2 font-cinzel">
-            <Plus className="w-5 h-5 text-amber-400" />
-            Create Homebrew Gear
+            {isEditing ? (
+              <Pencil className="w-5 h-5 text-amber-400" />
+            ) : (
+              <Plus className="w-5 h-5 text-amber-400" />
+            )}
+            {isEditing ? 'Edit Homebrew Gear' : 'Create Homebrew Gear'}
           </SheetTitle>
         </SheetHeader>
 
@@ -230,7 +276,7 @@ export function HomebrewGearCreator({ open, onOpenChange, onSave }: HomebrewGear
             {/* Save Button */}
             <Button onClick={handleSave} className="w-full gap-2 bg-amber-600 hover:bg-amber-700 text-white">
               <Sparkles className="w-4 h-4" />
-              Create Item
+              {isEditing ? 'Save Changes' : 'Create Item'}
             </Button>
           </div>
         </ScrollArea>

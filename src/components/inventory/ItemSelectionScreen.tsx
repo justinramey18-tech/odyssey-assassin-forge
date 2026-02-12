@@ -21,6 +21,9 @@ interface ItemSelectionScreenProps {
     requiredValue?: number;
     currentValue?: number;
   };
+  homebrewItemIds?: Set<string>;
+  onEditHomebrew?: (item: EquipmentItem) => void;
+  onDeleteHomebrew?: (item: EquipmentItem) => void;
 }
 
 export function ItemSelectionScreen({
@@ -30,6 +33,9 @@ export function ItemSelectionScreen({
   onBack,
   isItemLocked,
   getItemLockInfo,
+  homebrewItemIds,
+  onEditHomebrew,
+  onDeleteHomebrew,
 }: ItemSelectionScreenProps) {
   // Get slot definition for label and icon
   const slotDef = equipmentSlotDefinitions.find(s => s.type === slotType);
@@ -89,6 +95,7 @@ export function ItemSelectionScreen({
             compatibleItems.map(item => {
               const locked = isItemLocked ? isItemLocked(item) : false;
               const lockInfo = getItemLockInfo ? getItemLockInfo(item) : undefined;
+              const isHomebrew = homebrewItemIds?.has(item.id) ?? false;
 
               return (
                 <ItemSelectionCard
@@ -97,6 +104,9 @@ export function ItemSelectionScreen({
                   onSelect={onSelectItem}
                   isLocked={locked}
                   lockInfo={lockInfo}
+                  isHomebrew={isHomebrew}
+                  onEdit={isHomebrew ? onEditHomebrew : undefined}
+                  onDelete={isHomebrew ? onDeleteHomebrew : undefined}
                 />
               );
             })
