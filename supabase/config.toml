@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.party-link]
 verify_jwt = false
+
+[functions.ai-dm]
+verify_jwt = false

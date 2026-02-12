@@ -1,0 +1,352 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+interface CharacterContext {
+  name: string;
+  level: number;
+  currentHP: number;
+  maxHP: number;
+  abilities: Array<{ name: string; tier: number; tree: string }>;
+  equippedAbilities: string[];
+  equipment: Array<{ slot: string; name: string; rarity: string }>;
+  activeSetBonuses: string[];
+  consumables: Array<{ name: string; quantity: number; type: string }>;
+  cooldowns: {
+    active: Array<{ name: string; remainingSeconds: number }>;
+    ready: string[];
+  };
+  prestigeLevel: number;
+  prestigeAbilities: string[];
+  abilityScores?: {
+    strength: { base: number; modifier: number; final: number };
+    dexterity: { base: number; modifier: number; final: number };
+    constitution: { base: number; modifier: number; final: number };
+    intelligence: { base: number; modifier: number; final: number };
+    wisdom: { base: number; modifier: number; final: number };
+    charisma: { base: number; modifier: number; final: number };
+  };
+  activeConditions?: Array<{
+    name: string;
+    remainingRounds: number;
+    source?: string;
+    severity: string;
+    saveType?: string;
+  }>;
+  activeBuffs?: Array<{
+    name: string;
+    remainingMinutes: number;
+    concentration: boolean;
+  }>;
+  spellcasting?: {
+    path: string | null;
+    spellAttackBonus: number;
+    spellSaveDC: number;
+    totalSlotsRemaining: number;
+    concentratingOn: string | null;
+    preparedSpells: string[];
+    slots: Array<{ level: number; current: number; max: number }>;
+    pactSlots?: { current: number; max: number; level: number };
+  };
+  loot?: {
+    items: Array<{
+      name: string;
+      category: string;
+      rarity: string;
+      goldValue: number;
+      hasDiceMechanics: boolean;
+    }>;
+    totalValue: number;
+    usableCount: number;
+    diceMechanicsCount: number;
+  };
+  combat?: {
+    isInCombat: boolean;
+    roundNumber: number;
+    isPlayerTurn: boolean;
+    actionUsed: boolean;
+    bonusActionUsed: boolean;
+    reactionUsed: boolean;
+    movementUsed: number;
+    maxMovement: number;
+    currentTarget: {
+      name: string;
+      ac: number;
+      currentHP: number;
+      maxHP: number;
+      conditions: string[];
+      resistances: string[];
+      vulnerabilities: string[];
+      immunities: string[];
+    } | null;
+    enemies: Array<{
+      name: string;
+      currentHP: number;
+      maxHP: number;
+      isDefeated: boolean;
+      conditions: string[];
+    }>;
+    recentActions: Array<{
+      actionType: string;
+      actionName: string;
+      timestamp: string;
+      damage?: string;
+      wasHit?: boolean;
+      wasCrit?: boolean;
+    }>;
+  };
+}
+
+interface DMRequest {
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+  characterContext: CharacterContext;
+}
+
+const MAX_MESSAGES = 100;
+
+function buildContextSummary(ctx: CharacterContext): string {
+  const lines: string[] = [];
+  
+  lines.push(`CHARACTER: ${ctx.name}, Level ${ctx.level}`);
+  lines.push(`HP: ${ctx.currentHP}/${ctx.maxHP} (${Math.round((ctx.currentHP / ctx.maxHP) * 100)}%)`);
+  
+  if (ctx.prestigeLevel > 0) {
+    lines.push(`PRESTIGE: Level ${ctx.prestigeLevel}`);
+  }
+
+  // Ability scores
+  if (ctx.abilityScores) {
+    const scores = ctx.abilityScores;
+    lines.push(`ABILITY SCORES: STR ${scores.strength.final}(${scores.strength.modifier >= 0 ? '+' : ''}${scores.strength.modifier}) DEX ${scores.dexterity.final}(${scores.dexterity.modifier >= 0 ? '+' : ''}${scores.dexterity.modifier}) CON ${scores.constitution.final}(${scores.constitution.modifier >= 0 ? '+' : ''}${scores.constitution.modifier}) INT ${scores.intelligence.final}(${scores.intelligence.modifier >= 0 ? '+' : ''}${scores.intelligence.modifier}) WIS ${scores.wisdom.final}(${scores.wisdom.modifier >= 0 ? '+' : ''}${scores.wisdom.modifier}) CHA ${scores.charisma.final}(${scores.charisma.modifier >= 0 ? '+' : ''}${scores.charisma.modifier})`);
+  }
+  
+  if (ctx.abilities.length > 0) {
+    const abilityList = ctx.abilities
+      .filter(a => a.tier > 0)
+      .map(a => `${a.name} (Tier ${a.tier}, ${a.tree})`)
+      .join(', ');
+    if (abilityList) lines.push(`UNLOCKED ABILITIES: ${abilityList}`);
+  }
+  
+  if (ctx.equippedAbilities.length > 0) {
+    lines.push(`EQUIPPED LOADOUT: ${ctx.equippedAbilities.join(', ')}`);
+  }
+  
+  if (ctx.equipment.length > 0) {
+    const gearList = ctx.equipment.map(e => `${e.name} (${e.slot}, ${e.rarity})`).join(', ');
+    lines.push(`EQUIPPED GEAR: ${gearList}`);
+  }
+  
+  if (ctx.activeSetBonuses.length > 0) {
+    lines.push(`ACTIVE SET BONUSES: ${ctx.activeSetBonuses.join(', ')}`);
+  }
+  
+  if (ctx.consumables.length > 0) {
+    const consumableList = ctx.consumables.map(c => `${c.name} x${c.quantity}`).join(', ');
+    lines.push(`CONSUMABLES: ${consumableList}`);
+  }
+  
+  if (ctx.cooldowns.active.length > 0) {
+    const cooldownList = ctx.cooldowns.active.map(c => `${c.name} (${Math.ceil(c.remainingSeconds / 60)}min remaining)`).join(', ');
+    lines.push(`ON COOLDOWN: ${cooldownList}`);
+  }
+  
+  if (ctx.cooldowns.ready.length > 0) {
+    lines.push(`READY TO USE: ${ctx.cooldowns.ready.join(', ')}`);
+  }
+  
+  if (ctx.prestigeAbilities.length > 0) {
+    lines.push(`PRESTIGE ABILITIES: ${ctx.prestigeAbilities.join(', ')}`);
+  }
+  
+  if (ctx.activeConditions && ctx.activeConditions.length > 0) {
+    const condList = ctx.activeConditions.map(c => `${c.name} (${c.remainingRounds}r${c.source ? `, from ${c.source}` : ''}, ${c.severity})`).join(', ');
+    lines.push(`⚠️ ACTIVE CONDITIONS: ${condList}`);
+  }
+  
+  if (ctx.activeBuffs && ctx.activeBuffs.length > 0) {
+    const buffList = ctx.activeBuffs.map(b => `${b.name} (${b.remainingMinutes}min${b.concentration ? ', CONCENTRATION' : ''})`).join(', ');
+    lines.push(`✨ ACTIVE BUFFS: ${buffList}`);
+  }
+  
+  if (ctx.spellcasting && ctx.spellcasting.path) {
+    const spell = ctx.spellcasting;
+    lines.push(`\n🔮 SPELLCASTING (${spell.path}):`);
+    lines.push(`   Attack Bonus: +${spell.spellAttackBonus} | Save DC: ${spell.spellSaveDC}`);
+    const slotStatus = spell.slots.filter(s => s.max > 0).map(s => `${s.level === 1 ? '1st' : s.level === 2 ? '2nd' : s.level === 3 ? '3rd' : s.level + 'th'}: ${s.current}/${s.max}`).join(', ');
+    if (slotStatus) lines.push(`   Spell Slots: ${slotStatus}`);
+    if (spell.pactSlots && spell.pactSlots.max > 0) lines.push(`   Pact Slots: ${spell.pactSlots.current}/${spell.pactSlots.max} (Level ${spell.pactSlots.level})`);
+    lines.push(`   Total Slots Remaining: ${spell.totalSlotsRemaining}`);
+    if (spell.concentratingOn) lines.push(`   ⚡ CONCENTRATING ON: ${spell.concentratingOn}`);
+    if (spell.preparedSpells.length > 0) lines.push(`   Prepared Spells: ${spell.preparedSpells.join(', ')}`);
+  }
+
+  // Loot
+  if (ctx.loot && ctx.loot.items.length > 0) {
+    lines.push(`\n💰 LOOT (${ctx.loot.items.length} items, ${ctx.loot.totalValue}gp total):`);
+    ctx.loot.items.slice(0, 10).forEach(item => {
+      lines.push(`   ${item.name} (${item.rarity}, ${item.category}, ${item.goldValue}gp${item.hasDiceMechanics ? ', has dice mechanics' : ''})`);
+    });
+  }
+  
+  if (ctx.combat?.isInCombat) {
+    const combat = ctx.combat;
+    lines.push(`\n⚔️ ACTIVE COMBAT - Round ${combat.roundNumber}`);
+    lines.push(`   ${combat.isPlayerTurn ? '🎯 PLAYER TURN' : '⏳ Waiting...'}`);
+    const actionStatus: string[] = [];
+    if (!combat.actionUsed) actionStatus.push('Action ✓'); else actionStatus.push('Action ✗');
+    if (!combat.bonusActionUsed) actionStatus.push('Bonus ✓'); else actionStatus.push('Bonus ✗');
+    if (!combat.reactionUsed) actionStatus.push('Reaction ✓'); else actionStatus.push('Reaction ✗');
+    const movementLeft = combat.maxMovement - combat.movementUsed;
+    actionStatus.push(`Movement: ${movementLeft}/${combat.maxMovement}ft`);
+    lines.push(`   Action Economy: ${actionStatus.join(' | ')}`);
+    
+    if (combat.currentTarget) {
+      const target = combat.currentTarget;
+      const targetHPPct = target.maxHP > 0 ? Math.round((target.currentHP / target.maxHP) * 100) : 0;
+      const healthLabel = targetHPPct >= 75 ? 'healthy' : targetHPPct >= 50 ? 'bloodied' : targetHPPct >= 25 ? 'badly hurt' : targetHPPct > 0 ? 'near death' : 'defeated';
+      lines.push(`   🎯 TARGET: ${target.name} (AC ${target.ac}, ${target.currentHP}/${target.maxHP} HP - ${healthLabel})`);
+      if (target.conditions.length > 0) lines.push(`      Conditions: ${target.conditions.join(', ')}`);
+      if (target.resistances.length > 0) lines.push(`      Resistances: ${target.resistances.join(', ')}`);
+      if (target.vulnerabilities.length > 0) lines.push(`      Vulnerabilities: ${target.vulnerabilities.join(', ')}`);
+      if (target.immunities.length > 0) lines.push(`      Immunities: ${target.immunities.join(', ')}`);
+    }
+    
+    const activeEnemies = combat.enemies.filter(e => !e.isDefeated);
+    if (activeEnemies.length > 0) {
+      const enemyList = activeEnemies.map(e => {
+        const pct = e.maxHP > 0 ? Math.round((e.currentHP / e.maxHP) * 100) : 0;
+        const status = pct >= 75 ? '' : pct >= 50 ? '🩸' : pct >= 25 ? '🩸🩸' : '💀';
+        return `${e.name} ${status}`;
+      }).join(', ');
+      lines.push(`   Enemies: ${enemyList}`);
+    }
+  }
+  
+  return lines.join('\n');
+}
+
+function buildDMSystemPrompt(ctx: CharacterContext): string {
+  const contextSummary = buildContextSummary(ctx);
+  
+  return `You are an expert Dungeon Master running a live D&D 5e session for a single player. You are immersive, adaptive, and mechanically precise.
+
+## CURRENT CHARACTER STATE
+${contextSummary}
+
+## YOUR ROLE
+- Run engaging D&D 5e encounters, exploration, social encounters, and roleplay
+- Describe vivid scenes with sensory details — sights, sounds, smells, atmosphere
+- Control all NPCs, enemies, and environmental effects with distinct personalities
+- Track scene continuity across the entire conversation — reference earlier events naturally
+- Adapt difficulty and narrative complexity to the character's level (currently ${ctx.level}) and capabilities
+
+## MECHANICAL RULES
+- Follow D&D 5e rules for combat, skill checks, saving throws, and ability checks
+- When a mechanical check is needed, tell the player exactly what to roll and the DC: "Roll a Perception check (DC 14)" or "Make a Dexterity saving throw (DC 16)"
+- Reference the character's actual abilities, spells, and equipment by name in narrative descriptions
+- Track action economy in combat: Action, Bonus Action, Reaction, Movement
+- Use advantage/disadvantage appropriately based on conditions and circumstances
+- Apply condition effects mechanically (Poisoned = disadvantage on attacks and ability checks, etc.)
+
+## COMBAT HANDLING
+- When combat begins, describe the scene and ask the player to roll initiative
+- Run enemy turns with tactical variety — don't just have enemies attack mindlessly
+- Describe hits and misses cinematically, referencing the character's actual weapons and abilities
+- Track enemy HP internally and describe their condition narratively (bloodied, staggering, etc.)
+- Use legendary actions, lair actions, and environmental hazards for boss encounters
+- After combat, describe the aftermath and any loot found
+
+## NARRATIVE STYLE
+- **Combat**: Dramatic, visceral, moment-to-moment tension. Short punchy sentences during action.
+- **Exploration**: Atmospheric, mysterious, reward curiosity. Rich environmental descriptions.
+- **Social/RP**: Characterful NPCs with distinct voices, motivations, and secrets. Dialogue-heavy.
+- **Downtime**: Relaxed, worldbuilding-focused, opportunity for character development.
+
+## SESSION MANAGEMENT
+- Start sessions with a compelling hook that draws the player in immediately
+- End scenes with forward momentum — a new clue, a looming threat, or a choice to make
+- Offer 2-3 clear options when the player seems unsure, but always allow creative solutions
+- Keep responses focused and engaging — typically 2-4 paragraphs, longer for major reveals
+- Use markdown formatting: **bold** for important names/items, *italics* for sensory details and internal thoughts
+
+## IMPORTANT
+- Never control the player character's actions, thoughts, or speech — only describe the world and NPCs
+- Always wait for the player's input before resolving their actions
+- If the player's stated action requires a check, ask for the roll before describing the outcome
+- Be fair but not adversarial — create challenge, not frustration
+- Celebrate creative solutions even if they bypass your planned encounters`;
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { messages, characterContext } = (await req.json()) as DMRequest;
+    
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
+    }
+
+    // Trim to last 100 messages
+    const trimmedMessages = messages.length > MAX_MESSAGES
+      ? [...messages.slice(0, 2), ...messages.slice(-(MAX_MESSAGES - 2))]
+      : messages;
+
+    const systemPrompt = buildDMSystemPrompt(characterContext);
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-pro-preview",
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...trimmedMessages,
+        ],
+        stream: true,
+        max_tokens: 2000,
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please wait a moment and try again." }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits to continue." }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const errorText = await response.text();
+      console.error("AI gateway error:", response.status, errorText);
+      return new Response(JSON.stringify({ error: "AI gateway error" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(response.body, {
+      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+    });
+  } catch (e) {
+    console.error("ai-dm error:", e);
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
