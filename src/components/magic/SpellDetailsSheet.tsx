@@ -351,10 +351,12 @@ ${spell.description}${spell.higherLevels ? `\n\n**At Higher Levels:** ${spell.hi
                 spell.school === 'divination' && "bg-violet-600 hover:bg-violet-500",
                 spell.school === 'transmutation' && "bg-amber-600 hover:bg-amber-500",
               )}
-              disabled={!canCast && spell.level > 0}
+              disabled={(!canCast && spell.level > 0) || (isPreparedCaster && spell.level > 0 && !isPrepared)}
               onClick={onCast}
             >
-              {spell.level === 0 ? 'Cast Cantrip' : 'Cast Spell'}
+              {isPreparedCaster && spell.level > 0 && !isPrepared 
+                ? 'Not Prepared' 
+                : spell.level === 0 ? 'Cast Cantrip' : 'Cast Spell'}
             </Button>
           </div>
         </ScrollArea>
