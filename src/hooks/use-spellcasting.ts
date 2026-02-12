@@ -485,9 +485,21 @@ export function useSpellcasting(
   const prepareSpell = useCallback((spellId: string) => {
     setState(prev => {
       if (prev.preparedSpells.includes(spellId)) return prev;
+      // Enforce preparation limit
+      if (preparationInfo) {
+        const currentNonCantrips = prev.preparedSpells.filter(id => {
+          const s = getSpellById(id);
+          return s && s.level > 0;
+        }).length;
+        const spell = getSpellById(spellId);
+        const isNonCantrip = spell && spell.level > 0;
+        if (isNonCantrip && currentNonCantrips >= preparationInfo.maxPreparedSpells) {
+          return prev; // Hard limit reached
+        }
+      }
       return { ...prev, preparedSpells: [...prev.preparedSpells, spellId] };
     });
-  }, []);
+  }, [preparationInfo]);
 
   const unprepareSpell = useCallback((spellId: string) => {
     setState(prev => ({
