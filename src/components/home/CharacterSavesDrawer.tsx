@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Menu, Cloud, Loader2, LogIn, User, Settings, Trash2, 
-  Coins, Wand2, Package, Heart, Swords, Sparkles, Edit3, Check, X
+  Menu, Cloud, CloudOff, Loader2, LogIn, User, Settings, Trash2, Save, Check,
+  Coins, Wand2, Package, Heart, Swords, Sparkles, Edit3, X
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
@@ -34,6 +34,9 @@ interface CharacterSavesDrawerProps {
   currentCharacterLevel: number;
   onLoadSave: (data: SaveData) => void;
   onOpenCloudSettings: () => void;
+  lastCloudSyncTime?: string | null;
+  isCloudSyncing?: boolean;
+  onQuickSave?: () => Promise<void>;
 }
 
 // Preview icons component
@@ -88,6 +91,9 @@ export function CharacterSavesDrawer({
   currentCharacterLevel,
   onLoadSave,
   onOpenCloudSettings,
+  lastCloudSyncTime,
+  isCloudSyncing = false,
+  onQuickSave,
 }: CharacterSavesDrawerProps) {
   const isMobile = useIsMobile();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
@@ -97,6 +103,38 @@ export function CharacterSavesDrawer({
   const [editName, setEditName] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [quickSaving, setQuickSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
+
+  const formatLastSync = useMemo(() => {
+    if (!lastCloudSyncTime) return null;
+    const syncDate = new Date(lastCloudSyncTime);
+    const now = new Date();
+    const diffMs = now.getTime() - syncDate.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return syncDate.toLocaleDateString();
+  }, [lastCloudSyncTime]);
+
+  const handleQuickSave = async () => {
+    if (!onQuickSave || quickSaving || isCloudSyncing) return;
+    setQuickSaving(true);
+    try {
+      await onQuickSave();
+      setJustSaved(true);
+      toast.success('Saved!', { duration: 1500 });
+      setTimeout(() => setJustSaved(false), 2000);
+    } catch {
+      toast.error('Save failed');
+    } finally {
+      setQuickSaving(false);
+    }
+  };
 
   // Fetch saves when drawer opens
   useEffect(() => {
@@ -178,7 +216,7 @@ export function CharacterSavesDrawer({
             </p>
           </div>
 
-          {/* Current Character */}
+          {/* Current Character + Sync Status */}
           <div className="px-4 py-3 bg-primary/5 border-b border-border/50">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -191,6 +229,47 @@ export function CharacterSavesDrawer({
                 Lvl {currentCharacterLevel}
               </Badge>
             </div>
+            {/* Sync status row */}
+            <div className="flex items-center gap-1.5 mt-1.5">
+              {isCloudSyncing ? (
+                <Loader2 className="w-3 h-3 text-cyan-400 animate-spin" />
+              ) : isAuthenticated ? (
+                <Cloud className="w-3 h-3 text-emerald-400" />
+              ) : (
+                <CloudOff className="w-3 h-3 text-muted-foreground" />
+              )}
+              <span className={cn("text-[10px]", 
+                isCloudSyncing ? "text-cyan-400" 
+                : isAuthenticated && lastCloudSyncTime ? "text-emerald-400/80" 
+                : "text-muted-foreground"
+              )}>
+                {isCloudSyncing ? 'Syncing...' 
+                  : isAuthenticated && formatLastSync ? `Synced ${formatLastSync}` 
+                  : isAuthenticated ? 'Not synced' 
+                  : 'Local only'}
+              </span>
+            </div>
+            {/* Quick Save button */}
+            {isAuthenticated && onQuickSave && (
+              <button
+                onClick={handleQuickSave}
+                disabled={quickSaving || isCloudSyncing}
+                className={cn(
+                  "w-full mt-2 h-8 rounded-lg flex items-center justify-center gap-1.5 text-xs font-medium transition-all",
+                  justSaved
+                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                    : "bg-primary/10 hover:bg-primary/20 active:scale-[0.98] text-primary border border-primary/30"
+                )}
+              >
+                {quickSaving ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : justSaved ? (
+                  <><Check className="w-3.5 h-3.5" /> Saved</>
+                ) : (
+                  <><Save className="w-3.5 h-3.5" /> Quick Save</>
+                )}
+              </button>
+            )}
           </div>
 
           {/* Content */}

@@ -29,7 +29,7 @@ import { DynamicHealthBar } from './DynamicHealthBar';
 import { WildShapeOverlay } from './WildShapeOverlay';
 import { AvailablePointsWidget } from './AvailablePointsWidget';
 import { EnlargedD20Section } from './EnlargedD20Section';
-import { CloudSyncStatusWidget } from './CloudSyncStatusWidget';
+
 
 import { CategoryQuickNav } from './CategoryQuickNav';
 import { BackgroundUploadButton } from './BackgroundUploadButton';
@@ -521,7 +521,17 @@ export function HomeScreen({
               onXPClick={() => onNavigateToTab('skills')}
             />
 
-            {/* Party Chat Button - only visible when in a party */}
+            {/* Dynamic Health Bar */}
+            <DynamicHealthBar
+              currentHP={currentHP}
+              maxHP={maxHP}
+              tempHP={tempHP}
+              onTap={() => drawerContext?.openStatsDrawer()}
+              isWildShape={isWildShape}
+              wildShapeFormName={wildShapeFormName}
+            />
+
+            {/* Party Chat Button - below HP bar, only visible when in a party */}
             {partySync?.party?.partyId && (
               <motion.button
                 initial={{ opacity: 0, y: 8 }}
@@ -544,26 +554,6 @@ export function HomeScreen({
                 )}
               </motion.button>
             )}
-
-            {/* Cloud Sync Status Widget */}
-            <CloudSyncStatusWidget
-              characterName={character.name}
-              characterLevel={character.level}
-              lastSyncTime={lastCloudSyncTime}
-              isSyncing={isCloudSyncing}
-              onClick={onCloudSyncClick}
-              onQuickSave={onQuickSave}
-            />
-
-            {/* Dynamic Health Bar */}
-            <DynamicHealthBar
-              currentHP={currentHP}
-              maxHP={maxHP}
-              tempHP={tempHP}
-              onTap={() => drawerContext?.openStatsDrawer()}
-              isWildShape={isWildShape}
-              wildShapeFormName={wildShapeFormName}
-            />
 
             {/* Wild Shape Details Overlay */}
             {isWildShape && wildShapeFormName && onDismissWildShape && (
@@ -803,6 +793,9 @@ export function HomeScreen({
           currentCharacterLevel={character.level}
           onLoadSave={onLoadSave}
           onOpenCloudSettings={onCloudSyncClick}
+          lastCloudSyncTime={lastCloudSyncTime}
+          isCloudSyncing={isCloudSyncing}
+          onQuickSave={onQuickSave}
         />
       )}
 
