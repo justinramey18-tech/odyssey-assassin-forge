@@ -1990,6 +1990,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           tempHP={effectiveTempHP}
           ac={effectiveAC}
           characterLevel={character.level}
+          playMode={playMode}
+          onPlayModeChange={setPlayMode}
         />
       </PromptDrawerProvider>
     );
@@ -2566,6 +2568,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           tempHP={effectiveTempHP}
           ac={effectiveAC}
           characterLevel={character.level}
+          playMode={playMode}
+          onPlayModeChange={setPlayMode}
         />
       </div>
 

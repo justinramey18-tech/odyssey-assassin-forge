@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Check, Copy, RefreshCw, Camera, Star, Lock, RotateCcw, AlertTriangle, Download, ImageOff, Users } from 'lucide-react';
+import { Check, Copy, RefreshCw, Camera, Star, Lock, RotateCcw, AlertTriangle, Download, ImageOff, Users, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
@@ -69,6 +69,9 @@ interface SettingsContentProps {
   tempHP?: number;
   ac?: number;
   characterLevel?: number;
+  // Play mode
+  playMode?: 'solo' | 'party';
+  onPlayModeChange?: (mode: 'solo' | 'party') => void;
 }
 
 export function SettingsContent({
@@ -101,6 +104,8 @@ export function SettingsContent({
   tempHP,
   ac,
   characterLevel,
+  playMode = 'party',
+  onPlayModeChange,
 }: SettingsContentProps) {
   const [copiedStatic, setCopiedStatic] = useState(false);
   const [copiedDynamic, setCopiedDynamic] = useState(false);
@@ -546,6 +551,55 @@ export function SettingsContent({
               </div>
             </div>
           </div>
+        )}
+
+        {/* Solo/Party Mode Toggle */}
+        {partySync?.party?.partyId && onPlayModeChange && (
+          <>
+            <div className="p-4 rounded-lg border border-primary/30 bg-primary/5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/20 shrink-0">
+                    {playMode === 'party' ? (
+                      <Users className="w-5 h-5 text-primary" />
+                    ) : (
+                      <User className="w-5 h-5 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-cinzel font-semibold text-sm">Play Mode</h3>
+                    <p className="text-xs text-muted-foreground">
+                      {playMode === 'party' 
+                        ? 'Party features active — syncing with teammates' 
+                        : 'Solo mode — party sync paused'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => onPlayModeChange(playMode === 'solo' ? 'party' : 'solo')}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-cinzel uppercase tracking-wider transition-colors border",
+                    playMode === 'party'
+                      ? "border-emerald-500/40 bg-emerald-900/30 text-emerald-300"
+                      : "border-muted-foreground/30 bg-muted/20 text-muted-foreground"
+                  )}
+                >
+                  {playMode === 'party' ? (
+                    <>
+                      <Users className="w-3 h-3" />
+                      <span>Party</span>
+                    </>
+                  ) : (
+                    <>
+                      <User className="w-3 h-3" />
+                      <span>Solo</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+            <Separator className="bg-border/30" />
+          </>
         )}
 
         {/* Party Link Section */}
