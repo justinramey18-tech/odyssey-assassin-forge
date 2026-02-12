@@ -1,3 +1,4 @@
+import { useCallback, useRef } from 'react';
 import { HelpCircle } from 'lucide-react';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
@@ -10,10 +11,32 @@ interface FAQDrawerProps {
 }
 
 export function FAQDrawer({ open, onOpenChange }: FAQDrawerProps) {
+  const touchStart = useRef<{ y: number; time: number } | null>(null);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStart.current = { y: e.touches[0].clientY, time: Date.now() };
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (!touchStart.current) return;
+    const diffY = e.changedTouches[0].clientY - touchStart.current.y;
+    const velocity = diffY / (Date.now() - touchStart.current.time);
+    // Fast downward swipe (>100px or high velocity)
+    if (diffY > 100 || velocity > 0.5) {
+      onOpenChange(false);
+    }
+    touchStart.current = null;
+  }, [onOpenChange]);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[85vh] rounded-t-xl overflow-hidden flex flex-col">
-        <div className="w-12 h-1 bg-muted rounded-full mx-auto mb-3" />
+      <SheetContent
+        side="bottom"
+        className="h-[100dvh] overflow-hidden flex flex-col rounded-none"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        <div className="w-12 h-1 bg-muted rounded-full mx-auto mb-3 shrink-0" />
         <SheetTitle className="font-cinzel text-base flex items-center gap-2 mb-1">
           <HelpCircle className="w-4 h-4 text-primary" />
           Help & FAQ
