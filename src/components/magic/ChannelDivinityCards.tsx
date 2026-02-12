@@ -5,17 +5,20 @@ import { cn } from '@/lib/utils';
 import { Sunrise, Sun, Flame, Zap, Shield, Skull, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 import {
   BASE_CHANNEL_DIVINITY_OPTIONS,
   ChannelDivinityOption,
   getDestroyUndeadCR,
 } from '@/lib/magic/channelDivinity';
 import { DomainChannelDivinity } from '@/lib/classes/clericDomains';
+import { generateChannelDivinityPrompt } from '@/lib/magic/channelDivinityPrompts';
 
 interface ChannelDivinityCardsProps {
   current: number;
   max: number;
   clericLevel: number;
+  characterName: string;
   domainOptions: DomainChannelDivinity[];
   onUseChannelDivinity: (optionName?: string) => boolean;
   onRestoreChannelDivinity?: () => void;
@@ -44,6 +47,7 @@ export function ChannelDivinityCards({
   current,
   max,
   clericLevel,
+  characterName,
   domainOptions,
   onUseChannelDivinity,
   onRestoreChannelDivinity,
@@ -174,7 +178,16 @@ export function ChannelDivinityCards({
                   : 'border-muted/30 text-muted-foreground cursor-not-allowed'
               )}
               disabled={!hasUses}
-              onClick={() => onUseChannelDivinity(option.name)}
+              onClick={async () => {
+                const success = onUseChannelDivinity(option.name);
+                if (success) {
+                  const prompt = generateChannelDivinityPrompt(option.name, option.description, characterName, option.mechanicalEffect, option.isDomain);
+                  try {
+                    await navigator.clipboard.writeText(prompt);
+                    toast.success(`${option.name} prompt copied!`);
+                  } catch { /* silent */ }
+                }
+              }}
             >
               <Sunrise className="w-3 h-3 mr-1.5" />
               {hasUses ? `Channel: ${option.name}` : 'No Uses Remaining'}
