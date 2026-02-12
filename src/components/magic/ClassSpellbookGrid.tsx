@@ -3,7 +3,7 @@
 
 import { useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import { Search, Filter, BookOpen, Star, Focus, Sparkles, Pencil, Trash2 } from 'lucide-react';
+import { Search, Filter, BookOpen, Star, Focus, Sparkles, Pencil, Trash2, ChevronDown } from 'lucide-react';
 import { DnDClass } from '@/lib/classes/types';
 import { SpellDefinition, SpellSchool } from '@/lib/magic/types';
 import { getSpellsByClass, getSpellLevelLabel } from '@/lib/magic/spells';
@@ -12,6 +12,7 @@ import { SCHOOL_CONFIGS } from '@/lib/magic/schools';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -262,61 +263,63 @@ export function ClassSpellbookGrid({
               if (!spells || spells.length === 0) return null;
 
               return (
-                <div key={level}>
-                  {/* Level Header */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className={cn(
-                      "px-2 py-0.5 rounded text-xs font-medium uppercase tracking-wider",
-                      level === 0
-                        ? "bg-emerald-600/30 text-emerald-400"
-                        : "bg-indigo-600/30 text-indigo-400"
-                    )}>
-                      {getSpellLevelLabel(level)}
-                      {level === 0 ? 's' : ' Level'}
+                <Collapsible key={level}>
+                  <CollapsibleTrigger className={cn(
+                    "flex items-center justify-between w-full group px-4 py-3 rounded-lg",
+                    "border border-emerald-500/30 bg-emerald-950/40 backdrop-blur-sm",
+                    "hover:bg-emerald-900/40 transition-colors"
+                  )}>
+                    <div className="flex items-center gap-2">
+                      <ChevronDown className="w-4 h-4 text-emerald-400 transition-transform duration-200 group-data-[state=closed]:-rotate-90" />
+                      <h3 className="font-cinzel text-sm font-semibold text-emerald-300 uppercase tracking-widest">
+                        {getSpellLevelLabel(level)}
+                        {level === 0 ? 's' : ' Level'}
+                      </h3>
                     </div>
-                    <div className="flex-1 h-px bg-white/10" />
-                    <span className="text-xs text-muted-foreground">
-                      {spells.length} spell{spells.length !== 1 ? 's' : ''}
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      {spells.length} Spell{spells.length !== 1 ? 's' : ''}
                     </span>
-                  </div>
+                  </CollapsibleTrigger>
 
-                  {/* Spell Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {spells.map(spell => (
-                      <div key={spell.id} className="relative">
-                        <SpellCard
-                          spell={spell}
-                          isPrepared={preparedSpells.includes(spell.id)}
-                          isFavorite={favoriteSpells.includes(spell.id)}
-                          isConcentrating={concentratingOn === spell.id}
-                          characterLevel={characterLevel}
-                          onClick={() => onSpellSelect(spell)}
-                        />
-                        {/* Edit/Delete for homebrew spells */}
-                        {(spell as any).isHomebrew && (onEditHomebrew || onDeleteHomebrew) && (
-                          <div className="absolute bottom-2 right-2 flex gap-1 z-10">
-                            {onEditHomebrew && (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); onEditHomebrew(spell as HomebrewSpell); }}
-                                className="w-7 h-7 rounded-md bg-indigo-600/40 hover:bg-indigo-600/60 flex items-center justify-center transition-colors"
-                              >
-                                <Pencil className="w-3.5 h-3.5 text-indigo-300" />
-                              </button>
-                            )}
-                            {onDeleteHomebrew && (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); onDeleteHomebrew(spell.id); }}
-                                className="w-7 h-7 rounded-md bg-red-600/40 hover:bg-red-600/60 flex items-center justify-center transition-colors"
-                              >
-                                <Trash2 className="w-3.5 h-3.5 text-red-300" />
-                              </button>
+                  <CollapsibleContent>
+                    <div className="mt-2 max-h-[50vh] overflow-y-auto rounded-lg border border-white/5 bg-background/30 p-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {spells.map(spell => (
+                          <div key={spell.id} className="relative">
+                            <SpellCard
+                              spell={spell}
+                              isPrepared={preparedSpells.includes(spell.id)}
+                              isFavorite={favoriteSpells.includes(spell.id)}
+                              isConcentrating={concentratingOn === spell.id}
+                              characterLevel={characterLevel}
+                              onClick={() => onSpellSelect(spell)}
+                            />
+                            {(spell as any).isHomebrew && (onEditHomebrew || onDeleteHomebrew) && (
+                              <div className="absolute bottom-2 right-2 flex gap-1 z-10">
+                                {onEditHomebrew && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); onEditHomebrew(spell as HomebrewSpell); }}
+                                    className="w-7 h-7 rounded-md bg-indigo-600/40 hover:bg-indigo-600/60 flex items-center justify-center transition-colors"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5 text-indigo-300" />
+                                  </button>
+                                )}
+                                {onDeleteHomebrew && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); onDeleteHomebrew(spell.id); }}
+                                    className="w-7 h-7 rounded-md bg-red-600/40 hover:bg-red-600/60 flex items-center justify-center transition-colors"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 text-red-300" />
+                                  </button>
+                                )}
+                              </div>
                             )}
                           </div>
-                        )}
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               );
             })}
           </div>
