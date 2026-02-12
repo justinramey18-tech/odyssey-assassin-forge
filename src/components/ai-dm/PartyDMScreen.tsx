@@ -566,7 +566,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
               size="sm"
             >
               <Check className="w-4 h-4" />
-              Ready
+              Ready (No Action)
             </Button>
           </div>
         ) : !isReady ? (
@@ -603,30 +603,33 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                 </Button>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
-                <div className="flex-1 bg-white/5 border border-amber-900/30 rounded-xl px-4 py-2.5">
-                  <p className="text-[10px] text-white/40 mb-0.5">Your action:</p>
-                  <p className="text-sm text-white/70 truncate">{partyDm.myPrompt?.prompt}</p>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 bg-white/5 border border-amber-900/30 rounded-xl px-4 py-2.5">
+                    <p className="text-[10px] text-white/40 mb-0.5">Your action:</p>
+                    <p className="text-sm text-white/70 truncate">{partyDm.myPrompt?.prompt || '(no action)'}</p>
+                  </div>
+                  <button
+                    onClick={() => { setEditText(partyDm.myPrompt?.prompt || ''); setIsEditing(true); }}
+                    className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/40 hover:text-white/70"
+                    title="Edit prompt"
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => partyDm.retractPrompt()}
+                    className="p-2 rounded-lg hover:bg-red-900/20 transition-colors text-white/40 hover:text-red-400"
+                    title="Retract prompt"
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
-                <button
-                  onClick={() => { setEditText(partyDm.myPrompt?.prompt || ''); setIsEditing(true); }}
-                  className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/40 hover:text-white/70"
-                  title="Edit prompt"
-                  style={{ touchAction: 'manipulation' }}
-                >
-                  <Pencil className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => partyDm.retractPrompt()}
-                  className="p-2 rounded-lg hover:bg-red-900/20 transition-colors text-white/40 hover:text-red-400"
-                  title="Retract prompt"
-                  style={{ touchAction: 'manipulation' }}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
                 <Button
                   onClick={partyDm.setReady}
-                  className="gap-1.5 bg-emerald-900/40 border border-emerald-500/30 hover:bg-emerald-900/60 text-emerald-300"
+                  className="w-full gap-1.5 bg-emerald-900/40 border border-emerald-500/30 hover:bg-emerald-900/60 text-emerald-300"
+                  size="sm"
                 >
                   <Check className="w-4 h-4" />
                   Ready
