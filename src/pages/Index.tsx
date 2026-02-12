@@ -2410,8 +2410,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
                   homebrewSpells={spellCustomization.homebrewSpells}
                   onAddHomebrewSpell={(spell) => {
                     spellCustomization.addSpell(spell);
-                    // Auto-learn homebrew spells so they appear in combat/quick-actions
+                    // Auto-learn AND auto-prepare homebrew spells so they appear in combat/quick-actions
                     classSpellcasting.learnSpell(spell.id);
+                    classSpellcasting.prepareSpell(spell.id);
                   }}
                   onUpdateHomebrewSpell={spellCustomization.updateSpell}
                   onRemoveHomebrewSpell={(id) => {
