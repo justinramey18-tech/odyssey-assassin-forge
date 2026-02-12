@@ -40,20 +40,20 @@ export function ClockWidget() {
     <Glass
       variant="default"
       rounded="full"
-      className="flex items-center gap-2 px-3 py-1.5 text-sm font-mono tracking-wide"
+      className="flex items-center gap-1.5 px-2 py-1 text-xs font-mono tracking-wide"
     >
-      <Clock className="w-3.5 h-3.5 text-red-400" />
+      <Clock className="w-3 h-3 text-red-400" />
       <span className="text-white">{time}</span>
-      <span className="text-xs text-white/60">EST</span>
+      <span className="text-[10px] text-white/60">EST</span>
       <button
         onClick={handleCopy}
-        className="ml-0.5 p-0.5 rounded hover:bg-white/10 transition-colors"
+        className="p-0.5 rounded hover:bg-white/10 transition-colors"
         aria-label="Copy current time"
       >
         {copied ? (
-          <Check className="w-3 h-3 text-green-400" />
+          <Check className="w-2.5 h-2.5 text-green-400" />
         ) : (
-          <Copy className="w-3 h-3 text-white/50" />
+          <Copy className="w-2.5 h-2.5 text-white/50" />
         )}
       </button>
     </Glass>
