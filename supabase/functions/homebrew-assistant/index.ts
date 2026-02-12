@@ -13,7 +13,8 @@ interface HomebrewRequest {
     currentName?: string;
     currentDescription?: string;
   };
-  mode: 'name' | 'description' | 'full' | 'balance' | 'enhance' | 'spell_concept';
+  mode: 'name' | 'description' | 'full' | 'balance' | 'enhance' | 'spell_concept' | 'batch_spells' | 'batch_abilities';
+  count?: number;
 }
 
 const TREE_THEMES = {
@@ -170,6 +171,65 @@ Return ONLY a JSON object matching this exact structure:
   }
 }`;
 
+    case 'batch_spells':
+      return `You are an expert D&D 5e spell designer. Create balanced, creative spells that fit the official style.
+
+BALANCE GUIDELINES:
+- Cantrips: Compare to Fire Bolt, Eldritch Blast, Sacred Flame
+- 1st level: Compare to Shield, Magic Missile, Healing Word
+- 2nd level: Compare to Scorching Ray, Hold Person, Misty Step
+- 3rd level: Compare to Fireball, Counterspell, Haste
+- Higher levels: Scale appropriately vs official spells at that level
+
+YOUR TASK: Generate exactly ${context.currentName || '3'} unique, thematic spells based on the user's prompt.
+Each spell must be distinct in mechanics and feel. Vary levels, schools, and effects for interesting variety.
+Return ONLY a JSON array of spell objects, each matching this structure:
+[
+  {
+    "name": "Spell Name",
+    "level": 2,
+    "school": "evocation",
+    "castingTime": "action",
+    "range": "60 feet",
+    "duration": "Instantaneous",
+    "concentration": false,
+    "ritual": false,
+    "description": "Full spell description text",
+    "higherLevels": "At higher levels text or null",
+    "damageFormula": "3d8 or null",
+    "damageType": "fire or null",
+    "attackType": "ranged or null",
+    "saveStat": "DEX or null",
+    "healingFormula": "null or 2d8+4",
+    "iconName": "Flame",
+    "personalityQuips": {
+      "thunderhead": "Short dramatic combat quip",
+      "jarvis": "Short analytical combat quip",
+      "deadpool": "Short funny combat quip"
+    }
+  }
+]`;
+
+    case 'batch_abilities':
+      return `${basePrompt}
+
+YOUR TASK: Generate exactly ${context.currentName || '3'} unique, thematic homebrew abilities based on the user's prompt.
+Each ability must be distinct in mechanics. Vary action types, usage types, and effects.
+Return ONLY a JSON array of ability objects, each matching this structure:
+[
+  {
+    "name": "Ability Name",
+    "actionType": "action",
+    "usageType": "at_will",
+    "tier1": "Tier 1 description",
+    "tier2": "Tier 2 description",
+    "tier3": "Tier 3 description",
+    "dice": { "tier1": "1d6", "tier2": "2d6", "tier3": "3d6" },
+    "cooldown": 0,
+    "notes": "Brief design notes"
+  }
+]`;
+
     default:
       return basePrompt;
   }
@@ -180,7 +240,11 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, context, mode } = await req.json() as HomebrewRequest;
+    const { prompt, context, mode, count } = await req.json() as HomebrewRequest;
+    // Pass count through context.currentName for batch modes
+    if ((mode === 'batch_spells' || mode === 'batch_abilities') && count) {
+      context.currentName = String(count);
+    }
 
     // Input validation
     if (!prompt || typeof prompt !== 'string' || prompt.length > 2000) {
@@ -204,7 +268,7 @@ serve(async (req) => {
       );
     }
 
-    if (!['name', 'description', 'full', 'balance', 'enhance', 'spell_concept'].includes(mode)) {
+    if (!['name', 'description', 'full', 'balance', 'enhance', 'spell_concept', 'batch_spells', 'batch_abilities'].includes(mode)) {
       return new Response(
         JSON.stringify({ error: 'Invalid mode' }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -230,7 +294,7 @@ serve(async (req) => {
           { role: "system", content: systemPrompt },
           { role: "user", content: prompt },
         ],
-        max_tokens: 800,
+        max_tokens: (mode === 'batch_spells' || mode === 'batch_abilities') ? 3000 : 800,
         temperature: 0.8,
       }),
     });

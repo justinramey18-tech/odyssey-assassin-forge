@@ -9,6 +9,7 @@ import { TreeBottomBar } from './TreeBottomBar';
 import { AbilityDetailsPanel } from './AbilityDetailsPanel';
 import { AbilityEditSheet } from './AbilityEditSheet';
 import { HomebrewCreateSheet } from './HomebrewCreateSheet';
+import { BatchAbilityGenerateSheet } from './BatchAbilityGenerateSheet';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -50,6 +51,7 @@ export function AbilitiesScreen({
   const [editSheetOpen, setEditSheetOpen] = useState(false);
   const [createSheetOpen, setCreateSheetOpen] = useState(false);
   const [editingHomebrew, setEditingHomebrew] = useState<HomebrewAbility | null>(null);
+  const [batchGenerateOpen, setBatchGenerateOpen] = useState(false);
   
   // Custom ability images hook
   const { images: abilityImages, handleImageUpload, clearAbilityImage } = useAbilityImages();
@@ -355,6 +357,7 @@ export function AbilitiesScreen({
                     homebrewAbilities={customization.state.homebrewAbilities}
                     onSelectAbility={setSelectedAbility}
                     onCreateNew={() => setCreateSheetOpen(true)}
+                    onBatchGenerate={() => setBatchGenerateOpen(true)}
                   />
                 ) : (
                   <TreeColumn
@@ -491,6 +494,13 @@ export function AbilitiesScreen({
         onSave={handleCreateHomebrew}
         onUpdate={handleUpdateHomebrew}
         onDelete={handleDeleteHomebrew}
+      />
+
+      {/* Batch Ability Generate Sheet */}
+      <BatchAbilityGenerateSheet
+        isOpen={batchGenerateOpen}
+        onClose={() => setBatchGenerateOpen(false)}
+        onAddHomebrew={customization.addHomebrew}
       />
     </div>
   );

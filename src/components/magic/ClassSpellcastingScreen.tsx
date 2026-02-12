@@ -33,6 +33,7 @@ import { useInvocations } from '@/hooks/use-invocations';
 import { InvocationsPanel } from './InvocationsPanel';
 import { NaturalRecoveryPanel } from './NaturalRecoveryPanel';
 import { HomebrewSpellCreateSheet } from './HomebrewSpellCreateSheet';
+import { BatchSpellGenerateSheet } from './BatchSpellGenerateSheet';
 import { HomebrewSpell } from '@/lib/spellCustomization/types';
 
 // Background image
@@ -141,6 +142,7 @@ export function ClassSpellcastingScreen({
   const [castingSpell, setCastingSpell] = useState<SpellDefinition | null>(null);
   const [activeTab, setActiveTab] = useState<'spellbook' | 'slots' | 'components' | 'features'>('spellbook');
   const [showCreateSpell, setShowCreateSpell] = useState(false);
+  const [showBatchGenerate, setShowBatchGenerate] = useState(false);
   const [editingSpell, setEditingSpell] = useState<HomebrewSpell | null>(null);
 
   // Druid Circle state (persisted)
@@ -473,15 +475,24 @@ export function ClassSpellcastingScreen({
         <TabsContent value="spellbook" className="mt-0 flex-1">
           {/* Create Spell FAB */}
           {onAddHomebrewSpell && (
-            <div className="px-4 pt-3">
+            <div className="px-4 pt-3 flex gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => { setEditingSpell(null); setShowCreateSpell(true); }}
-                className="w-full border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20"
+                className="flex-1 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20"
               >
                 <Plus className="w-4 h-4 mr-1" />
-                Create Homebrew Spell
+                Create Spell
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowBatchGenerate(true)}
+                className="flex-1 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20"
+              >
+                <Sparkles className="w-4 h-4 mr-1" />
+                AI Generate Multiple
               </Button>
             </div>
           )}
@@ -717,6 +728,15 @@ export function ClassSpellcastingScreen({
         editSpell={editingSpell}
         primaryClass={primaryClass}
       />
+
+      {/* Batch Spell Generate Sheet */}
+      {onAddHomebrewSpell && (
+        <BatchSpellGenerateSheet
+          isOpen={showBatchGenerate}
+          onClose={() => setShowBatchGenerate(false)}
+          onAddSpell={onAddHomebrewSpell}
+        />
+      )}
     </div>
   );
 }

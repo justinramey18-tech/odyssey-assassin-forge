@@ -15,6 +15,7 @@ interface HomebrewTreeColumnProps {
   homebrewAbilities: HomebrewAbility[];
   onSelectAbility: (id: string) => void;
   onCreateNew: () => void;
+  onBatchGenerate?: () => void;
 }
 
 export function HomebrewTreeColumn({
@@ -25,6 +26,7 @@ export function HomebrewTreeColumn({
   homebrewAbilities,
   onSelectAbility,
   onCreateNew,
+  onBatchGenerate,
 }: HomebrewTreeColumnProps) {
   const config = HOMEBREW_VISUAL_CONFIG;
 
@@ -75,8 +77,8 @@ export function HomebrewTreeColumn({
 
       {/* Content */}
       <div className="relative z-10 flex flex-col flex-1 p-4 gap-6">
-        {/* Create Button */}
-        <div className="flex justify-center pt-2">
+        {/* Create Buttons */}
+        <div className="flex justify-center gap-2 pt-2">
           <Button
             onClick={onCreateNew}
             className={cn(
@@ -84,10 +86,25 @@ export function HomebrewTreeColumn({
               'hover:bg-homebrew/10 bg-homebrew/5'
             )}
             variant="outline"
+            size="sm"
           >
             <Plus className="w-4 h-4" />
-            Create Homebrew Ability
+            Create
           </Button>
+          {onBatchGenerate && (
+            <Button
+              onClick={onBatchGenerate}
+              className={cn(
+                'gap-2 border-homebrew/50 text-homebrew',
+                'hover:bg-homebrew/10 bg-homebrew/5'
+              )}
+              variant="outline"
+              size="sm"
+            >
+              <Sparkles className="w-4 h-4" />
+              AI Generate Multiple
+            </Button>
+          )}
         </div>
 
         {/* Abilities grouped by tree origin */}
