@@ -12,10 +12,31 @@ const SUMMARIZE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm-s
 const STORAGE_KEY = 'dnd-ai-dm-session';
 const MAX_MESSAGES = 100;
 const SUMMARY_INTERVAL = 10;
+const SAVE_DEBOUNCE_MS = 1000;
+const SESSION_VERSION = 1;
 
 interface UseAIDMOptions {
   characterContext: CharacterContext;
   customGuidesContent?: string;
+}
+
+interface VersionedSession {
+  version: number;
+  messages: any[];
+}
+
+// Module-level ref for dirty-checking across saves
+let lastSavedJson = '';
+
+function isValidMessage(m: any): boolean {
+  return (
+    m &&
+    typeof m === 'object' &&
+    typeof m.id === 'string' &&
+    typeof m.role === 'string' &&
+    typeof m.content === 'string' &&
+    m.timestamp !== undefined
+  );
 }
 
 function loadSession(): Message[] {
@@ -23,21 +44,55 @@ function loadSession(): Message[] {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map((m: any) => ({
-      ...m,
-      timestamp: new Date(m.timestamp),
-    }));
-  } catch {
+
+    // Support both legacy (raw array) and versioned wrapper
+    let rawMessages: any[];
+    if (Array.isArray(parsed)) {
+      rawMessages = parsed;
+    } else if (parsed && typeof parsed === 'object' && Array.isArray(parsed.messages)) {
+      rawMessages = parsed.messages;
+    } else {
+      console.warn('[AI DM Save] Unrecognized session format, starting fresh');
+      toast.error('Session data was corrupted, starting fresh');
+      return [];
+    }
+
+    // Validate & rehydrate each message
+    const valid: Message[] = [];
+    for (const m of rawMessages) {
+      if (isValidMessage(m)) {
+        valid.push({ ...m, timestamp: new Date(m.timestamp) });
+      } else {
+        console.warn('[AI DM Save] Dropping invalid message entry:', m);
+      }
+    }
+    return valid;
+  } catch (error) {
+    console.error('[AI DM Save] Failed to parse session:', error);
+    toast.error('Session data was corrupted, starting fresh');
     return [];
   }
 }
 
 function saveSession(messages: Message[]): void {
+  const payload: VersionedSession = {
+    version: SESSION_VERSION,
+    messages,
+  };
+  const serialized = JSON.stringify(payload);
+
+  // Dirty-check: skip if nothing changed
+  if (serialized === lastSavedJson) return;
+
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+    localStorage.setItem(STORAGE_KEY, serialized);
+    lastSavedJson = serialized;
   } catch (error) {
-    console.error('Failed to save AI DM session:', error);
+    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+      toast.error('Session too large to save locally');
+    } else {
+      console.error('[AI DM Save] Failed to save:', error);
+    }
   }
 }
 
@@ -48,10 +103,35 @@ export function useAIDM({ characterContext, customGuidesContent }: UseAIDMOption
   const [isSummarizing, setIsSummarizing] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Persist messages to localStorage
-  useEffect(() => {
+  // Debounced persist to localStorage (1s after last change)
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const saveNow = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
     saveSession(messages);
   }, [messages]);
+
+  useEffect(() => {
+    debounceTimerRef.current = setTimeout(() => {
+      saveSession(messages);
+    }, SAVE_DEBOUNCE_MS);
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [messages]);
+
+  // Save immediately on tab close (bypass debounce)
+  useEffect(() => {
+    const handleBeforeUnload = () => saveNow();
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [saveNow]);
 
   // Trigger summary generation after every Nth assistant message
   const triggerSummaryIfNeeded = useCallback(async (allMessages: Message[]) => {
