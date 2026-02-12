@@ -474,6 +474,148 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
   }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, customGuidesContent, triggerSummaryIfNeeded]);
 
+  const editMessage = useCallback(async (messageId: string, newContent: string) => {
+    if (!partyId || !isCreator) return;
+    await (supabase.from('party_dm_messages') as any)
+      .update({ content: newContent })
+      .eq('id', messageId)
+      .eq('party_id', partyId);
+    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, content: newContent } : m));
+    toast.success('Message updated');
+  }, [partyId, isCreator]);
+
+  const deleteMessage = useCallback(async (messageId: string) => {
+    if (!partyId || !isCreator) return;
+    await (supabase.from('party_dm_messages') as any)
+      .delete()
+      .eq('id', messageId)
+      .eq('party_id', partyId);
+    setMessages(prev => prev.filter(m => m.id !== messageId));
+    toast.success('Message deleted');
+  }, [partyId, isCreator]);
+
+  const regenerateMessage = useCallback(async (messageId: string) => {
+    if (!partyId || !user || !sessionConfig || isGenerating) return;
+    // Find the message index, delete it and all messages after it
+    const msgIndex = messages.findIndex(m => m.id === messageId);
+    if (msgIndex === -1) return;
+
+    // Get the user message just before this assistant message for context
+    const precedingUserMsg = messages.slice(0, msgIndex).reverse().find(m => m.role === 'user');
+    if (!precedingUserMsg) {
+      toast.error('No preceding prompt found to regenerate from');
+      return;
+    }
+
+    // Delete the assistant message from DB
+    await (supabase.from('party_dm_messages') as any)
+      .delete()
+      .eq('id', messageId)
+      .eq('party_id', partyId);
+    setMessages(prev => prev.filter(m => m.id !== messageId));
+
+    // Re-generate using messages up to (but not including) the deleted assistant message
+    setIsGenerating(true);
+
+    await (supabase.from('party_shared_state') as any)
+      .update({ state_data: { ...sessionConfig, isGenerating: true } })
+      .eq('party_id', partyId)
+      .eq('state_type', 'dm_session');
+
+    const historyMessages = messages.slice(0, msgIndex);
+    const apiMessages = historyMessages.map(m => ({ role: m.role, content: m.content }));
+
+    const partyMembersSummary = partyMembers.map(m => {
+      const s = m.character_status as Record<string, unknown>;
+      return `- ${m.character_name} (Level ${s.level || '?'} ${s.className || 'Adventurer'}, ${s.currentHP || '?'}/${s.maxHP || '?'} HP)`;
+    }).join('\n');
+
+    abortRef.current = new AbortController();
+
+    try {
+      const response = await fetch(AI_DM_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          messages: apiMessages.slice(-100),
+          characterContext,
+          campaignSummary: sessionConfig.campaignSummary || undefined,
+          customGuides: [
+            customGuidesContent || '',
+            `\n\n## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
+          ].filter(Boolean).join('\n\n'),
+        }),
+        signal: abortRef.current.signal,
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || 'AI request failed');
+      }
+
+      if (!response.body) throw new Error('No response body');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let textBuffer = '';
+      let assistantContent = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        textBuffer += decoder.decode(value, { stream: true });
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (line.startsWith(':') || line.trim() === '') continue;
+          if (!line.startsWith('data: ')) continue;
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const delta = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (delta) assistantContent += delta;
+          } catch { /* skip */ }
+        }
+      }
+
+      if (assistantContent) {
+        await (supabase.from('party_dm_messages') as any).insert({
+          party_id: partyId,
+          role: 'assistant',
+          content: assistantContent,
+          sender_user_id: null,
+          sender_name: 'DM',
+        });
+      }
+
+      // Reset isGenerating
+      await (supabase.from('party_shared_state') as any)
+        .update({ state_data: { ...sessionConfig, isGenerating: false } })
+        .eq('party_id', partyId)
+        .eq('state_type', 'dm_session');
+
+      toast.success('Response regenerated');
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
+      console.error('Party DM regeneration error:', error);
+      toast.error(error instanceof Error ? error.message : 'Regeneration failed');
+
+      await (supabase.from('party_shared_state') as any)
+        .update({ state_data: { ...sessionConfig, isGenerating: false } })
+        .eq('party_id', partyId)
+        .eq('state_type', 'dm_session');
+    } finally {
+      setIsGenerating(false);
+      abortRef.current = null;
+    }
+  }, [partyId, user, sessionConfig, isGenerating, messages, characterContext, partyMembers, customGuidesContent]);
+
   const myPrompt = currentPrompts.find(p => p.user_id === user?.id) || null;
 
   return {
@@ -492,5 +634,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     retractPrompt,
     setReady,
     generateResponse,
+    editMessage,
+    deleteMessage,
+    regenerateMessage,
   };
 }
