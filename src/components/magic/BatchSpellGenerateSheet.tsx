@@ -167,7 +167,7 @@ export function BatchSpellGenerateSheet({ isOpen, onClose, onAddSpell }: BatchSp
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="Describe a theme or paste full spell descriptions... e.g. 'frost-themed offensive spells for a wizard'"
             className="min-h-[120px] max-h-[300px] bg-card/50 border-border/50 text-sm"
-            maxLength={6000}
+            maxLength={30000}
           />
 
           {/* Controls Row */}

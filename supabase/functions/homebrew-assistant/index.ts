@@ -247,9 +247,9 @@ serve(async (req) => {
     }
 
     // Input validation
-    if (!prompt || typeof prompt !== 'string' || prompt.length > 8000) {
+    if (!prompt || typeof prompt !== 'string' || prompt.length > 30000) {
       return new Response(
-        JSON.stringify({ error: 'Invalid prompt (max 8000 chars)' }),
+        JSON.stringify({ error: 'Invalid prompt (max 30000 chars)' }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
