@@ -77,7 +77,7 @@ import { useSpellcasting } from '@/hooks/use-spellcasting';
 import { useClassSpellcasting } from '@/hooks/use-class-spellcasting';
 import { adaptClassSpellcastingForCombat } from '@/hooks/use-combat-spellcasting-adapter';
 import { BASE_CHANNEL_DIVINITY_OPTIONS } from '@/lib/magic/channelDivinity';
-import { getDomainChannelDivinity, ClericDomain } from '@/lib/classes/clericDomains';
+import { getDomainChannelDivinity, getDomainById, ClericDomain } from '@/lib/classes/clericDomains';
 import { Consumable } from '@/lib/consumables/types';
 import { EquipmentItem as ShopEquipmentItem } from '@/lib/inventory/types';
 import { useCustomBackground } from '@/hooks/use-custom-background';
@@ -441,9 +441,13 @@ const Index = () => {
     const clericLevel = character.level;
     // Read domain from localStorage (same key as ClassSpellcastingScreen)
     let domainOptions: Array<{ id: string; name: string; description: string; mechanicalEffect?: string; isDomain: boolean }> = [];
+    let domainName: string | undefined;
+    let deityName: string | undefined;
     try {
       const savedDomain = localStorage.getItem('dnd-cleric-domain') as ClericDomain | null;
       if (savedDomain) {
+        const domainConfig = getDomainById(savedDomain);
+        domainName = domainConfig?.name;
         domainOptions = getDomainChannelDivinity(savedDomain, clericLevel).map(opt => ({
           id: opt.id,
           name: opt.name,
@@ -452,6 +456,7 @@ const Index = () => {
           isDomain: true,
         }));
       }
+      deityName = localStorage.getItem('dnd-cleric-deity') || undefined;
     } catch {}
     const baseOptions = BASE_CHANNEL_DIVINITY_OPTIONS
       .filter(opt => clericLevel >= opt.unlockedAtLevel)
@@ -460,6 +465,8 @@ const Index = () => {
       current: classSpellcasting.channelDivinityCurrent,
       max: classSpellcasting.channelDivinityMax,
       clericLevel,
+      domainName,
+      deityName,
       options: [...baseOptions, ...domainOptions],
       useChannelDivinity: classSpellcasting.useChannelDivinity,
       restoreChannelDivinity: classSpellcasting.restoreChannelDivinity,

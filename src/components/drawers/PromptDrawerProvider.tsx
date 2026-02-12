@@ -98,6 +98,8 @@ interface PromptDrawerProviderProps {
     current: number;
     max: number;
     clericLevel: number;
+    domainName?: string;
+    deityName?: string;
     options: Array<{ id: string; name: string; description: string; mechanicalEffect?: string; isDomain: boolean }>;
     useChannelDivinity: (optionName?: string) => boolean;
     restoreChannelDivinity: () => void;

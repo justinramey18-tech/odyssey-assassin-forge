@@ -28,7 +28,7 @@ import { DruidCirclePanel } from './DruidCirclePanel';
 import { ClericDomainPanel } from './ClericDomainPanel';
 import { UseWildShapeReturn } from '@/hooks/use-wild-shape';
 import { DruidCircle, LandType } from '@/lib/classes/druidCircles';
-import { ClericDomain, getDomainChannelDivinity } from '@/lib/classes/clericDomains';
+import { ClericDomain, getDomainChannelDivinity, getDomainById } from '@/lib/classes/clericDomains';
 import { useInvocations } from '@/hooks/use-invocations';
 import { InvocationsPanel } from './InvocationsPanel';
 import { NaturalRecoveryPanel } from './NaturalRecoveryPanel';
@@ -563,6 +563,8 @@ export function ClassSpellcastingScreen({
                 max={channelDivinityMax}
                 clericLevel={characterLevel}
                 characterName={characterName}
+                domainName={clericDomain ? getDomainById(clericDomain)?.name : undefined}
+                deityName={(() => { try { return localStorage.getItem('dnd-cleric-deity') || undefined; } catch { return undefined; } })()}
                 domainOptions={domainChannelDivinity}
                 onUseChannelDivinity={useChannelDivinity}
                 onRestoreChannelDivinity={restoreChannelDivinity}
