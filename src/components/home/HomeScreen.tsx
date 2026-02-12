@@ -521,7 +521,36 @@ export function HomeScreen({
               onXPClick={() => onNavigateToTab('skills')}
             />
 
-            {/* Dynamic Health Bar */}
+            {/* Wild Shape Details Overlay */}
+            {isWildShape && wildShapeFormName && onDismissWildShape && (
+              <WildShapeOverlay
+                formName={wildShapeFormName}
+                speed={wildShapeSpeed || '30 ft.'}
+                specialAbilities={wildShapeAbilities}
+                usesRemaining={wildShapeUsesRemaining}
+                maxUses={wildShapeMaxUses}
+                transformedAt={wildShapeTransformedAt}
+                durationMinutes={wildShapeDurationMinutes}
+                onDismiss={onDismissWildShape}
+                characterName={character.name}
+                formCR={wildShapeFormCR}
+                formHP={wildShapeFormHP}
+                formMaxHP={wildShapeFormMaxHP}
+                formAC={wildShapeFormAC}
+              />
+            )}
+
+            {/* Enlarged D20 Section */}
+            <EnlargedD20Section 
+              onClick={() => setShowDiceRoller(true)}
+              onMapClick={() => setShowBattleMap(true)}
+              onMenusClick={() => {
+                triggerHaptic('light');
+                setShowDrawersMenu(true);
+              }}
+            />
+
+            {/* Dynamic Health Bar - below D20 */}
             <DynamicHealthBar
               currentHP={currentHP}
               maxHP={maxHP}
@@ -531,7 +560,7 @@ export function HomeScreen({
               wildShapeFormName={wildShapeFormName}
             />
 
-            {/* Party Chat Button - below HP bar, only visible when in a party */}
+            {/* Party Chat Button - below HP bar */}
             {partySync?.party?.partyId && (
               <motion.button
                 initial={{ opacity: 0, y: 8 }}
@@ -554,36 +583,6 @@ export function HomeScreen({
                 )}
               </motion.button>
             )}
-
-            {/* Wild Shape Details Overlay */}
-            {isWildShape && wildShapeFormName && onDismissWildShape && (
-              <WildShapeOverlay
-                formName={wildShapeFormName}
-                speed={wildShapeSpeed || '30 ft.'}
-                specialAbilities={wildShapeAbilities}
-                usesRemaining={wildShapeUsesRemaining}
-                maxUses={wildShapeMaxUses}
-                transformedAt={wildShapeTransformedAt}
-                durationMinutes={wildShapeDurationMinutes}
-                onDismiss={onDismissWildShape}
-                characterName={character.name}
-                formCR={wildShapeFormCR}
-                formHP={wildShapeFormHP}
-                formMaxHP={wildShapeFormMaxHP}
-                formAC={wildShapeFormAC}
-              />
-            )}
-
-
-            {/* Enlarged D20 Section */}
-            <EnlargedD20Section 
-              onClick={() => setShowDiceRoller(true)}
-              onMapClick={() => setShowBattleMap(true)}
-              onMenusClick={() => {
-                triggerHaptic('light');
-                setShowDrawersMenu(true);
-              }}
-            />
 
             {/* Quick Actions (moved from footer) */}
             <div className="px-4 py-2">
