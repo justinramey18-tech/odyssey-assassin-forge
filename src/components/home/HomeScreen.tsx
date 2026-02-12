@@ -540,27 +540,7 @@ export function HomeScreen({
               />
             )}
 
-            {/* Enlarged D20 Section */}
-            <EnlargedD20Section 
-              onClick={() => setShowDiceRoller(true)}
-              onMapClick={() => setShowBattleMap(true)}
-              onMenusClick={() => {
-                triggerHaptic('light');
-                setShowDrawersMenu(true);
-              }}
-            />
-
-            {/* Dynamic Health Bar - below D20 */}
-            <DynamicHealthBar
-              currentHP={currentHP}
-              maxHP={maxHP}
-              tempHP={tempHP}
-              onTap={() => drawerContext?.openStatsDrawer()}
-              isWildShape={isWildShape}
-              wildShapeFormName={wildShapeFormName}
-            />
-
-            {/* Party Chat Button - below HP bar */}
+            {/* Party Chat Button - above D20 */}
             {partySync?.party?.partyId && (
               <motion.button
                 initial={{ opacity: 0, y: 8 }}
@@ -583,6 +563,26 @@ export function HomeScreen({
                 )}
               </motion.button>
             )}
+
+            {/* Enlarged D20 Section */}
+            <EnlargedD20Section 
+              onClick={() => setShowDiceRoller(true)}
+              onMapClick={() => setShowBattleMap(true)}
+              onMenusClick={() => {
+                triggerHaptic('light');
+                setShowDrawersMenu(true);
+              }}
+            />
+
+            {/* Dynamic Health Bar - below D20 */}
+            <DynamicHealthBar
+              currentHP={currentHP}
+              maxHP={maxHP}
+              tempHP={tempHP}
+              onTap={() => drawerContext?.openStatsDrawer()}
+              isWildShape={isWildShape}
+              wildShapeFormName={wildShapeFormName}
+            />
 
             {/* Quick Actions (moved from footer) */}
             <div className="px-4 py-2">
