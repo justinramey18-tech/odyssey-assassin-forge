@@ -36,7 +36,17 @@ export function FAQDrawer({ open, onOpenChange }: FAQDrawerProps) {
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        <div className="w-12 h-1 bg-muted rounded-full mx-auto mb-3 shrink-0" />
+        <div className="w-12 h-1 bg-muted-foreground/40 rounded-full mx-auto mb-3 shrink-0 animate-[swipe-hint_2s_ease-in-out_infinite]" 
+          style={{ 
+            animationName: 'swipe-hint',
+          }}
+        />
+        <style>{`
+          @keyframes swipe-hint {
+            0%, 100% { transform: translateY(0); opacity: 0.4; }
+            50% { transform: translateY(4px); opacity: 0.8; }
+          }
+        `}</style>
         <SheetTitle className="font-cinzel text-base flex items-center gap-2 mb-1">
           <HelpCircle className="w-4 h-4 text-primary" />
           Help & FAQ
