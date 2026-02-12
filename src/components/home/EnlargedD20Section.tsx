@@ -60,7 +60,7 @@ export function EnlargedD20Section({ onClick, onMenusClick, onMapClick }: Enlarg
         >
           <div 
             className={cn(
-              "absolute inset-0 rounded-full",
+              "absolute inset-0 rounded-full pointer-events-none",
               "bg-gradient-to-r from-cyan-500/20 to-primary/20",
               "blur-xl animate-pulse"
             )} 

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Character, getAbilityPointsForLevel, getTotalPointsSpent } from '@/lib/types';
 import { CharacterEquipment } from '@/lib/inventory';
 import { Achievement } from '@/lib/achievements';
-import { XPPreset, getXPForLevel, getLevelProgress, XP_PRESETS } from '@/lib/xpSystem';
+import { XPPreset, getXPForLevel, XP_PRESETS } from '@/lib/xpSystem';
 import { ShopItem } from '@/lib/shop/types';
 import { useEquipmentStats } from '@/hooks/use-equipment-stats';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -11,7 +11,7 @@ import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { SaveData } from '@/hooks/use-auto-save';
 import { 
   Settings, Coffee, Moon, TrendingUp,
-  BookOpen, Sparkles, Timer, MessageCircle, Activity, Heart, Gem, Zap, PanelLeft, HelpCircle,
+  MessageCircle, Gem, Zap, PanelLeft, HelpCircle,
   Swords, Wand2, ListChecks, ChevronUp, Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -24,10 +24,8 @@ import { CharacterSavesDrawer, CharacterSavesTrigger } from './CharacterSavesDra
 
 // New redesigned components
 import { CharacterNamePlaque } from './CharacterNamePlaque';
-import { StatusIndicatorRow } from './StatusIndicatorRow';
 import { DynamicHealthBar } from './DynamicHealthBar';
 import { WildShapeOverlay } from './WildShapeOverlay';
-import { AvailablePointsWidget } from './AvailablePointsWidget';
 import { EnlargedD20Section } from './EnlargedD20Section';
 
 
@@ -40,9 +38,7 @@ import type { UsePartySyncReturn } from '@/hooks/use-party-sync';
 import { useOnlineStatus, useOnlineCount } from '@/hooks/use-online-status';
 import { WildShapeLightningBorder, CRScaledPulse, TransformationBurst } from './WildShapeLightningBorder';
 import { DragonParticles } from './DragonParticles';
-import { XPProgressBar } from './XPProgressBar';
 import { PrestigeData } from '@/lib/prestige';
-import { PRESTIGE_CONFIG } from '@/lib/prestige/config';
 
 import homeBackground from '@/assets/home-background-new.jpg';
 
@@ -434,7 +430,6 @@ export function HomeScreen({
       </AnimatePresence>
 
       {/* Content layer */}
-      <div className="relative z-10">
       <div className="flex flex-col h-screen overflow-hidden relative z-10">
         {/* Install Banner */}
         <InstallBanner />
@@ -848,7 +843,6 @@ export function HomeScreen({
           onlineStatusMap={chatOnlineStatusMap}
         />
       )}
-      </div>
     </div>
   );
 }
