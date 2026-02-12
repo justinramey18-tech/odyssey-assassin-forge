@@ -257,13 +257,25 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   }, [partyId, user, sessionConfig, characterName, currentPrompts]);
 
   const setReady = useCallback(async () => {
-    if (!user) return;
+    if (!user || !partyId || !sessionConfig) return;
     const myPrompt = currentPrompts.find(p => p.user_id === user.id);
-    if (!myPrompt) return;
-    await (supabase.from('party_dm_prompts') as any)
-      .update({ is_ready: true })
-      .eq('id', myPrompt.id);
-  }, [user, currentPrompts]);
+    if (myPrompt) {
+      // Already submitted — just mark ready
+      await (supabase.from('party_dm_prompts') as any)
+        .update({ is_ready: true })
+        .eq('id', myPrompt.id);
+    } else {
+      // No prompt yet — insert a ready-only entry (empty action)
+      await (supabase.from('party_dm_prompts') as any).insert({
+        party_id: partyId,
+        user_id: user.id,
+        character_name: characterName,
+        prompt: '',
+        is_ready: true,
+        round_id: sessionConfig.currentRoundId,
+      });
+    }
+  }, [user, partyId, sessionConfig, characterName, currentPrompts]);
 
   const editPrompt = useCallback(async (newText: string) => {
     if (!user) return;
