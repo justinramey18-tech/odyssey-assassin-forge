@@ -1,5 +1,7 @@
 // 4th Wall Time System
-// Prefixes AI prompts with current EST timestamp for time-aware AI interactions
+// Prefixes AI prompts with current timestamp in user's timezone for time-aware AI interactions
+
+import { loadTimezone, getTimezoneTimestamp } from '@/lib/timezone-storage';
 
 const STORAGE_KEY = 'odyssey-4th-wall-time';
 
@@ -25,18 +27,8 @@ export function save4thWallTimeSetting(enabled: boolean): void {
 }
 
 export function getCurrentESTTimestamp(): string {
-  const now = new Date();
-  const estFormatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York',
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
-  return estFormatter.format(now) + ' EST';
+  const tz = loadTimezone();
+  return getTimezoneTimestamp(tz);
 }
 
 export function prefixWithTimestamp(prompt: string): string {

@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { loadTimezone, TIMEZONE_CHANGE_EVENT } from '@/lib/timezone-storage';
 import { useSearchParams } from 'react-router-dom';
 import { Character, CharacterAbility, getAbilityPointsForLevel, getTotalPointsSpent, getActiveSlotsByLevel } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
@@ -703,6 +704,16 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
   const [profileImageThumb, setProfileImageThumb] = useState<string | null>(null);
   const lastBgRef = useRef<string | null>(null);
 
+  // Timezone state (re-triggers broadcast when user changes timezone in settings)
+  const [userTimezone, setUserTimezone] = useState(() => loadTimezone());
+  useEffect(() => {
+    const handleTzChange = (e: Event) => {
+      setUserTimezone((e as CustomEvent<string>).detail);
+    };
+    window.addEventListener(TIMEZONE_CHANGE_EVENT, handleTzChange);
+    return () => window.removeEventListener(TIMEZONE_CHANGE_EVENT, handleTzChange);
+  }, []);
+
   useEffect(() => {
     const bg = customBackground.customBackground;
     if (bg === lastBgRef.current) return;
@@ -735,8 +746,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       className: character.primaryClass,
       quickActions: quickActionsSummary,
       profileImage: profileImageThumb,
+      timezone: userTimezone,
     });
-  }, [partySync, effectiveCurrentHP, effectiveMaxHP, effectiveTempHP, effectiveAC, conditions.conditions, character.level, character.primaryClass, quickActionsSummary, profileImageThumb]);
+  }, [partySync, effectiveCurrentHP, effectiveMaxHP, effectiveTempHP, effectiveAC, conditions.conditions, character.level, character.primaryClass, quickActionsSummary, profileImageThumb, userTimezone]);
 
   // Legacy spentPoints for compatibility
   const spentPoints = getTotalPointsSpent(character.abilities);

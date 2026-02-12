@@ -59,6 +59,7 @@ export interface PartyMember {
     className?: string;
     quickActions?: QuickActions;
     profileImage?: string | null;
+    timezone?: string;
   };
   joined_at: string;
   updated_at: string;
