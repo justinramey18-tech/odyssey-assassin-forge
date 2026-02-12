@@ -193,12 +193,25 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, o
                     <ScrollText className="w-4 h-4 text-purple-400" />
                     <h3 className="text-sm font-cinzel text-purple-200">Campaign Summary</h3>
                   </div>
-                  <button onClick={openSummaryEditor} className="p-1.5 rounded hover:bg-white/10 transition-colors" style={{ touchAction: 'manipulation' }}>
-                    <Edit2 className="w-3.5 h-3.5 text-purple-300/50" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    {!campaignSummary && (
+                      <button
+                        onClick={openSummaryEditor}
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-900/30 border border-purple-500/20 text-purple-300 text-[10px] font-cinzel hover:bg-purple-900/50 transition-colors"
+                        style={{ touchAction: 'manipulation' }}
+                      >
+                        <Plus className="w-3 h-3" /> Begin Campaign
+                      </button>
+                    )}
+                    {campaignSummary && (
+                      <button onClick={openSummaryEditor} className="p-1.5 rounded hover:bg-white/10 transition-colors" style={{ touchAction: 'manipulation' }}>
+                        <Edit2 className="w-3.5 h-3.5 text-purple-300/50" />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <p className="text-[10px] text-white/30 font-mono">
-                  {campaignSummary ? `${campaignSummary.length.toLocaleString()} chars · Auto-updated every 10 messages` : 'No summary yet · Generated after 10 DM messages'}
+                  {campaignSummary ? `${campaignSummary.length.toLocaleString()} chars · Auto-updated every 10 messages` : 'No summary yet · Paste your campaign setting to get started'}
                 </p>
                 {campaignSummary && (
                   <p className="text-[11px] text-white/40 mt-1.5 line-clamp-2">{campaignSummary.slice(0, 200)}</p>
