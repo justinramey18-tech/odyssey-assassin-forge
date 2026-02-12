@@ -21,6 +21,7 @@ import { ClockWidget } from './ClockWidget';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 import { DiceRollerScreen } from '@/components/diceRoller';
 import { CharacterSavesDrawer, CharacterSavesTrigger } from './CharacterSavesDrawer';
+import { FAQDrawer } from './FAQDrawer';
 
 // New redesigned components
 import { CharacterNamePlaque } from './CharacterNamePlaque';
@@ -75,7 +76,7 @@ interface HomeScreenProps {
   onManualLevelUp: () => void;
   onReturnToBuilder: () => void;
   onOpenSettings?: () => void;
-  onOpenFAQ?: () => void;
+  
   // HP props
   currentHP?: number;
   maxHP?: number;
@@ -169,7 +170,7 @@ export function HomeScreen({
   onManualLevelUp,
   onReturnToBuilder,
   onOpenSettings,
-  onOpenFAQ,
+  
   currentHP: propCurrentHP,
   maxHP: propMaxHP,
   tempHP: propTempHP = 0,
@@ -230,6 +231,7 @@ export function HomeScreen({
   const [showCharacterSaves, setShowCharacterSaves] = useState(false);
   const [showPartyDrawer, setShowPartyDrawer] = useState(false);
   const [showPartyChatFullscreen, setShowPartyChatFullscreen] = useState(false);
+  const [showFAQDrawer, setShowFAQDrawer] = useState(false);
   const lastSeenMessageCount = useRef(0);
   
   const [footerCollapsed, setFooterCollapsed] = useState(() => {
@@ -458,11 +460,10 @@ export function HomeScreen({
           {/* Right: Clock, Help */}
           <div className="flex items-center gap-1">
             <ClockWidget />
-            {onOpenFAQ && (
-              <button 
+            <button 
                 onClick={() => {
                   triggerHaptic('light');
-                  onOpenFAQ();
+                  setShowFAQDrawer(true);
                 }}
                 className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
                 style={{ touchAction: 'manipulation' }}
@@ -470,7 +471,6 @@ export function HomeScreen({
               >
                 <HelpCircle className="w-4 h-4 text-white/80" />
               </button>
-            )}
           </div>
         </motion.header>
 
@@ -843,6 +843,9 @@ export function HomeScreen({
           onlineStatusMap={chatOnlineStatusMap}
         />
       )}
+
+      {/* FAQ Drawer */}
+      <FAQDrawer open={showFAQDrawer} onOpenChange={setShowFAQDrawer} />
     </div>
   );
 }

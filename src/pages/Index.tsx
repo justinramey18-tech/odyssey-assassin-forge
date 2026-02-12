@@ -117,7 +117,7 @@ const Index = () => {
   });
   const [showHomeScreen, setShowHomeScreen] = useState(true); // Home is default after wizard
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [settingsInitialTab, setSettingsInitialTab] = useState<'game' | 'setup' | 'faq' | 'character' | 'tools' | undefined>(undefined);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<'game' | 'setup' | 'character' | 'tools' | undefined>(undefined);
   const [showCloudSaveModal, setShowCloudSaveModal] = useState(false);
   const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string | null>(null);
   const [isSwitchingCharacter, setIsSwitchingCharacter] = useState(false);
@@ -1897,10 +1897,6 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           onReturnToBuilder={() => setShowHomeScreen(false)}
           onOpenSettings={() => {
             setSettingsInitialTab(undefined);
-            setShowSettingsModal(true);
-          }}
-          onOpenFAQ={() => {
-            setSettingsInitialTab('faq');
             setShowSettingsModal(true);
           }}
           currentHP={effectiveCurrentHP}
