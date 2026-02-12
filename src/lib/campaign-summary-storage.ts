@@ -1,3 +1,5 @@
+import { toast } from 'sonner';
+
 export const SUMMARY_STORAGE_KEY = 'dnd-ai-dm-campaign-summary';
 export const SUMMARY_MAX_CHARS = 30000;
 
@@ -14,7 +16,11 @@ export function saveCampaignSummary(summary: string): void {
     const trimmed = summary.slice(0, SUMMARY_MAX_CHARS);
     localStorage.setItem(SUMMARY_STORAGE_KEY, trimmed);
   } catch (error) {
-    console.error('Failed to save campaign summary:', error);
+    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+      toast.error('Campaign summary too large to save locally');
+    } else {
+      console.error('Failed to save campaign summary:', error);
+    }
   }
 }
 
