@@ -265,11 +265,17 @@ export function useAIDM({ characterContext, customGuidesContent }: UseAIDMOption
     toast.success('New game started! The DM awaits your adventure.');
   }, [clearMessages]);
 
+  const updateCampaignSummary = useCallback((summary: string) => {
+    saveCampaignSummary(summary);
+    setCampaignSummary(summary || null);
+  }, []);
+
   return {
     messages,
     isLoading,
     isSummarizing,
     campaignSummary,
+    updateCampaignSummary,
     sendMessage,
     cancelRequest,
     clearMessages,
