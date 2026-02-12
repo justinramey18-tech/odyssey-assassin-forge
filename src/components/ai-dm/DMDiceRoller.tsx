@@ -201,14 +201,26 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
               {/* Tab content */}
               {tab === 'd20' && (
                 <div className="space-y-1.5">
-                  {/* Main d20 button */}
-                  <button
-                    onClick={() => handleRoll('d20', 0)}
-                    className="w-full py-2 rounded-lg bg-amber-900/20 border border-amber-500/20 hover:bg-amber-900/40 transition-colors text-sm font-cinzel text-amber-200"
-                    style={{ touchAction: 'manipulation' }}
-                  >
-                    🎲 Roll d20
-                  </button>
+                  {/* Main d20 + Initiative */}
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={() => handleRoll('d20', 0)}
+                      className="flex-1 py-2 rounded-lg bg-amber-900/20 border border-amber-500/20 hover:bg-amber-900/40 transition-colors text-sm font-cinzel text-amber-200"
+                      style={{ touchAction: 'manipulation' }}
+                    >
+                      🎲 Roll d20
+                    </button>
+                    <button
+                      onClick={() => {
+                        const dexMod = getModifier(characterContext, 'dex');
+                        handleRoll('Initiative', dexMod);
+                      }}
+                      className="px-3 py-2 rounded-lg bg-purple-900/20 border border-purple-500/20 hover:bg-purple-900/40 transition-colors text-sm font-cinzel text-purple-200"
+                      style={{ touchAction: 'manipulation' }}
+                    >
+                      ⚡ Initiative
+                    </button>
+                  </div>
                   
                   {/* Ability check buttons */}
                   <div className="grid grid-cols-6 gap-1">
