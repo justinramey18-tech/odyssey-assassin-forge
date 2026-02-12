@@ -1,185 +1,164 @@
 
-# Multiplayer AI Dungeon Master
+# Auto-Sync Mode + Battle Map Integration for AI DM
 
 ## Overview
-Add a shared AI DM experience for party members. All players in a party can open the AI DM and participate in a shared campaign. The party host's AI credits are used for all generation. Players submit prompts that are queued, and either everyone clicks "Ready" to trigger a combined AI response, or the host bypasses the queue with a "Generate" button. Two visibility modes control whether players see each other's prompts.
-
-## How It Works
-
-**Shared Campaign Model**: When a party is active and the host starts a multiplayer DM session, all party members see the same AI DM chat history. Messages are stored in a new `party_dm_messages` table and synced via Realtime.
-
-**Prompt Queue + Ready System**:
-1. Each player types a prompt describing their character's action
-2. The prompt is submitted to a `party_dm_prompts` queue table with a `ready` flag
-3. Each player clicks a "Ready" button to mark themselves ready
-4. When ALL party members are ready, the system auto-fires: all queued prompts are bundled into a single combined message, sent to the AI DM edge function using the host's context, and the response streams to everyone
-5. The host has a "Generate Now" button that bypasses the ready check and fires immediately with whatever prompts are queued
-
-**Two Visibility Modes** (set by host):
-- **Shared Prompts**: Everyone sees all submitted prompts in real-time as they're queued
-- **Private Prompts**: Players only see their own submitted prompt; the AI still receives all prompts and produces a single shared response
-
-**Credit Usage**: Only the host's edge function call is made. The `ai-dm` edge function uses `LOVABLE_API_KEY` (not user-specific), so any party member triggering it through the host's flow uses the project's shared balance.
+Extends the approved Auto-Sync plan with two major additions:
+1. **Full-screen battle map accessible from within the AI DM chat** -- a toggle/button that opens the standalone battle map as a split-view or overlay while the DM session continues
+2. **AI-driven auto-population of the battle map** -- the extraction edge function also detects creatures and spatial information from DM narration, then automatically places enemy markers on the map
 
 ---
 
-## Database Changes
+## Part 1: Auto-Sync Mode (Previously Approved)
 
-### New Table: `party_dm_messages`
-Stores the shared AI DM conversation for a party.
+Everything from the approved plan remains unchanged:
+- New edge function `ai-dm-extract` using `google/gemini-3-flash-preview` with tool calling
+- Extracts HP changes, XP, gold, conditions, items, rest events
+- `use-dm-auto-sync.ts` hook with toggle, undo, and apply logic
+- `AutoSyncBanner.tsx` showing applied changes with undo
+- Toggle in `AIDMScreen` header
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid | PK, default gen_random_uuid() |
-| party_id | uuid | FK to parties(id) ON DELETE CASCADE |
-| role | text | 'user' or 'assistant' |
-| content | text | Message content |
-| sender_user_id | uuid | nullable (null for assistant messages) |
-| sender_name | text | Character name or 'DM' |
-| created_at | timestamptz | default now() |
+---
 
-RLS: party members can SELECT; members can INSERT with own user_id; no UPDATE/DELETE.
-Enable Realtime.
+## Part 2: Battle Map in AI DM (New)
 
-### New Table: `party_dm_prompts`
-Stores the current round's queued prompts and ready status.
+### What it does
+A "Map" button in the AI DM header opens the full-screen battle map as an overlay on top of the DM chat. Players can place tokens, measure distances, and use all existing map tools. Closing the map returns to the chat. The map state persists via the existing `StandaloneBattleMap` localStorage mechanism.
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid | PK |
-| party_id | uuid | FK to parties(id) ON DELETE CASCADE |
-| user_id | uuid | Who submitted |
-| character_name | text | |
-| prompt | text | The player's action text |
-| is_ready | boolean | default false |
-| round_id | uuid | Groups prompts into a generation round |
-| created_at | timestamptz | default now() |
+### File Changes
 
-RLS: members can SELECT all for their party; members can INSERT/UPDATE own rows; host can DELETE all (to clear after generation).
-Enable Realtime.
+**Modified: `src/components/ai-dm/AIDMScreen.tsx`**
+- Add a Map icon button in the header toolbar (next to context, guides, etc.)
+- Clicking it sets `showBattleMap = true`
+- Render `StandaloneBattleMap` component with `open={showBattleMap}` and `onClose` to dismiss
+- Pass `characterName` from props so the player's token is labeled correctly
 
-### New Row in `party_shared_state`
-Use existing `party_shared_state` with `state_type = 'dm_session'` to store session config:
-```json
-{
-  "active": true,
-  "mode": "shared" | "private",
-  "currentRoundId": "uuid",
-  "campaignSummary": "...",
-  "isGenerating": false
-}
+That's it -- `StandaloneBattleMap` is already fully self-contained with its own Dialog wrapper and localStorage persistence. No new components needed.
+
+---
+
+## Part 3: AI Auto-Population of Battle Map (New)
+
+### What it does
+When Auto-Sync mode is enabled, the extraction also detects **enemies/creatures that appear in the narrative** and **auto-places them as markers on the battle map**. For example, if the DM says "Three goblins emerge from the shadows," three enemy markers named "Goblin #1", "Goblin #2", "Goblin #3" are placed on the map automatically.
+
+### Extraction Schema Addition
+
+The `ai-dm-extract` edge function's tool definition gains a new field:
+
+```
+extract_state_changes({
+  // ...existing fields (hp_changes, xp_gained, etc.)...
+  
+  map_entities: [{
+    name: string,          // e.g. "Goblin"
+    count: number,         // e.g. 3
+    type: "enemy" | "ally" | "object",
+    size?: string,         // "small", "medium", "large", etc.
+    notes?: string         // brief descriptor, e.g. "armed with shortbow"
+  }],
+  map_entities_removed: string[]  // names of defeated/fled creatures to remove
+})
 ```
 
----
+The system prompt instructs the AI to only extract entities when they are **newly introduced** in the scene (not re-mentioned), and to mark creatures as removed when they are explicitly defeated, killed, or flee.
 
-## File Changes
+### New: `src/lib/battlemap-auto-populate.ts`
 
-### 1. New Hook: `src/hooks/use-party-dm.ts`
-Central hook for multiplayer DM logic.
+A utility module that translates extracted `map_entities` into battle map markers:
 
-**State managed**:
-- `partyDmMessages` -- full shared chat history from `party_dm_messages`
-- `currentPrompts` -- this round's prompt queue from `party_dm_prompts`
-- `dmSessionConfig` -- from `party_shared_state` (mode, active, roundId, isGenerating)
-- `isGenerating` -- whether AI is currently streaming
-- `allReady` -- derived: every party member has a prompt with `is_ready = true`
+- **Placement algorithm**: Places new enemy markers in available cells near the center-right of the grid (enemy side), avoiding occupied cells. Uses a simple spiral outward search from a starting position.
+- **Naming**: Adds `#1`, `#2` suffixes when count > 1
+- **Removal**: Matches `map_entities_removed` names against existing markers (fuzzy match on name) and removes them
+- **Returns**: `{ markersToAdd: MapMarker[], markerIdsToRemove: string[] }` so the caller can update state
 
-**Key functions**:
-- `startMultiplayerDM(mode)` -- host creates the session config in `party_shared_state`, sets mode
-- `submitPrompt(text, characterName)` -- inserts into `party_dm_prompts` for current round
-- `setReady()` -- updates own prompt row to `is_ready = true`
-- `generateResponse(characterContexts)` -- host-only; bundles all prompts into a combined user message, calls `ai-dm` edge function, streams response, inserts user+assistant messages into `party_dm_messages`, clears prompts, creates new round
-- `endSession()` -- host clears session config
+```typescript
+export function computeMapUpdates(
+  extraction: { map_entities: MapEntity[], map_entities_removed: string[] },
+  existingMarkers: MapMarker[],
+  gridSize: GridSize
+): { markersToAdd: MapMarker[], namesToRemove: string[] }
+```
 
-**Realtime subscriptions**:
-- `party_dm_messages` -- INSERT events to append new messages
-- `party_dm_prompts` -- INSERT/UPDATE/DELETE to track ready status
-- `party_shared_state` filtered to `dm_session` type -- config changes (mode, isGenerating)
+### Modified: `src/hooks/use-dm-auto-sync.ts`
 
-### 2. New Component: `src/components/ai-dm/PartyDMScreen.tsx`
-Full-screen overlay (same layout as `AIDMScreen`) but for multiplayer.
+- After extraction, if `map_entities` is non-empty, call `computeMapUpdates` and invoke a new callback `onMapUpdate(markersToAdd, namesToRemove)`
+- The undo snapshot also captures the map markers before changes so "Undo" reverts map placements too
 
-**UI sections**:
-- **Header**: "Party DM" title, mode toggle (host only), end session button (host only), back button
-- **Chat area**: Shows `partyDmMessages` with player names and avatars color-coded by party member. In private mode, user-role messages from other players are hidden (replaced with "[Player] is acting...")
-- **Prompt Queue Panel**: Bottom section above input showing who has submitted/is ready. Shows prompt text in shared mode, just names in private mode. Green checkmarks for ready players.
-- **Input area**: Text input + "Submit" button. After submitting, input changes to a "Ready" toggle button. Once ready, shows waiting state.
-- **Host controls**: "Generate Now" button visible only to host, always available regardless of ready status. Disabled while generating.
+### Modified: `src/components/home/StandaloneBattleMap.tsx`
 
-### 3. Modified: `src/components/ai-dm/AIDMScreen.tsx`
-- Add a "Party DM" button in the header (visible when user is in a party)
-- Clicking it opens `PartyDMScreen` instead of solo mode
+- Expose a way for external code to imperatively add/remove markers. Add two new optional props:
+  - `pendingMarkerAdds?: MapMarker[]` -- markers to merge into state on next render
+  - `pendingMarkerRemovals?: string[]` -- marker names to remove
+- Use a `useEffect` to process these, then clear them via an `onPendingProcessed` callback
+- This keeps the component's internal state as source of truth while allowing the auto-sync system to push changes in
 
-### 4. Modified: `src/hooks/use-party-sync.ts`
-- Add `dmSessionConfig` state synced from `party_shared_state` where `state_type = 'dm_session'`
-- Expose it in `UsePartySyncReturn` so `PartyPanel` and `AIDMScreen` can check if a multiplayer DM session is active
+### Modified: `src/components/ai-dm/AIDMScreen.tsx`
 
-### 5. Modified: `src/components/party/PartyPanel.tsx`
-- Add a "Party DM" button/chip in the party panel toolbar (next to Chat, Rolls, Loot, etc.)
-- Host sees "Start DM Session", members see "Join DM Session" (if active)
+- Hold `pendingMapAdds` and `pendingMapRemovals` state
+- Pass them to `StandaloneBattleMap`
+- Wire `onMapUpdate` from `useDmAutoSync` to set these pending states
 
-### 6. Modified: `supabase/functions/ai-dm/index.ts`
-- No changes needed to the edge function itself. The combined prompt from multiple players will be sent as a single user message like: `"[Thorin]: I attack the dragon with my axe\n[Elara]: I cast Shield on Thorin\n[Finn]: I search the room for traps"`
-- The existing character context will use the host's character, but the system prompt will be augmented client-side with a "PARTY MEMBERS" section listing all members' names and basic stats
+### Modified: `src/components/ai-dm/AutoSyncBanner.tsx`
+
+- Show map entity changes in the banner: "👹 +3 Goblins placed on map" or "💀 Goblin removed"
+- Undo also reverts map changes
 
 ---
 
-## Data Flow
+## Data Flow (Complete)
 
 ```text
-Player A types "I attack the goblin" -> Submit
-  -> INSERT into party_dm_prompts (Realtime broadcasts to all)
-  -> UI shows "Player A: submitted" in queue
-
-Player B types "I cast Healing Word on A" -> Submit
-  -> INSERT into party_dm_prompts
-
-Player A clicks Ready -> UPDATE is_ready = true
-Player B clicks Ready -> UPDATE is_ready = true
-
-All ready detected (client-side check):
-  -> Host auto-triggers generateResponse()
-  -> Bundles prompts: "[Thorin]: I attack the goblin\n[Elara]: I cast Healing Word on Thorin"
-  -> INSERT combined user message into party_dm_messages
-  -> Calls ai-dm edge function with combined message + host's character context + party member summary
-  -> Streams response, INSERT assistant message into party_dm_messages
-  -> DELETE all prompts for this round, create new round_id
-  -> Realtime pushes new messages to all players
+DM response finishes streaming
+  -> AIDMScreen checks autoSyncEnabled
+  -> Calls useDmAutoSync.extractAndApply(messageText, characterContext)
+    -> Snapshot: HP, XP, gold, conditions, AND current map markers
+    -> POST to ai-dm-extract edge function
+    -> Returns: { hp_changes, xp_gained, gold_changes, ..., map_entities, map_entities_removed }
+    -> Apply character changes via existing handlers
+    -> Call computeMapUpdates() with map_entities + existing markers
+    -> Set pendingMapAdds / pendingMapRemovals state
+    -> StandaloneBattleMap picks up pending changes via props
+    -> Show AutoSyncBanner: "💔 -8 HP  💰 +15 GP  👹 +3 Goblins"
+    -> Undo reverts everything including map markers
 ```
+
+---
+
+## Summary of All File Changes
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `supabase/functions/ai-dm-extract/index.ts` | Create | Edge function with tool-calling extraction (character state + map entities) |
+| `src/hooks/use-dm-auto-sync.ts` | Create | Toggle, extract, apply, undo logic for auto-sync |
+| `src/lib/battlemap-auto-populate.ts` | Create | Translates extracted entities into map marker operations |
+| `src/components/ai-dm/AutoSyncBanner.tsx` | Create | Compact banner showing applied changes with undo |
+| `src/components/ai-dm/AIDMScreen.tsx` | Modify | Add auto-sync toggle, map button, wire hooks and pending map state |
+| `src/components/home/StandaloneBattleMap.tsx` | Modify | Add pendingMarkerAdds/Removals props for external map updates |
+| `src/hooks/use-ai-dm.ts` | Modify | Expose onMessageComplete callback for post-stream hook |
+| `src/pages/Index.tsx` | Modify | Thread character state handlers through to AI DM for auto-sync |
 
 ---
 
 ## Technical Details
 
-### Combined Prompt Format
-When generating, all queued prompts are merged into a single user message:
-```
-[Character A]: I swing my sword at the nearest goblin
-[Character B]: I cast Shield of Faith on Character A
-[Character C]: I investigate the strange rune on the wall
-```
+### Enemy Placement Algorithm
+New markers are placed using a spiral search starting from grid position `(gridSize * 0.7, gridSize * 0.5)` -- the right side of the map, representing the "enemy side." The spiral expands outward checking for unoccupied cells. Each enemy gets the standard red color (`#ef4444`).
 
-### System Prompt Augmentation
-The existing `buildDMSystemPrompt` will receive an additional `partyMembers` array parameter. A new section will be added:
+### Fuzzy Name Matching for Removal
+When the DM says "the goblin falls," the removal matcher:
+1. Exact match on full name (case-insensitive)
+2. Base name match ignoring `#N` suffixes (removes first matching instance)
+
+### Extraction Prompt Addition
 ```
-## PARTY MEMBERS
-This is a multiplayer session. Multiple players are acting simultaneously each round.
-- Thorin (Level 5 Fighter, 45/52 HP)
-- Elara (Level 5 Cleric, 38/40 HP)
-- Finn (Level 4 Rogue, 28/32 HP)
-Resolve all player actions in order, describing the scene as a cohesive narrative.
+For map_entities, extract ONLY creatures or objects that are newly introduced 
+into the scene. Do NOT re-extract creatures already mentioned in previous 
+messages. Include a count for groups (e.g., "three goblins" = count 3).
+For map_entities_removed, include creatures that are definitively killed, 
+defeated, destroyed, or flee the scene.
 ```
 
-### Private Mode Filtering
-In private mode, the client filters `party_dm_prompts` to only show the current user's prompt text. Other players' prompts show as "submitted" without content. The combined message sent to the AI still contains all prompts (assembled by the host client before sending).
-
-### Ready Detection
-The host client watches `party_dm_prompts` via Realtime. When the count of `is_ready = true` rows equals the party member count and is greater than 0, auto-generation triggers. A short 2-second delay is added to prevent race conditions with late Realtime events.
-
----
-
-## Security Considerations
-- RLS on `party_dm_messages` and `party_dm_prompts` restricted to party members via `is_party_member()`
-- Only the host calls the AI edge function (enforced client-side; the edge function itself uses the project API key)
-- Prompt deletion after generation restricted to host via RLS
-- Foreign keys with ON DELETE CASCADE to `parties` table for cleanup
+### Performance
+- Map auto-population runs as part of the same extraction call (no additional API call)
+- Marker placement is O(n) where n = grid cells checked (negligible)
+- Pending props pattern avoids re-mounting the battle map component
