@@ -1,9 +1,9 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
-import { Sword, Sparkles, BookOpen, Flame, FlaskConical, ChevronDown } from 'lucide-react';
+import { Sword, Sparkles, BookOpen, Flame, FlaskConical, ChevronDown, Wand2, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { PartyMember, QuickActions } from '@/hooks/use-party-sync';
 
 interface PartyMemberQuickActionsViewerProps {
@@ -43,11 +43,65 @@ function Section({
   );
 }
 
-export function PartyMemberQuickActionsViewer({ member, open, onOpenChange }: PartyMemberQuickActionsViewerProps) {
-  if (!member) return null;
+function SubSection({
+  title,
+  icon,
+  count,
+  children,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  count: number;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  if (count === 0) return null;
 
-  const status = member.character_status;
-  const qa: QuickActions = status.quickActions ?? { weapons: [], abilities: [], spells: [], cantrips: [], consumables: [] };
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger className="flex items-center gap-2 w-full py-1.5 px-2 hover:bg-muted/10 rounded transition-colors">
+        {icon}
+        <span className="text-[11px] font-semibold">{title}</span>
+        <span className="text-[10px] text-muted-foreground">({count})</span>
+        <ChevronDown className={cn("w-3 h-3 text-muted-foreground ml-auto transition-transform", open && "rotate-180")} />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="space-y-1 pb-1">
+        {children}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+export function PartyMemberQuickActionsViewer({ member, open, onOpenChange }: PartyMemberQuickActionsViewerProps) {
+  const status = member?.character_status;
+  const qa: QuickActions = status?.quickActions ?? { weapons: [], abilities: [], spells: [], cantrips: [], consumables: [] };
+
+  // Compute homebrew aggregation
+  const homebrewData = useMemo(() => {
+    const hbAbilities = qa.abilities.filter(a => a.isHomebrew);
+    const abilityByTree: Record<string, typeof hbAbilities> = {};
+    hbAbilities.forEach(a => {
+      const tree = a.tree || 'other';
+      if (!abilityByTree[tree]) abilityByTree[tree] = [];
+      abilityByTree[tree].push(a);
+    });
+
+    const hbSpells = qa.spells.filter(s => s.isHomebrew);
+    const hbCantrips = qa.cantrips.filter(c => c.isHomebrew);
+    const spellsByLevel: Record<number, typeof hbSpells> = {};
+    if (hbCantrips.length > 0) {
+      spellsByLevel[0] = hbCantrips.map(c => ({ name: c.name, level: 0, school: c.school, concentration: false, isHomebrew: true as const }));
+    }
+    hbSpells.forEach(s => {
+      if (!spellsByLevel[s.level]) spellsByLevel[s.level] = [];
+      spellsByLevel[s.level].push(s);
+    });
+
+    const totalCount = hbAbilities.length + hbSpells.length + hbCantrips.length;
+    return { abilityByTree, spellsByLevel, totalCount };
+  }, [qa]);
+
+  if (!member) return null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -151,6 +205,58 @@ export function PartyMemberQuickActionsViewer({ member, open, onOpenChange }: Pa
               </div>
             ))}
           </Section>
+
+          {/* ── HOMEBREW (Aggregated) ── */}
+          {homebrewData.totalCount > 0 && (
+            <Section title="Homebrew" icon={<Flame className="w-3.5 h-3.5 text-amber-400" />} count={homebrewData.totalCount} defaultOpen={false}>
+              {/* Ability sub-categories by tree */}
+              {(['hunter', 'warrior', 'assassin'] as const).map(tree => {
+                const items = homebrewData.abilityByTree[tree];
+                if (!items || items.length === 0) return null;
+                const treeColor = tree === 'hunter' ? 'text-green-400' : tree === 'warrior' ? 'text-red-400' : 'text-purple-400';
+                const treeName = tree.charAt(0).toUpperCase() + tree.slice(1);
+                return (
+                  <SubSection key={tree} title={treeName} icon={<Zap className={cn("w-3 h-3", treeColor)} />} count={items.length}>
+                    {items.map((a, i) => (
+                      <div key={i} className="flex items-center justify-between px-2 py-1.5 rounded bg-muted/20 text-xs">
+                        <div className="flex items-center gap-1.5">
+                          {a.image ? (
+                            <img src={a.image} alt={a.name} className="w-5 h-5 rounded object-cover shrink-0" />
+                          ) : null}
+                          <span className="font-medium">{a.name}</span>
+                          <span className="text-[10px] text-amber-400 font-mono">T{a.tier}</span>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground">{a.actionType}</span>
+                      </div>
+                    ))}
+                  </SubSection>
+                );
+              })}
+
+              {/* Spell sub-categories by level */}
+              {Object.keys(homebrewData.spellsByLevel)
+                .map(Number)
+                .sort((a, b) => a - b)
+                .map(level => {
+                  const spells = homebrewData.spellsByLevel[level];
+                  const levelLabel = level === 0 ? 'Cantrips' : `${level}${level === 1 ? 'st' : level === 2 ? 'nd' : level === 3 ? 'rd' : 'th'} Level`;
+                  const LevelIcon = level === 0 ? Sparkles : Wand2;
+                  return (
+                    <SubSection key={`lvl-${level}`} title={levelLabel} icon={<LevelIcon className={cn("w-3 h-3", level === 0 ? "text-cyan-400" : "text-indigo-400")} />} count={spells.length}>
+                      {spells.map((s, i) => (
+                        <div key={i} className="flex items-center justify-between px-2 py-1.5 rounded bg-muted/20 text-xs">
+                          <div>
+                            <span className="font-medium">{s.name}</span>
+                            {level > 0 && <span className="text-[10px] text-muted-foreground ml-1.5">Lv.{s.level}</span>}
+                          </div>
+                          <span className="text-[10px] text-muted-foreground">{s.school}</span>
+                        </div>
+                      ))}
+                    </SubSection>
+                  );
+                })}
+            </Section>
+          )}
 
           {/* Empty state */}
           {qa.weapons.length === 0 && qa.abilities.length === 0 && qa.spells.length === 0 &&

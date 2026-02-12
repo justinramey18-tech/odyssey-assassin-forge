@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { Swords, Sparkles, Zap, Wand2, Sunrise, RotateCcw,
   ChevronDown, Copy, Check, Timer, Shield, Play, Dices, Target,
   Beaker, Skull, ScrollText, FlaskConical, PawPrint, Clock, Heart,
-  ImagePlus, ImageOff, Star, X, Plus
+  ImagePlus, ImageOff, Star, X, Plus, Flame
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1022,6 +1022,31 @@ export function QuickActionsDrawer({
       .filter((s): s is SpellDefinition => !!s && s.level === 0);
   }, [spellcasting]);
 
+  // ── Homebrew aggregation for dedicated section ──
+  const homebrewData = useMemo(() => {
+    // Homebrew abilities grouped by tree
+    const hbAbilities = equippedAbilities.filter(({ ability }) => ability.id.startsWith('homebrew_'));
+    const abilityByTree: Record<string, { ability: Ability; tier: 1 | 2 | 3 }[]> = {};
+    hbAbilities.forEach(item => {
+      const tree = item.ability.tree;
+      if (!abilityByTree[tree]) abilityByTree[tree] = [];
+      abilityByTree[tree].push(item);
+    });
+
+    // Homebrew spells grouped by level
+    const hbSpells = preparedSpells.filter(s => (s as any).isHomebrew === true);
+    const hbCantrips = cantrips.filter(s => (s as any).isHomebrew === true);
+    const spellsByLevel: Record<number, SpellDefinition[]> = {};
+    if (hbCantrips.length > 0) spellsByLevel[0] = hbCantrips;
+    hbSpells.forEach(s => {
+      if (!spellsByLevel[s.level]) spellsByLevel[s.level] = [];
+      spellsByLevel[s.level].push(s);
+    });
+
+    const totalCount = hbAbilities.length + hbSpells.length + hbCantrips.length;
+    return { abilityByTree, spellsByLevel, totalCount };
+  }, [equippedAbilities, preparedSpells, cantrips]);
+
   const slotSummary = useMemo(() => {
     if (!spellcasting) return '';
     const parts: string[] = [];
@@ -1730,6 +1755,163 @@ export function QuickActionsDrawer({
                 </div>
               </CollapsibleContent>
             </Collapsible>
+
+            {/* ── HOMEBREW (Aggregated) ── */}
+            {homebrewData.totalCount > 0 && (
+              <Collapsible className="group">
+                <CollapsibleTrigger className="w-full">
+                  <CategoryHeader icon={Flame} label="Homebrew" count={homebrewData.totalCount} color="bg-amber-500/20 text-amber-400" />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="space-y-1 pl-2 pr-1 pb-2">
+                    {/* Ability sub-categories by tree */}
+                    {(['hunter', 'warrior', 'assassin'] as const).map(tree => {
+                      const items = homebrewData.abilityByTree[tree];
+                      if (!items || items.length === 0) return null;
+                      const treeColor = tree === 'hunter' ? 'text-green-400' : tree === 'warrior' ? 'text-red-400' : 'text-purple-400';
+                      const treeName = tree.charAt(0).toUpperCase() + tree.slice(1);
+                      return (
+                        <Collapsible key={tree}>
+                          <CollapsibleTrigger className="w-full flex items-center gap-2 py-1.5 px-2 hover:bg-muted/10 rounded transition-colors">
+                            <Zap className={cn("w-3.5 h-3.5", treeColor)} />
+                            <span className="text-xs font-semibold">{treeName}</span>
+                            <span className="text-[10px] text-muted-foreground">({items.length})</span>
+                            <ChevronDown className="w-3 h-3 text-muted-foreground ml-auto transition-transform data-[state=open]:rotate-180" />
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="space-y-1 pb-1">
+                            {items.map(({ ability, tier }) => {
+                              const prompt = generateQuickAbilityPrompt(ability, tier, characterName);
+                              const onCD = cooldowns.isOnCooldown(ability.id);
+                              const remaining = cooldowns.getRemainingTime(ability.id);
+                              const isPassive = ability.type === 'passive';
+                              const isRolling = activeRoll?.id === `ability-${ability.id}`;
+                              return (
+                                <div key={ability.id}>
+                                  <button
+                                    onClick={() => {
+                                      if (isPassive || onCD) return;
+                                      isRolling ? setActiveRoll(null) : handleAbilityRoll(ability, tier);
+                                    }}
+                                    disabled={isPassive || onCD}
+                                    className={cn(
+                                      "w-full flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors text-left",
+                                      isRolling
+                                        ? "bg-amber-500/10 border-amber-500/30"
+                                        : onCD
+                                          ? "bg-card/40 border-border/30 opacity-60 cursor-not-allowed"
+                                          : "bg-card/40 border-border/30 hover:bg-card/60 active:bg-card/80"
+                                    )}
+                                    style={{ touchAction: 'manipulation' }}
+                                  >
+                                    {abilityImages[ability.id] ? (
+                                      <img src={abilityImages[ability.id]} alt={ability.name} className="w-5 h-5 rounded object-cover shrink-0" />
+                                    ) : (
+                                      <Zap className={cn("w-4 h-4 shrink-0", treeColor)} />
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-1.5">
+                                        <p className="text-sm font-medium truncate">{ability.name}</p>
+                                        <span className="text-[10px] text-amber-400 font-mono">T{tier}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <p className="text-xs text-muted-foreground">{ability.actionType.replace('_', ' ')}</p>
+                                        {onCD && (
+                                          <span className="flex items-center gap-0.5 text-[10px] text-amber-400">
+                                            <Timer className="w-3 h-3" />
+                                            {cooldowns.formatRemainingTime(remaining)}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {!isPassive && !onCD && (
+                                      <Dices className={cn("w-4 h-4 shrink-0 transition-colors", isRolling ? "text-amber-400" : "text-muted-foreground/50")} />
+                                    )}
+                                    {isPassive && <CopyButton text={prompt} />}
+                                  </button>
+                                  <AnimatePresence>
+                                    {isRolling && activeRoll && (
+                                      <InlineRollResult
+                                        roll={activeRoll.roll}
+                                        prompt={activeRoll.prompt}
+                                        onReroll={() => handleAbilityReroll(ability, tier)}
+                                        label={`${ability.name} T${tier}`}
+                                        colorClass="text-amber-400"
+                                      />
+                                    )}
+                                  </AnimatePresence>
+                                </div>
+                              );
+                            })}
+                          </CollapsibleContent>
+                        </Collapsible>
+                      );
+                    })}
+
+                    {/* Spell sub-categories by level */}
+                    {Object.keys(homebrewData.spellsByLevel)
+                      .map(Number)
+                      .sort((a, b) => a - b)
+                      .map(level => {
+                        const spells = homebrewData.spellsByLevel[level];
+                        const levelLabel = level === 0 ? 'Cantrips' : `${level}${level === 1 ? 'st' : level === 2 ? 'nd' : level === 3 ? 'rd' : 'th'} Level Spells`;
+                        const levelIcon = level === 0 ? Sparkles : Wand2;
+                        const LevelIcon = levelIcon;
+                        return (
+                          <Collapsible key={`spell-lvl-${level}`}>
+                            <CollapsibleTrigger className="w-full flex items-center gap-2 py-1.5 px-2 hover:bg-muted/10 rounded transition-colors">
+                              <LevelIcon className={cn("w-3.5 h-3.5", level === 0 ? "text-cyan-400" : "text-indigo-400")} />
+                              <span className="text-xs font-semibold">{levelLabel}</span>
+                              <span className="text-[10px] text-muted-foreground">({spells.length})</span>
+                              <ChevronDown className="w-3 h-3 text-muted-foreground ml-auto transition-transform data-[state=open]:rotate-180" />
+                            </CollapsibleTrigger>
+                            <CollapsibleContent className="space-y-1 pb-1">
+                              {spells.map(spell => {
+                                const prompt = generateQuickSpellPrompt(spell, characterName, level === 0);
+                                const slot = spellcasting?.spellSlots[spell.level];
+                                const hasSlot = level === 0 || (slot ? slot.current > 0 : false);
+                                return (
+                                  <div key={spell.id} className={cn(
+                                    "flex items-center gap-2 px-3 py-2 rounded-lg bg-card/40 border border-border/30",
+                                    !hasSlot && level > 0 && "opacity-50"
+                                  )}>
+                                    <LevelIcon className={cn("w-4 h-4 shrink-0", level === 0 ? "text-cyan-400" : "text-indigo-400")} />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-1.5">
+                                        <p className="text-sm font-medium truncate">{spell.name}</p>
+                                        {level > 0 && <span className="text-[10px] text-indigo-300 font-mono">L{spell.level}</span>}
+                                        {spell.concentration && <span className="text-[10px] text-yellow-400">C</span>}
+                                      </div>
+                                      <p className="text-xs text-muted-foreground">{spell.school} · {spell.castingTime.replace('_', ' ')}</p>
+                                    </div>
+                                    {level === 0 ? (
+                                      <QuickCastButton
+                                        label="Cast"
+                                        disabled={false}
+                                        onCast={() => toast.success(`${spell.name} cast!`, { description: 'Cantrip — no slot used' })}
+                                        prompt={prompt}
+                                      />
+                                    ) : (
+                                      <QuickCastButton
+                                        label="Cast"
+                                        disabled={!hasSlot}
+                                        onCast={() => handleCastSpell(spell)}
+                                        prompt={prompt}
+                                      />
+                                    )}
+                                    <CopyButton text={prompt} />
+                                  </div>
+                                );
+                              })}
+                            </CollapsibleContent>
+                          </Collapsible>
+                        );
+                      })}
+
+                    {/* Empty state (shouldn't happen since we check totalCount > 0) */}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
 
           </div>
         </ScrollArea>
