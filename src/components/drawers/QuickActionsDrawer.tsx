@@ -980,11 +980,24 @@ export function QuickActionsDrawer({
       .map(id => getSpellById(id))
       .filter((s): s is SpellDefinition => !!s && s.level > 0 && 
         (spellcasting!.preparedSpells.includes(s.id) || spellcasting!.knownSpells.includes(s.id)));
-    if (favoriteNonCantrips.length > 0) return favoriteNonCantrips;
+    if (favoriteNonCantrips.length > 0) {
+      // Also include any known homebrew spells not already in favorites
+      const favIds = new Set(favoriteNonCantrips.map(s => s.id));
+      const extraHomebrew = spellcasting.knownSpells
+        .map(id => getSpellById(id))
+        .filter((s): s is SpellDefinition => !!s && s.level > 0 && !!(s as any).isHomebrew && !favIds.has(s.id));
+      return [...favoriteNonCantrips, ...extraHomebrew];
+    }
     // Fallback: show ONLY prepared spells (not all known — prevents unprepared from leaking)
-    return spellcasting.preparedSpells
+    const prepared = spellcasting.preparedSpells
       .map(id => getSpellById(id))
       .filter((s): s is SpellDefinition => !!s && s.level > 0);
+    // Also include known homebrew spells even if not explicitly prepared (backward compat)
+    const preparedIds = new Set(prepared.map(s => s.id));
+    const extraHomebrew = spellcasting.knownSpells
+      .map(id => getSpellById(id))
+      .filter((s): s is SpellDefinition => !!s && s.level > 0 && !!(s as any).isHomebrew && !preparedIds.has(s.id));
+    return [...prepared, ...extraHomebrew];
   }, [spellcasting]);
 
   // ── Cantrips ──
