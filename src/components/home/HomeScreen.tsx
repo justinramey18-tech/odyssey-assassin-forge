@@ -506,19 +506,6 @@ export function HomeScreen({
                 <HelpCircle className="w-5 h-5 text-white/80" />
               </button>
             )}
-            {onOpenSettings && (
-              <button 
-                onClick={() => {
-                  triggerHaptic('light');
-                  onOpenSettings();
-                }}
-                className="p-2 -mr-2 rounded-lg hover:bg-white/10 transition-colors"
-                style={{ touchAction: 'manipulation' }}
-                aria-label="Open settings"
-              >
-                <Settings className="w-5 h-5 text-white/80" />
-              </button>
-            )}
           </div>
         </motion.header>
 
