@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Sparkles, Loader2, ChevronDown, ChevronUp, Plus } from 'lucide-react';
+import { Sparkles, Loader2, ChevronDown, ChevronUp, Plus, RefreshCw } from 'lucide-react';
 import { useHomebrewAssistant } from '@/hooks/use-homebrew-assistant';
 import { HomebrewAbility } from '@/lib/abilityCustomization/types';
 import { AbilityTree, ActionType, UsageType } from '@/lib/types';
@@ -45,6 +45,7 @@ export function BatchAbilityGenerateSheet({ isOpen, onClose, onAddHomebrew }: Ba
   const [results, setResults] = useState<GeneratedAbility[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(null);
   const { isLoading, generateBatchAbilities } = useHomebrewAssistant();
 
   const handleGenerate = useCallback(async () => {
@@ -133,6 +134,22 @@ export function BatchAbilityGenerateSheet({ isOpen, onClose, onAddHomebrew }: Ba
       return next;
     });
   };
+
+  const handleRegenerateOne = useCallback(async (index: number) => {
+    if (!prompt.trim()) return;
+    setRegeneratingIndex(index);
+    const oldName = results[index]?.name;
+    const regenPrompt = `${prompt.trim()}. Generate exactly 1 ability. Make it different from these existing names: ${results.map(a => a.name).join(', ')}`;
+    const items = await generateBatchAbilities(regenPrompt, { tree, type }, 1);
+    setRegeneratingIndex(null);
+    const valid = (items as unknown as GeneratedAbility[]).filter(a => a.name && a.tier1);
+    if (valid.length > 0) {
+      setResults(prev => prev.map((item, i) => i === index ? valid[0] : item));
+      toast.success(`Replaced "${oldName}" with "${valid[0].name}"`);
+    } else {
+      toast.error('Failed to regenerate. Try again.');
+    }
+  }, [prompt, results, tree, type, generateBatchAbilities]);
 
   const treeBadgeColors: Record<string, string> = {
     hunter: 'bg-emerald-500/20 text-emerald-400',
@@ -244,11 +261,27 @@ export function BatchAbilityGenerateSheet({ isOpen, onClose, onAddHomebrew }: Ba
                           <span className="capitalize">{ability.usageType?.replace('_', ' ')}</span>
                         </div>
                       </div>
-                      <CollapsibleTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                          {expanded.has(i) ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-homebrew"
+                          disabled={regeneratingIndex !== null}
+                          onClick={(e) => { e.stopPropagation(); handleRegenerateOne(i); }}
+                          title="Regenerate this ability"
+                        >
+                          {regeneratingIndex === i ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <RefreshCw className="w-3.5 h-3.5" />
+                          )}
                         </Button>
-                      </CollapsibleTrigger>
+                        <CollapsibleTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                            {expanded.has(i) ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                          </Button>
+                        </CollapsibleTrigger>
+                      </div>
                     </div>
 
                     <CollapsibleContent className="mt-2 pt-2 border-t border-border/20 space-y-1">

@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Sparkles, Loader2, ChevronDown, ChevronUp, Plus } from 'lucide-react';
+import { Sparkles, Loader2, ChevronDown, ChevronUp, Plus, RefreshCw } from 'lucide-react';
 import { useHomebrewAssistant } from '@/hooks/use-homebrew-assistant';
 import { HomebrewSpell, SPELL_SCHOOL_OPTIONS, SPELL_LEVEL_OPTIONS } from '@/lib/spellCustomization/types';
 import { generateHomebrewSpellId } from '@/lib/spellCustomization/utils';
@@ -44,6 +44,7 @@ export function BatchSpellGenerateSheet({ isOpen, onClose, onAddSpell }: BatchSp
   const [results, setResults] = useState<GeneratedSpell[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(null);
   const { isLoading, generateBatchSpells } = useHomebrewAssistant();
 
   const handleGenerate = useCallback(async () => {
@@ -131,6 +132,24 @@ export function BatchSpellGenerateSheet({ isOpen, onClose, onAddSpell }: BatchSp
     });
   };
 
+  const handleRegenerateOne = useCallback(async (index: number) => {
+    if (!prompt.trim()) return;
+    setRegeneratingIndex(index);
+    const oldName = results[index]?.name;
+    const regenPrompt = `${prompt.trim()}. Generate exactly 1 spell. Make it different from these existing names: ${results.map(s => s.name).join(', ')}`;
+    const items = await generateBatchSpells(regenPrompt, 1);
+    setRegeneratingIndex(null);
+    const valid = (items as unknown as GeneratedSpell[]).filter(
+      s => s.name && s.description && typeof s.level === 'number'
+    );
+    if (valid.length > 0) {
+      setResults(prev => prev.map((item, i) => i === index ? valid[0] : item));
+      toast.success(`Replaced "${oldName}" with "${valid[0].name}"`);
+    } else {
+      toast.error('Failed to regenerate. Try again.');
+    }
+  }, [prompt, results, generateBatchSpells]);
+
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <SheetContent side="bottom" className="h-[85vh] flex flex-col">
@@ -207,11 +226,27 @@ export function BatchSpellGenerateSheet({ isOpen, onClose, onAddSpell }: BatchSp
                           <span className="capitalize">{spell.school}</span>
                         </div>
                       </div>
-                      <CollapsibleTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                          {expanded.has(i) ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-indigo-400"
+                          disabled={regeneratingIndex !== null}
+                          onClick={(e) => { e.stopPropagation(); handleRegenerateOne(i); }}
+                          title="Regenerate this spell"
+                        >
+                          {regeneratingIndex === i ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <RefreshCw className="w-3.5 h-3.5" />
+                          )}
                         </Button>
-                      </CollapsibleTrigger>
+                        <CollapsibleTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                            {expanded.has(i) ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                          </Button>
+                        </CollapsibleTrigger>
+                      </div>
                     </div>
 
                     <CollapsibleContent className="mt-2 pt-2 border-t border-border/20">
