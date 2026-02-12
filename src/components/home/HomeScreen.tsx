@@ -581,10 +581,10 @@ export function HomeScreen({
 
             {/* Quick Actions (moved from footer) */}
             <div className="px-4 py-2">
-              <div className="grid grid-cols-3 gap-3 max-w-md mx-auto">
+              <div className="flex gap-3 max-w-md mx-auto justify-center">
                 {/* Short Rest */}
                 <button
-                  className={cn(transparentButtonBase, "py-3 flex flex-col items-center gap-1 text-white")}
+                  className={cn(transparentButtonBase, "py-3 px-6 flex flex-col items-center gap-1 text-white")}
                   onClick={() => handleQuickAction('shortRest')}
                   style={{ touchAction: 'manipulation' }}
                 >
@@ -596,7 +596,7 @@ export function HomeScreen({
                 <button
                   className={cn(
                     transparentButtonBase, 
-                    "py-3 flex flex-col items-center gap-1 text-white relative overflow-hidden"
+                    "py-3 px-6 flex flex-col items-center gap-1 text-white relative overflow-hidden"
                   )}
                   onTouchStart={handleLongRestStart}
                   onTouchEnd={handleLongRestEnd}
@@ -617,29 +617,6 @@ export function HomeScreen({
                     {longRestProgress > 0 ? 'Hold...' : 'Long Rest'}
                   </span>
                 </button>
-                
-                {/* Level Up */}
-                {canLevelUp ? (
-                  <button
-                    className={cn(
-                      transparentButtonBase, 
-                      "py-3 flex flex-col items-center gap-1 text-white",
-                      "border-primary/50 shadow-[0_0_15px_rgba(var(--primary),0.3)] animate-pulse"
-                    )}
-                    onClick={() => handleQuickAction('levelUp')}
-                    style={{ touchAction: 'manipulation' }}
-                  >
-                    <TrendingUp className="w-5 h-5 text-primary" />
-                    <span className="text-xs font-cinzel drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Level Up</span>
-                  </button>
-                ) : (
-                  <div
-                    className={cn(transparentButtonBase, "py-3 flex flex-col items-center gap-1 opacity-40 cursor-not-allowed")}
-                  >
-                    <TrendingUp className="w-5 h-5 text-white/50" />
-                    <span className="text-xs font-cinzel text-white/50 drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]">Level Up</span>
-                  </div>
-                )}
               </div>
             </div>
           </div>
