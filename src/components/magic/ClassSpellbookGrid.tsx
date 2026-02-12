@@ -3,7 +3,7 @@
 
 import { useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import { Search, Filter, BookOpen, Star, Focus, Sparkles, Pencil, Trash2, ChevronDown } from 'lucide-react';
+import { Search, Filter, BookOpen, Star, Focus, Sparkles, Pencil, Trash2, ChevronDown, FlaskConical } from 'lucide-react';
 import { DnDClass } from '@/lib/classes/types';
 import { SpellDefinition, SpellSchool } from '@/lib/magic/types';
 import { getSpellsByClass, getSpellLevelLabel, getSpellById } from '@/lib/magic/spells';
@@ -39,7 +39,7 @@ interface ClassSpellbookGridProps {
   isPreparedCaster?: boolean;
 }
 
-type SpellFilter = 'all' | 'known' | 'prepared' | 'favorites';
+type SpellFilter = 'all' | 'known' | 'prepared' | 'favorites' | 'homebrew';
 
 export function ClassSpellbookGrid({
   classId,
@@ -103,6 +103,9 @@ export function ClassSpellbookGrid({
         break;
       case 'favorites':
         spells = spells.filter(spell => favoriteSpells.includes(spell.id));
+        break;
+      case 'homebrew':
+        spells = spells.filter(spell => (spell as any).isHomebrew === true);
         break;
     }
 
@@ -194,6 +197,15 @@ export function ClassSpellbookGrid({
           >
             <Star className="w-3 h-3 mr-1" />
             Favorites
+          </Button>
+          <Button
+            variant={filterMode === 'homebrew' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => setFilterMode('homebrew')}
+            className={cn("h-7 text-xs", filterMode === 'homebrew' && "bg-teal-600 hover:bg-teal-700")}
+          >
+            <FlaskConical className="w-3 h-3 mr-1" />
+            Homebrew
           </Button>
 
           {/* School Filter Dropdown */}
