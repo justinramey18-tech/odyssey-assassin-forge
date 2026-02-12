@@ -558,6 +558,14 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
             >
               <Send className="w-5 h-5 text-amber-400" />
             </button>
+            <Button
+              onClick={partyDm.setReady}
+              className="gap-1.5 bg-emerald-900/40 border border-emerald-500/30 hover:bg-emerald-900/60 text-emerald-300 shrink-0"
+              size="sm"
+            >
+              <Check className="w-4 h-4" />
+              Ready
+            </Button>
           </div>
         ) : !isReady ? (
           <div className="space-y-2 max-w-2xl mx-auto">

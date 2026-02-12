@@ -45,19 +45,19 @@ function DMMessageBubble({ message }: { message: Message }) {
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className={cn('flex gap-2', isUser ? 'justify-end' : 'justify-start')}
+      className={cn('flex gap-1.5 min-w-0', isUser ? 'justify-end' : 'justify-start')}
     >
       {/* DM Avatar */}
       {!isUser && (
-        <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-amber-900/60 border border-amber-500/40">
-          <Crown className="w-4 h-4 text-amber-400" />
+        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 bg-amber-900/60 border border-amber-500/40">
+          <Crown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
         </div>
       )}
 
       {/* Message bubble */}
       <div
         className={cn(
-          'max-w-[85%] rounded-2xl px-4 py-2.5',
+          'flex-1 min-w-0 rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-2.5 overflow-hidden',
           isUser
             ? 'bg-white/10 text-white rounded-br-sm border border-white/10'
             : 'bg-amber-950/50 border border-amber-500/20 rounded-bl-sm'
@@ -66,7 +66,7 @@ function DMMessageBubble({ message }: { message: Message }) {
         {isUser ? (
           <p className="text-sm whitespace-pre-wrap">{message.content}</p>
         ) : (
-          <div className="text-sm prose prose-invert prose-sm max-w-none">
+          <div className="text-sm prose prose-invert prose-sm max-w-none break-words overflow-wrap-anywhere">
             <ReactMarkdown
               components={{
                 p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
@@ -93,8 +93,8 @@ function DMMessageBubble({ message }: { message: Message }) {
 
       {/* User Avatar */}
       {isUser && (
-        <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center shrink-0">
-          <Shield className="w-4 h-4 text-white/70" />
+        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+          <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/70" />
         </div>
       )}
     </motion.div>
@@ -417,7 +417,7 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
       {/* Messages */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4 overscroll-contain"
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain"
       >
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-6">
@@ -497,7 +497,7 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
       </AnimatePresence>
 
       {/* Input Area */}
-      <div className="px-3 py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm">
+      <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm">
         <div className="flex items-end gap-2 max-w-2xl mx-auto">
           <textarea
             ref={inputRef}
