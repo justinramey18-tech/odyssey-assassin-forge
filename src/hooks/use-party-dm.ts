@@ -44,9 +44,10 @@ interface UsePartyDmOptions {
   characterName: string;
   characterContext: CharacterContext;
   partyMembers: Array<{ character_name: string; character_status: Record<string, unknown>; user_id: string }>;
+  customGuidesContent?: string;
 }
 
-export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers }: UsePartyDmOptions) {
+export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent }: UsePartyDmOptions) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<PartyDmMessage[]>([]);
   const [currentPrompts, setCurrentPrompts] = useState<PartyDmPrompt[]>([]);
@@ -374,7 +375,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           messages: apiMessages.slice(-100),
           characterContext: augmentedContext,
           campaignSummary: sessionConfig.campaignSummary || undefined,
-          customGuides: `\n\n## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
+          customGuides: [
+            customGuidesContent || '',
+            `\n\n## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
+          ].filter(Boolean).join('\n\n'),
         }),
         signal: abortRef.current.signal,
       });
@@ -468,7 +472,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       setIsGenerating(false);
       abortRef.current = null;
     }
-  }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, triggerSummaryIfNeeded]);
+  }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, customGuidesContent, triggerSummaryIfNeeded]);
 
   const myPrompt = currentPrompts.find(p => p.user_id === user?.id) || null;
 
