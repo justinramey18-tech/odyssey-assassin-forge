@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen } from 'lucide-react';
+import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAIDM } from '@/hooks/use-ai-dm';
 import { useGMGuides } from '@/hooks/use-gm-guides';
@@ -81,7 +81,7 @@ function DMMessageBubble({ message }: { message: Message }) {
 
 export function AIDMScreen({ onBack, characterContext }: AIDMScreenProps) {
   const gmGuides = useGMGuides();
-  const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, loadCampaign, sendMessage, cancelRequest, clearMessages, newGame } = useAIDM({ characterContext, customGuidesContent: gmGuides.enabledContent });
+  const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, loadCampaign, sendMessage, cancelRequest, clearMessages, newGame, activeCampaignId, setActiveCampaignId, lastCloudSyncTime, isCloudSyncing } = useAIDM({ characterContext, customGuidesContent: gmGuides.enabledContent });
   const campaignSessions = useCampaignSessions();
 
   const handleCampaignSummaryChange = useCallback((summary: string) => {
@@ -92,13 +92,11 @@ export function AIDMScreen({ onBack, characterContext }: AIDMScreenProps) {
   const [showContext, setShowContext] = useState(false);
   const [showGuides, setShowGuides] = useState(false);
   const [showSessions, setShowSessions] = useState(false);
-  const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const handleLoadCampaign = useCallback((session: CampaignSession) => {
-    loadCampaign(session.messages, session.campaign_summary);
-    setActiveCampaignId(session.id);
+    loadCampaign(session.messages, session.campaign_summary, session.id);
     setShowSessions(false);
   }, [loadCampaign]);
 
@@ -191,7 +189,7 @@ export function AIDMScreen({ onBack, characterContext }: AIDMScreenProps) {
             )}
           </button>
           <button
-            onClick={() => { newGame(); setActiveCampaignId(null); }}
+            onClick={() => { newGame(); }}
             className="px-2.5 py-1.5 rounded-lg text-xs font-cinzel text-amber-300/80 hover:bg-amber-900/30 transition-colors"
             style={{ touchAction: 'manipulation' }}
           >
@@ -236,6 +234,23 @@ export function AIDMScreen({ onBack, characterContext }: AIDMScreenProps) {
             <span className="text-[11px] text-white/40">•</span>
             <ScrollText className="w-3 h-3 text-purple-400" />
             <span className="text-[11px] text-purple-300/70">{(campaignSummary.length / 1000).toFixed(1)}k</span>
+          </>
+        )}
+        {campaignSessions.isSignedIn && (
+          <>
+            <span className="text-[11px] text-white/40">•</span>
+            {isCloudSyncing ? (
+              <Loader2 className="w-3 h-3 text-sky-400 animate-spin" />
+            ) : lastCloudSyncTime ? (
+              <>
+                <Cloud className="w-3 h-3 text-sky-400" />
+                <span className="text-[11px] text-sky-300/70">
+                  {Math.round((Date.now() - lastCloudSyncTime.getTime()) / 60000)}m
+                </span>
+              </>
+            ) : (
+              <CloudOff className="w-3 h-3 text-white/30" />
+            )}
           </>
         )}
         {isSummarizing && (

@@ -151,11 +151,60 @@ export function useCampaignSessions() {
     }
   }, [userId]);
 
+  // Silent upsert for background auto-save (no toasts, no session list refresh)
+  const silentSave = useCallback(async (
+    name: string,
+    messages: Message[],
+    campaignSummary: string | null,
+    existingId?: string,
+  ): Promise<string | null> => {
+    if (!userId) return null;
+    try {
+      const serializedMessages = messages.map(m => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp,
+      }));
+
+      if (existingId) {
+        const { error } = await supabase
+          .from('ai_dm_campaigns')
+          .update({
+            name,
+            messages: serializedMessages as any,
+            campaign_summary: campaignSummary,
+          })
+          .eq('id', existingId)
+          .eq('user_id', userId);
+        if (error) throw error;
+        return existingId;
+      } else {
+        const { data, error } = await supabase
+          .from('ai_dm_campaigns')
+          .insert({
+            user_id: userId,
+            name,
+            messages: serializedMessages as any,
+            campaign_summary: campaignSummary,
+          })
+          .select('id')
+          .single();
+        if (error) throw error;
+        return data.id;
+      }
+    } catch (error) {
+      console.warn('[Cloud Auto-Save] Failed:', error);
+      return null;
+    }
+  }, [userId]);
+
   return {
     sessions,
     isLoading,
     isSignedIn: !!userId,
     saveSession,
+    silentSave,
     deleteSession,
     renameSession,
     refreshSessions: loadSessions,

@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Message, CharacterContext } from '@/components/oracle/types';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import {
   loadCampaignSummary,
   saveCampaignSummary,
@@ -13,6 +14,7 @@ const STORAGE_KEY = 'dnd-ai-dm-session';
 const MAX_MESSAGES = 100;
 const SUMMARY_INTERVAL = 10;
 const SAVE_DEBOUNCE_MS = 1000;
+const CLOUD_SAVE_DEBOUNCE_MS = 30000;
 const SESSION_VERSION = 1;
 
 interface UseAIDMOptions {
@@ -101,10 +103,25 @@ export function useAIDM({ characterContext, customGuidesContent }: UseAIDMOption
   const [isLoading, setIsLoading] = useState(false);
   const [campaignSummary, setCampaignSummary] = useState<string | null>(() => loadCampaignSummary());
   const [isSummarizing, setIsSummarizing] = useState(false);
+  const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
+  const [lastCloudSyncTime, setLastCloudSyncTime] = useState<Date | null>(null);
+  const [isCloudSyncing, setIsCloudSyncing] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Debounced persist to localStorage (1s after last change)
+  // Local save debounce
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cloud save refs
+  const cloudSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastCloudSaveJsonRef = useRef<string>('');
+  const messagesRef = useRef<Message[]>(messages);
+  const campaignSummaryRef = useRef<string | null>(campaignSummary);
+  const activeCampaignIdRef = useRef<string | null>(activeCampaignId);
+
+  // Keep refs in sync
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
+  useEffect(() => { campaignSummaryRef.current = campaignSummary; }, [campaignSummary]);
+  useEffect(() => { activeCampaignIdRef.current = activeCampaignId; }, [activeCampaignId]);
 
   const saveNow = useCallback(() => {
     if (debounceTimerRef.current) {
@@ -126,12 +143,98 @@ export function useAIDM({ characterContext, customGuidesContent }: UseAIDMOption
     };
   }, [messages]);
 
-  // Save immediately on tab close (bypass debounce)
+  // Cloud auto-save function
+  const saveToCloudNow = useCallback(async () => {
+    const currentMessages = messagesRef.current;
+    const currentSummary = campaignSummaryRef.current;
+    const currentCampaignId = activeCampaignIdRef.current;
+
+    // Need messages and auth to save
+    if (currentMessages.length === 0) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const serializedMessages = currentMessages.map(m => ({
+      id: m.id,
+      role: m.role,
+      content: m.content,
+      timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp,
+    }));
+
+    const cloudPayload = JSON.stringify({ messages: serializedMessages, summary: currentSummary });
+
+    // Dirty-check
+    if (cloudPayload === lastCloudSaveJsonRef.current) return;
+
+    setIsCloudSyncing(true);
+    try {
+      // Derive a name from first user message
+      const firstUserMsg = currentMessages.find(m => m.role === 'user');
+      const campaignName = firstUserMsg
+        ? firstUserMsg.content.slice(0, 50) + (firstUserMsg.content.length > 50 ? '...' : '')
+        : 'Auto-Save';
+
+      if (currentCampaignId) {
+        const { error } = await supabase
+          .from('ai_dm_campaigns')
+          .update({
+            name: campaignName,
+            messages: serializedMessages as any,
+            campaign_summary: currentSummary,
+          })
+          .eq('id', currentCampaignId)
+          .eq('user_id', user.id);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from('ai_dm_campaigns')
+          .insert({
+            user_id: user.id,
+            name: campaignName,
+            messages: serializedMessages as any,
+            campaign_summary: currentSummary,
+          })
+          .select('id')
+          .single();
+        if (error) throw error;
+        setActiveCampaignId(data.id);
+      }
+
+      lastCloudSaveJsonRef.current = cloudPayload;
+      setLastCloudSyncTime(new Date());
+    } catch (error) {
+      console.warn('[Cloud Auto-Save] Failed:', error);
+    } finally {
+      setIsCloudSyncing(false);
+    }
+  }, []);
+
+  // 30-second debounced cloud save
   useEffect(() => {
-    const handleBeforeUnload = () => saveNow();
+    if (messages.length === 0) return;
+
+    cloudSaveTimerRef.current = setTimeout(() => {
+      saveToCloudNow();
+    }, CLOUD_SAVE_DEBOUNCE_MS);
+
+    return () => {
+      if (cloudSaveTimerRef.current) {
+        clearTimeout(cloudSaveTimerRef.current);
+      }
+    };
+  }, [messages, campaignSummary, saveToCloudNow]);
+
+  // Save immediately on tab close (bypass debounce) — local + best-effort cloud
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      saveNow();
+      // Best-effort cloud save (may not complete)
+      saveToCloudNow();
+    };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [saveNow]);
+  }, [saveNow, saveToCloudNow]);
 
   // Trigger summary generation after every Nth assistant message
   const triggerSummaryIfNeeded = useCallback(async (allMessages: Message[]) => {
@@ -338,6 +441,8 @@ export function useAIDM({ characterContext, customGuidesContent }: UseAIDMOption
     localStorage.removeItem(STORAGE_KEY);
     clearCampaignSummary();
     setCampaignSummary(null);
+    setActiveCampaignId(null);
+    lastCloudSaveJsonRef.current = '';
   }, []);
 
   const newGame = useCallback(() => {
@@ -350,7 +455,7 @@ export function useAIDM({ characterContext, customGuidesContent }: UseAIDMOption
     setCampaignSummary(summary || null);
   }, []);
 
-  const loadCampaign = useCallback((loadedMessages: Message[], summary: string | null) => {
+  const loadCampaign = useCallback((loadedMessages: Message[], summary: string | null, campaignId?: string) => {
     setMessages(loadedMessages);
     saveSession(loadedMessages);
     if (summary) {
@@ -360,6 +465,15 @@ export function useAIDM({ characterContext, customGuidesContent }: UseAIDMOption
       clearCampaignSummary();
       setCampaignSummary(null);
     }
+    setActiveCampaignId(campaignId ?? null);
+    // Reset cloud dirty-check to loaded state
+    const serializedMessages = loadedMessages.map(m => ({
+      id: m.id,
+      role: m.role,
+      content: m.content,
+      timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp,
+    }));
+    lastCloudSaveJsonRef.current = JSON.stringify({ messages: serializedMessages, summary });
   }, []);
 
   return {
@@ -373,5 +487,9 @@ export function useAIDM({ characterContext, customGuidesContent }: UseAIDMOption
     cancelRequest,
     clearMessages,
     newGame,
+    activeCampaignId,
+    setActiveCampaignId,
+    lastCloudSyncTime,
+    isCloudSyncing,
   };
 }
