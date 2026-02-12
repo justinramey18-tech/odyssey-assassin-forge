@@ -1,5 +1,5 @@
-// Cleric Spell List
-// D&D 5e divine magic - Wisdom-based prepared caster
+// Cleric Spell List — D&D 5e PHB Complete
+// Wisdom-based prepared caster — all cantrips through 5th level
 
 import { SpellDefinition } from '../types';
 
