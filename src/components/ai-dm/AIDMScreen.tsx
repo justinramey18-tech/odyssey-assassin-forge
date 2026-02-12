@@ -243,17 +243,27 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
                 }
               }}
               className={cn(
-                "px-2.5 py-1.5 rounded-lg text-xs font-cinzel transition-colors",
-                partyDm.isActive ? "text-primary bg-primary/10 hover:bg-primary/20" : "text-white/50 hover:bg-white/10"
+                "px-2.5 py-1.5 rounded-lg text-xs font-cinzel transition-colors flex items-center gap-1",
+                partyDm.isActive
+                  ? "text-emerald-300 bg-emerald-900/30 hover:bg-emerald-900/50 border border-emerald-500/30"
+                  : isPartyCreator
+                    ? "text-amber-300 hover:bg-amber-900/20"
+                    : "text-white/30 cursor-not-allowed"
               )}
               style={{ touchAction: 'manipulation' }}
-              title={partyDm.isActive ? 'Join Party DM' : isPartyCreator ? 'Start Party DM' : 'Party DM (host must start)'}
+              title={partyDm.isActive ? 'Join Party DM' : isPartyCreator ? 'Start Party DM' : 'Waiting for host to start Party DM'}
               disabled={!partyDm.isActive && !isPartyCreator}
             >
-              <Users className="w-3.5 h-3.5 inline mr-1" />
-              Party
-              {partyDm.isActive && (
-                <span className="ml-1 w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+              <Users className="w-3.5 h-3.5" />
+              {partyDm.isActive ? (
+                <>
+                  Join Party
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                </>
+              ) : isPartyCreator ? (
+                'Start Party'
+              ) : (
+                'Waiting for Host'
               )}
             </button>
           )}
