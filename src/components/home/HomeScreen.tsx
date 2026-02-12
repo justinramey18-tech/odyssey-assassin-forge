@@ -444,7 +444,7 @@ export function HomeScreen({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3 }}
-          className="flex items-center justify-between px-4 py-3 border-b border-white/10"
+          className="flex items-center justify-between px-3 py-1.5 border-b border-white/10"
         >
           {/* Left: Hamburger, Background Upload */}
           <div className="flex items-center gap-1">
