@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2 } from 'lucide-react';
+import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -97,6 +97,8 @@ function PartyDMMessage({ message, currentUserId, members, mode }: {
 
 export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, memberCount, members }: PartyDMScreenProps) {
   const [input, setInput] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -309,18 +311,69 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
             </button>
           </div>
         ) : !isReady ? (
-          <div className="flex items-center gap-2 max-w-2xl mx-auto">
-            <div className="flex-1 bg-white/5 border border-amber-900/30 rounded-xl px-4 py-2.5">
-              <p className="text-[10px] text-white/40 mb-0.5">Your action:</p>
-              <p className="text-sm text-white/70 truncate">{partyDm.myPrompt?.prompt}</p>
-            </div>
-            <Button
-              onClick={partyDm.setReady}
-              className="gap-1.5 bg-emerald-900/40 border border-emerald-500/30 hover:bg-emerald-900/60 text-emerald-300"
-            >
-              <Check className="w-4 h-4" />
-              Ready
-            </Button>
+          <div className="space-y-2 max-w-2xl mx-auto">
+            {isEditing ? (
+              <div className="flex items-end gap-2">
+                <textarea
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  rows={1}
+                  className="flex-1 bg-white/5 border border-amber-900/30 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-amber-500/40 resize-none min-h-[42px] max-h-[120px]"
+                  autoFocus
+                />
+                <Button
+                  onClick={() => {
+                    if (editText.trim()) {
+                      partyDm.editPrompt(editText.trim());
+                    }
+                    setIsEditing(false);
+                  }}
+                  size="sm"
+                  className="gap-1 bg-amber-900/40 border border-amber-500/30 hover:bg-amber-900/60 text-amber-300"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  Save
+                </Button>
+                <Button
+                  onClick={() => setIsEditing(false)}
+                  size="sm"
+                  variant="ghost"
+                  className="text-white/40 hover:text-white/70"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <div className="flex-1 bg-white/5 border border-amber-900/30 rounded-xl px-4 py-2.5">
+                  <p className="text-[10px] text-white/40 mb-0.5">Your action:</p>
+                  <p className="text-sm text-white/70 truncate">{partyDm.myPrompt?.prompt}</p>
+                </div>
+                <button
+                  onClick={() => { setEditText(partyDm.myPrompt?.prompt || ''); setIsEditing(true); }}
+                  className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/40 hover:text-white/70"
+                  title="Edit prompt"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => partyDm.retractPrompt()}
+                  className="p-2 rounded-lg hover:bg-red-900/20 transition-colors text-white/40 hover:text-red-400"
+                  title="Retract prompt"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+                <Button
+                  onClick={partyDm.setReady}
+                  className="gap-1.5 bg-emerald-900/40 border border-emerald-500/30 hover:bg-emerald-900/60 text-emerald-300"
+                >
+                  <Check className="w-4 h-4" />
+                  Ready
+                </Button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex items-center justify-between max-w-2xl mx-auto">

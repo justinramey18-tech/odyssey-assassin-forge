@@ -254,6 +254,24 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       .eq('id', myPrompt.id);
   }, [user, currentPrompts]);
 
+  const editPrompt = useCallback(async (newText: string) => {
+    if (!user) return;
+    const myPrompt = currentPrompts.find(p => p.user_id === user.id);
+    if (!myPrompt || myPrompt.is_ready) return;
+    await (supabase.from('party_dm_prompts') as any)
+      .update({ prompt: newText.trim() })
+      .eq('id', myPrompt.id);
+  }, [user, currentPrompts]);
+
+  const retractPrompt = useCallback(async () => {
+    if (!user) return;
+    const myPrompt = currentPrompts.find(p => p.user_id === user.id);
+    if (!myPrompt || myPrompt.is_ready) return;
+    await (supabase.from('party_dm_prompts') as any)
+      .delete()
+      .eq('id', myPrompt.id);
+  }, [user, currentPrompts]);
+
   // Auto-summarize after every Nth assistant message
   const triggerSummaryIfNeeded = useCallback(async (allMessages: PartyDmMessage[]) => {
     if (!partyId || !isCreator || !sessionConfig) return;
@@ -466,6 +484,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     startSession,
     endSession,
     submitPrompt,
+    editPrompt,
+    retractPrompt,
     setReady,
     generateResponse,
   };
