@@ -13,7 +13,7 @@ interface HomebrewRequest {
     currentName?: string;
     currentDescription?: string;
   };
-  mode: 'name' | 'description' | 'full' | 'balance' | 'enhance' | 'spell_concept' | 'batch_spells' | 'batch_abilities';
+  mode: 'name' | 'description' | 'full' | 'balance' | 'enhance' | 'spell_concept' | 'batch_spells' | 'batch_abilities' | 'gear_concept' | 'batch_gear';
   count?: number;
 }
 
@@ -230,6 +230,56 @@ Return ONLY a JSON array of ability objects, each matching this structure:
   }
 ]`;
 
+    case 'gear_concept':
+      return `You are an expert D&D 5e equipment designer. Create balanced, thematic gear items.
+
+EQUIPMENT SLOTS: head, chest, arms, waist, legs, primary_weapon, secondary_weapon, ranged_weapon, amulet, ring1, ring2
+RARITIES: common, uncommon, rare, epic, legendary, artifact
+
+YOUR TASK: Create a single equipment item concept based on the user's prompt.
+Return ONLY a JSON object:
+{
+  "name": "Item Name",
+  "slotType": "primary_weapon",
+  "rarity": "rare",
+  "level": 10,
+  "icon": "Sword",
+  "ac": null,
+  "damage": "2d6+2 slashing",
+  "attackBonus": 2,
+  "weight": 3,
+  "value": 500,
+  "description": "A blade forged in shadow...",
+  "properties": ["Finesse", "Light"]
+}`;
+
+    case 'batch_gear':
+      return `You are an expert D&D 5e equipment designer. Create balanced, thematic gear items.
+
+EQUIPMENT SLOTS: head, chest, arms, waist, legs, primary_weapon, secondary_weapon, ranged_weapon, amulet, ring1, ring2
+RARITIES: common, uncommon, rare, epic, legendary, artifact
+ICON OPTIONS: Sword, Axe, Shield, Crown, Hand, CircleDot, Footprints, Target, Gem, Circle, Wand2, Flame, Zap
+
+YOUR TASK: Generate exactly ${context.currentName || '4'} unique, thematic equipment items based on the user's prompt.
+Vary slot types, rarities, and effects for interesting variety.
+Return ONLY a JSON array:
+[
+  {
+    "name": "Item Name",
+    "slotType": "primary_weapon",
+    "rarity": "rare",
+    "level": 10,
+    "icon": "Sword",
+    "ac": null,
+    "damage": "2d6+2 slashing",
+    "attackBonus": 2,
+    "weight": 3,
+    "value": 500,
+    "description": "Description text",
+    "properties": ["Finesse", "Light"]
+  }
+]`;
+
     default:
       return basePrompt;
   }
@@ -268,7 +318,7 @@ serve(async (req) => {
       );
     }
 
-    if (!['name', 'description', 'full', 'balance', 'enhance', 'spell_concept', 'batch_spells', 'batch_abilities'].includes(mode)) {
+    if (!['name', 'description', 'full', 'balance', 'enhance', 'spell_concept', 'batch_spells', 'batch_abilities', 'gear_concept', 'batch_gear'].includes(mode)) {
       return new Response(
         JSON.stringify({ error: 'Invalid mode' }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
