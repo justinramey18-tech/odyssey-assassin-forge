@@ -503,14 +503,22 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
             {members.map(m => {
               const prompt = partyDm.currentPrompts.find(p => p.user_id === m.user_id);
               const isSelf = m.user_id === currentUserId;
+              const hasAction = prompt && prompt.prompt.trim().length > 0;
               return (
                 <div
                   key={m.user_id}
+                  title={
+                    prompt?.is_ready
+                      ? `${m.character_name} — Ready${hasAction ? ' (with action)' : ' (no action)'}`
+                      : prompt
+                        ? `${m.character_name} — Action submitted, not ready`
+                        : `${m.character_name} — Waiting...`
+                  }
                   className={cn(
                     "flex items-center gap-1 px-2 py-1 rounded-full text-[10px] border transition-all",
                     !prompt && "bg-white/5 border-white/10 text-white/30",
                     prompt && !prompt.is_ready && "bg-amber-900/20 border-amber-500/30 text-amber-300",
-                    prompt?.is_ready && "bg-emerald-900/20 border-emerald-500/30 text-emerald-300",
+                    prompt?.is_ready && "bg-emerald-900/20 border-emerald-500/30 text-emerald-300 animate-pulse",
                   )}
                 >
                   <span className="max-w-[80px] truncate">{m.character_name}</span>
@@ -518,8 +526,10 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                     <CheckCheck className="w-3 h-3 text-emerald-400" />
                   ) : prompt ? (
                     <Check className="w-3 h-3 text-amber-400" />
-                  ) : null}
-                  {mode === 'shared' && prompt && !isSelf && (
+                  ) : (
+                    <span className="w-1.5 h-1.5 rounded-full bg-white/20 shrink-0" />
+                  )}
+                  {mode === 'shared' && prompt && !isSelf && hasAction && (
                     <span className="text-[9px] text-white/30 max-w-[60px] truncate">{prompt.prompt}</span>
                   )}
                 </div>
