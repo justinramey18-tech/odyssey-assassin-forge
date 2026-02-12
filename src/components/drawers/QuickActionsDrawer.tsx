@@ -975,29 +975,26 @@ export function QuickActionsDrawer({
   // ── Magic: Favorited spells auto-populate; fall back to prepared only ──
   const preparedSpells = useMemo((): SpellDefinition[] => {
     if (!spellcasting) return [];
-    // If user has favorites, show only favorited non-cantrips that are also prepared/known
+
+    // All prepared spells resolved (includes homebrew via custom registry)
+    const allPrepared = spellcasting.preparedSpells
+      .map(id => getSpellById(id))
+      .filter((s): s is SpellDefinition => !!s && s.level > 0);
+
+    // If user has favorites, show favorited prepared + any prepared homebrew not in favorites
     const favoriteNonCantrips = spellcasting.favoriteSpells
       .map(id => getSpellById(id))
       .filter((s): s is SpellDefinition => !!s && s.level > 0 && 
         (spellcasting!.preparedSpells.includes(s.id) || spellcasting!.knownSpells.includes(s.id)));
     if (favoriteNonCantrips.length > 0) {
-      // Also include any known homebrew spells not already in favorites
+      // Merge in any prepared homebrew spells not already in the favorites list
       const favIds = new Set(favoriteNonCantrips.map(s => s.id));
-      const extraHomebrew = spellcasting.knownSpells
-        .map(id => getSpellById(id))
-        .filter((s): s is SpellDefinition => !!s && s.level > 0 && !!(s as any).isHomebrew && !favIds.has(s.id));
-      return [...favoriteNonCantrips, ...extraHomebrew];
+      const missingHomebrew = allPrepared.filter(s => (s as any).isHomebrew === true && !favIds.has(s.id));
+      return [...favoriteNonCantrips, ...missingHomebrew];
     }
+
     // Fallback: show ONLY prepared spells (not all known — prevents unprepared from leaking)
-    const prepared = spellcasting.preparedSpells
-      .map(id => getSpellById(id))
-      .filter((s): s is SpellDefinition => !!s && s.level > 0);
-    // Also include known homebrew spells even if not explicitly prepared (backward compat)
-    const preparedIds = new Set(prepared.map(s => s.id));
-    const extraHomebrew = spellcasting.knownSpells
-      .map(id => getSpellById(id))
-      .filter((s): s is SpellDefinition => !!s && s.level > 0 && !!(s as any).isHomebrew && !preparedIds.has(s.id));
-    return [...prepared, ...extraHomebrew];
+    return allPrepared;
   }, [spellcasting]);
 
   // ── Cantrips ──
