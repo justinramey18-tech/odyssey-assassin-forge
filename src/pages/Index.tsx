@@ -633,33 +633,41 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         damageType: (item!.properties?.find(p => p.toLowerCase().includes('slashing') || p.toLowerCase().includes('piercing') || p.toLowerCase().includes('bludgeoning')) || 'Physical'),
       }));
 
-    // Equipped abilities (including homebrew)
-    const abilities = character.equippedAbilities
-      .filter(Boolean)
-      .map(id => {
-        // Homebrew abilities
-        if (id.startsWith('homebrew_')) {
-          const homebrew = abilityCustomization.state.homebrewAbilities.find(h => h.id === id);
-          if (!homebrew) return null;
-          const converted = homebrewToAbility(homebrew);
-          const tier = character.abilities.find(ca => ca.abilityId === id)?.currentTier ?? 0;
-          return {
-            name: converted.name,
-            tree: converted.tree,
-            tier,
-            actionType: converted.type === 'active' ? 'Action' : 'Passive',
-          };
-        }
-        const ability = allAbilities.find(a => a.id === id);
+    // Equipped abilities (including homebrew) + auto-populated invested homebrew
+    const seenAbilityIds = new Set<string>();
+    const resolveAbilityForBroadcast = (id: string) => {
+      if (!id || seenAbilityIds.has(id)) return null;
+      seenAbilityIds.add(id);
+      if (id.startsWith('homebrew_')) {
+        const homebrew = abilityCustomization.state.homebrewAbilities.find(h => h.id === id);
+        if (!homebrew) return null;
+        const converted = homebrewToAbility(homebrew);
         const tier = character.abilities.find(ca => ca.abilityId === id)?.currentTier ?? 0;
-        return ability ? {
-          name: ability.name,
-          tree: ability.tree,
+        return {
+          name: converted.name,
+          tree: converted.tree,
           tier,
-          actionType: ability.type === 'active' ? 'Action' : 'Passive',
-        } : null;
-      })
-      .filter(Boolean) as { name: string; tree: string; tier: number; actionType: string }[];
+          actionType: converted.type === 'active' ? 'Action' : 'Passive',
+        };
+      }
+      const ability = allAbilities.find(a => a.id === id);
+      const tier = character.abilities.find(ca => ca.abilityId === id)?.currentTier ?? 0;
+      return ability ? {
+        name: ability.name,
+        tree: ability.tree,
+        tier,
+        actionType: ability.type === 'active' ? 'Action' : 'Passive',
+      } : null;
+    };
+
+    // From loadout
+    const abilitiesFromLoadout = character.equippedAbilities.filter(Boolean).map(resolveAbilityForBroadcast).filter(Boolean);
+    // Auto-populate invested homebrew not already in loadout
+    const abilitiesFromHomebrew = character.abilities
+      .filter(a => a.abilityId.startsWith('homebrew_') && a.currentTier > 0)
+      .map(a => resolveAbilityForBroadcast(a.abilityId))
+      .filter(Boolean);
+    const abilities = [...abilitiesFromLoadout, ...abilitiesFromHomebrew] as { name: string; tree: string; tier: number; actionType: string }[];
 
     // Spells & cantrips from class spellcasting
     let spells: { name: string; level: number; school: string; concentration: boolean }[] = [];
