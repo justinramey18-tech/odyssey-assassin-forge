@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.ai-dm]
 verify_jwt = false
+
+[functions.ai-dm-summarize]
+verify_jwt = false

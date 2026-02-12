@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
+import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAIDM } from '@/hooks/use-ai-dm';
 import { useGMGuides } from '@/hooks/use-gm-guides';
@@ -79,7 +79,7 @@ function DMMessageBubble({ message }: { message: Message }) {
 
 export function AIDMScreen({ onBack, characterContext }: AIDMScreenProps) {
   const gmGuides = useGMGuides();
-  const { messages, isLoading, sendMessage, cancelRequest, clearMessages, newGame } = useAIDM({ characterContext, customGuidesContent: gmGuides.enabledContent });
+  const { messages, isLoading, isSummarizing, campaignSummary, sendMessage, cancelRequest, clearMessages, newGame } = useAIDM({ characterContext, customGuidesContent: gmGuides.enabledContent });
   const [input, setInput] = useState('');
   const [showContext, setShowContext] = useState(false);
   const [showGuides, setShowGuides] = useState(false);
@@ -201,6 +201,19 @@ export function AIDMScreen({ onBack, characterContext }: AIDMScreenProps) {
             </span>
           </>
         )}
+        {campaignSummary && (
+          <>
+            <span className="text-[11px] text-white/40">•</span>
+            <ScrollText className="w-3 h-3 text-purple-400" />
+            <span className="text-[11px] text-purple-300/70">{(campaignSummary.length / 1000).toFixed(1)}k</span>
+          </>
+        )}
+        {isSummarizing && (
+          <>
+            <span className="text-[11px] text-white/40">•</span>
+            <span className="text-[11px] text-purple-400 animate-pulse">Summarizing...</span>
+          </>
+        )}
         {showContext ? <ChevronUp className="w-3 h-3 text-white/40" /> : <ChevronDown className="w-3 h-3 text-white/40" />}
       </button>
 
@@ -318,6 +331,7 @@ export function AIDMScreen({ onBack, characterContext }: AIDMScreenProps) {
           onBack={() => setShowGuides(false)}
           guides={gmGuides.guides}
           totalChars={gmGuides.totalChars}
+          campaignSummaryChars={campaignSummary?.length ?? 0}
           onAdd={gmGuides.addGuide}
           onUpdate={gmGuides.updateGuide}
           onDelete={gmGuides.deleteGuide}

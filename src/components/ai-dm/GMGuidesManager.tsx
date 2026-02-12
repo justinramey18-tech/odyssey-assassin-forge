@@ -9,6 +9,7 @@ interface GMGuidesManagerProps {
   onBack: () => void;
   guides: GMGuide[];
   totalChars: number;
+  campaignSummaryChars?: number;
   onAdd: (name: string, content: string) => boolean;
   onUpdate: (id: string, updates: Partial<Pick<GMGuide, 'name' | 'content' | 'enabled'>>) => boolean;
   onDelete: (id: string) => void;
@@ -28,7 +29,7 @@ function CharCounter({ current, max, className }: { current: number; max: number
   );
 }
 
-export function GMGuidesManager({ onBack, guides, totalChars, onAdd, onUpdate, onDelete, onToggle }: GMGuidesManagerProps) {
+export function GMGuidesManager({ onBack, guides, totalChars, campaignSummaryChars = 0, onAdd, onUpdate, onDelete, onToggle }: GMGuidesManagerProps) {
   const [editingGuide, setEditingGuide] = useState<GMGuide | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [editorName, setEditorName] = useState('');
@@ -67,7 +68,8 @@ export function GMGuidesManager({ onBack, guides, totalChars, onAdd, onUpdate, o
     setIsNew(false);
   }, []);
 
-  const budgetPct = (totalChars / MAX_TOTAL_CHARS) * 100;
+  const combinedChars = totalChars + campaignSummaryChars;
+  const budgetPct = (combinedChars / MAX_TOTAL_CHARS) * 100;
   const showEditor = isNew || editingGuide !== null;
 
   return (
@@ -96,8 +98,8 @@ export function GMGuidesManager({ onBack, guides, totalChars, onAdd, onUpdate, o
       {/* Budget bar */}
       <div className="px-3 py-2 bg-black/30 border-b border-amber-900/20">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[11px] text-white/50">Total Character Budget</span>
-          <CharCounter current={totalChars} max={MAX_TOTAL_CHARS} />
+          <span className="text-[11px] text-white/50">Total Context Budget{campaignSummaryChars > 0 ? ` (incl. ${(campaignSummaryChars / 1000).toFixed(1)}k summary)` : ''}</span>
+          <CharCounter current={combinedChars} max={MAX_TOTAL_CHARS} />
         </div>
         <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
           <div
