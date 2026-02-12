@@ -115,6 +115,9 @@ const Index = () => {
     }
   }, [searchParams, setSearchParams]);
 
+  // Handle deep-link via ?tab= query param (e.g. from /features page)
+  const pendingTab = searchParams.get('tab');
+
   const [showWizard, setShowWizard] = useState(true);
   const [showIntroSplash, setShowIntroSplash] = useState(() => {
     // Show intro splash only if user hasn't seen it before
@@ -209,6 +212,19 @@ const Index = () => {
     onSettingsClick: () => setShowSettingsModal(true),
     onCloudClick: () => setShowCloudSaveModal(true),
   });
+
+  // Deep-link: navigate to tab from ?tab= query param
+  useEffect(() => {
+    if (pendingTab) {
+      const mapping = getTabToCategoryMapping(pendingTab as any);
+      categoryNav.setMainCategory(mapping.category);
+      categoryNav.navigateToSubTab(mapping.subTab, mapping.category);
+      setShowHomeScreen(false);
+      setShowWizard(false);
+      // Clear the param so it doesn't re-trigger
+      setSearchParams({}, { replace: true });
+    }
+  }, [pendingTab]); // eslint-disable-line react-hooks/exhaustive-deps
   
   // Derived active tab for backward compatibility
   const activeTab = categoryNav.activeSubTab as 'skills' | 'abilities' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle' | 'legacy' | 'arcana' | 'shop' | 'loot';
