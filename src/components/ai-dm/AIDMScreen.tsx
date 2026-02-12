@@ -7,6 +7,7 @@ import { useGMGuides } from '@/hooks/use-gm-guides';
 import { useCampaignSessions, CampaignSession } from '@/hooks/use-campaign-sessions';
 import { CharacterContext, Message } from '@/components/oracle/types';
 import { DMQuickActions } from './DMQuickActions';
+import { DMDiceRoller } from './DMDiceRoller';
 import { GMGuidesManager } from './GMGuidesManager';
 import { CampaignSessionsManager } from './CampaignSessionsManager';
 import { PartyDMScreen } from './PartyDMScreen';
@@ -379,6 +380,15 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
         <div className="px-3 py-1 border-t border-amber-900/20 bg-black/20">
           <DMQuickActions onSelect={handleQuickAction} isLoading={isLoading} variant="inline" />
         </div>
+      )}
+
+      {/* Inline Dice Roller */}
+      {messages.length > 0 && (
+        <DMDiceRoller
+          characterContext={characterContext}
+          onRollResult={handleQuickAction}
+          disabled={isLoading}
+        />
       )}
 
       {/* Input Area */}
