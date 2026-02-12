@@ -6,7 +6,8 @@ import { SpellCard } from './SpellCard';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, Filter, Star, Eye, BookOpen } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Search, Filter, Star, Eye, BookOpen, ChevronDown } from 'lucide-react';
 
 interface SpellbookGridProps {
   path: MagicPath;
@@ -187,9 +188,9 @@ export function SpellbookGrid({
             </div>
           ) : (
             levelKeys.map((level) => (
-              <div key={level}>
-                {/* Level Header */}
-                <div className="flex items-center gap-2 mb-3">
+              <Collapsible key={level} defaultOpen>
+                <CollapsibleTrigger className="flex items-center gap-2 w-full group py-1">
+                  <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90" />
                   <h3 className="font-cinzel text-sm font-medium text-muted-foreground uppercase tracking-wider">
                     {level === 0 ? 'Cantrips' : `${getSpellLevelLabel(level)} Level`}
                   </h3>
@@ -197,23 +198,24 @@ export function SpellbookGrid({
                   <span className="text-xs text-muted-foreground">
                     {groupedSpells[level].length} spell{groupedSpells[level].length !== 1 ? 's' : ''}
                   </span>
-                </div>
+                </CollapsibleTrigger>
 
-                {/* Spell Cards Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {groupedSpells[level].map((spell) => (
-                    <SpellCard
-                      key={spell.id}
-                      spell={spell}
-                      isPrepared={preparedSpells.includes(spell.id) || spell.level === 0}
-                      isFavorite={favoriteSpells.includes(spell.id)}
-                      isConcentrating={concentratingOn === spell.id}
-                      characterLevel={characterLevel}
-                      onClick={() => onSpellSelect(spell)}
-                    />
-                  ))}
-                </div>
-              </div>
+                <CollapsibleContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                    {groupedSpells[level].map((spell) => (
+                      <SpellCard
+                        key={spell.id}
+                        spell={spell}
+                        isPrepared={preparedSpells.includes(spell.id) || spell.level === 0}
+                        isFavorite={favoriteSpells.includes(spell.id)}
+                        isConcentrating={concentratingOn === spell.id}
+                        characterLevel={characterLevel}
+                        onClick={() => onSpellSelect(spell)}
+                      />
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             ))
           )}
         </div>
