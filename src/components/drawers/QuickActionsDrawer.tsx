@@ -3,7 +3,7 @@ import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Swords, Sparkles, Zap, Wand2, 
+import { Swords, Sparkles, Zap, Wand2, Sunrise,
   ChevronDown, Copy, Check, Timer, Shield, Play, Dices, Target,
   Beaker, Skull, ScrollText, FlaskConical, PawPrint, Clock, Heart,
   ImagePlus, ImageOff, Star, X, Plus
@@ -54,6 +54,15 @@ interface SpellcastingInfo {
   toggleFavorite: (spellId: string) => void;
 }
 
+// Channel Divinity info for Quick Actions
+interface ChannelDivinityInfo {
+  current: number;
+  max: number;
+  clericLevel: number;
+  options: Array<{ id: string; name: string; description: string; mechanicalEffect?: string; isDomain: boolean }>;
+  useChannelDivinity: (optionName?: string) => boolean;
+}
+
 interface QuickActionsDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -78,6 +87,8 @@ interface QuickActionsDrawerProps {
   partyMembers?: import('@/hooks/use-party-sync').PartyMember[];
   userId?: string;
   onSendHeal?: (targetUserId: string, actionData: { senderName?: string; itemName?: string; hpHealed?: number }) => Promise<void>;
+  // Channel Divinity
+  channelDivinity?: ChannelDivinityInfo;
 }
 
 // ── Prompt generators (static, no roll data) ──
@@ -883,6 +894,7 @@ export function QuickActionsDrawer({
   partyMembers = [],
   userId,
   onSendHeal,
+  channelDivinity,
 }: QuickActionsDrawerProps) {
   // Track which item has an active inline roll
   const [pendingHealConsumable, setPendingHealConsumable] = useState<{ item: InventoryItem; amount: number } | null>(null);
@@ -1497,6 +1509,62 @@ export function QuickActionsDrawer({
                 </div>
               </CollapsibleContent>
             </Collapsible>
+
+            {/* ── CHANNEL DIVINITY (Cleric only) ── */}
+            {channelDivinity && channelDivinity.max > 0 && channelDivinity.options.length > 0 && (
+              <Collapsible className="group">
+                <CollapsibleTrigger className="w-full">
+                  <CategoryHeader icon={Sunrise} label="Channel Divinity" count={channelDivinity.current} color="bg-yellow-500/20 text-yellow-400" />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="space-y-1 pl-2 pr-1 pb-2">
+                    {/* Uses indicator */}
+                    <div className="flex items-center justify-center gap-1.5 py-1">
+                      {Array.from({ length: channelDivinity.max }).map((_, i) => (
+                        <div
+                          key={i}
+                          className={cn(
+                            'w-3 h-3 rounded-full border transition-colors',
+                            i < channelDivinity.current
+                              ? 'bg-yellow-400 border-yellow-500 shadow-[0_0_6px_rgba(250,204,21,0.5)]'
+                              : 'bg-muted/30 border-muted-foreground/30'
+                          )}
+                        />
+                      ))}
+                      <span className="text-[10px] text-muted-foreground ml-1">
+                        {channelDivinity.current}/{channelDivinity.max} uses · Short rest
+                      </span>
+                    </div>
+                    {channelDivinity.options.map(option => (
+                      <div key={option.id} className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-card/40 border border-border/30">
+                        <Sunrise className="w-4 h-4 text-yellow-400 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-medium truncate">{option.name}</p>
+                            {option.isDomain && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded border border-yellow-500/30 text-yellow-400">Domain</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate">{option.mechanicalEffect || option.description}</p>
+                        </div>
+                        <button
+                          onClick={() => channelDivinity.useChannelDivinity(option.name)}
+                          disabled={channelDivinity.current <= 0}
+                          className={cn(
+                            "shrink-0 px-2.5 py-1 rounded text-[10px] font-semibold uppercase tracking-wider transition-colors",
+                            channelDivinity.current > 0
+                              ? "bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30 active:bg-yellow-500/40"
+                              : "bg-muted/20 text-muted-foreground cursor-not-allowed"
+                          )}
+                        >
+                          Channel
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
 
             {/* ── CANTRIPS ── */}
             <Collapsible className="group">

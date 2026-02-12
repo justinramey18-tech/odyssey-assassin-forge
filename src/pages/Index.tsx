@@ -76,6 +76,8 @@ import { ParsedShopItem } from '@/lib/shop/types';
 import { useSpellcasting } from '@/hooks/use-spellcasting';
 import { useClassSpellcasting } from '@/hooks/use-class-spellcasting';
 import { adaptClassSpellcastingForCombat } from '@/hooks/use-combat-spellcasting-adapter';
+import { BASE_CHANNEL_DIVINITY_OPTIONS } from '@/lib/magic/channelDivinity';
+import { getDomainChannelDivinity, ClericDomain } from '@/lib/classes/clericDomains';
 import { Consumable } from '@/lib/consumables/types';
 import { EquipmentItem as ShopEquipmentItem } from '@/lib/inventory/types';
 import { useCustomBackground } from '@/hooks/use-custom-background';
@@ -433,7 +435,37 @@ const Index = () => {
     return adaptClassSpellcastingForCombat(classSpellcasting, character.primaryClass ?? 'wizard');
   }, [isRogueClass, spellcasting, classSpellcasting, character.primaryClass]);
 
-  // Conditions system with concentration sync to spellcasting
+  // Channel Divinity info for Quick Actions drawer
+  const channelDivinityInfo = useMemo(() => {
+    if (isRogueClass || character.primaryClass !== 'cleric' || !classSpellcasting.hasChannelDivinity) return undefined;
+    const clericLevel = character.level;
+    // Read domain from localStorage (same key as ClassSpellcastingScreen)
+    let domainOptions: Array<{ id: string; name: string; description: string; mechanicalEffect?: string; isDomain: boolean }> = [];
+    try {
+      const savedDomain = localStorage.getItem('dnd-cleric-domain') as ClericDomain | null;
+      if (savedDomain) {
+        domainOptions = getDomainChannelDivinity(savedDomain, clericLevel).map(opt => ({
+          id: opt.id,
+          name: opt.name,
+          description: opt.description,
+          mechanicalEffect: opt.mechanicalEffect,
+          isDomain: true,
+        }));
+      }
+    } catch {}
+    const baseOptions = BASE_CHANNEL_DIVINITY_OPTIONS
+      .filter(opt => clericLevel >= opt.unlockedAtLevel)
+      .map(opt => ({ id: opt.id, name: opt.name, description: opt.description, isDomain: false }));
+    return {
+      current: classSpellcasting.channelDivinityCurrent,
+      max: classSpellcasting.channelDivinityMax,
+      clericLevel,
+      options: [...baseOptions, ...domainOptions],
+      useChannelDivinity: classSpellcasting.useChannelDivinity,
+    };
+  }, [isRogueClass, character.primaryClass, character.level, classSpellcasting.hasChannelDivinity, classSpellcasting.channelDivinityCurrent, classSpellcasting.channelDivinityMax, classSpellcasting.useChannelDivinity]);
+
+
   // Using refs to avoid stale closure issues in callbacks
   const spellcastingRef = useRef(spellcasting);
   spellcastingRef.current = spellcasting;
@@ -1876,6 +1908,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         prestigeLevel={prestigeData.prestigeLevel}
         prestigeAbilities={prestigeTree.progress.unlockedAbilities}
         spellcasting={combatSpellcasting}
+        channelDivinityInfo={channelDivinityInfo}
         wildShape={isDruidClass ? wildShape : undefined}
         onAssignWildShapeBackground={wildShapeBgs.assignBackground}
         onRemoveWildShapeBackground={wildShapeBgs.removeBackground}
@@ -2023,6 +2056,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       prestigeLevel={prestigeData.prestigeLevel}
       prestigeAbilities={prestigeTree.progress.unlockedAbilities}
       spellcasting={combatSpellcasting}
+      channelDivinityInfo={channelDivinityInfo}
       wildShape={isDruidClass ? wildShape : undefined}
       onAssignWildShapeBackground={wildShapeBgs.assignBackground}
       onRemoveWildShapeBackground={wildShapeBgs.removeBackground}
