@@ -109,16 +109,26 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     const msgChannel = supabase
       .channel(`party-dm-msgs-${partyId}`)
       .on('postgres_changes', {
-        event: 'INSERT',
+        event: '*',
         schema: 'public',
         table: 'party_dm_messages',
         filter: `party_id=eq.${partyId}`,
       }, (payload) => {
-        const newMsg = payload.new as PartyDmMessage;
-        setMessages(prev => {
-          if (prev.some(m => m.id === newMsg.id)) return prev;
-          return [...prev, newMsg];
-        });
+        if (payload.eventType === 'INSERT') {
+          const newMsg = payload.new as PartyDmMessage;
+          setMessages(prev => {
+            if (prev.some(m => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          });
+        } else if (payload.eventType === 'UPDATE') {
+          const updated = payload.new as PartyDmMessage;
+          setMessages(prev => prev.map(m => m.id === updated.id ? updated : m));
+        } else if (payload.eventType === 'DELETE') {
+          const old = payload.old as { id?: string };
+          if (old.id) {
+            setMessages(prev => prev.filter(m => m.id !== old.id));
+          }
+        }
       })
       .subscribe();
 
