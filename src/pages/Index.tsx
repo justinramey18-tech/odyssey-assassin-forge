@@ -1486,7 +1486,18 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     }
   }, [handleShortRest, handleLongRest]);
 
-  // Chronicle Sync change handler
+  // Auto-sync callbacks for AI DM
+  const autoSyncCallbacks = useMemo(() => ({
+    onHPChange: handleChronicleHP,
+    onAddXP: handleAddXP,
+    onGoldChange: handleChronicleGold,
+    onConditionChange: handleChronicleConditions,
+    onRestOccurred: handleChronicleRest,
+    getCurrentHP: () => hpState.current,
+    getCurrentGold: () => shop.currentGold,
+  }), [handleChronicleHP, handleAddXP, handleChronicleGold, handleChronicleConditions, handleChronicleRest, hpState.current, shop.currentGold]);
+
+
   const handleApplyChronicleChanges = (changes: ApprovedChanges) => {
     // Create undo snapshot before applying changes
     const snapshot = {
@@ -1872,6 +1883,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         } : undefined}
         partyId={partySync.party.partyId}
         isPartyCreator={partySync.party.isCreator}
+        autoSyncCallbacks={autoSyncCallbacks}
       >
         <IncomingHealOverlay
           pendingHeals={partySync.pendingHeals}
@@ -2012,6 +2024,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         } : undefined}
         partyId={partySync.party.partyId}
         isPartyCreator={partySync.party.isCreator}
+        autoSyncCallbacks={autoSyncCallbacks}
       >
       <IncomingHealOverlay
         pendingHeals={partySync.pendingHeals}

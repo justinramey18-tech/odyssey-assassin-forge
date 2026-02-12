@@ -130,6 +130,16 @@ interface PromptDrawerProviderProps {
   // Party DM props
   partyId?: string | null;
   isPartyCreator?: boolean;
+  // Auto-sync callbacks for AI DM
+  autoSyncCallbacks?: {
+    onHPChange: (change: number, type: 'damage' | 'healing') => void;
+    onAddXP: (amount: number, source: string) => void;
+    onGoldChange: (netChange: number) => void;
+    onConditionChange: (toAdd: string[], toRemove: string[]) => void;
+    onRestOccurred: (type: 'short' | 'long') => void;
+    getCurrentHP: () => number;
+    getCurrentGold: () => number;
+  };
 }
 
 export function PromptDrawerProvider({
@@ -171,6 +181,7 @@ export function PromptDrawerProvider({
   onShareBuffToParty,
   partyId,
   isPartyCreator = false,
+  autoSyncCallbacks,
 }: PromptDrawerProviderProps) {
   const [infinityOpen, setInfinityOpen] = useState(false);
   const [abilitiesOpen, setAbilitiesOpen] = useState(false);
@@ -597,6 +608,7 @@ export function PromptDrawerProvider({
               partyMembers={partyMembers}
               userId={userId}
               characterName={character.name}
+              autoSyncCallbacks={autoSyncCallbacks}
             />
           )}
         </>

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Users } from 'lucide-react';
+import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Users, Zap, Map } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAIDM } from '@/hooks/use-ai-dm';
 import { useGMGuides } from '@/hooks/use-gm-guides';
@@ -11,9 +11,13 @@ import { DMDiceRoller } from './DMDiceRoller';
 import { GMGuidesManager } from './GMGuidesManager';
 import { CampaignSessionsManager } from './CampaignSessionsManager';
 import { PartyDMScreen } from './PartyDMScreen';
+import { AutoSyncBanner } from './AutoSyncBanner';
 import { usePartyDm } from '@/hooks/use-party-dm';
+import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
+import { StandaloneBattleMap } from '@/components/home/StandaloneBattleMap';
 import ReactMarkdown from 'react-markdown';
 import type { PartyMember } from '@/hooks/use-party-sync';
+import type { MapMarker } from '@/components/party/battlemap/types';
 
 interface AIDMScreenProps {
   onBack: () => void;
@@ -23,6 +27,15 @@ interface AIDMScreenProps {
   partyMembers?: PartyMember[];
   userId?: string;
   characterName?: string;
+  autoSyncCallbacks?: {
+    onHPChange: (change: number, type: 'damage' | 'healing') => void;
+    onAddXP: (amount: number, source: string) => void;
+    onGoldChange: (netChange: number) => void;
+    onConditionChange: (toAdd: string[], toRemove: string[]) => void;
+    onRestOccurred: (type: 'short' | 'long') => void;
+    getCurrentHP: () => number;
+    getCurrentGold: () => number;
+  };
 }
 
 function DMMessageBubble({ message }: { message: Message }) {
@@ -88,10 +101,40 @@ function DMMessageBubble({ message }: { message: Message }) {
   );
 }
 
-export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator = false, partyMembers = [], userId, characterName = 'Adventurer' }: AIDMScreenProps) {
+export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator = false, partyMembers = [], userId, characterName = 'Adventurer', autoSyncCallbacks }: AIDMScreenProps) {
   const [showPartyDM, setShowPartyDM] = useState(false);
+  const [showBattleMap, setShowBattleMap] = useState(false);
+  const [pendingMapAdds, setPendingMapAdds] = useState<MapMarker[]>([]);
+  const [pendingMapRemovals, setPendingMapRemovals] = useState<string[]>([]);
+  const battleMapMarkersRef = useRef<MapMarker[]>([]);
+  const battleMapGridSizeRef = useRef<number>(25);
   const gmGuides = useGMGuides();
-  const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, loadCampaign, sendMessage, cancelRequest, clearMessages, newGame, activeCampaignId, setActiveCampaignId, lastCloudSyncTime, isCloudSyncing } = useAIDM({ characterContext, customGuidesContent: gmGuides.enabledContent });
+
+  // Auto-sync hook
+  const autoSync = useDmAutoSync({
+    onHPChange: autoSyncCallbacks?.onHPChange ?? (() => {}),
+    onAddXP: autoSyncCallbacks?.onAddXP ?? (() => {}),
+    onGoldChange: autoSyncCallbacks?.onGoldChange ?? (() => {}),
+    onConditionChange: autoSyncCallbacks?.onConditionChange ?? (() => {}),
+    onRestOccurred: autoSyncCallbacks?.onRestOccurred ?? (() => {}),
+    onMapUpdate: useCallback((markersToAdd: MapMarker[], namesToRemove: string[]) => {
+      if (markersToAdd.length > 0) setPendingMapAdds(markersToAdd);
+      if (namesToRemove.length > 0) setPendingMapRemovals(namesToRemove);
+    }, []),
+    getCurrentHP: autoSyncCallbacks?.getCurrentHP ?? (() => 0),
+    getCurrentGold: autoSyncCallbacks?.getCurrentGold ?? (() => 0),
+    getCurrentMarkers: useCallback(() => battleMapMarkersRef.current, []),
+    getGridSize: useCallback(() => battleMapGridSizeRef.current as any, []),
+  });
+
+  // Callback for when DM finishes streaming
+  const handleMessageComplete = useCallback((content: string) => {
+    if (autoSync.autoSyncEnabled && autoSyncCallbacks) {
+      autoSync.extractAndApply(content, characterContext);
+    }
+  }, [autoSync.autoSyncEnabled, autoSyncCallbacks, autoSync.extractAndApply, characterContext]);
+
+  const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, loadCampaign, sendMessage, cancelRequest, clearMessages, newGame, activeCampaignId, setActiveCampaignId, lastCloudSyncTime, isCloudSyncing } = useAIDM({ characterContext, customGuidesContent: gmGuides.enabledContent, onMessageComplete: handleMessageComplete });
   const campaignSessions = useCampaignSessions();
 
   const partyDm = usePartyDm({
@@ -214,6 +257,30 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
               )}
             </button>
           )}
+          {/* Auto-Sync Toggle */}
+          {autoSyncCallbacks && (
+            <button
+              onClick={() => autoSync.toggleAutoSync(!autoSync.autoSyncEnabled)}
+              className={cn(
+                "px-2.5 py-1.5 rounded-lg text-xs font-cinzel transition-colors",
+                autoSync.autoSyncEnabled ? "text-amber-300 bg-amber-900/30" : "text-white/50 hover:bg-white/10"
+              )}
+              style={{ touchAction: 'manipulation' }}
+              title={autoSync.autoSyncEnabled ? 'Auto-Sync enabled' : 'Enable Auto-Sync'}
+            >
+              <Zap className={cn("w-3.5 h-3.5 inline mr-1", autoSync.isExtracting && "animate-pulse")} />
+              Sync
+            </button>
+          )}
+          {/* Battle Map */}
+          <button
+            onClick={() => setShowBattleMap(true)}
+            className="px-2.5 py-1.5 rounded-lg text-xs font-cinzel text-white/50 hover:bg-white/10 transition-colors"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <Map className="w-3.5 h-3.5 inline mr-1" />
+            Map
+          </button>
           <button
             onClick={() => setShowSessions(true)}
             className="px-2.5 py-1.5 rounded-lg text-xs font-cinzel text-white/50 hover:bg-white/10 transition-colors"
@@ -382,6 +449,13 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
         </div>
       )}
 
+      {/* Auto-Sync Banner */}
+      <AutoSyncBanner
+        extraction={autoSync.lastExtraction}
+        onUndo={autoSync.undoLastExtraction}
+        onDismiss={() => {}}
+      />
+
       {/* Inline Dice Roller */}
       {messages.length > 0 && (
         <DMDiceRoller
@@ -470,6 +544,17 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
           members={partyMembers.map(m => ({ user_id: m.user_id, character_name: m.character_name }))}
         />
       )}
+      {/* Battle Map Overlay */}
+      <StandaloneBattleMap
+        open={showBattleMap}
+        onClose={() => setShowBattleMap(false)}
+        characterName={characterName}
+        pendingMarkerAdds={pendingMapAdds}
+        pendingMarkerRemovals={pendingMapRemovals}
+        onPendingProcessed={() => { setPendingMapAdds([]); setPendingMapRemovals([]); }}
+        onMarkersChange={(markers) => { battleMapMarkersRef.current = markers; }}
+        onGridSizeChange={(size) => { battleMapGridSizeRef.current = size; }}
+      />
     </div>
   );
 }

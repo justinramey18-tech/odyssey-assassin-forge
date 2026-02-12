@@ -38,13 +38,18 @@ interface StandaloneBattleMapProps {
   open: boolean;
   onClose: () => void;
   characterName?: string;
+  pendingMarkerAdds?: MapMarker[];
+  pendingMarkerRemovals?: string[];
+  onPendingProcessed?: () => void;
+  onMarkersChange?: (markers: MapMarker[]) => void;
+  onGridSizeChange?: (size: GridSize) => void;
 }
 
 /**
  * A self-contained battle map dialog for solo use (no party/Supabase needed).
  * Markers, areas, and spell templates persist to localStorage.
  */
-export function StandaloneBattleMap({ open, onClose, characterName = 'Me' }: StandaloneBattleMapProps) {
+export function StandaloneBattleMap({ open, onClose, characterName = 'Me', pendingMarkerAdds, pendingMarkerRemovals, onPendingProcessed, onMarkersChange, onGridSizeChange: onGridSizeChangeCallback }: StandaloneBattleMapProps) {
   const [markers, setMarkers] = useState<MapMarker[]>(() => loadMapState()?.markers ?? []);
   const [addingEnemy, setAddingEnemy] = useState(false);
   const [enemyName, setEnemyName] = useState('');
@@ -86,6 +91,23 @@ export function StandaloneBattleMap({ open, onClose, characterName = 'Me' }: Sta
     }, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, [markers, highlightedCells, spellTemplates, gridSize]);
+
+  // Notify parent of marker and grid size changes
+  useEffect(() => { onMarkersChange?.(markers); }, [markers, onMarkersChange]);
+  useEffect(() => { onGridSizeChangeCallback?.(gridSize); }, [gridSize, onGridSizeChangeCallback]);
+
+  // Process pending marker adds/removals from auto-sync
+  useEffect(() => {
+    if (pendingMarkerAdds && pendingMarkerAdds.length > 0) {
+      setMarkers(prev => [...prev, ...pendingMarkerAdds]);
+    }
+    if (pendingMarkerRemovals && pendingMarkerRemovals.length > 0) {
+      setMarkers(prev => prev.filter(m => !pendingMarkerRemovals.includes(m.name)));
+    }
+    if ((pendingMarkerAdds?.length ?? 0) > 0 || (pendingMarkerRemovals?.length ?? 0) > 0) {
+      onPendingProcessed?.();
+    }
+  }, [pendingMarkerAdds, pendingMarkerRemovals, onPendingProcessed]);
 
   const currentUserId = 'solo-user';
   const myMarker = markers.find(m => !m.isEnemy && m.ownerUserId === currentUserId);
