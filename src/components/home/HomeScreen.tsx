@@ -446,7 +446,7 @@ export function HomeScreen({
           transition={{ duration: 0.3 }}
           className="flex items-center justify-between px-4 py-3 border-b border-white/10"
         >
-          {/* Left: Hamburger, Background Upload, Help */}
+          {/* Left: Hamburger, Background Upload */}
           <div className="flex items-center gap-1">
             <CharacterSavesTrigger onClick={() => setShowCharacterSaves(true)} />
             
@@ -458,53 +458,24 @@ export function HomeScreen({
                 onClear={onCustomBackgroundClear}
               />
             )}
-
+          </div>
+          
+          {/* Right: Clock, Help */}
+          <div className="flex items-center gap-1">
+            <ClockWidget />
             {onOpenFAQ && (
               <button 
                 onClick={() => {
                   triggerHaptic('light');
                   onOpenFAQ();
                 }}
-                className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
                 style={{ touchAction: 'manipulation' }}
                 aria-label="Help & FAQ"
               >
-                <HelpCircle className="w-5 h-5 text-white/80" />
+                <HelpCircle className="w-4 h-4 text-white/80" />
               </button>
             )}
-          </div>
-          
-          {/* Right: Party, Clock */}
-          <div className="flex items-center gap-2">
-            {partySync && (
-              <button
-                onClick={() => {
-                  triggerHaptic('light');
-                  setShowPartyDrawer(true);
-                }}
-                className={cn(
-                  "rounded-lg transition-colors relative flex items-center gap-1.5",
-                  partySync.party.partyId
-                    ? "p-2 hover:bg-white/10"
-                    : "px-2.5 py-1.5 hover:bg-emerald-900/20 border border-emerald-500/30"
-                )}
-                style={{ touchAction: 'manipulation' }}
-                aria-label={partySync.party.partyId ? `Party — ${partySync.party.members.length} members` : 'Create or Join Party'}
-              >
-                <Users className={cn("w-4 h-4", partySync.party.partyId ? "text-emerald-400 w-5 h-5" : "text-emerald-400/70")} />
-                {partySync.party.partyId ? (
-                  <>
-                    <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center text-[10px] font-bold rounded-full bg-emerald-500 text-white">
-                      {partySync.party.members.length}
-                    </span>
-                    <OnlineCountBadge members={partySync.party.members} />
-                  </>
-                ) : (
-                  <span className="text-[10px] font-cinzel uppercase tracking-wider text-emerald-400/70">Party</span>
-                )}
-              </button>
-            )}
-            <ClockWidget />
           </div>
         </motion.header>
 
@@ -535,6 +506,38 @@ export function HomeScreen({
                 formMaxHP={wildShapeFormMaxHP}
                 formAC={wildShapeFormAC}
               />
+            )}
+
+            {/* Party Button - centered above chat or dice roller */}
+            {partySync && (
+              <div className="flex justify-center mb-[2px]">
+                <button
+                  onClick={() => {
+                    triggerHaptic('light');
+                    setShowPartyDrawer(true);
+                  }}
+                  className={cn(
+                    "rounded-lg transition-colors relative flex items-center gap-1.5",
+                    partySync.party.partyId
+                      ? "p-2 hover:bg-white/10"
+                      : "px-2.5 py-1.5 hover:bg-emerald-900/20 border border-emerald-500/30"
+                  )}
+                  style={{ touchAction: 'manipulation' }}
+                  aria-label={partySync.party.partyId ? `Party — ${partySync.party.members.length} members` : 'Create or Join Party'}
+                >
+                  <Users className={cn("w-4 h-4", partySync.party.partyId ? "text-emerald-400 w-5 h-5" : "text-emerald-400/70")} />
+                  {partySync.party.partyId ? (
+                    <>
+                      <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center text-[10px] font-bold rounded-full bg-emerald-500 text-white">
+                        {partySync.party.members.length}
+                      </span>
+                      <OnlineCountBadge members={partySync.party.members} />
+                    </>
+                  ) : (
+                    <span className="text-[10px] font-cinzel uppercase tracking-wider text-emerald-400/70">Party</span>
+                  )}
+                </button>
+              </div>
             )}
 
             {/* Party Chat Button - above D20 */}
