@@ -75,7 +75,14 @@ export function ClericDomainPanel({
   compact = false,
 }: ClericDomainPanelProps) {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [deityName, setDeityName] = useState(() => {
+    try { return localStorage.getItem('dnd-cleric-deity') || ''; } catch { return ''; }
+  });
 
+  const handleDeityChange = (value: string) => {
+    setDeityName(value);
+    try { localStorage.setItem('dnd-cleric-deity', value); } catch {}
+  };
   const domainConfig = selectedDomain ? getDomainById(selectedDomain) : null;
   const bonusSpells = selectedDomain ? getDomainBonusSpells(selectedDomain, clericLevel) : [];
   const channelDivinity = selectedDomain ? getDomainChannelDivinity(selectedDomain, clericLevel) : [];
@@ -166,7 +173,18 @@ export function ClericDomainPanel({
           </Sheet>
         </div>
 
-        {/* Domain Description */}
+        {/* Deity Name */}
+        <div className="flex items-center gap-2">
+          <label className="text-[10px] text-muted-foreground uppercase whitespace-nowrap">Deity</label>
+          <input
+            type="text"
+            value={deityName}
+            onChange={(e) => handleDeityChange(e.target.value)}
+            placeholder="e.g. Pelor, Lathander..."
+            className="flex-1 text-xs bg-background/50 border border-border/50 rounded px-2 py-1 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
+          />
+        </div>
+
         {domainConfig && (
           <p className="text-xs text-muted-foreground">{domainConfig.description}</p>
         )}

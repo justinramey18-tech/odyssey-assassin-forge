@@ -19,6 +19,8 @@ interface ChannelDivinityCardsProps {
   max: number;
   clericLevel: number;
   characterName: string;
+  domainName?: string;
+  deityName?: string;
   domainOptions: DomainChannelDivinity[];
   onUseChannelDivinity: (optionName?: string) => boolean;
   onRestoreChannelDivinity?: () => void;
@@ -48,6 +50,8 @@ export function ChannelDivinityCards({
   max,
   clericLevel,
   characterName,
+  domainName,
+  deityName,
   domainOptions,
   onUseChannelDivinity,
   onRestoreChannelDivinity,
@@ -181,7 +185,7 @@ export function ChannelDivinityCards({
               onClick={async () => {
                 const success = onUseChannelDivinity(option.name);
                 if (success) {
-                  const prompt = generateChannelDivinityPrompt(option.name, option.description, characterName, option.mechanicalEffect, option.isDomain);
+                  const prompt = generateChannelDivinityPrompt(option.name, option.description, characterName, option.mechanicalEffect, option.isDomain, domainName, deityName);
                   try {
                     await navigator.clipboard.writeText(prompt);
                     toast.success(`${option.name} prompt copied!`);

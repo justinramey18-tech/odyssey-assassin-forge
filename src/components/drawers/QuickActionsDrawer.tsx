@@ -60,6 +60,8 @@ interface ChannelDivinityInfo {
   current: number;
   max: number;
   clericLevel: number;
+  domainName?: string;
+  deityName?: string;
   options: Array<{ id: string; name: string; description: string; mechanicalEffect?: string; isDomain: boolean }>;
   useChannelDivinity: (optionName?: string) => boolean;
   restoreChannelDivinity: () => void;
@@ -1562,7 +1564,7 @@ export function QuickActionsDrawer({
                           onClick={async () => {
                             const success = channelDivinity.useChannelDivinity(option.name);
                             if (success) {
-                              const prompt = generateChannelDivinityPrompt(option.name, option.description, characterName, option.mechanicalEffect, option.isDomain);
+                              const prompt = generateChannelDivinityPrompt(option.name, option.description, characterName, option.mechanicalEffect, option.isDomain, channelDivinity.domainName, channelDivinity.deityName);
                               try {
                                 await navigator.clipboard.writeText(prompt);
                                 toast.success(`${option.name} prompt copied!`);
