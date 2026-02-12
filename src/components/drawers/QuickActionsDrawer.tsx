@@ -1382,6 +1382,9 @@ export function QuickActionsDrawer({
                             <div className="flex items-center gap-1.5">
                               <p className="text-sm font-medium truncate">{ability.name}</p>
                               <span className="text-[10px] text-amber-400 font-mono">T{tier}</span>
+                              {ability.id.startsWith('homebrew_') && (
+                                <span className="text-[9px] px-1 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400 font-semibold leading-none">Homebrew</span>
+                              )}
                             </div>
                             <div className="flex items-center gap-2">
                               <p className="text-xs text-muted-foreground">{ability.actionType.replace('_', ' ')}</p>
@@ -1448,6 +1451,9 @@ export function QuickActionsDrawer({
                           <div className="flex items-center gap-1.5">
                             <p className="text-sm font-medium truncate">{spell.name}</p>
                             <span className="text-[10px] text-indigo-300 font-mono">L{spell.level}</span>
+                            {(spell as any).isHomebrew && (
+                              <span className="text-[9px] px-1 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400 font-semibold leading-none">Homebrew</span>
+                            )}
                             {spell.concentration && <span className="text-[10px] text-yellow-400">C</span>}
                             {isConcentrating && <span className="text-[10px] text-amber-400 animate-pulse">●</span>}
                           </div>
@@ -1611,7 +1617,12 @@ export function QuickActionsDrawer({
                       <div key={spell.id} className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-card/40 border border-border/30">
                         <Sparkles className="w-4 h-4 text-cyan-400 shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{spell.name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-medium truncate">{spell.name}</p>
+                            {(spell as any).isHomebrew && (
+                              <span className="text-[9px] px-1 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400 font-semibold leading-none">Homebrew</span>
+                            )}
+                          </div>
                           <p className="text-xs text-muted-foreground">{spell.school} · {spell.castingTime.replace('_', ' ')}</p>
                         </div>
                         <QuickCastButton

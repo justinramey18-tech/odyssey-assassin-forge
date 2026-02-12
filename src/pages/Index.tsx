@@ -712,6 +712,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           tier,
           actionType: converted.type === 'active' ? 'Action' : 'Passive',
           image: abilityImageThumbs[id] || undefined,
+          isHomebrew: true,
         };
       }
       const ability = allAbilities.find(a => a.id === id);
@@ -748,6 +749,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
             level: spell.level,
             school: spell.school || 'Unknown',
             concentration: spell.concentration || false,
+            isHomebrew: !!(spell as any).isHomebrew,
           };
         })
         .filter(Boolean) as typeof spells;
@@ -759,7 +761,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         .map((id: string) => {
           const spell = getSpellById(id);
           if (!spell || spell.level !== 0) return null;
-          return { name: spell.name, school: spell.school || 'Unknown' };
+          return { name: spell.name, school: spell.school || 'Unknown', isHomebrew: !!(spell as any).isHomebrew };
         })
         .filter(Boolean) as typeof cantrips;
     }
