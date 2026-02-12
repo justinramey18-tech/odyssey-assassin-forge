@@ -8,6 +8,7 @@ const MAX_MESSAGES = 100;
 
 interface UseAIDMOptions {
   characterContext: CharacterContext;
+  customGuidesContent?: string;
 }
 
 function loadSession(): Message[] {
@@ -33,7 +34,7 @@ function saveSession(messages: Message[]): void {
   }
 }
 
-export function useAIDM({ characterContext }: UseAIDMOptions) {
+export function useAIDM({ characterContext, customGuidesContent }: UseAIDMOptions) {
   const [messages, setMessages] = useState<Message[]>(() => loadSession());
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -80,6 +81,7 @@ export function useAIDM({ characterContext }: UseAIDMOptions) {
         body: JSON.stringify({
           messages: apiPayload,
           characterContext,
+          customGuides: customGuidesContent || undefined,
         }),
         signal: abortControllerRef.current.signal,
       });
@@ -182,7 +184,7 @@ export function useAIDM({ characterContext }: UseAIDMOptions) {
       setIsLoading(false);
       abortControllerRef.current = null;
     }
-  }, [messages, characterContext, isLoading]);
+  }, [messages, characterContext, customGuidesContent, isLoading]);
 
   const cancelRequest = useCallback(() => {
     if (abortControllerRef.current) {
