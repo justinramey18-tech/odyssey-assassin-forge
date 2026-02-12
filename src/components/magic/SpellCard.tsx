@@ -77,6 +77,8 @@ export function SpellCard({
     );
   }
 
+  const isUnpreparedLeveled = !isPrepared && spell.level > 0;
+
   return (
     <button
       onClick={onClick}
@@ -88,7 +90,8 @@ export function SpellCard({
         // Background with subtle gradient
         "bg-gradient-to-br from-background/80 to-background/40",
         isPrepared && "ring-2 ring-indigo-500/60",
-        isConcentrating && "ring-2 ring-amber-500 animate-pulse"
+        isConcentrating && "ring-2 ring-amber-500 animate-pulse",
+        isUnpreparedLeveled && "opacity-50 border-border/30"
       )}
     >
       {/* Favorite star */}
@@ -96,6 +99,13 @@ export function SpellCard({
         <Star className="absolute top-2 right-2 w-4 h-4 text-amber-400 fill-amber-400" />
       )}
       
+      {/* Unprepared badge */}
+      {isUnpreparedLeveled && !isFavorite && (
+        <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[9px] font-medium bg-muted/60 text-muted-foreground border border-border/30">
+          Not Prepared
+        </span>
+      )}
+
       {/* Homebrew badge */}
       {(spell as any).isHomebrew && (
         <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-[9px] font-medium bg-indigo-600/40 text-indigo-300 border border-indigo-500/30">
