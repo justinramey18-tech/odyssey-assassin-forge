@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Users, Plus, LogIn, LogOut, Trash2, Copy, Check, Dices, Package, Crosshair, MessageSquare, Vote, Map, Swords } from 'lucide-react';
+import { Users, Plus, LogIn, LogOut, Trash2, Copy, Check, Dices, Package, Crosshair, MessageSquare, Vote, Map, Swords, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -33,9 +33,10 @@ interface PartyPanelProps {
   };
   isAuthenticated: boolean;
   userId?: string;
+  onOpenAIDM?: () => void;
 }
 
-export function PartyPanel({ partySync, characterName, currentStatus, isAuthenticated, userId }: PartyPanelProps) {
+export function PartyPanel({ partySync, characterName, currentStatus, isAuthenticated, userId, onOpenAIDM }: PartyPanelProps) {
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
@@ -340,6 +341,20 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
             />
           </CollapsibleContent>
         </Collapsible>
+      </div>
+
+      {/* Party DM Session */}
+      <div className="pt-2 border-t border-border/30">
+        <button
+          onClick={onOpenAIDM}
+          className="flex items-center gap-2 w-full py-1.5 hover:bg-muted/10 rounded px-1 transition-colors"
+        >
+          <Crown className="w-3.5 h-3.5 text-amber-400" />
+          <span className="text-xs font-semibold">Party DM</span>
+          <span className="text-[10px] text-muted-foreground ml-auto">
+            {party.isCreator ? 'Host' : 'Join'}
+          </span>
+        </button>
       </div>
 
       {/* Actions */}
