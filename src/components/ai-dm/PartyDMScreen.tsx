@@ -298,7 +298,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
     setInput(e.target.value);
     const ta = e.target;
     ta.style.height = 'auto';
-    ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
+    ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
   }, []);
 
   const handleCopyMessage = useCallback((content: string) => {
@@ -537,30 +537,32 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
             <span className="text-sm text-amber-400/70">Generating response...</span>
           </div>
         ) : !hasSubmitted ? (
-          <div className="flex items-end gap-2 max-w-2xl mx-auto">
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              placeholder="What does your character do?"
-              rows={1}
-              className="flex-1 bg-white/5 border border-amber-900/30 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-amber-500/40 resize-none min-h-[42px] max-h-[120px]"
-            />
-            <button
-              onClick={handleSubmit}
-              disabled={!input.trim()}
-              className={cn(
-                "p-2.5 rounded-xl border shrink-0 transition-colors",
-                input.trim() ? "bg-amber-900/40 border-amber-500/30 hover:bg-amber-900/60" : "bg-white/5 border-white/10 opacity-40"
-              )}
-              style={{ touchAction: 'manipulation' }}
-            >
-              <Send className="w-5 h-5 text-amber-400" />
-            </button>
+          <div className="space-y-2 max-w-2xl mx-auto">
+            <div className="flex items-end gap-2">
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                placeholder="What does your character do?"
+                rows={1}
+                className="flex-1 bg-white/5 border border-amber-900/30 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-amber-500/40 resize-none min-h-[42px] max-h-[200px]"
+              />
+              <button
+                onClick={handleSubmit}
+                disabled={!input.trim()}
+                className={cn(
+                  "p-2.5 rounded-xl border shrink-0 transition-colors",
+                  input.trim() ? "bg-amber-900/40 border-amber-500/30 hover:bg-amber-900/60" : "bg-white/5 border-white/10 opacity-40"
+                )}
+                style={{ touchAction: 'manipulation' }}
+              >
+                <Send className="w-5 h-5 text-amber-400" />
+              </button>
+            </div>
             <Button
               onClick={partyDm.setReady}
-              className="gap-1.5 bg-emerald-900/40 border border-emerald-500/30 hover:bg-emerald-900/60 text-emerald-300 shrink-0"
+              className="w-full gap-1.5 bg-emerald-900/40 border border-emerald-500/30 hover:bg-emerald-900/60 text-emerald-300"
               size="sm"
             >
               <Check className="w-4 h-4" />
@@ -575,7 +577,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                   value={editText}
                   onChange={(e) => setEditText(e.target.value)}
                   rows={1}
-                  className="flex-1 bg-white/5 border border-amber-900/30 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-amber-500/40 resize-none min-h-[42px] max-h-[120px]"
+                  className="flex-1 bg-white/5 border border-amber-900/30 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-amber-500/40 resize-none min-h-[42px] max-h-[200px]"
                   autoFocus
                 />
                 <Button
