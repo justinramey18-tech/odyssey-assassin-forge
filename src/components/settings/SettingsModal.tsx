@@ -47,6 +47,9 @@ interface SettingsModalProps {
   tempHP?: number;
   ac?: number;
   characterLevel?: number;
+  // Play mode
+  playMode?: 'solo' | 'party';
+  onPlayModeChange?: (mode: 'solo' | 'party') => void;
 }
 
 export function SettingsModal({ 
@@ -73,6 +76,8 @@ export function SettingsModal({
   tempHP,
   ac,
   characterLevel,
+  playMode,
+  onPlayModeChange,
 }: SettingsModalProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<SettingsTab>('game');
@@ -248,8 +253,10 @@ export function SettingsModal({
                   currentHP={currentHP}
                   maxHP={maxHP}
                   tempHP={tempHP}
-                  ac={ac}
-                  characterLevel={characterLevel}
+                   ac={ac}
+                   characterLevel={characterLevel}
+                   playMode={playMode}
+                   onPlayModeChange={onPlayModeChange}
               />
               ) : (
                 <MobileSettingsTabs
@@ -317,6 +324,8 @@ export function SettingsModal({
                 tempHP={tempHP}
                 ac={ac}
                 characterLevel={characterLevel}
+                playMode={playMode}
+                onPlayModeChange={onPlayModeChange}
               />
             </div>
           </ScrollArea>
