@@ -451,7 +451,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 overscroll-contain">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-2 py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain">
         {partyDm.messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-6">
             <Users className="w-12 h-12 text-primary/40 mb-4" />
@@ -530,7 +530,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
       )}
 
       {/* Input Area */}
-      <div className="px-3 py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm">
+      <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm">
         {partyDm.isGenerating ? (
           <div className="flex items-center justify-center gap-2 py-2">
             <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
