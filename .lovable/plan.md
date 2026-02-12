@@ -1,58 +1,76 @@
 
-
-# Robust Local Save for AI DM Sessions
+# Auto-Save AI DM Campaigns to the Cloud
 
 ## Overview
-Upgrade the AI DM session persistence in `use-ai-dm.ts` and `campaign-summary-storage.ts` to match the reliability of the character auto-save system: debounced writes, quota handling, corruption guards, and versioning.
+Add a 30-second cloud auto-save for the active AI DM campaign, mirroring the pattern used by the character auto-save system. localStorage remains a fast-restore cache (1s debounce), while the cloud save runs silently in the background. A small sync indicator in the context banner shows status.
 
 ## Changes
 
-### 1. `src/hooks/use-ai-dm.ts` -- Save/Load Overhaul
+### 1. `src/hooks/use-ai-dm.ts` -- Add cloud auto-save logic
 
-**Load function (`loadSession`)**
-- Support two formats: legacy (raw array) and new versioned wrapper (`{ version: 1, messages: [...] }`)
-- Validate each message has required fields (`id`, `role`, `content`, `timestamp`) -- drop invalid entries with a console warning
-- On parse failure or corruption, show a toast ("Session data was corrupted, starting fresh") and return empty
-- Rehydrate `timestamp` fields to `Date` objects as before
+**New state and refs:**
+- `activeCampaignId` state (moved from AIDMScreen into the hook so auto-save can reference it)
+- `cloudSaveTimerRef` for the 30-second debounce
+- `lastCloudSaveJsonRef` for dirty-checking against the cloud
+- `pendingCloudSave` flag
 
-**Save function (`saveSession`)**
-- Wrap messages in versioned object: `{ version: 1, messages: [...] }`
-- Catch `QuotaExceededError` specifically and show a toast: "Session too large to save locally"
-- Add dirty-checking: compare serialized string to a module-level `lastSavedRef` to skip no-op writes
+**New `saveToCloudNow` function:**
+- Serializes current messages and campaign summary
+- Dirty-checks against `lastCloudSaveJsonRef` to skip no-op saves
+- If `activeCampaignId` exists: upserts to `ai_dm_campaigns` table via Supabase client
+- If no `activeCampaignId` and user is signed in and messages exist: auto-creates a new campaign row named "Auto-Save" (or derived from first user message) and stores the returned ID
+- Silently catches errors (no toast for background saves, only console.warn)
 
-**Persistence effect (replace current `useEffect`)**
-- Replace the direct `useEffect(() => saveSession(messages), [messages])` with a 1-second debounced write using `setTimeout`/`useRef`, preventing dozens of writes during streaming
-- Add a `beforeunload` event listener that calls `saveSession` immediately (bypassing debounce) so data is never lost on tab close
-- Clean up both the debounce timer and the event listener on unmount
+**New effects:**
+- 30-second debounced cloud save effect: resets timer on messages/campaignSummary change, fires `saveToCloudNow` when timer expires
+- Periodic 2-minute interval fallback (same pattern as `use-auto-cloud-sync.ts`)
+- `beforeunload` handler also fires cloud save (best-effort)
 
-### 2. `src/lib/campaign-summary-storage.ts` -- Quota Handling
+**Updated hook return:**
+- Add `activeCampaignId`, `setActiveCampaignId`, `lastCloudSyncTime`, `isCloudSyncing` to the returned object
 
-- In `saveCampaignSummary`, catch `QuotaExceededError` and show a toast: "Campaign summary too large to save locally"
-- Import `toast` from `sonner`
+**Updated `loadCampaign`:**
+- Sets `activeCampaignId` internally
+- Resets `lastCloudSaveJsonRef` to the loaded data
 
-## What stays the same
-- The localStorage key (`dnd-ai-dm-session`) -- no migration needed
-- The `Message` type and hook API surface (no breaking changes to `AIDMScreen`)
-- Campaign summary storage key and max chars
-- The `loadCampaign` function (it will call the improved `saveSession` internally)
+**Updated `newGame` / `clearMessages`:**
+- Resets `activeCampaignId` to null
 
-## Technical Detail: Save Flow
+### 2. `src/components/ai-dm/AIDMScreen.tsx` -- Consume from hook, show sync status
+
+**Remove local `activeCampaignId` state** -- now comes from the hook.
+
+**Update `handleLoadCampaign`:**
+- Call `loadCampaign(session.messages, session.campaign_summary, session.id)` (pass session ID so the hook tracks it)
+
+**Update `handleSaveCampaign` (manual save):**
+- After manual save returns an ID, update the hook's `activeCampaignId` via setter
+
+**Context banner addition:**
+- Show a small cloud icon with "Synced Xm ago" or a spinning icon when `isCloudSyncing` is true, next to the existing summary indicator
+
+**New Game button:**
+- Already calls `newGame()` which will now clear the `activeCampaignId` in the hook
+
+### 3. `src/hooks/use-campaign-sessions.ts` -- Add silent upsert method
+
+Add a `silentSave` method that performs the same upsert as `saveSession` but without toasts or `loadSessions()` refresh (to avoid UI disruption during background saves). Returns the saved ID or null.
+
+## Data Flow
 
 ```text
-Message state changes
-  -> 1s debounce timer resets
-  -> Timer fires: serialize with version wrapper, dirty-check
-     -> Different from last save: try localStorage.setItem
-        -> QuotaExceededError: toast warning, skip write
-     -> Same: skip
-
-Tab close / navigation away
-  -> beforeunload: immediate save (bypass debounce)
+Message arrives (user or assistant)
+  -> localStorage save (1s debounce, existing)
+  -> Cloud save timer resets to 30s
+  -> 30s elapses with no new messages:
+     -> Dirty-check against lastCloudSaveJson
+     -> If changed & signed in & activeCampaignId exists: upsert to ai_dm_campaigns
+     -> If changed & signed in & no activeCampaignId: insert new row, store returned ID
+     -> Update lastCloudSyncTime
 ```
 
-## Testing
-- Open AI DM, have a conversation, close tab, reopen -- messages should restore
-- Verify no rapid localStorage writes during streaming (check console for save logs)
-- Manually corrupt `dnd-ai-dm-session` in DevTools, reload -- should see toast and fresh session
-- Fill localStorage near quota, send messages -- should see quota warning toast instead of silent failure
-
+## What stays the same
+- Manual "Save As New" and "Quick Save" in the Campaigns overlay still work
+- localStorage persistence (1s debounce, versioned, corruption-guarded)
+- The `ai_dm_campaigns` table schema (no migration needed)
+- Campaign summary auto-generation every 10 assistant messages
