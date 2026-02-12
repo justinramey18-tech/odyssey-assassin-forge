@@ -555,6 +555,7 @@ export function PromptDrawerProvider({
             lootItems={lootItems}
             totalLootValue={totalLootValue}
             combatContext={combatContext}
+            partyMembers={partyMembers}
           />
 
           <ConditionDrawer

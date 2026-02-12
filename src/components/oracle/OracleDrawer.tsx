@@ -9,6 +9,7 @@ import { Character } from '@/lib/types';
 import { CharacterEquipment, EquipmentSlot } from '@/lib/inventory/types';
 import { InventoryItem as ConsumableItem } from '@/lib/consumables/types';
 import { AbilityCooldownState } from '@/lib/cooldowns/types';
+import { PartyMember } from '@/hooks/use-party-sync';
 import { LootItem } from '@/lib/loot/types';
 import { allAbilities } from '@/lib/abilities';
 import { getPersonalityConfig } from './personalities';
@@ -66,6 +67,8 @@ interface OracleDrawerProps {
   totalLootValue?: number;
   // Combat context
   combatContext?: CombatContextInput;
+  // Party members
+  partyMembers?: PartyMember[];
 }
 
 export function OracleDrawer({
@@ -86,6 +89,7 @@ export function OracleDrawer({
   lootItems = [],
   totalLootValue = 0,
   combatContext,
+  partyMembers = [],
 }: OracleDrawerProps) {
   const [inputValue, setInputValue] = useState('');
 
@@ -256,6 +260,19 @@ export function OracleDrawer({
       };
     }
 
+    // Build party members context
+    const partyMembersContext = partyMembers
+      .filter(m => m.character_name)
+      .map(m => ({
+        name: m.character_name,
+        level: m.character_status.level,
+        className: m.character_status.className,
+        currentHP: m.character_status.currentHP,
+        maxHP: m.character_status.maxHP,
+        ac: m.character_status.ac,
+        conditions: m.character_status.conditions,
+      }));
+
     return {
       name: character.name,
       level: character.level,
@@ -277,8 +294,9 @@ export function OracleDrawer({
       spellcasting: spellcastingContext,
       loot: lootContext,
       combat: combatContextData,
+      partyMembers: partyMembersContext.length > 0 ? partyMembersContext : undefined,
     };
-  }, [character, currentHP, maxHP, equipment, consumables, cooldowns, prestigeLevel, prestigeAbilities, getRemainingTime, activeConditions, activeBuffs, spellcasting, lootItems, totalLootValue, combatContext]);
+  }, [character, currentHP, maxHP, equipment, consumables, cooldowns, prestigeLevel, prestigeAbilities, getRemainingTime, activeConditions, activeBuffs, spellcasting, lootItems, totalLootValue, combatContext, partyMembers]);
 
   const {
     messages,

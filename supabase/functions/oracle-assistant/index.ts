@@ -84,6 +84,16 @@ interface CharacterContext {
       wasCrit?: boolean;
     }>;
   };
+  // Party members
+  partyMembers?: Array<{
+    name: string;
+    level?: number;
+    className?: string;
+    currentHP?: number;
+    maxHP?: number;
+    ac?: number;
+    conditions?: string[];
+  }>;
 }
 
 interface OracleRequest {
@@ -267,6 +277,21 @@ function buildContextSummary(ctx: CharacterContext): string {
         lines.push(actionDesc);
       });
     }
+  }
+
+  // Add party members context
+  if (ctx.partyMembers && ctx.partyMembers.length > 0) {
+    lines.push(`\n👥 PARTY MEMBERS:`);
+    ctx.partyMembers.forEach(m => {
+      const hpStr = m.currentHP != null && m.maxHP != null
+        ? ` ${m.currentHP}/${m.maxHP} HP`
+        : '';
+      const acStr = m.ac != null ? ` AC ${m.ac}` : '';
+      const condStr = m.conditions && m.conditions.length > 0
+        ? ` [${m.conditions.join(', ')}]`
+        : '';
+      lines.push(`   - ${m.name} (Level ${m.level ?? '?'} ${m.className ?? 'Adventurer'},${hpStr}${acStr})${condStr}`);
+    });
   }
   
   return lines.join('\n');
