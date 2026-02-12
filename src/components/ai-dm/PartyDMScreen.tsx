@@ -58,7 +58,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
           style={{ backgroundColor: getMemberColor(message.sender_user_id || '', members) + '30', border: `1px solid ${getMemberColor(message.sender_user_id || '', members)}40` }}>
           <Shield className="w-3.5 h-3.5" style={{ color: getMemberColor(message.sender_user_id || '', members) }} />
         </div>
-        <div className="max-w-[85%] rounded-2xl px-4 py-2.5 bg-white/5 border border-white/10 rounded-bl-sm">
+        <div className="max-w-[85%] rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-2.5 bg-white/5 border border-white/10 rounded-bl-sm">
           <p className="text-[11px] font-semibold mb-0.5" style={{ color: getMemberColor(message.sender_user_id || '', members) }}>
             {message.sender_name}
           </p>
@@ -74,7 +74,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
         <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-amber-900/60 border border-amber-500/40">
           <Crown className="w-3.5 h-3.5 text-amber-400" />
         </div>
-        <div className="max-w-[85%] rounded-2xl px-4 py-2.5 bg-amber-950/50 border border-amber-500/20 rounded-bl-sm">
+        <div className="max-w-[85%] rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-2.5 bg-amber-950/50 border border-amber-500/20 rounded-bl-sm">
           {isEditingMsg ? (
             <div className="space-y-2">
               <textarea
@@ -183,7 +183,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
       <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-primary/20 border border-primary/30">
         <Users className="w-3.5 h-3.5 text-primary" />
       </div>
-      <div className="max-w-[85%] rounded-2xl px-4 py-2.5 bg-white/5 border border-white/10 rounded-bl-sm">
+      <div className="max-w-[85%] rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-2.5 bg-white/5 border border-white/10 rounded-bl-sm">
         <p className="text-[11px] font-semibold text-primary mb-1">Party Actions</p>
         {isEditingMsg ? (
           <div className="space-y-2">
