@@ -25,6 +25,8 @@ export interface CharacterContext {
   level: number;
   currentHP: number;
   maxHP: number;
+  deity?: string;
+  domain?: string;
   abilities: Array<{ name: string; tier: number; tree: string }>;
   equippedAbilities: string[];
   equipment: Array<{ slot: string; name: string; rarity: string }>;
