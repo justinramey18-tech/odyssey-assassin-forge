@@ -81,7 +81,7 @@ export function MessageList({ messages, isLoading, currentPersonality }: Message
               {/* Message bubble */}
               <div
                 className={cn(
-                  'max-w-[80%] rounded-2xl px-4 py-2',
+                  'max-w-[80%] rounded-2xl px-4 py-2 select-text',
                   isUser
                     ? 'bg-white/10 text-white rounded-br-sm'
                     : cn(
