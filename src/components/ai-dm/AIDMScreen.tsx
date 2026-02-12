@@ -239,7 +239,7 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
                 if (partyDm.isActive) {
                   setShowPartyDM(true);
                 } else if (isPartyCreator) {
-                  partyDm.startSession('shared');
+                  partyDm.startSession('shared', campaignSummary);
                   setShowPartyDM(true);
                 }
               }}
@@ -573,6 +573,13 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
           currentUserId={userId}
           memberCount={partyMembers.length}
           members={partyMembers.map(m => ({ user_id: m.user_id, character_name: m.character_name }))}
+          onShowGuides={() => { setShowPartyDM(false); setShowGuides(true); }}
+          onShowMap={() => { setShowPartyDM(false); setShowBattleMap(true); }}
+          onShowSaves={() => { setShowPartyDM(false); setShowSessions(true); }}
+          autoSyncEnabled={autoSync.autoSyncEnabled}
+          onToggleAutoSync={autoSync.toggleAutoSync}
+          isExtracting={autoSync.isExtracting}
+          guidesCount={gmGuides.guides.filter(g => g.enabled).length}
         />
       )}
       {/* Battle Map Overlay */}

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,6 +16,13 @@ interface PartyDMScreenProps {
   currentUserId?: string;
   memberCount: number;
   members: Array<{ user_id: string; character_name: string }>;
+  onShowGuides?: () => void;
+  onShowMap?: () => void;
+  onShowSaves?: () => void;
+  autoSyncEnabled?: boolean;
+  onToggleAutoSync?: (enabled: boolean) => void;
+  isExtracting?: boolean;
+  guidesCount?: number;
 }
 
 const MEMBER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7'];
@@ -95,7 +102,7 @@ function PartyDMMessage({ message, currentUserId, members, mode }: {
   );
 }
 
-export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, memberCount, members }: PartyDMScreenProps) {
+export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0 }: PartyDMScreenProps) {
   const [input, setInput] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState('');
@@ -147,13 +154,68 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
           <h1 className="text-base font-cinzel text-amber-200 tracking-wide">Party DM</h1>
           <span className="text-[10px] text-muted-foreground">{memberCount} players</span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide flex-shrink min-w-0">
+          {/* Auto-Sync Toggle */}
+          {onToggleAutoSync && (
+            <button
+              onClick={() => onToggleAutoSync(!autoSyncEnabled)}
+              className={cn(
+                "px-2 py-1.5 rounded-lg text-xs font-cinzel transition-colors",
+                autoSyncEnabled ? "text-amber-300 bg-amber-900/30" : "text-white/50 hover:bg-white/10"
+              )}
+              style={{ touchAction: 'manipulation' }}
+              title={autoSyncEnabled ? 'Auto-Sync enabled' : 'Enable Auto-Sync'}
+            >
+              <Zap className={cn("w-3.5 h-3.5 inline mr-0.5", isExtracting && "animate-pulse")} />
+              Sync
+            </button>
+          )}
+          {/* Battle Map */}
+          {onShowMap && (
+            <button
+              onClick={onShowMap}
+              className="px-2 py-1.5 rounded-lg text-xs font-cinzel text-white/50 hover:bg-white/10 transition-colors"
+              style={{ touchAction: 'manipulation' }}
+            >
+              <Map className="w-3.5 h-3.5 inline mr-0.5" />
+              Map
+            </button>
+          )}
+          {/* Saves */}
+          {onShowSaves && (
+            <button
+              onClick={onShowSaves}
+              className="px-2 py-1.5 rounded-lg text-xs font-cinzel text-white/50 hover:bg-white/10 transition-colors"
+              style={{ touchAction: 'manipulation' }}
+            >
+              <FolderOpen className="w-3.5 h-3.5 inline mr-0.5" />
+              Saves
+            </button>
+          )}
+          {/* Guides */}
+          {onShowGuides && (
+            <button
+              onClick={onShowGuides}
+              className={cn(
+                "px-2 py-1.5 rounded-lg text-xs font-cinzel transition-colors relative",
+                guidesCount > 0 ? "text-amber-300/80 hover:bg-amber-900/30" : "text-white/50 hover:bg-white/10"
+              )}
+              style={{ touchAction: 'manipulation' }}
+            >
+              <BookOpen className="w-3.5 h-3.5 inline mr-0.5" />
+              Guides
+              {guidesCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-amber-600 text-[8px] flex items-center justify-center text-white">
+                  {guidesCount}
+                </span>
+              )}
+            </button>
+          )}
           {isCreator && (
             <>
               <button
                 onClick={() => {
                   const newMode = mode === 'shared' ? 'private' : 'shared';
-                  // Update mode in session config
                   if (partyDm.sessionConfig) {
                     const updated = { ...partyDm.sessionConfig, mode: newMode as 'shared' | 'private' };
                     (supabase.from('party_shared_state') as any)
