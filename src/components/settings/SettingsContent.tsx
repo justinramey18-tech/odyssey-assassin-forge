@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Check, Copy, RefreshCw, Camera, Star, Lock, RotateCcw, AlertTriangle, HelpCircle, Download, ImageOff, Users } from 'lucide-react';
+import { Check, Copy, RefreshCw, Camera, Star, Lock, RotateCcw, AlertTriangle, Download, ImageOff, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
@@ -26,7 +26,7 @@ import { useGameMode } from '@/hooks/use-game-mode';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { SettingsTab } from './MobileSettingsTabs';
-import { FAQ_ITEMS } from '@/lib/faq-data';
+
 import { PartyPanel } from '@/components/party';
 import type { UsePartySyncReturn } from '@/hooks/use-party-sync';
 
@@ -467,72 +467,6 @@ export function SettingsContent({
     );
   }
 
-  // FAQ Tab
-  if (activeTab === 'faq') {
-    return (
-      <div className="flex-1 overflow-y-auto max-h-[70vh] overscroll-contain">
-        <div className="space-y-4 pb-6">
-          <div>
-            <h3 className="font-cinzel font-semibold text-base flex items-center gap-2">
-              <HelpCircle className="w-4 h-4 text-primary" />
-              Help & FAQ
-            </h3>
-            <p className="text-xs text-muted-foreground mt-1">
-              {FAQ_ITEMS.length} categories • {FAQ_ITEMS.reduce((sum, cat) => sum + cat.questions.length, 0)} questions
-            </p>
-          </div>
-
-          {/* Category Accordions */}
-          <Accordion type="single" collapsible className="space-y-2">
-            {FAQ_ITEMS.map((category, catIdx) => (
-              <AccordionItem 
-                key={catIdx} 
-                value={`category-${catIdx}`}
-                className="border border-border/40 rounded-lg bg-card/30 overflow-hidden"
-              >
-                <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/30 transition-colors">
-                  <div className="flex items-center gap-3 text-left">
-                    <Badge 
-                      variant="secondary" 
-                      className="text-[10px] px-2 py-0.5 bg-primary/20 text-primary border-primary/30"
-                    >
-                      {category.questions.length}
-                    </Badge>
-                    <span className="font-display font-semibold text-sm">
-                      {category.category}
-                    </span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="px-0 pb-0">
-                  {/* Questions Accordion inside category */}
-                  <div className="border-t border-border/30 bg-background/50">
-                    <Accordion type="single" collapsible className="divide-y divide-border/20">
-                      {category.questions.map((item, qIdx) => (
-                        <AccordionItem 
-                          key={qIdx} 
-                          value={`q-${catIdx}-${qIdx}`}
-                          className="border-0"
-                        >
-                          <AccordionTrigger className="px-4 py-3 text-sm text-left hover:no-underline hover:bg-muted/20 transition-colors gap-3">
-                            <span className="text-foreground/90">{item.q}</span>
-                          </AccordionTrigger>
-                          <AccordionContent className="px-4 pb-4 pt-0">
-                            <div className="text-sm text-muted-foreground leading-relaxed pl-0 border-l-2 border-primary/30 ml-1 pl-3">
-                              {item.a}
-                            </div>
-                          </AccordionContent>
-                        </AccordionItem>
-                      ))}
-                    </Accordion>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        </div>
-      </div>
-    );
-  }
 
   // Character Tab
   if (activeTab === 'character') {
