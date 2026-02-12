@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { Search, Filter, BookOpen, Star, Focus, Sparkles, Pencil, Trash2, ChevronDown } from 'lucide-react';
 import { DnDClass } from '@/lib/classes/types';
 import { SpellDefinition, SpellSchool } from '@/lib/magic/types';
-import { getSpellsByClass, getSpellLevelLabel } from '@/lib/magic/spells';
+import { getSpellsByClass, getSpellLevelLabel, getSpellById } from '@/lib/magic/spells';
 import { HomebrewSpell } from '@/lib/spellCustomization/types';
 import { SCHOOL_CONFIGS } from '@/lib/magic/schools';
 import { Input } from '@/components/ui/input';
@@ -66,8 +66,18 @@ export function ClassSpellbookGrid({
     const filtered = spells.filter(spell => spell.level <= maxSpellLevel);
     // Merge homebrew spells (they appear regardless of class filter)
     const homebrewFiltered = homebrewSpells.filter(s => s.level <= maxSpellLevel);
-    return [...filtered, ...homebrewFiltered];
-  }, [classId, maxSpellLevel, homebrewSpells]);
+    const merged = [...filtered, ...homebrewFiltered];
+    
+    // Also include any prepared spells not already in the class list
+    // (e.g., domain/circle bonus spells, cross-class spells from switching)
+    const mergedIds = new Set(merged.map(s => s.id));
+    const extraPrepared = preparedSpells
+      .filter(id => !mergedIds.has(id))
+      .map(id => getSpellById(id))
+      .filter((s): s is SpellDefinition => !!s && s.level <= maxSpellLevel);
+    
+    return [...merged, ...extraPrepared];
+  }, [classId, maxSpellLevel, homebrewSpells, preparedSpells]);
 
   // Apply filters
   const filteredSpells = useMemo(() => {
