@@ -1022,6 +1022,20 @@ export function QuickActionsDrawer({
       .filter((s): s is SpellDefinition => !!s && s.level === 0);
   }, [spellcasting]);
 
+  // ── Non-homebrew filtered lists for normal sections ──
+  const nonHomebrewAbilities = useMemo(() => 
+    equippedAbilities.filter(({ ability }) => !ability.id.startsWith('homebrew_')),
+    [equippedAbilities]
+  );
+  const nonHomebrewSpells = useMemo(() => 
+    preparedSpells.filter(s => (s as any).isHomebrew !== true),
+    [preparedSpells]
+  );
+  const nonHomebrewCantrips = useMemo(() => 
+    cantrips.filter(s => (s as any).isHomebrew !== true),
+    [cantrips]
+  );
+
   // ── Homebrew aggregation for dedicated section ──
   const homebrewData = useMemo(() => {
     // Homebrew abilities grouped by tree
@@ -1362,14 +1376,14 @@ export function QuickActionsDrawer({
             {/* ── ABILITIES (Equipped Loadout) ── */}
             <Collapsible className="group">
               <CollapsibleTrigger className="w-full">
-                <CategoryHeader icon={Zap} label="Abilities" count={equippedAbilities.length} color="bg-purple-500/20 text-purple-400" />
+                <CategoryHeader icon={Zap} label="Abilities" count={nonHomebrewAbilities.length} color="bg-purple-500/20 text-purple-400" />
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <div className="space-y-1 pl-2 pr-1 pb-2">
-                  {equippedAbilities.length === 0 && (
+                  {nonHomebrewAbilities.length === 0 && (
                     <p className="text-xs text-muted-foreground text-center py-3">No abilities equipped. Slot them in the Skills tab.</p>
                   )}
-                  {equippedAbilities.map(({ ability, tier }) => {
+                  {nonHomebrewAbilities.map(({ ability, tier }) => {
                     const onCD = cooldowns.isOnCooldown(ability.id);
                     const remaining = cooldowns.getRemainingTime(ability.id);
                     const prompt = generateQuickAbilityPrompt(ability, tier, characterName);
@@ -1450,14 +1464,14 @@ export function QuickActionsDrawer({
             {/* ── MAGIC (Prepared Spells) ── */}
             <Collapsible className="group">
               <CollapsibleTrigger className="w-full">
-                <CategoryHeader icon={Wand2} label="Magic" count={preparedSpells.length} color="bg-indigo-500/20 text-indigo-400" />
+                <CategoryHeader icon={Wand2} label="Magic" count={nonHomebrewSpells.length} color="bg-indigo-500/20 text-indigo-400" />
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <div className="space-y-1 pl-2 pr-1 pb-2">
-                  {preparedSpells.length === 0 && !showAddSpells && (
+                  {nonHomebrewSpells.length === 0 && !showAddSpells && (
                     <p className="text-xs text-muted-foreground text-center py-3">No spells prepared. Visit the Arcana tab.</p>
                   )}
-                  {preparedSpells.map(spell => {
+                  {nonHomebrewSpells.map(spell => {
                     const slot = spellcasting?.spellSlots[spell.level];
                     const pact = spellcasting?.pactSlots;
                     const hasRegularSlot = slot ? slot.current > 0 : false;
@@ -1628,14 +1642,14 @@ export function QuickActionsDrawer({
             {/* ── CANTRIPS ── */}
             <Collapsible className="group">
               <CollapsibleTrigger className="w-full">
-                <CategoryHeader icon={Sparkles} label="Cantrips" count={cantrips.length} color="bg-cyan-500/20 text-cyan-400" />
+                <CategoryHeader icon={Sparkles} label="Cantrips" count={nonHomebrewCantrips.length} color="bg-cyan-500/20 text-cyan-400" />
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <div className="space-y-1 pl-2 pr-1 pb-2">
-                  {cantrips.length === 0 && !showAddCantrips && (
+                  {nonHomebrewCantrips.length === 0 && !showAddCantrips && (
                     <p className="text-xs text-muted-foreground text-center py-3">No cantrips known. Visit the Arcana tab.</p>
                   )}
-                  {cantrips.map(spell => {
+                  {nonHomebrewCantrips.map(spell => {
                     const isFav = spellcasting?.favoriteSpells.includes(spell.id);
                     const prompt = generateQuickSpellPrompt(spell, characterName, true);
                     return (

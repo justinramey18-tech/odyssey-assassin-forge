@@ -140,9 +140,9 @@ export function PartyMemberQuickActionsViewer({ member, open, onOpenChange }: Pa
             ))}
           </Section>
 
-          {/* Abilities */}
-          <Section title="Abilities" icon={<Flame className="w-3.5 h-3.5 text-amber-400" />} count={qa.abilities.length}>
-            {qa.abilities.map((a, i) => (
+          {/* Abilities (non-homebrew only) */}
+          <Section title="Abilities" icon={<Flame className="w-3.5 h-3.5 text-amber-400" />} count={qa.abilities.filter(a => !a.isHomebrew).length}>
+            {qa.abilities.filter(a => !a.isHomebrew).map((a, i) => (
               <div key={i} className="flex items-center justify-between px-2 py-1.5 rounded bg-muted/20 text-xs">
                 <div className="flex items-center gap-1.5">
                   {a.image ? (
@@ -150,25 +150,19 @@ export function PartyMemberQuickActionsViewer({ member, open, onOpenChange }: Pa
                   ) : null}
                   <span className="font-medium">{a.name}</span>
                   <span className="text-[10px] text-muted-foreground ml-1.5">{a.tree} T{a.tier}</span>
-                  {a.isHomebrew && (
-                    <span className="text-[9px] px-1 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400 font-semibold leading-none">Homebrew</span>
-                  )}
                 </div>
                 <span className="text-[10px] text-muted-foreground">{a.actionType}</span>
               </div>
             ))}
           </Section>
 
-          {/* Spells */}
-          <Section title="Prepared Spells" icon={<BookOpen className="w-3.5 h-3.5 text-blue-400" />} count={qa.spells.length}>
-            {qa.spells.map((s, i) => (
+          {/* Spells (non-homebrew only) */}
+          <Section title="Prepared Spells" icon={<BookOpen className="w-3.5 h-3.5 text-blue-400" />} count={qa.spells.filter(s => !s.isHomebrew).length}>
+            {qa.spells.filter(s => !s.isHomebrew).map((s, i) => (
               <div key={i} className="flex items-center justify-between px-2 py-1.5 rounded bg-muted/20 text-xs">
                 <div>
                   <span className="font-medium">{s.name}</span>
                   <span className="text-[10px] text-muted-foreground ml-1.5">Lv.{s.level}</span>
-                  {s.isHomebrew && (
-                    <span className="text-[9px] px-1 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400 font-semibold leading-none ml-1">HB</span>
-                  )}
                 </div>
                 <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                   <span>{s.school}</span>
@@ -180,14 +174,11 @@ export function PartyMemberQuickActionsViewer({ member, open, onOpenChange }: Pa
             ))}
           </Section>
 
-          {/* Cantrips */}
-          <Section title="Cantrips" icon={<Sparkles className="w-3.5 h-3.5 text-purple-400" />} count={qa.cantrips.length}>
-            {qa.cantrips.map((c, i) => (
+          {/* Cantrips (non-homebrew only) */}
+          <Section title="Cantrips" icon={<Sparkles className="w-3.5 h-3.5 text-purple-400" />} count={qa.cantrips.filter(c => !c.isHomebrew).length}>
+            {qa.cantrips.filter(c => !c.isHomebrew).map((c, i) => (
               <div key={i} className="flex items-center justify-between px-2 py-1.5 rounded bg-muted/20 text-xs">
                 <span className="font-medium">{c.name}</span>
-                {c.isHomebrew && (
-                  <span className="text-[9px] px-1 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400 font-semibold leading-none ml-1">HB</span>
-                )}
                 <span className="text-[10px] text-muted-foreground">{c.school}</span>
               </div>
             ))}
