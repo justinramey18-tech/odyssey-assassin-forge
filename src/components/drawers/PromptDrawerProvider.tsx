@@ -30,6 +30,11 @@ import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
 import { UseWildShapeReturn } from '@/hooks/use-wild-shape';
 import { AbilityName, BaseAbilityScores, AbilityScoreBreakdown } from '@/lib/abilityScores/types';
 
+const DOMAIN_NAME_MAP: Record<string, string> = {
+  life: 'Life', light: 'Light', war: 'War', knowledge: 'Knowledge',
+  nature: 'Nature', tempest: 'Tempest', trickery: 'Trickery', death: 'Death',
+};
+
 interface PromptDrawerContextValue {
   openInfinityDrawer: () => void;
   openAbilitiesDrawer: () => void;
@@ -408,8 +413,20 @@ export function PromptDrawerProvider({
       charisma: (() => { const b = getScoreBreakdown('charisma'); return { base: b.base, modifier: b.modifier, final: b.total }; })(),
     } : undefined;
 
+    // Read deity/domain from localStorage
+    let deity: string | undefined;
+    let domain: string | undefined;
+    try {
+      deity = localStorage.getItem('dnd-cleric-deity') || undefined;
+      const savedDomain = localStorage.getItem('dnd-cleric-domain');
+      if (savedDomain) {
+        domain = DOMAIN_NAME_MAP[savedDomain] || savedDomain.charAt(0).toUpperCase() + savedDomain.slice(1);
+      }
+    } catch {}
+
     return {
       name: character.name, level: character.level, currentHP: hp, maxHP: hpMax,
+      deity, domain,
       abilities: abilitiesList, equippedAbilities: equippedAbilitiesList, equipment: equipmentList,
       activeSetBonuses: [], consumables: consumablesList,
       cooldowns: { active: activeCooldowns, ready: readyCooldowns },

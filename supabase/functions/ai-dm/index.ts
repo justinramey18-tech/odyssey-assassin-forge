@@ -10,6 +10,8 @@ interface CharacterContext {
   level: number;
   currentHP: number;
   maxHP: number;
+  deity?: string;
+  domain?: string;
   abilities: Array<{ name: string; tier: number; tree: string }>;
   equippedAbilities: string[];
   equipment: Array<{ slot: string; name: string; rarity: string }>;
@@ -115,6 +117,12 @@ function buildContextSummary(ctx: CharacterContext): string {
   const lines: string[] = [];
   
   lines.push(`CHARACTER: ${ctx.name}, Level ${ctx.level}`);
+  if (ctx.deity || ctx.domain) {
+    const parts: string[] = [];
+    if (ctx.deity) parts.push(`Deity: ${ctx.deity}`);
+    if (ctx.domain) parts.push(`Domain: ${ctx.domain}`);
+    lines.push(`DIVINE: ${parts.join(' | ')}`);
+  }
   lines.push(`HP: ${ctx.currentHP}/${ctx.maxHP} (${Math.round((ctx.currentHP / ctx.maxHP) * 100)}%)`);
   
   if (ctx.prestigeLevel > 0) {
