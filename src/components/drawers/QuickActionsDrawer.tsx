@@ -28,6 +28,7 @@ import { applyOverrides, homebrewToAbility } from '@/lib/abilityCustomization/ut
 import { isLegacyAbilityId, resolveLegacyAbility } from '@/lib/prestigeTree/abilityConverter';
 import { rollDice, getAbilityDice, DiceRoll, DieType, RollMode, isCriticalHit, isCriticalMiss, inferRollMode } from '@/lib/diceRoller';
 import { generateRPPrompt } from '@/lib/rpPromptGenerator';
+import { generateChannelDivinityPrompt } from '@/lib/magic/channelDivinityPrompts';
 import { HealTargetPicker } from '@/components/party/HealTargetPicker';
 
 // Types for cooldown info passed in
@@ -1558,7 +1559,16 @@ export function QuickActionsDrawer({
                           <p className="text-xs text-muted-foreground truncate">{option.mechanicalEffect || option.description}</p>
                         </div>
                         <button
-                          onClick={() => channelDivinity.useChannelDivinity(option.name)}
+                          onClick={async () => {
+                            const success = channelDivinity.useChannelDivinity(option.name);
+                            if (success) {
+                              const prompt = generateChannelDivinityPrompt(option.name, option.description, characterName, option.mechanicalEffect, option.isDomain);
+                              try {
+                                await navigator.clipboard.writeText(prompt);
+                                toast.success(`${option.name} prompt copied!`);
+                              } catch { /* silent */ }
+                            }
+                          }}
                           disabled={channelDivinity.current <= 0}
                           className={cn(
                             "shrink-0 px-2.5 py-1 rounded text-[10px] font-semibold uppercase tracking-wider transition-colors",

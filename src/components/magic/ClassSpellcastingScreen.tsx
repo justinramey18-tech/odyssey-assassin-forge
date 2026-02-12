@@ -562,6 +562,7 @@ export function ClassSpellcastingScreen({
                 current={channelDivinityCurrent}
                 max={channelDivinityMax}
                 clericLevel={characterLevel}
+                characterName={characterName}
                 domainOptions={domainChannelDivinity}
                 onUseChannelDivinity={useChannelDivinity}
                 onRestoreChannelDivinity={restoreChannelDivinity}
