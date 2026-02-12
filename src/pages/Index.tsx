@@ -560,11 +560,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
   useEffect(() => {
     if (calculatedMaxHP !== hpState.max) {
       const hpDiff = calculatedMaxHP - hpState.max;
-      // When max HP increases, also increase current HP by the same amount
-      // (e.g., leveling up should give you more HP immediately)
       const newCurrent = hpDiff > 0 
         ? Math.min(calculatedMaxHP, hpState.current + hpDiff)
-        : Math.min(calculatedMaxHP, hpState.current); // Cap at new max if it decreased
+        : Math.min(calculatedMaxHP, hpState.current);
       
       const newState = { 
         current: newCurrent, 
@@ -583,7 +581,11 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         });
       }
     }
-    hasInitialHPSynced.current = true;
+    // Delay marking initial sync complete to handle React strict mode double-invocation
+    if (!hasInitialHPSynced.current) {
+      const t = setTimeout(() => { hasInitialHPSynced.current = true; }, 500);
+      return () => clearTimeout(t);
+    }
   }, [calculatedMaxHP, hpState.max, hpState.current, hpState.temp, toast]);
   // Wire party incoming heal callback
   useEffect(() => {
