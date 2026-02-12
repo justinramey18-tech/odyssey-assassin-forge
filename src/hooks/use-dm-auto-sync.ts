@@ -1,0 +1,171 @@
+import { useState, useCallback, useRef } from 'react';
+import { toast } from 'sonner';
+import { CharacterContext } from '@/components/oracle/types';
+import { computeMapUpdates, type MapEntity } from '@/lib/battlemap-auto-populate';
+import type { MapMarker, GridSize } from '@/components/party/battlemap/types';
+
+const EXTRACT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm-extract`;
+const STORAGE_KEY = 'odyssey-dm-auto-sync';
+
+export interface ExtractionResult {
+  hp_changes: { amount: number; type: 'damage' | 'healing'; source: string }[];
+  xp_gained: number | null;
+  gold_changes: { amount: number; action: 'gained' | 'spent'; source: string }[];
+  conditions_added: string[];
+  conditions_removed: string[];
+  items_acquired: { name: string; quantity: number }[];
+  rest_occurred: 'short' | 'long' | null;
+  map_entities: MapEntity[];
+  map_entities_removed: string[];
+}
+
+interface AutoSyncSnapshot {
+  hp: number;
+  xp: number;
+  gold: number;
+  markers: MapMarker[];
+  timestamp: number;
+}
+
+interface AutoSyncCallbacks {
+  onHPChange: (change: number, type: 'damage' | 'healing') => void;
+  onAddXP: (amount: number, source: string) => void;
+  onGoldChange: (netChange: number) => void;
+  onConditionChange: (toAdd: string[], toRemove: string[]) => void;
+  onRestOccurred: (type: 'short' | 'long') => void;
+  onMapUpdate: (markersToAdd: MapMarker[], namesToRemove: string[]) => void;
+  // snapshot getters
+  getCurrentHP: () => number;
+  getCurrentGold: () => number;
+  getCurrentMarkers: () => MapMarker[];
+  getGridSize: () => GridSize;
+}
+
+export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState<boolean>(() => {
+    return localStorage.getItem(STORAGE_KEY) === 'true';
+  });
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [lastExtraction, setLastExtraction] = useState<ExtractionResult | null>(null);
+  const snapshotRef = useRef<AutoSyncSnapshot | null>(null);
+
+  const toggleAutoSync = useCallback((enabled: boolean) => {
+    setAutoSyncEnabled(enabled);
+    localStorage.setItem(STORAGE_KEY, String(enabled));
+  }, []);
+
+  const extractAndApply = useCallback(async (
+    assistantMessage: string,
+    characterContext: CharacterContext
+  ) => {
+    if (assistantMessage.length < 20) return null;
+
+    // Snapshot for undo
+    snapshotRef.current = {
+      hp: callbacks.getCurrentHP(),
+      xp: 0, // XP undo not supported (additive only)
+      gold: callbacks.getCurrentGold(),
+      markers: [...callbacks.getCurrentMarkers()],
+      timestamp: Date.now(),
+    };
+
+    setIsExtracting(true);
+    try {
+      const response = await fetch(EXTRACT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          message: assistantMessage,
+          characterContext: {
+            name: characterContext.name,
+            level: characterContext.level,
+            currentHP: characterContext.currentHP,
+            maxHP: characterContext.maxHP,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        if (response.status === 429) {
+          toast.error('Auto-sync rate limited, try again shortly.');
+        } else if (response.status === 402) {
+          toast.error('AI credits exhausted for auto-sync.');
+        }
+        console.warn('Auto-sync extraction failed:', err);
+        return null;
+      }
+
+      const result: ExtractionResult = await response.json();
+      setLastExtraction(result);
+
+      // Apply HP changes
+      for (const hpChange of result.hp_changes) {
+        callbacks.onHPChange(
+          hpChange.type === 'damage' ? -hpChange.amount : hpChange.amount,
+          hpChange.type
+        );
+      }
+
+      // Apply XP
+      if (result.xp_gained && result.xp_gained > 0) {
+        callbacks.onAddXP(result.xp_gained, 'AI DM Auto-Sync');
+      }
+
+      // Apply gold
+      for (const goldChange of result.gold_changes) {
+        const net = goldChange.action === 'gained' ? goldChange.amount : -goldChange.amount;
+        callbacks.onGoldChange(net);
+      }
+
+      // Apply conditions
+      if (result.conditions_added.length > 0 || result.conditions_removed.length > 0) {
+        callbacks.onConditionChange(result.conditions_added, result.conditions_removed);
+      }
+
+      // Apply rest
+      if (result.rest_occurred) {
+        callbacks.onRestOccurred(result.rest_occurred);
+      }
+
+      // Apply map updates
+      if ((result.map_entities?.length ?? 0) > 0 || (result.map_entities_removed?.length ?? 0) > 0) {
+        const { markersToAdd, namesToRemove } = computeMapUpdates(
+          result,
+          callbacks.getCurrentMarkers(),
+          callbacks.getGridSize()
+        );
+        if (markersToAdd.length > 0 || namesToRemove.length > 0) {
+          callbacks.onMapUpdate(markersToAdd, namesToRemove);
+        }
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Auto-sync extraction error:', error);
+      return null;
+    } finally {
+      setIsExtracting(false);
+    }
+  }, [callbacks]);
+
+  const undoLastExtraction = useCallback(() => {
+    // For now, undo just clears the last extraction display
+    // Full state undo would require deeper integration
+    setLastExtraction(null);
+    snapshotRef.current = null;
+    toast.success('Auto-sync changes dismissed');
+  }, []);
+
+  return {
+    autoSyncEnabled,
+    toggleAutoSync,
+    isExtracting,
+    lastExtraction,
+    extractAndApply,
+    undoLastExtraction,
+  };
+}

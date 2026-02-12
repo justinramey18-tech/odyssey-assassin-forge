@@ -20,6 +20,7 @@ const SESSION_VERSION = 1;
 interface UseAIDMOptions {
   characterContext: CharacterContext;
   customGuidesContent?: string;
+  onMessageComplete?: (content: string) => void;
 }
 
 interface VersionedSession {
@@ -98,7 +99,7 @@ function saveSession(messages: Message[]): void {
   }
 }
 
-export function useAIDM({ characterContext, customGuidesContent }: UseAIDMOptions) {
+export function useAIDM({ characterContext, customGuidesContent, onMessageComplete }: UseAIDMOptions) {
   const [messages, setMessages] = useState<Message[]>(() => loadSession());
   const [isLoading, setIsLoading] = useState(false);
   const [campaignSummary, setCampaignSummary] = useState<string | null>(() => loadCampaignSummary());
@@ -453,6 +454,8 @@ export function useAIDM({ characterContext, customGuidesContent }: UseAIDMOption
         }];
         // Fire and forget — don't block the UI
         triggerSummaryIfNeeded(updatedMessages);
+        // Notify listener (e.g. auto-sync)
+        onMessageComplete?.(assistantContent);
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
