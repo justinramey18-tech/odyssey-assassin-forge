@@ -650,11 +650,15 @@ export const FAQ_ITEMS: FAQCategory[] = [
     questions: [
       {
         q: "Where are Settings?",
-        a: "Utility → Settings, or tap the gear icon. On mobile, settings use a drill-down navigation pattern.",
+        a: "Utility → Settings, or tap the gear icon. On mobile, settings use a drill-down navigation pattern with tabs.",
       },
       {
         q: "What tabs are in Settings?",
-        a: "Game (game modes, XP progression), Setup (AI GM sync, dice odds), Character (name, reset options), and Q&A (this FAQ).",
+        a: "Game (game modes, XP progression, combat feats), Setup (AI GM sync, modular prompts), Character (name, reset options, image management), Customizations (homebrew abilities, JSON export/import), and Account (email & password management).",
+      },
+      {
+        q: "Where is the FAQ / Help?",
+        a: "Help & FAQ is accessible from the Help (?) icon in the Home Screen header. It opens a full-screen drawer with all categories and questions. It is not part of Settings.",
       },
       {
         q: "What are Game Modes?",
@@ -677,6 +681,10 @@ export const FAQ_ITEMS: FAQCategory[] = [
         a: "Full Guide: Complete game rules plus your character. Build Only: Just your current character state. Use whichever fits your AI DM's needs.",
       },
       {
+        q: "What are Modular Prompts?",
+        a: "In Settings → Setup, you can customize individual sections of the AI GM prompt. Toggle sections on/off and edit their content to tailor what your AI DM receives.",
+      },
+      {
         q: "How do I change my character name?",
         a: "Settings → Character tab → Edit Name. This updates your name throughout the app.",
       },
@@ -685,12 +693,20 @@ export const FAQ_ITEMS: FAQCategory[] = [
         a: "Settings → Character tab → Danger Zone → Reset Entire App. This clears all data and restarts. PERMANENT—cannot be undone!",
       },
       {
-        q: "How do I clear custom images?",
-        a: "Settings → Character tab. Options to clear equipment images, ability images, or all custom images at once.",
+        q: "How do I manage custom images?",
+        a: "Settings → Character tab. Options to clear equipment images, ability images, or all custom images. You can also bulk-delete device-uploaded images by category.",
+      },
+      {
+        q: "What is the Customizations tab?",
+        a: "Settings → Customizations lets you manage modified base abilities and homebrew creations. You can individually delete, bulk reset, or export/import character data as JSON.",
       },
       {
         q: "How do I check for app updates?",
         a: "Settings → Character tab → Check for Updates. The app uses a service worker for offline support and will prompt when updates are available.",
+      },
+      {
+        q: "What is the Account tab?",
+        a: "Settings → Account lets you manage your email and password for Cloud Save authentication.",
       },
     ],
   },
@@ -795,7 +811,7 @@ export const FAQ_ITEMS: FAQCategory[] = [
     questions: [
       {
         q: "What is the Infinity Gauntlet?",
-        a: "A special feature accessible from the Home Screen. Allows narrative prompts based on the six Infinity Stones.",
+        a: "A special feature accessible from the Home Screen. Allows narrative prompts based on the six Infinity Stones for dramatic story moments.",
       },
       {
         q: "What are Infinity Stone prompts?",
@@ -808,6 +824,61 @@ export const FAQ_ITEMS: FAQCategory[] = [
       {
         q: "How do I use Stone prompts?",
         a: "Select a stone, choose intensity, browse prompts. Tap to copy. Paste into your AI DM for dramatic narrative events.",
+      },
+    ],
+  },
+  {
+    category: "Party System",
+    questions: [
+      {
+        q: "What is the Party System?",
+        a: "A multiplayer feature that lets you create or join a party with other players. Share character status, roll dice together, manage loot, and chat in real-time.",
+      },
+      {
+        q: "How do I create or join a party?",
+        a: "Look for the Party option in the app. Create a party to get a link code, or enter a code to join an existing party. Requires a Cloud Save account.",
+      },
+      {
+        q: "What can I do in a party?",
+        a: "View party members' character status, share dice rolls, distribute loot, send pings, use the combat log, and chat with reactions and image sharing.",
+      },
+      {
+        q: "What is the Loot Queue?",
+        a: "A shared loot pool where party members can add found items. Others can claim items from the queue. Tracks who added and who claimed each item.",
+      },
+      {
+        q: "How does Party Chat work?",
+        a: "A real-time chat with message reactions, image sharing, reply threads, and pinned messages. The keyboard only opens when you tap the input field.",
+      },
+      {
+        q: "What are Party Pings?",
+        a: "Quick notifications you can send to your party (e.g., 'Ready', 'Help', 'Wait'). Useful for signaling during sessions without typing.",
+      },
+    ],
+  },
+  {
+    category: "Wild Shape",
+    questions: [
+      {
+        q: "What is Wild Shape?",
+        a: "A visual overlay feature that transforms your character's display with a dramatic lightning-border effect and thematic styling.",
+      },
+      {
+        q: "How do I activate Wild Shape?",
+        a: "Look for the Wild Shape toggle on the Home Screen. When active, a lightning border effect surrounds your character display.",
+      },
+    ],
+  },
+  {
+    category: "Battle Map",
+    questions: [
+      {
+        q: "What is the Battle Map?",
+        a: "A standalone tactical map tool accessible from the Home Screen. Use it to visualize combat encounters and track positioning during your D&D sessions.",
+      },
+      {
+        q: "How do I use the Battle Map?",
+        a: "Open it from the Home Screen. You can place tokens, draw terrain, and reference it during combat for tactical planning.",
       },
     ],
   },
