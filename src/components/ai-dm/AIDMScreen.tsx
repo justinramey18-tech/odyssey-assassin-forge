@@ -148,6 +148,7 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
       character_status: m.character_status as Record<string, unknown>,
       user_id: m.user_id,
     })),
+    customGuidesContent: gmGuides.enabledContent,
   });
 
   const inParty = !!partyId && partyMembers.length > 0;
