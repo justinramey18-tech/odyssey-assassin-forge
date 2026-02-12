@@ -124,6 +124,16 @@ export interface CharacterContext {
       wasCrit?: boolean;
     }>;
   };
+  // Party members context
+  partyMembers?: Array<{
+    name: string;
+    level?: number;
+    className?: string;
+    currentHP?: number;
+    maxHP?: number;
+    ac?: number;
+    conditions?: string[];
+  }>;
 }
 
 export interface PersonalityConfig {
