@@ -370,6 +370,16 @@ export function PromptDrawerProvider({
       name: b.name, remainingMinutes: b.durationValue ?? 0, concentration: b.category === 'concentration',
     }));
 
+    // Build ability scores context from breakdown
+    const abilityScoresContext = getScoreBreakdown ? {
+      strength: (() => { const b = getScoreBreakdown('strength'); return { base: b.base, modifier: b.modifier, final: b.total }; })(),
+      dexterity: (() => { const b = getScoreBreakdown('dexterity'); return { base: b.base, modifier: b.modifier, final: b.total }; })(),
+      constitution: (() => { const b = getScoreBreakdown('constitution'); return { base: b.base, modifier: b.modifier, final: b.total }; })(),
+      intelligence: (() => { const b = getScoreBreakdown('intelligence'); return { base: b.base, modifier: b.modifier, final: b.total }; })(),
+      wisdom: (() => { const b = getScoreBreakdown('wisdom'); return { base: b.base, modifier: b.modifier, final: b.total }; })(),
+      charisma: (() => { const b = getScoreBreakdown('charisma'); return { base: b.base, modifier: b.modifier, final: b.total }; })(),
+    } : undefined;
+
     return {
       name: character.name, level: character.level, currentHP: hp, maxHP: hpMax,
       abilities: abilitiesList, equippedAbilities: equippedAbilitiesList, equipment: equipmentList,
@@ -377,9 +387,11 @@ export function PromptDrawerProvider({
       cooldowns: { active: activeCooldowns, ready: readyCooldowns },
       prestigeLevel, prestigeAbilities, activeConditions, activeBuffs,
       spellcasting: spellcastingContext, loot: lootContext, combat: combatContextData,
+      abilityScores: abilityScoresContext,
     };
   }, [character, currentHP, maxHP, equipment, consumables, cooldownSystem.cooldowns, cooldownSystem.getRemainingTime,
-      prestigeLevel, prestigeAbilities, spellcasting, lootItems, totalLootValue, combatContext, conditionsSystem.debuffs, conditionsSystem.buffs]);
+      prestigeLevel, prestigeAbilities, spellcasting, lootItems, totalLootValue, combatContext, conditionsSystem.debuffs, conditionsSystem.buffs,
+      getScoreBreakdown]);
 
   const contextValue: PromptDrawerContextValue = {
     openInfinityDrawer: handleOpenInfinityDrawer,
