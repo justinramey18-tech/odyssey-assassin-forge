@@ -546,68 +546,52 @@ export function HomeScreen({
                     )}
                   </button>
                 )}
-
-                {/* Party Drawer Button (only in party mode) */}
-                {playMode === 'party' && (
-                  <button
-                    onClick={() => {
-                      triggerHaptic('light');
-                      setShowPartyDrawer(true);
-                    }}
-                    className="p-2 rounded-lg hover:bg-white/10 transition-colors relative flex items-center gap-1.5"
-                    style={{ touchAction: 'manipulation' }}
-                    aria-label={`Party — ${partySync.party.members.length} members`}
-                  >
-                    <Users className="w-5 h-5 text-emerald-400" />
-                    <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center text-[10px] font-bold rounded-full bg-emerald-500 text-white">
-                      {partySync.party.members.length}
-                    </span>
-                    <OnlineCountBadge members={partySync.party.members} />
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* Party Button - when not in a party yet (create/join) */}
-            {partySync && !partySync.party.partyId && (
-              <div className="flex justify-center mb-[2px]">
-                <button
-                  onClick={() => {
-                    triggerHaptic('light');
-                    setShowPartyDrawer(true);
-                  }}
-                  className="rounded-lg transition-colors relative flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-emerald-900/20 border border-emerald-500/30"
-                  style={{ touchAction: 'manipulation' }}
-                  aria-label="Create or Join Party"
-                >
-                  <Users className="w-4 h-4 text-emerald-400/70" />
-                  <span className="text-[10px] font-cinzel uppercase tracking-wider text-emerald-400/70">Party</span>
-                </button>
               </div>
             )}
 
             {/* Party Chat Button - above D20 (only in party mode) */}
             {partySync?.party?.partyId && playMode === 'party' && (
-              <motion.button
+              <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                onClick={() => {
-                  triggerHaptic('light');
-                  lastSeenMessageCount.current = partySync.partyMessages.length;
-                  setShowPartyChatFullscreen(true);
-                }}
-                className="mx-4 flex items-center justify-center gap-2 py-2.5 rounded-lg border border-emerald-500/30 bg-emerald-900/20 hover:bg-emerald-900/30 transition-colors"
-                style={{ touchAction: 'manipulation' }}
+                className="mx-4 flex items-center justify-center gap-2"
               >
-                <MessageCircle className="w-4 h-4 text-emerald-400" />
-                <span className="text-sm font-cinzel uppercase tracking-wider text-emerald-300">Party Chat</span>
-                {partySync.partyMessages.length > lastSeenMessageCount.current && (
-                  <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-bold rounded-full bg-emerald-500 text-white">
-                    {partySync.partyMessages.length - lastSeenMessageCount.current}
+                {/* Party Access Icon */}
+                <button
+                  onClick={() => {
+                    triggerHaptic('light');
+                    setShowPartyDrawer(true);
+                  }}
+                  className="p-2.5 rounded-lg hover:bg-emerald-900/30 transition-colors relative"
+                  style={{ touchAction: 'manipulation' }}
+                  aria-label={`Party — ${partySync.party.members.length} members`}
+                >
+                  <Users className="w-5 h-5 text-emerald-400" />
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center text-[10px] font-bold rounded-full bg-emerald-500 text-white">
+                    {partySync.party.members.length}
                   </span>
-                )}
-              </motion.button>
+                </button>
+
+                {/* Party Chat Button */}
+                <button
+                  onClick={() => {
+                    triggerHaptic('light');
+                    lastSeenMessageCount.current = partySync.partyMessages.length;
+                    setShowPartyChatFullscreen(true);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border border-emerald-500/30 bg-emerald-900/20 hover:bg-emerald-900/30 transition-colors"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <MessageCircle className="w-4 h-4 text-emerald-400" />
+                  <span className="text-sm font-cinzel uppercase tracking-wider text-emerald-300">Party Chat</span>
+                  {partySync.partyMessages.length > lastSeenMessageCount.current && (
+                    <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-bold rounded-full bg-emerald-500 text-white">
+                      {partySync.partyMessages.length - lastSeenMessageCount.current}
+                    </span>
+                  )}
+                </button>
+              </motion.div>
             )}
 
             {/* Enlarged D20 Section */}
