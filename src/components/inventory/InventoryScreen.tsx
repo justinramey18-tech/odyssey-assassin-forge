@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { HomebrewGearItem } from '@/lib/inventory/homebrewGear';
 import { Shield, Sword, Backpack, Wand2, Minimize2, Maximize2, User, Sparkles, Lock, Plus, Bot } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { 
@@ -80,9 +81,10 @@ export function InventoryScreen({
   } = useEquipmentImages();
 
   // Homebrew gear
-  const { homebrewItems, addGear, addMultipleGear } = useHomebrewGear();
+  const { homebrewItems, addGear, addMultipleGear, removeGear, updateGear } = useHomebrewGear();
   const [showHomebrewCreator, setShowHomebrewCreator] = useState(false);
   const [showHomebrewAI, setShowHomebrewAI] = useState(false);
+  const [editingGear, setEditingGear] = useState<HomebrewGearItem | null>(null);
 
   const handleEquipmentImageUpload = useCallback(async (slotType: EquipmentSlotType, file: File) => {
     try {
@@ -101,6 +103,7 @@ export function InventoryScreen({
   // Use external equipment if provided, otherwise use internal state
   const equipment = externalEquipment ?? internalEquipment;
   // Merge homebrew items into inventory
+  const homebrewItemIds = useMemo(() => new Set(homebrewItems.map(i => i.id)), [homebrewItems]);
   const equipmentWithHomebrew = useMemo(() => ({
     ...equipment,
     inventory: [...equipment.inventory, ...homebrewItems],
@@ -211,6 +214,18 @@ export function InventoryScreen({
     setSelectedSlot(null);
   }, [selectedSlot, equipment.slots]);
 
+  const handleEditHomebrew = useCallback((item: EquipmentItem) => {
+    const homebrewItem = homebrewItems.find(h => h.id === item.id);
+    if (homebrewItem) {
+      setEditingGear(homebrewItem);
+      setShowHomebrewCreator(true);
+    }
+  }, [homebrewItems]);
+
+  const handleDeleteHomebrew = useCallback((item: EquipmentItem) => {
+    removeGear(item.id);
+    toast.success(`${item.name} deleted`);
+  }, [removeGear]);
   const handleEquipNew = useCallback(() => {
     if (compareItem && selectedSlot) {
       handleEquipFromInventory(compareItem);
@@ -301,6 +316,9 @@ export function InventoryScreen({
             }}
             isItemLocked={isItemLocked}
             getItemLockInfo={getItemLockInfo}
+            homebrewItemIds={homebrewItemIds}
+            onEditHomebrew={handleEditHomebrew}
+            onDeleteHomebrew={handleDeleteHomebrew}
           />
         ) : (
           <motion.div 
@@ -533,8 +551,13 @@ export function InventoryScreen({
       {/* Homebrew Gear Creator */}
       <HomebrewGearCreator
         open={showHomebrewCreator}
-        onOpenChange={setShowHomebrewCreator}
+        onOpenChange={(open) => {
+          setShowHomebrewCreator(open);
+          if (!open) setEditingGear(null);
+        }}
         onSave={addGear}
+        onUpdate={updateGear}
+        editItem={editingGear}
       />
 
       {/* AI Gear Forge */}
