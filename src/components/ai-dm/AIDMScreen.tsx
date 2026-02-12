@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText } from 'lucide-react';
+import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAIDM } from '@/hooks/use-ai-dm';
 import { useGMGuides } from '@/hooks/use-gm-guides';
+import { useCampaignSessions, CampaignSession } from '@/hooks/use-campaign-sessions';
 import { CharacterContext, Message } from '@/components/oracle/types';
 import { DMQuickActions } from './DMQuickActions';
 import { GMGuidesManager } from './GMGuidesManager';
+import { CampaignSessionsManager } from './CampaignSessionsManager';
 import ReactMarkdown from 'react-markdown';
 
 interface AIDMScreenProps {
@@ -79,16 +81,32 @@ function DMMessageBubble({ message }: { message: Message }) {
 
 export function AIDMScreen({ onBack, characterContext }: AIDMScreenProps) {
   const gmGuides = useGMGuides();
-  const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, sendMessage, cancelRequest, clearMessages, newGame } = useAIDM({ characterContext, customGuidesContent: gmGuides.enabledContent });
+  const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, loadCampaign, sendMessage, cancelRequest, clearMessages, newGame } = useAIDM({ characterContext, customGuidesContent: gmGuides.enabledContent });
+  const campaignSessions = useCampaignSessions();
 
   const handleCampaignSummaryChange = useCallback((summary: string) => {
     updateCampaignSummary(summary);
   }, [updateCampaignSummary]);
+
   const [input, setInput] = useState('');
   const [showContext, setShowContext] = useState(false);
   const [showGuides, setShowGuides] = useState(false);
+  const [showSessions, setShowSessions] = useState(false);
+  const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleLoadCampaign = useCallback((session: CampaignSession) => {
+    loadCampaign(session.messages, session.campaign_summary);
+    setActiveCampaignId(session.id);
+    setShowSessions(false);
+  }, [loadCampaign]);
+
+  const handleSaveCampaign = useCallback(async (name: string, msgs: Message[], summary: string | null, existingId?: string) => {
+    const id = await campaignSessions.saveSession(name, msgs, summary, existingId);
+    if (id) setActiveCampaignId(id);
+    return id;
+  }, [campaignSessions]);
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -149,6 +167,14 @@ export function AIDMScreen({ onBack, characterContext }: AIDMScreenProps) {
         </div>
         <div className="flex items-center gap-1">
           <button
+            onClick={() => setShowSessions(true)}
+            className="px-2.5 py-1.5 rounded-lg text-xs font-cinzel text-white/50 hover:bg-white/10 transition-colors"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <FolderOpen className="w-3.5 h-3.5 inline mr-1" />
+            Saves
+          </button>
+          <button
             onClick={() => setShowGuides(true)}
             className={cn(
               "px-2.5 py-1.5 rounded-lg text-xs font-cinzel transition-colors relative",
@@ -165,7 +191,7 @@ export function AIDMScreen({ onBack, characterContext }: AIDMScreenProps) {
             )}
           </button>
           <button
-            onClick={newGame}
+            onClick={() => { newGame(); setActiveCampaignId(null); }}
             className="px-2.5 py-1.5 rounded-lg text-xs font-cinzel text-amber-300/80 hover:bg-amber-900/30 transition-colors"
             style={{ touchAction: 'manipulation' }}
           >
@@ -341,6 +367,22 @@ export function AIDMScreen({ onBack, characterContext }: AIDMScreenProps) {
           onUpdate={gmGuides.updateGuide}
           onDelete={gmGuides.deleteGuide}
           onToggle={gmGuides.toggleGuide}
+        />
+      )}
+      {/* Campaign Sessions Overlay */}
+      {showSessions && (
+        <CampaignSessionsManager
+          onBack={() => setShowSessions(false)}
+          sessions={campaignSessions.sessions}
+          isLoading={campaignSessions.isLoading}
+          isSignedIn={campaignSessions.isSignedIn}
+          currentMessages={messages}
+          currentSummary={campaignSummary}
+          activeCampaignId={activeCampaignId}
+          onSave={handleSaveCampaign}
+          onLoad={handleLoadCampaign}
+          onDelete={campaignSessions.deleteSession}
+          onRename={campaignSessions.renameSession}
         />
       )}
     </div>
