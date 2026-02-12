@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Search, Filter, Star, Eye, BookOpen, ChevronDown } from 'lucide-react';
+import { Search, Filter, Star, Eye, BookOpen, ChevronDown, FlaskConical } from 'lucide-react';
 
 interface SpellbookGridProps {
   path: MagicPath;
@@ -19,7 +19,7 @@ interface SpellbookGridProps {
   onSpellSelect: (spell: SpellDefinition) => void;
 }
 
-type FilterOption = 'all' | 'prepared' | 'favorites' | 'concentration';
+type FilterOption = 'all' | 'prepared' | 'favorites' | 'concentration' | 'homebrew';
 type LevelFilter = 'all' | 0 | 1 | 2;
 
 export function SpellbookGrid({
@@ -74,11 +74,13 @@ export function SpellbookGrid({
       // Status filters
       switch (activeFilter) {
         case 'prepared':
-          return preparedSpells.includes(spell.id) || spell.level === 0; // Cantrips always "prepared"
+          return preparedSpells.includes(spell.id) || spell.level === 0;
         case 'favorites':
           return favoriteSpells.includes(spell.id);
         case 'concentration':
           return spell.concentration;
+        case 'homebrew':
+          return (spell as any).isHomebrew === true;
         default:
           return true;
       }
@@ -149,6 +151,14 @@ export function SpellbookGrid({
           >
             <Eye className="w-3 h-3 mr-1" />
             Concentration
+          </Badge>
+          <Badge
+            variant={activeFilter === 'homebrew' ? 'default' : 'outline'}
+            className={cn("cursor-pointer", activeFilter === 'homebrew' && "bg-teal-600")}
+            onClick={() => setActiveFilter('homebrew')}
+          >
+            <FlaskConical className="w-3 h-3 mr-1" />
+            Homebrew
           </Badge>
         </div>
 
