@@ -465,6 +465,26 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
         />
       )}
 
+      {/* Auto-Sync Extracting Indicator */}
+      <AnimatePresence>
+        {autoSync.isExtracting && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="flex items-center justify-center gap-2 px-3 py-1.5 bg-amber-950/40 border-t border-amber-500/20"
+          >
+            <div className="flex gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+            <span className="text-[11px] text-amber-300/80 font-cinzel">Auto-Sync extracting changes...</span>
+            <Zap className="w-3 h-3 text-amber-400 animate-pulse" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Input Area */}
       <div className="px-3 py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm">
         <div className="flex items-end gap-2 max-w-2xl mx-auto">
