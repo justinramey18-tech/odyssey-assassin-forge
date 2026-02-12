@@ -32,6 +32,7 @@ import { ClericDomain, getDomainChannelDivinity } from '@/lib/classes/clericDoma
 import { useInvocations } from '@/hooks/use-invocations';
 import { InvocationsPanel } from './InvocationsPanel';
 import { NaturalRecoveryPanel } from './NaturalRecoveryPanel';
+import { ChannelDivinityCards } from './ChannelDivinityCards';
 import { HomebrewSpellCreateSheet } from './HomebrewSpellCreateSheet';
 import { BatchSpellGenerateSheet } from './BatchSpellGenerateSheet';
 import { HomebrewSpell } from '@/lib/spellCustomization/types';
@@ -555,6 +556,17 @@ export function ClassSpellcastingScreen({
               />
             )}
             {/* Cleric Domain Panel (Cleric only) */}
+            {/* Channel Divinity Cards (Cleric only) */}
+            {isCleric && hasChannelDivinity && (
+              <ChannelDivinityCards
+                current={channelDivinityCurrent}
+                max={channelDivinityMax}
+                clericLevel={characterLevel}
+                domainOptions={domainChannelDivinity}
+                onUseChannelDivinity={useChannelDivinity}
+              />
+            )}
+
             {isCleric && (
               <ClericDomainPanel
                 clericLevel={characterLevel}
