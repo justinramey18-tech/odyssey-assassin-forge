@@ -1354,34 +1354,63 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       }
     }
 
+    // Check if this is a first unlock (tier 0→1) of an active ability
+    const isFirstUnlock = currentTier === 0;
+    const isActiveAbility = ability.type !== 'passive';
+
     // Perform upgrade - add to abilities array if homebrew not yet tracked
     setCharacter(prev => {
+      let newAbilities = prev.abilities;
       const abilityExists = prev.abilities.some(ca => ca.abilityId === abilityId);
       
       if (!abilityExists && isHomebrew) {
-        // Add homebrew ability to tracking and set to tier 1
-        return {
-          ...prev,
-          abilities: [...prev.abilities, { abilityId, currentTier: 1 as 0 | 1 | 2 | 3 }],
-        };
-      }
-      
-      // Normal upgrade path
-      return {
-        ...prev,
-        abilities: prev.abilities.map(ca =>
+        newAbilities = [...prev.abilities, { abilityId, currentTier: 1 as 0 | 1 | 2 | 3 }];
+      } else {
+        newAbilities = prev.abilities.map(ca =>
           ca.abilityId === abilityId && ca.currentTier < 3
             ? { ...ca, currentTier: (ca.currentTier + 1) as 0 | 1 | 2 | 3 }
             : ca
-        ),
-      };
+        );
+      }
+
+      // Auto-equip to loadout on first unlock if active ability
+      let newEquipped = prev.equippedAbilities;
+      if (isFirstUnlock && isActiveAbility) {
+        const maxSlots = getActiveSlotsByLevel(prev.level, prestigeData.totalPrestigePoints);
+        const currentCount = newEquipped.filter(Boolean).length;
+        if (currentCount < maxSlots) {
+          newEquipped = [...newEquipped];
+          const emptySlot = newEquipped.findIndex((slot, idx) => !slot && idx < maxSlots);
+          if (emptySlot >= 0) {
+            newEquipped[emptySlot] = abilityId;
+          } else if (newEquipped.length < maxSlots) {
+            newEquipped.push(abilityId);
+          }
+        }
+      }
+
+      return { ...prev, abilities: newAbilities, equippedAbilities: newEquipped };
     });
 
-    toast({
-      title: "✨ Ability Upgraded",
-      description: `${ability.name} upgraded to tier ${currentTier + 1}`,
-      duration: 2000,
-    });
+    // Show appropriate toast
+    if (isFirstUnlock && isActiveAbility) {
+      const maxSlots = getActiveSlotsByLevel(character.level, prestigeData.totalPrestigePoints);
+      const currentCount = character.equippedAbilities.filter(Boolean).length;
+      const wasEquipped = currentCount < maxSlots;
+      toast({
+        title: "✨ Ability Unlocked",
+        description: wasEquipped
+          ? `${ability.name} unlocked & equipped to loadout!`
+          : `${ability.name} unlocked! Loadout full — assign it manually.`,
+        duration: 3000,
+      });
+    } else {
+      toast({
+        title: "✨ Ability Upgraded",
+        description: `${ability.name} upgraded to tier ${currentTier + 1}`,
+        duration: 2000,
+      });
+    }
   };
 
   const handleDowngradeAbility = (abilityId: string) => {
