@@ -145,6 +145,14 @@
 }
 
 @layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
   /* Glowing effects for ability trees */
   .glow-hunter {
     box-shadow: 0 0 20px hsl(var(--hunter-glow) / 0.4),
