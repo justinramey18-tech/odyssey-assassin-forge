@@ -1,104 +1,99 @@
 
 
-# AI Batch Generation for Homebrew Spells and Abilities
+# Cleric Spell List Audit: Missing D&D 5e Spells
 
-## Overview
-Add an "AI Generate Multiple" feature to both the Arcana tab (spells) and Abilities tab (abilities), allowing users to describe a theme or concept and have the AI generate multiple homebrew items at once. Each tab gets a dedicated batch-generation sheet where the user provides a prompt, the AI returns multiple items, the user reviews/selects which to keep, and they're all saved in one action.
+## Summary
 
----
-
-## How It Works
-
-1. User taps a new "AI Generate Multiple" button (visible alongside the existing "Create" button)
-2. A bottom sheet opens with a text prompt field and optional constraints (e.g., spell level range, ability tree, count)
-3. User submits the prompt -- the AI generates 3-5 items in a single request
-4. Results appear as a reviewable list with checkboxes -- user can toggle which to keep
-5. User taps "Add Selected" to save all checked items at once
+The current cleric spell file contains **38 spells** across cantrips through 5th level. Compared to the official D&D 5e Player's Handbook cleric spell list, there are **approximately 40+ missing spells**. Below is the full breakdown.
 
 ---
 
-## File Changes
+## Currently Implemented
 
-### 1. Update Edge Function: `supabase/functions/homebrew-assistant/index.ts`
-
-- Add two new modes: `batch_spells` and `batch_abilities`
-- `batch_spells` system prompt instructs the AI to return a JSON array of 3-5 complete spell objects (same schema as `spell_concept` mode but as an array)
-- `batch_abilities` system prompt instructs the AI to return a JSON array of 3-5 complete ability objects (same schema as `full` mode but as an array)
-- Increase `max_tokens` to 2000 for batch modes to accommodate multiple items
-- Update the mode validation to accept the new modes
-
-### 2. New Component: `src/components/magic/BatchSpellGenerateSheet.tsx`
-
-A bottom sheet component for batch spell generation:
-- **Prompt input**: Textarea where users describe what kind of spells they want (e.g., "frost-themed offensive spells for a wizard")
-- **Constraints row**: Optional spell level selector and school filter
-- **Count selector**: Generate 3, 4, or 5 spells (default 3)
-- **Generate button**: Calls the edge function with mode `batch_spells`
-- **Results list**: Each generated spell shown as a card with name, level, school, and a checkbox (all checked by default)
-- **Expand/collapse**: Tap a spell card to see its full description
-- **"Add All Selected" button**: Saves all checked spells via the existing `addSpell` from `useSpellCustomization`
-- Loading state with a spinner and "Generating spells..." message
-
-### 3. New Component: `src/components/abilities/BatchAbilityGenerateSheet.tsx`
-
-A bottom sheet component for batch ability generation:
-- **Prompt input**: Textarea for theme description (e.g., "shadow-themed assassin abilities")
-- **Constraints row**: Tree selector (Hunter/Warrior/Assassin) and type selector (Active/Passive)
-- **Count selector**: Generate 3, 4, or 5 abilities (default 3)
-- **Generate button**: Calls the edge function with mode `batch_abilities`
-- **Results list**: Each generated ability shown as a card with name, tree badge, action type, and a checkbox
-- **Expand/collapse**: Tap to see tier descriptions
-- **"Add All Selected" button**: Saves all checked abilities via the existing `addHomebrew` from `useAbilityCustomization`
-
-### 4. Update Hook: `src/hooks/use-homebrew-assistant.ts`
-
-- Add `generateBatchSpells(prompt, constraints)` method that calls the edge function with mode `batch_spells` and parses the JSON array response
-- Add `generateBatchAbilities(prompt, context)` method that calls with mode `batch_abilities` and parses the array response
-- Both methods return arrays or empty arrays on failure
-
-### 5. Integration: Arcana Tab
-
-- Locate the component that renders the "Create Your Own Spell" button in the Arcana tab
-- Add a second button next to it: "AI Generate Multiple" with a `Sparkles` icon
-- Wire it to open `BatchSpellGenerateSheet`
-- Pass `addSpell` from `useSpellCustomization` as the save handler
-
-### 6. Integration: Abilities Tab
-
-- Locate the Homebrew tree tab or the existing "Create Homebrew Ability" button
-- Add a second button: "AI Generate Multiple" with a `Sparkles` icon
-- Wire it to open `BatchAbilityGenerateSheet`
-- Pass `addHomebrew` from `useAbilityCustomization` as the save handler
+| Level | Count | Spells |
+|-------|-------|--------|
+| Cantrip | 6 | Sacred Flame, Guidance, Spare the Dying, Thaumaturgy, Toll the Dead, Word of Radiance |
+| 1st | 9 | Bless, Cure Wounds, Guiding Bolt, Healing Word, Shield of Faith, Sanctuary, Inflict Wounds, Command, Detect Magic |
+| 2nd | 7 | Spiritual Weapon, Hold Person, Lesser Restoration, Prayer of Healing, Aid, Silence, Zone of Truth |
+| 3rd | 6 | Spirit Guardians, Revivify, Beacon of Hope, Dispel Magic, Mass Healing Word, Remove Curse |
+| 4th | 4 | Death Ward, Guardian of Faith, Banishment, Freedom of Movement |
+| 5th | 6 | Mass Cure Wounds, Flame Strike, Greater Restoration, Raise Dead, Holy Weapon, Dispel Evil and Good |
 
 ---
 
-## Technical Details
+## Missing Spells by Level
 
-### Edge Function Batch Prompts
+### Cantrips (3 missing)
+- **Light** - Evocation, touch an object to emit bright light 20ft
+- **Mending** - Transmutation, repair a single break or tear in an object
+- **Resistance** - Abjuration, concentration, target adds 1d4 to one saving throw
 
-**batch_spells** system prompt will instruct the model to return:
-```json
-[
-  { "name": "...", "level": 2, "school": "evocation", ... },
-  { "name": "...", "level": 1, "school": "abjuration", ... }
-]
-```
+### 1st Level (5 missing)
+- **Create or Destroy Water** - Transmutation, create/destroy up to 10 gallons
+- **Detect Evil and Good** - Divination, concentration, sense aberrations/celestials/etc.
+- **Detect Poison and Disease** - Divination, concentration, sense poisons and diseases within 30ft
+- **Protection from Evil and Good** - Abjuration, concentration, ward against creature types
+- **Purify Food and Drink** - Transmutation, ritual, remove poison/disease from food/drink
 
-**batch_abilities** system prompt will instruct the model to return:
-```json
-[
-  { "name": "...", "actionType": "action", "usageType": "short_rest", "tier1": "...", "tier2": "...", "tier3": "...", ... },
-  { "name": "...", ... }
-]
-```
+### 2nd Level (10 missing -- includes Calm Emotions, the user's reported missing spell)
+- **Calm Emotions** - Enchantment, concentration, suppress charm/fear or make hostile creatures indifferent
+- **Augury** - Divination, ritual, receive an omen about a specific course of action
+- **Blindness/Deafness** - Necromancy, blind or deafen a foe (CON save)
+- **Continual Flame** - Evocation, create a permanent magical flame (no heat)
+- **Enhance Ability** - Transmutation, concentration, grant advantage on one ability's checks
+- **Find Traps** - Divination, sense the presence of traps within line of sight
+- **Gentle Repose** - Necromancy, ritual, preserve a corpse from decay
+- **Locate Object** - Divination, concentration, sense direction to a known object
+- **Protection from Poison** - Abjuration, neutralize one poison and grant advantage vs. poison
+- **Warding Bond** - Abjuration, link with a creature to share damage and grant +1 AC/saves
 
-### Validation
-- Each item in the batch is validated individually before display
-- Invalid items are silently filtered out
-- If zero valid items remain, show an error toast and let user retry
+### 3rd Level (14 missing)
+- **Animate Dead** - Necromancy, raise a skeleton or zombie servant
+- **Bestow Curse** - Necromancy, concentration, curse a creature with various effects
+- **Clairvoyance** - Divination, concentration, create an invisible sensor to see/hear remotely
+- **Create Food and Water** - Conjuration, create 45 lbs of food and 30 gallons of water
+- **Daylight** - Evocation, create a 60-foot-radius sphere of bright light
+- **Feign Death** - Necromancy, ritual, make a willing creature appear dead
+- **Glyph of Warding** - Abjuration, inscribe a glyph that triggers a spell or explosion
+- **Magic Circle** - Abjuration, create a cylinder warding against creature types
+- **Meld into Stone** - Transmutation, ritual, step into stone to hide
+- **Protection from Energy** - Abjuration, concentration, grant resistance to one damage type
+- **Sending** - Evocation, send a 25-word message to a known creature
+- **Speak with Dead** - Necromancy, ask a corpse up to 5 questions
+- **Tongues** - Divination, understand and speak any language
+- **Water Walk** - Transmutation, ritual, up to 10 creatures can walk on water
 
-### Error Handling
-- 429 (rate limit) and 402 (credits) errors surface as toast messages
-- Network failures show a retry button
-- Partial parse failures: show whatever items parsed successfully
+### 4th Level (4 missing)
+- **Control Water** - Transmutation, concentration, manipulate freestanding water
+- **Divination** - Divination, ritual, ask your deity one question about a goal/event
+- **Locate Creature** - Divination, concentration, sense direction to a specific creature
+- **Stone Shape** - Transmutation, reshape stone into any form
+
+### 5th Level (8 missing)
+- **Commune** - Divination, ritual, ask your deity 3 yes-or-no questions
+- **Contagion** - Necromancy, infect a creature with a disease on touch
+- **Geas** - Enchantment, command a creature for 30 days (charm effect)
+- **Hallow** - Evocation, 24-hour casting, consecrate or desecrate an area
+- **Insect Plague** - Conjuration, concentration, 20-foot sphere of biting locusts
+- **Legend Lore** - Divination, learn lore about a person, place, or object
+- **Planar Binding** - Abjuration, bind a celestial/elemental/fey/fiend to your service
+- **Scrying** - Divination, concentration, observe a creature on any plane
+
+---
+
+## Implementation Plan
+
+### Approach
+Add all ~44 missing spells to `src/lib/magic/spells/cleric-spells.ts`, following the existing pattern exactly: full `SpellDefinition` objects with proper `id`, `school`, `components`, `classes` arrays (shared spells like Enhance Ability tagged for multiple classes), and all three `personalityQuips`.
+
+### Execution
+Since the file is already 850 lines and we are adding ~44 spells (roughly 25 lines each), the file will grow significantly. The spells will be inserted into their correct level sections in alphabetical order within each level group.
+
+### Shared Spells Note
+Some missing spells (e.g., Protection from Evil and Good, Enhance Ability, Tongues, Bestow Curse) also appear on other class lists. They will be added to the cleric file with the appropriate `classes` array including all relevant classes, matching how Hold Person and Detect Magic are currently handled.
+
+### Testing
+- Open the Arcana tab as a Cleric at various levels and verify new spells appear at the correct level thresholds
+- Search for "Calm Emotions" specifically to confirm the user's reported missing spell is now available
+- Check that shared spells (e.g., Enhance Ability) appear for other classes that should have them
 
