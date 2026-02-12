@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen } from 'lucide-react';
+import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import ReactMarkdown from 'react-markdown';
+import { toast } from 'sonner';
 import type { usePartyDm, PartyDmMessage, PartyDmPrompt } from '@/hooks/use-party-dm';
 
 type PartyDmReturn = ReturnType<typeof usePartyDm>;
@@ -32,12 +33,20 @@ function getMemberColor(userId: string, members: Array<{ user_id: string }>): st
   return MEMBER_COLORS[idx >= 0 ? idx % MEMBER_COLORS.length : 0];
 }
 
-function PartyDMMessage({ message, currentUserId, members, mode }: {
+function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate }: {
   message: PartyDmMessage;
   currentUserId?: string;
   members: Array<{ user_id: string; character_name: string }>;
   mode: 'shared' | 'private';
+  isCreator?: boolean;
+  onCopy?: (content: string) => void;
+  onEdit?: (messageId: string, content: string) => void;
+  onDelete?: (messageId: string) => void;
+  onRegenerate?: (messageId: string) => void;
 }) {
+  const [showActions, setShowActions] = useState(false);
+  const [isEditingMsg, setIsEditingMsg] = useState(false);
+  const [editContent, setEditContent] = useState('');
   const isAssistant = message.role === 'assistant';
   const isMine = message.sender_user_id === currentUserId;
 
@@ -61,28 +70,108 @@ function PartyDMMessage({ message, currentUserId, members, mode }: {
 
   if (isAssistant) {
     return (
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2 justify-start">
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2 justify-start group/msg relative">
         <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-amber-900/60 border border-amber-500/40">
           <Crown className="w-3.5 h-3.5 text-amber-400" />
         </div>
         <div className="max-w-[85%] rounded-2xl px-4 py-2.5 bg-amber-950/50 border border-amber-500/20 rounded-bl-sm">
-          <div className="text-sm prose prose-invert prose-sm max-w-none">
-            <ReactMarkdown
-              components={{
-                p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                strong: ({ children }) => <strong className="text-amber-300">{children}</strong>,
-                em: ({ children }) => <em className="text-white/70">{children}</em>,
-                ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
-                ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
-                li: ({ children }) => <li className="mb-1">{children}</li>,
-                blockquote: ({ children }) => (
-                  <blockquote className="border-l-2 border-amber-500/40 pl-3 italic text-white/60 my-2">{children}</blockquote>
-                ),
-              }}
-            >
-              {message.content || '...'}
-            </ReactMarkdown>
-          </div>
+          {isEditingMsg ? (
+            <div className="space-y-2">
+              <textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                className="w-full bg-white/5 border border-amber-900/30 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-amber-500/40 resize-none min-h-[80px] max-h-[300px]"
+                rows={4}
+                autoFocus
+              />
+              <div className="flex gap-1.5 justify-end">
+                <Button
+                  onClick={() => setIsEditingMsg(false)}
+                  size="sm"
+                  variant="ghost"
+                  className="text-white/40 hover:text-white/70 h-7 px-2 text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (editContent.trim() && onEdit) {
+                      onEdit(message.id, editContent.trim());
+                    }
+                    setIsEditingMsg(false);
+                  }}
+                  size="sm"
+                  className="gap-1 bg-amber-900/40 border border-amber-500/30 hover:bg-amber-900/60 text-amber-300 h-7 px-2 text-xs"
+                >
+                  <Check className="w-3 h-3" />
+                  Save
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm prose prose-invert prose-sm max-w-none">
+              <ReactMarkdown
+                components={{
+                  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                  strong: ({ children }) => <strong className="text-amber-300">{children}</strong>,
+                  em: ({ children }) => <em className="text-white/70">{children}</em>,
+                  ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
+                  ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
+                  li: ({ children }) => <li className="mb-1">{children}</li>,
+                  blockquote: ({ children }) => (
+                    <blockquote className="border-l-2 border-amber-500/40 pl-3 italic text-white/60 my-2">{children}</blockquote>
+                  ),
+                }}
+              >
+                {message.content || '...'}
+              </ReactMarkdown>
+            </div>
+          )}
+
+          {/* Host action buttons */}
+          {isCreator && !isEditingMsg && (
+            <div className="relative mt-1.5">
+              <button
+                onClick={() => setShowActions(!showActions)}
+                className="p-1 rounded text-white/20 hover:text-white/60 transition-colors opacity-0 group-hover/msg:opacity-100"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <MoreVertical className="w-3.5 h-3.5" />
+              </button>
+              {showActions && (
+                <div className="absolute bottom-full left-0 mb-1 flex gap-1 bg-black/90 border border-amber-900/30 rounded-lg p-1 z-10 shadow-lg">
+                  <button
+                    onClick={() => { onCopy?.(message.content); setShowActions(false); }}
+                    className="p-1.5 rounded hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+                    title="Copy"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => { setEditContent(message.content); setIsEditingMsg(true); setShowActions(false); }}
+                    className="p-1.5 rounded hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+                    title="Edit"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => { onRegenerate?.(message.id); setShowActions(false); }}
+                    className="p-1.5 rounded hover:bg-amber-900/30 text-amber-400/60 hover:text-amber-300 transition-colors"
+                    title="Regenerate"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => { onDelete?.(message.id); setShowActions(false); }}
+                    className="p-1.5 rounded hover:bg-red-900/20 text-red-400/60 hover:text-red-400 transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </motion.div>
     );
@@ -138,6 +227,26 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
     ta.style.height = 'auto';
     ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
   }, []);
+
+  const handleCopyMessage = useCallback((content: string) => {
+    navigator.clipboard.writeText(content).then(() => {
+      toast.success('Copied to clipboard');
+    }).catch(() => {
+      toast.error('Failed to copy');
+    });
+  }, []);
+
+  const handleEditMessage = useCallback((messageId: string, content: string) => {
+    partyDm.editMessage?.(messageId, content);
+  }, [partyDm]);
+
+  const handleDeleteMessage = useCallback((messageId: string) => {
+    partyDm.deleteMessage?.(messageId);
+  }, [partyDm]);
+
+  const handleRegenerateMessage = useCallback((messageId: string) => {
+    partyDm.regenerateMessage?.(messageId);
+  }, [partyDm]);
 
   const hasSubmitted = !!partyDm.myPrompt;
   const isReady = partyDm.myPrompt?.is_ready ?? false;
@@ -287,6 +396,11 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                 currentUserId={currentUserId}
                 members={members}
                 mode={mode}
+                isCreator={isCreator}
+                onCopy={handleCopyMessage}
+                onEdit={handleEditMessage}
+                onDelete={handleDeleteMessage}
+                onRegenerate={handleRegenerateMessage}
               />
             ))}
           </AnimatePresence>
