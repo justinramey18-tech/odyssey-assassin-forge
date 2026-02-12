@@ -65,8 +65,10 @@ export function EnlargedD20Section({ onClick, onMenusClick, onMapClick }: Enlarg
               "blur-xl animate-pulse"
             )} 
           />
-          <div className="relative w-full h-full flex items-center justify-center transform scale-[2.4]">
-            <AnimatedD20Trigger onClick={onClick} />
+          <div className="relative w-full h-full flex items-center justify-center transform scale-[2.4] pointer-events-none">
+            <div className="pointer-events-auto">
+              <AnimatedD20Trigger onClick={onClick} />
+            </div>
           </div>
         </div>
         <motion.p
