@@ -46,6 +46,7 @@ export function SpellCard({
     : null;
 
   if (compact) {
+    const compactUnprepared = !isPrepared && spell.level > 0;
     return (
       <button
         onClick={onClick}
@@ -54,8 +55,9 @@ export function SpellCard({
           "border border-transparent hover:border-white/20",
           "bg-gradient-to-r",
           schoolConfig.bgGradient,
-          isPrepared && "ring-1 ring-indigo-500/50",
-          isConcentrating && "ring-2 ring-amber-500 animate-pulse"
+          isPrepared && spell.level > 0 && "ring-1 ring-emerald-500/50",
+          isConcentrating && "ring-2 ring-amber-500 animate-pulse",
+          compactUnprepared && "opacity-50"
         )}
       >
         <div className={cn(
@@ -70,9 +72,13 @@ export function SpellCard({
             {getSpellLevelLabel(spell.level)} • {spell.school}
           </div>
         </div>
-        {isFavorite && (
-          <Star className="w-3 h-3 text-amber-400 fill-amber-400 absolute top-1 right-1" />
-        )}
+        {isFavorite ? (
+          <Star className="w-3 h-3 text-amber-400 fill-amber-400 shrink-0" />
+        ) : isPrepared && spell.level > 0 ? (
+          <span className="text-[9px] font-medium text-emerald-400 shrink-0">✓</span>
+        ) : compactUnprepared ? (
+          <span className="text-[9px] font-medium text-muted-foreground shrink-0">✗</span>
+        ) : null}
       </button>
     );
   }
