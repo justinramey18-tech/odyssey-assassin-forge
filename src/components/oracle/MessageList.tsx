@@ -89,7 +89,7 @@ function OracleMessage({ message, isUser, messageConfig }: OracleMessageProps) {
         {!isUser && message.content && (
           <button
             onClick={handleCopy}
-            className="absolute -bottom-1 right-1 translate-y-full opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-1.5 rounded-md bg-white/10 hover:bg-white/20 text-white/50 hover:text-white/80"
+            className="absolute -bottom-1 right-1 translate-y-full opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-opacity p-1.5 rounded-md bg-white/10 hover:bg-white/20 text-white/50 hover:text-white/80"
             aria-label="Copy message"
           >
             {copied ? (
