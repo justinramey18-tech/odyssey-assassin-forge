@@ -1,83 +1,65 @@
 
 
-# Customizable and Saveable AI DM Prompts
+# Fix Roll Quality Descriptions in AI DM Prompts
 
-## Overview
+## Problem
 
-Currently, AI DM prompts across the Gear, Arcana, and Abilities tabs are generated on-the-fly and copied to clipboard immediately. This feature adds the ability to **view, edit, and save** customized versions of any prompt so users can refine their prompts once and reuse them.
+Roll quality labels in AI DM prompts use incorrect math, leading to absurd descriptions like calling a 19 attack roll a "Glancing Blow." The root cause is comparing **total roll values** (die + modifier) against thresholds that don't account for D&D 5e probability correctly.
 
----
+**Example of the bug (QuickActionsDrawer.tsx line 182):**
+```
+effectiveTotal >= maxVal * 0.7 + roll.modifier ? 'Solid Hit' : 'Glancing Blow'
+```
+For a d20+5 roll of 19 (raw 14): threshold = 20*0.7+5 = 19. A raw 14 barely passes. A raw 13 (total 18) gets called "Glancing Blow" -- completely wrong for 5e where AC 18 is very high.
 
-## How It Works
+## Solution: Use the Natural Die Value
 
-1. **Tapping "Copy Prompt"** anywhere in the app now opens an **Edit Prompt modal** (instead of copying immediately)
-2. The modal shows the generated prompt text in an editable textarea
-3. Users can tweak the wording, add context, or adjust tone
-4. **Save**: Persists the customized version -- next time this prompt is generated, it uses the saved version as a base
-5. **Copy**: Copies the current text to clipboard
-6. **Reset**: Reverts to the original auto-generated prompt
-7. Saved prompts are stored in localStorage, keyed by a unique identifier (ability ID, spell ID, or gear slot type)
+In 5e, what matters for narrative quality is the **natural die roll** (before modifiers), not the total. A natural 17 on a d20 is excellent regardless of modifier. The fix extracts the natural die value and uses 5e-accurate thresholds.
 
----
+### D20 Attack/Check Quality Tiers (natural die value)
+- **Natural 20**: Critical Hit
+- **Natural 1**: Critical Miss  
+- **18-19**: Excellent (near-perfect precision)
+- **14-17**: Strong (confident, well-executed)
+- **8-13**: Average (competent but unremarkable)
+- **2-7**: Poor (clumsy, strained, barely effective)
 
-## Architecture
+### Ability Dice Quality Tiers (d6/d8/d10 -- percentage of max)
+- **Max value on any die**: Critical Success
+- **All 1s**: Critical Failure
+- **75%+ of max**: Strong
+- **40-74% of max**: Average
+- **Below 40%**: Weak
 
-### New: Saved Prompt Hook
+## Files to Modify
 
-Create **`src/hooks/use-saved-prompts.ts`**:
-- localStorage key: `dnd-saved-prompts`
-- Stores a `Record<string, SavedPrompt>` mapping prompt keys to saved text
-- Each `SavedPrompt` has: `key`, `originalPrompt`, `customPrompt`, `updatedAt`
-- Methods: `getSavedPrompt(key)`, `savePrompt(key, text)`, `deleteSavedPrompt(key)`, `hasSavedPrompt(key)`
+### 1. Create `src/lib/rollQuality.ts` (NEW)
+Centralized utility with two functions:
+- `getD20RollQuality(rolls, rollMode)` -- returns quality label for d20-based rolls using the **natural effective die**
+- `getAbilityRollQuality(rolls, die)` -- returns quality label for ability dice (d6/d8/d10) using percentage of max
 
-### Refactored: Universal Prompt Edit Modal
+Both return a `RollQuality` object: `{ label, tier, narrativeGuide }` where `tier` is `'critical_hit' | 'critical_miss' | 'excellent' | 'strong' | 'average' | 'poor'` and `narrativeGuide` is a prompt-ready sentence.
 
-Refactor **`src/components/character/PromptEditModal.tsx`** into a more generic **`src/components/shared/PromptEditModal.tsx`**:
-- Accepts: `promptKey` (unique ID), `generatedPrompt` (the auto-generated text), `title`, `subtitle`
-- Loads any previously saved version for that key
-- Three action buttons: **Save** (persists to localStorage), **Copy** (clipboard), **Reset** (revert to generated)
-- Shows a "Customized" badge if a saved version exists
-- "Save and Copy" as a combined primary action
+### 2. `src/lib/rpPromptGenerator.ts`
+Replace the `isHighRoll` / `rollQuality` logic (lines 33-39) with `getAbilityRollQuality()`. Update the Scene Direction section (lines 82-90) to use the centralized narrative guides.
 
----
+### 3. `src/components/drawers/QuickActionsDrawer.tsx`
+Replace the broken `quality` calculation on line 182 in `generateWeaponRollPrompt` with `getD20RollQuality()`. Update the narration line (line 202) to use the quality's narrative guide.
 
-## Integration Points
+### 4. `src/components/combat/CombatTabScreen.tsx`
+Update `generateWeaponPrompt` (lines 393-435) to add roll quality context using `getD20RollQuality()`. The current prompt says "Describe the attack based on the roll result" with no actual quality guidance -- add a narrative direction line based on the quality tier.
 
-### Abilities Tab (`AbilitiesDrawer.tsx`, `CombatAbilityCard.tsx`)
-- Replace direct `navigator.clipboard.writeText` calls with opening the Prompt Edit Modal
-- Prompt key: `ability-{abilityId}`
-- When a saved version exists, it is used as the base (with fresh roll data injected)
+### 5. `src/components/combat/mobile/CombatAbilityCard.tsx`
+Replace the hardcoded threshold checks (lines 215-219: `roll.total >= 15`, `>= 8`) with `getAbilityRollQuality()` for accurate narrative guidance.
 
-### Arcana Tab (`SpellCastSheet.tsx`, `SpellDetailsSheet.tsx`)
-- Replace direct clipboard copy with the Prompt Edit Modal
-- Prompt key: `spell-{spellId}` or `spell-cast-{spellId}`
-- Saved spell prompts persist the user's preferred wording/format
+### 6. `src/lib/combat/attackQueuePrompts.ts`
+Add roll quality context to `formatSingleAttack` and `generateQueuedAttackPrompt` so multi-attack and queued attack prompts also get accurate quality labels.
 
-### Gear Tab (`SlotDrawer.tsx`, `EquipmentSlotCard.tsx`)
-- Add a "Copy AI Prompt" button to the SlotDrawer for equipped items
-- Generates a gear-focused prompt (item name, stats, rarity, properties)
-- Prompt key: `gear-{slotType}`
-- Opens the Prompt Edit Modal for editing and saving
+### 7. `src/lib/diceRollerConfig.ts`
+Update the "Describe Damage" prompt template (lines 99-106) -- the damage thresholds (1-5 low, 6-15 medium, 16+ high) are too simplistic and should note they scale with level and dice count.
 
----
-
-## Technical Details
-
-### Files to Create
-
-1. **`src/hooks/use-saved-prompts.ts`** -- localStorage persistence hook for saved prompt overrides
-2. **`src/components/shared/PromptEditModal.tsx`** -- Universal edit/save/copy modal (refactored from existing)
-
-### Files to Modify
-
-1. **`src/components/drawers/AbilitiesDrawer.tsx`** -- Wire copy button to open modal instead of direct copy
-2. **`src/components/combat/mobile/CombatAbilityCard.tsx`** -- Wire "Copy AI DM Prompt" to modal
-3. **`src/components/magic/SpellCastSheet.tsx`** -- Wire spell cast prompt to modal
-4. **`src/components/magic/SpellDetailsSheet.tsx`** -- Wire spell details copy to modal
-5. **`src/components/inventory/SlotDrawer.tsx`** -- Add "Copy AI Prompt" button that opens modal for gear items
-6. **`src/components/inventory/EquipmentSlotCard.tsx`** -- May need a prompt generation utility for gear
-
-### No Backend Changes Required
-
-All prompt customization is stored in localStorage, consistent with the app's existing persistence patterns.
+## No Changes Required
+- `SlotDrawer.tsx` gear prompts -- these are item description prompts, not roll-based
+- `SpellCastSheet.tsx` / `SpellDetailsSheet.tsx` -- spell prompts use spell descriptions, not roll quality
+- Backend / edge functions -- all changes are frontend prompt text
 
