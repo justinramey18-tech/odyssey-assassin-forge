@@ -102,19 +102,12 @@ interface CharacterContext {
   };
 }
 
-interface DMMessage {
-  role: 'user' | 'assistant';
-  content: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
-}
-
 interface DMRequest {
   messages: Array<{ role: 'user' | 'assistant'; content: string }>;
   characterContext: CharacterContext;
   customGuides?: string;
   campaignSummary?: string;
 }
-
-const VIDEO_MARKER_REGEX = /^\[video:(https?:\/\/.+)\]$/;
 
 const MAX_CUSTOM_GUIDES_CHARS = 200000;
 
@@ -330,19 +323,6 @@ serve(async (req) => {
       ? [...messages.slice(0, 2), ...messages.slice(-(MAX_MESSAGES - 2))]
       : messages;
 
-    // Video URLs cannot be sent via image_url (only PNG/JPEG/WebP/GIF supported).
-    // Replace video markers with a text-only note so the model is aware a video was shared.
-    const processedMessages: DMMessage[] = trimmedMessages.map((msg) => {
-      const videoMatch = msg.content.match(VIDEO_MARKER_REGEX);
-      if (videoMatch && msg.role === 'user') {
-        return {
-          role: msg.role,
-          content: `[The player shared a video clip: ${videoMatch[1]}. Video analysis is not currently supported — acknowledge the video was shared and ask the player to describe what happens in it so you can incorporate it into the narrative.]`,
-        };
-      }
-      return msg;
-    });
-
     const systemPrompt = buildDMSystemPrompt(characterContext, customGuides, campaignSummary);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -355,7 +335,7 @@ serve(async (req) => {
         model: "google/gemini-3-pro-preview",
         messages: [
           { role: "system", content: systemPrompt },
-          ...processedMessages,
+          ...trimmedMessages,
         ],
         stream: true,
         max_tokens: 2000,
