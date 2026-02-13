@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { getThistleBadges, getBadgeColorClasses } from '@/lib/easter-eggs';
 
 interface CharacterNamePlaqueProps {
   name: string;
@@ -7,6 +8,8 @@ interface CharacterNamePlaqueProps {
 }
 
 export function CharacterNamePlaque({ name, level }: CharacterNamePlaqueProps) {
+  const badges = getThistleBadges(name || '');
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -20 }}
@@ -34,6 +37,22 @@ export function CharacterNamePlaque({ name, level }: CharacterNamePlaqueProps) {
           Level {level}
         </span>
       </div>
+
+      {badges.length > 0 && (
+        <div className="flex items-center justify-center gap-1.5 mt-1">
+          {badges.map(b => (
+            <span
+              key={b.label}
+              className={cn(
+                "text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider border",
+                getBadgeColorClasses(b.color)
+              )}
+            >
+              {b.label}
+            </span>
+          ))}
+        </div>
+      )}
     </motion.div>
   );
 }
