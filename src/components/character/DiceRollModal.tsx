@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Ability } from '@/lib/types';
 import { DiceRoll, formatRollResult, isCriticalHit, isCriticalMiss, inferRollMode } from '@/lib/diceRoller';
+import { getAbilityRollQuality, getD20RollQuality } from '@/lib/rollQuality';
 import {
   Dialog,
   DialogContent,
@@ -74,6 +75,10 @@ export function DiceRollModal({
     ? isCriticalMiss(roll.rolls, rollMode, roll.die)
     : roll.rolls.every(r => r === 1);
 
+  const rollQuality = roll.die === 'd20'
+    ? getD20RollQuality(roll.rolls, rollMode)
+    : getAbilityRollQuality(roll.rolls, roll.die);
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(rpPrompt);
@@ -123,6 +128,17 @@ export function DiceRollModal({
           {isFumble && (
             <div className="text-destructive font-display text-sm mt-2 uppercase tracking-wider">
               ✗ Critical Failure ✗
+            </div>
+          )}
+          {!isCritical && !isFumble && (
+            <div className={cn(
+              "font-display text-sm mt-2 uppercase tracking-wider",
+              rollQuality.tier === 'excellent' ? "text-amber-300" 
+              : rollQuality.tier === 'strong' ? "text-emerald-400"
+              : rollQuality.tier === 'average' ? "text-muted-foreground"
+              : "text-red-400/70"
+            )}>
+              {rollQuality.label}
             </div>
           )}
         </div>

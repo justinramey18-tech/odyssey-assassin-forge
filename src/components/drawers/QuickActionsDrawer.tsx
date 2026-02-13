@@ -28,7 +28,7 @@ import { generateWildShapeAbilityPrompt } from '@/lib/wildShapePrompts';
 import { applyOverrides, homebrewToAbility } from '@/lib/abilityCustomization/utils';
 import { isLegacyAbilityId, resolveLegacyAbility } from '@/lib/prestigeTree/abilityConverter';
 import { rollDice, getAbilityDice, DiceRoll, DieType, RollMode, isCriticalHit, isCriticalMiss, inferRollMode } from '@/lib/diceRoller';
-import { getD20RollQuality } from '@/lib/rollQuality';
+import { getD20RollQuality, getAbilityRollQuality } from '@/lib/rollQuality';
 import { generateRPPrompt } from '@/lib/rpPromptGenerator';
 import { generateChannelDivinityPrompt } from '@/lib/magic/channelDivinityPrompts';
 import { HealTargetPicker } from '@/components/party/HealTargetPicker';
@@ -247,6 +247,11 @@ function InlineRollResult({
     ? isCriticalMiss(roll.rolls, effectiveMode, roll.die)
     : roll.rolls.every(r => r === 1);
 
+  // Roll quality label
+  const rollQuality = roll.die === 'd20'
+    ? getD20RollQuality(roll.rolls, effectiveMode)
+    : getAbilityRollQuality(roll.rolls, roll.die);
+
   // For adv/disadv, compute effective total
   let effectiveTotal = roll.total;
   if (rollMode && rollMode !== 'normal' && roll.rolls.length === 2 && roll.die === 'd20') {
@@ -343,6 +348,17 @@ function InlineRollResult({
           </span>
           {isCrit && <span className="block text-[10px] text-amber-400 font-semibold uppercase tracking-wider mt-0.5">✦ Critical! ✦</span>}
           {isFumble && <span className="block text-[10px] text-red-400 font-semibold uppercase tracking-wider mt-0.5">✗ Fumble ✗</span>}
+          {!isCrit && !isFumble && (
+            <span className={cn(
+              "block text-[10px] font-semibold uppercase tracking-wider mt-0.5",
+              rollQuality.tier === 'excellent' ? "text-amber-300" 
+              : rollQuality.tier === 'strong' ? "text-emerald-400"
+              : rollQuality.tier === 'average' ? "text-muted-foreground"
+              : "text-red-400/70"
+            )}>
+              {rollQuality.label}
+            </span>
+          )}
         </div>
 
         {/* Damage Roll Result (step 2) */}
