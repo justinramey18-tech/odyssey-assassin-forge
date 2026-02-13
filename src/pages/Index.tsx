@@ -2410,15 +2410,20 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
                   homebrewSpells={spellCustomization.homebrewSpells}
                   onAddHomebrewSpell={(spell) => {
                     spellCustomization.addSpell(spell);
-                    // Auto-learn homebrew spells so they appear in combat/quick-actions
                     classSpellcasting.learnSpell(spell.id);
                   }}
                   onUpdateHomebrewSpell={spellCustomization.updateSpell}
                   onRemoveHomebrewSpell={(id) => {
                     spellCustomization.removeSpell(id);
-                    // Also forget from class spellcasting
                     classSpellcasting.forgetSpell(id);
                   }}
+                  currentHP={effectiveCurrentHP}
+                  maxHP={effectiveMaxHP}
+                  tempHP={effectiveTempHP}
+                  onHPChange={(current, temp) => handleHPChange(current, wildShape.state.isTransformed ? effectiveMaxHP : hpState.max, temp)}
+                  partyMembers={isPartyMode ? partySync.party.members : []}
+                  userId={user?.id}
+                  onSendHeal={isPartyMode ? partySync.sendHealAction : undefined}
                 />
               )}
             </BackgroundWrapper>
