@@ -484,7 +484,7 @@ export function HomeScreen({
             {/* Custom Background Upload Button */}
             {onCustomBackgroundUpload && onCustomBackgroundClear && (
               <BackgroundUploadButton
-                hasCustomBackground={!!customBackground}
+                hasCustomBackground={!!customBackground || !!customVideoBackground}
                 onUpload={onCustomBackgroundUpload}
                 onClear={onCustomBackgroundClear}
               />

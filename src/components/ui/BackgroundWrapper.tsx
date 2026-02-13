@@ -96,17 +96,17 @@ export function BackgroundWrapper({
       {/* Video Background Layer */}
       {videoPath && !prefersReducedMotion && (
         <video
-          className={cn(
-            'absolute inset-0 w-full h-full object-cover z-0 transition-opacity duration-300',
-            imageLoaded || videoPath ? 'opacity-100' : 'opacity-0'
-          )}
+          key={videoPath}
+          className="absolute inset-0 w-full h-full object-cover z-[1] opacity-100"
           src={videoPath}
           autoPlay
           muted
           loop
           playsInline
+          preload="auto"
           poster={imagePath}
           aria-hidden="true"
+          onError={(e) => console.error('[BackgroundWrapper] Video failed to load:', videoPath, e)}
         />
       )}
 
@@ -145,7 +145,7 @@ export function BackgroundWrapper({
       
       {/* Dark Gradient Overlay */}
       <div 
-        className="absolute inset-0 z-0"
+        className="absolute inset-0 z-[2]"
         style={{
           background: `linear-gradient(to bottom, 
             rgba(0, 0, 0, ${topOpacity}), 
@@ -159,7 +159,7 @@ export function BackgroundWrapper({
       {tintColor && (
         <div 
           className={cn(
-            'absolute inset-0 z-0 bg-gradient-to-r',
+            'absolute inset-0 z-[3] bg-gradient-to-r',
             tintColorMap[tintColor]
           )}
           style={{ opacity: tintOpacityValue }}
