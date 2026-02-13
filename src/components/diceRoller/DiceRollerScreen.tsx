@@ -22,6 +22,7 @@ import {
   type AIPromptTemplate,
 } from '@/lib/diceRollerConfig';
 import { rollDie } from '@/lib/diceRoller';
+import { getD20RollQuality } from '@/lib/rollQuality';
 import { DiceOddsWidget } from '@/components/settings/DiceOddsWidget';
 import { DiceOddsMode, loadDiceOddsMode, saveDiceOddsMode } from '@/lib/diceOdds';
 
@@ -630,6 +631,11 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
   // Check if roll is critical (based on raw d20 roll, not total)
   const isCritical = currentRoll?.die === 'd20' && currentRoll?.rawRoll === 20;
   const isFumble = currentRoll?.die === 'd20' && currentRoll?.rawRoll === 1;
+  
+  // Roll quality label for non-crit/fumble d20 rolls
+  const d20Quality = currentRoll?.die === 'd20' && currentRoll?.rawRoll
+    ? getD20RollQuality([currentRoll.rawRoll])
+    : null;
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -712,6 +718,17 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
                 </div>
                 {isCritical && <span className="text-tier-maxed font-bold text-sm">✦ NATURAL 20! ✦</span>}
                 {isFumble && <span className="text-destructive font-bold text-sm">✗ NATURAL 1 ✗</span>}
+                {!isCritical && !isFumble && d20Quality && !isRolling && (
+                  <span className={cn(
+                    "font-bold text-xs uppercase tracking-wider",
+                    d20Quality.tier === 'excellent' ? "text-amber-300" 
+                    : d20Quality.tier === 'strong' ? "text-emerald-400"
+                    : d20Quality.tier === 'average' ? "text-muted-foreground"
+                    : "text-red-400/70"
+                  )}>
+                    {d20Quality.label}
+                  </span>
+                )}
                 <div className="flex items-center gap-2 mt-1">
                   <Button
                     variant="outline"
