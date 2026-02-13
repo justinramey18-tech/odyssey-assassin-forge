@@ -98,10 +98,9 @@ Keep the description to 2-3 sentences, action-packed and cinematic.`,
     color: 'text-orange-400',
     prompt: `I dealt {ROLL} points of damage to my enemy.
 
-Describe the impact of this damage:
-- For low damage (1-5): A glancing blow or minor wound
-- For medium damage (6-15): A solid hit with visible effect
-- For high damage (16+): A devastating strike
+Describe the impact of this damage. Damage scales with level and number of dice rolled, so judge severity relative to context:
+- At low levels, even 5-8 damage is significant; at high levels, 20+ is a solid hit
+- Consider the weapon/spell type and describe the physical impact accordingly
 
 Make it visceral and satisfying. 2-3 sentences.`,
   },

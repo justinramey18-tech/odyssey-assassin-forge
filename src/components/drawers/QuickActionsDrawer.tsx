@@ -28,6 +28,7 @@ import { generateWildShapeAbilityPrompt } from '@/lib/wildShapePrompts';
 import { applyOverrides, homebrewToAbility } from '@/lib/abilityCustomization/utils';
 import { isLegacyAbilityId, resolveLegacyAbility } from '@/lib/prestigeTree/abilityConverter';
 import { rollDice, getAbilityDice, DiceRoll, DieType, RollMode, isCriticalHit, isCriticalMiss, inferRollMode } from '@/lib/diceRoller';
+import { getD20RollQuality } from '@/lib/rollQuality';
 import { generateRPPrompt } from '@/lib/rpPromptGenerator';
 import { generateChannelDivinityPrompt } from '@/lib/magic/channelDivinityPrompts';
 import { HealTargetPicker } from '@/components/party/HealTargetPicker';
@@ -179,7 +180,8 @@ function generateWeaponRollPrompt(weapon: WeaponAttack, roll: DiceRoll, characte
     rollDisplay = `[${roll.rolls.join(', ')}] → **${kept}**`;
   }
   
-  const quality = isCrit ? 'CRITICAL HIT!' : isFumble ? 'CRITICAL MISS!' : effectiveTotal >= maxVal * 0.7 + roll.modifier ? 'Solid Hit' : 'Glancing Blow';
+  const qualityResult = getD20RollQuality(roll.rolls, rollMode);
+  const quality = qualityResult.label;
   const modeLabel = rollMode === 'advantage' ? ' (Advantage)' : rollMode === 'disadvantage' ? ' (Disadvantage)' : '';
 
   let damageSection = '';
@@ -199,7 +201,9 @@ function generateWeaponRollPrompt(weapon: WeaponAttack, roll: DiceRoll, characte
 **Roll:** ${roll.count}${roll.die} → ${rollDisplay}${roll.modifier ? ` + ${roll.modifier}` : ''} = **${effectiveTotal}**
 **Result:** ${quality}
 ${damageSection}
-${isCrit ? '**The strike lands with devastating precision! Double damage dice!**\n\n' : ''}${isFumble ? '**The attack goes wildly astray! Describe the embarrassing miss.**\n\n' : ''}Narrate ${characterName}'s attack with their ${weapon.name}. Factor in the ${quality.toLowerCase()} — describe the weapon's arc, impact, and battlefield consequence.`
+${qualityResult.narrativeGuide}
+
+Narrate ${characterName}'s attack with their ${weapon.name}. Describe the weapon's arc, impact, and battlefield consequence.`
   );
 }
 

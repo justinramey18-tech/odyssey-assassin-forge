@@ -7,6 +7,7 @@ import { Ability, AbilityTree } from '@/lib/types';
 import { WeaponAttack } from '@/lib/combat/combatTypes';
 import { ActiveConditionInfo, SetBonusInfo, TargetPromptInfo, formatTargetForPrompt } from '@/lib/combat/promptContext';
 import { getAbilityDice, rollDice, DiceRoll, isCriticalHit, isCriticalMiss, inferRollMode } from '@/lib/diceRoller';
+import { getAbilityRollQuality } from '@/lib/rollQuality';
 import { CooldownProgress } from '@/components/cooldowns/CooldownProgress';
 import { COOLDOWN_CONFIGS } from '@/lib/cooldowns/config';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
@@ -115,6 +116,7 @@ export function CombatAbilityCard({
     const isFumble = isCriticalMiss(roll.rolls, rollMode, roll.die);
     const tierEffect = ability.tierEffects.find(t => t.tier === ability.tier);
     const combinedDamage = getCombinedDamage();
+    const abilityQuality = getAbilityRollQuality(roll.rolls, die);
     
     const actionTypeEmoji = {
       action: '⚔️',
@@ -212,11 +214,7 @@ ${isCrit
   ? 'Describe an exceptionally powerful activation—the ability surges with maximum potency, the weapon strikes true, and the effect is magnified beyond normal limits.' 
   : isFumble 
     ? 'Describe a dramatic mishap—the ability misfires, the weapon slips, or an unintended consequence occurs.' 
-    : roll.total >= 15 
-      ? 'Describe a skilled execution—the ability activates smoothly and the effect manifests as intended.'
-      : roll.total >= 8
-        ? 'Describe a passable but unremarkable activation—it works, but without particular flair.'
-        : 'Describe a rough or clumsy activation—the ability functions but with visible effort or strain.'}
+    : abilityQuality.narrativeGuide}
 
 ${ability.synergies?.length 
   ? `\n### Synergy Potential\nThis ability synergizes with: ${ability.synergies.join(', ')}` 

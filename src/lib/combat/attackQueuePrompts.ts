@@ -5,6 +5,7 @@ import { ExecutedAttack } from './attackQueue';
 import { applyTimePrefix } from '../fourthWallTime';
 import { TargetPromptInfo, getHealthStatus } from './targetTypes';
 import { DiceRoll } from '@/lib/diceRoller';
+import { getD20RollQuality } from '@/lib/rollQuality';
 
 /**
  * Format a single attack within a multi-attack sequence
@@ -24,12 +25,15 @@ function formatSingleAttack(
   
   const lines: string[] = [header];
   
+  // Roll quality based on natural die
+  const rollQuality = getD20RollQuality(roll.rolls);
+  
   // Roll info
   const rollDisplay = roll.rolls.length > 1
     ? `${roll.rolls.map(r => `[${r}]`).join(', ')} → ${roll.total}`
     : `[${roll.rolls[0]}]+${roll.modifier} = **${roll.total}**`;
   
-  lines.push(`**Attack Roll:** d20${roll.modifier >= 0 ? '+' : ''}${roll.modifier} = ${rollDisplay}`);
+  lines.push(`**Attack Roll:** d20${roll.modifier >= 0 ? '+' : ''}${roll.modifier} = ${rollDisplay} (${rollQuality.label})`);
   
   // Damage
   lines.push(`**Damage on Hit:** ${damageBreakdown}`);
@@ -232,6 +236,16 @@ export function generateQueuedAttackPrompt(
     lines.push('');
     lines.push('*Offhand attack (bonus action) - no ability modifier added to damage unless you have Two-Weapon Fighting style.*');
   }
+  
+  lines.push('');
+  lines.push('---');
+  lines.push('');
+  // Roll quality
+  const rollQuality = getD20RollQuality(roll.rolls);
+  
+  lines.push('');
+  lines.push(`**Roll Quality:** ${rollQuality.label}`);
+  lines.push(rollQuality.narrativeGuide);
   
   lines.push('');
   lines.push('---');
