@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film } from 'lucide-react';
+import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -34,6 +34,7 @@ function getMemberColor(userId: string, members: Array<{ user_id: string }>): st
 }
 
 const PARTY_VIDEO_REGEX = /^\[video:(https?:\/\/.+)\]$/;
+const PARTY_IMAGE_REGEX = /^\[image:(https?:\/\/.+)\]$/;
 
 function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate }: {
   message: PartyDmMessage;
@@ -52,6 +53,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
   const isAssistant = message.role === 'assistant';
   const isMine = message.sender_user_id === currentUserId;
   const videoMatch = message.content.match(PARTY_VIDEO_REGEX);
+  const imageMatch = !videoMatch ? message.content.match(PARTY_IMAGE_REGEX) : null;
 
   // In private mode, hide other players' user messages content
   if (!isAssistant && !isMine && mode === 'private') {
@@ -121,6 +123,16 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
                   </div>
                   <div className="rounded-xl overflow-hidden border border-amber-500/20 bg-black/40 max-w-[300px]">
                     <video src={videoMatch[1]} controls playsInline className="w-full rounded-xl" />
+                  </div>
+                </div>
+              ) : imageMatch ? (
+                <div>
+                  <div className="flex items-center gap-1 mb-1.5">
+                    <ImageIcon className="w-3 h-3 text-amber-400" />
+                    <span className="text-[10px] text-amber-300/70 font-cinzel">Photo</span>
+                  </div>
+                  <div className="rounded-xl overflow-hidden border border-amber-500/20 bg-black/40 max-w-[300px]">
+                    <img src={imageMatch[1]} alt="Chat photo" className="w-full rounded-xl" loading="lazy" />
                   </div>
                 </div>
               ) : (
@@ -245,6 +257,16 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
                 <video src={videoMatch[1]} controls playsInline className="w-full rounded-xl" />
               </span>
             </span>
+          ) : imageMatch ? (
+            <span>
+              <span className="flex items-center gap-1 mb-1.5">
+                <ImageIcon className="w-3 h-3 text-amber-400" />
+                <span className="text-[10px] text-amber-300/70 font-cinzel">Photo</span>
+              </span>
+              <span className="block rounded-xl overflow-hidden border border-amber-500/20 bg-black/40 max-w-[300px]">
+                <img src={imageMatch[1]} alt="Chat photo" className="w-full rounded-xl" loading="lazy" />
+              </span>
+            </span>
           ) : (
             message.content
           )}
@@ -297,8 +319,12 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
   const [input, setInput] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState('');
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const mode = partyDm.sessionConfig?.mode || 'shared';
 
@@ -568,6 +594,52 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
         </div>
       )}
 
+      {/* Hidden file inputs */}
+      <input
+        ref={videoInputRef}
+        type="file"
+        accept="video/mp4,video/webm"
+        className="hidden"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          if (file.size > 50 * 1024 * 1024) { toast.error('Video too large (max 50MB)'); return; }
+          setIsUploadingVideo(true);
+          try {
+            const ext = file.name.split('.').pop() || 'mp4';
+            const path = `party-dm/${partyDm.sessionConfig?.currentRoundId || 'general'}/${crypto.randomUUID()}.${ext}`;
+            const { error } = await supabase.storage.from('videos').upload(path, file);
+            if (error) throw error;
+            const { data: urlData } = supabase.storage.from('videos').getPublicUrl(path);
+            const senderName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
+            await partyDm.addMediaMessage(`[video:${urlData.publicUrl}]`, senderName);
+          } catch (err) { toast.error(err instanceof Error ? err.message : 'Upload failed'); }
+          finally { setIsUploadingVideo(false); if (videoInputRef.current) videoInputRef.current.value = ''; }
+        }}
+      />
+      <input
+        ref={photoInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          if (file.size > 10 * 1024 * 1024) { toast.error('Image too large (max 10MB)'); return; }
+          setIsUploadingPhoto(true);
+          try {
+            const ext = file.name.split('.').pop() || 'jpg';
+            const path = `party-dm/${partyDm.sessionConfig?.currentRoundId || 'general'}/${crypto.randomUUID()}.${ext}`;
+            const { error } = await supabase.storage.from('party-chat-images').upload(path, file);
+            if (error) throw error;
+            const { data: urlData } = supabase.storage.from('party-chat-images').getPublicUrl(path);
+            const senderName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
+            await partyDm.addMediaMessage(`[image:${urlData.publicUrl}]`, senderName);
+          } catch (err) { toast.error(err instanceof Error ? err.message : 'Upload failed'); }
+          finally { setIsUploadingPhoto(false); if (photoInputRef.current) photoInputRef.current.value = ''; }
+        }}
+      />
+
       {/* Input Area */}
       <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm">
         {partyDm.isGenerating ? (
@@ -578,6 +650,28 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
         ) : !hasSubmitted ? (
           <div className="space-y-2 max-w-2xl mx-auto">
             <div className="flex items-end gap-2">
+              {currentUserId && (
+                <div className="flex gap-1 shrink-0">
+                  <button
+                    onClick={() => photoInputRef.current?.click()}
+                    disabled={isUploadingPhoto}
+                    className="p-2.5 rounded-xl border border-white/10 hover:border-amber-500/30 bg-white/5 hover:bg-amber-900/20 transition-colors"
+                    style={{ touchAction: 'manipulation' }}
+                    title="Attach photo"
+                  >
+                    {isUploadingPhoto ? <Loader2 className="w-4 h-4 text-amber-400 animate-spin" /> : <ImageIcon className="w-4 h-4 text-white/50" />}
+                  </button>
+                  <button
+                    onClick={() => videoInputRef.current?.click()}
+                    disabled={isUploadingVideo}
+                    className="p-2.5 rounded-xl border border-white/10 hover:border-amber-500/30 bg-white/5 hover:bg-amber-900/20 transition-colors"
+                    style={{ touchAction: 'manipulation' }}
+                    title="Attach video"
+                  >
+                    {isUploadingVideo ? <Loader2 className="w-4 h-4 text-amber-400 animate-spin" /> : <Film className="w-4 h-4 text-white/50" />}
+                  </button>
+                </div>
+              )}
               <textarea
                 ref={inputRef}
                 value={input}

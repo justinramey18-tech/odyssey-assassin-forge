@@ -546,6 +546,17 @@ export function useAIDM({ characterContext, customGuidesContent, onMessageComple
     lastCloudSaveJsonRef.current = JSON.stringify({ messages: serializedMessages, summary, guideIds: guideIds ?? [] });
   }, []);
 
+  // Add a media-only message (video/photo) without triggering AI response
+  const addMediaMessage = useCallback((content: string) => {
+    const mediaMessage: Message = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: content.trim(),
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, mediaMessage]);
+  }, []);
+
   return {
     messages,
     isLoading,
@@ -554,6 +565,7 @@ export function useAIDM({ characterContext, customGuidesContent, onMessageComple
     updateCampaignSummary,
     loadCampaign,
     sendMessage,
+    addMediaMessage,
     cancelRequest,
     clearMessages,
     newGame,
