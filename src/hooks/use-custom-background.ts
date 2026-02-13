@@ -3,12 +3,10 @@ import { supabase } from '@/integrations/supabase/client';
 
 const STORAGE_KEY = 'odyssey-custom-home-background';
 const STORAGE_URL_KEY = 'odyssey-custom-home-background-url';
-const STORAGE_VIDEO_URL_KEY = 'odyssey-custom-home-background-video-url';
 
 export interface CustomBackgroundState {
   customBackground: string | null;
   backgroundUrl: string | null;
-  customVideoBackground: string | null;
   setCustomBackground: (imageDataUrl: string | null) => void;
   clearCustomBackground: () => void;
   handleImageUpload: (file: File, userId?: string) => Promise<void>;
@@ -19,14 +17,6 @@ export function useCustomBackground(): CustomBackgroundState {
   const [backgroundUrl, setBackgroundUrl] = useState<string | null>(() => {
     try {
       return localStorage.getItem(STORAGE_URL_KEY);
-    } catch {
-      return null;
-    }
-  });
-
-  const [customVideoBackground, setCustomVideoBackground] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem(STORAGE_VIDEO_URL_KEY);
     } catch {
       return null;
     }
@@ -53,7 +43,6 @@ export function useCustomBackground(): CustomBackgroundState {
         localStorage.removeItem(STORAGE_KEY);
       }
     } catch (error) {
-      // Quota exceeded is expected for large images - the URL fallback handles this
       console.warn('[Background] localStorage cache failed (likely quota exceeded), using URL fallback');
       localStorage.removeItem(STORAGE_KEY);
     }
@@ -72,19 +61,6 @@ export function useCustomBackground(): CustomBackgroundState {
     }
   }, [backgroundUrl]);
 
-  // Persist video URL to localStorage
-  useEffect(() => {
-    try {
-      if (customVideoBackground) {
-        localStorage.setItem(STORAGE_VIDEO_URL_KEY, customVideoBackground);
-      } else {
-        localStorage.removeItem(STORAGE_VIDEO_URL_KEY);
-      }
-    } catch (error) {
-      console.error('Failed to save video background URL:', error);
-    }
-  }, [customVideoBackground]);
-
   const setCustomBackground = useCallback((imageDataUrl: string | null) => {
     setCustomBackgroundState(imageDataUrl);
     if (!imageDataUrl) {
@@ -95,16 +71,13 @@ export function useCustomBackground(): CustomBackgroundState {
   const clearCustomBackground = useCallback(() => {
     setCustomBackgroundState(null);
     setBackgroundUrl(null);
-    setCustomVideoBackground(null);
   }, []);
 
   const setBackgroundFromUrl = useCallback((url: string | null) => {
     setBackgroundUrl(url);
     if (url) {
-      // Immediately use the URL as background (no waiting for canvas conversion)
       setCustomBackgroundState(url);
       
-      // Optionally try to cache as dataURL for faster loads, but URL is the reliable fallback
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.onload = () => {
@@ -122,7 +95,6 @@ export function useCustomBackground(): CustomBackgroundState {
           }
         }
       };
-      // Don't set onerror — URL is already set as background
       img.src = url;
     } else {
       setCustomBackgroundState(null);
@@ -130,51 +102,14 @@ export function useCustomBackground(): CustomBackgroundState {
   }, []);
 
   const handleImageUpload = useCallback(async (file: File, userId?: string): Promise<void> => {
-    const isVideo = file.type.startsWith('video/');
-
-    // Validate file type
-    if (!isVideo && !file.type.startsWith('image/')) {
-      throw new Error('Please upload an image or video file');
+    if (!file.type.startsWith('image/')) {
+      throw new Error('Please upload an image file');
     }
 
-    // Validate file size
-    const maxSize = isVideo ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
-    if (file.size > maxSize) {
-      throw new Error(isVideo ? 'Video must be smaller than 50MB' : 'Image must be smaller than 5MB');
+    if (file.size > 5 * 1024 * 1024) {
+      throw new Error('Image must be smaller than 5MB');
     }
 
-    if (isVideo) {
-      // For videos, upload to cloud storage and use URL
-      setCustomVideoBackground(null); // clear old while uploading
-      setCustomBackgroundState(null);
-
-      if (userId) {
-        const ext = file.name.split('.').pop() || 'mp4';
-        const path = `backgrounds/${userId}/home-bg-video.${ext}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('gear-images')
-          .upload(path, file, { upsert: true });
-
-        if (uploadError) throw new Error('Video upload failed');
-
-        const { data: urlData } = supabase.storage
-          .from('gear-images')
-          .getPublicUrl(path);
-
-        if (urlData?.publicUrl) {
-          const url = `${urlData.publicUrl}?t=${Date.now()}`;
-          setCustomVideoBackground(url);
-        }
-      } else {
-        // No user — create a local object URL (won't persist across reloads without cloud)
-        const objectUrl = URL.createObjectURL(file);
-        setCustomVideoBackground(objectUrl);
-      }
-      return;
-    }
-
-    // Image flow (existing)
     const dataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (event) => {
@@ -187,7 +122,6 @@ export function useCustomBackground(): CustomBackgroundState {
     });
 
     setCustomBackgroundState(dataUrl);
-    setCustomVideoBackground(null); // clear video when image is set
 
     if (userId) {
       try {
@@ -220,7 +154,6 @@ export function useCustomBackground(): CustomBackgroundState {
   return {
     customBackground,
     backgroundUrl,
-    customVideoBackground,
     setCustomBackground,
     clearCustomBackground,
     handleImageUpload,

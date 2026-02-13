@@ -2114,7 +2114,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           onDismissWildShape={() => wildShape.revert()}
           wildShapeBackground={wildShapeBgs.getActiveBackground(wildShape.state.currentForm?.id)}
           customBackground={customBackground.customBackground}
-          customVideoBackground={customBackground.customVideoBackground}
+          
           onCustomBackgroundUpload={(file: File) => customBackground.handleImageUpload(file, user?.id)}
           onCustomBackgroundClear={customBackground.clearCustomBackground}
           prestigeData={prestigeData}
