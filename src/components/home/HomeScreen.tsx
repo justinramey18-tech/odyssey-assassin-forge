@@ -17,6 +17,11 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle
+} from '@/components/ui/alert-dialog';
 import { InstallBanner } from './InstallBanner';
 import { ClockWidget } from './ClockWidget';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
@@ -239,6 +244,7 @@ export function HomeScreen({
   const [showPartyDrawer, setShowPartyDrawer] = useState(false);
   const [showPartyChatFullscreen, setShowPartyChatFullscreen] = useState(false);
   const [showFAQDrawer, setShowFAQDrawer] = useState(false);
+  const [showSoloConfirm, setShowSoloConfirm] = useState(false);
   const lastSeenMessageCount = useRef(0);
   
   const [footerCollapsed, setFooterCollapsed] = useState(() => {
@@ -523,7 +529,11 @@ export function HomeScreen({
                   <button
                     onClick={() => {
                       triggerHaptic('light');
-                      onPlayModeChange(playMode === 'solo' ? 'party' : 'solo');
+                      if (playMode === 'party') {
+                        setShowSoloConfirm(true);
+                      } else {
+                        onPlayModeChange('party');
+                      }
                     }}
                     className={cn(
                       "flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-cinzel uppercase tracking-wider transition-colors border",
@@ -933,6 +943,24 @@ export function HomeScreen({
 
       {/* FAQ Drawer */}
       <FAQDrawer open={showFAQDrawer} onOpenChange={setShowFAQDrawer} />
+
+      {/* Solo Mode Confirmation */}
+      <AlertDialog open={showSoloConfirm} onOpenChange={setShowSoloConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-cinzel">Switch to Solo Mode?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Party sync will be paused. You won't send or receive updates from party members until you switch back.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => onPlayModeChange?.('solo')}>
+              Switch to Solo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

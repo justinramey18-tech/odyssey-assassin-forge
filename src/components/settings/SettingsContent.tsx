@@ -114,6 +114,7 @@ export function SettingsContent({
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [showClearImagesDialog, setShowClearImagesDialog] = useState(false);
   const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
+  const [showSoloConfirmSettings, setShowSoloConfirmSettings] = useState(false);
   
   const { prestigeRespecDisabled } = useGameMode();
 
@@ -576,7 +577,13 @@ export function SettingsContent({
                   </div>
                 </div>
                 <button
-                  onClick={() => onPlayModeChange(playMode === 'solo' ? 'party' : 'solo')}
+                  onClick={() => {
+                    if (playMode === 'party') {
+                      setShowSoloConfirmSettings(true);
+                    } else {
+                      onPlayModeChange(playMode === 'solo' ? 'party' : 'solo');
+                    }
+                  }}
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-cinzel uppercase tracking-wider transition-colors border",
                     playMode === 'party'
@@ -596,6 +603,24 @@ export function SettingsContent({
                     </>
                   )}
                 </button>
+
+                {/* Solo Mode Confirmation Dialog */}
+                <AlertDialog open={showSoloConfirmSettings} onOpenChange={setShowSoloConfirmSettings}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="font-cinzel">Switch to Solo Mode?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Party sync will be paused. You won't send or receive updates from party members until you switch back.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => onPlayModeChange?.('solo')}>
+                        Switch to Solo
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
             <Separator className="bg-border/30" />
