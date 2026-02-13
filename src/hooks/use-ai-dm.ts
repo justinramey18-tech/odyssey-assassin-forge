@@ -21,6 +21,10 @@ interface UseAIDMOptions {
   characterContext: CharacterContext;
   customGuidesContent?: string;
   onMessageComplete?: (content: string) => void;
+  /** Current active guide IDs to persist with the campaign */
+  activeGuideIds?: string[];
+  /** Called when a campaign is loaded so the parent can switch active guides */
+  onCampaignSwitch?: (guideIds: string[] | null) => void;
 }
 
 interface VersionedSession {
@@ -99,7 +103,7 @@ function saveSession(messages: Message[]): void {
   }
 }
 
-export function useAIDM({ characterContext, customGuidesContent, onMessageComplete }: UseAIDMOptions) {
+export function useAIDM({ characterContext, customGuidesContent, onMessageComplete, activeGuideIds, onCampaignSwitch }: UseAIDMOptions) {
   const [messages, setMessages] = useState<Message[]>(() => loadSession());
   const [isLoading, setIsLoading] = useState(false);
   const [campaignSummary, setCampaignSummary] = useState<string | null>(() => loadCampaignSummary());
@@ -118,11 +122,15 @@ export function useAIDM({ characterContext, customGuidesContent, onMessageComple
   const messagesRef = useRef<Message[]>(messages);
   const campaignSummaryRef = useRef<string | null>(campaignSummary);
   const activeCampaignIdRef = useRef<string | null>(activeCampaignId);
+  const activeGuideIdsRef = useRef<string[]>(activeGuideIds ?? []);
+  const onCampaignSwitchRef = useRef(onCampaignSwitch);
 
   // Keep refs in sync
   useEffect(() => { messagesRef.current = messages; }, [messages]);
   useEffect(() => { campaignSummaryRef.current = campaignSummary; }, [campaignSummary]);
   useEffect(() => { activeCampaignIdRef.current = activeCampaignId; }, [activeCampaignId]);
+  useEffect(() => { activeGuideIdsRef.current = activeGuideIds ?? []; }, [activeGuideIds]);
+  useEffect(() => { onCampaignSwitchRef.current = onCampaignSwitch; }, [onCampaignSwitch]);
 
   // Auto-load most recent cloud campaign if localStorage was empty
   const hasAttemptedCloudLoad = useRef(false);
@@ -140,7 +148,7 @@ export function useAIDM({ characterContext, customGuidesContent, onMessageComple
 
         const { data, error } = await supabase
           .from('ai_dm_campaigns')
-          .select('id, name, messages, campaign_summary')
+          .select('id, name, messages, campaign_summary, gm_guide_ids')
           .eq('user_id', user.id)
           .order('updated_at', { ascending: false })
           .limit(1)
@@ -157,7 +165,7 @@ export function useAIDM({ characterContext, customGuidesContent, onMessageComple
         if (loadedMessages.length === 0) return;
 
         // Use loadCampaign to set everything consistently
-        loadCampaign(loadedMessages, data.campaign_summary, data.id);
+        loadCampaign(loadedMessages, data.campaign_summary, data.id, data.gm_guide_ids);
       } catch (err) {
         console.warn('[AI DM] Failed to auto-load cloud campaign:', err);
       }
@@ -189,6 +197,7 @@ export function useAIDM({ characterContext, customGuidesContent, onMessageComple
     const currentMessages = messagesRef.current;
     const currentSummary = campaignSummaryRef.current;
     const currentCampaignId = activeCampaignIdRef.current;
+    const currentGuideIds = activeGuideIdsRef.current;
 
     // Need messages and auth to save
     if (currentMessages.length === 0) return;
@@ -203,7 +212,7 @@ export function useAIDM({ characterContext, customGuidesContent, onMessageComple
       timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp,
     }));
 
-    const cloudPayload = JSON.stringify({ messages: serializedMessages, summary: currentSummary });
+    const cloudPayload = JSON.stringify({ messages: serializedMessages, summary: currentSummary, guideIds: currentGuideIds });
 
     // Dirty-check
     if (cloudPayload === lastCloudSaveJsonRef.current) return;
@@ -223,6 +232,7 @@ export function useAIDM({ characterContext, customGuidesContent, onMessageComple
             name: campaignName,
             messages: serializedMessages as any,
             campaign_summary: currentSummary,
+            gm_guide_ids: currentGuideIds,
           })
           .eq('id', currentCampaignId)
           .eq('user_id', user.id);
@@ -235,6 +245,7 @@ export function useAIDM({ characterContext, customGuidesContent, onMessageComple
             name: campaignName,
             messages: serializedMessages as any,
             campaign_summary: currentSummary,
+            gm_guide_ids: currentGuideIds,
           })
           .select('id')
           .single();
@@ -488,17 +499,29 @@ export function useAIDM({ characterContext, customGuidesContent, onMessageComple
     lastCloudSaveJsonRef.current = '';
   }, []);
 
-  const newGame = useCallback(() => {
-    clearMessages();
+  const newGame = useCallback(async () => {
+    // Auto-save current campaign to cloud before clearing
+    if (messagesRef.current.length > 0) {
+      await saveToCloudNow();
+    }
+    // Clear local state
+    setMessages([]);
+    localStorage.removeItem(STORAGE_KEY);
+    clearCampaignSummary();
+    setCampaignSummary(null);
+    setActiveCampaignId(null);
+    lastCloudSaveJsonRef.current = '';
+    // Disable all guides for fresh campaign
+    onCampaignSwitchRef.current?.(null);
     toast.success('New game started! The DM awaits your adventure.');
-  }, [clearMessages]);
+  }, [saveToCloudNow]);
 
   const updateCampaignSummary = useCallback((summary: string) => {
     saveCampaignSummary(summary);
     setCampaignSummary(summary || null);
   }, []);
 
-  const loadCampaign = useCallback((loadedMessages: Message[], summary: string | null, campaignId?: string) => {
+  const loadCampaign = useCallback((loadedMessages: Message[], summary: string | null, campaignId?: string, guideIds?: string[] | null) => {
     setMessages(loadedMessages);
     saveSession(loadedMessages);
     if (summary) {
@@ -509,6 +532,10 @@ export function useAIDM({ characterContext, customGuidesContent, onMessageComple
       setCampaignSummary(null);
     }
     setActiveCampaignId(campaignId ?? null);
+    // Switch active guides to match the loaded campaign
+    if (guideIds !== undefined) {
+      onCampaignSwitchRef.current?.(guideIds);
+    }
     // Reset cloud dirty-check to loaded state
     const serializedMessages = loadedMessages.map(m => ({
       id: m.id,
@@ -516,7 +543,7 @@ export function useAIDM({ characterContext, customGuidesContent, onMessageComple
       content: m.content,
       timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp,
     }));
-    lastCloudSaveJsonRef.current = JSON.stringify({ messages: serializedMessages, summary });
+    lastCloudSaveJsonRef.current = JSON.stringify({ messages: serializedMessages, summary, guideIds: guideIds ?? [] });
   }, []);
 
   return {
@@ -534,5 +561,6 @@ export function useAIDM({ characterContext, customGuidesContent, onMessageComple
     setActiveCampaignId,
     lastCloudSyncTime,
     isCloudSyncing,
+    saveToCloudNow,
   };
 }
