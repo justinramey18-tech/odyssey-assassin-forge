@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical } from 'lucide-react';
+import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -33,6 +33,8 @@ function getMemberColor(userId: string, members: Array<{ user_id: string }>): st
   return MEMBER_COLORS[idx >= 0 ? idx % MEMBER_COLORS.length : 0];
 }
 
+const PARTY_VIDEO_REGEX = /^\[video:(https?:\/\/.+)\]$/;
+
 function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate }: {
   message: PartyDmMessage;
   currentUserId?: string;
@@ -49,6 +51,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
   const [editContent, setEditContent] = useState('');
   const isAssistant = message.role === 'assistant';
   const isMine = message.sender_user_id === currentUserId;
+  const videoMatch = message.content.match(PARTY_VIDEO_REGEX);
 
   // In private mode, hide other players' user messages content
   if (!isAssistant && !isMine && mode === 'private') {
@@ -110,21 +113,33 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
             </div>
           ) : (
             <div className="text-sm prose prose-invert prose-sm max-w-none break-words overflow-wrap-anywhere">
-              <ReactMarkdown
-                components={{
-                  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                  strong: ({ children }) => <strong className="text-amber-300">{children}</strong>,
-                  em: ({ children }) => <em className="text-white/70">{children}</em>,
-                  ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
-                  ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
-                  li: ({ children }) => <li className="mb-1">{children}</li>,
-                  blockquote: ({ children }) => (
-                    <blockquote className="border-l-2 border-amber-500/40 pl-3 italic text-white/60 my-2">{children}</blockquote>
-                  ),
-                }}
-              >
-                {message.content || '...'}
-              </ReactMarkdown>
+              {videoMatch ? (
+                <div>
+                  <div className="flex items-center gap-1 mb-1.5">
+                    <Film className="w-3 h-3 text-amber-400" />
+                    <span className="text-[10px] text-amber-300/70 font-cinzel">Video</span>
+                  </div>
+                  <div className="rounded-xl overflow-hidden border border-amber-500/20 bg-black/40 max-w-[300px]">
+                    <video src={videoMatch[1]} controls playsInline className="w-full rounded-xl" />
+                  </div>
+                </div>
+              ) : (
+                <ReactMarkdown
+                  components={{
+                    p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                    strong: ({ children }) => <strong className="text-amber-300">{children}</strong>,
+                    em: ({ children }) => <em className="text-white/70">{children}</em>,
+                    ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
+                    ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
+                    li: ({ children }) => <li className="mb-1">{children}</li>,
+                    blockquote: ({ children }) => (
+                      <blockquote className="border-l-2 border-amber-500/40 pl-3 italic text-white/60 my-2">{children}</blockquote>
+                    ),
+                  }}
+                >
+                  {message.content || '...'}
+                </ReactMarkdown>
+              )}
             </div>
           )}
 
@@ -219,7 +234,21 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
             </div>
           </div>
         ) : (
-          <p className="text-sm whitespace-pre-wrap text-white/90">{message.content}</p>
+        <p className="text-sm whitespace-pre-wrap text-white/90">
+          {videoMatch ? (
+            <span>
+              <span className="flex items-center gap-1 mb-1.5">
+                <Film className="w-3 h-3 text-amber-400" />
+                <span className="text-[10px] text-amber-300/70 font-cinzel">Video</span>
+              </span>
+              <span className="block rounded-xl overflow-hidden border border-amber-500/20 bg-black/40 max-w-[300px]">
+                <video src={videoMatch[1]} controls playsInline className="w-full rounded-xl" />
+              </span>
+            </span>
+          ) : (
+            message.content
+          )}
+        </p>
         )}
 
         {/* Host action buttons */}

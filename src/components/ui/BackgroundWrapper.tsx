@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 
 interface BackgroundWrapperProps {
   imagePath: string;
+  videoPath?: string;
   overlayOpacity?: number;
   tintColor?: 'red' | 'amber' | 'purple' | 'cyan' | 'green' | 'indigo';
   tintOpacity?: number;
@@ -30,6 +31,7 @@ const DEFAULT_FALLBACK_GRADIENT = 'linear-gradient(135deg, #1a1a2e 0%, #16213e 5
 
 export function BackgroundWrapper({
   imagePath,
+  videoPath,
   overlayOpacity = 60,
   tintColor,
   tintOpacity = 20,
@@ -91,24 +93,43 @@ export function BackgroundWrapper({
 
   return (
     <div className={cn('relative min-h-screen w-full overflow-hidden', className)}>
-      {/* Background Image Layer */}
-      <div 
-        className={cn(
-          'absolute inset-0 bg-center bg-no-repeat z-0 transition-opacity duration-300',
-          useFixed && 'bg-fixed',
-          imageLoaded ? 'opacity-100' : 'opacity-0'
-        )}
-        style={{ 
-          backgroundImage: `url(${imagePath})`,
-          backgroundSize: backgroundSize,
-          backgroundPosition: backgroundPosition,
-          ...(enablePerformanceHints && {
-            willChange: 'transform',
-            contain: 'layout style paint',
-          }),
-        }}
-        aria-hidden="true"
-      />
+      {/* Video Background Layer */}
+      {videoPath && !prefersReducedMotion && (
+        <video
+          className={cn(
+            'absolute inset-0 w-full h-full object-cover z-0 transition-opacity duration-300',
+            imageLoaded || videoPath ? 'opacity-100' : 'opacity-0'
+          )}
+          src={videoPath}
+          autoPlay
+          muted
+          loop
+          playsInline
+          poster={imagePath}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Background Image Layer (shown when no video or reduced motion) */}
+      {(!videoPath || prefersReducedMotion) && (
+        <div 
+          className={cn(
+            'absolute inset-0 bg-center bg-no-repeat z-0 transition-opacity duration-300',
+            useFixed && 'bg-fixed',
+            imageLoaded ? 'opacity-100' : 'opacity-0'
+          )}
+          style={{ 
+            backgroundImage: `url(${imagePath})`,
+            backgroundSize: backgroundSize,
+            backgroundPosition: backgroundPosition,
+            ...(enablePerformanceHints && {
+              willChange: 'transform',
+              contain: 'layout style paint',
+            }),
+          }}
+          aria-hidden="true"
+        />
+      )}
       
       {/* Fallback Gradient (shown while loading or on error) */}
       <div 
