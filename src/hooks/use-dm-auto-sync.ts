@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import { CharacterContext } from '@/components/oracle/types';
 import { computeMapUpdates, type MapEntity } from '@/lib/battlemap-auto-populate';
@@ -42,6 +42,9 @@ interface AutoSyncCallbacks {
 }
 
 export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
+  // Store callbacks in a ref to avoid re-creating extractAndApply on every render
+  const callbacksRef = useRef(callbacks);
+  useEffect(() => { callbacksRef.current = callbacks; });
   const [autoSyncEnabled, setAutoSyncEnabled] = useState<boolean>(() => {
     return localStorage.getItem(STORAGE_KEY) === 'true';
   });
@@ -60,12 +63,14 @@ export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
   ) => {
     if (assistantMessage.length < 20) return null;
 
+    const cb = callbacksRef.current;
+
     // Snapshot for undo
     snapshotRef.current = {
-      hp: callbacks.getCurrentHP(),
+      hp: cb.getCurrentHP(),
       xp: 0, // XP undo not supported (additive only)
-      gold: callbacks.getCurrentGold(),
-      markers: [...callbacks.getCurrentMarkers()],
+      gold: cb.getCurrentGold(),
+      markers: [...cb.getCurrentMarkers()],
       timestamp: Date.now(),
     };
 
@@ -104,7 +109,7 @@ export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
 
       // Apply HP changes
       for (const hpChange of result.hp_changes) {
-        callbacks.onHPChange(
+        cb.onHPChange(
           hpChange.type === 'damage' ? -hpChange.amount : hpChange.amount,
           hpChange.type
         );
@@ -112,34 +117,34 @@ export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
 
       // Apply XP
       if (result.xp_gained && result.xp_gained > 0) {
-        callbacks.onAddXP(result.xp_gained, 'AI DM Auto-Sync');
+        cb.onAddXP(result.xp_gained, 'AI DM Auto-Sync');
       }
 
       // Apply gold
       for (const goldChange of result.gold_changes) {
         const net = goldChange.action === 'gained' ? goldChange.amount : -goldChange.amount;
-        callbacks.onGoldChange(net);
+        cb.onGoldChange(net);
       }
 
       // Apply conditions
       if (result.conditions_added.length > 0 || result.conditions_removed.length > 0) {
-        callbacks.onConditionChange(result.conditions_added, result.conditions_removed);
+        cb.onConditionChange(result.conditions_added, result.conditions_removed);
       }
 
       // Apply rest
       if (result.rest_occurred) {
-        callbacks.onRestOccurred(result.rest_occurred);
+        cb.onRestOccurred(result.rest_occurred);
       }
 
       // Apply map updates
       if ((result.map_entities?.length ?? 0) > 0 || (result.map_entities_removed?.length ?? 0) > 0) {
         const { markersToAdd, namesToRemove } = computeMapUpdates(
           result,
-          callbacks.getCurrentMarkers(),
-          callbacks.getGridSize()
+          cb.getCurrentMarkers(),
+          cb.getGridSize()
         );
         if (markersToAdd.length > 0 || namesToRemove.length > 0) {
-          callbacks.onMapUpdate(markersToAdd, namesToRemove);
+          cb.onMapUpdate(markersToAdd, namesToRemove);
         }
       }
 
@@ -150,7 +155,7 @@ export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
     } finally {
       setIsExtracting(false);
     }
-  }, [callbacks]);
+  }, []); // stable — reads from callbacksRef
 
   const undoLastExtraction = useCallback(() => {
     // For now, undo just clears the last extraction display
