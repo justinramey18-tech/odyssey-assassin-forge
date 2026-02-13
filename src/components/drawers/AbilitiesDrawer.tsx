@@ -7,6 +7,7 @@ import { allAbilities } from '@/lib/abilities';
 import { Ability, Character } from '@/lib/types';
 import { generateRPPrompt } from '@/lib/rpPromptGenerator';
 import { rollDice } from '@/lib/diceRoller';
+import { PromptEditModal } from '@/components/shared/PromptEditModal';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Accordion,
@@ -49,8 +50,8 @@ export function AbilitiesDrawer({
   character,
   unlockedAbilities,
 }: AbilitiesDrawerProps) {
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expandedTree, setExpandedTree] = useState<string | undefined>(undefined);
+  const [promptModal, setPromptModal] = useState<{ ability: Ability; prompt: string } | null>(null);
 
   const getAbilitiesByTree = (tree: 'hunter' | 'warrior' | 'assassin') => {
     return allAbilities.filter(a => 
@@ -58,18 +59,11 @@ export function AbilitiesDrawer({
     );
   };
 
-  const generateAbilityPrompt = (ability: Ability) => {
+  const openPromptModal = (ability: Ability) => {
     const tier = unlockedAbilities.get(ability.id) || 1;
     const roll = rollDice('d20', 1);
-    return generateRPPrompt(ability, tier as 1 | 2 | 3, roll, character.name || 'The Assassin');
-  };
-
-  const copyToClipboard = async (ability: Ability) => {
-    const prompt = generateAbilityPrompt(ability);
-    await navigator.clipboard.writeText(prompt);
-    setCopiedId(ability.id);
-    toast.success('Ability prompt copied!');
-    setTimeout(() => setCopiedId(null), 2000);
+    const prompt = generateRPPrompt(ability, tier as 1 | 2 | 3, roll, character.name || 'The Assassin');
+    setPromptModal({ ability, prompt });
   };
 
   const trees = ['hunter', 'warrior', 'assassin'] as const;
@@ -161,14 +155,13 @@ export function AbilitiesDrawer({
                     style={{ borderColor: `${config.color}40` }}
                   >
                     {abilities.map((ability) => {
-                      const isCopied = copiedId === ability.id;
                       const tier = unlockedAbilities.get(ability.id) || 1;
                       const isPassive = ability.type === 'passive';
                       
                       return (
                         <button
                           key={ability.id}
-                          onClick={() => !isPassive && copyToClipboard(ability)}
+                          onClick={() => !isPassive && openPromptModal(ability)}
                           disabled={isPassive}
                           className={cn(
                             'w-full flex items-center gap-2 p-2.5 rounded-lg',
@@ -177,7 +170,6 @@ export function AbilitiesDrawer({
                             isPassive 
                               ? 'opacity-60 cursor-not-allowed' 
                               : 'hover:bg-card',
-                            isCopied && 'bg-green-500/20 border-green-500/50'
                           )}
                         >
                           <span 
@@ -190,10 +182,7 @@ export function AbilitiesDrawer({
                             T{tier}
                           </span>
                           <div className="flex-1 min-w-0">
-                            <span className={cn(
-                              'text-sm text-foreground/90',
-                              isCopied && 'text-green-400'
-                            )}>
+                            <span className="text-sm text-foreground/90">
                               {ability.name}
                             </span>
                             <p className="text-[10px] text-muted-foreground capitalize">
@@ -202,8 +191,6 @@ export function AbilitiesDrawer({
                           </div>
                           {isPassive ? (
                             <span className="text-[10px] text-muted-foreground">Passive</span>
-                          ) : isCopied ? (
-                            <Check className="w-4 h-4 text-green-400 shrink-0" />
                           ) : (
                             <Copy className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                           )}
@@ -225,6 +212,17 @@ export function AbilitiesDrawer({
           )}
         </div>
       </ScrollArea>
+
+      {promptModal && (
+        <PromptEditModal
+          promptKey={`ability-${promptModal.ability.id}`}
+          generatedPrompt={promptModal.prompt}
+          title={promptModal.ability.name}
+          subtitle="Ability Prompt"
+          open={!!promptModal}
+          onOpenChange={(open) => !open && setPromptModal(null)}
+        />
+      )}
     </EdgeDrawer>
   );
 }

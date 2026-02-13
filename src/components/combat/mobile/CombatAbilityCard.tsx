@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
+import { PromptEditModal } from '@/components/shared/PromptEditModal';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Ability, AbilityTree } from '@/lib/types';
@@ -76,6 +77,8 @@ export function CombatAbilityCard({
 }: CombatAbilityCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [promptModalOpen, setPromptModalOpen] = useState(false);
+  const [promptModalText, setPromptModalText] = useState('');
 
   const { die, count } = getAbilityDice(ability.tier);
   const config = COOLDOWN_CONFIGS[ability.id];
@@ -247,13 +250,12 @@ ${activeSetBonuses.length > 0
     onTriggerCooldown?.(ability.id);
   }, [ability, isPassive, isOnCooldown, die, count, generateAbilityPrompt, getCombinedDamage, onUse, onTriggerCooldown]);
 
-  // Copy prompt to clipboard
-  const handleCopyPrompt = useCallback(async () => {
+  // Open prompt edit modal
+  const handleCopyPrompt = useCallback(() => {
     const roll = rollDice(die, count);
     const prompt = generateAbilityPrompt(roll);
-    await navigator.clipboard.writeText(prompt);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setPromptModalText(prompt);
+    setPromptModalOpen(true);
   }, [die, count, generateAbilityPrompt]);
 
   const treeColors = {
@@ -507,6 +509,15 @@ ${activeSetBonuses.length > 0
           {copied ? 'Prompt Copied!' : 'Copy AI DM Prompt'}
         </Button>
       </div>
+
+      <PromptEditModal
+        promptKey={`ability-${ability.id}`}
+        generatedPrompt={promptModalText}
+        title={ability.name}
+        subtitle="Ability Prompt"
+        open={promptModalOpen}
+        onOpenChange={setPromptModalOpen}
+      />
     </div>
   );
 }
