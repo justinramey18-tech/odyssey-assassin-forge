@@ -1,108 +1,63 @@
-# Gear Tab Overhaul: Rename, Homebrew Gear, and Collapsible Drawers
 
-## 1. Rename Weapon Slots
 
-Update the labels for `primary_weapon` and `secondary_weapon` across the codebase:
+# Customizable and Saveable AI DM Prompts
 
-- `**src/lib/inventory/types.ts**`: Change `equipmentSlotDefinitions` labels from `'PRIMARY WEAPON'` to `'MAIN HAND'` and `'SECONDARY WEAPON'` to `'OFFHAND'`
-- `**src/lib/gmGuideGenerator.ts**`: Update label references for guide text
-- `**src/lib/gmGuidePrompts.ts**`: Update table references
-- `**src/lib/faq-data.ts**`: Update FAQ text mentioning these slot names
+## Overview
 
-The underlying `EquipmentSlotType` values (`primary_weapon`, `secondary_weapon`) remain unchanged to avoid breaking data/localStorage.
+Currently, AI DM prompts across the Gear, Arcana, and Abilities tabs are generated on-the-fly and copied to clipboard immediately. This feature adds the ability to **view, edit, and save** customized versions of any prompt so users can refine their prompts once and reuse them.
 
 ---
 
-## 2. Homebrew Gear Creation System
+## How It Works
 
-### 2a. Data Model
-
-Create `**src/lib/inventory/homebrewGear.ts**` with:
-
-- `HomebrewGearItem` interface extending `EquipmentItem` with a `isHomebrew: true` flag
-- A form state interface for the creation UI (name, slot, rarity, stats, description, etc.)
-- localStorage persistence key (`dnd-homebrew-gear`)
-- CRUD utility functions (add, update, delete homebrew items)
-
-### 2b. Manual Creation UI
-
-Create `**src/components/inventory/HomebrewGearCreator.tsx**`:
-
-- A form/dialog accessible from the Gear tab header (new "+" button)
-- Fields: Name, Slot Type (dropdown), Rarity (dropdown), Stats (AC, damage, attack bonus, etc.), Weight, Value, Description, Properties, Enchantments
-- Validates required fields, adds a "Homebrew" badge, and saves to localStorage
-- Created items are injected into the equipment inventory so they appear in the item selection screen
-
-### 2c. AI-Assisted Creation
-
-Extend the existing `**supabase/functions/homebrew-assistant/index.ts**` edge function:
-
-- Add a new mode: `'gear_concept'` and `'batch_gear'`
-- System prompt tailored for D&D equipment design (slot-aware, rarity-balanced, stat suggestions)
-- Returns JSON matching the `EquipmentItem` structure
-
-Create `**src/components/inventory/HomebrewGearAI.tsx**`:
-
-- Text prompt input for describing desired gear
-- Single or batch generation (3-5 items)
-- Review list with checkboxes for selective saving (same pattern as spell/ability batch generation)
-- Per-item regeneration support
-
-### 2d. Hook
-
-Create `**src/hooks/use-homebrew-gear.ts**`:
-
-- Manages homebrew gear state in localStorage
-- Provides `addGear`, `removeGear`, `updateGear`, `homebrewItems` 
-- Merges homebrew items into the equipment inventory for the selection screen
+1. **Tapping "Copy Prompt"** anywhere in the app now opens an **Edit Prompt modal** (instead of copying immediately)
+2. The modal shows the generated prompt text in an editable textarea
+3. Users can tweak the wording, add context, or adjust tone
+4. **Save**: Persists the customized version -- next time this prompt is generated, it uses the saved version as a base
+5. **Copy**: Copies the current text to clipboard
+6. **Reset**: Reverts to the original auto-generated prompt
+7. Saved prompts are stored in localStorage, keyed by a unique identifier (ability ID, spell ID, or gear slot type)
 
 ---
 
-## 3. Collapsible Side Drawers for Equipment Cards
+## Architecture
 
-Replace the current vertical card list in `EquipmentList.tsx` with collapsible tabs anchored to the left edge of the gear screen.
+### New: Saved Prompt Hook
 
-### Architecture
+Create **`src/hooks/use-saved-prompts.ts`**:
+- localStorage key: `dnd-saved-prompts`
+- Stores a `Record<string, SavedPrompt>` mapping prompt keys to saved text
+- Each `SavedPrompt` has: `key`, `originalPrompt`, `customPrompt`, `updatedAt`
+- Methods: `getSavedPrompt(key)`, `savePrompt(key, text)`, `deleteSavedPrompt(key)`, `hasSavedPrompt(key)`
 
-- Each equipment slot becomes a collapsed tab on the left border, showing only the slot icon and a short label vertically or horizontally
-- Tapping a tab opens a `Sheet` (side drawer) from the left, displaying the full `EquipmentSlotCard` content for that slot
-- All tabs are closed/collapsed by default
-- The tabs appear in the same order as the current list: Armor slots, then Weapons, then Accessories, with visual dividers between categories
+### Refactored: Universal Prompt Edit Modal
 
-### Implementation
+Refactor **`src/components/character/PromptEditModal.tsx`** into a more generic **`src/components/shared/PromptEditModal.tsx`**:
+- Accepts: `promptKey` (unique ID), `generatedPrompt` (the auto-generated text), `title`, `subtitle`
+- Loads any previously saved version for that key
+- Three action buttons: **Save** (persists to localStorage), **Copy** (clipboard), **Reset** (revert to generated)
+- Shows a "Customized" badge if a saved version exists
+- "Save and Copy" as a combined primary action
 
-- **Refactor `src/components/inventory/EquipmentList.tsx**`:
-  - Replace inline card rendering with a vertical strip of collapsed tab buttons along the left edge
-  - Each tab shows the slot icon and a truncated item name (or "Empty") 
-  - Rarity color indicator on each tab (colored left border or dot)
-  - Tapping a tab opens a left-side `Sheet`/drawer containing the full slot card content, item details, and action buttons (equip, swap, unequip, info)
-  - Only one drawer open at a time (opening one closes the previous)
-- **Create `src/components/inventory/SlotDrawer.tsx**`:
-  - Left-side Sheet component for individual slot details
-  - Contains the equipment card content, custom image, stats, and action buttons
-  - Styled consistently with existing `EdgeDrawer` pattern
+---
 
-### Visual Layout
+## Integration Points
 
-```text
-+--+-----------------------------------+
-|H | (Main gear screen content area)   |
-|C |                                    |
-|A |  Background image / silhouette     |
-|W |                                    |
-|L |                                    |
-|--+                                    |
-|MH|                                    |
-|OH|                                    |
-|RW|                                    |
-|--+                                    |
-|Am|                                    |
-|R1|                                    |
-|R2|                                    |
-+--+-----------------------------------+
-```
+### Abilities Tab (`AbilitiesDrawer.tsx`, `CombatAbilityCard.tsx`)
+- Replace direct `navigator.clipboard.writeText` calls with opening the Prompt Edit Modal
+- Prompt key: `ability-{abilityId}`
+- When a saved version exists, it is used as the base (with fresh roll data injected)
 
-Each left-edge tab (H, C, A, W, L, MH, OH, RW, Am, R1, R2) is a small touch target (44-52px tall) with the slot icon and rarity indicator. Tapping opens the slot's detail drawer from the left.
+### Arcana Tab (`SpellCastSheet.tsx`, `SpellDetailsSheet.tsx`)
+- Replace direct clipboard copy with the Prompt Edit Modal
+- Prompt key: `spell-{spellId}` or `spell-cast-{spellId}`
+- Saved spell prompts persist the user's preferred wording/format
+
+### Gear Tab (`SlotDrawer.tsx`, `EquipmentSlotCard.tsx`)
+- Add a "Copy AI Prompt" button to the SlotDrawer for equipped items
+- Generates a gear-focused prompt (item name, stats, rarity, properties)
+- Prompt key: `gear-{slotType}`
+- Opens the Prompt Edit Modal for editing and saving
 
 ---
 
@@ -110,23 +65,19 @@ Each left-edge tab (H, C, A, W, L, MH, OH, RW, Am, R1, R2) is a small touch targ
 
 ### Files to Create
 
-1. `src/lib/inventory/homebrewGear.ts` - Data model and utilities
-2. `src/hooks/use-homebrew-gear.ts` - State management hook
-3. `src/components/inventory/HomebrewGearCreator.tsx` - Manual creation form
-4. `src/components/inventory/HomebrewGearAI.tsx` - AI-assisted creation UI
-5. `src/components/inventory/SlotDrawer.tsx` - Individual slot side drawer
+1. **`src/hooks/use-saved-prompts.ts`** -- localStorage persistence hook for saved prompt overrides
+2. **`src/components/shared/PromptEditModal.tsx`** -- Universal edit/save/copy modal (refactored from existing)
 
 ### Files to Modify
 
-1. `src/lib/inventory/types.ts` - Rename slot labels
-2. `src/lib/gmGuideGenerator.ts` - Update label text
-3. `src/lib/gmGuidePrompts.ts` - Update label text
-4. `src/lib/faq-data.ts` - Update FAQ text
-5. `src/components/inventory/EquipmentList.tsx` - Refactor to collapsible tabs + drawers
-6. `src/components/inventory/InventoryScreen.tsx` - Integrate homebrew gear hook, add create button
-7. `supabase/functions/homebrew-assistant/index.ts` - Add `gear_concept` and `batch_gear` modes
+1. **`src/components/drawers/AbilitiesDrawer.tsx`** -- Wire copy button to open modal instead of direct copy
+2. **`src/components/combat/mobile/CombatAbilityCard.tsx`** -- Wire "Copy AI DM Prompt" to modal
+3. **`src/components/magic/SpellCastSheet.tsx`** -- Wire spell cast prompt to modal
+4. **`src/components/magic/SpellDetailsSheet.tsx`** -- Wire spell details copy to modal
+5. **`src/components/inventory/SlotDrawer.tsx`** -- Add "Copy AI Prompt" button that opens modal for gear items
+6. **`src/components/inventory/EquipmentSlotCard.tsx`** -- May need a prompt generation utility for gear
 
-### Dependencies
+### No Backend Changes Required
 
-- No new packages needed; uses existing Sheet, ScrollArea, and form components
-- Follows existing homebrew patterns (abilities, spells) for consistency
+All prompt customization is stored in localStorage, consistent with the app's existing persistence patterns.
+
