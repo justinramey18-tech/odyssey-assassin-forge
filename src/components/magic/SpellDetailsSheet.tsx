@@ -19,6 +19,7 @@ import * as LucideIcons from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { PromptEditModal } from '@/components/shared/PromptEditModal';
 
 interface SpellDetailsSheetProps {
   spell: SpellDefinition | null;
@@ -55,6 +56,8 @@ export function SpellDetailsSheet({
   onCast,
 }: SpellDetailsSheetProps) {
   const [copied, setCopied] = useState(false);
+  const [promptModalOpen, setPromptModalOpen] = useState(false);
+  const [promptModalText, setPromptModalText] = useState('');
   const { toast } = useToast();
 
   if (!spell) return null;
@@ -71,8 +74,8 @@ export function SpellDetailsSheet({
     ? getCantripScaling(1, 'd10', characterLevel) 
     : null;
 
-  const handleCopyPrompt = async () => {
-    const prompt = `**Spell: ${spell.name}**
+  const generatePromptText = (): string => {
+    return `**Spell: ${spell.name}**
 Level: ${getSpellLevelLabel(spell.level)} ${spell.school}
 Casting Time: ${getCastingTimeLabel(spell.castingTime)}
 Range: ${spell.range}
@@ -80,22 +83,12 @@ Components: ${getComponentsLabel(spell.components)}
 Duration: ${spell.duration}
 
 ${spell.description}${spell.higherLevels ? `\n\n**At Higher Levels:** ${spell.higherLevels}` : ''}`;
+  };
 
-    try {
-      await navigator.clipboard.writeText(prompt);
-      setCopied(true);
-      toast({
-        title: 'Copied!',
-        description: 'Spell details copied to clipboard.',
-      });
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast({
-        title: 'Copy Failed',
-        description: 'Could not copy to clipboard.',
-        variant: 'destructive',
-      });
-    }
+  const handleCopyPrompt = () => {
+    const prompt = generatePromptText();
+    setPromptModalText(prompt);
+    setPromptModalOpen(true);
   };
 
   return (
@@ -360,6 +353,17 @@ ${spell.description}${spell.higherLevels ? `\n\n**At Higher Levels:** ${spell.hi
             </Button>
           </div>
         </ScrollArea>
+
+        {spell && (
+          <PromptEditModal
+            promptKey={`spell-${spell.id}`}
+            generatedPrompt={promptModalText}
+            title={spell.name}
+            subtitle="Spell Details Prompt"
+            open={promptModalOpen}
+            onOpenChange={setPromptModalOpen}
+          />
+        )}
       </SheetContent>
     </Sheet>
   );

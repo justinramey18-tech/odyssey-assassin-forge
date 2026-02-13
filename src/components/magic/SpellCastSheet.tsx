@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { PromptEditModal } from '@/components/shared/PromptEditModal';
 import { cn } from '@/lib/utils';
 import { SpellDefinition, MagicPath, SpellSlotLevel, PactSlots } from '@/lib/magic/types';
 import { getSchoolConfig } from '@/lib/magic/schools';
@@ -49,6 +50,8 @@ export function SpellCastSheet({
   const [selectedLevel, setSelectedLevel] = useState<number | null>(null);
   const [usePactSlot, setUsePactSlot] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [promptModalOpen, setPromptModalOpen] = useState(false);
+  const [promptModalText, setPromptModalText] = useState('');
   const { toast } = useToast();
 
   // Reset selection when spell changes - must use useEffect for side effects
@@ -132,7 +135,7 @@ export function SpellCastSheet({
     onClose();
   };
 
-  const handleCopyPrompt = async () => {
+  const generatePromptText = (): string => {
     const castLevel = selectedLevel || spell.level;
     const isUpcast = castLevel > spell.level;
     const upcastDamage = getUpcastDamage(spell.level, castLevel);
@@ -168,24 +171,13 @@ ${isUpcast && spell.higherLevels ? `**Upcast Bonus:** ${spell.higherLevels}` : '
 
 *Please narrate the casting and effects of this spell in the current combat/roleplay context.*`;
 
-    const prompt = applyTimePrefix(rawPrompt);
+    return applyTimePrefix(rawPrompt);
+  };
 
-    try {
-      await navigator.clipboard.writeText(prompt);
-      setCopied(true);
-      toast({
-        title: 'Prompt Copied!',
-        description: 'Spell cast details ready for AI DM.',
-        className: 'border-indigo-500 bg-indigo-500/10',
-      });
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast({
-        title: 'Copy Failed',
-        description: 'Could not copy to clipboard.',
-        variant: 'destructive',
-      });
-    }
+  const handleCopyPrompt = () => {
+    const prompt = generatePromptText();
+    setPromptModalText(prompt);
+    setPromptModalOpen(true);
   };
 
   return (
@@ -442,10 +434,23 @@ ${isUpcast && spell.higherLevels ? `**Upcast Bonus:** ${spell.higherLevels}` : '
               onClick={handleCast}
             >
               <Wand2 className="w-4 h-4 mr-2" />
-              {isCantrip ? 'Cast Cantrip' : `Cast at ${selectedLevel ? getSpellLevelLabel(selectedLevel) : '?'}`}
+              {isCantrip ? 'Cast Cantrip' : `Cast at ${getSpellLevelLabel(selectedLevel || spell.level)}`}
             </Button>
           </div>
+
+          <div className="h-8" />
         </ScrollArea>
+
+        {spell && (
+          <PromptEditModal
+            promptKey={`spell-cast-${spell.id}`}
+            generatedPrompt={promptModalText}
+            title={spell.name}
+            subtitle="Spell Cast Prompt"
+            open={promptModalOpen}
+            onOpenChange={setPromptModalOpen}
+          />
+        )}
       </SheetContent>
     </Sheet>
   );
