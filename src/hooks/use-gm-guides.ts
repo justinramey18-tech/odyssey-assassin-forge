@@ -174,6 +174,28 @@ export function useGMGuides() {
   const totalChars = useMemo(() => getTotalCharacterCount(guides), [guides]);
   const enabledContent = useMemo(() => getEnabledGuidesContent(guides), [guides]);
 
+  /** Get IDs of currently enabled guides */
+  const activeGuideIds = useMemo(() => guides.filter(g => g.enabled).map(g => g.id), [guides]);
+
+  /** Enable only the guides with the given IDs, disable all others. Persists to local + cloud. */
+  const setActiveGuideIds = useCallback((ids: string[] | null) => {
+    if (!ids) {
+      // null means disable all (fresh campaign)
+      const next = guides.map(g => ({ ...g, enabled: false, updatedAt: new Date().toISOString() }));
+      persist(next);
+      next.forEach(g => persistToCloud(g));
+      return;
+    }
+    const idSet = new Set(ids);
+    const next = guides.map(g => ({
+      ...g,
+      enabled: idSet.has(g.id),
+      updatedAt: new Date().toISOString(),
+    }));
+    persist(next);
+    next.forEach(g => persistToCloud(g));
+  }, [guides, persist, persistToCloud]);
+
   return {
     guides,
     addGuide,
@@ -182,5 +204,7 @@ export function useGMGuides() {
     toggleGuide,
     totalChars,
     enabledContent,
+    activeGuideIds,
+    setActiveGuideIds,
   };
 }

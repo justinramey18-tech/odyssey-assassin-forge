@@ -8,6 +8,7 @@ export interface CampaignSession {
   name: string;
   messages: Message[];
   campaign_summary: string | null;
+  gm_guide_ids: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -35,7 +36,7 @@ export function useCampaignSessions() {
     try {
       const { data, error } = await supabase
         .from('ai_dm_campaigns')
-        .select('id, name, messages, campaign_summary, created_at, updated_at')
+        .select('id, name, messages, campaign_summary, gm_guide_ids, created_at, updated_at')
         .eq('user_id', userId)
         .order('updated_at', { ascending: false });
 
@@ -48,6 +49,7 @@ export function useCampaignSessions() {
           ? row.messages.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) }))
           : [],
         campaign_summary: row.campaign_summary,
+        gm_guide_ids: row.gm_guide_ids,
         created_at: row.created_at,
         updated_at: row.updated_at,
       }));

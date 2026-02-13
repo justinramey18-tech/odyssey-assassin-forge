@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Users, Zap, Map } from 'lucide-react';
+import { CampaignDropdown } from './CampaignDropdown';
 import { cn } from '@/lib/utils';
 import { useAIDM } from '@/hooks/use-ai-dm';
 import { useGMGuides } from '@/hooks/use-gm-guides';
@@ -139,7 +140,17 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
     }
   }, [autoSync.autoSyncEnabled, autoSyncCallbacks, autoSync.extractAndApply, characterContext]);
 
-  const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, loadCampaign, sendMessage, cancelRequest, clearMessages, newGame, activeCampaignId, setActiveCampaignId, lastCloudSyncTime, isCloudSyncing } = useAIDM({ characterContext, customGuidesContent: gmGuides.enabledContent, onMessageComplete: handleMessageComplete });
+  const handleCampaignSwitch = useCallback((guideIds: string[] | null) => {
+    gmGuides.setActiveGuideIds(guideIds);
+  }, [gmGuides.setActiveGuideIds]);
+
+  const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, loadCampaign, sendMessage, cancelRequest, clearMessages, newGame, activeCampaignId, setActiveCampaignId, lastCloudSyncTime, isCloudSyncing, saveToCloudNow } = useAIDM({
+    characterContext,
+    customGuidesContent: gmGuides.enabledContent,
+    onMessageComplete: handleMessageComplete,
+    activeGuideIds: gmGuides.activeGuideIds,
+    onCampaignSwitch: handleCampaignSwitch,
+  });
   const campaignSessions = useCampaignSessions();
 
   // Stabilize partyMembers mapping to prevent unnecessary re-renders in usePartyDm
@@ -176,9 +187,13 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const handleLoadCampaign = useCallback((session: CampaignSession) => {
-    loadCampaign(session.messages, session.campaign_summary, session.id);
+    // Auto-save current campaign before switching
+    if (messages.length > 0) {
+      saveToCloudNow();
+    }
+    loadCampaign(session.messages, session.campaign_summary, session.id, session.gm_guide_ids);
     setShowSessions(false);
-  }, [loadCampaign]);
+  }, [loadCampaign, messages.length, saveToCloudNow]);
 
   const handleSaveCampaign = useCallback(async (name: string, msgs: Message[], summary: string | null, existingId?: string) => {
     const id = await campaignSessions.saveSession(name, msgs, summary, existingId);
@@ -246,7 +261,15 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
           </button>
           <div className="flex items-center gap-2">
             <Crown className="w-5 h-5 text-amber-400" />
-            <h1 className="text-base font-cinzel text-amber-200 tracking-wide">Dungeon Master</h1>
+            <CampaignDropdown
+              sessions={campaignSessions.sessions}
+              activeCampaignId={activeCampaignId}
+              isSignedIn={campaignSessions.isSignedIn}
+              isLoading={campaignSessions.isLoading}
+              onNewGame={newGame}
+              onLoadCampaign={handleLoadCampaign}
+              onRefresh={campaignSessions.refreshSessions}
+            />
           </div>
         </div>
         <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide flex-shrink min-w-0">
