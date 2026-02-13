@@ -180,7 +180,7 @@ function generateWeaponRollPrompt(weapon: WeaponAttack, roll: DiceRoll, characte
     rollDisplay = `[${roll.rolls.join(', ')}] → **${kept}**`;
   }
   
-  const qualityResult = getD20RollQuality(roll.rolls, rollMode);
+  const qualityResult = getD20RollQuality(roll.rolls, rollMode, effectiveTotal);
   const quality = qualityResult.label;
   const modeLabel = rollMode === 'advantage' ? ' (Advantage)' : rollMode === 'disadvantage' ? ' (Disadvantage)' : '';
 
@@ -247,17 +247,17 @@ function InlineRollResult({
     ? isCriticalMiss(roll.rolls, effectiveMode, roll.die)
     : roll.rolls.every(r => r === 1);
 
-  // Roll quality label
-  const rollQuality = roll.die === 'd20'
-    ? getD20RollQuality(roll.rolls, effectiveMode)
-    : getAbilityRollQuality(roll.rolls, roll.die);
-
   // For adv/disadv, compute effective total
   let effectiveTotal = roll.total;
   if (rollMode && rollMode !== 'normal' && roll.rolls.length === 2 && roll.die === 'd20') {
     const kept = rollMode === 'advantage' ? Math.max(...roll.rolls) : Math.min(...roll.rolls);
     effectiveTotal = kept + roll.modifier;
   }
+
+  // Roll quality label
+  const rollQuality = roll.die === 'd20'
+    ? getD20RollQuality(roll.rolls, effectiveMode, effectiveTotal)
+    : getAbilityRollQuality(roll.rolls, roll.die);
 
   const handleCopy = useCallback(async () => {
     try {

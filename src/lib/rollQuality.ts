@@ -20,22 +20,25 @@ export interface RollQuality {
 
 /**
  * Get roll quality for d20-based rolls (attacks, checks, saves).
- * Uses the NATURAL die value, not the total with modifiers.
+ * Uses the NATURAL die value for critical hit/miss detection.
+ * Uses the TOTAL (after modifiers) for narrative quality tiers when provided.
  * 
- * Tiers based on natural die value:
- * - 20: Critical Hit
- * - 1: Critical Miss
- * - 18-19: Excellent
+ * Tiers based on total (or natural die if no total provided):
+ * - Natural 20: Critical Hit
+ * - Natural 1: Critical Miss
+ * - 18+: Excellent
  * - 14-17: Strong
  * - 8-13: Average
  * - 2-7: Poor
  */
 export function getD20RollQuality(
   rolls: number[],
-  rollMode: RollMode = 'normal'
+  rollMode: RollMode = 'normal',
+  total?: number
 ): RollQuality {
   const naturalDie = getEffectiveDie(rolls, rollMode);
 
+  // Crits/fumbles always use natural die
   if (naturalDie === 20) {
     return {
       label: 'CRITICAL HIT!',
@@ -52,7 +55,10 @@ export function getD20RollQuality(
     };
   }
 
-  if (naturalDie >= 18) {
+  // Narrative quality uses total when available, natural die as fallback
+  const qualityValue = total ?? naturalDie;
+
+  if (qualityValue >= 18) {
     return {
       label: 'Excellent',
       tier: 'excellent',
@@ -60,7 +66,7 @@ export function getD20RollQuality(
     };
   }
 
-  if (naturalDie >= 14) {
+  if (qualityValue >= 14) {
     return {
       label: 'Strong',
       tier: 'strong',
@@ -68,7 +74,7 @@ export function getD20RollQuality(
     };
   }
 
-  if (naturalDie >= 8) {
+  if (qualityValue >= 8) {
     return {
       label: 'Average',
       tier: 'average',

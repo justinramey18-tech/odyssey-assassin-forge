@@ -25,8 +25,8 @@ function formatSingleAttack(
   
   const lines: string[] = [header];
   
-  // Roll quality based on natural die
-  const rollQuality = getD20RollQuality(roll.rolls);
+  // Roll quality based on total after modifiers
+  const rollQuality = getD20RollQuality(roll.rolls, 'normal', roll.total);
   
   // Roll info
   const rollDisplay = roll.rolls.length > 1
@@ -240,8 +240,8 @@ export function generateQueuedAttackPrompt(
   lines.push('');
   lines.push('---');
   lines.push('');
-  // Roll quality
-  const rollQuality = getD20RollQuality(roll.rolls);
+  // Roll quality based on total after modifiers
+  const rollQuality = getD20RollQuality(roll.rolls, 'normal', roll.total);
   
   lines.push('');
   lines.push(`**Roll Quality:** ${rollQuality.label}`);
