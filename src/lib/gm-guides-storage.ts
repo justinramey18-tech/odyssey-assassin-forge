@@ -32,7 +32,7 @@ export function saveGMGuides(guides: GMGuide[]): void {
 }
 
 export function getTotalCharacterCount(guides: GMGuide[]): number {
-  return guides.reduce((sum, g) => sum + g.content.length, 0);
+  return guides.filter(g => g.enabled).reduce((sum, g) => sum + g.content.length, 0);
 }
 
 export function getEnabledGuidesContent(guides: GMGuide[]): string {
@@ -44,7 +44,7 @@ export function getEnabledGuidesContent(guides: GMGuide[]): string {
 
 export function canAddContent(guides: GMGuide[], newContentLength: number, excludeId?: string): boolean {
   const existing = guides
-    .filter(g => g.id !== excludeId)
+    .filter(g => g.id !== excludeId && g.enabled)
     .reduce((sum, g) => sum + g.content.length, 0);
   return existing + newContentLength <= MAX_TOTAL_CHARS;
 }
