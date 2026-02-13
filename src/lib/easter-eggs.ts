@@ -15,12 +15,21 @@ const ATLAS_BADGES = [
   { label: 'Over 9000 lust factor', color: 'rose' },
 ] as const;
 
+const NULL_NAMES = ['null'];
+
+const NULL_BADGES = [
+  { label: 'Extra Most Bestest', color: 'emerald' },
+  { label: 'Deer Tanker', color: 'amber' },
+  { label: "Kratos's Muse", color: 'purple' },
+] as const;
+
 export type EasterEggBadge = { label: string; color: string };
 
 export function getThistleBadges(name: string): readonly EasterEggBadge[] {
   const n = name.toLowerCase().trim();
   if (THISTLE_NAMES.includes(n)) return THISTLE_BADGES;
   if (ATLAS_NAMES.includes(n)) return ATLAS_BADGES;
+  if (NULL_NAMES.includes(n)) return NULL_BADGES;
   return [];
 }
 
