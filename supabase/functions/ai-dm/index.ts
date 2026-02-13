@@ -330,16 +330,14 @@ serve(async (req) => {
       ? [...messages.slice(0, 2), ...messages.slice(-(MAX_MESSAGES - 2))]
       : messages;
 
-    // Convert [video:url] markers to multimodal content for Gemini
+    // Video URLs cannot be sent via image_url (only PNG/JPEG/WebP/GIF supported).
+    // Replace video markers with a text-only note so the model is aware a video was shared.
     const processedMessages: DMMessage[] = trimmedMessages.map((msg) => {
       const videoMatch = msg.content.match(VIDEO_MARKER_REGEX);
       if (videoMatch && msg.role === 'user') {
         return {
           role: msg.role,
-          content: [
-            { type: "text", text: "The player has shared a video for context. Watch it carefully and incorporate what you observe into the ongoing narrative." },
-            { type: "image_url", image_url: { url: videoMatch[1] } },
-          ],
+          content: `[The player shared a video clip: ${videoMatch[1]}. Video analysis is not currently supported — acknowledge the video was shared and ask the player to describe what happens in it so you can incorporate it into the narrative.]`,
         };
       }
       return msg;
