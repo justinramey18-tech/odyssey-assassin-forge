@@ -127,6 +127,17 @@ interface HomeScreenProps {
   // Play mode
   playMode?: 'solo' | 'party';
   onPlayModeChange?: (mode: 'solo' | 'party') => void;
+  // Trade props
+  tradeProps?: {
+    currentGold: number;
+    consumablesInventory: import('@/lib/consumables/types').InventoryItem[];
+    equipment: import('@/lib/inventory/types').CharacterEquipment;
+    lootItems: import('@/lib/loot/types').LootItem[];
+    onSendGold: (targetUserId: string, amount: number) => void;
+    onSendConsumable: (targetUserId: string, item: import('@/lib/consumables/types').InventoryItem) => void;
+    onSendGear: (targetUserId: string, item: import('@/lib/inventory/types').EquipmentItem) => void;
+    onSendLoot: (targetUserId: string, item: import('@/lib/loot/types').LootItem) => void;
+  };
 }
 
 /** Map dragon form names to element-appropriate tint colors */
@@ -213,6 +224,7 @@ export function HomeScreen({
   userId,
   playMode = 'party',
   onPlayModeChange,
+  tradeProps,
 }: HomeScreenProps) {
   const isMobile = useIsMobile();
   const chatOnlineStatusMap = useOnlineStatus(partySync?.party?.members ?? []);
@@ -907,6 +919,14 @@ export function HomeScreen({
                 isAuthenticated={isAuthenticated}
                 userId={userId}
                 onOpenAIDM={() => drawerContext?.openAIDMScreen()}
+                currentGold={tradeProps?.currentGold}
+                consumablesInventory={tradeProps?.consumablesInventory}
+                equipment={tradeProps?.equipment}
+                lootItems={tradeProps?.lootItems}
+                onSendGold={tradeProps?.onSendGold}
+                onSendConsumable={tradeProps?.onSendConsumable}
+                onSendGear={tradeProps?.onSendGear}
+                onSendLoot={tradeProps?.onSendLoot}
               />
             </div>
           </SheetContent>
