@@ -1,68 +1,62 @@
 
 
-# Fix: Party Pill Button Should Not Toggle Mode Without Confirmation
+# Healing Spell Integration in the Arcana Tab
 
 ## Problem
-
-On the homescreen, the green "Party" pill button acts as an instant mode toggle. Clicking it while in party mode immediately switches to solo mode, which the user experiences as an unexpected "leave party mode" action. There is no confirmation step, and the pill visually looks like a status badge rather than a destructive toggle.
+When casting a healing spell from the Arcana tab (via `SpellCastSheet` in `ClassSpellcastingScreen`), the spell slot is consumed but no healing is applied. The healing dice are never rolled, HP is never updated, and the party `HealTargetPicker` is never shown. The healing flow only works from the Quick Actions Drawer and Combat tab.
 
 ## Solution
-
-Add a confirmation dialog when switching **from party to solo** mode (the destructive direction). Switching from solo back to party does not need confirmation since it restores functionality.
-
-This applies to both locations where the toggle exists:
-1. **HomeScreen** pill button (primary fix)
-2. **Settings** Game tab toggle (consistency fix)
+Wire the Arcana tab's spell cast flow to roll healing dice, update HP in real time, and show the `HealTargetPicker` for party members -- matching the existing pattern in `QuickActionsDrawer`.
 
 ## Changes
 
-### 1. `src/components/home/HomeScreen.tsx`
+### 1. `ClassSpellcastingScreen` -- Add healing props and logic
 
-**Lines 523-527**: Wrap the `onPlayModeChange` call in a confirmation check. When the current mode is `party` and the user clicks to switch to `solo`:
-- Show an `AlertDialog` confirmation with title "Switch to Solo Mode?" and description explaining that party sync will be paused
-- Only call `onPlayModeChange('solo')` if confirmed
-- When switching from `solo` to `party`, proceed immediately (no confirmation needed)
+**New props:**
+- `currentHP`, `maxHP`, `tempHP` -- current vitals
+- `onHPChange` -- callback to update HP state
+- `partyMembers` -- array of party members for targeting
+- `userId` -- current user's ID
+- `onSendHeal` -- callback to send heal action to a party member
 
-Add state: `const [showSoloConfirm, setShowSoloConfirm] = useState(false);`
+**New state:**
+- `pendingHealSpell` -- tracks a healing spell awaiting target selection
 
-Replace the onClick handler:
-```
-onClick={() => {
-  triggerHaptic('light');
-  if (playMode === 'party') {
-    setShowSoloConfirm(true); // Show confirmation
-  } else {
-    onPlayModeChange('party'); // Rejoin immediately
-  }
-}}
-```
+**New logic in `handleCastSpell`:**
+After `castSpell()` succeeds, check if the spell has a `healingFormula`. If so:
+1. Roll the healing formula using a local `rollHealingFormula` helper (same pattern as QuickActionsDrawer)
+2. If in a party with other members, show the `HealTargetPicker` via `pendingHealSpell` state
+3. If solo, auto-apply healing to self via `onHPChange`
 
-Add an `AlertDialog` component nearby with:
-- Title: "Switch to Solo Mode?"
-- Description: "Party sync will be paused. You won't send or receive updates from party members until you switch back."
-- Cancel button
-- Confirm button that calls `onPlayModeChange('solo')`
+**New JSX:**
+- Render `HealTargetPicker` dialog with the same self/party-member selection pattern
 
-### 2. `src/components/settings/SettingsContent.tsx`
+### 2. `SpellCastSheet` -- No changes needed
+The cast sheet already calls `onCast(level, usePact)` which maps to `handleCastSpell`. The healing logic will be added to the handler in `ClassSpellcastingScreen`.
 
-**Line 579**: Apply the same confirmation pattern to the Settings toggle for consistency. Add state and an `AlertDialog` so switching from party to solo requires confirmation there too.
+### 3. `Index.tsx` -- Pass new props to `ClassSpellcastingScreen`
 
-### Imports to Add
-
-Both files will need:
-```typescript
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel,
-  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
-  AlertDialogHeader, AlertDialogTitle
-} from '@/components/ui/alert-dialog';
-```
+Pass the following additional props:
+- `currentHP={effectiveCurrentHP}`
+- `maxHP={effectiveMaxHP}`
+- `tempHP={effectiveTempHP}`
+- `onHPChange` -- same pattern used for QuickActionsDrawer (`handleHPChange`)
+- `partyMembers={isPartyMode ? partySync.party.members : []}`
+- `userId={user?.id}`
+- `onSendHeal={isPartyMode ? partySync.sendHealAction : undefined}`
 
 ## Technical Details
 
-- No new files created
-- No backend changes
-- Two files modified: `HomeScreen.tsx` and `SettingsContent.tsx`
-- Uses existing `AlertDialog` component (already in the project)
-- Solo-to-party direction remains instant (no confirmation needed)
+### Healing Formula Roller
+Reuses the same parsing logic already in `QuickActionsDrawer`:
+- Resolves `mod` to spellcasting modifier (from `spellcasting.state.spellcastingModifier` or fallback to 3)
+- Parses `NdM+X` patterns and rolls dice
+- Returns minimum 1 HP
+
+### Cantrip Healing
+Cantrips with `healingFormula` (e.g., potential homebrew healing cantrips) will also trigger the healing flow since they pass through the same `handleCastSpell` path with `castLevel = 0`.
+
+### Files Modified
+1. `src/components/magic/ClassSpellcastingScreen.tsx` -- Add healing props, state, logic, and HealTargetPicker
+2. `src/pages/Index.tsx` -- Pass HP, party, and heal props to ClassSpellcastingScreen
 
