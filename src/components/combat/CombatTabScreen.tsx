@@ -22,6 +22,7 @@ import {
 } from '@/lib/combat/combatTypes';
 import { ActiveConditionInfo, SetBonusInfo } from '@/lib/combat/promptContext';
 import { DiceRoll, isCriticalHit, isCriticalMiss, inferRollMode } from '@/lib/diceRoller';
+import { getD20RollQuality } from '@/lib/rollQuality';
 import { Activity, Skull } from 'lucide-react';
 import './CombatHUDStyles.css';
 import './mobile/MobileCombatStyles.css';
@@ -401,6 +402,7 @@ function generateWeaponPrompt(
   const isCrit = isCriticalHit(roll.rolls, rollMode, roll.die);
   const isFumble = isCriticalMiss(roll.rolls, rollMode, roll.die);
   const hasAdvantage = roll.rolls.length > 1;
+  const attackQuality = getD20RollQuality(roll.rolls, rollMode);
   
   let title = rollType === 'assassinate' 
     ? '💀 ASSASSINATION ATTEMPT' 
@@ -427,7 +429,7 @@ ${rollType === 'assassinate'
   ? 'Describe a devastating strike from the shadows. The target never saw it coming. The damage is automatically maximized - this is a killing blow.' 
   : rollType === 'sneak' 
     ? 'Describe a precise strike exploiting a momentary weakness or distraction. The extra damage represents finding a vital point.'
-    : 'Describe the attack based on the roll result.'}
+    : attackQuality.narrativeGuide}
 
 ${isCrit ? '**CRITICAL:** Double all damage dice. Describe something exceptionally brutal.' : ''}
 
