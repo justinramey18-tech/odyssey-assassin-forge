@@ -33,8 +33,8 @@ function getMemberColor(userId: string, members: Array<{ user_id: string }>): st
   return MEMBER_COLORS[idx >= 0 ? idx % MEMBER_COLORS.length : 0];
 }
 
-const PARTY_VIDEO_REGEX = /^\[video:(https?:\/\/.+)\]$/;
-const PARTY_IMAGE_REGEX = /^\[image:(https?:\/\/.+)\]$/;
+const PARTY_VIDEO_REGEX = /^\s*\[video:(https?:\/\/.+)\]\s*$/;
+const PARTY_IMAGE_REGEX = /^\s*\[image:(https?:\/\/.+)\]\s*$/;
 
 function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate }: {
   message: PartyDmMessage;
@@ -360,6 +360,8 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
   const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
     if (!items) return;
+
+    // Check for image blob
     for (const item of Array.from(items)) {
       if (item.type.startsWith('image/')) {
         e.preventDefault();
@@ -379,6 +381,15 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
         finally { setIsUploadingPhoto(false); }
         return;
       }
+    }
+
+    // Check for pasted text that looks like a GIF/image URL (common from mobile keyboards)
+    const text = e.clipboardData?.getData('text/plain')?.trim();
+    if (text && /^https?:\/\/.+\.(gif|png|jpg|jpeg|webp)(\?.*)?$/i.test(text)) {
+      e.preventDefault();
+      const senderName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
+      await partyDm.addMediaMessage(`[image:${text}]`, senderName);
+      return;
     }
   }, [partyDm, members, currentUserId]);
 
