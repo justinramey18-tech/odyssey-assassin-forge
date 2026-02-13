@@ -2,8 +2,9 @@
 // UI for full caster classes (Wizard, Sorcerer, Cleric, Druid, Bard)
 // Separate from MagicScreen which handles Rogue Magic Paths
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import { Wand2, BookOpen, Zap, Settings, Package, RefreshCw, Flame, Sparkles, Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { DnDClass } from '@/lib/classes/types';
@@ -36,6 +37,9 @@ import { ChannelDivinityCards } from './ChannelDivinityCards';
 import { HomebrewSpellCreateSheet } from './HomebrewSpellCreateSheet';
 import { BatchSpellGenerateSheet } from './BatchSpellGenerateSheet';
 import { HomebrewSpell } from '@/lib/spellCustomization/types';
+import { HealTargetPicker } from '@/components/party/HealTargetPicker';
+import type { PartyMember } from '@/hooks/use-party-sync';
+import type { PartyAction } from '@/hooks/use-party-sync';
 
 // Background image
 import arcanaBackground from '@/assets/trees/arcana-wizards-mobile.jpg';
@@ -69,6 +73,14 @@ interface ClassSpellcastingScreenProps {
   onAddHomebrewSpell?: (spell: HomebrewSpell) => void;
   onUpdateHomebrewSpell?: (id: string, updates: Partial<HomebrewSpell>) => void;
   onRemoveHomebrewSpell?: (id: string) => void;
+  // Healing props
+  currentHP?: number;
+  maxHP?: number;
+  tempHP?: number;
+  onHPChange?: (current: number, temp: number) => void;
+  partyMembers?: PartyMember[];
+  userId?: string;
+  onSendHeal?: (targetUserId: string, actionData: PartyAction['action_data']) => Promise<void>;
 }
 
 export function ClassSpellcastingScreen({
@@ -88,6 +100,13 @@ export function ClassSpellcastingScreen({
   onAddHomebrewSpell,
   onUpdateHomebrewSpell,
   onRemoveHomebrewSpell,
+  currentHP,
+  maxHP,
+  tempHP = 0,
+  onHPChange,
+  partyMembers = [],
+  userId,
+  onSendHeal,
 }: ClassSpellcastingScreenProps) {
   const {
     state,
@@ -145,6 +164,27 @@ export function ClassSpellcastingScreen({
   const [showCreateSpell, setShowCreateSpell] = useState(false);
   const [showBatchGenerate, setShowBatchGenerate] = useState(false);
   const [editingSpell, setEditingSpell] = useState<HomebrewSpell | null>(null);
+  const [pendingHealSpell, setPendingHealSpell] = useState<{ spellName: string; amount: number } | null>(null);
+
+  // Healing formula roller (same pattern as QuickActionsDrawer)
+  const rollHealingFormula = useCallback((formula: string): number => {
+    if (!formula) return 0;
+    const mod = spellcasting.state.abilityModifier ?? 3;
+    const resolved = formula.replace(/mod/gi, String(mod));
+    const diceMatch = resolved.match(/(\d+)d(\d+)(?:\s*\+\s*(\d+))?/);
+    if (diceMatch) {
+      const count = parseInt(diceMatch[1]);
+      const sides = parseInt(diceMatch[2]);
+      const bonus = parseInt(diceMatch[3] || '0');
+      let total = bonus;
+      for (let i = 0; i < count; i++) {
+        total += Math.floor(Math.random() * sides) + 1;
+      }
+      return Math.max(1, total);
+    }
+    const plain = parseInt(resolved);
+    return isNaN(plain) ? 0 : plain;
+  }, [spellcasting.state.abilityModifier]);
 
   // Druid Circle state (persisted)
   const [druidCircle, setDruidCircle] = useState<DruidCircle | null>(() => {
@@ -220,7 +260,7 @@ export function ClassSpellcastingScreen({
   const handleCastSpell = (castLevel: number, usePact: boolean) => {
     if (!castingSpell) return;
 
-    castSpell(
+    const result = castSpell(
       castingSpell.id,
       castingSpell.name,
       castingSpell.level,
@@ -229,6 +269,31 @@ export function ClassSpellcastingScreen({
       castingSpell.concentration,
       castingSpell.duration
     );
+
+    // Check if this is a healing spell
+    if (result.success && castingSpell.healingFormula && onHPChange && currentHP !== undefined && maxHP !== undefined) {
+      const healAmount = rollHealingFormula(castingSpell.healingFormula);
+      const otherMembers = partyMembers.filter(m => m.user_id !== userId);
+
+      if (otherMembers.length > 0 && onSendHeal && userId) {
+        // Party mode: show target picker
+        setPendingHealSpell({ spellName: castingSpell.name, amount: healAmount });
+        toast.success(`${castingSpell.name} cast!`, {
+          description: `Choose a target to heal ${healAmount} HP`,
+        });
+        setCastingSpell(null);
+        return;
+      }
+
+      // Solo: auto-apply healing to self
+      const newHP = Math.min(maxHP, currentHP + healAmount);
+      onHPChange(newHP, tempHP);
+      toast.success(`${castingSpell.name} cast!`, {
+        description: `Healed ${healAmount} HP${result.brokeConcentration ? ` · Broke ${result.brokeConcentration}` : ''}`,
+      });
+      setCastingSpell(null);
+      return;
+    }
 
     setCastingSpell(null);
   };
@@ -753,6 +818,39 @@ export function ClassSpellcastingScreen({
           onAddSpell={onAddHomebrewSpell}
         />
       )}
+
+      {/* Heal Target Picker for spell healing */}
+      <HealTargetPicker
+        open={!!pendingHealSpell}
+        onOpenChange={(open) => { if (!open) setPendingHealSpell(null); }}
+        selfName={characterName}
+        partyMembers={partyMembers}
+        currentUserId={userId || ''}
+        healDescription={pendingHealSpell ? `${pendingHealSpell.spellName} — ${pendingHealSpell.amount} HP` : ''}
+        onSelectSelf={() => {
+          if (onHPChange && currentHP !== undefined && maxHP !== undefined && pendingHealSpell) {
+            const newHP = Math.min(maxHP, currentHP + pendingHealSpell.amount);
+            onHPChange(newHP, tempHP);
+            toast.success(`${pendingHealSpell.spellName} healed you!`, {
+              description: `Restored ${pendingHealSpell.amount} HP`,
+            });
+          }
+          setPendingHealSpell(null);
+        }}
+        onSelectMember={(member) => {
+          if (onSendHeal && pendingHealSpell) {
+            onSendHeal(member.user_id, {
+              senderName: characterName,
+              itemName: pendingHealSpell.spellName,
+              hpHealed: pendingHealSpell.amount,
+            });
+            toast.success(`Healed ${member.character_name}!`, {
+              description: `Sent ${pendingHealSpell.amount} HP via ${pendingHealSpell.spellName}`,
+            });
+          }
+          setPendingHealSpell(null);
+        }}
+      />
     </div>
   );
 }
