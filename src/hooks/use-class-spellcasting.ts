@@ -470,6 +470,19 @@ export function useClassSpellcasting(
     });
   }, [isPreparedCaster, state.knownSpells]);
 
+
+  // Cleanup: remove orphan spell IDs (deleted/renamed spells) from preparedSpells
+  useEffect(() => {
+    setState(prev => {
+      const cleaned = prev.preparedSpells.filter(id => {
+        const spell = getSpellById(id);
+        return spell !== null && spell !== undefined;
+      });
+      if (cleaned.length === prev.preparedSpells.length) return prev;
+      return { ...prev, preparedSpells: cleaned };
+    });
+  }, []);
+
   // Sync slots when level changes — preserve current values if max hasn't changed
   const prevSlotInfoRef = useRef<string>('');
   useEffect(() => {
@@ -566,9 +579,9 @@ export function useClassSpellcasting(
   const currentPreparedCount = useMemo(() => {
     return state.preparedSpells.filter(id => {
       const spell = getSpellById(id);
-      return spell && spell.level > 0;
+      return spell && spell.level > 0 && spell.level <= maxSpellLevel;
     }).length;
-  }, [state.preparedSpells]);
+  }, [state.preparedSpells, maxSpellLevel]);
 
   const canPrepareMore = currentPreparedCount < maxPreparedSpells;
 
@@ -606,32 +619,23 @@ export function useClassSpellcasting(
   }, []);
 
   const prepareSpell = useCallback((spellId: string) => {
-    console.log('[prepareSpell] called with:', spellId, 'isPreparedCaster:', isPreparedCaster, 'maxPrepared:', maxPreparedSpells);
-    const lookupResult = getSpellById(spellId);
-    console.log('[prepareSpell] getSpellById result:', lookupResult?.name ?? 'NOT FOUND', 'level:', lookupResult?.level);
     setState(prev => {
-      if (prev.preparedSpells.includes(spellId)) {
-        console.log('[prepareSpell] already prepared, skipping');
-        return prev;
-      }
+      if (prev.preparedSpells.includes(spellId)) return prev;
       // Enforce preparation limit for prepared casters
       if (isPreparedCaster) {
         const currentNonCantrips = prev.preparedSpells.filter(id => {
           const s = getSpellById(id);
-          return s && s.level > 0;
+          return s && s.level > 0 && s.level <= maxSpellLevel;
         }).length;
         const spell = getSpellById(spellId);
         const isNonCantrip = spell && spell.level > 0;
-        console.log('[prepareSpell] currentNonCantrips:', currentNonCantrips, 'isNonCantrip:', isNonCantrip);
         if (isNonCantrip && currentNonCantrips >= maxPreparedSpells) {
-          console.log('[prepareSpell] AT LIMIT, blocking');
           return prev; // Hard limit reached
         }
       }
-      console.log('[prepareSpell] SUCCESS - adding to prepared');
       return { ...prev, preparedSpells: [...prev.preparedSpells, spellId] };
     });
-  }, [isPreparedCaster, maxPreparedSpells]);
+  }, [isPreparedCaster, maxPreparedSpells, maxSpellLevel]);
 
   const unprepareSpell = useCallback((spellId: string) => {
     setState(prev => ({
