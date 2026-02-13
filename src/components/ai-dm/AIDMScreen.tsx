@@ -40,8 +40,8 @@ interface AIDMScreenProps {
   };
 }
 
-const VIDEO_REGEX = /^\[video:(https?:\/\/.+)\]$/;
-const IMAGE_REGEX = /^\[image:(https?:\/\/.+)\]$/;
+const VIDEO_REGEX = /^\s*\[video:(https?:\/\/.+)\]\s*$/;
+const IMAGE_REGEX = /^\s*\[image:(https?:\/\/.+)\]\s*$/;
 
 function DMMessageBubble({ message }: { message: Message }) {
   const isUser = message.role === 'user';
@@ -288,6 +288,8 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
   const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
     if (!items) return;
+
+    // Check for image blob (e.g. screenshot paste)
     for (const item of Array.from(items)) {
       if (item.type.startsWith('image/')) {
         e.preventDefault();
@@ -312,6 +314,14 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
         }
         return;
       }
+    }
+
+    // Check for pasted text that looks like a GIF/image URL (common from mobile keyboards)
+    const text = e.clipboardData?.getData('text/plain')?.trim();
+    if (text && /^https?:\/\/.+\.(gif|png|jpg|jpeg|webp)(\?.*)?$/i.test(text)) {
+      e.preventDefault();
+      addMediaMessage(`[image:${text}]`);
+      return;
     }
   }, [activeCampaignId, addMediaMessage, toast]);
 
