@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { characterPrompts, CharacterPrompt } from '@/lib/characterPrompts';
-import { PromptEditModal } from './PromptEditModal';
+import { PromptEditModal } from '@/components/shared/PromptEditModal';
 import gauntletBackground from '@/assets/infinity-gauntlet-screen.jpg';
 import './InfinityGauntletStyles.css';
 
@@ -240,8 +240,10 @@ export function InfinityGauntletScreen({ characterName, open, onClose }: Infinit
       {/* Prompt Edit Modal */}
       {selectedPrompt && (
         <PromptEditModal
-          prompt={selectedPrompt}
-          characterName={characterName}
+          promptKey={`character-${selectedPrompt.id}`}
+          generatedPrompt={selectedPrompt.prompt.replace(/\[Character Name\]/g, characterName || 'The Assassin')}
+          title={`${selectedPrompt.icon} ${selectedPrompt.title}`}
+          subtitle={selectedPrompt.category}
           open={showEditModal}
           onOpenChange={setShowEditModal}
         />
