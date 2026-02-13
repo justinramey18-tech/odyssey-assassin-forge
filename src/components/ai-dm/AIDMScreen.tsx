@@ -101,6 +101,11 @@ function DMMessageBubble({ message }: { message: Message }) {
   );
 }
 
+// Stable no-op fallbacks (defined outside component to avoid re-creation)
+const NOOP = () => {};
+const NOOP_TWO_ARG = () => {};
+const NOOP_RETURN_ZERO = () => 0;
+
 export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator = false, partyMembers = [], userId, characterName = 'Adventurer', autoSyncCallbacks }: AIDMScreenProps) {
   const [showPartyDM, setShowPartyDM] = useState(false);
   const [showBattleMap, setShowBattleMap] = useState(false);
@@ -110,19 +115,19 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
   const battleMapGridSizeRef = useRef<number>(25);
   const gmGuides = useGMGuides();
 
-  // Auto-sync hook
+  // Auto-sync hook — use stable fallbacks to prevent callback churn
   const autoSync = useDmAutoSync({
-    onHPChange: autoSyncCallbacks?.onHPChange ?? (() => {}),
-    onAddXP: autoSyncCallbacks?.onAddXP ?? (() => {}),
-    onGoldChange: autoSyncCallbacks?.onGoldChange ?? (() => {}),
-    onConditionChange: autoSyncCallbacks?.onConditionChange ?? (() => {}),
-    onRestOccurred: autoSyncCallbacks?.onRestOccurred ?? (() => {}),
+    onHPChange: autoSyncCallbacks?.onHPChange ?? NOOP_TWO_ARG,
+    onAddXP: autoSyncCallbacks?.onAddXP ?? NOOP_TWO_ARG,
+    onGoldChange: autoSyncCallbacks?.onGoldChange ?? NOOP,
+    onConditionChange: autoSyncCallbacks?.onConditionChange ?? NOOP_TWO_ARG,
+    onRestOccurred: autoSyncCallbacks?.onRestOccurred ?? NOOP,
     onMapUpdate: useCallback((markersToAdd: MapMarker[], namesToRemove: string[]) => {
       if (markersToAdd.length > 0) setPendingMapAdds(markersToAdd);
       if (namesToRemove.length > 0) setPendingMapRemovals(namesToRemove);
     }, []),
-    getCurrentHP: autoSyncCallbacks?.getCurrentHP ?? (() => 0),
-    getCurrentGold: autoSyncCallbacks?.getCurrentGold ?? (() => 0),
+    getCurrentHP: autoSyncCallbacks?.getCurrentHP ?? NOOP_RETURN_ZERO,
+    getCurrentGold: autoSyncCallbacks?.getCurrentGold ?? NOOP_RETURN_ZERO,
     getCurrentMarkers: useCallback(() => battleMapMarkersRef.current, []),
     getGridSize: useCallback(() => battleMapGridSizeRef.current as any, []),
   });
@@ -137,17 +142,23 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
   const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, loadCampaign, sendMessage, cancelRequest, clearMessages, newGame, activeCampaignId, setActiveCampaignId, lastCloudSyncTime, isCloudSyncing } = useAIDM({ characterContext, customGuidesContent: gmGuides.enabledContent, onMessageComplete: handleMessageComplete });
   const campaignSessions = useCampaignSessions();
 
+  // Stabilize partyMembers mapping to prevent unnecessary re-renders in usePartyDm
+  const stablePartyMembers = useMemo(() =>
+    partyMembers.map(m => ({
+      character_name: m.character_name,
+      character_status: m.character_status as Record<string, unknown>,
+      user_id: m.user_id,
+    })),
+    [partyMembers]
+  );
+
   const partyDm = usePartyDm({
     partyId: partyId || null,
     isCreator: isPartyCreator,
     memberCount: partyMembers.length,
     characterName,
     characterContext,
-    partyMembers: partyMembers.map(m => ({
-      character_name: m.character_name,
-      character_status: m.character_status as Record<string, unknown>,
-      user_id: m.user_id,
-    })),
+    partyMembers: stablePartyMembers,
     customGuidesContent: gmGuides.enabledContent,
   });
 
@@ -202,6 +213,12 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
   const handleQuickAction = useCallback((prompt: string) => {
     sendMessage(prompt);
   }, [sendMessage]);
+
+  // Stable callbacks for StandaloneBattleMap to prevent effect churn
+  const handleCloseBattleMap = useCallback(() => setShowBattleMap(false), []);
+  const handlePendingProcessed = useCallback(() => { setPendingMapAdds([]); setPendingMapRemovals([]); }, []);
+  const handleMarkersChange = useCallback((markers: MapMarker[]) => { battleMapMarkersRef.current = markers; }, []);
+  const handleGridSizeChange = useCallback((size: any) => { battleMapGridSizeRef.current = size; }, []);
 
   // Auto-resize textarea
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -585,13 +602,13 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
       {/* Battle Map Overlay */}
       <StandaloneBattleMap
         open={showBattleMap}
-        onClose={() => setShowBattleMap(false)}
+        onClose={handleCloseBattleMap}
         characterName={characterName}
         pendingMarkerAdds={pendingMapAdds}
         pendingMarkerRemovals={pendingMapRemovals}
-        onPendingProcessed={() => { setPendingMapAdds([]); setPendingMapRemovals([]); }}
-        onMarkersChange={(markers) => { battleMapMarkersRef.current = markers; }}
-        onGridSizeChange={(size) => { battleMapGridSizeRef.current = size; }}
+        onPendingProcessed={handlePendingProcessed}
+        onMarkersChange={handleMarkersChange}
+        onGridSizeChange={handleGridSizeChange}
       />
     </div>
   );
