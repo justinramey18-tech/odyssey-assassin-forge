@@ -13,7 +13,7 @@ import { SaveData } from '@/hooks/use-auto-save';
 import { 
   Settings, Coffee, Moon, TrendingUp,
   MessageCircle, Gem, Zap, PanelLeft, HelpCircle, BookOpen,
-  Swords, Wand2, ListChecks, ChevronUp, Users, Crown, User,
+  Swords, Wand2, ListChecks, ChevronUp, Users, Crown, User, Film,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
@@ -93,6 +93,7 @@ interface HomeScreenProps {
   initiativeModifier?: number;
   // Custom background support
   customBackground?: string | null;
+  customVideoBackground?: string | null;
   onCustomBackgroundUpload?: (file: File) => Promise<void>;
   onCustomBackgroundClear?: () => void;
   // Wild Shape background (overrides custom/default when transformed)
@@ -197,6 +198,7 @@ export function HomeScreen({
   shopItems = [],
   initiativeModifier = 0,
   customBackground,
+  customVideoBackground,
   onCustomBackgroundUpload,
   onCustomBackgroundClear,
   wildShapeBackground,
@@ -381,8 +383,9 @@ export function HomeScreen({
     { id: 'combat', label: 'Combat', icon: Swords, color: 'text-red-400', action: () => { setShowDrawersMenu(false); onNavigateToTab('combat'); } },
     { id: 'abilities', label: 'Abilities', icon: Zap, color: 'text-purple-400', action: () => { setShowDrawersMenu(false); onNavigateToTab('abilities'); } },
     { id: 'arcana', label: 'Arcana', icon: Wand2, color: 'text-indigo-400', action: () => { setShowDrawersMenu(false); onNavigateToTab('arcana'); } },
-    // Row 3: Features (centered), Settings (right)
+    // Row 3: Features, Tutorials, Settings
     { id: 'features', label: 'Features', icon: BookOpen, color: 'text-cyan-400', action: () => { setShowDrawersMenu(false); featuresNavigate('/features'); } },
+    { id: 'tutorials', label: 'Tutorials', icon: Film, color: 'text-amber-300', action: () => { setShowDrawersMenu(false); featuresNavigate('/tutorials'); } },
     { id: 'settings', label: 'Settings', icon: Settings, color: 'text-slate-400', action: onOpenSettings },
   ];
 
@@ -410,7 +413,8 @@ export function HomeScreen({
       {/* Default background layer (always present) */}
       <BackgroundWrapper
         imagePath={defaultBg}
-        overlayOpacity={customBackground ? 55 : 45}
+        videoPath={customVideoBackground ?? undefined}
+        overlayOpacity={customBackground || customVideoBackground ? 55 : 45}
         tintColor="cyan"
         tintOpacity={8}
         fixed={true}

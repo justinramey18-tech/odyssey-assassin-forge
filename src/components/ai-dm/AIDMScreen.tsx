@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Users, Zap, Map } from 'lucide-react';
+import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Users, Zap, Map, Paperclip, Film } from 'lucide-react';
 import { CampaignDropdown } from './CampaignDropdown';
 import { cn } from '@/lib/utils';
 import { useAIDM } from '@/hooks/use-ai-dm';
 import { useGMGuides } from '@/hooks/use-gm-guides';
 import { useCampaignSessions, CampaignSession } from '@/hooks/use-campaign-sessions';
 import { CharacterContext, Message } from '@/components/oracle/types';
+import { useToast } from '@/hooks/use-toast';
 import { DMQuickActions } from './DMQuickActions';
 import { DMDiceRoller } from './DMDiceRoller';
 import { GMGuidesManager } from './GMGuidesManager';
@@ -39,8 +40,11 @@ interface AIDMScreenProps {
   };
 }
 
+const VIDEO_REGEX = /^\[video:(https?:\/\/.+)\]$/;
+
 function DMMessageBubble({ message }: { message: Message }) {
   const isUser = message.role === 'user';
+  const videoMatch = message.content.match(VIDEO_REGEX);
 
   return (
     <motion.div
@@ -64,7 +68,22 @@ function DMMessageBubble({ message }: { message: Message }) {
             : 'bg-amber-950/50 border border-amber-500/20 rounded-bl-sm'
         )}
       >
-        {isUser ? (
+        {videoMatch ? (
+          <div>
+            <div className="flex items-center gap-1 mb-1.5">
+              <Film className="w-3 h-3 text-amber-400" />
+              <span className="text-[10px] text-amber-300/70 font-cinzel">Video</span>
+            </div>
+            <div className="rounded-xl overflow-hidden border border-amber-500/20 bg-black/40 max-w-[300px]">
+              <video
+                src={videoMatch[1]}
+                controls
+                playsInline
+                className="w-full rounded-xl"
+              />
+            </div>
+          </div>
+        ) : isUser ? (
           <p className="text-sm whitespace-pre-wrap">{message.content}</p>
         ) : (
           <div className="text-sm prose prose-invert prose-sm max-w-none break-words overflow-wrap-anywhere">
@@ -112,9 +131,12 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
   const [showBattleMap, setShowBattleMap] = useState(false);
   const [pendingMapAdds, setPendingMapAdds] = useState<MapMarker[]>([]);
   const [pendingMapRemovals, setPendingMapRemovals] = useState<string[]>([]);
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const battleMapMarkersRef = useRef<MapMarker[]>([]);
   const battleMapGridSizeRef = useRef<number>(25);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const gmGuides = useGMGuides();
+  const { toast } = useToast();
 
   // Auto-sync hook — use stable fallbacks to prevent callback churn
   const autoSync = useDmAutoSync({
@@ -538,7 +560,51 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
 
       {/* Input Area */}
       <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm">
+        <input
+          ref={videoInputRef}
+          type="file"
+          accept="video/mp4,video/webm"
+          className="hidden"
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            if (file.size > 50 * 1024 * 1024) {
+              toast({ title: 'Video too large', description: 'Max 50MB', variant: 'destructive' });
+              return;
+            }
+            setIsUploadingVideo(true);
+            try {
+              const ext = file.name.split('.').pop() || 'mp4';
+              const path = `chat/${activeCampaignId || 'solo'}/${crypto.randomUUID()}.${ext}`;
+              const { error } = await (await import('@/integrations/supabase/client')).supabase.storage.from('videos').upload(path, file);
+              if (error) throw error;
+              const { data: urlData } = (await import('@/integrations/supabase/client')).supabase.storage.from('videos').getPublicUrl(path);
+              sendMessage(`[video:${urlData.publicUrl}]`);
+            } catch (err) {
+              toast({ title: 'Upload failed', description: err instanceof Error ? err.message : 'Unknown error', variant: 'destructive' });
+            } finally {
+              setIsUploadingVideo(false);
+              if (videoInputRef.current) videoInputRef.current.value = '';
+            }
+          }}
+        />
         <div className="flex items-end gap-2 max-w-2xl mx-auto">
+          {/* Video attach button */}
+          {userId && (
+            <button
+              onClick={() => videoInputRef.current?.click()}
+              disabled={isLoading || isUploadingVideo}
+              className="p-2.5 rounded-xl border border-white/10 hover:border-amber-500/30 bg-white/5 hover:bg-amber-900/20 transition-colors shrink-0"
+              style={{ touchAction: 'manipulation' }}
+              title="Attach video"
+            >
+              {isUploadingVideo ? (
+                <Loader2 className="w-5 h-5 text-amber-400 animate-spin" />
+              ) : (
+                <Paperclip className="w-5 h-5 text-white/50" />
+              )}
+            </button>
+          )}
           <textarea
             ref={inputRef}
             value={input}
