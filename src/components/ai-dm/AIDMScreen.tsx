@@ -284,6 +284,37 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
     textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
   }, []);
 
+  // Handle paste for GIFs/images from keyboard
+  const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (!file) return;
+        if (file.size > 10 * 1024 * 1024) {
+          toast({ title: 'Image too large', description: 'Max 10MB', variant: 'destructive' });
+          return;
+        }
+        setIsUploadingPhoto(true);
+        try {
+          const ext = file.type.includes('gif') ? 'gif' : file.type.split('/')[1] || 'png';
+          const path = `chat/${activeCampaignId || 'solo'}/${crypto.randomUUID()}.${ext}`;
+          const { error } = await (await import('@/integrations/supabase/client')).supabase.storage.from('party-chat-images').upload(path, file);
+          if (error) throw error;
+          const { data: urlData } = (await import('@/integrations/supabase/client')).supabase.storage.from('party-chat-images').getPublicUrl(path);
+          addMediaMessage(`[image:${urlData.publicUrl}]`);
+        } catch (err) {
+          toast({ title: 'Upload failed', description: err instanceof Error ? err.message : 'Unknown error', variant: 'destructive' });
+        } finally {
+          setIsUploadingPhoto(false);
+        }
+        return;
+      }
+    }
+  }, [activeCampaignId, addMediaMessage, toast]);
+
   const hpPercent = characterContext.maxHP > 0
     ? Math.round((characterContext.currentHP / characterContext.maxHP) * 100)
     : 100;
@@ -672,6 +703,7 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             placeholder="What do you do?"
             rows={1}
             className="flex-1 bg-white/5 border border-amber-900/30 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-amber-500/40 resize-none min-h-[42px] max-h-[200px]"
