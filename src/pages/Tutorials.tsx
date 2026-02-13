@@ -15,6 +15,7 @@ interface Tutorial {
   category: string;
   sort_order: number;
   created_at: string;
+  created_by: string | null;
 }
 
 export default function Tutorials() {
@@ -105,10 +106,13 @@ export default function Tutorials() {
                   {items.map((tutorial) => (
                     <TutorialCard
                       key={tutorial.id}
+                      id={tutorial.id}
                       title={tutorial.title}
                       description={tutorial.description}
                       videoUrl={tutorial.video_url}
                       category={tutorial.category}
+                      isOwner={userId === (tutorial as any).created_by}
+                      onDeleted={fetchTutorials}
                     />
                   ))}
                 </div>
