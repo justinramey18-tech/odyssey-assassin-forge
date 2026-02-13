@@ -151,9 +151,11 @@ Narrate ${characterName} casting **${spell.name}**. Describe the arcane gestures
 
 // ── Roll-enhanced prompt generators ──
 
-// ── Parse damage formula like "1d6", "2d8", "1d4+2" ──
+// ── Parse damage formula like "1d6", "2d8", "1d4+2", "2d6+3 slashing" ──
 function parseDamageFormula(formula: string): { die: DieType; count: number; modifier: number } | null {
-  const match = formula.match(/^(\d+)?d(\d+)(?:\s*\+\s*(\d+))?$/i);
+  // Strip trailing damage type text (e.g. "2d6+3 slashing" → "2d6+3")
+  const cleaned = formula.trim().replace(/\s+[a-zA-Z]+$/i, '').trim();
+  const match = cleaned.match(/^(\d+)?d(\d+)(?:\s*[+]\s*(\d+))?$/i);
   if (!match) return null;
   const count = parseInt(match[1] || '1');
   const sides = parseInt(match[2]);
