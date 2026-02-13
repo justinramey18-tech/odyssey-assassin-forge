@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { Heart, Shield, Sparkles, ChevronDown, ChevronUp, Eye, Clock } from 'lucide-react';
+import { Heart, Shield, Sparkles, ChevronDown, ChevronUp, Eye, Clock, Gift } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { formatTimeForTimezone, getTimezoneAbbr } from '@/lib/timezone-storage';
 import type { PartyMember } from '@/hooks/use-party-sync';
@@ -10,10 +10,11 @@ interface PartyMemberCardProps {
   member: PartyMember;
   isSelf: boolean;
   onViewActions?: (member: PartyMember) => void;
+  onSendItem?: (member: PartyMember) => void;
   onlineInfo?: OnlineInfo;
 }
 
-export function PartyMemberCard({ member, isSelf, onViewActions, onlineInfo }: PartyMemberCardProps) {
+export function PartyMemberCard({ member, isSelf, onViewActions, onSendItem, onlineInfo }: PartyMemberCardProps) {
   const [showSlots, setShowSlots] = useState(false);
   const [playerTime, setPlayerTime] = useState('');
   const playerTz = member.character_status.timezone;
@@ -96,6 +97,15 @@ export function PartyMemberCard({ member, isSelf, onViewActions, onlineInfo }: P
           )}
           {status.level && (
             <span className="text-[10px] text-muted-foreground">Lv.{status.level}</span>
+          )}
+          {!isSelf && onSendItem && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onSendItem(member); }}
+              className="p-0.5 rounded hover:bg-primary/10 transition-colors"
+              title="Send item"
+            >
+              <Gift className="w-3 h-3 text-amber-400/70 hover:text-amber-400" />
+            </button>
           )}
           {isTappable && (
             <Eye className="w-3 h-3 text-muted-foreground/50" />

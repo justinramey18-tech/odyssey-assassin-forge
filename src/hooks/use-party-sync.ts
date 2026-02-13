@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
 import type { PendingHealAction } from '@/components/party/IncomingHealNotification';
+import type { PendingTradeAction } from '@/components/party/IncomingTradeNotification';
 
 export interface QuickActionWeapon {
   name: string;
@@ -222,6 +223,7 @@ export interface CombatLogEntry {
 export interface UsePartySyncReturn {
   party: PartyState;
   pendingHeals: PendingHealAction[];
+  pendingTrades: PendingTradeAction[];
   // Existing
   createParty: (characterName: string, status: PartyMember['character_status']) => Promise<string | null>;
   joinParty: (linkCode: string, characterName: string, status: PartyMember['character_status']) => Promise<boolean>;
@@ -235,6 +237,12 @@ export interface UsePartySyncReturn {
   acceptHeal: (actionId: string) => Promise<void>;
   rejectHeal: (actionId: string) => Promise<void>;
   onIncomingHeal: React.MutableRefObject<((hpHealed: number, senderName: string, source: string) => void) | null>;
+  // Trading
+  sendTradeAction: (targetUserId: string, tradeType: PendingTradeAction['tradeType'], tradeData: Record<string, unknown>, senderName: string) => Promise<void>;
+  acceptTrade: (actionId: string) => Promise<void>;
+  rejectTrade: (actionId: string) => Promise<void>;
+  onIncomingTrade: React.MutableRefObject<((tradeType: string, tradeData: Record<string, unknown>, senderName: string) => void) | null>;
+  onTradeRejected: React.MutableRefObject<((tradeType: string, tradeData: Record<string, unknown>) => void) | null>;
   // Shared dice rolls
   shareRoll: (label: string, expression: string, result: number, details: unknown, rollerName: string) => Promise<void>;
   partyRolls: PartyDiceRoll[];
@@ -296,6 +304,12 @@ export function usePartySync(): UsePartySyncReturn {
 
   const [pendingHeals, setPendingHeals] = useState<PendingHealAction[]>([]);
   const onIncomingHeal = useRef<((hpHealed: number, senderName: string, source: string) => void) | null>(null);
+  
+  // Trade state
+  const [pendingTrades, setPendingTrades] = useState<PendingTradeAction[]>([]);
+  const onIncomingTrade = useRef<((tradeType: string, tradeData: Record<string, unknown>, senderName: string) => void) | null>(null);
+  const onTradeRejected = useRef<((tradeType: string, tradeData: Record<string, unknown>) => void) | null>(null);
+  
   const statusTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastStatusRef = useRef<string>('');
 
@@ -541,6 +555,25 @@ export function usePartySync(): UsePartySyncReturn {
           const action = payload.new as PartyAction & { status?: string };
           if (action.status && action.status !== 'pending') return;
 
+          // Handle trade actions
+          const tradeTypes = ['send_gold', 'send_consumable', 'send_gear', 'send_loot'];
+          if (tradeTypes.includes(action.action_type)) {
+            const data = action.action_data as Record<string, unknown>;
+            const senderName = (data.senderName as string) || 'A party member';
+            const itemName = (data.itemName as string) || 'item';
+            const amount = (data.amount as number) || undefined;
+            setPendingTrades(prev => [...prev, {
+              id: action.id,
+              senderName,
+              tradeType: action.action_type as PendingTradeAction['tradeType'],
+              itemName,
+              amount,
+              rarity: data.rarity as string | undefined,
+            }]);
+            return;
+          }
+
+          // Handle heal actions
           const hpHealed = action.action_data.hpHealed || 0;
           const senderName = action.action_data.senderName || 'A party member';
           const source = action.action_data.spellName || action.action_data.itemName || 'unknown';
@@ -568,6 +601,23 @@ export function usePartySync(): UsePartySyncReturn {
           const targetMember = party.members.find(m => m.user_id === action.target_user_id);
           const targetName = targetMember?.character_name || 'A party member';
           const source = action.action_data.spellName || action.action_data.itemName || 'heal';
+
+          // Handle trade action responses
+          const tradeTypes = ['send_gold', 'send_consumable', 'send_gear', 'send_loot'];
+          if (tradeTypes.includes(action.action_type)) {
+            const data = action.action_data as Record<string, unknown>;
+            const itemName = (data.itemName as string) || 'item';
+            if (action.status === 'accepted') {
+              toast.success(`${targetName} accepted your ${itemName}!`, { duration: 4000 });
+            } else if (action.status === 'rejected') {
+              toast(`${targetName} declined your ${itemName}.`, { duration: 4000 });
+              // Return item to sender
+              if (onTradeRejected.current) {
+                onTradeRejected.current(action.action_type, data);
+              }
+            }
+            return;
+          }
 
           if (action.status === 'accepted') {
             toast.success(`${targetName} accepted your ${source}! (+${action.action_data.hpHealed} HP)`, { duration: 4000 });
@@ -1439,9 +1489,69 @@ export function usePartySync(): UsePartySyncReturn {
       .eq('emoji', emoji);
   }, [user, party.partyId]);
 
+  // --- Trade functions ---
+
+  const sendTradeAction = useCallback(async (
+    targetUserId: string,
+    tradeType: PendingTradeAction['tradeType'],
+    tradeData: Record<string, unknown>,
+    senderName: string,
+  ) => {
+    if (!user || !party.partyId) return;
+
+    await (supabase.from('party_actions') as any).insert({
+      party_id: party.partyId,
+      sender_user_id: user.id,
+      target_user_id: targetUserId,
+      action_type: tradeType,
+      action_data: { ...tradeData, senderName },
+    });
+  }, [user, party.partyId]);
+
+  const acceptTrade = useCallback(async (actionId: string) => {
+    const trade = pendingTrades.find(t => t.id === actionId);
+    if (!trade) return;
+
+    // Fetch the full action data from the DB to get the complete item
+    const { data: actionRow } = await supabase
+      .from('party_actions')
+      .select('action_data, action_type')
+      .eq('id', actionId)
+      .maybeSingle();
+
+    if (actionRow && onIncomingTrade.current) {
+      onIncomingTrade.current(
+        actionRow.action_type,
+        actionRow.action_data as Record<string, unknown>,
+        trade.senderName,
+      );
+    }
+
+    await supabase
+      .from('party_actions')
+      .update({ applied: true, status: 'accepted' } as Record<string, unknown>)
+      .eq('id', actionId);
+
+    setPendingTrades(prev => prev.filter(t => t.id !== actionId));
+    toast.success(`Accepted ${trade.tradeType === 'send_gold' ? `${trade.amount} gold` : trade.itemName} from ${trade.senderName}!`);
+  }, [pendingTrades]);
+
+  const rejectTrade = useCallback(async (actionId: string) => {
+    const trade = pendingTrades.find(t => t.id === actionId);
+
+    await supabase
+      .from('party_actions')
+      .update({ applied: false, status: 'rejected' } as Record<string, unknown>)
+      .eq('id', actionId);
+
+    setPendingTrades(prev => prev.filter(t => t.id !== actionId));
+    toast('Trade declined', { description: trade ? `From ${trade.senderName}` : undefined });
+  }, [pendingTrades]);
+
   return {
     party,
     pendingHeals,
+    pendingTrades,
     createParty,
     joinParty,
     leaveParty,
@@ -1454,6 +1564,11 @@ export function usePartySync(): UsePartySyncReturn {
     acceptHeal,
     rejectHeal,
     onIncomingHeal,
+    sendTradeAction,
+    acceptTrade,
+    rejectTrade,
+    onIncomingTrade,
+    onTradeRejected,
     shareRoll,
     partyRolls,
     broadcastFocusTarget,

@@ -15,9 +15,13 @@ import { PartyChat } from './PartyChat';
 import { PartyVote } from './PartyVote';
 import { PartyBattleMap } from './PartyBattleMap';
 import { PartyCombatLog } from './PartyCombatLog';
+import { SendItemScreen } from './SendItemScreen';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import type { UsePartySyncReturn, PartyMember } from '@/hooks/use-party-sync';
 import { useOnlineStatus } from '@/hooks/use-online-status';
+import type { InventoryItem } from '@/lib/consumables/types';
+import type { CharacterEquipment } from '@/lib/inventory/types';
+import type { LootItem } from '@/lib/loot/types';
 
 interface PartyPanelProps {
   partySync: UsePartySyncReturn;
@@ -34,9 +38,18 @@ interface PartyPanelProps {
   isAuthenticated: boolean;
   userId?: string;
   onOpenAIDM?: () => void;
+  // Trade props
+  currentGold?: number;
+  consumablesInventory?: InventoryItem[];
+  equipment?: CharacterEquipment;
+  lootItems?: LootItem[];
+  onSendGold?: (targetUserId: string, amount: number) => void;
+  onSendConsumable?: (targetUserId: string, item: InventoryItem) => void;
+  onSendGear?: (targetUserId: string, item: import('@/lib/inventory/types').EquipmentItem) => void;
+  onSendLoot?: (targetUserId: string, item: LootItem) => void;
 }
 
-export function PartyPanel({ partySync, characterName, currentStatus, isAuthenticated, userId, onOpenAIDM }: PartyPanelProps) {
+export function PartyPanel({ partySync, characterName, currentStatus, isAuthenticated, userId, onOpenAIDM, currentGold, consumablesInventory, equipment, lootItems, onSendGold, onSendConsumable, onSendGear, onSendLoot }: PartyPanelProps) {
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
@@ -47,6 +60,7 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
   const [showMap, setShowMap] = useState(false);
   const [showCombatLog, setShowCombatLog] = useState(false);
   const [selectedMember, setSelectedMember] = useState<PartyMember | null>(null);
+  const [sendToMember, setSendToMember] = useState<PartyMember | null>(null);
   const { party } = partySync;
   const onlineStatusMap = useOnlineStatus(party.members);
 
@@ -177,6 +191,7 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
             member={member}
             isSelf={member.user_id === userId}
             onViewActions={(m) => setSelectedMember(m)}
+            onSendItem={(m) => setSendToMember(m)}
             onlineInfo={onlineStatusMap[member.user_id]}
           />
         ))}
@@ -381,6 +396,34 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
           </Button>
         )}
       </div>
+
+      {/* Send Item Screen (full-screen overlay) */}
+      {sendToMember && (
+        <SendItemScreen
+          targetMember={sendToMember}
+          currentGold={currentGold ?? 0}
+          consumablesInventory={consumablesInventory ?? []}
+          equipment={equipment ?? { slots: {} as any, inventory: [] }}
+          lootItems={lootItems ?? []}
+          onSendGold={(amount) => {
+            onSendGold?.(sendToMember.user_id, amount);
+            setSendToMember(null);
+          }}
+          onSendConsumable={(item) => {
+            onSendConsumable?.(sendToMember.user_id, item);
+            setSendToMember(null);
+          }}
+          onSendGear={(item) => {
+            onSendGear?.(sendToMember.user_id, item);
+            setSendToMember(null);
+          }}
+          onSendLoot={(item) => {
+            onSendLoot?.(sendToMember.user_id, item);
+            setSendToMember(null);
+          }}
+          onClose={() => setSendToMember(null)}
+        />
+      )}
     </div>
   );
 }

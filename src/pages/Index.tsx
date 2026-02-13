@@ -27,6 +27,7 @@ import { ConstellationScreen } from '@/components/constellation/ConstellationScr
 import { HomeScreen } from '@/components/home/HomeScreen';
 import { IntroSplashScreen } from '@/components/home/IntroSplashScreen';
 import { IncomingHealOverlay } from '@/components/party/IncomingHealNotification';
+import { IncomingTradeOverlay } from '@/components/party/IncomingTradeNotification';
 import { NarrativeForgeScreen } from '@/components/scribe/NarrativeForgeScreen';
 import { ChronicleSyncScreen } from '@/components/chronicle';
 import { PromptDrawerProvider } from '@/components/drawers';
@@ -677,6 +678,40 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       handleHPChange(newHP, hpState.max, hpState.temp);
     };
   }, [partySync, hpState, handleHPChange, isSoloMode]);
+
+  // Wire party incoming trade callback (only in party mode)
+  useEffect(() => {
+    if (isSoloMode) return;
+    partySync.onIncomingTrade.current = (tradeType: string, tradeData: Record<string, unknown>, senderName: string) => {
+      if (tradeType === 'send_gold') {
+        shop.addGold(tradeData.amount as number, `Trade from ${senderName}`);
+      } else if (tradeType === 'send_consumable') {
+        const consumable = tradeData.consumable as import('@/lib/consumables/types').Consumable;
+        if (consumable) addConsumableItem(consumable, 1);
+      } else if (tradeType === 'send_gear') {
+        const item = tradeData.item as import('@/lib/inventory/types').EquipmentItem;
+        if (item) setEquipment(prev => ({ ...prev, inventory: [...prev.inventory, item] }));
+      } else if (tradeType === 'send_loot') {
+        const item = tradeData.item as import('@/lib/loot/types').LootItem;
+        if (item) loot.addLootItems([item]);
+      }
+    };
+    partySync.onTradeRejected.current = (tradeType: string, tradeData: Record<string, unknown>) => {
+      // Return item to sender
+      if (tradeType === 'send_gold') {
+        shop.addGold(tradeData.amount as number, 'Trade rejected');
+      } else if (tradeType === 'send_consumable') {
+        const consumable = tradeData.consumable as import('@/lib/consumables/types').Consumable;
+        if (consumable) addConsumableItem(consumable, 1);
+      } else if (tradeType === 'send_gear') {
+        const item = tradeData.item as import('@/lib/inventory/types').EquipmentItem;
+        if (item) setEquipment(prev => ({ ...prev, inventory: [...prev.inventory, item] }));
+      } else if (tradeType === 'send_loot') {
+        const item = tradeData.item as import('@/lib/loot/types').LootItem;
+        if (item) loot.addLootItems([item]);
+      }
+    };
+  }, [partySync, shop, addConsumableItem, setEquipment, loot, isSoloMode]);
 
   // Auto-apply incoming party buffs as conditions (only in party mode)
   useEffect(() => {
@@ -2029,6 +2064,13 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
             onReject={partySync.rejectHeal}
           />
         )}
+        {isPartyMode && (
+          <IncomingTradeOverlay
+            pendingTrades={partySync.pendingTrades}
+            onAccept={partySync.acceptTrade}
+            onReject={partySync.rejectTrade}
+          />
+        )}
         <HomeScreen 
           character={character}
           equipment={equipment}
@@ -2085,6 +2127,28 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           userId={user?.id}
           playMode={playMode}
           onPlayModeChange={setPlayMode}
+          tradeProps={isPartyMode ? {
+            currentGold: shop.currentGold,
+            consumablesInventory: consumablesInventory,
+            equipment: equipment,
+            lootItems: loot.lootItems,
+            onSendGold: (targetUserId: string, amount: number) => {
+              shop.spendGold(amount);
+              partySync.sendTradeAction(targetUserId, 'send_gold', { amount, itemName: `${amount} gold` }, character.name);
+            },
+            onSendConsumable: (targetUserId: string, item: typeof consumablesInventory[0]) => {
+              useConsumableItem(item.consumable.id);
+              partySync.sendTradeAction(targetUserId, 'send_consumable', { consumable: item.consumable, itemName: item.consumable.name }, character.name);
+            },
+            onSendGear: (targetUserId: string, item: import('@/lib/inventory/types').EquipmentItem) => {
+              setEquipment(prev => ({ ...prev, inventory: prev.inventory.filter(i => i.id !== item.id) }));
+              partySync.sendTradeAction(targetUserId, 'send_gear', { item, itemName: item.name, rarity: item.rarity }, character.name);
+            },
+            onSendLoot: (targetUserId: string, item: import('@/lib/loot/types').LootItem) => {
+              loot.deleteLootItem(item.id);
+              partySync.sendTradeAction(targetUserId, 'send_loot', { item, itemName: item.name, rarity: item.rarity }, character.name);
+            },
+          } : undefined}
         />
         
         {/* Settings Modal */}
@@ -2175,6 +2239,13 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           pendingHeals={partySync.pendingHeals}
           onAccept={partySync.acceptHeal}
           onReject={partySync.rejectHeal}
+        />
+      )}
+      {isPartyMode && (
+        <IncomingTradeOverlay
+          pendingTrades={partySync.pendingTrades}
+          onAccept={partySync.acceptTrade}
+          onReject={partySync.rejectTrade}
         />
       )}
       <div className="min-h-screen relative">
