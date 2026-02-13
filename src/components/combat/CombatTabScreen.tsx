@@ -402,7 +402,7 @@ function generateWeaponPrompt(
   const isCrit = isCriticalHit(roll.rolls, rollMode, roll.die);
   const isFumble = isCriticalMiss(roll.rolls, rollMode, roll.die);
   const hasAdvantage = roll.rolls.length > 1;
-  const attackQuality = getD20RollQuality(roll.rolls, rollMode);
+  const attackQuality = getD20RollQuality(roll.rolls, rollMode, roll.total);
   
   let title = rollType === 'assassinate' 
     ? '💀 ASSASSINATION ATTEMPT' 
