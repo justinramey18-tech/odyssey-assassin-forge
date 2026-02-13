@@ -374,11 +374,24 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
 
       {/* Actions */}
       <div className="pt-2 border-t border-border/30">
-        {party.isCreator ? (
+      {party.isCreator ? (
           <Button
             variant="destructive"
             size="sm"
-            onClick={partySync.disbandParty}
+            onClick={() => {
+              toast('Are you sure you want to disband the party?', {
+                description: 'This will remove all members and cannot be undone.',
+                action: {
+                  label: 'Disband',
+                  onClick: () => partySync.disbandParty(),
+                },
+                cancel: {
+                  label: 'Cancel',
+                  onClick: () => {},
+                },
+                duration: 10000,
+              });
+            }}
             className="w-full gap-2"
           >
             <Trash2 className="w-3.5 h-3.5" />
