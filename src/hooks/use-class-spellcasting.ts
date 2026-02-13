@@ -606,8 +606,14 @@ export function useClassSpellcasting(
   }, []);
 
   const prepareSpell = useCallback((spellId: string) => {
+    console.log('[prepareSpell] called with:', spellId, 'isPreparedCaster:', isPreparedCaster, 'maxPrepared:', maxPreparedSpells);
+    const lookupResult = getSpellById(spellId);
+    console.log('[prepareSpell] getSpellById result:', lookupResult?.name ?? 'NOT FOUND', 'level:', lookupResult?.level);
     setState(prev => {
-      if (prev.preparedSpells.includes(spellId)) return prev;
+      if (prev.preparedSpells.includes(spellId)) {
+        console.log('[prepareSpell] already prepared, skipping');
+        return prev;
+      }
       // Enforce preparation limit for prepared casters
       if (isPreparedCaster) {
         const currentNonCantrips = prev.preparedSpells.filter(id => {
@@ -616,10 +622,13 @@ export function useClassSpellcasting(
         }).length;
         const spell = getSpellById(spellId);
         const isNonCantrip = spell && spell.level > 0;
+        console.log('[prepareSpell] currentNonCantrips:', currentNonCantrips, 'isNonCantrip:', isNonCantrip);
         if (isNonCantrip && currentNonCantrips >= maxPreparedSpells) {
+          console.log('[prepareSpell] AT LIMIT, blocking');
           return prev; // Hard limit reached
         }
       }
+      console.log('[prepareSpell] SUCCESS - adding to prepared');
       return { ...prev, preparedSpells: [...prev.preparedSpells, spellId] };
     });
   }, [isPreparedCaster, maxPreparedSpells]);
