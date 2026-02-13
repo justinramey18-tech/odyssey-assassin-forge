@@ -3,7 +3,6 @@ import { cn } from '@/lib/utils';
 
 interface BackgroundWrapperProps {
   imagePath: string;
-  videoPath?: string;
   overlayOpacity?: number;
   tintColor?: 'red' | 'amber' | 'purple' | 'cyan' | 'green' | 'indigo';
   tintOpacity?: number;
@@ -31,7 +30,6 @@ const DEFAULT_FALLBACK_GRADIENT = 'linear-gradient(135deg, #1a1a2e 0%, #16213e 5
 
 export function BackgroundWrapper({
   imagePath,
-  videoPath,
   overlayOpacity = 60,
   tintColor,
   tintOpacity = 20,
@@ -93,25 +91,8 @@ export function BackgroundWrapper({
 
   return (
     <div className={cn('relative min-h-screen w-full overflow-hidden', className)}>
-      {/* Video Background Layer */}
-      {videoPath && !prefersReducedMotion && (
-        <video
-          key={videoPath}
-          className="absolute inset-0 w-full h-full object-cover z-[1] opacity-100"
-          src={videoPath}
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-          poster={imagePath}
-          aria-hidden="true"
-          onError={(e) => console.error('[BackgroundWrapper] Video failed to load:', videoPath, e)}
-        />
-      )}
-
-      {/* Background Image Layer (shown when no video or reduced motion) */}
-      {(!videoPath || prefersReducedMotion) && (
+      {/* Background Image Layer */}
+      {(
         <div 
           className={cn(
             'absolute inset-0 bg-center bg-no-repeat z-0 transition-opacity duration-300',

@@ -69,7 +69,7 @@ export function BackgroundUploadButton({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*,video/mp4,video/webm"
+        accept="image/*"
         onChange={handleFileChange}
         className="hidden"
       />

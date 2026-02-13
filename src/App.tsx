@@ -10,7 +10,6 @@ import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import Features from "./pages/Features";
-import Tutorials from "./pages/Tutorials";
 
 const queryClient = new QueryClient();
 
@@ -24,7 +23,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/features" element={<Features />} />
-            <Route path="/tutorials" element={<Tutorials />} />
+            
             <Route path="/install" element={<Install />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
