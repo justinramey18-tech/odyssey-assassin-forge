@@ -75,7 +75,9 @@ export function convertToWeaponAttack(item: EquipmentItem): WeaponAttack {
   const parsedProps = parseWeaponProperties(item);
   
   // Get damage from item stats or use a default
-  const damage = item.stats.damage?.toString() || '1d6';
+  // Strip trailing damage type text (e.g. "2d6+3 slashing" → "2d6+3")
+  const rawDamage = item.stats.damage?.toString() || '1d6';
+  const damage = rawDamage.replace(/\s+[a-zA-Z]+$/i, '').trim();
   
   // Get attack bonus from item stats
   const attackBonus = item.stats.attackBonus || 0;
