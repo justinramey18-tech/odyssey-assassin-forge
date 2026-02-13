@@ -638,6 +638,18 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
   }, [partyId, user, sessionConfig, isGenerating, messages, characterContext, partyMembers, customGuidesContent]);
 
+  // Add a media-only message (video/photo) without triggering AI response
+  const addMediaMessage = useCallback(async (content: string, senderName: string) => {
+    if (!partyId || !user) return;
+    await (supabase.from('party_dm_messages') as any).insert({
+      party_id: partyId,
+      role: 'user',
+      content: content.trim(),
+      sender_user_id: user.id,
+      sender_name: senderName,
+    });
+  }, [partyId, user]);
+
   const myPrompt = currentPrompts.find(p => p.user_id === user?.id) || null;
 
   return {
@@ -659,5 +671,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     editMessage,
     deleteMessage,
     regenerateMessage,
+    addMediaMessage,
   };
 }

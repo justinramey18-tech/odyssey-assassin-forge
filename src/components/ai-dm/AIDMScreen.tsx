@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Users, Zap, Map, Paperclip, Film } from 'lucide-react';
+import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Users, Zap, Map, Film, Image as ImageIcon } from 'lucide-react';
 import { CampaignDropdown } from './CampaignDropdown';
 import { cn } from '@/lib/utils';
 import { useAIDM } from '@/hooks/use-ai-dm';
@@ -41,10 +41,12 @@ interface AIDMScreenProps {
 }
 
 const VIDEO_REGEX = /^\[video:(https?:\/\/.+)\]$/;
+const IMAGE_REGEX = /^\[image:(https?:\/\/.+)\]$/;
 
 function DMMessageBubble({ message }: { message: Message }) {
   const isUser = message.role === 'user';
   const videoMatch = message.content.match(VIDEO_REGEX);
+  const imageMatch = !videoMatch ? message.content.match(IMAGE_REGEX) : null;
 
   return (
     <motion.div
@@ -80,6 +82,21 @@ function DMMessageBubble({ message }: { message: Message }) {
                 controls
                 playsInline
                 className="w-full rounded-xl"
+              />
+            </div>
+          </div>
+        ) : imageMatch ? (
+          <div>
+            <div className="flex items-center gap-1 mb-1.5">
+              <ImageIcon className="w-3 h-3 text-amber-400" />
+              <span className="text-[10px] text-amber-300/70 font-cinzel">Photo</span>
+            </div>
+            <div className="rounded-xl overflow-hidden border border-amber-500/20 bg-black/40 max-w-[300px]">
+              <img
+                src={imageMatch[1]}
+                alt="Chat photo"
+                className="w-full rounded-xl"
+                loading="lazy"
               />
             </div>
           </div>
@@ -132,9 +149,11 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
   const [pendingMapAdds, setPendingMapAdds] = useState<MapMarker[]>([]);
   const [pendingMapRemovals, setPendingMapRemovals] = useState<string[]>([]);
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const battleMapMarkersRef = useRef<MapMarker[]>([]);
   const battleMapGridSizeRef = useRef<number>(25);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const gmGuides = useGMGuides();
   const { toast } = useToast();
 
@@ -166,7 +185,7 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
     gmGuides.setActiveGuideIds(guideIds);
   }, [gmGuides.setActiveGuideIds]);
 
-  const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, loadCampaign, sendMessage, cancelRequest, clearMessages, newGame, activeCampaignId, setActiveCampaignId, lastCloudSyncTime, isCloudSyncing, saveToCloudNow } = useAIDM({
+  const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, loadCampaign, sendMessage, addMediaMessage, cancelRequest, clearMessages, newGame, activeCampaignId, setActiveCampaignId, lastCloudSyncTime, isCloudSyncing, saveToCloudNow } = useAIDM({
     characterContext,
     customGuidesContent: gmGuides.enabledContent,
     onMessageComplete: handleMessageComplete,
@@ -579,7 +598,7 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
               const { error } = await (await import('@/integrations/supabase/client')).supabase.storage.from('videos').upload(path, file);
               if (error) throw error;
               const { data: urlData } = (await import('@/integrations/supabase/client')).supabase.storage.from('videos').getPublicUrl(path);
-              sendMessage(`[video:${urlData.publicUrl}]`);
+              addMediaMessage(`[video:${urlData.publicUrl}]`);
             } catch (err) {
               toast({ title: 'Upload failed', description: err instanceof Error ? err.message : 'Unknown error', variant: 'destructive' });
             } finally {
@@ -588,22 +607,65 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
             }
           }}
         />
+        <input
+          ref={photoInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            if (file.size > 10 * 1024 * 1024) {
+              toast({ title: 'Image too large', description: 'Max 10MB', variant: 'destructive' });
+              return;
+            }
+            setIsUploadingPhoto(true);
+            try {
+              const ext = file.name.split('.').pop() || 'jpg';
+              const path = `chat/${activeCampaignId || 'solo'}/${crypto.randomUUID()}.${ext}`;
+              const { error } = await (await import('@/integrations/supabase/client')).supabase.storage.from('party-chat-images').upload(path, file);
+              if (error) throw error;
+              const { data: urlData } = (await import('@/integrations/supabase/client')).supabase.storage.from('party-chat-images').getPublicUrl(path);
+              addMediaMessage(`[image:${urlData.publicUrl}]`);
+            } catch (err) {
+              toast({ title: 'Upload failed', description: err instanceof Error ? err.message : 'Unknown error', variant: 'destructive' });
+            } finally {
+              setIsUploadingPhoto(false);
+              if (photoInputRef.current) photoInputRef.current.value = '';
+            }
+          }}
+        />
         <div className="flex items-end gap-2 max-w-2xl mx-auto">
-          {/* Video attach button */}
+          {/* Attach button */}
           {userId && (
-            <button
-              onClick={() => videoInputRef.current?.click()}
-              disabled={isLoading || isUploadingVideo}
-              className="p-2.5 rounded-xl border border-white/10 hover:border-amber-500/30 bg-white/5 hover:bg-amber-900/20 transition-colors shrink-0"
-              style={{ touchAction: 'manipulation' }}
-              title="Attach video"
-            >
-              {isUploadingVideo ? (
-                <Loader2 className="w-5 h-5 text-amber-400 animate-spin" />
-              ) : (
-                <Paperclip className="w-5 h-5 text-white/50" />
-              )}
-            </button>
+            <div className="flex gap-1 shrink-0">
+              <button
+                onClick={() => photoInputRef.current?.click()}
+                disabled={isLoading || isUploadingPhoto}
+                className="p-2.5 rounded-xl border border-white/10 hover:border-amber-500/30 bg-white/5 hover:bg-amber-900/20 transition-colors"
+                style={{ touchAction: 'manipulation' }}
+                title="Attach photo"
+              >
+                {isUploadingPhoto ? (
+                  <Loader2 className="w-5 h-5 text-amber-400 animate-spin" />
+                ) : (
+                  <ImageIcon className="w-5 h-5 text-white/50" />
+                )}
+              </button>
+              <button
+                onClick={() => videoInputRef.current?.click()}
+                disabled={isLoading || isUploadingVideo}
+                className="p-2.5 rounded-xl border border-white/10 hover:border-amber-500/30 bg-white/5 hover:bg-amber-900/20 transition-colors"
+                style={{ touchAction: 'manipulation' }}
+                title="Attach video"
+              >
+                {isUploadingVideo ? (
+                  <Loader2 className="w-5 h-5 text-amber-400 animate-spin" />
+                ) : (
+                  <Film className="w-5 h-5 text-white/50" />
+                )}
+              </button>
+            </div>
           )}
           <textarea
             ref={inputRef}
