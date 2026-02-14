@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import {
   type MapMarker, type GridSize, type ToolMode, type UndoAction, type AreaColorId,
-  type SpellTemplate, type SpellShape, type SpellColorId, type DistanceUnit,
+  type SpellTemplate, type SpellShape, type SpellColorId, type DistanceUnit, type TierBackground,
   GRID_SIZE_OPTIONS, MEMBER_COLORS, STORAGE_KEY_GRID_SIZE, MAX_BACKGROUND_SIZE_MB,
 } from '@/components/party/battlemap/types';
 
@@ -20,6 +20,8 @@ interface SavedMapState {
   backgroundOpacity?: number;
   distancePerSquare?: number;
   distanceUnit?: DistanceUnit;
+  autoScale?: boolean;
+  tierBackgrounds?: TierBackground[];
 }
 
 function loadMapState(): SavedMapState | null {
@@ -87,6 +89,8 @@ export function StandaloneBattleMap({ open, onClose, characterName = 'Me', pendi
   const [backgroundOpacity, setBackgroundOpacity] = useState<number>(() => loadMapState()?.backgroundOpacity ?? 1);
   const [distancePerSquare, setDistancePerSquare] = useState<number>(() => loadMapState()?.distancePerSquare ?? 5);
   const [distanceUnit, setDistanceUnit] = useState<DistanceUnit>(() => loadMapState()?.distanceUnit ?? 'ft');
+  const [autoScale, setAutoScale] = useState<boolean>(() => loadMapState()?.autoScale ?? true);
+  const [tierBackgrounds, setTierBackgrounds] = useState<TierBackground[]>(() => loadMapState()?.tierBackgrounds ?? []);
 
   // Auto-save to localStorage on state changes (debounced via ref)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -102,10 +106,12 @@ export function StandaloneBattleMap({ open, onClose, characterName = 'Me', pendi
         backgroundOpacity,
         distancePerSquare,
         distanceUnit,
+        autoScale,
+        tierBackgrounds,
       });
     }, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [markers, highlightedCells, spellTemplates, gridSize, backgroundUrl, backgroundOpacity, distancePerSquare, distanceUnit]);
+  }, [markers, highlightedCells, spellTemplates, gridSize, backgroundUrl, backgroundOpacity, distancePerSquare, distanceUnit, autoScale, tierBackgrounds]);
 
   // Notify parent of marker and grid size changes
   useEffect(() => { onMarkersChange?.(markers); }, [markers, onMarkersChange]);
@@ -253,6 +259,33 @@ export function StandaloneBattleMap({ open, onClose, characterName = 'Me', pendi
     toast.success('Background removed');
   }, []);
 
+  const handleTierBackgroundUpload = useCallback(async (tierId: string, file: File) => {
+    if (file.size > MAX_BACKGROUND_SIZE_MB * 1024 * 1024) {
+      toast.error(`Image must be under ${MAX_BACKGROUND_SIZE_MB}MB`);
+      return;
+    }
+    setBackgroundUploading(true);
+    try {
+      const ext = file.name.split('.').pop() || 'png';
+      const path = `battlemap-backgrounds/tier-${tierId}-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from('gear-images').upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from('gear-images').getPublicUrl(path);
+      setTierBackgrounds(prev => [...prev.filter(b => b.tierId !== tierId), { tierId, imageUrl: publicUrl }]);
+      toast.success('Layer image set');
+    } catch (e: any) {
+      console.error('Tier background upload failed:', e);
+      toast.error('Failed to upload image');
+    } finally {
+      setBackgroundUploading(false);
+    }
+  }, []);
+
+  const handleTierBackgroundRemove = useCallback((tierId: string) => {
+    setTierBackgrounds(prev => prev.filter(b => b.tierId !== tierId));
+    toast.success('Layer image removed');
+  }, []);
+
   if (!open) return null;
 
   return (
@@ -307,8 +340,13 @@ export function StandaloneBattleMap({ open, onClose, characterName = 'Me', pendi
           onBackgroundOpacityChange={setBackgroundOpacity}
           distancePerSquare={distancePerSquare}
           distanceUnit={distanceUnit}
-          onDistancePerSquareChange={setDistancePerSquare}
-          onDistanceUnitChange={setDistanceUnit}
+          onDistancePerSquareChange={(v) => { setDistancePerSquare(v); setAutoScale(false); }}
+          onDistanceUnitChange={(v) => { setDistanceUnit(v); setAutoScale(false); }}
+          autoScale={autoScale}
+          onToggleAutoScale={() => setAutoScale(prev => !prev)}
+          tierBackgrounds={tierBackgrounds}
+          onTierBackgroundUpload={handleTierBackgroundUpload}
+          onTierBackgroundRemove={handleTierBackgroundRemove}
         />
       </DialogContent>
     </Dialog>

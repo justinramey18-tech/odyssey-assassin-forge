@@ -42,6 +42,56 @@ export function getDistanceUnitAbbr(unit: DistanceUnit): string {
 
 export type ToolMode = 'place-self' | 'place-enemy' | 'measure' | 'area' | 'spell' | 'move-range' | null;
 
+// ── Auto-Scale Tier System ──
+
+export interface ScaleTier {
+  id: string;
+  label: string;
+  minZoom: number;
+  maxZoom: number;
+  distancePerSquare: number;
+  distanceUnit: DistanceUnit;
+  gridMergeFactor: number;
+  minorLineOpacity: number;
+}
+
+export interface TierBackground {
+  tierId: string;
+  imageUrl: string;
+}
+
+export const DEFAULT_SCALE_TIERS: ScaleTier[] = [
+  { id: 'tactical', label: 'Tactical', minZoom: 1.0, maxZoom: 3.0, distancePerSquare: 5, distanceUnit: 'ft', gridMergeFactor: 1, minorLineOpacity: 0.1 },
+  { id: 'local', label: 'Local', minZoom: 0.6, maxZoom: 1.0, distancePerSquare: 50, distanceUnit: 'ft', gridMergeFactor: 10, minorLineOpacity: 0.03 },
+  { id: 'regional', label: 'Regional', minZoom: 0.3, maxZoom: 0.6, distancePerSquare: 0.25, distanceUnit: 'mi', gridMergeFactor: 10, minorLineOpacity: 0 },
+];
+
+/** Returns the active scale tier for a given zoom level */
+export function getActiveTier(zoom: number, tiers: ScaleTier[] = DEFAULT_SCALE_TIERS): ScaleTier {
+  for (const tier of tiers) {
+    if (zoom >= tier.minZoom && zoom < tier.maxZoom) return tier;
+  }
+  // Fallback: return first tier if zoom >= max, last if zoom < min
+  if (zoom >= tiers[0].maxZoom) return tiers[0];
+  return tiers[tiers.length - 1];
+}
+
+/**
+ * Returns a 0-1 opacity for a tier's background at a given zoom.
+ * Cross-fades at tier boundaries using a 15% fade zone on each edge.
+ */
+export function getTierOpacity(zoom: number, tier: ScaleTier): number {
+  if (zoom < tier.minZoom || zoom >= tier.maxZoom) return 0;
+  const range = tier.maxZoom - tier.minZoom;
+  const fadeZone = range * 0.15;
+  const distFromMin = zoom - tier.minZoom;
+  const distFromMax = tier.maxZoom - zoom;
+  let opacity = 1;
+  if (distFromMin < fadeZone && fadeZone > 0) opacity = Math.min(opacity, distFromMin / fadeZone);
+  if (distFromMax < fadeZone && fadeZone > 0) opacity = Math.min(opacity, distFromMax / fadeZone);
+  return Math.max(0, Math.min(1, opacity));
+}
+
 export const MOVEMENT_SPEED_OPTIONS = [15, 20, 25, 30, 35, 40, 50, 60, 80] as const;
 
 export const AREA_COLORS = [
