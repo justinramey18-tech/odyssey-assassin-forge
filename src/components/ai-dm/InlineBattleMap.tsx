@@ -429,27 +429,7 @@ export function InlineBattleMap({
               ))}
             </SelectContent>
           </Select>
-          <Select value={String(distancePerSquare)} onValueChange={(v) => { setDistancePerSquare(Number(v)); setAutoScale(false); }}>
-            <SelectTrigger className="h-5 w-[3rem] text-[9px] font-sans border-border/30 bg-white/5">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {DISTANCE_PER_SQUARE_PRESETS.map(d => (
-                <SelectItem key={d} value={String(d)} className="text-[11px]">{d}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={distanceUnit} onValueChange={(v) => { setDistanceUnit(v as DistanceUnit); setAutoScale(false); }}>
-            <SelectTrigger className="h-5 w-[3.5rem] text-[9px] font-sans border-border/30 bg-white/5">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {DISTANCE_UNITS.map(u => (
-                <SelectItem key={u.id} value={u.id} className="text-[11px]">{u.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <span className="text-[9px] text-white/30">/sq</span>
+          <span className="text-[9px] text-white/50 font-medium">{effectiveDistancePerSquare} {effectiveUnitAbbr}/sq</span>
           {activeTier && (
             <span className="text-[8px] text-amber-400/70 ml-0.5">{forcedTierId ? '' : 'Auto: '}{activeTier.label}</span>
           )}
