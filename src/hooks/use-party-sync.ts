@@ -284,6 +284,8 @@ export interface UsePartySyncReturn {
   // Battle Map
   updateMapMarkers: (markers: MapMarker[]) => Promise<void>;
   mapMarkers: MapMarker[];
+  mapBackgroundUrl: string | undefined;
+  updateMapBackground: (url: string | undefined) => Promise<void>;
   // Combat Log
   logCombatEvent: (characterName: string, actionType: string, description: string, metadata?: Record<string, unknown>) => Promise<void>;
   combatLog: CombatLogEntry[];
@@ -322,6 +324,7 @@ export function usePartySync(): UsePartySyncReturn {
   const [partyMessages, setPartyMessages] = useState<PartyMessage[]>([]);
   const [activeVote, setActiveVote] = useState<ActiveVote | null>(null);
   const [mapMarkers, setMapMarkers] = useState<MapMarker[]>([]);
+  const [mapBackgroundUrl, setMapBackgroundUrl] = useState<string | undefined>();
   const [combatLog, setCombatLog] = useState<CombatLogEntry[]>([]);
   const [typingUsers, setTypingUsers] = useState<{ userId: string; name: string }[]>([]);
   const [messageReactions, setMessageReactions] = useState<MessageReaction[]>([]);
@@ -482,8 +485,10 @@ export function usePartySync(): UsePartySyncReturn {
             setActiveVote({ ...vote, myVote });
           }
           if (s.state_type === 'map_markers' && data) {
-            const markersData = (data as { markers?: MapMarker[] }).markers;
+            const markersData = (data as { markers?: MapMarker[]; backgroundUrl?: string }).markers;
+            const bgUrl = (data as { backgroundUrl?: string }).backgroundUrl;
             if (markersData) setMapMarkers(markersData);
+            setMapBackgroundUrl(bgUrl || undefined);
           }
         });
       }
@@ -712,6 +717,7 @@ export function usePartySync(): UsePartySyncReturn {
             }
             if (old.state_type === 'map_markers') {
               setMapMarkers([]);
+              setMapBackgroundUrl(undefined);
             }
             return;
           }
@@ -758,8 +764,9 @@ export function usePartySync(): UsePartySyncReturn {
           }
 
           if (row.state_type === 'map_markers') {
-            const markersData = (data as { markers?: MapMarker[] }).markers;
-            setMapMarkers(markersData || []);
+            const mapData = data as { markers?: MapMarker[]; backgroundUrl?: string };
+            setMapMarkers(mapData.markers || []);
+            setMapBackgroundUrl(mapData.backgroundUrl || undefined);
           }
         }
       )
@@ -994,6 +1001,7 @@ export function usePartySync(): UsePartySyncReturn {
       setPartyMessages([]);
       setActiveVote(null);
       setMapMarkers([]);
+      setMapBackgroundUrl(undefined);
       setCombatLog([]);
       toast.info('Left the party');
     } catch {
@@ -1013,6 +1021,7 @@ export function usePartySync(): UsePartySyncReturn {
     setPartyMessages([]);
     setActiveVote(null);
     setMapMarkers([]);
+    setMapBackgroundUrl(undefined);
     setCombatLog([]);
   }, []);
 
@@ -1085,6 +1094,7 @@ export function usePartySync(): UsePartySyncReturn {
       setPartyMessages([]);
       setActiveVote(null);
       setMapMarkers([]);
+      setMapBackgroundUrl(undefined);
       setCombatLog([]);
       toast.info('Party disbanded');
     } catch {
@@ -1428,9 +1438,12 @@ export function usePartySync(): UsePartySyncReturn {
   const updateMapMarkers = useCallback(async (markers: MapMarker[]) => {
     if (!user || !party.partyId) return;
 
+    // Include current backgroundUrl in state_data
+    const stateData = { markers, backgroundUrl: mapBackgroundUrl };
+
     // Try to update any existing map_markers row first (any user's row)
     const { count } = await (supabase.from('party_shared_state') as any)
-      .update({ state_data: { markers }, updated_at: new Date().toISOString() })
+      .update({ state_data: stateData, updated_at: new Date().toISOString() })
       .eq('party_id', party.partyId)
       .eq('state_type', 'map_markers')
       .select('id', { count: 'exact', head: true });
@@ -1441,10 +1454,32 @@ export function usePartySync(): UsePartySyncReturn {
         party_id: party.partyId,
         user_id: user.id,
         state_type: 'map_markers',
-        state_data: { markers },
+        state_data: stateData,
       });
     }
-  }, [user, party.partyId]);
+  }, [user, party.partyId, mapBackgroundUrl]);
+
+  const updateMapBackground = useCallback(async (url: string | undefined) => {
+    if (!user || !party.partyId) return;
+    setMapBackgroundUrl(url);
+
+    const stateData = { markers: mapMarkers, backgroundUrl: url };
+
+    const { count } = await (supabase.from('party_shared_state') as any)
+      .update({ state_data: stateData, updated_at: new Date().toISOString() })
+      .eq('party_id', party.partyId)
+      .eq('state_type', 'map_markers')
+      .select('id', { count: 'exact', head: true });
+
+    if (!count || count === 0) {
+      await (supabase.from('party_shared_state') as any).insert({
+        party_id: party.partyId,
+        user_id: user.id,
+        state_type: 'map_markers',
+        state_data: stateData,
+      });
+    }
+  }, [user, party.partyId, mapMarkers]);
 
   const logCombatEvent = useCallback(async (characterName: string, actionType: string, description: string, metadata: Record<string, unknown> = {}) => {
     if (!user || !party.partyId) return;
@@ -1601,6 +1636,8 @@ export function usePartySync(): UsePartySyncReturn {
     activeVote,
     updateMapMarkers,
     mapMarkers,
+    mapBackgroundUrl,
+    updateMapBackground,
     logCombatEvent,
     combatLog,
     typingUsers,

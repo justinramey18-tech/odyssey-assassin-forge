@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Users, Plus, LogIn, LogOut, Trash2, Copy, Check, Dices, Package, Crosshair, MessageSquare, Vote, Map, Swords, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -22,6 +22,8 @@ import { useOnlineStatus } from '@/hooks/use-online-status';
 import type { InventoryItem } from '@/lib/consumables/types';
 import type { CharacterEquipment } from '@/lib/inventory/types';
 import type { LootItem } from '@/lib/loot/types';
+import { supabase } from '@/integrations/supabase/client';
+import { MAX_BACKGROUND_SIZE_MB } from './battlemap/types';
 
 interface PartyPanelProps {
   partySync: UsePartySyncReturn;
@@ -61,6 +63,7 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
   const [showCombatLog, setShowCombatLog] = useState(false);
   const [selectedMember, setSelectedMember] = useState<PartyMember | null>(null);
   const [sendToMember, setSendToMember] = useState<PartyMember | null>(null);
+  const [bgUploading, setBgUploading] = useState(false);
   const { party } = partySync;
   const onlineStatusMap = useOnlineStatus(party.members);
 
@@ -72,6 +75,32 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
     });
     return colors;
   }, [party.members]);
+
+  const handleSetBackground = useCallback(async (file: File) => {
+    if (file.size > MAX_BACKGROUND_SIZE_MB * 1024 * 1024) {
+      toast.error(`Image must be under ${MAX_BACKGROUND_SIZE_MB}MB`);
+      return;
+    }
+    setBgUploading(true);
+    try {
+      const ext = file.name.split('.').pop() || 'png';
+      const path = `battlemap-backgrounds/party-${party.partyId}-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from('gear-images').upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from('gear-images').getPublicUrl(path);
+      await partySync.updateMapBackground(publicUrl);
+      toast.success('Background set');
+    } catch (e: any) {
+      toast.error(e?.message || 'Upload failed');
+    } finally {
+      setBgUploading(false);
+    }
+  }, [party.partyId, partySync]);
+
+  const handleClearBackground = useCallback(async () => {
+    await partySync.updateMapBackground(undefined);
+    toast.success('Background removed');
+  }, [partySync]);
 
   if (!isAuthenticated) {
     return (
@@ -332,6 +361,10 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
                 );
                 await partySync.updateMapMarkers(newMarkers);
               }}
+              backgroundUrl={partySync.mapBackgroundUrl}
+              backgroundUploading={bgUploading}
+              onSetBackground={handleSetBackground}
+              onClearBackground={handleClearBackground}
             />
           </CollapsibleContent>
         </Collapsible>
