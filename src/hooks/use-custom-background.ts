@@ -9,7 +9,7 @@ export interface CustomBackgroundState {
   backgroundUrl: string | null;
   setCustomBackground: (imageDataUrl: string | null) => void;
   clearCustomBackground: () => void;
-  handleImageUpload: (file: File, userId?: string) => Promise<void>;
+  handleImageUpload: (file: File, userId?: string, saveId?: string) => Promise<void>;
   setBackgroundFromUrl: (url: string | null) => void;
 }
 
@@ -101,7 +101,7 @@ export function useCustomBackground(): CustomBackgroundState {
     }
   }, []);
 
-  const handleImageUpload = useCallback(async (file: File, userId?: string): Promise<void> => {
+  const handleImageUpload = useCallback(async (file: File, userId?: string, saveId?: string): Promise<void> => {
     if (!file.type.startsWith('image/')) {
       throw new Error('Please upload an image file');
     }
@@ -126,7 +126,9 @@ export function useCustomBackground(): CustomBackgroundState {
     if (userId) {
       try {
         const ext = file.name.split('.').pop() || 'jpg';
-        const path = `backgrounds/${userId}/home-bg.${ext}`;
+        const path = saveId
+          ? `backgrounds/${userId}/${saveId}/home-bg.${ext}`
+          : `backgrounds/${userId}/home-bg.${ext}`;
         
         const { error: uploadError } = await supabase.storage
           .from('gear-images')

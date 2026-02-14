@@ -19,7 +19,7 @@ interface CloudSaveModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currentData: Omit<SaveData, 'savedAt' | 'version'>;
-  onLoadSave: (data: SaveData) => void;
+  onLoadSave: (data: SaveData, saveId?: string) => void;
 }
 
 interface SaveSummary {
@@ -99,7 +99,7 @@ export function CloudSaveModal({ open, onOpenChange, currentData, onLoadSave }: 
   const handleLoad = async (save: CloudSave) => {
     const data = await loadFromCloud(save.id);
     if (data) {
-      onLoadSave(data);
+      onLoadSave(data, save.id);
       toast.success(`Loaded "${save.save_name}"`);
       onOpenChange(false);
     } else {

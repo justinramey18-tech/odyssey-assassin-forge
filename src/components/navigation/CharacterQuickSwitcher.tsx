@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 interface CharacterQuickSwitcherProps {
   currentCharacterName: string;
   currentCharacterLevel: number;
-  onLoadSave: (data: SaveData) => void;
+  onLoadSave: (data: SaveData, saveId?: string) => void;
   onCloudClick: () => void;
 }
 
@@ -41,7 +41,7 @@ export function CharacterQuickSwitcher({
   const handleLoadCharacter = async (save: CloudSave) => {
     const data = await loadFromCloud(save.id);
     if (data) {
-      onLoadSave(data);
+      onLoadSave(data, save.id);
       toast.success(`Switched to "${save.character_name || save.save_name}"`);
       setIsOpen(false);
     } else {
