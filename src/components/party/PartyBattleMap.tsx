@@ -7,7 +7,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { FullscreenBattleMap } from './battlemap/FullscreenBattleMap';
 import {
   type MapMarker, type GridSize, type ToolMode, type UndoAction, type AreaColorId,
-  type SpellTemplate, type SpellShape, type SpellColorId,
+  type SpellTemplate, type SpellShape, type SpellColorId, type DistanceUnit,
   GRID_SIZE_OPTIONS, INLINE_GRID_SIZE, MEMBER_COLORS, STORAGE_KEY_GRID_SIZE,
 } from './battlemap/types';
 
@@ -61,6 +61,8 @@ export function PartyBattleMap({ markers, currentUserId, characterName, memberCo
   // Movement range state
   const [movementSpeedFt, setMovementSpeedFt] = useState<number>(30);
   const [moveRangeOrigin, setMoveRangeOrigin] = useState<{ x: number; y: number } | null>(null);
+  const [distancePerSquare, setDistancePerSquare] = useState<number>(5);
+  const [distanceUnit, setDistanceUnit] = useState<DistanceUnit>('ft');
 
   const handleGridSizeChange = useCallback((size: GridSize) => {
     setGridSize(size);
@@ -370,6 +372,10 @@ export function PartyBattleMap({ markers, currentUserId, characterName, memberCo
             onSetBackground={onSetBackground}
             onClearBackground={onClearBackground}
             onBackgroundOpacityChange={onBackgroundOpacityChange}
+            distancePerSquare={distancePerSquare}
+            distanceUnit={distanceUnit}
+            onDistancePerSquareChange={setDistancePerSquare}
+            onDistanceUnitChange={setDistanceUnit}
           />
         </DialogContent>
       </Dialog>

@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import {
   type MapMarker, type GridSize, type ToolMode, type UndoAction, type AreaColorId,
-  type SpellTemplate, type SpellShape, type SpellColorId,
+  type SpellTemplate, type SpellShape, type SpellColorId, type DistanceUnit,
   GRID_SIZE_OPTIONS, MEMBER_COLORS, STORAGE_KEY_GRID_SIZE, MAX_BACKGROUND_SIZE_MB,
 } from '@/components/party/battlemap/types';
 
@@ -18,6 +18,8 @@ interface SavedMapState {
   gridSize: GridSize;
   backgroundUrl?: string;
   backgroundOpacity?: number;
+  distancePerSquare?: number;
+  distanceUnit?: DistanceUnit;
 }
 
 function loadMapState(): SavedMapState | null {
@@ -83,6 +85,8 @@ export function StandaloneBattleMap({ open, onClose, characterName = 'Me', pendi
   const [backgroundUrl, setBackgroundUrl] = useState<string | undefined>(() => loadMapState()?.backgroundUrl);
   const [backgroundUploading, setBackgroundUploading] = useState(false);
   const [backgroundOpacity, setBackgroundOpacity] = useState<number>(() => loadMapState()?.backgroundOpacity ?? 1);
+  const [distancePerSquare, setDistancePerSquare] = useState<number>(() => loadMapState()?.distancePerSquare ?? 5);
+  const [distanceUnit, setDistanceUnit] = useState<DistanceUnit>(() => loadMapState()?.distanceUnit ?? 'ft');
 
   // Auto-save to localStorage on state changes (debounced via ref)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -96,10 +100,12 @@ export function StandaloneBattleMap({ open, onClose, characterName = 'Me', pendi
         gridSize,
         backgroundUrl,
         backgroundOpacity,
+        distancePerSquare,
+        distanceUnit,
       });
     }, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [markers, highlightedCells, spellTemplates, gridSize, backgroundUrl, backgroundOpacity]);
+  }, [markers, highlightedCells, spellTemplates, gridSize, backgroundUrl, backgroundOpacity, distancePerSquare, distanceUnit]);
 
   // Notify parent of marker and grid size changes
   useEffect(() => { onMarkersChange?.(markers); }, [markers, onMarkersChange]);
@@ -299,6 +305,10 @@ export function StandaloneBattleMap({ open, onClose, characterName = 'Me', pendi
           onSetBackground={handleSetBackground}
           onClearBackground={handleClearBackground}
           onBackgroundOpacityChange={setBackgroundOpacity}
+          distancePerSquare={distancePerSquare}
+          distanceUnit={distanceUnit}
+          onDistancePerSquareChange={setDistancePerSquare}
+          onDistanceUnitChange={setDistanceUnit}
         />
       </DialogContent>
     </Dialog>
