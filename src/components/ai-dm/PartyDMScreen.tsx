@@ -7,6 +7,9 @@ import { supabase } from '@/integrations/supabase/client';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 import type { usePartyDm, PartyDmMessage, PartyDmPrompt } from '@/hooks/use-party-dm';
+import { DMDiceRoller } from './DMDiceRoller';
+import { DMQuickActions } from './DMQuickActions';
+import type { CharacterContext } from '@/components/oracle/types';
 
 type PartyDmReturn = ReturnType<typeof usePartyDm>;
 
@@ -24,6 +27,7 @@ interface PartyDMScreenProps {
   onToggleAutoSync?: (enabled: boolean) => void;
   isExtracting?: boolean;
   guidesCount?: number;
+  characterContext?: CharacterContext;
 }
 
 const MEMBER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7'];
@@ -315,7 +319,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
   );
 }
 
-export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0 }: PartyDMScreenProps) {
+export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, characterContext }: PartyDMScreenProps) {
   const [input, setInput] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState('');
@@ -411,6 +415,15 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
 
   const handleRegenerateMessage = useCallback((messageId: string) => {
     partyDm.regenerateMessage?.(messageId);
+  }, [partyDm]);
+
+  const handleDiceRoll = useCallback((message: string) => {
+    const senderName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
+    partyDm.addMediaMessage(message, senderName);
+  }, [members, currentUserId, partyDm]);
+
+  const handleQuickAction = useCallback((prompt: string) => {
+    partyDm.submitPrompt(prompt);
   }, [partyDm]);
 
   const hasSubmitted = !!partyDm.myPrompt;
@@ -677,6 +690,15 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
         }}
       />
 
+      {/* Inline Dice Roller */}
+      {characterContext && !partyDm.isGenerating && (
+        <DMDiceRoller
+          characterContext={characterContext}
+          onRollResult={handleDiceRoll}
+          disabled={partyDm.isGenerating}
+        />
+      )}
+
       {/* Input Area */}
       <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm">
         {partyDm.isGenerating ? (
@@ -686,6 +708,12 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
           </div>
         ) : !hasSubmitted ? (
           <div className="space-y-2 max-w-2xl mx-auto">
+            {/* Quick Actions */}
+            <DMQuickActions
+              onSelect={handleQuickAction}
+              isLoading={partyDm.isGenerating}
+              variant="inline"
+            />
             <div className="flex items-end gap-2">
               {currentUserId && (
                 <div className="flex gap-1 shrink-0">
