@@ -61,10 +61,13 @@ export interface TierBackground {
 }
 
 export const DEFAULT_SCALE_TIERS: ScaleTier[] = [
-  { id: 'tactical', label: 'Tactical', minZoom: 1.0, maxZoom: 3.0, distancePerSquare: 5, distanceUnit: 'ft', gridMergeFactor: 1, minorLineOpacity: 0.1 },
-  { id: 'local', label: 'Local', minZoom: 0.6, maxZoom: 1.0, distancePerSquare: 50, distanceUnit: 'ft', gridMergeFactor: 10, minorLineOpacity: 0.03 },
-  { id: 'regional', label: 'Regional', minZoom: 0.3, maxZoom: 0.6, distancePerSquare: 0.25, distanceUnit: 'mi', gridMergeFactor: 10, minorLineOpacity: 0 },
+  { id: 'tactical', label: 'Feet', minZoom: 0.6, maxZoom: 3.0, distancePerSquare: 5, distanceUnit: 'ft', gridMergeFactor: 1, minorLineOpacity: 0.1 },
+  { id: 'local', label: 'Miles', minZoom: 0.25, maxZoom: 0.6, distancePerSquare: 1, distanceUnit: 'mi', gridMergeFactor: 1, minorLineOpacity: 0.1 },
+  { id: 'regional', label: 'Leagues', minZoom: 0.05, maxZoom: 0.25, distancePerSquare: 1, distanceUnit: 'leagues', gridMergeFactor: 1, minorLineOpacity: 0.1 },
 ];
+
+export const MIN_ZOOM = 0.05;
+export const MAX_ZOOM = 3.0;
 
 /** Returns the active scale tier for a given zoom level */
 export function getActiveTier(zoom: number, tiers: ScaleTier[] = DEFAULT_SCALE_TIERS): ScaleTier {

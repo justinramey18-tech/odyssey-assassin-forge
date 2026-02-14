@@ -17,7 +17,7 @@ import {
   type SpellTemplate, type SpellShape, type SpellColorId, type DistanceUnit,
   type ScaleTier, type TierBackground,
   GRID_SIZE_OPTIONS, CELL_SIZE, DISTANCE_UNITS, DISTANCE_PER_SQUARE_PRESETS,
-  DEFAULT_SCALE_TIERS, getActiveTier, getTierOpacity,
+  DEFAULT_SCALE_TIERS, getActiveTier, getTierOpacity, MIN_ZOOM, MAX_ZOOM,
   getDistanceUnitAbbr, getAreaColorById,
 } from './types';
 
@@ -112,8 +112,6 @@ export function FullscreenBattleMap({
   const effectiveDistancePerSquare = activeTier ? activeTier.distancePerSquare : distancePerSquare;
   const effectiveDistanceUnit = activeTier ? activeTier.distanceUnit : distanceUnit;
   const effectiveUnitAbbr = getDistanceUnitAbbr(effectiveDistanceUnit);
-  const gridMergeFactor = activeTier ? activeTier.gridMergeFactor : 1;
-  const minorLineOpacity = activeTier ? activeTier.minorLineOpacity : 0.1;
   const unitAbbr = effectiveUnitAbbr;
 
   // Pinch-to-zoom
@@ -129,7 +127,7 @@ export function FullscreenBattleMap({
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (lastDistance > 0) {
         const delta = (dist - lastDistance) * 0.005;
-        setZoom(prev => Math.min(3, Math.max(0.3, prev + delta)));
+        setZoom(prev => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev + delta)));
       }
       lastDistance = dist;
     };
@@ -279,11 +277,11 @@ export function FullscreenBattleMap({
               </SelectContent>
             </Select>
           )}
-          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setZoom(z => Math.max(0.3, z - 0.15))}>
+          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setZoom(z => Math.max(MIN_ZOOM, z * 0.75))}>
             <ZoomOut className="w-3.5 h-3.5" />
           </Button>
           <span className="text-[10px] text-muted-foreground w-10 text-center">{Math.round(zoom * 100)}%</span>
-          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setZoom(z => Math.min(3, z + 0.15))}>
+          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setZoom(z => Math.min(MAX_ZOOM, z * 1.33))}>
             <ZoomIn className="w-3.5 h-3.5" />
           </Button>
           <Button size="sm" variant="ghost" className="text-[10px] h-7 gap-1 ml-2" onClick={onClose}>
@@ -393,8 +391,7 @@ export function FullscreenBattleMap({
                   const isHighlighted = !!highlightColorId;
                   const isMeasurePoint = (measureStart?.x === x && measureStart?.y === y) || (measureEnd?.x === x && measureEnd?.y === y);
                   const hasAnyBg = tierBackgrounds.length > 0 || !!backgroundUrl;
-                  const isMajorLine = gridMergeFactor <= 1 || (x % gridMergeFactor === 0) || (y % gridMergeFactor === 0);
-                  const cellBorderOpacity = isMajorLine ? (hasAnyBg ? 0.05 : 0.1) : minorLineOpacity;
+                  const cellBorderOpacity = hasAnyBg ? 0.05 : 0.1;
                   return (
                     <button
                       key={i}
