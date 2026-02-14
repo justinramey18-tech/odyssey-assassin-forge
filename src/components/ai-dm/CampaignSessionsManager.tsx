@@ -1,9 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Save, Trash2, Edit2, Check, X, FolderOpen, Clock, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, Edit2, Check, X, FolderOpen, Clock, MessageSquare, CheckSquare, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CampaignSession } from '@/hooks/use-campaign-sessions';
 import { Message } from '@/components/oracle/types';
+import { toast } from 'sonner';
 
 interface CampaignSessionsManagerProps {
   onBack: () => void;
@@ -52,6 +53,32 @@ export function CampaignSessionsManager({
   const [renameValue, setRenameValue] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+
+  const isSelectMode = selectedIds.size > 0;
+  const allSelected = useMemo(
+    () => sessions.length > 0 && sessions.every(s => selectedIds.has(s.id)),
+    [sessions, selectedIds]
+  );
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sessions.map(s => s.id)));
+    }
+  }, [allSelected, sessions]);
 
   const handleSaveNew = useCallback(async () => {
     if (!saveName.trim()) return;
@@ -84,6 +111,24 @@ export function CampaignSessionsManager({
     setDeleteConfirmId(null);
   }, [onDelete]);
 
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    setIsDeleting(true);
+    try {
+      const ids = Array.from(selectedIds);
+      for (const id of ids) {
+        await onDelete(id);
+      }
+      setSelectedIds(new Set());
+      setShowBulkConfirm(false);
+      toast.success(`${ids.length} campaign${ids.length > 1 ? 's' : ''} deleted`);
+    } catch (e) {
+      console.error('Bulk delete failed:', e);
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [selectedIds, onDelete]);
+
   if (!isSignedIn) {
     return (
       <div className="fixed inset-0 z-[70] flex flex-col bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]">
@@ -114,7 +159,73 @@ export function CampaignSessionsManager({
           <FolderOpen className="w-5 h-5 text-amber-400" />
           <h1 className="text-base font-cinzel text-amber-200 tracking-wide">Campaigns</h1>
         </div>
+        {isSelectMode && (
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="text-xs text-white/50 hover:text-white/80 transition-colors px-2 py-1"
+            style={{ touchAction: 'manipulation' }}
+          >
+            Cancel
+          </button>
+        )}
       </header>
+
+      {/* Select All + Bulk Delete Bar */}
+      {sessions.length > 0 && (
+        <div className="flex items-center justify-between px-3 py-1.5 bg-black/20 border-b border-amber-900/15">
+          <button
+            onClick={toggleSelectAll}
+            className="flex items-center gap-2 text-xs text-white/50 hover:text-white/80 transition-colors py-1"
+            style={{ touchAction: 'manipulation' }}
+          >
+            {allSelected ? (
+              <CheckSquare className="w-4 h-4 text-amber-400" />
+            ) : (
+              <Square className="w-4 h-4" />
+            )}
+            {allSelected ? 'Deselect All' : 'Select All'}
+          </button>
+          <AnimatePresence>
+            {isSelectMode && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+              >
+                {showBulkConfirm ? (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-red-400">Delete {selectedIds.size}?</span>
+                    <button
+                      onClick={handleBulkDelete}
+                      disabled={isDeleting}
+                      className="px-2 py-0.5 rounded bg-red-900/50 text-red-300 text-[10px] hover:bg-red-900/70 transition-colors disabled:opacity-50"
+                      style={{ touchAction: 'manipulation' }}
+                    >
+                      {isDeleting ? '...' : 'Confirm'}
+                    </button>
+                    <button
+                      onClick={() => setShowBulkConfirm(false)}
+                      className="px-2 py-0.5 rounded bg-white/5 text-white/40 text-[10px] hover:bg-white/10 transition-colors"
+                      style={{ touchAction: 'manipulation' }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowBulkConfirm(true)}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-900/30 border border-red-500/20 text-red-400 text-xs hover:bg-red-900/50 transition-colors"
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete {selectedIds.size}
+                  </button>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
 
       {/* Save Actions */}
       <div className="px-3 py-2 bg-black/30 border-b border-amber-900/20 space-y-2">
@@ -203,11 +314,25 @@ export function CampaignSessionsManager({
               key={session.id}
               className={cn(
                 "bg-white/5 border rounded-xl p-3 transition-colors",
-                session.id === activeCampaignId ? "border-amber-500/40 bg-amber-900/10" : "border-amber-900/20"
+                session.id === activeCampaignId ? "border-amber-500/40 bg-amber-900/10" : "border-amber-900/20",
+                selectedIds.has(session.id) && "border-red-500/40 bg-red-900/10"
               )}
             >
               {/* Name / Rename */}
-              <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-2 mb-1.5">
+                {/* Checkbox */}
+                <button
+                  onClick={() => toggleSelect(session.id)}
+                  className="shrink-0 p-0.5"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  {selectedIds.has(session.id) ? (
+                    <CheckSquare className="w-4 h-4 text-red-400" />
+                  ) : (
+                    <Square className="w-4 h-4 text-white/25" />
+                  )}
+                </button>
+
                 {renamingId === session.id ? (
                   <div className="flex items-center gap-1 flex-1 mr-2">
                     <input
@@ -237,7 +362,7 @@ export function CampaignSessionsManager({
               </div>
 
               {/* Meta */}
-              <div className="flex items-center gap-3 mb-2">
+              <div className="flex items-center gap-3 mb-2 pl-6">
                 <span className="flex items-center gap-1 text-[10px] text-white/30">
                   <MessageSquare className="w-3 h-3" />
                   {session.messages.length} msgs
@@ -251,49 +376,51 @@ export function CampaignSessionsManager({
                 )}
               </div>
 
-              {/* Actions */}
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => onLoad(session)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-amber-900/30 border border-amber-500/20 text-amber-300 text-xs font-cinzel hover:bg-amber-900/50 transition-colors"
-                  style={{ touchAction: 'manipulation' }}
-                >
-                  <FolderOpen className="w-3.5 h-3.5" /> Load
-                </button>
-                <button
-                  onClick={() => { setRenamingId(session.id); setRenameValue(session.name); }}
-                  className="p-1.5 rounded hover:bg-white/10 transition-colors"
-                  style={{ touchAction: 'manipulation' }}
-                >
-                  <Edit2 className="w-3.5 h-3.5 text-white/50" />
-                </button>
-                {deleteConfirmId === session.id ? (
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleDelete(session.id)}
-                      className="px-2 py-0.5 rounded bg-red-900/40 text-red-400 text-[10px] hover:bg-red-900/60 transition-colors"
-                      style={{ touchAction: 'manipulation' }}
-                    >
-                      Delete
-                    </button>
-                    <button
-                      onClick={() => setDeleteConfirmId(null)}
-                      className="px-2 py-0.5 rounded bg-white/5 text-white/40 text-[10px] hover:bg-white/10 transition-colors"
-                      style={{ touchAction: 'manipulation' }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
+              {/* Actions — hidden in select mode */}
+              {!isSelectMode && (
+                <div className="flex items-center gap-1.5 pl-6">
                   <button
-                    onClick={() => setDeleteConfirmId(session.id)}
+                    onClick={() => onLoad(session)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-amber-900/30 border border-amber-500/20 text-amber-300 text-xs font-cinzel hover:bg-amber-900/50 transition-colors"
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    <FolderOpen className="w-3.5 h-3.5" /> Load
+                  </button>
+                  <button
+                    onClick={() => { setRenamingId(session.id); setRenameValue(session.name); }}
                     className="p-1.5 rounded hover:bg-white/10 transition-colors"
                     style={{ touchAction: 'manipulation' }}
                   >
-                    <Trash2 className="w-3.5 h-3.5 text-white/50" />
+                    <Edit2 className="w-3.5 h-3.5 text-white/50" />
                   </button>
-                )}
-              </div>
+                  {deleteConfirmId === session.id ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleDelete(session.id)}
+                        className="px-2 py-0.5 rounded bg-red-900/40 text-red-400 text-[10px] hover:bg-red-900/60 transition-colors"
+                        style={{ touchAction: 'manipulation' }}
+                      >
+                        Delete
+                      </button>
+                      <button
+                        onClick={() => setDeleteConfirmId(null)}
+                        className="px-2 py-0.5 rounded bg-white/5 text-white/40 text-[10px] hover:bg-white/10 transition-colors"
+                        style={{ touchAction: 'manipulation' }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setDeleteConfirmId(session.id)}
+                      className="p-1.5 rounded hover:bg-white/10 transition-colors"
+                      style={{ touchAction: 'manipulation' }}
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-white/50" />
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           ))
         )}
