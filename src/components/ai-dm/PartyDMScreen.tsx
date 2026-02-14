@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, ListChecks } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,7 +8,7 @@ import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 import type { usePartyDm, PartyDmMessage, PartyDmPrompt } from '@/hooks/use-party-dm';
 import { DMDiceRoller } from './DMDiceRoller';
-import { DMQuickActions } from './DMQuickActions';
+import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import type { CharacterContext } from '@/components/oracle/types';
 
 type PartyDmReturn = ReturnType<typeof usePartyDm>;
@@ -417,14 +417,24 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
     partyDm.regenerateMessage?.(messageId);
   }, [partyDm]);
 
+  // Dice roll: append result to input field
   const handleDiceRoll = useCallback((message: string) => {
-    const senderName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
-    partyDm.addMediaMessage(message, senderName);
-  }, [members, currentUserId, partyDm]);
+    setInput(prev => prev ? `${prev}\n${message}` : message);
+  }, []);
 
-  const handleQuickAction = useCallback((prompt: string) => {
-    partyDm.submitPrompt(prompt);
-  }, [partyDm]);
+  // Quick Actions drawer integration
+  const drawerContext = usePromptDrawers();
+
+  // Set prompt capture target when component mounts, clear on unmount
+  useEffect(() => {
+    drawerContext.setQuickActionPromptTarget((prompt: string) => {
+      setInput(prev => prev ? `${prev}\n${prompt}` : prompt);
+      toast.success('Prompt added to input');
+    });
+    return () => {
+      drawerContext.setQuickActionPromptTarget(null);
+    };
+  }, [drawerContext]);
 
   const hasSubmitted = !!partyDm.myPrompt;
   const isReady = partyDm.myPrompt?.is_ready ?? false;
@@ -708,12 +718,23 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
           </div>
         ) : !hasSubmitted ? (
           <div className="space-y-2 max-w-2xl mx-auto">
-            {/* Quick Actions */}
-            <DMQuickActions
-              onSelect={handleQuickAction}
-              isLoading={partyDm.isGenerating}
-              variant="inline"
-            />
+            {/* Quick Actions Drawer Trigger */}
+            <button
+              onClick={() => drawerContext.openQuickActionsDrawer()}
+              disabled={partyDm.isGenerating}
+              className={cn(
+                "flex items-center gap-2 w-full px-3 py-2 rounded-xl text-left text-sm transition-all",
+                "bg-emerald-900/20 border border-emerald-500/20",
+                "hover:bg-emerald-900/40 hover:border-emerald-500/30",
+                "disabled:opacity-40 disabled:cursor-not-allowed",
+                "text-emerald-300/80"
+              )}
+              style={{ touchAction: 'manipulation' }}
+            >
+              <ListChecks className="w-4 h-4 text-emerald-400" />
+              <span className="font-semibold text-xs">Quick Actions</span>
+              <span className="text-[10px] text-emerald-300/50 ml-auto">Tap to browse abilities, spells & items</span>
+            </button>
             <div className="flex items-end gap-2">
               {currentUserId && (
                 <div className="flex gap-1 shrink-0">
