@@ -228,6 +228,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   }, [partyId, user]);
 
   const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
+  const [lastAutoSaveTime, setLastAutoSaveTime] = useState<Date | null>(null);
 
   // Silent auto-save after each DM response (no toasts)
   const silentAutoSave = useCallback(async (allMessages: PartyDmMessage[], summary: string | null) => {
@@ -264,6 +265,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           .single();
         if (data) setActiveCampaignId(data.id);
       }
+      setLastAutoSaveTime(new Date());
     } catch (error) {
       console.warn('[Party Auto-Save] Failed:', error);
     }
@@ -835,6 +837,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     allReady,
     myPrompt,
     activeCampaignId,
+    lastAutoSaveTime,
     startSession,
     endSession,
     startNewCampaign,

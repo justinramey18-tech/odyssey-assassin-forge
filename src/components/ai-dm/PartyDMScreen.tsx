@@ -35,6 +35,17 @@ interface PartyDMScreenProps {
 
 const MEMBER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7'];
 
+function formatAutoSaveTime(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSecs = Math.floor(diffMs / 1000);
+  if (diffSecs < 10) return 'just now';
+  if (diffSecs < 60) return `${diffSecs}s ago`;
+  const diffMins = Math.floor(diffSecs / 60);
+  if (diffMins < 60) return `${diffMins}m ago`;
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
 function getMemberColor(userId: string, members: Array<{ user_id: string }>): string {
   const idx = members.findIndex(m => m.user_id === userId);
   return MEMBER_COLORS[idx >= 0 ? idx % MEMBER_COLORS.length : 0];
@@ -324,6 +335,14 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
 
 export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, characterContext, showBattleMap, battleMapContent }: PartyDMScreenProps) {
   const [input, setInput] = useState('');
+  const [, setTick] = useState(0);
+
+  // Re-render every 30s to keep auto-save timestamp fresh
+  useEffect(() => {
+    if (!partyDm.lastAutoSaveTime) return;
+    const id = setInterval(() => setTick(t => t + 1), 30000);
+    return () => clearInterval(id);
+  }, [partyDm.lastAutoSaveTime]);
   
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
@@ -452,8 +471,18 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
             <ArrowLeft className="w-5 h-5 text-white/80" />
           </button>
           <Users className="w-5 h-5 text-primary" />
-          <h1 className="text-base font-cinzel text-amber-200 tracking-wide">Party DM</h1>
-          <span className="text-[10px] text-muted-foreground">{memberCount} players</span>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <h1 className="text-base font-cinzel text-amber-200 tracking-wide">Party DM</h1>
+              <span className="text-[10px] text-muted-foreground">{memberCount} players</span>
+            </div>
+            {partyDm.lastAutoSaveTime && (
+              <span className="text-[9px] text-white/25 leading-none">
+                <Save className="w-2.5 h-2.5 inline mr-0.5 -mt-px" />
+                Saved {formatAutoSaveTime(partyDm.lastAutoSaveTime)}
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide flex-shrink min-w-0">
           {/* Auto-Sync Toggle */}
