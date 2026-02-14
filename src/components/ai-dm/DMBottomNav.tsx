@@ -50,8 +50,14 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
   }, [onExpandedChange]);
 
   const handleToggle = useCallback(() => {
+    if (!isExpanded) {
+      // Auto-select dice tab when expanding for 1-click access
+      if (!activeTab) {
+        onTabChange('dice');
+      }
+    }
     onExpandedChange(!isExpanded);
-  }, [isExpanded, onExpandedChange]);
+  }, [isExpanded, onExpandedChange, activeTab, onTabChange]);
 
   const showDiceContent = isExpanded && activeTab === 'dice' && diceContent;
 
@@ -99,7 +105,13 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
                   return (
                     <button
                       key={tab.id}
-                      onClick={() => onTabChange(tab.id)}
+                      onClick={() => {
+                        onTabChange(tab.id);
+                        // Auto-expand when selecting dice so content renders in one tap
+                        if (tab.id === 'dice' && !isExpanded) {
+                          onExpandedChange(true);
+                        }
+                      }}
                       disabled={disabled}
                       className={cn(
                         "flex-1 flex flex-col items-center justify-center gap-1 transition-all active:scale-95 relative",
