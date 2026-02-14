@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, ListChecks, MessageSquare, Plus, Save } from 'lucide-react';
+import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, ListChecks, MessageSquare, Plus, Save, Gem } from 'lucide-react';
+import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -454,6 +455,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
 
   // Local Quick Actions drawer state
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
+  const [showStoneDrawer, setShowStoneDrawer] = useState(false);
 
   const handleUsePrompt = useCallback((prompt: string) => {
     setInput(prev => prev ? `${prev}\n${prompt}` : prompt);
@@ -928,23 +930,39 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
           </div>
         ) : !hasSubmitted ? (
           <div className="space-y-2 max-w-2xl mx-auto">
-            {/* Quick Actions Drawer Trigger */}
-            <button
-              onClick={() => setQuickActionsOpen(true)}
-              disabled={partyDm.isGenerating}
-              className={cn(
-                "flex items-center gap-2 w-full px-3 py-2 rounded-xl text-left text-sm transition-all",
-                "bg-emerald-900/20 border border-emerald-500/20",
-                "hover:bg-emerald-900/40 hover:border-emerald-500/30",
-                "disabled:opacity-40 disabled:cursor-not-allowed",
-                "text-emerald-300/80"
-              )}
-              style={{ touchAction: 'manipulation' }}
-            >
-              <ListChecks className="w-4 h-4 text-emerald-400" />
-              <span className="font-semibold text-xs">Quick Actions</span>
-              <span className="text-[10px] text-emerald-300/50 ml-auto">Tap to browse abilities, spells & items</span>
-            </button>
+            {/* Quick Actions & Gem Drawer Triggers */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setQuickActionsOpen(true)}
+                disabled={partyDm.isGenerating}
+                className={cn(
+                  "flex-1 flex items-center gap-2 px-3 py-2 rounded-xl text-left text-sm transition-all",
+                  "bg-emerald-900/20 border border-emerald-500/20",
+                  "hover:bg-emerald-900/40 hover:border-emerald-500/30",
+                  "disabled:opacity-40 disabled:cursor-not-allowed",
+                  "text-emerald-300/80"
+                )}
+                style={{ touchAction: 'manipulation' }}
+              >
+                <ListChecks className="w-4 h-4 text-emerald-400" />
+                <span className="font-semibold text-xs">Quick Actions</span>
+              </button>
+              <button
+                onClick={() => setShowStoneDrawer(true)}
+                disabled={partyDm.isGenerating}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all",
+                  "bg-amber-900/20 border border-amber-500/20",
+                  "hover:bg-amber-900/40 hover:border-amber-500/30",
+                  "disabled:opacity-40 disabled:cursor-not-allowed",
+                  "text-amber-300/80"
+                )}
+                style={{ touchAction: 'manipulation' }}
+              >
+                <Gem className="w-4 h-4 text-amber-400" />
+                <span className="font-semibold text-xs">RP</span>
+              </button>
+            </div>
             <div className="flex items-end gap-2">
               {currentUserId && (
                 <div className="flex gap-1 shrink-0">
@@ -1081,6 +1099,13 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
         open={quickActionsOpen}
         onOpenChange={setQuickActionsOpen}
         characterContext={characterContext}
+        characterName={characterContext?.name || 'The Adventurer'}
+        onUsePrompt={handleUsePrompt}
+      />
+      {/* Infinity Stone DM Drawer */}
+      <InfinityStoneDMDrawer
+        open={showStoneDrawer}
+        onOpenChange={setShowStoneDrawer}
         characterName={characterContext?.name || 'The Adventurer'}
         onUsePrompt={handleUsePrompt}
       />

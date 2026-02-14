@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Zap, Map, Film, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Zap, Map, Film, Image as ImageIcon, Gem } from 'lucide-react';
+import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { CampaignDropdown } from './CampaignDropdown';
 import { cn } from '@/lib/utils';
 import { useAIDM } from '@/hooks/use-ai-dm';
@@ -199,6 +200,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const [showContext, setShowContext] = useState(false);
   const [showGuides, setShowGuides] = useState(false);
   const [showSessions, setShowSessions] = useState(false);
+  const [showStoneDrawer, setShowStoneDrawer] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -625,9 +627,18 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           }}
         />
         <div className="flex items-end gap-2 max-w-2xl mx-auto">
-          {/* Attach button */}
+          {/* Attach buttons + Gem */}
           {userId && (
             <div className="flex gap-1 shrink-0">
+              <button
+                onClick={() => setShowStoneDrawer(true)}
+                disabled={isLoading}
+                className="p-2.5 rounded-xl border border-amber-500/20 hover:border-amber-500/40 bg-amber-900/20 hover:bg-amber-900/40 transition-colors"
+                style={{ touchAction: 'manipulation' }}
+                title="RP Prompts"
+              >
+                <Gem className="w-5 h-5 text-amber-400" />
+              </button>
               <button
                 onClick={() => photoInputRef.current?.click()}
                 disabled={isLoading || isUploadingPhoto}
@@ -722,6 +733,13 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           onRename={campaignSessions.renameSession}
         />
       )}
+      {/* Infinity Stone DM Drawer */}
+      <InfinityStoneDMDrawer
+        open={showStoneDrawer}
+        onOpenChange={setShowStoneDrawer}
+        characterName={characterName}
+        onUsePrompt={(prompt) => setInput(prev => prev ? `${prev}\n${prompt}` : prompt)}
+      />
     </div>
   );
 }
