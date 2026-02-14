@@ -2058,12 +2058,6 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         isPartyCreator={isPartyMode ? partySync.party.isCreator : false}
         autoSyncCallbacks={autoSyncCallbacks}
         onOpenPartyChat={() => setOpenPartyChatRequested(true)}
-        syncedMapTierBackgrounds={isPartyMode ? partySync.mapTierBackgrounds : undefined}
-        syncedMapBackgroundOpacity={isPartyMode ? partySync.mapBackgroundOpacity : undefined}
-        syncedMapCustomTiers={isPartyMode ? partySync.mapCustomTiers : undefined}
-        onUpdateMapTierBackgrounds={isPartyMode ? partySync.updateMapTierBackgrounds : undefined}
-        onUpdateMapBackgroundOpacity={isPartyMode ? partySync.updateMapBackgroundOpacity : undefined}
-        onUpdateMapCustomTiers={isPartyMode ? partySync.updateMapCustomTiers : undefined}
       >
         {isPartyMode && (
           <IncomingHealOverlay
@@ -2244,12 +2238,6 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         partyId={isPartyMode ? partySync.party.partyId : null}
         isPartyCreator={isPartyMode ? partySync.party.isCreator : false}
         autoSyncCallbacks={autoSyncCallbacks}
-        syncedMapTierBackgrounds={isPartyMode ? partySync.mapTierBackgrounds : undefined}
-        syncedMapBackgroundOpacity={isPartyMode ? partySync.mapBackgroundOpacity : undefined}
-        syncedMapCustomTiers={isPartyMode ? partySync.mapCustomTiers : undefined}
-        onUpdateMapTierBackgrounds={isPartyMode ? partySync.updateMapTierBackgrounds : undefined}
-        onUpdateMapBackgroundOpacity={isPartyMode ? partySync.updateMapBackgroundOpacity : undefined}
-        onUpdateMapCustomTiers={isPartyMode ? partySync.updateMapCustomTiers : undefined}
       >
       {isPartyMode && (
         <IncomingHealOverlay

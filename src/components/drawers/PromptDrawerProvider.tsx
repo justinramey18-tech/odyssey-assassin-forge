@@ -150,13 +150,6 @@ interface PromptDrawerProviderProps {
   isPartyCreator?: boolean;
   // Party chat callback (opens fullscreen party chat from Party DM)
   onOpenPartyChat?: () => void;
-  // Synced map data for Party DM
-  syncedMapTierBackgrounds?: { tierId: string; imageUrl: string }[];
-  syncedMapBackgroundOpacity?: number;
-  syncedMapCustomTiers?: { id: string; distancePerSquare: number; distanceUnit: string }[];
-  onUpdateMapTierBackgrounds?: (tierBackgrounds: { tierId: string; imageUrl: string }[]) => Promise<void>;
-  onUpdateMapBackgroundOpacity?: (opacity: number) => Promise<void>;
-  onUpdateMapCustomTiers?: (customTiers: { id: string; distancePerSquare: number; distanceUnit: string }[]) => Promise<void>;
   // Auto-sync callbacks for AI DM
   autoSyncCallbacks?: {
     onHPChange: (change: number, type: 'damage' | 'healing') => void;
@@ -210,12 +203,6 @@ export function PromptDrawerProvider({
   partyId,
   isPartyCreator = false,
   onOpenPartyChat,
-  syncedMapTierBackgrounds,
-  syncedMapBackgroundOpacity,
-  syncedMapCustomTiers,
-  onUpdateMapTierBackgrounds,
-  onUpdateMapBackgroundOpacity,
-  onUpdateMapCustomTiers,
   autoSyncCallbacks,
 }: PromptDrawerProviderProps) {
   const [infinityOpen, setInfinityOpen] = useState(false);
@@ -685,12 +672,6 @@ export function PromptDrawerProvider({
               characterName={character.name}
               onShowChat={onOpenPartyChat ? () => { setPartyDMOpen(false); onOpenPartyChat(); } : undefined}
               autoSyncCallbacks={autoSyncCallbacks}
-              syncedTierBackgrounds={syncedMapTierBackgrounds}
-              syncedBackgroundOpacity={syncedMapBackgroundOpacity}
-              syncedCustomTiers={syncedMapCustomTiers}
-              onUpdateMapTierBackgrounds={onUpdateMapTierBackgrounds}
-              onUpdateMapBackgroundOpacity={onUpdateMapBackgroundOpacity}
-              onUpdateMapCustomTiers={onUpdateMapCustomTiers}
             />
           )}
         </>

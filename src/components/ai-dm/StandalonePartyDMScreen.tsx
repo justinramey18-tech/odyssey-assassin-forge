@@ -1,5 +1,4 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
-import { toast } from 'sonner';
 import { useGMGuides } from '@/hooks/use-gm-guides';
 import { usePartyDm } from '@/hooks/use-party-dm';
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
@@ -9,7 +8,7 @@ import { InlineBattleMap } from './InlineBattleMap';
 import { PartyCampaignSaves } from './PartyCampaignSaves';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { PartyMember } from '@/hooks/use-party-sync';
-import type { MapMarker, TierBackground, ScaleTier } from '@/components/party/battlemap/types';
+import type { MapMarker } from '@/components/party/battlemap/types';
 
 // Stable no-op fallbacks (module-level for referential stability)
 const NOOP = () => {};
@@ -34,13 +33,6 @@ interface StandalonePartyDMScreenProps {
     getCurrentHP: () => number;
     getCurrentGold: () => number;
   };
-  // Synced map data for party mode
-  syncedTierBackgrounds?: { tierId: string; imageUrl: string }[];
-  syncedBackgroundOpacity?: number;
-  syncedCustomTiers?: { id: string; distancePerSquare: number; distanceUnit: string }[];
-  onUpdateMapTierBackgrounds?: (tierBackgrounds: { tierId: string; imageUrl: string }[]) => Promise<void>;
-  onUpdateMapBackgroundOpacity?: (opacity: number) => Promise<void>;
-  onUpdateMapCustomTiers?: (customTiers: { id: string; distancePerSquare: number; distanceUnit: string }[]) => Promise<void>;
 }
 
 export function StandalonePartyDMScreen({
@@ -53,12 +45,6 @@ export function StandalonePartyDMScreen({
   characterName,
   onShowChat,
   autoSyncCallbacks,
-  syncedTierBackgrounds,
-  syncedBackgroundOpacity,
-  syncedCustomTiers,
-  onUpdateMapTierBackgrounds,
-  onUpdateMapBackgroundOpacity,
-  onUpdateMapCustomTiers,
 }: StandalonePartyDMScreenProps) {
   const [showGuides, setShowGuides] = useState(false);
   const [showSaves, setShowSaves] = useState(false);
@@ -142,37 +128,6 @@ export function StandalonePartyDMScreen({
     );
   }
 
-  // Build sync callbacks for InlineBattleMap in party mode
-  const handleSyncTierUpload = useCallback(async (tierId: string, file: File) => {
-    if (!onUpdateMapTierBackgrounds) return;
-    const ext = file.name.split('.').pop() || 'png';
-    const path = `battlemap-backgrounds/party-tier-${tierId}-${Date.now()}.${ext}`;
-    const { supabase } = await import('@/integrations/supabase/client');
-    const { error } = await supabase.storage.from('gear-images').upload(path, file, { upsert: true });
-    if (error) { toast.error(error.message || 'Upload failed'); return; }
-    const { data: { publicUrl } } = supabase.storage.from('gear-images').getPublicUrl(path);
-    const updated = [...(syncedTierBackgrounds || []).filter(b => b.tierId !== tierId), { tierId, imageUrl: publicUrl }];
-    await onUpdateMapTierBackgrounds(updated);
-  }, [onUpdateMapTierBackgrounds, syncedTierBackgrounds]);
-
-  const handleSyncTierRemove = useCallback(async (tierId: string) => {
-    if (!onUpdateMapTierBackgrounds) return;
-    const updated = (syncedTierBackgrounds || []).filter(b => b.tierId !== tierId);
-    await onUpdateMapTierBackgrounds(updated);
-  }, [onUpdateMapTierBackgrounds, syncedTierBackgrounds]);
-
-  const handleSyncOpacityChange = useCallback(async (opacity: number) => {
-    await onUpdateMapBackgroundOpacity?.(opacity);
-  }, [onUpdateMapBackgroundOpacity]);
-
-  const handleSyncTierConfigChange = useCallback(async (tierId: string, updates: Partial<Pick<import('@/components/party/battlemap/types').ScaleTier, 'distancePerSquare' | 'distanceUnit'>>) => {
-    if (!onUpdateMapCustomTiers || !syncedCustomTiers) return;
-    const updated = syncedCustomTiers.map(t => t.id === tierId ? { ...t, ...updates } : t);
-    await onUpdateMapCustomTiers(updated);
-  }, [onUpdateMapCustomTiers, syncedCustomTiers]);
-
-  const isPartyMode = !!partyId;
-
   const battleMapContent = (
     <InlineBattleMap
       characterName={characterName}
@@ -182,15 +137,6 @@ export function StandalonePartyDMScreen({
       onMarkersChange={handleMarkersChange}
       onGridSizeChange={handleGridSizeChange}
       onClose={handleCloseBattleMap}
-      isPartyMode={isPartyMode}
-      isCreator={isPartyCreator}
-      syncedTierBackgrounds={syncedTierBackgrounds as any}
-      syncedBackgroundOpacity={syncedBackgroundOpacity}
-      syncedCustomTiers={syncedCustomTiers as any}
-      onSyncTierBackgroundUpload={handleSyncTierUpload}
-      onSyncTierBackgroundRemove={handleSyncTierRemove}
-      onSyncOpacityChange={handleSyncOpacityChange}
-      onSyncTierConfigChange={handleSyncTierConfigChange}
     />
   );
 
