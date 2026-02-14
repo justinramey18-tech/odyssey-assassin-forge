@@ -5,6 +5,7 @@ import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
 import { PartyDMScreen } from './PartyDMScreen';
 import { GMGuidesManager } from './GMGuidesManager';
 import { InlineBattleMap } from './InlineBattleMap';
+import { PartyCampaignSaves } from './PartyCampaignSaves';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { PartyMember } from '@/hooks/use-party-sync';
 import type { MapMarker } from '@/components/party/battlemap/types';
@@ -46,6 +47,7 @@ export function StandalonePartyDMScreen({
   autoSyncCallbacks,
 }: StandalonePartyDMScreenProps) {
   const [showGuides, setShowGuides] = useState(false);
+  const [showSaves, setShowSaves] = useState(false);
   const [showBattleMap, setShowBattleMap] = useState(false);
   const [pendingMapAdds, setPendingMapAdds] = useState<MapMarker[]>([]);
   const [pendingMapRemovals, setPendingMapRemovals] = useState<string[]>([]);
@@ -149,6 +151,7 @@ export function StandalonePartyDMScreen({
         members={partyMembers.map(m => ({ user_id: m.user_id, character_name: m.character_name }))}
         onShowGuides={() => setShowGuides(true)}
         onShowMap={() => setShowBattleMap(true)}
+        onShowSaves={() => setShowSaves(true)}
         onShowChat={onShowChat}
         autoSyncEnabled={autoSync.autoSyncEnabled}
         onToggleAutoSync={autoSync.toggleAutoSync}
@@ -171,6 +174,18 @@ export function StandalonePartyDMScreen({
           onUpdate={gmGuides.updateGuide}
           onDelete={gmGuides.deleteGuide}
           onToggle={gmGuides.toggleGuide}
+        />
+      )}
+
+      {/* Campaign Saves Overlay */}
+      {showSaves && (
+        <PartyCampaignSaves
+          onBack={() => setShowSaves(false)}
+          activeCampaignId={partyDm.activeCampaignId}
+          hasMessages={partyDm.messages.length > 0}
+          onSave={partyDm.saveCampaign}
+          onLoad={partyDm.loadCampaign}
+          isCreator={isPartyCreator}
         />
       )}
     </div>

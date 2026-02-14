@@ -227,7 +227,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     toast.info('Party DM session ended');
   }, [partyId, user]);
 
-  const startNewCampaign = useCallback(async () => {
+  const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
+
+  const startNewCampaign = useCallback(async (campaignName?: string) => {
     if (!partyId || !user || !isCreator) return;
     // Delete all messages for this party
     await (supabase.from('party_dm_messages') as any)
@@ -256,7 +258,96 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     setSessionConfig(config);
     setMessages([]);
     setCurrentPrompts([]);
-    toast.success('New campaign started!');
+    setActiveCampaignId(null);
+    toast.success(campaignName ? `"${campaignName}" started!` : 'New campaign started!');
+  }, [partyId, user, isCreator, sessionConfig]);
+
+  const saveCampaign = useCallback(async (name: string, existingId?: string): Promise<string | null> => {
+    if (!partyId || !user) {
+      toast.error('Sign in to save campaigns');
+      return null;
+    }
+    try {
+      const serializedMessages = messages.map(m => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        sender_user_id: m.sender_user_id,
+        sender_name: m.sender_name,
+        created_at: m.created_at,
+      }));
+
+      if (existingId) {
+        const { error } = await supabase
+          .from('ai_dm_campaigns')
+          .update({
+            name,
+            messages: serializedMessages as any,
+            campaign_summary: sessionConfig?.campaignSummary || null,
+          })
+          .eq('id', existingId)
+          .eq('user_id', user.id);
+        if (error) throw error;
+        toast.success('Campaign saved');
+        setActiveCampaignId(existingId);
+        return existingId;
+      } else {
+        const { data, error } = await supabase
+          .from('ai_dm_campaigns')
+          .insert({
+            user_id: user.id,
+            name,
+            messages: serializedMessages as any,
+            campaign_summary: sessionConfig?.campaignSummary || null,
+          })
+          .select('id')
+          .single();
+        if (error) throw error;
+        toast.success('Campaign saved');
+        setActiveCampaignId(data.id);
+        return data.id;
+      }
+    } catch (error) {
+      console.error('Failed to save party campaign:', error);
+      toast.error('Failed to save campaign');
+      return null;
+    }
+  }, [partyId, user, messages, sessionConfig]);
+
+  const loadCampaign = useCallback(async (campaignId: string, campaignMessages: any[], campaignSummary: string | null) => {
+    if (!partyId || !user || !isCreator) return;
+    // Clear existing
+    await (supabase.from('party_dm_messages') as any).delete().eq('party_id', partyId);
+    await (supabase.from('party_dm_prompts') as any).delete().eq('party_id', partyId);
+
+    // Insert loaded messages
+    for (const msg of campaignMessages) {
+      await (supabase.from('party_dm_messages') as any).insert({
+        party_id: partyId,
+        role: msg.role,
+        content: msg.content,
+        sender_user_id: msg.sender_user_id || null,
+        sender_name: msg.sender_name || (msg.role === 'assistant' ? 'DM' : 'Party'),
+      });
+    }
+
+    // Update session config
+    const roundId = crypto.randomUUID();
+    const config: DmSessionConfig = {
+      ...(sessionConfig || { active: true, mode: 'shared', isGenerating: false }),
+      currentRoundId: roundId,
+      campaignSummary,
+      isGenerating: false,
+    };
+    await (supabase.from('party_shared_state') as any).upsert({
+      party_id: partyId,
+      user_id: user.id,
+      state_type: 'dm_session',
+      state_data: config,
+    }, { onConflict: 'party_id,user_id,state_type' });
+    setSessionConfig(config);
+    setActiveCampaignId(campaignId);
+    toast.success('Campaign loaded!');
   }, [partyId, user, isCreator, sessionConfig]);
 
   const submitPrompt = useCallback(async (text: string) => {
@@ -694,9 +785,12 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     isSummarizing,
     allReady,
     myPrompt,
+    activeCampaignId,
     startSession,
     endSession,
     startNewCampaign,
+    saveCampaign,
+    loadCampaign,
     submitPrompt,
     editPrompt,
     retractPrompt,
