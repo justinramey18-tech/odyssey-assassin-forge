@@ -476,12 +476,20 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
               <h1 className="text-base font-cinzel text-amber-200 tracking-wide">Party DM</h1>
               <span className="text-[10px] text-muted-foreground">{memberCount} players</span>
             </div>
-            {partyDm.lastAutoSaveTime && (
-              <span className="text-[9px] text-white/25 leading-none">
+            {partyDm.messages.length > 0 ? (
+              <button
+                onClick={() => {
+                  const name = partyDm.activeCampaignId ? undefined : `Party Campaign ${new Date().toLocaleDateString()}`;
+                  partyDm.saveCampaign(name || 'Party Campaign', partyDm.activeCampaignId || undefined);
+                }}
+                className="text-[9px] text-white/25 leading-none hover:text-amber-400/60 transition-colors text-left"
+                style={{ touchAction: 'manipulation' }}
+                title="Tap to save now"
+              >
                 <Save className="w-2.5 h-2.5 inline mr-0.5 -mt-px" />
-                Saved {formatAutoSaveTime(partyDm.lastAutoSaveTime)}
-              </span>
-            )}
+                {partyDm.lastAutoSaveTime ? `Saved ${formatAutoSaveTime(partyDm.lastAutoSaveTime)} · Tap to save` : 'Tap to save now'}
+              </button>
+            ) : null}
           </div>
         </div>
         <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide flex-shrink min-w-0">
