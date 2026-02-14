@@ -27,7 +27,7 @@ export const DISTANCE_UNITS: { id: DistanceUnit; label: string }[] = [
   { id: 'leagues', label: 'Leagues' },
 ];
 
-export const DISTANCE_PER_SQUARE_PRESETS = [1, 2, 4, 5, 10, 15, 20, 25, 30, 50, 100] as const;
+export const DISTANCE_PER_SQUARE_PRESETS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 50, 100] as const;
 
 export function getDistanceUnitAbbr(unit: DistanceUnit): string {
   switch (unit) {
