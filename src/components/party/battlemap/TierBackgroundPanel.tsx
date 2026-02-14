@@ -39,7 +39,7 @@ export function TierBackgroundPanel({
           Layers
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 p-3" align="start" side="top">
+      <PopoverContent className="w-64 p-3 z-[100]" align="start" side="top">
         <div className="space-y-3">
           {/* Auto-scale toggle */}
           <div className="flex items-center justify-between">
