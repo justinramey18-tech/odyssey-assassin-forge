@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, ListChecks, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, ListChecks, MessageSquare, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -542,6 +542,27 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                 style={{ touchAction: 'manipulation' }}
               >
                 {mode === 'shared' ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+              </button>
+              <button
+                onClick={() => {
+                  toast('Start a new campaign?', {
+                    description: 'This will clear all messages and prompts. This cannot be undone.',
+                    action: {
+                      label: 'New Campaign',
+                      onClick: () => partyDm.startNewCampaign(),
+                    },
+                    cancel: {
+                      label: 'Cancel',
+                      onClick: () => {},
+                    },
+                    duration: 10000,
+                  });
+                }}
+                className="p-1.5 rounded-lg text-xs text-amber-400 hover:bg-amber-900/20 transition-colors"
+                title="Start new campaign"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <Plus className="w-4 h-4" />
               </button>
               <button
                 onClick={partyDm.endSession}

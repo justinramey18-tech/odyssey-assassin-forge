@@ -227,6 +227,38 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     toast.info('Party DM session ended');
   }, [partyId, user]);
 
+  const startNewCampaign = useCallback(async () => {
+    if (!partyId || !user || !isCreator) return;
+    // Delete all messages for this party
+    await (supabase.from('party_dm_messages') as any)
+      .delete()
+      .eq('party_id', partyId);
+    // Delete all prompts for this party
+    await (supabase.from('party_dm_prompts') as any)
+      .delete()
+      .eq('party_id', partyId);
+    // Reset session config with fresh round and no summary
+    const roundId = crypto.randomUUID();
+    const currentMode = sessionConfig?.mode || 'shared';
+    const config: DmSessionConfig = {
+      active: true,
+      mode: currentMode,
+      currentRoundId: roundId,
+      campaignSummary: null,
+      isGenerating: false,
+    };
+    await (supabase.from('party_shared_state') as any).upsert({
+      party_id: partyId,
+      user_id: user.id,
+      state_type: 'dm_session',
+      state_data: config,
+    }, { onConflict: 'party_id,user_id,state_type' });
+    setSessionConfig(config);
+    setMessages([]);
+    setCurrentPrompts([]);
+    toast.success('New campaign started!');
+  }, [partyId, user, isCreator, sessionConfig]);
+
   const submitPrompt = useCallback(async (text: string) => {
     if (!partyId || !user || !sessionConfig) return;
     // Check if already submitted this round
@@ -664,6 +696,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     myPrompt,
     startSession,
     endSession,
+    startNewCampaign,
     submitPrompt,
     editPrompt,
     retractPrompt,
