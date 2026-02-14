@@ -8,6 +8,7 @@ import { FullscreenBattleMap } from './battlemap/FullscreenBattleMap';
 import {
   type MapMarker, type GridSize, type ToolMode, type UndoAction, type AreaColorId,
   type SpellTemplate, type SpellShape, type SpellColorId, type DistanceUnit,
+  type TierBackground, type ScaleTier,
   GRID_SIZE_OPTIONS, INLINE_GRID_SIZE, MEMBER_COLORS, STORAGE_KEY_GRID_SIZE,
 } from './battlemap/types';
 
@@ -24,12 +25,15 @@ interface PartyBattleMapProps {
   backgroundUrl?: string;
   backgroundUploading?: boolean;
   backgroundOpacity?: number;
-  onSetBackground?: (file: File) => void;
-  onClearBackground?: () => void;
   onBackgroundOpacityChange?: (opacity: number) => void;
+  tierBackgrounds?: TierBackground[];
+  onTierBackgroundUpload?: (tierId: string, file: File) => void;
+  onTierBackgroundRemove?: (tierId: string) => void;
+  customTiers?: { id: string; distancePerSquare: number; distanceUnit: string }[];
+  onTierConfigChange?: (tierId: string, updates: Partial<{ distancePerSquare: number; distanceUnit: string }>) => void;
 }
 
-export function PartyBattleMap({ markers, currentUserId, characterName, memberColors, onPlaceMarker, onRemoveMarker, onMoveMarker, backgroundUrl, backgroundUploading, backgroundOpacity, onSetBackground, onClearBackground, onBackgroundOpacityChange }: PartyBattleMapProps) {
+export function PartyBattleMap({ markers, currentUserId, characterName, memberColors, onPlaceMarker, onRemoveMarker, onMoveMarker, backgroundUrl, backgroundUploading, backgroundOpacity, onBackgroundOpacityChange, tierBackgrounds, onTierBackgroundUpload, onTierBackgroundRemove, customTiers, onTierConfigChange }: PartyBattleMapProps) {
   const [addingEnemy, setAddingEnemy] = useState(false);
   const [enemyName, setEnemyName] = useState('');
   const [toolMode, setToolMode] = useState<ToolMode>(null);
@@ -369,9 +373,12 @@ export function PartyBattleMap({ markers, currentUserId, characterName, memberCo
             backgroundUrl={backgroundUrl}
             backgroundUploading={backgroundUploading}
             backgroundOpacity={backgroundOpacity}
-            onSetBackground={onSetBackground}
-            onClearBackground={onClearBackground}
             onBackgroundOpacityChange={onBackgroundOpacityChange}
+            tierBackgrounds={tierBackgrounds}
+            onTierBackgroundUpload={onTierBackgroundUpload}
+            onTierBackgroundRemove={onTierBackgroundRemove}
+            customTiers={customTiers as ScaleTier[] | undefined}
+            onTierConfigChange={onTierConfigChange as any}
             distancePerSquare={distancePerSquare}
             distanceUnit={distanceUnit}
             onDistancePerSquareChange={setDistancePerSquare}
