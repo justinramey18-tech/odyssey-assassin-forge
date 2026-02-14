@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Zap, Map, Film, Image as ImageIcon, Gem } from 'lucide-react';
+import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Zap, Map, Film, Image as ImageIcon, Gem, Swords } from 'lucide-react';
+import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { CampaignDropdown } from './CampaignDropdown';
 import { cn } from '@/lib/utils';
@@ -142,6 +143,9 @@ const NOOP_TWO_ARG = () => {};
 const NOOP_RETURN_ZERO = () => 0;
 
 export function AIDMScreen({ onBack, characterContext, userId, characterName = 'Adventurer', autoSyncCallbacks }: AIDMScreenProps) {
+  // Access combat drawer from provider context
+  let promptDrawers: ReturnType<typeof usePromptDrawers> | null = null;
+  try { promptDrawers = usePromptDrawers(); } catch { /* not in provider */ }
   const [showBattleMap, setShowBattleMap] = useState(false);
   const [pendingMapAdds, setPendingMapAdds] = useState<MapMarker[]>([]);
   const [pendingMapRemovals, setPendingMapRemovals] = useState<string[]>([]);
@@ -639,6 +643,17 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
               >
                 <Gem className="w-5 h-5 text-amber-400" />
               </button>
+              {promptDrawers && (
+                <button
+                  onClick={() => promptDrawers?.openCombatDrawer()}
+                  disabled={isLoading}
+                  className="p-2.5 rounded-xl border border-red-500/20 hover:border-red-500/40 bg-red-900/20 hover:bg-red-900/40 transition-colors"
+                  style={{ touchAction: 'manipulation' }}
+                  title="Combat"
+                >
+                  <Swords className="w-5 h-5 text-red-400" />
+                </button>
+              )}
               <button
                 onClick={() => photoInputRef.current?.click()}
                 disabled={isLoading || isUploadingPhoto}
