@@ -22,6 +22,7 @@ import {
   DRAGON_FORMS,
   DragonForm,
 } from '@/lib/classes/druidCircles';
+import { getScopedItem, setScopedItem, migrateToScoped } from '@/lib/scoped-storage';
 
 const WILD_SHAPE_STORAGE_KEY = 'dnd-wild-shape-state';
 
@@ -94,8 +95,9 @@ export function useWildShape(druidLevel: number, circle: DruidCircle | null = nu
 
   // Load initial state from localStorage
   const [state, setState] = useState<WildShapeState>(() => {
+    migrateToScoped(WILD_SHAPE_STORAGE_KEY);
     try {
-      const saved = localStorage.getItem(WILD_SHAPE_STORAGE_KEY);
+      const saved = getScopedItem(WILD_SHAPE_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         // Validate and merge with defaults
@@ -113,7 +115,7 @@ export function useWildShape(druidLevel: number, circle: DruidCircle | null = nu
 
   // Persist state changes
   useEffect(() => {
-    localStorage.setItem(WILD_SHAPE_STORAGE_KEY, JSON.stringify(state));
+    setScopedItem(WILD_SHAPE_STORAGE_KEY, JSON.stringify(state));
   }, [state]);
 
   // Update max uses when level changes

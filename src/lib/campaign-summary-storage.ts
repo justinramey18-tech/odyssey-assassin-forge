@@ -1,11 +1,13 @@
 import { toast } from 'sonner';
+import { getScopedItem, setScopedItem, removeScopedItem, migrateToScoped } from '@/lib/scoped-storage';
 
 export const SUMMARY_STORAGE_KEY = 'dnd-ai-dm-campaign-summary';
 export const SUMMARY_MAX_CHARS = 30000;
 
 export function loadCampaignSummary(): string | null {
+  migrateToScoped(SUMMARY_STORAGE_KEY);
   try {
-    return localStorage.getItem(SUMMARY_STORAGE_KEY);
+    return getScopedItem(SUMMARY_STORAGE_KEY);
   } catch {
     return null;
   }
@@ -14,7 +16,7 @@ export function loadCampaignSummary(): string | null {
 export function saveCampaignSummary(summary: string): void {
   try {
     const trimmed = summary.slice(0, SUMMARY_MAX_CHARS);
-    localStorage.setItem(SUMMARY_STORAGE_KEY, trimmed);
+    setScopedItem(SUMMARY_STORAGE_KEY, trimmed);
   } catch (error) {
     if (error instanceof DOMException && error.name === 'QuotaExceededError') {
       toast.error('Campaign summary too large to save locally');
@@ -26,7 +28,7 @@ export function saveCampaignSummary(summary: string): void {
 
 export function clearCampaignSummary(): void {
   try {
-    localStorage.removeItem(SUMMARY_STORAGE_KEY);
+    removeScopedItem(SUMMARY_STORAGE_KEY);
   } catch {
     // ignore
   }

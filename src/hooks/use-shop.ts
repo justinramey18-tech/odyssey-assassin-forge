@@ -5,6 +5,7 @@ import { ShopItem, ShopState, PurchaseRecord, ParsedShopItem } from '@/lib/shop/
 import { convertShopItemToConsumable, convertShopItemToEquipment } from '@/lib/shop/converters';
 import { Consumable } from '@/lib/consumables/types';
 import { EquipmentItem } from '@/lib/inventory/types';
+import { getScopedItem, setScopedItem, removeScopedItem, migrateToScoped } from '@/lib/scoped-storage';
 
 const STORAGE_KEY = 'odyssey-shop';
 
@@ -19,7 +20,8 @@ export interface PurchaseResult {
 
 export function useShop() {
   const [state, setState] = useState<ShopState>(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    migrateToScoped(STORAGE_KEY);
+    const stored = getScopedItem(STORAGE_KEY);
     if (stored) {
       try {
         return JSON.parse(stored);
@@ -32,7 +34,7 @@ export function useShop() {
 
   // Persist to localStorage
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    setScopedItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
 
   // Add gold (from Chronicle Sync)
@@ -205,7 +207,7 @@ export function useShop() {
   // Reset shop (for app reset)
   const resetShop = useCallback(() => {
     setState({ currentGold: 0, items: [], purchaseHistory: [] });
-    localStorage.removeItem(STORAGE_KEY);
+    removeScopedItem(STORAGE_KEY);
   }, []);
 
   return {

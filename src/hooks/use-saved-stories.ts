@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { getScopedItem, setScopedItem, removeScopedItem, migrateToScoped } from '@/lib/scoped-storage';
 
 const SAVED_STORIES_KEY = 'narrative-forge-saved-stories';
 const ACTIVE_STORY_KEY = 'narrative-forge-active-story-id';
@@ -55,8 +56,11 @@ export function useSavedStories(): UseSavedStoriesReturn {
 
   // Load stories from localStorage on mount, including migration from legacy format
   useEffect(() => {
+    // Migrate unscoped data if needed
+    migrateToScoped(SAVED_STORIES_KEY);
+    migrateToScoped(ACTIVE_STORY_KEY);
     // Try to load new format first
-    const stored = localStorage.getItem(SAVED_STORIES_KEY);
+    const stored = getScopedItem(SAVED_STORIES_KEY);
     let loadedStories: SavedStory[] = [];
     
     if (stored) {
@@ -74,7 +78,7 @@ export function useSavedStories(): UseSavedStoriesReturn {
     
     // Migrate from legacy single-story format if no stories exist
     if (loadedStories.length === 0) {
-      const legacyStory = localStorage.getItem(LEGACY_STORY_KEY);
+      const legacyStory = getScopedItem(LEGACY_STORY_KEY);
       if (legacyStory) {
         try {
           const legacy = JSON.parse(legacyStory);
@@ -90,8 +94,8 @@ export function useSavedStories(): UseSavedStoriesReturn {
           };
           loadedStories = [migratedStory];
           // Save migrated data and remove legacy key
-          localStorage.setItem(SAVED_STORIES_KEY, JSON.stringify(loadedStories));
-          localStorage.removeItem(LEGACY_STORY_KEY);
+          setScopedItem(SAVED_STORIES_KEY, JSON.stringify(loadedStories));
+          removeScopedItem(LEGACY_STORY_KEY);
           console.log('Migrated legacy story to new format');
         } catch (e) {
           console.error('Failed to migrate legacy story:', e);
@@ -102,7 +106,7 @@ export function useSavedStories(): UseSavedStoriesReturn {
     setStories(loadedStories);
     
     // Load active story ID
-    const activeId = localStorage.getItem(ACTIVE_STORY_KEY);
+    const activeId = getScopedItem(ACTIVE_STORY_KEY);
     if (activeId && loadedStories.some(s => s.id === activeId)) {
       setActiveStoryIdState(activeId);
     } else if (loadedStories.length > 0) {
@@ -116,15 +120,15 @@ export function useSavedStories(): UseSavedStoriesReturn {
 
   // Persist stories to localStorage whenever they change
   const persistStories = useCallback((updatedStories: SavedStory[]) => {
-    localStorage.setItem(SAVED_STORIES_KEY, JSON.stringify(updatedStories));
+    setScopedItem(SAVED_STORIES_KEY, JSON.stringify(updatedStories));
     setStories(updatedStories);
   }, []);
 
   const setActiveStoryId = useCallback((id: string | null) => {
     if (id) {
-      localStorage.setItem(ACTIVE_STORY_KEY, id);
+      setScopedItem(ACTIVE_STORY_KEY, id);
     } else {
-      localStorage.removeItem(ACTIVE_STORY_KEY);
+      removeScopedItem(ACTIVE_STORY_KEY);
     }
     setActiveStoryIdState(id);
   }, []);
