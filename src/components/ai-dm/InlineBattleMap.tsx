@@ -60,6 +60,16 @@ interface InlineBattleMapProps {
   onMarkersChange?: (markers: MapMarker[]) => void;
   onGridSizeChange?: (size: GridSize) => void;
   onClose: () => void;
+  // Party sync props
+  isPartyMode?: boolean;
+  isCreator?: boolean;
+  syncedTierBackgrounds?: TierBackground[];
+  syncedBackgroundOpacity?: number;
+  syncedCustomTiers?: ScaleTier[];
+  onSyncTierBackgroundUpload?: (tierId: string, file: File) => void;
+  onSyncTierBackgroundRemove?: (tierId: string) => void;
+  onSyncOpacityChange?: (opacity: number) => void;
+  onSyncTierConfigChange?: (tierId: string, updates: Partial<Pick<ScaleTier, 'distancePerSquare' | 'distanceUnit'>>) => void;
 }
 
 export function InlineBattleMap({
@@ -70,6 +80,15 @@ export function InlineBattleMap({
   onMarkersChange,
   onGridSizeChange: onGridSizeChangeCallback,
   onClose,
+  isPartyMode = false,
+  isCreator = false,
+  syncedTierBackgrounds,
+  syncedBackgroundOpacity,
+  syncedCustomTiers,
+  onSyncTierBackgroundUpload,
+  onSyncTierBackgroundRemove,
+  onSyncOpacityChange,
+  onSyncTierConfigChange,
 }: InlineBattleMapProps) {
   // ── State (same as StandaloneBattleMap) ──
   const [markers, setMarkers] = useState<MapMarker[]>(() => loadMapState()?.markers ?? []);
@@ -119,7 +138,10 @@ export function InlineBattleMap({
   const labelWidth = 28 * zoom;
   const labelHeight = 18 * zoom;
 
-  const tiers = customTiers;
+  const tiers = isPartyMode ? (syncedCustomTiers ?? [...DEFAULT_SCALE_TIERS]) as ScaleTier[] : customTiers;
+  const effectiveTierBgs = isPartyMode ? (syncedTierBackgrounds ?? []) : tierBackgrounds;
+  const effectiveBgOpacity = isPartyMode ? (syncedBackgroundOpacity ?? 1) : backgroundOpacity;
+
   // Active tier: forced tier takes priority, then auto-scale by zoom
   const activeTier = useMemo(() => {
     if (forcedTierId) {
@@ -534,13 +556,13 @@ export function InlineBattleMap({
             {/* Grid cells */}
             <div className="relative">
               {/* Layered tier backgrounds */}
-              {tierBackgrounds.length > 0 ? (
+              {effectiveTierBgs.length > 0 ? (
                 tiers.map(tier => {
-                  const bg = tierBackgrounds.find(b => b.tierId === tier.id);
+                  const bg = effectiveTierBgs.find(b => b.tierId === tier.id);
                   if (!bg) return null;
                   const tierOpacity = forcedTierId
-                    ? (tier.id === forcedTierId ? backgroundOpacity : 0)
-                    : getTierOpacity(zoom, tier) * backgroundOpacity;
+                    ? (tier.id === forcedTierId ? effectiveBgOpacity : 0)
+                    : getTierOpacity(zoom, tier) * effectiveBgOpacity;
                   if (tierOpacity <= 0) return null;
                   return (
                     <img
@@ -569,7 +591,7 @@ export function InlineBattleMap({
                     height: gridSize * cellSize,
                     objectFit: 'cover',
                     zIndex: 0,
-                    opacity: backgroundOpacity,
+                    opacity: effectiveBgOpacity,
                   }}
                 />
               ) : null}
@@ -773,25 +795,28 @@ export function InlineBattleMap({
           onUndo={handleUndo}
           onClearArea={() => setHighlightedCells(new Map())}
           onClearSpells={() => { setSpellTemplates([]); setSpellOrigin(null); }}
-          hasBackground={!!backgroundUrl || tierBackgrounds.length > 0}
+          hasBackground={!!backgroundUrl || effectiveTierBgs.length > 0}
           backgroundUploading={backgroundUploading}
-          backgroundOpacity={backgroundOpacity}
+          backgroundOpacity={effectiveBgOpacity}
           onBackgroundUpload={handleSetBackground}
           onClearBackground={handleClearBackground}
-          onBackgroundOpacityChange={setBackgroundOpacity}
+          onBackgroundOpacityChange={isPartyMode ? (onSyncOpacityChange ?? setBackgroundOpacity) : setBackgroundOpacity}
         />
-        <TierBackgroundPanel
-          tiers={tiers}
-          tierBackgrounds={tierBackgrounds}
-          autoScale={autoScale}
-          masterOpacity={backgroundOpacity}
-          uploading={backgroundUploading}
-          onToggleAutoScale={() => setAutoScale(prev => !prev)}
-          onUpload={handleTierBackgroundUpload}
-          onRemove={handleTierBackgroundRemove}
-          onMasterOpacityChange={setBackgroundOpacity}
-          onTierConfigChange={handleTierConfigChange}
-        />
+        {/* TierBackgroundPanel: hidden for non-creators in party mode */}
+        {(!isPartyMode || isCreator) && (
+          <TierBackgroundPanel
+            tiers={tiers}
+            tierBackgrounds={effectiveTierBgs}
+            autoScale={autoScale}
+            masterOpacity={effectiveBgOpacity}
+            uploading={backgroundUploading}
+            onToggleAutoScale={() => setAutoScale(prev => !prev)}
+            onUpload={isPartyMode ? (onSyncTierBackgroundUpload ?? handleTierBackgroundUpload) : handleTierBackgroundUpload}
+            onRemove={isPartyMode ? (onSyncTierBackgroundRemove ?? handleTierBackgroundRemove) : handleTierBackgroundRemove}
+            onMasterOpacityChange={isPartyMode ? (onSyncOpacityChange ?? setBackgroundOpacity) : setBackgroundOpacity}
+            onTierConfigChange={isPartyMode ? (onSyncTierConfigChange ?? handleTierConfigChange) : handleTierConfigChange}
+          />
+        )}
       </div>
     </div>
   );
