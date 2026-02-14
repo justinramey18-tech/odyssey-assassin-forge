@@ -20,7 +20,7 @@ interface AssassinHeaderProps {
   // Character quick-switcher props
   currentCharacterName?: string;
   currentCharacterLevel?: number;
-  onLoadSave?: (data: SaveData) => void;
+  onLoadSave?: (data: SaveData, saveId?: string) => void;
   onCloudClick?: () => void;
 }
 

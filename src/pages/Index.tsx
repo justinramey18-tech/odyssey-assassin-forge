@@ -131,6 +131,9 @@ const Index = () => {
   const [openPartyChatRequested, setOpenPartyChatRequested] = useState(false);
   const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string | null>(null);
   const [isSwitchingCharacter, setIsSwitchingCharacter] = useState(false);
+  const [activeCloudSaveId, setActiveCloudSaveId] = useState<string | null>(() => {
+    try { return localStorage.getItem('odyssey-active-cloud-save-id'); } catch { return null; }
+  });
   const [character, setCharacter] = useState<Character>({
     name: '',
     level: 1,
@@ -990,8 +993,12 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
   }, []);
 
   // Handle loading cloud save - RESTORES ALL CHARACTER STATE
-  const handleLoadCloudSave = useCallback(async (data: SaveData) => {
-    console.log('[CloudSave] Loading character:', data.character.name);
+  const handleLoadCloudSave = useCallback(async (data: SaveData, saveId?: string) => {
+    console.log('[CloudSave] Loading character:', data.character.name, 'saveId:', saveId);
+    if (saveId) {
+      setActiveCloudSaveId(saveId);
+      try { localStorage.setItem('odyssey-active-cloud-save-id', saveId); } catch {}
+    }
     setIsSwitchingCharacter(true);
     
     // CRITICAL: Save current character to cloud BEFORE switching
@@ -2117,7 +2124,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           wildShapeBackground={wildShapeBgs.getActiveBackground(wildShape.state.currentForm?.id)}
           customBackground={customBackground.customBackground}
           
-          onCustomBackgroundUpload={(file: File) => customBackground.handleImageUpload(file, user?.id)}
+          onCustomBackgroundUpload={(file: File) => customBackground.handleImageUpload(file, user?.id, activeCloudSaveId ?? undefined)}
           onCustomBackgroundClear={customBackground.clearCustomBackground}
           prestigeData={prestigeData}
           lastCloudSyncTime={autoSync.lastCloudSyncTime || lastCloudSyncTime}

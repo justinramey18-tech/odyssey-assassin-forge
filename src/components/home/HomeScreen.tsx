@@ -107,7 +107,7 @@ interface HomeScreenProps {
   onCloudSyncClick?: () => void;
   onQuickSave?: () => Promise<void>;
   // Character saves drawer props
-  onLoadSave?: (data: SaveData) => void;
+  onLoadSave?: (data: SaveData, saveId?: string) => void;
   // Wild Shape props
   isWildShape?: boolean;
   wildShapeFormName?: string;

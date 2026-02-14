@@ -32,7 +32,7 @@ interface CharacterSavesDrawerProps {
   onOpenChange: (open: boolean) => void;
   currentCharacterName: string;
   currentCharacterLevel: number;
-  onLoadSave: (data: SaveData) => void;
+  onLoadSave: (data: SaveData, saveId?: string) => void;
   onOpenCloudSettings: () => void;
   lastCloudSyncTime?: string | null;
   isCloudSyncing?: boolean;
@@ -146,7 +146,7 @@ export function CharacterSavesDrawer({
   const handleLoadCharacter = async (save: CloudSave) => {
     const data = await loadFromCloud(save.id);
     if (data) {
-      onLoadSave(data);
+      onLoadSave(data, save.id);
       toast.success(`Loaded "${save.character_name || save.save_name}"`);
       onOpenChange(false);
     } else {
