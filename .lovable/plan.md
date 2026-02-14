@@ -1,77 +1,65 @@
 
 
-# Expandable Player Prompt Pills in Shared Prompt Mode
+# Battle Map Background Image
 
 ## Overview
-When shared prompt mode is active in Party DM, clicking on a player's pill in the Round Queue will expand to reveal the full prompt text that player submitted. For the player's own pill, they can also edit their prompt inline -- but only until the AI DM response is generated (i.e., while `isGenerating` is false and they haven't been marked ready).
+Add the ability to upload a background image (e.g., a dungeon map, tavern layout) to the battle map. The image will sit behind the grid, scrolling and zooming together with it, so grid cells overlay the terrain image perfectly.
 
-## Current Behavior
-- Player pills show a truncated 60px-wide snippet of the prompt text in shared mode (line 659)
-- Pills are not interactive (no click handler)
-- Editing is only available through the input area at the bottom
+## How It Works
 
-## Changes
+1. **Upload Button** -- A new "Background" button in the MapControls toolbar. Tapping it opens a file picker. The selected image is uploaded to cloud storage (gear-images bucket) and the URL is saved to localStorage alongside the other map state.
 
-### 1. Add Expand/Collapse State
-Add a `expandedPill` state (`string | null`, storing `user_id`) to `PartyDMScreen`. Clicking a pill toggles expansion. Only one pill expands at a time.
+2. **Image Rendering** -- The image is rendered as an absolutely-positioned `<img>` element behind the grid (z-index below grid cells). It is sized to exactly match the grid dimensions (`gridSize * cellSize` px), so it scales with zoom and scrolls naturally with the scroll container.
 
-### 2. Expanded Pill Layout
-When a pill is expanded (and mode is `shared`):
-- The pill grows from a single-line row item into a small card below the pill row
-- Shows the character name as a label and the full prompt text underneath
-- Uses `AnimatePresence` + `motion.div` for smooth expand/collapse animation
-- For other players' pills: read-only text display
-- For the current player's own pill: editable textarea (see below)
+3. **Grid Opacity** -- When a background is active, grid cell borders become semi-transparent so the map image is clearly visible beneath the tactical grid.
 
-### 3. Own-Prompt Inline Editing
-When the player expands their own pill:
-- The prompt text renders in a small textarea (editable)
-- A "Save" button commits the edit via `partyDm.editPrompt(newText)`
-- Editing is disabled (textarea becomes read-only) once `partyDm.isGenerating` is true OR the player's prompt `is_ready` is true
-- This reuses the existing `editPrompt` method from `use-party-dm` which already handles the database update
-
-### 4. Collapse on Generation Start
-When `partyDm.isGenerating` becomes true, auto-collapse any expanded pill to keep the UI clean during response generation.
+4. **Remove Background** -- A small "X" button appears next to the Background button when an image is set, allowing the user to clear it.
 
 ## Technical Details
 
-### State Addition in PartyDMScreen
+### Files to Modify
+
+**`src/components/party/battlemap/types.ts`**
+- Add `backgroundUrl?: string` to the `SavedMapState` interface (used by StandaloneBattleMap's localStorage persistence).
+
+**`src/components/home/StandaloneBattleMap.tsx`**
+- Add `backgroundUrl` state, initialized from localStorage.
+- Include `backgroundUrl` in the auto-save effect.
+- Pass `backgroundUrl` and `onSetBackground` / `onClearBackground` as new props to `FullscreenBattleMap`.
+- `onSetBackground`: Uploads file to Supabase storage (`gear-images` bucket, path `battlemap-backgrounds/{timestamp}.{ext}`), gets public URL, sets state.
+- `onClearBackground`: Clears state and optionally deletes the file from storage.
+
+**`src/components/party/battlemap/FullscreenBattleMap.tsx`**
+- Accept new props: `backgroundUrl`, `onSetBackground(file: File)`, `onClearBackground()`.
+- Render a background `<img>` element inside the grid container (the `<div className="relative">` at line 308), positioned absolutely at `0,0` with dimensions matching `gridSize * cellSize`. The image uses `object-fit: cover` and `pointer-events: none` so it doesn't interfere with cell clicks.
+- When `backgroundUrl` is set, reduce grid cell border opacity (e.g., `border-white/5` instead of `border-border/10`) to let the map show through.
+
+**`src/components/party/battlemap/MapControls.tsx`**
+- Add new props: `hasBackground`, `onBackgroundUpload`, `onClearBackground`.
+- Render an "Image" button (using the `ImageIcon` from lucide-react). Clicking it triggers a hidden `<input type="file" accept="image/*">`.
+- When a background is active, show a small "X" clear button beside it.
+
+### Data Flow
+
 ```text
-const [expandedPillUserId, setExpandedPillUserId] = useState<string | null>(null);
+User taps "Image" button
+  --> file picker opens
+  --> file selected
+  --> StandaloneBattleMap.onSetBackground(file)
+    --> upload to Supabase storage
+    --> get public URL
+    --> setState(backgroundUrl)
+    --> auto-save writes URL to localStorage
+  --> FullscreenBattleMap renders <img> behind grid
 ```
 
-### Pill Click Handler
-```text
-onClick={() => {
-  if (mode !== 'shared') return; // no expansion in private mode
-  setExpandedPillUserId(prev => prev === m.user_id ? null : m.user_id);
-}
-```
+### Storage
+- **Cloud**: `gear-images` bucket, path `battlemap-backgrounds/{timestamp}.{ext}`
+- **Local**: Persisted as part of the existing `dnd-battlemap-state` localStorage key (adds `backgroundUrl` string field)
+- No base64 in localStorage or database -- only the public URL is stored
 
-### Expanded Content (rendered below the pill row)
-```text
-{expandedPillUserId && (
-  <motion.div ...>
-    {/* Character name label */}
-    {/* If isSelf and !isReady and !isGenerating: editable textarea + Save button */}
-    {/* Otherwise: read-only prompt text */}
-  </motion.div>
-)}
-```
-
-### Auto-Collapse Effect
-```text
-useEffect(() => {
-  if (partyDm.isGenerating) setExpandedPillUserId(null);
-}, [partyDm.isGenerating]);
-```
-
-### Files Modified
-- `src/components/ai-dm/PartyDMScreen.tsx` -- Add expand state, click handlers on pills, expanded content section with conditional edit capability, and auto-collapse effect
-
-### What Stays the Same
-- The existing bottom input area editing flow remains unchanged
-- `use-party-dm.ts` hook is not modified (already has `editPrompt`)
-- Private mode behavior is unchanged (pills remain non-interactive)
-- The pill row layout and styling remain the same when collapsed
+### Edge Cases
+- Large images: The 5MB Supabase upload limit applies; files over 5MB show an error toast.
+- Grid size changes: The image stretches to fit the new grid dimensions, which is the expected behavior (the uploaded map should always fill the grid).
+- No background set: Grid renders exactly as it does today -- no visual changes.
 
