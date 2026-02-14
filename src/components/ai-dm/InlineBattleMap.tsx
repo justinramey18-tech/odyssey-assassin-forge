@@ -12,7 +12,7 @@ import { MovementRangeOverlay } from '@/components/party/battlemap/MovementRange
 import { TierBackgroundPanel } from '@/components/party/battlemap/TierBackgroundPanel';
 import {
   type MapMarker, type GridSize, type ToolMode, type UndoAction, type AreaColorId,
-  type SpellTemplate, type SpellShape, type SpellColorId, type DistanceUnit, type TierBackground,
+  type SpellTemplate, type SpellShape, type SpellColorId, type DistanceUnit, type TierBackground, type ScaleTier,
   GRID_SIZE_OPTIONS, CELL_SIZE, MEMBER_COLORS, STORAGE_KEY_GRID_SIZE,
   DISTANCE_UNITS, DISTANCE_PER_SQUARE_PRESETS, DEFAULT_SCALE_TIERS, MIN_ZOOM, MAX_ZOOM,
   getDistanceUnitAbbr, getAreaColorById, getActiveTier, getTierOpacity, MAX_BACKGROUND_SIZE_MB,
@@ -32,6 +32,7 @@ interface SavedMapState {
   distanceUnit?: DistanceUnit;
   autoScale?: boolean;
   tierBackgrounds?: TierBackground[];
+  customTiers?: ScaleTier[];
 }
 
 function loadMapState(): SavedMapState | null {
@@ -103,6 +104,7 @@ export function InlineBattleMap({
   const [distanceUnit, setDistanceUnit] = useState<DistanceUnit>(() => loadMapState()?.distanceUnit ?? 'ft');
   const [autoScale, setAutoScale] = useState<boolean>(() => loadMapState()?.autoScale ?? true);
   const [tierBackgrounds, setTierBackgrounds] = useState<TierBackground[]>(() => loadMapState()?.tierBackgrounds ?? []);
+  const [customTiers, setCustomTiers] = useState<ScaleTier[]>(() => loadMapState()?.customTiers ?? [...DEFAULT_SCALE_TIERS]);
 
   // ── Zoom & viewport ──
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -116,7 +118,8 @@ export function InlineBattleMap({
   const labelHeight = 18 * zoom;
 
   // Auto-scale tier computation
-  const activeTier = useMemo(() => autoScale ? getActiveTier(zoom) : null, [autoScale, zoom]);
+  const tiers = customTiers;
+  const activeTier = useMemo(() => autoScale ? getActiveTier(zoom, tiers) : null, [autoScale, zoom, tiers]);
   const effectiveDistancePerSquare = activeTier ? activeTier.distancePerSquare : distancePerSquare;
   const effectiveDistanceUnit = activeTier ? activeTier.distanceUnit : distanceUnit;
   const effectiveUnitAbbr = getDistanceUnitAbbr(effectiveDistanceUnit);
@@ -130,10 +133,10 @@ export function InlineBattleMap({
   useEffect(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      saveMapState({ markers, highlightedCells: Array.from(highlightedCells.entries()), spellTemplates, gridSize, backgroundUrl, backgroundOpacity, distancePerSquare, distanceUnit, autoScale, tierBackgrounds });
+      saveMapState({ markers, highlightedCells: Array.from(highlightedCells.entries()), spellTemplates, gridSize, backgroundUrl, backgroundOpacity, distancePerSquare, distanceUnit, autoScale, tierBackgrounds, customTiers });
     }, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [markers, highlightedCells, spellTemplates, gridSize, backgroundUrl, backgroundOpacity, distancePerSquare, distanceUnit, autoScale, tierBackgrounds]);
+  }, [markers, highlightedCells, spellTemplates, gridSize, backgroundUrl, backgroundOpacity, distancePerSquare, distanceUnit, autoScale, tierBackgrounds, customTiers]);
 
   useEffect(() => { onMarkersChange?.(markers); }, [markers, onMarkersChange]);
   useEffect(() => { onGridSizeChangeCallback?.(gridSize); }, [gridSize, onGridSizeChangeCallback]);
@@ -334,6 +337,10 @@ export function InlineBattleMap({
     toast.success('Layer image removed');
   }, []);
 
+  const handleTierConfigChange = useCallback((tierId: string, updates: Partial<Pick<ScaleTier, 'distancePerSquare' | 'distanceUnit'>>) => {
+    setCustomTiers(prev => prev.map(t => t.id === tierId ? { ...t, ...updates } : t));
+  }, []);
+
   const handleCellInteraction = (x: number, y: number) => {
     if (toolMode === 'measure') handleMeasureClick(x, y);
     else if (toolMode === 'area') handleAreaClick(x, y);
@@ -503,7 +510,7 @@ export function InlineBattleMap({
             <div className="relative">
               {/* Layered tier backgrounds */}
               {tierBackgrounds.length > 0 ? (
-                DEFAULT_SCALE_TIERS.map(tier => {
+                tiers.map(tier => {
                   const bg = tierBackgrounds.find(b => b.tierId === tier.id);
                   if (!bg) return null;
                   const tierOpacity = getTierOpacity(zoom, tier) * backgroundOpacity;
@@ -747,7 +754,7 @@ export function InlineBattleMap({
           onBackgroundOpacityChange={setBackgroundOpacity}
         />
         <TierBackgroundPanel
-          tiers={DEFAULT_SCALE_TIERS}
+          tiers={tiers}
           tierBackgrounds={tierBackgrounds}
           autoScale={autoScale}
           masterOpacity={backgroundOpacity}
@@ -756,6 +763,7 @@ export function InlineBattleMap({
           onUpload={handleTierBackgroundUpload}
           onRemove={handleTierBackgroundRemove}
           onMasterOpacityChange={setBackgroundOpacity}
+          onTierConfigChange={handleTierConfigChange}
         />
       </div>
     </div>

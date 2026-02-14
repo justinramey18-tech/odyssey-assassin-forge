@@ -3,7 +3,11 @@ import { Upload, X, ImageIcon, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
-import { type ScaleTier, type TierBackground, DEFAULT_SCALE_TIERS, getDistanceUnitAbbr } from './types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  type ScaleTier, type TierBackground, type DistanceUnit,
+  DISTANCE_UNITS, DISTANCE_PER_SQUARE_PRESETS, getDistanceUnitAbbr,
+} from './types';
 
 interface TierBackgroundPanelProps {
   tiers: ScaleTier[];
@@ -15,11 +19,12 @@ interface TierBackgroundPanelProps {
   onUpload: (tierId: string, file: File) => void;
   onRemove: (tierId: string) => void;
   onMasterOpacityChange: (opacity: number) => void;
+  onTierConfigChange?: (tierId: string, updates: Partial<Pick<ScaleTier, 'distancePerSquare' | 'distanceUnit'>>) => void;
 }
 
 export function TierBackgroundPanel({
   tiers, tierBackgrounds, autoScale, masterOpacity, uploading,
-  onToggleAutoScale, onUpload, onRemove, onMasterOpacityChange,
+  onToggleAutoScale, onUpload, onRemove, onMasterOpacityChange, onTierConfigChange,
 }: TierBackgroundPanelProps) {
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -39,7 +44,7 @@ export function TierBackgroundPanel({
           Layers
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 p-3 z-[100]" align="start" side="top">
+      <PopoverContent className="w-72 p-3 z-[100]" align="start" side="top">
         <div className="space-y-3">
           {/* Auto-scale toggle */}
           <div className="flex items-center justify-between">
@@ -48,60 +53,92 @@ export function TierBackgroundPanel({
           </div>
 
           {/* Tier rows */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             {tiers.map(tier => {
               const bg = getBgForTier(tier.id);
-              const unitAbbr = getDistanceUnitAbbr(tier.distanceUnit);
               return (
-                <div key={tier.id} className="flex items-center gap-2">
-                  <input
-                    ref={el => { fileInputRefs.current[tier.id] = el; }}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) onUpload(tier.id, file);
-                      e.target.value = '';
-                    }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[10px] font-medium truncate">{tier.label}</div>
-                    <div className="text-[9px] text-muted-foreground">{tier.distancePerSquare} {unitAbbr}/sq</div>
-                  </div>
-                  {bg ? (
-                    <div className="flex items-center gap-1">
-                      <img src={bg.imageUrl} alt="" className="w-7 h-7 rounded object-cover border border-border/30" />
+                <div key={tier.id} className="space-y-1.5 p-2 rounded-md border border-border/20 bg-muted/20">
+                  {/* Tier header with image controls */}
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={el => { fileInputRefs.current[tier.id] = el; }}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) onUpload(tier.id, file);
+                        e.target.value = '';
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[10px] font-medium truncate">{tier.label}</div>
+                    </div>
+                    {bg ? (
+                      <div className="flex items-center gap-1">
+                        <img src={bg.imageUrl} alt="" className="w-7 h-7 rounded object-cover border border-border/30" />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground"
+                          onClick={() => fileInputRefs.current[tier.id]?.click()}
+                          disabled={uploading}
+                        >
+                          <Upload className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-5 w-5 p-0 text-destructive"
+                          onClick={() => onRemove(tier.id)}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ) : (
                       <Button
                         size="sm"
-                        variant="ghost"
-                        className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground"
+                        variant="outline"
+                        className="text-[9px] h-6 gap-1"
                         onClick={() => fileInputRefs.current[tier.id]?.click()}
                         disabled={uploading}
                       >
-                        <Upload className="w-3 h-3" />
+                        {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                        Upload
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-5 w-5 p-0 text-destructive"
-                        onClick={() => onRemove(tier.id)}
-                      >
-                        <X className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-[9px] h-6 gap-1"
-                      onClick={() => fileInputRefs.current[tier.id]?.click()}
-                      disabled={uploading}
+                    )}
+                  </div>
+
+                  {/* Per-tier distance/unit config */}
+                  <div className="flex items-center gap-1.5">
+                    <Select
+                      value={String(tier.distancePerSquare)}
+                      onValueChange={(v) => onTierConfigChange?.(tier.id, { distancePerSquare: Number(v) })}
                     >
-                      {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-                      Upload
-                    </Button>
-                  )}
+                      <SelectTrigger className="h-5 w-[3.5rem] text-[9px] border-border/30 bg-background/50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="z-[200]">
+                        {DISTANCE_PER_SQUARE_PRESETS.map(d => (
+                          <SelectItem key={d} value={String(d)} className="text-[11px]">{d}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={tier.distanceUnit}
+                      onValueChange={(v) => onTierConfigChange?.(tier.id, { distanceUnit: v as DistanceUnit })}
+                    >
+                      <SelectTrigger className="h-5 w-[4.5rem] text-[9px] border-border/30 bg-background/50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="z-[200]">
+                        {DISTANCE_UNITS.map(u => (
+                          <SelectItem key={u.id} value={u.id} className="text-[11px]">{u.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span className="text-[9px] text-muted-foreground">/sq</span>
+                  </div>
                 </div>
               );
             })}

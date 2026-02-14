@@ -5,8 +5,8 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import {
   type MapMarker, type GridSize, type ToolMode, type UndoAction, type AreaColorId,
-  type SpellTemplate, type SpellShape, type SpellColorId, type DistanceUnit, type TierBackground,
-  GRID_SIZE_OPTIONS, MEMBER_COLORS, STORAGE_KEY_GRID_SIZE, MAX_BACKGROUND_SIZE_MB,
+  type SpellTemplate, type SpellShape, type SpellColorId, type DistanceUnit, type TierBackground, type ScaleTier,
+  GRID_SIZE_OPTIONS, MEMBER_COLORS, STORAGE_KEY_GRID_SIZE, MAX_BACKGROUND_SIZE_MB, DEFAULT_SCALE_TIERS,
 } from '@/components/party/battlemap/types';
 
 const STORAGE_KEY_MAP_STATE = 'dnd-battlemap-state';
@@ -22,6 +22,7 @@ interface SavedMapState {
   distanceUnit?: DistanceUnit;
   autoScale?: boolean;
   tierBackgrounds?: TierBackground[];
+  customTiers?: ScaleTier[];
 }
 
 function loadMapState(): SavedMapState | null {
@@ -91,6 +92,7 @@ export function StandaloneBattleMap({ open, onClose, characterName = 'Me', pendi
   const [distanceUnit, setDistanceUnit] = useState<DistanceUnit>(() => loadMapState()?.distanceUnit ?? 'ft');
   const [autoScale, setAutoScale] = useState<boolean>(() => loadMapState()?.autoScale ?? true);
   const [tierBackgrounds, setTierBackgrounds] = useState<TierBackground[]>(() => loadMapState()?.tierBackgrounds ?? []);
+  const [customTiers, setCustomTiers] = useState<ScaleTier[]>(() => loadMapState()?.customTiers ?? [...DEFAULT_SCALE_TIERS]);
 
   // Auto-save to localStorage on state changes (debounced via ref)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -108,10 +110,11 @@ export function StandaloneBattleMap({ open, onClose, characterName = 'Me', pendi
         distanceUnit,
         autoScale,
         tierBackgrounds,
+        customTiers,
       });
     }, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [markers, highlightedCells, spellTemplates, gridSize, backgroundUrl, backgroundOpacity, distancePerSquare, distanceUnit, autoScale, tierBackgrounds]);
+  }, [markers, highlightedCells, spellTemplates, gridSize, backgroundUrl, backgroundOpacity, distancePerSquare, distanceUnit, autoScale, tierBackgrounds, customTiers]);
 
   // Notify parent of marker and grid size changes
   useEffect(() => { onMarkersChange?.(markers); }, [markers, onMarkersChange]);
@@ -286,6 +289,10 @@ export function StandaloneBattleMap({ open, onClose, characterName = 'Me', pendi
     toast.success('Layer image removed');
   }, []);
 
+  const handleTierConfigChange = useCallback((tierId: string, updates: Partial<Pick<ScaleTier, 'distancePerSquare' | 'distanceUnit'>>) => {
+    setCustomTiers(prev => prev.map(t => t.id === tierId ? { ...t, ...updates } : t));
+  }, []);
+
   if (!open) return null;
 
   return (
@@ -347,6 +354,8 @@ export function StandaloneBattleMap({ open, onClose, characterName = 'Me', pendi
           tierBackgrounds={tierBackgrounds}
           onTierBackgroundUpload={handleTierBackgroundUpload}
           onTierBackgroundRemove={handleTierBackgroundRemove}
+          customTiers={customTiers}
+          onTierConfigChange={handleTierConfigChange}
         />
       </DialogContent>
     </Dialog>
