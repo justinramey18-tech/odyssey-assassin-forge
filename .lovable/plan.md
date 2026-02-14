@@ -1,59 +1,81 @@
 
-# Party DM: Dedicated Quick Actions Drawer
 
-## Problem
-The current Quick Actions button in Party DM mode opens the global `QuickActionsDrawer` via `PromptDrawerProvider`, which causes the screen to freeze/navigate back to the home screen due to z-index and overlay state conflicts that have proven difficult to fix.
+# Decouple Solo DM and Party DM into Standalone Screens
 
-## Solution
-Remove the broken Quick Actions button and build a **new, self-contained slide-up drawer** directly inside `PartyDMScreen.tsx` that:
-- Lives entirely within the Party DM overlay (no external drawer dependencies)
-- Auto-populates from the existing `characterContext` prop in real time
-- Has "Use" buttons that populate the player's input field
-- Uses the Vaul `Drawer` component for a native mobile bottom-sheet feel
+## Overview
+Currently, Party DM is rendered as a child overlay inside `AIDMScreen` (Solo DM). Opening Party DM requires loading the entire Solo DM infrastructure first, then showing Party DM on top. This plan makes them completely independent screens -- each loads standalone without depending on or navigating to the other.
 
-## What the New Drawer Will Show
+## What Changes
 
-The drawer will display categorized sections in a vertical scroll layout:
+### 1. New Standalone Party DM Wrapper
+Create `src/components/ai-dm/StandalonePartyDMScreen.tsx` -- a new top-level container that initializes all the hooks Party DM needs independently (without going through Solo DM):
+- `usePartyDm` -- party DM session management
+- `useGMGuides` -- GM guide content for AI context
+- `useDmAutoSync` -- auto-sync character stats from DM responses
+- Battle Map state (`StandaloneBattleMap`)
+- `GMGuidesManager` overlay
+- Party chat callback
 
-1. **Equipped Weapons** - From `characterContext.equipment` (weapon slots), with attack prompts
-2. **Abilities** - From `characterContext.abilities` (tier > 0) + `characterContext.equippedAbilities`, with ability prompts
-3. **Prepared Spells** - From `characterContext.spellcasting.preparedSpells`, with spell prompts
-4. **Cantrips** - Level 0 spells from prepared list
-5. **Items / Consumables** - From `characterContext.consumables`, with use prompts
-6. **Prestige Abilities** - From `characterContext.prestigeAbilities`
+This mirrors the hook setup currently done in `AIDMScreen` lines 159-217, but only the subset needed for Party DM.
 
-Each item gets a "Use" button that appends the AI DM prompt to the input field and shows a toast confirmation. The drawer stays open so multiple prompts can be queued.
+### 2. New Context Method: `openPartyDMScreen`
+Add `openPartyDMScreen` to `PromptDrawerProvider` alongside the existing `openAIDMScreen`:
+- New state: `partyDMOpen` (boolean)
+- New method: `openPartyDMScreen()` -- closes all drawers, sets `partyDMOpen = true`
+- Renders `StandalonePartyDMScreen` when `partyDMOpen` is true (parallel to Solo DM rendering)
+- Update the context interface to expose `openPartyDMScreen`
 
-## Technical Changes
+### 3. Remove Party DM from AIDMScreen
+- Remove `initialShowPartyDM` prop and `showPartyDM` state
+- Remove `usePartyDm` hook initialization
+- Remove the "Join Party" / "Start Party" button from the Solo DM header
+- Remove the `PartyDMScreen` overlay rendering (lines 779-797)
+- Remove `onShowChat` prop (no longer needed since Party DM has its own chat access)
+- Remove `returnToPartyDM` state from `PromptDrawerProvider`
+- Clean up the `openAIDMScreen` method to remove the `returnToPartyDM` option
 
-### File: `src/components/ai-dm/PartyDMScreen.tsx`
+### 4. Update DMDrawer Callbacks
+In `HomeScreen.tsx`, update the DMDrawer's `onOpenPartyDM` to call `drawerContext?.openPartyDMScreen()` instead of `openAIDMScreen({ returnToPartyDM: true })`.
 
-1. **Remove** the `usePromptDrawers()` import and the `useEffect` that sets `setQuickActionPromptTarget`
-2. **Remove** the `ListChecks` Quick Actions button (lines 721-737)
-3. **Add** a new `PartyDMQuickActions` component (inline or same file) that:
-   - Accepts `characterContext`, `characterName`, and `onUsePrompt` callback
-   - Uses `Drawer` from `@/components/ui/drawer` for a bottom sheet
-   - Renders categorized collapsible sections with vertical scroll
-   - Each item has a "Use" button (Play icon) that calls `onUsePrompt(generatedPrompt)`
-4. **Add** trigger button in the input area that opens the new drawer locally
+### 5. Update Chat-to-DM Navigation Loop
+The party chat "close returns to Party DM" logic in `HomeScreen.tsx` currently calls `openAIDMScreen({ returnToPartyDM: true })`. Update this to call `openPartyDMScreen()` instead, so closing party chat returns directly to the standalone Party DM screen.
 
-### File: `src/components/ai-dm/PartyDMQuickActions.tsx` (new file)
+## What Stays the Same
+- `PartyDMScreen.tsx` component itself is unchanged -- it's a pure presentational component that receives props
+- Solo DM (`AIDMScreen`) continues to work exactly as before for solo adventures
+- The DMDrawer UI and swipe gesture behavior remain identical
+- Party chat fullscreen flow still works, just returns to standalone Party DM instead of Solo DM wrapper
 
-Self-contained component with:
-- Props: `open`, `onOpenChange`, `characterContext`, `characterName`, `onUsePrompt`
-- Uses `Drawer`/`DrawerContent` for mobile-first bottom sheet
-- Sections rendered via `Collapsible` components, each with an icon and count badge
-- Prompt generation functions for weapons, abilities, spells, and consumables (reusing the `applyTimePrefix` pattern)
-- "Use" button on each item triggers `onUsePrompt(prompt)` + toast
+## Technical Details
 
-### File: `src/components/drawers/PromptDrawerProvider.tsx`
+### StandalonePartyDMScreen Props
+```text
+onBack: () => void
+characterContext: CharacterContext
+partyId: string | null
+isPartyCreator: boolean
+partyMembers: PartyMember[]
+userId: string
+characterName: string
+onShowChat: () => void
+autoSyncCallbacks: (same shape as AIDMScreen)
+```
 
-- Clean up the `quickActionPromptTarget` state and `setQuickActionPromptTarget` callback (optional, can leave for other consumers)
+### Hook Initialization Inside StandalonePartyDMScreen
+```text
+useGMGuides()           -- GM guide content
+usePartyDm(...)         -- party DM session
+useDmAutoSync(...)      -- auto-sync (if autoSyncCallbacks provided)
+useState for battle map -- independent map state
+```
 
-## UI Design
+### Files Modified
+- `src/components/ai-dm/StandalonePartyDMScreen.tsx` -- NEW
+- `src/components/ai-dm/AIDMScreen.tsx` -- Remove party DM overlay and related state
+- `src/components/drawers/PromptDrawerProvider.tsx` -- Add `openPartyDMScreen`, remove `returnToPartyDM`
+- `src/components/home/HomeScreen.tsx` -- Update DMDrawer callback and chat return logic
 
-- **Trigger**: Emerald-themed button in the input area (same position as current, same styling)
-- **Drawer**: Bottom sheet (70vh max-height), dark theme matching Party DM aesthetic
-- **Sections**: Collapsible with amber/emerald accent, count badges, category icons
-- **Items**: Compact rows with name, brief info, and a green "Use" button on the right
-- **Behavior**: Stays open after tapping "Use"; toast confirms "Prompt added to input"
+### No Cross-Navigation
+- Solo DM header will no longer have a "Join Party" / "Start Party" button
+- Party DM back button returns to the home screen, not to Solo DM
+- Solo DM back button returns to the home screen (unchanged)
