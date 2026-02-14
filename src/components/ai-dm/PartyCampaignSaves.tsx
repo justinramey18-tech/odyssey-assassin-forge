@@ -117,12 +117,17 @@ export function PartyCampaignSaves({
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      await supabase.from('ai_dm_campaigns').delete().eq('id', id).eq('user_id', user.id);
+      const { error } = await supabase.from('ai_dm_campaigns').delete().eq('id', id).eq('user_id', user.id);
+      if (error) {
+        console.error('Delete error:', error);
+        throw error;
+      }
       setSessions(prev => prev.filter(s => s.id !== id));
       setDeleteConfirmId(null);
       toast.success('Campaign deleted');
     } catch (e) {
-      toast.error('Failed to delete');
+      console.error('Failed to delete campaign:', e);
+      toast.error('Failed to delete campaign');
     }
   }, []);
 
