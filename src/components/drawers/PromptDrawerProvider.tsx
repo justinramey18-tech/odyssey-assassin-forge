@@ -451,7 +451,18 @@ export function PromptDrawerProvider({
     openOracleDrawer: useCallback(() => { closeAllDrawers(); setOracleOpen(true); }, [closeAllDrawers]),
     openConditionsDrawer: useCallback(() => { closeAllDrawers(); setConditionsOpen(true); }, [closeAllDrawers]),
     openAddConditionSheet: useCallback(() => { setConditionsOpen(true); }, []),
-    openQuickActionsDrawer: useCallback(() => { closeAllDrawers(); setQuickActionsOpen(true); }, [closeAllDrawers]),
+    openQuickActionsDrawer: useCallback(() => {
+      // Close other drawers but preserve AI DM screen state
+      setInfinityOpen(false);
+      setAbilitiesOpen(false);
+      setStatsOpen(false);
+      setScribeOpen(false);
+      setSetBonusOpen(false);
+      setCooldownOpen(false);
+      setOracleOpen(false);
+      setConditionsOpen(false);
+      setQuickActionsOpen(true);
+    }, []),
     openAIDMScreen: useCallback(() => { closeAllDrawers(); setAiDMOpen(true); }, [closeAllDrawers]),
     closeAllDrawers,
     // Cooldown system exposure

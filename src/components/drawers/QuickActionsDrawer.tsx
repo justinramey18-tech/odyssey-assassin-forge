@@ -438,11 +438,13 @@ function InlineRollResult({
               "flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-colors",
               copied 
                 ? "bg-emerald-500/20 text-emerald-400" 
-                : "bg-primary/15 text-primary hover:bg-primary/25"
+                : _promptCallback
+                  ? "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25"
+                  : "bg-primary/15 text-primary hover:bg-primary/25"
             )}
           >
-            {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-            {copied ? 'Copied!' : 'Copy Prompt'}
+            {copied ? <Check className="w-3.5 h-3.5" /> : _promptCallback ? <Play className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? (_promptCallback ? 'Added!' : 'Copied!') : (_promptCallback ? 'Use Prompt' : 'Copy Prompt')}
           </button>
         </div>
       </div>
@@ -454,26 +456,32 @@ function InlineRollResult({
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
+  const isUseMode = !!_promptCallback;
 
   const handleCopy = useCallback(async () => {
     try {
       notifyPrompt(text);
       setCopied(true);
-      toast.success('Prompt copied!');
+      toast.success(isUseMode ? 'Prompt added to input' : 'Prompt copied!');
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error('Failed to copy');
+      toast.error('Failed');
     }
-  }, [text]);
+  }, [text, isUseMode]);
 
   return (
     <button
       onClick={(e) => { e.stopPropagation(); handleCopy(); }}
-      className="p-1.5 rounded-md hover:bg-white/10 transition-colors shrink-0"
-      aria-label="Copy prompt"
+      className={cn(
+        "p-1.5 rounded-md transition-colors shrink-0",
+        isUseMode ? "hover:bg-emerald-500/20" : "hover:bg-white/10"
+      )}
+      aria-label={isUseMode ? "Use prompt" : "Copy prompt"}
     >
       {copied ? (
         <Check className="w-3.5 h-3.5 text-emerald-400" />
+      ) : isUseMode ? (
+        <Play className="w-3.5 h-3.5 text-emerald-400" />
       ) : (
         <Copy className="w-3.5 h-3.5 text-muted-foreground" />
       )}
