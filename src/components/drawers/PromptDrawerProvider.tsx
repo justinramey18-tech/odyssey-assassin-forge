@@ -12,7 +12,6 @@ import { OracleDrawer } from '@/components/oracle';
 import { ConditionDrawer } from '@/components/conditions';
 import { AIDMScreen } from '@/components/ai-dm';
 import { StandalonePartyDMScreen } from '@/components/ai-dm/StandalonePartyDMScreen';
-import { CombatDMDrawer } from '@/components/ai-dm/CombatDMDrawer';
 import { Character } from '@/lib/types';
 import { XPPreset } from '@/lib/xpSystem';
 import { CharacterEquipment } from '@/lib/inventory/types';
@@ -50,7 +49,6 @@ interface PromptDrawerContextValue {
   openQuickActionsDrawer: () => void;
   openAIDMScreen: () => void;
   openPartyDMScreen: () => void;
-  openCombatDrawer: () => void;
   closeAllDrawers: () => void;
   // Cooldown system exposure
   triggerCooldown: (abilityId: string) => void;
@@ -162,13 +160,6 @@ interface PromptDrawerProviderProps {
     getCurrentHP: () => number;
     getCurrentGold: () => number;
   };
-  // Combat drawer props (passed through from Index.tsx)
-  combatEquipmentStats?: import('@/hooks/use-equipment-stats').AggregatedStats;
-  combatAbilityModifiers?: BaseAbilityScores;
-  combatActionEconomyState?: import('@/hooks/use-action-economy').UseActionEconomyReturn;
-  combatGlobalConditions?: import('@/lib/combat/promptContext').ActiveConditionInfo[];
-  combatActiveSetBonuses?: import('@/lib/combat/promptContext').SetBonusInfo[];
-  combatConcentrationSpell?: string | null;
 }
 
 export function PromptDrawerProvider({
@@ -213,12 +204,6 @@ export function PromptDrawerProvider({
   isPartyCreator = false,
   onOpenPartyChat,
   autoSyncCallbacks,
-  combatEquipmentStats,
-  combatAbilityModifiers,
-  combatActionEconomyState,
-  combatGlobalConditions = [],
-  combatActiveSetBonuses = [],
-  combatConcentrationSpell,
 }: PromptDrawerProviderProps) {
   const [infinityOpen, setInfinityOpen] = useState(false);
   const [abilitiesOpen, setAbilitiesOpen] = useState(false);
@@ -231,7 +216,6 @@ export function PromptDrawerProvider({
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [aiDMOpen, setAiDMOpen] = useState(false);
   const [partyDMOpen, setPartyDMOpen] = useState(false);
-  const [combatDrawerOpen, setCombatDrawerOpen] = useState(false);
   
   const [oraclePersonality, setOraclePersonality] = useState<Personality>('deadpool');
   
@@ -485,7 +469,6 @@ export function PromptDrawerProvider({
     }, []),
     openAIDMScreen: useCallback(() => { closeAllDrawers(); setAiDMOpen(true); }, [closeAllDrawers]),
     openPartyDMScreen: useCallback(() => { closeAllDrawers(); setPartyDMOpen(true); }, [closeAllDrawers]),
-    openCombatDrawer: useCallback(() => { setCombatDrawerOpen(true); }, []),
     closeAllDrawers,
     // Cooldown system exposure
     triggerCooldown: cooldownSystem.triggerCooldown,
@@ -691,26 +674,6 @@ export function PromptDrawerProvider({
               autoSyncCallbacks={autoSyncCallbacks}
             />
           )}
-
-          {/* Combat DM Drawer (accessible from DM screens) */}
-          <CombatDMDrawer
-            open={combatDrawerOpen}
-            onOpenChange={setCombatDrawerOpen}
-            character={character}
-            equipment={equipment}
-            spellcasting={spellcasting}
-            equipmentStats={combatEquipmentStats}
-            abilityModifiers={combatAbilityModifiers}
-            currentHP={currentHP}
-            maxHP={maxHP}
-            tempHP={tempHP}
-            actionEconomyState={combatActionEconomyState}
-            globalConditions={combatGlobalConditions}
-            activeSetBonuses={combatActiveSetBonuses}
-            concentrationSpell={combatConcentrationSpell}
-            userId={userId}
-            characterName={character.name}
-          />
         </>
       )}
     </PromptDrawerContext.Provider>

@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, ListChecks, MessageSquare, Plus, Save, Gem, Swords } from 'lucide-react';
-import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
+import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, ListChecks, MessageSquare, Plus, Save, Gem } from 'lucide-react';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -336,9 +335,6 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
 }
 
 export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, characterContext, showBattleMap, battleMapContent }: PartyDMScreenProps) {
-  // Access combat drawer from provider context
-  let promptDrawers: ReturnType<typeof usePromptDrawers> | null = null;
-  try { promptDrawers = usePromptDrawers(); } catch { /* not in provider */ }
   const [input, setInput] = useState('');
   const [, setTick] = useState(0);
 
@@ -966,23 +962,6 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                 <Gem className="w-4 h-4 text-amber-400" />
                 <span className="font-semibold text-xs">RP</span>
               </button>
-              {promptDrawers && (
-                <button
-                  onClick={() => promptDrawers?.openCombatDrawer()}
-                  disabled={partyDm.isGenerating}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all",
-                    "bg-red-900/20 border border-red-500/20",
-                    "hover:bg-red-900/40 hover:border-red-500/30",
-                    "disabled:opacity-40 disabled:cursor-not-allowed",
-                    "text-red-300/80"
-                  )}
-                  style={{ touchAction: 'manipulation' }}
-                >
-                  <Swords className="w-4 h-4 text-red-400" />
-                  <span className="font-semibold text-xs">Combat</span>
-                </button>
-              )}
             </div>
             <div className="flex items-end gap-2">
               {currentUserId && (
