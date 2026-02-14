@@ -332,6 +332,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         if (error) throw error;
         toast.success('Campaign saved');
         setActiveCampaignId(existingId);
+        setLastAutoSaveTime(new Date());
         return existingId;
       } else {
         const { data, error } = await supabase
@@ -347,6 +348,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         if (error) throw error;
         toast.success('Campaign saved');
         setActiveCampaignId(data.id);
+        setLastAutoSaveTime(new Date());
         return data.id;
       }
     } catch (error) {
