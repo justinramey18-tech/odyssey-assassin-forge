@@ -1,87 +1,106 @@
 
-# Real-Time Combat State Sync Between Combat Tab and DM Combat Drawer
 
-## Problem
-The combat drawer rendered inside the DM screens creates its own independent hook instances (`useCombatLog`, `useTargets`, `useInitiative`, `useAttackQueue`). Even though they all use localStorage, changes in one instance don't propagate to the other's React state in real-time.
+# Combat Tab in Solo and Party DM with Real-Time Sync
 
-## Solution: CustomEvent Bridge Pattern
+## Overview
+Two connected changes: (1) add a full-screen Combat drawer accessible from Solo and Party DM chat interfaces, and (2) add CustomEvent-based real-time sync so combat state stays identical between the main Combat tab and the DM Combat drawer.
 
-Follow the same pattern already used in the codebase for rest mechanics (`odyssey-rest` CustomEvent). Each combat hook will broadcast a CustomEvent when its state changes, and all instances will listen for that event to sync their React state.
+## Part 1: Combat Drawer
 
-This is lightweight, requires no new context providers, and keeps each hook self-contained.
+### New Component: `CombatDMDrawer.tsx`
+**File:** `src/components/ai-dm/CombatDMDrawer.tsx`
 
-## What Changes
+A full-screen Vaul-based Drawer wrapping the existing `MobileCombatLayout`:
+- Uses the same z-index override as InfinityStoneDMDrawer (z-9999 for drawer, z-9998 for overlay) to render above DM screens (z-60)
+- `max-h-[95vh]` for maximum combat space
+- Header with "Combat" title and close (X) button
+- Body renders `MobileCombatLayout` directly inside scrollable content
+- Receives all combat-relevant props forwarded from PromptDrawerProvider
 
-### 1. Add Sync Events to `useCombatLog` hook
-**File:** `src/hooks/use-combat-log.ts`
+### PromptDrawerProvider Update
+**File:** `src/components/drawers/PromptDrawerProvider.tsx`
 
-- Dispatch a `CustomEvent('odyssey-combat-log-sync')` whenever entries change (addEntry, clearLog, removeEntry)
-- Listen for the same event and reload from localStorage when received
-- Guard against self-triggered events using a ref flag
+- Add `combatDrawerOpen` state
+- Add `openCombatDrawer` method to context interface and value
+- Render `CombatDMDrawer` alongside existing AI DM overlays
+- Pass through character, equipment, spellcasting, HP, conditions, and other props already available in the provider
 
-### 2. Add Sync Events to `useTargets` hook
-**File:** `src/hooks/use-targets.ts`
+### Solo DM Integration
+**File:** `src/components/ai-dm/AIDMScreen.tsx`
 
-- Dispatch `CustomEvent('odyssey-targets-sync')` on every state mutation (addEnemy, removeEnemy, updateHP, setTarget, etc.)
-- Listen and reload from localStorage on event
-- Same ref-guard pattern to prevent infinite loops
+- Import `usePromptDrawers` context
+- Add a Sword icon button in the input bar (next to the Gem button)
+- On tap, call `openCombatDrawer()` from context
 
-### 3. Add Sync Events to `useInitiative` hook
-**File:** `src/hooks/use-initiative.ts`
+### Party DM Integration
+**File:** `src/components/ai-dm/PartyDMScreen.tsx`
 
-- Dispatch `CustomEvent('odyssey-initiative-sync')` on state changes
-- Listen and reload from localStorage on event
+- Same pattern: add Sword icon button next to existing RP/Quick Actions buttons
+- Call `openCombatDrawer()` from context on tap
 
-### 4. Add Sync Events to `useAttackQueue` hook
-**File:** `src/hooks/use-attack-queue.ts`
+## Part 2: Real-Time Sync via CustomEvent Bridge
 
-- Dispatch `CustomEvent('odyssey-attack-queue-sync')` on queue mutations
-- Listen and reload from localStorage on event
+Each of the 4 combat hooks that use localStorage will broadcast a CustomEvent on mutation and listen for it to reload state. A `useRef` flag prevents self-triggered loops.
 
-### 5. Add Sync to `useCombatStats` (derived -- no changes needed)
-Combat stats are derived from props (character, equipmentStats, abilityModifiers) which are already passed from the same source (Index.tsx), so they will naturally stay in sync.
+### Hook: `use-combat-log.ts`
+- Event: `odyssey-combat-log-sync`
+- Dispatch after `addEntry`, `clearLog`, `removeEntry`
+- Listen and reload via `loadLog()`
 
-### 6. Combat Log `addEntry` sync for DM drawer
-The DM drawer's combat actions (weapon rolls, spell casts) will write to the same combat log via `useCombatLog`, and the sync event will propagate to the main combat tab's log view.
+### Hook: `use-targets.ts`
+- Event: `odyssey-targets-sync`
+- Dispatch after every `setState` call (addEnemy, removeEnemy, dealDamage, healEnemy, conditions, clearAll, etc.)
+- Listen and reload via `loadFromStorage()`
 
-## Sync Pattern (applied to each hook)
+### Hook: `use-initiative.ts`
+- Event: `odyssey-initiative-sync`
+- Dispatch after every `setState` call (setPlayerInitiative, nextTurn, prevTurn, startCombat, endCombat, etc.)
+- Listen and reload via `loadState()`
 
-```typescript
-const SYNC_EVENT = 'odyssey-combat-log-sync';
+### Hook: `use-attack-queue.ts`
+- Event: `odyssey-attack-queue-sync`
+- Dispatch after every `setState` call (addToQueue, removeFromQueue, reorderAttack, clearQueue, etc.)
+- Listen and reload via `loadAttackQueue()`
+
+### Sync Pattern Applied to Each Hook
+
+```text
+const SYNC_EVENT = 'odyssey-<hook>-sync';
 const isSelfUpdate = useRef(false);
 
-// On state change:
-const addEntry = useCallback((entry) => {
-  isSelfUpdate.current = true;
-  setEntries(prev => {
-    const updated = [newEntry, ...prev].slice(0, MAX);
-    saveLog(updated);
-    window.dispatchEvent(new CustomEvent(SYNC_EVENT));
-    return updated;
-  });
-  setTimeout(() => { isSelfUpdate.current = false; }, 50);
-}, []);
+// Every mutation:
+isSelfUpdate.current = true;
+setState(prev => { ... });  // also saves to localStorage
+window.dispatchEvent(new CustomEvent(SYNC_EVENT));
+setTimeout(() => { isSelfUpdate.current = false; }, 50);
 
-// Listen for external changes:
-useEffect(() => {
-  const handler = () => {
-    if (isSelfUpdate.current) return;
-    setEntries(loadLog());
-  };
-  window.addEventListener(SYNC_EVENT, handler);
-  return () => window.removeEventListener(SYNC_EVENT, handler);
-}, []);
+// Listener (useEffect):
+window.addEventListener(SYNC_EVENT, () => {
+  if (!isSelfUpdate.current) setState(loadFromStorage());
+});
 ```
 
-## Files Modified
-1. **Edit:** `src/hooks/use-combat-log.ts` -- add dispatch + listen for sync events
-2. **Edit:** `src/hooks/use-targets.ts` -- add dispatch + listen for sync events
-3. **Edit:** `src/hooks/use-initiative.ts` -- add dispatch + listen for sync events
-4. **Edit:** `src/hooks/use-attack-queue.ts` -- add dispatch + listen for sync events
+Combat stats (`useCombatStats`) are derived from props passed from the same source (Index.tsx), so they stay in sync automatically.
+
+## Files Summary
+
+| File | Action |
+|------|--------|
+| `src/components/ai-dm/CombatDMDrawer.tsx` | New -- full-screen drawer wrapper |
+| `src/components/drawers/PromptDrawerProvider.tsx` | Edit -- add combat drawer state, context, render |
+| `src/components/ai-dm/AIDMScreen.tsx` | Edit -- add Sword button |
+| `src/components/ai-dm/PartyDMScreen.tsx` | Edit -- add Sword button |
+| `src/hooks/use-combat-log.ts` | Edit -- add sync dispatch + listener |
+| `src/hooks/use-targets.ts` | Edit -- add sync dispatch + listener |
+| `src/hooks/use-initiative.ts` | Edit -- add sync dispatch + listener |
+| `src/hooks/use-attack-queue.ts` | Edit -- add sync dispatch + listener |
 
 ## Testing Criteria
-1. Open Combat tab, add an enemy target -- open DM combat drawer, verify the same enemy appears
-2. In the DM combat drawer, roll a weapon attack -- switch to Combat tab LOG section, verify the entry appears
-3. Add attacks to the queue in either view -- verify they appear in both
-4. Advance initiative in either view -- verify round number syncs
-5. Clear combat log in either view -- verify it clears in both
+1. Open Solo DM, tap Sword icon -- combat drawer appears above chat, fully interactive
+2. Open Party DM, tap Sword icon -- same behavior
+3. Add an enemy in main Combat tab -- open DM combat drawer, enemy appears immediately
+4. Roll a weapon attack in DM combat drawer -- switch to Combat tab LOG, entry appears
+5. Advance initiative in either view -- round number syncs to the other
+6. Clear combat log in either view -- clears in both
+7. Close drawer -- DM chat state preserved
+
