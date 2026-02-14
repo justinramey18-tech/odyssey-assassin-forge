@@ -25,6 +25,7 @@ interface SavedMapState {
   spellTemplates: SpellTemplate[];
   gridSize: GridSize;
   backgroundUrl?: string;
+  backgroundOpacity?: number;
 }
 
 function loadMapState(): SavedMapState | null {
@@ -91,6 +92,7 @@ export function InlineBattleMap({
   const [moveRangeOrigin, setMoveRangeOrigin] = useState<{ x: number; y: number } | null>(null);
   const [backgroundUrl, setBackgroundUrl] = useState<string | undefined>(() => loadMapState()?.backgroundUrl);
   const [backgroundUploading, setBackgroundUploading] = useState(false);
+  const [backgroundOpacity, setBackgroundOpacity] = useState<number>(() => loadMapState()?.backgroundOpacity ?? 1);
 
   // ── Zoom & viewport ──
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -112,10 +114,10 @@ export function InlineBattleMap({
   useEffect(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      saveMapState({ markers, highlightedCells: Array.from(highlightedCells.entries()), spellTemplates, gridSize, backgroundUrl });
+      saveMapState({ markers, highlightedCells: Array.from(highlightedCells.entries()), spellTemplates, gridSize, backgroundUrl, backgroundOpacity });
     }, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [markers, highlightedCells, spellTemplates, gridSize, backgroundUrl]);
+  }, [markers, highlightedCells, spellTemplates, gridSize, backgroundUrl, backgroundOpacity]);
 
   useEffect(() => { onMarkersChange?.(markers); }, [markers, onMarkersChange]);
   useEffect(() => { onGridSizeChangeCallback?.(gridSize); }, [gridSize, onGridSizeChangeCallback]);
@@ -444,6 +446,7 @@ export function InlineBattleMap({
                     height: gridSize * cellSize,
                     objectFit: 'cover',
                     zIndex: 0,
+                    opacity: backgroundOpacity,
                   }}
                 />
               )}
@@ -641,8 +644,10 @@ export function InlineBattleMap({
           onClearSpells={() => { setSpellTemplates([]); setSpellOrigin(null); }}
           hasBackground={!!backgroundUrl}
           backgroundUploading={backgroundUploading}
+          backgroundOpacity={backgroundOpacity}
           onBackgroundUpload={handleSetBackground}
           onClearBackground={handleClearBackground}
+          onBackgroundOpacityChange={setBackgroundOpacity}
         />
       </div>
     </div>

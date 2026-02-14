@@ -17,6 +17,7 @@ interface SavedMapState {
   spellTemplates: SpellTemplate[];
   gridSize: GridSize;
   backgroundUrl?: string;
+  backgroundOpacity?: number;
 }
 
 function loadMapState(): SavedMapState | null {
@@ -81,6 +82,7 @@ export function StandaloneBattleMap({ open, onClose, characterName = 'Me', pendi
   const [moveRangeOrigin, setMoveRangeOrigin] = useState<{ x: number; y: number } | null>(null);
   const [backgroundUrl, setBackgroundUrl] = useState<string | undefined>(() => loadMapState()?.backgroundUrl);
   const [backgroundUploading, setBackgroundUploading] = useState(false);
+  const [backgroundOpacity, setBackgroundOpacity] = useState<number>(() => loadMapState()?.backgroundOpacity ?? 1);
 
   // Auto-save to localStorage on state changes (debounced via ref)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -93,10 +95,11 @@ export function StandaloneBattleMap({ open, onClose, characterName = 'Me', pendi
         spellTemplates,
         gridSize,
         backgroundUrl,
+        backgroundOpacity,
       });
     }, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [markers, highlightedCells, spellTemplates, gridSize, backgroundUrl]);
+  }, [markers, highlightedCells, spellTemplates, gridSize, backgroundUrl, backgroundOpacity]);
 
   // Notify parent of marker and grid size changes
   useEffect(() => { onMarkersChange?.(markers); }, [markers, onMarkersChange]);
@@ -292,8 +295,10 @@ export function StandaloneBattleMap({ open, onClose, characterName = 'Me', pendi
           onMoveRangeClick={handleMoveRangeClick}
           backgroundUrl={backgroundUrl}
           backgroundUploading={backgroundUploading}
+          backgroundOpacity={backgroundOpacity}
           onSetBackground={handleSetBackground}
           onClearBackground={handleClearBackground}
+          onBackgroundOpacityChange={setBackgroundOpacity}
         />
       </DialogContent>
     </Dialog>

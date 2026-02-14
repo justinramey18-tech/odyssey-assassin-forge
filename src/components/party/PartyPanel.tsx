@@ -64,6 +64,7 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
   const [selectedMember, setSelectedMember] = useState<PartyMember | null>(null);
   const [sendToMember, setSendToMember] = useState<PartyMember | null>(null);
   const [bgUploading, setBgUploading] = useState(false);
+  const [bgOpacity, setBgOpacity] = useState<number>(1);
   const { party } = partySync;
   const onlineStatusMap = useOnlineStatus(party.members);
 
@@ -363,8 +364,10 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
               }}
               backgroundUrl={partySync.mapBackgroundUrl}
               backgroundUploading={bgUploading}
+              backgroundOpacity={bgOpacity}
               onSetBackground={handleSetBackground}
               onClearBackground={handleClearBackground}
+              onBackgroundOpacityChange={setBgOpacity}
             />
           </CollapsibleContent>
         </Collapsible>

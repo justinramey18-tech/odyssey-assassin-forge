@@ -62,8 +62,10 @@ interface FullscreenBattleMapProps {
   // Background image props
   backgroundUrl?: string;
   backgroundUploading?: boolean;
+  backgroundOpacity?: number;
   onSetBackground?: (file: File) => void;
   onClearBackground?: () => void;
+  onBackgroundOpacityChange?: (opacity: number) => void;
 }
 
 export function FullscreenBattleMap({
@@ -74,7 +76,7 @@ export function FullscreenBattleMap({
   spellTemplates, spellShape, spellSizeFt, spellColor, spellOrigin,
   setSpellShape, setSpellSizeFt, setSpellColor, onSpellClick, onDeleteSpell, onClearSpells,
   movementSpeedFt, setMovementSpeedFt, moveRangeOrigin, onMoveRangeClick,
-  backgroundUrl, backgroundUploading, onSetBackground, onClearBackground,
+  backgroundUrl, backgroundUploading, backgroundOpacity, onSetBackground, onClearBackground, onBackgroundOpacityChange,
 }: FullscreenBattleMapProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -323,6 +325,7 @@ export function FullscreenBattleMap({
                     height: gridSize * cellSize,
                     objectFit: 'cover',
                     zIndex: 0,
+                    opacity: backgroundOpacity ?? 1,
                   }}
                 />
               )}
@@ -514,8 +517,10 @@ export function FullscreenBattleMap({
             onClearSpells={onClearSpells}
             hasBackground={!!backgroundUrl}
             backgroundUploading={backgroundUploading}
+            backgroundOpacity={backgroundOpacity}
             onBackgroundUpload={onSetBackground}
             onClearBackground={onClearBackground}
+            onBackgroundOpacityChange={onBackgroundOpacityChange}
           />
         </div>
         {/* Feet-per-square info */}
