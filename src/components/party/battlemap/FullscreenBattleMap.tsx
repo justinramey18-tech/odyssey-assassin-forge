@@ -82,6 +82,8 @@ interface FullscreenBattleMapProps {
   tierBackgrounds?: TierBackground[];
   onTierBackgroundUpload?: (tierId: string, file: File) => void;
   onTierBackgroundRemove?: (tierId: string) => void;
+  customTiers?: ScaleTier[];
+  onTierConfigChange?: (tierId: string, updates: Partial<Pick<ScaleTier, 'distancePerSquare' | 'distanceUnit'>>) => void;
 }
 
 export function FullscreenBattleMap({
@@ -95,6 +97,7 @@ export function FullscreenBattleMap({
   backgroundUrl, backgroundUploading, backgroundOpacity, onSetBackground, onClearBackground, onBackgroundOpacityChange,
   distancePerSquare, distanceUnit, onDistancePerSquareChange, onDistanceUnitChange,
   autoScale = false, onToggleAutoScale, tierBackgrounds = [], onTierBackgroundUpload, onTierBackgroundRemove,
+  customTiers, onTierConfigChange,
 }: FullscreenBattleMapProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -108,7 +111,8 @@ export function FullscreenBattleMap({
   const labelHeight = 18 * zoom;
 
   // Auto-scale tier computation
-  const activeTier = useMemo(() => autoScale ? getActiveTier(zoom) : null, [autoScale, zoom]);
+  const tiers = customTiers ?? DEFAULT_SCALE_TIERS;
+  const activeTier = useMemo(() => autoScale ? getActiveTier(zoom, tiers) : null, [autoScale, zoom, tiers]);
   const effectiveDistancePerSquare = activeTier ? activeTier.distancePerSquare : distancePerSquare;
   const effectiveDistanceUnit = activeTier ? activeTier.distanceUnit : distanceUnit;
   const effectiveUnitAbbr = getDistanceUnitAbbr(effectiveDistanceUnit);
@@ -340,7 +344,7 @@ export function FullscreenBattleMap({
             <div className="relative">
               {/* Layered tier background images */}
               {tierBackgrounds.length > 0 ? (
-                DEFAULT_SCALE_TIERS.map(tier => {
+                tiers.map(tier => {
                   const bg = tierBackgrounds.find(b => b.tierId === tier.id);
                   if (!bg) return null;
                   const tierOpacity = getTierOpacity(zoom, tier) * (backgroundOpacity ?? 1);
@@ -580,7 +584,7 @@ export function FullscreenBattleMap({
           {/* Tier background panel */}
           {onTierBackgroundUpload && (
             <TierBackgroundPanel
-              tiers={DEFAULT_SCALE_TIERS}
+              tiers={tiers}
               tierBackgrounds={tierBackgrounds}
               autoScale={autoScale}
               masterOpacity={backgroundOpacity ?? 1}
@@ -589,6 +593,7 @@ export function FullscreenBattleMap({
               onUpload={onTierBackgroundUpload}
               onRemove={(tierId) => onTierBackgroundRemove?.(tierId)}
               onMasterOpacityChange={(v) => onBackgroundOpacityChange?.(v)}
+              onTierConfigChange={onTierConfigChange}
             />
           )}
         </div>
