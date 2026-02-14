@@ -927,28 +927,6 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
         ) : !hasSubmitted ? (
           <div className="space-y-2 max-w-2xl mx-auto">
             <div className="flex items-end gap-2">
-              {currentUserId && (
-                <div className="flex gap-1 shrink-0">
-                  <button
-                    onClick={() => photoInputRef.current?.click()}
-                    disabled={isUploadingPhoto}
-                    className="p-2.5 rounded-xl border border-white/10 hover:border-amber-500/30 bg-white/5 hover:bg-amber-900/20 transition-colors"
-                    style={{ touchAction: 'manipulation' }}
-                    title="Attach photo"
-                  >
-                    {isUploadingPhoto ? <Loader2 className="w-4 h-4 text-amber-400 animate-spin" /> : <ImageIcon className="w-4 h-4 text-white/50" />}
-                  </button>
-                  <button
-                    onClick={() => videoInputRef.current?.click()}
-                    disabled={isUploadingVideo}
-                    className="p-2.5 rounded-xl border border-white/10 hover:border-amber-500/30 bg-white/5 hover:bg-amber-900/20 transition-colors"
-                    style={{ touchAction: 'manipulation' }}
-                    title="Attach video"
-                  >
-                    {isUploadingVideo ? <Loader2 className="w-4 h-4 text-amber-400 animate-spin" /> : <Film className="w-4 h-4 text-white/50" />}
-                  </button>
-                </div>
-              )}
               <textarea
                 ref={inputRef}
                 value={input}
@@ -971,14 +949,38 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                 <Send className="w-5 h-5 text-amber-400" />
               </button>
             </div>
-            <Button
-              onClick={partyDm.setReady}
-              className="w-full gap-1.5 bg-emerald-900/40 border border-emerald-500/30 hover:bg-emerald-900/60 text-emerald-300"
-              size="sm"
-            >
-              <Check className="w-4 h-4" />
-              Ready (No Action)
-            </Button>
+            <div className="flex items-center gap-2">
+              {currentUserId && (
+                <div className="flex gap-1 shrink-0">
+                  <button
+                    onClick={() => photoInputRef.current?.click()}
+                    disabled={isUploadingPhoto}
+                    className="p-2 rounded-xl border border-white/10 hover:border-amber-500/30 bg-white/5 hover:bg-amber-900/20 transition-colors"
+                    style={{ touchAction: 'manipulation' }}
+                    title="Attach photo"
+                  >
+                    {isUploadingPhoto ? <Loader2 className="w-4 h-4 text-amber-400 animate-spin" /> : <ImageIcon className="w-4 h-4 text-white/50" />}
+                  </button>
+                  <button
+                    onClick={() => videoInputRef.current?.click()}
+                    disabled={isUploadingVideo}
+                    className="p-2 rounded-xl border border-white/10 hover:border-amber-500/30 bg-white/5 hover:bg-amber-900/20 transition-colors"
+                    style={{ touchAction: 'manipulation' }}
+                    title="Attach video"
+                  >
+                    {isUploadingVideo ? <Loader2 className="w-4 h-4 text-amber-400 animate-spin" /> : <Film className="w-4 h-4 text-white/50" />}
+                  </button>
+                </div>
+              )}
+              <Button
+                onClick={partyDm.setReady}
+                className="flex-1 gap-1.5 bg-emerald-900/40 border border-emerald-500/30 hover:bg-emerald-900/60 text-emerald-300"
+                size="sm"
+              >
+                <Check className="w-4 h-4" />
+                Ready (No Action)
+              </Button>
+            </div>
           </div>
         ) : !isReady ? (
           <div className="space-y-2 max-w-2xl mx-auto">
