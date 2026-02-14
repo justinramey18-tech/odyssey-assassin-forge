@@ -121,9 +121,12 @@ export function useCampaignSessions() {
   }, [userId, loadSessions]);
 
   const deleteSession = useCallback(async (id: string) => {
-    if (!userId) return;
+    if (!userId) {
+      toast.error('Sign in to delete campaigns');
+      return;
+    }
     try {
-      const { error } = await supabase
+      const { error, count } = await supabase
         .from('ai_dm_campaigns')
         .delete()
         .eq('id', id)
