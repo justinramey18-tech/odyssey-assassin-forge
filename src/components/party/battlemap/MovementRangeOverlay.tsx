@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
-import { type GridSize, type AreaColorId, getFeetPerSquare } from './types';
+import { type GridSize, type AreaColorId } from './types';
 
 interface MovementRangeOverlayProps {
   originX: number;
   originY: number;
-  movementSpeedFt: number;
+  movementSpeed: number;
+  distancePerSquare: number;
   gridSize: GridSize;
   cellSize: number;
   /** Highlighted area cells act as difficult terrain (double movement cost) */
@@ -12,11 +13,10 @@ interface MovementRangeOverlayProps {
 }
 
 export function MovementRangeOverlay({
-  originX, originY, movementSpeedFt, gridSize, cellSize, difficultTerrain,
+  originX, originY, movementSpeed, distancePerSquare, gridSize, cellSize, difficultTerrain,
 }: MovementRangeOverlayProps) {
-  const feetPerSq = getFeetPerSquare(gridSize);
-  const moveBudget = movementSpeedFt / feetPerSq;
-  const dashBudget = (movementSpeedFt * 2) / feetPerSq;
+  const moveBudget = movementSpeed / distancePerSquare;
+  const dashBudget = (movementSpeed * 2) / distancePerSquare;
 
   const cells = useMemo(() => {
     // BFS/Dijkstra to account for difficult terrain costing double

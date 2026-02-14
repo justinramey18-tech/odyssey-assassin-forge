@@ -11,9 +11,9 @@ import { SpellTemplateOverlay } from '@/components/party/battlemap/SpellTemplate
 import { MovementRangeOverlay } from '@/components/party/battlemap/MovementRangeOverlay';
 import {
   type MapMarker, type GridSize, type ToolMode, type UndoAction, type AreaColorId,
-  type SpellTemplate, type SpellShape, type SpellColorId,
+  type SpellTemplate, type SpellShape, type SpellColorId, type DistanceUnit,
   GRID_SIZE_OPTIONS, CELL_SIZE, MEMBER_COLORS, STORAGE_KEY_GRID_SIZE,
-  getFeetPerSquare, getAreaColorById, MAX_BACKGROUND_SIZE_MB,
+  DISTANCE_UNITS, DISTANCE_PER_SQUARE_PRESETS, getDistanceUnitAbbr, getAreaColorById, MAX_BACKGROUND_SIZE_MB,
 } from '@/components/party/battlemap/types';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -26,6 +26,8 @@ interface SavedMapState {
   gridSize: GridSize;
   backgroundUrl?: string;
   backgroundOpacity?: number;
+  distancePerSquare?: number;
+  distanceUnit?: DistanceUnit;
 }
 
 function loadMapState(): SavedMapState | null {
@@ -93,6 +95,8 @@ export function InlineBattleMap({
   const [backgroundUrl, setBackgroundUrl] = useState<string | undefined>(() => loadMapState()?.backgroundUrl);
   const [backgroundUploading, setBackgroundUploading] = useState(false);
   const [backgroundOpacity, setBackgroundOpacity] = useState<number>(() => loadMapState()?.backgroundOpacity ?? 1);
+  const [distancePerSquare, setDistancePerSquare] = useState<number>(() => loadMapState()?.distancePerSquare ?? 5);
+  const [distanceUnit, setDistanceUnit] = useState<DistanceUnit>(() => loadMapState()?.distanceUnit ?? 'ft');
 
   // ── Zoom & viewport ──
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -102,7 +106,7 @@ export function InlineBattleMap({
 
   const totalSize = gridSize * CELL_SIZE;
   const cellSize = CELL_SIZE * zoom;
-  const feetPerSq = getFeetPerSquare(gridSize);
+  const unitAbbr = getDistanceUnitAbbr(distanceUnit);
   const labelWidth = 28 * zoom;
   const labelHeight = 18 * zoom;
 
@@ -114,10 +118,10 @@ export function InlineBattleMap({
   useEffect(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      saveMapState({ markers, highlightedCells: Array.from(highlightedCells.entries()), spellTemplates, gridSize, backgroundUrl, backgroundOpacity });
+      saveMapState({ markers, highlightedCells: Array.from(highlightedCells.entries()), spellTemplates, gridSize, backgroundUrl, backgroundOpacity, distancePerSquare, distanceUnit });
     }, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [markers, highlightedCells, spellTemplates, gridSize, backgroundUrl, backgroundOpacity]);
+  }, [markers, highlightedCells, spellTemplates, gridSize, backgroundUrl, backgroundOpacity, distancePerSquare, distanceUnit]);
 
   useEffect(() => { onMarkersChange?.(markers); }, [markers, onMarkersChange]);
   useEffect(() => { onGridSizeChangeCallback?.(gridSize); }, [gridSize, onGridSizeChangeCallback]);
@@ -347,11 +351,31 @@ export function InlineBattleMap({
             </SelectTrigger>
             <SelectContent>
               {GRID_SIZE_OPTIONS.map(s => (
-                <SelectItem key={s} value={String(s)} className="text-[11px]">{s}×{s} ({getFeetPerSquare(s)}ft)</SelectItem>
+                <SelectItem key={s} value={String(s)} className="text-[11px]">{s}×{s}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <span className="text-[9px] text-white/30">{feetPerSq}ft/sq</span>
+          <Select value={String(distancePerSquare)} onValueChange={(v) => setDistancePerSquare(Number(v))}>
+            <SelectTrigger className="h-5 w-[3rem] text-[9px] font-sans border-border/30 bg-white/5">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {DISTANCE_PER_SQUARE_PRESETS.map(d => (
+                <SelectItem key={d} value={String(d)} className="text-[11px]">{d}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={distanceUnit} onValueChange={(v) => setDistanceUnit(v as DistanceUnit)}>
+            <SelectTrigger className="h-5 w-[3.5rem] text-[9px] font-sans border-border/30 bg-white/5">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {DISTANCE_UNITS.map(u => (
+                <SelectItem key={u.id} value={u.id} className="text-[11px]">{u.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <span className="text-[9px] text-white/30">/sq</span>
         </div>
         <div className="flex items-center gap-0.5">
           {markers.length > 0 && (
@@ -526,7 +550,8 @@ export function InlineBattleMap({
                 <MovementRangeOverlay
                   originX={moveRangeOrigin.x}
                   originY={moveRangeOrigin.y}
-                  movementSpeedFt={movementSpeedFt}
+                  movementSpeed={movementSpeedFt}
+                  distancePerSquare={distancePerSquare}
                   gridSize={gridSize}
                   cellSize={cellSize}
                   difficultTerrain={highlightedCells}
@@ -556,6 +581,8 @@ export function InlineBattleMap({
                 cellSize={cellSize}
                 offsetLeft={0}
                 offsetTop={0}
+                distancePerSquare={distancePerSquare}
+                distanceUnit={distanceUnit}
               />
 
               {/* Hover tooltip */}
@@ -631,6 +658,7 @@ export function InlineBattleMap({
           spellTemplateCount={spellTemplates.length}
           movementSpeedFt={movementSpeedFt}
           moveRangeActive={!!moveRangeOrigin}
+          distanceUnit={distanceUnit}
           setAddingEnemy={setAddingEnemy}
           setEnemyName={setEnemyName}
           setToolMode={handleSetToolMode}

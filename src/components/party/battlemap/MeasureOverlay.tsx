@@ -1,4 +1,4 @@
-import { type GridSize, getFeetPerSquare, gridDistance } from './types';
+import { type GridSize, type DistanceUnit, gridDistance, getDistanceUnitAbbr } from './types';
 
 interface MeasureOverlayProps {
   startCell: { x: number; y: number } | null;
@@ -7,14 +7,16 @@ interface MeasureOverlayProps {
   cellSize: number;
   offsetLeft: number;
   offsetTop: number;
+  distancePerSquare: number;
+  distanceUnit: DistanceUnit;
 }
 
-export function MeasureOverlay({ startCell, endCell, gridSize, cellSize, offsetLeft, offsetTop }: MeasureOverlayProps) {
+export function MeasureOverlay({ startCell, endCell, gridSize, cellSize, offsetLeft, offsetTop, distancePerSquare, distanceUnit }: MeasureOverlayProps) {
   if (!startCell || !endCell) return null;
 
-  const feetPerSq = getFeetPerSquare(gridSize);
   const dist = gridDistance(startCell.x, startCell.y, endCell.x, endCell.y);
-  const totalFeet = dist * feetPerSq;
+  const totalDist = dist * distancePerSquare;
+  const unitAbbr = getDistanceUnitAbbr(distanceUnit);
 
   const x1 = offsetLeft + startCell.x * cellSize + cellSize / 2;
   const y1 = offsetTop + startCell.y * cellSize + cellSize / 2;
@@ -31,7 +33,7 @@ export function MeasureOverlay({ startCell, endCell, gridSize, cellSize, offsetL
       <circle cx={x2} cy={y2} r={4} fill="hsl(var(--primary))" />
       <rect x={midX - 40} y={midY - 14} width={80} height={28} rx={4} fill="hsl(var(--background))" stroke="hsl(var(--border))" strokeWidth={1} opacity={0.95} />
       <text x={midX} y={midY + 1} textAnchor="middle" dominantBaseline="middle" fontSize={11} fontWeight="bold" fill="hsl(var(--primary))">
-        {totalFeet} ft
+        {totalDist} {unitAbbr}
       </text>
       <text x={midX} y={midY + 12} textAnchor="middle" dominantBaseline="middle" fontSize={8} fill="hsl(var(--muted-foreground))">
         {dist} sq

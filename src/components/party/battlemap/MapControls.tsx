@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  type MapMarker, type ToolMode, type UndoAction, type AreaColorId, type SpellShape, type SpellColorId,
-  AREA_COLORS, SPELL_SHAPE_LABELS, SPELL_SIZE_OPTIONS, SPELL_TEMPLATE_COLORS, MOVEMENT_SPEED_OPTIONS,
+  type MapMarker, type ToolMode, type UndoAction, type AreaColorId, type SpellShape, type SpellColorId, type DistanceUnit,
+  AREA_COLORS, SPELL_SHAPE_LABELS, SPELL_SIZE_OPTIONS, SPELL_TEMPLATE_COLORS, MOVEMENT_SPEED_OPTIONS, getDistanceUnitAbbr,
 } from './types';
 
 interface MapControlsProps {
@@ -22,6 +22,7 @@ interface MapControlsProps {
   spellTemplateCount: number;
   movementSpeedFt: number;
   moveRangeActive: boolean;
+  distanceUnit: DistanceUnit;
   setAddingEnemy: (v: boolean) => void;
   setEnemyName: (v: string) => void;
   setToolMode: (v: ToolMode) => void;
@@ -45,7 +46,7 @@ export function MapControls({
   myMarker, addingEnemy, enemyName, toolMode,
   undoStack, areaColor, highlightedCellCount,
   spellShape, spellSizeFt, spellColor, spellTemplateCount,
-  movementSpeedFt, moveRangeActive,
+  movementSpeedFt, moveRangeActive, distanceUnit,
   setAddingEnemy, setEnemyName, setToolMode, setAreaColor,
   setSpellShape, setSpellSizeFt, setSpellColor, setMovementSpeedFt,
   onUndo, onClearArea, onClearSpells,
@@ -205,7 +206,7 @@ export function MapControls({
             </SelectContent>
           </Select>
           {moveRangeActive && (
-            <span className="text-[9px] text-muted-foreground">Dash: {movementSpeedFt * 2}ft</span>
+            <span className="text-[9px] text-muted-foreground">Dash: {movementSpeedFt * 2}{getDistanceUnitAbbr(distanceUnit)}</span>
           )}
         </div>
       )}

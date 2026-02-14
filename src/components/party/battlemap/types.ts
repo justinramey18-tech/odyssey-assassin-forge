@@ -15,6 +15,31 @@ export const MEMBER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7'];
 export const STORAGE_KEY_GRID_SIZE = 'dnd-battlemap-grid-size';
 export const MAX_BACKGROUND_SIZE_MB = 5;
 
+// ── Distance Unit System ──
+export type DistanceUnit = 'ft' | 'mi' | 'km' | 'leagues' | 'm' | 'yd';
+
+export const DISTANCE_UNITS: { id: DistanceUnit; label: string }[] = [
+  { id: 'ft', label: 'Feet' },
+  { id: 'm', label: 'Meters' },
+  { id: 'yd', label: 'Yards' },
+  { id: 'mi', label: 'Miles' },
+  { id: 'km', label: 'Kilometers' },
+  { id: 'leagues', label: 'Leagues' },
+];
+
+export const DISTANCE_PER_SQUARE_PRESETS = [1, 2, 4, 5, 10, 15, 20, 25, 30, 50, 100] as const;
+
+export function getDistanceUnitAbbr(unit: DistanceUnit): string {
+  switch (unit) {
+    case 'ft': return 'ft';
+    case 'mi': return 'mi';
+    case 'km': return 'km';
+    case 'leagues': return 'lg';
+    case 'm': return 'm';
+    case 'yd': return 'yd';
+  }
+}
+
 export type ToolMode = 'place-self' | 'place-enemy' | 'measure' | 'area' | 'spell' | 'move-range' | null;
 
 export const MOVEMENT_SPEED_OPTIONS = [15, 20, 25, 30, 35, 40, 50, 60, 80] as const;

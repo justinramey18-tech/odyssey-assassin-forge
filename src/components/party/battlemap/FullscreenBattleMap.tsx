@@ -12,8 +12,9 @@ import { SpellTemplateOverlay } from './SpellTemplateOverlay';
 import { MovementRangeOverlay } from './MovementRangeOverlay';
 import {
   type MapMarker, type GridSize, type ToolMode, type UndoAction, type AreaColorId,
-  type SpellTemplate, type SpellShape, type SpellColorId,
-  GRID_SIZE_OPTIONS, CELL_SIZE, getFeetPerSquare, getAreaColorById,
+  type SpellTemplate, type SpellShape, type SpellColorId, type DistanceUnit,
+  GRID_SIZE_OPTIONS, CELL_SIZE, DISTANCE_UNITS, DISTANCE_PER_SQUARE_PRESETS,
+  getDistanceUnitAbbr, getAreaColorById,
 } from './types';
 
 interface FullscreenBattleMapProps {
@@ -66,6 +67,11 @@ interface FullscreenBattleMapProps {
   onSetBackground?: (file: File) => void;
   onClearBackground?: () => void;
   onBackgroundOpacityChange?: (opacity: number) => void;
+  // Distance/unit props
+  distancePerSquare: number;
+  distanceUnit: DistanceUnit;
+  onDistancePerSquareChange: (v: number) => void;
+  onDistanceUnitChange: (v: DistanceUnit) => void;
 }
 
 export function FullscreenBattleMap({
@@ -77,6 +83,7 @@ export function FullscreenBattleMap({
   setSpellShape, setSpellSizeFt, setSpellColor, onSpellClick, onDeleteSpell, onClearSpells,
   movementSpeedFt, setMovementSpeedFt, moveRangeOrigin, onMoveRangeClick,
   backgroundUrl, backgroundUploading, backgroundOpacity, onSetBackground, onClearBackground, onBackgroundOpacityChange,
+  distancePerSquare, distanceUnit, onDistancePerSquareChange, onDistanceUnitChange,
 }: FullscreenBattleMapProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -86,7 +93,7 @@ export function FullscreenBattleMap({
 
   const totalSize = gridSize * CELL_SIZE;
   const cellSize = CELL_SIZE * zoom;
-  const feetPerSq = getFeetPerSquare(gridSize);
+  const unitAbbr = getDistanceUnitAbbr(distanceUnit);
   const labelWidth = 28 * zoom;
   const labelHeight = 18 * zoom;
 
@@ -225,7 +232,7 @@ export function FullscreenBattleMap({
             </SelectTrigger>
             <SelectContent>
               {GRID_SIZE_OPTIONS.map(s => (
-                <SelectItem key={s} value={String(s)} className="text-[11px]">{s}×{s} ({getFeetPerSquare(s)}ft/sq)</SelectItem>
+                <SelectItem key={s} value={String(s)} className="text-[11px]">{s}×{s}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -405,7 +412,8 @@ export function FullscreenBattleMap({
                 <MovementRangeOverlay
                   originX={moveRangeOrigin.x}
                   originY={moveRangeOrigin.y}
-                  movementSpeedFt={movementSpeedFt}
+                  movementSpeed={movementSpeedFt}
+                  distancePerSquare={distancePerSquare}
                   gridSize={gridSize}
                   cellSize={cellSize}
                   difficultTerrain={highlightedCells}
@@ -435,6 +443,8 @@ export function FullscreenBattleMap({
                 cellSize={cellSize}
                 offsetLeft={0}
                 offsetTop={0}
+                distancePerSquare={distancePerSquare}
+                distanceUnit={distanceUnit}
               />
 
               {/* Hover tooltip */}
@@ -504,6 +514,7 @@ export function FullscreenBattleMap({
             spellTemplateCount={spellTemplates.length}
             movementSpeedFt={movementSpeedFt}
             moveRangeActive={!!moveRangeOrigin}
+            distanceUnit={distanceUnit}
             setAddingEnemy={setAddingEnemy}
             setEnemyName={setEnemyName}
             setToolMode={setToolMode}
@@ -523,9 +534,35 @@ export function FullscreenBattleMap({
             onBackgroundOpacityChange={onBackgroundOpacityChange}
           />
         </div>
-        {/* Feet-per-square info */}
-        <div className="text-[9px] text-muted-foreground mt-1">
-          Grid: {gridSize}×{gridSize} • {feetPerSq} ft/square • {gridSize * feetPerSq} ft total
+        {/* Distance/unit controls & grid info */}
+        <div className="flex items-center gap-2 text-[9px] text-muted-foreground mt-1 flex-wrap">
+          <span>Grid: {gridSize}×{gridSize}</span>
+          <span>•</span>
+          <div className="flex items-center gap-1">
+            <Select value={String(distancePerSquare)} onValueChange={(v) => onDistancePerSquareChange(Number(v))}>
+              <SelectTrigger className="h-5 w-[3.5rem] text-[9px] border-border/30 bg-muted/30">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DISTANCE_PER_SQUARE_PRESETS.map(d => (
+                  <SelectItem key={d} value={String(d)} className="text-[11px]">{d}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={distanceUnit} onValueChange={(v) => onDistanceUnitChange(v as DistanceUnit)}>
+              <SelectTrigger className="h-5 w-[4.5rem] text-[9px] border-border/30 bg-muted/30">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DISTANCE_UNITS.map(u => (
+                  <SelectItem key={u.id} value={u.id} className="text-[11px]">{u.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span>/sq</span>
+          </div>
+          <span>•</span>
+          <span>{gridSize * distancePerSquare} {unitAbbr} total</span>
         </div>
       </div>
     </div>
