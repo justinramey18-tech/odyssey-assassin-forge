@@ -1,17 +1,15 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Enemy } from '@/lib/combat/targetTypes';
 
 const STORAGE_KEY = 'odyssey-initiative';
+const SYNC_EVENT = 'odyssey-initiative-sync';
 
-/**
- * A combatant in the initiative order
- */
 export interface InitiativeCombatant {
   id: string;
   name: string;
   initiative: number;
   isPlayer: boolean;
-  isActive: boolean; // For enemies that can be defeated
+  isActive: boolean;
 }
 
 interface InitiativeState {
@@ -28,20 +26,16 @@ const DEFAULT_STATE: InitiativeState = {
   combatStarted: false,
 };
 
-// Load from localStorage
 function loadState(): InitiativeState {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      return { ...DEFAULT_STATE, ...JSON.parse(stored) };
-    }
+    if (stored) return { ...DEFAULT_STATE, ...JSON.parse(stored) };
   } catch (e) {
     console.error('[Initiative] Failed to load:', e);
   }
   return DEFAULT_STATE;
 }
 
-// Save to localStorage
 function saveState(state: InitiativeState): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -50,27 +44,25 @@ function saveState(state: InitiativeState): void {
   }
 }
 
+function dispatchSync(isSelfUpdate: React.MutableRefObject<boolean>) {
+  window.dispatchEvent(new CustomEvent(SYNC_EVENT));
+  setTimeout(() => { isSelfUpdate.current = false; }, 50);
+}
+
 export interface UseInitiativeOptions {
-  /** Called when advancing to the player's turn (for resetting action economy) */
   onPlayerTurnStart?: () => void;
-  /** Called when a round ends and a new round begins (for ticking down conditions) */
   onRoundAdvance?: (newRound: number) => void;
 }
 
 export interface UseInitiativeReturn {
-  // State
   playerInitiative: number | null;
   currentTurnId: string | null;
   roundNumber: number;
   combatStarted: boolean;
-  
-  // Computed - sorted initiative order
   initiativeOrder: InitiativeCombatant[];
   currentCombatant: InitiativeCombatant | null;
   currentTurnIndex: number;
   isPlayerTurn: boolean;
-  
-  // Actions
   setPlayerInitiative: (value: number | null) => void;
   setRoundNumber: (round: number) => void;
   rollPlayerInitiative: (modifier?: number) => number;
@@ -88,51 +80,40 @@ export function useInitiative(
 ): UseInitiativeReturn {
   const { onPlayerTurnStart, onRoundAdvance } = options;
   const [state, setState] = useState<InitiativeState>(loadState);
+  const isSelfUpdate = useRef(false);
 
   // Persist state changes
   useEffect(() => {
     saveState(state);
   }, [state]);
 
+  // Listen for sync events from other instances
+  useEffect(() => {
+    const handler = () => {
+      if (isSelfUpdate.current) return;
+      setState(loadState());
+    };
+    window.addEventListener(SYNC_EVENT, handler);
+    return () => window.removeEventListener(SYNC_EVENT, handler);
+  }, []);
+
   // Build initiative order from player + enemies
   const initiativeOrder = useMemo(() => {
     const combatants: InitiativeCombatant[] = [];
-
-    // Add player if initiative is set
     if (state.playerInitiative !== null) {
-      combatants.push({
-        id: 'player',
-        name: 'You',
-        initiative: state.playerInitiative,
-        isPlayer: true,
-        isActive: true,
-      });
+      combatants.push({ id: 'player', name: 'You', initiative: state.playerInitiative, isPlayer: true, isActive: true });
     }
-
-    // Add enemies with initiative set
     enemies.forEach(enemy => {
       if (enemy.initiative !== undefined) {
-        combatants.push({
-          id: enemy.id,
-          name: enemy.name,
-          initiative: enemy.initiative,
-          isPlayer: false,
-          isActive: enemy.currentHP > 0,
-        });
+        combatants.push({ id: enemy.id, name: enemy.name, initiative: enemy.initiative, isPlayer: false, isActive: enemy.currentHP > 0 });
       }
     });
-
-    // Sort by initiative (highest first), with player winning ties
     return combatants.sort((a, b) => {
-      if (b.initiative !== a.initiative) {
-        return b.initiative - a.initiative;
-      }
-      // Player wins ties
+      if (b.initiative !== a.initiative) return b.initiative - a.initiative;
       return a.isPlayer ? -1 : b.isPlayer ? 1 : 0;
     });
   }, [state.playerInitiative, enemies]);
 
-  // Current combatant
   const currentTurnIndex = useMemo(() => {
     if (!state.currentTurnId) return 0;
     const idx = initiativeOrder.findIndex(c => c.id === state.currentTurnId);
@@ -142,135 +123,91 @@ export function useInitiative(
   const currentCombatant = initiativeOrder[currentTurnIndex] ?? null;
   const isPlayerTurn = currentCombatant?.isPlayer ?? false;
 
-  // Set player initiative
   const setPlayerInitiative = useCallback((value: number | null) => {
+    isSelfUpdate.current = true;
     setState(prev => ({ ...prev, playerInitiative: value }));
+    dispatchSync(isSelfUpdate);
   }, []);
 
-  // Set round number directly (for Chronicle Sync)
   const setRoundNumber = useCallback((round: number) => {
+    isSelfUpdate.current = true;
     setState(prev => ({ ...prev, roundNumber: Math.max(1, round) }));
+    dispatchSync(isSelfUpdate);
   }, []);
 
-  // Roll player initiative (d20 + modifier)
   const rollPlayerInitiative = useCallback((modifier: number = 0): number => {
     const roll = Math.floor(Math.random() * 20) + 1;
     const total = roll + modifier;
+    isSelfUpdate.current = true;
     setState(prev => ({ ...prev, playerInitiative: total }));
+    dispatchSync(isSelfUpdate);
     return total;
   }, []);
 
-  // Next turn
   const nextTurn = useCallback(() => {
     const activeCombatants = initiativeOrder.filter(c => c.isActive);
     if (activeCombatants.length === 0) return;
 
+    isSelfUpdate.current = true;
     setState(prev => {
       const currentIdx = activeCombatants.findIndex(c => c.id === prev.currentTurnId);
       const nextIdx = (currentIdx + 1) % activeCombatants.length;
-      
-      // Check if we wrapped around (new round)
       const isNewRound = nextIdx === 0 && currentIdx >= 0;
       const newRoundNumber = isNewRound ? prev.roundNumber + 1 : prev.roundNumber;
       const nextCombatant = activeCombatants[nextIdx];
 
-      // Trigger callbacks after state update
-      if (isNewRound) {
-        // Use setTimeout to ensure state is updated first
-        setTimeout(() => onRoundAdvance?.(newRoundNumber), 0);
-      }
-      
-      // Check if next turn is player's turn
-      if (nextCombatant?.isPlayer) {
-        setTimeout(() => onPlayerTurnStart?.(), 0);
-      }
+      if (isNewRound) setTimeout(() => onRoundAdvance?.(newRoundNumber), 0);
+      if (nextCombatant?.isPlayer) setTimeout(() => onPlayerTurnStart?.(), 0);
 
-      return {
-        ...prev,
-        currentTurnId: nextCombatant?.id ?? null,
-        roundNumber: newRoundNumber,
-      };
+      return { ...prev, currentTurnId: nextCombatant?.id ?? null, roundNumber: newRoundNumber };
     });
+    dispatchSync(isSelfUpdate);
   }, [initiativeOrder, onRoundAdvance, onPlayerTurnStart]);
 
-  // Previous turn
   const prevTurn = useCallback(() => {
+    isSelfUpdate.current = true;
     setState(prev => {
       const activeCombatants = initiativeOrder.filter(c => c.isActive);
       if (activeCombatants.length === 0) return prev;
-
       const currentIdx = activeCombatants.findIndex(c => c.id === prev.currentTurnId);
       const prevIdx = currentIdx <= 0 ? activeCombatants.length - 1 : currentIdx - 1;
-      
-      // Check if we went back a round
       const prevRound = currentIdx === 0 && prev.roundNumber > 1;
-
-      return {
-        ...prev,
-        currentTurnId: activeCombatants[prevIdx]?.id ?? null,
-        roundNumber: prevRound ? prev.roundNumber - 1 : prev.roundNumber,
-      };
+      return { ...prev, currentTurnId: activeCombatants[prevIdx]?.id ?? null, roundNumber: prevRound ? prev.roundNumber - 1 : prev.roundNumber };
     });
+    dispatchSync(isSelfUpdate);
   }, [initiativeOrder]);
 
-  // Go to specific turn
   const goToTurn = useCallback((combatantId: string) => {
+    isSelfUpdate.current = true;
     setState(prev => ({ ...prev, currentTurnId: combatantId }));
+    dispatchSync(isSelfUpdate);
   }, []);
 
-  // Start combat - set to first in order
   const startCombat = useCallback(() => {
     const firstActive = initiativeOrder.find(c => c.isActive);
-    setState(prev => ({
-      ...prev,
-      combatStarted: true,
-      currentTurnId: firstActive?.id ?? null,
-      roundNumber: 1,
-    }));
+    isSelfUpdate.current = true;
+    setState(prev => ({ ...prev, combatStarted: true, currentTurnId: firstActive?.id ?? null, roundNumber: 1 }));
+    dispatchSync(isSelfUpdate);
   }, [initiativeOrder]);
 
-  // End combat - reset everything
   const endCombat = useCallback(() => {
-    setState({
-      playerInitiative: null,
-      currentTurnId: null,
-      roundNumber: 1,
-      combatStarted: false,
-    });
+    isSelfUpdate.current = true;
+    setState({ playerInitiative: null, currentTurnId: null, roundNumber: 1, combatStarted: false });
+    dispatchSync(isSelfUpdate);
   }, []);
 
-  // Reset to round 1, keep initiative values
   const resetRound = useCallback(() => {
     const firstActive = initiativeOrder.find(c => c.isActive);
-    setState(prev => ({
-      ...prev,
-      roundNumber: 1,
-      currentTurnId: firstActive?.id ?? null,
-    }));
+    isSelfUpdate.current = true;
+    setState(prev => ({ ...prev, roundNumber: 1, currentTurnId: firstActive?.id ?? null }));
+    dispatchSync(isSelfUpdate);
   }, [initiativeOrder]);
 
   return {
-    // State
-    playerInitiative: state.playerInitiative,
-    currentTurnId: state.currentTurnId,
-    roundNumber: state.roundNumber,
-    combatStarted: state.combatStarted,
-    
-    // Computed
-    initiativeOrder,
-    currentCombatant,
-    currentTurnIndex,
-    isPlayerTurn,
-    
-    // Actions
-    setPlayerInitiative,
-    setRoundNumber,
-    rollPlayerInitiative,
-    nextTurn,
-    prevTurn,
-    goToTurn,
-    startCombat,
-    endCombat,
-    resetRound,
+    playerInitiative: state.playerInitiative, currentTurnId: state.currentTurnId,
+    roundNumber: state.roundNumber, combatStarted: state.combatStarted,
+    initiativeOrder, currentCombatant, currentTurnIndex, isPlayerTurn,
+    setPlayerInitiative, setRoundNumber, rollPlayerInitiative,
+    nextTurn, prevTurn, goToTurn, startCombat, endCombat, resetRound,
   };
 }

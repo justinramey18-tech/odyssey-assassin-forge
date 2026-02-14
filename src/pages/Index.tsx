@@ -2058,6 +2058,12 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         isPartyCreator={isPartyMode ? partySync.party.isCreator : false}
         autoSyncCallbacks={autoSyncCallbacks}
         onOpenPartyChat={() => setOpenPartyChatRequested(true)}
+        combatEquipmentStats={aggregatedStats}
+        combatAbilityModifiers={abilityScores.finalModifiers}
+        combatActionEconomyState={actionEconomy}
+        combatGlobalConditions={convertConditionsToPromptFormat(conditions.conditions)}
+        combatActiveSetBonuses={convertSetBonusesToPromptFormat(aggregatedStats.activeSetBonuses)}
+        combatConcentrationSpell={combatSpellcasting.state.concentratingOn}
       >
         {isPartyMode && (
           <IncomingHealOverlay
@@ -2238,6 +2244,12 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         partyId={isPartyMode ? partySync.party.partyId : null}
         isPartyCreator={isPartyMode ? partySync.party.isCreator : false}
         autoSyncCallbacks={autoSyncCallbacks}
+        combatEquipmentStats={aggregatedStats}
+        combatAbilityModifiers={abilityScores.finalModifiers}
+        combatActionEconomyState={actionEconomy}
+        combatGlobalConditions={convertConditionsToPromptFormat(conditions.conditions)}
+        combatActiveSetBonuses={convertSetBonusesToPromptFormat(aggregatedStats.activeSetBonuses)}
+        combatConcentrationSpell={combatSpellcasting.state.concentratingOn}
       >
       {isPartyMode && (
         <IncomingHealOverlay

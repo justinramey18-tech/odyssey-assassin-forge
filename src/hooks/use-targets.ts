@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   Enemy,
   NewEnemyInput,
@@ -20,6 +20,8 @@ const DEFAULT_STATE: TargetsState = {
   currentTargetId: null,
 };
 
+const SYNC_EVENT = 'odyssey-targets-sync';
+
 /**
  * Load targets from localStorage
  */
@@ -28,7 +30,6 @@ function loadFromStorage(): TargetsState {
     const stored = localStorage.getItem(TARGETS_STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      // Migrate old enemies without new fields
       const enemies = Array.isArray(parsed.enemies) 
         ? parsed.enemies.map((e: Partial<Enemy>) => ({
             ...e,
@@ -61,44 +62,34 @@ function saveToStorage(state: TargetsState): void {
   }
 }
 
-/**
- * Generate a unique ID for enemies
- */
 function generateId(): string {
   return `enemy-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
+/** Helper: save, dispatch sync, and schedule ref reset */
+function dispatchSync(isSelfUpdate: React.MutableRefObject<boolean>) {
+  window.dispatchEvent(new CustomEvent(SYNC_EVENT));
+  setTimeout(() => { isSelfUpdate.current = false; }, 50);
+}
+
 export interface UseTargetsReturn {
-  // State
   enemies: Enemy[];
   currentTarget: Enemy | null;
   currentTargetId: string | null;
-  
-  // Actions
   addEnemy: (input: NewEnemyInput) => boolean;
   removeEnemy: (id: string) => void;
   updateEnemy: (id: string, updates: Partial<Enemy>) => void;
   setCurrentTarget: (id: string | null) => void;
   cloneEnemy: (id: string) => boolean;
-  
-  // Combat helpers
   dealDamage: (id: string, amount: number, damageType?: DamageType, source?: string) => void;
   healEnemy: (id: string, amount: number, source?: string) => void;
-  
-  // Condition management
   addCondition: (id: string, condition: EnemyCondition) => void;
   removeCondition: (id: string, condition: EnemyCondition) => void;
   toggleCondition: (id: string, condition: EnemyCondition) => void;
-  
-  // Bulk operations
   importEnemies: (enemies: NewEnemyInput[]) => number;
-  
-  // Computed
   enemyCount: number;
   defeatedCount: number;
   activeEnemies: Enemy[];
-  
-  // Utility
   clearAll: () => void;
   clearDefeated: () => void;
   getTargetForPrompt: () => TargetPromptInfo | null;
@@ -107,17 +98,25 @@ export interface UseTargetsReturn {
 
 export function useTargets(): UseTargetsReturn {
   const [state, setState] = useState<TargetsState>(loadFromStorage);
+  const isSelfUpdate = useRef(false);
 
   // Persist to localStorage on state change
   useEffect(() => {
     saveToStorage(state);
   }, [state]);
 
-  // Add a new enemy
+  // Listen for sync events from other instances
+  useEffect(() => {
+    const handler = () => {
+      if (isSelfUpdate.current) return;
+      setState(loadFromStorage());
+    };
+    window.addEventListener(SYNC_EVENT, handler);
+    return () => window.removeEventListener(SYNC_EVENT, handler);
+  }, []);
+
   const addEnemy = useCallback((input: NewEnemyInput): boolean => {
-    if (state.enemies.length >= MAX_ENEMIES) {
-      return false;
-    }
+    if (state.enemies.length >= MAX_ENEMIES) return false;
     
     const newEnemy: Enemy = {
       id: generateId(),
@@ -137,309 +136,185 @@ export function useTargets(): UseTargetsReturn {
       damageHistory: [],
     };
     
+    isSelfUpdate.current = true;
     setState(prev => {
-      const updated = {
-        ...prev,
-        enemies: [...prev.enemies, newEnemy],
-      };
-      
-      // Auto-target if this is the first enemy
-      if (prev.enemies.length === 0) {
-        updated.currentTargetId = newEnemy.id;
-      }
-      
+      const updated = { ...prev, enemies: [...prev.enemies, newEnemy] };
+      if (prev.enemies.length === 0) updated.currentTargetId = newEnemy.id;
       return updated;
     });
-    
+    dispatchSync(isSelfUpdate);
     return true;
   }, [state.enemies.length]);
 
-  // Remove an enemy
   const removeEnemy = useCallback((id: string) => {
+    isSelfUpdate.current = true;
     setState(prev => {
       const newEnemies = prev.enemies.filter(e => e.id !== id);
       let newTargetId = prev.currentTargetId;
-      
-      // If we removed the current target, select the first remaining active enemy
       if (prev.currentTargetId === id) {
         const activeEnemy = newEnemies.find(e => e.currentHP > 0);
         newTargetId = activeEnemy?.id ?? null;
       }
-      
-      return {
-        enemies: newEnemies,
-        currentTargetId: newTargetId,
-      };
+      return { enemies: newEnemies, currentTargetId: newTargetId };
     });
+    dispatchSync(isSelfUpdate);
   }, []);
 
-  // Update an enemy
   const updateEnemy = useCallback((id: string, updates: Partial<Enemy>) => {
+    isSelfUpdate.current = true;
     setState(prev => ({
       ...prev,
-      enemies: prev.enemies.map(e => 
-        e.id === id 
-          ? { ...e, ...updates, id: e.id } // Prevent ID from being changed
-          : e
-      ),
+      enemies: prev.enemies.map(e => e.id === id ? { ...e, ...updates, id: e.id } : e),
     }));
+    dispatchSync(isSelfUpdate);
   }, []);
 
-  // Set current target
   const setCurrentTarget = useCallback((id: string | null) => {
-    setState(prev => ({
-      ...prev,
-      currentTargetId: id,
-    }));
+    isSelfUpdate.current = true;
+    setState(prev => ({ ...prev, currentTargetId: id }));
+    dispatchSync(isSelfUpdate);
   }, []);
 
-  // Deal damage to an enemy with history tracking
   const dealDamage = useCallback((id: string, amount: number, damageType?: DamageType, source?: string) => {
     if (amount <= 0) return;
-    
     const historyEntry: DamageHistoryEntry = {
-      id: generateId(),
-      amount,
-      type: 'damage',
-      damageType,
-      source,
-      timestamp: Date.now(),
+      id: generateId(), amount, type: 'damage', damageType, source, timestamp: Date.now(),
     };
-    
+    isSelfUpdate.current = true;
     setState(prev => ({
       ...prev,
       enemies: prev.enemies.map(e => 
-        e.id === id 
-          ? { 
-              ...e, 
-              currentHP: Math.max(0, e.currentHP - amount),
-              damageHistory: [...e.damageHistory, historyEntry],
-            }
-          : e
+        e.id === id ? { ...e, currentHP: Math.max(0, e.currentHP - amount), damageHistory: [...e.damageHistory, historyEntry] } : e
       ),
     }));
+    dispatchSync(isSelfUpdate);
   }, []);
 
-  // Heal an enemy with history tracking
   const healEnemy = useCallback((id: string, amount: number, source?: string) => {
     if (amount <= 0) return;
-    
     const historyEntry: DamageHistoryEntry = {
-      id: generateId(),
-      amount,
-      type: 'healing',
-      source,
-      timestamp: Date.now(),
+      id: generateId(), amount, type: 'healing', source, timestamp: Date.now(),
     };
-    
+    isSelfUpdate.current = true;
     setState(prev => ({
       ...prev,
       enemies: prev.enemies.map(e => 
-        e.id === id 
-          ? { 
-              ...e, 
-              currentHP: Math.min(e.maxHP, e.currentHP + amount),
-              damageHistory: [...e.damageHistory, historyEntry],
-            }
-          : e
+        e.id === id ? { ...e, currentHP: Math.min(e.maxHP, e.currentHP + amount), damageHistory: [...e.damageHistory, historyEntry] } : e
       ),
     }));
+    dispatchSync(isSelfUpdate);
   }, []);
 
-  // Clone an enemy
   const cloneEnemy = useCallback((id: string): boolean => {
     const enemy = state.enemies.find(e => e.id === id);
     if (!enemy || state.enemies.length >= MAX_ENEMIES) return false;
-    
-    // Find how many clones exist to generate a name
     const baseName = enemy.name.replace(/\s*\d+$/, '').trim();
-    const cloneCount = state.enemies.filter(e => 
-      e.name.replace(/\s*\d+$/, '').trim() === baseName
-    ).length;
-    
+    const cloneCount = state.enemies.filter(e => e.name.replace(/\s*\d+$/, '').trim() === baseName).length;
     const clonedEnemy: Enemy = {
-      ...enemy,
-      id: generateId(),
-      name: `${baseName} ${cloneCount + 1}`,
-      currentHP: enemy.maxHP, // Reset HP
-      createdAt: Date.now(),
-      conditions: [],
-      damageHistory: [],
+      ...enemy, id: generateId(), name: `${baseName} ${cloneCount + 1}`,
+      currentHP: enemy.maxHP, createdAt: Date.now(), conditions: [], damageHistory: [],
     };
-    
-    setState(prev => ({
-      ...prev,
-      enemies: [...prev.enemies, clonedEnemy],
-    }));
-    
+    isSelfUpdate.current = true;
+    setState(prev => ({ ...prev, enemies: [...prev.enemies, clonedEnemy] }));
+    dispatchSync(isSelfUpdate);
     return true;
   }, [state.enemies]);
 
-  // Condition management
   const addCondition = useCallback((id: string, condition: EnemyCondition) => {
+    isSelfUpdate.current = true;
     setState(prev => ({
       ...prev,
       enemies: prev.enemies.map(e => 
-        e.id === id && !e.conditions.includes(condition)
-          ? { ...e, conditions: [...e.conditions, condition] }
-          : e
+        e.id === id && !e.conditions.includes(condition) ? { ...e, conditions: [...e.conditions, condition] } : e
       ),
     }));
+    dispatchSync(isSelfUpdate);
   }, []);
 
   const removeCondition = useCallback((id: string, condition: EnemyCondition) => {
+    isSelfUpdate.current = true;
     setState(prev => ({
       ...prev,
       enemies: prev.enemies.map(e => 
-        e.id === id
-          ? { ...e, conditions: e.conditions.filter(c => c !== condition) }
-          : e
+        e.id === id ? { ...e, conditions: e.conditions.filter(c => c !== condition) } : e
       ),
     }));
+    dispatchSync(isSelfUpdate);
   }, []);
 
   const toggleCondition = useCallback((id: string, condition: EnemyCondition) => {
+    isSelfUpdate.current = true;
     setState(prev => ({
       ...prev,
       enemies: prev.enemies.map(e => {
         if (e.id !== id) return e;
-        const hasCondition = e.conditions.includes(condition);
-        return {
-          ...e,
-          conditions: hasCondition 
-            ? e.conditions.filter(c => c !== condition)
-            : [...e.conditions, condition],
-        };
+        const has = e.conditions.includes(condition);
+        return { ...e, conditions: has ? e.conditions.filter(c => c !== condition) : [...e.conditions, condition] };
       }),
     }));
+    dispatchSync(isSelfUpdate);
   }, []);
 
-  // Bulk import enemies
   const importEnemies = useCallback((newEnemies: NewEnemyInput[]): number => {
     const slotsAvailable = MAX_ENEMIES - state.enemies.length;
     const toImport = newEnemies.slice(0, slotsAvailable);
-    
     if (toImport.length === 0) return 0;
-    
     const importedEnemies: Enemy[] = toImport.map(input => ({
-      id: generateId(),
-      name: input.name.trim() || 'Unknown Enemy',
-      currentHP: input.maxHP,
-      maxHP: input.maxHP,
-      ac: input.ac,
-      notes: input.notes?.trim() || undefined,
-      createdAt: Date.now(),
-      creatureType: input.creatureType,
-      size: input.size,
-      initiative: input.initiative,
-      conditions: [],
-      resistances: input.resistances ?? [],
-      vulnerabilities: input.vulnerabilities ?? [],
-      immunities: input.immunities ?? [],
-      damageHistory: [],
+      id: generateId(), name: input.name.trim() || 'Unknown Enemy',
+      currentHP: input.maxHP, maxHP: input.maxHP, ac: input.ac,
+      notes: input.notes?.trim() || undefined, createdAt: Date.now(),
+      creatureType: input.creatureType, size: input.size, initiative: input.initiative,
+      conditions: [], resistances: input.resistances ?? [], vulnerabilities: input.vulnerabilities ?? [],
+      immunities: input.immunities ?? [], damageHistory: [],
     }));
-    
+    isSelfUpdate.current = true;
     setState(prev => {
-      const updated = {
-        ...prev,
-        enemies: [...prev.enemies, ...importedEnemies],
-      };
-      
-      // Auto-target first if none selected
-      if (!prev.currentTargetId && importedEnemies.length > 0) {
-        updated.currentTargetId = importedEnemies[0].id;
-      }
-      
+      const updated = { ...prev, enemies: [...prev.enemies, ...importedEnemies] };
+      if (!prev.currentTargetId && importedEnemies.length > 0) updated.currentTargetId = importedEnemies[0].id;
       return updated;
     });
-    
+    dispatchSync(isSelfUpdate);
     return importedEnemies.length;
   }, [state.enemies.length]);
 
-  // Clear all enemies
   const clearAll = useCallback(() => {
+    isSelfUpdate.current = true;
     setState(DEFAULT_STATE);
+    dispatchSync(isSelfUpdate);
   }, []);
 
-  // Clear only defeated enemies
   const clearDefeated = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      enemies: prev.enemies.filter(e => e.currentHP > 0),
-    }));
+    isSelfUpdate.current = true;
+    setState(prev => ({ ...prev, enemies: prev.enemies.filter(e => e.currentHP > 0) }));
+    dispatchSync(isSelfUpdate);
   }, []);
 
-  // Computed values
   const currentTarget = useMemo(() => 
     state.enemies.find(e => e.id === state.currentTargetId) ?? null,
     [state.enemies, state.currentTargetId]
   );
 
-  const activeEnemies = useMemo(() => 
-    state.enemies.filter(e => e.currentHP > 0),
-    [state.enemies]
-  );
+  const activeEnemies = useMemo(() => state.enemies.filter(e => e.currentHP > 0), [state.enemies]);
+  const defeatedCount = useMemo(() => state.enemies.filter(e => e.currentHP <= 0).length, [state.enemies]);
 
-  const defeatedCount = useMemo(() => 
-    state.enemies.filter(e => e.currentHP <= 0).length,
-    [state.enemies]
-  );
-
-  // Get target info formatted for prompts
   const getTargetForPrompt = useCallback((): TargetPromptInfo | null => {
     if (!currentTarget) return null;
-    
     return {
-      name: currentTarget.name,
-      ac: currentTarget.ac,
-      currentHP: currentTarget.currentHP,
-      maxHP: currentTarget.maxHP,
-      notes: currentTarget.notes,
-      creatureType: currentTarget.creatureType,
-      size: currentTarget.size,
-      conditions: currentTarget.conditions,
-      resistances: currentTarget.resistances,
-      vulnerabilities: currentTarget.vulnerabilities,
+      name: currentTarget.name, ac: currentTarget.ac,
+      currentHP: currentTarget.currentHP, maxHP: currentTarget.maxHP,
+      notes: currentTarget.notes, creatureType: currentTarget.creatureType,
+      size: currentTarget.size, conditions: currentTarget.conditions,
+      resistances: currentTarget.resistances, vulnerabilities: currentTarget.vulnerabilities,
       immunities: currentTarget.immunities,
     };
   }, [currentTarget]);
 
   return {
-    // State
-    enemies: state.enemies,
-    currentTarget,
-    currentTargetId: state.currentTargetId,
-    
-    // Actions
-    addEnemy,
-    removeEnemy,
-    updateEnemy,
-    setCurrentTarget,
-    cloneEnemy,
-    
-    // Combat helpers
-    dealDamage,
-    healEnemy,
-    
-    // Condition management
-    addCondition,
-    removeCondition,
-    toggleCondition,
-    
-    // Bulk operations
-    importEnemies,
-    
-    // Computed
-    enemyCount: state.enemies.length,
-    defeatedCount,
-    activeEnemies,
-    
-    // Utility
-    clearAll,
-    clearDefeated,
-    getTargetForPrompt,
-    refreshFromStorage: useCallback(() => {
-      setState(loadFromStorage());
-    }, []),
+    enemies: state.enemies, currentTarget, currentTargetId: state.currentTargetId,
+    addEnemy, removeEnemy, updateEnemy, setCurrentTarget, cloneEnemy,
+    dealDamage, healEnemy, addCondition, removeCondition, toggleCondition,
+    importEnemies, enemyCount: state.enemies.length, defeatedCount, activeEnemies,
+    clearAll, clearDefeated, getTargetForPrompt,
+    refreshFromStorage: useCallback(() => { setState(loadFromStorage()); }, []),
   };
 }
