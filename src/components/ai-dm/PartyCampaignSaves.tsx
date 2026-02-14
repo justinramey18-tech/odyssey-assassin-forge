@@ -116,13 +116,34 @@ export function PartyCampaignSaves({
   const handleDelete = useCallback(async (id: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { error } = await supabase.from('ai_dm_campaigns').delete().eq('id', id).eq('user_id', user.id);
+      if (!user) {
+        toast.error('Sign in to delete campaigns');
+        return;
+      }
+      const { error } = await supabase
+        .from('ai_dm_campaigns')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id);
       if (error) {
         console.error('Delete error:', error);
         throw error;
       }
-      setSessions(prev => prev.filter(s => s.id !== id));
+      // Verify deletion by re-checking
+      const { data: check } = await supabase
+        .from('ai_dm_campaigns')
+        .select('id')
+        .eq('id', id)
+        .maybeSingle();
+      if (check) {
+        console.error('Campaign still exists after delete, id:', id, 'user:', user.id);
+        toast.error('Delete failed — campaign still exists');
+        return;
+      }
+      setSessions(prev => {
+        const filtered = prev.filter(s => s.id !== id);
+        return filtered;
+      });
       setDeleteConfirmId(null);
       toast.success('Campaign deleted');
     } catch (e) {
