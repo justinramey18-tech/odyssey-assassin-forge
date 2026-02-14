@@ -324,8 +324,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
 
 export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, characterContext, showBattleMap, battleMapContent }: PartyDMScreenProps) {
   const [input, setInput] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
-  const [editText, setEditText] = useState('');
+  
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [expandedPillUserId, setExpandedPillUserId] = useState<string | null>(null);
@@ -672,7 +671,13 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                     <span className="w-1.5 h-1.5 rounded-full bg-white/20 shrink-0" />
                   )}
                   {mode === 'shared' && hasAction && !isExpanded && (
-                    <span className="text-[9px] text-white/30 max-w-[60px] truncate">{prompt!.prompt}</span>
+                    <>
+                      <span className="text-[9px] text-white/30 max-w-[60px] truncate">{prompt!.prompt}</span>
+                      <Eye className="w-2.5 h-2.5 text-white/20 shrink-0" />
+                    </>
+                  )}
+                  {mode === 'shared' && hasAction && isExpanded && (
+                    <Eye className="w-2.5 h-2.5 text-white/50 shrink-0" />
                   )}
                 </div>
               );
@@ -718,11 +723,12 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                         <div className="flex justify-end">
                           <Button
                             size="sm"
-                            onClick={(e) => {
+                            onClick={async (e) => {
                               e.stopPropagation();
                               if (pillEditText.trim()) {
-                                partyDm.editPrompt(pillEditText.trim());
+                                await partyDm.editPrompt(pillEditText.trim());
                                 toast.success('Prompt updated');
+                                setExpandedPillUserId(null);
                               }
                             }}
                             className="h-6 px-2.5 text-[10px] gap-1 bg-amber-900/40 border border-amber-500/30 hover:bg-amber-900/60 text-amber-300"
@@ -880,71 +886,45 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
           </div>
         ) : !isReady ? (
           <div className="space-y-2 max-w-2xl mx-auto">
-            {isEditing ? (
-              <div className="flex items-end gap-2">
-                <textarea
-                  value={editText}
-                  onChange={(e) => setEditText(e.target.value)}
-                  rows={1}
-                  className="flex-1 bg-white/5 border border-amber-900/30 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-amber-500/40 resize-none min-h-[42px] max-h-[200px]"
-                  autoFocus
-                />
-                <Button
-                  onClick={() => {
-                    if (editText.trim()) {
-                      partyDm.editPrompt(editText.trim());
-                    }
-                    setIsEditing(false);
-                  }}
-                  size="sm"
-                  className="gap-1 bg-amber-900/40 border border-amber-500/30 hover:bg-amber-900/60 text-amber-300"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  Save
-                </Button>
-                <Button
-                  onClick={() => setIsEditing(false)}
-                  size="sm"
-                  variant="ghost"
-                  className="text-white/40 hover:text-white/70"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 bg-white/5 border border-amber-900/30 rounded-xl px-4 py-2.5">
-                    <p className="text-[10px] text-white/40 mb-0.5">Your action:</p>
-                    <p className="text-sm text-white/70 truncate">{partyDm.myPrompt?.prompt || '(no action)'}</p>
-                  </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="flex-1 bg-white/5 border border-amber-900/30 rounded-xl px-4 py-2.5">
+                  <p className="text-[10px] text-white/40 mb-0.5">Your action:</p>
+                  <p className="text-sm text-white/70 truncate">{partyDm.myPrompt?.prompt || '(no action)'}</p>
+                </div>
+                {mode === 'shared' && (
                   <button
-                    onClick={() => { setEditText(partyDm.myPrompt?.prompt || ''); setIsEditing(true); }}
+                    onClick={() => {
+                      const myUserId = currentUserId;
+                      if (!myUserId) return;
+                      setExpandedPillUserId(prev => prev === myUserId ? null : myUserId);
+                      setPillEditText(partyDm.myPrompt?.prompt || '');
+                    }}
                     className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/40 hover:text-white/70"
-                    title="Edit prompt"
+                    title="Edit prompt via pill"
                     style={{ touchAction: 'manipulation' }}
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
-                  <button
-                    onClick={() => partyDm.retractPrompt()}
-                    className="p-2 rounded-lg hover:bg-red-900/20 transition-colors text-white/40 hover:text-red-400"
-                    title="Retract prompt"
-                    style={{ touchAction: 'manipulation' }}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-                <Button
-                  onClick={partyDm.setReady}
-                  className="w-full gap-1.5 bg-emerald-900/40 border border-emerald-500/30 hover:bg-emerald-900/60 text-emerald-300"
-                  size="sm"
+                )}
+                <button
+                  onClick={() => partyDm.retractPrompt()}
+                  className="p-2 rounded-lg hover:bg-red-900/20 transition-colors text-white/40 hover:text-red-400"
+                  title="Retract prompt"
+                  style={{ touchAction: 'manipulation' }}
                 >
-                  <Check className="w-4 h-4" />
-                  Ready
-                </Button>
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
-            )}
+              <Button
+                onClick={partyDm.setReady}
+                className="w-full gap-1.5 bg-emerald-900/40 border border-emerald-500/30 hover:bg-emerald-900/60 text-emerald-300"
+                size="sm"
+              >
+                <Check className="w-4 h-4" />
+                Ready
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="flex items-center justify-between max-w-2xl mx-auto">
