@@ -568,7 +568,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
       )}
 
       {/* Input Area */}
-      <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm mb-[46px]">
+      <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm mb-[44px]">
         <input
           ref={videoInputRef}
           type="file"
