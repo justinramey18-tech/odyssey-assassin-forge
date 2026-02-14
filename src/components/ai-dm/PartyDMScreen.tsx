@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, ListChecks, MessageSquare, Plus, Save, Gem } from 'lucide-react';
+import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, MessageSquare, Plus, Save } from 'lucide-react';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
+import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -338,7 +339,6 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
   const [input, setInput] = useState('');
   const [, setTick] = useState(0);
 
-  // Re-render every 30s to keep auto-save timestamp fresh
   useEffect(() => {
     if (!partyDm.lastAutoSaveTime) return;
     const id = setInterval(() => setTick(t => t + 1), 30000);
@@ -356,16 +356,19 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
   const videoInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
+  // Bottom nav state
+  const [activeNavTab, setActiveNavTab] = useState<DMNavTab | null>(null);
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
+  const [showStoneDrawer, setShowStoneDrawer] = useState(false);
+
   const mode = partyDm.sessionConfig?.mode || 'shared';
 
-  // Auto-scroll
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [partyDm.messages, partyDm.currentPrompts]);
 
-  // Auto-collapse expanded pill when generation starts
   useEffect(() => {
     if (partyDm.isGenerating) setExpandedPillUserId(null);
   }, [partyDm.isGenerating]);
@@ -391,12 +394,10 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
     ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
   }, []);
 
-  // Handle paste for GIFs/images from keyboard
   const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
     if (!items) return;
 
-    // Check for image blob
     for (const item of Array.from(items)) {
       if (item.type.startsWith('image/')) {
         e.preventDefault();
@@ -418,7 +419,6 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
       }
     }
 
-    // Check for pasted text that looks like a GIF/image URL (common from mobile keyboards)
     const text = e.clipboardData?.getData('text/plain')?.trim();
     if (text && /^https?:\/\/.+\.(gif|png|jpg|jpeg|webp)(\?.*)?$/i.test(text)) {
       e.preventDefault();
@@ -448,21 +448,31 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
     partyDm.regenerateMessage?.(messageId);
   }, [partyDm]);
 
-  // Dice roll: append result to input field
   const handleDiceRoll = useCallback((message: string) => {
     setInput(prev => prev ? `${prev}\n${message}` : message);
   }, []);
-
-  // Local Quick Actions drawer state
-  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
-  const [showStoneDrawer, setShowStoneDrawer] = useState(false);
 
   const handleUsePrompt = useCallback((prompt: string) => {
     setInput(prev => prev ? `${prev}\n${prompt}` : prompt);
   }, []);
 
+  // Bottom nav tab handler
+  const handleNavTabChange = useCallback((tab: DMNavTab) => {
+    if (tab === 'prompts') {
+      setShowStoneDrawer(true);
+      return;
+    }
+    if (tab === 'actions') {
+      setQuickActionsOpen(true);
+      return;
+    }
+    // Dice tab toggles
+    setActiveNavTab(prev => prev === tab ? null : tab);
+  }, []);
+
   const hasSubmitted = !!partyDm.myPrompt;
   const isReady = partyDm.myPrompt?.is_ready ?? false;
+  const showDiceRoller = activeNavTab === 'dice' && characterContext && !partyDm.isGenerating;
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]">
@@ -495,7 +505,6 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
           </div>
         </div>
         <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide flex-shrink min-w-0">
-          {/* Auto-Sync Toggle */}
           {onToggleAutoSync && (
             <button
               onClick={() => onToggleAutoSync(!autoSyncEnabled)}
@@ -510,7 +519,6 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
               Sync
             </button>
           )}
-          {/* Battle Map */}
           {onShowMap && (
             <button
               onClick={onShowMap}
@@ -521,7 +529,6 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
               Map
             </button>
           )}
-          {/* Saves */}
           {onShowSaves && (
             <button
               onClick={onShowSaves}
@@ -532,7 +539,6 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
               Saves
             </button>
           )}
-          {/* Party Chat */}
           {onShowChat && (
             <button
               onClick={onShowChat}
@@ -543,7 +549,6 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
               Chat
             </button>
           )}
-          {/* Guides */}
           {onShowGuides && (
             <button
               onClick={onShowGuides}
@@ -584,7 +589,6 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
               >
                 {mode === 'shared' ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
               </button>
-              {/* Saves button */}
               {onShowSaves && (
                 <button
                   onClick={onShowSaves}
@@ -699,7 +703,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
       {showBattleMap && battleMapContent ? (
         battleMapContent
       ) : (
-        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain">
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain pb-[144px]">
           {partyDm.messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-6">
               <Users className="w-12 h-12 text-primary/40 mb-4" />
@@ -912,17 +916,17 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
         }}
       />
 
-      {/* Inline Dice Roller */}
-      {characterContext && !partyDm.isGenerating && (
+      {/* Dice Roller Panel (shown when dice tab active) */}
+      {showDiceRoller && (
         <DMDiceRoller
-          characterContext={characterContext}
+          characterContext={characterContext!}
           onRollResult={handleDiceRoll}
           disabled={partyDm.isGenerating}
         />
       )}
 
       {/* Input Area */}
-      <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm">
+      <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm mb-[72px]">
         {partyDm.isGenerating ? (
           <div className="flex items-center justify-center gap-2 py-2">
             <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
@@ -930,39 +934,6 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
           </div>
         ) : !hasSubmitted ? (
           <div className="space-y-2 max-w-2xl mx-auto">
-            {/* Quick Actions & Gem Drawer Triggers */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => setQuickActionsOpen(true)}
-                disabled={partyDm.isGenerating}
-                className={cn(
-                  "flex-1 flex items-center gap-2 px-3 py-2 rounded-xl text-left text-sm transition-all",
-                  "bg-emerald-900/20 border border-emerald-500/20",
-                  "hover:bg-emerald-900/40 hover:border-emerald-500/30",
-                  "disabled:opacity-40 disabled:cursor-not-allowed",
-                  "text-emerald-300/80"
-                )}
-                style={{ touchAction: 'manipulation' }}
-              >
-                <ListChecks className="w-4 h-4 text-emerald-400" />
-                <span className="font-semibold text-xs">Quick Actions</span>
-              </button>
-              <button
-                onClick={() => setShowStoneDrawer(true)}
-                disabled={partyDm.isGenerating}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all",
-                  "bg-amber-900/20 border border-amber-500/20",
-                  "hover:bg-amber-900/40 hover:border-amber-500/30",
-                  "disabled:opacity-40 disabled:cursor-not-allowed",
-                  "text-amber-300/80"
-                )}
-                style={{ touchAction: 'manipulation' }}
-              >
-                <Gem className="w-4 h-4 text-amber-400" />
-                <span className="font-semibold text-xs">RP</span>
-              </button>
-            </div>
             <div className="flex items-end gap-2">
               {currentUserId && (
                 <div className="flex gap-1 shrink-0">
@@ -1094,7 +1065,15 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
           </div>
         )}
       </div>
-      {/* Self-contained Quick Actions Drawer */}
+
+      {/* Bottom Navigation */}
+      <DMBottomNav
+        activeTab={activeNavTab}
+        onTabChange={handleNavTabChange}
+        disabled={partyDm.isGenerating}
+      />
+
+      {/* Quick Actions Drawer */}
       <PartyDMQuickActions
         open={quickActionsOpen}
         onOpenChange={setQuickActionsOpen}

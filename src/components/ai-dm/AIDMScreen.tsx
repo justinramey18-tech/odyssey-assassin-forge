@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Zap, Map, Film, Image as ImageIcon, Gem } from 'lucide-react';
+import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Zap, Map, Film, Image as ImageIcon } from 'lucide-react';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
+import { DMBottomNav, DMNavTab } from './DMBottomNav';
+import { PartyDMQuickActions } from './PartyDMQuickActions';
 import { CampaignDropdown } from './CampaignDropdown';
 import { cn } from '@/lib/utils';
 import { useAIDM } from '@/hooks/use-ai-dm';
@@ -154,7 +156,12 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const gmGuides = useGMGuides();
   const { toast } = useToast();
 
-  // Auto-sync hook — use stable fallbacks to prevent callback churn
+  // Bottom nav state
+  const [activeNavTab, setActiveNavTab] = useState<DMNavTab | null>(null);
+  const [showStoneDrawer, setShowStoneDrawer] = useState(false);
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
+
+  // Auto-sync hook
   const autoSync = useDmAutoSync({
     onHPChange: autoSyncCallbacks?.onHPChange ?? NOOP_TWO_ARG,
     onAddXP: autoSyncCallbacks?.onAddXP ?? NOOP_TWO_ARG,
@@ -171,7 +178,6 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     getGridSize: useCallback(() => battleMapGridSizeRef.current as any, []),
   });
 
-  // Callback for when DM finishes streaming
   const handleMessageComplete = useCallback((content: string) => {
     if (autoSync.autoSyncEnabled && autoSyncCallbacks) {
       autoSync.extractAndApply(content, characterContext);
@@ -191,7 +197,6 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   });
   const campaignSessions = useCampaignSessions();
 
-
   const handleCampaignSummaryChange = useCallback((summary: string) => {
     updateCampaignSummary(summary);
   }, [updateCampaignSummary]);
@@ -200,12 +205,10 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const [showContext, setShowContext] = useState(false);
   const [showGuides, setShowGuides] = useState(false);
   const [showSessions, setShowSessions] = useState(false);
-  const [showStoneDrawer, setShowStoneDrawer] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const handleLoadCampaign = useCallback((session: CampaignSession) => {
-    // Auto-save current campaign before switching
     if (messages.length > 0) {
       saveToCloudNow();
     }
@@ -219,7 +222,6 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     return id;
   }, [campaignSessions]);
 
-  // Auto-scroll on new messages
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -230,7 +232,6 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     if (!input.trim() || isLoading) return;
     sendMessage(input.trim());
     setInput('');
-    // Reset textarea height
     if (inputRef.current) {
       inputRef.current.style.height = 'auto';
     }
@@ -247,13 +248,11 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     sendMessage(prompt);
   }, [sendMessage]);
 
-  // Stable callbacks for StandaloneBattleMap to prevent effect churn
   const handleCloseBattleMap = useCallback(() => setShowBattleMap(false), []);
   const handlePendingProcessed = useCallback(() => { setPendingMapAdds([]); setPendingMapRemovals([]); }, []);
   const handleMarkersChange = useCallback((markers: MapMarker[]) => { battleMapMarkersRef.current = markers; }, []);
   const handleGridSizeChange = useCallback((size: any) => { battleMapGridSizeRef.current = size; }, []);
 
-  // Auto-resize textarea
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
     const textarea = e.target;
@@ -261,12 +260,10 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
   }, []);
 
-  // Handle paste for GIFs/images from keyboard
   const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
     if (!items) return;
 
-    // Check for image blob (e.g. screenshot paste)
     for (const item of Array.from(items)) {
       if (item.type.startsWith('image/')) {
         e.preventDefault();
@@ -293,7 +290,6 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
       }
     }
 
-    // Check for pasted text that looks like a GIF/image URL (common from mobile keyboards)
     const text = e.clipboardData?.getData('text/plain')?.trim();
     if (text && /^https?:\/\/.+\.(gif|png|jpg|jpeg|webp)(\?.*)?$/i.test(text)) {
       e.preventDefault();
@@ -302,9 +298,30 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     }
   }, [activeCampaignId, addMediaMessage, toast]);
 
+  // Bottom nav tab handler
+  const handleNavTabChange = useCallback((tab: DMNavTab) => {
+    if (tab === 'prompts') {
+      setShowStoneDrawer(true);
+      // Don't keep prompts as active tab since it's a full overlay
+      return;
+    }
+    if (tab === 'actions') {
+      setQuickActionsOpen(true);
+      return;
+    }
+    // Dice tab toggles
+    setActiveNavTab(prev => prev === tab ? null : tab);
+  }, []);
+
+  const handleUsePrompt = useCallback((prompt: string) => {
+    setInput(prev => prev ? `${prev}\n${prompt}` : prompt);
+  }, []);
+
   const hpPercent = characterContext.maxHP > 0
     ? Math.round((characterContext.currentHP / characterContext.maxHP) * 100)
     : 100;
+
+  const showDiceRoller = activeNavTab === 'dice' && messages.length > 0;
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]">
@@ -332,7 +349,6 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           </div>
         </div>
         <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide flex-shrink min-w-0">
-          {/* Auto-Sync Toggle */}
           {autoSyncCallbacks && (
             <button
               onClick={() => autoSync.toggleAutoSync(!autoSync.autoSyncEnabled)}
@@ -347,7 +363,6 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
               Sync
             </button>
           )}
-          {/* Battle Map */}
           <button
             onClick={() => setShowBattleMap(true)}
             className="px-2.5 py-1.5 rounded-lg text-xs font-cinzel text-white/50 hover:bg-white/10 transition-colors"
@@ -493,7 +508,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         <>
           <div
             ref={scrollRef}
-            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain"
+            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain pb-[144px]"
           >
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center px-6">
@@ -523,13 +538,6 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
             )}
           </div>
 
-          {/* Quick Actions (when in conversation) */}
-          {messages.length > 0 && !isLoading && (
-            <div className="px-3 py-1 border-t border-amber-900/20 bg-black/20">
-              <DMQuickActions onSelect={handleQuickAction} isLoading={isLoading} variant="inline" />
-            </div>
-          )}
-
           {/* Auto-Sync Banner */}
           <AutoSyncBanner
             extraction={autoSync.lastExtraction}
@@ -537,11 +545,11 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
             onDismiss={() => {}}
           />
 
-          {/* Inline Dice Roller */}
-          {messages.length > 0 && (
+          {/* Dice Roller Panel (shown when dice tab active) */}
+          {showDiceRoller && (
             <DMDiceRoller
               characterContext={characterContext}
-              onRollResult={handleQuickAction}
+              onRollResult={handleUsePrompt}
               disabled={isLoading}
             />
           )}
@@ -569,7 +577,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
       )}
 
       {/* Input Area */}
-      <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm">
+      <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm mb-[72px]">
         <input
           ref={videoInputRef}
           type="file"
@@ -627,18 +635,9 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           }}
         />
         <div className="flex items-end gap-2 max-w-2xl mx-auto">
-          {/* Attach buttons + Gem */}
+          {/* Attach buttons */}
           {userId && (
             <div className="flex gap-1 shrink-0">
-              <button
-                onClick={() => setShowStoneDrawer(true)}
-                disabled={isLoading}
-                className="p-2.5 rounded-xl border border-amber-500/20 hover:border-amber-500/40 bg-amber-900/20 hover:bg-amber-900/40 transition-colors"
-                style={{ touchAction: 'manipulation' }}
-                title="RP Prompts"
-              >
-                <Gem className="w-5 h-5 text-amber-400" />
-              </button>
               <button
                 onClick={() => photoInputRef.current?.click()}
                 disabled={isLoading || isUploadingPhoto}
@@ -703,6 +702,14 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           )}
         </div>
       </div>
+
+      {/* Bottom Navigation */}
+      <DMBottomNav
+        activeTab={activeNavTab}
+        onTabChange={handleNavTabChange}
+        disabled={isLoading}
+      />
+
       {/* GM Guides Overlay */}
       {showGuides && (
         <GMGuidesManager
@@ -738,7 +745,15 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         open={showStoneDrawer}
         onOpenChange={setShowStoneDrawer}
         characterName={characterName}
-        onUsePrompt={(prompt) => setInput(prev => prev ? `${prev}\n${prompt}` : prompt)}
+        onUsePrompt={handleUsePrompt}
+      />
+      {/* Quick Actions Drawer */}
+      <PartyDMQuickActions
+        open={quickActionsOpen}
+        onOpenChange={setQuickActionsOpen}
+        characterContext={characterContext}
+        characterName={characterName}
+        onUsePrompt={handleUsePrompt}
       />
     </div>
   );
