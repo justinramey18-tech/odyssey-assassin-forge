@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { toast } from 'sonner';
 import { Map as MapIcon, ZoomIn, ZoomOut, Crosshair, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,8 +13,9 @@ import {
   type MapMarker, type GridSize, type ToolMode, type UndoAction, type AreaColorId,
   type SpellTemplate, type SpellShape, type SpellColorId,
   GRID_SIZE_OPTIONS, CELL_SIZE, MEMBER_COLORS, STORAGE_KEY_GRID_SIZE,
-  getFeetPerSquare, getAreaColorById,
+  getFeetPerSquare, getAreaColorById, MAX_BACKGROUND_SIZE_MB,
 } from '@/components/party/battlemap/types';
+import { supabase } from '@/integrations/supabase/client';
 
 const STORAGE_KEY_MAP_STATE = 'dnd-battlemap-state';
 
@@ -22,6 +24,7 @@ interface SavedMapState {
   highlightedCells: [string, AreaColorId][];
   spellTemplates: SpellTemplate[];
   gridSize: GridSize;
+  backgroundUrl?: string;
 }
 
 function loadMapState(): SavedMapState | null {
@@ -86,6 +89,8 @@ export function InlineBattleMap({
   const [spellOrigin, setSpellOrigin] = useState<{ x: number; y: number } | null>(null);
   const [movementSpeedFt, setMovementSpeedFt] = useState<number>(30);
   const [moveRangeOrigin, setMoveRangeOrigin] = useState<{ x: number; y: number } | null>(null);
+  const [backgroundUrl, setBackgroundUrl] = useState<string | undefined>(() => loadMapState()?.backgroundUrl);
+  const [backgroundUploading, setBackgroundUploading] = useState(false);
 
   // ── Zoom & viewport ──
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -107,10 +112,10 @@ export function InlineBattleMap({
   useEffect(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      saveMapState({ markers, highlightedCells: Array.from(highlightedCells.entries()), spellTemplates, gridSize });
+      saveMapState({ markers, highlightedCells: Array.from(highlightedCells.entries()), spellTemplates, gridSize, backgroundUrl });
     }, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [markers, highlightedCells, spellTemplates, gridSize]);
+  }, [markers, highlightedCells, spellTemplates, gridSize, backgroundUrl]);
 
   useEffect(() => { onMarkersChange?.(markers); }, [markers, onMarkersChange]);
   useEffect(() => { onGridSizeChangeCallback?.(gridSize); }, [gridSize, onGridSizeChangeCallback]);
@@ -259,6 +264,32 @@ export function InlineBattleMap({
     if (mode !== 'move-range') setMoveRangeOrigin(null);
   }, []);
 
+  const handleSetBackground = useCallback(async (file: File) => {
+    if (file.size > MAX_BACKGROUND_SIZE_MB * 1024 * 1024) {
+      toast.error(`Image must be under ${MAX_BACKGROUND_SIZE_MB}MB`);
+      return;
+    }
+    setBackgroundUploading(true);
+    try {
+      const ext = file.name.split('.').pop() || 'png';
+      const path = `battlemap-backgrounds/inline-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from('gear-images').upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from('gear-images').getPublicUrl(path);
+      setBackgroundUrl(publicUrl);
+      toast.success('Background set');
+    } catch (e: any) {
+      toast.error(e?.message || 'Upload failed');
+    } finally {
+      setBackgroundUploading(false);
+    }
+  }, []);
+
+  const handleClearBackground = useCallback(() => {
+    setBackgroundUrl(undefined);
+    toast.success('Background removed');
+  }, []);
+
   const handleCellInteraction = (x: number, y: number) => {
     if (toolMode === 'measure') handleMeasureClick(x, y);
     else if (toolMode === 'area') handleAreaClick(x, y);
@@ -403,6 +434,19 @@ export function InlineBattleMap({
 
             {/* Grid cells */}
             <div className="relative">
+              {backgroundUrl && (
+                <img
+                  src={backgroundUrl}
+                  alt=""
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    width: gridSize * cellSize,
+                    height: gridSize * cellSize,
+                    objectFit: 'cover',
+                    zIndex: 0,
+                  }}
+                />
+              )}
               <div
                 style={{
                   display: 'grid',
@@ -435,7 +479,7 @@ export function InlineBattleMap({
                       onMouseLeave={() => setHoveredMarker(null)}
                       className={cn(
                         "flex items-center justify-center transition-colors",
-                        !isHighlighted && "border border-white/5",
+                        !isHighlighted && `border ${backgroundUrl ? 'border-white/[0.02]' : 'border-white/5'}`,
                         !isHighlighted && !marker && "hover:bg-white/5",
                         (toolMode === 'place-self' || toolMode === 'place-enemy') && !marker && "hover:bg-amber-500/10",
                         isMeasurePoint && "ring-2 ring-amber-400/60",
@@ -595,6 +639,10 @@ export function InlineBattleMap({
           onUndo={handleUndo}
           onClearArea={() => setHighlightedCells(new Map())}
           onClearSpells={() => { setSpellTemplates([]); setSpellOrigin(null); }}
+          hasBackground={!!backgroundUrl}
+          backgroundUploading={backgroundUploading}
+          onBackgroundUpload={handleSetBackground}
+          onClearBackground={handleClearBackground}
         />
       </div>
     </div>
