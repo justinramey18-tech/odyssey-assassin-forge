@@ -229,6 +229,46 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
 
+  // Silent auto-save after each DM response (no toasts)
+  const silentAutoSave = useCallback(async (allMessages: PartyDmMessage[], summary: string | null) => {
+    if (!user || allMessages.length === 0) return;
+    try {
+      const serializedMessages = allMessages.map(m => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        sender_user_id: m.sender_user_id,
+        sender_name: m.sender_name,
+        created_at: m.created_at,
+      }));
+
+      if (activeCampaignId) {
+        await supabase
+          .from('ai_dm_campaigns')
+          .update({
+            messages: serializedMessages as any,
+            campaign_summary: summary,
+          })
+          .eq('id', activeCampaignId)
+          .eq('user_id', user.id);
+      } else {
+        const { data } = await supabase
+          .from('ai_dm_campaigns')
+          .insert({
+            user_id: user.id,
+            name: `Party Campaign ${new Date().toLocaleDateString()}`,
+            messages: serializedMessages as any,
+            campaign_summary: summary,
+          })
+          .select('id')
+          .single();
+        if (data) setActiveCampaignId(data.id);
+      }
+    } catch (error) {
+      console.warn('[Party Auto-Save] Failed:', error);
+    }
+  }, [user, activeCampaignId]);
+
   const startNewCampaign = useCallback(async (campaignName?: string) => {
     if (!partyId || !user || !isCreator) return;
     // Delete all messages for this party
@@ -583,13 +623,14 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         .eq('party_id', partyId)
         .eq('state_type', 'dm_session');
 
-      // Trigger summary generation (fire-and-forget, host only)
+      // Trigger summary generation and auto-save (fire-and-forget, host only)
       if (assistantContent) {
         const updatedMessages = [...messages, 
           { id: '', party_id: partyId, role: 'user' as const, content: combined, sender_user_id: user.id, sender_name: 'Party', created_at: '' },
           { id: '', party_id: partyId, role: 'assistant' as const, content: assistantContent, sender_user_id: null, sender_name: 'DM', created_at: '' },
         ];
         triggerSummaryIfNeeded(updatedMessages);
+        silentAutoSave(updatedMessages, sessionConfig.campaignSummary || null);
       }
 
     } catch (error) {
@@ -606,7 +647,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       setIsGenerating(false);
       abortRef.current = null;
     }
-  }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, customGuidesContent, triggerSummaryIfNeeded]);
+  }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, customGuidesContent, triggerSummaryIfNeeded, silentAutoSave]);
 
   // Auto-trigger generation when all ready (host only)
   useEffect(() => {
@@ -747,6 +788,14 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         .eq('state_type', 'dm_session');
 
       toast.success('Response regenerated');
+
+      // Auto-save after regeneration
+      if (assistantContent) {
+        const updatedMessages = [...historyMessages,
+          { id: '', party_id: partyId, role: 'assistant' as const, content: assistantContent, sender_user_id: null, sender_name: 'DM', created_at: '' },
+        ];
+        silentAutoSave(updatedMessages, sessionConfig.campaignSummary || null);
+      }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
       console.error('Party DM regeneration error:', error);
@@ -760,7 +809,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       setIsGenerating(false);
       abortRef.current = null;
     }
-  }, [partyId, user, sessionConfig, isGenerating, messages, characterContext, partyMembers, customGuidesContent]);
+  }, [partyId, user, sessionConfig, isGenerating, messages, characterContext, partyMembers, customGuidesContent, silentAutoSave]);
 
   // Add a media-only message (video/photo) without triggering AI response
   const addMediaMessage = useCallback(async (content: string, senderName: string) => {
