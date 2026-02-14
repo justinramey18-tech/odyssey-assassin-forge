@@ -46,7 +46,7 @@ interface PromptDrawerContextValue {
   openConditionsDrawer: () => void;
   openAddConditionSheet: () => void;
   openQuickActionsDrawer: () => void;
-  openAIDMScreen: () => void;
+  openAIDMScreen: (opts?: { returnToPartyDM?: boolean }) => void;
   closeAllDrawers: () => void;
   // Cooldown system exposure
   triggerCooldown: (abilityId: string) => void;
@@ -213,6 +213,7 @@ export function PromptDrawerProvider({
   const [conditionsOpen, setConditionsOpen] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [aiDMOpen, setAiDMOpen] = useState(false);
+  const [returnToPartyDM, setReturnToPartyDM] = useState(false);
   
   const [oraclePersonality, setOraclePersonality] = useState<Personality>('deadpool');
   
@@ -464,7 +465,7 @@ export function PromptDrawerProvider({
       setConditionsOpen(false);
       setQuickActionsOpen(true);
     }, []),
-    openAIDMScreen: useCallback(() => { closeAllDrawers(); setAiDMOpen(true); }, [closeAllDrawers]),
+    openAIDMScreen: useCallback((opts?: { returnToPartyDM?: boolean }) => { closeAllDrawers(); setReturnToPartyDM(!!opts?.returnToPartyDM); setAiDMOpen(true); }, [closeAllDrawers]),
     closeAllDrawers,
     // Cooldown system exposure
     triggerCooldown: cooldownSystem.triggerCooldown,
@@ -648,7 +649,7 @@ export function PromptDrawerProvider({
           {/* AI Dungeon Master Full-Screen Overlay */}
           {aiDMOpen && (
             <AIDMScreen
-              onBack={() => setAiDMOpen(false)}
+              onBack={() => { setAiDMOpen(false); setReturnToPartyDM(false); }}
               characterContext={aiDMCharacterContext}
               partyId={partyId}
               isPartyCreator={isPartyCreator}
@@ -656,6 +657,7 @@ export function PromptDrawerProvider({
               userId={userId}
               characterName={character.name}
               onShowChat={onOpenPartyChat ? () => { setAiDMOpen(false); onOpenPartyChat(); } : undefined}
+              initialShowPartyDM={returnToPartyDM}
               autoSyncCallbacks={autoSyncCallbacks}
             />
           )}
