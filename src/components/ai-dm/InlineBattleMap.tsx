@@ -14,7 +14,7 @@ import {
   type MapMarker, type GridSize, type ToolMode, type UndoAction, type AreaColorId,
   type SpellTemplate, type SpellShape, type SpellColorId, type DistanceUnit, type TierBackground,
   GRID_SIZE_OPTIONS, CELL_SIZE, MEMBER_COLORS, STORAGE_KEY_GRID_SIZE,
-  DISTANCE_UNITS, DISTANCE_PER_SQUARE_PRESETS, DEFAULT_SCALE_TIERS,
+  DISTANCE_UNITS, DISTANCE_PER_SQUARE_PRESETS, DEFAULT_SCALE_TIERS, MIN_ZOOM, MAX_ZOOM,
   getDistanceUnitAbbr, getAreaColorById, getActiveTier, getTierOpacity, MAX_BACKGROUND_SIZE_MB,
 } from '@/components/party/battlemap/types';
 import { supabase } from '@/integrations/supabase/client';
@@ -120,8 +120,6 @@ export function InlineBattleMap({
   const effectiveDistancePerSquare = activeTier ? activeTier.distancePerSquare : distancePerSquare;
   const effectiveDistanceUnit = activeTier ? activeTier.distanceUnit : distanceUnit;
   const effectiveUnitAbbr = getDistanceUnitAbbr(effectiveDistanceUnit);
-  const gridMergeFactor = activeTier ? activeTier.gridMergeFactor : 1;
-  const minorLineOpacity = activeTier ? activeTier.minorLineOpacity : 0.1;
   const unitAbbr = effectiveUnitAbbr;
 
   const currentUserId = 'solo-user';
@@ -166,7 +164,7 @@ export function InlineBattleMap({
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (lastDistance > 0) {
         const delta = (dist - lastDistance) * 0.005;
-        setZoom(prev => Math.min(3, Math.max(0.3, prev + delta)));
+        setZoom(prev => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev + delta)));
       }
       lastDistance = dist;
     };
@@ -442,11 +440,11 @@ export function InlineBattleMap({
               </SelectContent>
             </Select>
           )}
-          <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => setZoom(z => Math.max(0.3, z - 0.15))}>
+          <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => setZoom(z => Math.max(MIN_ZOOM, z * 0.75))}>
             <ZoomOut className="w-3 h-3" />
           </Button>
           <span className="text-[9px] text-white/40 w-7 text-center">{Math.round(zoom * 100)}%</span>
-          <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => setZoom(z => Math.min(3, z + 0.15))}>
+          <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => setZoom(z => Math.min(MAX_ZOOM, z * 1.33))}>
             <ZoomIn className="w-3 h-3" />
           </Button>
           <Button size="sm" variant="ghost" className="h-5 w-5 p-0 ml-1" onClick={onClose}>
@@ -556,8 +554,7 @@ export function InlineBattleMap({
                   const isHighlighted = !!highlightColorId;
                   const isMeasurePoint = (measureStart?.x === x && measureStart?.y === y) || (measureEnd?.x === x && measureEnd?.y === y);
                   const hasAnyBg = tierBackgrounds.length > 0 || !!backgroundUrl;
-                  const isMajorLine = gridMergeFactor <= 1 || (x % gridMergeFactor === 0) || (y % gridMergeFactor === 0);
-                  const cellBorderOpacity = isMajorLine ? (hasAnyBg ? 0.02 : 0.05) : minorLineOpacity;
+                  const cellBorderOpacity = hasAnyBg ? 0.02 : 0.05;
                   return (
                     <button
                       key={i}
