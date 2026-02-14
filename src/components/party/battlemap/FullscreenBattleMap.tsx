@@ -59,6 +59,11 @@ interface FullscreenBattleMapProps {
   setMovementSpeedFt: (v: number) => void;
   moveRangeOrigin: { x: number; y: number } | null;
   onMoveRangeClick: (x: number, y: number) => void;
+  // Background image props
+  backgroundUrl?: string;
+  backgroundUploading?: boolean;
+  onSetBackground?: (file: File) => void;
+  onClearBackground?: () => void;
 }
 
 export function FullscreenBattleMap({
@@ -69,6 +74,7 @@ export function FullscreenBattleMap({
   spellTemplates, spellShape, spellSizeFt, spellColor, spellOrigin,
   setSpellShape, setSpellSizeFt, setSpellColor, onSpellClick, onDeleteSpell, onClearSpells,
   movementSpeedFt, setMovementSpeedFt, moveRangeOrigin, onMoveRangeClick,
+  backgroundUrl, backgroundUploading, onSetBackground, onClearBackground,
 }: FullscreenBattleMapProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -306,6 +312,20 @@ export function FullscreenBattleMap({
 
             {/* Grid */}
             <div className="relative">
+              {/* Background image */}
+              {backgroundUrl && (
+                <img
+                  src={backgroundUrl}
+                  alt=""
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    width: gridSize * cellSize,
+                    height: gridSize * cellSize,
+                    objectFit: 'cover',
+                    zIndex: 0,
+                  }}
+                />
+              )}
               <div
                 style={{
                   display: 'grid',
@@ -338,7 +358,7 @@ export function FullscreenBattleMap({
                       onMouseLeave={() => setHoveredMarker(null)}
                       className={cn(
                         "flex items-center justify-center transition-colors",
-                        !isHighlighted && "border border-border/10",
+                        !isHighlighted && (backgroundUrl ? "border border-white/5" : "border border-border/10"),
                         !isHighlighted && !marker && "hover:bg-muted/20",
                         (toolMode === 'place-self' || toolMode === 'place-enemy') && !marker && "hover:bg-primary/10",
                         isMeasurePoint && "ring-2 ring-primary/60",
@@ -492,6 +512,10 @@ export function FullscreenBattleMap({
             onUndo={onUndo}
             onClearArea={onClearArea}
             onClearSpells={onClearSpells}
+            hasBackground={!!backgroundUrl}
+            backgroundUploading={backgroundUploading}
+            onBackgroundUpload={onSetBackground}
+            onClearBackground={onClearBackground}
           />
         </div>
         {/* Feet-per-square info */}

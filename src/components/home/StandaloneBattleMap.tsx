@@ -1,10 +1,12 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { FullscreenBattleMap } from '@/components/party/battlemap/FullscreenBattleMap';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import {
   type MapMarker, type GridSize, type ToolMode, type UndoAction, type AreaColorId,
   type SpellTemplate, type SpellShape, type SpellColorId,
-  GRID_SIZE_OPTIONS, MEMBER_COLORS, STORAGE_KEY_GRID_SIZE,
+  GRID_SIZE_OPTIONS, MEMBER_COLORS, STORAGE_KEY_GRID_SIZE, MAX_BACKGROUND_SIZE_MB,
 } from '@/components/party/battlemap/types';
 
 const STORAGE_KEY_MAP_STATE = 'dnd-battlemap-state';
@@ -14,6 +16,7 @@ interface SavedMapState {
   highlightedCells: [string, AreaColorId][];
   spellTemplates: SpellTemplate[];
   gridSize: GridSize;
+  backgroundUrl?: string;
 }
 
 function loadMapState(): SavedMapState | null {
@@ -76,6 +79,8 @@ export function StandaloneBattleMap({ open, onClose, characterName = 'Me', pendi
   const [spellOrigin, setSpellOrigin] = useState<{ x: number; y: number } | null>(null);
   const [movementSpeedFt, setMovementSpeedFt] = useState<number>(30);
   const [moveRangeOrigin, setMoveRangeOrigin] = useState<{ x: number; y: number } | null>(null);
+  const [backgroundUrl, setBackgroundUrl] = useState<string | undefined>(() => loadMapState()?.backgroundUrl);
+  const [backgroundUploading, setBackgroundUploading] = useState(false);
 
   // Auto-save to localStorage on state changes (debounced via ref)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -87,10 +92,11 @@ export function StandaloneBattleMap({ open, onClose, characterName = 'Me', pendi
         highlightedCells: Array.from(highlightedCells.entries()),
         spellTemplates,
         gridSize,
+        backgroundUrl,
       });
     }, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [markers, highlightedCells, spellTemplates, gridSize]);
+  }, [markers, highlightedCells, spellTemplates, gridSize, backgroundUrl]);
 
   // Notify parent of marker and grid size changes
   useEffect(() => { onMarkersChange?.(markers); }, [markers, onMarkersChange]);
@@ -211,6 +217,33 @@ export function StandaloneBattleMap({ open, onClose, characterName = 'Me', pendi
     if (mode !== 'move-range') setMoveRangeOrigin(null);
   }, []);
 
+  const handleSetBackground = useCallback(async (file: File) => {
+    if (file.size > MAX_BACKGROUND_SIZE_MB * 1024 * 1024) {
+      toast.error(`Image must be under ${MAX_BACKGROUND_SIZE_MB}MB`);
+      return;
+    }
+    setBackgroundUploading(true);
+    try {
+      const ext = file.name.split('.').pop() || 'png';
+      const path = `battlemap-backgrounds/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from('gear-images').upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from('gear-images').getPublicUrl(path);
+      setBackgroundUrl(publicUrl);
+      toast.success('Background set');
+    } catch (e: any) {
+      console.error('Background upload failed:', e);
+      toast.error('Failed to upload background');
+    } finally {
+      setBackgroundUploading(false);
+    }
+  }, []);
+
+  const handleClearBackground = useCallback(() => {
+    setBackgroundUrl(undefined);
+    toast.success('Background removed');
+  }, []);
+
   if (!open) return null;
 
   return (
@@ -257,6 +290,10 @@ export function StandaloneBattleMap({ open, onClose, characterName = 'Me', pendi
           setMovementSpeedFt={setMovementSpeedFt}
           moveRangeOrigin={moveRangeOrigin}
           onMoveRangeClick={handleMoveRangeClick}
+          backgroundUrl={backgroundUrl}
+          backgroundUploading={backgroundUploading}
+          onSetBackground={handleSetBackground}
+          onClearBackground={handleClearBackground}
         />
       </DialogContent>
     </Dialog>
