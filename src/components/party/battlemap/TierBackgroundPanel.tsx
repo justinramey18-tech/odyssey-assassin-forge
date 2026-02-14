@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Upload, X, ImageIcon, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -8,6 +8,56 @@ import {
   type ScaleTier, type TierBackground, type DistanceUnit,
   DISTANCE_UNITS, DISTANCE_PER_SQUARE_PRESETS, getDistanceUnitAbbr,
 } from './types';
+
+/** Combo: preset dropdown + custom number input for distance per square */
+function DistancePerSquareInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [customMode, setCustomMode] = useState(false);
+  const [customValue, setCustomValue] = useState(String(value));
+  const isPreset = DISTANCE_PER_SQUARE_PRESETS.includes(value as any);
+
+  if (customMode || !isPreset) {
+    return (
+      <input
+        type="number"
+        min={1}
+        max={9999}
+        value={customValue}
+        onChange={(e) => {
+          setCustomValue(e.target.value);
+          const n = parseInt(e.target.value, 10);
+          if (n > 0 && n <= 9999) onChange(n);
+        }}
+        onBlur={() => {
+          const n = parseInt(customValue, 10);
+          if (!n || n < 1) { setCustomValue(String(value)); }
+          if (DISTANCE_PER_SQUARE_PRESETS.includes(n as any)) setCustomMode(false);
+        }}
+        className="h-5 w-[3.5rem] text-[9px] rounded-md border border-border/30 bg-background/50 px-1 text-center focus:outline-none focus:ring-1 focus:ring-primary/40"
+        autoFocus={customMode}
+      />
+    );
+  }
+
+  return (
+    <Select
+      value={String(value)}
+      onValueChange={(v) => {
+        if (v === '__custom__') { setCustomMode(true); setCustomValue(String(value)); }
+        else onChange(Number(v));
+      }}
+    >
+      <SelectTrigger className="h-5 w-[3.5rem] text-[9px] border-border/30 bg-background/50">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent className="z-[200] bg-popover">
+        {DISTANCE_PER_SQUARE_PRESETS.map(d => (
+          <SelectItem key={d} value={String(d)} className="text-[11px]">{d}</SelectItem>
+        ))}
+        <SelectItem value="__custom__" className="text-[11px] text-muted-foreground italic">Custom…</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
 
 interface TierBackgroundPanelProps {
   tiers: ScaleTier[];
@@ -111,19 +161,10 @@ export function TierBackgroundPanel({
 
                   {/* Per-tier distance/unit config */}
                   <div className="flex items-center gap-1.5">
-                    <Select
-                      value={String(tier.distancePerSquare)}
-                      onValueChange={(v) => onTierConfigChange?.(tier.id, { distancePerSquare: Number(v) })}
-                    >
-                      <SelectTrigger className="h-5 w-[3.5rem] text-[9px] border-border/30 bg-background/50">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="z-[200]">
-                        {DISTANCE_PER_SQUARE_PRESETS.map(d => (
-                          <SelectItem key={d} value={String(d)} className="text-[11px]">{d}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <DistancePerSquareInput
+                      value={tier.distancePerSquare}
+                      onChange={(v) => onTierConfigChange?.(tier.id, { distancePerSquare: v })}
+                    />
                     <Select
                       value={tier.distanceUnit}
                       onValueChange={(v) => onTierConfigChange?.(tier.id, { distanceUnit: v as DistanceUnit })}
