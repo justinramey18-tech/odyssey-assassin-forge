@@ -1,81 +1,112 @@
 
 
-# Decouple Solo DM and Party DM into Standalone Screens
+# Inline Battle Map for Solo DM and Party DM
 
 ## Overview
-Currently, Party DM is rendered as a child overlay inside `AIDMScreen` (Solo DM). Opening Party DM requires loading the entire Solo DM infrastructure first, then showing Party DM on top. This plan makes them completely independent screens -- each loads standalone without depending on or navigating to the other.
+Replace the current fullscreen Dialog-based battle map with an inline map that renders inside the chat window area as an overlay. When the Map button is tapped, the chat messages area transforms into the map grid. The DM header stays visible above, the chat input stays visible below, and the map toolbar (MapControls) renders below the bottom border of the chat container. Both Solo DM and Party DM share the same inline map component.
 
-## What Changes
+## Current Architecture
+- `StandaloneBattleMap` wraps `FullscreenBattleMap` inside a `Dialog` (fullscreen modal)
+- `FullscreenBattleMap` contains: header (with grid selector, zoom, exit), grid area, minimap, and bottom controls (legend + MapControls)
+- Both `AIDMScreen` (Solo) and `StandalonePartyDMScreen` (Party) render `StandaloneBattleMap` as an overlay dialog
 
-### 1. New Standalone Party DM Wrapper
-Create `src/components/ai-dm/StandalonePartyDMScreen.tsx` -- a new top-level container that initializes all the hooks Party DM needs independently (without going through Solo DM):
-- `usePartyDm` -- party DM session management
-- `useGMGuides` -- GM guide content for AI context
-- `useDmAutoSync` -- auto-sync character stats from DM responses
-- Battle Map state (`StandaloneBattleMap`)
-- `GMGuidesManager` overlay
-- Party chat callback
+## New Architecture
 
-This mirrors the hook setup currently done in `AIDMScreen` lines 159-217, but only the subset needed for Party DM.
+### 1. New Component: `InlineBattleMap`
+**File:** `src/components/ai-dm/InlineBattleMap.tsx`
 
-### 2. New Context Method: `openPartyDMScreen`
-Add `openPartyDMScreen` to `PromptDrawerProvider` alongside the existing `openAIDMScreen`:
-- New state: `partyDMOpen` (boolean)
-- New method: `openPartyDMScreen()` -- closes all drawers, sets `partyDMOpen = true`
-- Renders `StandalonePartyDMScreen` when `partyDMOpen` is true (parallel to Solo DM rendering)
-- Update the context interface to expose `openPartyDMScreen`
+A self-contained component that manages all battle map state (same state as current `StandaloneBattleMap`) but renders inline rather than in a Dialog. It accepts the same props for auto-sync integration (pending markers, grid size callbacks, etc.).
 
-### 3. Remove Party DM from AIDMScreen
-- Remove `initialShowPartyDM` prop and `showPartyDM` state
-- Remove `usePartyDm` hook initialization
-- Remove the "Join Party" / "Start Party" button from the Solo DM header
-- Remove the `PartyDMScreen` overlay rendering (lines 779-797)
-- Remove `onShowChat` prop (no longer needed since Party DM has its own chat access)
-- Remove `returnToPartyDM` state from `PromptDrawerProvider`
-- Clean up the `openAIDMScreen` method to remove the `returnToPartyDM` option
+**Layout structure:**
+```text
++----------------------------------+
+| [DM Header - unchanged]         |  <-- stays from parent
++----------------------------------+
+|                                  |
+|  Grid area (scrollable)         |  <-- replaces chat messages
+|  + minimap overlay              |
+|  + spell/area/measure overlays  |
+|                                  |
++----------------------------------+
+| [MapControls toolbar]           |  <-- below the map area, above input
++----------------------------------+
+| [Chat Input - unchanged]        |  <-- stays from parent
++----------------------------------+
+```
 
-### 4. Update DMDrawer Callbacks
-In `HomeScreen.tsx`, update the DMDrawer's `onOpenPartyDM` to call `drawerContext?.openPartyDMScreen()` instead of `openAIDMScreen({ returnToPartyDM: true })`.
+The component renders:
+- A compact header strip (grid size selector, zoom controls, exit button) -- slimmer than the current Dialog header
+- The scrollable grid (reusing the grid rendering logic from `FullscreenBattleMap`)
+- Minimap overlay
+- All overlays (area, spell, measure, movement range)
+- MapControls toolbar at the bottom
 
-### 5. Update Chat-to-DM Navigation Loop
-The party chat "close returns to Party DM" logic in `HomeScreen.tsx` currently calls `openAIDMScreen({ returnToPartyDM: true })`. Update this to call `openPartyDMScreen()` instead, so closing party chat returns directly to the standalone Party DM screen.
+### 2. Modify `AIDMScreen` (Solo DM)
+- Replace `StandaloneBattleMap` Dialog with conditional rendering
+- When `showBattleMap` is true: hide the messages area and show `InlineBattleMap` in its place
+- The header and input bar remain untouched (they're separate flex children)
+- The quick actions, dice roller, and auto-sync banner stay below the map when active
 
-## What Stays the Same
-- `PartyDMScreen.tsx` component itself is unchanged -- it's a pure presentational component that receives props
-- Solo DM (`AIDMScreen`) continues to work exactly as before for solo adventures
-- The DMDrawer UI and swipe gesture behavior remain identical
-- Party chat fullscreen flow still works, just returns to standalone Party DM instead of Solo DM wrapper
+### 3. Modify `StandalonePartyDMScreen` / `PartyDMScreen` (Party DM)
+- Same approach: replace `StandaloneBattleMap` Dialog usage
+- When map is active, the messages area in `PartyDMScreen` is replaced by `InlineBattleMap`
+- The Party DM header, prompt queue, and input area remain visible
+
+### 4. Remove `StandaloneBattleMap` Dialog Usage from DM Screens
+- `StandaloneBattleMap` itself is kept (it's used on the Home Screen too) but no longer referenced from `AIDMScreen` or `StandalonePartyDMScreen`
+- The map state (markers, highlighted cells, spell templates, grid size) moves into `InlineBattleMap` with the same localStorage persistence pattern
 
 ## Technical Details
 
-### StandalonePartyDMScreen Props
+### InlineBattleMap Props
 ```text
-onBack: () => void
-characterContext: CharacterContext
-partyId: string | null
-isPartyCreator: boolean
-partyMembers: PartyMember[]
-userId: string
 characterName: string
-onShowChat: () => void
-autoSyncCallbacks: (same shape as AIDMScreen)
+pendingMarkerAdds?: MapMarker[]
+pendingMarkerRemovals?: string[]
+onPendingProcessed?: () => void
+onMarkersChange?: (markers: MapMarker[]) => void
+onGridSizeChange?: (size: GridSize) => void
+onClose: () => void
 ```
 
-### Hook Initialization Inside StandalonePartyDMScreen
+### State Management
+`InlineBattleMap` manages all map state internally (same as `StandaloneBattleMap`):
+- markers, highlightedCells, spellTemplates, gridSize (persisted to localStorage)
+- toolMode, undoStack, measureStart/End, spellOrigin, moveRangeOrigin
+- zoom, viewport (for minimap)
+
+### Integration in AIDMScreen
+The chat area currently follows this flex layout:
 ```text
-useGMGuides()           -- GM guide content
-usePartyDm(...)         -- party DM session
-useDmAutoSync(...)      -- auto-sync (if autoSyncCallbacks provided)
-useState for battle map -- independent map state
+<div className="flex flex-col h-full"> (root)
+  [header]
+  [context bar]
+  [messages - flex-1 min-h-0]     <-- conditionally swap this
+  [quick actions]
+  [auto-sync banner]
+  [dice roller]
+  [extracting indicator]
+  [input area]
+</div>
 ```
+
+When `showBattleMap` is true, the messages div and some intermediate elements are hidden, and `InlineBattleMap` takes their place as `flex-1 min-h-0`.
+
+### Integration in PartyDMScreen
+Similar pattern -- the messages div (`flex-1 min-h-0`) is conditionally replaced by `InlineBattleMap`. The prompt queue status bar and input area remain visible.
+
+Since `PartyDMScreen` receives `onShowMap` as a callback, and the map state lives in `StandalonePartyDMScreen`, the inline map will be rendered in `StandalonePartyDMScreen` as a sibling to `PartyDMScreen`, overlaying just the chat region. Alternatively, a `showBattleMap` prop is passed down to `PartyDMScreen` to conditionally swap content inline.
 
 ### Files Modified
-- `src/components/ai-dm/StandalonePartyDMScreen.tsx` -- NEW
-- `src/components/ai-dm/AIDMScreen.tsx` -- Remove party DM overlay and related state
-- `src/components/drawers/PromptDrawerProvider.tsx` -- Add `openPartyDMScreen`, remove `returnToPartyDM`
-- `src/components/home/HomeScreen.tsx` -- Update DMDrawer callback and chat return logic
+- `src/components/ai-dm/InlineBattleMap.tsx` -- NEW (self-contained inline map with all state)
+- `src/components/ai-dm/AIDMScreen.tsx` -- Replace StandaloneBattleMap dialog with InlineBattleMap inline rendering
+- `src/components/ai-dm/PartyDMScreen.tsx` -- Accept optional inline map content, conditionally hide messages when map is active
+- `src/components/ai-dm/StandalonePartyDMScreen.tsx` -- Pass InlineBattleMap into PartyDMScreen instead of rendering StandaloneBattleMap dialog
 
-### No Cross-Navigation
-- Solo DM header will no longer have a "Join Party" / "Start Party" button
-- Party DM back button returns to the home screen, not to Solo DM
-- Solo DM back button returns to the home screen (unchanged)
+### What Stays the Same
+- `FullscreenBattleMap` component is not modified (reuse its grid rendering patterns)
+- `MapControls`, `AreaOverlay`, `SpellTemplateOverlay`, `MeasureOverlay`, `MovementRangeOverlay`, `MarkerTooltip` are reused as-is
+- `StandaloneBattleMap` (Dialog version) remains for Home Screen usage
+- All map state persistence (localStorage) uses the same keys and format
+- Auto-sync map callbacks work identically
+
