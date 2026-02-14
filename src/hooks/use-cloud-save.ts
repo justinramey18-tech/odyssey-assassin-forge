@@ -2,6 +2,19 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { SaveData } from './use-auto-save';
 import { Json } from '@/integrations/supabase/types';
+import { getScopedKey } from '@/lib/scoped-storage';
+
+// Keys whose localStorage data should be captured per-character in cloud saves
+const SCOPED_KEYS = [
+  'odyssey-shop',
+  'dnd-wild-shape-state',
+  'odyssey-wild-shape-backgrounds',
+  'narrative-forge-saved-stories',
+  'narrative-forge-active-story-id',
+  'odyssey-chronicle-sessions',
+  'odyssey-chronicle-analytics',
+  'dnd-ai-dm-campaign-summary',
+] as const;
 
 export interface CloudSavePreview {
   gold?: number;
@@ -101,7 +114,7 @@ export function useCloudSave(userId: string | undefined) {
     setSaving(true);
     try {
       // Prepare extended data (all the new fields)
-      const extendedData = {
+      const extendedData: Record<string, unknown> = {
         abilityScores: saveData.abilityScores,
         hpState: saveData.hpState,
         deathSaves: saveData.deathSaves,
@@ -119,6 +132,20 @@ export function useCloudSave(userId: string | undefined) {
         partyId: saveData.partyId,
         backgroundUrl: saveData.backgroundUrl,
       };
+
+      // Capture scoped localStorage data for this character
+      const scopedLocalStorage: Record<string, string | null> = {};
+      for (const baseKey of SCOPED_KEYS) {
+        try {
+          const value = localStorage.getItem(getScopedKey(baseKey));
+          if (value !== null) {
+            scopedLocalStorage[baseKey] = value;
+          }
+        } catch {
+          // ignore read errors
+        }
+      }
+      extendedData.scopedLocalStorage = scopedLocalStorage;
       
       // Prepare data for database (cast to Json type)
       const dbData = {
@@ -206,6 +233,21 @@ export function useCloudSave(userId: string | undefined) {
       
       // Parse extended data
       const extendedData = (data.extended_data as Record<string, unknown>) || {};
+      
+      // Restore scoped localStorage for this character
+      const scopedLocalStorage = extendedData.scopedLocalStorage as Record<string, string> | undefined;
+      if (scopedLocalStorage && typeof scopedLocalStorage === 'object') {
+        for (const [baseKey, value] of Object.entries(scopedLocalStorage)) {
+          if (value !== null && value !== undefined) {
+            try {
+              // Write directly to the save-specific scoped key
+              localStorage.setItem(`${baseKey}::${saveId}`, value);
+            } catch {
+              console.warn(`[CloudSave] Failed to restore scoped key: ${baseKey}`);
+            }
+          }
+        }
+      }
       
       // Convert database format to SaveData format
       const saveData: SaveData = {
