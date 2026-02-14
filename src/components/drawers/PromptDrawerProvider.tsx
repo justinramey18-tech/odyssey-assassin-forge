@@ -11,6 +11,7 @@ import { QuickActionsDrawer } from './QuickActionsDrawer';
 import { OracleDrawer } from '@/components/oracle';
 import { ConditionDrawer } from '@/components/conditions';
 import { AIDMScreen } from '@/components/ai-dm';
+import { StandalonePartyDMScreen } from '@/components/ai-dm/StandalonePartyDMScreen';
 import { Character } from '@/lib/types';
 import { XPPreset } from '@/lib/xpSystem';
 import { CharacterEquipment } from '@/lib/inventory/types';
@@ -46,7 +47,8 @@ interface PromptDrawerContextValue {
   openConditionsDrawer: () => void;
   openAddConditionSheet: () => void;
   openQuickActionsDrawer: () => void;
-  openAIDMScreen: (opts?: { returnToPartyDM?: boolean }) => void;
+  openAIDMScreen: () => void;
+  openPartyDMScreen: () => void;
   closeAllDrawers: () => void;
   // Cooldown system exposure
   triggerCooldown: (abilityId: string) => void;
@@ -213,7 +215,7 @@ export function PromptDrawerProvider({
   const [conditionsOpen, setConditionsOpen] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [aiDMOpen, setAiDMOpen] = useState(false);
-  const [returnToPartyDM, setReturnToPartyDM] = useState(false);
+  const [partyDMOpen, setPartyDMOpen] = useState(false);
   
   const [oraclePersonality, setOraclePersonality] = useState<Personality>('deadpool');
   
@@ -465,7 +467,8 @@ export function PromptDrawerProvider({
       setConditionsOpen(false);
       setQuickActionsOpen(true);
     }, []),
-    openAIDMScreen: useCallback((opts?: { returnToPartyDM?: boolean }) => { closeAllDrawers(); setReturnToPartyDM(!!opts?.returnToPartyDM); setAiDMOpen(true); }, [closeAllDrawers]),
+    openAIDMScreen: useCallback(() => { closeAllDrawers(); setAiDMOpen(true); }, [closeAllDrawers]),
+    openPartyDMScreen: useCallback(() => { closeAllDrawers(); setPartyDMOpen(true); }, [closeAllDrawers]),
     closeAllDrawers,
     // Cooldown system exposure
     triggerCooldown: cooldownSystem.triggerCooldown,
@@ -646,18 +649,28 @@ export function PromptDrawerProvider({
             
           />
 
-          {/* AI Dungeon Master Full-Screen Overlay */}
+          {/* AI Dungeon Master Full-Screen Overlay (Solo only) */}
           {aiDMOpen && (
             <AIDMScreen
-              onBack={() => { setAiDMOpen(false); setReturnToPartyDM(false); }}
+              onBack={() => { setAiDMOpen(false); }}
               characterContext={aiDMCharacterContext}
-              partyId={partyId}
-              isPartyCreator={isPartyCreator}
-              partyMembers={partyMembers}
               userId={userId}
               characterName={character.name}
-              onShowChat={onOpenPartyChat ? () => { setAiDMOpen(false); onOpenPartyChat(); } : undefined}
-              initialShowPartyDM={returnToPartyDM}
+              autoSyncCallbacks={autoSyncCallbacks}
+            />
+          )}
+
+          {/* Standalone Party DM Full-Screen Overlay */}
+          {partyDMOpen && (
+            <StandalonePartyDMScreen
+              onBack={() => { setPartyDMOpen(false); }}
+              characterContext={aiDMCharacterContext}
+              partyId={partyId ?? null}
+              isPartyCreator={isPartyCreator}
+              partyMembers={partyMembers}
+              userId={userId ?? ''}
+              characterName={character.name}
+              onShowChat={onOpenPartyChat ? () => { setPartyDMOpen(false); onOpenPartyChat(); } : undefined}
               autoSyncCallbacks={autoSyncCallbacks}
             />
           )}
