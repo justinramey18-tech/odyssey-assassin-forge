@@ -421,3 +421,13 @@
     transform: translateY(0); 
   }
 }
+
+/* Party DM Quick Actions drawer must render above the z-[60] Party DM overlay */
+.party-dm-quick-actions-content,
+.party-dm-quick-actions-content ~ [data-vaul-overlay] {
+  z-index: 9999 !important;
+}
+/* Also target the overlay rendered before the content in the same portal */
+[data-vaul-overlay]:has(~ .party-dm-quick-actions-content) {
+  z-index: 9998 !important;
+}
