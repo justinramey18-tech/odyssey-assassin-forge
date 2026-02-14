@@ -961,7 +961,7 @@ export function HomeScreen({
             setShowPartyChatFullscreen(false);
             if (chatOpenedFromDM.current) {
               chatOpenedFromDM.current = false;
-              drawerContext?.openAIDMScreen({ returnToPartyDM: true });
+              drawerContext?.openPartyDMScreen();
             }
           }}
           messages={partySync.partyMessages}
@@ -987,7 +987,7 @@ export function HomeScreen({
       {/* DM Drawer - Right Edge Swipe Panel */}
       <DMDrawer
         onOpenSoloDM={() => drawerContext?.openAIDMScreen()}
-        onOpenPartyDM={() => drawerContext?.openAIDMScreen({ returnToPartyDM: true })}
+        onOpenPartyDM={() => drawerContext?.openPartyDMScreen()}
         isPartyMode={playMode === 'party'}
       />
 

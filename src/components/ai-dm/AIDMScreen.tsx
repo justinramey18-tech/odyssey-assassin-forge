@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Users, Zap, Map, Film, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Zap, Map, Film, Image as ImageIcon } from 'lucide-react';
 import { CampaignDropdown } from './CampaignDropdown';
 import { cn } from '@/lib/utils';
 import { useAIDM } from '@/hooks/use-ai-dm';
@@ -12,25 +12,20 @@ import { DMQuickActions } from './DMQuickActions';
 import { DMDiceRoller } from './DMDiceRoller';
 import { GMGuidesManager } from './GMGuidesManager';
 import { CampaignSessionsManager } from './CampaignSessionsManager';
-import { PartyDMScreen } from './PartyDMScreen';
+
 import { AutoSyncBanner } from './AutoSyncBanner';
-import { usePartyDm } from '@/hooks/use-party-dm';
+
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
 import { StandaloneBattleMap } from '@/components/home/StandaloneBattleMap';
 import ReactMarkdown from 'react-markdown';
-import type { PartyMember } from '@/hooks/use-party-sync';
+
 import type { MapMarker } from '@/components/party/battlemap/types';
 
 interface AIDMScreenProps {
   onBack: () => void;
   characterContext: CharacterContext;
-  partyId?: string | null;
-  isPartyCreator?: boolean;
-  partyMembers?: PartyMember[];
   userId?: string;
   characterName?: string;
-  onShowChat?: () => void;
-  initialShowPartyDM?: boolean;
   autoSyncCallbacks?: {
     onHPChange: (change: number, type: 'damage' | 'healing') => void;
     onAddXP: (amount: number, source: string) => void;
@@ -145,8 +140,7 @@ const NOOP = () => {};
 const NOOP_TWO_ARG = () => {};
 const NOOP_RETURN_ZERO = () => 0;
 
-export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator = false, partyMembers = [], userId, characterName = 'Adventurer', onShowChat, initialShowPartyDM = false, autoSyncCallbacks }: AIDMScreenProps) {
-  const [showPartyDM, setShowPartyDM] = useState(initialShowPartyDM);
+export function AIDMScreen({ onBack, characterContext, userId, characterName = 'Adventurer', autoSyncCallbacks }: AIDMScreenProps) {
   const [showBattleMap, setShowBattleMap] = useState(false);
   const [pendingMapAdds, setPendingMapAdds] = useState<MapMarker[]>([]);
   const [pendingMapRemovals, setPendingMapRemovals] = useState<string[]>([]);
@@ -196,27 +190,6 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
   });
   const campaignSessions = useCampaignSessions();
 
-  // Stabilize partyMembers mapping to prevent unnecessary re-renders in usePartyDm
-  const stablePartyMembers = useMemo(() =>
-    partyMembers.map(m => ({
-      character_name: m.character_name,
-      character_status: m.character_status as Record<string, unknown>,
-      user_id: m.user_id,
-    })),
-    [partyMembers]
-  );
-
-  const partyDm = usePartyDm({
-    partyId: partyId || null,
-    isCreator: isPartyCreator,
-    memberCount: partyMembers.length,
-    characterName,
-    characterContext,
-    partyMembers: stablePartyMembers,
-    customGuidesContent: gmGuides.enabledContent,
-  });
-
-  const inParty = !!partyId && partyMembers.length > 0;
 
   const handleCampaignSummaryChange = useCallback((summary: string) => {
     updateCampaignSummary(summary);
@@ -357,41 +330,6 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
           </div>
         </div>
         <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide flex-shrink min-w-0">
-          {inParty && (
-            <button
-              onClick={() => {
-                if (partyDm.isActive) {
-                  setShowPartyDM(true);
-                } else if (isPartyCreator) {
-                  partyDm.startSession('shared', campaignSummary);
-                  setShowPartyDM(true);
-                }
-              }}
-              className={cn(
-                "px-2.5 py-1.5 rounded-lg text-xs font-cinzel transition-colors flex items-center gap-1",
-                partyDm.isActive
-                  ? "text-emerald-300 bg-emerald-900/30 hover:bg-emerald-900/50 border border-emerald-500/30"
-                  : isPartyCreator
-                    ? "text-amber-300 hover:bg-amber-900/20"
-                    : "text-white/30 cursor-not-allowed"
-              )}
-              style={{ touchAction: 'manipulation' }}
-              title={partyDm.isActive ? 'Join Party DM' : isPartyCreator ? 'Start Party DM' : 'Waiting for host to start Party DM'}
-              disabled={!partyDm.isActive && !isPartyCreator}
-            >
-              <Users className="w-3.5 h-3.5" />
-              {partyDm.isActive ? (
-                <>
-                  Join Party
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                </>
-              ) : isPartyCreator ? (
-                'Start Party'
-              ) : (
-                'Waiting for Host'
-              )}
-            </button>
-          )}
           {/* Auto-Sync Toggle */}
           {autoSyncCallbacks && (
             <button
@@ -774,26 +712,6 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
           onLoad={handleLoadCampaign}
           onDelete={campaignSessions.deleteSession}
           onRename={campaignSessions.renameSession}
-        />
-      )}
-      {/* Party DM Overlay */}
-      {showPartyDM && partyDm.isActive && (
-        <PartyDMScreen
-          onBack={() => setShowPartyDM(false)}
-          partyDm={partyDm}
-          isCreator={isPartyCreator}
-          currentUserId={userId}
-          memberCount={partyMembers.length}
-          members={partyMembers.map(m => ({ user_id: m.user_id, character_name: m.character_name }))}
-          onShowGuides={() => { setShowPartyDM(false); setShowGuides(true); }}
-          onShowMap={() => { setShowPartyDM(false); setShowBattleMap(true); }}
-          onShowSaves={() => { setShowPartyDM(false); setShowSessions(true); }}
-          onShowChat={onShowChat ? () => { setShowPartyDM(false); onShowChat(); } : undefined}
-          autoSyncEnabled={autoSync.autoSyncEnabled}
-          onToggleAutoSync={autoSync.toggleAutoSync}
-          isExtracting={autoSync.isExtracting}
-          guidesCount={gmGuides.guides.filter(g => g.enabled).length}
-          characterContext={characterContext}
         />
       )}
       {/* Battle Map Overlay */}
