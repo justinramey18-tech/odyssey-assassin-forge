@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { Message, CharacterContext } from '@/components/oracle/types';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthToken } from '@/lib/auth-token';
 import {
   loadCampaignSummary,
   saveCampaignSummary,
@@ -296,11 +297,12 @@ export function useAIDM({ characterContext, customGuidesContent, onMessageComple
     setIsSummarizing(true);
     try {
       const apiMessages = allMessages.map(m => ({ role: m.role, content: m.content }));
+      const authToken = await getAuthToken();
       const response = await fetch(SUMMARIZE_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
           messages: apiMessages,
@@ -354,11 +356,12 @@ export function useAIDM({ characterContext, customGuidesContent, onMessageComple
     let assistantContent = '';
 
     try {
+      const authToken = await getAuthToken();
       const response = await fetch(AI_DM_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
           messages: apiPayload,

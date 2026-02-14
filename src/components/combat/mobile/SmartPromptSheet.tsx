@@ -129,13 +129,15 @@ export function SmartPromptSheet({
     setSynthesis(null);
 
     try {
+      const { getAuthToken } = await import('@/lib/auth-token');
+      const authToken = await getAuthToken();
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/combat-log-synthesize`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: `Bearer ${authToken}`,
           },
           body: JSON.stringify({
             entries: entries.map(e => ({
