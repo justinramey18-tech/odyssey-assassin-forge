@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './use-auth';
 import { useToast } from './use-toast';
+import { getScopedItem, setScopedItem, migrateToScoped } from '@/lib/scoped-storage';
 import {
   ChronicleSession,
   CampaignAnalytics,
@@ -62,8 +63,9 @@ export function useChronicleHistory() {
 
   // Load sessions from local storage
   const loadLocalSessions = useCallback((): ChronicleSession[] => {
+    migrateToScoped(CHRONICLE_LOCAL_SESSIONS_KEY);
     try {
-      const stored = localStorage.getItem(CHRONICLE_LOCAL_SESSIONS_KEY);
+      const stored = getScopedItem(CHRONICLE_LOCAL_SESSIONS_KEY);
       if (stored) {
         return JSON.parse(stored);
       }
@@ -75,8 +77,9 @@ export function useChronicleHistory() {
 
   // Load analytics from local storage
   const loadLocalAnalytics = useCallback((): CampaignAnalytics => {
+    migrateToScoped(CHRONICLE_LOCAL_ANALYTICS_KEY);
     try {
-      const stored = localStorage.getItem(CHRONICLE_LOCAL_ANALYTICS_KEY);
+      const stored = getScopedItem(CHRONICLE_LOCAL_ANALYTICS_KEY);
       if (stored) {
         return JSON.parse(stored);
       }
@@ -91,7 +94,7 @@ export function useChronicleHistory() {
     try {
       // Trim to max sessions, removing oldest
       const trimmed = newSessions.slice(-MAX_LOCAL_SESSIONS);
-      localStorage.setItem(CHRONICLE_LOCAL_SESSIONS_KEY, JSON.stringify(trimmed));
+      setScopedItem(CHRONICLE_LOCAL_SESSIONS_KEY, JSON.stringify(trimmed));
     } catch (error) {
       console.error('Failed to save local sessions:', error);
     }
@@ -100,7 +103,7 @@ export function useChronicleHistory() {
   // Save analytics to local storage
   const saveLocalAnalytics = useCallback((newAnalytics: CampaignAnalytics) => {
     try {
-      localStorage.setItem(CHRONICLE_LOCAL_ANALYTICS_KEY, JSON.stringify(newAnalytics));
+      setScopedItem(CHRONICLE_LOCAL_ANALYTICS_KEY, JSON.stringify(newAnalytics));
     } catch (error) {
       console.error('Failed to save local analytics:', error);
     }

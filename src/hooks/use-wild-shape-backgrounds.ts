@@ -3,6 +3,7 @@
 // Returns the active background when transformed
 
 import { useState, useCallback, useEffect } from 'react';
+import { getScopedItem, setScopedItem, migrateToScoped } from '@/lib/scoped-storage';
 
 const STORAGE_KEY = 'odyssey-wild-shape-backgrounds';
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -22,8 +23,9 @@ export interface WildShapeBackgrounds {
 
 export function useWildShapeBackgrounds(): WildShapeBackgrounds {
   const [backgrounds, setBackgrounds] = useState<Record<string, string>>(() => {
+    migrateToScoped(STORAGE_KEY);
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = getScopedItem(STORAGE_KEY);
       return saved ? JSON.parse(saved) : {};
     } catch {
       return {};
@@ -33,7 +35,7 @@ export function useWildShapeBackgrounds(): WildShapeBackgrounds {
   // Persist changes
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(backgrounds));
+      setScopedItem(STORAGE_KEY, JSON.stringify(backgrounds));
     } catch (error) {
       console.error('Failed to save wild shape backgrounds:', error);
     }
