@@ -128,6 +128,7 @@ const Index = () => {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<'game' | 'setup' | 'character' | 'tools' | undefined>(undefined);
   const [showCloudSaveModal, setShowCloudSaveModal] = useState(false);
+  const [openPartyChatRequested, setOpenPartyChatRequested] = useState(false);
   const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string | null>(null);
   const [isSwitchingCharacter, setIsSwitchingCharacter] = useState(false);
   const [character, setCharacter] = useState<Character>({
@@ -2056,6 +2057,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         partyId={isPartyMode ? partySync.party.partyId : null}
         isPartyCreator={isPartyMode ? partySync.party.isCreator : false}
         autoSyncCallbacks={autoSyncCallbacks}
+        onOpenPartyChat={() => setOpenPartyChatRequested(true)}
       >
         {isPartyMode && (
           <IncomingHealOverlay
@@ -2150,6 +2152,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
               partySync.sendTradeAction(targetUserId, 'send_loot', { item, itemName: item.name, rarity: item.rarity }, character.name);
             },
           } : undefined}
+          openPartyChatRequested={openPartyChatRequested}
+          onPartyChatOpened={() => setOpenPartyChatRequested(false)}
         />
         
         {/* Settings Modal */}
