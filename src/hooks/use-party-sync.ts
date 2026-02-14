@@ -367,15 +367,32 @@ export function usePartySync(): UsePartySyncReturn {
       let targetPartyId: string | null = activePartyId;
 
       if (!targetPartyId) {
-        // No flag set (fresh load) — check DB for any existing membership
-        const { data: membership } = await supabase
-          .from('party_members')
-          .select('party_id')
-          .eq('user_id', user.id)
-          .limit(1) as { data: Array<{ party_id: string }> | null };
+        // No flag set (fresh load) — check active character's cloud save for their partyId
+        const activeSaveId = localStorage.getItem('odyssey-active-cloud-save-id');
+        if (activeSaveId) {
+          // Character-scoped: read partyId from that character's cloud save
+          const { data: saveData } = await supabase
+            .from('character_saves')
+            .select('extended_data')
+            .eq('id', activeSaveId)
+            .eq('user_id', user.id)
+            .maybeSingle();
 
-        if (membership && membership.length > 0) {
-          targetPartyId = membership[0].party_id;
+          if (saveData) {
+            const extData = saveData.extended_data as Record<string, unknown> | null;
+            targetPartyId = (extData?.partyId as string) || null;
+          }
+        } else {
+          // Guest/no save — fall back to existing DB membership query
+          const { data: membership } = await supabase
+            .from('party_members')
+            .select('party_id')
+            .eq('user_id', user.id)
+            .limit(1) as { data: Array<{ party_id: string }> | null };
+
+          if (membership && membership.length > 0) {
+            targetPartyId = membership[0].party_id;
+          }
         }
       }
 
