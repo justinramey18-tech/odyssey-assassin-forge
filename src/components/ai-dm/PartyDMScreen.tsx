@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, ListChecks, MessageSquare, Plus } from 'lucide-react';
+import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, ListChecks, MessageSquare, Plus, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -329,6 +329,8 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [expandedPillUserId, setExpandedPillUserId] = useState<string | null>(null);
   const [pillEditText, setPillEditText] = useState('');
+  const [showNewCampaignInput, setShowNewCampaignInput] = useState(false);
+  const [newCampaignName, setNewCampaignName] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -543,20 +545,21 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
               >
                 {mode === 'shared' ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
               </button>
+              {/* Saves button */}
+              {onShowSaves && (
+                <button
+                  onClick={onShowSaves}
+                  className="p-1.5 rounded-lg text-xs text-amber-300/80 hover:bg-amber-900/30 transition-colors"
+                  title="Campaign saves"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <Save className="w-4 h-4" />
+                </button>
+              )}
               <button
                 onClick={() => {
-                  toast('Start a new campaign?', {
-                    description: 'This will clear all messages and prompts. This cannot be undone.',
-                    action: {
-                      label: 'New Campaign',
-                      onClick: () => partyDm.startNewCampaign(),
-                    },
-                    cancel: {
-                      label: 'Cancel',
-                      onClick: () => {},
-                    },
-                    duration: 10000,
-                  });
+                  setShowNewCampaignInput(true);
+                  setNewCampaignName('');
                 }}
                 className="p-1.5 rounded-lg text-xs text-amber-400 hover:bg-amber-900/20 transition-colors"
                 title="Start new campaign"
@@ -598,6 +601,60 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
           </>
         )}
       </div>
+
+      {/* New Campaign Name Input */}
+      <AnimatePresence>
+        {showNewCampaignInput && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="px-3 py-2 bg-black/50 border-b border-amber-900/30 overflow-hidden"
+          >
+            <p className="text-xs text-amber-300/70 mb-1.5 font-cinzel">New Campaign Name</p>
+            <p className="text-[10px] text-white/30 mb-2">This will clear all current messages and prompts.</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newCampaignName}
+                onChange={e => setNewCampaignName(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && newCampaignName.trim()) {
+                    partyDm.startNewCampaign(newCampaignName.trim());
+                    setShowNewCampaignInput(false);
+                    setNewCampaignName('');
+                  }
+                }}
+                placeholder="Enter campaign name..."
+                className="flex-1 bg-white/5 border border-amber-900/30 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-amber-500/40"
+                maxLength={80}
+                autoFocus
+              />
+              <button
+                onClick={() => {
+                  if (newCampaignName.trim()) {
+                    partyDm.startNewCampaign(newCampaignName.trim());
+                    setShowNewCampaignInput(false);
+                    setNewCampaignName('');
+                  }
+                }}
+                disabled={!newCampaignName.trim()}
+                className="px-3 py-2 rounded-lg bg-amber-900/40 border border-amber-500/30 text-amber-300 text-sm hover:bg-amber-900/60 transition-colors disabled:opacity-50"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <Check className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => { setShowNewCampaignInput(false); setNewCampaignName(''); }}
+                className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white/50 text-sm hover:bg-white/10 transition-colors"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Messages OR Inline Battle Map */}
       {showBattleMap && battleMapContent ? (
