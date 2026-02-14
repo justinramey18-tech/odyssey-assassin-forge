@@ -367,12 +367,7 @@ export function InlineBattleMap({
   }, []);
 
   const handleTierConfigChange = useCallback((tierId: string, updates: Partial<Pick<ScaleTier, 'distancePerSquare' | 'distanceUnit'>>) => {
-    console.log('[TierConfigChange]', tierId, updates);
-    setCustomTiers(prev => {
-      const next = prev.map(t => t.id === tierId ? { ...t, ...updates } : t);
-      console.log('[TierConfigChange] next tiers:', next);
-      return next;
-    });
+    setCustomTiers(prev => prev.map(t => t.id === tierId ? { ...t, ...updates } : t));
   }, []);
 
   const handleCellInteraction = (x: number, y: number) => {

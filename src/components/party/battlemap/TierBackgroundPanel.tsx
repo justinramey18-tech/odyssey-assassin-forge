@@ -19,18 +19,17 @@ function DistancePerSquareInput({ value, onChange }: { value: number; onChange: 
     return (
       <input
         type="number"
-        min={0.1}
+        min={1}
         max={9999}
-        step="any"
         value={customValue}
         onChange={(e) => {
           setCustomValue(e.target.value);
-          const n = parseFloat(e.target.value);
+          const n = parseInt(e.target.value, 10);
           if (n > 0 && n <= 9999) onChange(n);
         }}
         onBlur={() => {
-          const n = parseFloat(customValue);
-          if (!n || n < 0.1) { setCustomValue(String(value)); }
+          const n = parseInt(customValue, 10);
+          if (!n || n < 1) { setCustomValue(String(value)); }
           if (DISTANCE_PER_SQUARE_PRESETS.includes(n as any)) setCustomMode(false);
         }}
         className="h-5 w-[3.5rem] text-[9px] rounded-md border border-border/30 bg-background/50 px-1 text-center focus:outline-none focus:ring-1 focus:ring-primary/40"
