@@ -35,8 +35,10 @@ interface MapControlsProps {
   onClearSpells: () => void;
   hasBackground?: boolean;
   backgroundUploading?: boolean;
+  backgroundOpacity?: number;
   onBackgroundUpload?: (file: File) => void;
   onClearBackground?: () => void;
+  onBackgroundOpacityChange?: (opacity: number) => void;
 }
 
 export function MapControls({
@@ -47,7 +49,7 @@ export function MapControls({
   setAddingEnemy, setEnemyName, setToolMode, setAreaColor,
   setSpellShape, setSpellSizeFt, setSpellColor, setMovementSpeedFt,
   onUndo, onClearArea, onClearSpells,
-  hasBackground, backgroundUploading, onBackgroundUpload, onClearBackground,
+  hasBackground, backgroundUploading, backgroundOpacity, onBackgroundUpload, onClearBackground, onBackgroundOpacityChange,
 }: MapControlsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   return (
@@ -242,6 +244,19 @@ export function MapControls({
             <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive" onClick={onClearBackground}>
               <X className="w-3 h-3" />
             </Button>
+          )}
+          {hasBackground && onBackgroundOpacityChange && (
+            <div className="flex items-center gap-1 ml-0.5">
+              <span className="text-[9px] text-muted-foreground whitespace-nowrap">{Math.round((backgroundOpacity ?? 1) * 100)}%</span>
+              <input
+                type="range"
+                min="5"
+                max="100"
+                value={Math.round((backgroundOpacity ?? 1) * 100)}
+                onChange={(e) => onBackgroundOpacityChange(Number(e.target.value) / 100)}
+                className="w-16 h-4 accent-primary cursor-pointer"
+              />
+            </div>
           )}
         </div>
       )}

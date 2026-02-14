@@ -23,11 +23,13 @@ interface PartyBattleMapProps {
   onMoveMarker?: (fromX: number, fromY: number, toX: number, toY: number) => Promise<void>;
   backgroundUrl?: string;
   backgroundUploading?: boolean;
+  backgroundOpacity?: number;
   onSetBackground?: (file: File) => void;
   onClearBackground?: () => void;
+  onBackgroundOpacityChange?: (opacity: number) => void;
 }
 
-export function PartyBattleMap({ markers, currentUserId, characterName, memberColors, onPlaceMarker, onRemoveMarker, onMoveMarker, backgroundUrl, backgroundUploading, onSetBackground, onClearBackground }: PartyBattleMapProps) {
+export function PartyBattleMap({ markers, currentUserId, characterName, memberColors, onPlaceMarker, onRemoveMarker, onMoveMarker, backgroundUrl, backgroundUploading, backgroundOpacity, onSetBackground, onClearBackground, onBackgroundOpacityChange }: PartyBattleMapProps) {
   const [addingEnemy, setAddingEnemy] = useState(false);
   const [enemyName, setEnemyName] = useState('');
   const [toolMode, setToolMode] = useState<ToolMode>(null);
@@ -364,8 +366,10 @@ export function PartyBattleMap({ markers, currentUserId, characterName, memberCo
             onMoveRangeClick={handleMoveRangeClick}
             backgroundUrl={backgroundUrl}
             backgroundUploading={backgroundUploading}
+            backgroundOpacity={backgroundOpacity}
             onSetBackground={onSetBackground}
             onClearBackground={onClearBackground}
+            onBackgroundOpacityChange={onBackgroundOpacityChange}
           />
         </DialogContent>
       </Dialog>
