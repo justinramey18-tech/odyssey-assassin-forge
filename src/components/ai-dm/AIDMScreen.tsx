@@ -790,6 +790,7 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
           onToggleAutoSync={autoSync.toggleAutoSync}
           isExtracting={autoSync.isExtracting}
           guidesCount={gmGuides.guides.filter(g => g.enabled).length}
+          characterContext={characterContext}
         />
       )}
       {/* Battle Map Overlay */}
