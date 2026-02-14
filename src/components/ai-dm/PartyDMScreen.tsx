@@ -358,6 +358,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
 
   // Bottom nav state
   const [activeNavTab, setActiveNavTab] = useState<DMNavTab | null>(null);
+  const [navExpanded, setNavExpanded] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [showStoneDrawer, setShowStoneDrawer] = useState(false);
 
@@ -472,7 +473,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
 
   const hasSubmitted = !!partyDm.myPrompt;
   const isReady = partyDm.myPrompt?.is_ready ?? false;
-  const showDiceRoller = activeNavTab === 'dice' && characterContext && !partyDm.isGenerating;
+  const showDiceContent = activeNavTab === 'dice' && characterContext && !partyDm.isGenerating;
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]">
@@ -703,7 +704,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
       {showBattleMap && battleMapContent ? (
         battleMapContent
       ) : (
-        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain pb-[144px]">
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain pb-[100px]">
           {partyDm.messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-6">
               <Users className="w-12 h-12 text-primary/40 mb-4" />
@@ -916,17 +917,8 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
         }}
       />
 
-      {/* Dice Roller Panel (shown when dice tab active) */}
-      {showDiceRoller && (
-        <DMDiceRoller
-          characterContext={characterContext!}
-          onRollResult={handleDiceRoll}
-          disabled={partyDm.isGenerating}
-        />
-      )}
-
       {/* Input Area */}
-      <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm mb-[72px]">
+      <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm mb-6">
         {partyDm.isGenerating ? (
           <div className="flex items-center justify-center gap-2 py-2">
             <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
@@ -1066,11 +1058,20 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
         )}
       </div>
 
-      {/* Bottom Navigation */}
+      {/* Bottom Navigation Drawer */}
       <DMBottomNav
         activeTab={activeNavTab}
         onTabChange={handleNavTabChange}
+        isExpanded={navExpanded}
+        onExpandedChange={setNavExpanded}
         disabled={partyDm.isGenerating}
+        diceContent={showDiceContent ? (
+          <DMDiceRoller
+            characterContext={characterContext!}
+            onRollResult={handleDiceRoll}
+            disabled={partyDm.isGenerating}
+          />
+        ) : undefined}
       />
 
       {/* Quick Actions Drawer */}

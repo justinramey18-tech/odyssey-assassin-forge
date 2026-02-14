@@ -158,6 +158,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
 
   // Bottom nav state
   const [activeNavTab, setActiveNavTab] = useState<DMNavTab | null>(null);
+  const [navExpanded, setNavExpanded] = useState(false);
   const [showStoneDrawer, setShowStoneDrawer] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
 
@@ -302,7 +303,6 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const handleNavTabChange = useCallback((tab: DMNavTab) => {
     if (tab === 'prompts') {
       setShowStoneDrawer(true);
-      // Don't keep prompts as active tab since it's a full overlay
       return;
     }
     if (tab === 'actions') {
@@ -321,7 +321,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     ? Math.round((characterContext.currentHP / characterContext.maxHP) * 100)
     : 100;
 
-  const showDiceRoller = activeNavTab === 'dice' && messages.length > 0;
+  const showDiceContent = activeNavTab === 'dice' && messages.length > 0;
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]">
@@ -508,7 +508,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         <>
           <div
             ref={scrollRef}
-            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain pb-[144px]"
+            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain pb-[100px]"
           >
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center px-6">
@@ -545,15 +545,6 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
             onDismiss={() => {}}
           />
 
-          {/* Dice Roller Panel (shown when dice tab active) */}
-          {showDiceRoller && (
-            <DMDiceRoller
-              characterContext={characterContext}
-              onRollResult={handleUsePrompt}
-              disabled={isLoading}
-            />
-          )}
-
           {/* Auto-Sync Extracting Indicator */}
           <AnimatePresence>
             {autoSync.isExtracting && (
@@ -577,7 +568,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
       )}
 
       {/* Input Area */}
-      <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm mb-[72px]">
+      <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm mb-6">
         <input
           ref={videoInputRef}
           type="file"
@@ -703,11 +694,20 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         </div>
       </div>
 
-      {/* Bottom Navigation */}
+      {/* Bottom Navigation Drawer */}
       <DMBottomNav
         activeTab={activeNavTab}
         onTabChange={handleNavTabChange}
+        isExpanded={navExpanded}
+        onExpandedChange={setNavExpanded}
         disabled={isLoading}
+        diceContent={showDiceContent ? (
+          <DMDiceRoller
+            characterContext={characterContext}
+            onRollResult={handleUsePrompt}
+            disabled={isLoading}
+          />
+        ) : undefined}
       />
 
       {/* GM Guides Overlay */}
