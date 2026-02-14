@@ -95,6 +95,18 @@ interface QuickActionsDrawerProps {
   onSendHeal?: (targetUserId: string, actionData: { senderName?: string; itemName?: string; hpHealed?: number }) => Promise<void>;
   // Channel Divinity
   channelDivinity?: ChannelDivinityInfo;
+  // Optional callback: when set, prompts are sent here instead of just clipboard
+  onPromptGenerated?: (prompt: string) => void;
+}
+
+// Module-level ref for prompt callback (set by QuickActionsDrawer when onPromptGenerated is provided)
+let _promptCallback: ((prompt: string) => void) | null = null;
+
+function notifyPrompt(prompt: string) {
+  navigator.clipboard.writeText(prompt).catch(() => {});
+  if (_promptCallback) {
+    _promptCallback(prompt);
+  }
 }
 
 // ── Prompt generators (static, no roll data) ──
@@ -263,7 +275,7 @@ function InlineRollResult({
 
   const handleCopy = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(prompt);
+      notifyPrompt(prompt);
       setCopied(true);
       toast.success('Roll prompt copied!');
       setTimeout(() => setCopied(false), 2000);
@@ -445,7 +457,7 @@ function CopyButton({ text }: { text: string }) {
 
   const handleCopy = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(text);
+      notifyPrompt(text);
       setCopied(true);
       toast.success('Prompt copied!');
       setTimeout(() => setCopied(false), 2000);
@@ -487,9 +499,7 @@ function QuickCastButton({
     e.stopPropagation();
     if (disabled) return;
     onCast();
-    try {
-      await navigator.clipboard.writeText(prompt);
-    } catch { /* silent */ }
+    notifyPrompt(prompt);
     setFired(true);
     setTimeout(() => setFired(false), 1500);
   }, [disabled, onCast, prompt]);
@@ -724,10 +734,8 @@ function WildShapeSection({ wildShape, characterName, onAssignBackground, onRemo
                           formAC: form.ac,
                           formSpeed: form.speed,
                         });
-                        try {
-                          await navigator.clipboard.writeText(prompt);
-                          toast.success(`${ab} prompt copied!`);
-                        } catch { toast.error('Failed to copy'); }
+                        notifyPrompt(prompt);
+                        toast.success(`${ab} prompt copied!`);
                       }}
                       className="text-[10px] px-1.5 py-0.5 bg-green-500/10 border border-green-500/20 rounded text-green-300 hover:bg-green-500/25 hover:border-green-500/40 active:scale-95 transition-all cursor-pointer"
                       style={{ touchAction: 'manipulation' }}
@@ -922,7 +930,14 @@ export function QuickActionsDrawer({
   userId,
   onSendHeal,
   channelDivinity,
+  onPromptGenerated,
 }: QuickActionsDrawerProps) {
+  // Set module-level prompt callback for sub-components
+  useEffect(() => {
+    _promptCallback = onPromptGenerated ?? null;
+    return () => { _promptCallback = null; };
+  }, [onPromptGenerated]);
+
   // Track which item has an active inline roll
   const [pendingHealConsumable, setPendingHealConsumable] = useState<{ item: InventoryItem; amount: number } | null>(null);
   const [pendingHealSpell, setPendingHealSpell] = useState<{ spellName: string; amount: number } | null>(null);
@@ -1269,7 +1284,7 @@ export function QuickActionsDrawer({
     const success = onUseConsumable(item.consumable.id);
     if (success) {
       const prompt = generateConsumablePrompt(item.consumable, characterName);
-      navigator.clipboard.writeText(prompt).catch(() => {});
+      notifyPrompt(prompt);
 
       // Auto-apply healing for healing potions
       const healMatch = item.consumable.effect.match(/restores?\s+(\d+)d(\d+)(?:\s*\+\s*(\d+))?\s*(?:hit\s*points|hp)/i);
@@ -1648,10 +1663,8 @@ export function QuickActionsDrawer({
                             const success = channelDivinity.useChannelDivinity(option.name);
                             if (success) {
                               const prompt = generateChannelDivinityPrompt(option.name, option.description, characterName, option.mechanicalEffect, option.isDomain, channelDivinity.domainName, channelDivinity.deityName);
-                              try {
-                                await navigator.clipboard.writeText(prompt);
-                                toast.success(`${option.name} prompt copied!`);
-                              } catch { /* silent */ }
+                              notifyPrompt(prompt);
+                              toast.success(`${option.name} prompt copied!`);
                             }
                           }}
                           disabled={channelDivinity.current <= 0}

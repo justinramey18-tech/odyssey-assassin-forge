@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, createContext, useContext, ReactNode, useMemo } from 'react';
+import { useState, useEffect, useCallback, createContext, useContext, ReactNode, useMemo, useRef } from 'react';
 import { Gem, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { InfinityStoneDrawer } from './InfinityStoneDrawer';
@@ -62,6 +62,8 @@ interface PromptDrawerContextValue {
   };
   // Conditions system exposure
   conditions: UseConditionsReturn;
+  // Quick Action prompt capture for Party DM
+  setQuickActionPromptTarget: (callback: ((prompt: string) => void) | null) => void;
 }
 
 const PromptDrawerContext = createContext<PromptDrawerContextValue | null>(null);
@@ -210,6 +212,7 @@ export function PromptDrawerProvider({
   const [conditionsOpen, setConditionsOpen] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [aiDMOpen, setAiDMOpen] = useState(false);
+  const quickActionPromptTargetRef = useRef<((prompt: string) => void) | null>(null);
   const [oraclePersonality, setOraclePersonality] = useState<Personality>('deadpool');
   
   // Game mode integration for Infinity Stones lock and cooldown enforcement
@@ -462,6 +465,10 @@ export function PromptDrawerProvider({
     cooldownSummary,
     // Conditions system exposure
     conditions: conditionsSystem,
+    // Quick Action prompt capture for Party DM
+    setQuickActionPromptTarget: useCallback((cb: ((prompt: string) => void) | null) => {
+      quickActionPromptTargetRef.current = cb;
+    }, []),
   };
 
   return (
@@ -627,6 +634,7 @@ export function PromptDrawerProvider({
             userId={userId}
             onSendHeal={onSendHeal}
             channelDivinity={channelDivinityInfo}
+            onPromptGenerated={quickActionPromptTargetRef.current ?? undefined}
           />
 
           {/* AI Dungeon Master Full-Screen Overlay */}
