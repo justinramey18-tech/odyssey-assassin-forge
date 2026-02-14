@@ -212,7 +212,7 @@ export function PromptDrawerProvider({
   const [conditionsOpen, setConditionsOpen] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [aiDMOpen, setAiDMOpen] = useState(false);
-  const quickActionPromptTargetRef = useRef<((prompt: string) => void) | null>(null);
+  const [quickActionPromptTarget, setQuickActionPromptTargetState] = useState<((prompt: string) => void) | null>(null);
   const [oraclePersonality, setOraclePersonality] = useState<Personality>('deadpool');
   
   // Game mode integration for Infinity Stones lock and cooldown enforcement
@@ -478,7 +478,7 @@ export function PromptDrawerProvider({
     conditions: conditionsSystem,
     // Quick Action prompt capture for Party DM
     setQuickActionPromptTarget: useCallback((cb: ((prompt: string) => void) | null) => {
-      quickActionPromptTargetRef.current = cb;
+      setQuickActionPromptTargetState(() => cb);
     }, []),
   };
 
@@ -645,7 +645,7 @@ export function PromptDrawerProvider({
             userId={userId}
             onSendHeal={onSendHeal}
             channelDivinity={channelDivinityInfo}
-            onPromptGenerated={quickActionPromptTargetRef.current ?? undefined}
+            onPromptGenerated={quickActionPromptTarget ?? undefined}
           />
 
           {/* AI Dungeon Master Full-Screen Overlay */}
