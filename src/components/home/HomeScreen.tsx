@@ -266,9 +266,13 @@ export function HomeScreen({
   const [showSoloConfirm, setShowSoloConfirm] = useState(false);
   const lastSeenMessageCount = useRef(0);
 
+  // Track if chat was opened from Party DM (so we can return to it on close)
+  const chatOpenedFromDM = useRef(false);
+
   // Open party chat when requested externally (e.g. from Party DM)
   useEffect(() => {
     if (openPartyChatRequested && partySync?.party?.partyId && playMode === 'party') {
+      chatOpenedFromDM.current = true;
       setShowPartyChatFullscreen(true);
       onPartyChatOpened?.();
     }
@@ -955,6 +959,10 @@ export function HomeScreen({
           onClose={() => {
             lastSeenMessageCount.current = partySync.partyMessages.length;
             setShowPartyChatFullscreen(false);
+            if (chatOpenedFromDM.current) {
+              chatOpenedFromDM.current = false;
+              drawerContext?.openAIDMScreen({ returnToPartyDM: true });
+            }
           }}
           messages={partySync.partyMessages}
           currentUserId={userId}
