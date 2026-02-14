@@ -1,4 +1,5 @@
-import { Plus, X, Ruler, Paintbrush, Undo2, Trash2, Sparkles, Footprints } from 'lucide-react';
+import { useRef } from 'react';
+import { Plus, X, Ruler, Paintbrush, Undo2, Trash2, Sparkles, Footprints, ImageIcon, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -32,6 +33,10 @@ interface MapControlsProps {
   onUndo: () => void;
   onClearArea: () => void;
   onClearSpells: () => void;
+  hasBackground?: boolean;
+  backgroundUploading?: boolean;
+  onBackgroundUpload?: (file: File) => void;
+  onClearBackground?: () => void;
 }
 
 export function MapControls({
@@ -42,7 +47,9 @@ export function MapControls({
   setAddingEnemy, setEnemyName, setToolMode, setAreaColor,
   setSpellShape, setSpellSizeFt, setSpellColor, setMovementSpeedFt,
   onUndo, onClearArea, onClearSpells,
+  hasBackground, backgroundUploading, onBackgroundUpload, onClearBackground,
 }: MapControlsProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   return (
     <div className="flex gap-1.5 flex-wrap items-center">
       {!myMarker && (
@@ -206,6 +213,39 @@ export function MapControls({
           <Undo2 className="w-3 h-3" /> Undo
         </Button>
       )}
+
+      {/* Background image upload */}
+      {onBackgroundUpload && (
+        <div className="flex items-center gap-1">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onBackgroundUpload(file);
+              e.target.value = '';
+            }}
+          />
+          <Button
+            size="sm"
+            variant={hasBackground ? 'default' : 'outline'}
+            className="text-[10px] h-6 gap-1"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={backgroundUploading}
+          >
+            {backgroundUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImageIcon className="w-3 h-3" />}
+            {hasBackground ? 'Change' : 'Image'}
+          </Button>
+          {hasBackground && onClearBackground && (
+            <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive" onClick={onClearBackground}>
+              <X className="w-3 h-3" />
+            </Button>
+          )}
+        </div>
+      )}
+
       {toolMode && (
         <Button size="sm" variant="ghost" className="text-[10px] h-6" onClick={() => setToolMode(null)}>
           Cancel
