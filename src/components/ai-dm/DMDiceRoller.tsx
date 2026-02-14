@@ -1,6 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Dices, ChevronUp, ChevronDown, Equal, Swords, Shield, Sparkles } from 'lucide-react';
+import { Dices, Shield, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { rollDie } from '@/lib/diceRoller';
 import { rollWeightedDie, loadDiceOddsMode } from '@/lib/diceOdds';
@@ -71,18 +70,13 @@ const QUICK_DICE = [
 ];
 
 export function DMDiceRoller({ characterContext, onRollResult, disabled = false }: DMDiceRollerProps) {
-  const [isOpen, setIsOpen] = useState(false);
   const [tab, setTab] = useState<Tab>('d20');
   const [rollMode, setRollMode] = useState<RollMode>('normal');
-  const [lastRoll, setLastRoll] = useState<{ total: number; label: string } | null>(null);
 
   const handleRoll = useCallback((label: string, modifier: number) => {
     const roll = rollD20(rollMode);
     const message = formatRollMessage(label, roll, modifier, rollMode);
-    setLastRoll({ total: roll.kept + modifier, label });
     onRollResult(message);
-    // Brief flash then auto-close
-    setTimeout(() => setLastRoll(null), 1500);
   }, [rollMode, onRollResult]);
 
   const handleQuickDie = useCallback((sides: number, label: string) => {
@@ -107,199 +101,148 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
   ];
 
   return (
-    <div className="border-t border-amber-900/20 bg-black/20">
-      {/* Toggle button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        disabled={disabled}
-        className={cn(
-          "flex items-center gap-2 w-full px-3 py-1.5 transition-colors",
-          "hover:bg-amber-900/10",
-          disabled && "opacity-40 pointer-events-none"
-        )}
-        style={{ touchAction: 'manipulation' }}
-      >
-        <Dices className="w-3.5 h-3.5 text-amber-400" />
-        <span className="text-[11px] text-amber-300/70 font-semibold">Dice Roller</span>
-        
-        {/* Roll mode indicator */}
-        <span className={cn(
-          "text-[9px] px-1.5 py-0.5 rounded-full",
-          rollMode === 'advantage' && "bg-emerald-900/30 text-emerald-400",
-          rollMode === 'disadvantage' && "bg-red-900/30 text-red-400",
-          rollMode === 'normal' && "bg-white/5 text-white/30",
-        )}>
-          {rollMode === 'advantage' ? 'ADV' : rollMode === 'disadvantage' ? 'DIS' : 'NRM'}
-        </span>
-        
-        {lastRoll && (
-          <motion.span
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="text-[11px] text-amber-300 font-bold ml-auto"
-          >
-            {lastRoll.label}: {lastRoll.total}
-          </motion.span>
-        )}
-        
-        <span className="ml-auto">
-          {isOpen ? <ChevronDown className="w-3 h-3 text-white/30" /> : <ChevronUp className="w-3 h-3 text-white/30" />}
-        </span>
-      </button>
-
-      {/* Expanded roller */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="px-3 pb-2 space-y-2">
-              {/* Roll mode toggle */}
-              <div className="flex items-center gap-1">
-                {(['normal', 'advantage', 'disadvantage'] as RollMode[]).map(mode => (
-                  <button
-                    key={mode}
-                    onClick={() => setRollMode(mode)}
-                    className={cn(
-                      "px-2 py-1 rounded-md text-[10px] font-semibold transition-colors",
-                      rollMode === mode
-                        ? mode === 'advantage' ? "bg-emerald-900/40 text-emerald-300 border border-emerald-500/30"
-                          : mode === 'disadvantage' ? "bg-red-900/40 text-red-300 border border-red-500/30"
-                          : "bg-amber-900/30 text-amber-300 border border-amber-500/30"
-                        : "bg-white/5 text-white/40 border border-transparent hover:bg-white/10"
-                    )}
-                    style={{ touchAction: 'manipulation' }}
-                  >
-                    {mode === 'normal' ? 'Normal' : mode === 'advantage' ? 'Advantage' : 'Disadvantage'}
-                  </button>
-                ))}
-              </div>
-
-              {/* Tab selector */}
-              <div className="flex gap-1">
-                {tabs.map(t => (
-                  <button
-                    key={t.id}
-                    onClick={() => setTab(t.id)}
-                    className={cn(
-                      "flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-colors",
-                      tab === t.id
-                        ? "bg-amber-900/30 text-amber-300 border border-amber-500/20"
-                        : "text-white/40 hover:text-white/60 hover:bg-white/5"
-                    )}
-                    style={{ touchAction: 'manipulation' }}
-                  >
-                    <t.icon className="w-3 h-3" />
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Tab content */}
-              {tab === 'd20' && (
-                <div className="space-y-1.5">
-                  {/* Main d20 + Initiative */}
-                  <div className="flex gap-1.5">
-                    <button
-                      onClick={() => handleRoll('d20', 0)}
-                      className="flex-1 py-2 rounded-lg bg-amber-900/20 border border-amber-500/20 hover:bg-amber-900/40 transition-colors text-sm font-cinzel text-amber-200"
-                      style={{ touchAction: 'manipulation' }}
-                    >
-                      🎲 Roll d20
-                    </button>
-                    <button
-                      onClick={() => {
-                        const dexMod = getModifier(characterContext, 'dex');
-                        handleRoll('Initiative', dexMod);
-                      }}
-                      className="px-3 py-2 rounded-lg bg-purple-900/20 border border-purple-500/20 hover:bg-purple-900/40 transition-colors text-sm font-cinzel text-purple-200"
-                      style={{ touchAction: 'manipulation' }}
-                    >
-                      ⚡ Initiative
-                    </button>
-                  </div>
-                  
-                  {/* Ability check buttons */}
-                  <div className="grid grid-cols-6 gap-1">
-                    {(Object.entries(ABILITY_SCORES) as [AbilityScore, typeof ABILITY_SCORES[AbilityScore]][]).map(([key, info]) => {
-                      const mod = getModifier(characterContext, key);
-                      return (
-                        <button
-                          key={key}
-                          onClick={() => handleRoll(`${info.name} Check`, mod)}
-                          className="flex flex-col items-center gap-0.5 py-1.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 transition-colors"
-                          style={{ touchAction: 'manipulation' }}
-                        >
-                          <span className={cn("text-[10px] font-bold", info.color)}>{info.abbr}</span>
-                          <span className="text-[9px] text-white/40">{mod >= 0 ? `+${mod}` : mod}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Quick damage dice */}
-                  <div className="flex gap-1">
-                    {QUICK_DICE.map(d => (
-                      <button
-                        key={d.label}
-                        onClick={() => handleQuickDie(d.sides, d.label)}
-                        className="flex-1 py-1 rounded-md bg-white/5 hover:bg-white/10 text-[10px] text-white/50 hover:text-white/70 transition-colors border border-white/5"
-                        style={{ touchAction: 'manipulation' }}
-                      >
-                        {d.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+    <div className="bg-black/20">
+      <div className="px-3 py-2 space-y-2">
+        {/* Roll mode toggle */}
+        <div className="flex items-center gap-1">
+          {(['normal', 'advantage', 'disadvantage'] as RollMode[]).map(mode => (
+            <button
+              key={mode}
+              onClick={() => setRollMode(mode)}
+              className={cn(
+                "px-2 py-1 rounded-md text-[10px] font-semibold transition-colors",
+                rollMode === mode
+                  ? mode === 'advantage' ? "bg-emerald-900/40 text-emerald-300 border border-emerald-500/30"
+                    : mode === 'disadvantage' ? "bg-red-900/40 text-red-300 border border-red-500/30"
+                    : "bg-amber-900/30 text-amber-300 border border-amber-500/30"
+                  : "bg-white/5 text-white/40 border border-transparent hover:bg-white/10"
               )}
+              style={{ touchAction: 'manipulation' }}
+            >
+              {mode === 'normal' ? 'Normal' : mode === 'advantage' ? 'Advantage' : 'Disadvantage'}
+            </button>
+          ))}
+        </div>
 
-              {tab === 'skills' && (
-                <div className="grid grid-cols-2 gap-1 max-h-[180px] overflow-y-auto overscroll-contain scrollbar-none">
-                  {SKILLS.map(skill => {
-                    const mod = getModifier(characterContext, skill.ability);
-                    const abilityInfo = ABILITY_SCORES[skill.ability];
-                    return (
-                      <button
-                        key={skill.id}
-                        onClick={() => handleRoll(`${skill.name}`, mod)}
-                        className="flex items-center justify-between px-2 py-1.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/5 transition-colors text-left"
-                        style={{ touchAction: 'manipulation' }}
-                      >
-                        <span className="text-[11px] text-white/70 truncate">{skill.name}</span>
-                        <span className={cn("text-[10px] font-semibold shrink-0 ml-1", abilityInfo.color)}>
-                          {mod >= 0 ? `+${mod}` : mod}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+        {/* Tab selector */}
+        <div className="flex gap-1">
+          {tabs.map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={cn(
+                "flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-colors",
+                tab === t.id
+                  ? "bg-amber-900/30 text-amber-300 border border-amber-500/20"
+                  : "text-white/40 hover:text-white/60 hover:bg-white/5"
               )}
+              style={{ touchAction: 'manipulation' }}
+            >
+              <t.icon className="w-3 h-3" />
+              {t.label}
+            </button>
+          ))}
+        </div>
 
-              {tab === 'saves' && (
-                <div className="grid grid-cols-2 gap-1.5">
-                  {(Object.entries(ABILITY_SCORES) as [AbilityScore, typeof ABILITY_SCORES[AbilityScore]][]).map(([key, info]) => {
-                    const mod = getModifier(characterContext, key);
-                    return (
-                      <button
-                        key={key}
-                        onClick={() => handleRoll(`${info.name} Save`, mod)}
-                        className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 transition-colors"
-                        style={{ touchAction: 'manipulation' }}
-                      >
-                        <span className={cn("text-xs font-semibold", info.color)}>{info.name}</span>
-                        <span className="text-xs text-white/50">{mod >= 0 ? `+${mod}` : mod}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+        {/* Tab content */}
+        {tab === 'd20' && (
+          <div className="space-y-1.5">
+            {/* Main d20 + Initiative */}
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => handleRoll('d20', 0)}
+                className="flex-1 py-2 rounded-lg bg-amber-900/20 border border-amber-500/20 hover:bg-amber-900/40 transition-colors text-sm font-cinzel text-amber-200"
+                style={{ touchAction: 'manipulation' }}
+              >
+                🎲 Roll d20
+              </button>
+              <button
+                onClick={() => {
+                  const dexMod = getModifier(characterContext, 'dex');
+                  handleRoll('Initiative', dexMod);
+                }}
+                className="px-3 py-2 rounded-lg bg-purple-900/20 border border-purple-500/20 hover:bg-purple-900/40 transition-colors text-sm font-cinzel text-purple-200"
+                style={{ touchAction: 'manipulation' }}
+              >
+                ⚡ Initiative
+              </button>
             </div>
-          </motion.div>
+            
+            {/* Ability check buttons */}
+            <div className="grid grid-cols-6 gap-1">
+              {(Object.entries(ABILITY_SCORES) as [AbilityScore, typeof ABILITY_SCORES[AbilityScore]][]).map(([key, info]) => {
+                const mod = getModifier(characterContext, key);
+                return (
+                  <button
+                    key={key}
+                    onClick={() => handleRoll(`${info.name} Check`, mod)}
+                    className="flex flex-col items-center gap-0.5 py-1.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 transition-colors"
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    <span className={cn("text-[10px] font-bold", info.color)}>{info.abbr}</span>
+                    <span className="text-[9px] text-white/40">{mod >= 0 ? `+${mod}` : mod}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Quick damage dice */}
+            <div className="flex gap-1">
+              {QUICK_DICE.map(d => (
+                <button
+                  key={d.label}
+                  onClick={() => handleQuickDie(d.sides, d.label)}
+                  className="flex-1 py-1 rounded-md bg-white/5 hover:bg-white/10 text-[10px] text-white/50 hover:text-white/70 transition-colors border border-white/5"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  {d.label}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
-      </AnimatePresence>
+
+        {tab === 'skills' && (
+          <div className="grid grid-cols-2 gap-1 max-h-[180px] overflow-y-auto overscroll-contain scrollbar-none">
+            {SKILLS.map(skill => {
+              const mod = getModifier(characterContext, skill.ability);
+              const abilityInfo = ABILITY_SCORES[skill.ability];
+              return (
+                <button
+                  key={skill.id}
+                  onClick={() => handleRoll(`${skill.name}`, mod)}
+                  className="flex items-center justify-between px-2 py-1.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/5 transition-colors text-left"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <span className="text-[11px] text-white/70 truncate">{skill.name}</span>
+                  <span className={cn("text-[10px] font-semibold shrink-0 ml-1", abilityInfo.color)}>
+                    {mod >= 0 ? `+${mod}` : mod}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {tab === 'saves' && (
+          <div className="grid grid-cols-2 gap-1.5">
+            {(Object.entries(ABILITY_SCORES) as [AbilityScore, typeof ABILITY_SCORES[AbilityScore]][]).map(([key, info]) => {
+              const mod = getModifier(characterContext, key);
+              return (
+                <button
+                  key={key}
+                  onClick={() => handleRoll(`${info.name} Save`, mod)}
+                  className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 transition-colors"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <span className={cn("text-xs font-semibold", info.color)}>{info.name}</span>
+                  <span className="text-xs text-white/50">{mod >= 0 ? `+${mod}` : mod}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
