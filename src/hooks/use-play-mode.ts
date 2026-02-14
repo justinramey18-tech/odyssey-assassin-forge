@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { getScopedItem, setScopedItem, migrateToScoped } from '@/lib/scoped-storage';
 
 export type PlayMode = 'solo' | 'party';
 
@@ -8,7 +9,8 @@ export const PLAY_MODE_CHANGE_EVENT = 'odyssey-play-mode-change';
 export function usePlayMode() {
   const [playMode, setPlayModeState] = useState<PlayMode>(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      migrateToScoped(STORAGE_KEY);
+      const stored = getScopedItem(STORAGE_KEY);
       if (stored === 'solo' || stored === 'party') return stored;
     } catch { /* ignore */ }
     return 'party'; // Default to party mode (existing behavior)
@@ -18,7 +20,7 @@ export function usePlayMode() {
   const setPlayMode = useCallback((mode: PlayMode) => {
     setPlayModeState(mode);
     try {
-      localStorage.setItem(STORAGE_KEY, mode);
+      setScopedItem(STORAGE_KEY, mode);
       window.dispatchEvent(new CustomEvent(PLAY_MODE_CHANGE_EVENT, { detail: mode }));
     } catch (e) {
       console.error('Failed to save play mode:', e);
