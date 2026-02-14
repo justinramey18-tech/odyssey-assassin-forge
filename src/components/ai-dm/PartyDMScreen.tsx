@@ -8,7 +8,7 @@ import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 import type { usePartyDm, PartyDmMessage, PartyDmPrompt } from '@/hooks/use-party-dm';
 import { DMDiceRoller } from './DMDiceRoller';
-import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
+import { PartyDMQuickActions } from './PartyDMQuickActions';
 import type { CharacterContext } from '@/components/oracle/types';
 
 type PartyDmReturn = ReturnType<typeof usePartyDm>;
@@ -422,19 +422,12 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
     setInput(prev => prev ? `${prev}\n${message}` : message);
   }, []);
 
-  // Quick Actions drawer integration
-  const drawerContext = usePromptDrawers();
+  // Local Quick Actions drawer state
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
 
-  // Set prompt capture target when component mounts, clear on unmount
-  useEffect(() => {
-    drawerContext.setQuickActionPromptTarget((prompt: string) => {
-      setInput(prev => prev ? `${prev}\n${prompt}` : prompt);
-      toast.success('Prompt added to input');
-    });
-    return () => {
-      drawerContext.setQuickActionPromptTarget(null);
-    };
-  }, [drawerContext]);
+  const handleUsePrompt = useCallback((prompt: string) => {
+    setInput(prev => prev ? `${prev}\n${prompt}` : prompt);
+  }, []);
 
   const hasSubmitted = !!partyDm.myPrompt;
   const isReady = partyDm.myPrompt?.is_ready ?? false;
@@ -720,7 +713,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
           <div className="space-y-2 max-w-2xl mx-auto">
             {/* Quick Actions Drawer Trigger */}
             <button
-              onClick={() => drawerContext.openQuickActionsDrawer()}
+              onClick={() => setQuickActionsOpen(true)}
               disabled={partyDm.isGenerating}
               className={cn(
                 "flex items-center gap-2 w-full px-3 py-2 rounded-xl text-left text-sm transition-all",
@@ -892,6 +885,14 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
           </div>
         )}
       </div>
+      {/* Self-contained Quick Actions Drawer */}
+      <PartyDMQuickActions
+        open={quickActionsOpen}
+        onOpenChange={setQuickActionsOpen}
+        characterContext={characterContext}
+        characterName={characterContext?.name || 'The Adventurer'}
+        onUsePrompt={handleUsePrompt}
+      />
     </div>
   );
 }
