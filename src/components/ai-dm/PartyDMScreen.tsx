@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, ListChecks } from 'lucide-react';
+import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, ListChecks, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,6 +23,7 @@ interface PartyDMScreenProps {
   onShowGuides?: () => void;
   onShowMap?: () => void;
   onShowSaves?: () => void;
+  onShowChat?: () => void;
   autoSyncEnabled?: boolean;
   onToggleAutoSync?: (enabled: boolean) => void;
   isExtracting?: boolean;
@@ -319,7 +320,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
   );
 }
 
-export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, characterContext }: PartyDMScreenProps) {
+export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, characterContext }: PartyDMScreenProps) {
   const [input, setInput] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState('');
@@ -480,6 +481,17 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
             >
               <FolderOpen className="w-3.5 h-3.5 inline mr-0.5" />
               Saves
+            </button>
+          )}
+          {/* Party Chat */}
+          {onShowChat && (
+            <button
+              onClick={onShowChat}
+              className="px-2 py-1.5 rounded-lg text-xs font-cinzel text-white/50 hover:bg-white/10 transition-colors"
+              style={{ touchAction: 'manipulation' }}
+            >
+              <MessageSquare className="w-3.5 h-3.5 inline mr-0.5" />
+              Chat
             </button>
           )}
           {/* Guides */}

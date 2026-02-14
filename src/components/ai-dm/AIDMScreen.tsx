@@ -29,6 +29,7 @@ interface AIDMScreenProps {
   partyMembers?: PartyMember[];
   userId?: string;
   characterName?: string;
+  onShowChat?: () => void;
   autoSyncCallbacks?: {
     onHPChange: (change: number, type: 'damage' | 'healing') => void;
     onAddXP: (amount: number, source: string) => void;
@@ -143,7 +144,7 @@ const NOOP = () => {};
 const NOOP_TWO_ARG = () => {};
 const NOOP_RETURN_ZERO = () => 0;
 
-export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator = false, partyMembers = [], userId, characterName = 'Adventurer', autoSyncCallbacks }: AIDMScreenProps) {
+export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator = false, partyMembers = [], userId, characterName = 'Adventurer', onShowChat, autoSyncCallbacks }: AIDMScreenProps) {
   const [showPartyDM, setShowPartyDM] = useState(false);
   const [showBattleMap, setShowBattleMap] = useState(false);
   const [pendingMapAdds, setPendingMapAdds] = useState<MapMarker[]>([]);
@@ -786,6 +787,7 @@ export function AIDMScreen({ onBack, characterContext, partyId, isPartyCreator =
           onShowGuides={() => { setShowPartyDM(false); setShowGuides(true); }}
           onShowMap={() => { setShowPartyDM(false); setShowBattleMap(true); }}
           onShowSaves={() => { setShowPartyDM(false); setShowSessions(true); }}
+          onShowChat={onShowChat ? () => { setShowPartyDM(false); onShowChat(); } : undefined}
           autoSyncEnabled={autoSync.autoSyncEnabled}
           onToggleAutoSync={autoSync.toggleAutoSync}
           isExtracting={autoSync.isExtracting}

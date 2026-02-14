@@ -139,6 +139,9 @@ interface HomeScreenProps {
     onSendGear: (targetUserId: string, item: import('@/lib/inventory/types').EquipmentItem) => void;
     onSendLoot: (targetUserId: string, item: import('@/lib/loot/types').LootItem) => void;
   };
+  // External trigger to open party chat (from Party DM)
+  openPartyChatRequested?: boolean;
+  onPartyChatOpened?: () => void;
 }
 
 /** Map dragon form names to element-appropriate tint colors */
@@ -227,6 +230,8 @@ export function HomeScreen({
   playMode = 'party',
   onPlayModeChange,
   tradeProps,
+  openPartyChatRequested = false,
+  onPartyChatOpened,
 }: HomeScreenProps) {
   const isMobile = useIsMobile();
   const chatOnlineStatusMap = useOnlineStatus(partySync?.party?.members ?? []);
@@ -260,6 +265,14 @@ export function HomeScreen({
   const [showFAQDrawer, setShowFAQDrawer] = useState(false);
   const [showSoloConfirm, setShowSoloConfirm] = useState(false);
   const lastSeenMessageCount = useRef(0);
+
+  // Open party chat when requested externally (e.g. from Party DM)
+  useEffect(() => {
+    if (openPartyChatRequested && partySync?.party?.partyId && playMode === 'party') {
+      setShowPartyChatFullscreen(true);
+      onPartyChatOpened?.();
+    }
+  }, [openPartyChatRequested, partySync?.party?.partyId, playMode, onPartyChatOpened]);
   
   const [footerCollapsed, setFooterCollapsed] = useState(() => {
     try { return localStorage.getItem('odyssey-home-footer-collapsed') === 'true'; } catch { return false; }

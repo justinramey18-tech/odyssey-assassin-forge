@@ -146,6 +146,8 @@ interface PromptDrawerProviderProps {
   // Party DM props
   partyId?: string | null;
   isPartyCreator?: boolean;
+  // Party chat callback (opens fullscreen party chat from Party DM)
+  onOpenPartyChat?: () => void;
   // Auto-sync callbacks for AI DM
   autoSyncCallbacks?: {
     onHPChange: (change: number, type: 'damage' | 'healing') => void;
@@ -198,6 +200,7 @@ export function PromptDrawerProvider({
   onShareBuffToParty,
   partyId,
   isPartyCreator = false,
+  onOpenPartyChat,
   autoSyncCallbacks,
 }: PromptDrawerProviderProps) {
   const [infinityOpen, setInfinityOpen] = useState(false);
@@ -652,6 +655,7 @@ export function PromptDrawerProvider({
               partyMembers={partyMembers}
               userId={userId}
               characterName={character.name}
+              onShowChat={onOpenPartyChat ? () => { setAiDMOpen(false); onOpenPartyChat(); } : undefined}
               autoSyncCallbacks={autoSyncCallbacks}
             />
           )}
