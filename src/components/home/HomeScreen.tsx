@@ -13,7 +13,7 @@ import { SaveData } from '@/hooks/use-auto-save';
 import { 
   Settings, Coffee, Moon, TrendingUp,
   MessageCircle, Gem, Zap, PanelLeft, HelpCircle, BookOpen,
-  Swords, Wand2, ListChecks, ChevronUp, Users, Crown, User, Film,
+  Swords, Wand2, ListChecks, ChevronUp, Users, User, Film,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
@@ -28,6 +28,7 @@ import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 import { DiceRollerScreen } from '@/components/diceRoller';
 import { CharacterSavesDrawer, CharacterSavesTrigger } from './CharacterSavesDrawer';
 import { FAQDrawer } from './FAQDrawer';
+import { DMDrawer } from './DMDrawer';
 
 // New redesigned components
 import { CharacterNamePlaque } from './CharacterNamePlaque';
@@ -390,17 +391,16 @@ export function HomeScreen({
     setLongRestProgress(0);
   }, []);
 
-  // Drawer menu options
+  // Drawer menu options (AI DM removed — now accessed via right-edge DM drawer)
   const drawerOptions = [
-    // Row 1: AI DM, RP Prompts, Quick Actions
-    { id: 'ai-dm', label: 'AI DM', icon: Crown, color: 'text-amber-400', action: () => { setShowDrawersMenu(false); drawerContext?.openAIDMScreen(); } },
+    // Row 1: RP Prompts, Quick Actions, Combat
     { id: 'prompts', label: 'RP Prompts', icon: Gem, color: 'text-yellow-400', action: drawerContext?.openInfinityDrawer },
     { id: 'quick-actions', label: 'Quick Actions', icon: ListChecks, color: 'text-emerald-400', action: drawerContext?.openQuickActionsDrawer },
-    // Row 2: Combat, Abilities, Arcana
     { id: 'combat', label: 'Combat', icon: Swords, color: 'text-red-400', action: () => { setShowDrawersMenu(false); onNavigateToTab('combat'); } },
+    // Row 2: Abilities, Arcana, (empty slot filled by grid)
     { id: 'abilities', label: 'Abilities', icon: Zap, color: 'text-purple-400', action: () => { setShowDrawersMenu(false); onNavigateToTab('abilities'); } },
     { id: 'arcana', label: 'Arcana', icon: Wand2, color: 'text-indigo-400', action: () => { setShowDrawersMenu(false); onNavigateToTab('arcana'); } },
-    // Row 3: Features, Settings
+    // Row 3 handled separately: Oracle, Features, Settings
     { id: 'features', label: 'Features', icon: BookOpen, color: 'text-cyan-400', action: () => { setShowDrawersMenu(false); featuresNavigate('/features'); } },
     { id: 'settings', label: 'Settings', icon: Settings, color: 'text-slate-400', action: onOpenSettings },
   ];
@@ -800,7 +800,7 @@ export function HomeScreen({
           
           {/* Rows 1 & 2: standard 3-col grid */}
           <div className="grid grid-cols-3 gap-3">
-            {drawerOptions.slice(0, 6).map((option) => {
+            {drawerOptions.slice(0, 5).map((option) => {
               const IconComponent = option.icon;
               return (
                 <button
@@ -983,6 +983,13 @@ export function HomeScreen({
           onlineStatusMap={chatOnlineStatusMap}
         />
       )}
+
+      {/* DM Drawer - Right Edge Swipe Panel */}
+      <DMDrawer
+        onOpenSoloDM={() => drawerContext?.openAIDMScreen()}
+        onOpenPartyDM={() => drawerContext?.openAIDMScreen({ returnToPartyDM: true })}
+        isPartyMode={playMode === 'party'}
+      />
 
       {/* FAQ Drawer */}
       <FAQDrawer open={showFAQDrawer} onOpenChange={setShowFAQDrawer} />
