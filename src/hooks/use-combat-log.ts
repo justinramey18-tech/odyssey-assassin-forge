@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 
 export interface CombatLogEntry {
   id: string;
@@ -18,6 +18,7 @@ export interface CombatLogEntry {
 
 const STORAGE_KEY = 'odyssey-combat-log';
 const MAX_ENTRIES = 50;
+const SYNC_EVENT = 'odyssey-combat-log-sync';
 
 // Load persisted log from localStorage
 function loadLog(): CombatLogEntry[] {
@@ -45,6 +46,17 @@ function saveLog(entries: CombatLogEntry[]): void {
 
 export function useCombatLog() {
   const [entries, setEntries] = useState<CombatLogEntry[]>(loadLog);
+  const isSelfUpdate = useRef(false);
+
+  // Listen for external sync events
+  useEffect(() => {
+    const handler = () => {
+      if (isSelfUpdate.current) return;
+      setEntries(loadLog());
+    };
+    window.addEventListener(SYNC_EVENT, handler);
+    return () => window.removeEventListener(SYNC_EVENT, handler);
+  }, []);
 
   const addEntry = useCallback((entry: Omit<CombatLogEntry, 'id' | 'timestamp'>) => {
     const newEntry: CombatLogEntry = {
@@ -53,26 +65,35 @@ export function useCombatLog() {
       timestamp: new Date(),
     };
 
+    isSelfUpdate.current = true;
     setEntries(prev => {
       const updated = [newEntry, ...prev].slice(0, MAX_ENTRIES);
       saveLog(updated);
+      window.dispatchEvent(new CustomEvent(SYNC_EVENT));
       return updated;
     });
+    setTimeout(() => { isSelfUpdate.current = false; }, 50);
 
     return newEntry;
   }, []);
 
   const clearLog = useCallback(() => {
+    isSelfUpdate.current = true;
     setEntries([]);
     localStorage.removeItem(STORAGE_KEY);
+    window.dispatchEvent(new CustomEvent(SYNC_EVENT));
+    setTimeout(() => { isSelfUpdate.current = false; }, 50);
   }, []);
 
   const removeEntry = useCallback((id: string) => {
+    isSelfUpdate.current = true;
     setEntries(prev => {
       const updated = prev.filter(e => e.id !== id);
       saveLog(updated);
+      window.dispatchEvent(new CustomEvent(SYNC_EVENT));
       return updated;
     });
+    setTimeout(() => { isSelfUpdate.current = false; }, 50);
   }, []);
 
   return {
