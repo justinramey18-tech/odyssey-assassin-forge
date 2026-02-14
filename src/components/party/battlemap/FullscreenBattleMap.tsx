@@ -4,16 +4,20 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { MapControls } from './MapControls';
 import { MarkerTooltip } from './MarkerTooltip';
 import { MeasureOverlay } from './MeasureOverlay';
 import { AreaOverlay } from './AreaOverlay';
 import { SpellTemplateOverlay } from './SpellTemplateOverlay';
 import { MovementRangeOverlay } from './MovementRangeOverlay';
+import { TierBackgroundPanel } from './TierBackgroundPanel';
 import {
   type MapMarker, type GridSize, type ToolMode, type UndoAction, type AreaColorId,
   type SpellTemplate, type SpellShape, type SpellColorId, type DistanceUnit,
+  type ScaleTier, type TierBackground,
   GRID_SIZE_OPTIONS, CELL_SIZE, DISTANCE_UNITS, DISTANCE_PER_SQUARE_PRESETS,
+  DEFAULT_SCALE_TIERS, getActiveTier, getTierOpacity,
   getDistanceUnitAbbr, getAreaColorById,
 } from './types';
 
@@ -72,6 +76,12 @@ interface FullscreenBattleMapProps {
   distanceUnit: DistanceUnit;
   onDistancePerSquareChange: (v: number) => void;
   onDistanceUnitChange: (v: DistanceUnit) => void;
+  // Auto-scale & tier background props
+  autoScale?: boolean;
+  onToggleAutoScale?: () => void;
+  tierBackgrounds?: TierBackground[];
+  onTierBackgroundUpload?: (tierId: string, file: File) => void;
+  onTierBackgroundRemove?: (tierId: string) => void;
 }
 
 export function FullscreenBattleMap({
@@ -84,6 +94,7 @@ export function FullscreenBattleMap({
   movementSpeedFt, setMovementSpeedFt, moveRangeOrigin, onMoveRangeClick,
   backgroundUrl, backgroundUploading, backgroundOpacity, onSetBackground, onClearBackground, onBackgroundOpacityChange,
   distancePerSquare, distanceUnit, onDistancePerSquareChange, onDistanceUnitChange,
+  autoScale = false, onToggleAutoScale, tierBackgrounds = [], onTierBackgroundUpload, onTierBackgroundRemove,
 }: FullscreenBattleMapProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -93,9 +104,17 @@ export function FullscreenBattleMap({
 
   const totalSize = gridSize * CELL_SIZE;
   const cellSize = CELL_SIZE * zoom;
-  const unitAbbr = getDistanceUnitAbbr(distanceUnit);
   const labelWidth = 28 * zoom;
   const labelHeight = 18 * zoom;
+
+  // Auto-scale tier computation
+  const activeTier = useMemo(() => autoScale ? getActiveTier(zoom) : null, [autoScale, zoom]);
+  const effectiveDistancePerSquare = activeTier ? activeTier.distancePerSquare : distancePerSquare;
+  const effectiveDistanceUnit = activeTier ? activeTier.distanceUnit : distanceUnit;
+  const effectiveUnitAbbr = getDistanceUnitAbbr(effectiveDistanceUnit);
+  const gridMergeFactor = activeTier ? activeTier.gridMergeFactor : 1;
+  const minorLineOpacity = activeTier ? activeTier.minorLineOpacity : 0.1;
+  const unitAbbr = effectiveUnitAbbr;
 
   // Pinch-to-zoom
   useEffect(() => {
@@ -321,8 +340,31 @@ export function FullscreenBattleMap({
 
             {/* Grid */}
             <div className="relative">
-              {/* Background image */}
-              {backgroundUrl && (
+              {/* Layered tier background images */}
+              {tierBackgrounds.length > 0 ? (
+                DEFAULT_SCALE_TIERS.map(tier => {
+                  const bg = tierBackgrounds.find(b => b.tierId === tier.id);
+                  if (!bg) return null;
+                  const tierOpacity = getTierOpacity(zoom, tier) * (backgroundOpacity ?? 1);
+                  if (tierOpacity <= 0) return null;
+                  return (
+                    <img
+                      key={tier.id}
+                      src={bg.imageUrl}
+                      alt=""
+                      className="absolute inset-0 pointer-events-none"
+                      style={{
+                        width: gridSize * cellSize,
+                        height: gridSize * cellSize,
+                        objectFit: 'cover',
+                        zIndex: 0,
+                        opacity: tierOpacity,
+                        transition: 'opacity 0.3s ease',
+                      }}
+                    />
+                  );
+                })
+              ) : backgroundUrl ? (
                 <img
                   src={backgroundUrl}
                   alt=""
@@ -335,7 +377,7 @@ export function FullscreenBattleMap({
                     opacity: backgroundOpacity ?? 1,
                   }}
                 />
-              )}
+              ) : null}
               <div
                 style={{
                   display: 'grid',
@@ -350,6 +392,9 @@ export function FullscreenBattleMap({
                   const highlightColorId = highlightedCells.get(`${x},${y}`);
                   const isHighlighted = !!highlightColorId;
                   const isMeasurePoint = (measureStart?.x === x && measureStart?.y === y) || (measureEnd?.x === x && measureEnd?.y === y);
+                  const hasAnyBg = tierBackgrounds.length > 0 || !!backgroundUrl;
+                  const isMajorLine = gridMergeFactor <= 1 || (x % gridMergeFactor === 0) || (y % gridMergeFactor === 0);
+                  const cellBorderOpacity = isMajorLine ? (hasAnyBg ? 0.05 : 0.1) : minorLineOpacity;
                   return (
                     <button
                       key={i}
@@ -368,13 +413,15 @@ export function FullscreenBattleMap({
                       onMouseLeave={() => setHoveredMarker(null)}
                       className={cn(
                         "flex items-center justify-center transition-colors",
-                        !isHighlighted && (backgroundUrl ? "border border-white/5" : "border border-border/10"),
                         !isHighlighted && !marker && "hover:bg-muted/20",
                         (toolMode === 'place-self' || toolMode === 'place-enemy') && !marker && "hover:bg-primary/10",
                         isMeasurePoint && "ring-2 ring-primary/60",
                       )}
                       style={{
                         width: cellSize, height: cellSize,
+                        ...(!isHighlighted && !marker ? {
+                          border: `1px solid ${hasAnyBg ? `rgba(255,255,255,${cellBorderOpacity})` : `hsl(var(--border) / ${cellBorderOpacity})`}`,
+                        } : {}),
                         ...(isHighlighted && highlightColorId ? {
                           backgroundColor: getAreaColorById(highlightColorId).bg,
                           border: `1px solid ${getAreaColorById(highlightColorId).border}`,
@@ -413,7 +460,7 @@ export function FullscreenBattleMap({
                   originX={moveRangeOrigin.x}
                   originY={moveRangeOrigin.y}
                   movementSpeed={movementSpeedFt}
-                  distancePerSquare={distancePerSquare}
+                  distancePerSquare={effectiveDistancePerSquare}
                   gridSize={gridSize}
                   cellSize={cellSize}
                   difficultTerrain={highlightedCells}
@@ -443,8 +490,8 @@ export function FullscreenBattleMap({
                 cellSize={cellSize}
                 offsetLeft={0}
                 offsetTop={0}
-                distancePerSquare={distancePerSquare}
-                distanceUnit={distanceUnit}
+                distancePerSquare={effectiveDistancePerSquare}
+                distanceUnit={effectiveDistanceUnit}
               />
 
               {/* Hover tooltip */}
@@ -514,7 +561,7 @@ export function FullscreenBattleMap({
             spellTemplateCount={spellTemplates.length}
             movementSpeedFt={movementSpeedFt}
             moveRangeActive={!!moveRangeOrigin}
-            distanceUnit={distanceUnit}
+            distanceUnit={effectiveDistanceUnit}
             setAddingEnemy={setAddingEnemy}
             setEnemyName={setEnemyName}
             setToolMode={setToolMode}
@@ -526,43 +573,66 @@ export function FullscreenBattleMap({
             onUndo={onUndo}
             onClearArea={onClearArea}
             onClearSpells={onClearSpells}
-            hasBackground={!!backgroundUrl}
+            hasBackground={!!backgroundUrl || tierBackgrounds.length > 0}
             backgroundUploading={backgroundUploading}
             backgroundOpacity={backgroundOpacity}
-            onBackgroundUpload={onSetBackground}
-            onClearBackground={onClearBackground}
+            onBackgroundUpload={!onTierBackgroundUpload ? onSetBackground : undefined}
+            onClearBackground={!onTierBackgroundRemove ? onClearBackground : undefined}
             onBackgroundOpacityChange={onBackgroundOpacityChange}
           />
+          {/* Tier background panel */}
+          {onTierBackgroundUpload && (
+            <TierBackgroundPanel
+              tiers={DEFAULT_SCALE_TIERS}
+              tierBackgrounds={tierBackgrounds}
+              autoScale={autoScale}
+              masterOpacity={backgroundOpacity ?? 1}
+              uploading={backgroundUploading ?? false}
+              onToggleAutoScale={() => onToggleAutoScale?.()}
+              onUpload={onTierBackgroundUpload}
+              onRemove={(tierId) => onTierBackgroundRemove?.(tierId)}
+              onMasterOpacityChange={(v) => onBackgroundOpacityChange?.(v)}
+            />
+          )}
         </div>
         {/* Distance/unit controls & grid info */}
         <div className="flex items-center gap-2 text-[9px] text-muted-foreground mt-1 flex-wrap">
           <span>Grid: {gridSize}×{gridSize}</span>
           <span>•</span>
-          <div className="flex items-center gap-1">
-            <Select value={String(distancePerSquare)} onValueChange={(v) => onDistancePerSquareChange(Number(v))}>
-              <SelectTrigger className="h-5 w-[3.5rem] text-[9px] border-border/30 bg-muted/30">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {DISTANCE_PER_SQUARE_PRESETS.map(d => (
-                  <SelectItem key={d} value={String(d)} className="text-[11px]">{d}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={distanceUnit} onValueChange={(v) => onDistanceUnitChange(v as DistanceUnit)}>
-              <SelectTrigger className="h-5 w-[4.5rem] text-[9px] border-border/30 bg-muted/30">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {DISTANCE_UNITS.map(u => (
-                  <SelectItem key={u.id} value={u.id} className="text-[11px]">{u.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <span>/sq</span>
-          </div>
+          {autoScale && activeTier ? (
+            <div className="flex items-center gap-1">
+              <Badge variant="outline" className="text-[8px] h-4 px-1.5 py-0 border-primary/30 text-primary">
+                Auto: {activeTier.label}
+              </Badge>
+              <span>{effectiveDistancePerSquare} {effectiveUnitAbbr}/sq</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1">
+              <Select value={String(distancePerSquare)} onValueChange={(v) => onDistancePerSquareChange(Number(v))}>
+                <SelectTrigger className="h-5 w-[3.5rem] text-[9px] border-border/30 bg-muted/30">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DISTANCE_PER_SQUARE_PRESETS.map(d => (
+                    <SelectItem key={d} value={String(d)} className="text-[11px]">{d}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={distanceUnit} onValueChange={(v) => onDistanceUnitChange(v as DistanceUnit)}>
+                <SelectTrigger className="h-5 w-[4.5rem] text-[9px] border-border/30 bg-muted/30">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DISTANCE_UNITS.map(u => (
+                    <SelectItem key={u.id} value={u.id} className="text-[11px]">{u.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span>/sq</span>
+            </div>
+          )}
           <span>•</span>
-          <span>{gridSize * distancePerSquare} {unitAbbr} total</span>
+          <span>{gridSize * effectiveDistancePerSquare} {effectiveUnitAbbr} total</span>
         </div>
       </div>
     </div>
