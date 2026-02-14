@@ -290,19 +290,29 @@ export function PartyCampaignSaves({
       <div className="px-3 py-2 bg-black/30 border-b border-amber-900/20 space-y-2">
         {hasMessages ? (
           <>
-            {activeCampaignId && (
+            {/* Always-visible save button */}
+            {activeCampaignId ? (
               <button
                 onClick={handleOverwrite}
                 disabled={isSaving}
-                className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-amber-900/40 border border-amber-500/30 text-amber-300 text-sm font-cinzel hover:bg-amber-900/60 transition-colors disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-amber-900/40 border border-amber-500/30 text-amber-300 text-sm font-cinzel hover:bg-amber-900/60 transition-colors disabled:opacity-50"
                 style={{ touchAction: 'manipulation' }}
               >
                 <Save className="w-4 h-4" />
-                {isSaving ? 'Saving...' : 'Quick Save'}
+                {isSaving ? 'Saving...' : 'Save Current Campaign'}
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowSaveInput(true)}
+                disabled={showSaveInput}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-amber-900/40 border border-amber-500/30 text-amber-300 text-sm font-cinzel hover:bg-amber-900/60 transition-colors disabled:opacity-50"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <Save className="w-4 h-4" /> Save Current Campaign
               </button>
             )}
             <AnimatePresence>
-              {showSaveInput ? (
+              {showSaveInput && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
@@ -335,16 +345,21 @@ export function PartyCampaignSaves({
                     <X className="w-4 h-4" />
                   </button>
                 </motion.div>
-              ) : (
-                <button
-                  onClick={() => setShowSaveInput(true)}
-                  className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-white/5 border border-white/10 text-white/60 text-sm hover:bg-white/10 transition-colors"
-                  style={{ touchAction: 'manipulation' }}
-                >
-                  <Save className="w-4 h-4" /> Save As New
-                </button>
               )}
             </AnimatePresence>
+            {activeCampaignId && (
+              <AnimatePresence>
+                {showSaveInput ? null : (
+                  <button
+                    onClick={() => setShowSaveInput(true)}
+                    className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-white/5 border border-white/10 text-white/60 text-sm hover:bg-white/10 transition-colors"
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    <Save className="w-4 h-4" /> Save As New
+                  </button>
+                )}
+              </AnimatePresence>
+            )}
           </>
         ) : (
           <p className="text-xs text-white/30 text-center py-1">Start a conversation to save it as a campaign</p>
