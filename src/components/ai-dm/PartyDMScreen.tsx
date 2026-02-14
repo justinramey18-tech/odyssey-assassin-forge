@@ -950,6 +950,14 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
               </button>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                onClick={partyDm.setReady}
+                className="flex-1 gap-1.5 bg-emerald-900/40 border border-emerald-500/30 hover:bg-emerald-900/60 text-emerald-300"
+                size="sm"
+              >
+                <Check className="w-4 h-4" />
+                Ready (No Action)
+              </Button>
               {currentUserId && (
                 <div className="flex gap-1 shrink-0">
                   <button
@@ -972,14 +980,6 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                   </button>
                 </div>
               )}
-              <Button
-                onClick={partyDm.setReady}
-                className="flex-1 gap-1.5 bg-emerald-900/40 border border-emerald-500/30 hover:bg-emerald-900/60 text-emerald-300"
-                size="sm"
-              >
-                <Check className="w-4 h-4" />
-                Ready (No Action)
-              </Button>
             </div>
           </div>
         ) : !isReady ? (
