@@ -918,7 +918,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
       />
 
       {/* Input Area */}
-      <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm mb-[44px]">
+      <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm mb-[48px]">
         {partyDm.isGenerating ? (
           <div className="flex items-center justify-center gap-2 py-2">
             <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
