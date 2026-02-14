@@ -16,7 +16,7 @@ import { CampaignSessionsManager } from './CampaignSessionsManager';
 import { AutoSyncBanner } from './AutoSyncBanner';
 
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
-import { StandaloneBattleMap } from '@/components/home/StandaloneBattleMap';
+import { InlineBattleMap } from './InlineBattleMap';
 import ReactMarkdown from 'react-markdown';
 
 import type { MapMarker } from '@/components/party/battlemap/types';
@@ -476,87 +476,95 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         )}
       </AnimatePresence>
 
-      {/* Messages */}
-      <div
-        ref={scrollRef}
-        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain"
-      >
-        {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center px-6">
-            <Crown className="w-12 h-12 text-amber-500/60 mb-4" />
-            <h2 className="text-lg font-cinzel text-amber-200 mb-2">AI Dungeon Master</h2>
-            <p className="text-sm text-white/40 max-w-[280px] mb-6">
-              Your personal DM, synced to {characterContext.name}'s current state. Start an adventure or continue where you left off.
-            </p>
-            <DMQuickActions onSelect={handleQuickAction} isLoading={isLoading} variant="starter" />
+      {/* Messages OR Inline Battle Map */}
+      {showBattleMap ? (
+        <InlineBattleMap
+          characterName={characterName}
+          pendingMarkerAdds={pendingMapAdds}
+          pendingMarkerRemovals={pendingMapRemovals}
+          onPendingProcessed={handlePendingProcessed}
+          onMarkersChange={handleMarkersChange}
+          onGridSizeChange={handleGridSizeChange}
+          onClose={handleCloseBattleMap}
+        />
+      ) : (
+        <>
+          <div
+            ref={scrollRef}
+            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain"
+          >
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center px-6">
+                <Crown className="w-12 h-12 text-amber-500/60 mb-4" />
+                <h2 className="text-lg font-cinzel text-amber-200 mb-2">AI Dungeon Master</h2>
+                <p className="text-sm text-white/40 max-w-[280px] mb-6">
+                  Your personal DM, synced to {characterContext.name}'s current state. Start an adventure or continue where you left off.
+                </p>
+                <DMQuickActions onSelect={handleQuickAction} isLoading={isLoading} variant="starter" />
+              </div>
+            ) : (
+              <>
+                <AnimatePresence initial={false}>
+                  {messages.map((message) => (
+                    <DMMessageBubble key={message.id} message={message} />
+                  ))}
+                </AnimatePresence>
+                {isLoading && messages[messages.length - 1]?.role === 'user' && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2 items-center">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-amber-900/60 border border-amber-500/40">
+                      <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                    <span className="text-sm text-amber-400/60 italic">The DM weaves the tale...</span>
+                  </motion.div>
+                )}
+              </>
+            )}
           </div>
-        ) : (
-          <>
-            <AnimatePresence initial={false}>
-              {messages.map((message) => (
-                <DMMessageBubble key={message.id} message={message} />
-              ))}
-            </AnimatePresence>
 
-            {/* Loading indicator */}
-            {isLoading && messages[messages.length - 1]?.role === 'user' && (
+          {/* Quick Actions (when in conversation) */}
+          {messages.length > 0 && !isLoading && (
+            <div className="px-3 py-1 border-t border-amber-900/20 bg-black/20">
+              <DMQuickActions onSelect={handleQuickAction} isLoading={isLoading} variant="inline" />
+            </div>
+          )}
+
+          {/* Auto-Sync Banner */}
+          <AutoSyncBanner
+            extraction={autoSync.lastExtraction}
+            onUndo={autoSync.undoLastExtraction}
+            onDismiss={() => {}}
+          />
+
+          {/* Inline Dice Roller */}
+          {messages.length > 0 && (
+            <DMDiceRoller
+              characterContext={characterContext}
+              onRollResult={handleQuickAction}
+              disabled={isLoading}
+            />
+          )}
+
+          {/* Auto-Sync Extracting Indicator */}
+          <AnimatePresence>
+            {autoSync.isExtracting && (
               <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex gap-2 items-center"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="flex items-center justify-center gap-2 px-3 py-1.5 bg-amber-950/40 border-t border-amber-500/20"
               >
-                <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-amber-900/60 border border-amber-500/40">
-                  <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                <div className="flex gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
-                <span className="text-sm text-amber-400/60 italic">The DM weaves the tale...</span>
+                <span className="text-[11px] text-amber-300/80 font-cinzel">Auto-Sync extracting changes...</span>
+                <Zap className="w-3 h-3 text-amber-400 animate-pulse" />
               </motion.div>
             )}
-          </>
-        )}
-      </div>
-
-      {/* Quick Actions (when in conversation) */}
-      {messages.length > 0 && !isLoading && (
-        <div className="px-3 py-1 border-t border-amber-900/20 bg-black/20">
-          <DMQuickActions onSelect={handleQuickAction} isLoading={isLoading} variant="inline" />
-        </div>
+          </AnimatePresence>
+        </>
       )}
-
-      {/* Auto-Sync Banner */}
-      <AutoSyncBanner
-        extraction={autoSync.lastExtraction}
-        onUndo={autoSync.undoLastExtraction}
-        onDismiss={() => {}}
-      />
-
-      {/* Inline Dice Roller */}
-      {messages.length > 0 && (
-        <DMDiceRoller
-          characterContext={characterContext}
-          onRollResult={handleQuickAction}
-          disabled={isLoading}
-        />
-      )}
-
-      {/* Auto-Sync Extracting Indicator */}
-      <AnimatePresence>
-        {autoSync.isExtracting && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="flex items-center justify-center gap-2 px-3 py-1.5 bg-amber-950/40 border-t border-amber-500/20"
-          >
-            <div className="flex gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '0ms' }} />
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '150ms' }} />
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: '300ms' }} />
-            </div>
-            <span className="text-[11px] text-amber-300/80 font-cinzel">Auto-Sync extracting changes...</span>
-            <Zap className="w-3 h-3 text-amber-400 animate-pulse" />
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Input Area */}
       <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm">
@@ -714,17 +722,6 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           onRename={campaignSessions.renameSession}
         />
       )}
-      {/* Battle Map Overlay */}
-      <StandaloneBattleMap
-        open={showBattleMap}
-        onClose={handleCloseBattleMap}
-        characterName={characterName}
-        pendingMarkerAdds={pendingMapAdds}
-        pendingMarkerRemovals={pendingMapRemovals}
-        onPendingProcessed={handlePendingProcessed}
-        onMarkersChange={handleMarkersChange}
-        onGridSizeChange={handleGridSizeChange}
-      />
     </div>
   );
 }

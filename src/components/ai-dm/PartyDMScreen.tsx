@@ -29,6 +29,8 @@ interface PartyDMScreenProps {
   isExtracting?: boolean;
   guidesCount?: number;
   characterContext?: CharacterContext;
+  showBattleMap?: boolean;
+  battleMapContent?: React.ReactNode;
 }
 
 const MEMBER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7'];
@@ -320,7 +322,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
   );
 }
 
-export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, characterContext }: PartyDMScreenProps) {
+export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, characterContext, showBattleMap, battleMapContent }: PartyDMScreenProps) {
   const [input, setInput] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState('');
@@ -570,45 +572,49 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
         )}
       </div>
 
-      {/* Messages */}
-      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain">
-        {partyDm.messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center px-6">
-            <Users className="w-12 h-12 text-primary/40 mb-4" />
-            <h2 className="text-lg font-cinzel text-amber-200 mb-2">Party DM Session</h2>
-            <p className="text-sm text-white/40 max-w-[280px]">
-              Each player submits their action, then clicks Ready. When everyone is ready, the DM responds to all actions at once.
-            </p>
-          </div>
-        ) : (
-          <AnimatePresence initial={false}>
-            {partyDm.messages.map(msg => (
-              <PartyDMMessage
-                key={msg.id}
-                message={msg}
-                currentUserId={currentUserId}
-                members={members}
-                mode={mode}
-                isCreator={isCreator}
-                onCopy={handleCopyMessage}
-                onEdit={handleEditMessage}
-                onDelete={handleDeleteMessage}
-                onRegenerate={handleRegenerateMessage}
-              />
-            ))}
-          </AnimatePresence>
-        )}
-
-        {/* Loading indicator */}
-        {partyDm.isGenerating && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2 items-center">
-            <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-amber-900/60 border border-amber-500/40">
-              <div className="w-3.5 h-3.5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+      {/* Messages OR Inline Battle Map */}
+      {showBattleMap && battleMapContent ? (
+        battleMapContent
+      ) : (
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain">
+          {partyDm.messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center px-6">
+              <Users className="w-12 h-12 text-primary/40 mb-4" />
+              <h2 className="text-lg font-cinzel text-amber-200 mb-2">Party DM Session</h2>
+              <p className="text-sm text-white/40 max-w-[280px]">
+                Each player submits their action, then clicks Ready. When everyone is ready, the DM responds to all actions at once.
+              </p>
             </div>
-            <span className="text-sm text-amber-400/60 italic">The DM weaves the tale...</span>
-          </motion.div>
-        )}
-      </div>
+          ) : (
+            <AnimatePresence initial={false}>
+              {partyDm.messages.map(msg => (
+                <PartyDMMessage
+                  key={msg.id}
+                  message={msg}
+                  currentUserId={currentUserId}
+                  members={members}
+                  mode={mode}
+                  isCreator={isCreator}
+                  onCopy={handleCopyMessage}
+                  onEdit={handleEditMessage}
+                  onDelete={handleDeleteMessage}
+                  onRegenerate={handleRegenerateMessage}
+                />
+              ))}
+            </AnimatePresence>
+          )}
+
+          {/* Loading indicator */}
+          {partyDm.isGenerating && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2 items-center">
+              <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-amber-900/60 border border-amber-500/40">
+                <div className="w-3.5 h-3.5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+              </div>
+              <span className="text-sm text-amber-400/60 italic">The DM weaves the tale...</span>
+            </motion.div>
+          )}
+        </div>
+      )}
 
       {/* Prompt Queue Status */}
       {partyDm.isActive && (
