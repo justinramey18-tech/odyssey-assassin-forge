@@ -1,186 +1,59 @@
 
+# Party DM: Dedicated Quick Actions Drawer
 
-# Video Support: Tutorials, Backgrounds, and Campaign Chat Videos
+## Problem
+The current Quick Actions button in Party DM mode opens the global `QuickActionsDrawer` via `PromptDrawerProvider`, which causes the screen to freeze/navigate back to the home screen due to z-index and overlay state conflicts that have proven difficult to fix.
 
-## Overview
-Three pillars of video support: (1) a dedicated Tutorials page with uploadable screen recordings, (2) video backgrounds on all screens, and (3) inline video messages in the AI DM chat for campaign content.
+## Solution
+Remove the broken Quick Actions button and build a **new, self-contained slide-up drawer** directly inside `PartyDMScreen.tsx` that:
+- Lives entirely within the Party DM overlay (no external drawer dependencies)
+- Auto-populates from the existing `characterContext` prop in real time
+- Has "Use" buttons that populate the player's input field
+- Uses the Vaul `Drawer` component for a native mobile bottom-sheet feel
 
----
+## What the New Drawer Will Show
 
-## 1. Cloud Storage Setup
+The drawer will display categorized sections in a vertical scroll layout:
 
-Create a `videos` storage bucket (public, 50MB max per file) with RLS policies for authenticated uploads and public reads.
+1. **Equipped Weapons** - From `characterContext.equipment` (weapon slots), with attack prompts
+2. **Abilities** - From `characterContext.abilities` (tier > 0) + `characterContext.equippedAbilities`, with ability prompts
+3. **Prepared Spells** - From `characterContext.spellcasting.preparedSpells`, with spell prompts
+4. **Cantrips** - Level 0 spells from prepared list
+5. **Items / Consumables** - From `characterContext.consumables`, with use prompts
+6. **Prestige Abilities** - From `characterContext.prestigeAbilities`
 
-Create a `tutorials` database table for tutorial metadata (title, description, category, video URL, sort order).
+Each item gets a "Use" button that appends the AI DM prompt to the input field and shows a toast confirmation. The drawer stays open so multiple prompts can be queued.
 
----
+## Technical Changes
 
-## 2. Dedicated Tutorials Page
+### File: `src/components/ai-dm/PartyDMScreen.tsx`
 
-- New route `/tutorials` accessible from the home screen menu
-- Components:
-  - `src/pages/Tutorials.tsx` -- page layout with category-grouped grid
-  - `src/components/tutorials/TutorialCard.tsx` -- thumbnail card with play button overlay
-  - `src/components/tutorials/VideoPlayer.tsx` -- reusable modal video player (HTML5 `<video>` with native controls)
-  - `src/components/tutorials/TutorialUploadDialog.tsx` -- upload form for signed-in users (title, description, category, file picker)
-- Uploads go to `videos/tutorials/{userId}/{filename}` in storage
-- All users can browse and watch; authenticated users can upload
+1. **Remove** the `usePromptDrawers()` import and the `useEffect` that sets `setQuickActionPromptTarget`
+2. **Remove** the `ListChecks` Quick Actions button (lines 721-737)
+3. **Add** a new `PartyDMQuickActions` component (inline or same file) that:
+   - Accepts `characterContext`, `characterName`, and `onUsePrompt` callback
+   - Uses `Drawer` from `@/components/ui/drawer` for a bottom sheet
+   - Renders categorized collapsible sections with vertical scroll
+   - Each item has a "Use" button (Play icon) that calls `onUsePrompt(generatedPrompt)`
+4. **Add** trigger button in the input area that opens the new drawer locally
 
----
+### File: `src/components/ai-dm/PartyDMQuickActions.tsx` (new file)
 
-## 3. Video Backgrounds (Everywhere)
+Self-contained component with:
+- Props: `open`, `onOpenChange`, `characterContext`, `characterName`, `onUsePrompt`
+- Uses `Drawer`/`DrawerContent` for mobile-first bottom sheet
+- Sections rendered via `Collapsible` components, each with an icon and count badge
+- Prompt generation functions for weapons, abilities, spells, and consumables (reusing the `applyTimePrefix` pattern)
+- "Use" button on each item triggers `onUsePrompt(prompt)` + toast
 
-- Update `BackgroundWrapper` (or equivalent background rendering) to accept an optional video URL
-  - Render a `<video autoPlay muted loop playsInline>` behind content when a video background is set
-  - Respect `prefers-reduced-motion` -- fall back to a static poster image
-- Update `BackgroundUploadButton` to accept `video/mp4,video/webm` in addition to images
-- Update `useCustomBackground` hook to detect video files, upload to storage, and store the URL separately from images
-- Update `useWildShapeBackgrounds` similarly for per-form video backgrounds
-- Upload path: `gear-images/backgrounds/{userId}/bg-video.{ext}`
+### File: `src/components/drawers/PromptDrawerProvider.tsx`
 
----
+- Clean up the `quickActionPromptTarget` state and `setQuickActionPromptTarget` callback (optional, can leave for other consumers)
 
-## 4. Inline Video Messages in AI DM Chat
+## UI Design
 
-This is how campaign videos reach players. The GM (or any user in solo mode) can attach a video file to a chat message, and it renders inline as a playable video bubble.
-
-### How it works
-
-- **Input bar upgrade**: Add a "clip" / attachment button next to the send button in both `AIDMScreen.tsx` (solo) and `PartyDMScreen.tsx` (multiplayer)
-- **Upload flow**: Tapping the attachment button opens a file picker for `video/mp4,video/webm` (max 50MB). The file uploads to `videos/chat/{campaignId}/{filename}` in the storage bucket.
-- **Message format**: After upload, the video URL is sent as a special message. The message content will use a simple marker format like `[video:{url}]` so it can be distinguished from plain text.
-- **Rendering**: Update `DMMessageBubble` in `AIDMScreen.tsx` and `PartyDMMessage` in `PartyDMScreen.tsx` to detect video markers and render an inline `<video>` element with controls, rounded corners, and a max-width constraint -- styled to match the existing chat bubble aesthetic.
-- **Party DM**: In multiplayer, the video URL is stored in the `party_dm_messages` table's `content` column using the same marker format. All party members see the video inline via Realtime sync.
-- **Persistence**: Video URLs in solo campaigns are saved as part of the message history in `ai_dm_campaigns`. When loading a campaign, video messages render correctly since the URL points to persistent storage.
-
-### Visual behavior
-- Video bubbles show a rounded video player with play/pause controls inside the chat bubble
-- A small "Video" label or film icon appears above the player
-- Videos do not autoplay in chat -- user taps play to watch
-- On mobile, videos expand to near-full-width of the bubble
-
----
-
-## 5. Implementation Sequence
-
-```text
-Step 1: Create videos storage bucket + tutorials table (DB migration)
-Step 2: Build reusable VideoPlayer component
-Step 3: Build Tutorials page + upload dialog + route
-Step 4: Add video attachment button to AI DM chat input
-Step 5: Update DMMessageBubble + PartyDMMessage to render inline videos
-Step 6: Upgrade BackgroundWrapper for video backgrounds
-Step 7: Upgrade background upload button + hooks for video support
-Step 8: Add Tutorials link to home screen navigation
-```
-
----
-
-## Technical Details
-
-### Storage bucket (SQL migration)
-
-```sql
-INSERT INTO storage.buckets (id, name, public, file_size_limit)
-VALUES ('videos', 'videos', true, 52428800);
-
-CREATE POLICY "Anyone can view videos"
-  ON storage.objects FOR SELECT
-  USING (bucket_id = 'videos');
-
-CREATE POLICY "Authenticated users can upload videos"
-  ON storage.objects FOR INSERT
-  WITH CHECK (bucket_id = 'videos' AND auth.role() = 'authenticated');
-
-CREATE POLICY "Users can delete own videos"
-  ON storage.objects FOR DELETE
-  USING (bucket_id = 'videos' AND auth.uid()::text = (storage.foldername(name))[1]);
-```
-
-### Tutorials table (SQL migration)
-
-```sql
-CREATE TABLE public.tutorials (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  title TEXT NOT NULL,
-  description TEXT,
-  video_url TEXT NOT NULL,
-  category TEXT NOT NULL DEFAULT 'General',
-  sort_order INT NOT NULL DEFAULT 0,
-  created_by UUID REFERENCES auth.users(id),
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
-ALTER TABLE public.tutorials ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Anyone can view tutorials"
-  ON public.tutorials FOR SELECT USING (true);
-
-CREATE POLICY "Authenticated users can insert tutorials"
-  ON public.tutorials FOR INSERT
-  WITH CHECK (auth.uid() = created_by);
-```
-
-### Video message detection (in message bubble)
-
-```typescript
-const VIDEO_REGEX = /^\[video:(https?:\/\/.+)\]$/;
-
-function DMMessageBubble({ message }: { message: Message }) {
-  const videoMatch = message.content.match(VIDEO_REGEX);
-
-  if (videoMatch) {
-    return (
-      <motion.div /* existing animation props */>
-        <div className="rounded-2xl overflow-hidden border border-amber-500/20 bg-black/40 max-w-[300px]">
-          <video
-            src={videoMatch[1]}
-            controls
-            playsInline
-            className="w-full rounded-xl"
-          />
-        </div>
-      </motion.div>
-    );
-  }
-  // ... existing text rendering
-}
-```
-
-### Chat input attachment button (concept)
-
-```typescript
-const handleVideoAttach = async (file: File) => {
-  if (file.size > 50 * 1024 * 1024) {
-    toast.error('Video must be under 50MB');
-    return;
-  }
-  const path = `chat/${campaignId}/${crypto.randomUUID()}.${file.name.split('.').pop()}`;
-  const { error } = await supabase.storage.from('videos').upload(path, file);
-  if (error) { toast.error('Upload failed'); return; }
-  const { data: { publicUrl } } = supabase.storage.from('videos').getPublicUrl(path);
-  // Send as a message with video marker
-  sendMessage(`[video:${publicUrl}]`);
-};
-```
-
-### New files created
-
-```text
-src/pages/Tutorials.tsx
-src/components/tutorials/TutorialCard.tsx
-src/components/tutorials/VideoPlayer.tsx
-src/components/tutorials/TutorialUploadDialog.tsx
-```
-
-### Files modified
-
-```text
-src/components/ai-dm/AIDMScreen.tsx        -- attachment button + video bubble rendering
-src/components/ai-dm/PartyDMScreen.tsx      -- same for multiplayer
-src/components/home/BackgroundWrapper.tsx   -- video background support (if exists)
-src/components/home/BackgroundUploadButton  -- accept video files
-src/hooks/use-custom-background.ts         -- video URL storage
-src/App.tsx                                -- /tutorials route
-```
-
+- **Trigger**: Emerald-themed button in the input area (same position as current, same styling)
+- **Drawer**: Bottom sheet (70vh max-height), dark theme matching Party DM aesthetic
+- **Sections**: Collapsible with amber/emerald accent, count badges, category icons
+- **Items**: Compact rows with name, brief info, and a green "Use" button on the right
+- **Behavior**: Stays open after tapping "Use"; toast confirms "Prompt added to input"
