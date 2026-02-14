@@ -192,17 +192,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     };
   }, [partyId]);
 
-  // Auto-trigger generation when all ready (host only)
-  useEffect(() => {
-    if (!isCreator || !allReady || isGenerating) return;
-    if (autoGenTimerRef.current) clearTimeout(autoGenTimerRef.current);
-    autoGenTimerRef.current = setTimeout(() => {
-      generateResponse();
-    }, 2000);
-    return () => {
-      if (autoGenTimerRef.current) clearTimeout(autoGenTimerRef.current);
-    };
-  }, [allReady, isCreator, isGenerating]);
 
   const startSession = useCallback(async (mode: 'shared' | 'private', initialCampaignSummary?: string | null) => {
     if (!partyId || !user) return;
@@ -495,6 +484,18 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       abortRef.current = null;
     }
   }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, customGuidesContent, triggerSummaryIfNeeded]);
+
+  // Auto-trigger generation when all ready (host only)
+  useEffect(() => {
+    if (!isCreator || !allReady || isGenerating) return;
+    if (autoGenTimerRef.current) clearTimeout(autoGenTimerRef.current);
+    autoGenTimerRef.current = setTimeout(() => {
+      generateResponse();
+    }, 2000);
+    return () => {
+      if (autoGenTimerRef.current) clearTimeout(autoGenTimerRef.current);
+    };
+  }, [allReady, isCreator, isGenerating, generateResponse]);
 
   const editMessage = useCallback(async (messageId: string, newContent: string) => {
     if (!partyId || !isCreator) return;
