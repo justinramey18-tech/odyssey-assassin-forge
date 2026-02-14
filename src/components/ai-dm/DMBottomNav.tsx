@@ -58,9 +58,9 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 safe-area-bottom">
       <div className="bg-background/95 backdrop-blur-sm border-t border-amber-900/30">
-        {/* Notch handle — always visible */}
+        {/* Notch handle + label — always visible */}
         <div
-          className="flex justify-center py-1.5 cursor-grab active:cursor-grabbing touch-none"
+          className="flex flex-col items-center py-1.5 cursor-grab active:cursor-grabbing touch-none"
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
           onClick={handleToggle}
@@ -68,9 +68,16 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
           aria-label={isExpanded ? 'Collapse toolbar' : 'Expand toolbar'}
         >
           <div className={cn(
-            "w-10 h-1 rounded-full transition-colors",
-            isExpanded ? "bg-amber-500/40" : "bg-white/20"
+            "w-10 h-1 rounded-full transition-all",
+            isExpanded
+              ? "bg-amber-500/50"
+              : "bg-amber-500/30 shadow-[0_0_8px_2px_rgba(245,158,11,0.25)] animate-pulse"
           )} />
+          {!isExpanded && (
+            <span className="text-[9px] font-mono text-amber-400/50 mt-0.5 tracking-widest select-none">
+              TOOLS
+            </span>
+          )}
         </div>
 
         {/* Expanded content */}
