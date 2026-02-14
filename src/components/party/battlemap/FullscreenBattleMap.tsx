@@ -84,6 +84,9 @@ interface FullscreenBattleMapProps {
   onTierBackgroundRemove?: (tierId: string) => void;
   customTiers?: ScaleTier[];
   onTierConfigChange?: (tierId: string, updates: Partial<Pick<ScaleTier, 'distancePerSquare' | 'distanceUnit'>>) => void;
+  // Manual tier selection
+  forcedTierId?: string | null;
+  onForceTier?: (tierId: string | null) => void;
 }
 
 export function FullscreenBattleMap({
@@ -98,6 +101,7 @@ export function FullscreenBattleMap({
   distancePerSquare, distanceUnit, onDistancePerSquareChange, onDistanceUnitChange,
   autoScale = false, onToggleAutoScale, tierBackgrounds = [], onTierBackgroundUpload, onTierBackgroundRemove,
   customTiers, onTierConfigChange,
+  forcedTierId, onForceTier,
 }: FullscreenBattleMapProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -110,9 +114,14 @@ export function FullscreenBattleMap({
   const labelWidth = 28 * zoom;
   const labelHeight = 18 * zoom;
 
-  // Auto-scale tier computation
   const tiers = customTiers ?? DEFAULT_SCALE_TIERS;
-  const activeTier = useMemo(() => autoScale ? getActiveTier(zoom, tiers) : null, [autoScale, zoom, tiers]);
+  // Active tier: forced tier takes priority, then auto-scale by zoom, then manual
+  const activeTier = useMemo(() => {
+    if (forcedTierId) {
+      return tiers.find(t => t.id === forcedTierId) ?? tiers[0];
+    }
+    return autoScale ? getActiveTier(zoom, tiers) : null;
+  }, [forcedTierId, autoScale, zoom, tiers]);
   const effectiveDistancePerSquare = activeTier ? activeTier.distancePerSquare : distancePerSquare;
   const effectiveDistanceUnit = activeTier ? activeTier.distanceUnit : distanceUnit;
   const effectiveUnitAbbr = getDistanceUnitAbbr(effectiveDistanceUnit);
@@ -258,7 +267,29 @@ export function FullscreenBattleMap({
             </SelectContent>
           </Select>
         </DialogTitle>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-wrap">
+          {/* Manual tier selector */}
+          <div className="flex items-center gap-0.5 mr-1 border-r border-border/20 pr-1.5">
+            {tiers.map(tier => {
+              const isActive = forcedTierId === tier.id;
+              return (
+                <Button
+                  key={tier.id}
+                  size="sm"
+                  variant={isActive ? 'default' : 'ghost'}
+                  className={cn(
+                    "text-[9px] h-6 px-2",
+                    isActive && "bg-primary text-primary-foreground",
+                    !isActive && "text-muted-foreground hover:text-foreground"
+                  )}
+                  onClick={() => onForceTier?.(isActive ? null : tier.id)}
+                  title={`Switch to ${tier.label} layer`}
+                >
+                  {tier.label}
+                </Button>
+              );
+            })}
+          </div>
           {/* Jump-to-marker */}
           {markers.length > 0 && (
             <Select onValueChange={(v) => {
@@ -347,7 +378,10 @@ export function FullscreenBattleMap({
                 tiers.map(tier => {
                   const bg = tierBackgrounds.find(b => b.tierId === tier.id);
                   if (!bg) return null;
-                  const tierOpacity = getTierOpacity(zoom, tier) * (backgroundOpacity ?? 1);
+                  // When a tier is forced, only show that tier's bg at full opacity
+                  const tierOpacity = forcedTierId
+                    ? (tier.id === forcedTierId ? (backgroundOpacity ?? 1) : 0)
+                    : getTierOpacity(zoom, tier) * (backgroundOpacity ?? 1);
                   if (tierOpacity <= 0) return null;
                   return (
                     <img
@@ -601,10 +635,10 @@ export function FullscreenBattleMap({
         <div className="flex items-center gap-2 text-[9px] text-muted-foreground mt-1 flex-wrap">
           <span>Grid: {gridSize}×{gridSize}</span>
           <span>•</span>
-          {autoScale && activeTier ? (
+          {activeTier ? (
             <div className="flex items-center gap-1">
               <Badge variant="outline" className="text-[8px] h-4 px-1.5 py-0 border-primary/30 text-primary">
-                Auto: {activeTier.label}
+                {forcedTierId ? '' : 'Auto: '}{activeTier.label}
               </Badge>
               <span>{effectiveDistancePerSquare} {effectiveUnitAbbr}/sq</span>
             </div>
