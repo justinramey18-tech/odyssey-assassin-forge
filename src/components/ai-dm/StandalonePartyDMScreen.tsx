@@ -4,7 +4,7 @@ import { usePartyDm } from '@/hooks/use-party-dm';
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
 import { PartyDMScreen } from './PartyDMScreen';
 import { GMGuidesManager } from './GMGuidesManager';
-import { StandaloneBattleMap } from '@/components/home/StandaloneBattleMap';
+import { InlineBattleMap } from './InlineBattleMap';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { PartyMember } from '@/hooks/use-party-sync';
 import type { MapMarker } from '@/components/party/battlemap/types';
@@ -126,6 +126,18 @@ export function StandalonePartyDMScreen({
     );
   }
 
+  const battleMapContent = (
+    <InlineBattleMap
+      characterName={characterName}
+      pendingMarkerAdds={pendingMapAdds}
+      pendingMarkerRemovals={pendingMapRemovals}
+      onPendingProcessed={handlePendingProcessed}
+      onMarkersChange={handleMarkersChange}
+      onGridSizeChange={handleGridSizeChange}
+      onClose={handleCloseBattleMap}
+    />
+  );
+
   return (
     <div className="fixed inset-0 z-[60]">
       <PartyDMScreen
@@ -143,6 +155,8 @@ export function StandalonePartyDMScreen({
         isExtracting={autoSync.isExtracting}
         guidesCount={gmGuides.guides.filter(g => g.enabled).length}
         characterContext={characterContext}
+        showBattleMap={showBattleMap}
+        battleMapContent={battleMapContent}
       />
 
       {/* GM Guides Overlay */}
@@ -159,18 +173,6 @@ export function StandalonePartyDMScreen({
           onToggle={gmGuides.toggleGuide}
         />
       )}
-
-      {/* Battle Map Overlay */}
-      <StandaloneBattleMap
-        open={showBattleMap}
-        onClose={handleCloseBattleMap}
-        characterName={characterName}
-        pendingMarkerAdds={pendingMapAdds}
-        pendingMarkerRemovals={pendingMapRemovals}
-        onPendingProcessed={handlePendingProcessed}
-        onMarkersChange={handleMarkersChange}
-        onGridSizeChange={handleGridSizeChange}
-      />
     </div>
   );
 }
