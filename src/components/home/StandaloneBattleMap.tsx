@@ -23,6 +23,7 @@ interface SavedMapState {
   autoScale?: boolean;
   tierBackgrounds?: TierBackground[];
   customTiers?: ScaleTier[];
+  forcedTierId?: string | null;
 }
 
 function loadMapState(): SavedMapState | null {
@@ -93,6 +94,7 @@ export function StandaloneBattleMap({ open, onClose, characterName = 'Me', pendi
   const [autoScale, setAutoScale] = useState<boolean>(() => loadMapState()?.autoScale ?? true);
   const [tierBackgrounds, setTierBackgrounds] = useState<TierBackground[]>(() => loadMapState()?.tierBackgrounds ?? []);
   const [customTiers, setCustomTiers] = useState<ScaleTier[]>(() => loadMapState()?.customTiers ?? [...DEFAULT_SCALE_TIERS]);
+  const [forcedTierId, setForcedTierId] = useState<string | null>(() => loadMapState()?.forcedTierId ?? null);
 
   // Auto-save to localStorage on state changes (debounced via ref)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -111,10 +113,11 @@ export function StandaloneBattleMap({ open, onClose, characterName = 'Me', pendi
         autoScale,
         tierBackgrounds,
         customTiers,
+        forcedTierId,
       });
     }, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [markers, highlightedCells, spellTemplates, gridSize, backgroundUrl, backgroundOpacity, distancePerSquare, distanceUnit, autoScale, tierBackgrounds, customTiers]);
+  }, [markers, highlightedCells, spellTemplates, gridSize, backgroundUrl, backgroundOpacity, distancePerSquare, distanceUnit, autoScale, tierBackgrounds, customTiers, forcedTierId]);
 
   // Notify parent of marker and grid size changes
   useEffect(() => { onMarkersChange?.(markers); }, [markers, onMarkersChange]);
@@ -356,6 +359,8 @@ export function StandaloneBattleMap({ open, onClose, characterName = 'Me', pendi
           onTierBackgroundRemove={handleTierBackgroundRemove}
           customTiers={customTiers}
           onTierConfigChange={handleTierConfigChange}
+          forcedTierId={forcedTierId}
+          onForceTier={setForcedTierId}
         />
       </DialogContent>
     </Dialog>

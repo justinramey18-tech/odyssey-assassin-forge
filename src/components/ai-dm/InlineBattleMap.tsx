@@ -33,6 +33,7 @@ interface SavedMapState {
   autoScale?: boolean;
   tierBackgrounds?: TierBackground[];
   customTiers?: ScaleTier[];
+  forcedTierId?: string | null;
 }
 
 function loadMapState(): SavedMapState | null {
@@ -105,6 +106,7 @@ export function InlineBattleMap({
   const [autoScale, setAutoScale] = useState<boolean>(() => loadMapState()?.autoScale ?? true);
   const [tierBackgrounds, setTierBackgrounds] = useState<TierBackground[]>(() => loadMapState()?.tierBackgrounds ?? []);
   const [customTiers, setCustomTiers] = useState<ScaleTier[]>(() => loadMapState()?.customTiers ?? [...DEFAULT_SCALE_TIERS]);
+  const [forcedTierId, setForcedTierId] = useState<string | null>(() => loadMapState()?.forcedTierId ?? null);
 
   // ── Zoom & viewport ──
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -117,9 +119,14 @@ export function InlineBattleMap({
   const labelWidth = 28 * zoom;
   const labelHeight = 18 * zoom;
 
-  // Auto-scale tier computation
   const tiers = customTiers;
-  const activeTier = useMemo(() => autoScale ? getActiveTier(zoom, tiers) : null, [autoScale, zoom, tiers]);
+  // Active tier: forced tier takes priority, then auto-scale by zoom
+  const activeTier = useMemo(() => {
+    if (forcedTierId) {
+      return tiers.find(t => t.id === forcedTierId) ?? tiers[0];
+    }
+    return autoScale ? getActiveTier(zoom, tiers) : null;
+  }, [forcedTierId, autoScale, zoom, tiers]);
   const effectiveDistancePerSquare = activeTier ? activeTier.distancePerSquare : distancePerSquare;
   const effectiveDistanceUnit = activeTier ? activeTier.distanceUnit : distanceUnit;
   const effectiveUnitAbbr = getDistanceUnitAbbr(effectiveDistanceUnit);
@@ -133,10 +140,10 @@ export function InlineBattleMap({
   useEffect(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      saveMapState({ markers, highlightedCells: Array.from(highlightedCells.entries()), spellTemplates, gridSize, backgroundUrl, backgroundOpacity, distancePerSquare, distanceUnit, autoScale, tierBackgrounds, customTiers });
+      saveMapState({ markers, highlightedCells: Array.from(highlightedCells.entries()), spellTemplates, gridSize, backgroundUrl, backgroundOpacity, distancePerSquare, distanceUnit, autoScale, tierBackgrounds, customTiers, forcedTierId });
     }, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [markers, highlightedCells, spellTemplates, gridSize, backgroundUrl, backgroundOpacity, distancePerSquare, distanceUnit, autoScale, tierBackgrounds, customTiers]);
+  }, [markers, highlightedCells, spellTemplates, gridSize, backgroundUrl, backgroundOpacity, distancePerSquare, distanceUnit, autoScale, tierBackgrounds, customTiers, forcedTierId]);
 
   useEffect(() => { onMarkersChange?.(markers); }, [markers, onMarkersChange]);
   useEffect(() => { onGridSizeChangeCallback?.(gridSize); }, [gridSize, onGridSizeChangeCallback]);
@@ -421,11 +428,29 @@ export function InlineBattleMap({
             </SelectContent>
           </Select>
           <span className="text-[9px] text-white/30">/sq</span>
-          {autoScale && activeTier && (
-            <span className="text-[8px] text-amber-400/70 ml-0.5">{activeTier.label}</span>
+          {activeTier && (
+            <span className="text-[8px] text-amber-400/70 ml-0.5">{forcedTierId ? '' : 'Auto: '}{activeTier.label}</span>
           )}
         </div>
         <div className="flex items-center gap-0.5">
+          {/* Manual tier selector */}
+          {tiers.map(tier => {
+            const isActive = forcedTierId === tier.id;
+            return (
+              <Button
+                key={tier.id}
+                size="sm"
+                variant="ghost"
+                className={cn(
+                  "text-[8px] h-5 px-1.5",
+                  isActive ? "bg-amber-400/20 text-amber-300" : "text-white/30 hover:text-white/60"
+                )}
+                onClick={() => setForcedTierId(isActive ? null : tier.id)}
+              >
+                {tier.label}
+              </Button>
+            );
+          })}
           {markers.length > 0 && (
             <Select onValueChange={(v) => {
               const m = markers.find(mk => `${mk.x},${mk.y}` === v);
@@ -513,7 +538,9 @@ export function InlineBattleMap({
                 tiers.map(tier => {
                   const bg = tierBackgrounds.find(b => b.tierId === tier.id);
                   if (!bg) return null;
-                  const tierOpacity = getTierOpacity(zoom, tier) * backgroundOpacity;
+                  const tierOpacity = forcedTierId
+                    ? (tier.id === forcedTierId ? backgroundOpacity : 0)
+                    : getTierOpacity(zoom, tier) * backgroundOpacity;
                   if (tierOpacity <= 0) return null;
                   return (
                     <img
