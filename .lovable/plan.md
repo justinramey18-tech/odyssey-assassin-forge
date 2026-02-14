@@ -1,54 +1,85 @@
 
 
-# Fix: PWA Service Worker Blocking Authentication on Cached Devices
+# Fix: Per-Character Background Images in Cloud Saves
 
-## Root Cause
+## Problem
 
-The app is a PWA with a service worker (configured in `vite.config.ts` via `VitePWA`). The service worker aggressively caches all assets but has **no exclusions for authentication API calls** or auth-related routes.
+Two issues prevent backgrounds from persisting per-character:
 
-On your Galaxy A14 (which has been using the app longer), the service worker is likely:
-- Intercepting Supabase auth network requests and serving stale/cached responses
-- Caching the `/auth` navigation route in ways that prevent proper form submission
+1. **Storage path collision**: When you upload a background, it always saves to `backgrounds/{userId}/home-bg.jpg` -- the same file path regardless of which character is active. So uploading Character B's background overwrites Character A's file in cloud storage.
 
-Your Galaxy A15 works because it either has a fresh install (no stale service worker) or hasn't cached the problematic responses yet.
+2. **Stale URL on restore**: Character A's save stores the cloud URL, but the actual file behind that URL has been replaced by Character B's image. Loading Character A back gives you Character B's photo (or a broken image if the file extension changed).
 
-## Fix
+## Solution
 
-### File: `vite.config.ts` (workbox config, around line 51)
+Make each character's background upload to a **unique path** that includes the character's cloud save ID, so files never overwrite each other.
 
-Add two things to the `workbox` configuration:
+---
 
-1. **`navigateFallbackDenylist`** to prevent the service worker from intercepting auth routes and OAuth callbacks:
-   - `/^\/auth/` 
-   - `/^\/reset-password/`
-   - `/^\/~oauth/`
+## Changes
 
-2. **A `NetworkOnly` runtime caching rule** for all Supabase API calls so auth requests always hit the network and are never served from cache:
-   - Pattern: any request to the Supabase project URL (`rkkgmonjfvncpvlzsojw.supabase.co`)
+### 1. `src/hooks/use-custom-background.ts` -- Add `saveId` parameter to upload
 
-### Result
+Update `handleImageUpload` to accept an optional `saveId` parameter. When provided, the storage path becomes:
 
 ```
-workbox: {
-  navigateFallbackDenylist: [/^\/auth/, /^\/reset-password/, /^\/~oauth/],
-  globPatterns: [...],  // unchanged
-  maximumFileSizeToCacheInBytes: ...,  // unchanged
-  runtimeCaching: [
-    {
-      // NEW: Never cache Supabase API calls (auth, database, etc.)
-      urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-      handler: "NetworkOnly",
-    },
-    // ...existing font caching rules unchanged
-  ],
+backgrounds/{userId}/{saveId}/home-bg.{ext}
+```
+
+Instead of the current:
+
+```
+backgrounds/{userId}/home-bg.{ext}
+```
+
+This ensures each character save gets its own storage file that is never overwritten by another character.
+
+**Signature change:**
+```typescript
+handleImageUpload: (file: File, userId?: string, saveId?: string) => Promise<void>;
+```
+
+**Path logic change (line ~129):**
+```typescript
+const path = saveId
+  ? `backgrounds/${userId}/${saveId}/home-bg.${ext}`
+  : `backgrounds/${userId}/home-bg.${ext}`;
+```
+
+### 2. `src/pages/Index.tsx` -- Pass active save ID to upload handler
+
+Find where `handleImageUpload` is called (around line 2120) and pass the current cloud save ID so the upload goes to the correct per-character path.
+
+This requires tracking the active cloud save ID (which is already available when a save is loaded from cloud or created). A small state variable (`activeCloudSaveId`) will be added and set during:
+- `handleLoadCloudSave` -- set to the loaded save's ID
+- Initial cloud save creation -- set to the newly created save's ID
+
+**Call site change:**
+```typescript
+onCustomBackgroundUpload={(file: File) =>
+  customBackground.handleImageUpload(file, user?.id, activeCloudSaveId)
 }
 ```
 
-### Why This Fixes It
-- Auth sign-in requests will **always go to the network**, never served from a stale cache
-- Navigation to `/auth` won't be hijacked by the service worker's fallback
-- After deployment, the `registerType: "autoUpdate"` setting will push the new service worker to your A14 automatically on next visit
+### 3. `src/hooks/use-custom-background.ts` -- Interface update
 
-### Additional Note
-After this fix deploys, you may need to **clear your browser data / site data** on the Galaxy A14 once to flush the old broken service worker. After that, the new one takes over and the problem won't recur.
+Update the `CustomBackgroundState` interface to reflect the new parameter on `handleImageUpload`.
 
+---
+
+## What This Fixes
+
+- Character A's background uploads to `backgrounds/user123/saveA/home-bg.jpg`
+- Character B's background uploads to `backgrounds/user123/saveB/home-bg.jpg`
+- They never overwrite each other
+- Loading Character A restores the correct URL pointing to Character A's file
+- The existing save/restore logic for `backgroundUrl` in `saveData` and `handleLoadCloudSave` already works correctly -- it stores and restores the URL. The only problem was the file behind the URL being overwritten, which this fix addresses.
+
+## Edge Case: First-Time Save (No Save ID Yet)
+
+If a user uploads a background before their first cloud save, there's no `saveId` yet. In this case, the upload falls back to the existing `backgrounds/{userId}/home-bg.{ext}` path. Once the character is saved to the cloud, subsequent uploads will use the save-specific path.
+
+## Files Modified
+
+- `src/hooks/use-custom-background.ts` -- Add `saveId` to upload path
+- `src/pages/Index.tsx` -- Track active save ID, pass it to upload handler
