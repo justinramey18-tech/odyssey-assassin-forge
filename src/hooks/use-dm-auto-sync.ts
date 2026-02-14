@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import { CharacterContext } from '@/components/oracle/types';
+import { getAuthToken } from '@/lib/auth-token';
 import { computeMapUpdates, type MapEntity } from '@/lib/battlemap-auto-populate';
 import type { MapMarker, GridSize } from '@/components/party/battlemap/types';
 
@@ -76,11 +77,12 @@ export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
 
     setIsExtracting(true);
     try {
+      const authToken = await getAuthToken();
       const response = await fetch(EXTRACT_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
           message: assistantMessage,

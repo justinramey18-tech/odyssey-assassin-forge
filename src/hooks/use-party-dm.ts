@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
+import { getAuthToken } from '@/lib/auth-token';
 import type { CharacterContext } from '@/components/oracle/types';
 
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
@@ -460,11 +461,12 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     setIsSummarizing(true);
     try {
       const apiMessages = allMessages.map(m => ({ role: m.role, content: m.content }));
+      const authToken = await getAuthToken();
       const response = await fetch(SUMMARIZE_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
           messages: apiMessages,
@@ -543,11 +545,12 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     abortRef.current = new AbortController();
 
     try {
+      const authToken = await getAuthToken();
       const response = await fetch(AI_DM_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
           messages: apiMessages.slice(-100),

@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { Message, Personality, CharacterContext, OracleMode } from '@/components/oracle/types';
 import { toast } from 'sonner';
+import { getAuthToken } from '@/lib/auth-token';
 
 const ORACLE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/oracle-assistant`;
 
@@ -41,11 +42,12 @@ export function useOracle({ characterContext }: UseOracleOptions) {
     let assistantContent = '';
 
     try {
+      const authToken = await getAuthToken();
       const response = await fetch(ORACLE_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
           messages: apiMessages,
