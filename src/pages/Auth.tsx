@@ -59,19 +59,24 @@ export default function Auth() {
     setLoading(true);
     setError(null);
     
-    const { error } = await signIn(email, password);
-    
-    if (error) {
-      if (error.message.includes('Invalid login credentials')) {
-        setError('Invalid email or password. Please try again.');
+    try {
+      const { error } = await signIn(email, password);
+      
+      if (error) {
+        if (error.message.includes('Invalid login credentials')) {
+          setError('Invalid email or password. Please try again.');
+        } else {
+          setError(error.message);
+        }
       } else {
-        setError(error.message);
+        navigate('/');
       }
-    } else {
-      navigate('/');
+    } catch (err) {
+      setError('Sign in failed. Please check your connection and try again.');
+      console.error('Sign in error:', err);
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -81,22 +86,27 @@ export default function Auth() {
     setLoading(true);
     setError(null);
     
-    const { error } = await signUp(email, password);
-    
-    if (error) {
-      if (error.message.includes('already registered')) {
-        setError('This email is already registered. Please sign in instead.');
+    try {
+      const { error } = await signUp(email, password);
+      
+      if (error) {
+        if (error.message.includes('already registered')) {
+          setError('This email is already registered. Please sign in instead.');
+        } else {
+          setError(error.message);
+        }
       } else {
-        setError(error.message);
+        setSuccess('Account created successfully! You can now sign in.');
+        setEmail('');
+        setPassword('');
+        setConfirmPassword('');
       }
-    } else {
-      setSuccess('Account created successfully! You can now sign in.');
-      setEmail('');
-      setPassword('');
-      setConfirmPassword('');
+    } catch (err) {
+      setError('Sign up failed. Please check your connection and try again.');
+      console.error('Sign up error:', err);
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
