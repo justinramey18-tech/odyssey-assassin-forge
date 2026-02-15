@@ -4,7 +4,7 @@
 import { useState, useMemo } from 'react';
 import { 
   ArrowLeft, Plus, FileText, Calendar, Trash2, 
-  Upload, BarChart3, MoreVertical, ExternalLink
+  Upload, BarChart3, MoreVertical, ExternalLink, Book
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -28,30 +28,43 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Campaign, CampaignSession, CumulativeStats } from '@/lib/chronicleSync/multiSession/types';
+import { GMGuide } from '@/lib/gm-guides-storage';
+import { GuidePreset } from '@/hooks/use-guide-presets';
 import { CampaignStatsCard } from './CampaignStatsCard';
 import { BatchImportPanel } from './BatchImportPanel';
+import { CampaignGuidesTab } from './CampaignGuidesTab';
 import { formatDistanceToNow, format } from 'date-fns';
 
 interface CampaignDetailViewProps {
   campaign: Campaign;
   sessions: CampaignSession[];
   stats: CumulativeStats;
+  guides: GMGuide[];
+  guidePresets: GuidePreset[];
   onBack: () => void;
   onImportSessions: (sessions: Array<Omit<CampaignSession, 'id' | 'campaignId' | 'createdAt'>>) => void;
   onDeleteSession: (sessionId: string) => void;
   onOpenSession?: (session: CampaignSession) => void;
+  onUpdateGuideIds: (guideIds: string[]) => void;
+  onCreatePreset: (name: string, guideIds: string[]) => void;
+  onDeletePreset: (id: string) => void;
 }
 
 export function CampaignDetailView({
   campaign,
   sessions,
   stats,
+  guides,
+  guidePresets,
   onBack,
   onImportSessions,
   onDeleteSession,
   onOpenSession,
+  onUpdateGuideIds,
+  onCreatePreset,
+  onDeletePreset,
 }: CampaignDetailViewProps) {
-  const [activeTab, setActiveTab] = useState<'sessions' | 'stats' | 'import'>('sessions');
+  const [activeTab, setActiveTab] = useState<'sessions' | 'stats' | 'import' | 'guides'>('sessions');
   const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null);
 
   const sortedSessions = useMemo(() => 
@@ -88,10 +101,14 @@ export function CampaignDetailView({
       {/* Tab Navigation */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="flex-1 flex flex-col">
         <div className="px-4 pt-3">
-          <TabsList className="grid w-full grid-cols-3 bg-muted/50">
+          <TabsList className="grid w-full grid-cols-4 bg-muted/50">
             <TabsTrigger value="sessions" className="gap-1.5 text-xs">
               <FileText className="w-3.5 h-3.5" />
               Sessions
+            </TabsTrigger>
+            <TabsTrigger value="guides" className="gap-1.5 text-xs">
+              <Book className="w-3.5 h-3.5" />
+              Guides
             </TabsTrigger>
             <TabsTrigger value="stats" className="gap-1.5 text-xs">
               <BarChart3 className="w-3.5 h-3.5" />
@@ -198,6 +215,18 @@ export function CampaignDetailView({
               </div>
             </ScrollArea>
           )}
+        </TabsContent>
+
+        {/* Guides Tab */}
+        <TabsContent value="guides" className="flex-1 px-4 py-4 m-0">
+          <CampaignGuidesTab
+            guides={guides}
+            assignedGuideIds={campaign.gmGuideIds || []}
+            presets={guidePresets}
+            onUpdateGuideIds={onUpdateGuideIds}
+            onCreatePreset={onCreatePreset}
+            onDeletePreset={onDeletePreset}
+          />
         </TabsContent>
 
         {/* Stats Tab */}
