@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, MessageSquare, Plus, Save } from 'lucide-react';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
+import { CampaignDropdown } from './CampaignDropdown';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,6 +13,7 @@ import type { usePartyDm, PartyDmMessage, PartyDmPrompt } from '@/hooks/use-part
 import { DMDiceRoller } from './DMDiceRoller';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
 import type { CharacterContext } from '@/components/oracle/types';
+import type { CampaignSession } from '@/hooks/use-campaign-sessions';
 
 type PartyDmReturn = ReturnType<typeof usePartyDm>;
 
@@ -33,6 +35,13 @@ interface PartyDMScreenProps {
   characterContext?: CharacterContext;
   showBattleMap?: boolean;
   battleMapContent?: React.ReactNode;
+  // Campaign dropdown props (creator-only)
+  campaignSessions?: CampaignSession[];
+  campaignSessionsLoading?: boolean;
+  campaignSessionsSignedIn?: boolean;
+  onNewGame?: () => void;
+  onLoadCampaign?: (session: CampaignSession) => void;
+  onRefreshCampaigns?: () => void;
 }
 
 const MEMBER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7'];
@@ -335,7 +344,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
   );
 }
 
-export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, characterContext, showBattleMap, battleMapContent }: PartyDMScreenProps) {
+export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, characterContext, showBattleMap, battleMapContent, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns }: PartyDMScreenProps) {
   const [input, setInput] = useState('');
   const [, setTick] = useState(0);
 
@@ -486,7 +495,19 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
           <Users className="w-5 h-5 text-primary" />
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
-              <h1 className="text-base font-cinzel text-amber-200 tracking-wide">Party DM</h1>
+              {isCreator && campaignSessions && onNewGame && onLoadCampaign && onRefreshCampaigns ? (
+                <CampaignDropdown
+                  sessions={campaignSessions}
+                  activeCampaignId={partyDm.activeCampaignId}
+                  isSignedIn={campaignSessionsSignedIn ?? false}
+                  isLoading={campaignSessionsLoading ?? false}
+                  onNewGame={onNewGame}
+                  onLoadCampaign={onLoadCampaign}
+                  onRefresh={onRefreshCampaigns}
+                />
+              ) : (
+                <h1 className="text-base font-cinzel text-amber-200 tracking-wide">Party DM</h1>
+              )}
               <span className="text-[10px] text-muted-foreground">{memberCount} players</span>
             </div>
             {partyDm.messages.length > 0 ? (
