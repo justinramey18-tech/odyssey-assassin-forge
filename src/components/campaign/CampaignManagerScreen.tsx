@@ -22,6 +22,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 import { useCampaigns } from '@/hooks/use-campaigns';
+import { useGMGuides } from '@/hooks/use-gm-guides';
+import { useGuidePresets } from '@/hooks/use-guide-presets';
 import { Campaign, CampaignSession } from '@/lib/chronicleSync/multiSession/types';
 import { CampaignCard } from './CampaignCard';
 import { CreateCampaignSheet } from './CreateCampaignSheet';
@@ -45,6 +47,9 @@ export function CampaignManagerScreen({ onBack }: CampaignManagerScreenProps) {
     importSessions,
     deleteSession,
   } = useCampaigns();
+
+  const { guides } = useGMGuides();
+  const { presets: guidePresets, createPreset, deletePreset: deleteGuidePreset } = useGuidePresets();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateSheet, setShowCreateSheet] = useState(false);
@@ -109,6 +114,12 @@ export function CampaignManagerScreen({ onBack }: CampaignManagerScreenProps) {
     }
   }, [selectedCampaignId, deleteSession]);
 
+  const handleUpdateGuideIds = useCallback((guideIds: string[]) => {
+    if (selectedCampaignId) {
+      updateCampaign(selectedCampaignId, { gmGuideIds: guideIds });
+    }
+  }, [selectedCampaignId, updateCampaign]);
+
   // If viewing a campaign detail
   if (selectedCampaign && selectedStats) {
     return (
@@ -122,9 +133,14 @@ export function CampaignManagerScreen({ onBack }: CampaignManagerScreenProps) {
           campaign={selectedCampaign}
           sessions={selectedSessions}
           stats={selectedStats}
+          guides={guides}
+          guidePresets={guidePresets}
           onBack={() => setSelectedCampaignId(null)}
           onImportSessions={handleImportSessions}
           onDeleteSession={handleDeleteSession}
+          onUpdateGuideIds={handleUpdateGuideIds}
+          onCreatePreset={createPreset}
+          onDeletePreset={deleteGuidePreset}
         />
       </BackgroundWrapper>
     );

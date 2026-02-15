@@ -25,6 +25,9 @@ export interface Campaign {
   
   // Tags for organization
   tags: string[];
+  
+  // Guide assignments
+  gmGuideIds?: string[];
 }
 
 export interface CampaignSession {

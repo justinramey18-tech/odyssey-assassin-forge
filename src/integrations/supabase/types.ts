@@ -254,6 +254,33 @@ export type Database = {
         }
         Relationships: []
       }
+      gm_guide_presets: {
+        Row: {
+          created_at: string
+          guide_ids: string[]
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          guide_ids?: string[]
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          guide_ids?: string[]
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       gm_guides: {
         Row: {
           content: string
