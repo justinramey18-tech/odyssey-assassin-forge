@@ -61,7 +61,7 @@ export function CampaignDropdown({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
-        className="w-64 bg-[#1a1a2e]/95 border-amber-900/40 backdrop-blur-md"
+        className="w-64 bg-[#1a1a2e] border-amber-900/40 backdrop-blur-md z-[9999]"
       >
         <DropdownMenuItem
           onClick={onNewGame}
