@@ -1,80 +1,93 @@
 
 
-# Character-Scoped Party Membership
+# Shared Guide Library + Campaign Assignments + Guide Presets
 
-## Overview
+## What This Adds (Non-Technical)
 
-Two changes isolate party membership and play mode per character, so switching characters automatically connects you to the right group (or solo mode).
+Right now, GM guides live in one flat list, and campaigns already quietly track which guides they used -- but there's no visual way to manage that. This plan adds two things:
+
+1. **Campaign Guide Assignments** -- When you open a campaign in the AI DM saves drawer, you'll see a "Guides" tab where you can check/uncheck which guides from your library should be active for that campaign. Switching campaigns auto-activates the right guides.
+
+2. **Guide Presets** -- You can save a named combo of guides (e.g., "Horror Kit", "Exploration Bundle") and apply it to any campaign with one tap, instead of toggling guides individually every time.
+
+Your guide library stays shared and global -- guides are never duplicated. Campaigns and presets just reference them by ID.
+
+---
 
 ## Changes
 
-### 1. `src/hooks/use-play-mode.ts` -- Scope play mode per character
+### 1. New Database Table: `gm_guide_presets`
 
-Replace raw `localStorage` calls with scoped storage so each character independently remembers solo vs party mode.
+Store named presets in the cloud so they sync across devices.
 
-- Import `getScopedItem`, `setScopedItem`, `migrateToScoped` from `@/lib/scoped-storage`
-- In the `useState` initializer: call `migrateToScoped(STORAGE_KEY)` then read via `getScopedItem(STORAGE_KEY)`
-- In `setPlayMode`: write via `setScopedItem(STORAGE_KEY, mode)`
-
-### 2. `src/hooks/use-party-sync.ts` -- Scope fresh-load reconnection
-
-Update the `checkExisting` function (lines 350-407) so that when no `odyssey-active-party-id` flag exists (fresh page load), it checks the active character's cloud save for their stored `partyId` instead of querying the DB for any membership.
-
-**Current logic (lines 369-380):**
-```typescript
-// No flag set (fresh load) — check DB for any existing membership
-const { data: membership } = await supabase
-  .from('party_members')
-  .select('party_id')
-  .eq('user_id', user.id)
-  .limit(1);
+```text
+gm_guide_presets
+  id          uuid (PK, default gen_random_uuid())
+  user_id     uuid (NOT NULL)
+  name        text (NOT NULL)
+  guide_ids   text[] (NOT NULL, default '{}')
+  created_at  timestamptz (default now())
+  updated_at  timestamptz (default now())
 ```
 
-**New logic:**
-```typescript
-// No flag set (fresh load) — check active character's cloud save for their partyId
-const activeSaveId = localStorage.getItem('odyssey-active-cloud-save-id');
-if (activeSaveId) {
-  // Character-scoped: read partyId from that character's cloud save
-  const { data: saveData } = await supabase
-    .from('character_saves')
-    .select('extended_data')
-    .eq('id', activeSaveId)
-    .eq('user_id', user.id)
-    .maybeSingle();
+RLS: Users can only CRUD their own presets (same pattern as gm_guides).
 
-  if (saveData) {
-    const extData = saveData.extended_data as Record<string, unknown> | null;
-    targetPartyId = (extData?.partyId as string) || null;
-  }
-} else {
-  // Guest/no save — fall back to existing DB membership query
-  const { data: membership } = await supabase
-    .from('party_members')
-    .select('party_id')
-    .eq('user_id', user.id)
-    .limit(1);
-  if (membership && membership.length > 0) {
-    targetPartyId = membership[0].party_id;
-  }
-}
-```
+### 2. New Hook: `src/hooks/use-guide-presets.ts`
 
-### 3. `src/hooks/use-cloud-save.ts` -- Add play mode to SCOPED_KEYS
+- `presets` -- list of all presets
+- `createPreset(name, guideIds)` -- save current combo as a preset
+- `deletePreset(id)` -- remove a preset
+- `applyPreset(presetId, onApply)` -- calls a callback with the preset's guide IDs
 
-Add `'odyssey-play-mode'` to the `SCOPED_KEYS` array so each character's play mode preference is also captured in cloud saves.
+Loads from cloud on mount (same pattern as `use-gm-guides.ts`), with localStorage fallback.
 
-## Files Modified
+### 3. New Component: `src/components/campaign/CampaignGuidesTab.tsx`
 
-| File | Change |
-|------|--------|
-| `src/hooks/use-play-mode.ts` | Use scoped storage for per-character solo/party preference |
-| `src/hooks/use-party-sync.ts` | Read partyId from active character's cloud save on fresh load |
-| `src/hooks/use-cloud-save.ts` | Add `odyssey-play-mode` to SCOPED_KEYS |
+A new tab ("Guides") inside `CampaignDetailView` showing:
 
-## What This Fixes
+- **Checklist** of all guides from the user's library, with checkboxes indicating which are assigned to this campaign (sourced from `ai_dm_campaigns.gm_guide_ids`).
+- **Toggle a guide** updates the campaign's `gm_guide_ids` array in the database.
+- **Presets section** at the top: a row of preset chips. Tapping one bulk-assigns those guide IDs to the campaign.
+- **"Save as Preset"** button: saves the current campaign's guide selection as a new named preset.
 
-- Character A in Party X and Character B in Party Y each reconnect to their own party on load
-- Character A set to solo mode stays solo when you switch back to it, even if Character B is in party mode
-- Guest users (no cloud save) retain existing behavior
+### 4. Update: `CampaignDetailView.tsx`
+
+- Add a 4th tab: "Guides" (using a Book icon) alongside Sessions, Stats, and Import.
+- Pass down the user's full guide list + the campaign's `gm_guide_ids`.
+- New props: `guides`, `guidePresets`, `onUpdateGuideIds`, `onCreatePreset`, `onDeletePreset`.
+
+### 5. Update: `CampaignManagerScreen.tsx`
+
+- Import and use `useGMGuides()` and `useGuidePresets()` hooks.
+- Pass `guides`, `presets`, and handlers down to `CampaignDetailView`.
+- When guide IDs are updated, call `updateCampaign(id, { gmGuideIds: [...] })` to persist.
+
+### 6. Update: `useCampaigns` hook (if needed)
+
+- Ensure `updateCampaign` supports updating `gm_guide_ids` on the `ai_dm_campaigns` table. If it already uses a generic update, this may just work. Otherwise, add a `updateCampaignGuides(campaignId, guideIds)` method.
+
+---
+
+## Files Modified or Created
+
+| File | Action | Purpose |
+|------|--------|---------|
+| Database migration | Create | `gm_guide_presets` table + RLS |
+| `src/hooks/use-guide-presets.ts` | Create | Hook for CRUD on guide presets |
+| `src/components/campaign/CampaignGuidesTab.tsx` | Create | Checklist UI + preset chips |
+| `src/components/campaign/CampaignDetailView.tsx` | Edit | Add "Guides" tab |
+| `src/components/campaign/CampaignManagerScreen.tsx` | Edit | Wire up guides + presets hooks |
+| `src/components/campaign/index.ts` | Edit | Export new component |
+| `src/hooks/use-campaigns.ts` | Edit | Ensure guide ID updates are supported |
+
+---
+
+## User Flow
+
+1. Open Campaigns screen, select a campaign.
+2. Tap the new "Guides" tab.
+3. See your full guide library as a checklist -- tick the ones relevant to this campaign.
+4. Optionally tap "Save as Preset" to name and save the current selection.
+5. Next time, tap a preset chip to instantly apply that combo to any campaign.
+6. When you load this campaign in the AI DM, the correct guides auto-activate (existing `gm_guide_ids` + `onCampaignSwitch` flow handles this already).
 
