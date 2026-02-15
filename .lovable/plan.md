@@ -1,93 +1,107 @@
 
+# Cloud Sync for Chronicle Campaigns
 
-# Shared Guide Library + Campaign Assignments + Guide Presets
+## Overview
 
-## What This Adds (Non-Technical)
+The Chronicle campaign manager (the "Campaigns" screen with session logs, stats, and batch import) currently stores everything in localStorage only. This plan adds cloud persistence so campaigns and their sessions sync across devices, following the same dual-layer pattern used by GM guides.
 
-Right now, GM guides live in one flat list, and campaigns already quietly track which guides they used -- but there's no visual way to manage that. This plan adds two things:
+## Database Tables
 
-1. **Campaign Guide Assignments** -- When you open a campaign in the AI DM saves drawer, you'll see a "Guides" tab where you can check/uncheck which guides from your library should be active for that campaign. Switching campaigns auto-activates the right guides.
+### 1. `chronicle_campaigns` -- Campaign metadata
 
-2. **Guide Presets** -- You can save a named combo of guides (e.g., "Horror Kit", "Exploration Bundle") and apply it to any campaign with one tap, instead of toggling guides individually every time.
+| Column | Type | Default |
+|--------|------|---------|
+| id | uuid (PK) | gen_random_uuid() |
+| user_id | uuid (NOT NULL) | -- |
+| name | text (NOT NULL) | 'Untitled Campaign' |
+| description | text | NULL |
+| dm_name | text | NULL |
+| setting | text | NULL |
+| start_date | text | NULL |
+| current_arc | text | NULL |
+| session_count | integer | 0 |
+| last_session_date | text | NULL |
+| tags | text[] | '{}' |
+| gm_guide_ids | text[] | '{}' |
+| created_at | timestamptz | now() |
+| updated_at | timestamptz | now() |
 
-Your guide library stays shared and global -- guides are never duplicated. Campaigns and presets just reference them by ID.
+RLS: Users can only CRUD their own rows (`auth.uid() = user_id`).
 
----
+### 2. `chronicle_campaign_sessions` -- Session data per campaign
 
-## Changes
+| Column | Type | Default |
+|--------|------|---------|
+| id | uuid (PK) | gen_random_uuid() |
+| user_id | uuid (NOT NULL) | -- |
+| campaign_id | uuid (NOT NULL, FK to chronicle_campaigns.id ON DELETE CASCADE) | -- |
+| session_number | integer | 1 |
+| session_name | text | 'Session' |
+| session_date | text | NULL |
+| input_preview | text | '' |
+| input_hash | text | '' |
+| input_length | integer | 0 |
+| parse_mode | text | 'offline' |
+| parsed_at | text | NULL |
+| parse_result | jsonb | NULL |
+| enhanced_patterns | jsonb | NULL |
+| summary | jsonb | NULL |
+| arc_markers | jsonb | '[]' |
+| notes | text | NULL |
+| created_at | timestamptz | now() |
 
-### 1. New Database Table: `gm_guide_presets`
+RLS: Users can CRUD their own rows. DELETE cascade ensures sessions are cleaned up when a campaign is deleted.
 
-Store named presets in the cloud so they sync across devices.
+## Hook Rewrite: `src/hooks/use-campaigns.ts`
 
-```text
-gm_guide_presets
-  id          uuid (PK, default gen_random_uuid())
-  user_id     uuid (NOT NULL)
-  name        text (NOT NULL)
-  guide_ids   text[] (NOT NULL, default '{}')
-  created_at  timestamptz (default now())
-  updated_at  timestamptz (default now())
-```
+Follow the same pattern as `use-gm-guides.ts`:
 
-RLS: Users can only CRUD their own presets (same pattern as gm_guides).
+1. **On mount**: Load from localStorage immediately (fast startup), then fetch from cloud if signed in.
+2. **Cloud is source of truth**: When cloud data exists, merge with any local-only items and push local-only to cloud.
+3. **Every mutation** (create, update, delete campaign/session) writes to both localStorage and cloud simultaneously.
+4. **Fallback**: If not signed in, localStorage-only behavior is preserved exactly as-is.
 
-### 2. New Hook: `src/hooks/use-guide-presets.ts`
-
-- `presets` -- list of all presets
-- `createPreset(name, guideIds)` -- save current combo as a preset
-- `deletePreset(id)` -- remove a preset
-- `applyPreset(presetId, onApply)` -- calls a callback with the preset's guide IDs
-
-Loads from cloud on mount (same pattern as `use-gm-guides.ts`), with localStorage fallback.
-
-### 3. New Component: `src/components/campaign/CampaignGuidesTab.tsx`
-
-A new tab ("Guides") inside `CampaignDetailView` showing:
-
-- **Checklist** of all guides from the user's library, with checkboxes indicating which are assigned to this campaign (sourced from `ai_dm_campaigns.gm_guide_ids`).
-- **Toggle a guide** updates the campaign's `gm_guide_ids` array in the database.
-- **Presets section** at the top: a row of preset chips. Tapping one bulk-assigns those guide IDs to the campaign.
-- **"Save as Preset"** button: saves the current campaign's guide selection as a new named preset.
-
-### 4. Update: `CampaignDetailView.tsx`
-
-- Add a 4th tab: "Guides" (using a Book icon) alongside Sessions, Stats, and Import.
-- Pass down the user's full guide list + the campaign's `gm_guide_ids`.
-- New props: `guides`, `guidePresets`, `onUpdateGuideIds`, `onCreatePreset`, `onDeletePreset`.
-
-### 5. Update: `CampaignManagerScreen.tsx`
-
-- Import and use `useGMGuides()` and `useGuidePresets()` hooks.
-- Pass `guides`, `presets`, and handlers down to `CampaignDetailView`.
-- When guide IDs are updated, call `updateCampaign(id, { gmGuideIds: [...] })` to persist.
-
-### 6. Update: `useCampaigns` hook (if needed)
-
-- Ensure `updateCampaign` supports updating `gm_guide_ids` on the `ai_dm_campaigns` table. If it already uses a generic update, this may just work. Otherwise, add a `updateCampaignGuides(campaignId, guideIds)` method.
-
----
+Key changes to the hook:
+- Add `supabase` import and cloud read/write helpers (`persistCampaignToCloud`, `deleteCampaignFromCloud`, `persistSessionToCloud`, `deleteSessionFromCloud`).
+- The `loadCampaignSessions` function will also check cloud when cache misses.
+- `createCampaign` / `updateCampaign` / `deleteCampaign` each call their cloud counterpart after updating local state.
+- `addSessionToCampaign` / `deleteSession` / `importSessions` do the same for the sessions table.
 
 ## Files Modified or Created
 
 | File | Action | Purpose |
 |------|--------|---------|
-| Database migration | Create | `gm_guide_presets` table + RLS |
-| `src/hooks/use-guide-presets.ts` | Create | Hook for CRUD on guide presets |
-| `src/components/campaign/CampaignGuidesTab.tsx` | Create | Checklist UI + preset chips |
-| `src/components/campaign/CampaignDetailView.tsx` | Edit | Add "Guides" tab |
-| `src/components/campaign/CampaignManagerScreen.tsx` | Edit | Wire up guides + presets hooks |
-| `src/components/campaign/index.ts` | Edit | Export new component |
-| `src/hooks/use-campaigns.ts` | Edit | Ensure guide ID updates are supported |
+| Database migration | Create | `chronicle_campaigns` + `chronicle_campaign_sessions` tables with RLS |
+| `src/hooks/use-campaigns.ts` | Edit | Add cloud sync (read on mount, write on every mutation) |
 
----
+## What Stays the Same
 
-## User Flow
+- The `Campaign` and `CampaignSession` TypeScript interfaces remain unchanged.
+- All UI components (`CampaignManagerScreen`, `CampaignDetailView`, etc.) continue to work via the same hook API -- no prop or component changes needed.
+- localStorage remains the fast-load layer; cloud is the durable sync layer.
+- Guest users (not signed in) keep the same localStorage-only experience.
 
-1. Open Campaigns screen, select a campaign.
-2. Tap the new "Guides" tab.
-3. See your full guide library as a checklist -- tick the ones relevant to this campaign.
-4. Optionally tap "Save as Preset" to name and save the current selection.
-5. Next time, tap a preset chip to instantly apply that combo to any campaign.
-6. When you load this campaign in the AI DM, the correct guides auto-activate (existing `gm_guide_ids` + `onCampaignSwitch` flow handles this already).
+## Technical Details
 
+```text
+Data flow after change:
+
+  Hook init
+    |
+    +--> Read localStorage (instant)
+    |
+    +--> Check auth session
+           |
+           +--> Signed in: fetch cloud tables
+           |      |
+           |      +--> Cloud has data: merge, push local-only to cloud
+           |      +--> No cloud data: push all local to cloud
+           |
+           +--> Not signed in: done (localStorage only)
+
+  On mutation (create/update/delete):
+    |
+    +--> Update React state
+    +--> Write to localStorage
+    +--> If signed in: write to cloud (fire-and-forget)
+```
