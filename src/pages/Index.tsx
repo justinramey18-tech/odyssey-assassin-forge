@@ -717,6 +717,42 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     };
   }, [partySync, shop, addConsumableItem, setEquipment, loot, isSoloMode]);
 
+  // Listen for quick action removal events from DM screens (weapons, abilities, consumables)
+  useEffect(() => {
+    const handleRemove = (e: Event) => {
+      const { category, name, slot } = (e as CustomEvent).detail as { category: string; name: string; slot?: string };
+      
+      if (category === 'weapon' && slot) {
+        // Unequip weapon → move back to inventory
+        setEquipment(prev => {
+          const item = prev.slots[slot as keyof typeof prev.slots];
+          if (!item) return prev;
+          return {
+            slots: { ...prev.slots, [slot]: null },
+            inventory: [...prev.inventory, item],
+          };
+        });
+      } else if (category === 'ability' || category === 'homebrew-ability') {
+        // Remove from equipped loadout (don't uninvest points)
+        const abilityDef = allAbilities.find(a => a.name === name);
+        const abilityId = abilityDef?.id || name;
+        setCharacter(prev => ({
+          ...prev,
+          equippedAbilities: prev.equippedAbilities.filter(id => id !== abilityId),
+        }));
+      } else if (category === 'consumable') {
+        // Remove consumable by setting quantity to 0
+        const consumable = consumablesInventory.find(c => c.consumable.name === name);
+        if (consumable) setConsumableQuantity(consumable.consumable.id, 0);
+      }
+      // spell/cantrip removal handled by PromptDrawerProvider
+      // prestige abilities cannot be removed
+    };
+
+    window.addEventListener('dm-quick-action-remove', handleRemove);
+    return () => window.removeEventListener('dm-quick-action-remove', handleRemove);
+  }, [setEquipment, setCharacter, allAbilities, consumablesInventory, setConsumableQuantity]);
+
   // Auto-apply incoming party buffs as conditions (only in party mode)
   useEffect(() => {
     if (isSoloMode) return;

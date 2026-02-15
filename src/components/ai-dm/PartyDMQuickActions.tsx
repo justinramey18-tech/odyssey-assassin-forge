@@ -1,11 +1,19 @@
-import { useState, useMemo } from 'react';
-import { Sword, Sparkles, BookOpen, FlaskConical, Star, ChevronDown, Play, Flame } from 'lucide-react';
+import { useState, useMemo, useCallback } from 'react';
+import { Sword, Sparkles, BookOpen, FlaskConical, Star, ChevronDown, Play, Flame, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
 import type { CharacterContext } from '@/components/oracle/types';
+
+export type QuickActionRemoveCategory = 'weapon' | 'ability' | 'spell' | 'cantrip' | 'consumable' | 'prestige' | 'homebrew-ability' | 'homebrew-spell';
+
+export interface QuickActionRemoveEvent {
+  category: QuickActionRemoveCategory;
+  name: string;
+  slot?: string;
+}
 
 interface PartyDMQuickActionsProps {
   open: boolean;
@@ -20,6 +28,8 @@ interface QuickActionItem {
   name: string;
   detail: string;
   prompt: string;
+  removeCategory: QuickActionRemoveCategory;
+  removeSlot?: string;
 }
 
 function generateWeaponPrompt(name: string, characterName: string): string {
@@ -60,10 +70,11 @@ interface SectionProps {
   items: QuickActionItem[];
   accentClass: string;
   onUse: (prompt: string) => void;
+  onRemove?: (item: QuickActionItem) => void;
   defaultOpen?: boolean;
 }
 
-function QuickActionSection({ title, icon, items, accentClass, onUse, defaultOpen = false }: SectionProps) {
+function QuickActionSection({ title, icon, items, accentClass, onUse, onRemove, defaultOpen = false }: SectionProps) {
   const [open, setOpen] = useState(defaultOpen);
 
   if (items.length === 0) return null;
@@ -99,6 +110,16 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, defaultOpe
               >
                 <Play className="w-3.5 h-3.5 text-emerald-400" />
               </button>
+              {onRemove && (
+                <button
+                  onClick={() => onRemove(item)}
+                  className="shrink-0 p-1.5 rounded-lg transition-colors bg-red-900/20 hover:bg-red-900/40 border border-red-500/15 hover:border-red-500/30"
+                  style={{ touchAction: 'manipulation' }}
+                  title={`Remove ${item.name}`}
+                >
+                  <X className="w-3.5 h-3.5 text-red-400/70" />
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -108,6 +129,16 @@ function QuickActionSection({ title, icon, items, accentClass, onUse, defaultOpe
 }
 
 export function PartyDMQuickActions({ open, onOpenChange, characterContext, characterName, onUsePrompt }: PartyDMQuickActionsProps) {
+  const handleRemoveItem = useCallback((item: QuickActionItem) => {
+    const detail: QuickActionRemoveEvent = {
+      category: item.removeCategory,
+      name: item.name,
+      slot: item.removeSlot,
+    };
+    window.dispatchEvent(new CustomEvent('dm-quick-action-remove', { detail }));
+    toast.success(`Removed ${item.name}`);
+  }, []);
+
   const sections = useMemo(() => {
     if (!characterContext) return { weapons: [], abilities: [], spells: [], cantrips: [], consumables: [], prestige: [], homebrew: [] };
 
@@ -121,6 +152,8 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
         name: e.name,
         detail: `${e.rarity} • ${e.slot.replace('_', ' ')}`,
         prompt: generateWeaponPrompt(e.name, charName),
+        removeCategory: 'weapon' as const,
+        removeSlot: e.slot,
       }));
 
     // Abilities with tier > 0
@@ -136,6 +169,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
         name: a.name,
         detail: `Tier ${a.tier} • ${a.tree}${equippedSet.has(a.name) ? ' • Equipped' : ''}`,
         prompt: generateAbilityPrompt(a.name, a.tier, charName),
+        removeCategory: (a.tree === 'Homebrew' || a.tree === 'Custom') ? 'homebrew-ability' as const : 'ability' as const,
       };
       if (a.tree === 'Homebrew' || a.tree === 'Custom') {
         homebrewAbilities.push(item);
@@ -152,13 +186,12 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
 
     prepared.forEach(spellName => {
       const isCantrip = spellName.toLowerCase().includes('cantrip') || false;
-      // We don't have spell level info in characterContext.spellcasting.preparedSpells (just names)
-      // So we'll put them all in spells unless they match known cantrip patterns
       const item: QuickActionItem = {
         id: `spell-${spellName}`,
         name: spellName,
         detail: isCantrip ? 'Cantrip' : 'Prepared Spell',
         prompt: generateSpellPrompt(spellName, charName, isCantrip),
+        removeCategory: isCantrip ? 'cantrip' as const : 'spell' as const,
       };
       if (isCantrip) {
         cantrips.push(item);
@@ -175,6 +208,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
         name: c.name,
         detail: `${c.type} • x${c.quantity}`,
         prompt: generateConsumablePrompt(c.name, c.type, charName),
+        removeCategory: 'consumable' as const,
       }));
 
     // Prestige abilities
@@ -183,6 +217,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
       name,
       detail: 'Legacy Ability',
       prompt: generatePrestigePrompt(name, charName),
+      removeCategory: 'prestige' as const,
     }));
 
     // Combine homebrew
@@ -213,6 +248,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                 items={sections.weapons}
                 accentClass="text-red-400"
                 onUse={onUsePrompt}
+                onRemove={handleRemoveItem}
                 defaultOpen={true}
               />
               <QuickActionSection
@@ -221,6 +257,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                 items={sections.abilities}
                 accentClass="text-blue-400"
                 onUse={onUsePrompt}
+                onRemove={handleRemoveItem}
               />
               <QuickActionSection
                 title="Spells"
@@ -228,6 +265,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                 items={sections.spells}
                 accentClass="text-purple-400"
                 onUse={onUsePrompt}
+                onRemove={handleRemoveItem}
               />
               <QuickActionSection
                 title="Cantrips"
@@ -235,6 +273,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                 items={sections.cantrips}
                 accentClass="text-cyan-400"
                 onUse={onUsePrompt}
+                onRemove={handleRemoveItem}
               />
               <QuickActionSection
                 title="Items"
@@ -242,6 +281,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                 items={sections.consumables}
                 accentClass="text-green-400"
                 onUse={onUsePrompt}
+                onRemove={handleRemoveItem}
               />
               <QuickActionSection
                 title="Legacy"
@@ -249,6 +289,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                 items={sections.prestige}
                 accentClass="text-amber-400"
                 onUse={onUsePrompt}
+                onRemove={handleRemoveItem}
               />
               {sections.homebrew.length > 0 && (
                 <QuickActionSection
@@ -257,6 +298,7 @@ export function PartyDMQuickActions({ open, onOpenChange, characterContext, char
                   items={sections.homebrew}
                   accentClass="text-orange-400"
                   onUse={onUsePrompt}
+                  onRemove={handleRemoveItem}
                 />
               )}
             </>

@@ -316,6 +316,29 @@ export function PromptDrawerProvider({
     return { readyCount, coolingCount };
   }, [cooldownSystem.cooldowns]);
 
+  // Listen for quick action removal events from DM screens
+  useEffect(() => {
+    const handleQuickActionRemove = (e: Event) => {
+      const { category, name, slot } = (e as CustomEvent).detail as { category: string; name: string; slot?: string };
+      
+      if ((category === 'spell' || category === 'cantrip' || category === 'homebrew-spell') && spellcasting) {
+        // Reverse-lookup spell name → ID
+        const allPrepared = [...spellcasting.state.preparedSpells, ...spellcasting.state.knownSpells];
+        const spellId = allPrepared.find(id => {
+          const spell = getSpellById(id);
+          return spell?.name === name || id === name;
+        });
+        if (spellId) {
+          spellcasting.unprepareSpell(spellId);
+        }
+      }
+      // Weapon/ability/consumable/prestige removal is handled by Index.tsx via the same event
+    };
+    
+    window.addEventListener('dm-quick-action-remove', handleQuickActionRemove);
+    return () => window.removeEventListener('dm-quick-action-remove', handleQuickActionRemove);
+  }, [spellcasting]);
+
   // Build full character context for AI DM (same logic as OracleDrawer)
   const aiDMCharacterContext = useMemo<CharacterContext>(() => {
     const hp = currentHP ?? character.level * 8 + 10;
