@@ -167,6 +167,125 @@ export type Database = {
         }
         Relationships: []
       }
+      chronicle_campaign_sessions: {
+        Row: {
+          arc_markers: Json
+          campaign_id: string
+          created_at: string
+          enhanced_patterns: Json | null
+          id: string
+          input_hash: string
+          input_length: number
+          input_preview: string
+          notes: string | null
+          parse_mode: string
+          parse_result: Json | null
+          parsed_at: string | null
+          session_date: string | null
+          session_name: string
+          session_number: number
+          summary: Json | null
+          user_id: string
+        }
+        Insert: {
+          arc_markers?: Json
+          campaign_id: string
+          created_at?: string
+          enhanced_patterns?: Json | null
+          id?: string
+          input_hash?: string
+          input_length?: number
+          input_preview?: string
+          notes?: string | null
+          parse_mode?: string
+          parse_result?: Json | null
+          parsed_at?: string | null
+          session_date?: string | null
+          session_name?: string
+          session_number?: number
+          summary?: Json | null
+          user_id: string
+        }
+        Update: {
+          arc_markers?: Json
+          campaign_id?: string
+          created_at?: string
+          enhanced_patterns?: Json | null
+          id?: string
+          input_hash?: string
+          input_length?: number
+          input_preview?: string
+          notes?: string | null
+          parse_mode?: string
+          parse_result?: Json | null
+          parsed_at?: string | null
+          session_date?: string | null
+          session_name?: string
+          session_number?: number
+          summary?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chronicle_campaign_sessions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "chronicle_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chronicle_campaigns: {
+        Row: {
+          created_at: string
+          current_arc: string | null
+          description: string | null
+          dm_name: string | null
+          gm_guide_ids: string[]
+          id: string
+          last_session_date: string | null
+          name: string
+          session_count: number
+          setting: string | null
+          start_date: string | null
+          tags: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_arc?: string | null
+          description?: string | null
+          dm_name?: string | null
+          gm_guide_ids?: string[]
+          id?: string
+          last_session_date?: string | null
+          name?: string
+          session_count?: number
+          setting?: string | null
+          start_date?: string | null
+          tags?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_arc?: string | null
+          description?: string | null
+          dm_name?: string | null
+          gm_guide_ids?: string[]
+          id?: string
+          last_session_date?: string | null
+          name?: string
+          session_count?: number
+          setting?: string | null
+          start_date?: string | null
+          tags?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chronicle_sessions: {
         Row: {
           achievements_triggered: number
