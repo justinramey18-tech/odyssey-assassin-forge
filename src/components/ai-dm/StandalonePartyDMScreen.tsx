@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, useRef } from 'react';
 import { useGMGuides } from '@/hooks/use-gm-guides';
 import { usePartyDm } from '@/hooks/use-party-dm';
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
+import { useCampaignSessions } from '@/hooks/use-campaign-sessions';
 import { PartyDMScreen } from './PartyDMScreen';
 import { GMGuidesManager } from './GMGuidesManager';
 import { InlineBattleMap } from './InlineBattleMap';
@@ -54,6 +55,9 @@ export function StandalonePartyDMScreen({
   const battleMapMarkersRef = useRef<MapMarker[]>([]);
   const battleMapGridSizeRef = useRef<number>(25);
 
+  // Campaign sessions (for dropdown)
+  const campaignSessions = useCampaignSessions();
+
   // GM Guides
   const gmGuides = useGMGuides();
 
@@ -100,6 +104,14 @@ export function StandalonePartyDMScreen({
   const handlePendingProcessed = useCallback(() => { setPendingMapAdds([]); setPendingMapRemovals([]); }, []);
   const handleMarkersChange = useCallback((markers: MapMarker[]) => { battleMapMarkersRef.current = markers; }, []);
   const handleGridSizeChange = useCallback((size: any) => { battleMapGridSizeRef.current = size; }, []);
+
+  // Campaign load handler for dropdown
+  const handleLoadCampaign = useCallback((session: import('@/hooks/use-campaign-sessions').CampaignSession) => {
+    if (partyDm.messages.length > 0) {
+      partyDm.saveCampaign('Party Campaign', partyDm.activeCampaignId || undefined);
+    }
+    partyDm.loadCampaign(session.id, session.messages, session.campaign_summary);
+  }, [partyDm.messages.length, partyDm.saveCampaign, partyDm.activeCampaignId, partyDm.loadCampaign]);
 
   // Auto-start session for creator if not already active
   // (The host needs to start the session; non-creators see "Waiting for Host")
@@ -160,6 +172,12 @@ export function StandalonePartyDMScreen({
         characterContext={characterContext}
         showBattleMap={showBattleMap}
         battleMapContent={battleMapContent}
+        campaignSessions={campaignSessions.sessions}
+        campaignSessionsLoading={campaignSessions.isLoading}
+        campaignSessionsSignedIn={campaignSessions.isSignedIn}
+        onNewGame={partyDm.startNewCampaign}
+        onLoadCampaign={handleLoadCampaign}
+        onRefreshCampaigns={campaignSessions.refreshSessions}
       />
 
       {/* GM Guides Overlay */}
