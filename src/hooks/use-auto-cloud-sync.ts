@@ -221,6 +221,20 @@ export function useAutoCloudSync(
     return () => clearInterval(interval);
   }, [enabled, isAuthenticated, saveToCloudNow]);
 
+  // Listen for force-sync events (e.g. after party create/join)
+  useEffect(() => {
+    if (!enabled || !isAuthenticated) return;
+
+    const handleForceSync = () => {
+      console.log('[AutoSave] Force cloud sync triggered');
+      saveLocally();
+      saveToCloudNow();
+    };
+
+    window.addEventListener('odyssey-force-cloud-sync', handleForceSync);
+    return () => window.removeEventListener('odyssey-force-cloud-sync', handleForceSync);
+  }, [enabled, isAuthenticated, saveLocally, saveToCloudNow]);
+
   return {
     lastCloudSyncTime,
     isSyncing: saving,
