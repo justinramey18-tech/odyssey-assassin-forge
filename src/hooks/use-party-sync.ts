@@ -370,7 +370,6 @@ export function usePartySync(): UsePartySyncReturn {
         // No flag set (fresh load) — check active character's cloud save for their partyId
         const activeSaveId = localStorage.getItem('odyssey-active-cloud-save-id');
         if (activeSaveId) {
-          // Character-scoped: read partyId from that character's cloud save
           const { data: saveData } = await supabase
             .from('character_saves')
             .select('extended_data')
@@ -382,12 +381,15 @@ export function usePartySync(): UsePartySyncReturn {
             const extData = saveData.extended_data as Record<string, unknown> | null;
             targetPartyId = (extData?.partyId as string) || null;
           }
-        } else {
-          // Guest/no save — fall back to existing DB membership query
+        }
+
+        // Always fall back to DB membership query if cloud save had no partyId
+        if (!targetPartyId) {
           const { data: membership } = await supabase
             .from('party_members')
-            .select('party_id')
+            .select('party_id, parties!inner(is_active)')
             .eq('user_id', user.id)
+            .eq('parties.is_active', true)
             .limit(1) as { data: Array<{ party_id: string }> | null };
 
           if (membership && membership.length > 0) {
@@ -968,6 +970,9 @@ export function usePartySync(): UsePartySyncReturn {
         isLoading: false,
       });
 
+      // Force immediate cloud sync so partyId is persisted right away
+      window.dispatchEvent(new CustomEvent('odyssey-force-cloud-sync'));
+
       return partyData.link_code;
     } catch (err) {
       toast.error('Failed to create party');
@@ -1006,6 +1011,9 @@ export function usePartySync(): UsePartySyncReturn {
         members: members || [],
         isLoading: false,
       });
+
+      // Force immediate cloud sync so partyId is persisted right away
+      window.dispatchEvent(new CustomEvent('odyssey-force-cloud-sync'));
 
       toast.success('Joined party!');
       return true;
