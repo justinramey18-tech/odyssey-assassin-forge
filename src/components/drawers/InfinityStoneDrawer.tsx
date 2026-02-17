@@ -61,6 +61,13 @@ const infinityStones = [
     categories: ['Voice & Tone', 'Narrative'],
     description: 'Character voice & narrative style',
   },
+  {
+    id: 'masterwork',
+    name: 'Masterwork Stone',
+    color: '#f5f5f5',
+    categories: ['Masterwork'],
+    description: 'Elite tactical & strategic mastery',
+  },
 ];
 
 const intensityLevels: { id: IntensityLevel; label: string; icon: string; color: string }[] = [

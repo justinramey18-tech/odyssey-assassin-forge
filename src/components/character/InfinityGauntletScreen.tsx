@@ -59,6 +59,14 @@ const infinityStones = [
     categories: ['Voice & Tone', 'Narrative'],
     position: { top: '50%', left: '50%' },
   },
+  {
+    id: 'masterwork',
+    name: 'Masterwork Stone',
+    color: '#f5f5f5', // Silver/White - legendary crafted stone
+    glowColor: 'rgba(245, 245, 245, 0.6)',
+    categories: ['Masterwork'],
+    position: { top: '42%', left: '30%' },
+  },
 ];
 
 interface InfinityGauntletScreenProps {
