@@ -28,6 +28,7 @@ const infinityStones = [
   { id: 'time', name: 'Time Stone', color: '#22c55e', categories: ['Meta Requests'] },
   { id: 'mind', name: 'Mind Stone', color: '#eab308', categories: ['Investigation'] },
   { id: 'space', name: 'Space Stone', color: '#3b82f6', categories: ['Voice & Tone', 'Narrative'] },
+  { id: 'masterwork', name: 'Masterwork Stone', color: '#f5f5f5', categories: ['Masterwork'] },
 ];
 
 const intensityLevels: { id: IntensityLevel; label: string; icon: string; color: string }[] = [
