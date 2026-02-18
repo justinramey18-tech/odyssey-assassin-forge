@@ -560,6 +560,46 @@ export function useAIDM({ characterContext, customGuidesContent, onMessageComple
     setMessages(prev => [...prev, mediaMessage]);
   }, []);
 
+  const editMessage = useCallback((messageId: string, newContent: string) => {
+    setMessages(prev =>
+      prev.map(m => m.id === messageId ? { ...m, content: newContent } : m)
+    );
+  }, []);
+
+  const deleteMessage = useCallback((messageId: string) => {
+    setMessages(prev => prev.filter(m => m.id !== messageId));
+  }, []);
+
+  const regenerateMessage = useCallback(async (messageId: string) => {
+    if (isLoading) return;
+
+    // Find the assistant message to regenerate
+    const idx = messages.findIndex(m => m.id === messageId);
+    if (idx === -1) return;
+
+    // Get all messages up to (but not including) the assistant message
+    const precedingMessages = messages.slice(0, idx);
+
+    // Find the last user message before this assistant message
+    const lastUserMsg = [...precedingMessages].reverse().find(m => m.role === 'user');
+    if (!lastUserMsg) {
+      toast.error('No user message to regenerate from');
+      return;
+    }
+
+    // Remove the assistant message + everything after it, AND the last user message
+    // (sendMessage will re-add the user message)
+    const messagesWithoutLastUser = precedingMessages.filter(m => m.id !== lastUserMsg.id);
+    setMessages(messagesWithoutLastUser);
+
+    // Use setTimeout to let state settle, then re-send
+    // We need to call sendMessage with the correct preceding context
+    // Since sendMessage reads `messages` from state, we schedule it after the state update
+    setTimeout(() => {
+      sendMessage(lastUserMsg.content);
+    }, 0);
+  }, [messages, isLoading, sendMessage]);
+
   return {
     messages,
     isLoading,
@@ -577,5 +617,8 @@ export function useAIDM({ characterContext, customGuidesContent, onMessageComple
     lastCloudSyncTime,
     isCloudSyncing,
     saveToCloudNow,
+    editMessage,
+    deleteMessage,
+    regenerateMessage,
   };
 }

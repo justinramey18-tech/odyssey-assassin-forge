@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Zap, Map, Film, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Zap, Map, Film, Image as ImageIcon, Copy, Check, Pencil, RefreshCw, X, MoreVertical } from 'lucide-react';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
@@ -43,10 +43,57 @@ interface AIDMScreenProps {
 const VIDEO_REGEX = /^\s*\[video:(https?:\/\/.+)\]\s*$/;
 const IMAGE_REGEX = /^\s*\[image:(https?:\/\/.+)\]\s*$/;
 
-function DMMessageBubble({ message }: { message: Message }) {
+interface DMMessageBubbleProps {
+  message: Message;
+  onEdit?: (id: string, content: string) => void;
+  onDelete?: (id: string) => void;
+  onRegenerate?: (id: string) => void;
+  isLoading?: boolean;
+}
+
+function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading }: DMMessageBubbleProps) {
   const isUser = message.role === 'user';
   const videoMatch = message.content.match(VIDEO_REGEX);
   const imageMatch = !videoMatch ? message.content.match(IMAGE_REGEX) : null;
+  const [copied, setCopied] = useState(false);
+  const [showActions, setShowActions] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(message.content);
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(message.content).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [message.content]);
+
+  const handleEdit = useCallback(() => {
+    setEditContent(message.content);
+    setIsEditing(true);
+    setShowActions(false);
+  }, [message.content]);
+
+  const handleSaveEdit = useCallback(() => {
+    if (editContent.trim() && onEdit) {
+      onEdit(message.id, editContent.trim());
+    }
+    setIsEditing(false);
+  }, [editContent, message.id, onEdit]);
+
+  const handleCancelEdit = useCallback(() => {
+    setIsEditing(false);
+    setEditContent(message.content);
+  }, [message.content]);
+
+  const handleDelete = useCallback(() => {
+    onDelete?.(message.id);
+    setShowActions(false);
+  }, [message.id, onDelete]);
+
+  const handleRegenerate = useCallback(() => {
+    onRegenerate?.(message.id);
+    setShowActions(false);
+  }, [message.id, onRegenerate]);
 
   return (
     <motion.div
@@ -62,70 +109,166 @@ function DMMessageBubble({ message }: { message: Message }) {
       )}
 
       {/* Message bubble */}
-      <div
-        className={cn(
-          'flex-1 min-w-0 rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-2.5 overflow-hidden',
-          isUser
-            ? 'bg-white/10 text-white rounded-br-sm border border-white/10'
-            : 'bg-amber-950/50 border border-amber-500/20 rounded-bl-sm'
-        )}
-      >
-        {videoMatch ? (
-          <div>
-            <div className="flex items-center gap-1 mb-1.5">
-              <Film className="w-3 h-3 text-amber-400" />
-              <span className="text-[10px] text-amber-300/70 font-cinzel">Video</span>
-            </div>
-            <div className="rounded-xl overflow-hidden border border-amber-500/20 bg-black/40 max-w-[300px]">
-              <video
-                src={videoMatch[1]}
-                controls
-                playsInline
-                className="w-full rounded-xl"
+      <div className="relative group flex-1 min-w-0 max-w-[85%]">
+        <div
+          className={cn(
+            'rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-2.5 overflow-hidden',
+            isUser
+              ? 'bg-white/10 text-white rounded-br-sm border border-white/10'
+              : 'bg-amber-950/50 border border-amber-500/20 rounded-bl-sm'
+          )}
+        >
+          {isEditing ? (
+            <div className="space-y-2">
+              <textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                className="w-full bg-black/30 border border-amber-500/30 rounded-lg px-3 py-2 text-sm text-white resize-none min-h-[60px] focus:outline-none focus:border-amber-400/50"
+                rows={3}
+                autoFocus
               />
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={handleCancelEdit}
+                  className="px-2.5 py-1 rounded-lg text-xs text-white/60 hover:bg-white/10 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  className="px-2.5 py-1 rounded-lg text-xs bg-amber-600/60 text-amber-100 hover:bg-amber-600/80 transition-colors"
+                >
+                  Save
+                </button>
+              </div>
             </div>
-          </div>
-        ) : imageMatch ? (
-          <div>
-            <div className="flex items-center gap-1 mb-1.5">
-              <ImageIcon className="w-3 h-3 text-amber-400" />
-              <span className="text-[10px] text-amber-300/70 font-cinzel">Photo</span>
+          ) : videoMatch ? (
+            <div>
+              <div className="flex items-center gap-1 mb-1.5">
+                <Film className="w-3 h-3 text-amber-400" />
+                <span className="text-[10px] text-amber-300/70 font-cinzel">Video</span>
+              </div>
+              <div className="rounded-xl overflow-hidden border border-amber-500/20 bg-black/40 max-w-[300px]">
+                <video
+                  src={videoMatch[1]}
+                  controls
+                  playsInline
+                  className="w-full rounded-xl"
+                />
+              </div>
             </div>
-            <div className="rounded-xl overflow-hidden border border-amber-500/20 bg-black/40 max-w-[300px]">
-              <img
-                src={imageMatch[1]}
-                alt="Chat photo"
-                className="w-full rounded-xl"
-                loading="lazy"
-              />
+          ) : imageMatch ? (
+            <div>
+              <div className="flex items-center gap-1 mb-1.5">
+                <ImageIcon className="w-3 h-3 text-amber-400" />
+                <span className="text-[10px] text-amber-300/70 font-cinzel">Photo</span>
+              </div>
+              <div className="rounded-xl overflow-hidden border border-amber-500/20 bg-black/40 max-w-[300px]">
+                <img
+                  src={imageMatch[1]}
+                  alt="Chat photo"
+                  className="w-full rounded-xl"
+                  loading="lazy"
+                />
+              </div>
             </div>
-          </div>
-        ) : isUser ? (
-          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-        ) : (
-          <div className="text-sm prose prose-invert prose-sm max-w-none break-words overflow-wrap-anywhere">
-            <ReactMarkdown
-              components={{
-                p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                strong: ({ children }) => <strong className="text-amber-300">{children}</strong>,
-                em: ({ children }) => <em className="text-white/70">{children}</em>,
-                ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
-                ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
-                li: ({ children }) => <li className="mb-1">{children}</li>,
-                code: ({ children }) => <code className="bg-black/30 px-1 rounded text-xs">{children}</code>,
-                h1: ({ children }) => <h1 className="text-lg font-cinzel text-amber-300 mb-2">{children}</h1>,
-                h2: ({ children }) => <h2 className="text-base font-cinzel text-amber-300 mb-2">{children}</h2>,
-                h3: ({ children }) => <h3 className="text-sm font-cinzel text-amber-300 mb-1">{children}</h3>,
-                blockquote: ({ children }) => (
-                  <blockquote className="border-l-2 border-amber-500/40 pl-3 italic text-white/60 my-2">{children}</blockquote>
-                ),
-                hr: () => <hr className="border-amber-500/20 my-3" />,
-              }}
+          ) : isUser ? (
+            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+          ) : (
+            <div className="text-sm prose prose-invert prose-sm max-w-none break-words overflow-wrap-anywhere">
+              <ReactMarkdown
+                components={{
+                  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                  strong: ({ children }) => <strong className="text-amber-300">{children}</strong>,
+                  em: ({ children }) => <em className="text-white/70">{children}</em>,
+                  ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
+                  ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
+                  li: ({ children }) => <li className="mb-1">{children}</li>,
+                  code: ({ children }) => <code className="bg-black/30 px-1 rounded text-xs">{children}</code>,
+                  h1: ({ children }) => <h1 className="text-lg font-cinzel text-amber-300 mb-2">{children}</h1>,
+                  h2: ({ children }) => <h2 className="text-base font-cinzel text-amber-300 mb-2">{children}</h2>,
+                  h3: ({ children }) => <h3 className="text-sm font-cinzel text-amber-300 mb-1">{children}</h3>,
+                  blockquote: ({ children }) => (
+                    <blockquote className="border-l-2 border-amber-500/40 pl-3 italic text-white/60 my-2">{children}</blockquote>
+                  ),
+                  hr: () => <hr className="border-amber-500/20 my-3" />,
+                }}
+              >
+                {message.content || '...'}
+              </ReactMarkdown>
+            </div>
+          )}
+        </div>
+
+        {/* Action buttons for assistant messages */}
+        {!isUser && message.content && !isEditing && (
+          <div className="flex items-center gap-0.5 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={handleCopy}
+              className="p-1.5 rounded-md hover:bg-white/10 text-white/40 hover:text-white/70 transition-colors"
+              title="Copy"
             >
-              {message.content || '...'}
-            </ReactMarkdown>
+              {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+            </button>
+            <button
+              onClick={handleEdit}
+              className="p-1.5 rounded-md hover:bg-white/10 text-white/40 hover:text-white/70 transition-colors"
+              title="Edit"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={handleRegenerate}
+              disabled={isLoading}
+              className="p-1.5 rounded-md hover:bg-white/10 text-white/40 hover:text-white/70 transition-colors disabled:opacity-30"
+              title="Regenerate"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={handleDelete}
+              className="p-1.5 rounded-md hover:bg-red-900/30 text-white/40 hover:text-red-400 transition-colors"
+              title="Delete"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
+
+        {/* Mobile: tap to show actions for assistant messages */}
+        {!isUser && message.content && !isEditing && (
+          <button
+            onClick={() => setShowActions(prev => !prev)}
+            className="absolute top-1 right-1 p-1 rounded-md sm:hidden text-white/30 hover:text-white/60"
+          >
+            <MoreVertical className="w-3.5 h-3.5" />
+          </button>
+        )}
+
+        {/* Mobile action menu */}
+        <AnimatePresence>
+          {showActions && !isUser && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="absolute top-0 right-0 z-20 bg-[#1a1520] border border-amber-500/30 rounded-xl shadow-xl p-1 flex flex-col gap-0.5 sm:hidden"
+            >
+              <button onClick={handleCopy} className="flex items-center gap-2 px-3 py-2 text-xs text-white/70 hover:bg-white/10 rounded-lg">
+                {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />} Copy
+              </button>
+              <button onClick={handleEdit} className="flex items-center gap-2 px-3 py-2 text-xs text-white/70 hover:bg-white/10 rounded-lg">
+                <Pencil className="w-3.5 h-3.5" /> Edit
+              </button>
+              <button onClick={handleRegenerate} disabled={isLoading} className="flex items-center gap-2 px-3 py-2 text-xs text-white/70 hover:bg-white/10 rounded-lg disabled:opacity-30">
+                <RefreshCw className="w-3.5 h-3.5" /> Regenerate
+              </button>
+              <button onClick={handleDelete} className="flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-red-900/20 rounded-lg">
+                <Trash2 className="w-3.5 h-3.5" /> Delete
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* User Avatar */}
@@ -189,7 +332,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     gmGuides.setActiveGuideIds(guideIds);
   }, [gmGuides.setActiveGuideIds]);
 
-  const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, loadCampaign, sendMessage, addMediaMessage, cancelRequest, clearMessages, newGame, activeCampaignId, setActiveCampaignId, lastCloudSyncTime, isCloudSyncing, saveToCloudNow } = useAIDM({
+  const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, loadCampaign, sendMessage, addMediaMessage, cancelRequest, clearMessages, newGame, activeCampaignId, setActiveCampaignId, lastCloudSyncTime, isCloudSyncing, saveToCloudNow, editMessage, deleteMessage, regenerateMessage } = useAIDM({
     characterContext,
     customGuidesContent: gmGuides.enabledContent,
     onMessageComplete: handleMessageComplete,
@@ -523,7 +666,14 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
               <>
                 <AnimatePresence initial={false}>
                   {messages.map((message) => (
-                    <DMMessageBubble key={message.id} message={message} />
+                    <DMMessageBubble
+                      key={message.id}
+                      message={message}
+                      onEdit={editMessage}
+                      onDelete={deleteMessage}
+                      onRegenerate={regenerateMessage}
+                      isLoading={isLoading}
+                    />
                   ))}
                 </AnimatePresence>
                 {isLoading && messages[messages.length - 1]?.role === 'user' && (
