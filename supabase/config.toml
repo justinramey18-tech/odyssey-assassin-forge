@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.ai-dm-extract]
 verify_jwt = false
+
+[functions.ai-dm-memory-extract]
+verify_jwt = false
