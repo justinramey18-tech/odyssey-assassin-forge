@@ -156,26 +156,46 @@ export function useDMGameState(campaignId: string | null) {
       };
 
       if (state.id) {
-        // Update existing
+        // Update existing row by known ID
         await supabase
           .from('dm_game_state' as any)
           .update(payload)
           .eq('id', state.id)
           .eq('user_id', user.id);
       } else {
-        // Insert new (upsert by unique index)
-        const { data, error } = await supabase
+        // Try to find existing row first, then update or insert
+        let query = supabase
           .from('dm_game_state' as any)
-          .upsert(payload, {
-            onConflict: state.campaign_id
-              ? 'user_id,campaign_id'
-              : 'user_id',
-          })
           .select('id')
-          .maybeSingle();
+          .eq('user_id', user.id);
 
-        if (!error && data) {
-          setGameState(prev => ({ ...prev, id: (data as any).id }));
+        if (state.campaign_id) {
+          query = query.eq('campaign_id', state.campaign_id);
+        } else {
+          query = query.is('campaign_id', null);
+        }
+
+        const { data: existing } = await query.maybeSingle();
+
+        if (existing) {
+          // Update by id
+          await supabase
+            .from('dm_game_state' as any)
+            .update(payload)
+            .eq('id', (existing as any).id)
+            .eq('user_id', user.id);
+          setGameState(prev => ({ ...prev, id: (existing as any).id }));
+        } else {
+          // Insert new
+          const { data: inserted, error } = await supabase
+            .from('dm_game_state' as any)
+            .insert(payload)
+            .select('id')
+            .maybeSingle();
+
+          if (!error && inserted) {
+            setGameState(prev => ({ ...prev, id: (inserted as any).id }));
+          }
         }
       }
     } catch (err) {
@@ -186,14 +206,18 @@ export function useDMGameState(campaignId: string | null) {
   }, []);
 
   const scheduleSave = useCallback((state: DMGameState) => {
-    // Always persist locally immediately
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(state));
+    // Always persist locally immediately (synchronous — survives page close)
+    try {
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.warn('[DMGameState] localStorage write failed:', e);
+    }
 
-    // Debounce cloud save by 3s
+    // Debounce cloud save by 2s
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       saveToCloud(state);
-    }, 3000);
+    }, 2000);
   }, [saveToCloud]);
 
   // ── Mutators ─────────────────────────────────────────────────────────────────
@@ -316,13 +340,26 @@ export function useDMGameState(campaignId: string | null) {
     localStorage.setItem(LOCAL_KEY, JSON.stringify(fresh));
   }, []);
 
-  // Save immediately on unmount
+  // Flush localStorage on page close (synchronous, guaranteed to run)
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      try {
+        localStorage.setItem(LOCAL_KEY, JSON.stringify(stateRef.current));
+      } catch {
+        // ignore
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
+  // On unmount: cancel debounce and trigger an immediate cloud save
   useEffect(() => {
     return () => {
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
-        saveToCloud(stateRef.current);
       }
+      saveToCloud(stateRef.current);
     };
   }, [saveToCloud]);
 
