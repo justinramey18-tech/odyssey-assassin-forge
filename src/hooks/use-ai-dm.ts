@@ -21,6 +21,7 @@ const SESSION_VERSION = 1;
 interface UseAIDMOptions {
   characterContext: CharacterContext;
   customGuidesContent?: string;
+  worldStatePrompt?: string;
   onMessageComplete?: (content: string) => void;
   /** Current active guide IDs to persist with the campaign */
   activeGuideIds?: string[];
@@ -104,7 +105,7 @@ function saveSession(messages: Message[]): void {
   }
 }
 
-export function useAIDM({ characterContext, customGuidesContent, onMessageComplete, activeGuideIds, onCampaignSwitch }: UseAIDMOptions) {
+export function useAIDM({ characterContext, customGuidesContent, worldStatePrompt, onMessageComplete, activeGuideIds, onCampaignSwitch }: UseAIDMOptions) {
   const [messages, setMessages] = useState<Message[]>(() => loadSession());
   const [isLoading, setIsLoading] = useState(false);
   const [campaignSummary, setCampaignSummary] = useState<string | null>(() => loadCampaignSummary());
@@ -368,6 +369,7 @@ export function useAIDM({ characterContext, customGuidesContent, onMessageComple
           characterContext,
           customGuides: customGuidesContent || undefined,
           campaignSummary: campaignSummary || undefined,
+          worldStatePrompt: worldStatePrompt || undefined,
         }),
         signal: abortControllerRef.current.signal,
       });
