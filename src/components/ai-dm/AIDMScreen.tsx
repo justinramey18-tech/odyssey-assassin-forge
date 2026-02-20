@@ -18,6 +18,7 @@ import { CampaignSessionsManager } from './CampaignSessionsManager';
 import { WorldStatePanel } from './WorldStatePanel';
 import { useDMGameState, buildMemoryAnchorsPrompt } from '@/hooks/use-dm-game-state';
 import { useDmMemoryExtraction } from '@/hooks/use-dm-memory-extraction';
+import { WorldBuilderWizard } from './WorldBuilderWizard';
 
 import { AutoSyncBanner } from './AutoSyncBanner';
 
@@ -291,6 +292,7 @@ const NOOP_TWO_ARG = () => {};
 const NOOP_RETURN_ZERO = () => 0;
 
 export function AIDMScreen({ onBack, characterContext, userId, characterName = 'Adventurer', autoSyncCallbacks }: AIDMScreenProps) {
+  const [showWorldBuilder, setShowWorldBuilder] = useState(false);
   const [showBattleMap, setShowBattleMap] = useState(false);
   const [showWorldState, setShowWorldState] = useState(false);
   const [pendingMapAdds, setPendingMapAdds] = useState<MapMarker[]>([]);
@@ -541,7 +543,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
               activeCampaignId={activeCampaignId}
               isSignedIn={campaignSessions.isSignedIn}
               isLoading={campaignSessions.isLoading}
-              onNewGame={newGame}
+              onNewGame={() => setShowWorldBuilder(true)}
               onLoadCampaign={handleLoadCampaign}
               onRefresh={campaignSessions.refreshSessions}
             />
@@ -613,7 +615,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
             )}
           </button>
           <button
-            onClick={() => { newGame(); resetForNewCampaign(null); }}
+            onClick={() => setShowWorldBuilder(true)}
             className="px-2.5 py-1.5 rounded-lg text-xs font-cinzel text-amber-300/80 hover:bg-amber-900/30 transition-colors"
             style={{ touchAction: 'manipulation' }}
           >
@@ -996,6 +998,33 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         characterName={characterName}
         onUsePrompt={handleUsePrompt}
       />
+
+      {/* World Builder Wizard */}
+      <AnimatePresence>
+        {showWorldBuilder && (
+          <WorldBuilderWizard
+            characterName={characterContext.name || characterName}
+            characterLevel={characterContext.level || 1}
+            onComplete={async (bible, worldName) => {
+              setShowWorldBuilder(false);
+              await newGame();
+              resetForNewCampaign(null);
+              // Small delay to let newGame flush before adding guide
+              setTimeout(() => {
+                gmGuides.addGuide(`📖 ${worldName}`, bible);
+                setTimeout(() => {
+                  sendMessage('Begin the adventure. Use the Campaign World guide to open with an immersive first scene based on our world.');
+                }, 200);
+              }, 100);
+            }}
+            onSkip={() => {
+              setShowWorldBuilder(false);
+              newGame();
+              resetForNewCampaign(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
