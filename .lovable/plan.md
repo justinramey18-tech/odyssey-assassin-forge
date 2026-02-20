@@ -1,61 +1,123 @@
 
+## Automatic Memory Anchor Extraction for Solo AI DM
 
-# Fix: Party Reconnection Fails After Page Reload
+### What We're Building
 
-## Problem
-You're the host of your party, the database confirms you're still a member and creator, but the app thinks you're not in a party. This creates a deadlock:
-- The app's reconnection logic checks your cloud save for the party ID
-- Your cloud save has no party ID stored (it was never synced in time)
-- So the app concludes you're not in a party
-- But you can't create or join a new one because the database still has you as a member
-- The "Waiting for Host" screen appears because the app can't determine you're the creator
+After every AI DM response, a lightweight background AI call will scan the narrative for:
+- **NPCs** met or mentioned (name + relationship/disposition)
+- **Locations** entered or discovered
+- **Consequences** (major decisions, reputations, debts, injuries, secrets)
 
-## Root Cause
-The reconnection logic in `use-party-sync.ts` trusts the cloud save's `partyId` field as the source of truth. But cloud saves happen on a 30-second debounce, so if the party was joined/created and the page was closed before the next cloud sync, the `partyId` never gets persisted. On next load, the app has no idea you're in a party.
+These are automatically added to `dm_game_state.memory_anchors` — silently, without interrupting the conversation. The AI DM then sees these facts on the next turn, ensuring world continuity.
 
-## Solution
+---
 
-### 1. Fix reconnection fallback logic (use-party-sync.ts)
-Currently, if a cloud save ID exists but has no `partyId`, the code stops looking. Change it to **always fall back to a direct database membership query** when no party ID is found from the cloud save. This way, even if the cloud save missed the `partyId`, the app will still find the user's active party from the database.
+### How It Fits the Existing Architecture
 
-**Before (simplified):**
+The current flow is:
+```text
+User sends message
+  → useAIDM.sendMessage() streams AI response
+  → onMessageComplete(content) callback fires
+    → useDmAutoSync.extractAndApply() runs the ai-dm-extract edge function (HP, gold, items, XP)
 ```
-if (cloudSaveId exists) {
-  look up partyId from cloud save extended_data
-  if not found -> give up  // BUG: stops here!
-} else {
-  query party_members table  // only runs for guests
+
+We piggyback on the same `onMessageComplete` callback. After auto-sync extraction runs, we fire a second call to a new edge function `ai-dm-memory-extract` that extracts world facts, then calls `addMemoryAnchor()` from `useDMGameState`.
+
+---
+
+### Technical Plan
+
+#### 1. New Edge Function: `supabase/functions/ai-dm-memory-extract/index.ts`
+
+A focused, fast edge function using `google/gemini-2.5-flash-lite` (cheap + fast) with tool-calling to extract structured world facts.
+
+The tool schema returns:
+```json
+{
+  "npcs": [{ "name": "...", "relationship": "...", "notes": "..." }],
+  "locations": [{ "name": "...", "type": "...", "notes": "..." }],
+  "consequences": [{ "category": "reputation|debt|injury|secret|fact", "key": "...", "value": "..." }]
 }
 ```
 
-**After:**
+Rules injected in the system prompt:
+- Only extract **newly introduced** facts (not things already in the existing memory anchors list passed from context)
+- Skip minor/fleeting details — only persist things that could matter later
+- Never extract things that are purely flavor/atmospheric
+
+The edge function accepts:
+- `message` (the AI DM text to analyze)
+- `existingAnchors` (current memory anchor keys to deduplicate against)
+- `characterContext` (name/level for context)
+
+JWT auth required (same pattern as `ai-dm-extract`).
+
+#### 2. New Hook: `src/hooks/use-dm-memory-extraction.ts`
+
+A slim hook that:
+- Holds `isExtracting: boolean` state
+- Exposes `extractMemory(assistantMessage: string, existingAnchors: MemoryAnchor[], characterContext: CharacterContext): Promise<void>`
+- Calls the new edge function
+- For each returned NPC: calls `addMemoryAnchor({ category: 'npc', key: name, value: relationship + notes })`
+- For each returned location: calls `addMemoryAnchor({ category: 'location', key: name, value: notes })`
+- For each consequence: calls `addMemoryAnchor({ category, key, value })`
+- Silently ignores errors (fire-and-forget — never disrupts the chat)
+- Shows a subtle toast only when ≥1 anchor was actually added (e.g., "📌 2 world facts remembered")
+
+#### 3. Wire into `AIDMScreen.tsx`
+
+In the `handleMessageComplete` callback (lines 329–333), add memory extraction after auto-sync:
+
+```typescript
+const handleMessageComplete = useCallback((content: string) => {
+  if (autoSync.autoSyncEnabled && autoSyncCallbacks) {
+    autoSync.extractAndApply(content, characterContext);
+  }
+  // NEW: always run memory extraction (no toggle needed — it's passive)
+  memoryExtraction.extractMemory(content, gameState.memory_anchors, characterContext);
+}, [...]);
 ```
-if (cloudSaveId exists) {
-  look up partyId from cloud save extended_data
-}
-if still no partyId {
-  query party_members table  // ALWAYS falls back to DB
-}
-```
 
-### 2. Force immediate cloud save when party state changes (use-party-sync.ts)
-After creating or joining a party, dispatch a custom event that triggers an immediate cloud sync (bypassing the 30-second debounce). This ensures the `partyId` is written to the cloud save right away.
+Memory extraction is **always on** (no user toggle needed) — it runs silently in the background and only persists meaningful facts.
 
-### 3. Listen for force-sync event in auto-cloud-sync (use-auto-cloud-sync.ts)
-Add a listener for the `odyssey-force-cloud-sync` event that immediately triggers a cloud save, ensuring party membership is persisted without waiting for the debounce timer.
+#### 4. Deduplication Strategy
 
-## Technical Details
+The existing `addMemoryAnchor` in `use-dm-game-state.ts` already handles deduplication: if an anchor with the same `category + key` exists, it updates the value instead of creating a duplicate. The edge function also receives `existingAnchors` so the AI can skip re-extracting already-known facts.
 
-### File: `src/hooks/use-party-sync.ts`
-- **Lines 369-397**: Remove the `else` branch that gates the DB fallback behind "no cloud save ID". Instead, always query `party_members` when no `targetPartyId` is found from the cloud save.
-- **In `createParty` and `joinParty` functions**: After successfully setting party state, dispatch `window.dispatchEvent(new CustomEvent('odyssey-force-cloud-sync'))` to trigger immediate persistence.
+---
 
-### File: `src/hooks/use-auto-cloud-sync.ts`
-- Add an event listener for `odyssey-force-cloud-sync` that calls `saveToCloudNow()` immediately.
+### Files Created
 
-## Testing
-1. Sign in, create a party, then reload the page -- should reconnect automatically
-2. Sign in, join a party via code, reload -- should reconnect
-3. Verify the creator still sees creator controls (not "Waiting for Host")
-4. Verify you can still create/join if genuinely not in a party
+- `supabase/functions/ai-dm-memory-extract/index.ts` — New edge function
+
+- `src/hooks/use-dm-memory-extraction.ts` — New hook
+
+### Files Modified
+
+- `src/components/ai-dm/AIDMScreen.tsx`
+  - Import `useDmMemoryExtraction`
+  - Instantiate the hook (passing `addMemoryAnchor` from `useDMGameState`)
+  - Call `extractMemory()` inside `handleMessageComplete`
+
+---
+
+### What It Does NOT Do
+
+- It does **not** replace the existing auto-sync (HP/gold/XP extraction stays separate)
+- It does **not** show a UI toggle — memory extraction is always passive
+- It does **not** block or slow down the chat — it fires after the response is complete, in the background
+- It does **not** overwrite manually added anchors — the deduplication logic in `addMemoryAnchor` only updates the `value` field if the key matches
+
+---
+
+### User Experience
+
+1. Player chats with the AI DM: *"I approach the mysterious merchant."*
+2. AI DM responds with narrative introducing "Zara the Silk Merchant" who is wary of outsiders.
+3. In the background (0.5–2s after response), memory extraction runs.
+4. A subtle toast appears: *"📌 1 world fact remembered"*
+5. The World State panel (Globe icon) now shows Zara under NPCs.
+6. On the next message, the AI DM's system prompt includes: *"NPCs: Zara the Silk Merchant — Wary of outsiders, met at the bazaar"*
+7. Even if the user starts a new chat session later, Zara is still remembered.
 
