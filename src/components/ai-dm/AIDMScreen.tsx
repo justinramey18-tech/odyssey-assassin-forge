@@ -17,6 +17,7 @@ import { GMGuidesManager } from './GMGuidesManager';
 import { CampaignSessionsManager } from './CampaignSessionsManager';
 import { WorldStatePanel } from './WorldStatePanel';
 import { useDMGameState, buildMemoryAnchorsPrompt } from '@/hooks/use-dm-game-state';
+import { useDmMemoryExtraction } from '@/hooks/use-dm-memory-extraction';
 
 import { AutoSyncBanner } from './AutoSyncBanner';
 
@@ -326,10 +327,16 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     getGridSize: useCallback(() => battleMapGridSizeRef.current as any, []),
   });
 
+  // Refs for memory extraction — lets handleMessageComplete (defined before hooks) access late-initialized values
+  const extractMemoryRef = useRef<((msg: string, anchors: any[], ctx: any) => void) | null>(null);
+  const memoryAnchorsRef = useRef<any[]>([]);
+
   const handleMessageComplete = useCallback((content: string) => {
     if (autoSync.autoSyncEnabled && autoSyncCallbacks) {
       autoSync.extractAndApply(content, characterContext);
     }
+    // Always run memory extraction in the background via ref — avoids hook ordering issues
+    extractMemoryRef.current?.(content, memoryAnchorsRef.current, characterContext);
   }, [autoSync.autoSyncEnabled, autoSyncCallbacks, autoSync.extractAndApply, characterContext]);
 
   const handleCampaignSwitch = useCallback((guideIds: string[] | null) => {
@@ -355,6 +362,13 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     updateGold,
     resetForNewCampaign,
   } = useDMGameState(gameStateCampaignId);
+
+  // Memory extraction hook — silently extracts NPCs, locations, consequences from DM responses
+  const { extractMemory } = useDmMemoryExtraction({ addMemoryAnchor });
+
+  // Keep refs in sync so handleMessageComplete always has fresh values
+  useEffect(() => { extractMemoryRef.current = extractMemory; }, [extractMemory]);
+  useEffect(() => { memoryAnchorsRef.current = gameState.memory_anchors; }, [gameState.memory_anchors]);
 
   // Build world state prompt to inject into AI system prompt
   const worldStatePrompt = useMemo(() => buildMemoryAnchorsPrompt(gameState), [gameState]);
