@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Zap, Map, Film, Image as ImageIcon, Copy, Check, Pencil, RefreshCw, X, MoreVertical } from 'lucide-react';
+import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Zap, Map, Film, Image as ImageIcon, Copy, Check, Pencil, RefreshCw, X, MoreVertical, Globe } from 'lucide-react';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
@@ -15,6 +15,8 @@ import { DMQuickActions } from './DMQuickActions';
 import { DMDiceRoller } from './DMDiceRoller';
 import { GMGuidesManager } from './GMGuidesManager';
 import { CampaignSessionsManager } from './CampaignSessionsManager';
+import { WorldStatePanel } from './WorldStatePanel';
+import { useDMGameState, buildMemoryAnchorsPrompt } from '@/hooks/use-dm-game-state';
 
 import { AutoSyncBanner } from './AutoSyncBanner';
 
@@ -23,6 +25,7 @@ import { InlineBattleMap } from './InlineBattleMap';
 import ReactMarkdown from 'react-markdown';
 
 import type { MapMarker } from '@/components/party/battlemap/types';
+
 
 interface AIDMScreenProps {
   onBack: () => void;
@@ -288,6 +291,7 @@ const NOOP_RETURN_ZERO = () => 0;
 
 export function AIDMScreen({ onBack, characterContext, userId, characterName = 'Adventurer', autoSyncCallbacks }: AIDMScreenProps) {
   const [showBattleMap, setShowBattleMap] = useState(false);
+  const [showWorldState, setShowWorldState] = useState(false);
   const [pendingMapAdds, setPendingMapAdds] = useState<MapMarker[]>([]);
   const [pendingMapRemovals, setPendingMapRemovals] = useState<string[]>([]);
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
@@ -332,14 +336,52 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     gmGuides.setActiveGuideIds(guideIds);
   }, [gmGuides.setActiveGuideIds]);
 
+  // Campaign sessions (needed before useAIDM to get activeCampaignId dependency)
+  const campaignSessions = useCampaignSessions();
+
+  // Temporary activeCampaignId state placeholder — will be replaced below after useAIDM
+  // We need activeCampaignId before the hook to initialize game state.
+  // Solution: track it in a ref that game state can read once AIDM sets it.
+  const activeCampaignIdForGameState = useRef<string | null>(null);
+  const [gameStateCampaignId, setGameStateCampaignId] = useState<string | null>(null);
+
+  // Game state hook — persists HP, gold, quests, memory anchors per campaign
+  const {
+    gameState,
+    addMemoryAnchor,
+    removeMemoryAnchor,
+    setQuestFlag,
+    updateVitals,
+    updateGold,
+    resetForNewCampaign,
+  } = useDMGameState(gameStateCampaignId);
+
+  // Build world state prompt to inject into AI system prompt
+  const worldStatePrompt = useMemo(() => buildMemoryAnchorsPrompt(gameState), [gameState]);
+
   const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, loadCampaign, sendMessage, addMediaMessage, cancelRequest, clearMessages, newGame, activeCampaignId, setActiveCampaignId, lastCloudSyncTime, isCloudSyncing, saveToCloudNow, editMessage, deleteMessage, regenerateMessage } = useAIDM({
     characterContext,
     customGuidesContent: gmGuides.enabledContent,
+    worldStatePrompt,
     onMessageComplete: handleMessageComplete,
     activeGuideIds: gmGuides.activeGuideIds,
     onCampaignSwitch: handleCampaignSwitch,
   });
-  const campaignSessions = useCampaignSessions();
+
+  // Keep game state in sync with activeCampaignId changes
+  useEffect(() => {
+    if (activeCampaignId !== gameStateCampaignId) {
+      setGameStateCampaignId(activeCampaignId);
+    }
+  }, [activeCampaignId, gameStateCampaignId]);
+
+  // Sync character vitals into game state whenever they change
+  useEffect(() => {
+    if (characterContext.currentHP !== gameState.current_hp || characterContext.maxHP !== gameState.max_hp) {
+      updateVitals(characterContext.currentHP, characterContext.maxHP);
+    }
+  }, [characterContext.currentHP, characterContext.maxHP]);
+
 
   const handleCampaignSummaryChange = useCallback((summary: string) => {
     updateCampaignSummary(summary);
@@ -539,7 +581,25 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
             )}
           </button>
           <button
-            onClick={() => { newGame(); }}
+            onClick={() => setShowWorldState(prev => !prev)}
+            className={cn(
+              "px-2.5 py-1.5 rounded-lg text-xs font-cinzel transition-colors relative",
+              showWorldState ? "text-amber-300 bg-amber-900/30" : "text-white/50 hover:bg-white/10",
+              gameState.memory_anchors.length > 0 && "text-amber-200/80"
+            )}
+            style={{ touchAction: 'manipulation' }}
+            title="World State — persistent memory anchors, quests, inventory"
+          >
+            <Globe className="w-3.5 h-3.5 inline mr-1" />
+            World
+            {gameState.memory_anchors.length > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-purple-600 text-[8px] flex items-center justify-center text-white">
+                {gameState.memory_anchors.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => { newGame(); resetForNewCampaign(null); }}
             className="px-2.5 py-1.5 rounded-lg text-xs font-cinzel text-amber-300/80 hover:bg-amber-900/30 transition-colors"
             style={{ touchAction: 'manipulation' }}
           >
@@ -636,7 +696,9 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         )}
       </AnimatePresence>
 
-      {/* Messages OR Inline Battle Map */}
+      {/* Messages / Battle Map + World State Panel side-by-side */}
+      <div className="flex-1 min-h-0 relative flex overflow-hidden">
+        <div className={cn("flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-200", showWorldState ? "mr-80" : "")}>
       {showBattleMap ? (
         <InlineBattleMap
           characterName={characterName}
@@ -653,6 +715,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
             ref={scrollRef}
             className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain pb-[100px]"
           >
+
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center px-6">
                 <Crown className="w-12 h-12 text-amber-500/60 mb-4" />
@@ -716,8 +779,22 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           </AnimatePresence>
         </>
       )}
+        </div>{/* end inner flex column */}
 
-      {/* Input Area */}
+        {/* World State Panel */}
+        <AnimatePresence>
+          {showWorldState && (
+            <WorldStatePanel
+              gameState={gameState}
+              onAddAnchor={addMemoryAnchor}
+              onRemoveAnchor={removeMemoryAnchor}
+              onSetQuestFlag={setQuestFlag}
+              onClose={() => setShowWorldState(false)}
+            />
+          )}
+        </AnimatePresence>
+      </div>{/* end flex-1 relative flex */}
+
       <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm mb-[48px]">
         <input
           ref={videoInputRef}

@@ -373,6 +373,59 @@ export type Database = {
         }
         Relationships: []
       }
+      dm_game_state: {
+        Row: {
+          campaign_id: string | null
+          created_at: string
+          current_hp: number
+          gold: number
+          id: string
+          inventory: Json
+          max_hp: number
+          memory_anchors: Json
+          quest_flags: Json
+          session_turn: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          created_at?: string
+          current_hp?: number
+          gold?: number
+          id?: string
+          inventory?: Json
+          max_hp?: number
+          memory_anchors?: Json
+          quest_flags?: Json
+          session_turn?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          campaign_id?: string | null
+          created_at?: string
+          current_hp?: number
+          gold?: number
+          id?: string
+          inventory?: Json
+          max_hp?: number
+          memory_anchors?: Json
+          quest_flags?: Json
+          session_turn?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dm_game_state_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "ai_dm_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gm_guide_presets: {
         Row: {
           created_at: string
