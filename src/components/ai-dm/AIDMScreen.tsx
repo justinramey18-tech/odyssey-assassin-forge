@@ -35,6 +35,9 @@ interface AIDMScreenProps {
   characterContext: CharacterContext;
   userId?: string;
   characterName?: string;
+  dmPersonaPrompt?: string;
+  dmPersonaName?: string;
+  onRetakePersonalityTest?: () => Promise<void>;
   autoSyncCallbacks?: {
     onHPChange: (change: number, type: 'damage' | 'healing') => void;
     onAddXP: (amount: number, source: string) => void;
@@ -292,7 +295,7 @@ const NOOP = () => {};
 const NOOP_TWO_ARG = () => {};
 const NOOP_RETURN_ZERO = () => 0;
 
-export function AIDMScreen({ onBack, characterContext, userId, characterName = 'Adventurer', autoSyncCallbacks }: AIDMScreenProps) {
+export function AIDMScreen({ onBack, characterContext, userId, characterName = 'Adventurer', autoSyncCallbacks, dmPersonaPrompt, dmPersonaName, onRetakePersonalityTest }: AIDMScreenProps) {
   const [showToolsDrawer, setShowToolsDrawer] = useState(false);
   const [showWorldBuilder, setShowWorldBuilder] = useState(false);
   const [showBattleMap, setShowBattleMap] = useState(false);
@@ -381,6 +384,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     characterContext,
     customGuidesContent: gmGuides.enabledContent,
     worldStatePrompt,
+    dmPersonaPrompt,
     onMessageComplete: handleMessageComplete,
     activeGuideIds: gmGuides.activeGuideIds,
     onCampaignSwitch: handleCampaignSwitch,
@@ -898,6 +902,8 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         showAutoSync={!!autoSyncCallbacks}
         guidesCount={gmGuides.guides.filter(g => g.enabled).length}
         anchorsCount={gameState.memory_anchors.length}
+        onRetakePersonalityTest={onRetakePersonalityTest}
+        dmPersonaName={dmPersonaName}
       />
 
       {/* GM Guides Overlay */}

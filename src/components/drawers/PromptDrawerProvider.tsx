@@ -12,6 +12,9 @@ import { OracleDrawer } from '@/components/oracle';
 import { ConditionDrawer } from '@/components/conditions';
 import { AIDMScreen } from '@/components/ai-dm';
 import { StandalonePartyDMScreen } from '@/components/ai-dm/StandalonePartyDMScreen';
+import { PersonalityTestWizard } from '@/components/ai-dm/PersonalityTestWizard';
+import { PersonalityResultsScreen } from '@/components/ai-dm/PersonalityResultsScreen';
+import { usePersonalityGate } from '@/hooks/use-personality-gate';
 import { Character } from '@/lib/types';
 import { XPPreset } from '@/lib/xpSystem';
 import { CharacterEquipment } from '@/lib/inventory/types';
@@ -216,6 +219,9 @@ export function PromptDrawerProvider({
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [aiDMOpen, setAiDMOpen] = useState(false);
   const [partyDMOpen, setPartyDMOpen] = useState(false);
+
+  // Personality gate for Solo DM
+  const personalityGate = usePersonalityGate({ userId });
   
   const [oraclePersonality, setOraclePersonality] = useState<Personality>('deadpool');
   
@@ -490,7 +496,10 @@ export function PromptDrawerProvider({
       setConditionsOpen(false);
       setQuickActionsOpen(true);
     }, []),
-    openAIDMScreen: useCallback(() => { closeAllDrawers(); setAiDMOpen(true); }, [closeAllDrawers]),
+    openAIDMScreen: useCallback(() => {
+      if (!personalityGate.attemptOpenDM()) return; // Gate: show test if not completed
+      closeAllDrawers(); setAiDMOpen(true);
+    }, [closeAllDrawers, personalityGate]),
     openPartyDMScreen: useCallback(() => { closeAllDrawers(); setPartyDMOpen(true); }, [closeAllDrawers]),
     closeAllDrawers,
     // Cooldown system exposure
@@ -680,6 +689,31 @@ export function PromptDrawerProvider({
               userId={userId}
               characterName={character.name}
               autoSyncCallbacks={autoSyncCallbacks}
+              dmPersonaPrompt={personalityGate.profile?.dmSystemPrompt}
+              dmPersonaName={personalityGate.profile?.dmPersonaName}
+              onRetakePersonalityTest={personalityGate.retakeTest}
+            />
+          )}
+
+          {/* Personality Test Wizard */}
+          {personalityGate.showWizard && userId && (
+            <PersonalityTestWizard
+              userId={userId}
+              initialProgress={personalityGate.progress}
+              onComplete={personalityGate.handleTestComplete}
+              onClose={() => personalityGate.setShowWizard(false)}
+            />
+          )}
+
+          {/* Personality Results Screen */}
+          {personalityGate.showResults && personalityGate.pendingPersona && (
+            <PersonalityResultsScreen
+              persona={personalityGate.pendingPersona}
+              onBegin={() => {
+                personalityGate.handleBeginAdventure();
+                closeAllDrawers();
+                setAiDMOpen(true);
+              }}
             />
           )}
 

@@ -109,6 +109,7 @@ interface DMRequest {
   customGuides?: string;
   campaignSummary?: string;
   worldStatePrompt?: string;
+  dmPersonaPrompt?: string;
 }
 
 const MAX_CUSTOM_GUIDES_CHARS = 200000;
@@ -243,7 +244,7 @@ function buildContextSummary(ctx: CharacterContext): string {
   return lines.join('\n');
 }
 
-function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string): string {
+function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string): string {
   const contextSummary = buildContextSummary(ctx);
   
   let prompt = `You are an expert Dungeon Master running a live D&D 5e session for a single player. You are immersive, adaptive, and mechanically precise.
@@ -294,6 +295,11 @@ ${contextSummary}
 - Be fair but not adversarial — create challenge, not frustration
 - Celebrate creative solutions even if they bypass your planned encounters`;
 
+  // Inject the DM's adopted personality (from personality test)
+  if (dmPersonaPrompt && dmPersonaPrompt.trim()) {
+    prompt += `\n\n${dmPersonaPrompt}`;
+  }
+
   // Inject persistent world state (memory anchors, quests, inventory) — this persists even when chat history slides
   if (worldStatePrompt && worldStatePrompt.trim()) {
     prompt += `\n\n${worldStatePrompt}`;
@@ -338,7 +344,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt } = (await req.json()) as DMRequest;
+    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt } = (await req.json()) as DMRequest;
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -350,7 +356,7 @@ serve(async (req) => {
       ? [...messages.slice(0, 2), ...messages.slice(-(MAX_MESSAGES - 2))]
       : messages;
 
-    const systemPrompt = buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt);
+    const systemPrompt = buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

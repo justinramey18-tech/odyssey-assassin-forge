@@ -981,6 +981,69 @@ export type Database = {
           },
         ]
       }
+      personality_profiles: {
+        Row: {
+          archetype_description: string
+          created_at: string
+          dm_persona_description: string
+          dm_persona_name: string
+          dm_system_prompt: string
+          id: string
+          player_archetype: string
+          questions_answered: number
+          test_version: string
+          user_id: string
+        }
+        Insert: {
+          archetype_description: string
+          created_at?: string
+          dm_persona_description: string
+          dm_persona_name: string
+          dm_system_prompt: string
+          id?: string
+          player_archetype: string
+          questions_answered: number
+          test_version?: string
+          user_id: string
+        }
+        Update: {
+          archetype_description?: string
+          created_at?: string
+          dm_persona_description?: string
+          dm_persona_name?: string
+          dm_system_prompt?: string
+          id?: string
+          player_archetype?: string
+          questions_answered?: number
+          test_version?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      personality_test_progress: {
+        Row: {
+          answers: Json
+          current_question: number
+          started_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          answers?: Json
+          current_question?: number
+          started_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          answers?: Json
+          current_question?: number
+          started_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string

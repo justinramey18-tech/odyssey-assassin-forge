@@ -1,8 +1,18 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { RotateCcw, Map, FolderOpen, BookOpen, Globe, Zap, Trash2 } from 'lucide-react';
+import { RotateCcw, Map, FolderOpen, BookOpen, Globe, Zap, Trash2, Brain } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface DMToolsDrawerProps {
   open: boolean;
@@ -19,6 +29,8 @@ interface DMToolsDrawerProps {
   showAutoSync: boolean;
   guidesCount: number;
   anchorsCount: number;
+  onRetakePersonalityTest?: () => Promise<void>;
+  dmPersonaName?: string;
 }
 
 export function DMToolsDrawer({
@@ -36,10 +48,13 @@ export function DMToolsDrawer({
   showAutoSync,
   guidesCount,
   anchorsCount,
+  onRetakePersonalityTest,
+  dmPersonaName,
 }: DMToolsDrawerProps) {
+  const [showRetakeConfirm, setShowRetakeConfirm] = useState(false);
+
   const closeAndRun = useCallback((fn: () => void) => {
     onOpenChange(false);
-    // Small delay so sheet animates closed before overlay opens
     setTimeout(fn, 150);
   }, [onOpenChange]);
 
@@ -124,6 +139,31 @@ export function DMToolsDrawer({
           {/* Divider */}
           <div className="mx-4 my-2 border-t border-amber-900/20" />
 
+          {/* DM Persona / Retake Test */}
+          {onRetakePersonalityTest && (
+            <>
+              {dmPersonaName && (
+                <div className="px-4 py-2">
+                  <span className="text-[10px] text-white/30 uppercase tracking-wider font-cinzel">
+                    DM Persona
+                  </span>
+                  <p className="text-xs text-purple-300/80 font-cinzel mt-0.5">
+                    {dmPersonaName}
+                  </p>
+                </div>
+              )}
+              <ToolRow
+                icon={<Brain className="w-4 h-4" />}
+                label="Retake Personality Test"
+                onClick={() => {
+                  onOpenChange(false);
+                  setShowRetakeConfirm(true);
+                }}
+              />
+              <div className="mx-4 my-2 border-t border-amber-900/20" />
+            </>
+          )}
+
           {/* Clear Chat */}
           <ToolRow
             icon={<Trash2 className="w-4 h-4" />}
@@ -136,6 +176,27 @@ export function DMToolsDrawer({
           />
         </div>
       </SheetContent>
+
+      {/* Retake confirmation dialog */}
+      <AlertDialog open={showRetakeConfirm} onOpenChange={setShowRetakeConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Retake Personality Test?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will change your DM's personality for all future sessions. Your current DM persona will be replaced with a new one based on your updated answers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              setShowRetakeConfirm(false);
+              onRetakePersonalityTest?.();
+            }}>
+              Retake Test
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 }
