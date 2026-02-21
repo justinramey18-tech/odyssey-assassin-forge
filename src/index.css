@@ -436,10 +436,19 @@
    Ensure all Radix portals (Sheet, Dialog, etc.) render
    above the AI DM z-[60] overlay — the root cause of
    "invisible" new components in the DM screens.
+   Force the portal itself to create a stacking context
+   above z-60, and bump internal fixed elements too.
    ═══════════════════════════════════════════════════ */
 [data-radix-portal] {
-  z-index: 70 !important;
-  position: relative;
+  z-index: 9990 !important;
+  position: fixed !important;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Let actual overlay and content receive pointer events */
+[data-radix-portal] > * {
+  pointer-events: auto;
 }
 
 /* ═══════════════════════════════════════════════════
