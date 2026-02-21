@@ -433,6 +433,16 @@
 }
 
 /* ═══════════════════════════════════════════════════
+   Ensure all Radix portals (Sheet, Dialog, etc.) render
+   above the AI DM z-[60] overlay — the root cause of
+   "invisible" new components in the DM screens.
+   ═══════════════════════════════════════════════════ */
+[data-radix-portal] {
+  z-index: 70 !important;
+  position: relative;
+}
+
+/* ═══════════════════════════════════════════════════
    Low-end device & reduced-motion safeguards
    Galaxy A14 5G and similar budget Android devices
    ═══════════════════════════════════════════════════ */
