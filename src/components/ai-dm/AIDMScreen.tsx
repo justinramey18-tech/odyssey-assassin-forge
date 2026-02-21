@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Zap, Map, Film, Image as ImageIcon, Copy, Check, Pencil, RefreshCw, X, MoreVertical, Globe } from 'lucide-react';
+import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Zap, Map, Film, Image as ImageIcon, Copy, Check, Pencil, RefreshCw, X, MoreVertical, Globe, Settings } from 'lucide-react';
+import { DMToolsDrawer } from './DMToolsDrawer';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
@@ -292,6 +293,7 @@ const NOOP_TWO_ARG = () => {};
 const NOOP_RETURN_ZERO = () => 0;
 
 export function AIDMScreen({ onBack, characterContext, userId, characterName = 'Adventurer', autoSyncCallbacks }: AIDMScreenProps) {
+  const [showToolsDrawer, setShowToolsDrawer] = useState(false);
   const [showWorldBuilder, setShowWorldBuilder] = useState(false);
   const [showBattleMap, setShowBattleMap] = useState(false);
   const [showWorldState, setShowWorldState] = useState(false);
@@ -549,87 +551,14 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
             />
           </div>
         </div>
-        <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide flex-shrink min-w-0">
-          {autoSyncCallbacks && (
-            <button
-              onClick={() => autoSync.toggleAutoSync(!autoSync.autoSyncEnabled)}
-              className={cn(
-                "px-2.5 py-1.5 rounded-lg text-xs font-cinzel transition-colors",
-                autoSync.autoSyncEnabled ? "text-amber-300 bg-amber-900/30" : "text-white/50 hover:bg-white/10"
-              )}
-              style={{ touchAction: 'manipulation' }}
-              title={autoSync.autoSyncEnabled ? 'Auto-Sync enabled' : 'Enable Auto-Sync'}
-            >
-              <Zap className={cn("w-3.5 h-3.5 inline mr-1", autoSync.isExtracting && "animate-pulse")} />
-              Sync
-            </button>
-          )}
-          <button
-            onClick={() => setShowBattleMap(true)}
-            className="px-2.5 py-1.5 rounded-lg text-xs font-cinzel text-white/50 hover:bg-white/10 transition-colors"
-            style={{ touchAction: 'manipulation' }}
-          >
-            <Map className="w-3.5 h-3.5 inline mr-1" />
-            Map
-          </button>
-          <button
-            onClick={() => setShowSessions(true)}
-            className="px-2.5 py-1.5 rounded-lg text-xs font-cinzel text-white/50 hover:bg-white/10 transition-colors"
-            style={{ touchAction: 'manipulation' }}
-          >
-            <FolderOpen className="w-3.5 h-3.5 inline mr-1" />
-            Saves
-          </button>
-          <button
-            onClick={() => setShowGuides(true)}
-            className={cn(
-              "px-2.5 py-1.5 rounded-lg text-xs font-cinzel transition-colors relative",
-              gmGuides.guides.some(g => g.enabled) ? "text-amber-300/80 hover:bg-amber-900/30" : "text-white/50 hover:bg-white/10"
-            )}
-            style={{ touchAction: 'manipulation' }}
-          >
-            <BookOpen className="w-3.5 h-3.5 inline mr-1" />
-            Guides
-            {gmGuides.guides.filter(g => g.enabled).length > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-amber-600 text-[8px] flex items-center justify-center text-white">
-                {gmGuides.guides.filter(g => g.enabled).length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setShowWorldState(prev => !prev)}
-            className={cn(
-              "px-2.5 py-1.5 rounded-lg text-xs font-cinzel transition-colors relative",
-              showWorldState ? "text-amber-300 bg-amber-900/30" : "text-white/50 hover:bg-white/10",
-              gameState.memory_anchors.length > 0 && "text-amber-200/80"
-            )}
-            style={{ touchAction: 'manipulation' }}
-            title="World State — persistent memory anchors, quests, inventory"
-          >
-            <Globe className="w-3.5 h-3.5 inline mr-1" />
-            World
-            {gameState.memory_anchors.length > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-purple-600 text-[8px] flex items-center justify-center text-white">
-                {gameState.memory_anchors.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setShowWorldBuilder(true)}
-            className="px-2.5 py-1.5 rounded-lg text-xs font-cinzel text-amber-300/80 hover:bg-amber-900/30 transition-colors"
-            style={{ touchAction: 'manipulation' }}
-          >
-            <RotateCcw className="w-3.5 h-3.5 inline mr-1" />
-            New
-          </button>
-          <button
-            onClick={clearMessages}
-            className="px-2.5 py-1.5 rounded-lg text-xs text-white/50 hover:bg-white/10 transition-colors"
-            style={{ touchAction: 'manipulation' }}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        <button
+          onClick={() => setShowToolsDrawer(true)}
+          className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+          style={{ touchAction: 'manipulation' }}
+          title="Tools"
+        >
+          <Settings className="w-5 h-5 text-amber-400/80" />
+        </button>
       </header>
 
       {/* Context Banner */}
@@ -951,6 +880,24 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
             disabled={isLoading}
           />
         ) : undefined}
+      />
+
+      {/* Tools Drawer */}
+      <DMToolsDrawer
+        open={showToolsDrawer}
+        onOpenChange={setShowToolsDrawer}
+        onNewCampaign={() => setShowWorldBuilder(true)}
+        onBattleMap={() => setShowBattleMap(true)}
+        onSaves={() => setShowSessions(true)}
+        onGuides={() => setShowGuides(true)}
+        onWorldState={() => setShowWorldState(prev => !prev)}
+        onClearChat={clearMessages}
+        autoSyncEnabled={autoSync.autoSyncEnabled}
+        onToggleAutoSync={(enabled) => autoSync.toggleAutoSync(enabled)}
+        isExtracting={autoSync.isExtracting}
+        showAutoSync={!!autoSyncCallbacks}
+        guidesCount={gmGuides.guides.filter(g => g.enabled).length}
+        anchorsCount={gameState.memory_anchors.length}
       />
 
       {/* GM Guides Overlay */}
