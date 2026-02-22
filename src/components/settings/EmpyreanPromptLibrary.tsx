@@ -1,12 +1,13 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
-import { Copy, Check, Star, Shuffle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState, useMemo, useCallback } from 'react';
+import { Copy, Check, Star, Shuffle, Gem } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { EdgeDrawer } from '@/components/drawers/EdgeDrawer';
-import { empyreanPrompts, empyreanPromptCategories, type EmpyreanPromptCategory } from '@/lib/empyreanPrompts';
+import { empyreanPrompts, type EmpyreanPromptCategory } from '@/lib/empyreanPrompts';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
 
 const FAVORITES_KEY = 'empyrean-favorite-prompts';
@@ -32,24 +33,46 @@ function saveFavorites(ids: Set<string>) {
   } catch {}
 }
 
-type FilterMode = 'all' | 'favorites' | EmpyreanPromptCategory;
+interface StoneMapping {
+  category: EmpyreanPromptCategory;
+  stone: string;
+  color: string;
+  bgColor: string;
+  borderColor: string;
+  icon: string;
+}
+
+const STONE_MAP: StoneMapping[] = [
+  { category: 'Dragon Bond', stone: 'Soul Stone', color: 'text-orange-400', bgColor: 'bg-orange-500/10', borderColor: 'border-orange-500/30', icon: '🟠' },
+  { category: 'Signet Abilities', stone: 'Mind Stone', color: 'text-yellow-400', bgColor: 'bg-yellow-500/10', borderColor: 'border-yellow-500/30', icon: '🟡' },
+  { category: 'Basgiath War College', stone: 'Power Stone', color: 'text-purple-400', bgColor: 'bg-purple-500/10', borderColor: 'border-purple-500/30', icon: '🟣' },
+  { category: 'Venin and Dark Forces', stone: 'Reality Stone', color: 'text-red-400', bgColor: 'bg-red-500/10', borderColor: 'border-red-500/30', icon: '🔴' },
+  { category: 'Relationships and Politics', stone: 'Space Stone', color: 'text-blue-400', bgColor: 'bg-blue-500/10', borderColor: 'border-blue-500/30', icon: '🔵' },
+  { category: 'Combat and Survival', stone: 'Masterwork Stone', color: 'text-gray-300', bgColor: 'bg-white/5', borderColor: 'border-white/20', icon: '⚪' },
+  { category: 'Meta and Narrative', stone: 'Time Stone', color: 'text-green-400', bgColor: 'bg-green-500/10', borderColor: 'border-green-500/30', icon: '🟢' },
+];
+
+type FilterMode = 'all' | 'favorites';
 
 export function EmpyreanPromptLibrary({ open, onOpenChange, characterName }: EmpyreanPromptLibraryProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<Set<string>>(loadFavorites);
   const [activeFilter, setActiveFilter] = useState<FilterMode>('all');
 
-  const filters: { id: FilterMode; label: string }[] = useMemo(() => [
-    { id: 'all', label: 'All' },
-    { id: 'favorites', label: `★ ${favorites.size}` },
-    ...empyreanPromptCategories.map(c => ({ id: c as FilterMode, label: c })),
-  ], [favorites.size]);
-
   const filteredPrompts = useMemo(() => {
-    if (activeFilter === 'all') return empyreanPrompts;
     if (activeFilter === 'favorites') return empyreanPrompts.filter(p => favorites.has(p.id));
-    return empyreanPrompts.filter(p => p.category === activeFilter);
+    return empyreanPrompts;
   }, [activeFilter, favorites]);
+
+  const promptsByCategory = useMemo(() => {
+    const map = new Map<EmpyreanPromptCategory, typeof empyreanPrompts>();
+    for (const p of filteredPrompts) {
+      const list = map.get(p.category as EmpyreanPromptCategory) || [];
+      list.push(p);
+      map.set(p.category as EmpyreanPromptCategory, list);
+    }
+    return map;
+  }, [filteredPrompts]);
 
   const toggleFavorite = useCallback((id: string) => {
     setFavorites(prev => {
@@ -82,117 +105,124 @@ export function EmpyreanPromptLibrary({ open, onOpenChange, characterName }: Emp
     toast.success(`🎲 "${pick.title}" copied!`);
   }, [filteredPrompts, copyPrompt]);
 
-  // Swipe state for filter tabs
-  const scrollRef = useRef<HTMLDivElement>(null);
-
   return (
     <EdgeDrawer
       side="right"
       open={open}
       onOpenChange={onOpenChange}
       title="Empyrean Prompts"
-      icon={<span className="text-lg">🐉</span>}
+      icon={<Gem className="w-5 h-5" />}
       accentColor="#f59e0b"
     >
       <ScrollArea className="h-[calc(100vh-120px)]">
         <div className="space-y-3 pr-2">
-          {/* Filter tabs — horizontally scrollable */}
-          <div
-            ref={scrollRef}
-            className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide"
-            style={{ scrollbarWidth: 'none' }}
-          >
-            {filters.map(f => (
-              <button
-                key={f.id}
-                onClick={() => setActiveFilter(f.id)}
-                className={cn(
-                  'shrink-0 px-2.5 py-1.5 rounded-full text-[11px] font-medium border transition-all',
-                  activeFilter === f.id
-                    ? 'bg-amber-500/20 border-amber-500/50 text-amber-400 scale-105'
-                    : 'border-border/50 text-muted-foreground hover:text-foreground opacity-70 hover:opacity-100',
-                )}
-              >
-                {f.label}
-              </button>
-            ))}
+          {/* Filter toggles */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setActiveFilter('all')}
+              className={cn(
+                'flex-1 px-3 py-2 rounded-lg text-xs font-medium border transition-all min-h-[44px]',
+                activeFilter === 'all'
+                  ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
+                  : 'border-border/50 text-muted-foreground hover:text-foreground',
+              )}
+            >
+              All ({empyreanPrompts.length})
+            </button>
+            <button
+              onClick={() => setActiveFilter('favorites')}
+              className={cn(
+                'flex-1 px-3 py-2 rounded-lg text-xs font-medium border transition-all min-h-[44px]',
+                activeFilter === 'favorites'
+                  ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400'
+                  : 'border-border/50 text-muted-foreground hover:text-foreground',
+              )}
+            >
+              ★ Favorites ({favorites.size})
+            </button>
           </div>
 
           {/* Random button */}
           <Button
             onClick={randomPrompt}
             size="sm"
-            className="w-full gap-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white border-0"
+            className="w-full gap-2 h-11 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white border-0"
           >
             <Shuffle className="w-4 h-4" />
             Random Prompt
           </Button>
 
-          {/* Count */}
-          <p className="text-[10px] text-muted-foreground">
-            {filteredPrompts.length} prompt{filteredPrompts.length !== 1 ? 's' : ''}
-            {activeFilter !== 'all' && activeFilter !== 'favorites' && (
-              <> in <span className="text-foreground/70">{activeFilter}</span></>
-            )}
-          </p>
-
-          {/* Prompt cards */}
-          <div className="space-y-2">
-            {filteredPrompts.map(p => {
-              const isCopied = copiedId === p.id;
-              const isFav = favorites.has(p.id);
+          {/* Stone accordion */}
+          <Accordion type="multiple" className="space-y-2">
+            {STONE_MAP.map(stone => {
+              const prompts = promptsByCategory.get(stone.category) || [];
+              if (prompts.length === 0 && activeFilter === 'favorites') return null;
 
               return (
-                <div
-                  key={p.id}
-                  className="rounded-lg border border-border/40 bg-card/30 p-3 space-y-2"
+                <AccordionItem
+                  key={stone.category}
+                  value={stone.category}
+                  className={cn('rounded-lg border', stone.borderColor, stone.bgColor)}
                 >
-                  <div className="flex items-start gap-2">
-                    <span className="text-base shrink-0 mt-0.5">{p.icon}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium leading-tight">{p.title}</p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
-                        {p.description}
-                      </p>
+                  <AccordionTrigger className="px-3 py-3 hover:no-underline">
+                    <div className="flex items-center gap-2 flex-1">
+                      <span className="text-lg">{stone.icon}</span>
+                      <span className={cn('text-sm font-cinzel font-bold', stone.color)}>
+                        {stone.stone}
+                      </span>
+                      <Badge variant="outline" className={cn('text-[10px] h-5 ml-auto mr-2', stone.borderColor)}>
+                        {prompts.length}
+                      </Badge>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={() => toggleFavorite(p.id)}
-                        className="p-1 rounded hover:bg-muted/50 transition-colors"
-                      >
-                        <Star
-                          className={cn(
-                            'w-4 h-4 transition-colors',
-                            isFav ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground',
-                          )}
-                        />
-                      </button>
-                      <button
-                        onClick={() => copyPrompt(p.prompt, p.id)}
-                        className={cn(
-                          'p-1.5 rounded-lg transition-colors',
-                          isCopied
-                            ? 'bg-green-500/20 text-green-400'
-                            : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20',
-                        )}
-                      >
-                        {isCopied ? (
-                          <Check className="w-4 h-4" />
-                        ) : (
-                          <Copy className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="px-2 pb-2 space-y-1.5">
+                      <p className="text-[10px] text-muted-foreground px-1 pb-1">{stone.category}</p>
+                      {prompts.map(p => {
+                        const isCopied = copiedId === p.id;
+                        const isFav = favorites.has(p.id);
 
-                  {/* Category badge */}
-                  <Badge variant="outline" className="text-[10px] h-5 bg-muted/30">
-                    {p.category}
-                  </Badge>
-                </div>
+                        return (
+                          <div
+                            key={p.id}
+                            className="flex items-center gap-2 rounded-lg border border-border/30 bg-background/30 p-2.5"
+                          >
+                            <span className="text-base shrink-0">{p.icon}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[13px] font-medium leading-tight truncate">{p.title}</p>
+                              <p className="text-[10px] text-muted-foreground line-clamp-1">{p.description}</p>
+                            </div>
+                            <button
+                              onClick={() => toggleFavorite(p.id)}
+                              className="p-2 rounded hover:bg-muted/50 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0"
+                            >
+                              <Star
+                                className={cn(
+                                  'w-4 h-4 transition-colors',
+                                  isFav ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground',
+                                )}
+                              />
+                            </button>
+                            <button
+                              onClick={() => copyPrompt(p.prompt, p.id)}
+                              className={cn(
+                                'p-2 rounded-lg transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0',
+                                isCopied
+                                  ? 'bg-green-500/20 text-green-400'
+                                  : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20',
+                              )}
+                            >
+                              {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
               );
             })}
-          </div>
+          </Accordion>
 
           {filteredPrompts.length === 0 && (
             <div className="text-center py-8 text-muted-foreground text-sm">
@@ -201,7 +231,7 @@ export function EmpyreanPromptLibrary({ open, onOpenChange, characterName }: Emp
           )}
 
           <p className="text-[10px] text-muted-foreground text-center pt-2 pb-8">
-            50 prompts across {empyreanPromptCategories.length} categories
+            {empyreanPrompts.length} prompts across 7 stones
           </p>
         </div>
       </ScrollArea>
