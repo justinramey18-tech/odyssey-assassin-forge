@@ -1,156 +1,109 @@
 
+## Dedicated Empyrean Campaign UI
 
-## Revised Empyrean System Expansion -- Redundancy Fixed
+### What Changes
 
-### Changes from Previous Plan
+A new fullscreen page/screen for all Empyrean content, accessed via a third button in the DM Drawer (right-edge swipe panel on the home screen).
 
-- **Removed** tone selection from Session Zero Wizard (already handled by Campaign Pack + Air Wizard)
-- **Removed** "The Restricted Section" prompt (overlaps with existing "Archives Discovery" `emp-basgiath-archives`)
-- **Removed** "Forbidden Knowledge" arc template (overlaps with new Forbidden Lore stone)
-- **Removed** 3 session type templates that overlap with existing tone guides: "Combat Gauntlet" (overlaps `Combat and Warfare` lore guide), "Social Intrigue" (overlaps `Academy Slice-of-Life` tone), "Exploration Run" (overlaps `Exploration and Discovery` tone)
-- **Accounted for** the fact that Empyrean prompts and Infinity Stone prompts are **separate systems** -- Forbidden Lore only touches `EmpyreanPromptLibrary.tsx`'s `STONE_MAP`, not the Infinity Stone drawers
-- **Added** `'session'` to the `EmpyreanGuide` interface type union and `CATEGORY_META`
+### Entry Point: DMDrawer.tsx
 
----
+Add a third button below "Party DM" labeled **"The Empyrean Campaign"** with a purple/indigo accent (to distinguish from the amber Solo and emerald Party buttons). Uses a `BookOpen` or `ScrollText` icon.
 
-### 1. Forbidden Lore Stone (New 8th Empyrean Stone)
+- New prop: `onOpenEmpyrean: () => void`
+- The button is always enabled (no gating like Party mode)
+- Styled consistently with Solo/Party buttons but with indigo/purple theme
 
-**9 prompts** (not 10 -- "The Restricted Section" removed as it duplicates "Archives Discovery").
+### New Fullscreen Screen: EmpyreanScreen.tsx
 
-Added to: `empyreanPrompts.ts`, `empyreanPromptCategories`, and `EmpyreanPromptLibrary.tsx` STONE_MAP.
+A new component at `src/components/empyrean/EmpyreanScreen.tsx` -- a mobile-first, fullscreen, vertically scrolling page that consolidates all Empyrean content into one place.
 
-**Not** added to the Infinity Stone drawers (`InfinityStoneDrawer.tsx`, `InfinityStoneDMDrawer.tsx`, `InfinityGauntletScreen.tsx`) -- those use a different prompt system (`characterPrompts` with categories like 'Emotional', 'Combat', etc.).
+**Structure:**
+- Fixed top bar with back arrow, title "The Empyrean Campaign", and the Empyrean book icon
+- Vertically scrolling body with all sections in order:
 
-**STONE_MAP entry:**
-- Stone name: Void Stone
-- Color: indigo/dark theme (`text-indigo-400`, `bg-indigo-500/10`, `border-indigo-500/30`, icon: `'⚫'`)
+```text
++----------------------------------+
+|  <- The Empyrean Campaign   [X]  |  Fixed header
++----------------------------------+
+|                                  |
+|  [Empyrean Prompt Library]       |  Section 1: Prompts (Stones)
+|    - Filter by category/favs     |
+|    - All 8 stones (incl. Void)   |
+|                                  |
+|  [GM Guides - Campaign Pack]     |  Section 2: GM Guides
+|    - Lore, Tone, Pacing, Alt     |
+|    - Install/toggle/copy         |
+|                                  |
+|  [Air Wizard]                    |  Section 3: Existing wizard
+|                                  |
+|  [Session Zero Wizard]           |  Section 4: New wizard
+|                                  |
+|  [Arc Planner Wizard]            |  Section 5: New wizard
+|                                  |
+|  [Session Planner]               |  Section 6: New wizard
+|    - Templates + custom builder  |
+|                                  |
++----------------------------------+
+```
 
-**Prompts:**
+Each section is a collapsible card/accordion so users can expand what they need without being overwhelmed.
 
-| # | Title | Angle |
-|---|-------|-------|
-| 1 | Cipher Text | Coded journal describing signet abilities the college claims don't exist |
-| 2 | The Burned History | Dragon reveals riders destroyed a civilization and erased the records |
-| 3 | Forbidden Thesis | Dead scholar's research proves signet-venin connection -- suppressed by the college |
-| 4 | Memory Stone | Artifact plays back a centuries-old scene that contradicts official history |
-| 5 | The Heretic's Map | Map showing locations beyond the wards the college insists are uninhabitable |
-| 6 | Living Document | Text rewrites itself based on reader's signet -- personalized truths |
-| 7 | The Price of Knowing | Learn something so dangerous that knowing it makes you a target |
-| 8 | Oral Tradition | Gryphon rider shares knowledge never written down -- on purpose |
-| 9 | The Redacted Name | Every record of a specific rider erased -- find out why |
+### Routing and State
 
-**Files changed:**
-- `src/lib/empyreanPrompts.ts` -- add 9 prompts, add `'Forbidden Lore'` to `empyreanPromptCategories`
-- `src/components/settings/EmpyreanPromptLibrary.tsx` -- add Void Stone to `STONE_MAP` (line ~58)
+- The Empyrean screen opens as a fullscreen overlay (z-index layered like the existing AI DM screens), not a new route -- consistent with how Solo DM and Party DM screens work
+- Opened via `drawerContext` or local state in `HomeScreen.tsx`, same pattern as `openAIDMScreen()`
+- The screen manages its own GM guides state via `useGMGuides()` hook internally
 
----
+### Refactoring Existing Empyrean Components
 
-### 2. Session Zero Wizard
+The existing `EmpyreanCampaignPack` and `EmpyreanPromptLibrary` are currently rendered inside `SettingsContent.tsx` as fullscreen overlays. They will be:
 
-Interactive builder that generates a Session Zero guide. **No tone selection** -- tone is already managed by the Campaign Pack and Air Wizard.
+1. **Kept in Settings** as-is (no removal) -- users who are already in Settings can still access them there
+2. **Reused inside `EmpyreanScreen.tsx`** -- the new screen imports and renders both components as inline sections (not as overlays). This means refactoring them slightly to support an `inline` mode where they render their content directly instead of as fixed overlays
 
-**Player inputs:**
+Alternatively (simpler approach): The `EmpyreanScreen.tsx` simply has buttons that open the existing fullscreen overlays, plus the new wizards. This avoids refactoring existing components.
 
-| Setting | Options |
-|---------|---------|
-| Content Boundaries | Toggles: Romance, Graphic Violence, Horror, Character Death, PvP Conflict, Psychological Themes |
-| Backstory Depth | Light / Medium / Deep |
-| Session Length | Short (30 min) / Standard (1 hr) / Long (2+ hrs) |
-| Player Style | Combat-focused / RP-focused / Exploration-focused / Balanced |
-| Character Hooks | Text input (1-2 sentences) |
-
-**Generated guide** includes sections for Content Boundaries, Backstory Integration, Session Pacing, Player Style, and Character Hooks. No tone section.
-
-**Files:**
-- New: `src/components/settings/SessionZeroWizard.tsx`
-- Modified: `src/components/settings/EmpyreanCampaignPack.tsx` -- add section
-
----
-
-### 3. Arc Planner Wizard
-
-Interactive builder for multi-session campaign arcs.
-
-**7 arc templates** (not 8 -- "Forbidden Knowledge" removed as it overlaps the Forbidden Lore stone):
-
-| Template | Description |
-|----------|-------------|
-| Revenge | Track down whoever wronged the character across escalating confrontations |
-| Redemption | Fallen from grace -- earn back trust through sacrifice |
-| Rise to Power | From nobody to leader through political maneuvering |
-| Mystery Unraveled | Investigate something wrong that nobody else sees |
-| The Hunt | A specific target must be found -- each session narrows the search |
-| War Campaign | Large-scale conflict escalating from skirmishes to full war |
-| Bond Tested | Dragon bond is strained or evolving -- each session pushes the relationship |
-
-**Session count pacing:** 3 / 5 / 8 / 12 sessions with appropriate beat distribution.
-
-**Branching paths:** Up to 3 decision points with session number, choice description, and path consequences.
-
-**Files:**
-- New: `src/components/settings/ArcPlannerWizard.tsx`
-- Modified: `src/components/settings/EmpyreanCampaignPack.tsx` -- add section
+**Recommended approach**: The simpler option -- `EmpyreanScreen.tsx` is a hub page with section cards. Tapping "Prompt Library" opens `EmpyreanPromptLibrary`, tapping "Campaign Pack" opens `EmpyreanCampaignPack`. The new wizards (Session Zero, Arc Planner, Session Planner) render inline as collapsible sections on the hub page itself.
 
 ---
 
-### 4. Session Planner
+### Technical Details
 
-#### 4a. Session Type Templates (3 static guides, not 6)
+**Files created:**
+| File | Purpose |
+|------|---------|
+| `src/components/empyrean/EmpyreanScreen.tsx` | Fullscreen hub page with section cards and inline wizards |
 
-Removed overlapping templates:
-- ~~Combat Gauntlet~~ (overlaps `Combat and Warfare` lore guide)
-- ~~Social Intrigue~~ (overlaps `Academy Slice-of-Life` tone guide)
-- ~~Exploration Run~~ (overlaps `Exploration and Discovery` tone guide)
-
-**Remaining 3 templates:**
-
-| Template | Focus |
-|----------|-------|
-| Heist Session | One job: plan, execute, improvise when it goes wrong |
-| Trial by Fire | Character faces judgment -- formal or informal -- must defend themselves |
-| Downtime and Recovery | Rest session between arcs -- character development, side quests, relationship building |
-
-Added as `EmpyreanGuide` objects with `category: 'session'`.
-
-**Type changes required:**
-- `EmpyreanGuide['category']` type union updated: `'lore' | 'tone' | 'pacing' | 'alternate' | 'session'`
-- `CATEGORY_META` in `EmpyreanCampaignPack.tsx` updated with new `session` entry
-
-#### 4b. Custom Session Builder (Wizard)
-
-Interactive builder for a custom single-session guide.
-
-**Player inputs:**
-- Session Type (dropdown: Heist / Trial / Downtime / Custom)
-- Primary Objective (text input)
-- Key NPCs (up to 3: name + role)
-- Complication (dropdown: Betrayal / Time Pressure / Moral Dilemma / Environmental Hazard / Unexpected Ally / None)
-- Desired Ending (dropdown: Cliffhanger / Resolution / Player's Choice / Bittersweet)
-
-**Files:**
-- New: `src/components/settings/SessionPlannerWizard.tsx`
-- Modified: `src/lib/empyreanGMGuides.ts` -- add 3 session guides, update type, add exports
-- Modified: `src/components/settings/EmpyreanCampaignPack.tsx` -- add `session` to `CATEGORY_META`, add Session Planner section
-
----
-
-### Summary of All Changes
-
+**Files modified:**
 | File | Change |
 |------|--------|
-| `src/lib/empyreanPrompts.ts` | Add 9 Forbidden Lore prompts + update categories array |
-| `src/components/settings/EmpyreanPromptLibrary.tsx` | Add Void Stone to STONE_MAP |
-| `src/lib/empyreanGMGuides.ts` | Update `EmpyreanGuide` type, add 3 session guides + exports |
-| `src/components/settings/EmpyreanCampaignPack.tsx` | Add `session` to CATEGORY_META, add 3 wizard sections |
-| `src/components/settings/SessionZeroWizard.tsx` | New -- Session Zero builder (no tone selection) |
-| `src/components/settings/ArcPlannerWizard.tsx` | New -- Arc planner with 7 templates + branching |
-| `src/components/settings/SessionPlannerWizard.tsx` | New -- Session type templates + custom builder |
+| `src/components/home/DMDrawer.tsx` | Add `onOpenEmpyrean` prop + third "The Empyrean Campaign" button below Party DM |
+| `src/components/home/HomeScreen.tsx` | Add `showEmpyreanScreen` state, pass `onOpenEmpyrean` to DMDrawer, render `EmpyreanScreen` |
 
-**What was removed vs original plan:**
-- 1 duplicate Forbidden Lore prompt (The Restricted Section)
-- 1 duplicate arc template (Forbidden Knowledge)
-- 3 duplicate session type templates (Combat Gauntlet, Social Intrigue, Exploration Run)
-- Tone selection from Session Zero Wizard
-- No changes to Infinity Stone drawers (separate system)
+**Props flow:**
+- `HomeScreen` manages `showEmpyreanScreen` boolean state
+- Passes `onOpenEmpyrean={() => setShowEmpyreanScreen(true)}` to `DMDrawer`
+- Renders `<EmpyreanScreen open={showEmpyreanScreen} onClose={() => setShowEmpyreanScreen(false)} characterName={character.name} />`
 
-**Total new content:** 9 prompts + 3 session guides + 3 interactive wizards.
+**EmpyreanScreen internally:**
+- Calls `useGMGuides()` for guide state
+- Manages `showPack` and `showPrompts` booleans to open the existing fullscreen overlays
+- Renders new wizards (Session Zero, Arc Planner, Session Planner) as collapsible inline sections
+- Uses `ScrollArea` for the main body with proper bottom padding
+
+**UI/Styling:**
+- Indigo/purple accent color throughout (`text-purple-400`, `border-purple-500/30`, etc.)
+- Mobile-first: full viewport width, no max-width constraint on mobile
+- Fixed header with `bg-background/80 backdrop-blur-sm`
+- Section cards use the glass card pattern from the design system
+- Touch-friendly targets (min 44px)
+- `z-[60]` for the fullscreen overlay (same level as existing Empyrean overlays)
+
+**DMDrawer button styling:**
+- Icon: `ScrollText` from lucide-react
+- Color: `border-purple-500/25 bg-purple-500/5 hover:bg-purple-500/15`
+- Label: "The Empyrean Campaign"
+- Subtitle: "Empyrean content hub"
+- Always enabled
+
+This plan focuses solely on the dedicated UI and entry point. The new content (Forbidden Lore prompts, Session Zero Wizard, Arc Planner, Session Planner) from the previously approved plan will be implemented as separate tasks that slot into this screen's sections.
