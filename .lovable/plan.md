@@ -1,135 +1,156 @@
 
 
-## Add 52 New Empyrean Prompts (10 Meta + 7 per Stone)
+## Revised Empyrean System Expansion -- Redundancy Fixed
 
-### Overview
+### Changes from Previous Plan
 
-Adding 52 new prompts to `src/lib/empyreanPrompts.ts`, bringing the total from 50 to 102. One file modified.
+- **Removed** tone selection from Session Zero Wizard (already handled by Campaign Pack + Air Wizard)
+- **Removed** "The Restricted Section" prompt (overlaps with existing "Archives Discovery" `emp-basgiath-archives`)
+- **Removed** "Forbidden Knowledge" arc template (overlaps with new Forbidden Lore stone)
+- **Removed** 3 session type templates that overlap with existing tone guides: "Combat Gauntlet" (overlaps `Combat and Warfare` lore guide), "Social Intrigue" (overlaps `Academy Slice-of-Life` tone), "Exploration Run" (overlaps `Exploration and Discovery` tone)
+- **Accounted for** the fact that Empyrean prompts and Infinity Stone prompts are **separate systems** -- Forbidden Lore only touches `EmpyreanPromptLibrary.tsx`'s `STONE_MAP`, not the Infinity Stone drawers
+- **Added** `'session'` to the `EmpyreanGuide` interface type union and `CATEGORY_META`
 
 ---
 
-### Meta and Narrative (+10 = 15 total)
+### 1. Forbidden Lore Stone (New 8th Empyrean Stone)
 
-Focus: **Meta-awareness** and **Alternate POVs** as requested.
+**9 prompts** (not 10 -- "The Restricted Section" removed as it duplicates "Archives Discovery").
+
+Added to: `empyreanPrompts.ts`, `empyreanPromptCategories`, and `EmpyreanPromptLibrary.tsx` STONE_MAP.
+
+**Not** added to the Infinity Stone drawers (`InfinityStoneDrawer.tsx`, `InfinityStoneDMDrawer.tsx`, `InfinityGauntletScreen.tsx`) -- those use a different prompt system (`characterPrompts` with categories like 'Emotional', 'Combat', etc.).
+
+**STONE_MAP entry:**
+- Stone name: Void Stone
+- Color: indigo/dark theme (`text-indigo-400`, `bg-indigo-500/10`, `border-indigo-500/30`, icon: `'⚫'`)
+
+**Prompts:**
 
 | # | Title | Angle |
 |---|-------|-------|
-| 1 | Villain's Perspective | Scene narrated from the antagonist's POV -- their reasoning, their fear of the rider |
-| 2 | The Scribe's Account | A scribe NPC documents an event involving the character -- biased, incomplete, revealing |
-| 3 | Campfire Recap | Characters sit around a fire retelling the session's events -- disagreeing on what happened |
-| 4 | What If? Divergence | Replay a past decision with the opposite choice -- explore the alternate outcome |
-| 5 | The Bystander | A civilian, servant, or groundskeeper describes what they saw when riders clashed |
-| 6 | Fourth Wall Crack | The character briefly senses the "player" behind them -- a moment of uncanny awareness |
-| 7 | Post-Credits Scene | A short epilogue scene from the future hinting at consequences of current actions |
-| 8 | The Narrator Lies | The DM narrates a scene, then reveals a key detail was wrong -- rewind and replay with truth |
-| 9 | Enemy Debrief | Venin commanders discuss the character as a tactical threat -- what they plan to do about it |
-| 10 | Parallel Lives | Show the same hour from two characters' perspectives -- their paths almost crossing |
+| 1 | Cipher Text | Coded journal describing signet abilities the college claims don't exist |
+| 2 | The Burned History | Dragon reveals riders destroyed a civilization and erased the records |
+| 3 | Forbidden Thesis | Dead scholar's research proves signet-venin connection -- suppressed by the college |
+| 4 | Memory Stone | Artifact plays back a centuries-old scene that contradicts official history |
+| 5 | The Heretic's Map | Map showing locations beyond the wards the college insists are uninhabitable |
+| 6 | Living Document | Text rewrites itself based on reader's signet -- personalized truths |
+| 7 | The Price of Knowing | Learn something so dangerous that knowing it makes you a target |
+| 8 | Oral Tradition | Gryphon rider shares knowledge never written down -- on purpose |
+| 9 | The Redacted Name | Every record of a specific rider erased -- find out why |
+
+**Files changed:**
+- `src/lib/empyreanPrompts.ts` -- add 9 prompts, add `'Forbidden Lore'` to `empyreanPromptCategories`
+- `src/components/settings/EmpyreanPromptLibrary.tsx` -- add Void Stone to `STONE_MAP` (line ~58)
 
 ---
 
-### Dragon Bond (+7 = 15 total)
+### 2. Session Zero Wizard
 
-Focus: **Dragon politics**, **daily life**, **lore deep cuts**, plus user's "other."
+Interactive builder that generates a Session Zero guide. **No tone selection** -- tone is already managed by the Campaign Pack and Air Wizard.
 
-| # | Title | Angle |
-|---|-------|-------|
-| 1 | Dragon Council | Dragons gather without riders -- a hierarchy negotiation the rider only glimpses through the bond |
-| 2 | Grooming Ritual | Quiet maintenance scene: scale care, talon sharpening, the domesticity of dragon partnership |
-| 3 | Ancient Memory | The dragon shares a memory from before Basgiath existed -- pre-human, primordial |
-| 4 | Dragon Rivalry | Two bonded dragons despise each other -- their riders must work together anyway |
-| 5 | Feeding Day | Accompanying the dragon on a hunt -- witnessing the predator side of your partner |
-| 6 | Dragon Humor | The dragon does something deliberately funny -- their sense of humor is alien but unmistakable |
-| 7 | Den Visit | The rider enters the dragon's private den for the first time -- what it reveals about the dragon's inner world |
+**Player inputs:**
 
----
+| Setting | Options |
+|---------|---------|
+| Content Boundaries | Toggles: Romance, Graphic Violence, Horror, Character Death, PvP Conflict, Psychological Themes |
+| Backstory Depth | Light / Medium / Deep |
+| Session Length | Short (30 min) / Standard (1 hr) / Long (2+ hrs) |
+| Player Style | Combat-focused / RP-focused / Exploration-focused / Balanced |
+| Character Hooks | Text input (1-2 sentences) |
 
-### Signet Abilities (+7 = 14 total)
+**Generated guide** includes sections for Content Boundaries, Backstory Integration, Session Pacing, Player Style, and Character Hooks. No tone section.
 
-Focus: **Balanced variety** -- discovery, danger, social, tactical.
-
-| # | Title | Angle |
-|---|-------|-------|
-| 1 | Signet Resonance | Two signets react to proximity -- harmonic amplification neither rider expected |
-| 2 | Signet Under Oath | Forced to use signet for an official tribunal -- power as testimony |
-| 3 | Null Zone | Enter an area where signets don't work -- cope with sudden powerlessness |
-| 4 | Signet Inheritance | Learn your signet matches a dead relative's -- the weight of repetition |
-| 5 | Signet Weaponization | Command orders creative weaponization of the signet -- moral discomfort |
-| 6 | Signet Bleed | The signet activates during sleep -- unconscious power with waking consequences |
-| 7 | Signet Duel | Formal one-on-one signet-only combat -- no blades, no dragons, pure power |
+**Files:**
+- New: `src/components/settings/SessionZeroWizard.tsx`
+- Modified: `src/components/settings/EmpyreanCampaignPack.tsx` -- add section
 
 ---
 
-### Basgiath War College (+7 = 15 total)
+### 3. Arc Planner Wizard
 
-Focus: **Balanced variety** -- academic, social, survival, political.
+Interactive builder for multi-session campaign arcs.
 
-| # | Title | Angle |
-|---|-------|-------|
-| 1 | Night Exam | A surprise midnight test -- dragged from bed, evaluated half-asleep |
-| 2 | New Transfer | A transfer rider arrives mid-year -- disrupts squad dynamics |
-| 3 | Instructor's Secret | A professor reveals something personal that changes how you see them |
-| 4 | Infirmary Recovery | Extended stay in the healers' ward -- vulnerability, overheard secrets |
-| 5 | Graduation Pressure | Final evaluations loom -- the weight of everything riding on performance |
-| 6 | Underground Economy | Discover the cadet black market -- contraband, favors, and dangerous debts |
-| 7 | Quadrant Riot | Tensions between quadrants erupt into campus-wide unrest |
+**7 arc templates** (not 8 -- "Forbidden Knowledge" removed as it overlaps the Forbidden Lore stone):
 
----
+| Template | Description |
+|----------|-------------|
+| Revenge | Track down whoever wronged the character across escalating confrontations |
+| Redemption | Fallen from grace -- earn back trust through sacrifice |
+| Rise to Power | From nobody to leader through political maneuvering |
+| Mystery Unraveled | Investigate something wrong that nobody else sees |
+| The Hunt | A specific target must be found -- each session narrows the search |
+| War Campaign | Large-scale conflict escalating from skirmishes to full war |
+| Bond Tested | Dragon bond is strained or evolving -- each session pushes the relationship |
 
-### Venin and Dark Forces (+7 = 14 total)
+**Session count pacing:** 3 / 5 / 8 / 12 sessions with appropriate beat distribution.
 
-Focus: **Balanced variety** -- horror, moral complexity, tactical.
+**Branching paths:** Up to 3 decision points with session number, choice description, and path consequences.
 
-| # | Title | Angle |
-|---|-------|-------|
-| 1 | Venin Trap | An ambush designed specifically for your signet type -- they've been studying you |
-| 2 | The Turned Friend | A rider who turned venin tries to recruit you -- using memories of friendship |
-| 3 | Corruption Creep | Strange dreams, darkening veins -- is it the environment or something worse? |
-| 4 | Venin Nest | Discover a breeding ground -- the scale of the enemy revealed |
-| 5 | Dark Wielding Witness | Watch an ally secretly use dark wielding "for the right reasons" |
-| 6 | Wyvern Taming | Someone claims wyverns can be turned -- and wants help proving it |
-| 7 | The Sage Venin | Encounter an ancient venin who remembers being human -- and grieves it |
+**Files:**
+- New: `src/components/settings/ArcPlannerWizard.tsx`
+- Modified: `src/components/settings/EmpyreanCampaignPack.tsx` -- add section
 
 ---
 
-### Relationships and Politics (+7 = 15 total)
+### 4. Session Planner
 
-Focus: **Balanced variety** -- romance, rivalry, diplomacy, consequence.
+#### 4a. Session Type Templates (3 static guides, not 6)
 
-| # | Title | Angle |
-|---|-------|-------|
-| 1 | The Ex | Someone from before Basgiath shows up -- old feelings, new complications |
-| 2 | Political Marriage | A strategic alliance proposal through marriage -- love vs. duty |
-| 3 | Squad Fracture | Your squad splits over an ideological disagreement -- pick a side |
-| 4 | Mentor's Fall | A trusted mentor is disgraced -- stand by them or distance yourself |
-| 5 | Enemy Respect | A rival earns genuine respect through an act of courage -- complicate the rivalry |
-| 6 | Secret Correspondence | Intercepted letters reveal a conspiracy -- who do you warn? |
-| 7 | The Favor Owed | Someone powerful calls in a debt -- the price is higher than expected |
+Removed overlapping templates:
+- ~~Combat Gauntlet~~ (overlaps `Combat and Warfare` lore guide)
+- ~~Social Intrigue~~ (overlaps `Academy Slice-of-Life` tone guide)
+- ~~Exploration Run~~ (overlaps `Exploration and Discovery` tone guide)
+
+**Remaining 3 templates:**
+
+| Template | Focus |
+|----------|-------|
+| Heist Session | One job: plan, execute, improvise when it goes wrong |
+| Trial by Fire | Character faces judgment -- formal or informal -- must defend themselves |
+| Downtime and Recovery | Rest session between arcs -- character development, side quests, relationship building |
+
+Added as `EmpyreanGuide` objects with `category: 'session'`.
+
+**Type changes required:**
+- `EmpyreanGuide['category']` type union updated: `'lore' | 'tone' | 'pacing' | 'alternate' | 'session'`
+- `CATEGORY_META` in `EmpyreanCampaignPack.tsx` updated with new `session` entry
+
+#### 4b. Custom Session Builder (Wizard)
+
+Interactive builder for a custom single-session guide.
+
+**Player inputs:**
+- Session Type (dropdown: Heist / Trial / Downtime / Custom)
+- Primary Objective (text input)
+- Key NPCs (up to 3: name + role)
+- Complication (dropdown: Betrayal / Time Pressure / Moral Dilemma / Environmental Hazard / Unexpected Ally / None)
+- Desired Ending (dropdown: Cliffhanger / Resolution / Player's Choice / Bittersweet)
+
+**Files:**
+- New: `src/components/settings/SessionPlannerWizard.tsx`
+- Modified: `src/lib/empyreanGMGuides.ts` -- add 3 session guides, update type, add exports
+- Modified: `src/components/settings/EmpyreanCampaignPack.tsx` -- add `session` to `CATEGORY_META`, add Session Planner section
 
 ---
 
-### Combat and Survival (+7 = 14 total)
+### Summary of All Changes
 
-Focus: **Unconventional warfare**, **large-scale battles**, **personal duels**.
+| File | Change |
+|------|--------|
+| `src/lib/empyreanPrompts.ts` | Add 9 Forbidden Lore prompts + update categories array |
+| `src/components/settings/EmpyreanPromptLibrary.tsx` | Add Void Stone to STONE_MAP |
+| `src/lib/empyreanGMGuides.ts` | Update `EmpyreanGuide` type, add 3 session guides + exports |
+| `src/components/settings/EmpyreanCampaignPack.tsx` | Add `session` to CATEGORY_META, add 3 wizard sections |
+| `src/components/settings/SessionZeroWizard.tsx` | New -- Session Zero builder (no tone selection) |
+| `src/components/settings/ArcPlannerWizard.tsx` | New -- Arc planner with 7 templates + branching |
+| `src/components/settings/SessionPlannerWizard.tsx` | New -- Session type templates + custom builder |
 
-| # | Title | Angle |
-|---|-------|-------|
-| 1 | Night Raid | Black-ops sabotage mission behind enemy lines -- stealth, no dragons |
-| 2 | Siege Warfare | Multi-day siege of a warded fortress -- attrition, morale, supply lines |
-| 3 | Honor Duel | Formal challenge with witnesses -- reputation and rank on the line |
-| 4 | False Flag | Ordered to stage an attack disguised as the enemy -- ethical combat |
-| 5 | Multi-Wing Assault | Coordinated attack across three wings -- chaos of large-scale aerial combat |
-| 6 | Assassination Attempt | Someone tries to kill the character -- not in battle, but in their sleep |
-| 7 | No-Magic Zone | Combat in a signet-dead zone -- pure blade and tactics, no power |
+**What was removed vs original plan:**
+- 1 duplicate Forbidden Lore prompt (The Restricted Section)
+- 1 duplicate arc template (Forbidden Knowledge)
+- 3 duplicate session type templates (Combat Gauntlet, Social Intrigue, Exploration Run)
+- Tone selection from Session Zero Wizard
+- No changes to Infinity Stone drawers (separate system)
 
----
-
-### Technical Details
-
-**File modified**: `src/lib/empyreanPrompts.ts`
-- 52 new prompt objects appended to their respective category sections
-- Each follows the existing `CharacterPrompt` interface: `id`, `category`, `title`, `description`, `prompt`, `icon`
-- IDs follow existing `emp-{category}-{slug}` pattern
-- Total prompts: 50 existing + 52 new = 102
-
-**No other files need changes** -- the `EmpyreanPromptLibrary` component already reads from the `empyreanPrompts` array dynamically and groups by category.
-
+**Total new content:** 9 prompts + 3 session guides + 3 interactive wizards.
