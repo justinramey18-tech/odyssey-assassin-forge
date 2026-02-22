@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Check, Copy, RefreshCw, Camera, Star, Lock, RotateCcw, AlertTriangle, Download, ImageOff, Users, User } from 'lucide-react';
+import { Check, Copy, RefreshCw, Camera, Star, Lock, RotateCcw, AlertTriangle, Download, ImageOff, Users, User, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
@@ -20,9 +20,12 @@ import { GameModeSettings } from './GameModeSettings';
 import { XPProgressionWidget, XPProgressionMode } from './XPProgressionWidget';
 import { GMGuidePrompts } from './GMGuidePrompts';
 import { CustomizationsPanel } from './CustomizationsPanel';
+import { EmpyreanCampaignPack } from './EmpyreanCampaignPack';
+import { EmpyreanPromptLibrary } from './EmpyreanPromptLibrary';
 import { DiceOddsMode } from '@/lib/diceOdds';
 import { GameModeSettings as GameModeSettingsType } from '@/lib/gameModes';
 import { useGameMode } from '@/hooks/use-game-mode';
+import { useGMGuides } from '@/hooks/use-gm-guides';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { SettingsTab } from './MobileSettingsTabs';
@@ -115,7 +118,11 @@ export function SettingsContent({
   const [showClearImagesDialog, setShowClearImagesDialog] = useState(false);
   const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
   const [showSoloConfirmSettings, setShowSoloConfirmSettings] = useState(false);
+  const [showEmpyreanPack, setShowEmpyreanPack] = useState(false);
+  const [showEmpyreanPrompts, setShowEmpyreanPrompts] = useState(false);
   
+  const gmGuides = useGMGuides();
+
   const { prestigeRespecDisabled } = useGameMode();
 
   // Check for service worker updates
@@ -367,7 +374,40 @@ export function SettingsContent({
             </div>
           </div>
 
-          {/* Section 2: Modular GM Prompts */}
+          {/* Section 2: Empyrean Campaign Pack */}
+          <div className="mb-4">
+            <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm py-2 -mx-1 px-1 border-b border-border/30 mb-3">
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-amber-400" />
+                <h3 className="font-cinzel font-semibold text-sm">Empyrean Campaign Pack</h3>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                20 GM guides + 50 prompts for Empyrean series campaigns
+              </p>
+            </div>
+            
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowEmpyreanPack(true)}
+                className="flex-1 gap-2 h-10 border-amber-500/30 hover:bg-amber-500/10 text-amber-400"
+              >
+                <BookOpen className="w-4 h-4" />
+                GM Guides
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowEmpyreanPrompts(true)}
+                className="flex-1 gap-2 h-10 border-amber-500/30 hover:bg-amber-500/10 text-amber-400"
+              >
+                🐉 Prompts
+              </Button>
+            </div>
+          </div>
+
+          {/* Section 3: Modular GM Prompts */}
           <div className="mb-4">
             <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm py-2 -mx-1 px-1 border-b border-border/30 mb-3">
               <div className="flex items-center gap-2">
@@ -468,6 +508,21 @@ export function SettingsContent({
               ? '💡 Use modular prompts above for selective AI DM integration'
               : '💡 Configure your character to enable build snapshots'}
           </p>
+
+          {/* Empyrean drawers */}
+          <EmpyreanCampaignPack
+            open={showEmpyreanPack}
+            onOpenChange={setShowEmpyreanPack}
+            guides={gmGuides.guides}
+            addGuide={gmGuides.addGuide}
+            deleteGuide={gmGuides.deleteGuide}
+            updateGuide={gmGuides.updateGuide}
+          />
+          <EmpyreanPromptLibrary
+            open={showEmpyreanPrompts}
+            onOpenChange={setShowEmpyreanPrompts}
+            characterName={characterName}
+          />
         </div>
       </div>
     );
