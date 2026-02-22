@@ -1,12 +1,12 @@
 import { useState, useMemo, useCallback } from 'react';
-import { BookOpen, Check, Download, Trash2, Info, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Copy, Check, Download, Trash2, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { EdgeDrawer } from '@/components/drawers/EdgeDrawer';
 import {
   ALL_EMPYREAN_GUIDES,
   EMPYREAN_LORE_GUIDES,
@@ -25,11 +25,11 @@ interface EmpyreanCampaignPackProps {
   updateGuide: (id: string, updates: Partial<Pick<GMGuide, 'name' | 'content' | 'enabled'>>) => boolean;
 }
 
-const CATEGORY_META: Record<EmpyreanGuide['category'], { label: string; color: string; desc: string }> = {
-  lore: { label: 'LORE', color: 'text-cyan-400', desc: 'World-building reference — always stackable' },
-  tone: { label: 'TONE (pick one)', color: 'text-amber-400', desc: 'Sets the campaign mood — mutually exclusive' },
-  pacing: { label: 'PACING (pick one)', color: 'text-emerald-400', desc: 'Controls timeline speed — stacks with tone' },
-  alternate: { label: 'ALTERNATE PREMISE', color: 'text-purple-400', desc: 'Replaces the default campaign framework' },
+const CATEGORY_META: Record<EmpyreanGuide['category'], { label: string; color: string; desc: string; icon: string }> = {
+  lore: { label: 'Lore Guides', color: 'text-cyan-400', desc: 'World-building reference — always stackable', icon: '📜' },
+  tone: { label: 'Tone (pick one)', color: 'text-amber-400', desc: 'Sets the campaign mood — mutually exclusive', icon: '🎭' },
+  pacing: { label: 'Pacing (pick one)', color: 'text-emerald-400', desc: 'Controls timeline speed — stacks with tone', icon: '⏳' },
+  alternate: { label: 'Alternate Premise', color: 'text-purple-400', desc: 'Replaces the default campaign framework', icon: '🔮' },
 };
 
 export function EmpyreanCampaignPack({
@@ -40,7 +40,7 @@ export function EmpyreanCampaignPack({
   deleteGuide,
   updateGuide,
 }: EmpyreanCampaignPackProps) {
-  const [expandedGuide, setExpandedGuide] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const installedIds = useMemo(
     () => new Set(guides.filter(g => g.id.startsWith(EMPYREAN_GUIDE_PREFIX)).map(g => g.id)),
@@ -55,18 +55,18 @@ export function EmpyreanCampaignPack({
   const installedCount = installedIds.size;
   const totalCount = ALL_EMPYREAN_GUIDES.length;
 
-  const installGuide = useCallback((eg: EmpyreanGuide) => {
-    // Use the empyrean ID directly so we can track it
-    const guide: GMGuide = {
-      id: eg.id,
-      name: eg.name,
-      content: eg.content,
-      enabled: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+  const copyGuideContent = useCallback(async (eg: EmpyreanGuide) => {
+    try {
+      await navigator.clipboard.writeText(eg.content);
+      setCopiedId(eg.id);
+      toast.success(`"${eg.name}" copied!`);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      toast.error('Failed to copy');
+    }
+  }, []);
 
-    // For non-stackable guides, disable others in same category
+  const installGuide = useCallback((eg: EmpyreanGuide) => {
     if (!eg.stackable) {
       const sameCategory = ALL_EMPYREAN_GUIDES.filter(
         g => g.category === eg.category && g.id !== eg.id,
@@ -78,8 +78,6 @@ export function EmpyreanCampaignPack({
       }
     }
 
-    // We need to add via the raw mechanism since addGuide generates a new ID
-    // Instead, check if already installed
     if (installedIds.has(eg.id)) {
       updateGuide(eg.id, { enabled: true });
       toast.success(`${eg.name} enabled`);
@@ -87,9 +85,7 @@ export function EmpyreanCampaignPack({
     }
 
     const success = addGuide(eg.name, eg.content, eg.id);
-    if (success) {
-      toast.success(`${eg.name} installed`);
-    }
+    if (success) toast.success(`${eg.name} installed`);
   }, [installedIds, enabledIds, addGuide, updateGuide]);
 
   const installAllLore = useCallback(() => {
@@ -100,11 +96,8 @@ export function EmpyreanCampaignPack({
         if (success) count++;
       }
     }
-    if (count > 0) {
-      toast.success(`Installed ${count} lore guide${count !== 1 ? 's' : ''}`);
-    } else {
-      toast.info('All lore guides already installed');
-    }
+    if (count > 0) toast.success(`Installed ${count} lore guide${count !== 1 ? 's' : ''}`);
+    else toast.info('All lore guides already installed');
   }, [installedIds, addGuide]);
 
   const removeAllEmpyrean = useCallback(() => {
@@ -112,9 +105,7 @@ export function EmpyreanCampaignPack({
       g.id.startsWith(EMPYREAN_GUIDE_PREFIX) ||
       ALL_EMPYREAN_GUIDES.some(eg => eg.name === g.name),
     );
-    for (const g of empyreanGuides) {
-      deleteGuide(g.id);
-    }
+    for (const g of empyreanGuides) deleteGuide(g.id);
     toast.success(`Removed ${empyreanGuides.length} Empyrean guide${empyreanGuides.length !== 1 ? 's' : ''}`);
   }, [guides, deleteGuide]);
 
@@ -135,8 +126,6 @@ export function EmpyreanCampaignPack({
     }
 
     const newEnabled = !found.enabled;
-
-    // If enabling a non-stackable guide, disable others in same category
     if (newEnabled && !eg.stackable) {
       const sameCategory = ALL_EMPYREAN_GUIDES.filter(
         g => g.category === eg.category && g.id !== eg.id,
@@ -156,84 +145,109 @@ export function EmpyreanCampaignPack({
   const renderCategory = (category: EmpyreanGuide['category'], categoryGuides: EmpyreanGuide[]) => {
     const meta = CATEGORY_META[category];
     return (
-      <div key={category} className="space-y-2">
-        <div className="flex items-center gap-2 pt-3 pb-1">
-          <span className={cn('text-xs font-cinzel font-bold uppercase tracking-wider', meta.color)}>
+      <div key={category} className="space-y-1">
+        <div className="flex items-center gap-2 pt-4 pb-2 px-1">
+          <span className="text-lg">{meta.icon}</span>
+          <span className={cn('text-sm font-cinzel font-bold uppercase tracking-wider', meta.color)}>
             {meta.label}
           </span>
+          <Badge variant="outline" className="text-[10px] h-5 ml-auto">
+            {categoryGuides.filter(g => isInstalled(g)).length}/{categoryGuides.length}
+          </Badge>
         </div>
-        <p className="text-[10px] text-muted-foreground -mt-1 mb-2">{meta.desc}</p>
+        <p className="text-[11px] text-muted-foreground px-1 pb-2">{meta.desc}</p>
 
-        {categoryGuides.map(eg => {
-          const installed = isInstalled(eg);
-          const enabled = isEnabled(eg);
-          const expanded = expandedGuide === eg.id;
+        <Accordion type="single" collapsible className="space-y-1.5">
+          {categoryGuides.map(eg => {
+            const installed = isInstalled(eg);
+            const enabled = isEnabled(eg);
+            const isCopied = copiedId === eg.id;
 
-          return (
-            <div
-              key={eg.id}
-              className={cn(
-                'rounded-lg border p-3 transition-colors',
-                enabled
-                  ? 'border-primary/40 bg-primary/5'
-                  : installed
-                    ? 'border-border/50 bg-muted/20'
-                    : 'border-border/30 bg-card/30',
-              )}
-            >
-              <div className="flex items-center gap-3">
-                <Switch
-                  checked={enabled}
-                  onCheckedChange={() => toggleGuide(eg)}
-                  className="shrink-0"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{eg.name}</p>
-                  <p className="text-[11px] text-muted-foreground line-clamp-1">{eg.description}</p>
-                </div>
-                <button
-                  onClick={() => setExpandedGuide(expanded ? null : eg.id)}
-                  className="shrink-0 p-1 rounded hover:bg-muted/50 transition-colors"
-                >
-                  {expanded ? (
-                    <ChevronUp className="w-4 h-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                  )}
-                </button>
-              </div>
-
-              {expanded && (
-                <div className="mt-3 pt-3 border-t border-border/30">
-                  <pre className="text-[11px] font-mono whitespace-pre-wrap text-muted-foreground max-h-[30vh] overflow-y-auto leading-relaxed">
-                    {eg.content.slice(0, 500)}
-                    {eg.content.length > 500 && '...'}
-                  </pre>
-                  <p className="text-[10px] text-muted-foreground mt-2">
-                    {eg.content.length.toLocaleString()} characters
-                  </p>
-                </div>
-              )}
-            </div>
-          );
-        })}
+            return (
+              <AccordionItem
+                key={eg.id}
+                value={eg.id}
+                className={cn(
+                  'rounded-lg border px-3 transition-colors',
+                  enabled
+                    ? 'border-primary/40 bg-primary/5'
+                    : installed
+                      ? 'border-border/50 bg-muted/20'
+                      : 'border-border/30 bg-card/30',
+                )}
+              >
+                <AccordionTrigger className="py-3 hover:no-underline gap-3">
+                  <div className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                    <Switch
+                      checked={enabled}
+                      onCheckedChange={(e) => {
+                        e.valueOf(); // prevent accordion toggle
+                        toggleGuide(eg);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{eg.name}</p>
+                      <p className="text-[11px] text-muted-foreground line-clamp-1">{eg.description}</p>
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="pt-2 pb-3 space-y-3">
+                    <pre className="text-[11px] font-mono whitespace-pre-wrap text-muted-foreground leading-relaxed bg-background/40 rounded-lg p-3 max-h-[50vh] overflow-y-auto">
+                      {eg.content}
+                    </pre>
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] text-muted-foreground">
+                        {eg.content.length.toLocaleString()} characters
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyGuideContent(eg)}
+                        className={cn(
+                          'h-9 gap-2 min-w-[44px]',
+                          isCopied && 'bg-green-500/20 border-green-500/40 text-green-400',
+                        )}
+                      >
+                        {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                        {isCopied ? 'Copied' : 'Copy'}
+                      </Button>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            );
+          })}
+        </Accordion>
       </div>
     );
   };
 
+  if (!open) return null;
+
   return (
-    <EdgeDrawer
-      side="right"
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Empyrean Pack"
-      icon={<BookOpen className="w-5 h-5" />}
-      accentColor="#f59e0b"
-    >
-      <ScrollArea className="h-[calc(100vh-120px)]">
-        <div className="space-y-3 pr-2">
-          {/* Header stats */}
-          <div className="flex items-center justify-between">
+    <div className="fixed inset-0 z-[60] flex flex-col bg-gradient-to-b from-background via-background to-background/95">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-amber-500/20 bg-background/80 backdrop-blur-sm shrink-0">
+        <div className="flex items-center gap-3">
+          <span className="text-xl">📖</span>
+          <h2 className="text-lg font-cinzel font-bold text-amber-400">Empyrean Pack</h2>
+        </div>
+        <button
+          onClick={() => onOpenChange(false)}
+          className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Scrollable content */}
+      <ScrollArea className="flex-1">
+        <div className="px-4 py-4 space-y-4 max-w-2xl mx-auto pb-20">
+          {/* Stats & actions */}
+          <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="outline" className="text-xs bg-amber-500/10 border-amber-500/30 text-amber-400">
               {installedCount}/{totalCount} installed
             </Badge>
@@ -242,7 +256,7 @@ export function EmpyreanCampaignPack({
                 variant="ghost"
                 size="sm"
                 onClick={removeAllEmpyrean}
-                className="h-7 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 gap-1"
+                className="h-8 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 gap-1 ml-auto"
               >
                 <Trash2 className="w-3 h-3" />
                 Remove All
@@ -255,16 +269,16 @@ export function EmpyreanCampaignPack({
             variant="outline"
             size="sm"
             onClick={installAllLore}
-            className="w-full gap-2 border-cyan-500/30 hover:bg-cyan-500/10 text-cyan-400"
+            className="w-full gap-2 h-11 border-cyan-500/30 hover:bg-cyan-500/10 text-cyan-400"
           >
             <Download className="w-4 h-4" />
             Install All Lore Guides (10)
           </Button>
 
           {/* Stacking info */}
-          <div className="flex items-start gap-2 p-2 rounded-lg bg-muted/30 border border-border/30">
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30 border border-border/30">
             <Info className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
-            <p className="text-[10px] text-muted-foreground leading-relaxed">
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
               <strong>Lore</strong> guides stack freely. <strong>Tone</strong> and <strong>Pacing</strong> are
               pick-one each. Enabling one auto-disables others in its category.
             </p>
@@ -281,6 +295,6 @@ export function EmpyreanCampaignPack({
           </p>
         </div>
       </ScrollArea>
-    </EdgeDrawer>
+    </div>
   );
 }
