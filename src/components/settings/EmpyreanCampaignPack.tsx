@@ -14,6 +14,7 @@ import {
   EMPYREAN_GUIDE_PREFIX,
   type EmpyreanGuide,
 } from '@/lib/empyreanGMGuides';
+import { AirWizard } from './AirWizard';
 import type { GMGuide } from '@/lib/gm-guides-storage';
 
 interface EmpyreanCampaignPackProps {
@@ -287,6 +288,10 @@ export function EmpyreanCampaignPack({
           {/* Categories */}
           {renderCategory('lore', EMPYREAN_LORE_GUIDES)}
           {renderCategory('tone', EMPYREAN_META_GUIDES.filter(g => g.category === 'tone'))}
+
+          {/* Air Wizard — Weekly Tone Schedule */}
+          <AirWizard addGuide={addGuide} updateGuide={updateGuide} guides={guides} />
+
           {renderCategory('pacing', EMPYREAN_META_GUIDES.filter(g => g.category === 'pacing'))}
           {renderCategory('alternate', EMPYREAN_META_GUIDES.filter(g => g.category === 'alternate'))}
 

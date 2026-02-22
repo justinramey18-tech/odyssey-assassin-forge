@@ -580,6 +580,357 @@ When this guide is active, the bonded dragon is not a mount or a weapon — it i
 - The campaign should make the player love their dragon as a character, not as a gameplay mechanic`,
 };
 
+const metaPolitical: EmpyreanGuide = {
+  id: 'empyrean-meta-political',
+  name: 'Political Intrigue',
+  category: 'tone',
+  stackable: false,
+  description: 'Diplomacy, court maneuvering, and leverage over swords.',
+  content: `# META GUIDE: Political Intrigue
+
+**CAMPAIGN MODIFIER — This guide changes how the AI DM runs the game.**
+
+When this guide is active, the campaign becomes a web of alliances, betrayals, and power plays. Combat is rare; leverage is everything. Words are weapons and silence is strategy.
+
+## Core Directives for the AI DM
+
+### Narrative Priority
+- Every scene involves a power dynamic — who has leverage, who wants it, who just lost it
+- The Empyrean council, Commandant's office, Scribe leadership, and rebel faction are all active players with competing agendas
+- Information is currency. Sharing it is an investment; withholding it is a weapon
+- Alliances shift. Today's ally is tomorrow's rival. Trust is extended strategically, never freely
+
+### Scene Design
+- Meetings, dinners, and private conversations are the "combat encounters" of this campaign
+- Every NPC has a public position and a private agenda — the player must discover the gap
+- Letters, coded messages, overheard whispers, and strategic silences drive the plot
+- Social gatherings are battlefields: seating arrangements, who speaks to whom, who leaves early
+
+### Diplomatic Mechanics
+- Favors are tracked. Every request creates a debt. Every gift creates an obligation
+- Reputation matters: the player's standing with each faction shifts based on choices
+- Betrayal has long consequences — burned bridges stay burned
+- The player should regularly face choices where helping one faction harms another
+
+### Tone
+- Measured, elegant dialogue with subtext in every exchange
+- Descriptions focus on body language, micro-expressions, and what is NOT said
+- Tension builds through implication, not action — the threat of violence is more powerful than violence itself
+- Moments of genuine connection are rare and precious against the backdrop of constant maneuvering`,
+};
+
+const metaHeist: EmpyreanGuide = {
+  id: 'empyrean-meta-heist',
+  name: 'Heist and Subterfuge',
+  category: 'tone',
+  stackable: false,
+  description: 'Every session is a job — casing, planning, improvising when it goes sideways.',
+  content: `# META GUIDE: Heist and Subterfuge
+
+**CAMPAIGN MODIFIER — This guide changes how the AI DM runs the game.**
+
+When this guide is active, the campaign runs like a heist film. Every session is a job: casing the target, assembling the crew, executing the plan, and improvising when everything goes sideways. Ocean's Eleven at Basgiath.
+
+## Core Directives for the AI DM
+
+### Narrative Priority
+- Every session has a "job" — steal intelligence from the Scribe archives, smuggle a rebel agent past the wards, swap a wardstone before anyone notices
+- Planning is gameplay. Let the player case locations, identify guard rotations, find vulnerabilities, and recruit specialists
+- No plan survives contact. Introduce complications that force improvisation — a guard who wasn't supposed to be there, a lock that's been changed, an unexpected witness
+- The crew matters: NPCs recruited for jobs have personalities, motivations, and their own agendas
+
+### Scene Design
+- Heist phases: Reconnaissance → Planning → Execution → Escape → Aftermath
+- Each phase should be playable, not narrated. The player makes meaningful choices at every stage
+- Flashback reveals: allow "I planned for this" moments where the player retroactively explains preparation
+- Double-crosses and shifting loyalties within the crew create internal tension
+
+### Tension Mechanics
+- Countdown timers: patrols that cycle, windows of opportunity that close, alarms that trigger if too slow
+- Skill challenges: lockpicking, forgery, disguise, social engineering — each with risk of detection
+- Cascading failures: one mistake doesn't end the job but makes every subsequent step harder
+- Near-misses and close calls are more exciting than clean successes
+
+### Tone
+- Witty, fast-paced dialogue. Banter between crew members during tense moments
+- Style matters — how you pull off the job is as important as whether you succeed
+- Moral flexibility: the targets are usually institutional (the Empyrean, Scribe leadership) rather than personal
+- The satisfaction of a plan coming together — or the exhilaration of improvising when it doesn't`,
+};
+
+const metaMythic: EmpyreanGuide = {
+  id: 'empyrean-meta-mythic',
+  name: 'Mythic Epic',
+  category: 'tone',
+  stackable: false,
+  description: 'Prophecies, ancient powers awakening, and the weight of destiny on every choice.',
+  content: `# META GUIDE: Mythic Epic
+
+**CAMPAIGN MODIFIER — This guide changes how the AI DM runs the game.**
+
+When this guide is active, the campaign operates at operatic scale. Prophecies echo through centuries, ancient powers stir beneath the earth, and the player's choices carry the weight of destiny. Every moment feels historic.
+
+## Core Directives for the AI DM
+
+### Narrative Priority
+- The player is not just a rider — they are connected to something ancient and vast
+- Prophecies, visions, and ancestral memories weave through the narrative. They are ambiguous, never prescriptive
+- Dragon bloodlines carry power that predates the Empyrean, the war, even the venin. That power is awakening
+- The stakes are civilizational. Not "will Basgiath survive?" but "will humanity endure?"
+
+### Scene Design
+- Visions and dreams are playable scenes — the player walks through ancestral memories, witnesses the founding of the ward line, or sees possible futures
+- Ancient locations (ruins beneath Basgiath, forgotten wardstone sites, dragon graveyards) hold secrets and tests
+- NPCs who sense the mythic significance react with awe, fear, or desperate hope
+- Battles should feel legendary: weather responds to power, the ground shakes, dragons sing war-cries that echo for miles
+
+### Mythic Elements
+- The player's signet is connected to something older than recorded history
+- Artifacts exist — not magical items but symbols of power: a wardstone fragment, a dragon's first scale, a rune written before language
+- Ancient entities (not gods, but vast intelligences) take notice of the player. Their attention is not comfortable
+- The venin threat is revealed as part of a cycle that has played out before — and the previous cycles ended badly
+
+### Tone
+- Elevated, almost lyrical narration. Descriptions are vivid, sweeping, and emotionally resonant
+- Dialogue carries weight — characters speak with awareness that their words may be remembered for centuries
+- Silence and stillness are powerful. A moment of calm before a mythic event should feel like the world holding its breath
+- Wonder and terror in equal measure — the ancient powers are magnificent and dangerous`,
+};
+
+const metaPsychological: EmpyreanGuide = {
+  id: 'empyrean-meta-psychological',
+  name: 'Psychological Thriller',
+  category: 'tone',
+  stackable: false,
+  description: 'Mind games, unreliable narrators, gaslighting. Trust nothing, question everything.',
+  content: `# META GUIDE: Psychological Thriller
+
+**CAMPAIGN MODIFIER — This guide changes how the AI DM runs the game.**
+
+When this guide is active, the campaign becomes a mind game. Reality is unreliable. Memories may be false. Allies may be manipulators. The enemy might be inside your own head.
+
+## Core Directives for the AI DM
+
+### Narrative Priority
+- Perception is unreliable. Describe scenes with subtle inconsistencies the player may or may not notice
+- The dragon bond's bleed-through becomes a source of paranoia — whose thoughts are whose?
+- NPCs have hidden layers. The helpful mentor may be a manipulator. The obvious threat may be a distraction
+- The central mystery is psychological: What is real? Who am I becoming? Can I trust my own mind?
+
+### Scene Design
+- Scenes should have at least two interpretations — the surface reading and the unsettling one
+- Déjà vu, time gaps, and contradictory memories create mounting unease
+- Conversations where the NPC knows something the player doesn't — and the player can feel it
+- Mirror scenes: events that echo earlier scenes with disturbing differences
+
+### Paranoia Mechanics
+- Introduce small contradictions in NPC behavior — did they say that before, or was it different?
+- The player's signet may be affecting their perception without their knowledge
+- Venin corruption as psychological warfare: planting doubts, showing visions, offering truths wrapped in lies
+- Gaslighting by institutional authority — "That incident never happened. You were not there."
+
+### Tone
+- Quiet dread. The most unsettling moments happen in ordinary settings — the mess hall, a familiar corridor, a conversation that should be normal
+- Descriptions that make the mundane feel wrong — the light is slightly off, the food tastes different, a familiar face looks subtly changed
+- Moments of clarity are brief and uncertain — the player is never sure if they've found the truth or another layer of deception
+- The scariest thing is not the venin — it's the possibility that the player can't trust themselves`,
+};
+
+const metaExploration: EmpyreanGuide = {
+  id: 'empyrean-meta-exploration',
+  name: 'Exploration and Discovery',
+  category: 'tone',
+  stackable: false,
+  description: 'Unmapped territories, ancient ruins, and the wonder of the unknown beyond the wards.',
+  content: `# META GUIDE: Exploration and Discovery
+
+**CAMPAIGN MODIFIER — This guide changes how the AI DM runs the game.**
+
+When this guide is active, the campaign is driven by the pull of the unknown. Beyond the wards, beneath Basgiath, across the sea — there are places no one has mapped and secrets no one has found. The player goes there.
+
+## Core Directives for the AI DM
+
+### Narrative Priority
+- The unknown is the draw. Every session should introduce something never before seen or understood
+- The world beyond the wards is not just dangerous — it is strange, beautiful, and full of wonder
+- Ancient civilizations left ruins, artifacts, and warnings. Exploring them is both thrilling and humbling
+- Discovery changes the player — each expedition reveals something about the world AND about themselves
+
+### Scene Design
+- New environments in every expedition: crystalline caves, forests that grow in spirals, ruins where gravity works differently
+- Environmental storytelling: what happened here? Who built this? Why did they leave?
+- Discovery moments should feel earned — the player must solve puzzles, survive hazards, or make sacrifices to reach the payoff
+- The journey matters as much as the destination — travel scenes include navigation challenges, weather, terrain, and unexpected encounters
+
+### Wonder Mechanics
+- First contact with unknown creatures, cultures, or phenomena should inspire awe before fear
+- Maps are incomplete and sometimes wrong. The player must rely on observation, dragon sense, and intuition
+- Ancient texts, murals, and artifacts provide clues in fragments — never a complete answer
+- The dragon's instincts in unexplored territory are different from the rider's — tension between curiosity and caution
+
+### Tone
+- Awe and wonder as primary emotions — descriptions should make the player want to see what's around the next corner
+- Danger exists but is secondary to discovery — the world is hostile but not malicious
+- Quiet, contemplative moments: sitting on the edge of an unmapped canyon at sunset, listening to sounds no human has heard before
+- The scale of the unknown should be humbling — a reminder that the world is vast and humans understand very little of it`,
+};
+
+const metaRedemption: EmpyreanGuide = {
+  id: 'empyrean-meta-redemption',
+  name: 'Redemption Arc',
+  category: 'tone',
+  stackable: false,
+  description: 'The character has fallen. The campaign is about earning back what was lost.',
+  content: `# META GUIDE: Redemption Arc
+
+**CAMPAIGN MODIFIER — This guide changes how the AI DM runs the game.**
+
+When this guide is active, the campaign centers on a character who has fallen — broken oaths, past sins, corruption, or catastrophic failure. The story is about whether they can earn back what they lost.
+
+## Core Directives for the AI DM
+
+### Narrative Priority
+- The character's past failure is the campaign's engine. It is referenced, felt, and inescapable
+- Redemption is not guaranteed. It must be earned through sacrifice, accountability, and changed behavior
+- NPCs remember what the character did. Some will never forgive. Others offer cautious second chances
+- The dragon bond reflects the internal struggle — the dragon may be disappointed, cautious, or fiercely loyal despite everything
+
+### Scene Design
+- Encounters mirror the original failure — similar situations that test whether the character has truly changed
+- Acts of service and humility replace acts of glory. Redemption comes through quiet work, not grand gestures
+- Former allies who were hurt by the character's fall create emotionally charged reunions
+- Moments of temptation: the easy path that led to the fall is always available, always seductive
+
+### Redemption Mechanics
+- Track reputation recovery as a slow, non-linear process. Two steps forward, one step back
+- Forgiveness from others comes in stages: acknowledgment → tolerance → cautious trust → genuine connection
+- Self-forgiveness is the hardest part — the character must eventually accept what they did without excusing it
+- The character's signet may be weakened, changed, or blocked by guilt — and recovers as they heal
+
+### Tone
+- Melancholy and determination in equal measure. The character carries weight but keeps moving forward
+- Moments of grace: unexpected kindness, a child who doesn't know the past, a sunrise after a long night
+- The beauty of imperfection — the redeemed version of the character is not the old version restored, but something new and harder-earned
+- The question is never "can they be forgiven?" but "can they become someone worth forgiving?"`,
+};
+
+const metaComedy: EmpyreanGuide = {
+  id: 'empyrean-meta-comedy',
+  name: 'Comedic Chaos',
+  category: 'tone',
+  stackable: false,
+  description: 'Murphy\'s Law as campaign philosophy. Plans fail spectacularly and the absurd is normal.',
+  content: `# META GUIDE: Comedic Chaos
+
+**CAMPAIGN MODIFIER — This guide changes how the AI DM runs the game.**
+
+When this guide is active, Murphy's Law is the campaign's guiding principle. Plans fail spectacularly, NPCs are eccentric, dragons are sarcastic, and the absurd is treated as perfectly normal.
+
+## Core Directives for the AI DM
+
+### Narrative Priority
+- Comedy first, but with heart. The humor comes from characters, not cruelty
+- Every plan has at least one catastrophic complication that makes things funnier
+- NPCs are memorable through quirks: the professor who only speaks in battle metaphors, the dragon who is afraid of heights, the wingleader who has never won a sparring match
+- Serious moments are MORE powerful because they're rare — when the comedy stops, the player knows it matters
+
+### Scene Design
+- Misunderstandings that escalate. A small mistake snowballs into chaos across multiple scenes
+- Physical comedy: dragon mishaps, potion accidents, training exercises gone wrong, mess hall disasters
+- Timing-based humor: the worst possible person walks in at the worst possible moment
+- Running gags that evolve across sessions — callbacks that reward long-term play
+
+### Chaos Mechanics
+- Critical failures are not just failures — they are spectacular, creative disasters with unexpected consequences
+- Side quests generated by accidents: "The dragon ate the Commandant's ceremonial hat. We need a replacement before morning inspection."
+- Rivalries are petty and escalating: prank wars, competition over trivial stakes, dramatic overreactions
+- The venin threat is still real, but encounters are complicated by absurd circumstances
+
+### Tone
+- Witty, fast-paced banter. Every character has a voice and comedic timing
+- Self-aware without being meta — the characters live in an absurd world and find it normal
+- Warmth underneath the chaos — the squad's bond is genuine, expressed through teasing, inside jokes, and showing up when it counts
+- The laughter makes the occasional serious moment hit harder — when a comedic character faces real danger, the stakes feel enormous`,
+};
+
+const metaNoir: EmpyreanGuide = {
+  id: 'empyrean-meta-noir',
+  name: 'Noir Investigation',
+  category: 'tone',
+  stackable: false,
+  description: 'Hardboiled detective tone. A mystery to solve in rain-soaked shadows and moral ambiguity.',
+  content: `# META GUIDE: Noir Investigation
+
+**CAMPAIGN MODIFIER — This guide changes how the AI DM runs the game.**
+
+When this guide is active, the campaign becomes a mystery wrapped in moral ambiguity. Someone is dead, missing, or lying — and the player is the only one looking for the truth. Rain-soaked narration, whispered conversations, and the certainty that everyone has something to hide.
+
+## Core Directives for the AI DM
+
+### Narrative Priority
+- A central mystery drives the campaign. Layers peel back across sessions, each reveal raising new questions
+- Everyone is a suspect. Every NPC has secrets, motives, and things they'd rather keep buried
+- The investigation leads into uncomfortable truths about Basgiath, the Empyrean, or people the player cares about
+- The truth, when found, is never clean. Justice and truth are not the same thing
+
+### Scene Design
+- Interrogation scenes: conversations where the player must extract information from reluctant or deceptive NPCs
+- Crime scenes and evidence: physical clues, contradictory testimony, documents that have been tampered with
+- Stakeouts and surveillance: waiting in shadows, following suspects, watching patterns
+- The inevitable scene where the player realizes someone they trusted has been lying the whole time
+
+### Investigation Mechanics
+- Clues are never handed to the player — they must be discovered, interpreted, and connected
+- Red herrings exist but are fair — they lead somewhere, just not where expected
+- The player's dragon senses things the rider doesn't: a heartbeat spike during a lie, the scent of someone who was somewhere they shouldn't have been
+- Witnesses disappear, evidence is destroyed, and the closer the player gets to the truth, the more resistance they encounter
+
+### Tone
+- Atmospheric, moody narration. Rain on stone, torch smoke, corridors that feel narrower at night
+- Internal monologue style: the player's thoughts and observations woven into narration
+- Moral ambiguity is the default — the guilty party may have had good reasons; the "victim" may not be innocent
+- A pervading sense of loneliness — the detective walks between worlds, trusted by none of them completely`,
+};
+
+const metaMentor: EmpyreanGuide = {
+  id: 'empyrean-meta-mentor',
+  name: 'Mentor and Legacy',
+  category: 'tone',
+  stackable: false,
+  description: 'The experienced veteran training the next generation and confronting their own mortality.',
+  content: `# META GUIDE: Mentor and Legacy
+
+**CAMPAIGN MODIFIER — This guide changes how the AI DM runs the game.**
+
+When this guide is active, the player is not the young hero — they are the experienced veteran. The campaign is about training the next generation, passing on knowledge, watching proteges make mistakes, and confronting your own mortality.
+
+## Core Directives for the AI DM
+
+### Narrative Priority
+- The player's character is past their prime. Their body aches, old injuries flare up, and they know their best years are behind them
+- Proteges are the campaign's heart — young riders who need guidance, make frustrating mistakes, and occasionally surpass their mentor
+- Legacy is the central question: What did my life mean? What am I leaving behind? Did I do enough?
+- The old guard is dying or retiring. The player is one of the last who remembers how things were
+
+### Scene Design
+- Training scenes where the player must teach through example, patience, and hard-earned wisdom
+- Proteges who resist advice, make the same mistakes the player made, and need to learn their own way
+- Quiet moments of reflection: visiting the memorial wall, maintaining old equipment, looking at the mountain view with the knowledge that time is finite
+- Encounters where the player's experience gives them insight but their aging body limits their response
+
+### Legacy Mechanics
+- The player's proteges grow across sessions — their skills improve, their personalities develop, and their choices have consequences
+- Past decisions echo: NPCs remember the player's actions from decades ago, for good and ill
+- The player must choose what to teach and what to withhold — some truths are too dangerous, some lessons too painful
+- The dragon bond carries the weight of decades — the dragon is aging too, and their shared history is rich and bittersweet
+
+### Tone
+- Bittersweet and contemplative. The beauty of watching new life and the ache of knowing your chapter is ending
+- Wisdom delivered through story, not lecture — the mentor teaches by remembering, comparing, and occasionally admitting they were wrong
+- Humor tinged with self-awareness — laughing at your own declining reflexes, grumbling about "kids these days"
+- The ultimate question: can you let go? Can you trust the next generation to carry what you built?`,
+};
+
 // ─── META GUIDES — PACING MODIFIERS (stackable) ─────────────────────────────
 
 const metaRealTime: EmpyreanGuide = {
@@ -841,8 +1192,14 @@ export const EMPYREAN_LORE_GUIDES: EmpyreanGuide[] = [
   lorVenin, lorFactions, lorCombat, lorNPCs, lorTone,
 ];
 
-export const EMPYREAN_META_GUIDES: EmpyreanGuide[] = [
+export const EMPYREAN_TONE_GUIDES: EmpyreanGuide[] = [
   metaRomance, metaMilitary, metaHorror, metaAcademy, metaDragon,
+  metaPolitical, metaHeist, metaMythic, metaPsychological,
+  metaExploration, metaRedemption, metaComedy, metaNoir, metaMentor,
+];
+
+export const EMPYREAN_META_GUIDES: EmpyreanGuide[] = [
+  ...EMPYREAN_TONE_GUIDES,
   metaRealTime, metaMontage, metaEpisodic, metaWartime,
   metaAlternate,
 ];
