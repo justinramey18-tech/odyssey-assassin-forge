@@ -31,6 +31,7 @@ interface DMToolsDrawerProps {
   anchorsCount: number;
   onRetakePersonalityTest?: () => Promise<void>;
   dmPersonaName?: string;
+  onEmpyreanPrompts?: () => void;
 }
 
 export function DMToolsDrawer({
@@ -50,6 +51,7 @@ export function DMToolsDrawer({
   anchorsCount,
   onRetakePersonalityTest,
   dmPersonaName,
+  onEmpyreanPrompts,
 }: DMToolsDrawerProps) {
   const [showRetakeConfirm, setShowRetakeConfirm] = useState(false);
 
@@ -105,6 +107,15 @@ export function DMToolsDrawer({
             badgeColor="bg-amber-600"
             onClick={() => closeAndRun(onGuides)}
           />
+
+          {/* Empyrean Prompts */}
+          {onEmpyreanPrompts && (
+            <ToolRow
+              icon={<span className="text-sm">🐉</span>}
+              label="Empyrean Prompts"
+              onClick={() => closeAndRun(onEmpyreanPrompts)}
+            />
+          )}
 
           {/* World State */}
           <ToolRow
