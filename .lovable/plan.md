@@ -1,143 +1,152 @@
 
 
-## Personality Test Gate for Solo AI DM
+## Add 10 Meta GM Guides + 10 Lore GM Guides + 50 Empyrean Prompt Templates
 
 ### Overview
 
-Before a player can enter the Solo AI DM for the first time, they must complete a comprehensive personality assessment combining Enneagram and MBTI (16 Personalities) frameworks (~80+ questions). The AI DM then adopts a complementary personality based on the results and shows the player a summary of the DM persona it created.
+This implementation adds three content packages to the app:
 
-Results are stored in the cloud database (with localStorage fallback). Players can retake the test from the DM Tools Drawer with a confirmation warning.
+1. **10 Lore GM Guides** -- world-building reference material (Navarre, Basgiath, dragons, signets, runes, venin, factions, combat, NPCs, tone)
+2. **10 Meta GM Guides** -- campaign modifiers that change how the AI DM runs the game (pacing, focus, perspective, alternate premises)
+3. **50 Empyrean Prompt Templates** -- session prompts for use with external AI DMs
 
----
-
-### How It Works
-
-1. Player taps "Solo DM" -- instead of opening the DM screen directly, the system checks if personality test results exist
-2. If no results: a full-screen, multi-step personality test wizard launches
-3. Player answers ~80-90 questions across Enneagram and MBTI dimensions
-4. On completion: results are scored, a "DM Persona Summary" screen shows the complementary DM personality that was generated
-5. Results are saved to the database and localStorage
-6. The AI DM system prompt is injected with the personality profile, shaping all future narration
-7. A "Retake Personality Test" option is added to the DM Tools Drawer (with confirmation dialog)
+All content lives in two new data files. The UI for browsing/installing reuses existing patterns (GM Guides library, prompt copy system).
 
 ---
 
-### The Test Structure
+### The 10 Meta GM Guides
 
-**Part 1: MBTI Dimensions (~40 questions)**
-- Extraversion vs Introversion (10 questions)
-- Sensing vs Intuition (10 questions)
-- Thinking vs Feeling (10 questions)
-- Judging vs Perceiving (10 questions)
+These are split into two categories per the "Mix of Both" stacking preference:
 
-Each question is a forced-choice between two statements (A/B format), themed around D&D scenarios to keep it engaging (e.g., "Before entering the dungeon, do you: A) Scout ahead methodically, B) Charge in and improvise").
+**Tone Changers (mutually exclusive -- pick one):**
+Each of these fundamentally redefines the campaign's mood and narrative priority. Only one should be active at a time.
 
-**Part 2: Enneagram Core Type (~45 questions)**
-- 5 questions per Enneagram type (9 types = 45 questions)
-- Likert scale (Strongly Disagree to Strongly Agree)
-- Also themed around adventuring scenarios
+1. **Romance & Bonds First** -- Romance is the primary narrative driver. Every encounter, quest, and combat scenario is filtered through its impact on relationships. The AI DM prioritizes romantic tension, jealousy, vulnerability, stolen moments, and the push-pull of forbidden attraction. Combat and politics serve the love story, not the other way around. Inspired by the Violet/Xaden dynamic.
 
-**Total: ~85 questions**, presented in themed sections with progress indicators.
+2. **Military Thriller** -- The campaign runs like a war room. Chain of command is sacred, intelligence is currency, and every mission has strategic consequences. The AI DM emphasizes tactical briefings, classified information, betrayal within ranks, and the moral cost of following (or defying) orders. Romance takes a back seat to duty.
 
----
+3. **Horror Survival** -- Venin encounters are terrifying. The ward line is failing. Resources are scarce. Death is permanent and the AI DM does not pull punches. Dark atmospheric descriptions, isolation, paranoia about who might be turning, and genuine resource management (spell slots, healing, supplies). The world feels hostile and hope is earned.
 
-### DM Personality Mapping
+4. **Academy Slice-of-Life** -- Low-stakes Basgiath daily life. Training montages, friendships forming over meals, studying for Battle Brief, sparring rivalries that are competitive but not lethal. The AI DM focuses on character development, humor, found-family dynamics, and the quiet moments between the big events. War is a distant threat, not an immediate one.
 
-The AI doesn't just mirror the player -- it adopts a **complementary** personality:
+5. **Dragon-Centric Campaign** -- The dragon is not a mount -- it is a co-protagonist. Scenes are frequently told from the dragon's perspective. Dragon politics, hatchling dynamics, ancient grudges between dragon bloodlines, and the telepathic bond's emotional depth are the narrative core. The AI DM gives the bonded dragon a rich personality, opinions, and agenda that sometimes conflicts with the rider's goals.
 
-- Introverted player gets a more expressive, encouraging DM
-- Thinking-dominant player gets a DM who weaves more emotional NPC arcs
-- Type 8 (Challenger) Enneagram gets a DM who presents worthy adversaries and respects their agency
-- Type 4 (Individualist) gets a DM rich in atmospheric, emotionally resonant storytelling
+**Pacing and Structure Modifiers (stackable -- combine with any tone changer):**
+These modify timeline speed and session structure. They layer on top of a tone changer.
 
-This mapping logic lives in a utility file and generates a structured personality prompt block.
+6. **Real-Time Crawl** -- Every scene plays out in granular detail. A single day at Basgiath might span an entire session. Conversations are fully dramatized, meals are described, training exercises are step-by-step. The AI DM never summarizes or skips ahead unless explicitly asked. Ideal for deep immersion and character development.
 
----
+7. **Montage Mode** -- Time moves in broad strokes. Weeks or months pass between fully dramatized scenes. The AI DM provides narrative summaries of training progress, relationship shifts, and world events between the "big moments." Each session covers significant plot beats rather than daily minutiae.
 
-### DM Persona Summary Screen
+8. **Episodic Structure** -- Each session is a self-contained episode with a beginning, middle, and cliffhanger ending. Time skips between episodes. The AI DM structures each session around a central conflict or revelation that resolves (or escalates) by session's end. Previously on / next time teasers included.
 
-After completing the test, the player sees a summary card:
+9. **Wartime Escalation** -- Events move fast. The ward line is collapsing, attacks are increasing in frequency, and there is no downtime. The AI DM maintains constant urgency -- interrupted rest, emergency deployments, cascading consequences from previous sessions. Every decision has immediate ripple effects.
 
-- Their MBTI type (e.g., "INTJ - The Architect")
-- Their Enneagram type (e.g., "Type 5 - The Investigator")
-- The DM's adopted persona name and description (e.g., "Your DM: The Fireweaver -- an emotionally expressive storyteller who brings NPCs to vivid life and challenges your analytical nature with moral dilemmas")
-- A "Begin Adventure" button to proceed to the DM screen
+**Alternate Campaign Premise (mutually exclusive with each other, stackable with pacing modifiers):**
+
+10. **Alternate Perspectives Pack** -- A single guide containing four alternate campaign frameworks, each clearly sectioned so the AI DM knows which one is active:
+    - **Scribe Quadrant:** Play as a scribe -- information warfare, forbidden archives, coded messages, and knowing secrets that could get you killed. No dragon bond, but access to intelligence that riders would kill for.
+    - **Pre-Unification Era:** Set centuries before the current timeline. Dragon riders are independent warlords, there is no Basgiath, and alliances are forged through fire. Raw, tribal, politically volatile.
+    - **Venin Perspective:** Morally gray campaign. Play as someone drawn to (or already wielding) dark power. The AI DM presents venin not as monsters but as people who made desperate choices. The corruption is seductive and the "heroes" are not always right.
+    - **Basgiath Leadership:** Play as a professor, wingleader, or commanding officer. Manage student rivalries, keep institutional secrets, make impossible decisions about who lives and who gets sent on suicide missions. The students are your responsibility and some of them will not survive.
+
+Each section in the Alternate Perspectives guide is marked with a clear header so users can tell the AI DM "I'm playing the Scribe Quadrant scenario" and only that section applies.
 
 ---
 
-### Technical Plan
+### The 10 Lore GM Guides
 
-**Database:**
-- New table: `personality_test_results`
-  - `id` (uuid, PK)
-  - `user_id` (uuid, not null)
-  - `mbti_type` (text) -- e.g., "INTJ"
-  - `mbti_scores` (jsonb) -- raw dimension scores
-  - `enneagram_type` (integer) -- 1-9
-  - `enneagram_scores` (jsonb) -- raw scores per type
-  - `dm_persona` (jsonb) -- generated persona config
-  - `created_at`, `updated_at` (timestamptz)
-  - RLS: users can CRUD their own rows only
+(Unchanged from previous plan -- included here for completeness)
+
+1. **World of Navarre** -- geography, political structure, the Empyrean, the war, the Reunification treaty (~3,000 chars)
+2. **Basgiath War College** -- four quadrants, wing/squad structure, daily life, curriculum, chain of command (~2,500 chars)
+3. **Dragon Bonds** -- bonding mechanics, mental connection, bleed-through, breeds, second bonds, dragon agency (~3,000 chars)
+4. **Signet Abilities** -- manifestation, categories, burnout, growth, creating original signets (~2,500 chars)
+5. **Runes and Warding** -- ward line mechanics, runic magic, wardstones, ward failure consequences (~2,500 chars)
+6. **Venin and Wyverns** -- what venin are, corruption stages, wyvern biology, tactics, moral complexity (~2,500 chars)
+7. **Factions and Politics** -- government, the rebellion, scribe information control, inter-kingdom relations (~2,500 chars)
+8. **Combat and Warfare** -- aerial combat, ground combat, squad tactics, large battles, D&D integration (~2,500 chars)
+9. **NPCs and Archetypes** -- common NPC types, distinct voices, antagonist design, romance archetypes (~2,000 chars)
+10. **Tone and Narrative Style** -- series voice, dragon telepathy conventions, danger, romance, cliffhangers (~2,000 chars)
+
+---
+
+### The 50 Empyrean Prompt Templates
+
+(Unchanged from previous plan -- 50 prompts across 7 categories: Dragon Bond, Signet Abilities, Basgiath War College, Venin and Dark Forces, Relationships and Politics, Combat and Survival, Meta and Narrative)
+
+---
+
+### Stacking Rules (Documented in UI)
+
+The installation UI will show clear labels:
+
+```text
+TONE (pick one):
+  [ ] Romance & Bonds First
+  [ ] Military Thriller
+  [ ] Horror Survival
+  [ ] Academy Slice-of-Life
+  [ ] Dragon-Centric Campaign
+
+PACING (pick one, stacks with tone):
+  [ ] Real-Time Crawl
+  [ ] Montage Mode
+  [ ] Episodic Structure
+  [ ] Wartime Escalation
+
+ALTERNATE PREMISE (optional, stacks with pacing):
+  [ ] Alternate Perspectives Pack
+      → Then tell your AI: "I'm playing [Scribe/Pre-Unification/Venin/Leadership]"
+```
+
+---
+
+### Technical Implementation
 
 **New Files:**
 
 | File | Purpose |
 |------|---------|
-| `src/lib/personality-test/questions.ts` | All ~85 questions with metadata (section, type, scoring key) |
-| `src/lib/personality-test/scoring.ts` | Scoring algorithms for MBTI + Enneagram from raw answers |
-| `src/lib/personality-test/dm-persona-mapping.ts` | Maps test results to a complementary DM persona prompt block |
-| `src/lib/personality-test/types.ts` | TypeScript interfaces for questions, answers, results, persona |
-| `src/components/ai-dm/PersonalityTestWizard.tsx` | Full-screen multi-step test UI with progress bar |
-| `src/components/ai-dm/PersonalityResultsScreen.tsx` | Summary screen showing results + DM persona |
-| `src/hooks/use-personality-test.ts` | Hook to load/save results from cloud + localStorage, check completion status |
+| `src/lib/empyreanPrompts.ts` | 50 prompt template definitions |
+| `src/lib/empyreanGMGuides.ts` | 20 GM Guide content definitions (10 lore + 10 meta) with metadata flags for stacking rules |
+| `src/components/settings/EmpyreanPromptLibrary.tsx` | Browsable drawer for the 50 prompts with category tabs, copy, and favorites |
+| `src/components/settings/EmpyreanCampaignPack.tsx` | Install/preview UI for the 20 GM Guides with stacking rule labels and category sections (Lore / Tone / Pacing / Alternate) |
 
 **Modified Files:**
 
 | File | Change |
 |------|--------|
-| `src/components/drawers/PromptDrawerProvider.tsx` | Gate the `aiDMOpen` state -- check if test is complete before opening DM screen; show wizard if not |
-| `src/components/ai-dm/DMToolsDrawer.tsx` | Add "Retake Personality Test" button with confirmation dialog |
-| `supabase/functions/ai-dm/index.ts` | Accept `dmPersona` in the request body; inject persona block into system prompt |
-| `src/hooks/use-ai-dm.ts` | Pass persona data through to the edge function |
+| `src/components/settings/SettingsContent.tsx` | Add "Empyrean Campaign Pack" section with buttons to open prompt library and guide installer |
+| `src/components/ai-dm/DMToolsDrawer.tsx` | Add "Empyrean Prompts" tool row |
 
-**System Prompt Integration:**
+**Data structure for guides:**
 
-A new section is injected into the DM's system prompt:
-
-```text
-## YOUR ADOPTED PERSONALITY
-You are "The Fireweaver" -- an emotionally expressive and dramatically vivid storyteller.
-Based on the player's analytical, introverted nature (INTJ, Enneagram 5), you
-complement them by:
-- Leading with rich emotional NPC interactions to draw them out
-- Presenting puzzles and mysteries that reward their investigative nature
-- Using vivid sensory descriptions to balance their cerebral approach
-- Challenging them with moral dilemmas, not just tactical ones
-
-Tone: Warm but not saccharine. Dramatic but grounded. You respect their
-intelligence while gently pushing them toward emotional engagement.
+```typescript
+interface EmpyreanGuide {
+  id: string;           // 'empyrean-lore-navarre', 'empyrean-meta-romance', etc.
+  name: string;
+  content: string;
+  category: 'lore' | 'tone' | 'pacing' | 'alternate';
+  stackable: boolean;   // false for tone/alternate, true for pacing/lore
+  description: string;  // Short preview shown in installer UI
+}
 ```
 
----
+**Installation behavior:**
+- "Install All Lore Guides" adds all 10 lore guides (all enabled by default)
+- Tone/Pacing/Alternate guides are installed individually via toggle
+- When enabling a tone guide, any other active tone guide is auto-disabled (with toast warning)
+- Pacing guides follow the same mutual-exclusion pattern within their category
+- All guides use the existing `useGMGuides().addGuide()` function
+- Each guide ID is prefixed with `empyrean-` for identification
+- A "Remove All Empyrean Guides" option removes all guides with the prefix
+- Total estimated content: ~50,000 characters (well within the 200,000 char budget)
 
-### UI/UX Flow
-
-The test wizard is a full-screen overlay (matching the DM screen's dark fantasy aesthetic):
-
-- Amber/gold accents, glass backgrounds, cinzel headings
-- One question per screen on mobile, with swipe or button navigation
-- Progress bar showing completion percentage
-- Section headers ("Part 1: How You Approach the World", "Part 2: Your Core Motivations")
-- Each question is D&D-themed for engagement
-- Estimated time shown at the start ("This will take about 15-20 minutes")
-- Results can't be skipped -- all questions required
-
----
-
-### Edge Cases
-
-- **Not signed in:** Test is blocked; prompt to sign in first (results need cloud storage)
-- **Retake:** Confirmation dialog warns "This will change your DM's personality for all future sessions. Your current DM persona will be replaced."
-- **localStorage fallback:** If cloud save fails, results are cached locally and synced on next successful connection
-- **Migration:** Existing users who already use the Solo DM will be prompted to take the test on their next visit
+**Prompt template structure:**
+- Uses existing `CharacterPrompt` interface (id, category, title, description, prompt, icon)
+- `[Character Name]` placeholder auto-replaced on copy
+- `applyTimePrefix()` applied when copying
+- Favorites stored in localStorage under `empyrean-favorite-prompts`
+- Categories displayed as swipeable tabs (same pattern as `GMGuidePrompts` and `InfinityStoneDrawer`)
 
