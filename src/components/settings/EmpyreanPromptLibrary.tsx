@@ -50,6 +50,7 @@ const STONE_MAP: StoneMapping[] = [
   { category: 'Relationships and Politics', stone: 'Space Stone', color: 'text-blue-400', bgColor: 'bg-blue-500/10', borderColor: 'border-blue-500/30', icon: '🔵' },
   { category: 'Combat and Survival', stone: 'Masterwork Stone', color: 'text-gray-300', bgColor: 'bg-white/5', borderColor: 'border-white/20', icon: '⚪' },
   { category: 'Meta and Narrative', stone: 'Time Stone', color: 'text-green-400', bgColor: 'bg-green-500/10', borderColor: 'border-green-500/30', icon: '🟢' },
+  { category: 'Forbidden Lore', stone: 'Void Stone', color: 'text-indigo-400', bgColor: 'bg-indigo-500/10', borderColor: 'border-indigo-500/30', icon: '⚫' },
 ];
 
 type FilterMode = 'all' | 'favorites';
@@ -231,7 +232,7 @@ export function EmpyreanPromptLibrary({ open, onOpenChange, characterName }: Emp
           )}
 
           <p className="text-[10px] text-muted-foreground text-center pt-2 pb-8">
-            {empyreanPrompts.length} prompts across 7 stones
+            {empyreanPrompts.length} prompts across {STONE_MAP.length} stones
           </p>
         </div>
       </ScrollArea>

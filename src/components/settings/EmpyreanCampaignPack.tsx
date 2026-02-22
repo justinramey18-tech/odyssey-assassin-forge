@@ -11,6 +11,7 @@ import {
   ALL_EMPYREAN_GUIDES,
   EMPYREAN_LORE_GUIDES,
   EMPYREAN_META_GUIDES,
+  EMPYREAN_SESSION_GUIDES,
   EMPYREAN_GUIDE_PREFIX,
   type EmpyreanGuide,
 } from '@/lib/empyreanGMGuides';
@@ -31,6 +32,7 @@ const CATEGORY_META: Record<EmpyreanGuide['category'], { label: string; color: s
   tone: { label: 'Tone (pick one)', color: 'text-amber-400', desc: 'Sets the campaign mood — mutually exclusive', icon: '🎭' },
   pacing: { label: 'Pacing (pick one)', color: 'text-emerald-400', desc: 'Controls timeline speed — stacks with tone', icon: '⏳' },
   alternate: { label: 'Alternate Premise', color: 'text-purple-400', desc: 'Replaces the default campaign framework', icon: '🔮' },
+  session: { label: 'Session Types', color: 'text-rose-400', desc: 'Pre-built session templates — stackable', icon: '🎯' },
 };
 
 export function EmpyreanCampaignPack({
@@ -294,6 +296,7 @@ export function EmpyreanCampaignPack({
 
           {renderCategory('pacing', EMPYREAN_META_GUIDES.filter(g => g.category === 'pacing'))}
           {renderCategory('alternate', EMPYREAN_META_GUIDES.filter(g => g.category === 'alternate'))}
+          {renderCategory('session', EMPYREAN_SESSION_GUIDES)}
 
           <p className="text-[10px] text-muted-foreground text-center pt-4 pb-8">
             Total content: ~{Math.round(ALL_EMPYREAN_GUIDES.reduce((s, g) => s + g.content.length, 0) / 1000)}k chars
