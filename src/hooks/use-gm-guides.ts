@@ -112,7 +112,7 @@ export function useGMGuides() {
     saveGMGuides(next);
   }, []);
 
-  const addGuide = useCallback((name: string, content: string): boolean => {
+  const addGuide = useCallback((name: string, content: string, customId?: string): boolean => {
     if (content.length > MAX_GUIDE_CHARS) {
       toast.error(`Guide exceeds ${MAX_GUIDE_CHARS.toLocaleString()} character limit`);
       return false;
@@ -122,7 +122,7 @@ export function useGMGuides() {
       return false;
     }
     const guide: GMGuide = {
-      id: crypto.randomUUID(),
+      id: customId ?? crypto.randomUUID(),
       name: name.trim() || 'Untitled Guide',
       content,
       enabled: true,

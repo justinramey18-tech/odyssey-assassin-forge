@@ -20,7 +20,7 @@ interface EmpyreanCampaignPackProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   guides: GMGuide[];
-  addGuide: (name: string, content: string) => boolean;
+  addGuide: (name: string, content: string, customId?: string) => boolean;
   deleteGuide: (id: string) => void;
   updateGuide: (id: string, updates: Partial<Pick<GMGuide, 'name' | 'content' | 'enabled'>>) => boolean;
 }
@@ -86,13 +86,8 @@ export function EmpyreanCampaignPack({
       return;
     }
 
-    // addGuide creates a new ID — we need to use the existing system but with our ID
-    // Since addGuide doesn't accept an ID, we'll use it and rely on prefix matching
-    // Actually, let's just call addGuide which validates limits
-    const success = addGuide(eg.name, eg.content);
+    const success = addGuide(eg.name, eg.content, eg.id);
     if (success) {
-      // The guide was added with a random ID — find it and update
-      // This is imperfect but works with the existing API
       toast.success(`${eg.name} installed`);
     }
   }, [installedIds, enabledIds, addGuide, updateGuide]);
@@ -101,7 +96,7 @@ export function EmpyreanCampaignPack({
     let count = 0;
     for (const eg of EMPYREAN_LORE_GUIDES) {
       if (!installedIds.has(eg.id)) {
-        const success = addGuide(eg.name, eg.content);
+        const success = addGuide(eg.name, eg.content, eg.id);
         if (success) count++;
       }
     }
