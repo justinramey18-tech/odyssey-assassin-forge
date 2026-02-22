@@ -2,11 +2,10 @@ import { useState, useMemo, useCallback } from 'react';
 import { Copy, Check, Star, Shuffle, Gem } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { EdgeDrawer } from '@/components/drawers/EdgeDrawer';
+import { X } from 'lucide-react';
 import { empyreanPrompts, type EmpyreanPromptCategory } from '@/lib/empyreanPrompts';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
 
@@ -106,17 +105,27 @@ export function EmpyreanPromptLibrary({ open, onOpenChange, characterName }: Emp
     toast.success(`🎲 "${pick.title}" copied!`);
   }, [filteredPrompts, copyPrompt]);
 
+  if (!open) return null;
+
   return (
-    <EdgeDrawer
-      side="right"
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Empyrean Prompts"
-      icon={<Gem className="w-5 h-5" />}
-      accentColor="#f59e0b"
-    >
-      <ScrollArea className="h-[calc(100vh-120px)]">
-        <div className="space-y-3 pr-2">
+    <div className="fixed inset-0 z-[60] flex flex-col bg-gradient-to-b from-background via-background to-background/95">
+      {/* Fixed Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-amber-500/20 bg-background/80 backdrop-blur-sm shrink-0">
+        <div className="flex items-center gap-3">
+          <Gem className="w-5 h-5 text-amber-400" />
+          <h2 className="text-lg font-cinzel font-bold text-amber-400">Empyrean Prompts</h2>
+        </div>
+        <button
+          onClick={() => onOpenChange(false)}
+          className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto overscroll-contain">
+        <div className="px-4 py-4 space-y-3 max-w-2xl mx-auto pb-20">
           {/* Filter toggles */}
           <div className="flex gap-2">
             <button
@@ -235,7 +244,7 @@ export function EmpyreanPromptLibrary({ open, onOpenChange, characterName }: Emp
             {empyreanPrompts.length} prompts across {STONE_MAP.length} stones
           </p>
         </div>
-      </ScrollArea>
-    </EdgeDrawer>
+      </div>
+    </div>
   );
 }
