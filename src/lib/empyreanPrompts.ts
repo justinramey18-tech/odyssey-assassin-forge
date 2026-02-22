@@ -847,6 +847,80 @@ export const empyreanPrompts: CharacterPrompt[] = [
     prompt: '[Character Name] fights in a zone where signets are completely nullified — whether by ancient wards, environmental interference, or deliberate enemy action. No signet, no dragon amplification, no power shortcuts. Just steel, footwork, and everything the combat instructors drilled into them during first year. Describe the adjustment: the instinctive reach for power that isn\'t there, the rediscovery of physical combat fundamentals, and the opponent who chose this ground because they excel without magic. Victory here is earned with muscle and blade — the oldest way.',
     icon: '🛡️',
   },
+
+  // ── Forbidden Lore (9) ────────────────────────────────────────────────────
+  {
+    id: 'emp-lore-cipher',
+    category: 'Forbidden Lore',
+    title: 'Cipher Text',
+    description: 'Coded journal describing signet abilities the college claims don\'t exist.',
+    prompt: '[Character Name] finds a coded journal hidden in an unlikely place — behind a loose stone, inside a dragon saddle, or tucked into a book of mundane regulations. The cipher is complex but partially cracked by a previous reader who left margin notes. As [Character Name] decodes the text, it describes signet abilities the college explicitly denies exist — abilities that sound disturbingly similar to venin powers. The journal\'s author was a rider. The last entry is unfinished, mid-sentence, as if they were interrupted. The margin notes are in a different hand and say only: "They know you have this."',
+    icon: '🔐',
+  },
+  {
+    id: 'emp-lore-burned',
+    category: 'Forbidden Lore',
+    title: 'The Burned History',
+    description: 'Dragon reveals riders destroyed a civilization and erased the records.',
+    prompt: '[Character Name]\'s dragon shares something unbidden through the bond — not words, but a cascade of ancient images. Cities burning. Riders on dragonback raining fire on a civilization that is clearly not venin. People screaming in a language [Character Name] doesn\'t recognize. The dragon\'s ancestral memory is clear: riders destroyed this civilization, then erased every record of its existence. The college teaches that dragons have always fought venin. This memory says otherwise. The dragon offers no judgment — only the truth, and the question of what [Character Name] will do with it.',
+    icon: '🔥',
+  },
+  {
+    id: 'emp-lore-thesis',
+    category: 'Forbidden Lore',
+    title: 'Forbidden Thesis',
+    description: 'Dead scholar\'s research proves signet-venin connection — suppressed by the college.',
+    prompt: '[Character Name] obtains a thesis written by a scholar who died under suspicious circumstances. The research is meticulous, spanning decades: signets and venin powers share the same magical origin. The difference is not the source but the method of channeling. The implications are staggering — every rider carries the potential to become venin, and the college knows it. The thesis was submitted for review and immediately classified. The scholar died two weeks later. "Natural causes." [Character Name] must decide: share this, hide it, or investigate the scholar\'s death.',
+    icon: '📄',
+  },
+  {
+    id: 'emp-lore-memory-stone',
+    category: 'Forbidden Lore',
+    title: 'Memory Stone',
+    description: 'Artifact plays back a centuries-old scene that contradicts official history.',
+    prompt: '[Character Name] touches an ancient stone — a wardstone fragment, a relic in a forgotten chamber, or an artifact given by a dying rider — and is pulled into a vision. The scene is centuries old: a meeting of the original Empyrean founders. They are arguing. One faction wants to tell the truth about the wards\' limitations. The other insists on secrecy "for the good of Navarre." The vote is close. Secrecy wins by a single voice. The face of the dissenter is familiar — an ancestor, perhaps, or a figure from a portrait in Basgiath\'s halls. The stone cracks after showing its truth, as if it was waiting for the right person.',
+    icon: '💎',
+  },
+  {
+    id: 'emp-lore-heretic-map',
+    category: 'Forbidden Lore',
+    title: 'The Heretic\'s Map',
+    description: 'Map showing locations beyond the wards the college insists are uninhabitable.',
+    prompt: '[Character Name] discovers a hand-drawn map that shouldn\'t exist. It shows locations beyond the ward line — not the grey wasteland the college describes, but settlements, trade routes, and landmarks. Annotations in faded ink describe people living beyond the wards: communities that adapted, formed alliances, developed their own defenses. The college teaches that nothing survives beyond the wards. This map says entire cultures thrive there. One location is circled repeatedly with a note: "They have answers we\'ve been afraid to ask." Getting there would mean going AWOL.',
+    icon: '🗺️',
+  },
+  {
+    id: 'emp-lore-living-doc',
+    category: 'Forbidden Lore',
+    title: 'Living Document',
+    description: 'Text rewrites itself based on reader\'s signet — personalized truths.',
+    prompt: '[Character Name] opens an ancient text and watches the ink move. The words rearrange themselves as they read, responding to [Character Name]\'s signet — the document is alive in some magical sense, calibrated to reveal different truths to different wielders. What it shows [Character Name] is personal and disturbing: details about their specific signet that no one has ever explained, a warning about a path they\'re already walking, and a prediction about what they\'ll become if they don\'t change course. When another person looks at the same page, they see entirely different text. The document cannot be copied — ink slides off any attempt to transcribe it.',
+    icon: '📝',
+  },
+  {
+    id: 'emp-lore-price',
+    category: 'Forbidden Lore',
+    title: 'The Price of Knowing',
+    description: 'Learn something so dangerous that knowing it makes you a target.',
+    prompt: 'Someone — a dying rider, a captured venin, a rogue scribe — tells [Character Name] something they cannot unhear. A single piece of information so dangerous that everyone who has ever learned it has been silenced. Describe what the information is (it should fundamentally challenge the power structure of Navarre), the moment [Character Name] realizes the weight of what they now know, and the immediate consequences: the teller dies or disappears, someone was watching, and [Character Name] notices they are being followed within hours. The knowledge cannot be unlearned. The only question is what to do with it before someone ensures their silence.',
+    icon: '⚠️',
+  },
+  {
+    id: 'emp-lore-oral',
+    category: 'Forbidden Lore',
+    title: 'Oral Tradition',
+    description: 'Gryphon rider shares knowledge never written down — on purpose.',
+    prompt: 'A gryphon rider from Poromiel — encountered during a joint operation, a diplomatic meeting, or a chance encounter — offers to share something with [Character Name]. Not a document, not a book. A story, passed mouth to mouth for generations, never written down because written things can be found and burned. The story describes events that both Navarre and Poromiel have erased from their histories: a time when dragon riders and gryphon riders worked together against a threat that was neither venin nor human. The gryphon rider finishes and says: "Now you carry it too. Choose the next person carefully."',
+    icon: '🦅',
+  },
+  {
+    id: 'emp-lore-redacted',
+    category: 'Forbidden Lore',
+    title: 'The Redacted Name',
+    description: 'Every record of a specific rider erased — find out why.',
+    prompt: '[Character Name] notices an absence. In the records of a particular graduating class, one name has been removed from every document — class rolls, training records, achievement lists, even group photographs have been physically altered. The erasure is thorough but not perfect: a signature on a shared project, an initial carved into a desk, a reference in someone else\'s personal journal. Piecing together the fragments reveals a rider who was exceptional — perhaps the most powerful of their generation — and then simply ceased to exist in the official record. What did they do? What did they discover? And why is someone still actively maintaining the erasure, decades later?',
+    icon: '✂️',
+  },
 ];
 
 export const empyreanPromptCategories = [
@@ -857,6 +931,7 @@ export const empyreanPromptCategories = [
   'Relationships and Politics',
   'Combat and Survival',
   'Meta and Narrative',
+  'Forbidden Lore',
 ] as const;
 
 export type EmpyreanPromptCategory = typeof empyreanPromptCategories[number];

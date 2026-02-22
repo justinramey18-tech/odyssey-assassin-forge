@@ -29,6 +29,7 @@ import { DiceRollerScreen } from '@/components/diceRoller';
 import { CharacterSavesDrawer, CharacterSavesTrigger } from './CharacterSavesDrawer';
 import { FAQDrawer } from './FAQDrawer';
 import { DMDrawer } from './DMDrawer';
+import { EmpyreanScreen } from '@/components/empyrean/EmpyreanScreen';
 
 // New redesigned components
 import { CharacterNamePlaque } from './CharacterNamePlaque';
@@ -265,6 +266,7 @@ export function HomeScreen({
   const [showPartyChatFullscreen, setShowPartyChatFullscreen] = useState(false);
   const [showFAQDrawer, setShowFAQDrawer] = useState(false);
   const [showSoloConfirm, setShowSoloConfirm] = useState(false);
+  const [showEmpyreanScreen, setShowEmpyreanScreen] = useState(false);
   const lastSeenMessageCount = useRef(0);
 
   // Track if chat was opened from Party DM (so we can return to it on close)
@@ -988,7 +990,15 @@ export function HomeScreen({
       <DMDrawer
         onOpenSoloDM={() => drawerContext?.openAIDMScreen()}
         onOpenPartyDM={() => drawerContext?.openPartyDMScreen()}
+        onOpenEmpyrean={() => setShowEmpyreanScreen(true)}
         isPartyMode={playMode === 'party'}
+      />
+
+      {/* Empyrean Campaign Screen */}
+      <EmpyreanScreen
+        open={showEmpyreanScreen}
+        onClose={() => setShowEmpyreanScreen(false)}
+        characterName={character.name}
       />
 
       {/* FAQ Drawer */}

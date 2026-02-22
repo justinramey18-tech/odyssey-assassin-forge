@@ -4,7 +4,7 @@ export interface EmpyreanGuide {
   id: string;
   name: string;
   content: string;
-  category: 'lore' | 'tone' | 'pacing' | 'alternate';
+  category: 'lore' | 'tone' | 'pacing' | 'alternate' | 'session';
   stackable: boolean;
   description: string;
 }
@@ -1185,6 +1185,113 @@ Play as a professor, wingleader, or commanding officer. The students are your re
 - Institutional critique: the system is flawed and you are part of it, even as you try to be better than it`,
 };
 
+// ─── SESSION GUIDES ─────────────────────────────────────────────────────────
+
+const sessionHeist: EmpyreanGuide = {
+  id: 'empyrean-session-heist',
+  name: 'Heist Session',
+  category: 'session',
+  stackable: true,
+  description: 'One job: plan, execute, improvise when it goes wrong.',
+  content: `# Heist Session Template
+
+## Structure
+This session is built around a single high-stakes operation with three phases: Planning, Execution, and Improvisation.
+
+### Phase 1 — Planning (15-20 minutes)
+- Present the objective clearly: what needs to be stolen/retrieved/sabotaged
+- Provide intelligence: guard rotations, security measures, known weaknesses
+- Let the party develop their plan — ask probing questions about contingencies
+- Assign roles: lookout, infiltrator, distraction, getaway
+
+### Phase 2 — Execution (30-40 minutes)
+- Follow the party's plan faithfully — let their preparation matter
+- Introduce ONE unexpected complication (guard change, locked door, witness)
+- Use skill checks at critical moments, not for every minor action
+- Reward creative problem-solving over brute force
+
+### Phase 3 — Improvisation (15-20 minutes)
+- Something goes wrong. The plan breaks.
+- The party must adapt in real-time under pressure
+- Escalating tension: each failed attempt to recover raises the stakes
+- The escape is as important as the theft
+
+## DM Notes
+- Never make the plan impossible — reward preparation
+- The complication should be solvable, not punishing
+- End on a cliffhanger: they got away, but someone saw them`,
+};
+
+const sessionTrial: EmpyreanGuide = {
+  id: 'empyrean-session-trial',
+  name: 'Trial by Fire',
+  category: 'session',
+  stackable: true,
+  description: 'Character faces judgment — formal or informal — must defend themselves.',
+  content: `# Trial by Fire Session Template
+
+## Structure
+This session puts a character on trial — before a court, a council, their peers, or their own conscience.
+
+### The Accusation (10 minutes)
+- State the charge clearly and specifically
+- Present evidence — some accurate, some misleading
+- Establish the stakes: punishment ranges from minor to devastating
+- The accuser has a personal motivation beyond justice
+
+### The Defense (30-40 minutes)
+- The character must gather witnesses, evidence, or allies
+- Time pressure: the verdict comes at session's end regardless
+- Social skill checks for persuasion, but substance matters more than rolls
+- Other party members can serve as character witnesses or investigators
+
+### The Verdict (15 minutes)
+- The decision should reflect the quality of the defense
+- Even an acquittal has consequences — suspicion lingers
+- A guilty verdict is not the end — it's the beginning of a new arc
+- The accuser's reaction reveals their true motivation
+
+## DM Notes
+- The trial should be fair but hostile — the system is imperfect
+- Allow creative defenses: precedent, technicalities, emotional appeals
+- The best trials reveal character, not just determine guilt`,
+};
+
+const sessionDowntime: EmpyreanGuide = {
+  id: 'empyrean-session-downtime',
+  name: 'Downtime and Recovery',
+  category: 'session',
+  stackable: true,
+  description: 'Rest session between arcs — character development, side quests, relationship building.',
+  content: `# Downtime and Recovery Session Template
+
+## Structure
+A breather session focused on character development, relationship building, and preparation for what's next.
+
+### Personal Time (20 minutes)
+- Each character gets a personal scene: training, studying, socializing, reflecting
+- Ask: "What does your character do when they're not fighting for their life?"
+- Introduce a low-stakes personal challenge: a letter from home, a rival's provocation, a romantic interest
+- Allow skill improvement or equipment maintenance
+
+### Side Quest (20 minutes)
+- A small, self-contained task that can be resolved in one session
+- Stakes are personal, not world-ending: help a friend, settle a debt, investigate a rumor
+- Reward is primarily narrative: a new ally, useful information, emotional resolution
+- Can plant seeds for future arcs
+
+### Relationship Building (20 minutes)
+- Facilitate interactions between party members
+- Introduce or develop NPC relationships
+- Allow the dragon bond to deepen through quiet moments
+- Foreshadow the next arc through rumors, dreams, or overheard conversations
+
+## DM Notes
+- Downtime is not filler — it's where characters become real
+- Lower the difficulty and raise the emotional stakes
+- End with a hook: something that makes them want to return to action`,
+};
+
 // ─── EXPORTS ────────────────────────────────────────────────────────────────
 
 export const EMPYREAN_LORE_GUIDES: EmpyreanGuide[] = [
@@ -1204,9 +1311,14 @@ export const EMPYREAN_META_GUIDES: EmpyreanGuide[] = [
   metaAlternate,
 ];
 
+export const EMPYREAN_SESSION_GUIDES: EmpyreanGuide[] = [
+  sessionHeist, sessionTrial, sessionDowntime,
+];
+
 export const ALL_EMPYREAN_GUIDES: EmpyreanGuide[] = [
   ...EMPYREAN_LORE_GUIDES,
   ...EMPYREAN_META_GUIDES,
+  ...EMPYREAN_SESSION_GUIDES,
 ];
 
 /** Check if a guide ID belongs to the Empyrean pack */

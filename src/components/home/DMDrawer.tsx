@@ -1,11 +1,12 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion';
-import { Crown, Users, ChevronLeft } from 'lucide-react';
+import { Crown, Users, ChevronLeft, ScrollText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface DMDrawerProps {
   onOpenSoloDM: () => void;
   onOpenPartyDM: () => void;
+  onOpenEmpyrean: () => void;
   isPartyMode: boolean;
 }
 
@@ -13,7 +14,7 @@ const DRAWER_WIDTH = 220;
 const EDGE_TAB_WIDTH = 24;
 const SWIPE_THRESHOLD = 60;
 
-export function DMDrawer({ onOpenSoloDM, onOpenPartyDM, isPartyMode }: DMDrawerProps) {
+export function DMDrawer({ onOpenSoloDM, onOpenPartyDM, onOpenEmpyrean, isPartyMode }: DMDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const x = useMotionValue(DRAWER_WIDTH);
   const backdropOpacity = useTransform(x, [0, DRAWER_WIDTH], [0.4, 0]);
@@ -205,6 +206,26 @@ export function DMDrawer({ onOpenSoloDM, onOpenPartyDM, isPartyMode }: DMDrawerP
               <div className="text-[11px] text-muted-foreground">
                 {isPartyMode ? "Group adventure" : "Switch to Party mode"}
               </div>
+            </div>
+          </button>
+
+          {/* Empyrean Campaign */}
+          <button
+            onClick={() => handleAction(onOpenEmpyrean)}
+            className={cn(
+              "flex items-center gap-3 p-3 rounded-lg",
+              "border border-purple-500/25 bg-purple-500/5",
+              "hover:bg-purple-500/15 hover:border-purple-500/40",
+              "active:scale-[0.98] transition-all duration-200",
+            )}
+            style={{ touchAction: 'manipulation' }}
+          >
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-purple-500/15">
+              <ScrollText className="w-5 h-5 text-purple-400" />
+            </div>
+            <div className="text-left">
+              <div className="text-sm font-cinzel font-medium text-foreground">The Empyrean Campaign</div>
+              <div className="text-[11px] text-muted-foreground">Prompts, guides & wizards</div>
             </div>
           </button>
         </div>
