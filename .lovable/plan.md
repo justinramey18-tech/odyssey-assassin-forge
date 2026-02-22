@@ -1,120 +1,135 @@
 
 
-## Add 9 Tones + Air Wizard (Player-Driven Weekly Tone Schedule)
+## Add 52 New Empyrean Prompts (10 Meta + 7 per Stone)
 
 ### Overview
 
-Two additions to the Empyrean Campaign Pack:
-
-1. **9 new tone guides** in `empyreanGMGuides.ts` (total: 14 tones)
-2. **Air Wizard** -- a UI where the player builds a custom weekly tone schedule, generates a GM guide, and **copies it into their 3rd-party AI DM** to orient it in real time
-
-The player is always the intermediary. The Air Wizard produces a guide the player pastes to the AI DM. The guide tells the AI DM: "The player will tell you what day it is. Match your tone to the schedule below." This keeps the player in control of the real-time orientation -- the app never talks directly to the AI.
+Adding 52 new prompts to `src/lib/empyreanPrompts.ts`, bringing the total from 50 to 102. One file modified.
 
 ---
 
-### 1. The 9 New Tones
+### Meta and Narrative (+10 = 15 total)
 
-Added to `src/lib/empyreanGMGuides.ts` as tone-category guides (`stackable: false`):
+Focus: **Meta-awareness** and **Alternate POVs** as requested.
 
-| # | Name | One-liner |
-|---|------|-----------|
-| 6 | Political Intrigue | Diplomacy, court maneuvering, and leverage over swords |
-| 7 | Heist and Subterfuge | Every session is a job -- casing, planning, improvising |
-| 8 | Mythic Epic | Prophecies, ancient powers, and the weight of destiny |
-| 9 | Psychological Thriller | Mind games, unreliable narrators, trust nothing |
-| 10 | Exploration and Discovery | Unmapped territories, ancient ruins, wonder of the unknown |
-| 11 | Redemption Arc | Fallen hero earning back what was lost |
-| 12 | Comedic Chaos | Murphy's Law as campaign philosophy |
-| 13 | Noir Investigation | Hardboiled detective tone, moral ambiguity, mystery-driven |
-| 14 | Mentor and Legacy | Veteran training the next generation, confronting mortality |
-
-Each follows the existing format: ~1,500-2,500 char content block with Core Directives, Scene Design, and Tone sections.
-
----
-
-### 2. The Air Wizard -- Player-Driven Weekly Tone Scheduler
-
-**Concept**: The player assigns a tone to each day of the week, then generates a guide they copy-paste into their 3rd-party AI DM (ChatGPT, Claude, etc.). The generated guide instructs the AI DM to ask the player what day it is, or to follow the player's lead when they state the day.
-
-**How the flow works:**
-
-```text
-Player opens Air Wizard
-        |
-Assigns tones to Mon-Sun via dropdowns
-        |
-Clicks "Generate Guide"
-        |
-Guide appears in preview (copyable)
-        |
-Player copies guide and pastes it into their 3rd-party AI DM
-        |
-AI DM reads the guide and follows the weekly tone schedule
-        |
-Player tells the AI DM "It's Wednesday" (or uses 4th Wall Time)
-        |
-AI DM seamlessly shifts tone per the schedule
-```
-
-**The generated guide content** explicitly frames the player as the source of real-time information:
-
-```
-# Weekly Tone Schedule -- Dynamic Campaign Guide
-
-You are an AI Dungeon Master. The PLAYER who gave you this guide
-has assigned a different narrative tone to each day of the week.
-
-## How This Works
-- The player will tell you what day of the week it is (or it may
-  be prefixed in their messages via a timestamp)
-- Match your narration style to the tone assigned for that day
-- Transitions between tones should feel organic -- like weather
-  changing, not a light switch
-- Find narrative bridges: a shift in setting, a time skip, a new
-  NPC encounter, or a mood change in the environment
-- Never announce the tone change. The player should feel the
-  shift without being told about it.
-
-## Weekly Schedule
-
-### Monday: Romance & Bonds First
-[Condensed 3-4 paragraph summary of tone directives]
-
-### Tuesday: Military Thriller
-[Condensed summary]
-...
-```
-
-**Key language**: "The player will tell you" / "The player who gave you this guide" -- not "the system detects" or "automatically." The player is always the one orienting the AI.
+| # | Title | Angle |
+|---|-------|-------|
+| 1 | Villain's Perspective | Scene narrated from the antagonist's POV -- their reasoning, their fear of the rider |
+| 2 | The Scribe's Account | A scribe NPC documents an event involving the character -- biased, incomplete, revealing |
+| 3 | Campfire Recap | Characters sit around a fire retelling the session's events -- disagreeing on what happened |
+| 4 | What If? Divergence | Replay a past decision with the opposite choice -- explore the alternate outcome |
+| 5 | The Bystander | A civilian, servant, or groundskeeper describes what they saw when riders clashed |
+| 6 | Fourth Wall Crack | The character briefly senses the "player" behind them -- a moment of uncanny awareness |
+| 7 | Post-Credits Scene | A short epilogue scene from the future hinting at consequences of current actions |
+| 8 | The Narrator Lies | The DM narrates a scene, then reveals a key detail was wrong -- rewind and replay with truth |
+| 9 | Enemy Debrief | Venin commanders discuss the character as a tactical threat -- what they plan to do about it |
+| 10 | Parallel Lives | Show the same hour from two characters' perspectives -- their paths almost crossing |
 
 ---
 
-### 3. Air Wizard UI Details
+### Dragon Bond (+7 = 15 total)
 
-Embedded in `EmpyreanCampaignPack.tsx` as a collapsible section between the Tone category header and the individual tone accordions.
+Focus: **Dragon politics**, **daily life**, **lore deep cuts**, plus user's "other."
 
-**Components:**
-- Section header: "Air Wizard -- Weekly Tone Schedule" with a wind/wand icon
-- 7 rows (Monday-Sunday), each with a day label + Select dropdown listing all 14 tones + "None"
-- "Surprise Me" button that randomly assigns tones
-- "Generate Guide" button (disabled until at least 1 day has a tone)
-- Generated preview in a scrollable pre block
-- "Copy Guide" and "Install as GM Guide" buttons below the preview
-- Installed with id `empyrean-air-wizard-weekly` and name "Weekly Tone Schedule"
+| # | Title | Angle |
+|---|-------|-------|
+| 1 | Dragon Council | Dragons gather without riders -- a hierarchy negotiation the rider only glimpses through the bond |
+| 2 | Grooming Ritual | Quiet maintenance scene: scale care, talon sharpening, the domesticity of dragon partnership |
+| 3 | Ancient Memory | The dragon shares a memory from before Basgiath existed -- pre-human, primordial |
+| 4 | Dragon Rivalry | Two bonded dragons despise each other -- their riders must work together anyway |
+| 5 | Feeding Day | Accompanying the dragon on a hunt -- witnessing the predator side of your partner |
+| 6 | Dragon Humor | The dragon does something deliberately funny -- their sense of humor is alien but unmistakable |
+| 7 | Den Visit | The rider enters the dragon's private den for the first time -- what it reveals about the dragon's inner world |
+
+---
+
+### Signet Abilities (+7 = 14 total)
+
+Focus: **Balanced variety** -- discovery, danger, social, tactical.
+
+| # | Title | Angle |
+|---|-------|-------|
+| 1 | Signet Resonance | Two signets react to proximity -- harmonic amplification neither rider expected |
+| 2 | Signet Under Oath | Forced to use signet for an official tribunal -- power as testimony |
+| 3 | Null Zone | Enter an area where signets don't work -- cope with sudden powerlessness |
+| 4 | Signet Inheritance | Learn your signet matches a dead relative's -- the weight of repetition |
+| 5 | Signet Weaponization | Command orders creative weaponization of the signet -- moral discomfort |
+| 6 | Signet Bleed | The signet activates during sleep -- unconscious power with waking consequences |
+| 7 | Signet Duel | Formal one-on-one signet-only combat -- no blades, no dragons, pure power |
+
+---
+
+### Basgiath War College (+7 = 15 total)
+
+Focus: **Balanced variety** -- academic, social, survival, political.
+
+| # | Title | Angle |
+|---|-------|-------|
+| 1 | Night Exam | A surprise midnight test -- dragged from bed, evaluated half-asleep |
+| 2 | New Transfer | A transfer rider arrives mid-year -- disrupts squad dynamics |
+| 3 | Instructor's Secret | A professor reveals something personal that changes how you see them |
+| 4 | Infirmary Recovery | Extended stay in the healers' ward -- vulnerability, overheard secrets |
+| 5 | Graduation Pressure | Final evaluations loom -- the weight of everything riding on performance |
+| 6 | Underground Economy | Discover the cadet black market -- contraband, favors, and dangerous debts |
+| 7 | Quadrant Riot | Tensions between quadrants erupt into campus-wide unrest |
+
+---
+
+### Venin and Dark Forces (+7 = 14 total)
+
+Focus: **Balanced variety** -- horror, moral complexity, tactical.
+
+| # | Title | Angle |
+|---|-------|-------|
+| 1 | Venin Trap | An ambush designed specifically for your signet type -- they've been studying you |
+| 2 | The Turned Friend | A rider who turned venin tries to recruit you -- using memories of friendship |
+| 3 | Corruption Creep | Strange dreams, darkening veins -- is it the environment or something worse? |
+| 4 | Venin Nest | Discover a breeding ground -- the scale of the enemy revealed |
+| 5 | Dark Wielding Witness | Watch an ally secretly use dark wielding "for the right reasons" |
+| 6 | Wyvern Taming | Someone claims wyverns can be turned -- and wants help proving it |
+| 7 | The Sage Venin | Encounter an ancient venin who remembers being human -- and grieves it |
+
+---
+
+### Relationships and Politics (+7 = 15 total)
+
+Focus: **Balanced variety** -- romance, rivalry, diplomacy, consequence.
+
+| # | Title | Angle |
+|---|-------|-------|
+| 1 | The Ex | Someone from before Basgiath shows up -- old feelings, new complications |
+| 2 | Political Marriage | A strategic alliance proposal through marriage -- love vs. duty |
+| 3 | Squad Fracture | Your squad splits over an ideological disagreement -- pick a side |
+| 4 | Mentor's Fall | A trusted mentor is disgraced -- stand by them or distance yourself |
+| 5 | Enemy Respect | A rival earns genuine respect through an act of courage -- complicate the rivalry |
+| 6 | Secret Correspondence | Intercepted letters reveal a conspiracy -- who do you warn? |
+| 7 | The Favor Owed | Someone powerful calls in a debt -- the price is higher than expected |
+
+---
+
+### Combat and Survival (+7 = 14 total)
+
+Focus: **Unconventional warfare**, **large-scale battles**, **personal duels**.
+
+| # | Title | Angle |
+|---|-------|-------|
+| 1 | Night Raid | Black-ops sabotage mission behind enemy lines -- stealth, no dragons |
+| 2 | Siege Warfare | Multi-day siege of a warded fortress -- attrition, morale, supply lines |
+| 3 | Honor Duel | Formal challenge with witnesses -- reputation and rank on the line |
+| 4 | False Flag | Ordered to stage an attack disguised as the enemy -- ethical combat |
+| 5 | Multi-Wing Assault | Coordinated attack across three wings -- chaos of large-scale aerial combat |
+| 6 | Assassination Attempt | Someone tries to kill the character -- not in battle, but in their sleep |
+| 7 | No-Magic Zone | Combat in a signet-dead zone -- pure blade and tactics, no power |
 
 ---
 
 ### Technical Details
 
-**Files modified:**
+**File modified**: `src/lib/empyreanPrompts.ts`
+- 52 new prompt objects appended to their respective category sections
+- Each follows the existing `CharacterPrompt` interface: `id`, `category`, `title`, `description`, `prompt`, `icon`
+- IDs follow existing `emp-{category}-{slug}` pattern
+- Total prompts: 50 existing + 52 new = 102
 
-| File | Changes |
-|------|---------|
-| `src/lib/empyreanGMGuides.ts` | Add 9 new tone guide definitions; export a `EMPYREAN_TONE_GUIDES` convenience array; update `EMPYREAN_META_GUIDES` and `ALL_EMPYREAN_GUIDES` |
-| `src/components/settings/EmpyreanCampaignPack.tsx` | Add Air Wizard section with day-of-week selectors, generate logic, preview, copy/install; import Select components |
-
-**No new files.** Generation is client-side string templating -- no edge function or API call needed.
-
-**The generated guide references the existing `applyTimePrefix` / 4th Wall Time system**: The guide tells the AI DM that the player may prefix messages with a real-world timestamp, so the AI can infer the day automatically if that feature is enabled. But it still frames this as the player's action ("the player's messages may include a timestamp prefix").
+**No other files need changes** -- the `EmpyreanPromptLibrary` component already reads from the `empyreanPrompts` array dynamically and groups by category.
 
