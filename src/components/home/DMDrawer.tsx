@@ -8,13 +8,21 @@ interface DMDrawerProps {
   onOpenPartyDM: () => void;
   onOpenEmpyrean: () => void;
   isPartyMode: boolean;
+  /** Optional visibility filter — return true to show the button */
+  isDMButtonVisible?: (buttonId: string) => boolean;
 }
 
 const DRAWER_WIDTH = 220;
 const EDGE_TAB_WIDTH = 24;
 const SWIPE_THRESHOLD = 60;
 
-export function DMDrawer({ onOpenSoloDM, onOpenPartyDM, onOpenEmpyrean, isPartyMode }: DMDrawerProps) {
+export function DMDrawer({ onOpenSoloDM, onOpenPartyDM, onOpenEmpyrean, isPartyMode, isDMButtonVisible }: DMDrawerProps) {
+  const showButton = isDMButtonVisible ?? (() => true);
+  const showSolo = showButton('dm.solo');
+  const showParty = showButton('dm.party');
+  const showEmpyrean = showButton('dm.empyrean');
+  const hasAnyButton = showSolo || showParty || showEmpyrean;
+  
   const [isOpen, setIsOpen] = useState(false);
   const x = useMotionValue(DRAWER_WIDTH);
   const backdropOpacity = useTransform(x, [0, DRAWER_WIDTH], [0.4, 0]);
@@ -84,6 +92,9 @@ export function DMDrawer({ onOpenSoloDM, onOpenPartyDM, onOpenEmpyrean, isPartyM
     // Small delay to let drawer animate out
     setTimeout(action, 150);
   }, [closeDrawer]);
+
+  // If no DM buttons are visible, don't render the drawer at all
+  if (!hasAnyButton) return null;
 
   return (
     <>
@@ -160,74 +171,80 @@ export function DMDrawer({ onOpenSoloDM, onOpenPartyDM, onOpenEmpyrean, isPartyM
         {/* Buttons */}
         <div className="flex flex-col gap-3 p-4">
           {/* Solo DM */}
-          <button
-            onClick={() => handleAction(onOpenSoloDM)}
-            className={cn(
-              "flex items-center gap-3 p-3 rounded-lg",
-              "border border-amber-500/25 bg-amber-500/5",
-              "hover:bg-amber-500/15 hover:border-amber-500/40",
-              "active:scale-[0.98] transition-all duration-200",
-            )}
-            style={{ touchAction: 'manipulation' }}
-          >
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-amber-500/15">
-              <Crown className="w-5 h-5 text-amber-400" />
-            </div>
-            <div className="text-left">
-              <div className="text-sm font-cinzel font-medium text-foreground">Solo DM</div>
-              <div className="text-[11px] text-muted-foreground">Solo adventure</div>
-            </div>
-          </button>
+          {showSolo && (
+            <button
+              onClick={() => handleAction(onOpenSoloDM)}
+              className={cn(
+                "flex items-center gap-3 p-3 rounded-lg",
+                "border border-amber-500/25 bg-amber-500/5",
+                "hover:bg-amber-500/15 hover:border-amber-500/40",
+                "active:scale-[0.98] transition-all duration-200",
+              )}
+              style={{ touchAction: 'manipulation' }}
+            >
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-amber-500/15">
+                <Crown className="w-5 h-5 text-amber-400" />
+              </div>
+              <div className="text-left">
+                <div className="text-sm font-cinzel font-medium text-foreground">Solo DM</div>
+                <div className="text-[11px] text-muted-foreground">Solo adventure</div>
+              </div>
+            </button>
+          )}
 
           {/* Party DM */}
-          <button
-            onClick={() => isPartyMode && handleAction(onOpenPartyDM)}
-            disabled={!isPartyMode}
-            className={cn(
-              "flex items-center gap-3 p-3 rounded-lg",
-              "border transition-all duration-200",
-              isPartyMode 
-                ? "border-emerald-500/25 bg-emerald-500/5 hover:bg-emerald-500/15 hover:border-emerald-500/40 active:scale-[0.98]"
-                : "border-border/30 bg-muted/10 opacity-50 cursor-not-allowed",
-            )}
-            style={{ touchAction: 'manipulation' }}
-          >
-            <div className={cn(
-              "w-10 h-10 rounded-lg flex items-center justify-center",
-              isPartyMode ? "bg-emerald-500/15" : "bg-muted/20"
-            )}>
-              <Users className={cn("w-5 h-5", isPartyMode ? "text-emerald-400" : "text-muted-foreground/50")} />
-            </div>
-            <div className="text-left">
+          {showParty && (
+            <button
+              onClick={() => isPartyMode && handleAction(onOpenPartyDM)}
+              disabled={!isPartyMode}
+              className={cn(
+                "flex items-center gap-3 p-3 rounded-lg",
+                "border transition-all duration-200",
+                isPartyMode 
+                  ? "border-emerald-500/25 bg-emerald-500/5 hover:bg-emerald-500/15 hover:border-emerald-500/40 active:scale-[0.98]"
+                  : "border-border/30 bg-muted/10 opacity-50 cursor-not-allowed",
+              )}
+              style={{ touchAction: 'manipulation' }}
+            >
               <div className={cn(
-                "text-sm font-cinzel font-medium",
-                isPartyMode ? "text-foreground" : "text-muted-foreground/60"
-              )}>Party DM</div>
-              <div className="text-[11px] text-muted-foreground">
-                {isPartyMode ? "Group adventure" : "Switch to Party mode"}
+                "w-10 h-10 rounded-lg flex items-center justify-center",
+                isPartyMode ? "bg-emerald-500/15" : "bg-muted/20"
+              )}>
+                <Users className={cn("w-5 h-5", isPartyMode ? "text-emerald-400" : "text-muted-foreground/50")} />
               </div>
-            </div>
-          </button>
+              <div className="text-left">
+                <div className={cn(
+                  "text-sm font-cinzel font-medium",
+                  isPartyMode ? "text-foreground" : "text-muted-foreground/60"
+                )}>Party DM</div>
+                <div className="text-[11px] text-muted-foreground">
+                  {isPartyMode ? "Group adventure" : "Switch to Party mode"}
+                </div>
+              </div>
+            </button>
+          )}
 
           {/* Empyrean Campaign */}
-          <button
-            onClick={() => handleAction(onOpenEmpyrean)}
-            className={cn(
-              "flex items-center gap-3 p-3 rounded-lg",
-              "border border-purple-500/25 bg-purple-500/5",
-              "hover:bg-purple-500/15 hover:border-purple-500/40",
-              "active:scale-[0.98] transition-all duration-200",
-            )}
-            style={{ touchAction: 'manipulation' }}
-          >
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-purple-500/15">
-              <ScrollText className="w-5 h-5 text-purple-400" />
-            </div>
-            <div className="text-left">
-              <div className="text-sm font-cinzel font-medium text-foreground">The Empyrean Campaign</div>
-              <div className="text-[11px] text-muted-foreground">Prompts, guides & wizards</div>
-            </div>
-          </button>
+          {showEmpyrean && (
+            <button
+              onClick={() => handleAction(onOpenEmpyrean)}
+              className={cn(
+                "flex items-center gap-3 p-3 rounded-lg",
+                "border border-purple-500/25 bg-purple-500/5",
+                "hover:bg-purple-500/15 hover:border-purple-500/40",
+                "active:scale-[0.98] transition-all duration-200",
+              )}
+              style={{ touchAction: 'manipulation' }}
+            >
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-purple-500/15">
+                <ScrollText className="w-5 h-5 text-purple-400" />
+              </div>
+              <div className="text-left">
+                <div className="text-sm font-cinzel font-medium text-foreground">The Empyrean Campaign</div>
+                <div className="text-[11px] text-muted-foreground">Prompts, guides & wizards</div>
+              </div>
+            </button>
+          )}
         </div>
       </motion.div>
     </>
