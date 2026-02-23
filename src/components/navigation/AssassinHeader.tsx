@@ -17,6 +17,8 @@ interface AssassinHeaderProps {
   onCategoryChange: (category: MainCategory) => void;
   onSubTabChange: (subTab: string, category?: MainCategory) => void;
   isLegacyUnlocked?: boolean;
+  /** Optional filter — return true to keep the tab visible. Used by app-mode system. */
+  tabFilter?: (tabId: string) => boolean;
   // Character quick-switcher props
   currentCharacterName?: string;
   currentCharacterLevel?: number;
@@ -39,6 +41,7 @@ export function AssassinHeader({
   onCategoryChange,
   onSubTabChange,
   isLegacyUnlocked = false,
+  tabFilter,
   currentCharacterName = '',
   currentCharacterLevel = 1,
   onLoadSave,
@@ -96,7 +99,11 @@ export function AssassinHeader({
             const Icon = config.icon;
             const isActive = value === activeCategory;
             const isHome = value === 'home';
-            const subTabs = !isHome ? getSubTabsForCategory(value) : [];
+            const allSubTabs = !isHome ? getSubTabsForCategory(value) : [];
+            const subTabs = tabFilter ? allSubTabs.filter(t => tabFilter(t.id)) : allSubTabs;
+            
+            // Hide category if no visible tabs (app-mode filtering)
+            if (!isHome && subTabs.length === 0) return null;
             
             // Home button - no dropdown
             if (isHome) {

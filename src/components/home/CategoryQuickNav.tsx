@@ -18,6 +18,8 @@ interface CategoryQuickNavProps {
   isLegacyUnlocked?: boolean;
   onOpenCloud?: () => void;
   onOpenSettings?: () => void;
+  /** Optional filter — return true to keep the tab visible. Used by app-mode system. */
+  tabFilter?: (tabId: string) => boolean;
 }
 
 const CATEGORIES: MainCategory[] = ['fighting', 'inventory', 'utility'];
@@ -82,14 +84,24 @@ const cardVariants = {
   }),
 };
 
-export function CategoryQuickNav({ onSubTabSelect, isLegacyUnlocked = false, onOpenCloud, onOpenSettings }: CategoryQuickNavProps) {
+export function CategoryQuickNav({ onSubTabSelect, isLegacyUnlocked = false, onOpenCloud, onOpenSettings, tabFilter }: CategoryQuickNavProps) {
+  // Filter categories to only those with visible tabs
+  const visibleCategories = CATEGORIES.filter(cat => {
+    const tabs = getSubTabsForCategory(cat);
+    const filtered = tabFilter ? tabs.filter(t => tabFilter(t.id)) : tabs;
+    return filtered.length > 0;
+  });
+
+  const colClass = visibleCategories.length === 2 ? 'grid-cols-2' : visibleCategories.length === 1 ? 'grid-cols-1' : 'grid-cols-3';
+
   return (
-    <div className="grid grid-cols-3 gap-2 px-3 mb-2">
-      {CATEGORIES.map((category, i) => {
+    <div className={cn("grid gap-2 px-3 mb-2", colClass)}>
+      {visibleCategories.map((category, i) => {
         const config = CATEGORY_CONFIG[category];
         const styles = CATEGORY_STYLES[category];
         const Icon = config.icon;
-        const subTabs = getSubTabsForCategory(category);
+        const allSubTabs = getSubTabsForCategory(category);
+        const subTabs = tabFilter ? allSubTabs.filter(t => tabFilter(t.id)) : allSubTabs;
 
         return (
           <DropdownMenu key={category}>

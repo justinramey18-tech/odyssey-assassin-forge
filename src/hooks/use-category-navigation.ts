@@ -21,6 +21,8 @@ interface UseCategoryNavigationOptions {
   isLegacyUnlocked?: boolean;
   onSettingsClick?: () => void;
   onCloudClick?: () => void;
+  /** Optional filter — return true to keep the tab visible. Used by app-mode system. */
+  tabFilter?: (tabId: string) => boolean;
 }
 
 interface UseCategoryNavigationReturn {
@@ -39,7 +41,7 @@ interface UseCategoryNavigationReturn {
 export function useCategoryNavigation(
   options: UseCategoryNavigationOptions = {}
 ): UseCategoryNavigationReturn {
-  const { isLegacyUnlocked = false, onSettingsClick, onCloudClick } = options;
+  const { isLegacyUnlocked = false, onSettingsClick, onCloudClick, tabFilter } = options;
 
   // Load persisted state
   const [mainCategory, setMainCategoryState] = useState<MainCategory>(() => {
@@ -169,10 +171,11 @@ export function useCategoryNavigation(
     }
   }, [mainCategory, isLegacyUnlocked, onSettingsClick, onCloudClick]);
 
-  // Get current sub-tabs for the category
+  // Get current sub-tabs for the category (filtered by app mode if tabFilter provided)
   const getCurrentSubTabs = useCallback((): SubTabConfig[] => {
-    return getSubTabsForCategory(mainCategory);
-  }, [mainCategory]);
+    const tabs = getSubTabsForCategory(mainCategory);
+    return tabFilter ? tabs.filter(t => tabFilter(t.id)) : tabs;
+  }, [mainCategory, tabFilter]);
 
   // Get current sub-tab index info
   const getSubTabIndex = useCallback((): { current: number; total: number } => {

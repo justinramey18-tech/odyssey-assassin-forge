@@ -13,6 +13,8 @@ interface SubTabStripProps {
   getNextLabel: () => string | null;
   getPrevLabel: () => string | null;
   isLegacyUnlocked?: boolean;
+  /** Optional filter — return true to keep the tab visible. Used by app-mode system. */
+  tabFilter?: (tabId: string) => boolean;
 }
 
 // Haptic feedback helper
@@ -32,8 +34,10 @@ export function SubTabStrip({
   getNextLabel,
   getPrevLabel,
   isLegacyUnlocked = false,
+  tabFilter,
 }: SubTabStripProps) {
-  const tabs = getSubTabsForCategory(category);
+  const allTabs = getSubTabsForCategory(category);
+  const tabs = tabFilter ? allTabs.filter(t => tabFilter(t.id)) : allTabs;
   const currentIndex = tabs.findIndex(t => t.id === activeSubTab);
   const currentTab = tabs[currentIndex];
   
