@@ -49,7 +49,7 @@ import { WildShapeLightningBorder, CRScaledPulse, TransformationBurst } from './
 import { DragonParticles } from './DragonParticles';
 import { PrestigeData } from '@/lib/prestige';
 
-import homeBackground from '@/assets/home-background-new.jpg';
+import homeBackground from '@/assets/home-background-mobile.jpg';
 
 // Navigable tab types
 type NavigableTab = 
@@ -452,7 +452,7 @@ export function HomeScreen({
         tintColor="cyan"
         tintOpacity={10}
         fixed={true}
-        backgroundSize="contain"
+        backgroundSize="cover"
         backgroundPosition="center center"
         className="fixed inset-0 z-0"
       >
