@@ -10,6 +10,7 @@ import { Slider } from '@/components/ui/slider';
 import { processTextOffline, ProcessingOptions } from '@/lib/narrativeProcessor';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUsage, type TokenUsage } from '@/lib/token-usage';
+import { loadApiKey } from '@/lib/api-keys';
 
 import type { NarrativeStyle } from '@/lib/narrativeProcessor';
 
@@ -223,6 +224,7 @@ export function ScribeDrawer({
                       style: selectedGenre,
                       intensity: toneIntensity,
                       customPrompt: selectedGenre === 'custom' ? customStylePrompt : undefined,
+                      user_api_key: loadApiKey('anthropic') || undefined,
                     },
                   });
                   if (error) throw error;

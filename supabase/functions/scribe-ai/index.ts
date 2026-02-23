@@ -34,7 +34,7 @@ serve(async (req) => {
       });
     }
 
-    const { text, style, intensity, customPrompt, model } = await req.json();
+    const { text, style, intensity, customPrompt, model, user_api_key } = await req.json();
 
     if (!text || typeof text !== "string") {
       return new Response(JSON.stringify({ error: "No text provided" }), {
@@ -43,10 +43,14 @@ serve(async (req) => {
       });
     }
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    // Use user-provided key if available, otherwise fall back to backend secret
+    const ANTHROPIC_API_KEY = (typeof user_api_key === 'string' && user_api_key.trim())
+      ? user_api_key.trim()
+      : Deno.env.get("ANTHROPIC_API_KEY");
+
     if (!ANTHROPIC_API_KEY) {
       return new Response(
-        JSON.stringify({ error: "ANTHROPIC_API_KEY not configured. Add it in backend secrets." }),
+        JSON.stringify({ error: "No Anthropic API key available. Add your key in Settings → API Keys, or configure the backend secret." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

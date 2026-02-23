@@ -49,6 +49,7 @@ import { BlendConfig } from '@/lib/scribe/processingTemplates';
 import { splitTextIntoChunks, reassembleChunks, createChunkContext } from '@/lib/scribe/chunkProcessing';
 import { SCRIBE_MODELS, loadScribeModel, saveScribeModel, getEdgeFunctionForModel, isAnthropicModel } from '@/lib/scribe-models';
 import { formatUsage, type TokenUsage } from '@/lib/token-usage';
+import { loadApiKey } from '@/lib/api-keys';
 import scribeBackground from '@/assets/scribe-background.jpg';
 
 interface NarrativeForgeScreenProps {
@@ -561,6 +562,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
               style: options.narrativeStyle,
               intensity: options.toneIntensity,
               model: selectedModel,
+              user_api_key: loadApiKey('anthropic') || undefined,
             },
           });
           if (error) throw error;
