@@ -1,86 +1,73 @@
 
 
-## Add AI Model Selector to Novel Builder and Scribe Tab
+## Add Local API Key Management
 
 ### Overview
-Add a model selector dropdown to both the Novel Builder home screen and the Scribe tab, allowing users to choose which AI model processes their text. Currently, the Novel Builder only has offline processing, and the Scribe tab's AI mode is hardcoded to use Gemini via the `narrative-forge` edge function. Both will gain the ability to select from all available models (Gemini, GPT, Claude).
+Allow users to enter and manage their own API keys directly within the app. Keys are stored locally in `localStorage` (never sent to the backend for storage) and passed to edge functions at request time. This lets each user use their own Anthropic key without relying on a shared backend secret.
 
-### Changes
+### What You'll See
+- A new **"API Keys"** section in the Settings modal under the **Character** tab (collapsible, similar to Account Settings)
+- An input field for the **Anthropic API key** with show/hide toggle and save/clear buttons
+- A green checkmark indicator when a key is saved
+- All AI features (Solo AI DM, Scribe, Novel Builder) will automatically use your locally stored key when calling Claude models
+- If no local key is saved, the system falls back to the shared backend key (current behavior)
 
-#### 1. Create Shared Scribe Model Config
-**File: `src/lib/scribe-models.ts`** (new)
+### How It Works
 
-A dedicated model list for the Scribe/Novel Builder context, reusing the same `DMAIModel` interface from `dm-models.ts`. Includes:
-- Subset of models suitable for narrative writing (Gemini 3 Pro, Gemini 2.5 Flash, GPT-5, Claude 4.5 Sonnet)
-- `localStorage` persistence under a separate key (`dnd-scribe-ai-model`)
-- Default model: `google/gemini-3-pro-preview`
-- Helper to determine routing: Anthropic models go to `scribe-ai`, others go to `narrative-forge`
-
-#### 2. Update Novel Builder Home Screen
-**File: `src/components/home/ChroniclerHomeView.tsx`**
-
-- Add model selector dropdown below the Style selector (same row or new row)
-- Add "AI" button alongside the existing "Transform" (offline) button
-- Add `isAiProcessing`, `aiUsage`, and `selectedModel` state
-- Route AI requests: Anthropic models call `scribe-ai` edge function, Lovable models call `narrative-forge`
-- Display token usage below output when `aiUsage` is present
-
-#### 3. Update Scribe Tab
-**File: `src/components/scribe/NarrativeForgeScreen.tsx`**
-
-- Add model selector dropdown in the settings/controls area (near the AI/Offline toggle)
-- Add `selectedModel` and `aiUsage` state
-- When `processingMode === 'ai'`:
-  - If model is Anthropic: route to `scribe-ai` with `model` param, capture usage
-  - If model is Lovable gateway: route to `narrative-forge` with `model` param (existing behavior)
-- Display usage stats below output when available
-
-#### 4. Update `scribe-ai` Edge Function to Accept Model Parameter
-**File: `supabase/functions/scribe-ai/index.ts`**
-
-- Accept optional `model` field in the request body
-- Map model IDs to Anthropic model strings (e.g., `anthropic/claude-sonnet-4-5` to `claude-sonnet-4-5-20250514`, `anthropic/claude-sonnet-4` to `claude-sonnet-4-20250514`)
-- Default to `claude-sonnet-4-5-20250514` if no model specified
-
-#### 5. Update `narrative-forge` Edge Function to Accept Model Parameter
-**File: `supabase/functions/narrative-forge/index.ts`**
-
-- Accept optional `model` field in the request body
-- Use the provided model ID when calling the Lovable AI gateway instead of hardcoded `google/gemini-3-pro-preview`
-- Fall back to default if not provided
+1. User enters their Anthropic API key in Settings
+2. Key is saved to `localStorage` under `dnd-anthropic-api-key`
+3. When calling Claude models, the frontend includes the key in the request body as `user_api_key`
+4. Edge functions (`ai-dm`, `scribe-ai`) check for `user_api_key` first, then fall back to the backend secret `ANTHROPIC_API_KEY`
 
 ---
 
 ### Technical Details
 
-**Model routing logic (shared):**
-```text
-User selects model
-  |
-  +-- anthropic/* --> call `scribe-ai` edge function (Anthropic API direct)
-  |
-  +-- google/* or openai/* --> call `narrative-forge` edge function (Lovable gateway)
-```
+#### New File: `src/lib/api-keys.ts`
+- `localStorage` helpers: `loadApiKey(provider)`, `saveApiKey(provider, key)`, `clearApiKey(provider)`, `hasApiKey(provider)`
+- Storage key: `dnd-anthropic-api-key`
+- Designed to support additional providers in the future
 
-**Novel Builder UI layout change:**
-- Style selector + Model selector on one row
-- Two action buttons: "Transform" (offline) and "AI" (uses selected model)
-- Usage stats shown below output when AI is used
+#### New Component: `src/components/settings/ApiKeySettings.tsx`
+- Collapsible panel (matches `AccountSettings` pattern)
+- Anthropic key input with eye toggle, save, and clear buttons
+- Shows masked key preview when saved (e.g., `sk-ant-...xxxx`)
+- Warning text: "Your key is stored locally in your browser and sent directly to the API. It is never stored on our servers."
 
-**Scribe Tab UI layout change:**
-- Model selector dropdown added near the existing AI/Offline mode toggle
-- Only visible/relevant when AI mode is selected
-- Usage stats shown below output
+#### Modified: `src/components/settings/SettingsContent.tsx`
+- Import and render `ApiKeySettings` in the **Character** tab, between the Account Settings and Danger Zone sections
 
-**localStorage keys:**
-- `dnd-scribe-ai-model` for persisting the selected model across sessions
+#### Modified: `src/hooks/use-ai-dm.ts`
+- Import `loadApiKey` from `api-keys.ts`
+- When calling the `ai-dm` edge function with an Anthropic model, include `user_api_key: loadApiKey('anthropic')` in the request body
 
-**Files to create:**
-- `src/lib/scribe-models.ts`
+#### Modified: `src/components/home/ChroniclerHomeView.tsx`
+- When calling `scribe-ai`, include `user_api_key: loadApiKey('anthropic')` in the body
 
-**Files to modify:**
+#### Modified: `src/components/scribe/NarrativeForgeScreen.tsx`
+- When calling `scribe-ai`, include `user_api_key: loadApiKey('anthropic')` in the body
+
+#### Modified: `src/components/drawers/ScribeDrawer.tsx`
+- When calling `scribe-ai`, include `user_api_key: loadApiKey('anthropic')` in the body
+
+#### Modified: `supabase/functions/ai-dm/index.ts`
+- In `callAnthropic()`: extract `user_api_key` from the request context; use it if provided, otherwise fall back to `Deno.env.get("ANTHROPIC_API_KEY")`
+
+#### Modified: `supabase/functions/scribe-ai/index.ts`
+- Extract `user_api_key` from request body; use it if provided, otherwise fall back to `Deno.env.get("ANTHROPIC_API_KEY")`
+
+### Files Summary
+
+**Create:**
+- `src/lib/api-keys.ts`
+- `src/components/settings/ApiKeySettings.tsx`
+
+**Modify:**
+- `src/components/settings/SettingsContent.tsx`
+- `src/hooks/use-ai-dm.ts`
 - `src/components/home/ChroniclerHomeView.tsx`
 - `src/components/scribe/NarrativeForgeScreen.tsx`
+- `src/components/drawers/ScribeDrawer.tsx`
+- `supabase/functions/ai-dm/index.ts`
 - `supabase/functions/scribe-ai/index.ts`
-- `supabase/functions/narrative-forge/index.ts`
 
