@@ -2,7 +2,8 @@ import { toast } from 'sonner';
 import { getScopedItem, setScopedItem, removeScopedItem, migrateToScoped } from '@/lib/scoped-storage';
 
 export const SUMMARY_STORAGE_KEY = 'dnd-ai-dm-campaign-summary';
-export const SUMMARY_MAX_CHARS = 30000;
+export const NOVEL_BUILDER_SUMMARY_KEY = 'dnd-novel-builder-campaign-summary';
+export const SUMMARY_MAX_CHARS = 50000;
 
 export function loadCampaignSummary(): string | null {
   migrateToScoped(SUMMARY_STORAGE_KEY);
@@ -29,6 +30,37 @@ export function saveCampaignSummary(summary: string): void {
 export function clearCampaignSummary(): void {
   try {
     removeScopedItem(SUMMARY_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+// Novel Builder dedicated summary — independent from AI DM summary
+export function loadNovelBuilderSummary(): string | null {
+  migrateToScoped(NOVEL_BUILDER_SUMMARY_KEY);
+  try {
+    return getScopedItem(NOVEL_BUILDER_SUMMARY_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function saveNovelBuilderSummary(summary: string): void {
+  try {
+    const trimmed = summary.slice(0, SUMMARY_MAX_CHARS);
+    setScopedItem(NOVEL_BUILDER_SUMMARY_KEY, trimmed);
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+      toast.error('Campaign summary too large to save locally');
+    } else {
+      console.error('Failed to save novel builder summary:', error);
+    }
+  }
+}
+
+export function clearNovelBuilderSummary(): void {
+  try {
+    removeScopedItem(NOVEL_BUILDER_SUMMARY_KEY);
   } catch {
     // ignore
   }

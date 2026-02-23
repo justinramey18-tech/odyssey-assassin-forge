@@ -14,6 +14,7 @@ const SCOPED_KEYS = [
   'odyssey-chronicle-sessions',
   'odyssey-chronicle-analytics',
   'dnd-ai-dm-campaign-summary',
+  'dnd-novel-builder-campaign-summary',
   'odyssey-play-mode',
 ] as const;
 
