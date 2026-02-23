@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
-import { Gamepad2, FileText, User, Dices, Wand2, ChevronRight } from 'lucide-react';
+import { Gamepad2, FileText, User, Dices, Wand2, Layers, ChevronRight } from 'lucide-react';
 
-export type SettingsTab = 'game' | 'setup' | 'character' | 'tools' | 'customizations';
+export type SettingsTab = 'game' | 'setup' | 'character' | 'tools' | 'customizations' | 'appMode';
 
 interface TabConfig {
   id: SettingsTab;
@@ -13,6 +13,13 @@ interface TabConfig {
 
 const tabs: TabConfig[] = [
   { 
+    id: 'appMode', 
+    label: 'App Mode', 
+    icon: Layers, 
+    description: 'Switch modes & features',
+    color: 'text-emerald-400'
+  },
+  {
     id: 'game', 
     label: 'Game Mode', 
     icon: Gamepad2, 
