@@ -1,98 +1,86 @@
 
 
-# Chronicler Mode
+## Add AI Model Selector to Novel Builder and Scribe Tab
 
-A specialized narrative-focused mode where the Home Screen becomes a simplified, mobile-first Scribe interface for quick writing and text transformation, with access to the full Scribe tab, Cloud, and Settings.
+### Overview
+Add a model selector dropdown to both the Novel Builder home screen and the Scribe tab, allowing users to choose which AI model processes their text. Currently, the Novel Builder only has offline processing, and the Scribe tab's AI mode is hardcoded to use Gemini via the `narrative-forge` edge function. Both will gain the ability to select from all available models (Gemini, GPT, Claude).
+
+### Changes
+
+#### 1. Create Shared Scribe Model Config
+**File: `src/lib/scribe-models.ts`** (new)
+
+A dedicated model list for the Scribe/Novel Builder context, reusing the same `DMAIModel` interface from `dm-models.ts`. Includes:
+- Subset of models suitable for narrative writing (Gemini 3 Pro, Gemini 2.5 Flash, GPT-5, Claude 4.5 Sonnet)
+- `localStorage` persistence under a separate key (`dnd-scribe-ai-model`)
+- Default model: `google/gemini-3-pro-preview`
+- Helper to determine routing: Anthropic models go to `scribe-ai`, others go to `narrative-forge`
+
+#### 2. Update Novel Builder Home Screen
+**File: `src/components/home/ChroniclerHomeView.tsx`**
+
+- Add model selector dropdown below the Style selector (same row or new row)
+- Add "AI" button alongside the existing "Transform" (offline) button
+- Add `isAiProcessing`, `aiUsage`, and `selectedModel` state
+- Route AI requests: Anthropic models call `scribe-ai` edge function, Lovable models call `narrative-forge`
+- Display token usage below output when `aiUsage` is present
+
+#### 3. Update Scribe Tab
+**File: `src/components/scribe/NarrativeForgeScreen.tsx`**
+
+- Add model selector dropdown in the settings/controls area (near the AI/Offline toggle)
+- Add `selectedModel` and `aiUsage` state
+- When `processingMode === 'ai'`:
+  - If model is Anthropic: route to `scribe-ai` with `model` param, capture usage
+  - If model is Lovable gateway: route to `narrative-forge` with `model` param (existing behavior)
+- Display usage stats below output when available
+
+#### 4. Update `scribe-ai` Edge Function to Accept Model Parameter
+**File: `supabase/functions/scribe-ai/index.ts`**
+
+- Accept optional `model` field in the request body
+- Map model IDs to Anthropic model strings (e.g., `anthropic/claude-sonnet-4-5` to `claude-sonnet-4-5-20250514`, `anthropic/claude-sonnet-4` to `claude-sonnet-4-20250514`)
+- Default to `claude-sonnet-4-5-20250514` if no model specified
+
+#### 5. Update `narrative-forge` Edge Function to Accept Model Parameter
+**File: `supabase/functions/narrative-forge/index.ts`**
+
+- Accept optional `model` field in the request body
+- Use the provided model ID when calling the Lovable AI gateway instead of hardcoded `google/gemini-3-pro-preview`
+- Fall back to default if not provided
 
 ---
 
-## What You'll Get
+### Technical Details
 
-- **New "Chronicler" app mode** in the mode selection screen and settings
-- **Transformed Home Screen**: Instead of the standard character sheet home, Chronicler mode shows a streamlined, full-screen writing workspace -- paste text, pick a style, and process it, all without navigating away
-- **3 navigation tabs**: Scribe (full feature), Cloud, Settings
-- **Themed with rose/pink accent** and a Feather icon
-
----
-
-## How It Works
-
-When in Chronicler mode, the Home Screen replaces the usual character info, health bars, and category nav with:
-
-1. **A text input area** (full-width, vertically scrolling) for pasting chat logs or writing
-2. **Style selector** dropdown (Fantasy, Noir, Literary, etc.)
-3. **A "Process" button** for offline transformation
-4. **Output area** with copy/export buttons
-5. **Quick access to saved stories** via the story list
-6. A subtle link to open the full Scribe tab for advanced features (AI processing, editing rules, multi-file upload, etc.)
-
-The header retains the clock, help button, and character name plaque for consistency.
-
----
-
-## Technical Details
-
-### 1. Add `chronicler` to `AppMode` type and config (`src/lib/app-modes.ts`)
-
-- New mode entry in `APP_MODE_CONFIGS`:
-  - label: "Chronicler"
-  - description: "Simplified narrative forge -- paste, style, transform"
-  - icon: "Feather"
-  - color: "rose"
-  - visibleTabs: `['scribe', 'cloud', 'settings']`
-  - visibleHomeFeatures: `['home.characterInfo', 'home.clock']`
-  - visibleQuickAccess: `['quickAccess.features', 'quickAccess.settings']`
-  - visibleDMButtons: `[]`
-- Add `'chronicler'` to `APP_MODES_ORDERED` (between `magicBuild` and `storyteller`)
-- Add to `getAllFeatureIds` tabs list if needed
-
-### 2. Update icon/color maps in UI components
-
-**Files**: `src/components/home/ModeSelectionScreen.tsx`, `src/components/settings/AppModeSettings.tsx`
-
-- Add `Feather` import from `lucide-react`
-- Add `Feather` to `ICON_MAP`
-- Add `rose` color entries to `COLOR_MAP` and `TOAST_COLORS`
-
-### 3. Create `ChroniclerHomeView` component (`src/components/home/ChroniclerHomeView.tsx`)
-
-A new standalone component that serves as the Chronicler mode's home screen. It will be a simplified, mobile-first version of the Scribe workflow:
-
-- **Props**: `characterName`, `onNavigateToTab` (to open full Scribe), `onOpenSettings`
-- **Uses**: `processTextOffline` from existing narrative processor, `useSavedStories` hook for story management
-- **Layout**: Full-screen vertical scroll, no tabs/categories, just:
-  - Text input (large textarea, auto-expanding)
-  - Style picker (simple select dropdown)
-  - "Transform" button
-  - Output display with copy button
-  - "Open Full Scribe" button at the bottom
-  - Story list access via a sheet/drawer
-
-### 4. Conditionally render `ChroniclerHomeView` in `HomeScreen.tsx`
-
-In `src/components/home/HomeScreen.tsx`, add a conditional at the top of the render:
-
-```
-if (appMode === 'chronicler') {
-  return <ChroniclerHomeView ... />;
-}
+**Model routing logic (shared):**
+```text
+User selects model
+  |
+  +-- anthropic/* --> call `scribe-ai` edge function (Anthropic API direct)
+  |
+  +-- google/* or openai/* --> call `narrative-forge` edge function (Lovable gateway)
 ```
 
-This keeps the existing HomeScreen untouched for all other modes while providing the completely different layout for Chronicler.
+**Novel Builder UI layout change:**
+- Style selector + Model selector on one row
+- Two action buttons: "Transform" (offline) and "AI" (uses selected model)
+- Usage stats shown below output when AI is used
 
-### 5. Pass required props through `Index.tsx`
+**Scribe Tab UI layout change:**
+- Model selector dropdown added near the existing AI/Offline mode toggle
+- Only visible/relevant when AI mode is selected
+- Usage stats shown below output
 
-Ensure `characterName` (from `character.name`) is available to the Chronicler view. The existing `appMode` prop and `onNavigateToTab` callback already flow through `HomeScreen`, so the new component will receive what it needs.
+**localStorage keys:**
+- `dnd-scribe-ai-model` for persisting the selected model across sessions
 
----
+**Files to create:**
+- `src/lib/scribe-models.ts`
 
-## Files Changed
-
-| File | Change |
-|------|--------|
-| `src/lib/app-modes.ts` | Add `chronicler` mode config, update ordered list |
-| `src/components/home/ModeSelectionScreen.tsx` | Add Feather icon + rose color |
-| `src/components/settings/AppModeSettings.tsx` | Add Feather icon + rose color + toast color |
-| `src/components/home/ChroniclerHomeView.tsx` | **New file** -- simplified scribe home |
-| `src/components/home/HomeScreen.tsx` | Conditional render for chronicler mode |
+**Files to modify:**
+- `src/components/home/ChroniclerHomeView.tsx`
+- `src/components/scribe/NarrativeForgeScreen.tsx`
+- `supabase/functions/scribe-ai/index.ts`
+- `supabase/functions/narrative-forge/index.ts`
 
