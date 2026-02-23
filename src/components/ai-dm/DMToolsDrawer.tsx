@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { RotateCcw, Map, FolderOpen, BookOpen, Globe, Zap, Trash2, Brain } from 'lucide-react';
+import { RotateCcw, Map, FolderOpen, BookOpen, Globe, Zap, Trash2, Brain, Cpu } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import {
@@ -13,6 +13,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
 
 interface DMToolsDrawerProps {
   open: boolean;
@@ -32,6 +34,8 @@ interface DMToolsDrawerProps {
   onRetakePersonalityTest?: () => Promise<void>;
   dmPersonaName?: string;
   onEmpyreanPrompts?: () => void;
+  selectedModel?: string;
+  onModelChange?: (modelId: string) => void;
 }
 
 export function DMToolsDrawer({
@@ -52,6 +56,8 @@ export function DMToolsDrawer({
   onRetakePersonalityTest,
   dmPersonaName,
   onEmpyreanPrompts,
+  selectedModel,
+  onModelChange,
 }: DMToolsDrawerProps) {
   const [showRetakeConfirm, setShowRetakeConfirm] = useState(false);
 
@@ -125,6 +131,33 @@ export function DMToolsDrawer({
             badgeColor="bg-purple-600"
             onClick={() => closeAndRun(onWorldState)}
           />
+
+          {/* AI Model Selector */}
+          {selectedModel !== undefined && onModelChange && (
+            <div className="px-4 py-3 hover:bg-white/5 transition-colors">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-900/30 text-amber-400">
+                  <Cpu className="w-4 h-4" />
+                </span>
+                <span className="text-sm font-cinzel text-white/80">AI Model</span>
+              </div>
+              <Select value={selectedModel} onValueChange={onModelChange}>
+                <SelectTrigger className="w-full h-8 text-xs bg-black/30 border-amber-900/30 text-white/80">
+                  <SelectValue>{getModelLabel(selectedModel)}</SelectValue>
+                </SelectTrigger>
+                <SelectContent className="bg-black/95 border-amber-900/40">
+                  {DM_MODELS.map(m => (
+                    <SelectItem key={m.id} value={m.id} className="text-xs text-white/80">
+                      <div>
+                        <span className="font-medium">{m.label}</span>
+                        <span className="text-white/40 ml-1.5">— {m.description}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Auto-Sync toggle */}
           {showAutoSync && (

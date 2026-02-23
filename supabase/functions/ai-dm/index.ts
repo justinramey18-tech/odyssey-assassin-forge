@@ -6,6 +6,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// ── Types ──────────────────────────────────────────────────────────────────────
+
 interface CharacterContext {
   name: string;
   level: number;
@@ -110,11 +112,35 @@ interface DMRequest {
   campaignSummary?: string;
   worldStatePrompt?: string;
   dmPersonaPrompt?: string;
+  model?: string;
 }
 
-const MAX_CUSTOM_GUIDES_CHARS = 200000;
+// ── Constants ──────────────────────────────────────────────────────────────────
 
+const MAX_CUSTOM_GUIDES_CHARS = 200000;
 const MAX_MESSAGES = 100;
+
+// Models routed through Lovable AI gateway
+const LOVABLE_MODELS = new Set([
+  'google/gemini-3-pro-preview',
+  'google/gemini-2.5-pro',
+  'google/gemini-2.5-flash',
+  'google/gemini-2.5-flash-lite',
+  'google/gemini-3-flash-preview',
+  'openai/gpt-5',
+  'openai/gpt-5-mini',
+  'openai/gpt-5-nano',
+  'openai/gpt-5.2',
+]);
+
+// Models routed directly to Anthropic API
+const ANTHROPIC_MODELS: Record<string, string> = {
+  'anthropic/claude-sonnet-4': 'claude-sonnet-4-20250514',
+};
+
+const DEFAULT_MODEL = 'google/gemini-3-pro-preview';
+
+// ── Context Builder ────────────────────────────────────────────────────────────
 
 function buildContextSummary(ctx: CharacterContext): string {
   const lines: string[] = [];
@@ -132,7 +158,6 @@ function buildContextSummary(ctx: CharacterContext): string {
     lines.push(`PRESTIGE: Level ${ctx.prestigeLevel}`);
   }
 
-  // Ability scores
   if (ctx.abilityScores) {
     const scores = ctx.abilityScores;
     lines.push(`ABILITY SCORES: STR ${scores.strength.final}(${scores.strength.modifier >= 0 ? '+' : ''}${scores.strength.modifier}) DEX ${scores.dexterity.final}(${scores.dexterity.modifier >= 0 ? '+' : ''}${scores.dexterity.modifier}) CON ${scores.constitution.final}(${scores.constitution.modifier >= 0 ? '+' : ''}${scores.constitution.modifier}) INT ${scores.intelligence.final}(${scores.intelligence.modifier >= 0 ? '+' : ''}${scores.intelligence.modifier}) WIS ${scores.wisdom.final}(${scores.wisdom.modifier >= 0 ? '+' : ''}${scores.wisdom.modifier}) CHA ${scores.charisma.final}(${scores.charisma.modifier >= 0 ? '+' : ''}${scores.charisma.modifier})`);
@@ -199,7 +224,6 @@ function buildContextSummary(ctx: CharacterContext): string {
     if (spell.preparedSpells.length > 0) lines.push(`   Prepared Spells: ${spell.preparedSpells.join(', ')}`);
   }
 
-  // Loot
   if (ctx.loot && ctx.loot.items.length > 0) {
     lines.push(`\n💰 LOOT (${ctx.loot.items.length} items, ${ctx.loot.totalValue}gp total):`);
     ctx.loot.items.slice(0, 10).forEach(item => {
@@ -243,6 +267,8 @@ function buildContextSummary(ctx: CharacterContext): string {
   
   return lines.join('\n');
 }
+
+// ── System Prompt Builder ──────────────────────────────────────────────────────
 
 function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string): string {
   const contextSummary = buildContextSummary(ctx);
@@ -295,12 +321,10 @@ ${contextSummary}
 - Be fair but not adversarial — create challenge, not frustration
 - Celebrate creative solutions even if they bypass your planned encounters`;
 
-  // Inject the DM's adopted personality (from personality test)
   if (dmPersonaPrompt && dmPersonaPrompt.trim()) {
     prompt += `\n\n${dmPersonaPrompt}`;
   }
 
-  // Inject persistent world state (memory anchors, quests, inventory) — this persists even when chat history slides
   if (worldStatePrompt && worldStatePrompt.trim()) {
     prompt += `\n\n${worldStatePrompt}`;
   }
@@ -317,6 +341,104 @@ ${contextSummary}
 
   return prompt;
 }
+
+// ── Anthropic Streaming Adapter ────────────────────────────────────────────────
+// Converts Anthropic's SSE format to OpenAI-compatible SSE so the client parser works unchanged.
+
+async function callAnthropic(
+  anthropicModelId: string,
+  systemPrompt: string,
+  messages: Array<{ role: string; content: string }>,
+): Promise<Response> {
+  const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!ANTHROPIC_API_KEY) {
+    throw new Error("ANTHROPIC_API_KEY is not configured. Add your Anthropic API key in backend secrets.");
+  }
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: anthropicModelId,
+      max_tokens: 8000,
+      system: systemPrompt,
+      messages,
+      stream: true,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Anthropic API error:", response.status, errorText);
+    if (response.status === 429) {
+      throw { status: 429, message: "Anthropic rate limit exceeded. Please wait a moment and try again." };
+    }
+    if (response.status === 401) {
+      throw { status: 401, message: "Invalid Anthropic API key. Please update your key in backend secrets." };
+    }
+    throw { status: 500, message: "Anthropic API error" };
+  }
+
+  // Transform Anthropic SSE stream → OpenAI-compatible SSE stream
+  const reader = response.body!.getReader();
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+
+  const stream = new ReadableStream({
+    async pull(controller) {
+      let buffer = '';
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+          return;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        
+        let newlineIdx: number;
+        while ((newlineIdx = buffer.indexOf('\n')) !== -1) {
+          const line = buffer.slice(0, newlineIdx).trim();
+          buffer = buffer.slice(newlineIdx + 1);
+          
+          if (!line.startsWith('data: ')) continue;
+          const jsonStr = line.slice(6);
+          if (!jsonStr) continue;
+
+          try {
+            const event = JSON.parse(jsonStr);
+            
+            if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
+              // Convert to OpenAI delta format
+              const openaiChunk = {
+                choices: [{ delta: { content: event.delta.text } }],
+              };
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(openaiChunk)}\n\n`));
+            } else if (event.type === 'message_stop') {
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              controller.close();
+              return;
+            }
+          } catch {
+            // ignore malformed JSON
+          }
+        }
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: { "Content-Type": "text/event-stream" },
+  });
+}
+
+// ── HTTP Handler ───────────────────────────────────────────────────────────────
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -344,19 +466,42 @@ serve(async (req) => {
       });
     }
 
-    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt } = (await req.json()) as DMRequest;
+    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model } = (await req.json()) as DMRequest;
     
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
-
     // Trim to last 100 messages
     const trimmedMessages = messages.length > MAX_MESSAGES
       ? [...messages.slice(0, 2), ...messages.slice(-(MAX_MESSAGES - 2))]
       : messages;
 
     const systemPrompt = buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt);
+
+    // Determine which provider to use
+    const requestedModel = model || DEFAULT_MODEL;
+    const anthropicModelId = ANTHROPIC_MODELS[requestedModel];
+
+    if (anthropicModelId) {
+      // ── Anthropic path ──
+      try {
+        const anthropicResponse = await callAnthropic(anthropicModelId, systemPrompt, trimmedMessages);
+        return new Response(anthropicResponse.body, {
+          headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+        });
+      } catch (e: any) {
+        const status = e?.status || 500;
+        const message = e?.message || "Anthropic error";
+        return new Response(JSON.stringify({ error: message }), {
+          status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // ── Lovable AI gateway path ──
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
+    }
+
+    const gatewayModel = LOVABLE_MODELS.has(requestedModel) ? requestedModel : DEFAULT_MODEL;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -365,7 +510,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-pro-preview",
+        model: gatewayModel,
         messages: [
           { role: "system", content: systemPrompt },
           ...trimmedMessages,
