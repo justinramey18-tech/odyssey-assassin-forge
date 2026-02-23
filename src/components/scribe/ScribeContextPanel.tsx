@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ChevronDown, ChevronRight, BookOpen, ScrollText, Link2, Scissors } from 'lucide-react';
+import { ChevronDown, ChevronRight, BookOpen, ScrollText, Link2, Scissors, Check } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
@@ -34,6 +34,7 @@ export function ScribeContextPanel({ state, onChange, stories, accent = 'amber',
   const [cards, setCards] = useState<CharacterCard[]>([]);
   const [hasSummary, setHasSummary] = useState(false);
   const [summaryText, setSummaryText] = useState('');
+  const [summarySaved, setSummarySaved] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load character cards + check campaign summary on mount
@@ -59,10 +60,13 @@ export function ScribeContextPanel({ state, onChange, stories, accent = 'amber',
     const trimmed = text.slice(0, SUMMARY_MAX_CHARS);
     setSummaryText(trimmed);
     setHasSummary(trimmed.length > 0);
+    setSummarySaved(false);
     // Debounced save
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       saveNovelBuilderSummary(trimmed);
+      setSummarySaved(true);
+      setTimeout(() => setSummarySaved(false), 2000);
     }, 1000);
   }, []);
 
@@ -180,7 +184,14 @@ export function ScribeContextPanel({ state, onChange, stories, accent = 'amber',
                   className={`resize-none min-h-[120px] text-xs ${accentBorder} bg-background/50`}
                   maxLength={SUMMARY_MAX_CHARS}
                 />
-                <div className="flex justify-end">
+                <div className="flex items-center justify-between">
+                  {summarySaved ? (
+                    <span className="flex items-center gap-1 text-[10px] text-emerald-400 transition-opacity">
+                      <Check className="w-3 h-3" /> Saved
+                    </span>
+                  ) : (
+                    <span />
+                  )}
                   <span className="text-[10px] text-muted-foreground font-mono">
                     {summaryText.length.toLocaleString()} / {SUMMARY_MAX_CHARS.toLocaleString()}
                   </span>
