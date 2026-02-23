@@ -117,6 +117,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
   const [lastCloudSyncTime, setLastCloudSyncTime] = useState<Date | null>(null);
   const [isCloudSyncing, setIsCloudSyncing] = useState(false);
   const [lastUsage, setLastUsage] = useState<{ input_tokens: number; output_tokens: number } | null>(null);
+  const [sessionUsage, setSessionUsage] = useState<{ input_tokens: number; output_tokens: number; requests: number }>({ input_tokens: 0, output_tokens: 0, requests: 0 });
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Local save debounce
@@ -476,6 +477,11 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
       // Set usage stats if we got any (Anthropic models)
       if (usageAccum.input_tokens > 0 || usageAccum.output_tokens > 0) {
         setLastUsage({ ...usageAccum });
+        setSessionUsage(prev => ({
+          input_tokens: prev.input_tokens + usageAccum.input_tokens,
+          output_tokens: prev.output_tokens + usageAccum.output_tokens,
+          requests: prev.requests + 1,
+        }));
       }
 
       // After successful response, check if we should generate a summary
@@ -639,5 +645,6 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
     deleteMessage,
     regenerateMessage,
     lastUsage,
+    sessionUsage,
   };
 }
