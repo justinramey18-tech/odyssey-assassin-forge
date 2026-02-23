@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
 import { processTextOffline, ProcessingOptions } from '@/lib/narrativeProcessor';
 import { supabase } from '@/integrations/supabase/client';
+import { formatUsage, type TokenUsage } from '@/lib/token-usage';
 
 import type { NarrativeStyle } from '@/lib/narrativeProcessor';
 
@@ -53,6 +54,7 @@ export function ScribeDrawer({
   const [customStylePrompt, setCustomStylePrompt] = useState('');
   const [copied, setCopied] = useState(false);
   const [isAiProcessing, setIsAiProcessing] = useState(false);
+  const [aiUsage, setAiUsage] = useState<TokenUsage | null>(null);
 
   const handleProcess = () => {
     if (!inputText.trim()) {
@@ -213,6 +215,7 @@ export function ScribeDrawer({
                   return;
                 }
                 setIsAiProcessing(true);
+                setAiUsage(null);
                 try {
                   const { data, error } = await supabase.functions.invoke('scribe-ai', {
                     body: {
@@ -225,6 +228,7 @@ export function ScribeDrawer({
                   if (error) throw error;
                   if (data?.error) throw new Error(data.error);
                   setOutputText(data.text);
+                  if (data.usage) setAiUsage(data.usage);
                   toast.success('AI narrative complete!');
                 } catch (err: any) {
                   toast.error(err?.message || 'AI processing failed');
@@ -284,6 +288,11 @@ export function ScribeDrawer({
               >
                 {outputText}
               </div>
+              {aiUsage && (
+                <p className="text-[10px] text-muted-foreground/60 font-mono text-right">
+                  {formatUsage(aiUsage, 'anthropic/claude-sonnet-4-5')}
+                </p>
+              )}
             </div>
           )}
 

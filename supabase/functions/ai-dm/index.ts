@@ -416,11 +416,28 @@ async function callAnthropic(
             const event = JSON.parse(jsonStr);
             
             if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
-              // Convert to OpenAI delta format
               const openaiChunk = {
                 choices: [{ delta: { content: event.delta.text } }],
               };
               controller.enqueue(encoder.encode(`data: ${JSON.stringify(openaiChunk)}\n\n`));
+            } else if (event.type === 'message_delta' && event.usage) {
+              // Emit usage metadata before DONE
+              const usageChunk = {
+                __usage: {
+                  input_tokens: event.usage.input_tokens ?? 0,
+                  output_tokens: event.usage.output_tokens ?? 0,
+                },
+              };
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(usageChunk)}\n\n`));
+            } else if (event.type === 'message_start' && event.message?.usage) {
+              // Capture input tokens from message_start
+              const usageChunk = {
+                __usage: {
+                  input_tokens: event.message.usage.input_tokens ?? 0,
+                  output_tokens: 0,
+                },
+              };
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(usageChunk)}\n\n`));
             } else if (event.type === 'message_stop') {
               controller.enqueue(encoder.encode("data: [DONE]\n\n"));
               controller.close();

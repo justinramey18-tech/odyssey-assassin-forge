@@ -116,6 +116,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
   const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
   const [lastCloudSyncTime, setLastCloudSyncTime] = useState<Date | null>(null);
   const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+  const [lastUsage, setLastUsage] = useState<{ input_tokens: number; output_tokens: number } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Local save debounce
@@ -358,7 +359,8 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
 
     abortControllerRef.current = new AbortController();
     let assistantContent = '';
-
+    let usageAccum = { input_tokens: 0, output_tokens: 0 };
+    setLastUsage(null);
     try {
       const authToken = await getAuthToken();
       const response = await fetch(AI_DM_URL, {
@@ -421,6 +423,12 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
 
           try {
             const parsed = JSON.parse(jsonStr);
+            // Check for usage metadata from Anthropic adapter
+            if (parsed.__usage) {
+              usageAccum.input_tokens += parsed.__usage.input_tokens || 0;
+              usageAccum.output_tokens += parsed.__usage.output_tokens || 0;
+              continue;
+            }
             const deltaContent = parsed.choices?.[0]?.delta?.content as string | undefined;
             if (deltaContent) {
               assistantContent += deltaContent;
@@ -465,6 +473,11 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
         }
       }
 
+      // Set usage stats if we got any (Anthropic models)
+      if (usageAccum.input_tokens > 0 || usageAccum.output_tokens > 0) {
+        setLastUsage({ ...usageAccum });
+      }
+
       // After successful response, check if we should generate a summary
       if (assistantContent) {
         const updatedMessages = [...allMessages, {
@@ -473,9 +486,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
           content: assistantContent,
           timestamp: new Date(),
         }];
-        // Fire and forget — don't block the UI
         triggerSummaryIfNeeded(updatedMessages);
-        // Notify listener (e.g. auto-sync)
         onMessageComplete?.(assistantContent);
       }
     } catch (error) {
@@ -627,5 +638,6 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
     editMessage,
     deleteMessage,
     regenerateMessage,
+    lastUsage,
   };
 }

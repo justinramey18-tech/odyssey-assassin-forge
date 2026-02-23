@@ -133,8 +133,15 @@ RULES:
 
     const result = await response.json();
     const outputText = result.content?.[0]?.text || "";
+    const usage = result.usage ?? {};
 
-    return new Response(JSON.stringify({ text: outputText }), {
+    return new Response(JSON.stringify({
+      text: outputText,
+      usage: {
+        input_tokens: usage.input_tokens ?? 0,
+        output_tokens: usage.output_tokens ?? 0,
+      },
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
