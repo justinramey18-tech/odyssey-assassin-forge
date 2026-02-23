@@ -28,6 +28,8 @@ interface UseAIDMOptions {
   activeGuideIds?: string[];
   /** Called when a campaign is loaded so the parent can switch active guides */
   onCampaignSwitch?: (guideIds: string[] | null) => void;
+  /** AI model ID to use for DM responses */
+  selectedModel?: string;
 }
 
 interface VersionedSession {
@@ -106,7 +108,7 @@ function saveSession(messages: Message[]): void {
   }
 }
 
-export function useAIDM({ characterContext, customGuidesContent, worldStatePrompt, dmPersonaPrompt, onMessageComplete, activeGuideIds, onCampaignSwitch }: UseAIDMOptions) {
+export function useAIDM({ characterContext, customGuidesContent, worldStatePrompt, dmPersonaPrompt, onMessageComplete, activeGuideIds, onCampaignSwitch, selectedModel }: UseAIDMOptions) {
   const [messages, setMessages] = useState<Message[]>(() => loadSession());
   const [isLoading, setIsLoading] = useState(false);
   const [campaignSummary, setCampaignSummary] = useState<string | null>(() => loadCampaignSummary());
@@ -372,6 +374,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
           campaignSummary: campaignSummary || undefined,
           worldStatePrompt: worldStatePrompt || undefined,
           dmPersonaPrompt: dmPersonaPrompt || undefined,
+          model: selectedModel || undefined,
         }),
         signal: abortControllerRef.current.signal,
       });

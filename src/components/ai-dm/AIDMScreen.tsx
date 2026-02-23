@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { loadSelectedModel, saveSelectedModel } from '@/lib/dm-models';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Zap, Map, Film, Image as ImageIcon, Copy, Check, Pencil, RefreshCw, X, MoreVertical, Globe, Settings } from 'lucide-react';
 import { DMToolsDrawer } from './DMToolsDrawer';
@@ -298,6 +299,7 @@ const NOOP_RETURN_ZERO = () => 0;
 export function AIDMScreen({ onBack, characterContext, userId, characterName = 'Adventurer', autoSyncCallbacks, dmPersonaPrompt, dmPersonaName, onRetakePersonalityTest }: AIDMScreenProps) {
   const [showToolsDrawer, setShowToolsDrawer] = useState(false);
   const [showWorldBuilder, setShowWorldBuilder] = useState(false);
+  const [selectedModel, setSelectedModel] = useState(() => loadSelectedModel());
   const [showBattleMap, setShowBattleMap] = useState(false);
   const [showWorldState, setShowWorldState] = useState(false);
   const [pendingMapAdds, setPendingMapAdds] = useState<MapMarker[]>([]);
@@ -388,6 +390,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     onMessageComplete: handleMessageComplete,
     activeGuideIds: gmGuides.activeGuideIds,
     onCampaignSwitch: handleCampaignSwitch,
+    selectedModel,
   });
 
   // Keep game state in sync with activeCampaignId changes
@@ -904,6 +907,8 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         anchorsCount={gameState.memory_anchors.length}
         onRetakePersonalityTest={onRetakePersonalityTest}
         dmPersonaName={dmPersonaName}
+        selectedModel={selectedModel}
+        onModelChange={(id) => { setSelectedModel(id); saveSelectedModel(id); }}
       />
 
       {/* GM Guides Overlay */}
