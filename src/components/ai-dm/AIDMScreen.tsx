@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { loadSelectedModel, saveSelectedModel, getModelLabel } from '@/lib/dm-models';
-import { formatUsage } from '@/lib/token-usage';
+import { formatUsage, formatCostShort } from '@/lib/token-usage';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Zap, Map, Film, Image as ImageIcon, Copy, Check, Pencil, RefreshCw, X, MoreVertical, Globe, Settings } from 'lucide-react';
 import { DMToolsDrawer } from './DMToolsDrawer';
@@ -383,7 +383,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   // Build world state prompt to inject into AI system prompt
   const worldStatePrompt = useMemo(() => buildMemoryAnchorsPrompt(gameState), [gameState]);
 
-  const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, loadCampaign, sendMessage, addMediaMessage, cancelRequest, clearMessages, newGame, activeCampaignId, setActiveCampaignId, lastCloudSyncTime, isCloudSyncing, saveToCloudNow, editMessage, deleteMessage, regenerateMessage, lastUsage } = useAIDM({
+  const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, loadCampaign, sendMessage, addMediaMessage, cancelRequest, clearMessages, newGame, activeCampaignId, setActiveCampaignId, lastCloudSyncTime, isCloudSyncing, saveToCloudNow, editMessage, deleteMessage, regenerateMessage, lastUsage, sessionUsage } = useAIDM({
     characterContext,
     customGuidesContent: gmGuides.enabledContent,
     worldStatePrompt,
@@ -560,9 +560,12 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {lastUsage && !isLoading && (
-            <span className="text-[9px] text-white/25 font-mono truncate max-w-[120px]" title={formatUsage(lastUsage, selectedModel)}>
-              {formatUsage(lastUsage, selectedModel)}
+          {sessionUsage.requests > 0 && (
+            <span
+              className="text-[9px] text-white/25 font-mono"
+              title={`Session: ${formatUsage(sessionUsage, selectedModel)} (${sessionUsage.requests} requests)`}
+            >
+              {formatCostShort(sessionUsage, selectedModel)}
             </span>
           )}
           <span className="text-[10px] text-white/30 font-mono truncate max-w-[100px]">

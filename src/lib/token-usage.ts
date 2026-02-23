@@ -29,3 +29,9 @@ export function formatUsage(usage: TokenUsage, modelId?: string): string {
     : `~$${cost.toFixed(3)}`;
   return `${total.toLocaleString()} tokens (${usage.input_tokens.toLocaleString()}↑ ${usage.output_tokens.toLocaleString()}↓) · ${costStr}`;
 }
+
+export function formatCostShort(usage: TokenUsage, modelId?: string): string {
+  const cost = estimateCost(usage, modelId);
+  if (cost < 0.001) return '<$0.001';
+  return `$${cost.toFixed(3)}`;
+}
