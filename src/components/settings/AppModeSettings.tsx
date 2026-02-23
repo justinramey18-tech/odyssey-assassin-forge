@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import { toast } from 'sonner';
 import { Check, Crown, Sparkles, Sword, BookOpen, Users, Wand2, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -14,7 +15,6 @@ import {
   CustomOverrides,
 } from '@/lib/app-modes';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
 import type { LucideIcon } from 'lucide-react';
 
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -79,7 +79,13 @@ export function AppModeSettings({
             return (
               <button
                 key={mode}
-                onClick={() => onModeChange(mode)}
+                onClick={() => {
+                  onModeChange(mode);
+                  toast.success(`${config.label} mode applied`, {
+                    description: config.description,
+                    style: { background: 'hsl(var(--card))', color: 'hsl(var(--foreground))', border: '1px solid hsl(var(--border))' },
+                  });
+                }}
                 className={cn(
                   'flex items-center gap-3 p-3 rounded-lg border transition-all text-left',
                   colorClass,
