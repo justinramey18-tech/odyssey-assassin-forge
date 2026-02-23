@@ -3,7 +3,7 @@ import { getSubTabsForCategory } from '@/components/navigation/types';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-export type AppMode = 'companion' | 'player' | 'magicBuild' | 'storyteller' | 'party' | 'fullAccess';
+export type AppMode = 'companion' | 'player' | 'magicBuild' | 'chronicler' | 'storyteller' | 'party' | 'fullAccess';
 
 export type CustomOverrides = Record<string, boolean>;
 
@@ -69,6 +69,23 @@ export const APP_MODE_CONFIGS: Record<AppMode, AppModeConfig> = {
     ],
     visibleQuickAccess: [
       'quickAccess.quickActions', 'quickAccess.combat', 'quickAccess.arcana',
+      'quickAccess.features', 'quickAccess.settings',
+    ],
+    visibleDMButtons: [],
+  },
+
+  chronicler: {
+    label: 'Chronicler',
+    description: 'Simplified narrative forge — paste, style, transform',
+    icon: 'Feather',
+    color: 'rose',
+    visibleTabs: [
+      'scribe', 'cloud', 'settings',
+    ],
+    visibleHomeFeatures: [
+      'home.characterInfo', 'home.clock',
+    ],
+    visibleQuickAccess: [
       'quickAccess.features', 'quickAccess.settings',
     ],
     visibleDMButtons: [],
@@ -144,7 +161,7 @@ export const APP_MODE_CONFIGS: Record<AppMode, AppModeConfig> = {
 
 /** Display order for the mode selection screen */
 export const APP_MODES_ORDERED: AppMode[] = [
-  'companion', 'player', 'magicBuild', 'storyteller', 'party', 'fullAccess',
+  'companion', 'player', 'magicBuild', 'chronicler', 'storyteller', 'party', 'fullAccess',
 ];
 
 // ── Helper Functions ───────────────────────────────────────────────────────
