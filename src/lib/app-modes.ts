@@ -37,7 +37,7 @@ export const APP_MODE_CONFIGS: Record<AppMode, AppModeConfig> = {
   },
 
   player: {
-    label: 'Player',
+    label: 'Martial Build',
     description: 'Core martial character sheet — combat, skills, abilities',
     icon: 'Sword',
     color: 'red',
@@ -92,7 +92,7 @@ export const APP_MODE_CONFIGS: Record<AppMode, AppModeConfig> = {
   },
 
   storyteller: {
-    label: 'Storyteller',
+    label: 'Solo AI DM',
     description: 'Player + AI DM, Scribe, Chronicle — narrative tools',
     icon: 'BookOpen',
     color: 'violet',
