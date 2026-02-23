@@ -9,7 +9,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-// Authenticate user and return user ID or error response
+// ── Auth ──────────────────────────────────────────────────────────────
 async function authenticateRequest(req: Request): Promise<{ userId: string } | { error: Response }> {
   const authHeader = req.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
@@ -43,7 +43,7 @@ async function authenticateRequest(req: Request): Promise<{ userId: string } | {
   return { userId: data.claims.sub as string };
 }
 
-// Input validation constants
+// ── Validation constants ──────────────────────────────────────────────
 const MAX_TEXT_LENGTH = 50000;
 const MIN_TEXT_LENGTH = 10;
 const MAX_CHARACTER_NAME_LENGTH = 100;
@@ -63,9 +63,9 @@ interface CustomEditingRule {
 
 interface BlendConfig {
   secondaryStyle: string;
-  ratio: number; // 10-90, how much of secondary style to blend
+  ratio: number;
   tertiaryStyle?: string;
-  tertiaryRatio?: number; // 5-30, optional third style
+  tertiaryRatio?: number;
 }
 
 interface PartialContext {
@@ -76,8 +76,15 @@ interface PartialContext {
 }
 
 interface CommandContext {
-  fullText: string;      // Entire story (up to 50,000 chars)
-  instruction: string;   // User's command (max 1000 chars)
+  fullText: string;
+  instruction: string;
+}
+
+interface CharacterCardInput {
+  name: string;
+  raceClass?: string;
+  personality: string;
+  speechStyle: string;
 }
 
 interface RequestBody {
@@ -91,6 +98,11 @@ interface RequestBody {
   partialContext?: PartialContext;
   commandContext?: CommandContext;
   model?: string;
+  processingMode?: 'transform' | 'enhance';
+  targetMultiplier?: number;
+  campaignSummary?: string;
+  storyContext?: string;
+  characterCards?: CharacterCardInput[];
 }
 
 type ValidationResult = {
@@ -109,7 +121,7 @@ type ValidationResult = {
   error: string;
 };
 
-// Sanitize input to remove potential prompt injection patterns
+// ── Input sanitization ────────────────────────────────────────────────
 function sanitizeInput(text: string): string {
   const injectionPatterns = [
     /ignore\s+(previous|above|all)\s+instructions?/gi,
@@ -121,160 +133,80 @@ function sanitizeInput(text: string): string {
     /<<SYS>>/gi,
     /<\|im_start\|>/gi,
   ];
-  
   let sanitized = text;
   for (const pattern of injectionPatterns) {
     sanitized = sanitized.replace(pattern, '[REDACTED]');
   }
-  
   return sanitized;
 }
 
-// Smart parse: Extract only assistant/DM content from chat logs
-// Filters out user/player messages marked with "user" or "User" labels
 function extractAssistantContent(text: string): string {
   const lines = text.split('\n');
   const result: string[] = [];
   let inUserSection = false;
-  let inAssistantSection = true; // Default to keeping content until we see a label
+  let inAssistantSection = true;
   
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    const trimmedLine = line.trim().toLowerCase();
-    
-    // Detect section markers
-    // Match "user" or "**user**" at start of line (case insensitive)
-    if (/^(\*\*)?user(\*\*)?:?\s*$/i.test(line.trim()) || 
-        /^user\s*$/i.test(line.trim())) {
-      inUserSection = true;
-      inAssistantSection = false;
-      continue; // Skip the label line itself
+    if (/^(\*\*)?user(\*\*)?:?\s*$/i.test(line.trim()) || /^user\s*$/i.test(line.trim())) {
+      inUserSection = true; inAssistantSection = false; continue;
     }
-    
-    // Match "assistant" or "**assistant**" at start of line
-    if (/^(\*\*)?assistant(\*\*)?:?\s*$/i.test(line.trim()) || 
-        /^assistant\s*$/i.test(line.trim())) {
-      inUserSection = false;
-      inAssistantSection = true;
-      continue; // Skip the label line itself
+    if (/^(\*\*)?assistant(\*\*)?:?\s*$/i.test(line.trim()) || /^assistant\s*$/i.test(line.trim())) {
+      inUserSection = false; inAssistantSection = true; continue;
     }
-    
-    // Also detect inline patterns like "User: message" or "**User**: message"
     const userInlineMatch = line.match(/^(\*\*)?(user)(\*\*)?:\s*(.*)$/i);
-    if (userInlineMatch) {
-      // This is a user message, skip it
-      continue;
-    }
-    
+    if (userInlineMatch) continue;
     const assistantInlineMatch = line.match(/^(\*\*)?(assistant)(\*\*)?:\s*(.*)$/i);
-    if (assistantInlineMatch) {
-      // Keep the content after "assistant:"
-      result.push(assistantInlineMatch[4]);
-      inUserSection = false;
-      inAssistantSection = true;
-      continue;
-    }
-    
-    // Keep content if we're in an assistant section (or default section before any labels)
-    if (inAssistantSection && !inUserSection) {
-      result.push(line);
-    }
+    if (assistantInlineMatch) { result.push(assistantInlineMatch[4]); inUserSection = false; inAssistantSection = true; continue; }
+    if (inAssistantSection && !inUserSection) result.push(line);
   }
-  
-  // Clean up: remove excessive blank lines
   let cleaned = result.join('\n');
   cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
-  
   return cleaned;
 }
 
-// Detect if text appears to be a chat log format (has user/assistant labels)
 function isChatLogFormat(text: string): boolean {
-  const lowerText = text.toLowerCase();
-  // Check for typical chat log markers
   const hasUserLabel = /\buser\b\s*$/im.test(text) || /^\*\*user\*\*\s*$/im.test(text);
   const hasAssistantLabel = /\bassistant\b\s*$/im.test(text) || /^\*\*assistant\*\*\s*$/im.test(text);
-  
   return hasUserLabel || hasAssistantLabel;
 }
 
-// Sanitize character name - only allow alphanumeric, spaces, and common name characters
 function sanitizeCharacterName(name: string): string {
-  // Allow letters (including accented), numbers, spaces, hyphens, apostrophes
   return name.replace(/[^a-zA-ZÀ-ÿ0-9\s\-']/g, '').trim();
 }
 
-// Validate custom editing rules
 const MAX_EDITING_RULES = 10;
 const MAX_RULE_LENGTH = 200;
 
 function validateEditingRules(rules: unknown): CustomEditingRule[] {
   if (!rules || !Array.isArray(rules)) return [];
-  
   const validatedRules: CustomEditingRule[] = [];
-  
   for (const rule of rules.slice(0, MAX_EDITING_RULES)) {
     if (!rule || typeof rule !== 'object') continue;
-    
     const { type, instruction, scope } = rule as CustomEditingRule;
-    
-    if (typeof instruction !== 'string' || instruction.length === 0) continue;
-    if (instruction.length > MAX_RULE_LENGTH) continue;
-    
-    // Sanitize the instruction
-    const sanitizedInstruction = sanitizeInput(instruction);
-    
-    validatedRules.push({
-      type: typeof type === 'string' ? type : 'custom',
-      instruction: sanitizedInstruction,
-      scope: typeof scope === 'string' ? scope : 'all',
-    });
+    if (typeof instruction !== 'string' || instruction.length === 0 || instruction.length > MAX_RULE_LENGTH) continue;
+    validatedRules.push({ type: typeof type === 'string' ? type : 'custom', instruction: sanitizeInput(instruction), scope: typeof scope === 'string' ? scope : 'all' });
   }
-  
   return validatedRules;
 }
 
-// Validate blend config
 function validateBlendConfig(config: unknown): BlendConfig | undefined {
   if (!config || typeof config !== 'object') return undefined;
-  
   const { secondaryStyle, ratio, tertiaryStyle, tertiaryRatio } = config as BlendConfig;
-  
-  if (typeof secondaryStyle !== 'string' || !VALID_STYLES.includes(secondaryStyle as ValidStyle)) {
-    return undefined;
-  }
-  
-  if (typeof ratio !== 'number' || ratio < 10 || ratio > 90) {
-    return undefined;
-  }
-  
+  if (typeof secondaryStyle !== 'string' || !VALID_STYLES.includes(secondaryStyle as ValidStyle)) return undefined;
+  if (typeof ratio !== 'number' || ratio < 10 || ratio > 90) return undefined;
   const result: BlendConfig = { secondaryStyle, ratio };
-  
-  // Validate optional tertiary style
-  if (tertiaryStyle !== undefined) {
-    if (typeof tertiaryStyle === 'string' && VALID_STYLES.includes(tertiaryStyle as ValidStyle)) {
-      result.tertiaryStyle = tertiaryStyle;
-      if (typeof tertiaryRatio === 'number' && tertiaryRatio >= 5 && tertiaryRatio <= 30) {
-        result.tertiaryRatio = tertiaryRatio;
-      } else {
-        result.tertiaryRatio = 10; // Default tertiary ratio
-      }
-    }
+  if (tertiaryStyle !== undefined && typeof tertiaryStyle === 'string' && VALID_STYLES.includes(tertiaryStyle as ValidStyle)) {
+    result.tertiaryStyle = tertiaryStyle;
+    result.tertiaryRatio = typeof tertiaryRatio === 'number' && tertiaryRatio >= 5 && tertiaryRatio <= 30 ? tertiaryRatio : 10;
   }
-  
   return result;
 }
 
-// Validate partial context for partial regeneration
 function validatePartialContext(context: unknown): PartialContext | null {
   if (!context || typeof context !== 'object') return null;
-  
   const { precedingText, selectedText, followingText, instruction } = context as PartialContext;
-  
-  if (typeof selectedText !== 'string' || selectedText.length < 5) {
-    return null;
-  }
-  
+  if (typeof selectedText !== 'string' || selectedText.length < 5) return null;
   return {
     precedingText: typeof precedingText === 'string' ? sanitizeInput(precedingText) : '',
     selectedText: sanitizeInput(selectedText),
@@ -283,336 +215,194 @@ function validatePartialContext(context: unknown): PartialContext | null {
   };
 }
 
-// Validate command context for command mode
 function validateCommandContext(context: unknown): CommandContext | null {
   if (!context || typeof context !== 'object') return null;
-  
   const { fullText, instruction } = context as CommandContext;
-  
-  if (typeof fullText !== 'string' || fullText.length < 10) {
-    return null;
-  }
-  
-  if (fullText.length > MAX_TEXT_LENGTH) {
-    return null;
-  }
-  
-  if (typeof instruction !== 'string' || instruction.length < 3 || instruction.length > 1000) {
-    return null;
-  }
-  
-  return {
-    fullText: sanitizeInput(fullText),
-    instruction: sanitizeInput(instruction),
-  };
+  if (typeof fullText !== 'string' || fullText.length < 10 || fullText.length > MAX_TEXT_LENGTH) return null;
+  if (typeof instruction !== 'string' || instruction.length < 3 || instruction.length > 1000) return null;
+  return { fullText: sanitizeInput(fullText), instruction: sanitizeInput(instruction) };
 }
 
-// Validate request body
 function validateRequestBody(body: unknown): ValidationResult {
-  if (!body || typeof body !== 'object') {
-    return { valid: false, error: 'Invalid request body' };
-  }
-  
+  if (!body || typeof body !== 'object') return { valid: false, error: 'Invalid request body' };
   const { text, characterName, style, smartParseEnabled, customEditingRules, blendConfig, mode, partialContext, commandContext } = body as RequestBody;
-  
-  // Determine mode
   const validatedMode = mode === 'partial' ? 'partial' : mode === 'command' ? 'command' : 'full';
-  
-  // Validate style for all modes
   let validatedStyle: ValidStyle = 'fantasy';
-  if (style !== undefined && style !== null && typeof style === 'string') {
-    if (VALID_STYLES.includes(style as ValidStyle)) {
-      validatedStyle = style as ValidStyle;
-    }
+  if (style !== undefined && style !== null && typeof style === 'string' && VALID_STYLES.includes(style as ValidStyle)) {
+    validatedStyle = style as ValidStyle;
   }
-  
-  // For command mode, validate command context
   if (validatedMode === 'command') {
-    const validatedCommandContext = validateCommandContext(commandContext);
-    if (!validatedCommandContext) {
-      return { valid: false, error: 'Invalid command context. Requires fullText (10-50000 chars) and instruction (3-1000 chars)' };
-    }
-    
-    return {
-      valid: true,
-      text: '', // Not used in command mode
-      characterName: characterName ? sanitizeCharacterName(String(characterName)) : null,
-      style: validatedStyle,
-      smartParseEnabled: false,
-      customEditingRules: [],
-      mode: 'command',
-      commandContext: validatedCommandContext,
-    };
+    const vc = validateCommandContext(commandContext);
+    if (!vc) return { valid: false, error: 'Invalid command context. Requires fullText (10-50000 chars) and instruction (3-1000 chars)' };
+    return { valid: true, text: '', characterName: characterName ? sanitizeCharacterName(String(characterName)) : null, style: validatedStyle, smartParseEnabled: false, customEditingRules: [], mode: 'command', commandContext: vc };
   }
-  
-  // For partial mode, validate partial context instead of text
   if (validatedMode === 'partial') {
-    const validatedPartialContext = validatePartialContext(partialContext);
-    if (!validatedPartialContext) {
-      return { valid: false, error: 'Invalid partial context for partial regeneration' };
-    }
-    
-    return {
-      valid: true,
-      text: '', // Not used in partial mode
-      characterName: characterName ? sanitizeCharacterName(String(characterName)) : null,
-      style: validatedStyle,
-      smartParseEnabled: false,
-      customEditingRules: [],
-      mode: 'partial',
-      partialContext: validatedPartialContext,
-    };
+    const vp = validatePartialContext(partialContext);
+    if (!vp) return { valid: false, error: 'Invalid partial context for partial regeneration' };
+    return { valid: true, text: '', characterName: characterName ? sanitizeCharacterName(String(characterName)) : null, style: validatedStyle, smartParseEnabled: false, customEditingRules: [], mode: 'partial', partialContext: vp };
   }
-  
-  // Full mode validation (existing logic)
-  if (text === undefined || text === null) {
-    return { valid: false, error: 'Missing text parameter' };
-  }
-  
-  if (typeof text !== 'string') {
-    return { valid: false, error: 'text must be a string' };
-  }
-  
-  if (text.length < MIN_TEXT_LENGTH) {
-    return { valid: false, error: `text must be at least ${MIN_TEXT_LENGTH} characters` };
-  }
-  
-  if (text.length > MAX_TEXT_LENGTH) {
-    return { valid: false, error: `text exceeds maximum length of ${MAX_TEXT_LENGTH} characters` };
-  }
-  
-  // Validate characterName
+  if (text === undefined || text === null) return { valid: false, error: 'Missing text parameter' };
+  if (typeof text !== 'string') return { valid: false, error: 'text must be a string' };
+  if (text.length < MIN_TEXT_LENGTH) return { valid: false, error: `text must be at least ${MIN_TEXT_LENGTH} characters` };
+  if (text.length > MAX_TEXT_LENGTH) return { valid: false, error: `text exceeds maximum length of ${MAX_TEXT_LENGTH} characters` };
   let validatedCharacterName: string | null = null;
   if (characterName !== undefined && characterName !== null) {
-    if (typeof characterName !== 'string') {
-      return { valid: false, error: 'characterName must be a string' };
-    }
-    
-    if (characterName.length > MAX_CHARACTER_NAME_LENGTH) {
-      return { 
-        valid: false, 
-        error: `characterName exceeds maximum length of ${MAX_CHARACTER_NAME_LENGTH} characters` 
-      };
-    }
-    
-    const sanitizedName = sanitizeCharacterName(characterName);
-    if (sanitizedName.length > 0) {
-      validatedCharacterName = sanitizedName;
-    }
+    if (typeof characterName !== 'string') return { valid: false, error: 'characterName must be a string' };
+    if (characterName.length > MAX_CHARACTER_NAME_LENGTH) return { valid: false, error: `characterName exceeds maximum length of ${MAX_CHARACTER_NAME_LENGTH} characters` };
+    const sn = sanitizeCharacterName(characterName);
+    if (sn.length > 0) validatedCharacterName = sn;
   }
-  
-  // Validate custom editing rules
-  const validatedRules = validateEditingRules(customEditingRules);
-  
-  // Validate blend config
-  const validatedBlendConfig = validateBlendConfig(blendConfig);
-  
   return {
-    valid: true,
-    text,
-    characterName: validatedCharacterName,
-    style: validatedStyle,
-    smartParseEnabled: smartParseEnabled !== false, // Default to true
-    customEditingRules: validatedRules,
-    blendConfig: validatedBlendConfig,
-    mode: 'full',
+    valid: true, text, characterName: validatedCharacterName, style: validatedStyle,
+    smartParseEnabled: smartParseEnabled !== false, customEditingRules: validateEditingRules(customEditingRules),
+    blendConfig: validateBlendConfig(blendConfig), mode: 'full',
   };
 }
 
+// ── Context blocks builder ────────────────────────────────────────────
+function buildContextBlocks(
+  campaignSummary?: string,
+  storyContext?: string,
+  characterCards?: CharacterCardInput[],
+): string {
+  let blocks = '';
+  if (campaignSummary && campaignSummary.length > 0) {
+    blocks += `\nCAMPAIGN REFERENCE (ENFORCE CONSISTENCY):
+${campaignSummary}
+You MUST maintain strict consistency with the above. Character names, relationships, locations, world rules must match. Do not contradict established facts.\n`;
+  }
+  if (storyContext && storyContext.length > 0) {
+    blocks += `\nPRECEDING NARRATIVE (match voice, tone, plot continuity, character speech patterns):
+${storyContext}\n`;
+  }
+  if (characterCards && characterCards.length > 0) {
+    const lines = characterCards.map(c => {
+      const rc = c.raceClass ? ` (${c.raceClass})` : '';
+      return `- ${c.name}${rc}: ${c.personality}. Speech style: ${c.speechStyle}`;
+    });
+    blocks += `\nCHARACTER PROFILES (use for dialogue voice and consistency):
+${lines.join('\n')}\n`;
+  }
+  return blocks;
+}
+
+// ── Style guides ──────────────────────────────────────────────────────
 const styleGuides: Record<ValidStyle, string> = {
-  fantasy: `Write in a rich, evocative fantasy style with vivid descriptions of magic, ancient places, 
-    and heroic deeds. Use dramatic language befitting epic tales. Include sensory details about 
-    mystical energies, enchanted locations, and the weight of legendary moments.`,
-  
-  noir: `Write in a hardboiled noir style - short, punchy sentences. The world is dark, cynical, 
-    and full of shadows. Characters are tough and world-weary. Use urban imagery, smoky atmospheres, 
-    and a sense that everyone has an angle they're playing.`,
-  
-  literary: `Write in a thoughtful, literary style with attention to character psychology and 
-    thematic depth. Use metaphor and symbolism where appropriate. Focus on internal motivations 
-    and the emotional weight of moments. Prose should flow with careful rhythm.`,
-  
-  action: `Write in a fast-paced, cinematic action style. Short paragraphs, punchy verbs, and 
-    visceral impact. Think action movie - explosions, quips, and momentum. Every sentence should 
-    drive forward with energy and intensity.`,
-
+  fantasy: `Write in a rich, evocative fantasy style with vivid descriptions of magic, ancient places, and heroic deeds. Use dramatic language befitting epic tales. Include sensory details about mystical energies, enchanted locations, and the weight of legendary moments.`,
+  noir: `Write in a hardboiled noir style - short, punchy sentences. The world is dark, cynical, and full of shadows. Characters are tough and world-weary. Use urban imagery, smoky atmospheres, and a sense that everyone has an angle they're playing.`,
+  literary: `Write in a thoughtful, literary style with attention to character psychology and thematic depth. Use metaphor and symbolism where appropriate. Focus on internal motivations and the emotional weight of moments. Prose should flow with careful rhythm.`,
+  action: `Write in a fast-paced, cinematic action style. Short paragraphs, punchy verbs, and visceral impact. Think action movie - explosions, quips, and momentum. Every sentence should drive forward with energy and intensity.`,
   salvatore: `Write in the style of R.A. Salvatore, author of The Legend of Drizzt.
-
 CORE PRINCIPLES:
 - Combat is a DANCE with rhythm and poetry - describe it blow-by-blow with fluid choreography
 - Weapons have NAMES and PERSONALITIES (reference their history, enchantments)
 - Inner monologue reveals philosophical warrior code during external battle
 - Deep focus on bonds of friendship, loyalty, and honor
 - Action flows with emotional stakes - every fight has meaning
-
 MANDATORY ELEMENTS:
 - Name fighting techniques ("the Hunter's dance," "the double-thrust-low")
 - Use simile for weapon movement (blade "sang," "whispered," "screamed")
 - Include internal conflict during external battle
 - Reference character relationships in combat context
-- Poetic sentence rhythm with action beats
-
 FORBIDDEN:
 - Generic "he attacked" phrasing
 - Combat without emotional context
-- Ignoring weapon/armor significance
 - Cynicism about heroism`,
-
   deadpool: `Write in Deadpool's fourth-wall-breaking style.
-
 CORE PRINCIPLES:
 - CONSTANT fourth-wall breaks addressing "you" (the reader)
 - Pop culture references even when anachronistic
 - Self-aware mockery of fantasy tropes and D&D mechanics
 - Parenthetical asides interrupt serious moments
 - Violence described in cartoonishly graphic detail
-- Inappropriate humor at the worst possible timing
-
 MANDATORY ELEMENTS:
 - Direct reader address at least once per paragraph
 - (Parenthetical commentary on the action like this)
 - Reference to "the writer," "the DM," or "plot armor"
-- Movie/comic/meme references
-- Acknowledge dice rolls or game mechanics meta-textually
 - Visual sound effects: THWACK, SLICE, BOOM, etc.
-
 FORBIDDEN:
 - Playing anything completely straight without commentary
-- Serious emotional moments without undercutting
-- Ignoring the absurdity of D&D mechanics`,
-
+- Serious emotional moments without undercutting`,
   dark_comedy: `Write in a dark comedy style - tragedy played for laughs.
-
 CORE PRINCIPLES:
 - SARDONIC NARRATOR voice with cosmic detachment
 - Tragedy described with UNDERSTATED dryness
 - Murphy's Law as narrative engine - everything gets worse
-- Characters make terrible choices, narrated matter-of-factly
-- Death/failure treated with gallows humor timing
 - Tone: Douglas Adams meets Lemony Snicket meets Terry Pratchett's Death
-
 MANDATORY ELEMENTS:
 - Narrator commentary on the futility/irony of actions
-- Understated phrasing for horrible events ("mildly inconvenient" death)
+- Understated phrasing for horrible events
 - Foreshadowing of doom delivered casually
-- Cosmic indifference to character suffering
-- Dry wit in sentence structure
-
 FORBIDDEN:
 - Slapstick or silly comedy (this is DARK comedy)
-- Happy outcomes without ironic cost
-- Sympathetic narrator tone`,
-
+- Happy outcomes without ironic cost`,
   subtle_absurdity: `Write in a subtly absurd style - Kafka meets D&D.
-
 CORE PRINCIPLES:
 - BUREAUCRATIC/CLINICAL language for impossible events
 - Deadpan delivery with ZERO acknowledgment of weirdness
-- Mundane reactions to cosmic horror and magic
 - Characters treat the bizarre as routine administrative procedure
-- Forms, protocols, and regulations for the impossible
-
 MANDATORY ELEMENTS:
 - Formal/technical language for magic and violence
 - No exclamation points or emotional language
-- Treat physics violations as clerical matters
 - Reference forms, protocols, or regulations for the impossible
-- Understatement to the point of absurdity
-
 FORBIDDEN:
 - Acknowledging anything is strange
-- Emotional reactions
-- Colorful adjectives
-- Excitement or urgency in tone`,
-
+- Emotional reactions or colorful adjectives`,
   lovecraftian: `Write in Lovecraftian cosmic horror style.
-
 CORE PRINCIPLES:
 - COSMIC DREAD and insignificance of mortals
 - Knowledge itself is CORRUPTING and MADDENING
 - Entities described through what they're NOT (indescribable, non-Euclidean)
-- Escalating paranoia and sanity erosion
 - Archaic prose with subordinate clauses and antiquated vocabulary
-- Existential terror > physical danger
-
 MANDATORY ELEMENTS:
-- Archaic language: "eldritch," "blasphemous," "cyclopean," "gibbous," "squamous"
-- Describe entities as "defying geometry" or "beyond comprehension"
-- Sanity/mental state deterioration noted
-- References to forbidden knowledge or ancient texts
+- Archaic language: "eldritch," "blasphemous," "cyclopean," "gibbous"
+- Sanity/mental state deterioration
 - Atmosphere of WRONGNESS pervading descriptions
-- Long, winding sentences with subordinate clauses
-
 FORBIDDEN:
 - Direct, clear descriptions of monsters
 - Heroic confidence or triumph
-- Modern casual language
-- Physical combat without psychological cost`,
-
+- Modern casual language`,
   gonzo: `Write in Hunter S. Thompson's Gonzo Journalism style.
-
 CORE PRINCIPLES:
 - STREAM-OF-CONSCIOUSNESS frantic energy
 - Unreliable narrator admitting to altered states
 - Savage social commentary embedded in chaos
-- Tangents that spiral into philosophy/paranoia
 - "Too weird to live, too rare to die" energy
-- Present-tense immediacy with visceral detail
-
 MANDATORY ELEMENTS:
-- First-person perspective (adapt even third-person to this voice)
-- References to exhaustion, sensory overload, or altered consciousness
+- First-person perspective
 - Sudden philosophical tangents mid-action
-- Savage descriptors for people/creatures
-- Paranoid observations about power structures
 - Sentence fragments. Rapid fire. Like this.
-
 FORBIDDEN:
 - Calm, measured prose
-- Objective third-person distance
-- Lack of personal voice
-- Pretending the narrator is reliable`,
-
+- Objective third-person distance`,
   hemingway: `Write in Ernest Hemingway's minimalist style.
-
 CORE PRINCIPLES:
 - SHORT, DECLARATIVE SENTENCES (subject-verb-object)
 - NO ADVERBS (never "quickly ran" - just "ran")
 - Iceberg theory: SUBTEXT over text (90% unsaid)
-- Understated emotion (show through action, not description)
 - Focus on PHYSICAL, CONCRETE details
-- "True sentences" - every word earns its place
-
 MANDATORY ELEMENTS:
 - Sentences averaging 10 words or fewer
-- Action verbs without modifiers
 - Emotional weight conveyed through what's NOT said
-- Dialogue without attributions when possible ("he said" only)
-- Physical sensations over abstract feelings
-- Repetition for emphasis (not variety)
-
+- Dialogue without attributions when possible
 FORBIDDEN:
 - Adverbs (-ly words)
 - Flowery adjectives
-- Explaining emotions directly
-- Complex subordinate clauses
-- Metaphors (unless stark and simple)`,
+- Explaining emotions directly`,
 };
 
+// ── Main handler ──────────────────────────────────────────────────────
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Authenticate request
     const authResult = await authenticateRequest(req);
-    if ('error' in authResult) {
-      return authResult.error;
-    }
+    if ('error' in authResult) return authResult.error;
     const userId = authResult.userId;
     console.log(`Authenticated request from user: ${userId.slice(0, 8)}...`);
+
     if (!LOVABLE_API_KEY) {
       console.error('LOVABLE_API_KEY is not configured');
       return new Response(
@@ -621,19 +411,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Parse request body
     let body: unknown;
-    try {
-      body = await req.json();
-    } catch {
-      console.error('Invalid JSON in request body');
+    try { body = await req.json(); } catch {
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid JSON in request body' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Validate input
     const validation = validateRequestBody(body);
     if (!validation.valid) {
       console.error('Validation failed:', validation.error);
@@ -644,14 +429,16 @@ Deno.serve(async (req) => {
     }
 
     const { characterName, style, smartParseEnabled, customEditingRules, blendConfig, mode, partialContext, commandContext } = validation;
-    const requestedModel = (body as RequestBody).model;
-    
-    // Handle command mode - apply AI transformation to full text
+    const rb = body as RequestBody;
+    const requestedModel = rb.model;
+    const isEnhance = rb.processingMode === 'enhance';
+    const multiplier = typeof rb.targetMultiplier === 'number' ? rb.targetMultiplier : 1.5;
+    const contextBlocks = buildContextBlocks(rb.campaignSummary, rb.storyContext, rb.characterCards);
+
+    // ── Command mode ─────────────────────────────────────────────
     if (mode === 'command' && commandContext) {
-      console.log(`Processing command mode: ${commandContext.fullText.length} chars, instruction: "${commandContext.instruction.slice(0, 50)}..."`);
-      
+      console.log(`Processing command mode: ${commandContext.fullText.length} chars`);
       const styleGuide = styleGuides[style];
-      
       const commandSystemPrompt = `You are an expert prose editor. Your task is to apply the user's editing instruction to the provided text.
 
 RULES:
@@ -662,76 +449,37 @@ RULES:
 5. Do NOT add explanations, notes, or meta-commentary - respond only with the edited text
 
 ${styleGuide}
-
 ${characterName ? `Primary character for reference: ${characterName}` : ''}
-
+${contextBlocks}
 Respond ONLY with the edited text. No explanations, no meta-commentary.`;
 
-      const commandUserPrompt = `EDITING INSTRUCTION:
-${commandContext.instruction}
-
-TEXT TO EDIT:
----
-${commandContext.fullText}
----
-
-Apply the instruction above and return the complete edited text.`;
+      const commandUserPrompt = `EDITING INSTRUCTION:\n${commandContext.instruction}\n\nTEXT TO EDIT:\n---\n${commandContext.fullText}\n---\n\nApply the instruction above and return the complete edited text.`;
 
       const response = await fetch(AI_GATEWAY_URL, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Authorization': `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: requestedModel || 'google/gemini-3-pro-preview',
-          messages: [
-            { role: 'system', content: commandSystemPrompt },
-            { role: 'user', content: commandUserPrompt },
-          ],
-          temperature: 0.5, // Lower temperature for more precise editing
-          max_tokens: 16000, // Support longer outputs for full story editing
+          messages: [{ role: 'system', content: commandSystemPrompt }, { role: 'user', content: commandUserPrompt }],
+          temperature: 0.5, max_tokens: 16000,
         }),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
         console.error('AI Gateway error:', response.status, errorText);
-        return new Response(
-          JSON.stringify({ success: false, error: `AI processing failed: ${response.status}` }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        return new Response(JSON.stringify({ success: false, error: `AI processing failed: ${response.status}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
       const data = await response.json();
       const narrative = data.choices?.[0]?.message?.content || '';
-
-      console.log(`Command mode completed: ${narrative.length} chars output`);
-
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          narrative,
-          mode: 'command',
-          style,
-          inputLength: commandContext.fullText.length,
-          outputLength: narrative.length,
-        }),
-        { 
-          headers: { 
-            ...corsHeaders, 
-            'Content-Type': 'application/json' 
-          } 
-        }
-      );
+      return new Response(JSON.stringify({ success: true, narrative, mode: 'command', style, inputLength: commandContext.fullText.length, outputLength: narrative.length }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-    
-    // Handle partial regeneration mode
+
+    // ── Partial mode ─────────────────────────────────────────────
     if (mode === 'partial' && partialContext) {
       console.log(`Processing partial regeneration: ${partialContext.selectedText.length} chars selected`);
-      
       const styleGuide = styleGuides[style];
-      
       const partialSystemPrompt = `You are a skilled narrative writer who can seamlessly rewrite portions of prose fiction.
 
 Your task is to rewrite the SELECTED TEXT while:
@@ -741,177 +489,123 @@ Your task is to rewrite the SELECTED TEXT while:
 4. KEEPING the same basic plot events and character actions (unless instructed otherwise)
 
 ${styleGuide}
-
 ${characterName ? `The main character or POV is: ${characterName}` : ''}
-
 ${partialContext.instruction ? `SPECIAL INSTRUCTION: ${partialContext.instruction}` : ''}
+${contextBlocks}
+Respond ONLY with the rewritten text. No explanations, no meta-commentary.`;
 
-Respond ONLY with the rewritten text. No explanations, no meta-commentary. The output should slot seamlessly into the surrounding context.`;
-
-      const partialUserPrompt = `CONTEXT (text that comes BEFORE the section to rewrite):
----
-${partialContext.precedingText || '[Beginning of text]'}
----
-
-TEXT TO REWRITE:
----
-${partialContext.selectedText}
----
-
-CONTEXT (text that comes AFTER the section to rewrite):
----
-${partialContext.followingText || '[End of text]'}
----
-
-Rewrite the middle section while maintaining perfect continuity with the surrounding context.`;
+      const partialUserPrompt = `CONTEXT (text that comes BEFORE the section to rewrite):\n---\n${partialContext.precedingText || '[Beginning of text]'}\n---\n\nTEXT TO REWRITE:\n---\n${partialContext.selectedText}\n---\n\nCONTEXT (text that comes AFTER the section to rewrite):\n---\n${partialContext.followingText || '[End of text]'}\n---\n\nRewrite the middle section while maintaining perfect continuity with the surrounding context.`;
 
       const response = await fetch(AI_GATEWAY_URL, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Authorization': `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: requestedModel || 'google/gemini-3-flash-preview',
-          messages: [
-            { role: 'system', content: partialSystemPrompt },
-            { role: 'user', content: partialUserPrompt },
-          ],
-          temperature: 0.7,
-          max_tokens: 2000,
+          messages: [{ role: 'system', content: partialSystemPrompt }, { role: 'user', content: partialUserPrompt }],
+          temperature: 0.7, max_tokens: 2000,
         }),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
         console.error('AI Gateway error:', response.status, errorText);
-        return new Response(
-          JSON.stringify({ success: false, error: `AI processing failed: ${response.status}` }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        return new Response(JSON.stringify({ success: false, error: `AI processing failed: ${response.status}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
       const data = await response.json();
       const narrative = data.choices?.[0]?.message?.content || '';
-
-      console.log(`Partial regeneration completed: ${narrative.length} chars output`);
-
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          narrative,
-          mode: 'partial',
-          style,
-          inputLength: partialContext.selectedText.length,
-          outputLength: narrative.length,
-        }),
-        { 
-          headers: { 
-            ...corsHeaders, 
-            'Content-Type': 'application/json' 
-          } 
-        }
-      );
+      return new Response(JSON.stringify({ success: true, narrative, mode: 'partial', style, inputLength: partialContext.selectedText.length, outputLength: narrative.length }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Full mode: Sanitize text input to prevent prompt injection
+    // ── Full mode ────────────────────────────────────────────────
     let sanitizedText = sanitizeInput(validation.text);
     
-    // Smart parse: detect chat log format and extract only assistant content (if enabled)
     if (smartParseEnabled) {
-      const isChatFormat = isChatLogFormat(sanitizedText);
-      if (isChatFormat) {
+      if (isChatLogFormat(sanitizedText)) {
         console.log('Smart parse enabled - extracting assistant content only');
         sanitizedText = extractAssistantContent(sanitizedText);
-        console.log(`After smart parse: ${sanitizedText.length} chars (filtered from ${validation.text.length})`);
+        console.log(`After smart parse: ${sanitizedText.length} chars`);
       }
-    } else {
-      console.log('Smart parse disabled - including all content');
     }
-    
-    // Build style guide - either single style or blended
+
+    // Build style guide (single or blended)
     let styleGuide: string;
     if (blendConfig) {
       const tertiaryRatio = blendConfig.tertiaryStyle ? (blendConfig.tertiaryRatio || 10) : 0;
       const primaryRatio = 100 - blendConfig.ratio - tertiaryRatio;
       const primaryGuide = styleGuides[style];
       const secondaryGuide = styleGuides[blendConfig.secondaryStyle as ValidStyle];
-      
+
       if (blendConfig.tertiaryStyle) {
         const tertiaryGuide = styleGuides[blendConfig.tertiaryStyle as ValidStyle];
-        styleGuide = `
-STYLE BLENDING INSTRUCTIONS:
-You will blend THREE narrative styles in your writing.
-
-PRIMARY STYLE (${primaryRatio}% weight - this is your foundation):
+        styleGuide = `STYLE BLENDING INSTRUCTIONS:
+PRIMARY STYLE (${primaryRatio}% weight):
 ${primaryGuide}
 
-SECONDARY STYLE (${blendConfig.ratio}% weight - incorporate elements of this):
+SECONDARY STYLE (${blendConfig.ratio}% weight):
 ${secondaryGuide}
 
-TERTIARY STYLE (${tertiaryRatio}% weight - light seasoning from this):
+TERTIARY STYLE (${tertiaryRatio}% weight):
 ${tertiaryGuide}
 
-BLENDING APPROACH:
-- Use the primary style as your foundation for tone, vocabulary, and structure
-- Weave in distinctive elements from the secondary style (characteristic phrases, specific techniques)
-- Add subtle touches from the tertiary style as accent and flavor
-- The blend should feel natural, not jarring - like a skilled author who has absorbed multiple influences
-- When styles conflict, favor the primary style, then secondary, then tertiary
-`;
+BLENDING: Use primary as foundation. Weave in secondary elements. Add subtle tertiary touches. When styles conflict, favor primary.`;
         console.log(`Style blending: ${primaryRatio}% ${style} + ${blendConfig.ratio}% ${blendConfig.secondaryStyle} + ${tertiaryRatio}% ${blendConfig.tertiaryStyle}`);
       } else {
-        styleGuide = `
-STYLE BLENDING INSTRUCTIONS:
-You will blend TWO narrative styles in your writing.
-
-PRIMARY STYLE (${primaryRatio}% weight - favor this style):
+        styleGuide = `STYLE BLENDING INSTRUCTIONS:
+PRIMARY STYLE (${primaryRatio}% weight):
 ${primaryGuide}
 
-SECONDARY STYLE (${blendConfig.ratio}% weight - incorporate elements of this):
+SECONDARY STYLE (${blendConfig.ratio}% weight):
 ${secondaryGuide}
 
-BLENDING APPROACH:
-- Use the primary style as your foundation for tone, vocabulary, and structure
-- Weave in distinctive elements from the secondary style (characteristic phrases, specific techniques)
-- The blend should feel natural, not jarring - like a skilled author who has absorbed multiple influences
-- When styles conflict, favor the primary style
-`;
+BLENDING: Use primary as foundation. Weave in secondary elements naturally. When styles conflict, favor primary.`;
         console.log(`Style blending: ${primaryRatio}% ${style} + ${blendConfig.ratio}% ${blendConfig.secondaryStyle}`);
       }
     } else {
       styleGuide = styleGuides[style];
     }
 
-    console.log(`Processing narrative forge request: ${sanitizedText.length} chars, style: ${style}, rules: ${customEditingRules.length}, blended: ${!!blendConfig}`);
-
-    // Build custom editing rules section for the prompt
+    // Custom editing rules
     let customRulesSection = '';
     if (customEditingRules.length > 0) {
-      const rulesText = customEditingRules
-        .map((r, i) => {
-          const scopeLabel = r.scope !== 'all' ? ` [SCOPE: ${r.scope.toUpperCase()}]` : '';
-          return `${i + 1}.${scopeLabel} ${r.instruction}`;
-        })
-        .join('\n');
-      
-      customRulesSection = `
-
-<user_editing_rules>
-Apply these specific editing rules during transformation:
-${rulesText}
-
-Important: Apply each rule exactly as stated. Do not creatively interpret or extend beyond the literal instruction.
-</user_editing_rules>`;
+      const rulesText = customEditingRules.map((r, i) => {
+        const scopeLabel = r.scope !== 'all' ? ` [SCOPE: ${r.scope.toUpperCase()}]` : '';
+        return `${i + 1}.${scopeLabel} ${r.instruction}`;
+      }).join('\n');
+      customRulesSection = `\n<user_editing_rules>\nApply these specific editing rules during transformation:\n${rulesText}\n\nImportant: Apply each rule exactly as stated.\n</user_editing_rules>`;
     }
 
-    const systemPrompt = `You are a skilled narrative writer and editor who transforms TTRPG (tabletop role-playing game) 
-chat logs and AI-generated game sessions into polished prose fiction.
+    console.log(`Processing narrative forge: ${sanitizedText.length} chars, style: ${style}, mode: ${isEnhance ? 'enhance' : 'transform'}`);
+
+    let systemPrompt: string;
+
+    if (isEnhance) {
+      systemPrompt = `You are a masterful narrative embellisher.
+ENHANCE existing prose by adding descriptive detail, atmosphere, and sensory language AROUND the original text.
+
+${styleGuide}
+TARGET LENGTH: Aim for approximately ${multiplier}x the original word count.
+
+CRITICAL RULES:
+- PRESERVE every original sentence, paragraph, and piece of dialogue VERBATIM
+- Do NOT rewrite, rephrase, or reorganize existing text
+- Do NOT continue the story beyond what is written
+- Do NOT remove any content from the original
+- ALL original dialogue must remain word-for-word unchanged
+- You MAY add new dialogue that is logical within the scene context, consistent with established character voices
+- ADD descriptive prose BETWEEN existing paragraphs: sensory details, atmosphere, emotional beats, environmental descriptions
+- PRESERVE all **bold** and *italic* markdown formatting in the original
+- Maintain the author's voice and tone
+
+${characterName ? `The main character or POV is: ${characterName}` : ''}
+${contextBlocks}${customRulesSection}
+Respond ONLY with the enhanced prose. No explanations, no meta-commentary.`;
+    } else {
+      systemPrompt = `You are a skilled narrative writer and editor who transforms TTRPG chat logs and AI-generated game sessions into polished prose fiction.
 
 Your task is to:
-1. REMOVE all game mechanics: dice rolls (d20, 2d6+3), stat checks (DC 15, STR 18), damage numbers, 
-   action economy terms (bonus action, reaction), and system-specific notation.
-2. REMOVE out-of-character (OOC) comments, system messages, and meta-gaming discussions.
+1. REMOVE all game mechanics: dice rolls, stat checks, damage numbers, system-specific notation.
+2. REMOVE out-of-character comments, system messages, and meta-gaming discussions.
 3. REMOVE player/GM labels and formatting artifacts.
 4. PRESERVE the core narrative: character dialogue, actions, descriptions, plot events, and emotional beats.
 5. TRANSFORM the content into flowing prose narrative that reads like a novel excerpt.
@@ -920,38 +614,34 @@ Your task is to:
 8. ENSURE smooth transitions between scenes and moments.
 
 ${styleGuide}
+TARGET LENGTH: Aim for approximately ${multiplier}x the original word count.
 
 ${characterName ? `The main character or POV is: ${characterName}` : ''}
 
-Important: Do NOT add new plot elements or significantly change what happens. Your job is to 
-transform the FORMAT from game log to prose, not to rewrite the story itself.
-${customRulesSection}
+Important: Do NOT add new plot elements or significantly change what happens. Your job is to transform the FORMAT from game log to prose, not to rewrite the story itself.
+PRESERVE all **bold** and *italic* markdown formatting.
+${contextBlocks}${customRulesSection}
 Respond ONLY with the transformed prose narrative. No explanations, no meta-commentary.`;
+    }
+
+    const userMessage = isEnhance
+      ? `Enhance this prose with rich descriptive detail while preserving every original word:\n\n${sanitizedText}`
+      : `Transform this game chat into prose narrative:\n\n${sanitizedText}`;
 
     const response = await fetch(AI_GATEWAY_URL, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Authorization': `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: requestedModel || 'google/gemini-3-pro-preview',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Transform this game chat into prose narrative:\n\n${sanitizedText}` },
-        ],
-        temperature: 0.7,
-        max_tokens: 8000,
+        messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
+        temperature: 0.7, max_tokens: 8000,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error('AI Gateway error:', response.status, errorText);
-      return new Response(
-        JSON.stringify({ success: false, error: `AI processing failed: ${response.status}` }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ success: false, error: `AI processing failed: ${response.status}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const data = await response.json();
@@ -961,40 +651,15 @@ Respond ONLY with the transformed prose narrative. No explanations, no meta-comm
     console.log(`Narrative forge completed: ${narrative.length} chars output`);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        narrative,
-        style,
-        inputLength: validation.text.length,
-        outputLength: narrative.length,
-        usage: {
-          input_tokens: usage.prompt_tokens ?? 0,
-          output_tokens: usage.completion_tokens ?? 0,
-        },
-      }),
-      { 
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        } 
-      }
+      JSON.stringify({ success: true, narrative, style, inputLength: validation.text.length, outputLength: narrative.length, usage: { input_tokens: usage.prompt_tokens ?? 0, output_tokens: usage.completion_tokens ?? 0 } }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Narrative Forge error:', error);
-    
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-      }),
-      { 
-        status: 500,
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        } 
-      }
+      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

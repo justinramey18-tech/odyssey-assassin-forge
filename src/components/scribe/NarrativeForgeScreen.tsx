@@ -50,6 +50,9 @@ import { splitTextIntoChunks, reassembleChunks, createChunkContext } from '@/lib
 import { SCRIBE_MODELS, loadScribeModel, saveScribeModel, getEdgeFunctionForModel, isAnthropicModel } from '@/lib/scribe-models';
 import { formatUsage, type TokenUsage } from '@/lib/token-usage';
 import { loadApiKey } from '@/lib/api-keys';
+import { loadCampaignSummary } from '@/lib/campaign-summary-storage';
+import { buildContextBody, stripChoiceBlocks, DEFAULT_CONTEXT_STATE, type ScribeContextState } from '@/lib/scribe-context';
+import { ScribeContextPanel, loadCharacterCards } from './ScribeContextPanel';
 import scribeBackground from '@/assets/scribe-background.jpg';
 
 interface NarrativeForgeScreenProps {
@@ -86,6 +89,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
   const [chunkProgress, setChunkProgress] = useState<{ current: number; total: number } | null>(null);
   const [selectedModel, setSelectedModel] = useState(loadScribeModel);
   const [aiUsage, setAiUsage] = useState<TokenUsage | null>(null);
+  const [ctxState, setCtxState] = useState<ScribeContextState>(DEFAULT_CONTEXT_STATE);
   const { toast } = useToast();
 
   // Multi-story management
@@ -130,7 +134,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
       return;
     }
 
-    createStory(
+    const newStory = createStory(
       `${characterName}'s Chronicle`,
       outputText,
       options.narrativeStyle
@@ -140,7 +144,12 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
       title: "Story Saved!",
       description: "Your narrative has been saved as a new story.",
     });
-  }, [outputText, characterName, options.narrativeStyle, createStory, toast]);
+
+    // Auto-chain: set context to the newly saved story
+    if (ctxState.autoChainEnabled) {
+      setCtxState(prev => ({ ...prev, contextStoryId: newStory.id }));
+    }
+  }, [outputText, characterName, options.narrativeStyle, createStory, toast, ctxState.autoChainEnabled]);
 
   const handleAddToStory = useCallback(() => {
     if (!outputText.trim()) {
@@ -166,7 +175,12 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
       title: "Added to Story!",
       description: `Your narrative has been appended to "${activeStory.title}".`,
     });
-  }, [outputText, activeStory, appendToStory, toast]);
+
+    // Auto-chain: set context to this story
+    if (ctxState.autoChainEnabled) {
+      setCtxState(prev => ({ ...prev, contextStoryId: activeStory.id }));
+    }
+  }, [outputText, activeStory, appendToStory, toast, ctxState.autoChainEnabled]);
 
   const handleDeleteActiveStory = useCallback(() => {
     if (!activeStory) return;
@@ -531,11 +545,14 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
     setIsProcessing(true);
     setLastProcessedInput(inputText);
     setAiUsage(null);
-    
+
+    // Apply game prompt stripping if enabled
+    let textForProcessing = inputText;
+    if (ctxState.stripGamePrompts) textForProcessing = stripChoiceBlocks(textForProcessing);
     try {
       if (processingMode === 'offline') {
         // Use local logic-based processing
-        const result = processTextOffline(inputText, options);
+        const result = processTextOffline(textForProcessing, options);
         setOutputText(result);
         toast({
           title: "Processing complete",
@@ -551,34 +568,38 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
         const edgeFn = getEdgeFunctionForModel(selectedModel);
         const isAnthropic = isAnthropicModel(selectedModel);
 
+        const campaignSummary = loadCampaignSummary();
+        const cards = loadCharacterCards();
+        const contextExtra = buildContextBody(ctxState, campaignSummary, stories, cards);
+
         let narrative: string;
         let usage: TokenUsage | null = null;
 
         if (isAnthropic) {
-          // Use scribe-ai for Anthropic models
           const { data, error } = await supabase.functions.invoke('scribe-ai', {
             body: {
-              text: inputText,
+              text: textForProcessing,
               style: options.narrativeStyle,
               intensity: options.toneIntensity,
               model: selectedModel,
               user_api_key: loadApiKey('anthropic') || undefined,
+              ...contextExtra,
             },
           });
           if (error) throw error;
           narrative = data.text || '';
           if (data.usage) usage = data.usage;
         } else {
-          // Use narrative-forge for Lovable gateway models
           const { data, error } = await supabase.functions.invoke('narrative-forge', {
             body: { 
-              text: inputText,
+              text: textForProcessing,
               characterName,
               style: options.narrativeStyle,
               smartParseEnabled,
               customEditingRules: rulesForApi,
               blendConfig: styleBlendEnabled ? blendConfig : undefined,
               model: selectedModel,
+              ...contextExtra,
             },
           });
           if (error) throw error;
@@ -1131,6 +1152,18 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Context Pipeline */}
+        <Card className="border-amber-900/30 bg-card/50">
+          <CardContent className="pt-4">
+            <ScribeContextPanel
+              state={ctxState}
+              onChange={setCtxState}
+              stories={stories}
+              accent="amber"
+            />
+          </CardContent>
+        </Card>
 
         {/* Processing Options */}
         <Card className="border-amber-900/30 bg-card/50">

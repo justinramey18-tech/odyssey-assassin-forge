@@ -7,10 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
+import { ScribeContextPanel, loadCharacterCards } from '@/components/scribe/ScribeContextPanel';
 import { processTextOffline, ProcessingOptions } from '@/lib/narrativeProcessor';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUsage, type TokenUsage } from '@/lib/token-usage';
 import { loadApiKey } from '@/lib/api-keys';
+import { loadCampaignSummary } from '@/lib/campaign-summary-storage';
+import { buildContextBody, stripChoiceBlocks, DEFAULT_CONTEXT_STATE, type ScribeContextState } from '@/lib/scribe-context';
+import { useSavedStories } from '@/hooks/use-saved-stories';
 
 import type { NarrativeStyle } from '@/lib/narrativeProcessor';
 
@@ -56,12 +60,18 @@ export function ScribeDrawer({
   const [copied, setCopied] = useState(false);
   const [isAiProcessing, setIsAiProcessing] = useState(false);
   const [aiUsage, setAiUsage] = useState<TokenUsage | null>(null);
+  const [ctxState, setCtxState] = useState<ScribeContextState>(DEFAULT_CONTEXT_STATE);
+
+  const stories = useSavedStories();
 
   const handleProcess = () => {
     if (!inputText.trim()) {
       toast.error('Please paste some text to process');
       return;
     }
+
+    let textToProcess = inputText;
+    if (ctxState.stripGamePrompts) textToProcess = stripChoiceBlocks(textToProcess);
     
     const options: ProcessingOptions = {
       removeRolls: true,
@@ -73,7 +83,7 @@ export function ScribeDrawer({
       customStylePrompt: selectedGenre === 'custom' ? customStylePrompt : undefined,
     };
     
-    const processed = processTextOffline(inputText, options);
+    const processed = processTextOffline(textToProcess, options);
     setOutputText(processed);
     toast.success('Narrative processed!');
   };
@@ -138,7 +148,7 @@ export function ScribeDrawer({
             </div>
           </div>
 
-          {/* Custom Style Prompt (shown when Custom is selected) */}
+          {/* Custom Style Prompt */}
           {selectedGenre === 'custom' && (
             <div className="space-y-2">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
@@ -149,8 +159,7 @@ export function ScribeDrawer({
                 placeholder={`Define word replacements like:
 • Replace "attacks" with "lunges viciously"
 • Use "crimson spray" instead of "blood"
-• "hits" -> "connects brutally"
-• Say "shadows whisper" for "moves"`}
+• "hits" -> "connects brutally"`}
                 value={customStylePrompt}
                 onChange={(e) => setCustomStylePrompt(e.target.value)}
                 className="min-h-[100px] text-xs resize-none border-amber-500/30 focus:border-amber-500/50"
@@ -183,6 +192,14 @@ export function ScribeDrawer({
               {INTENSITY_LABELS[toneIntensity]?.description}
             </p>
           </div>
+
+          {/* Context Pipeline Panel */}
+          <ScribeContextPanel
+            state={ctxState}
+            onChange={setCtxState}
+            stories={stories.stories}
+            accent="amber"
+          />
 
           {/* Input */}
           <div className="space-y-2">
@@ -218,13 +235,21 @@ export function ScribeDrawer({
                 setIsAiProcessing(true);
                 setAiUsage(null);
                 try {
+                  let textToProcess = inputText;
+                  if (ctxState.stripGamePrompts) textToProcess = stripChoiceBlocks(textToProcess);
+
+                  const campaignSummary = loadCampaignSummary();
+                  const cards = loadCharacterCards();
+                  const contextExtra = buildContextBody(ctxState, campaignSummary, stories.stories, cards);
+
                   const { data, error } = await supabase.functions.invoke('scribe-ai', {
                     body: {
-                      text: inputText,
+                      text: textToProcess,
                       style: selectedGenre,
                       intensity: toneIntensity,
                       customPrompt: selectedGenre === 'custom' ? customStylePrompt : undefined,
                       user_api_key: loadApiKey('anthropic') || undefined,
+                      ...contextExtra,
                     },
                   });
                   if (error) throw error;
