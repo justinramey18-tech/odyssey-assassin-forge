@@ -48,6 +48,7 @@ import { useOnlineStatus, useOnlineCount } from '@/hooks/use-online-status';
 import { WildShapeLightningBorder, CRScaledPulse, TransformationBurst } from './WildShapeLightningBorder';
 import { DragonParticles } from './DragonParticles';
 import { PrestigeData } from '@/lib/prestige';
+import { ChroniclerHomeView } from './ChroniclerHomeView';
 
 import homeBackground from '@/assets/home-background-mobile.jpg';
 
@@ -446,6 +447,16 @@ export function HomeScreen({
   };
   const hasWildShapeBg = isWildShape && !!wildShapeBackground;
   const defaultBg = customBackground || homeBackground;
+  // Chronicler mode: render simplified narrative home
+  if (appMode === 'chronicler') {
+    return (
+      <ChroniclerHomeView
+        characterName={character.name}
+        onNavigateToTab={onNavigateToTab}
+        onOpenSettings={onOpenSettings}
+      />
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 relative min-h-screen w-full overflow-hidden">
