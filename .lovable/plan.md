@@ -18,9 +18,12 @@
 - `src/components/home/HomeScreen.tsx` — Gates health bar, rest buttons, category nav, play mode toggle, party UI, wild shape, DM drawer by mode
 - `src/components/home/DMDrawer.tsx` — Gates Solo DM, Party DM, Empyrean buttons; hides drawer entirely if no buttons visible
 
-### Phase 4: Settings + Customization (TODO)
-- `src/components/settings/SettingsModal.tsx` — Add App Mode section at top
-- `src/components/settings/MobileSettingsTabs.tsx` — Add App Mode tab or section
+### ✅ Phase 4: Settings + Customization (COMPLETE)
+- `src/components/settings/AppModeSettings.tsx` — Mode switcher cards + per-feature toggle checklist with accordion categories
+- `src/components/settings/MobileSettingsTabs.tsx` — Added 'appMode' tab at top of settings menu
+- `src/components/settings/SettingsContent.tsx` — Wired AppModeSettings component for 'appMode' tab
+- `src/components/settings/SettingsModal.tsx` — Passes app mode props through to SettingsContent
+- `src/pages/Index.tsx` — Passes useAppMode handlers to both SettingsModal instances
 
 ### Phase 5: Cleanup (TODO)
 - `src/components/home/IntroSplashScreen.tsx` — Delete (replaced by ModeSelectionScreen)

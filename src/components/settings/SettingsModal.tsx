@@ -17,6 +17,7 @@ import { useEquipmentImages } from '@/hooks/use-equipment-images';
 import { useAbilityImages } from '@/hooks/use-ability-images';
 import { cn } from '@/lib/utils';
 import type { UsePartySyncReturn } from '@/hooks/use-party-sync';
+import type { AppMode, CustomOverrides } from '@/lib/app-modes';
 
 interface SettingsModalProps {
   characterName: string;
@@ -50,6 +51,13 @@ interface SettingsModalProps {
   // Play mode
   playMode?: 'solo' | 'party';
   onPlayModeChange?: (mode: 'solo' | 'party') => void;
+  // App mode
+  appMode?: AppMode;
+  onAppModeChange?: (mode: AppMode) => void;
+  customOverrides?: CustomOverrides;
+  onCustomOverride?: (featureId: string, visible: boolean) => void;
+  onResetCustomizations?: () => void;
+  isFeatureVisible?: (id: string) => boolean;
 }
 
 export function SettingsModal({ 
@@ -78,6 +86,12 @@ export function SettingsModal({
   characterLevel,
   playMode,
   onPlayModeChange,
+  appMode,
+  onAppModeChange,
+  customOverrides,
+  onCustomOverride,
+  onResetCustomizations,
+  isFeatureVisible,
 }: SettingsModalProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<SettingsTab>('game');
@@ -257,6 +271,12 @@ export function SettingsModal({
                    characterLevel={characterLevel}
                    playMode={playMode}
                    onPlayModeChange={onPlayModeChange}
+                   appMode={appMode}
+                   onAppModeChange={onAppModeChange}
+                   customOverrides={customOverrides}
+                   onCustomOverride={onCustomOverride}
+                   onResetCustomizations={onResetCustomizations}
+                   isFeatureVisible={isFeatureVisible}
               />
               ) : (
                 <MobileSettingsTabs
@@ -326,6 +346,12 @@ export function SettingsModal({
                 characterLevel={characterLevel}
                 playMode={playMode}
                 onPlayModeChange={onPlayModeChange}
+                appMode={appMode}
+                onAppModeChange={onAppModeChange}
+                customOverrides={customOverrides}
+                onCustomOverride={onCustomOverride}
+                onResetCustomizations={onResetCustomizations}
+                isFeatureVisible={isFeatureVisible}
               />
             </div>
           </ScrollArea>

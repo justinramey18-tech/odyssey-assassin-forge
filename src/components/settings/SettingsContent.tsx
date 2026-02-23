@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Check, Copy, RefreshCw, Camera, Star, Lock, RotateCcw, AlertTriangle, Download, ImageOff, Users, User, BookOpen } from 'lucide-react';
+import { AppModeSettings } from './AppModeSettings';
+import type { AppMode, CustomOverrides } from '@/lib/app-modes';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
@@ -75,6 +77,13 @@ interface SettingsContentProps {
   // Play mode
   playMode?: 'solo' | 'party';
   onPlayModeChange?: (mode: 'solo' | 'party') => void;
+  // App mode
+  appMode?: AppMode;
+  onAppModeChange?: (mode: AppMode) => void;
+  customOverrides?: CustomOverrides;
+  onCustomOverride?: (featureId: string, visible: boolean) => void;
+  onResetCustomizations?: () => void;
+  isFeatureVisible?: (id: string) => boolean;
 }
 
 export function SettingsContent({
@@ -109,6 +118,12 @@ export function SettingsContent({
   characterLevel,
   playMode = 'party',
   onPlayModeChange,
+  appMode,
+  onAppModeChange,
+  customOverrides,
+  onCustomOverride,
+  onResetCustomizations,
+  isFeatureVisible: isFeatureVisibleProp,
 }: SettingsContentProps) {
   const [copiedStatic, setCopiedStatic] = useState(false);
   const [copiedDynamic, setCopiedDynamic] = useState(false);
@@ -248,6 +263,22 @@ export function SettingsContent({
       toast.error('Reset failed. Please refresh the page and try again.');
     }
   };
+
+  // App Mode Tab
+  if (activeTab === 'appMode' && appMode && onAppModeChange && onCustomOverride && onResetCustomizations && isFeatureVisibleProp) {
+    return (
+      <div className="flex-1 overflow-y-auto max-h-[70vh]">
+        <AppModeSettings
+          appMode={appMode}
+          onModeChange={onAppModeChange}
+          customOverrides={customOverrides ?? {}}
+          onCustomOverride={onCustomOverride}
+          onResetCustomizations={onResetCustomizations}
+          isFeatureVisible={isFeatureVisibleProp}
+        />
+      </div>
+    );
+  }
 
   // Game Mode Tab
   if (activeTab === 'game') {

@@ -2234,6 +2234,12 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           characterLevel={character.level}
           playMode={playMode}
           onPlayModeChange={setPlayMode}
+          appMode={appMode.effectiveMode}
+          onAppModeChange={appMode.setAppMode}
+          customOverrides={appMode.customOverrides}
+          onCustomOverride={appMode.setCustomOverride}
+          onResetCustomizations={appMode.resetCustomizations}
+          isFeatureVisible={appMode.isFeatureVisible}
         />
       </PromptDrawerProvider>
     );
@@ -2826,6 +2832,12 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           characterLevel={character.level}
           playMode={playMode}
           onPlayModeChange={setPlayMode}
+          appMode={appMode.effectiveMode}
+          onAppModeChange={appMode.setAppMode}
+          customOverrides={appMode.customOverrides}
+          onCustomOverride={appMode.setCustomOverride}
+          onResetCustomizations={appMode.resetCustomizations}
+          isFeatureVisible={appMode.isFeatureVisible}
         />
       </div>
 
