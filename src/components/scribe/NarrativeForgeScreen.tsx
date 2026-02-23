@@ -50,7 +50,7 @@ import { splitTextIntoChunks, reassembleChunks, createChunkContext } from '@/lib
 import { SCRIBE_MODELS, loadScribeModel, saveScribeModel, getEdgeFunctionForModel, isAnthropicModel } from '@/lib/scribe-models';
 import { formatUsage, type TokenUsage } from '@/lib/token-usage';
 import { loadApiKey } from '@/lib/api-keys';
-import { loadCampaignSummary } from '@/lib/campaign-summary-storage';
+import { loadNovelBuilderSummary } from '@/lib/campaign-summary-storage';
 import { buildContextBody, stripChoiceBlocks, DEFAULT_CONTEXT_STATE, type ScribeContextState } from '@/lib/scribe-context';
 import { ScribeContextPanel, loadCharacterCards } from './ScribeContextPanel';
 import scribeBackground from '@/assets/scribe-background.jpg';
@@ -568,7 +568,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
         const edgeFn = getEdgeFunctionForModel(selectedModel);
         const isAnthropic = isAnthropicModel(selectedModel);
 
-        const campaignSummary = loadCampaignSummary();
+        const campaignSummary = loadNovelBuilderSummary();
         const cards = loadCharacterCards();
         const contextExtra = buildContextBody(ctxState, campaignSummary, stories, cards);
 
@@ -1161,6 +1161,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
               onChange={setCtxState}
               stories={stories}
               accent="amber"
+              novelBuilderMode
             />
           </CardContent>
         </Card>
