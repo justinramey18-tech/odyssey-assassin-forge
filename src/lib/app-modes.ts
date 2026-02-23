@@ -3,7 +3,7 @@ import { getSubTabsForCategory } from '@/components/navigation/types';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-export type AppMode = 'companion' | 'player' | 'storyteller' | 'party' | 'fullAccess';
+export type AppMode = 'companion' | 'player' | 'magicBuild' | 'storyteller' | 'party' | 'fullAccess';
 
 export type CustomOverrides = Record<string, boolean>;
 
@@ -38,34 +38,50 @@ export const APP_MODE_CONFIGS: Record<AppMode, AppModeConfig> = {
 
   player: {
     label: 'Player',
-    description: 'Full character sheet, combat, inventory — no AI or multiplayer',
+    description: 'Core martial character sheet — combat, skills, abilities',
     icon: 'Sword',
     color: 'red',
     visibleTabs: [
-      'combat', 'skills', 'abilities', 'arcana', 'legacy',
-      'consumables', 'shop', 'loot', 'gear', 'stars', 'feats',
-      'scribe', 'cloud', 'settings',
+      'combat', 'skills', 'abilities', 'settings',
     ],
     visibleHomeFeatures: [
       'home.characterInfo', 'home.d20', 'home.clock',
-      'home.healthBar', 'home.restButtons', 'home.categoryNav', 'home.wildShape',
+      'home.healthBar', 'home.restButtons', 'home.categoryNav',
     ],
     visibleQuickAccess: [
       'quickAccess.quickActions', 'quickAccess.combat', 'quickAccess.abilities',
-      'quickAccess.arcana', 'quickAccess.features', 'quickAccess.settings',
+      'quickAccess.features', 'quickAccess.settings',
+    ],
+    visibleDMButtons: [],
+  },
+
+  magicBuild: {
+    label: 'Magic Build',
+    description: 'Core caster sheet — arcana, consumables, spells & potions',
+    icon: 'Wand2',
+    color: 'cyan',
+    visibleTabs: [
+      'combat', 'skills', 'arcana', 'consumables', 'settings',
+    ],
+    visibleHomeFeatures: [
+      'home.characterInfo', 'home.d20', 'home.clock',
+      'home.healthBar', 'home.restButtons', 'home.categoryNav',
+    ],
+    visibleQuickAccess: [
+      'quickAccess.quickActions', 'quickAccess.combat', 'quickAccess.arcana',
+      'quickAccess.features', 'quickAccess.settings',
     ],
     visibleDMButtons: [],
   },
 
   storyteller: {
     label: 'Storyteller',
-    description: 'Player + AI DM (Solo), Scribe, Chronicle, Empyrean tools',
+    description: 'Player + AI DM, Scribe, Chronicle — narrative tools',
     icon: 'BookOpen',
     color: 'violet',
     visibleTabs: [
-      'abilities', 'arcana', 'legacy',
-      'consumables', 'gear', 'stars', 'feats',
-      'scribe', 'chronicle', 'cloud', 'settings',
+      'combat', 'skills', 'abilities', 'arcana',
+      'scribe', 'chronicle', 'settings',
     ],
     visibleHomeFeatures: [
       'home.characterInfo', 'home.d20', 'home.clock',
@@ -81,13 +97,12 @@ export const APP_MODE_CONFIGS: Record<AppMode, AppModeConfig> = {
 
   party: {
     label: 'Party',
-    description: 'Player + multiplayer sync, party chat, Party DM, shared loot',
+    description: 'Full co-op — multiplayer sync, economy, shared loot',
     icon: 'Users',
     color: 'blue',
     visibleTabs: [
-      'combat', 'skills', 'abilities', 'arcana', 'legacy',
-      'consumables', 'shop', 'loot', 'gear', 'stars', 'feats',
-      'scribe', 'cloud', 'settings',
+      'combat', 'skills', 'abilities', 'arcana',
+      'gear', 'consumables', 'loot', 'shop', 'cloud', 'settings',
     ],
     visibleHomeFeatures: [
       'home.characterInfo', 'home.d20', 'home.clock',
@@ -129,7 +144,7 @@ export const APP_MODE_CONFIGS: Record<AppMode, AppModeConfig> = {
 
 /** Display order for the mode selection screen */
 export const APP_MODES_ORDERED: AppMode[] = [
-  'companion', 'player', 'storyteller', 'party', 'fullAccess',
+  'companion', 'player', 'magicBuild', 'storyteller', 'party', 'fullAccess',
 ];
 
 // ── Helper Functions ───────────────────────────────────────────────────────

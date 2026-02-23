@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Sparkles, Sword, BookOpen, Users, Crown, type LucideIcon } from 'lucide-react';
+import { Sparkles, Sword, BookOpen, Users, Crown, Wand2, type LucideIcon } from 'lucide-react';
 import { AppMode, APP_MODES_ORDERED, APP_MODE_CONFIGS } from '@/lib/app-modes';
 
 interface ModeSelectionScreenProps {
@@ -7,12 +7,13 @@ interface ModeSelectionScreenProps {
 }
 
 const ICON_MAP: Record<string, LucideIcon> = {
-  Sparkles, Sword, BookOpen, Users, Crown,
+  Sparkles, Sword, BookOpen, Users, Crown, Wand2,
 };
 
 const COLOR_MAP: Record<string, { border: string; bg: string; text: string; glow: string }> = {
   amber:   { border: 'border-amber-500/40',   bg: 'bg-amber-500/10',   text: 'text-amber-400',   glow: 'shadow-amber-500/20' },
   red:     { border: 'border-red-500/40',     bg: 'bg-red-500/10',     text: 'text-red-400',     glow: 'shadow-red-500/20' },
+  cyan:    { border: 'border-cyan-500/40',    bg: 'bg-cyan-500/10',    text: 'text-cyan-400',    glow: 'shadow-cyan-500/20' },
   violet:  { border: 'border-violet-500/40',  bg: 'bg-violet-500/10',  text: 'text-violet-400',  glow: 'shadow-violet-500/20' },
   blue:    { border: 'border-blue-500/40',    bg: 'bg-blue-500/10',    text: 'text-blue-400',    glow: 'shadow-blue-500/20' },
   emerald: { border: 'border-emerald-500/40', bg: 'bg-emerald-500/10', text: 'text-emerald-400', glow: 'shadow-emerald-500/20' },
