@@ -253,7 +253,9 @@ export function HomeScreen({
 }: HomeScreenProps) {
   // Default visibility: show everything if no filter provided
   const showFeature = isHomeFeatureVisible ?? (() => true);
-  const showQuickAccess = isQuickAccessVisible ?? (() => true);
+  const showQuickAccess = isQuickAccessVisible
+    ? (id: string) => isQuickAccessVisible(`quickAccess.${id}`)
+    : (() => true);
   const isMobile = useIsMobile();
   const chatOnlineStatusMap = useOnlineStatus(partySync?.party?.members ?? []);
   const featuresNavigate = useNavigate();
