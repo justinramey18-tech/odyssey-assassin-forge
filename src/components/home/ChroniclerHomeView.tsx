@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Feather, Copy, Check, ArrowRight, BookOpen, Sparkles } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -27,6 +28,14 @@ const STYLES: { value: NarrativeStyle; label: string }[] = [
   { value: 'gonzo', label: 'Gonzo' },
 ];
 
+const INTENSITY_LABELS: Record<number, { name: string; desc: string }> = {
+  1: { name: 'Subtle', desc: 'Light touch' },
+  2: { name: 'Moderate', desc: 'Balanced' },
+  3: { name: 'Enhanced', desc: 'Noticeable flair' },
+  4: { name: 'Dramatic', desc: 'Bold rewrite' },
+  5: { name: 'Maximum', desc: 'Full transformation' },
+};
+
 interface ChroniclerHomeViewProps {
   characterName: string;
   onNavigateToTab: (tab: string) => void;
@@ -40,6 +49,7 @@ export function ChroniclerHomeView({
   const [inputText, setInputText] = useState('');
   const [outputText, setOutputText] = useState('');
   const [style, setStyle] = useState<NarrativeStyle>('fantasy');
+  const [toneIntensity, setToneIntensity] = useState(3);
   const [copied, setCopied] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -56,11 +66,12 @@ export function ChroniclerHomeView({
       const result = processTextOffline(inputText, {
         ...defaultProcessingOptions,
         narrativeStyle: style,
+        toneIntensity,
       });
       setOutputText(result);
       setIsProcessing(false);
     }, 50);
-  }, [inputText, style]);
+  }, [inputText, style, toneIntensity]);
 
   const handleCopy = useCallback(async () => {
     if (!outputText) return;
@@ -149,7 +160,25 @@ export function ChroniclerHomeView({
             </Button>
           </div>
 
-          {/* Output area */}
+          {/* Tone Intensity */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Tone
+              </label>
+              <span className="text-xs text-rose-400 font-medium">
+                {INTENSITY_LABELS[toneIntensity]?.name} — {INTENSITY_LABELS[toneIntensity]?.desc}
+              </span>
+            </div>
+            <Slider
+              value={[toneIntensity]}
+              onValueChange={([v]) => setToneIntensity(v)}
+              min={1}
+              max={5}
+              step={1}
+              className="[&_[role=slider]]:border-rose-500 [&_[role=slider]]:bg-rose-500 [&_.range]:bg-rose-500"
+            />
+          </div>
           {outputText && (
             <motion.div
               initial={{ opacity: 0, y: 12 }}
