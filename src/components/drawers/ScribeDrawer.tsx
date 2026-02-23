@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpen, Copy, Check, Wand2, FileText, Eraser } from 'lucide-react';
+import { BookOpen, Copy, Check, Wand2, FileText, Eraser, Sparkles, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { EdgeDrawer } from './EdgeDrawer';
@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
 import { processTextOffline, ProcessingOptions } from '@/lib/narrativeProcessor';
+import { supabase } from '@/integrations/supabase/client';
 
 import type { NarrativeStyle } from '@/lib/narrativeProcessor';
 
@@ -51,6 +52,7 @@ export function ScribeDrawer({
   const [toneIntensity, setToneIntensity] = useState(3);
   const [customStylePrompt, setCustomStylePrompt] = useState('');
   const [copied, setCopied] = useState(false);
+  const [isAiProcessing, setIsAiProcessing] = useState(false);
 
   const handleProcess = () => {
     if (!inputText.trim()) {
@@ -197,19 +199,56 @@ export function ScribeDrawer({
           <div className="flex gap-2">
             <Button
               onClick={handleProcess}
-              disabled={!inputText.trim()}
-              className="flex-1 gap-1 bg-amber-600 hover:bg-amber-700"
+              disabled={!inputText.trim() || isAiProcessing}
+              variant="outline"
+              className="flex-1 gap-1"
             >
               <Wand2 className="w-4 h-4" />
-              Process
+              Offline
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!inputText.trim()) {
+                  toast.error('Please paste some text to process');
+                  return;
+                }
+                setIsAiProcessing(true);
+                try {
+                  const { data, error } = await supabase.functions.invoke('scribe-ai', {
+                    body: {
+                      text: inputText,
+                      style: selectedGenre,
+                      intensity: toneIntensity,
+                      customPrompt: selectedGenre === 'custom' ? customStylePrompt : undefined,
+                    },
+                  });
+                  if (error) throw error;
+                  if (data?.error) throw new Error(data.error);
+                  setOutputText(data.text);
+                  toast.success('AI narrative complete!');
+                } catch (err: any) {
+                  toast.error(err?.message || 'AI processing failed');
+                } finally {
+                  setIsAiProcessing(false);
+                }
+              }}
+              disabled={!inputText.trim() || isAiProcessing}
+              className="flex-1 gap-1 bg-purple-600 hover:bg-purple-700"
+            >
+              {isAiProcessing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4" />
+              )}
+              {isAiProcessing ? 'Writing…' : 'AI (Claude)'}
             </Button>
             <Button
               variant="outline"
               onClick={handleClear}
+              disabled={isAiProcessing}
               className="gap-1"
             >
               <Eraser className="w-4 h-4" />
-              Clear
             </Button>
           </div>
 
