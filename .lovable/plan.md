@@ -1,109 +1,148 @@
 
-## Dedicated Empyrean Campaign UI
 
-### What Changes
+## App Mode System -- Final Visibility Matrix
 
-A new fullscreen page/screen for all Empyrean content, accessed via a third button in the DM Drawer (right-edge swipe panel on the home screen).
+### Summary of Changes from Original Plan
 
-### Entry Point: DMDrawer.tsx
+Based on your feedback, three adjustments were made:
 
-Add a third button below "Party DM" labeled **"The Empyrean Campaign"** with a purple/indigo accent (to distinguish from the amber Solo and emerald Party buttons). Uses a `BookOpen` or `ScrollText` icon.
-
-- New prop: `onOpenEmpyrean: () => void`
-- The button is always enabled (no gating like Party mode)
-- Styled consistently with Solo/Party buttons but with indigo/purple theme
-
-### New Fullscreen Screen: EmpyreanScreen.tsx
-
-A new component at `src/components/empyrean/EmpyreanScreen.tsx` -- a mobile-first, fullscreen, vertically scrolling page that consolidates all Empyrean content into one place.
-
-**Structure:**
-- Fixed top bar with back arrow, title "The Empyrean Campaign", and the Empyrean book icon
-- Vertically scrolling body with all sections in order:
-
-```text
-+----------------------------------+
-|  <- The Empyrean Campaign   [X]  |  Fixed header
-+----------------------------------+
-|                                  |
-|  [Empyrean Prompt Library]       |  Section 1: Prompts (Stones)
-|    - Filter by category/favs     |
-|    - All 8 stones (incl. Void)   |
-|                                  |
-|  [GM Guides - Campaign Pack]     |  Section 2: GM Guides
-|    - Lore, Tone, Pacing, Alt     |
-|    - Install/toggle/copy         |
-|                                  |
-|  [Air Wizard]                    |  Section 3: Existing wizard
-|                                  |
-|  [Session Zero Wizard]           |  Section 4: New wizard
-|                                  |
-|  [Arc Planner Wizard]            |  Section 5: New wizard
-|                                  |
-|  [Session Planner]               |  Section 6: New wizard
-|    - Templates + custom builder  |
-|                                  |
-+----------------------------------+
-```
-
-Each section is a collapsible card/accordion so users can expand what they need without being overwhelmed.
-
-### Routing and State
-
-- The Empyrean screen opens as a fullscreen overlay (z-index layered like the existing AI DM screens), not a new route -- consistent with how Solo DM and Party DM screens work
-- Opened via `drawerContext` or local state in `HomeScreen.tsx`, same pattern as `openAIDMScreen()`
-- The screen manages its own GM guides state via `useGMGuides()` hook internally
-
-### Refactoring Existing Empyrean Components
-
-The existing `EmpyreanCampaignPack` and `EmpyreanPromptLibrary` are currently rendered inside `SettingsContent.tsx` as fullscreen overlays. They will be:
-
-1. **Kept in Settings** as-is (no removal) -- users who are already in Settings can still access them there
-2. **Reused inside `EmpyreanScreen.tsx`** -- the new screen imports and renders both components as inline sections (not as overlays). This means refactoring them slightly to support an `inline` mode where they render their content directly instead of as fixed overlays
-
-Alternatively (simpler approach): The `EmpyreanScreen.tsx` simply has buttons that open the existing fullscreen overlays, plus the new wizards. This avoids refactoring existing components.
-
-**Recommended approach**: The simpler option -- `EmpyreanScreen.tsx` is a hub page with section cards. Tapping "Prompt Library" opens `EmpyreanPromptLibrary`, tapping "Campaign Pack" opens `EmpyreanCampaignPack`. The new wizards (Session Zero, Arc Planner, Session Planner) render inline as collapsible sections on the hub page itself.
+1. **Companion mode** -- Added Empyrean tools (prompts + GM guides) but no health bar, rest buttons, or Solo DM
+2. **Party mode** -- Party DM only (no Solo DM or Empyrean)
+3. **Loot tab** -- Visible from Player mode and above (not just Party + Full Access)
 
 ---
 
-### Technical Details
+### Final 5 Modes
 
-**Files created:**
-| File | Purpose |
-|------|---------|
-| `src/components/empyrean/EmpyreanScreen.tsx` | Fullscreen hub page with section cards and inline wizards |
+| Mode | One-liner |
+|------|-----------|
+| **Companion** | Dice, Empyrean guides/prompts, clock -- pocket DM assistant |
+| **Player** | Full character sheet, combat, inventory -- no AI or multiplayer |
+| **Storyteller** | Player + AI DM (Solo), Scribe, Chronicle, Empyrean tools |
+| **Party** | Player + multiplayer sync, party chat, Party DM, shared loot |
+| **Full Access** | Everything unlocked |
 
-**Files modified:**
-| File | Change |
-|------|--------|
-| `src/components/home/DMDrawer.tsx` | Add `onOpenEmpyrean` prop + third "The Empyrean Campaign" button below Party DM |
-| `src/components/home/HomeScreen.tsx` | Add `showEmpyreanScreen` state, pass `onOpenEmpyrean` to DMDrawer, render `EmpyreanScreen` |
+---
 
-**Props flow:**
-- `HomeScreen` manages `showEmpyreanScreen` boolean state
-- Passes `onOpenEmpyrean={() => setShowEmpyreanScreen(true)}` to `DMDrawer`
-- Renders `<EmpyreanScreen open={showEmpyreanScreen} onClose={() => setShowEmpyreanScreen(false)} characterName={character.name} />`
+### Navigation Tabs -- Final Matrix
 
-**EmpyreanScreen internally:**
-- Calls `useGMGuides()` for guide state
-- Manages `showPack` and `showPrompts` booleans to open the existing fullscreen overlays
-- Renders new wizards (Session Zero, Arc Planner, Session Planner) as collapsible inline sections
-- Uses `ScrollArea` for the main body with proper bottom padding
+| Tab | Companion | Player | Storyteller | Party | Full Access |
+|-----|-----------|--------|-------------|-------|-------------|
+| **Fighting: Combat** | -- | Yes | -- | Yes | Yes |
+| **Fighting: Skills** | -- | Yes | -- | Yes | Yes |
+| **Fighting: Abilities** | -- | Yes | Yes | Yes | Yes |
+| **Fighting: Arcana** | -- | Yes | Yes | Yes | Yes |
+| **Fighting: Legacy** | -- | Yes | Yes | Yes | Yes |
+| **Inventory: Consumables** | -- | Yes | Yes | Yes | Yes |
+| **Inventory: Shop** | -- | Yes | -- | Yes | Yes |
+| **Inventory: Loot** | -- | Yes | -- | Yes | Yes |
+| **Inventory: Gear** | -- | Yes | Yes | Yes | Yes |
+| **Inventory: Stars** | -- | Yes | Yes | Yes | Yes |
+| **Inventory: Feats** | -- | Yes | Yes | Yes | Yes |
+| **Utility: Scribe** | -- | Yes | Yes | Yes | Yes |
+| **Utility: Chronicle** | -- | -- | Yes | -- | Yes |
+| **Utility: Cloud** | -- | Yes | Yes | Yes | Yes |
+| **Utility: Settings** | Yes | Yes | Yes | Yes | Yes |
 
-**UI/Styling:**
-- Indigo/purple accent color throughout (`text-purple-400`, `border-purple-500/30`, etc.)
-- Mobile-first: full viewport width, no max-width constraint on mobile
-- Fixed header with `bg-background/80 backdrop-blur-sm`
-- Section cards use the glass card pattern from the design system
-- Touch-friendly targets (min 44px)
-- `z-[60]` for the fullscreen overlay (same level as existing Empyrean overlays)
+**Category visibility rule:** If a category has zero visible tabs, its card and header dropdown are hidden entirely. For Companion, only Settings is visible in Utility -- this single tab is accessed via Quick Access menu, so no category cards appear at all.
 
-**DMDrawer button styling:**
-- Icon: `ScrollText` from lucide-react
-- Color: `border-purple-500/25 bg-purple-500/5 hover:bg-purple-500/15`
-- Label: "The Empyrean Campaign"
-- Subtitle: "Empyrean content hub"
-- Always enabled
+---
 
-This plan focuses solely on the dedicated UI and entry point. The new content (Forbidden Lore prompts, Session Zero Wizard, Arc Planner, Session Planner) from the previously approved plan will be implemented as separate tasks that slot into this screen's sections.
+### Home Screen Elements -- Final Matrix
+
+| Element | Companion | Player | Storyteller | Party | Full Access |
+|---------|-----------|--------|-------------|-------|-------------|
+| Character name/level | Yes | Yes | Yes | Yes | Yes |
+| D20 roller | Yes | Yes | Yes | Yes | Yes |
+| Clock widget | Yes | Yes | Yes | Yes | Yes |
+| Health bar | No | Yes | Yes | Yes | Yes |
+| Rest buttons | No | Yes | Yes | Yes | Yes |
+| Category nav cards | No | Yes | Yes | Yes | Yes |
+| Play Mode toggle | No | No | No | Yes | Yes |
+| Party button/panel | No | No | No | Yes | Yes |
+| Wild Shape overlay | No | Yes | Yes | Yes | Yes |
+| Battle Map button | No | No | No | Yes | Yes |
+
+---
+
+### DM Drawer Buttons -- Final Matrix
+
+| Button | Companion | Player | Storyteller | Party | Full Access |
+|--------|-----------|--------|-------------|-------|-------------|
+| Solo DM | No | No | Yes | No | Yes |
+| Party DM | No | No | No | Yes | Yes |
+| Empyrean Campaign | Yes | No | Yes | No | Yes |
+
+**Note:** In Companion mode, the Empyrean Campaign button needs a different access point since there is no DM Drawer. It will render as a home screen card/button instead.
+
+---
+
+### Quick Access Menu -- Final Matrix
+
+| Item | Companion | Player | Storyteller | Party | Full Access |
+|------|-----------|--------|-------------|-------|-------------|
+| RP Prompts | Yes | No | Yes | No | Yes |
+| Quick Actions | No | Yes | Yes | Yes | Yes |
+| Combat | No | Yes | No | Yes | Yes |
+| Abilities | No | Yes | Yes | Yes | Yes |
+| Arcana | No | Yes | Yes | Yes | Yes |
+| Oracle | No | No | Yes | No | Yes |
+| Features | Yes | Yes | Yes | Yes | Yes |
+| Settings | Yes | Yes | Yes | Yes | Yes |
+
+---
+
+### Feature ID Reference
+
+These are the string IDs used in code for the visibility maps:
+
+**Navigation tabs:** `combat`, `skills`, `abilities`, `arcana`, `legacy`, `consumables`, `shop`, `loot`, `gear`, `stars`, `feats`, `scribe`, `chronicle`, `cloud`, `settings`
+
+**Home screen:** `home.healthBar`, `home.restButtons`, `home.categoryNav`, `home.playModeToggle`, `home.partyButton`, `home.partyChat`, `home.battleMap`, `home.wildShape`, `home.dmDrawer`, `home.empyrean`, `home.empyreanCard`
+
+**Quick access:** `quickAccess.prompts`, `quickAccess.quickActions`, `quickAccess.combat`, `quickAccess.abilities`, `quickAccess.arcana`, `quickAccess.oracle`, `quickAccess.features`, `quickAccess.settings`
+
+**DM drawer:** `dm.solo`, `dm.party`, `dm.empyrean`
+
+---
+
+### Technical Implementation
+
+#### Phase 1: Data Layer + Mode Selection Screen
+
+**New files:**
+
+1. `src/lib/app-modes.ts` -- AppMode type, APP_MODE_CONFIGS with the matrices above, helper functions (`isFeatureVisible`, `getVisibleSubTabs`, `getVisibleCategories`)
+2. `src/hooks/use-app-mode.ts` -- Hook managing mode + per-mode customization overrides in localStorage, custom event dispatch
+3. `src/components/home/ModeSelectionScreen.tsx` -- First-launch fullscreen mode picker replacing IntroSplashScreen
+
+#### Phase 2: Wire Visibility into Navigation
+
+**Modified files:**
+
+- `src/components/navigation/types.ts` -- Add `getFilteredSubTabsForCategory(category, visibleTabIds)`
+- `src/components/navigation/AssassinHeader.tsx` -- Filter dropdowns by visible tabs/categories
+- `src/components/navigation/SubTabStrip.tsx` -- Use filtered tab arrays
+- `src/components/home/CategoryQuickNav.tsx` -- Filter categories and sub-tab dropdowns
+
+#### Phase 3: Wire into Home Screen + Drawers
+
+**Modified files:**
+
+- `src/pages/Index.tsx` -- Replace IntroSplashScreen, pass mode context down
+- `src/components/home/HomeScreen.tsx` -- Conditionally render health bar, rests, category nav, party UI, Empyrean card (for Companion mode)
+- `src/components/home/DMDrawer.tsx` -- Gate Solo DM, Party DM, Empyrean buttons by mode
+
+#### Phase 4: Settings + Customization
+
+**Modified files:**
+
+- `src/components/settings/SettingsModal.tsx` -- Add App Mode section at top
+- `src/components/settings/MobileSettingsTabs.tsx` -- Add App Mode tab or section
+
+#### Phase 5: Cleanup
+
+**Deleted files:**
+
+- `src/components/home/IntroSplashScreen.tsx` -- Replaced by ModeSelectionScreen
+
