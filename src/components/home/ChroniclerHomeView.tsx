@@ -12,12 +12,15 @@ import { toast } from 'sonner';
 import { processTextOffline, defaultProcessingOptions, type NarrativeStyle } from '@/lib/narrativeProcessor';
 import { useSavedStories } from '@/hooks/use-saved-stories';
 import { StoryListSheet } from '@/components/scribe/StoryListSheet';
+import { ScribeContextPanel, loadCharacterCards } from '@/components/scribe/ScribeContextPanel';
 import { CharacterNamePlaque } from './CharacterNamePlaque';
 import { ClockWidget } from './ClockWidget';
 import { supabase } from '@/integrations/supabase/client';
 import { SCRIBE_MODELS, loadScribeModel, saveScribeModel, getEdgeFunctionForModel, isAnthropicModel } from '@/lib/scribe-models';
 import { formatUsage, type TokenUsage } from '@/lib/token-usage';
 import { loadApiKey } from '@/lib/api-keys';
+import { loadCampaignSummary } from '@/lib/campaign-summary-storage';
+import { buildContextBody, stripChoiceBlocks, DEFAULT_CONTEXT_STATE, type ScribeContextState } from '@/lib/scribe-context';
 
 const STYLES: { value: NarrativeStyle; label: string }[] = [
   { value: 'fantasy', label: 'Fantasy' },
@@ -59,6 +62,7 @@ export function ChroniclerHomeView({
   const [isAiProcessing, setIsAiProcessing] = useState(false);
   const [selectedModel, setSelectedModel] = useState(loadScribeModel);
   const [aiUsage, setAiUsage] = useState<TokenUsage | null>(null);
+  const [ctxState, setCtxState] = useState<ScribeContextState>(DEFAULT_CONTEXT_STATE);
 
   const stories = useSavedStories();
 
@@ -75,7 +79,9 @@ export function ChroniclerHomeView({
     setIsProcessing(true);
     setAiUsage(null);
     setTimeout(() => {
-      const result = processTextOffline(inputText, {
+      let textToProcess = inputText;
+      if (ctxState.stripGamePrompts) textToProcess = stripChoiceBlocks(textToProcess);
+      const result = processTextOffline(textToProcess, {
         ...defaultProcessingOptions,
         narrativeStyle: style,
         toneIntensity,
@@ -83,7 +89,7 @@ export function ChroniclerHomeView({
       setOutputText(result);
       setIsProcessing(false);
     }, 50);
-  }, [inputText, style, toneIntensity]);
+  }, [inputText, style, toneIntensity, ctxState.stripGamePrompts]);
 
   const handleAiProcess = useCallback(async () => {
     if (!inputText.trim()) {
@@ -93,13 +99,20 @@ export function ChroniclerHomeView({
     setIsAiProcessing(true);
     setAiUsage(null);
     try {
+      let textToProcess = inputText;
+      if (ctxState.stripGamePrompts) textToProcess = stripChoiceBlocks(textToProcess);
+
       const edgeFn = getEdgeFunctionForModel(selectedModel);
       const isAnthropic = isAnthropicModel(selectedModel);
 
+      const campaignSummary = loadCampaignSummary();
+      const cards = loadCharacterCards();
+      const contextExtra = buildContextBody(ctxState, campaignSummary, stories.stories, cards);
+
       const userKey = loadApiKey('anthropic') || undefined;
       const body = isAnthropic
-        ? { text: inputText, style, intensity: toneIntensity, model: selectedModel, user_api_key: userKey }
-        : { text: inputText, style, model: selectedModel };
+        ? { text: textToProcess, style, intensity: toneIntensity, model: selectedModel, user_api_key: userKey, ...contextExtra }
+        : { text: textToProcess, style, model: selectedModel, ...contextExtra };
 
       const { data, error } = await supabase.functions.invoke(edgeFn, { body });
       if (error) throw error;
@@ -108,10 +121,7 @@ export function ChroniclerHomeView({
       if (!narrative) throw new Error(data.error || 'No output returned');
 
       setOutputText(narrative);
-
-      if (data.usage) {
-        setAiUsage(data.usage);
-      }
+      if (data.usage) setAiUsage(data.usage);
 
       toast.success('AI processing complete');
     } catch (err) {
@@ -120,7 +130,7 @@ export function ChroniclerHomeView({
     } finally {
       setIsAiProcessing(false);
     }
-  }, [inputText, style, toneIntensity, selectedModel]);
+  }, [inputText, style, toneIntensity, selectedModel, ctxState, stories.stories]);
 
   const handleCopy = useCallback(async () => {
     if (!outputText) return;
@@ -137,11 +147,15 @@ export function ChroniclerHomeView({
   const handleSaveAsStory = useCallback(() => {
     if (!outputText.trim()) return;
     const title = `Novel — ${new Date().toLocaleDateString()}`;
-    stories.createStory(title, outputText, style);
+    const newStory = stories.createStory(title, outputText, style);
     toast.success('Saved as story', {
       style: { background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.5)', color: '#fb7185' },
     });
-  }, [outputText, style, stories]);
+    // Auto-chain: set context to the newly saved story
+    if (ctxState.autoChainEnabled) {
+      setCtxState(prev => ({ ...prev, contextStoryId: newStory.id }));
+    }
+  }, [outputText, style, stories, ctxState.autoChainEnabled]);
 
   const wordCount = useMemo(() => {
     if (!outputText) return 0;
@@ -220,6 +234,14 @@ export function ChroniclerHomeView({
               </Select>
             </div>
           </div>
+
+          {/* Context Pipeline Panel */}
+          <ScribeContextPanel
+            state={ctxState}
+            onChange={setCtxState}
+            stories={stories.stories}
+            accent="rose"
+          />
 
           {/* Action buttons */}
           <div className="flex gap-2">
