@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { loadSelectedModel, saveSelectedModel } from '@/lib/dm-models';
+import { loadSelectedModel, saveSelectedModel, getModelLabel } from '@/lib/dm-models';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Zap, Map, Film, Image as ImageIcon, Copy, Check, Pencil, RefreshCw, X, MoreVertical, Globe, Settings } from 'lucide-react';
 import { DMToolsDrawer } from './DMToolsDrawer';
@@ -558,14 +558,19 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
             />
           </div>
         </div>
-        <button
-          onClick={() => setShowToolsDrawer(true)}
-          className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-          style={{ touchAction: 'manipulation' }}
-          title="Tools"
-        >
-          <Settings className="w-5 h-5 text-amber-400/80" />
-        </button>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-white/30 font-mono truncate max-w-[100px]">
+            {getModelLabel(selectedModel)}
+          </span>
+          <button
+            onClick={() => setShowToolsDrawer(true)}
+            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+            style={{ touchAction: 'manipulation' }}
+            title="Tools"
+          >
+            <Settings className="w-5 h-5 text-amber-400/80" />
+          </button>
+        </div>
       </header>
 
       {/* Context Banner */}

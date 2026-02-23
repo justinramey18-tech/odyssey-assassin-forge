@@ -20,6 +20,7 @@ export const DM_MODELS: DMAIModel[] = [
   { id: 'openai/gpt-5-mini', label: 'GPT-5 Mini', provider: 'lovable', description: 'Good balance of cost/quality' },
   { id: 'openai/gpt-5.2', label: 'GPT-5.2', provider: 'lovable', description: 'Enhanced reasoning' },
   { id: 'anthropic/claude-sonnet-4', label: 'Claude 4 Sonnet', provider: 'anthropic', description: 'Excellent narrative & reasoning (own key)' },
+  { id: 'anthropic/claude-sonnet-4-5', label: 'Claude 4.5 Sonnet', provider: 'anthropic', description: 'Best creative writing (own key)' },
 ];
 
 export const DEFAULT_MODEL_ID = 'google/gemini-3-pro-preview';
