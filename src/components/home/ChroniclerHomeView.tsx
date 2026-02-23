@@ -19,7 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { SCRIBE_MODELS, loadScribeModel, saveScribeModel, getEdgeFunctionForModel, isAnthropicModel } from '@/lib/scribe-models';
 import { formatUsage, type TokenUsage } from '@/lib/token-usage';
 import { loadApiKey } from '@/lib/api-keys';
-import { loadCampaignSummary } from '@/lib/campaign-summary-storage';
+import { loadNovelBuilderSummary } from '@/lib/campaign-summary-storage';
 import { buildContextBody, stripChoiceBlocks, DEFAULT_CONTEXT_STATE, type ScribeContextState } from '@/lib/scribe-context';
 
 const STYLES: { value: NarrativeStyle; label: string }[] = [
@@ -105,7 +105,7 @@ export function ChroniclerHomeView({
       const edgeFn = getEdgeFunctionForModel(selectedModel);
       const isAnthropic = isAnthropicModel(selectedModel);
 
-      const campaignSummary = loadCampaignSummary();
+      const campaignSummary = loadNovelBuilderSummary();
       const cards = loadCharacterCards();
       const contextExtra = buildContextBody(ctxState, campaignSummary, stories.stories, cards);
 
@@ -241,6 +241,7 @@ export function ChroniclerHomeView({
             onChange={setCtxState}
             stories={stories.stories}
             accent="rose"
+            novelBuilderMode
           />
 
           {/* Action buttons */}

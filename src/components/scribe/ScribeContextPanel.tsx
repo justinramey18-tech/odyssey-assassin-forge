@@ -1,14 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ChevronDown, ChevronRight, BookOpen, ScrollText, Link2, Scissors } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { CharacterCardEditor } from './CharacterCardEditor';
 import { loadCharacterCards, saveCharacterCards, addCharacterCard, removeCharacterCard, type CharacterCard } from '@/lib/character-cards';
-import { loadCampaignSummary } from '@/lib/campaign-summary-storage';
+import { loadCampaignSummary, loadNovelBuilderSummary, saveNovelBuilderSummary, SUMMARY_MAX_CHARS } from '@/lib/campaign-summary-storage';
 import type { SavedStory } from '@/hooks/use-saved-stories';
 import type { ScribeContextState, ScribeProcessingMode, TargetMultiplier } from '@/lib/scribe-context';
 
@@ -18,6 +19,8 @@ interface ScribeContextPanelProps {
   stories: SavedStory[];
   /** Accent color for the mode toggle — adapts to parent theme */
   accent?: 'amber' | 'rose' | 'purple';
+  /** When true, uses dedicated novel-builder campaign summary with inline editor */
+  novelBuilderMode?: boolean;
 }
 
 const MULTIPLIER_LABELS: Record<number, string> = {
@@ -26,15 +29,41 @@ const MULTIPLIER_LABELS: Record<number, string> = {
   3: '3× — Heavy expansion',
 };
 
-export function ScribeContextPanel({ state, onChange, stories, accent = 'amber' }: ScribeContextPanelProps) {
+export function ScribeContextPanel({ state, onChange, stories, accent = 'amber', novelBuilderMode = false }: ScribeContextPanelProps) {
   const [contextOpen, setContextOpen] = useState(false);
   const [cards, setCards] = useState<CharacterCard[]>([]);
   const [hasSummary, setHasSummary] = useState(false);
+  const [summaryText, setSummaryText] = useState('');
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load character cards + check campaign summary on mount
   useEffect(() => {
     setCards(loadCharacterCards());
-    setHasSummary(!!loadCampaignSummary());
+    if (novelBuilderMode) {
+      const loaded = loadNovelBuilderSummary() ?? '';
+      setSummaryText(loaded);
+      setHasSummary(loaded.length > 0);
+    } else {
+      setHasSummary(!!loadCampaignSummary());
+    }
+  }, [novelBuilderMode]);
+
+  // Cleanup debounce timer
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, []);
+
+  const handleSummaryChange = useCallback((text: string) => {
+    const trimmed = text.slice(0, SUMMARY_MAX_CHARS);
+    setSummaryText(trimmed);
+    setHasSummary(trimmed.length > 0);
+    // Debounced save
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      saveNovelBuilderSummary(trimmed);
+    }, 1000);
   }, []);
 
   const update = useCallback((patch: Partial<ScribeContextState>) => {
@@ -125,22 +154,46 @@ export function ScribeContextPanel({ state, onChange, stories, accent = 'amber' 
         </CollapsibleTrigger>
         <CollapsibleContent className="space-y-3 pt-2">
           {/* Campaign Summary */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5">
-              <ScrollText className="w-3 h-3 text-muted-foreground" />
-              <Label className="text-xs cursor-pointer" htmlFor="campaign-summary-toggle">
-                Campaign Summary
-              </Label>
-              {!hasSummary && (
-                <span className="text-[9px] text-muted-foreground/60">(none saved)</span>
-              )}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <ScrollText className="w-3 h-3 text-muted-foreground" />
+                <Label className="text-xs cursor-pointer" htmlFor="campaign-summary-toggle">
+                  Campaign Summary
+                </Label>
+              </div>
+              <Switch
+                id="campaign-summary-toggle"
+                checked={state.includeCampaignSummary}
+                onCheckedChange={(v) => update({ includeCampaignSummary: v })}
+                disabled={!novelBuilderMode && !hasSummary}
+              />
             </div>
-            <Switch
-              id="campaign-summary-toggle"
-              checked={state.includeCampaignSummary}
-              onCheckedChange={(v) => update({ includeCampaignSummary: v })}
-              disabled={!hasSummary}
-            />
+
+            {/* Novel Builder inline editor */}
+            {novelBuilderMode && state.includeCampaignSummary && (
+              <div className="space-y-1">
+                <Textarea
+                  value={summaryText}
+                  onChange={(e) => handleSummaryChange(e.target.value)}
+                  placeholder="Describe your campaign world, characters, relationships, locations, and rules. This context enforces strict consistency in AI output..."
+                  className={`resize-none min-h-[120px] text-xs ${accentBorder} bg-background/50`}
+                  maxLength={SUMMARY_MAX_CHARS}
+                />
+                <div className="flex justify-end">
+                  <span className="text-[10px] text-muted-foreground font-mono">
+                    {summaryText.length.toLocaleString()} / {SUMMARY_MAX_CHARS.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Non-novel-builder: show hint if no summary saved */}
+            {!novelBuilderMode && !hasSummary && (
+              <p className="text-[9px] text-muted-foreground/60 pl-4">
+                No campaign summary saved — create one in the AI DM
+              </p>
+            )}
           </div>
 
           {/* Story Context */}
@@ -165,6 +218,14 @@ export function ScribeContextPanel({ state, onChange, stories, accent = 'amber' 
                 ))}
               </SelectContent>
             </Select>
+            {/* Helper text */}
+            <p className="text-[10px] text-muted-foreground/70 pl-4">
+              {stories.length === 0
+                ? 'Save a story from your output to use as voice and plot context here'
+                : state.contextStoryId
+                  ? 'The last section of this story provides voice, tone, and plot continuity'
+                  : 'Select a saved story — its last section provides voice and plot continuity'}
+            </p>
           </div>
 
           {/* Context word count slider */}
