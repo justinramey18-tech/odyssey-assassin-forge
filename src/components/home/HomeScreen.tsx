@@ -821,7 +821,7 @@ export function HomeScreen({
           
           {/* Rows 1 & 2: standard 3-col grid */}
           <div className="grid grid-cols-3 gap-3">
-            {drawerOptions.slice(0, 5).map((option) => {
+            {drawerOptions.slice(0, 5).filter(o => showQuickAccess(o.id)).map((option) => {
               const IconComponent = option.icon;
               return (
                 <button
@@ -848,62 +848,39 @@ export function HomeScreen({
             })}
           </div>
 
-          {/* Row 3: Features centered, Settings to the right */}
-          <div className="grid grid-cols-3 gap-3 mt-3 pb-6">
-            {/* Features in center column */}
-            {(() => {
-              const features = drawerOptions.find(o => o.id === 'features')!;
-              const settings = drawerOptions.find(o => o.id === 'settings')!;
-              const FeaturesIcon = features.icon;
-              const SettingsIcon = settings.icon;
-              return (
-                <>
-                  <button
-                    onClick={() => handleDrawerOptionClick(() => { setShowDrawersMenu(false); drawerContext?.openOracleDrawer(); })}
-                    className={cn(
-                      "flex flex-col items-center gap-2 p-4 rounded-lg",
-                      "border border-border/50 bg-card/50",
-                      "hover:bg-card hover:border-border transition-all"
-                    )}
-                    style={{ touchAction: 'manipulation' }}
-                  >
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-muted/50">
-                      <MessageCircle className={cn("w-6 h-6 text-violet-400")} />
-                    </div>
-                    <span className="text-sm font-medium font-cinzel">Oracle</span>
-                  </button>
-                  <button
-                    onClick={() => handleDrawerOptionClick(features.action)}
-                    className={cn(
-                      "flex flex-col items-center gap-2 p-4 rounded-lg",
-                      "border border-border/50 bg-card/50",
-                      "hover:bg-card hover:border-border transition-all"
-                    )}
-                    style={{ touchAction: 'manipulation' }}
-                  >
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-muted/50">
-                      <FeaturesIcon className={cn("w-6 h-6", features.color)} />
-                    </div>
-                    <span className="text-sm font-medium font-cinzel">{features.label}</span>
-                  </button>
-                  <button
-                    onClick={() => handleDrawerOptionClick(settings.action)}
-                    className={cn(
-                      "flex flex-col items-center gap-2 p-4 rounded-lg",
-                      "border border-border/50 bg-card/50",
-                      "hover:bg-card hover:border-border transition-all"
-                    )}
-                    style={{ touchAction: 'manipulation' }}
-                  >
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-muted/50">
-                      <SettingsIcon className={cn("w-6 h-6", settings.color)} />
-                    </div>
-                    <span className="text-sm font-medium font-cinzel">{settings.label}</span>
-                  </button>
-                </>
-              );
-            })()}
-          </div>
+          {/* Row 3: Oracle, Features, Settings — filtered by mode */}
+          {(() => {
+            const row3Items = [
+              { id: 'oracle', label: 'Oracle', icon: MessageCircle, color: 'text-violet-400', action: () => { setShowDrawersMenu(false); drawerContext?.openOracleDrawer(); } },
+              drawerOptions.find(o => o.id === 'features')!,
+              drawerOptions.find(o => o.id === 'settings')!,
+            ].filter(o => showQuickAccess(o.id));
+            if (row3Items.length === 0) return null;
+            return (
+              <div className="grid grid-cols-3 gap-3 mt-3 pb-6">
+                {row3Items.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handleDrawerOptionClick(item.action)}
+                      className={cn(
+                        "flex flex-col items-center gap-2 p-4 rounded-lg",
+                        "border border-border/50 bg-card/50",
+                        "hover:bg-card hover:border-border transition-all"
+                      )}
+                      style={{ touchAction: 'manipulation' }}
+                    >
+                      <div className="w-12 h-12 rounded-full flex items-center justify-center bg-muted/50">
+                        <Icon className={cn("w-6 h-6", item.color)} />
+                      </div>
+                      <span className="text-sm font-medium font-cinzel">{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </SheetContent>
       </Sheet>
 
