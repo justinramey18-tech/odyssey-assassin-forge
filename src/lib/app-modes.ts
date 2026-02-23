@@ -75,7 +75,7 @@ export const APP_MODE_CONFIGS: Record<AppMode, AppModeConfig> = {
   },
 
   chronicler: {
-    label: 'Chronicler',
+    label: 'Novel Builder',
     description: 'Simplified narrative forge — paste, style, transform',
     icon: 'Feather',
     color: 'rose',
