@@ -31,7 +31,7 @@ export const APP_MODE_CONFIGS: Record<AppMode, AppModeConfig> = {
       'home.characterInfo', 'home.d20', 'home.clock', 'home.empyreanCard',
     ],
     visibleQuickAccess: [
-      'quickAccess.prompts', 'quickAccess.features', 'quickAccess.settings',
+      'quickAccess.prompts', 'quickAccess.oracle', 'quickAccess.features', 'quickAccess.settings',
     ],
     visibleDMButtons: ['dm.empyrean'],
   },
