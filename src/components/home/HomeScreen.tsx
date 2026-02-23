@@ -452,8 +452,8 @@ export function HomeScreen({
         tintColor="cyan"
         tintOpacity={10}
         fixed={true}
-        backgroundSize="cover"
-        backgroundPosition="60% center"
+        backgroundSize="contain"
+        backgroundPosition="center center"
         className="fixed inset-0 z-0"
       >
         <div />
