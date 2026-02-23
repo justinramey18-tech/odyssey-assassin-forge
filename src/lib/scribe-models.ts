@@ -16,7 +16,7 @@ export const SCRIBE_MODELS: ScribeModel[] = [
   { id: 'google/gemini-2.5-flash', label: 'Gemini 2.5 Flash', provider: 'lovable', description: 'Faster, slightly less nuanced' },
   { id: 'openai/gpt-5', label: 'GPT-5', provider: 'lovable', description: 'High accuracy, slower' },
   { id: 'openai/gpt-5-mini', label: 'GPT-5 Mini', provider: 'lovable', description: 'Good balance of cost/quality' },
-  { id: 'anthropic/claude-sonnet-4', label: 'Claude 4 Sonnet', provider: 'anthropic', description: 'Excellent narrative (own key)' },
+  { id: 'anthropic/claude-sonnet-4', label: 'Claude Sonnet 4', provider: 'anthropic', description: 'Excellent narrative (own key)' },
   { id: 'anthropic/claude-sonnet-4-5', label: 'Claude 4.5 Sonnet', provider: 'anthropic', description: 'Best creative writing (own key)' },
 ];
 

@@ -96,6 +96,12 @@ RULES:
 - Do NOT add events that didn't happen in the original
 - Output ONLY the narrative text, no commentary or meta-text`;
 
+    const modelMap: Record<string, string> = {
+      'anthropic/claude-sonnet-4': 'claude-sonnet-4-20250514',
+      'anthropic/claude-sonnet-4-5': 'claude-4-5-sonnet-20250514',
+    };
+    const anthropicModel = (model && modelMap[model]) || 'claude-4-5-sonnet-20250514';
+
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -103,12 +109,6 @@ RULES:
         "anthropic-version": "2023-06-01",
         "content-type": "application/json",
       },
-      const modelMap: Record<string, string> = {
-        'anthropic/claude-sonnet-4': 'claude-sonnet-4-20250514',
-        'anthropic/claude-sonnet-4-5': 'claude-sonnet-4-5-20250514',
-      };
-      const anthropicModel = (model && modelMap[model]) || 'claude-sonnet-4-5-20250514';
-
       body: JSON.stringify({
         model: anthropicModel,
         max_tokens: 8000,
