@@ -102,9 +102,9 @@ RULES:
 
     const modelMap: Record<string, string> = {
       'anthropic/claude-sonnet-4': 'claude-sonnet-4-20250514',
-      'anthropic/claude-sonnet-4-5': 'claude-4-5-sonnet-20250514',
+      'anthropic/claude-sonnet-4-5': 'claude-sonnet-4-5-20250929',
     };
-    const anthropicModel = (model && modelMap[model]) || 'claude-4-5-sonnet-20250514';
+    const anthropicModel = (model && modelMap[model]) || 'claude-sonnet-4-5-20250929';
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
