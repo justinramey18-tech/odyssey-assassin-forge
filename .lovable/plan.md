@@ -25,5 +25,5 @@
 - `src/components/settings/SettingsModal.tsx` — Passes app mode props through to SettingsContent
 - `src/pages/Index.tsx` — Passes useAppMode handlers to both SettingsModal instances
 
-### Phase 5: Cleanup (TODO)
-- `src/components/home/IntroSplashScreen.tsx` — Delete (replaced by ModeSelectionScreen)
+### ✅ Phase 5: Cleanup (COMPLETE)
+- `src/components/home/IntroSplashScreen.tsx` — Deleted (replaced by ModeSelectionScreen)
