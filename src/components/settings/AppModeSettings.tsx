@@ -32,6 +32,15 @@ const COLOR_MAP: Record<string, string> = {
 
 const INACTIVE_COLOR = 'border-border/50 bg-muted/20 text-muted-foreground';
 
+const TOAST_COLORS: Record<string, { background: string; border: string; color: string }> = {
+  amber:   { background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.5)', color: '#fbbf24' },
+  red:     { background: 'rgba(239, 68, 68, 0.15)',  border: '1px solid rgba(239, 68, 68, 0.5)',  color: '#f87171' },
+  cyan:    { background: 'rgba(6, 182, 212, 0.15)',   border: '1px solid rgba(6, 182, 212, 0.5)',  color: '#22d3ee' },
+  violet:  { background: 'rgba(139, 92, 246, 0.15)',  border: '1px solid rgba(139, 92, 246, 0.5)', color: '#a78bfa' },
+  blue:    { background: 'rgba(59, 130, 246, 0.15)',   border: '1px solid rgba(59, 130, 246, 0.5)', color: '#60a5fa' },
+  emerald: { background: 'rgba(16, 185, 129, 0.15)',  border: '1px solid rgba(16, 185, 129, 0.5)', color: '#34d399' },
+};
+
 interface AppModeSettingsProps {
   appMode: AppMode;
   onModeChange: (mode: AppMode) => void;
@@ -81,9 +90,10 @@ export function AppModeSettings({
                 key={mode}
                 onClick={() => {
                   onModeChange(mode);
+                  const ts = TOAST_COLORS[config.color] ?? TOAST_COLORS.emerald;
                   toast.success(`${config.label} mode applied`, {
                     description: config.description,
-                    style: { background: 'hsl(var(--card))', color: 'hsl(var(--foreground))', border: '1px solid hsl(var(--border))' },
+                    style: { ...ts, backdropFilter: 'blur(12px)' },
                   });
                 }}
                 className={cn(
