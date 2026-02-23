@@ -144,6 +144,11 @@ interface HomeScreenProps {
   // External trigger to open party chat (from Party DM)
   openPartyChatRequested?: boolean;
   onPartyChatOpened?: () => void;
+  // App mode visibility helpers
+  isHomeFeatureVisible?: (featureId: string) => boolean;
+  isDMButtonVisible?: (buttonId: string) => boolean;
+  isQuickAccessVisible?: (itemId: string) => boolean;
+  tabFilter?: (tabId: string) => boolean;
 }
 
 /** Map dragon form names to element-appropriate tint colors */
@@ -234,7 +239,14 @@ export function HomeScreen({
   tradeProps,
   openPartyChatRequested = false,
   onPartyChatOpened,
+  isHomeFeatureVisible,
+  isDMButtonVisible: _isDMButtonVisible,
+  isQuickAccessVisible,
+  tabFilter,
 }: HomeScreenProps) {
+  // Default visibility: show everything if no filter provided
+  const showFeature = isHomeFeatureVisible ?? (() => true);
+  const showQuickAccess = isQuickAccessVisible ?? (() => true);
   const isMobile = useIsMobile();
   const chatOnlineStatusMap = useOnlineStatus(partySync?.party?.members ?? []);
   const featuresNavigate = useNavigate();
@@ -536,7 +548,7 @@ export function HomeScreen({
           <div className="flex flex-col gap-4 pb-[2px] mt-auto">
 
             {/* Wild Shape Details Overlay */}
-            {isWildShape && wildShapeFormName && onDismissWildShape && (
+            {showFeature('home.wildShape') && isWildShape && wildShapeFormName && onDismissWildShape && (
               <WildShapeOverlay
                 formName={wildShapeFormName}
                 speed={wildShapeSpeed || '30 ft.'}
@@ -555,7 +567,7 @@ export function HomeScreen({
             )}
 
             {/* Solo/Party Mode Toggle + Party Button */}
-            {partySync && partySync.party.partyId && (
+            {showFeature('home.playModeToggle') && partySync && partySync.party.partyId && (
               <div className="flex items-center justify-center gap-2 mb-[2px]">
                 {/* Mode Toggle */}
                 {onPlayModeChange && (
@@ -612,7 +624,7 @@ export function HomeScreen({
             )}
 
             {/* Party Button - when not in a party yet (create/join) */}
-            {partySync && !partySync.party.partyId && (
+            {showFeature('home.partyButton') && partySync && !partySync.party.partyId && (
               <div className="flex justify-center mb-[2px]">
                 <button
                   onClick={() => {
@@ -630,7 +642,7 @@ export function HomeScreen({
             )}
 
             {/* Party Chat Button - above D20 (only in party mode) */}
-            {partySync?.party?.partyId && playMode === 'party' && (
+            {showFeature('home.partyChat') && partySync?.party?.partyId && playMode === 'party' && (
               <motion.button
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -664,6 +676,7 @@ export function HomeScreen({
             />
 
             {/* Dynamic Health Bar - below D20 */}
+            {showFeature('home.healthBar') && (
             <DynamicHealthBar
               currentHP={currentHP}
               maxHP={maxHP}
@@ -672,8 +685,10 @@ export function HomeScreen({
               isWildShape={isWildShape}
               wildShapeFormName={wildShapeFormName}
             />
+            )}
 
             {/* Quick Actions (moved from footer) */}
+            {showFeature('home.restButtons') && (
             <div className="px-4 py-2">
               <div className="flex gap-3 max-w-md mx-auto justify-center">
                 {/* Short Rest */}
@@ -713,10 +728,12 @@ export function HomeScreen({
                 </button>
               </div>
             </div>
+            )}
           </div>
         </div>
 
         {/* Primary Navigation Cards Footer — Collapsible */}
+        {showFeature('home.categoryNav') && (
         <motion.footer 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -787,11 +804,13 @@ export function HomeScreen({
                 isLegacyUnlocked={!!prestigeData && prestigeData.prestigeLevel > 0}
                 onOpenCloud={onCloudSyncClick}
                 onOpenSettings={onOpenSettings}
+                tabFilter={tabFilter}
               />
 
             </div>
           </motion.div>
         </motion.footer>
+        )}
       </div>
 
       {/* Drawers Quick-Access Sheet */}
@@ -992,6 +1011,7 @@ export function HomeScreen({
         onOpenPartyDM={() => drawerContext?.openPartyDMScreen()}
         onOpenEmpyrean={() => setShowEmpyreanScreen(true)}
         isPartyMode={playMode === 'party'}
+        isDMButtonVisible={_isDMButtonVisible}
       />
 
       {/* Empyrean Campaign Screen */}

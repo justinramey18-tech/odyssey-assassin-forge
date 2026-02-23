@@ -25,7 +25,7 @@ import { InventoryScreen } from '@/components/inventory/InventoryScreen';
 import { AchievementsScreen } from '@/components/achievements/AchievementsScreen';
 import { ConstellationScreen } from '@/components/constellation/ConstellationScreen';
 import { HomeScreen } from '@/components/home/HomeScreen';
-import { IntroSplashScreen } from '@/components/home/IntroSplashScreen';
+import { ModeSelectionScreen } from '@/components/home/ModeSelectionScreen';
 import { IncomingHealOverlay } from '@/components/party/IncomingHealNotification';
 import { IncomingTradeOverlay } from '@/components/party/IncomingTradeNotification';
 import { NarrativeForgeScreen } from '@/components/scribe/NarrativeForgeScreen';
@@ -98,6 +98,7 @@ import { useAbilityImages } from '@/hooks/use-ability-images';
 import { homebrewToAbility } from '@/lib/abilityCustomization/utils';
 import { useAuth } from '@/hooks/use-auth';
 import { usePlayMode } from '@/hooks/use-play-mode';
+import { useAppMode } from '@/hooks/use-app-mode';
 
 // Stable empty object to prevent re-renders from `character.multiclassLevels ?? {}`
 const EMPTY_MULTICLASS_LEVELS: Record<string, never> = {};
@@ -119,10 +120,13 @@ const Index = () => {
   // Handle deep-link via ?tab= query param (e.g. from /features page)
   const pendingTab = searchParams.get('tab');
 
+  // App mode system
+  const appMode = useAppMode();
+
   const [showWizard, setShowWizard] = useState(true);
   const [showIntroSplash, setShowIntroSplash] = useState(() => {
-    // Show intro splash only if user hasn't seen it before
-    return !localStorage.getItem('odyssey-intro-seen');
+    // Show mode selection if user hasn't chosen a mode yet
+    return !localStorage.getItem('odyssey-app-mode');
   });
   const [showHomeScreen, setShowHomeScreen] = useState(true); // Home is default after wizard
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -216,6 +220,7 @@ const Index = () => {
     isLegacyUnlocked: prestigeTree.isLegacyUnlocked,
     onSettingsClick: () => setShowSettingsModal(true),
     onCloudClick: () => setShowCloudSaveModal(true),
+    tabFilter: appMode.isTabVisible,
   });
 
   // Deep-link: navigate to tab from ?tab= query param
@@ -2035,12 +2040,12 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     );
   }
 
-  // Intro splash screen - shows once
+  // Mode selection screen - shows on first launch (no mode chosen yet)
   if (showHomeScreen && showIntroSplash) {
     return (
-      <IntroSplashScreen 
-        onBegin={() => {
-          localStorage.setItem('odyssey-intro-seen', 'true');
+      <ModeSelectionScreen 
+        onSelectMode={(mode) => {
+          appMode.setAppMode(mode);
           setShowIntroSplash(false);
         }}
       />
@@ -2197,6 +2202,10 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           } : undefined}
           openPartyChatRequested={openPartyChatRequested}
           onPartyChatOpened={() => setOpenPartyChatRequested(false)}
+          isHomeFeatureVisible={appMode.isHomeFeatureVisible}
+          isDMButtonVisible={appMode.isDMButtonVisible}
+          isQuickAccessVisible={appMode.isQuickAccessVisible}
+          tabFilter={appMode.isTabVisible}
         />
         
         {/* Settings Modal */}
@@ -2335,6 +2344,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           }}
           onSubTabChange={categoryNav.navigateToSubTab}
           isLegacyUnlocked={prestigeTree.isLegacyUnlocked}
+          tabFilter={appMode.isTabVisible}
           currentCharacterName={character.name}
           currentCharacterLevel={character.level}
           onLoadSave={handleLoadCloudSave}
