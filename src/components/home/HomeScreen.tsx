@@ -448,12 +448,12 @@ export function HomeScreen({
       {/* Default background layer (always present) */}
       <BackgroundWrapper
         imagePath={defaultBg}
-        overlayOpacity={customBackground ? 55 : 45}
+        overlayOpacity={customBackground ? 55 : 55}
         tintColor="cyan"
-        tintOpacity={8}
+        tintOpacity={10}
         fixed={true}
         backgroundSize="cover"
-        backgroundPosition="center center"
+        backgroundPosition="60% center"
         className="fixed inset-0 z-0"
       >
         <div />
