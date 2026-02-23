@@ -1,60 +1,98 @@
 
 
-## Rebalance App Modes (Option D: 1-4-5-7-10-15) + New "Magic Build" Mode
+# Chronicler Mode
 
-### Overview
-
-Restructure all mode tab counts into a smooth progressive ramp and add a new **Magic Build** mode that swaps the Player's martial focus for a caster-oriented loadout.
-
-### New Mode Progression
-
-| Mode | Tabs | Count | Focus |
-|------|------|-------|-------|
-| Companion | settings | 1 | Dice + Empyrean assistant |
-| Player | combat, skills, abilities, settings | 4 | Core martial character sheet |
-| Magic Build | combat, skills, arcana, consumables, settings | 5 | Core caster character sheet |
-| Storyteller | combat, skills, abilities, arcana, scribe, chronicle, settings | 7 | Player + narrative/AI tools |
-| Party | combat, skills, abilities, arcana, gear, consumables, loot, shop, cloud, settings | 10 | Full co-op with economy |
-| Full Access | all 15 | 15 | Everything |
-
-**Key design decisions:**
-- Player gets the 3 martial essentials (combat, skills, abilities) -- no inventory clutter
-- Magic Build mirrors Player but swaps `abilities` for `arcana` and adds `consumables` (potions/scrolls)
-- Storyteller bridges the gap with narrative tools (scribe, chronicle) on top of both combat paths
-- Party adds the full economy/inventory layer (gear, consumables, loot, shop, cloud)
-- Advanced progression tabs (legacy, stars, feats) are Full Access only
-
-### Companion Mode Switcher
-
-A subtle ghost "Change Mode" button on the home screen when in Companion mode, so users aren't stuck with no way to find Settings.
+A specialized narrative-focused mode where the Home Screen becomes a simplified, mobile-first Scribe interface for quick writing and text transformation, with access to the full Scribe tab, Cloud, and Settings.
 
 ---
 
-### Technical Changes
+## What You'll Get
 
-**File 1: `src/lib/app-modes.ts`**
-- Add `'magicBuild'` to the `AppMode` union type
-- Add `magicBuild` config entry with icon `'Wand2'`, color `'cyan'`, and the 5 tabs listed above
-- Rebalance `player.visibleTabs` to `['combat', 'skills', 'abilities', 'settings']`
-- Rebalance `storyteller.visibleTabs` to `['combat', 'skills', 'abilities', 'arcana', 'scribe', 'chronicle', 'settings']`
-- Rebalance `party.visibleTabs` to `['combat', 'skills', 'abilities', 'arcana', 'gear', 'consumables', 'loot', 'shop', 'cloud', 'settings']`
-- Trim `visibleQuickAccess` and `visibleHomeFeatures` proportionally for each mode
-- Update `APP_MODES_ORDERED` to include `'magicBuild'` after `'player'`
+- **New "Chronicler" app mode** in the mode selection screen and settings
+- **Transformed Home Screen**: Instead of the standard character sheet home, Chronicler mode shows a streamlined, full-screen writing workspace -- paste text, pick a style, and process it, all without navigating away
+- **3 navigation tabs**: Scribe (full feature), Cloud, Settings
+- **Themed with rose/pink accent** and a Feather icon
 
-**File 2: `src/components/home/ModeSelectionScreen.tsx`**
-- Import `Wand2` from lucide-react
-- Add `Wand2` to the `ICON_MAP`
-- Add `cyan` to the `COLOR_MAP`
+---
 
-**File 3: `src/components/settings/AppModeSettings.tsx`**
-- Import `Wand2` from lucide-react
-- Add `Wand2` to `ICON_MAP`
-- Add `cyan` color class to `COLOR_MAP`
+## How It Works
 
-**File 4: `src/components/home/HomeScreen.tsx`**
-- Accept `appMode` as a prop
-- When `appMode === 'companion'`, render a small ghost button ("Change Mode") that calls `onOpenSettings`
+When in Chronicler mode, the Home Screen replaces the usual character info, health bars, and category nav with:
 
-**File 5: `src/pages/Index.tsx`**
-- Pass `appMode` (from `useAppMode()`) to `HomeScreen`
+1. **A text input area** (full-width, vertically scrolling) for pasting chat logs or writing
+2. **Style selector** dropdown (Fantasy, Noir, Literary, etc.)
+3. **A "Process" button** for offline transformation
+4. **Output area** with copy/export buttons
+5. **Quick access to saved stories** via the story list
+6. A subtle link to open the full Scribe tab for advanced features (AI processing, editing rules, multi-file upload, etc.)
+
+The header retains the clock, help button, and character name plaque for consistency.
+
+---
+
+## Technical Details
+
+### 1. Add `chronicler` to `AppMode` type and config (`src/lib/app-modes.ts`)
+
+- New mode entry in `APP_MODE_CONFIGS`:
+  - label: "Chronicler"
+  - description: "Simplified narrative forge -- paste, style, transform"
+  - icon: "Feather"
+  - color: "rose"
+  - visibleTabs: `['scribe', 'cloud', 'settings']`
+  - visibleHomeFeatures: `['home.characterInfo', 'home.clock']`
+  - visibleQuickAccess: `['quickAccess.features', 'quickAccess.settings']`
+  - visibleDMButtons: `[]`
+- Add `'chronicler'` to `APP_MODES_ORDERED` (between `magicBuild` and `storyteller`)
+- Add to `getAllFeatureIds` tabs list if needed
+
+### 2. Update icon/color maps in UI components
+
+**Files**: `src/components/home/ModeSelectionScreen.tsx`, `src/components/settings/AppModeSettings.tsx`
+
+- Add `Feather` import from `lucide-react`
+- Add `Feather` to `ICON_MAP`
+- Add `rose` color entries to `COLOR_MAP` and `TOAST_COLORS`
+
+### 3. Create `ChroniclerHomeView` component (`src/components/home/ChroniclerHomeView.tsx`)
+
+A new standalone component that serves as the Chronicler mode's home screen. It will be a simplified, mobile-first version of the Scribe workflow:
+
+- **Props**: `characterName`, `onNavigateToTab` (to open full Scribe), `onOpenSettings`
+- **Uses**: `processTextOffline` from existing narrative processor, `useSavedStories` hook for story management
+- **Layout**: Full-screen vertical scroll, no tabs/categories, just:
+  - Text input (large textarea, auto-expanding)
+  - Style picker (simple select dropdown)
+  - "Transform" button
+  - Output display with copy button
+  - "Open Full Scribe" button at the bottom
+  - Story list access via a sheet/drawer
+
+### 4. Conditionally render `ChroniclerHomeView` in `HomeScreen.tsx`
+
+In `src/components/home/HomeScreen.tsx`, add a conditional at the top of the render:
+
+```
+if (appMode === 'chronicler') {
+  return <ChroniclerHomeView ... />;
+}
+```
+
+This keeps the existing HomeScreen untouched for all other modes while providing the completely different layout for Chronicler.
+
+### 5. Pass required props through `Index.tsx`
+
+Ensure `characterName` (from `character.name`) is available to the Chronicler view. The existing `appMode` prop and `onNavigateToTab` callback already flow through `HomeScreen`, so the new component will receive what it needs.
+
+---
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `src/lib/app-modes.ts` | Add `chronicler` mode config, update ordered list |
+| `src/components/home/ModeSelectionScreen.tsx` | Add Feather icon + rose color |
+| `src/components/settings/AppModeSettings.tsx` | Add Feather icon + rose color + toast color |
+| `src/components/home/ChroniclerHomeView.tsx` | **New file** -- simplified scribe home |
+| `src/components/home/HomeScreen.tsx` | Conditional render for chronicler mode |
 
