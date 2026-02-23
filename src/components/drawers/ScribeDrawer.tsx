@@ -12,7 +12,7 @@ import { processTextOffline, ProcessingOptions } from '@/lib/narrativeProcessor'
 import { supabase } from '@/integrations/supabase/client';
 import { formatUsage, type TokenUsage } from '@/lib/token-usage';
 import { loadApiKey } from '@/lib/api-keys';
-import { loadCampaignSummary } from '@/lib/campaign-summary-storage';
+import { loadNovelBuilderSummary } from '@/lib/campaign-summary-storage';
 import { buildContextBody, stripChoiceBlocks, DEFAULT_CONTEXT_STATE, type ScribeContextState } from '@/lib/scribe-context';
 import { useSavedStories } from '@/hooks/use-saved-stories';
 
@@ -199,6 +199,7 @@ export function ScribeDrawer({
             onChange={setCtxState}
             stories={stories.stories}
             accent="amber"
+            novelBuilderMode
           />
 
           {/* Input */}
@@ -238,7 +239,7 @@ export function ScribeDrawer({
                   let textToProcess = inputText;
                   if (ctxState.stripGamePrompts) textToProcess = stripChoiceBlocks(textToProcess);
 
-                  const campaignSummary = loadCampaignSummary();
+                  const campaignSummary = loadNovelBuilderSummary();
                   const cards = loadCharacterCards();
                   const contextExtra = buildContextBody(ctxState, campaignSummary, stories.stories, cards);
 
