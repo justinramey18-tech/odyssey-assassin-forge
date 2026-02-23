@@ -76,7 +76,7 @@ export function ChroniclerHomeView({
 
   const handleSaveAsStory = useCallback(() => {
     if (!outputText.trim()) return;
-    const title = `Chronicler — ${new Date().toLocaleDateString()}`;
+    const title = `Novel — ${new Date().toLocaleDateString()}`;
     stories.createStory(title, outputText, style);
     toast.success('Saved as story', {
       style: { background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.5)', color: '#fb7185' },
@@ -106,7 +106,7 @@ export function ChroniclerHomeView({
             className="flex items-center gap-2 pt-2"
           >
             <Feather className="w-5 h-5 text-rose-400" />
-            <h2 className="font-cinzel font-semibold text-lg text-foreground">Chronicler</h2>
+            <h2 className="font-cinzel font-semibold text-lg text-foreground">Novel Builder</h2>
           </motion.div>
 
           {/* Input area */}
