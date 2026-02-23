@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Feather, Copy, Check, ArrowRight, BookOpen, Sparkles } from 'lucide-react';
+import { Feather, Copy, Check, ArrowRight, BookOpen, Sparkles, Cpu, Loader2 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,6 +14,9 @@ import { useSavedStories } from '@/hooks/use-saved-stories';
 import { StoryListSheet } from '@/components/scribe/StoryListSheet';
 import { CharacterNamePlaque } from './CharacterNamePlaque';
 import { ClockWidget } from './ClockWidget';
+import { supabase } from '@/integrations/supabase/client';
+import { SCRIBE_MODELS, loadScribeModel, saveScribeModel, getEdgeFunctionForModel, isAnthropicModel } from '@/lib/scribe-models';
+import { formatUsage, type TokenUsage } from '@/lib/token-usage';
 
 const STYLES: { value: NarrativeStyle; label: string }[] = [
   { value: 'fantasy', label: 'Fantasy' },
@@ -52,8 +55,16 @@ export function ChroniclerHomeView({
   const [toneIntensity, setToneIntensity] = useState(3);
   const [copied, setCopied] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isAiProcessing, setIsAiProcessing] = useState(false);
+  const [selectedModel, setSelectedModel] = useState(loadScribeModel);
+  const [aiUsage, setAiUsage] = useState<TokenUsage | null>(null);
 
   const stories = useSavedStories();
+
+  const handleModelChange = useCallback((modelId: string) => {
+    setSelectedModel(modelId);
+    saveScribeModel(modelId);
+  }, []);
 
   const handleProcess = useCallback(() => {
     if (!inputText.trim()) {
@@ -61,7 +72,7 @@ export function ChroniclerHomeView({
       return;
     }
     setIsProcessing(true);
-    // Use a tiny timeout so the UI shows the processing state
+    setAiUsage(null);
     setTimeout(() => {
       const result = processTextOffline(inputText, {
         ...defaultProcessingOptions,
@@ -72,6 +83,42 @@ export function ChroniclerHomeView({
       setIsProcessing(false);
     }, 50);
   }, [inputText, style, toneIntensity]);
+
+  const handleAiProcess = useCallback(async () => {
+    if (!inputText.trim()) {
+      toast.error('Paste or type some text first');
+      return;
+    }
+    setIsAiProcessing(true);
+    setAiUsage(null);
+    try {
+      const edgeFn = getEdgeFunctionForModel(selectedModel);
+      const isAnthropic = isAnthropicModel(selectedModel);
+
+      const body = isAnthropic
+        ? { text: inputText, style, intensity: toneIntensity, model: selectedModel }
+        : { text: inputText, style, model: selectedModel };
+
+      const { data, error } = await supabase.functions.invoke(edgeFn, { body });
+      if (error) throw error;
+
+      const narrative = isAnthropic ? data.text : data.narrative;
+      if (!narrative) throw new Error(data.error || 'No output returned');
+
+      setOutputText(narrative);
+
+      if (data.usage) {
+        setAiUsage(data.usage);
+      }
+
+      toast.success('AI processing complete');
+    } catch (err) {
+      console.error('AI processing error:', err);
+      toast.error(err instanceof Error ? err.message : 'AI processing failed');
+    } finally {
+      setIsAiProcessing(false);
+    }
+  }, [inputText, style, toneIntensity, selectedModel]);
 
   const handleCopy = useCallback(async () => {
     if (!outputText) return;
@@ -133,9 +180,9 @@ export function ChroniclerHomeView({
             />
           </div>
 
-          {/* Style + Process */}
-          <div className="flex items-end gap-3">
-            <div className="flex-1 space-y-1.5">
+          {/* Style + Model selectors */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Style
               </label>
@@ -150,13 +197,46 @@ export function ChroniclerHomeView({
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                AI Model
+              </label>
+              <Select value={selectedModel} onValueChange={handleModelChange}>
+                <SelectTrigger className="border-rose-500/20 bg-muted/30">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SCRIBE_MODELS.map(m => (
+                    <SelectItem key={m.id} value={m.id}>
+                      <span className="flex items-center gap-1.5">
+                        {m.label}
+                        {m.provider === 'anthropic' && <span className="text-[10px] text-muted-foreground">(key)</span>}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex gap-2">
             <Button
               onClick={handleProcess}
-              disabled={!inputText.trim() || isProcessing}
-              className="bg-rose-600 hover:bg-rose-700 text-white gap-2"
+              disabled={!inputText.trim() || isProcessing || isAiProcessing}
+              className="flex-1 bg-rose-600 hover:bg-rose-700 text-white gap-2"
             >
               <Sparkles className="w-4 h-4" />
               {isProcessing ? 'Processing…' : 'Transform'}
+            </Button>
+            <Button
+              onClick={handleAiProcess}
+              disabled={!inputText.trim() || isProcessing || isAiProcessing}
+              variant="outline"
+              className="flex-1 gap-2 border-rose-500/30 text-rose-400 hover:bg-rose-500/10"
+            >
+              {isAiProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Cpu className="w-4 h-4" />}
+              {isAiProcessing ? 'AI Working…' : 'AI'}
             </Button>
           </div>
 
@@ -179,6 +259,8 @@ export function ChroniclerHomeView({
               className="[&_[role=slider]]:border-rose-500 [&_[role=slider]]:bg-rose-500 [&_.range]:bg-rose-500"
             />
           </div>
+
+          {/* Output */}
           {outputText && (
             <motion.div
               initial={{ opacity: 0, y: 12 }}
@@ -213,6 +295,14 @@ export function ChroniclerHomeView({
                   </Button>
                 </div>
               </div>
+
+              {/* Usage stats */}
+              {aiUsage && (
+                <div className="text-[11px] text-muted-foreground bg-muted/30 rounded px-2.5 py-1.5 border border-border/50">
+                  {formatUsage(aiUsage, isAnthropicModel(selectedModel) ? selectedModel : undefined)}
+                </div>
+              )}
+
               <div className="rounded-lg border border-rose-500/20 bg-muted/20 p-4 text-sm leading-relaxed whitespace-pre-wrap">
                 {outputText}
               </div>

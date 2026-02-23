@@ -34,7 +34,7 @@ serve(async (req) => {
       });
     }
 
-    const { text, style, intensity, customPrompt } = await req.json();
+    const { text, style, intensity, customPrompt, model } = await req.json();
 
     if (!text || typeof text !== "string") {
       return new Response(JSON.stringify({ error: "No text provided" }), {
@@ -103,8 +103,14 @@ RULES:
         "anthropic-version": "2023-06-01",
         "content-type": "application/json",
       },
+      const modelMap: Record<string, string> = {
+        'anthropic/claude-sonnet-4': 'claude-sonnet-4-20250514',
+        'anthropic/claude-sonnet-4-5': 'claude-sonnet-4-5-20250514',
+      };
+      const anthropicModel = (model && modelMap[model]) || 'claude-sonnet-4-5-20250514';
+
       body: JSON.stringify({
-        model: "claude-sonnet-4-5-20250514",
+        model: anthropicModel,
         max_tokens: 8000,
         system: systemPrompt,
         messages: [

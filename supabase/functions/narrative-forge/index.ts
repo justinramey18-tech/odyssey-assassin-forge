@@ -90,6 +90,7 @@ interface RequestBody {
   mode?: 'full' | 'partial' | 'command';
   partialContext?: PartialContext;
   commandContext?: CommandContext;
+  model?: string;
 }
 
 type ValidationResult = {
@@ -643,6 +644,7 @@ Deno.serve(async (req) => {
     }
 
     const { characterName, style, smartParseEnabled, customEditingRules, blendConfig, mode, partialContext, commandContext } = validation;
+    const requestedModel = (body as RequestBody).model;
     
     // Handle command mode - apply AI transformation to full text
     if (mode === 'command' && commandContext) {
@@ -682,7 +684,7 @@ Apply the instruction above and return the complete edited text.`;
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-3-pro-preview',
+          model: requestedModel || 'google/gemini-3-pro-preview',
           messages: [
             { role: 'system', content: commandSystemPrompt },
             { role: 'user', content: commandUserPrompt },
@@ -770,7 +772,7 @@ Rewrite the middle section while maintaining perfect continuity with the surroun
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-3-flash-preview',
+          model: requestedModel || 'google/gemini-3-flash-preview',
           messages: [
             { role: 'system', content: partialSystemPrompt },
             { role: 'user', content: partialUserPrompt },
@@ -933,7 +935,7 @@ Respond ONLY with the transformed prose narrative. No explanations, no meta-comm
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-pro-preview',
+        model: requestedModel || 'google/gemini-3-pro-preview',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `Transform this game chat into prose narrative:\n\n${sanitizedText}` },
@@ -954,6 +956,7 @@ Respond ONLY with the transformed prose narrative. No explanations, no meta-comm
 
     const data = await response.json();
     const narrative = data.choices?.[0]?.message?.content || '';
+    const usage = data.usage ?? {};
 
     console.log(`Narrative forge completed: ${narrative.length} chars output`);
 
@@ -964,6 +967,10 @@ Respond ONLY with the transformed prose narrative. No explanations, no meta-comm
         style,
         inputLength: validation.text.length,
         outputLength: narrative.length,
+        usage: {
+          input_tokens: usage.prompt_tokens ?? 0,
+          output_tokens: usage.completion_tokens ?? 0,
+        },
       }),
       { 
         headers: { 
