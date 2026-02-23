@@ -69,6 +69,8 @@ type NavigableTab =
   | 'cloud'
   | 'settings';
 
+import type { AppMode } from '@/lib/app-modes';
+
 interface HomeScreenProps {
   character: Character;
   equipment: CharacterEquipment;
@@ -149,6 +151,8 @@ interface HomeScreenProps {
   isDMButtonVisible?: (buttonId: string) => boolean;
   isQuickAccessVisible?: (itemId: string) => boolean;
   tabFilter?: (tabId: string) => boolean;
+  // Current app mode (for companion mode switcher)
+  appMode?: AppMode;
 }
 
 /** Map dragon form names to element-appropriate tint colors */
@@ -243,6 +247,7 @@ export function HomeScreen({
   isDMButtonVisible: _isDMButtonVisible,
   isQuickAccessVisible,
   tabFilter,
+  appMode,
 }: HomeScreenProps) {
   // Default visibility: show everything if no filter provided
   const showFeature = isHomeFeatureVisible ?? (() => true);
@@ -810,6 +815,20 @@ export function HomeScreen({
             </div>
           </motion.div>
         </motion.footer>
+        )}
+
+        {/* Companion mode: subtle Change Mode button */}
+        {appMode === 'companion' && (
+          <div className="px-4 pb-4 pt-2 flex justify-center">
+            <button
+              onClick={onOpenSettings}
+              className="flex items-center gap-2 px-4 py-2 text-xs text-muted-foreground hover:text-foreground border border-border/30 rounded-lg bg-transparent hover:bg-white/10 transition-all duration-200"
+              style={{ touchAction: 'manipulation' }}
+            >
+              <Settings className="w-3.5 h-3.5" />
+              Change Mode
+            </button>
+          </div>
         )}
       </div>
 

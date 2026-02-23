@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { Check, Crown, Sparkles, Sword, BookOpen, Users, RotateCcw } from 'lucide-react';
+import { Check, Crown, Sparkles, Sword, BookOpen, Users, Wand2, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -18,12 +18,13 @@ import { toast } from 'sonner';
 import type { LucideIcon } from 'lucide-react';
 
 const ICON_MAP: Record<string, LucideIcon> = {
-  Sparkles, Sword, BookOpen, Users, Crown,
+  Sparkles, Sword, BookOpen, Users, Crown, Wand2,
 };
 
 const COLOR_MAP: Record<string, string> = {
   amber: 'border-amber-500/50 bg-amber-500/10 text-amber-400',
   red: 'border-red-500/50 bg-red-500/10 text-red-400',
+  cyan: 'border-cyan-500/50 bg-cyan-500/10 text-cyan-400',
   violet: 'border-violet-500/50 bg-violet-500/10 text-violet-400',
   blue: 'border-blue-500/50 bg-blue-500/10 text-blue-400',
   emerald: 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400',
