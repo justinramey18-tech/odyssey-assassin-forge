@@ -153,6 +153,7 @@ interface HomeScreenProps {
   tabFilter?: (tabId: string) => boolean;
   // Current app mode (for companion mode switcher)
   appMode?: AppMode;
+  onOpenModeSelection?: () => void;
 }
 
 /** Map dragon form names to element-appropriate tint colors */
@@ -248,6 +249,7 @@ export function HomeScreen({
   isQuickAccessVisible,
   tabFilter,
   appMode,
+  onOpenModeSelection,
 }: HomeScreenProps) {
   // Default visibility: show everything if no filter provided
   const showFeature = isHomeFeatureVisible ?? (() => true);
@@ -821,7 +823,7 @@ export function HomeScreen({
         {appMode === 'companion' && (
           <div className="px-4 pb-4 pt-2 flex justify-center">
             <button
-              onClick={onOpenSettings}
+              onClick={onOpenModeSelection}
               className="flex items-center gap-2 px-4 py-2 text-xs text-muted-foreground hover:text-foreground border border-border/30 rounded-lg bg-transparent hover:bg-white/10 transition-all duration-200"
               style={{ touchAction: 'manipulation' }}
             >

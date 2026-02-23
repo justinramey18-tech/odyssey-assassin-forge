@@ -2207,6 +2207,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           isQuickAccessVisible={appMode.isQuickAccessVisible}
           tabFilter={appMode.isTabVisible}
           appMode={appMode.appMode ?? undefined}
+          onOpenModeSelection={() => setShowIntroSplash(true)}
         />
         
         {/* Settings Modal */}
