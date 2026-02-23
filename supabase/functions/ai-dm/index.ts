@@ -113,6 +113,7 @@ interface DMRequest {
   worldStatePrompt?: string;
   dmPersonaPrompt?: string;
   model?: string;
+  user_api_key?: string;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -350,10 +351,13 @@ async function callAnthropic(
   anthropicModelId: string,
   systemPrompt: string,
   messages: Array<{ role: string; content: string }>,
+  userApiKey?: string,
 ): Promise<Response> {
-  const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+  const ANTHROPIC_API_KEY = (typeof userApiKey === 'string' && userApiKey.trim())
+    ? userApiKey.trim()
+    : Deno.env.get("ANTHROPIC_API_KEY");
   if (!ANTHROPIC_API_KEY) {
-    throw new Error("ANTHROPIC_API_KEY is not configured. Add your Anthropic API key in backend secrets.");
+    throw { status: 500, message: "No Anthropic API key available. Add your key in Settings → API Keys, or configure the backend secret." };
   }
 
   const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -484,7 +488,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model } = (await req.json()) as DMRequest;
+    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key } = (await req.json()) as DMRequest;
     
     // Trim to last 100 messages
     const trimmedMessages = messages.length > MAX_MESSAGES
@@ -500,7 +504,7 @@ serve(async (req) => {
     if (anthropicModelId) {
       // ── Anthropic path ──
       try {
-        const anthropicResponse = await callAnthropic(anthropicModelId, systemPrompt, trimmedMessages);
+        const anthropicResponse = await callAnthropic(anthropicModelId, systemPrompt, trimmedMessages, user_api_key);
         return new Response(anthropicResponse.body, {
           headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
         });

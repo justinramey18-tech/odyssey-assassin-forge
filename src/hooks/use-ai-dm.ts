@@ -8,6 +8,7 @@ import {
   saveCampaignSummary,
   clearCampaignSummary,
 } from '@/lib/campaign-summary-storage';
+import { loadApiKey } from '@/lib/api-keys';
 
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
 const SUMMARIZE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm-summarize`;
@@ -378,6 +379,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
           worldStatePrompt: worldStatePrompt || undefined,
           dmPersonaPrompt: dmPersonaPrompt || undefined,
           model: selectedModel || undefined,
+          user_api_key: loadApiKey('anthropic') || undefined,
         }),
         signal: abortControllerRef.current.signal,
       });

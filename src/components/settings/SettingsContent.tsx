@@ -31,6 +31,7 @@ import { useGMGuides } from '@/hooks/use-gm-guides';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { SettingsTab } from './MobileSettingsTabs';
+import { ApiKeySettings } from './ApiKeySettings';
 
 import { PartyPanel } from '@/components/party';
 import type { UsePartySyncReturn } from '@/hooks/use-party-sync';
@@ -902,6 +903,11 @@ export function SettingsContent({
             <Separator className="bg-border/30" />
           </>
         )}
+
+        {/* API Keys */}
+        <ApiKeySettings />
+
+        <Separator className="bg-border/30" />
 
         {/* Danger Zone */}
         <div className="border-2 border-destructive/50 rounded-lg p-4 bg-destructive/5 space-y-4">

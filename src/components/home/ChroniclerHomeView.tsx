@@ -17,6 +17,7 @@ import { ClockWidget } from './ClockWidget';
 import { supabase } from '@/integrations/supabase/client';
 import { SCRIBE_MODELS, loadScribeModel, saveScribeModel, getEdgeFunctionForModel, isAnthropicModel } from '@/lib/scribe-models';
 import { formatUsage, type TokenUsage } from '@/lib/token-usage';
+import { loadApiKey } from '@/lib/api-keys';
 
 const STYLES: { value: NarrativeStyle; label: string }[] = [
   { value: 'fantasy', label: 'Fantasy' },
@@ -95,8 +96,9 @@ export function ChroniclerHomeView({
       const edgeFn = getEdgeFunctionForModel(selectedModel);
       const isAnthropic = isAnthropicModel(selectedModel);
 
+      const userKey = loadApiKey('anthropic') || undefined;
       const body = isAnthropic
-        ? { text: inputText, style, intensity: toneIntensity, model: selectedModel }
+        ? { text: inputText, style, intensity: toneIntensity, model: selectedModel, user_api_key: userKey }
         : { text: inputText, style, model: selectedModel };
 
       const { data, error } = await supabase.functions.invoke(edgeFn, { body });
