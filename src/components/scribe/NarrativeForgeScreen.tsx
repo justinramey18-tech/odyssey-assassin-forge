@@ -47,6 +47,8 @@ import { DetectedSession, estimateProcessingTime, combineMultiFileSessions } fro
 import { getSmartParsePreview } from '@/lib/scribe/smartParsing';
 import { BlendConfig } from '@/lib/scribe/processingTemplates';
 import { splitTextIntoChunks, reassembleChunks, createChunkContext } from '@/lib/scribe/chunkProcessing';
+import { SCRIBE_MODELS, loadScribeModel, saveScribeModel, getEdgeFunctionForModel, isAnthropicModel } from '@/lib/scribe-models';
+import { formatUsage, type TokenUsage } from '@/lib/token-usage';
 import scribeBackground from '@/assets/scribe-background.jpg';
 
 interface NarrativeForgeScreenProps {
@@ -81,7 +83,8 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
   const [showStoryFileUpload, setShowStoryFileUpload] = useState(false);
   const [isApplyingCommand, setIsApplyingCommand] = useState(false);
   const [chunkProgress, setChunkProgress] = useState<{ current: number; total: number } | null>(null);
-  
+  const [selectedModel, setSelectedModel] = useState(loadScribeModel);
+  const [aiUsage, setAiUsage] = useState<TokenUsage | null>(null);
   const { toast } = useToast();
 
   // Multi-story management
@@ -525,7 +528,8 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
     }
 
     setIsProcessing(true);
-    setLastProcessedInput(inputText); // Store for comparison view
+    setLastProcessedInput(inputText);
+    setAiUsage(null);
     
     try {
       if (processingMode === 'offline') {
@@ -542,21 +546,47 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
           .filter(r => r.isValid && r.instruction.trim())
           .map(r => ({ type: r.type, instruction: r.instruction, scope: r.scope }));
 
-        // Use AI-powered processing via edge function
-        const { data, error } = await supabase.functions.invoke('narrative-forge', {
-          body: { 
-            text: inputText,
-            characterName,
-            style: options.narrativeStyle,
-            smartParseEnabled,
-            customEditingRules: rulesForApi,
-            blendConfig: styleBlendEnabled ? blendConfig : undefined,
-          },
-        });
+        // Route based on selected model
+        const edgeFn = getEdgeFunctionForModel(selectedModel);
+        const isAnthropic = isAnthropicModel(selectedModel);
 
-        if (error) throw error;
-        
-        setOutputText(data.narrative || '');
+        let narrative: string;
+        let usage: TokenUsage | null = null;
+
+        if (isAnthropic) {
+          // Use scribe-ai for Anthropic models
+          const { data, error } = await supabase.functions.invoke('scribe-ai', {
+            body: {
+              text: inputText,
+              style: options.narrativeStyle,
+              intensity: options.toneIntensity,
+              model: selectedModel,
+            },
+          });
+          if (error) throw error;
+          narrative = data.text || '';
+          if (data.usage) usage = data.usage;
+        } else {
+          // Use narrative-forge for Lovable gateway models
+          const { data, error } = await supabase.functions.invoke('narrative-forge', {
+            body: { 
+              text: inputText,
+              characterName,
+              style: options.narrativeStyle,
+              smartParseEnabled,
+              customEditingRules: rulesForApi,
+              blendConfig: styleBlendEnabled ? blendConfig : undefined,
+              model: selectedModel,
+            },
+          });
+          if (error) throw error;
+          narrative = data.narrative || '';
+          if (data.usage) usage = data.usage;
+        }
+
+        setOutputText(narrative);
+        if (usage) setAiUsage(usage);
+
         toast({
           title: "AI processing complete",
           description: "Your narrative has been crafted by the AI scribe.",
@@ -572,7 +602,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
     } finally {
       setIsProcessing(false);
     }
-  }, [inputSource, campaignProcessor, inputText, processingMode, options, characterName, smartParseEnabled, editingRulesHook.rules, styleBlendEnabled, blendConfig, toast]);
+  }, [inputSource, campaignProcessor, inputText, processingMode, options, characterName, smartParseEnabled, editingRulesHook.rules, styleBlendEnabled, blendConfig, selectedModel, toast]);
 
   // Handle partial regeneration of selected text
   const handlePartialRegenerate = useCallback(async (request: PartialRegenerateRequest): Promise<string | null> => {
@@ -1066,7 +1096,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
             </div>
           </TabsContent>
           
-          <TabsContent value="ai" className="mt-3">
+          <TabsContent value="ai" className="mt-3 space-y-3">
             <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg border border-border/50">
               <p className="flex items-start gap-2">
                 <Info className="w-4 h-4 mt-0.5 shrink-0 text-purple-400" />
@@ -1075,6 +1105,27 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
                   game content into flowing prose narrative. Maintains story coherence and enhances descriptions.
                 </span>
               </p>
+            </div>
+            {/* Model selector */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                AI Model
+              </label>
+              <Select value={selectedModel} onValueChange={(v) => { setSelectedModel(v); saveScribeModel(v); }}>
+                <SelectTrigger className="border-purple-500/20 bg-muted/30">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SCRIBE_MODELS.map(m => (
+                    <SelectItem key={m.id} value={m.id}>
+                      <span className="flex items-center gap-1.5">
+                        {m.label}
+                        <span className="text-[10px] text-muted-foreground">— {m.description}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </TabsContent>
         </Tabs>
@@ -1713,6 +1764,13 @@ The trap clicks harmlessly as she disables it."
                   </div>
                 )}
               </ScrollArea>
+
+              {/* AI Usage stats */}
+              {aiUsage && processingMode === 'ai' && (
+                <div className="text-[11px] text-muted-foreground bg-muted/30 rounded px-2.5 py-1.5 border border-border/50">
+                  {formatUsage(aiUsage, isAnthropicModel(selectedModel) ? selectedModel : undefined)}
+                </div>
+              )}
               
               {/* Save Options */}
               <div className="flex flex-col gap-3 pt-4 border-t border-border/50">
