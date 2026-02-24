@@ -232,8 +232,8 @@ ${contextBlocks}`;
     const anthropicModel = (model && modelMap[model]) || 'claude-sonnet-4-5-20250929';
 
     const userMessage = isEnhance
-      ? `Enhance this prose with rich descriptive detail while preserving every original word:\n\n${text.slice(0, 60000)}`
-      : `Transform this TTRPG chat log into ${styleDesc} narrative:\n\n${text.slice(0, 60000)}`;
+      ? `Enhance this prose with rich descriptive detail while preserving every original word:\n\n${text.slice(0, 200000)}`
+      : `Transform this TTRPG chat log into ${styleDesc} narrative:\n\n${text.slice(0, 200000)}`;
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",

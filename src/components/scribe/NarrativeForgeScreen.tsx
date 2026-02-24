@@ -55,6 +55,9 @@ import { buildContextBody, stripChoiceBlocks, DEFAULT_CONTEXT_STATE, type Scribe
 import { ScribeContextPanel, loadCharacterCards, loadProtagonistCards } from './ScribeContextPanel';
 import scribeBackground from '@/assets/scribe-background.jpg';
 
+const MAX_AI_CHARS = 200000;
+const WARN_THRESHOLD = 0.8;
+
 interface NarrativeForgeScreenProps {
   characterName: string;
   onBack: () => void;
@@ -123,6 +126,18 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
       : campaignProcessor?.fileContent || '';
     return getSmartParsePreview(textToCheck);
   }, [inputText, inputSource, campaignProcessor?.fileContent]);
+
+  // Character count tracking for AI limit enforcement
+  const currentTotalChars = useMemo(() => {
+    if (inputSource === 'paste') return inputText.length;
+    if (!campaignProcessor.selectedSessionIds.size) return 0;
+    return campaignProcessor.sessions
+      .filter(s => campaignProcessor.selectedSessionIds.has(s.id))
+      .reduce((sum, s) => sum + s.charCount, 0);
+  }, [inputSource, inputText, campaignProcessor.sessions, campaignProcessor.selectedSessionIds]);
+
+  const isOverLimit = processingMode === 'ai' && currentTotalChars > MAX_AI_CHARS;
+  const isNearLimit = processingMode === 'ai' && currentTotalChars > MAX_AI_CHARS * WARN_THRESHOLD && !isOverLimit;
 
   const handleSaveAsNewStory = useCallback(() => {
     if (!outputText.trim()) {
@@ -1707,14 +1722,27 @@ The trap clicks harmlessly as she disables it."
           </div>
         )}
 
-        {/* Process Button */}
-        <div className="flex justify-center">
+        {/* Context Counter & Process Button */}
+        <div className="flex flex-col items-center gap-2">
+          {processingMode === 'ai' && currentTotalChars > 0 && (
+            <div className={`text-xs font-medium ${isOverLimit ? 'text-destructive' : isNearLimit ? 'text-yellow-500' : 'text-muted-foreground'}`}>
+              {currentTotalChars.toLocaleString()} / {MAX_AI_CHARS.toLocaleString()} chars
+              {isNearLimit && ' ⚠ Approaching limit'}
+              {isOverLimit && ' ✕ Limit exceeded'}
+            </div>
+          )}
+          {isOverLimit && (
+            <p className="text-xs text-destructive max-w-md text-center">
+              Your input exceeds the 200,000 character limit for AI processing. Deselect some sessions or shorten your text.
+            </p>
+          )}
           <Button
             onClick={handleProcess}
             disabled={
               (isProcessing || campaignProcessor.isProcessing) ||
               (inputSource === 'paste' && !inputText.trim()) ||
-              (inputSource === 'upload' && (!campaignProcessor.fileName || campaignProcessor.selectedSessionIds.size === 0))
+              (inputSource === 'upload' && (!campaignProcessor.fileName || campaignProcessor.selectedSessionIds.size === 0)) ||
+              isOverLimit
             }
             className="gap-2 px-8 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white border-0"
             size="lg"
