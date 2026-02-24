@@ -128,12 +128,23 @@ export function ChroniclerHomeView({
       if (data.usage) setAiUsage(data.usage);
 
       toast.success('AI processing complete');
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('AI processing error:', err);
       const msg = err instanceof Error ? err.message : 'AI processing failed';
-      const friendly = /unauthorized|failed to send|FunctionsHttpError/i.test(msg)
-        ? 'Request failed — please sign in or check your Anthropic API key in Settings.'
-        : msg;
+      const errBody = typeof (err as any)?.context?.body === 'string'
+        ? (err as any).context.body : '';
+      let friendly: string;
+      if (/401|invalid.*(key|api)/i.test(msg + errBody)) {
+        friendly = 'Anthropic API key is invalid. Re-save your key in Settings.';
+      } else if (/504|timeout|timed out|aborted/i.test(msg + errBody)) {
+        friendly = 'Request timed out. Try a shorter input or reduce context.';
+      } else if (/413|too.large|over.*limit/i.test(msg + errBody)) {
+        friendly = 'Input exceeds the character limit. Reduce text or context.';
+      } else if (/unauthorized|failed to send|FunctionsHttpError/i.test(msg)) {
+        friendly = 'Request failed — please sign in or check your Anthropic API key in Settings.';
+      } else {
+        friendly = msg;
+      }
       toast.error(friendly);
     } finally {
       setIsAiProcessing(false);

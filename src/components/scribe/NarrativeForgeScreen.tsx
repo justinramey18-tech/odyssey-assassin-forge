@@ -621,7 +621,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
 
         if (isAnthropic) {
           // Chunked processing for large Anthropic requests (>40k text chars)
-          const CHUNK_THRESHOLD = 40_000;
+          const CHUNK_THRESHOLD = 15_000;
           if (textForProcessing.length > CHUNK_THRESHOLD) {
             const { chunks } = splitTextIntoChunks(textForProcessing);
             setChunkProgress({ current: 0, total: chunks.length });
