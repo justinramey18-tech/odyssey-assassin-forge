@@ -53,6 +53,7 @@ import { loadApiKey } from '@/lib/api-keys';
 import { loadNovelBuilderSummary } from '@/lib/campaign-summary-storage';
 import { buildContextBody, stripChoiceBlocks, DEFAULT_CONTEXT_STATE, type ScribeContextState } from '@/lib/scribe-context';
 import { ScribeContextPanel, loadCharacterCards, loadProtagonistCards } from './ScribeContextPanel';
+import { getRequestSizeBreakdown } from '@/lib/scribe/request-size';
 import scribeBackground from '@/assets/scribe-background.jpg';
 
 const MAX_AI_CHARS = 200000;
@@ -127,15 +128,27 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
     return getSmartParsePreview(textToCheck);
   }, [inputText, inputSource, campaignProcessor?.fileContent]);
 
-  // Character count tracking for AI limit enforcement
-  const currentTotalChars = useMemo(() => {
-    if (inputSource === 'paste') return inputText.length;
-    if (!campaignProcessor.selectedSessionIds.size) return 0;
-    return campaignProcessor.sessions
-      .filter(s => campaignProcessor.selectedSessionIds.has(s.id))
-      .reduce((sum, s) => sum + s.charCount, 0);
-  }, [inputSource, inputText, campaignProcessor.sessions, campaignProcessor.selectedSessionIds]);
+  // Character count tracking for AI limit enforcement — includes ALL context payloads
+  const requestSizeBreakdown = useMemo(() => {
+    const campaignSummary = loadNovelBuilderSummary();
+    const cards = loadCharacterCards();
+    const protags = loadProtagonistCards();
 
+    let baseTextLength: number;
+    if (inputSource === 'paste') {
+      baseTextLength = ctxState.stripGamePrompts ? stripChoiceBlocks(inputText).length : inputText.length;
+    } else if (campaignProcessor.selectedSessionIds.size > 0) {
+      baseTextLength = campaignProcessor.sessions
+        .filter(s => campaignProcessor.selectedSessionIds.has(s.id))
+        .reduce((sum, s) => sum + s.charCount, 0);
+    } else {
+      baseTextLength = 0;
+    }
+
+    return getRequestSizeBreakdown(baseTextLength, ctxState, campaignSummary, stories, cards, protags);
+  }, [inputSource, inputText, ctxState, stories, campaignProcessor.sessions, campaignProcessor.selectedSessionIds]);
+
+  const currentTotalChars = requestSizeBreakdown.total;
   const isOverLimit = processingMode === 'ai' && currentTotalChars > MAX_AI_CHARS;
   const isNearLimit = processingMode === 'ai' && currentTotalChars > MAX_AI_CHARS * WARN_THRESHOLD && !isOverLimit;
 
@@ -511,6 +524,12 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
   }, [campaignProcessor]);
 
   const handleProcess = useCallback(async () => {
+    // Hard guard — block even if button disabled state was bypassed
+    if (isOverLimit) {
+      toast({ title: "Over limit", description: `Total context is ${currentTotalChars.toLocaleString()} chars — reduce input or context below ${MAX_AI_CHARS.toLocaleString()}.`, variant: "destructive" });
+      return;
+    }
+
     // Handle file upload mode
     if (inputSource === 'upload' && campaignProcessor.fileName) {
       const selectedCount = campaignProcessor.selectedSessionIds.size;
@@ -529,12 +548,21 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
         .filter(r => r.isValid && r.instruction.trim())
         .map(r => ({ type: r.type, instruction: r.instruction, scope: r.scope }));
 
+      // Pass model + context info for proper routing
+      const campaignSummary = loadNovelBuilderSummary();
+      const cards = loadCharacterCards();
+      const protags = loadProtagonistCards();
+      const contextExtra = buildContextBody(ctxState, campaignSummary, stories, cards, protags);
+
       const result = await campaignProcessor.processSelectedSessions(
         processingMode,
         options,
         characterName,
         smartParseEnabled,
-        rulesForApi
+        rulesForApi,
+        selectedModel,
+        isAnthropicModel(selectedModel) ? (loadApiKey('anthropic') || undefined) : undefined,
+        contextExtra
       );
 
       if (result) {
@@ -592,19 +620,66 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
         let usage: TokenUsage | null = null;
 
         if (isAnthropic) {
-          const { data, error } = await supabase.functions.invoke('scribe-ai', {
-            body: {
-              text: textForProcessing,
-              style: options.narrativeStyle,
-              intensity: options.toneIntensity,
-              model: selectedModel,
-              user_api_key: loadApiKey('anthropic') || undefined,
-              ...contextExtra,
-            },
-          });
-          if (error) throw error;
-          narrative = data.text || '';
-          if (data.usage) usage = data.usage;
+          // Chunked processing for large Anthropic requests (>40k text chars)
+          const CHUNK_THRESHOLD = 40_000;
+          if (textForProcessing.length > CHUNK_THRESHOLD) {
+            const { chunks } = splitTextIntoChunks(textForProcessing);
+            setChunkProgress({ current: 0, total: chunks.length });
+            toast({ title: "Processing large input", description: `Splitting into ${chunks.length} chunks to avoid timeouts...` });
+
+            const processedChunks: string[] = [];
+            let totalUsage: TokenUsage = { input_tokens: 0, output_tokens: 0 };
+
+            for (let i = 0; i < chunks.length; i++) {
+              setChunkProgress({ current: i + 1, total: chunks.length });
+              const chunkInstruction = chunks.length > 1
+                ? createChunkContext(i, chunks.length, `Continue the ${options.narrativeStyle} narrative`)
+                : undefined;
+
+              const { data, error } = await supabase.functions.invoke('scribe-ai', {
+                body: {
+                  text: chunks[i],
+                  style: options.narrativeStyle,
+                  intensity: options.toneIntensity,
+                  model: selectedModel,
+                  user_api_key: loadApiKey('anthropic') || undefined,
+                  ...contextExtra,
+                  // Only include full story context on first chunk
+                  ...(i > 0 ? { storyContext: undefined, campaignSummary: undefined } : {}),
+                },
+              });
+              if (error) throw error;
+              if (data.text) processedChunks.push(data.text);
+              if (data.usage) {
+                totalUsage.input_tokens += data.usage.input_tokens || 0;
+                totalUsage.output_tokens += data.usage.output_tokens || 0;
+              }
+            }
+
+            narrative = reassembleChunks(processedChunks);
+            usage = totalUsage;
+            setChunkProgress(null);
+          } else {
+            // Single request for smaller inputs
+            const { data, error } = await supabase.functions.invoke('scribe-ai', {
+              body: {
+                text: textForProcessing,
+                style: options.narrativeStyle,
+                intensity: options.toneIntensity,
+                model: selectedModel,
+                user_api_key: loadApiKey('anthropic') || undefined,
+                ...contextExtra,
+              },
+            });
+            if (error) throw error;
+            narrative = data.text || '';
+            if (data.usage) usage = data.usage;
+
+            // Show model fallback warning if applicable
+            if (data.meta?.model_fallback) {
+              toast({ title: "Model fallback", description: `Your selected model was unavailable. Used ${data.meta.model_used} instead.` });
+            }
+          }
         } else {
           const { data, error } = await supabase.functions.invoke('narrative-forge', {
             body: { 
@@ -631,17 +706,48 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
           description: "Your narrative has been crafted by the AI scribe.",
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Processing error:', error);
+      setChunkProgress(null);
+
+      // Parse structured error from edge function
+      let errorMessage = "An error occurred during processing.";
+      let errorCode = "";
+
+      if (error && typeof error === 'object') {
+        const err = error as Record<string, unknown>;
+        // Supabase FunctionsHttpError includes context
+        if (err.context && typeof err.context === 'object') {
+          const ctx = err.context as Record<string, unknown>;
+          if (typeof ctx.code === 'string') errorCode = ctx.code;
+          if (typeof ctx.error === 'string') errorMessage = ctx.error;
+        } else if (err.message && typeof err.message === 'string') {
+          errorMessage = err.message;
+        }
+      }
+
+      // Map error codes to actionable messages
+      if (errorCode === 'invalid_api_key' || errorMessage.includes('Invalid Anthropic')) {
+        errorMessage = "Your Anthropic API key is invalid. Go to Settings → API Keys and re-save it.";
+      } else if (errorCode === 'request_timeout' || errorMessage.includes('timed out')) {
+        errorMessage = "Request timed out. Try reducing your input size, context, or target multiplier.";
+      } else if (errorCode === 'context_too_large') {
+        errorMessage = `Context too large. ${errorMessage}`;
+      } else if (errorCode === 'rate_limited') {
+        errorMessage = "Rate limited by Anthropic. Wait a moment and try again.";
+      } else if (errorMessage.includes('Failed to send')) {
+        errorMessage = "Could not reach the AI service. Check your connection or try a smaller input.";
+      }
+
       toast({
         title: "Processing failed",
-        description: error instanceof Error ? error.message : "An error occurred during processing.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
       setIsProcessing(false);
     }
-  }, [inputSource, campaignProcessor, inputText, processingMode, options, characterName, smartParseEnabled, editingRulesHook.rules, styleBlendEnabled, blendConfig, selectedModel, toast]);
+  }, [inputSource, campaignProcessor, inputText, processingMode, options, characterName, smartParseEnabled, editingRulesHook.rules, styleBlendEnabled, blendConfig, selectedModel, toast, ctxState, stories, isOverLimit, currentTotalChars]);
 
   // Handle partial regeneration of selected text
   const handlePartialRegenerate = useCallback(async (request: PartialRegenerateRequest): Promise<string | null> => {
@@ -1725,15 +1831,28 @@ The trap clicks harmlessly as she disables it."
         {/* Context Counter & Process Button */}
         <div className="flex flex-col items-center gap-2">
           {processingMode === 'ai' && currentTotalChars > 0 && (
-            <div className={`text-xs font-medium ${isOverLimit ? 'text-destructive' : isNearLimit ? 'text-yellow-500' : 'text-muted-foreground'}`}>
-              {currentTotalChars.toLocaleString()} / {MAX_AI_CHARS.toLocaleString()} chars
-              {isNearLimit && ' ⚠ Approaching limit'}
-              {isOverLimit && ' ✕ Limit exceeded'}
+            <div className="flex flex-col items-center gap-1">
+              <div className={`text-xs font-medium ${isOverLimit ? 'text-destructive' : isNearLimit ? 'text-yellow-500' : 'text-muted-foreground'}`}>
+                {currentTotalChars.toLocaleString()} / {MAX_AI_CHARS.toLocaleString()} chars
+                {isNearLimit && ' ⚠ Approaching limit'}
+                {isOverLimit && ' ✕ Limit exceeded'}
+              </div>
+              {/* Mini breakdown when near or over limit */}
+              {(isNearLimit || isOverLimit) && (
+                <div className="text-[10px] text-muted-foreground space-x-2">
+                  <span>Input: {requestSizeBreakdown.inputText.toLocaleString()}</span>
+                  {requestSizeBreakdown.campaignSummary > 0 && <span>Summary: {requestSizeBreakdown.campaignSummary.toLocaleString()}</span>}
+                  {requestSizeBreakdown.storyContext > 0 && <span>Story: {requestSizeBreakdown.storyContext.toLocaleString()}</span>}
+                  {(requestSizeBreakdown.characterCards + requestSizeBreakdown.protagonistCards) > 0 && (
+                    <span>Cards: {(requestSizeBreakdown.characterCards + requestSizeBreakdown.protagonistCards).toLocaleString()}</span>
+                  )}
+                </div>
+              )}
             </div>
           )}
           {isOverLimit && (
             <p className="text-xs text-destructive max-w-md text-center">
-              Your input exceeds the 200,000 character limit for AI processing. Deselect some sessions or shorten your text.
+              Your total context exceeds the 200,000 character limit. Reduce input text, campaign summary, story context, or card details.
             </p>
           )}
           <Button
