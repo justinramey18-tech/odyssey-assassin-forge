@@ -3,6 +3,7 @@ import { Plus, Trash2, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
   Collapsible,
   CollapsibleContent,
@@ -15,9 +16,11 @@ interface CharacterCardEditorProps {
   onAdd: (card: Omit<CharacterCard, 'id'>) => void;
   onRemove: (id: string) => void;
   onUpdate: (id: string, updates: Partial<Omit<CharacterCard, 'id'>>) => void;
+  masterEnabled?: boolean;
+  onMasterToggle?: (enabled: boolean) => void;
 }
 
-export function CharacterCardEditor({ cards, onAdd, onRemove, onUpdate }: CharacterCardEditorProps) {
+export function CharacterCardEditor({ cards, onAdd, onRemove, onUpdate, masterEnabled = true, onMasterToggle }: CharacterCardEditorProps) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState({ name: '', raceClass: '', personality: '', speechStyle: '' });
 
@@ -28,6 +31,7 @@ export function CharacterCardEditor({ cards, onAdd, onRemove, onUpdate }: Charac
       raceClass: draft.raceClass.trim() || undefined,
       personality: draft.personality.trim(),
       speechStyle: draft.speechStyle.trim(),
+      enabled: true,
     });
     setDraft({ name: '', raceClass: '', personality: '', speechStyle: '' });
     setAdding(false);
@@ -36,10 +40,19 @@ export function CharacterCardEditor({ cards, onAdd, onRemove, onUpdate }: Charac
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-          <UserRound className="w-3 h-3" />
-          Character Cards ({cards.length})
-        </span>
+        <div className="flex items-center gap-1.5">
+          <UserRound className="w-3 h-3 text-muted-foreground" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            NPCs ({cards.filter(c => c.enabled !== false).length}/{cards.length})
+          </span>
+          {onMasterToggle && (
+            <Switch
+              checked={masterEnabled}
+              onCheckedChange={onMasterToggle}
+              className="ml-1 scale-75"
+            />
+          )}
+        </div>
         <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={() => setAdding(!adding)}>
           <Plus className="w-3 h-3" /> Add
         </Button>
@@ -48,9 +61,19 @@ export function CharacterCardEditor({ cards, onAdd, onRemove, onUpdate }: Charac
       {/* Existing cards */}
       {cards.map(card => (
         <Collapsible key={card.id}>
-          <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-card/50 px-2 py-1.5">
+          <div className={`flex items-center gap-2 rounded-lg border border-border/50 bg-card/50 px-2 py-1.5 transition-opacity ${
+            (card.enabled !== false) && masterEnabled ? '' : 'opacity-50'
+          }`}>
+            {/* Toggle dot */}
+            <button
+              onClick={(e) => { e.stopPropagation(); onUpdate(card.id, { enabled: card.enabled === false ? true : false }); }}
+              className={`w-2.5 h-2.5 rounded-full shrink-0 transition-colors ${
+                card.enabled !== false ? 'bg-emerald-400' : 'bg-muted-foreground/40'
+              }`}
+              title={card.enabled !== false ? 'Disable' : 'Enable'}
+            />
             <CollapsibleTrigger className="flex-1 text-left text-sm font-medium truncate">
-              {card.name}
+              <span className={card.enabled === false ? 'line-through' : ''}>{card.name}</span>
               {card.raceClass && <span className="ml-1.5 text-[10px] text-muted-foreground">({card.raceClass})</span>}
             </CollapsibleTrigger>
             <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => onRemove(card.id)}>

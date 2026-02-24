@@ -4,6 +4,7 @@
  */
 
 import type { SavedStory } from '@/hooks/use-saved-stories';
+import type { ProtagonistCard } from '@/lib/protagonist-cards';
 
 export type ScribeProcessingMode = 'transform' | 'enhance';
 export type TargetMultiplier = 1.5 | 2 | 3;
@@ -54,6 +55,7 @@ export function buildContextBody(
   campaignSummary: string | null,
   stories: SavedStory[],
   characterCards: import('@/lib/character-cards').CharacterCard[],
+  protagonistCards?: ProtagonistCard[],
 ) {
   const extra: Record<string, unknown> = {
     processingMode: state.processingMode,
@@ -71,13 +73,36 @@ export function buildContextBody(
     }
   }
 
-  if (characterCards.length > 0) {
-    extra.characterCards = characterCards.map(c => ({
+  // Only include enabled character cards
+  const enabledCards = characterCards.filter(c => c.enabled !== false);
+  if (enabledCards.length > 0) {
+    extra.characterCards = enabledCards.map(c => ({
       name: c.name,
       raceClass: c.raceClass,
       personality: c.personality,
       speechStyle: c.speechStyle,
     }));
+  }
+
+  // Only include enabled protagonist cards
+  if (protagonistCards && protagonistCards.length > 0) {
+    const enabledProtags = protagonistCards.filter(p => p.enabled);
+    if (enabledProtags.length > 0) {
+      extra.protagonistCards = enabledProtags.map(p => ({
+        name: p.name,
+        raceClass: p.raceClass,
+        personality: p.personality,
+        speechStyle: p.speechStyle,
+        povStyle: p.povStyle,
+        backstory: p.backstory,
+        goalsConflicts: p.goalsConflicts,
+        relationships: p.relationships,
+        appearanceMannerisms: p.appearanceMannerisms,
+        flawsWeaknesses: p.flawsWeaknesses,
+        skillsAbilities: p.skillsAbilities,
+        characterArc: p.characterArc,
+      }));
+    }
   }
 
   return extra;

@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { processTextOffline, defaultProcessingOptions, type NarrativeStyle } from '@/lib/narrativeProcessor';
 import { useSavedStories } from '@/hooks/use-saved-stories';
 import { StoryListSheet } from '@/components/scribe/StoryListSheet';
-import { ScribeContextPanel, loadCharacterCards } from '@/components/scribe/ScribeContextPanel';
+import { ScribeContextPanel, loadCharacterCards, loadProtagonistCards } from '@/components/scribe/ScribeContextPanel';
 import { CharacterNamePlaque } from './CharacterNamePlaque';
 import { ClockWidget } from './ClockWidget';
 import { supabase } from '@/integrations/supabase/client';
@@ -107,7 +107,8 @@ export function ChroniclerHomeView({
 
       const campaignSummary = loadNovelBuilderSummary();
       const cards = loadCharacterCards();
-      const contextExtra = buildContextBody(ctxState, campaignSummary, stories.stories, cards);
+      const protags = loadProtagonistCards();
+      const contextExtra = buildContextBody(ctxState, campaignSummary, stories.stories, cards, protags);
 
       const userKey = loadApiKey('anthropic') || undefined;
       const body = isAnthropic

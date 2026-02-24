@@ -16,6 +16,7 @@ const SCOPED_KEYS = [
   'dnd-ai-dm-campaign-summary',
   'dnd-novel-builder-campaign-summary',
   'odyssey-play-mode',
+  'dnd-protagonist-cards',
 ] as const;
 
 export interface CloudSavePreview {

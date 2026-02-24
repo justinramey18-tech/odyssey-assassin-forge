@@ -52,7 +52,7 @@ import { formatUsage, type TokenUsage } from '@/lib/token-usage';
 import { loadApiKey } from '@/lib/api-keys';
 import { loadNovelBuilderSummary } from '@/lib/campaign-summary-storage';
 import { buildContextBody, stripChoiceBlocks, DEFAULT_CONTEXT_STATE, type ScribeContextState } from '@/lib/scribe-context';
-import { ScribeContextPanel, loadCharacterCards } from './ScribeContextPanel';
+import { ScribeContextPanel, loadCharacterCards, loadProtagonistCards } from './ScribeContextPanel';
 import scribeBackground from '@/assets/scribe-background.jpg';
 
 interface NarrativeForgeScreenProps {
@@ -570,7 +570,8 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
 
         const campaignSummary = loadNovelBuilderSummary();
         const cards = loadCharacterCards();
-        const contextExtra = buildContextBody(ctxState, campaignSummary, stories, cards);
+        const protags = loadProtagonistCards();
+        const contextExtra = buildContextBody(ctxState, campaignSummary, stories, cards, protags);
 
         let narrative: string;
         let usage: TokenUsage | null = null;
