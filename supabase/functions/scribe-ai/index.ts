@@ -103,11 +103,10 @@ const VALID_MODELS: Record<string, string> = {
 };
 const FALLBACK_MODEL_ID = 'claude-sonnet-4-5-20250929';
 
-/** Dynamic max_tokens: capped at 5500 for reliable sub-120s completion.
- *  Claude Sonnet generates ~50-80 tok/s; 5500 tokens ≈ 69-110s.
- *  Targets ~90-100s typical completion with safety margin. */
+/** Dynamic max_tokens: capped at 4096 for reliable sub-120s completion.
+ *  Claude Sonnet generates ~50-80 tok/s; 4096 tokens ≈ 50-80s. */
 function getMaxTokens(_inputCharCount: number): number {
-  return 5500;
+  return 4096;
 }
 
 serve(async (req) => {
