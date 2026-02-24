@@ -1,29 +1,31 @@
 
 
-## Add Anti-Truncation Prompt to Scribe AI
+## Remove Target Length Options
 
-### Change
+The target multiplier UI and system prompt instructions contradict the anti-truncation prompt that tells Claude to be concise and prioritize completeness. The multiplier tells Claude to expand text by 1.5–3×, while the anti-truncation prompt tells it to use compact phrasing. These need to be reconciled by removing the multiplier entirely.
 
-**File:** `supabase/functions/scribe-ai/index.ts`, lines 280-282
+### Changes Required
 
-Replace the user message construction with the user's provided prompt text for the transform path, keeping the enhance path as-is.
+**1. `src/components/scribe/ScribeContextPanel.tsx`**
+- Remove the `MULTIPLIER_LABELS` constant (lines 34-38)
+- Remove the `TargetMultiplier` import
+- Remove the entire "Target Length" UI section (the label, toggle group with 1.5×/2×/3× options — approximately lines 148-165)
 
-**From:**
-```typescript
-const userMessage = isEnhance
-  ? `Enhance this prose with rich descriptive detail while preserving every original word:\n\n${slicedText}`
-  : `Transform this TTRPG chat log into ${styleDesc} narrative:\n\n${slicedText}`;
-```
+**2. `src/lib/scribe-context.ts`**
+- Remove `TargetMultiplier` type export
+- Remove `targetMultiplier` from `ScribeContextState` interface
+- Remove `targetMultiplier` from `DEFAULT_CONTEXT_STATE`
+- Remove `targetMultiplier` from `buildContextBody` extra fields
 
-**To:**
-```typescript
-const userMessage = isEnhance
-  ? `Enhance this prose with rich descriptive detail while preserving every original word:\n\n${slicedText}`
-  : `Transform this TTRPG snippet into ${styleDesc} prose narrative. You must complete the entire transformation in this single response without truncation. Be concise and efficient—use tight, vivid prose that captures the essence of each moment without elaborate flourishes. Prioritize covering all events, dialogue, and actions from start to finish over detailed descriptions. If the snippet is substantial, use shorter sentences and compact phrasing to ensure you reach the end.\n\n${slicedText}`;
-```
+**3. `supabase/functions/scribe-ai/index.ts`**
+- Remove `targetMultiplier` from destructured request body
+- Remove `const multiplier = ...` line
+- Remove `TARGET LENGTH: Aim for approximately ${multiplier}x...` from both system prompts (enhance and transform)
 
-One line change. The anti-truncation instructions tell Claude to prioritize completeness over verbosity, fitting the full narrative within the 5000-token output cap.
+**4. `supabase/functions/narrative-forge/index.ts`**
+- Remove `targetMultiplier` from the request body interface
+- Remove `const multiplier = ...` line
+- Remove `TARGET LENGTH: Aim for approximately ${multiplier}x...` from both system prompts
 
-### Files Changed
-1. `supabase/functions/scribe-ai/index.ts` — updated transform user message prompt
+All four files changed. The multiplier is fully removed from UI, state, context building, and both edge functions.
 
