@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { characterPrompts, type CharacterPrompt } from '@/lib/characterPrompts';
 import { empyreanPrompts, type EmpyreanPromptCategory } from '@/lib/empyreanPrompts';
+import { applyTimePrefix } from '@/lib/fourthWallTime';
 import { useFavoritePrompts } from '@/hooks/use-favorite-prompts';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -141,6 +142,7 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
   const [expandedStone, setExpandedStone] = useState<string | undefined>(undefined);
   const [selectedIntensity, setSelectedIntensity] = useState<IntensityLevel>('all');
   const [activeLibrary, setActiveLibrary] = useState<PromptLibrary>('infinity');
+  const [fictionMode, setFictionMode] = useState(true);
   const { favoriteCount, toggleFavorite, isFavorite } = useFavoritePrompts();
   const [empyreanFavorites, setEmpyreanFavorites] = useState<Set<string>>(() => {
     try {
@@ -185,12 +187,11 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
     const base = prompt.prompt
       .replace(/\[Character Name\]/g, name)
       .replace(/\[Name\]/g, name);
-    // Adapt DM-style instructions to fiction-writing scene directives
-    const adapted = adaptPromptForFiction(base, name);
-    onUsePrompt(adapted);
+    const output = fictionMode ? adaptPromptForFiction(base, name) : applyTimePrefix(base);
+    onUsePrompt(output);
     onOpenChange(false);
     toast.success(`${prompt.icon} ${prompt.title}`, { description: 'Added to input' });
-  }, [characterName, onUsePrompt, onOpenChange]);
+  }, [characterName, onUsePrompt, onOpenChange, fictionMode]);
 
   const pickRandom = useCallback(() => {
     if (activeLibrary === 'empyrean') {
@@ -268,6 +269,21 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
               </DrawerTitle>
               <button onClick={() => onOpenChange(false)} className="p-2 rounded-lg hover:bg-white/10 transition-colors">
                 <X className="w-5 h-5 text-white/50" />
+              </button>
+            </div>
+            {/* Fiction / Raw mode toggle */}
+            <div className="flex items-center justify-end gap-2 px-4 pt-1 pb-0">
+              <button
+                onClick={() => setFictionMode(f => !f)}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-medium border transition-all',
+                  fictionMode
+                    ? 'bg-rose-500/20 border-rose-500/40 text-rose-300'
+                    : 'bg-white/5 border-white/15 text-white/50'
+                )}
+              >
+                <BookOpen className="w-3 h-3" />
+                {fictionMode ? 'Fiction Mode' : 'Raw Mode'}
               </button>
             </div>
           </DrawerHeader>
