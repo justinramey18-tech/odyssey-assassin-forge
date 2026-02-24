@@ -130,7 +130,11 @@ export function ChroniclerHomeView({
       toast.success('AI processing complete');
     } catch (err) {
       console.error('AI processing error:', err);
-      toast.error(err instanceof Error ? err.message : 'AI processing failed');
+      const msg = err instanceof Error ? err.message : 'AI processing failed';
+      const friendly = /unauthorized|failed to send|FunctionsHttpError/i.test(msg)
+        ? 'Request failed — please sign in or check your Anthropic API key in Settings.'
+        : msg;
+      toast.error(friendly);
     } finally {
       setIsAiProcessing(false);
     }

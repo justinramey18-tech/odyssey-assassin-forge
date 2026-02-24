@@ -97,28 +97,7 @@ serve(async (req) => {
   }
 
   try {
-    // Auth
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    const token = authHeader.replace("Bearer ", "");
-    const { error: claimsError } = await supabaseClient.auth.getClaims(token);
-    if (claimsError) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
+    // Parse body FIRST so we can check for user_api_key before enforcing auth
     const {
       text, style, intensity, customPrompt, model, user_api_key,
       processingMode, targetMultiplier, campaignSummary, storyContext, characterCards, protagonistCards,
@@ -131,8 +110,35 @@ serve(async (req) => {
       });
     }
 
-    // Use user-provided key if available, otherwise fall back to backend secret
-    const ANTHROPIC_API_KEY = (typeof user_api_key === 'string' && user_api_key.trim())
+    const hasUserKey = typeof user_api_key === 'string' && user_api_key.trim().length > 0;
+
+    // Only enforce JWT auth when the user is NOT providing their own key
+    // (i.e. they want to use our backend secret)
+    if (!hasUserKey) {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader?.startsWith("Bearer ")) {
+        return new Response(JSON.stringify({ error: "Unauthorized – sign in or add your own Anthropic API key in Settings." }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const supabaseClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const token = authHeader.replace("Bearer ", "");
+      const { error: claimsError } = await supabaseClient.auth.getClaims(token);
+      if (claimsError) {
+        return new Response(JSON.stringify({ error: "Unauthorized – sign in or add your own Anthropic API key in Settings." }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // Resolve API key: user-provided takes priority, then backend secret
+    const ANTHROPIC_API_KEY = hasUserKey
       ? user_api_key.trim()
       : Deno.env.get("ANTHROPIC_API_KEY");
 
@@ -221,6 +227,7 @@ ${contextBlocks}`;
     const modelMap: Record<string, string> = {
       'anthropic/claude-sonnet-4': 'claude-sonnet-4-20250514',
       'anthropic/claude-sonnet-4-5': 'claude-sonnet-4-5-20250929',
+      'anthropic/claude-sonnet-4-6': 'claude-sonnet-4-6-20260210',
     };
     const anthropicModel = (model && modelMap[model]) || 'claude-sonnet-4-5-20250929';
 

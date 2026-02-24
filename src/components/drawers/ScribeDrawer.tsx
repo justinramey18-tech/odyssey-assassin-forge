@@ -282,7 +282,11 @@ export function ScribeDrawer({
                   if (data.usage) setAiUsage(data.usage);
                   toast.success('AI narrative complete!');
                 } catch (err: any) {
-                  toast.error(err?.message || 'AI processing failed');
+                  const msg = err?.message || 'AI processing failed';
+                  const friendly = /unauthorized|failed to send|FunctionsHttpError/i.test(msg)
+                    ? 'Request failed — please sign in or check your Anthropic API key in Settings.'
+                    : msg;
+                  toast.error(friendly);
                 } finally {
                   setIsAiProcessing(false);
                 }
