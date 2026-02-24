@@ -119,7 +119,7 @@ serve(async (req) => {
   try {
     const {
       text, style, intensity, customPrompt, model, user_api_key,
-      processingMode, targetMultiplier, campaignSummary, storyContext, characterCards, protagonistCards,
+      processingMode, campaignSummary, storyContext, characterCards, protagonistCards,
     } = await req.json();
 
     if (!text || typeof text !== "string") {
@@ -194,7 +194,6 @@ serve(async (req) => {
       Math.max(0, Math.min(4, (intensity || 3) - 1))
     ];
 
-    const multiplier = typeof targetMultiplier === 'number' ? targetMultiplier : 1.5;
     const isEnhance = processingMode === 'enhance';
 
     const styleDescriptions: Record<string, string> = {
@@ -222,7 +221,6 @@ serve(async (req) => {
 ENHANCE existing prose by adding descriptive detail, atmosphere, and sensory language AROUND the original text.
 
 STYLE: ${styleDesc}
-TARGET LENGTH: Aim for approximately ${multiplier}x the original word count.
 
 CRITICAL RULES:
 - PRESERVE every original sentence, paragraph, and piece of dialogue VERBATIM
@@ -250,9 +248,8 @@ INTENSITY: ${intensityLabel} — ${
           ? "balanced transformation"
           : intensityLabel === "strong"
           ? "bold stylization"
-          : "maximum style intensity, fully commit to the genre"
-      }
-TARGET LENGTH: Aim for approximately ${multiplier}x the original word count.
+           : "maximum style intensity, fully commit to the genre"
+       }
 
 RULES:
 - Remove dice rolls, stat blocks, and game mechanics

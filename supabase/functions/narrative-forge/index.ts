@@ -114,7 +114,6 @@ interface RequestBody {
   commandContext?: CommandContext;
   model?: string;
   processingMode?: 'transform' | 'enhance';
-  targetMultiplier?: number;
   campaignSummary?: string;
   storyContext?: string;
   characterCards?: CharacterCardInput[];
@@ -634,7 +633,6 @@ BLENDING: Use primary as foundation. Weave in secondary elements naturally. When
 ENHANCE existing prose by adding descriptive detail, atmosphere, and sensory language AROUND the original text.
 
 ${styleGuide}
-TARGET LENGTH: Aim for approximately ${multiplier}x the original word count.
 
 CRITICAL RULES:
 - PRESERVE every original sentence, paragraph, and piece of dialogue VERBATIM
@@ -664,7 +662,6 @@ Your task is to:
 8. ENSURE smooth transitions between scenes and moments.
 
 ${styleGuide}
-TARGET LENGTH: Aim for approximately ${multiplier}x the original word count.
 
 ${characterName ? `The main character or POV is: ${characterName}` : ''}
 
