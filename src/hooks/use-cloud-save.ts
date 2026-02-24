@@ -26,6 +26,7 @@ const SCOPED_KEYS = [
   'scribe-custom-style-prompt',
   'novel-npc-master-enabled',
   'novel-protagonist-master-enabled',
+  'scribe-last-processor',
 ] as const;
 
 export interface CloudSavePreview {

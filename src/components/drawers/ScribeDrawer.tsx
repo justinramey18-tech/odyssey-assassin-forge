@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BookOpen, Copy, Check, Wand2, FileText, Eraser, Sparkles, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -15,7 +15,7 @@ import { loadApiKey } from '@/lib/api-keys';
 import { loadNovelBuilderSummary } from '@/lib/campaign-summary-storage';
 import { buildContextBody, stripChoiceBlocks, DEFAULT_CONTEXT_STATE, type ScribeContextState } from '@/lib/scribe-context';
 import { useSavedStories } from '@/hooks/use-saved-stories';
-import { loadScribeCtxState, saveScribeCtxState, loadNarrativeStyle, saveNarrativeStyle, loadToneIntensity, saveToneIntensity, loadCustomStylePrompt, saveCustomStylePrompt } from '@/lib/scribe-settings-storage';
+import { loadScribeCtxState, saveScribeCtxState, loadNarrativeStyle, saveNarrativeStyle, loadToneIntensity, saveToneIntensity, loadCustomStylePrompt, saveCustomStylePrompt, loadStringPref, saveStringPref } from '@/lib/scribe-settings-storage';
 
 import type { NarrativeStyle } from '@/lib/narrativeProcessor';
 
@@ -62,8 +62,20 @@ export function ScribeDrawer({
   const [isAiProcessing, setIsAiProcessing] = useState(false);
   const [aiUsage, setAiUsage] = useState<TokenUsage | null>(null);
   const [ctxState, setCtxState] = useState<ScribeContextState>(() => loadScribeCtxState('scribe-ctx-state'));
+  const [lastProcessor, setLastProcessor] = useState<string>(() => loadStringPref('scribe-last-processor', 'ai'));
 
   const stories = useSavedStories();
+
+  // Re-sync all persisted state when drawer opens (component stays mounted)
+  useEffect(() => {
+    if (open) {
+      setSelectedGenre(loadNarrativeStyle('scribe-style'));
+      setToneIntensity(loadToneIntensity('scribe-tone-intensity'));
+      setCustomStylePrompt(loadCustomStylePrompt());
+      setCtxState(loadScribeCtxState('scribe-ctx-state'));
+      setLastProcessor(loadStringPref('scribe-last-processor', 'ai'));
+    }
+  }, [open]);
 
   const handleProcess = () => {
     if (!inputText.trim()) {
@@ -220,16 +232,25 @@ export function ScribeDrawer({
           {/* Action Buttons */}
           <div className="flex gap-2">
             <Button
-              onClick={handleProcess}
+              onClick={() => {
+                setLastProcessor('offline');
+                saveStringPref('scribe-last-processor', 'offline');
+                handleProcess();
+              }}
               disabled={!inputText.trim() || isAiProcessing}
               variant="outline"
-              className="flex-1 gap-1"
+              className={cn(
+                'flex-1 gap-1',
+                lastProcessor === 'offline' && 'ring-1 ring-amber-500/60 border-amber-500/40'
+              )}
             >
               <Wand2 className="w-4 h-4" />
               Offline
             </Button>
             <Button
               onClick={async () => {
+                setLastProcessor('ai');
+                saveStringPref('scribe-last-processor', 'ai');
                 if (!inputText.trim()) {
                   toast.error('Please paste some text to process');
                   return;
@@ -267,7 +288,10 @@ export function ScribeDrawer({
                 }
               }}
               disabled={!inputText.trim() || isAiProcessing}
-              className="flex-1 gap-1 bg-purple-600 hover:bg-purple-700"
+              className={cn(
+                'flex-1 gap-1 bg-purple-600 hover:bg-purple-700',
+                lastProcessor === 'ai' && 'ring-1 ring-purple-400/60'
+              )}
             >
               {isAiProcessing ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
