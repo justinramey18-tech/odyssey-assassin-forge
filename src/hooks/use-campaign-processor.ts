@@ -82,7 +82,10 @@ export interface UseCampaignProcessorReturn extends CampaignProcessorState {
     options: ProcessingOptions,
     characterName: string,
     smartParseEnabled?: boolean,
-    customEditingRules?: CustomEditingRuleInput[]
+    customEditingRules?: CustomEditingRuleInput[],
+    selectedModel?: string,
+    userApiKey?: string,
+    contextExtra?: Record<string, unknown>
   ) => Promise<string | null>;
   cancelProcessing: () => void;
   combineProcessedSessions: () => string;
@@ -266,7 +269,10 @@ export function useCampaignProcessor(): UseCampaignProcessorReturn {
     options: ProcessingOptions,
     characterName: string,
     smartParseEnabled: boolean = true,
-    customEditingRules?: CustomEditingRuleInput[]
+    customEditingRules?: CustomEditingRuleInput[],
+    selectedModel?: string,
+    userApiKey?: string,
+    contextExtra?: Record<string, unknown>
   ): Promise<{ output: string; error?: string }> => {
     const sessionContent = getSessionContent(content, session);
 
@@ -275,25 +281,51 @@ export function useCampaignProcessor(): UseCampaignProcessorReturn {
       return { output };
     }
 
-    // AI mode
+    // AI mode - route based on model provider
     try {
-      const { data, error } = await supabase.functions.invoke('narrative-forge', {
-        body: {
-          text: sessionContent,
-          characterName,
-          style: options.narrativeStyle,
-          smartParseEnabled,
-          customEditingRules: customEditingRules || [],
-        },
-      });
+      const isAnthropic = selectedModel?.startsWith('anthropic/');
+      const edgeFn = isAnthropic ? 'scribe-ai' : 'narrative-forge';
 
-      if (error) throw error;
-      return { output: data.narrative || '' };
+      if (isAnthropic) {
+        const { data, error } = await supabase.functions.invoke('scribe-ai', {
+          body: {
+            text: sessionContent,
+            style: options.narrativeStyle,
+            model: selectedModel,
+            user_api_key: userApiKey,
+            ...(contextExtra || {}),
+          },
+        });
+        if (error) throw error;
+        return { output: data.text || '' };
+      } else {
+        const { data, error } = await supabase.functions.invoke('narrative-forge', {
+          body: {
+            text: sessionContent,
+            characterName,
+            style: options.narrativeStyle,
+            smartParseEnabled,
+            customEditingRules: customEditingRules || [],
+            model: selectedModel,
+            ...(contextExtra || {}),
+          },
+        });
+        if (error) throw error;
+        return { output: data.narrative || '' };
+      }
     } catch (error) {
-      return {
-        output: '',
-        error: error instanceof Error ? error.message : 'AI processing failed',
-      };
+      // Parse structured error from edge function
+      let errorMsg = 'AI processing failed';
+      if (error && typeof error === 'object') {
+        const err = error as Record<string, unknown>;
+        if (err.context && typeof err.context === 'object') {
+          const ctx = err.context as Record<string, unknown>;
+          if (typeof ctx.error === 'string') errorMsg = ctx.error;
+        } else if (err.message && typeof err.message === 'string') {
+          errorMsg = err.message;
+        }
+      }
+      return { output: '', error: errorMsg };
     }
   };
 
@@ -302,7 +334,10 @@ export function useCampaignProcessor(): UseCampaignProcessorReturn {
     options: ProcessingOptions,
     characterName: string,
     smartParseEnabled: boolean = true,
-    customEditingRules?: CustomEditingRuleInput[]
+    customEditingRules?: CustomEditingRuleInput[],
+    selectedModel?: string,
+    userApiKey?: string,
+    contextExtra?: Record<string, unknown>
   ): Promise<string | null> => {
     const { sessions, selectedSessionIds, fileContent } = state;
     
@@ -353,7 +388,10 @@ export function useCampaignProcessor(): UseCampaignProcessorReturn {
         options,
         characterName,
         smartParseEnabled,
-        customEditingRules
+        customEditingRules,
+        selectedModel,
+        userApiKey,
+        contextExtra
       );
 
       const processedSession: ProcessedSession = {

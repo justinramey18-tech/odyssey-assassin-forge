@@ -6,6 +6,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Abort timeout - must be well below the 150s platform limit
+const ANTHROPIC_TIMEOUT_MS = 120_000;
+const MAX_INPUT_CHARS = 200_000;
+
 interface CharacterCardInput {
   name: string;
   raceClass?: string;
@@ -91,33 +95,73 @@ ${lines.join('\n')}\n`;
   return blocks;
 }
 
+// Validated model map — only real Anthropic model IDs
+const VALID_MODELS: Record<string, string> = {
+  'anthropic/claude-sonnet-4': 'claude-sonnet-4-20250514',
+  'anthropic/claude-sonnet-4-5': 'claude-sonnet-4-5-20250929',
+  'anthropic/claude-sonnet-4-6': 'claude-sonnet-4-6-20260210',
+};
+const FALLBACK_MODEL_ID = 'claude-sonnet-4-5-20250929';
+
+/** Dynamic max_tokens: scale based on input size to reduce generation time */
+function getMaxTokens(inputCharCount: number): number {
+  if (inputCharCount > 100_000) return 16000;
+  if (inputCharCount > 50_000) return 12000;
+  if (inputCharCount > 20_000) return 10000;
+  return 8000;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const startTime = Date.now();
+
   try {
-    // Parse body FIRST so we can check for user_api_key before enforcing auth
     const {
       text, style, intensity, customPrompt, model, user_api_key,
       processingMode, targetMultiplier, campaignSummary, storyContext, characterCards, protagonistCards,
     } = await req.json();
 
     if (!text || typeof text !== "string") {
-      return new Response(JSON.stringify({ error: "No text provided" }), {
+      return new Response(JSON.stringify({ error: "No text provided", code: "no_input" }), {
         status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Calculate total context size
+    const contextSizes = {
+      text: text.length,
+      campaignSummary: (campaignSummary || '').length,
+      storyContext: (storyContext || '').length,
+      characterCards: JSON.stringify(characterCards || []).length,
+      protagonistCards: JSON.stringify(protagonistCards || []).length,
+    };
+    const totalInputChars = Object.values(contextSizes).reduce((a, b) => a + b, 0);
+
+    console.log(`[scribe-ai] Request: text=${contextSizes.text}, summary=${contextSizes.campaignSummary}, story=${contextSizes.storyContext}, cards=${contextSizes.characterCards + contextSizes.protagonistCards}, total=${totalInputChars}, model=${model || 'default'}, hasUserKey=${!!(user_api_key && user_api_key.trim())}`);
+
+    if (totalInputChars > MAX_INPUT_CHARS) {
+      return new Response(JSON.stringify({
+        error: `Total context (${totalInputChars.toLocaleString()} chars) exceeds the ${MAX_INPUT_CHARS.toLocaleString()} character limit. Reduce your input or context.`,
+        code: "context_too_large",
+        counts: contextSizes,
+        total: totalInputChars,
+        limit: MAX_INPUT_CHARS,
+      }), {
+        status: 413,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const hasUserKey = typeof user_api_key === 'string' && user_api_key.trim().length > 0;
 
-    // Only enforce JWT auth when the user is NOT providing their own key
-    // (i.e. they want to use our backend secret)
     if (!hasUserKey) {
       const authHeader = req.headers.get("Authorization");
       if (!authHeader?.startsWith("Bearer ")) {
-        return new Response(JSON.stringify({ error: "Unauthorized – sign in or add your own Anthropic API key in Settings." }), {
+        return new Response(JSON.stringify({ error: "Unauthorized – sign in or add your own Anthropic API key in Settings.", code: "unauthorized" }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -130,21 +174,20 @@ serve(async (req) => {
       const token = authHeader.replace("Bearer ", "");
       const { error: claimsError } = await supabaseClient.auth.getClaims(token);
       if (claimsError) {
-        return new Response(JSON.stringify({ error: "Unauthorized – sign in or add your own Anthropic API key in Settings." }), {
+        return new Response(JSON.stringify({ error: "Unauthorized – sign in or add your own Anthropic API key in Settings.", code: "unauthorized" }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
     }
 
-    // Resolve API key: user-provided takes priority, then backend secret
     const ANTHROPIC_API_KEY = hasUserKey
       ? user_api_key.trim()
       : Deno.env.get("ANTHROPIC_API_KEY");
 
     if (!ANTHROPIC_API_KEY) {
       return new Response(
-        JSON.stringify({ error: "No Anthropic API key available. Add your key in Settings → API Keys, or configure the backend secret." }),
+        JSON.stringify({ error: "No Anthropic API key available. Add your key in Settings → API Keys, or configure the backend secret.", code: "no_api_key" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -224,45 +267,106 @@ RULES:
 ${contextBlocks}`;
     }
 
-    const modelMap: Record<string, string> = {
-      'anthropic/claude-sonnet-4': 'claude-sonnet-4-20250514',
-      'anthropic/claude-sonnet-4-5': 'claude-sonnet-4-5-20250929',
-      'anthropic/claude-sonnet-4-6': 'claude-sonnet-4-6-20260210',
-    };
-    const anthropicModel = (model && modelMap[model]) || 'claude-sonnet-4-5-20250929';
+    // Validate model ID — fallback to known-good if stale/invalid
+    const resolvedModel = (model && VALID_MODELS[model]) || FALLBACK_MODEL_ID;
+    const modelFallback = model && !VALID_MODELS[model] ? true : false;
+    if (modelFallback) {
+      console.log(`[scribe-ai] Model fallback: requested="${model}", using="${resolvedModel}"`);
+    }
+
+    // Budget-aware text slicing: subtract context from limit
+    const contextChars = contextBlocks.length + systemPrompt.length;
+    const textBudget = Math.max(10_000, MAX_INPUT_CHARS - contextChars);
+    const slicedText = text.slice(0, textBudget);
 
     const userMessage = isEnhance
-      ? `Enhance this prose with rich descriptive detail while preserving every original word:\n\n${text.slice(0, 200000)}`
-      : `Transform this TTRPG chat log into ${styleDesc} narrative:\n\n${text.slice(0, 200000)}`;
+      ? `Enhance this prose with rich descriptive detail while preserving every original word:\n\n${slicedText}`
+      : `Transform this TTRPG chat log into ${styleDesc} narrative:\n\n${slicedText}`;
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: anthropicModel,
-        max_tokens: 8000,
-        system: systemPrompt,
-        messages: [
-          { role: "user", content: userMessage },
-        ],
-      }),
-    });
+    const maxTokens = getMaxTokens(slicedText.length);
+
+    // Abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), ANTHROPIC_TIMEOUT_MS);
+
+    let response: Response;
+    try {
+      response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "x-api-key": ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          model: resolvedModel,
+          max_tokens: maxTokens,
+          system: systemPrompt,
+          messages: [
+            { role: "user", content: userMessage },
+          ],
+        }),
+        signal: controller.signal,
+      });
+    } catch (fetchErr: unknown) {
+      clearTimeout(timeoutId);
+      const elapsed = Date.now() - startTime;
+      // Check if it was our abort
+      if (fetchErr instanceof DOMException && fetchErr.name === 'AbortError') {
+        console.error(`[scribe-ai] Timeout after ${elapsed}ms`);
+        return new Response(JSON.stringify({
+          error: `Request timed out after ${Math.round(elapsed / 1000)}s. Try reducing your input size or context.`,
+          code: "request_timeout",
+          elapsed_ms: elapsed,
+        }), {
+          status: 504,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw fetchErr;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    const elapsed = Date.now() - startTime;
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error("Anthropic error:", response.status, errText);
+      console.error(`[scribe-ai] Anthropic error: ${response.status} (${elapsed}ms)`, errText);
+
       if (response.status === 401) {
         return new Response(
-          JSON.stringify({ error: "Invalid Anthropic API key." }),
+          JSON.stringify({
+            error: "Invalid Anthropic API key. Please re-save your key in Settings → API Keys.",
+            code: "invalid_api_key",
+          }),
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({
+            error: "Anthropic rate limit hit. Wait a moment and try again.",
+            code: "rate_limited",
+          }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (response.status === 529) {
+        return new Response(
+          JSON.stringify({
+            error: "Anthropic API is temporarily overloaded. Please try again in a few minutes.",
+            code: "api_overloaded",
+          }),
+          { status: 529, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       return new Response(
-        JSON.stringify({ error: "AI processing failed" }),
+        JSON.stringify({
+          error: `AI processing failed (status ${response.status})`,
+          code: "upstream_error",
+          upstream_status: response.status,
+        }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -271,19 +375,33 @@ ${contextBlocks}`;
     const outputText = result.content?.[0]?.text || "";
     const usage = result.usage ?? {};
 
+    console.log(`[scribe-ai] Success: ${elapsed}ms, in=${usage.input_tokens || '?'}, out=${usage.output_tokens || '?'}`);
+
     return new Response(JSON.stringify({
       text: outputText,
       usage: {
         input_tokens: usage.input_tokens ?? 0,
         output_tokens: usage.output_tokens ?? 0,
       },
+      meta: {
+        elapsed_ms: elapsed,
+        model_used: resolvedModel,
+        model_fallback: modelFallback,
+        max_tokens: maxTokens,
+        text_chars_sent: slicedText.length,
+      },
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("scribe-ai error:", e);
+    const elapsed = Date.now() - startTime;
+    console.error(`[scribe-ai] Unhandled error (${elapsed}ms):`, e);
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
+      JSON.stringify({
+        error: e instanceof Error ? e.message : "Unknown error",
+        code: "internal_error",
+        elapsed_ms: elapsed,
+      }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
