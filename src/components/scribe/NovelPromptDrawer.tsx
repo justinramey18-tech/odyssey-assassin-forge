@@ -188,16 +188,19 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
     return empyreanPrompts;
   }, [selectedIntensity, empyreanFavorites]);
 
-  const processAndUse = useCallback((prompt: CharacterPrompt) => {
+  const processAndUse = useCallback(async (prompt: CharacterPrompt) => {
     const name = characterName || 'The Character';
     const base = prompt.prompt
       .replace(/\[Character Name\]/g, name)
       .replace(/\[Name\]/g, name);
     const output = fictionMode ? adaptPromptForFiction(base, name) : applyTimePrefix(base);
-    onUsePrompt(output);
-    onOpenChange(false);
-    toast.success(`${prompt.icon} ${prompt.title}`, { description: 'Added to input' });
-  }, [characterName, onUsePrompt, onOpenChange, fictionMode]);
+    try {
+      await navigator.clipboard.writeText(output);
+      toast.success(`${prompt.icon} ${prompt.title}`, { description: 'Copied to clipboard' });
+    } catch {
+      toast.error('Failed to copy to clipboard');
+    }
+  }, [characterName, fictionMode]);
 
   const pickRandom = useCallback(() => {
     if (activeLibrary === 'empyrean') {
