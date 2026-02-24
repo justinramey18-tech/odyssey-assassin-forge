@@ -142,7 +142,9 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
   const [expandedStone, setExpandedStone] = useState<string | undefined>(undefined);
   const [selectedIntensity, setSelectedIntensity] = useState<IntensityLevel>('all');
   const [activeLibrary, setActiveLibrary] = useState<PromptLibrary>('infinity');
-  const [fictionMode, setFictionMode] = useState(true);
+  const [fictionMode, setFictionMode] = useState(() => {
+    try { return localStorage.getItem('novel-prompt-fiction-mode') !== 'false'; } catch { return true; }
+  });
   const { favoriteCount, toggleFavorite, isFavorite } = useFavoritePrompts();
   const [empyreanFavorites, setEmpyreanFavorites] = useState<Set<string>>(() => {
     try {
@@ -274,7 +276,7 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
             {/* Fiction / Raw mode toggle */}
             <div className="flex items-center justify-end gap-2 px-4 pt-1 pb-0">
               <button
-                onClick={() => setFictionMode(f => !f)}
+                onClick={() => setFictionMode(f => { const next = !f; try { localStorage.setItem('novel-prompt-fiction-mode', String(next)); } catch {} return next; })}
                 className={cn(
                   'flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-medium border transition-all',
                   fictionMode
