@@ -278,7 +278,7 @@ ${contextBlocks}`;
     const slicedText = text.slice(0, textBudget);
 
     const userMessage = isEnhance
-      ? `Enhance this prose with rich descriptive detail while preserving every original word:\n\n${slicedText}`
+      ? `Enhance this prose with rich descriptive detail while preserving every original word. You must complete the entire enhancement in this single response without truncation. Be efficient with your additions—prioritize covering the full text from start to finish over elaborate embellishments in any one section. If the text is substantial, use concise sensory details and compact atmospheric additions to ensure you reach the end.\n\n${slicedText}`
       : `Transform this TTRPG snippet into ${styleDesc} prose narrative. You must complete the entire transformation in this single response without truncation. Be concise and efficient—use tight, vivid prose that captures the essence of each moment without elaborate flourishes. Prioritize covering all events, dialogue, and actions from start to finish over detailed descriptions. If the snippet is substantial, use shorter sentences and compact phrasing to ensure you reach the end.\n\n${slicedText}`;
 
     const maxTokens = getMaxTokens(slicedText.length);
