@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Feather, Copy, Check, ArrowRight, BookOpen, Sparkles, Cpu, Loader2 } from 'lucide-react';
+import { Feather, Copy, Check, ArrowRight, BookOpen, Sparkles, Cpu, Loader2, Gem } from 'lucide-react';
+import { NovelPromptDrawer } from '@/components/scribe/NovelPromptDrawer';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -63,6 +64,7 @@ export function ChroniclerHomeView({
   const [selectedModel, setSelectedModel] = useState(loadScribeModel);
   const [aiUsage, setAiUsage] = useState<TokenUsage | null>(null);
   const [ctxState, setCtxState] = useState<ScribeContextState>(DEFAULT_CONTEXT_STATE);
+  const [showPromptDrawer, setShowPromptDrawer] = useState(false);
 
   const stories = useSavedStories();
 
@@ -157,6 +159,10 @@ export function ChroniclerHomeView({
       setCtxState(prev => ({ ...prev, contextStoryId: newStory.id }));
     }
   }, [outputText, style, stories, ctxState.autoChainEnabled]);
+
+  const handleUsePrompt = useCallback((prompt: string) => {
+    setInputText(prev => prev ? `${prev}\n\n${prompt}` : prompt);
+  }, []);
 
   const wordCount = useMemo(() => {
     if (!outputText) return 0;
@@ -364,6 +370,22 @@ export function ChroniclerHomeView({
           </button>
         </div>
       </ScrollArea>
+
+      {/* Floating RP Prompts button */}
+      <button
+        onClick={() => setShowPromptDrawer(true)}
+        className="fixed bottom-6 right-6 z-[55] w-14 h-14 rounded-full bg-gradient-to-br from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white shadow-lg shadow-rose-900/40 flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+        aria-label="Writing Prompts"
+      >
+        <Gem className="w-6 h-6" />
+      </button>
+
+      <NovelPromptDrawer
+        open={showPromptDrawer}
+        onOpenChange={setShowPromptDrawer}
+        characterName={characterName}
+        onUsePrompt={handleUsePrompt}
+      />
     </div>
   );
 }
