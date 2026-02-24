@@ -1,47 +1,39 @@
 
 
-# Fix Scribe Settings Persistence + Add AI/Offline Preference
+# Fix `scribe-ai` Edge Function Error
 
-## Root Cause
+## Root Cause Analysis
 
-The `ScribeDrawer` component is permanently mounted inside `PromptDrawerProvider`. Its `useState` lazy initializers only run once on first mount. When the user switches characters (changing the scoped storage ID) or simply expects settings to persist, the component never re-reads from storage because it doesn't remount when the drawer opens/closes.
+The `scribe-ai` edge function requires JWT authentication via `getClaims()` (lines 101-120). If the user is **not signed in**, the Supabase JS client sends the anon key as the Bearer token. `getClaims(anonKey)` fails, and the function returns a **401 status**. The Supabase JS client wraps non-2xx responses as `FunctionsHttpError`, which surfaces as "Failed to send a request to the Edge Function" in the toast.
+
+This is unnecessary for users providing their own Anthropic API key — they aren't accessing any protected backend resources, just proxying a request to Anthropic's API.
+
+Additionally, the `claude-sonnet-4-6` model from `scribe-models.ts` is missing from the edge function's `modelMap`.
 
 ## Fix
 
-### 1. Re-sync state when drawer opens (`ScribeDrawer.tsx`)
+### 1. `supabase/functions/scribe-ai/index.ts` — Skip auth when user provides their own key
 
-Add a `useEffect` keyed on the `open` prop that re-reads all persisted values from storage when the drawer opens. This ensures the correct character-scoped values are loaded every time.
+Restructure the handler to:
+1. Parse the request body **first** (before auth)
+2. If `user_api_key` is present and non-empty, **skip `getClaims()` entirely** — the user is paying with their own key
+3. Only require auth when falling back to the backend `ANTHROPIC_API_KEY` secret
 
-```
-useEffect — when open becomes true:
-  setSelectedGenre(loadNarrativeStyle('scribe-style'))
-  setToneIntensity(loadToneIntensity('scribe-tone-intensity'))
-  setCustomStylePrompt(loadCustomStylePrompt())
-  setCtxState(loadScribeCtxState('scribe-ctx-state'))
-  setLastProcessor(loadStringPref('scribe-last-processor', 'ai'))
-```
+This matches the intent: auth gates access to *our* API key, not to the proxy itself.
 
-### 2. Add "AI vs Offline" preference (`ScribeDrawer.tsx`)
+### 2. `supabase/functions/scribe-ai/index.ts` — Add missing model mapping
 
-- New state: `lastProcessor` initialized from `loadStringPref('scribe-last-processor', 'ai')`
-- When user clicks Offline button: save `'offline'`
-- When user clicks AI button: save `'ai'`
-- Visually emphasize the last-used button (e.g., slightly brighter border or ring) so the user sees their preference reflected
+Add `'anthropic/claude-sonnet-4-6'` to the `modelMap` so it resolves to the correct Anthropic model ID instead of silently falling back.
 
-### 3. Storage key
+### 3. Improve client-side error message (`ScribeDrawer.tsx`, `ChroniclerHomeView.tsx`)
 
-| Setting | Key | Default |
-|---------|-----|---------|
-| Last processor | `scribe-last-processor` | `'ai'` |
+The current catch block shows raw error messages that may not be user-friendly. Add a check: if the error looks like an auth/fetch error, suggest signing in or checking the API key.
 
-Uses existing `saveStringPref` / `loadStringPref` from `scribe-settings-storage.ts`.
+## Changes Summary
 
-### 4. Cloud sync
-
-Add `'scribe-last-processor'` to the `SCOPED_KEYS` array in `use-cloud-save.ts`.
-
-## Files Changed
-
-- `src/components/drawers/ScribeDrawer.tsx` — add open-sync effect + lastProcessor state + visual emphasis
-- `src/hooks/use-cloud-save.ts` — add new key to SCOPED_KEYS
+| File | Change |
+|------|--------|
+| `supabase/functions/scribe-ai/index.ts` | Parse body before auth; skip auth when `user_api_key` present; add `claude-sonnet-4-6` to modelMap |
+| `src/components/drawers/ScribeDrawer.tsx` | Better error message in catch block |
+| `src/components/home/ChroniclerHomeView.tsx` | Better error message in catch block |
 
