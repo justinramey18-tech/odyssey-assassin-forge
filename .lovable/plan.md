@@ -1,39 +1,68 @@
 
+# Implement Context Counter & Limit for AI Narrative
 
-# Fix `scribe-ai` Edge Function Error
+## User Need
+The user needs to track the character count of text sent to Claude in "Novel Builder" mode to stay within the 200,000 character limit. They requested a visible counter for both Paste and Upload modes, and a "Warn + Block" behavior when the limit is exceeded. Additionally, the existing edge function has a hardcoded 60k character truncation that needs to be increased to match this new limit.
 
-## Root Cause Analysis
+## Proposed Changes
 
-The `scribe-ai` edge function requires JWT authentication via `getClaims()` (lines 101-120). If the user is **not signed in**, the Supabase JS client sends the anon key as the Bearer token. `getClaims(anonKey)` fails, and the function returns a **401 status**. The Supabase JS client wraps non-2xx responses as `FunctionsHttpError`, which surfaces as "Failed to send a request to the Edge Function" in the toast.
+### 1. Update `NarrativeForgeScreen.tsx`
+- **Add Constant**: Define `MAX_AI_CHARS = 200000`.
+- **Calculate Total Characters**:
+  - Create a `currentTotalChars` memoized value.
+  - If `inputSource` is `'paste'`, use `inputText.length`.
+  - If `inputSource` is `'upload'`, sum the `charCount` of all selected sessions from `campaignProcessor`.
+- **UI Updates**:
+  - Insert a character count display above the "Forge Narrative" button.
+  - Show the count in `text-muted-foreground` normally, and `text-destructive` (red) if over the limit.
+  - **Block Action**: Disable the "Forge Narrative" button if `processingMode === 'ai'` AND `currentTotalChars > MAX_AI_CHARS`.
+  - Add an explanatory warning message below the button when the limit is exceeded.
 
-This is unnecessary for users providing their own Anthropic API key — they aren't accessing any protected backend resources, just proxying a request to Anthropic's API.
+### 2. Update `scribe-ai` Edge Function
+- **Increase Truncation Limit**: The current implementation slices input text at 60,000 characters. I will increase this to 200,000 characters to match the new UI limit and allow full context processing.
 
-Additionally, the `claude-sonnet-4-6` model from `scribe-models.ts` is missing from the edge function's `modelMap`.
+## Implementation Details
 
-## Fix
+### `NarrativeForgeScreen.tsx`
+```tsx
+const MAX_AI_CHARS = 200000;
 
-### 1. `supabase/functions/scribe-ai/index.ts` — Skip auth when user provides their own key
+// ... inside component ...
+const currentTotalChars = useMemo(() => {
+  if (inputSource === 'paste') return inputText.length;
+  if (!campaignProcessor.selectedSessionIds.size) return 0;
+  return campaignProcessor.sessions
+    .filter(s => campaignProcessor.selectedSessionIds.has(s.id))
+    .reduce((sum, s) => sum + s.charCount, 0);
+}, [inputSource, inputText, campaignProcessor.sessions, campaignProcessor.selectedSessionIds]);
 
-Restructure the handler to:
-1. Parse the request body **first** (before auth)
-2. If `user_api_key` is present and non-empty, **skip `getClaims()` entirely** — the user is paying with their own key
-3. Only require auth when falling back to the backend `ANTHROPIC_API_KEY` secret
+const isOverLimit = processingMode === 'ai' && currentTotalChars > MAX_AI_CHARS;
 
-This matches the intent: auth gates access to *our* API key, not to the proxy itself.
+// ... inside render ...
+<div className="flex flex-col items-center gap-3">
+  {processingMode === 'ai' && currentTotalChars > 0 && (
+    <div className={cn("text-xs font-medium", isOverLimit ? "text-destructive" : "text-muted-foreground")}>
+      {currentTotalChars.toLocaleString()} / {MAX_AI_CHARS.toLocaleString()} chars
+      {isOverLimit && " (Limit Exceeded)"}
+    
+<lov-tool-use id="thinking-7fce844d-b730-41a0-9188-d12cdb95d682" name="lov-think" data="**Calculating and Displaying Length**
 
-### 2. `supabase/functions/scribe-ai/index.ts` — Add missing model mapping
+I&apos;m now integrating the character count display within `NarrativeForgeScreen.tsx`.  After calculating `currentTotalChars`, I&apos;m placing it above the &quot;Forge Narrative&quot; button. The button&apos;s `disabled` prop will check  `currentTotalChars` against `MAX_AI_CHARS` if `processingMode` is &apos;ai&apos;. I&apos;ve updated the edge function to match, increasing the slice limit to ensure the entire input is sent.
 
-Add `'anthropic/claude-sonnet-4-6'` to the `modelMap` so it resolves to the correct Anthropic model ID instead of silently falling back.
 
-### 3. Improve client-side error message (`ScribeDrawer.tsx`, `ChroniclerHomeView.tsx`)
+" duration="0.053395">
+</lov-tool-use>
+</div>
+  )}
+  <Button disabled={... || isOverLimit}>...</Button>
+</div>
+```
 
-The current catch block shows raw error messages that may not be user-friendly. Add a check: if the error looks like an auth/fetch error, suggest signing in or checking the API key.
-
-## Changes Summary
-
-| File | Change |
-|------|--------|
-| `supabase/functions/scribe-ai/index.ts` | Parse body before auth; skip auth when `user_api_key` present; add `claude-sonnet-4-6` to modelMap |
-| `src/components/drawers/ScribeDrawer.tsx` | Better error message in catch block |
-| `src/components/home/ChroniclerHomeView.tsx` | Better error message in catch block |
+### `supabase/functions/scribe-ai/index.ts`
+```typescript
+// Update slice limit from 60000 to 200000
+const userMessage = isEnhance
+  ? `...${text.slice(0, 200000)}`
+  : `...${text.slice(0, 200000)}`;
+```
 
