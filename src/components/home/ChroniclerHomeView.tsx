@@ -22,6 +22,7 @@ import { formatUsage, type TokenUsage } from '@/lib/token-usage';
 import { loadApiKey } from '@/lib/api-keys';
 import { loadNovelBuilderSummary } from '@/lib/campaign-summary-storage';
 import { buildContextBody, stripChoiceBlocks, DEFAULT_CONTEXT_STATE, type ScribeContextState } from '@/lib/scribe-context';
+import { loadScribeCtxState, saveScribeCtxState, loadNarrativeStyle, saveNarrativeStyle, loadToneIntensity, saveToneIntensity } from '@/lib/scribe-settings-storage';
 
 const STYLES: { value: NarrativeStyle; label: string }[] = [
   { value: 'fantasy', label: 'Fantasy' },
@@ -56,14 +57,14 @@ export function ChroniclerHomeView({
 }: ChroniclerHomeViewProps) {
   const [inputText, setInputText] = useState('');
   const [outputText, setOutputText] = useState('');
-  const [style, setStyle] = useState<NarrativeStyle>('fantasy');
-  const [toneIntensity, setToneIntensity] = useState(3);
+  const [style, setStyle] = useState<NarrativeStyle>(() => loadNarrativeStyle('novel-style'));
+  const [toneIntensity, setToneIntensity] = useState(() => loadToneIntensity('novel-tone-intensity'));
   const [copied, setCopied] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isAiProcessing, setIsAiProcessing] = useState(false);
   const [selectedModel, setSelectedModel] = useState(loadScribeModel);
   const [aiUsage, setAiUsage] = useState<TokenUsage | null>(null);
-  const [ctxState, setCtxState] = useState<ScribeContextState>(DEFAULT_CONTEXT_STATE);
+  const [ctxState, setCtxState] = useState<ScribeContextState>(() => loadScribeCtxState('novel-ctx-state'));
   const [showPromptDrawer, setShowPromptDrawer] = useState(false);
 
   const stories = useSavedStories();
@@ -156,7 +157,11 @@ export function ChroniclerHomeView({
     });
     // Auto-chain: set context to the newly saved story
     if (ctxState.autoChainEnabled) {
-      setCtxState(prev => ({ ...prev, contextStoryId: newStory.id }));
+      setCtxState(prev => {
+        const next = { ...prev, contextStoryId: newStory.id };
+        saveScribeCtxState('novel-ctx-state', next);
+        return next;
+      });
     }
   }, [outputText, style, stories, ctxState.autoChainEnabled]);
 
@@ -209,7 +214,7 @@ export function ChroniclerHomeView({
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Style
               </label>
-              <Select value={style} onValueChange={(v) => setStyle(v as NarrativeStyle)}>
+              <Select value={style} onValueChange={(v) => { const s = v as NarrativeStyle; setStyle(s); saveNarrativeStyle('novel-style', s); }}>
                 <SelectTrigger className="border-rose-500/20 bg-muted/30">
                   <SelectValue />
                 </SelectTrigger>
@@ -245,7 +250,7 @@ export function ChroniclerHomeView({
           {/* Context Pipeline Panel */}
           <ScribeContextPanel
             state={ctxState}
-            onChange={setCtxState}
+            onChange={(s) => { setCtxState(s); saveScribeCtxState('novel-ctx-state', s); }}
             stories={stories.stories}
             accent="rose"
             novelBuilderMode
@@ -284,7 +289,7 @@ export function ChroniclerHomeView({
             </div>
             <Slider
               value={[toneIntensity]}
-              onValueChange={([v]) => setToneIntensity(v)}
+              onValueChange={([v]) => { setToneIntensity(v); saveToneIntensity('novel-tone-intensity', v); }}
               min={1}
               max={5}
               step={1}

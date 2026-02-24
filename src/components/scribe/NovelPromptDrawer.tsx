@@ -140,8 +140,12 @@ interface NovelPromptDrawerProps {
 
 export function NovelPromptDrawer({ open, onOpenChange, characterName, onUsePrompt }: NovelPromptDrawerProps) {
   const [expandedStone, setExpandedStone] = useState<string | undefined>(undefined);
-  const [selectedIntensity, setSelectedIntensity] = useState<IntensityLevel>('all');
-  const [activeLibrary, setActiveLibrary] = useState<PromptLibrary>('infinity');
+  const [selectedIntensity, setSelectedIntensity] = useState<IntensityLevel>(() => {
+    try { const v = localStorage.getItem('novel-prompt-intensity'); return (v as IntensityLevel) || 'all'; } catch { return 'all'; }
+  });
+  const [activeLibrary, setActiveLibrary] = useState<PromptLibrary>(() => {
+    try { const v = localStorage.getItem('novel-prompt-library'); return (v as PromptLibrary) || 'infinity'; } catch { return 'infinity'; }
+  });
   const [fictionMode, setFictionMode] = useState(() => {
     try { return localStorage.getItem('novel-prompt-fiction-mode') !== 'false'; } catch { return true; }
   });
@@ -294,7 +298,7 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
             {/* Library toggle */}
             <div className="flex gap-1.5 pt-2">
               <button
-                onClick={() => setActiveLibrary('infinity')}
+                onClick={() => { setActiveLibrary('infinity'); try { localStorage.setItem('novel-prompt-library', 'infinity'); } catch {} }}
                 className={cn(
                   'flex-1 px-3 py-2.5 rounded-lg text-xs font-medium border transition-all min-h-[44px]',
                   activeLibrary === 'infinity'
@@ -306,7 +310,7 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
                 Infinity Stones
               </button>
               <button
-                onClick={() => setActiveLibrary('empyrean')}
+                onClick={() => { setActiveLibrary('empyrean'); try { localStorage.setItem('novel-prompt-library', 'empyrean'); } catch {} }}
                 className={cn(
                   'flex-1 px-3 py-2.5 rounded-lg text-xs font-medium border transition-all min-h-[44px]',
                   activeLibrary === 'empyrean'
@@ -324,7 +328,7 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
                 {intensityLevels.map((level) => (
                   <button
                     key={level.id}
-                    onClick={() => setSelectedIntensity(level.id)}
+                    onClick={() => { setSelectedIntensity(level.id); try { localStorage.setItem('novel-prompt-intensity', level.id); } catch {} }}
                     className={cn(
                       'flex items-center gap-1 px-2.5 py-2 rounded-full text-xs font-medium min-h-[44px]',
                       'transition-all duration-200 border',
@@ -350,7 +354,7 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
             {activeLibrary === 'empyrean' && (
               <div className="flex gap-1.5">
                 <button
-                  onClick={() => setSelectedIntensity('all')}
+                  onClick={() => { setSelectedIntensity('all'); try { localStorage.setItem('novel-prompt-intensity', 'all'); } catch {} }}
                   className={cn(
                     'flex-1 px-3 py-2 rounded-lg text-xs font-medium border transition-all min-h-[44px]',
                     selectedIntensity !== 'favorites' ? 'bg-amber-500/20 border-amber-500/50 text-amber-400' : 'border-white/10 text-white/40',
@@ -359,7 +363,7 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
                   All ({empyreanPrompts.length})
                 </button>
                 <button
-                  onClick={() => setSelectedIntensity('favorites')}
+                  onClick={() => { setSelectedIntensity('favorites'); try { localStorage.setItem('novel-prompt-intensity', 'favorites'); } catch {} }}
                   className={cn(
                     'flex-1 px-3 py-2 rounded-lg text-xs font-medium border transition-all min-h-[44px]',
                     selectedIntensity === 'favorites' ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400' : 'border-white/10 text-white/40',

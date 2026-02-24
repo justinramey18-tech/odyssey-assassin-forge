@@ -15,6 +15,7 @@ import { loadApiKey } from '@/lib/api-keys';
 import { loadNovelBuilderSummary } from '@/lib/campaign-summary-storage';
 import { buildContextBody, stripChoiceBlocks, DEFAULT_CONTEXT_STATE, type ScribeContextState } from '@/lib/scribe-context';
 import { useSavedStories } from '@/hooks/use-saved-stories';
+import { loadScribeCtxState, saveScribeCtxState, loadNarrativeStyle, saveNarrativeStyle, loadToneIntensity, saveToneIntensity, loadCustomStylePrompt, saveCustomStylePrompt } from '@/lib/scribe-settings-storage';
 
 import type { NarrativeStyle } from '@/lib/narrativeProcessor';
 
@@ -54,13 +55,13 @@ export function ScribeDrawer({
 }: ScribeDrawerProps) {
   const [inputText, setInputText] = useState('');
   const [outputText, setOutputText] = useState('');
-  const [selectedGenre, setSelectedGenre] = useState<NarrativeStyle>('fantasy');
-  const [toneIntensity, setToneIntensity] = useState(3);
-  const [customStylePrompt, setCustomStylePrompt] = useState('');
+  const [selectedGenre, setSelectedGenre] = useState<NarrativeStyle>(() => loadNarrativeStyle('scribe-style'));
+  const [toneIntensity, setToneIntensity] = useState(() => loadToneIntensity('scribe-tone-intensity'));
+  const [customStylePrompt, setCustomStylePrompt] = useState(() => loadCustomStylePrompt());
   const [copied, setCopied] = useState(false);
   const [isAiProcessing, setIsAiProcessing] = useState(false);
   const [aiUsage, setAiUsage] = useState<TokenUsage | null>(null);
-  const [ctxState, setCtxState] = useState<ScribeContextState>(DEFAULT_CONTEXT_STATE);
+  const [ctxState, setCtxState] = useState<ScribeContextState>(() => loadScribeCtxState('scribe-ctx-state'));
 
   const stories = useSavedStories();
 
@@ -131,7 +132,7 @@ export function ScribeDrawer({
               {genreButtons.map((genre) => (
                 <button
                   key={genre.id}
-                  onClick={() => setSelectedGenre(genre.id)}
+                  onClick={() => { setSelectedGenre(genre.id); saveNarrativeStyle('scribe-style', genre.id); }}
                   className={cn(
                     'p-2 rounded-lg border text-left transition-all',
                     selectedGenre === genre.id
@@ -161,7 +162,7 @@ export function ScribeDrawer({
 • Use "crimson spray" instead of "blood"
 • "hits" -> "connects brutally"`}
                 value={customStylePrompt}
-                onChange={(e) => setCustomStylePrompt(e.target.value)}
+                onChange={(e) => { setCustomStylePrompt(e.target.value); saveCustomStylePrompt(e.target.value); }}
                 className="min-h-[100px] text-xs resize-none border-amber-500/30 focus:border-amber-500/50"
               />
               <p className="text-[10px] text-muted-foreground">
@@ -182,7 +183,7 @@ export function ScribeDrawer({
             </div>
             <Slider
               value={[toneIntensity]}
-              onValueChange={(value) => setToneIntensity(value[0])}
+              onValueChange={(value) => { setToneIntensity(value[0]); saveToneIntensity('scribe-tone-intensity', value[0]); }}
               min={1}
               max={5}
               step={1}
@@ -196,7 +197,7 @@ export function ScribeDrawer({
           {/* Context Pipeline Panel */}
           <ScribeContextPanel
             state={ctxState}
-            onChange={setCtxState}
+            onChange={(s) => { setCtxState(s); saveScribeCtxState('scribe-ctx-state', s); }}
             stories={stories.stories}
             accent="amber"
             novelBuilderMode
