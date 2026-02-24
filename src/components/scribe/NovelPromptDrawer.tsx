@@ -204,6 +204,22 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
     }
   }, [activeLibrary, filteredEmpyreanPrompts, filterByIntensity, getPromptsForStone, processAndUse]);
 
+  const surpriseMe = useCallback(() => {
+    const intensities: IntensityLevel[] = ['mild', 'moderate', 'extreme'];
+    const randomIntensity = intensities[Math.floor(Math.random() * intensities.length)];
+    if (activeLibrary === 'empyrean') {
+      const pool = empyreanPrompts;
+      const pick = pool[Math.floor(Math.random() * pool.length)];
+      processAndUse(pick);
+    } else {
+      const allPrompts = infinityStones.flatMap(s => getPromptsForStone(s.id));
+      const filtered = allPrompts.filter(p => getPromptIntensity(p.id) === randomIntensity);
+      if (filtered.length === 0) { toast.error('No prompts at that intensity'); return; }
+      setSelectedIntensity(randomIntensity);
+      processAndUse(filtered[Math.floor(Math.random() * filtered.length)]);
+    }
+  }, [activeLibrary, getPromptsForStone, processAndUse]);
+
   const renderPromptRow = useCallback((prompt: CharacterPrompt, isStarred: boolean, onToggleStar: () => void) => {
     const intensity = getPromptIntensity(prompt.id);
     const intensityConfig = intensity ? intensityLevels.find(l => l.id === intensity) : null;
@@ -336,14 +352,23 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
               </div>
             )}
 
-            {/* Random button */}
-            <button
-              onClick={pickRandom}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] rounded-xl text-sm font-medium bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white transition-all"
-            >
-              <Shuffle className="w-4 h-4" />
-              Random Prompt
-            </button>
+            {/* Random / Surprise Me */}
+            <div className="flex gap-2">
+              <button
+                onClick={pickRandom}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] rounded-xl text-sm font-medium bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white transition-all"
+              >
+                <Shuffle className="w-4 h-4" />
+                Random
+              </button>
+              <button
+                onClick={surpriseMe}
+                className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl text-sm font-medium bg-gradient-to-r from-amber-500 via-red-500 to-purple-600 hover:from-amber-400 hover:via-red-400 hover:to-purple-500 text-white animate-pulse hover:animate-none transition-all"
+              >
+                <Sparkles className="w-4 h-4" />
+                🎰
+              </button>
+            </div>
 
             {/* Infinity Stones Accordion */}
             {activeLibrary === 'infinity' && (
