@@ -7,11 +7,9 @@ import type { SavedStory } from '@/hooks/use-saved-stories';
 import type { ProtagonistCard } from '@/lib/protagonist-cards';
 
 export type ScribeProcessingMode = 'transform' | 'enhance';
-export type TargetMultiplier = 1.5 | 2 | 3;
 
 export interface ScribeContextState {
   processingMode: ScribeProcessingMode;
-  targetMultiplier: TargetMultiplier;
   includeCampaignSummary: boolean;
   contextStoryId: string | null;
   contextWordCount: number;
@@ -21,7 +19,6 @@ export interface ScribeContextState {
 
 export const DEFAULT_CONTEXT_STATE: ScribeContextState = {
   processingMode: 'transform',
-  targetMultiplier: 1.5,
   includeCampaignSummary: false,
   contextStoryId: null,
   contextWordCount: 5000,
@@ -59,7 +56,6 @@ export function buildContextBody(
 ) {
   const extra: Record<string, unknown> = {
     processingMode: state.processingMode,
-    targetMultiplier: state.targetMultiplier,
   };
 
   if (state.includeCampaignSummary && campaignSummary) {

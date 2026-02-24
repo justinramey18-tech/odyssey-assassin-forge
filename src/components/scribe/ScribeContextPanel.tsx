@@ -14,7 +14,7 @@ import { loadProtagonistCards, saveProtagonistCards, addProtagonistCard, removeP
 import { loadCampaignSummary, loadNovelBuilderSummary, saveNovelBuilderSummary, SUMMARY_MAX_CHARS } from '@/lib/campaign-summary-storage';
 import { loadToggle, saveToggle } from '@/lib/scribe-settings-storage';
 import type { SavedStory } from '@/hooks/use-saved-stories';
-import type { ScribeContextState, ScribeProcessingMode, TargetMultiplier } from '@/lib/scribe-context';
+import type { ScribeContextState, ScribeProcessingMode } from '@/lib/scribe-context';
 
 interface ScribeContextPanelProps {
   state: ScribeContextState;
@@ -24,11 +24,7 @@ interface ScribeContextPanelProps {
   novelBuilderMode?: boolean;
 }
 
-const MULTIPLIER_LABELS: Record<number, string> = {
-  1.5: '1.5× — Light expansion',
-  2: '2× — Moderate expansion',
-  3: '3× — Heavy expansion',
-};
+
 
 export function ScribeContextPanel({ state, onChange, stories, accent = 'amber', novelBuilderMode = false }: ScribeContextPanelProps) {
   const [contextOpen, setContextOpen] = useState(false);
@@ -144,24 +140,6 @@ export function ScribeContextPanel({ state, onChange, stories, accent = 'amber',
             ? 'Preserves original text verbatim, adds descriptive prose around it'
             : 'Rewrites text into new narrative prose'}
         </p>
-      </div>
-
-      {/* Multiplier */}
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Target Length</label>
-          <span className={`text-xs font-medium ${accentText}`}>{MULTIPLIER_LABELS[state.targetMultiplier]}</span>
-        </div>
-        <ToggleGroup
-          type="single"
-          value={String(state.targetMultiplier)}
-          onValueChange={(v) => v && update({ targetMultiplier: parseFloat(v) as TargetMultiplier })}
-          className="w-full"
-        >
-          <ToggleGroupItem value="1.5" className="flex-1 text-xs">1.5×</ToggleGroupItem>
-          <ToggleGroupItem value="2" className="flex-1 text-xs">2×</ToggleGroupItem>
-          <ToggleGroupItem value="3" className="flex-1 text-xs">3×</ToggleGroupItem>
-        </ToggleGroup>
       </div>
 
       {/* Context Section (collapsible) */}
