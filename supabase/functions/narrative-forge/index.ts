@@ -87,6 +87,21 @@ interface CharacterCardInput {
   speechStyle: string;
 }
 
+interface ProtagonistCardInput {
+  name: string;
+  raceClass?: string;
+  personality: string;
+  speechStyle: string;
+  povStyle: 'first' | 'third' | 'rotating';
+  backstory?: string;
+  goalsConflicts?: string;
+  relationships?: string;
+  appearanceMannerisms?: string;
+  flawsWeaknesses?: string;
+  skillsAbilities?: string;
+  characterArc?: string;
+}
+
 interface RequestBody {
   text: string;
   characterName?: string;
@@ -103,6 +118,7 @@ interface RequestBody {
   campaignSummary?: string;
   storyContext?: string;
   characterCards?: CharacterCardInput[];
+  protagonistCards?: ProtagonistCardInput[];
 }
 
 type ValidationResult = {
@@ -264,6 +280,7 @@ function buildContextBlocks(
   campaignSummary?: string,
   storyContext?: string,
   characterCards?: CharacterCardInput[],
+  protagonistCards?: ProtagonistCardInput[],
 ): string {
   let blocks = '';
   if (campaignSummary && campaignSummary.length > 0) {
@@ -275,6 +292,39 @@ You MUST maintain strict consistency with the above. Character names, relationsh
     blocks += `\nPRECEDING NARRATIVE (match voice, tone, plot continuity, character speech patterns):
 ${storyContext}\n`;
   }
+
+  // Protagonist profiles (high priority)
+  if (protagonistCards && protagonistCards.length > 0) {
+    const protagLines = protagonistCards.map(p => {
+      const rc = p.raceClass ? ` (${p.raceClass})` : '';
+      const povLabel = p.povStyle === 'first' ? 'First Person' : p.povStyle === 'rotating' ? 'Rotating' : 'Third Person Close';
+      let entry = `[${p.name}${rc}] -- POV: ${povLabel}\nPersonality: ${p.personality}\nSpeech Style: ${p.speechStyle}`;
+      if (p.backstory) entry += `\nBackstory: ${p.backstory}`;
+      if (p.goalsConflicts) entry += `\nGoals & Conflicts: ${p.goalsConflicts}`;
+      if (p.relationships) entry += `\nRelationships: ${p.relationships}`;
+      if (p.appearanceMannerisms) entry += `\nAppearance & Mannerisms: ${p.appearanceMannerisms}`;
+      if (p.flawsWeaknesses) entry += `\nFlaws & Weaknesses: ${p.flawsWeaknesses}`;
+      if (p.skillsAbilities) entry += `\nSkills & Abilities: ${p.skillsAbilities}`;
+      if (p.characterArc) entry += `\nCharacter Arc: ${p.characterArc}`;
+      return entry;
+    }).join('\n\n');
+
+    const povDirectives: string[] = [];
+    const povStyles = new Set(protagonistCards.map(p => p.povStyle));
+    if (povStyles.has('first')) povDirectives.push('- Write from the first-person POV of the protagonist');
+    if (povStyles.has('third')) povDirectives.push('- Write in tight third-person POV, revealing the protagonist\'s inner thoughts');
+    if (povStyles.has('rotating')) povDirectives.push('- When using Rotating POV, shift perspective between scenes');
+    povDirectives.push('- Include inner monologue revealing thoughts and emotional reactions');
+    povDirectives.push('- Protagonist details take priority over supporting cast');
+
+    blocks += `\nPROTAGONIST PROFILES (PRIMARY CHARACTERS -- prioritize in narration):
+
+${protagLines}
+
+NARRATION DIRECTIVES:
+${povDirectives.join('\n')}\n`;
+  }
+
   if (characterCards && characterCards.length > 0) {
     const lines = characterCards.map(c => {
       const rc = c.raceClass ? ` (${c.raceClass})` : '';
@@ -433,7 +483,7 @@ Deno.serve(async (req) => {
     const requestedModel = rb.model;
     const isEnhance = rb.processingMode === 'enhance';
     const multiplier = typeof rb.targetMultiplier === 'number' ? rb.targetMultiplier : 1.5;
-    const contextBlocks = buildContextBlocks(rb.campaignSummary, rb.storyContext, rb.characterCards);
+    const contextBlocks = buildContextBlocks(rb.campaignSummary, rb.storyContext, rb.characterCards, rb.protagonistCards);
 
     // ── Command mode ─────────────────────────────────────────────
     if (mode === 'command' && commandContext) {

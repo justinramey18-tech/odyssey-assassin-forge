@@ -8,6 +8,7 @@ export interface CharacterCard {
   raceClass?: string;
   personality: string;
   speechStyle: string;
+  enabled?: boolean;
 }
 
 function generateId(): string {
@@ -46,10 +47,11 @@ export function removeCharacterCard(id: string): void {
   saveCharacterCards(cards.filter(c => c.id !== id));
 }
 
-/** Format cards for injection into AI system prompts */
+/** Format cards for injection into AI system prompts (filters out disabled) */
 export function formatCardsForPrompt(cards: CharacterCard[]): string {
-  if (cards.length === 0) return '';
-  const lines = cards.map(c => {
+  const enabled = cards.filter(c => c.enabled !== false);
+  if (enabled.length === 0) return '';
+  const lines = enabled.map(c => {
     const rc = c.raceClass ? ` (${c.raceClass})` : '';
     return `- ${c.name}${rc}: ${c.personality}. Speech style: ${c.speechStyle}`;
   });

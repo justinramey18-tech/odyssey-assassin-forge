@@ -13,10 +13,26 @@ interface CharacterCardInput {
   speechStyle: string;
 }
 
+interface ProtagonistCardInput {
+  name: string;
+  raceClass?: string;
+  personality: string;
+  speechStyle: string;
+  povStyle: 'first' | 'third' | 'rotating';
+  backstory?: string;
+  goalsConflicts?: string;
+  relationships?: string;
+  appearanceMannerisms?: string;
+  flawsWeaknesses?: string;
+  skillsAbilities?: string;
+  characterArc?: string;
+}
+
 function buildContextBlocks(
   campaignSummary?: string,
   storyContext?: string,
   characterCards?: CharacterCardInput[],
+  protagonistCards?: ProtagonistCardInput[],
 ): string {
   let blocks = '';
 
@@ -29,6 +45,38 @@ You MUST maintain strict consistency with the above. Character names, relationsh
   if (storyContext && storyContext.length > 0) {
     blocks += `\nPRECEDING NARRATIVE (match voice, tone, plot continuity, character speech patterns):
 ${storyContext}\n`;
+  }
+
+  // Protagonist profiles (high priority)
+  if (protagonistCards && protagonistCards.length > 0) {
+    const protagLines = protagonistCards.map(p => {
+      const rc = p.raceClass ? ` (${p.raceClass})` : '';
+      const povLabel = p.povStyle === 'first' ? 'First Person' : p.povStyle === 'rotating' ? 'Rotating' : 'Third Person Close';
+      let entry = `[${p.name}${rc}] -- POV: ${povLabel}\nPersonality: ${p.personality}\nSpeech Style: ${p.speechStyle}`;
+      if (p.backstory) entry += `\nBackstory: ${p.backstory}`;
+      if (p.goalsConflicts) entry += `\nGoals & Conflicts: ${p.goalsConflicts}`;
+      if (p.relationships) entry += `\nRelationships: ${p.relationships}`;
+      if (p.appearanceMannerisms) entry += `\nAppearance & Mannerisms: ${p.appearanceMannerisms}`;
+      if (p.flawsWeaknesses) entry += `\nFlaws & Weaknesses: ${p.flawsWeaknesses}`;
+      if (p.skillsAbilities) entry += `\nSkills & Abilities: ${p.skillsAbilities}`;
+      if (p.characterArc) entry += `\nCharacter Arc: ${p.characterArc}`;
+      return entry;
+    }).join('\n\n');
+
+    const povDirectives: string[] = [];
+    const povStyles = new Set(protagonistCards.map(p => p.povStyle));
+    if (povStyles.has('first')) povDirectives.push('- Write from the first-person POV of the protagonist');
+    if (povStyles.has('third')) povDirectives.push('- Write in tight third-person POV, revealing the protagonist\'s inner thoughts');
+    if (povStyles.has('rotating')) povDirectives.push('- When using Rotating POV, shift perspective between scenes');
+    povDirectives.push('- Include inner monologue revealing thoughts and emotional reactions');
+    povDirectives.push('- Protagonist details take priority over supporting cast');
+
+    blocks += `\nPROTAGONIST PROFILES (PRIMARY CHARACTERS -- prioritize in narration):
+
+${protagLines}
+
+NARRATION DIRECTIVES:
+${povDirectives.join('\n')}\n`;
   }
 
   if (characterCards && characterCards.length > 0) {
@@ -73,7 +121,7 @@ serve(async (req) => {
 
     const {
       text, style, intensity, customPrompt, model, user_api_key,
-      processingMode, targetMultiplier, campaignSummary, storyContext, characterCards,
+      processingMode, targetMultiplier, campaignSummary, storyContext, characterCards, protagonistCards,
     } = await req.json();
 
     if (!text || typeof text !== "string") {
@@ -118,7 +166,7 @@ serve(async (req) => {
     };
 
     const styleDesc = styleDescriptions[style] || styleDescriptions.fantasy;
-    const contextBlocks = buildContextBlocks(campaignSummary, storyContext, characterCards);
+    const contextBlocks = buildContextBlocks(campaignSummary, storyContext, characterCards, protagonistCards);
 
     let systemPrompt: string;
 

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
-import { ScribeContextPanel, loadCharacterCards } from '@/components/scribe/ScribeContextPanel';
+import { ScribeContextPanel, loadCharacterCards, loadProtagonistCards } from '@/components/scribe/ScribeContextPanel';
 import { processTextOffline, ProcessingOptions } from '@/lib/narrativeProcessor';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUsage, type TokenUsage } from '@/lib/token-usage';
@@ -241,7 +241,8 @@ export function ScribeDrawer({
 
                   const campaignSummary = loadNovelBuilderSummary();
                   const cards = loadCharacterCards();
-                  const contextExtra = buildContextBody(ctxState, campaignSummary, stories.stories, cards);
+                  const protags = loadProtagonistCards();
+                  const contextExtra = buildContextBody(ctxState, campaignSummary, stories.stories, cards, protags);
 
                   const { data, error } = await supabase.functions.invoke('scribe-ai', {
                     body: {

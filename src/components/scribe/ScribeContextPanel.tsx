@@ -8,7 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { CharacterCardEditor } from './CharacterCardEditor';
-import { loadCharacterCards, saveCharacterCards, addCharacterCard, removeCharacterCard, type CharacterCard } from '@/lib/character-cards';
+import { ProtagonistCardEditor } from './ProtagonistCardEditor';
+import { loadCharacterCards, saveCharacterCards, addCharacterCard, removeCharacterCard, updateCharacterCard, type CharacterCard } from '@/lib/character-cards';
+import { loadProtagonistCards, saveProtagonistCards, addProtagonistCard, removeProtagonistCard, updateProtagonistCard, type ProtagonistCard } from '@/lib/protagonist-cards';
 import { loadCampaignSummary, loadNovelBuilderSummary, saveNovelBuilderSummary, SUMMARY_MAX_CHARS } from '@/lib/campaign-summary-storage';
 import type { SavedStory } from '@/hooks/use-saved-stories';
 import type { ScribeContextState, ScribeProcessingMode, TargetMultiplier } from '@/lib/scribe-context';
@@ -17,9 +19,7 @@ interface ScribeContextPanelProps {
   state: ScribeContextState;
   onChange: (state: ScribeContextState) => void;
   stories: SavedStory[];
-  /** Accent color for the mode toggle — adapts to parent theme */
   accent?: 'amber' | 'rose' | 'purple';
-  /** When true, uses dedicated novel-builder campaign summary with inline editor */
   novelBuilderMode?: boolean;
 }
 
@@ -32,14 +32,19 @@ const MULTIPLIER_LABELS: Record<number, string> = {
 export function ScribeContextPanel({ state, onChange, stories, accent = 'amber', novelBuilderMode = false }: ScribeContextPanelProps) {
   const [contextOpen, setContextOpen] = useState(false);
   const [cards, setCards] = useState<CharacterCard[]>([]);
+  const [protagonists, setProtagonists] = useState<ProtagonistCard[]>([]);
   const [hasSummary, setHasSummary] = useState(false);
   const [summaryText, setSummaryText] = useState('');
   const [summarySaved, setSummarySaved] = useState(false);
+  const [npcMasterEnabled, setNpcMasterEnabled] = useState(true);
+  const [protagonistMasterEnabled, setProtagonistMasterEnabled] = useState(true);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load character cards + check campaign summary on mount
   useEffect(() => {
     setCards(loadCharacterCards());
+    if (novelBuilderMode) {
+      setProtagonists(loadProtagonistCards());
+    }
     if (novelBuilderMode) {
       const loaded = loadNovelBuilderSummary() ?? '';
       setSummaryText(loaded);
@@ -49,7 +54,6 @@ export function ScribeContextPanel({ state, onChange, stories, accent = 'amber',
     }
   }, [novelBuilderMode]);
 
-  // Cleanup debounce timer
   useEffect(() => {
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -61,7 +65,6 @@ export function ScribeContextPanel({ state, onChange, stories, accent = 'amber',
     setSummaryText(trimmed);
     setHasSummary(trimmed.length > 0);
     setSummarySaved(false);
-    // Debounced save
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       saveNovelBuilderSummary(trimmed);
@@ -74,6 +77,7 @@ export function ScribeContextPanel({ state, onChange, stories, accent = 'amber',
     onChange({ ...state, ...patch });
   }, [state, onChange]);
 
+  // NPC card handlers
   const handleAddCard = useCallback((card: Omit<CharacterCard, 'id'>) => {
     const newCard = addCharacterCard(card);
     setCards(prev => [...prev, newCard]);
@@ -85,10 +89,27 @@ export function ScribeContextPanel({ state, onChange, stories, accent = 'amber',
   }, []);
 
   const handleUpdateCard = useCallback((id: string, updates: Partial<Omit<CharacterCard, 'id'>>) => {
-    const updated = cards.map(c => c.id === id ? { ...c, ...updates } : c);
-    saveCharacterCards(updated);
-    setCards(updated);
-  }, [cards]);
+    updateCharacterCard(id, updates);
+    setCards(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+  }, []);
+
+  // Protagonist card handlers
+  const handleAddProtagonist = useCallback((card: Omit<ProtagonistCard, 'id'>) => {
+    const newCard = addProtagonistCard(card);
+    if (newCard) {
+      setProtagonists(prev => [...prev, newCard]);
+    }
+  }, []);
+
+  const handleRemoveProtagonist = useCallback((id: string) => {
+    removeProtagonistCard(id);
+    setProtagonists(prev => prev.filter(c => c.id !== id));
+  }, []);
+
+  const handleUpdateProtagonist = useCallback((id: string, updates: Partial<Omit<ProtagonistCard, 'id'>>) => {
+    updateProtagonistCard(id, updates);
+    setProtagonists(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+  }, []);
 
   const accentBorder = accent === 'rose' ? 'border-rose-500/30' : accent === 'purple' ? 'border-purple-500/30' : 'border-amber-500/30';
   const accentText = accent === 'rose' ? 'text-rose-400' : accent === 'purple' ? 'text-purple-400' : 'text-amber-400';
@@ -114,12 +135,8 @@ export function ScribeContextPanel({ state, onChange, stories, accent = 'amber',
           }}
           className="w-full"
         >
-          <ToggleGroupItem value="transform" className="flex-1 text-xs gap-1">
-            Transform
-          </ToggleGroupItem>
-          <ToggleGroupItem value="enhance" className="flex-1 text-xs gap-1">
-            Enhance
-          </ToggleGroupItem>
+          <ToggleGroupItem value="transform" className="flex-1 text-xs gap-1">Transform</ToggleGroupItem>
+          <ToggleGroupItem value="enhance" className="flex-1 text-xs gap-1">Enhance</ToggleGroupItem>
         </ToggleGroup>
         <p className="text-[10px] text-muted-foreground">
           {state.processingMode === 'enhance'
@@ -131,12 +148,8 @@ export function ScribeContextPanel({ state, onChange, stories, accent = 'amber',
       {/* Multiplier */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Target Length
-          </label>
-          <span className={`text-xs font-medium ${accentText}`}>
-            {MULTIPLIER_LABELS[state.targetMultiplier]}
-          </span>
+          <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Target Length</label>
+          <span className={`text-xs font-medium ${accentText}`}>{MULTIPLIER_LABELS[state.targetMultiplier]}</span>
         </div>
         <ToggleGroup
           type="single"
@@ -162,9 +175,7 @@ export function ScribeContextPanel({ state, onChange, stories, accent = 'amber',
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5">
                 <ScrollText className="w-3 h-3 text-muted-foreground" />
-                <Label className="text-xs cursor-pointer" htmlFor="campaign-summary-toggle">
-                  Campaign Summary
-                </Label>
+                <Label className="text-xs cursor-pointer" htmlFor="campaign-summary-toggle">Campaign Summary</Label>
               </div>
               <Switch
                 id="campaign-summary-toggle"
@@ -174,13 +185,12 @@ export function ScribeContextPanel({ state, onChange, stories, accent = 'amber',
               />
             </div>
 
-            {/* Novel Builder inline editor */}
             {novelBuilderMode && state.includeCampaignSummary && (
               <div className="space-y-1">
                 <Textarea
                   value={summaryText}
                   onChange={(e) => handleSummaryChange(e.target.value)}
-                  placeholder="Describe your campaign world, characters, relationships, locations, and rules. This context enforces strict consistency in AI output..."
+                  placeholder="Describe your campaign world, characters, relationships, locations, and rules..."
                   className={`resize-none min-h-[120px] text-xs ${accentBorder} bg-background/50`}
                   maxLength={SUMMARY_MAX_CHARS}
                 />
@@ -189,9 +199,7 @@ export function ScribeContextPanel({ state, onChange, stories, accent = 'amber',
                     <span className="flex items-center gap-1 text-[10px] text-emerald-400 transition-opacity">
                       <Check className="w-3 h-3" /> Saved
                     </span>
-                  ) : (
-                    <span />
-                  )}
+                  ) : <span />}
                   <span className="text-[10px] text-muted-foreground font-mono">
                     {summaryText.length.toLocaleString()} / {SUMMARY_MAX_CHARS.toLocaleString()}
                   </span>
@@ -199,7 +207,6 @@ export function ScribeContextPanel({ state, onChange, stories, accent = 'amber',
               </div>
             )}
 
-            {/* Non-novel-builder: show hint if no summary saved */}
             {!novelBuilderMode && !hasSummary && (
               <p className="text-[9px] text-muted-foreground/60 pl-4">
                 No campaign summary saved — create one in the AI DM
@@ -229,7 +236,6 @@ export function ScribeContextPanel({ state, onChange, stories, accent = 'amber',
                 ))}
               </SelectContent>
             </Select>
-            {/* Helper text */}
             <p className="text-[10px] text-muted-foreground/70 pl-4">
               {stories.length === 0
                 ? 'Save a story from your output to use as voice and plot context here'
@@ -287,12 +293,26 @@ export function ScribeContextPanel({ state, onChange, stories, accent = 'amber',
             />
           </div>
 
-          {/* Character Cards */}
+          {/* Protagonist Cards (novel builder only) */}
+          {novelBuilderMode && (
+            <ProtagonistCardEditor
+              cards={protagonists}
+              onAdd={handleAddProtagonist}
+              onRemove={handleRemoveProtagonist}
+              onUpdate={handleUpdateProtagonist}
+              masterEnabled={protagonistMasterEnabled}
+              onMasterToggle={setProtagonistMasterEnabled}
+            />
+          )}
+
+          {/* NPC Character Cards */}
           <CharacterCardEditor
             cards={cards}
             onAdd={handleAddCard}
             onRemove={handleRemoveCard}
             onUpdate={handleUpdateCard}
+            masterEnabled={npcMasterEnabled}
+            onMasterToggle={setNpcMasterEnabled}
           />
         </CollapsibleContent>
       </Collapsible>
@@ -300,5 +320,6 @@ export function ScribeContextPanel({ state, onChange, stories, accent = 'amber',
   );
 }
 
-/** Expose cards for parent components that need them for the request body */
+/** Expose card loaders for parent components that need them for the request body */
 export { loadCharacterCards } from '@/lib/character-cards';
+export { loadProtagonistCards } from '@/lib/protagonist-cards';
