@@ -4,7 +4,6 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { characterPrompts, type CharacterPrompt } from '@/lib/characterPrompts';
 import { empyreanPrompts, type EmpyreanPromptCategory } from '@/lib/empyreanPrompts';
-import { applyTimePrefix } from '@/lib/fourthWallTime';
 import { useFavoritePrompts } from '@/hooks/use-favorite-prompts';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -61,6 +60,76 @@ function getPromptIntensity(promptId: string): IntensityLevel | null {
   return null;
 }
 
+/**
+ * Transforms AI DM roleplay instructions into fiction-writing scene directives.
+ * Rewrites common DM-style phrasing ("Have X do Y", "When X happens") into
+ * prose-writing instructions ("Write a scene where X does Y").
+ */
+function adaptPromptForFiction(text: string, characterName: string): string {
+  let adapted = text;
+
+  // "Have [Name] do X" → "Write a scene where [Name] does X"
+  adapted = adapted.replace(
+    /^Have\s+/i,
+    'Write a scene where '
+  );
+
+  // "When tension peaks..." → "Write a scene where tension peaks..."
+  adapted = adapted.replace(
+    /^When\s+/i,
+    'Write a scene where, when '
+  );
+
+  // "Describe the..." → "Write a vivid passage describing the..."
+  adapted = adapted.replace(
+    /^Describe\s+/i,
+    'Write a vivid passage describing '
+  );
+
+  // "Include..." at sentence start → "The scene should include..."
+  adapted = adapted.replace(
+    /(?<=\.\s)Include\s+/g,
+    'The prose should include '
+  );
+
+  // "the DM" / "the GM" references → "the narrator"
+  adapted = adapted.replace(/\bthe DM\b/gi, 'the narrator');
+  adapted = adapted.replace(/\bthe GM\b/gi, 'the narrator');
+
+  // "this session" → "this chapter"
+  adapted = adapted.replace(/\bthis session\b/gi, 'this chapter');
+  adapted = adapted.replace(/\bnext session\b/gi, 'the next chapter');
+
+  // "the campaign" → "the story"
+  adapted = adapted.replace(/\bthe campaign\b/gi, 'the story');
+
+  // "the party" → "the group" (when not about a literal party/celebration)
+  adapted = adapted.replace(/\bthe party\b/gi, 'the group');
+
+  // "player" → "reader"
+  adapted = adapted.replace(/\bthe player\b/gi, 'the reader');
+  adapted = adapted.replace(/\bplayers\b/gi, 'readers');
+
+  // "NPC" → "character"
+  adapted = adapted.replace(/\bNPCs?\b/g, match => match.length === 3 ? 'character' : 'characters');
+
+  // "dice roll" / "roll" mechanics references
+  adapted = adapted.replace(/\bdice rolls?\b/gi, 'fate');
+  adapted = adapted.replace(/\bgame mechanics\b/gi, 'narrative conventions');
+
+  // "encounter" → "scene"
+  adapted = adapted.replace(/\bencounter\b/gi, 'scene');
+
+  // Wrap with fiction framing if the prompt doesn't already start with a writing directive
+  if (!/^(Write|Draft|Compose|Create|Craft)\s/i.test(adapted)) {
+    adapted = `[Fiction Writing Directive]\n${adapted}\n\nWrite this as polished prose suitable for a novel chapter. Focus on sensory detail, internal monologue, and emotional resonance.`;
+  } else {
+    adapted += '\n\nFocus on sensory detail, internal monologue, and emotional resonance.';
+  }
+
+  return adapted;
+}
+
 interface NovelPromptDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -112,10 +181,13 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
   }, [selectedIntensity, empyreanFavorites]);
 
   const processAndUse = useCallback((prompt: CharacterPrompt) => {
-    const processed = prompt.prompt
-      .replace(/\[Character Name\]/g, characterName || 'The Character')
-      .replace(/\[Name\]/g, characterName || 'The Character');
-    onUsePrompt(applyTimePrefix(processed));
+    const name = characterName || 'The Character';
+    const base = prompt.prompt
+      .replace(/\[Character Name\]/g, name)
+      .replace(/\[Name\]/g, name);
+    // Adapt DM-style instructions to fiction-writing scene directives
+    const adapted = adaptPromptForFiction(base, name);
+    onUsePrompt(adapted);
     onOpenChange(false);
     toast.success(`${prompt.icon} ${prompt.title}`, { description: 'Added to input' });
   }, [characterName, onUsePrompt, onOpenChange]);
