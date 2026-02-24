@@ -1,5 +1,8 @@
 project_id = "rkkgmonjfvncpvlzsojw"
 
+[functions.scribe-ai]
+verify_jwt = false
+
 [functions.narrative-forge]
 verify_jwt = false
 
