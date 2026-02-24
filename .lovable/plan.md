@@ -1,63 +1,47 @@
 
 
-# Persist All Novel Builder Settings
+# Fix Scribe Settings Persistence + Add AI/Offline Preference
 
-## Overview
-Add localStorage persistence for all ephemeral Novel Builder and Scribe settings so they survive page reloads and session changes. Uses the existing `scoped-storage` pattern to isolate settings per character save.
+## Root Cause
 
-## Settings to Persist
+The `ScribeDrawer` component is permanently mounted inside `PromptDrawerProvider`. Its `useState` lazy initializers only run once on first mount. When the user switches characters (changing the scoped storage ID) or simply expects settings to persist, the component never re-reads from storage because it doesn't remount when the drawer opens/closes.
 
-| Setting | Component | Storage Key |
-|---------|-----------|-------------|
-| Context pipeline state (processing mode, multiplier, toggles) | ChroniclerHomeView, ScribeDrawer | `novel-ctx-state` |
-| Narrative style | ChroniclerHomeView | `novel-style` |
-| Narrative style (Scribe) | ScribeDrawer | `scribe-style` |
-| Tone intensity | ChroniclerHomeView | `novel-tone-intensity` |
-| Tone intensity (Scribe) | ScribeDrawer | `scribe-tone-intensity` |
-| Custom style prompt | ScribeDrawer | `scribe-custom-style-prompt` |
-| NPC master toggle | ScribeContextPanel | `novel-npc-master-enabled` |
-| Protagonist master toggle | ScribeContextPanel | `novel-protagonist-master-enabled` |
-| Active prompt library | NovelPromptDrawer | `novel-prompt-library` |
-| Intensity filter | NovelPromptDrawer | `novel-prompt-intensity` |
+## Fix
 
-## Technical Approach
+### 1. Re-sync state when drawer opens (`ScribeDrawer.tsx`)
 
-### 1. New helper: `src/lib/scribe-settings-storage.ts`
-Create a small utility with typed load/save functions for the context state and individual settings. Uses `getScopedItem` / `setScopedItem` from `scoped-storage.ts` so settings are character-scoped.
+Add a `useEffect` keyed on the `open` prop that re-reads all persisted values from storage when the drawer opens. This ensures the correct character-scoped values are loaded every time.
 
 ```
-saveScribeCtxState(state) / loadScribeCtxState(): ScribeContextState
-saveNarrativeStyle(key, style) / loadNarrativeStyle(key): NarrativeStyle
-saveToneIntensity(key, val) / loadToneIntensity(key): number
-saveCustomStylePrompt(val) / loadCustomStylePrompt(): string
-saveToggle(key, val) / loadToggle(key, default): boolean
-saveStringPref(key, val) / loadStringPref(key, default): string
+useEffect — when open becomes true:
+  setSelectedGenre(loadNarrativeStyle('scribe-style'))
+  setToneIntensity(loadToneIntensity('scribe-tone-intensity'))
+  setCustomStylePrompt(loadCustomStylePrompt())
+  setCtxState(loadScribeCtxState('scribe-ctx-state'))
+  setLastProcessor(loadStringPref('scribe-last-processor', 'ai'))
 ```
 
-Each function wraps try/catch so storage errors are silently ignored.
+### 2. Add "AI vs Offline" preference (`ScribeDrawer.tsx`)
 
-### 2. `ChroniclerHomeView.tsx` changes
-- Initialize `style` from `loadNarrativeStyle('novel-style')` (default `'fantasy'`)
-- Initialize `toneIntensity` from `loadToneIntensity('novel-tone-intensity')` (default `3`)
-- Initialize `ctxState` from `loadScribeCtxState()` (default `DEFAULT_CONTEXT_STATE`)
-- Add `useEffect` hooks (or inline in setter callbacks) to persist on change
+- New state: `lastProcessor` initialized from `loadStringPref('scribe-last-processor', 'ai')`
+- When user clicks Offline button: save `'offline'`
+- When user clicks AI button: save `'ai'`
+- Visually emphasize the last-used button (e.g., slightly brighter border or ring) so the user sees their preference reflected
 
-### 3. `ScribeDrawer.tsx` changes
-- Same pattern for `selectedGenre`, `toneIntensity`, `customStylePrompt`, and `ctxState`
-- Uses separate storage keys (`scribe-*`) so Scribe and Novel Builder maintain independent preferences
+### 3. Storage key
 
-### 4. `ScribeContextPanel.tsx` changes
-- Initialize `npcMasterEnabled` and `protagonistMasterEnabled` from localStorage
-- Persist on toggle change
-- Pass these values through existing props (they're already local state, just need init + save)
+| Setting | Key | Default |
+|---------|-----|---------|
+| Last processor | `scribe-last-processor` | `'ai'` |
 
-### 5. `NovelPromptDrawer.tsx` changes
-- Initialize `activeLibrary` and `selectedIntensity` from localStorage
-- Persist on change (same inline pattern already used for `fictionMode`)
+Uses existing `saveStringPref` / `loadStringPref` from `scribe-settings-storage.ts`.
 
-## Implementation Notes
-- All persistence uses the scoped-storage utility so settings are isolated per character cloud save
-- JSON serialization for the `ctxState` object; simple string values for everything else
-- No migration needed since these are new keys with sensible defaults as fallbacks
-- No changes to component APIs or prop signatures
+### 4. Cloud sync
+
+Add `'scribe-last-processor'` to the `SCOPED_KEYS` array in `use-cloud-save.ts`.
+
+## Files Changed
+
+- `src/components/drawers/ScribeDrawer.tsx` — add open-sync effect + lastProcessor state + visual emphasis
+- `src/hooks/use-cloud-save.ts` — add new key to SCOPED_KEYS
 
