@@ -17,6 +17,15 @@ const SCOPED_KEYS = [
   'dnd-novel-builder-campaign-summary',
   'odyssey-play-mode',
   'dnd-protagonist-cards',
+  'novel-ctx-state',
+  'scribe-ctx-state',
+  'novel-style',
+  'scribe-style',
+  'novel-tone-intensity',
+  'scribe-tone-intensity',
+  'scribe-custom-style-prompt',
+  'novel-npc-master-enabled',
+  'novel-protagonist-master-enabled',
 ] as const;
 
 export interface CloudSavePreview {

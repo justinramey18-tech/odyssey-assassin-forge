@@ -12,6 +12,7 @@ import { ProtagonistCardEditor } from './ProtagonistCardEditor';
 import { loadCharacterCards, saveCharacterCards, addCharacterCard, removeCharacterCard, updateCharacterCard, type CharacterCard } from '@/lib/character-cards';
 import { loadProtagonistCards, saveProtagonistCards, addProtagonistCard, removeProtagonistCard, updateProtagonistCard, type ProtagonistCard } from '@/lib/protagonist-cards';
 import { loadCampaignSummary, loadNovelBuilderSummary, saveNovelBuilderSummary, SUMMARY_MAX_CHARS } from '@/lib/campaign-summary-storage';
+import { loadToggle, saveToggle } from '@/lib/scribe-settings-storage';
 import type { SavedStory } from '@/hooks/use-saved-stories';
 import type { ScribeContextState, ScribeProcessingMode, TargetMultiplier } from '@/lib/scribe-context';
 
@@ -36,8 +37,8 @@ export function ScribeContextPanel({ state, onChange, stories, accent = 'amber',
   const [hasSummary, setHasSummary] = useState(false);
   const [summaryText, setSummaryText] = useState('');
   const [summarySaved, setSummarySaved] = useState(false);
-  const [npcMasterEnabled, setNpcMasterEnabled] = useState(true);
-  const [protagonistMasterEnabled, setProtagonistMasterEnabled] = useState(true);
+  const [npcMasterEnabled, setNpcMasterEnabled] = useState(() => loadToggle('novel-npc-master-enabled'));
+  const [protagonistMasterEnabled, setProtagonistMasterEnabled] = useState(() => loadToggle('novel-protagonist-master-enabled'));
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -301,7 +302,7 @@ export function ScribeContextPanel({ state, onChange, stories, accent = 'amber',
               onRemove={handleRemoveProtagonist}
               onUpdate={handleUpdateProtagonist}
               masterEnabled={protagonistMasterEnabled}
-              onMasterToggle={setProtagonistMasterEnabled}
+              onMasterToggle={(v) => { setProtagonistMasterEnabled(v); saveToggle('novel-protagonist-master-enabled', v); }}
             />
           )}
 
@@ -312,7 +313,7 @@ export function ScribeContextPanel({ state, onChange, stories, accent = 'amber',
             onRemove={handleRemoveCard}
             onUpdate={handleUpdateCard}
             masterEnabled={npcMasterEnabled}
-            onMasterToggle={setNpcMasterEnabled}
+            onMasterToggle={(v) => { setNpcMasterEnabled(v); saveToggle('novel-npc-master-enabled', v); }}
           />
         </CollapsibleContent>
       </Collapsible>
