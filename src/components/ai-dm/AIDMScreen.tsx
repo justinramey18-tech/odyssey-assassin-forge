@@ -3,6 +3,7 @@ import { loadSelectedModel, saveSelectedModel, getModelLabel } from '@/lib/dm-mo
 import { formatUsage, formatCostShort } from '@/lib/token-usage';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Zap, Map, Film, Image as ImageIcon, Copy, Check, Pencil, RefreshCw, X, MoreVertical, Globe, Settings, Volume2, VolumeX } from 'lucide-react';
+import { NarrationSpeedPopover } from './NarrationSpeedPopover';
 import { DMToolsDrawer } from './DMToolsDrawer';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
@@ -917,6 +918,9 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
                 <Volume2 className="w-5 h-5 text-white/50" />
               )}
             </button>
+          )}
+          {narrator.hasElevenLabsKey && (
+            <NarrationSpeedPopover iconSize="w-5 h-5" />
           )}
         </div>
       </div>
