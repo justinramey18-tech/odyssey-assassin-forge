@@ -38,14 +38,14 @@ import { TurnSummaryPanel } from './TurnSummaryPanel';
 import { CombatLogPanel } from './CombatLogPanel';
 import { SmartPromptSheet } from './SmartPromptSheet';
 import { CombatAbilityCard } from './CombatAbilityCard';
-import { MobileItemsGrid } from './MobileItemsGrid';
-import { MobileSpellList } from './MobileSpellList';
 
 import { QuickCastPanel } from './QuickCastPanel';
 import { TurnWizardPanel } from './TurnWizardPanel';
 import { DeathSavesTracker } from '@/components/character/DeathSavesTracker';
 import { CombatSectionContent } from './CombatSectionContent';
 import { ActionsSectionContent } from './ActionsSectionContent';
+import { SpellsSectionContent } from './SpellsSectionContent';
+import { ItemsSectionContent } from './ItemsSectionContent';
 import { CombatDashboard } from './CombatDashboard';
 import { EdgeDrawer } from '@/components/drawers/EdgeDrawer';
 import { PartyPanel } from '@/components/party/PartyPanel';
@@ -790,72 +790,8 @@ export function MobileCombatLayout({
 
   // renderActionsContent extracted to <ActionsSectionContent /> component
 
-  // Render spells section content
-  const renderSpellsContent = () => {
-    if (!spellcasting) {
-      return (
-        <div className="flex flex-col items-center justify-center text-center py-16 px-4">
-          <p className="text-muted-foreground">Spellcasting not available</p>
-        </div>
-      );
-    }
-    return (
-      <MobileSpellList
-        spellcasting={spellcasting}
-        characterName={character.name}
-        onCast={(result) => {
-          if (result.success) {
-            setLastAction(`${result.spellName.toUpperCase()} CAST`);
-            handleAddToTurn('action', `Cast ${result.spellName}`);
-            combatLog.addEntry({
-              actionType: 'spell',
-              actionName: result.spellName,
-              prompt: `## 🔮 SPELL CAST: ${result.spellName.toUpperCase()}\n\n**Character:** ${character.name}\n\n---\n\n*Narrate ${character.name} casting ${result.spellName}.*`,
-            });
-            handleSpellCastResult(result.spellName);
-          }
-        }}
-      />
-    );
-  };
-
-  // Render items section content
-  const renderItemsContent = () => {
-    const activeSetForItems = activeSetBonuses.length > 0 ? {
-      name: activeSetBonuses[0].name,
-      effect: activeSetBonuses[0].effect,
-    } : undefined;
-    const concentrationForItems = concentrationSpell ? {
-      name: concentrationSpell,
-      level: undefined,
-    } : undefined;
-    
-    return (
-      <MobileItemsGrid
-        onAddToTurn={handleAddToTurn}
-        onRemoveFromTurn={handleRemoveActionByDescription}
-        onNavigateToConsumables={onNavigateToConsumables}
-        globalConditions={globalConditions}
-        activeSetBonus={activeSetForItems}
-        concentrationSpell={concentrationForItems}
-        lootItemsWithDice={lootItemsWithDice}
-        onUseLootItem={onUseLootItem}
-        characterName={character.name}
-        onLogEntry={(entry) => combatLog.addEntry(entry)}
-        onRemoveLogEntry={(actionName) => {
-          const match = combatLog.entries.find(e => e.actionType === 'item' && e.actionName === actionName);
-          if (match) combatLog.removeEntry(match.id);
-        }}
-        currentHP={currentHP}
-        maxHP={maxHP}
-        tempHP={tempHP}
-        onHPChange={onHPChange}
-        partyMembers={partySync?.party.members}
-        userId={userId}
-        onSendHeal={partySync?.sendHealAction}
-      />
-    );
-  };
+  // renderSpellsContent extracted to <SpellsSectionContent />
+  // renderItemsContent extracted to <ItemsSectionContent />
 
   // Render log section content
   const renderLogContent = () => (
@@ -1052,13 +988,48 @@ export function MobileCombatLayout({
           {/* MAGIC Section */}
           <div ref={spellsRef} id="section-spells">
             {renderSectionHeader('spells')}
-            {renderSpellsContent()}
+            <SpellsSectionContent
+              spellcasting={spellcasting}
+              characterName={character.name}
+              onSetLastAction={setLastAction}
+              onAddToTurn={handleAddToTurn}
+              onLogSpellCast={(spellName) => {
+                combatLog.addEntry({
+                  actionType: 'spell',
+                  actionName: spellName,
+                  prompt: `## 🔮 SPELL CAST: ${spellName.toUpperCase()}\n\n**Character:** ${character.name}\n\n---\n\n*Narrate ${character.name} casting ${spellName}.*`,
+                });
+              }}
+              onSpellCastResult={handleSpellCastResult}
+            />
           </div>
           
           {/* ITEMS Section */}
           <div ref={itemsRef} id="section-items">
             {renderSectionHeader('items')}
-            {renderItemsContent()}
+            <ItemsSectionContent
+              characterName={character.name}
+              onAddToTurn={handleAddToTurn}
+              onRemoveFromTurn={handleRemoveActionByDescription}
+              onNavigateToConsumables={onNavigateToConsumables}
+              globalConditions={globalConditions}
+              activeSetBonuses={activeSetBonuses}
+              concentrationSpell={concentrationSpell}
+              lootItemsWithDice={lootItemsWithDice}
+              onUseLootItem={onUseLootItem}
+              onLogEntry={(entry) => combatLog.addEntry(entry)}
+              onRemoveLogEntry={(actionName) => {
+                const match = combatLog.entries.find(e => e.actionType === 'item' && e.actionName === actionName);
+                if (match) combatLog.removeEntry(match.id);
+              }}
+              currentHP={currentHP}
+              maxHP={maxHP}
+              tempHP={tempHP}
+              onHPChange={onHPChange}
+              partyMembers={partySync?.party.members}
+              userId={userId}
+              onSendHeal={partySync?.sendHealAction}
+            />
           </div>
           
           {/* LOG Section */}
