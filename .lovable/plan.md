@@ -1,88 +1,79 @@
 
 
-# Fix: Video Background Not Looping on Mobile
+# Increase Max Party Size to 6 with Adaptive UI Layout
 
-## Root Cause
+## Summary
 
-Mobile browsers (iOS Safari, Android Chrome) have strict autoplay policies and buffering behavior that differ from desktop:
-
-1. **`onCanPlayThrough` rarely fires on mobile** — mobile browsers don't preload video data, so this event never triggers. The video stays at `opacity-0` forever (fade-in never happens), making it appear as a still frame or invisible.
-
-2. **`contain: layout style paint`** can interfere with video rendering on some mobile WebViews — the browser may optimize away the video paint since it thinks nothing has changed.
-
-3. **No explicit `play()` call on mount** — while `autoPlay` works on desktop, mobile browsers sometimes need a programmatic `.play()` call to reliably start playback (especially after the element mounts into the DOM).
+Update the party system to support 6 players instead of 4. This touches the backend enforcement, all four `MEMBER_COLORS` arrays across the codebase, the UI counter, and the member card list layout to keep things readable at higher member counts.
 
 ## Changes
 
-### `src/components/ui/BackgroundWrapper.tsx`
+### 1. Backend enforcement
+**File:** `supabase/functions/party-link/index.ts` (line 153-154)
 
-**A. Switch from `onCanPlayThrough` to multiple readiness events**
+Change the join cap from 4 to 6 and update the error message.
 
-Replace the single `onCanPlayThrough` handler with both `onCanPlay` and `onLoadedData` — these fire much earlier and more reliably on mobile:
+### 2. Member colors — 4 locations all need 2 extra colors (`#ef4444` red, `#06b6d4` cyan)
 
-```tsx
-onCanPlay={() => {
-  setVideoReady(true);
-  onLoad?.();
-}}
-onLoadedData={() => {
-  // Fallback for mobile browsers that skip canplay
-  setVideoReady(true);
-}}
-```
+| File | Line |
+|------|------|
+| `src/components/party/battlemap/types.ts` | 14 |
+| `src/components/party/PartyPanel.tsx` | 71 |
+| `src/components/ai-dm/PartyDMScreen.tsx` | 48 |
+| `src/components/ai-dm/InlineBattleMap.tsx` | uses import from `battlemap/types.ts` — covered by #1 |
 
-**B. Add explicit `play()` call when video element mounts**
+### 3. UI counter
+**File:** `src/components/party/PartyPanel.tsx` (line 206)
 
-Add an effect that calls `videoRef.current.play()` once the video element is available, as a safety net for mobile autoplay:
+`{party.members.length}/4` → `{party.members.length}/6`
 
-```tsx
-useEffect(() => {
-  if (!videoRef.current || !videoSrc || prefersReducedMotion) return;
-  const playPromise = videoRef.current.play();
-  if (playPromise) {
-    playPromise.catch(() => { /* autoplay blocked */ });
-  }
-}, [videoSrc, prefersReducedMotion]);
-```
+### 4. Adaptive member list layout
+**File:** `src/components/party/PartyPanel.tsx` (lines 233-245)
 
-**C. Remove `contain` from video element styles**
-
-The `contain: layout style paint` hint can cause mobile renderers to skip repainting the video frames. Remove it from the video element specifically (keep it for the image layer where it's beneficial):
+When 5+ members are present, switch from a single-column vertical stack to a responsive 2-column grid so the panel doesn't become excessively tall:
 
 ```tsx
-style={{ willChange: 'transform' }}
+<div className={cn(
+  party.members.length >= 5
+    ? "grid grid-cols-2 gap-2"
+    : "space-y-2"
+)}>
 ```
 
-**D. Add `webkit-playsinline` attribute**
+### 5. Compact mode for PartyMemberCard
+**File:** `src/components/party/PartyMemberCard.tsx`
 
-Older iOS versions need this attribute for inline playback:
+Add a `compact?: boolean` prop. When true:
 
-```tsx
-<video
-  ...
-  playsInline
-  {...{ 'webkit-playsinline': '' }}
-/>
-```
+- Outer padding: `p-2` instead of `p-3`
+- Avatar: `w-6 h-6` instead of `w-7 h-7`
+- Character name truncation: `max-w-[90px]` instead of `max-w-[120px]`
+- Hide timezone display
+- Hide spell slot summary (keep expand button only)
+- HP bar height: `h-1.5` instead of `h-2`
 
-**E. Add `preload="auto"` to encourage mobile buffering**
+Pass from PartyPanel: `compact={party.members.length >= 5}`
 
-```tsx
-<video preload="auto" ... />
-```
+### 6. Edge function redeployment
 
-## Summary of Changes
+The edge function `party-link` will be automatically redeployed after the code change.
 
-| File | Change |
-|------|--------|
-| `src/components/ui/BackgroundWrapper.tsx` | Replace `onCanPlayThrough` with `onCanPlay` + `onLoadedData`; add explicit `play()` effect on mount; remove `contain` from video styles; add `webkit-playsinline` and `preload="auto"` |
+## Files Changed
 
-No other files need changes — the issue is entirely in how the `<video>` element is configured for mobile browsers.
+| File | What |
+|------|------|
+| `supabase/functions/party-link/index.ts` | `>= 4` → `>= 6`, error message |
+| `src/components/party/PartyPanel.tsx` | Counter `/6`, 6 colors, 2-col grid for 5+, pass `compact` |
+| `src/components/party/PartyMemberCard.tsx` | Add `compact` prop with tighter layout |
+| `src/components/party/battlemap/types.ts` | Add 2 colors to `MEMBER_COLORS` |
+| `src/components/ai-dm/PartyDMScreen.tsx` | Add 2 colors to `MEMBER_COLORS` |
 
 ## Testing
 
-1. Open on mobile (or mobile emulator) in Magic Build mode — video should loop, not freeze on first frame
-2. Verify fade-in transition still works (video appears smoothly, not a pop-in)
-3. Verify desktop behavior is unchanged
-4. Test with "reduce motion" enabled — video should pause
+1. Create a party — counter shows `/6`
+2. With 1-4 members: single-column layout, normal card size
+3. With 5-6 members: 2-column grid, compact cards with smaller avatars and hidden timezone
+4. Attempt to join a full 6-member party — "Party is full (max 6)" error
+5. Battle map markers for members 5 and 6 use red and cyan colors
+6. Verify no horizontal overflow on mobile in 2-column mode
 
