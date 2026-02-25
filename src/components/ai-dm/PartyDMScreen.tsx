@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 import { useNarrator } from '@/hooks/use-narrator';
+import { NarrationSpeedPopover } from './NarrationSpeedPopover';
 import type { usePartyDm, PartyDmMessage, PartyDmPrompt } from '@/hooks/use-party-dm';
 import { DMDiceRoller } from './DMDiceRoller';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
@@ -1031,6 +1032,9 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                       )}
                     </button>
                   )}
+                  {narrator.hasElevenLabsKey && (
+                    <NarrationSpeedPopover iconSize="w-4 h-4" />
+                  )}
                 </div>
               )}
             </div>
@@ -1113,6 +1117,9 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                     <Volume2 className="w-4 h-4 text-white/50" />
                   )}
                 </button>
+              )}
+              {narrator.hasElevenLabsKey && (
+                <NarrationSpeedPopover iconSize="w-4 h-4" />
               )}
               {isCreator && (
                 <Button
