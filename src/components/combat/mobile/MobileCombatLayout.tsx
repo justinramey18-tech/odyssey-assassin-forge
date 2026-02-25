@@ -50,6 +50,7 @@ import { AttackQueuePanel } from './AttackQueuePanel';
 import { InitiativeTracker } from './InitiativeTracker';
 import { CombatDiceRoller } from './CombatDiceRoller';
 import { DeathSavesTracker } from '@/components/character/DeathSavesTracker';
+import { CombatSectionContent } from './CombatSectionContent';
 import { EdgeDrawer } from '@/components/drawers/EdgeDrawer';
 import { PartyPanel } from '@/components/party/PartyPanel';
 import { HealTargetPicker } from '@/components/party/HealTargetPicker';
@@ -790,125 +791,7 @@ export function MobileCombatLayout({
     }
   }, [spellcasting, onHPChange, currentHP, maxHP, tempHP, partySync, userId, rollHealingFormula]);
 
-  // Render combat section content (inline, not wrapped in overflow containers)
-  const renderCombatContent = () => (
-    <div className="p-4 space-y-4">
-      {currentHP === 0 && deathSaves && onDeathSavesChange && onRegainHP && (
-        <DeathSavesTracker
-          deathSaves={deathSaves}
-          onDeathSavesChange={onDeathSavesChange}
-          onRegainHP={onRegainHP}
-        />
-      )}
-      {spellcasting && spellcasting.state.path && (
-        <QuickCastPanel
-          spellcasting={spellcasting}
-          characterName={character.name}
-          characterLevel={character.level}
-          onCast={(result) => {
-            if (result.success) {
-              handleAddToTurn('action', `Cast ${result.spellName}`);
-              setLastAction(`${result.spellName.toUpperCase()} CAST`);
-              handleSpellCastResult(result.spellName);
-            }
-          }}
-        />
-      )}
-      <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-xl">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-xs font-mono text-green-400">SNEAK ATTACK</span>
-          <span className="text-lg font-bold text-green-300">{sneakAttackDice}</span>
-        </div>
-        <p className="text-[11px] text-muted-foreground">
-          Once per turn with advantage OR ally within 5ft (no disadvantage)
-        </p>
-      </div>
-      <AttackQueuePanel
-        queue={attackQueue.sortedQueue}
-        enemies={targetTracker.enemies}
-        actionEconomy={attackQueue.actionEconomy}
-        onRemove={attackQueue.removeFromQueue}
-        onReorder={attackQueue.reorderAttack}
-        onUpdateTarget={attackQueue.updateAttackTarget}
-        onExecute={handleExecuteQueue}
-        onClear={attackQueue.clearQueue}
-      />
-      <div className="space-y-3">
-        <h3 className="text-xs font-mono text-destructive uppercase tracking-wide">⚔️ Weapons</h3>
-        {equippedWeapons.map(weapon => (
-          <MobileWeaponCard
-            key={weapon.id}
-            weapon={weapon}
-            level={character.level}
-            attackBonus={combatStats.attackBonus}
-            damageBonus={combatStats.damageBonus}
-            conditions={conditions}
-            hasPoisonedWeapon={hasPoisonedWeapon}
-            isExpanded={expandedWeaponId === weapon.id}
-            onToggleExpand={() => setExpandedWeaponId(
-              expandedWeaponId === weapon.id ? null : weapon.id
-            )}
-            onRoll={handleWeaponRoll}
-            customImage={weapon.slotType ? equipmentImages[weapon.slotType] : undefined}
-            enemies={targetTracker.enemies}
-            selectedTargetId={attackQueue.defaultTargetId}
-            onQueueAttack={handleQueueAttack}
-          />
-        ))}
-        {equippedWeapons.length === 0 && (
-          <div className="text-center py-4 text-muted-foreground">
-            <p className="text-sm">No weapons equipped</p>
-          </div>
-        )}
-      </div>
-      {weaponsMap.secondary && (
-        <OffhandAttackCard
-          secondaryWeapon={weaponsMap.secondary}
-          primaryWeapon={weaponsMap.primary}
-          level={character.level}
-          attackBonus={combatStats.attackBonus}
-          hasTwoWeaponFightingStyle={combatSettings.hasTwoWeaponFightingStyle}
-          hasDualWielderFeat={combatSettings.hasDualWielderFeat}
-          damageBonus={combatStats.damageBonus}
-          conditions={conditions}
-          hasPoisonedWeapon={hasPoisonedWeapon}
-          bonusActionUsed={actionEconomy.bonusActionUsed}
-          onRoll={handleOffhandRoll}
-          onUseBonus={() => actionEconomyState.useBonus()}
-          customImage={equipmentImages.secondary_weapon}
-        />
-      )}
-      {stealthAbilities.length > 0 && (
-        <div className="space-y-3 pt-2 border-t border-muted/20">
-          <h3 className="text-xs font-mono text-purple-400 uppercase tracking-wide">🌙 Stealth & Assassin</h3>
-          {stealthAbilities.map(ability => {
-            const cdState = cooldownStateMap.get(ability.id);
-            return (
-              <div key={ability.id}>
-                <CombatAbilityCard
-                  ability={ability}
-                  characterName={character.name}
-                  weapons={weaponsMap}
-                  cooldownState={cdState ? {
-                    isOnCooldown: cdState.isOnCooldown,
-                    remaining: cdState.remaining,
-                    total: cdState.total,
-                  } : undefined}
-                  customImage={abilityImages[ability.id]}
-                  activeConditions={globalConditions}
-                  activeSetBonuses={activeSetBonuses}
-                  concentrationSpell={concentrationSpell}
-                  currentTarget={targetTracker.getTargetForPrompt()}
-                  onUse={handleEnhancedAbilityUse}
-                  onTriggerCooldown={cooldownSystem.triggerCooldown}
-                />
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
+  // renderCombatContent extracted to <CombatSectionContent /> component
 
   // Render actions section content
   const renderActionsContent = () => {
@@ -1218,7 +1101,45 @@ export function MobileCombatLayout({
           {/* COMBAT Section */}
           <div ref={combatRef} id="section-combat">
             {renderSectionHeader('combat')}
-            {renderCombatContent()}
+            <CombatSectionContent
+              characterName={character.name}
+              characterLevel={character.level}
+              currentHP={currentHP}
+              deathSaves={deathSaves}
+              onDeathSavesChange={onDeathSavesChange}
+              onRegainHP={onRegainHP}
+              spellcasting={spellcasting}
+              equippedWeapons={equippedWeapons}
+              weaponsMap={weaponsMap}
+              expandedWeaponId={expandedWeaponId}
+              onToggleWeaponExpand={(id) => setExpandedWeaponId(expandedWeaponId === id ? null : id)}
+              equipmentImages={equipmentImages}
+              conditions={conditions}
+              hasPoisonedWeapon={hasPoisonedWeapon}
+              sneakAttackDice={sneakAttackDice}
+              combatStats={combatStats}
+              combatSettings={combatSettings}
+              bonusActionUsed={actionEconomy.bonusActionUsed}
+              attackQueue={attackQueue}
+              enemies={targetTracker.enemies}
+              getTargetForPrompt={targetTracker.getTargetForPrompt}
+              stealthAbilities={stealthAbilities}
+              cooldownStateMap={cooldownStateMap}
+              abilityImages={abilityImages}
+              globalConditions={globalConditions}
+              activeSetBonuses={activeSetBonuses}
+              concentrationSpell={concentrationSpell}
+              onAddToTurn={handleAddToTurn}
+              onSetLastAction={setLastAction}
+              onSpellCastResult={handleSpellCastResult}
+              onWeaponRoll={handleWeaponRoll}
+              onOffhandRoll={handleOffhandRoll}
+              onExecuteQueue={handleExecuteQueue}
+              onQueueAttack={handleQueueAttack}
+              onUseAbility={handleEnhancedAbilityUse}
+              onUseBonus={() => actionEconomyState.useBonus()}
+              onTriggerCooldown={cooldownSystem.triggerCooldown}
+            />
           </div>
           
           {/* ACTIONS Section */}
