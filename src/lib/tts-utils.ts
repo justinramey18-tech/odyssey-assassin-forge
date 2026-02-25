@@ -1,0 +1,133 @@
+/**
+ * Strips markdown syntax from text for cleaner TTS narration.
+ * Preserves quoted dialogue and converts list items to natural pauses.
+ */
+export function stripMarkdownForTTS(text: string): string {
+  let result = text;
+
+  // Remove headers (# ## ### etc.)
+  result = result.replace(/^#{1,6}\s+/gm, '');
+
+  // Remove bold/italic markers but keep content
+  result = result.replace(/\*\*\*(.*?)\*\*\*/g, '$1');
+  result = result.replace(/\*\*(.*?)\*\*/g, '$1');
+  result = result.replace(/\*(.*?)\*/g, '$1');
+  result = result.replace(/__(.*?)__/g, '$1');
+  result = result.replace(/_(.*?)_/g, '$1');
+
+  // Remove inline code
+  result = result.replace(/`([^`]+)`/g, '$1');
+
+  // Remove code blocks
+  result = result.replace(/```[\s\S]*?```/g, '');
+
+  // Remove horizontal rules
+  result = result.replace(/^---+$/gm, '');
+  result = result.replace(/^\*\*\*+$/gm, '');
+
+  // Convert blockquotes — preserve the text
+  result = result.replace(/^>\s*/gm, '');
+
+  // Convert list items to sentences (natural pauses)
+  result = result.replace(/^[-*+]\s+/gm, '');
+  result = result.replace(/^\d+\.\s+/gm, '');
+
+  // Remove links — keep display text
+  result = result.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+
+  // Remove images
+  result = result.replace(/!\[([^\]]*)\]\([^)]+\)/g, '');
+
+  // Collapse multiple newlines into pauses
+  result = result.replace(/\n{3,}/g, '\n\n');
+
+  // Trim
+  result = result.trim();
+
+  return result;
+}
+
+/**
+ * Splits text at paragraph boundaries for request stitching.
+ * Each chunk is kept under maxChars.
+ */
+export function splitTextForStitching(text: string, maxChars: number = 5000): string[] {
+  if (text.length <= maxChars) return [text];
+
+  const paragraphs = text.split(/\n\n+/);
+  const chunks: string[] = [];
+  let current = '';
+
+  for (const para of paragraphs) {
+    if (current.length + para.length + 2 > maxChars && current.length > 0) {
+      chunks.push(current.trim());
+      current = para;
+    } else {
+      current += (current ? '\n\n' : '') + para;
+    }
+  }
+  if (current.trim()) {
+    chunks.push(current.trim());
+  }
+
+  return chunks;
+}
+
+// Voice cache helpers
+const VOICE_CACHE_KEY = 'dnd-elevenlabs-voices-cache';
+const VOICE_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+export interface CachedVoice {
+  voice_id: string;
+  name: string;
+  category: string;
+  preview_url: string | null;
+}
+
+interface VoiceCacheData {
+  voices: CachedVoice[];
+  timestamp: number;
+}
+
+export function getCachedVoices(): CachedVoice[] | null {
+  try {
+    const raw = localStorage.getItem(VOICE_CACHE_KEY);
+    if (!raw) return null;
+    const data: VoiceCacheData = JSON.parse(raw);
+    if (Date.now() - data.timestamp > VOICE_CACHE_TTL) {
+      localStorage.removeItem(VOICE_CACHE_KEY);
+      return null;
+    }
+    return data.voices;
+  } catch {
+    return null;
+  }
+}
+
+export function setCachedVoices(voices: CachedVoice[]): void {
+  try {
+    const data: VoiceCacheData = { voices, timestamp: Date.now() };
+    localStorage.setItem(VOICE_CACHE_KEY, JSON.stringify(data));
+  } catch {
+    // ignore
+  }
+}
+
+// Selected voice persistence
+const VOICE_ID_KEY = 'dnd-elevenlabs-voice-id';
+
+export function loadSelectedVoiceId(): string | null {
+  try {
+    return localStorage.getItem(VOICE_ID_KEY) || null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveSelectedVoiceId(voiceId: string): void {
+  try {
+    localStorage.setItem(VOICE_ID_KEY, voiceId);
+  } catch {
+    // ignore
+  }
+}

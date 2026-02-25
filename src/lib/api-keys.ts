@@ -1,8 +1,9 @@
 const STORAGE_KEYS: Record<string, string> = {
   anthropic: 'dnd-anthropic-api-key',
+  elevenlabs: 'dnd-elevenlabs-api-key',
 };
 
-export type ApiKeyProvider = 'anthropic';
+export type ApiKeyProvider = 'anthropic' | 'elevenlabs';
 
 export function loadApiKey(provider: ApiKeyProvider): string | null {
   try {
