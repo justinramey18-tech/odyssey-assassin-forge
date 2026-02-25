@@ -31,8 +31,6 @@ import { isLegacyAbilityId, resolveLegacyAbility } from '@/lib/prestigeTree/abil
 // Mobile components
 import { CombatBottomNav, CombatTab } from './CombatBottomNav';
 import { CombatTopBar } from './CombatTopBar';
-import { SituationStrip } from './SituationStrip';
-import { ActionEconomyBar } from './ActionEconomyBar';
 import { MobileWeaponCard } from './MobileWeaponCard';
 import { OffhandAttackCard } from './OffhandAttackCard';
 import { CombatFAB } from './CombatFAB';
@@ -45,12 +43,9 @@ import { MobileSpellList } from './MobileSpellList';
 import { MobileReactionsList } from './MobileReactionsList';
 import { QuickCastPanel } from './QuickCastPanel';
 import { TurnWizardPanel } from './TurnWizardPanel';
-import { TargetTrackerPanel } from './TargetTrackerPanel';
-import { AttackQueuePanel } from './AttackQueuePanel';
-import { InitiativeTracker } from './InitiativeTracker';
-import { CombatDiceRoller } from './CombatDiceRoller';
 import { DeathSavesTracker } from '@/components/character/DeathSavesTracker';
 import { CombatSectionContent } from './CombatSectionContent';
+import { CombatDashboard } from './CombatDashboard';
 import { EdgeDrawer } from '@/components/drawers/EdgeDrawer';
 import { PartyPanel } from '@/components/party/PartyPanel';
 import { HealTargetPicker } from '@/components/party/HealTargetPicker';
@@ -193,14 +188,14 @@ export function MobileCombatLayout({
   
   // Target/Enemy Tracker for combat
   const targetTracker = useTargets();
-  const [targetTrackerCollapsed, setTargetTrackerCollapsed] = useState(true);
+  
   
   // Attack Queue system
   const attackQueue = useAttackQueue(targetTracker.enemies);
   
   // Initiative tracking
   const initiativeTracker = useInitiative(targetTracker.enemies);
-  const [initiativeCollapsed, setInitiativeCollapsed] = useState(true);
+  
   
   // Cooldown system integration
   const cooldownSystem = useCooldowns({
@@ -255,7 +250,6 @@ export function MobileCombatLayout({
   
   // Situation state
   const [conditions, setConditions] = useState<string[]>([]);
-  const [situationCollapsed, setSituationCollapsed] = useState(true);
   
   // Action economy state (from synced hook)
   const actionEconomy = actionEconomyState.economy;
@@ -987,26 +981,14 @@ export function MobileCombatLayout({
       {/* Main Content Area */}
       <main className="pt-[88px]">
         
-        {/* Situation Strip */}
-        <SituationStrip
+        {/* Dashboard: Situation, Dice, Targets, Initiative, Action Economy */}
+        <CombatDashboard
           conditions={conditions}
           onConditionsChange={setConditions}
-          isCollapsed={situationCollapsed}
-          onCollapsedChange={setSituationCollapsed}
-        />
-        
-        {/* Compact Dice Roller Widget */}
-        <CombatDiceRoller
           onShareToParty={partySync?.party.partyId ? (label, expression, result, details) => {
             partySync?.shareRoll(label, expression, result, details, characterName || 'Unknown');
           } : undefined}
-        />
-        
-        {/* Target/Enemy Tracker */}
-        <TargetTrackerPanel
-          targets={targetTracker}
-          isCollapsed={targetTrackerCollapsed}
-          onCollapsedChange={setTargetTrackerCollapsed}
+          targetTracker={targetTracker}
           onMarkTarget={partySync?.party.partyId ? (enemy) => {
             const hpPercent = enemy.maxHP > 0 ? (enemy.currentHP / enemy.maxHP) * 100 : 0;
             partySync?.broadcastFocusTarget({
@@ -1019,18 +1001,11 @@ export function MobileCombatLayout({
               markedBy: characterName || 'Unknown',
             });
           } : undefined}
-        />
-        
-        {/* Initiative Tracker */}
-        <InitiativeTracker
-          initiative={initiativeTracker}
-          enemies={targetTracker.enemies}
+          initiativeTracker={initiativeTracker}
           onUpdateEnemyInitiative={(id, initiative) => {
             targetTracker.updateEnemy(id, { initiative });
           }}
           dexModifier={abilityModifiers?.dexterity ?? 0}
-          isCollapsed={initiativeCollapsed}
-          onCollapsedChange={setInitiativeCollapsed}
           onBroadcastInitiative={partySync?.party.partyId ? (order, round) => {
             partySync?.broadcastInitiative(order, round, characterName || 'Unknown');
           } : undefined}
@@ -1038,11 +1013,7 @@ export function MobileCombatLayout({
             partySync?.clearInitiative();
           } : undefined}
           partyInitiatives={partySync?.partyInitiatives}
-        />
-        
-        {/* Action Economy Bar */}
-        <ActionEconomyBar
-          economy={actionEconomy}
+          actionEconomy={actionEconomy}
           onEconomyChange={setActionEconomy}
           actionCount={actionCount}
           bonusCount={bonusCount}
@@ -1050,7 +1021,6 @@ export function MobileCombatLayout({
           round={initiativeTracker.combatStarted ? initiativeTracker.roundNumber : round}
           coolingAbilities={coolingAbilitiesForBar}
           onEndTurn={() => {
-            // End turn: reset economy, advance to next turn in initiative
             handleResetTurn();
             if (initiativeTracker.combatStarted) {
               initiativeTracker.nextTurn();
@@ -1060,7 +1030,6 @@ export function MobileCombatLayout({
             setLastAction('TURN ENDED');
           }}
           onEndTurnWithSynthesis={() => {
-            // End turn with AI synthesis: open the smart prompt sheet
             handleResetTurn();
             if (initiativeTracker.combatStarted) {
               initiativeTracker.nextTurn();
