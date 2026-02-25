@@ -68,7 +68,7 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
   const { party } = partySync;
   const onlineStatusMap = useOnlineStatus(party.members);
 
-  const MEMBER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7'];
+  const MEMBER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7', '#ef4444', '#06b6d4'];
   const memberColors = useMemo(() => {
     const colors: Record<string, string> = {};
     party.members.forEach((m, i) => {
@@ -203,7 +203,7 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
           <Users className="w-4 h-4 text-primary" />
           <span className="font-cinzel font-semibold text-sm">Party</span>
           <span className="text-[10px] text-muted-foreground">
-            {party.members.length}/4
+            {party.members.length}/6
           </span>
         </div>
         <button
@@ -231,7 +231,11 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
       )}
 
       {/* Members */}
-      <div className="space-y-2">
+      <div className={cn(
+        party.members.length >= 5
+          ? "grid grid-cols-2 gap-2"
+          : "space-y-2"
+      )}>
         {party.members.map(member => (
           <PartyMemberCard
             key={member.id}
@@ -240,6 +244,7 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
             onViewActions={(m) => setSelectedMember(m)}
             onSendItem={(m) => setSendToMember(m)}
             onlineInfo={onlineStatusMap[member.user_id]}
+            compact={party.members.length >= 5}
           />
         ))}
       </div>

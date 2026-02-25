@@ -13,9 +13,10 @@ interface PartyMemberCardProps {
   onViewActions?: (member: PartyMember) => void;
   onSendItem?: (member: PartyMember) => void;
   onlineInfo?: OnlineInfo;
+  compact?: boolean;
 }
 
-export function PartyMemberCard({ member, isSelf, onViewActions, onSendItem, onlineInfo }: PartyMemberCardProps) {
+export function PartyMemberCard({ member, isSelf, onViewActions, onSendItem, onlineInfo, compact = false }: PartyMemberCardProps) {
   const [showSlots, setShowSlots] = useState(false);
   const [playerTime, setPlayerTime] = useState('');
   const playerTz = member.character_status.timezone;
@@ -52,7 +53,8 @@ export function PartyMemberCard({ member, isSelf, onViewActions, onSendItem, onl
   return (
     <div
       className={cn(
-        "p-3 rounded-lg border bg-card/60 backdrop-blur-sm space-y-2 transition-colors",
+        "rounded-lg border bg-card/60 backdrop-blur-sm space-y-2 transition-colors",
+        compact ? "p-2" : "p-3",
         isSelf ? "border-primary/40" : "border-border/40",
         isTappable && "cursor-pointer hover:bg-card/80 active:bg-card/90"
       )}
@@ -62,7 +64,7 @@ export function PartyMemberCard({ member, isSelf, onViewActions, onSendItem, onl
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Avatar className="w-7 h-7">
+            <Avatar className={compact ? "w-6 h-6" : "w-7 h-7"}>
               {profileImage ? (
                 <AvatarImage src={profileImage} alt={member.character_name} />
               ) : null}
@@ -80,7 +82,7 @@ export function PartyMemberCard({ member, isSelf, onViewActions, onSendItem, onl
               />
             )}
           </div>
-          <span className="font-cinzel font-semibold text-sm truncate max-w-[120px]">
+          <span className={cn("font-cinzel font-semibold text-sm truncate", compact ? "max-w-[90px]" : "max-w-[120px]")}>
             {member.character_name}
           </span>
           {isSelf && (
@@ -88,7 +90,7 @@ export function PartyMemberCard({ member, isSelf, onViewActions, onSendItem, onl
           )}
         </div>
         <div className="flex items-center gap-1.5">
-          {playerTz && playerTime && (
+          {!compact && playerTz && playerTime && (
             <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground/70 font-mono">
               <Clock className="w-2.5 h-2.5" />
               {playerTime}
@@ -149,7 +151,7 @@ export function PartyMemberCard({ member, isSelf, onViewActions, onSendItem, onl
             <span>{ac}</span>
           </div>
         </div>
-        <div className="h-2 rounded-full bg-muted/40 overflow-hidden">
+        <div className={cn("rounded-full bg-muted/40 overflow-hidden", compact ? "h-1.5" : "h-2")}>
           <div
             className={cn(
               "h-full rounded-full transition-all duration-500",
@@ -186,13 +188,15 @@ export function PartyMemberCard({ member, isSelf, onViewActions, onSendItem, onl
               <ChevronUp className="w-3 h-3 text-muted-foreground ml-auto" />
             ) : (
               <>
-                <div className="flex gap-1 ml-1">
-                  {Object.entries(spellSlots).slice(0, 5).map(([level, slots]) => (
-                    <span key={level} className="text-[9px] text-muted-foreground">
-                      L{level}:{slots.current}/{slots.max}
-                    </span>
-                  ))}
-                </div>
+                {!compact && (
+                  <div className="flex gap-1 ml-1">
+                    {Object.entries(spellSlots).slice(0, 5).map(([level, slots]) => (
+                      <span key={level} className="text-[9px] text-muted-foreground">
+                        L{level}:{slots.current}/{slots.max}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <ChevronDown className="w-3 h-3 text-muted-foreground ml-auto" />
               </>
             )}

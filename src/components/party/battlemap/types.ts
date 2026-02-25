@@ -11,7 +11,7 @@ export type GridSize = 10 | 25 | 50 | 100;
 export const GRID_SIZE_OPTIONS = [10, 25, 50, 100] as const;
 export const CELL_SIZE = 40;
 export const INLINE_GRID_SIZE = 10;
-export const MEMBER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7'];
+export const MEMBER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7', '#ef4444', '#06b6d4'];
 export const STORAGE_KEY_GRID_SIZE = 'dnd-battlemap-grid-size';
 export const MAX_BACKGROUND_SIZE_MB = 5;
 
