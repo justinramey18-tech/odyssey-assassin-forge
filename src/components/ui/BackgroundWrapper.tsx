@@ -1,8 +1,9 @@
-import { ReactNode, useState, useEffect } from 'react';
+import { ReactNode, useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 
 interface BackgroundWrapperProps {
   imagePath: string;
+  videoSrc?: string;
   overlayOpacity?: number;
   tintColor?: 'red' | 'amber' | 'purple' | 'cyan' | 'green' | 'indigo';
   tintOpacity?: number;
@@ -30,6 +31,7 @@ const DEFAULT_FALLBACK_GRADIENT = 'linear-gradient(135deg, #1a1a2e 0%, #16213e 5
 
 export function BackgroundWrapper({
   imagePath,
+  videoSrc,
   overlayOpacity = 60,
   tintColor,
   tintOpacity = 20,
@@ -45,8 +47,10 @@ export function BackgroundWrapper({
 }: BackgroundWrapperProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   // Detect reduced motion preference
   useEffect(() => {
@@ -65,8 +69,9 @@ export function BackgroundWrapper({
     setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
   }, []);
 
-  // Preload image
+  // Preload image (only when no videoSrc)
   useEffect(() => {
+    if (videoSrc) return;
     const img = new Image();
     img.onload = () => {
       setImageLoaded(true);
@@ -76,7 +81,34 @@ export function BackgroundWrapper({
       setImageError(true);
     };
     img.src = imagePath;
-  }, [imagePath, onLoad]);
+  }, [imagePath, onLoad, videoSrc]);
+
+  // Reduced motion: pause/play video
+  useEffect(() => {
+    if (!videoRef.current || !videoSrc) return;
+    if (prefersReducedMotion) {
+      videoRef.current.pause();
+    } else {
+      videoRef.current.play().catch(() => { /* autoplay blocked */ });
+    }
+  }, [prefersReducedMotion, videoSrc]);
+
+  // Memory cleanup on unmount or when videoSrc changes
+  useEffect(() => {
+    const el = videoRef.current;
+    return () => {
+      if (el) {
+        el.pause();
+        el.removeAttribute('src');
+        el.load();
+      }
+    };
+  }, [videoSrc]);
+
+  // Reset videoReady when videoSrc changes
+  useEffect(() => {
+    setVideoReady(false);
+  }, [videoSrc]);
 
   // Calculate gradient stops based on overlay opacity (0-100)
   const topOpacity = Math.round(overlayOpacity * 0.9) / 100;
@@ -86,13 +118,40 @@ export function BackgroundWrapper({
   const tintOpacityValue = tintOpacity / 100;
 
   // Disable fixed positioning on touch devices for 60fps scrolling
-  // Also disable if user prefers reduced motion
   const useFixed = fixed && !isTouchDevice && !prefersReducedMotion;
+
+  const isVideo = !!videoSrc;
+  const mediaReady = isVideo ? videoReady : imageLoaded;
 
   return (
     <div className={cn('relative min-h-screen w-full overflow-hidden', className)}>
-      {/* Background Image Layer */}
-      {(
+      {/* Video Background Layer */}
+      {isVideo && (
+        <video
+          ref={videoRef}
+          autoPlay
+          muted
+          loop
+          playsInline
+          onCanPlayThrough={() => {
+            setVideoReady(true);
+            onLoad?.();
+          }}
+          className={cn(
+            'absolute inset-0 w-full h-full object-cover z-0 transition-opacity duration-500',
+            videoReady ? 'opacity-100' : 'opacity-0'
+          )}
+          style={enablePerformanceHints ? {
+            willChange: 'transform',
+            contain: 'layout style paint',
+          } : undefined}
+          aria-hidden="true"
+          src={videoSrc}
+        />
+      )}
+
+      {/* Image Background Layer (skipped when video is active) */}
+      {!isVideo && (
         <div 
           className={cn(
             'absolute inset-0 bg-center bg-no-repeat z-0 transition-opacity duration-300',
@@ -116,7 +175,7 @@ export function BackgroundWrapper({
       <div 
         className={cn(
           'absolute inset-0 z-0 transition-opacity duration-300',
-          imageLoaded && !imageError ? 'opacity-0' : 'opacity-100'
+          mediaReady && !imageError ? 'opacity-0' : 'opacity-100'
         )}
         style={{ 
           background: fallbackGradient,
