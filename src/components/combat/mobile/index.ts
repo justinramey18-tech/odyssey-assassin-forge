@@ -26,5 +26,7 @@ export { EnemyCard } from './EnemyCard';
 export { CombatDiceRoller } from './CombatDiceRoller';
 export { CombatSectionContent } from './CombatSectionContent';
 export { ActionsSectionContent } from './ActionsSectionContent';
+export { SpellsSectionContent } from './SpellsSectionContent';
+export { ItemsSectionContent } from './ItemsSectionContent';
 export { CombatDashboard } from './CombatDashboard';
 export { MobileCombatLayout } from './MobileCombatLayout';
