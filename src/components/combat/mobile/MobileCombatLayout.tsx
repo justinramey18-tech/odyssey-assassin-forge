@@ -9,12 +9,8 @@ import {
   getSneakAttackDice,
 } from '@/lib/combat/combatTypes';
 import { ActiveConditionInfo, SetBonusInfo, TargetPromptInfo } from '@/lib/combat/promptContext';
-import { generateMobileWeaponPrompt } from '@/lib/combat/weaponPrompts';
 import { loadCombatSettings, COMBAT_SETTINGS_CHANGE_EVENT, CombatSettings } from '@/lib/combat/combatSettings';
-import { ExecutedAttack } from '@/lib/combat/attackQueue';
-import { generateMultiAttackPrompt, generateQueuedAttackPrompt } from '@/lib/combat/attackQueuePrompts';
-import { DiceRoll, rollDice, getAbilityDice, isCriticalHit, isCriticalMiss, inferRollMode } from '@/lib/diceRoller';
-import { generateRPPrompt } from '@/lib/rpPromptGenerator';
+import { DiceRoll, rollDice } from '@/lib/diceRoller';
 import { DiceRollModal } from '@/components/character/DiceRollModal';
 import { useGameMode } from '@/hooks/use-game-mode';
 import { useCooldowns } from '@/hooks/use-cooldowns';
@@ -44,6 +40,7 @@ import { PartyPanel } from '@/components/party/PartyPanel';
 import { HealTargetPicker } from '@/components/party/HealTargetPicker';
 import { Users } from 'lucide-react';
 import { useCombatLog } from '@/hooks/use-combat-log';
+import { useCombatActions } from '@/hooks/use-combat-actions';
 import { useTargets } from '@/hooks/use-targets';
 import { useInitiative } from '@/hooks/use-initiative';
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
@@ -251,15 +248,6 @@ export function MobileCombatLayout({
   // Expanded weapon card (accordion behavior)
   const [expandedWeaponId, setExpandedWeaponId] = useState<string | null>(null);
   
-  // Dice modal state
-  const [showDiceModal, setShowDiceModal] = useState(false);
-  const [diceRoll, setDiceRoll] = useState<DiceRoll | null>(null);
-  const [dicePrompt, setDicePrompt] = useState('');
-  const [activeAbility, setActiveAbility] = useState<Ability | null>(null);
-  const [activeTier, setActiveTier] = useState<1 | 2 | 3>(1);
-  
-  // UI state
-  const [lastAction, setLastAction] = useState('SYSTEMS READY');
   const [showSmartPromptSheet, setShowSmartPromptSheet] = useState(false);
   
   // Ability customization hook
@@ -407,316 +395,28 @@ export function MobileCombatLayout({
     actionEconomyState.addTurnAction({ type: actionType, description, roll });
   }, [actionEconomyState]);
   
-  // Handle ability use (legacy for stealth tab)
-  const handleAbilityUse = useCallback((
-    ability: Ability & { tier: 1 | 2 | 3 }
-  ) => {
-    const { die, count } = getAbilityDice(ability.tier);
-    const roll = rollDice(die, count);
-    const prompt = generateRPPrompt(ability, ability.tier, roll, character.name);
-    
-    setActiveAbility(ability);
-    setActiveTier(ability.tier);
-    setDiceRoll(roll);
-    setDicePrompt(prompt);
-    setShowDiceModal(true);
-    setLastAction(`${ability.name.toUpperCase()} ACTIVATED`);
-    
-    // Log to combat log
-    const logRollMode = inferRollMode(roll.rolls, roll.total, roll.modifier);
-    combatLog.addEntry({
-      actionType: 'ability',
-      actionName: ability.name,
-      prompt,
-      roll: {
-        total: roll.total,
-        rolls: roll.rolls,
-        modifier: roll.modifier,
-        isCrit: isCriticalHit(roll.rolls, logRollMode, roll.die),
-        isFumble: isCriticalMiss(roll.rolls, logRollMode, roll.die),
-      },
-      damage: `${count}${die}`,
-    });
-    
-    // Trigger cooldown
-    cooldownSystem.triggerCooldown(ability.id);
-    
-    const actionType = ability.actionType === 'bonus_action' ? 'bonus' : 
-                       ability.actionType === 'reaction' ? 'reaction' : 'action';
-    handleAddToTurn(actionType, ability.name, `${count}${die}`);
-  }, [character.name, handleAddToTurn, cooldownSystem, combatLog]);
-  
-  // Handle enhanced ability use (with weapon synergy + combined damage)
-  const handleEnhancedAbilityUse = useCallback((
-    ability: Ability & { tier: 1 | 2 | 3 },
-    roll: DiceRoll,
-    prompt: string,
-    combinedDamage: string
-  ) => {
-    setActiveAbility(ability);
-    setActiveTier(ability.tier);
-    setDiceRoll(roll);
-    setDicePrompt(prompt);
-    setShowDiceModal(true);
-    setLastAction(`${ability.name.toUpperCase()} + ${combinedDamage}`);
-    
-    // Log to combat log
-    const enhancedRollMode = inferRollMode(roll.rolls, roll.total, roll.modifier);
-    combatLog.addEntry({
-      actionType: 'ability',
-      actionName: `${ability.name} + Weapon`,
-      prompt,
-      roll: {
-        total: roll.total,
-        rolls: roll.rolls,
-        modifier: roll.modifier,
-        isCrit: isCriticalHit(roll.rolls, enhancedRollMode, roll.die),
-        isFumble: isCriticalMiss(roll.rolls, enhancedRollMode, roll.die),
-      },
-      damage: combinedDamage,
-    });
-    
-    const actionType = ability.actionType === 'bonus_action' ? 'bonus' : 
-                       ability.actionType === 'reaction' ? 'reaction' : 'action';
-    const { die, count } = getAbilityDice(ability.tier);
-    handleAddToTurn(actionType, `${ability.name} (${combinedDamage})`, `${count}${die}`);
-  }, [handleAddToTurn, combatLog]);
-  
-  // Handle weapon roll
-  const handleWeaponRoll = useCallback((
-    rollType: 'normal' | 'sneak' | 'assassinate',
-    weapon: WeaponAttack,
-    roll: DiceRoll,
-    damage: string
-  ) => {
-    const rollName = rollType === 'assassinate' 
-      ? `ASSASSINATE (${weapon.name})` 
-      : rollType === 'sneak' 
-        ? `${weapon.name} + Sneak Attack`
-        : weapon.name;
-    
-    // Include current target in prompt
-    const currentTargetForPrompt = targetTracker.getTargetForPrompt();
-    const prompt = generateMobileWeaponPrompt(rollType, weapon, roll, damage, character.name, currentTargetForPrompt);
-    
-    // Add target name to action if available
-    const targetSuffix = currentTargetForPrompt ? ` vs. ${currentTargetForPrompt.name}` : '';
-    
-    setDiceRoll(roll);
-    setDicePrompt(prompt);
-    setActiveAbility(null);
-    setShowDiceModal(true);
-    setLastAction(`${rollName.toUpperCase()} ROLL`);
-    
-    // Log to combat log (include target name)
-    const weaponRollMode = inferRollMode(roll.rolls, roll.total, roll.modifier);
-    combatLog.addEntry({
-      actionType: 'weapon',
-      actionName: `${rollName}${targetSuffix}`,
-      prompt,
-      roll: {
-        total: roll.total,
-        rolls: roll.rolls,
-        modifier: roll.modifier,
-        isCrit: isCriticalHit(roll.rolls, weaponRollMode, roll.die),
-        isFumble: isCriticalMiss(roll.rolls, weaponRollMode, roll.die),
-      },
-      damage,
-    });
-    
-    handleAddToTurn('action', `${weapon.name} attack${rollType !== 'normal' ? ` (${rollType})` : ''}${targetSuffix}`);
-  }, [character.name, handleAddToTurn, combatLog, targetTracker]);
-
-  // Handle offhand attack (bonus action with secondary weapon)
-  const handleOffhandRoll = useCallback((
-    weapon: WeaponAttack,
-    roll: DiceRoll,
-    damage: string,
-    isOffhand: true
-  ) => {
-    const rollName = `Offhand (${weapon.name})`;
-    
-    // Include current target in prompt
-    const currentTargetForPrompt = targetTracker.getTargetForPrompt();
-    const prompt = generateMobileWeaponPrompt('normal', weapon, roll, damage, character.name, currentTargetForPrompt, true);
-    
-    // Add target name to action if available
-    const targetSuffix = currentTargetForPrompt ? ` vs. ${currentTargetForPrompt.name}` : '';
-    
-    setDiceRoll(roll);
-    setDicePrompt(prompt);
-    setActiveAbility(null);
-    setShowDiceModal(true);
-    setLastAction(`OFFHAND ATTACK`);
-    
-    // Log to combat log
-    const offhandRollMode = inferRollMode(roll.rolls, roll.total, roll.modifier);
-    combatLog.addEntry({
-      actionType: 'weapon',
-      actionName: `${rollName}${targetSuffix}`,
-      prompt,
-      roll: {
-        total: roll.total,
-        rolls: roll.rolls,
-        modifier: roll.modifier,
-        isCrit: isCriticalHit(roll.rolls, offhandRollMode, roll.die),
-        isFumble: isCriticalMiss(roll.rolls, offhandRollMode, roll.die),
-      },
-      damage,
-    });
-    
-    handleAddToTurn('bonus', `Offhand attack${targetSuffix}`);
-  }, [character.name, handleAddToTurn, combatLog, targetTracker]);
-  
-  // Handle queueing an attack
-  const handleQueueAttack = useCallback((
-    weapon: WeaponAttack,
-    rollType: 'normal' | 'sneak' | 'assassinate',
-    targetId: string | null,
-    targetName: string | null,
-    isOffhand = false
-  ) => {
-    attackQueue.addToQueue(weapon, rollType, targetId, targetName, isOffhand);
-  }, [attackQueue]);
-  
-  // Execute all queued attacks
-  const handleExecuteQueue = useCallback(() => {
-    if (attackQueue.isEmpty) return;
-    
-    const hasAdvantage = conditions.includes('advantage') || conditions.includes('hidden');
-    const hasDisadvantage = conditions.includes('disadvantage');
-    
-    let rollCount = 1;
-    if (hasAdvantage && !hasDisadvantage) rollCount = 2;
-    else if (hasDisadvantage && !hasAdvantage) rollCount = 2;
-    
-    const executedAttacks: ExecutedAttack[] = [];
-    
-    // Roll all attacks in the queue
-    for (const queuedAttack of attackQueue.sortedQueue) {
-      const totalAttackBonus = combatStats.attackBonus + queuedAttack.weapon.attackBonus;
-      const roll = rollDice('d20', rollCount, totalAttackBonus);
-      
-      let damage = queuedAttack.weapon.damage;
-      if (!queuedAttack.isOffhand || combatSettings.hasTwoWeaponFightingStyle) {
-        if (combatStats.damageBonus > 0) damage += `+${combatStats.damageBonus}`;
-      }
-      
-      if (queuedAttack.rollType === 'sneak' || queuedAttack.rollType === 'assassinate') {
-        damage += `+${getSneakAttackDice(character.level)}`;
-      }
-      
-      if (hasPoisonedWeapon) {
-        damage += '+2d6 poison';
-      }
-      
-      if (queuedAttack.rollType === 'assassinate') {
-        damage = `(${damage}) x2 dice [CRIT]`;
-      }
-      
-      // Get target info if available
-      const targetInfo = queuedAttack.targetId 
-        ? targetTracker.enemies.find(e => e.id === queuedAttack.targetId)
-        : null;
-      
-      const executed: ExecutedAttack = {
-        ...queuedAttack,
-        roll,
-        damageBreakdown: damage,
-        attackBonus: totalAttackBonus,
-        targetInfo: targetInfo ? {
-          name: targetInfo.name,
-          ac: targetInfo.ac,
-          currentHP: targetInfo.currentHP,
-          maxHP: targetInfo.maxHP,
-          notes: targetInfo.notes,
-          creatureType: targetInfo.creatureType,
-          size: targetInfo.size,
-          conditions: targetInfo.conditions,
-          resistances: targetInfo.resistances,
-          vulnerabilities: targetInfo.vulnerabilities,
-          immunities: targetInfo.immunities,
-        } : null,
-      };
-      
-      executedAttacks.push(executed);
-      
-      // Log each attack to combat log
-      const rollMode = inferRollMode(roll.rolls, roll.total, roll.modifier);
-      const singlePrompt = generateQueuedAttackPrompt(executed, character.name);
-      combatLog.addEntry({
-        actionType: 'weapon',
-        actionName: `${queuedAttack.weapon.name}${queuedAttack.targetName ? ` → ${queuedAttack.targetName}` : ''}`,
-        prompt: singlePrompt,
-        roll: {
-          total: roll.total,
-          rolls: roll.rolls,
-          modifier: roll.modifier,
-          isCrit: isCriticalHit(roll.rolls, rollMode, roll.die),
-          isFumble: isCriticalMiss(roll.rolls, rollMode, roll.die),
-        },
-        damage,
-      });
-      
-      // Add to turn summary
-      const actionType = queuedAttack.isOffhand ? 'bonus' : 'action';
-      handleAddToTurn(actionType, `${queuedAttack.weapon.name}${queuedAttack.targetName ? ` vs. ${queuedAttack.targetName}` : ''}`);
-    }
-    
-    // Generate combined prompt and show modal
-    const combinedPrompt = generateMultiAttackPrompt(executedAttacks, character.name);
-    setDiceRoll(executedAttacks[executedAttacks.length - 1].roll);
-    setDicePrompt(combinedPrompt);
-    setActiveAbility(null);
-    setShowDiceModal(true);
-    setLastAction(`${executedAttacks.length} ATTACKS EXECUTED`);
-    
-    // Clear the queue
-    attackQueue.clearQueue();
-  }, [attackQueue, conditions, combatStats, combatSettings.hasTwoWeaponFightingStyle, character.level, character.name, hasPoisonedWeapon, targetTracker.enemies, combatLog, handleAddToTurn]);
-  
-  // Reset turn
-  const handleResetTurn = useCallback(() => {
-    actionEconomyState.resetTurn();
-    setLastAction('TURN RESET');
-  }, [actionEconomyState]);
-  
-  // Remove action
-  const handleRemoveAction = useCallback((index: number) => {
-    actionEconomyState.removeTurnAction(index);
-  }, [actionEconomyState]);
-  
-  // Remove action by description (for undo from items)
-  const handleRemoveActionByDescription = useCallback((description: string) => {
-    const index = turnActions.findIndex(a => a.description === description);
-    if (index !== -1) {
-      actionEconomyState.removeTurnAction(index);
-    }
-  }, [actionEconomyState, turnActions]);
-  
-  // FAB actions
-  const handleQuickRoll = () => {
-    const roll = rollDice('d20', 1);
-    setDiceRoll(roll);
-    setDicePrompt('Quick d20 roll');
-    setActiveAbility(null);
-    setShowDiceModal(true);
-  };
-  
-  const handleQuickAttack = () => {
-    const weapon = DEFAULT_WEAPONS[0];
-    const roll = rollDice('d20', 1, combatStats.attackBonus);
-    handleWeaponRoll('normal', weapon, roll, weapon.damage);
-  };
-  
-  const handleQuickHide = () => {
-    const roll = rollDice('d20', 1, 11); // Stealth +11
-    setDiceRoll(roll);
-    setDicePrompt('Stealth Check to Hide');
-    setActiveAbility(null);
-    setShowDiceModal(true);
-    handleAddToTurn('bonus', 'Hide (Stealth +11)');
-  };
+  // Combat actions hook (dice modal state + all roll handlers)
+  const {
+    diceRoll, dicePrompt, activeAbility, activeTier,
+    showDiceModal, setShowDiceModal,
+    lastAction, setLastAction,
+    handleAbilityUse, handleEnhancedAbilityUse,
+    handleWeaponRoll, handleOffhandRoll,
+    handleQueueAttack, handleExecuteQueue,
+    handleQuickRoll, handleQuickAttack, handleQuickHide,
+  } = useCombatActions({
+    characterName: character.name,
+    characterLevel: character.level,
+    combatStats,
+    combatSettings,
+    conditions,
+    hasPoisonedWeapon,
+    combatLog,
+    targetTracker,
+    attackQueue,
+    cooldownSystem,
+    onAddToTurn: handleAddToTurn,
+  });
   
   const handleCopySummary = async () => {
     const summary = turnActions.map(a => 
@@ -725,8 +425,27 @@ export function MobileCombatLayout({
     await navigator.clipboard.writeText(summary);
     setLastAction('SUMMARY COPIED');
   };
-  
-  // Helper: render section header divider
+
+  // Reset turn
+  const handleResetTurn = useCallback(() => {
+    actionEconomyState.resetTurn();
+    setLastAction('TURN RESET');
+  }, [actionEconomyState, setLastAction]);
+
+  // Remove action
+  const handleRemoveAction = useCallback((index: number) => {
+    actionEconomyState.removeTurnAction(index);
+  }, [actionEconomyState]);
+
+  // Remove action by description (for undo from items)
+  const handleRemoveActionByDescription = useCallback((description: string) => {
+    const index = turnActions.findIndex(a => a.description === description);
+    if (index !== -1) {
+      actionEconomyState.removeTurnAction(index);
+    }
+  }, [actionEconomyState, turnActions]);
+
+
   const renderSectionHeader = (tab: CombatTab) => {
     const config = SECTION_HEADERS[tab];
     return (
