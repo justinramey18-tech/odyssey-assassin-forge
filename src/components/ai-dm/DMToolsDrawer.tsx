@@ -183,7 +183,7 @@ export function DMToolsDrawer({
           {/* Divider */}
           <div className="mx-4 my-2 border-t border-amber-900/20" />
 
-          {/* DM Persona / Retake Test */}
+          {/* DM Persona / Personality Test */}
           {onRetakePersonalityTest && (
             <>
               {dmPersonaName && (
@@ -196,14 +196,28 @@ export function DMToolsDrawer({
                   </p>
                 </div>
               )}
-              <ToolRow
-                icon={<Brain className="w-4 h-4" />}
-                label="Retake Personality Test"
+              <button
                 onClick={() => {
                   onOpenChange(false);
                   setShowRetakeConfirm(true);
                 }}
-              />
+                className="flex items-start gap-3 w-full px-4 py-3 text-left hover:bg-white/5 transition-colors"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <span className="w-8 h-8 rounded-lg flex items-center justify-center bg-purple-900/30 text-purple-400 mt-0.5">
+                  <Brain className="w-4 h-4" />
+                </span>
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-cinzel text-white/80 block">
+                    {dmPersonaName ? 'Retake Personality Quiz' : 'Customize Your DM'}
+                  </span>
+                  <span className="text-[11px] text-white/35 leading-snug block mt-0.5">
+                    {dmPersonaName
+                      ? 'Answer a short quiz to reshape your DM\u2019s style'
+                      : 'Take a short optional quiz to personalize your DM\u2019s personality'}
+                  </span>
+                </div>
+              </button>
               <div className="mx-4 my-2 border-t border-amber-900/20" />
             </>
           )}
