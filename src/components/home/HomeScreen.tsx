@@ -98,6 +98,8 @@ interface HomeScreenProps {
   initiativeModifier?: number;
   // Custom background support
   customBackground?: string | null;
+  /** If custom background is a video, its URL */
+  customVideoUrl?: string | null;
   
   onCustomBackgroundUpload?: (file: File) => Promise<void>;
   onCustomBackgroundClear?: () => void;
@@ -214,6 +216,7 @@ export function HomeScreen({
   shopItems = [],
   initiativeModifier = 0,
   customBackground,
+  customVideoUrl,
   
   onCustomBackgroundUpload,
   onCustomBackgroundClear,
@@ -446,11 +449,19 @@ export function HomeScreen({
     }
   };
   const hasWildShapeBg = isWildShape && !!wildShapeBackground;
-  const defaultBg = customBackground || homeBackground;
+  // When custom background is a video, use default image as fallback for the image layer
+  const defaultBg = (customVideoUrl ? null : customBackground) || homeBackground;
 
   // Magic Build mode: looping video background for all users
   const MAGIC_BUILD_VIDEO_URL = 'https://rkkgmonjfvncpvlzsojw.supabase.co/storage/v1/object/public/videos/magic-build-bg.mp4';
   const isMagicBuildVideo = appMode === 'magicBuild' && !customBackground;
+  
+  // Determine active video source: custom video > Magic Build video > none
+  const activeVideoSrc = customVideoUrl
+    ? customVideoUrl
+    : isMagicBuildVideo
+      ? MAGIC_BUILD_VIDEO_URL
+      : undefined;
   // Chronicler mode: render simplified narrative home
   if (appMode === 'chronicler') {
     return (
@@ -467,7 +478,7 @@ export function HomeScreen({
       {/* Default background layer (always present) */}
       <BackgroundWrapper
         imagePath={defaultBg}
-        videoSrc={isMagicBuildVideo ? MAGIC_BUILD_VIDEO_URL : undefined}
+        videoSrc={activeVideoSrc}
         overlayOpacity={customBackground ? 55 : 55}
         tintColor="cyan"
         tintOpacity={10}
