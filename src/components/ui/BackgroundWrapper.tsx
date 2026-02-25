@@ -93,6 +93,15 @@ export function BackgroundWrapper({
     }
   }, [prefersReducedMotion, videoSrc]);
 
+  // Explicit play() for mobile autoplay reliability
+  useEffect(() => {
+    if (!videoRef.current || !videoSrc || prefersReducedMotion) return;
+    const playPromise = videoRef.current.play();
+    if (playPromise) {
+      playPromise.catch(() => { /* autoplay blocked */ });
+    }
+  }, [videoSrc, prefersReducedMotion]);
+
   // Memory cleanup on unmount or when videoSrc changes
   useEffect(() => {
     const el = videoRef.current;
@@ -133,9 +142,15 @@ export function BackgroundWrapper({
           muted
           loop
           playsInline
-          onCanPlayThrough={() => {
+          preload="auto"
+          {...{ 'webkit-playsinline': '' }}
+          onCanPlay={() => {
             setVideoReady(true);
             onLoad?.();
+          }}
+          onLoadedData={() => {
+            // Fallback for mobile browsers that skip canplay
+            setVideoReady(true);
           }}
           className={cn(
             'absolute inset-0 w-full h-full object-cover z-0 transition-opacity duration-500',
@@ -143,7 +158,6 @@ export function BackgroundWrapper({
           )}
           style={enablePerformanceHints ? {
             willChange: 'transform',
-            contain: 'layout style paint',
           } : undefined}
           aria-hidden="true"
           src={videoSrc}
