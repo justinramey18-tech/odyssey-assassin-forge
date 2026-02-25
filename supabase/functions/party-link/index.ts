@@ -150,8 +150,8 @@ Deno.serve(async (req) => {
         .select('*', { count: 'exact', head: true })
         .eq('party_id', party.id);
 
-      if ((count || 0) >= 4) {
-        return new Response(JSON.stringify({ error: 'Party is full (max 4)' }), {
+      if ((count || 0) >= 6) {
+        return new Response(JSON.stringify({ error: 'Party is full (max 6)' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
