@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ImagePlus, Trash2, Check, X, Loader2 } from 'lucide-react';
+import { ImagePlus, Trash2, Check, X, Loader2, Video } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
@@ -69,7 +69,7 @@ export function BackgroundUploadButton({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,video/mp4,video/webm,video/ogg,video/quicktime"
         onChange={handleFileChange}
         className="hidden"
       />
@@ -123,7 +123,7 @@ export function BackgroundUploadButton({
                 )}
               >
                 <ImagePlus className="w-4 h-4" />
-                <span>Change Image</span>
+                <span>Change Image / Video</span>
               </button>
               <button
                 onClick={handleConfirmClear}
