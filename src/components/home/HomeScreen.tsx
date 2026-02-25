@@ -447,6 +447,10 @@ export function HomeScreen({
   };
   const hasWildShapeBg = isWildShape && !!wildShapeBackground;
   const defaultBg = customBackground || homeBackground;
+
+  // Magic Build mode: looping video background for all users
+  const MAGIC_BUILD_VIDEO_URL = 'https://rkkgmonjfvncpvlzsojw.supabase.co/storage/v1/object/public/videos/magic-build-bg.mp4';
+  const isMagicBuildVideo = appMode === 'magicBuild' && !customBackground;
   // Chronicler mode: render simplified narrative home
   if (appMode === 'chronicler') {
     return (
@@ -463,6 +467,7 @@ export function HomeScreen({
       {/* Default background layer (always present) */}
       <BackgroundWrapper
         imagePath={defaultBg}
+        videoSrc={isMagicBuildVideo ? MAGIC_BUILD_VIDEO_URL : undefined}
         overlayOpacity={customBackground ? 55 : 55}
         tintColor="cyan"
         tintOpacity={10}
