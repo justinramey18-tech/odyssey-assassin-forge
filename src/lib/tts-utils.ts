@@ -5,6 +5,20 @@
 export function stripMarkdownForTTS(text: string): string {
   let result = text;
 
+  // ── Strip AI DM HUD footers (run first, before markdown processing) ──
+
+  // 1. Truncate at first ═══ separator line (narrative is always above the HUD)
+  result = result.replace(/^[═]{3,}.*[\s\S]*$/m, '');
+
+  // 2. Fallback: strip bracketed HUD section headers and everything after
+  result = result.replace(/^\[(?:QUEST HUD|PARTY STATUS|COMBAT LOG|LOOT|INVENTORY|MAP|STATUS|WORLD STATE)\][\s\S]*$/gim, '');
+
+  // 3. Remove decorative Unicode divider lines
+  result = result.replace(/^[═─▬╔╗╚╝╠╣║│┌┐└┘├┤┬┴┼]{3,}.*$/gm, '');
+
+  // 4. Strip emoji-prefix status lines (► Current Objective:, • Atlas HP, etc.)
+  result = result.replace(/^[►▶•●⚔🗡️🛡️⚡💀🎯📍🗺️☠️✦✧◆◇■□▪▫]\s*.+$/gm, '');
+
   // Remove headers (# ## ### etc.)
   result = result.replace(/^#{1,6}\s+/gm, '');
 
