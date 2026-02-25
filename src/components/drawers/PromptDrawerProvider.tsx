@@ -497,9 +497,8 @@ export function PromptDrawerProvider({
       setQuickActionsOpen(true);
     }, []),
     openAIDMScreen: useCallback(() => {
-      if (!personalityGate.attemptOpenDM()) return; // Gate: show test if not completed
       closeAllDrawers(); setAiDMOpen(true);
-    }, [closeAllDrawers, personalityGate]),
+    }, [closeAllDrawers]),
     openPartyDMScreen: useCallback(() => { closeAllDrawers(); setPartyDMOpen(true); }, [closeAllDrawers]),
     closeAllDrawers,
     // Cooldown system exposure
