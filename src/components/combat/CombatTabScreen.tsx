@@ -49,7 +49,7 @@ interface CombatTabScreenProps {
   maxHP?: number;
   tempHP?: number;
   // Action economy (synced from Index.tsx)
-  actionEconomyState?: UseActionEconomyReturn;
+  actionEconomyState: UseActionEconomyReturn;
   // Global D&D conditions (from useConditions)
   globalConditions?: ActiveConditionInfo[];
   // Set bonuses (from equipment stats)

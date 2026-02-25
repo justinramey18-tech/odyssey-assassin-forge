@@ -94,7 +94,7 @@ interface MobileCombatLayoutProps {
   maxHP?: number;
   tempHP?: number;
   // Action economy (synced from Index.tsx)
-  actionEconomyState?: UseActionEconomyReturn;
+  actionEconomyState: UseActionEconomyReturn;
   // Global D&D conditions (from useConditions)
   globalConditions?: ActiveConditionInfo[];
   // Set bonuses (from equipment stats)
@@ -256,20 +256,10 @@ export function MobileCombatLayout({
   const [conditions, setConditions] = useState<string[]>([]);
   const [situationCollapsed, setSituationCollapsed] = useState(true);
   
-  // Action economy state (use prop if provided, otherwise fallback to local state)
-  const [localActionEconomy, setLocalActionEconomy] = useState<ActionEconomy>({
-    actionUsed: false,
-    bonusActionUsed: false,
-    reactionUsed: false,
-    movementUsed: 0,
-    maxMovement: 30,
-  });
-  const [localTurnActions, setLocalTurnActions] = useState<TurnAction[]>([]);
-  
-  // Use synced action economy from props if available
-  const actionEconomy = actionEconomyState?.economy ?? localActionEconomy;
-  const setActionEconomy = actionEconomyState?.setEconomy ?? setLocalActionEconomy;
-  const turnActions = actionEconomyState?.turnActions ?? localTurnActions;
+  // Action economy state (from synced hook)
+  const actionEconomy = actionEconomyState.economy;
+  const setActionEconomy = actionEconomyState.setEconomy;
+  const turnActions = actionEconomyState.turnActions;
   
   // Expanded weapon card (accordion behavior)
   const [expandedWeaponId, setExpandedWeaponId] = useState<string | null>(null);
@@ -427,23 +417,8 @@ export function MobileCombatLayout({
     description: string,
     roll?: string
   ) => {
-    // Use synced action economy if available
-    if (actionEconomyState) {
-      actionEconomyState.addTurnAction({ type: actionType, description, roll });
-    } else {
-      setActionEconomy(prev => ({
-        ...prev,
-        actionUsed: actionType === 'action' ? true : prev.actionUsed,
-        bonusActionUsed: actionType === 'bonus' ? true : prev.bonusActionUsed,
-        reactionUsed: actionType === 'reaction' ? true : prev.reactionUsed,
-      }));
-      
-      setLocalTurnActions(prev => [
-        ...prev.filter(a => a.type !== actionType),
-        { type: actionType, description, roll }
-      ]);
-    }
-  }, [actionEconomyState, setActionEconomy]);
+    actionEconomyState.addTurnAction({ type: actionType, description, roll });
+  }, [actionEconomyState]);
   
   // Handle ability use (legacy for stealth tab)
   const handleAbilityUse = useCallback((
@@ -715,66 +690,22 @@ export function MobileCombatLayout({
   
   // Reset turn
   const handleResetTurn = useCallback(() => {
-    if (actionEconomyState) {
-      actionEconomyState.resetTurn();
-    } else {
-      setLocalTurnActions([]);
-      setActionEconomy({
-        actionUsed: false,
-        bonusActionUsed: false,
-        reactionUsed: false,
-        movementUsed: 0,
-        maxMovement: 30,
-      });
-    }
+    actionEconomyState.resetTurn();
     setLastAction('TURN RESET');
-  }, [actionEconomyState, setActionEconomy]);
+  }, [actionEconomyState]);
   
   // Remove action
   const handleRemoveAction = useCallback((index: number) => {
-    if (actionEconomyState) {
-      actionEconomyState.removeTurnAction(index);
-    } else {
-      const action = turnActions[index];
-      setLocalTurnActions(prev => prev.filter((_, i) => i !== index));
-      
-      if (action) {
-        setActionEconomy(prev => ({
-          ...prev,
-          actionUsed: action.type === 'action' ? false : prev.actionUsed,
-          bonusActionUsed: action.type === 'bonus' ? false : prev.bonusActionUsed,
-          reactionUsed: action.type === 'reaction' ? false : prev.reactionUsed,
-        }));
-      }
-    }
-  }, [actionEconomyState, turnActions, setActionEconomy]);
+    actionEconomyState.removeTurnAction(index);
+  }, [actionEconomyState]);
   
   // Remove action by description (for undo from items)
   const handleRemoveActionByDescription = useCallback((description: string) => {
-    if (actionEconomyState) {
-      const index = turnActions.findIndex(a => a.description === description);
-      if (index !== -1) {
-        actionEconomyState.removeTurnAction(index);
-      }
-    } else {
-      setLocalTurnActions(prev => {
-        const index = prev.findIndex(a => a.description === description);
-        if (index === -1) return prev;
-        
-        const action = prev[index];
-        
-        // Update action economy
-        setActionEconomy(prevEcon => ({
-          ...prevEcon,
-          actionUsed: action.type === 'action' ? false : prevEcon.actionUsed,
-          bonusActionUsed: action.type === 'bonus' ? false : prevEcon.bonusActionUsed,
-          reactionUsed: action.type === 'reaction' ? false : prevEcon.reactionUsed,
-        }));
-        
-        return prev.filter((_, i) => i !== index);
-      });
+    const index = turnActions.findIndex(a => a.description === description);
+    if (index !== -1) {
+      actionEconomyState.removeTurnAction(index);
     }
-  }, [actionEconomyState, turnActions, setActionEconomy]);
+  }, [actionEconomyState, turnActions]);
   
   // FAB actions
   const handleQuickRoll = () => {
@@ -943,7 +874,7 @@ export function MobileCombatLayout({
           hasPoisonedWeapon={hasPoisonedWeapon}
           bonusActionUsed={actionEconomy.bonusActionUsed}
           onRoll={handleOffhandRoll}
-          onUseBonus={() => actionEconomyState?.useBonus?.() ?? setActionEconomy({...actionEconomy, bonusActionUsed: true})}
+          onUseBonus={() => actionEconomyState.useBonus()}
           customImage={equipmentImages.secondary_weapon}
         />
       )}
@@ -1039,7 +970,7 @@ export function MobileCombatLayout({
                     onUse={(ability, roll, prompt, combinedDamage) => {
                       handleEnhancedAbilityUse(ability, roll, prompt, combinedDamage);
                       if (ability.actionType === 'reaction') {
-                        setActionEconomy(prev => ({ ...prev, reactionUsed: true }));
+                        actionEconomyState.useReaction();
                       }
                     }}
                     onTriggerCooldown={cooldownSystem.triggerCooldown}
@@ -1058,7 +989,7 @@ export function MobileCombatLayout({
             <MobileReactionsList
               reactionUsed={actionEconomy.reactionUsed}
               onUseReaction={(reaction) => {
-                setActionEconomy(prev => ({ ...prev, reactionUsed: true }));
+                actionEconomyState.useReaction();
                 setLastAction(`⚡ ${reaction.name.toUpperCase()}`);
                 handleAddToTurn('reaction', reaction.name);
                 combatLog.addEntry({
