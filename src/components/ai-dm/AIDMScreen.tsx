@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { loadSelectedModel, saveSelectedModel, getModelLabel } from '@/lib/dm-models';
 import { formatUsage, formatCostShort } from '@/lib/token-usage';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Zap, Map, Film, Image as ImageIcon, Copy, Check, Pencil, RefreshCw, X, MoreVertical, Globe, Settings } from 'lucide-react';
+import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Zap, Map, Film, Image as ImageIcon, Copy, Check, Pencil, RefreshCw, X, MoreVertical, Globe, Settings, Volume2, VolumeX } from 'lucide-react';
 import { DMToolsDrawer } from './DMToolsDrawer';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
@@ -28,6 +28,7 @@ import { AutoSyncBanner } from './AutoSyncBanner';
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
 import { InlineBattleMap } from './InlineBattleMap';
 import ReactMarkdown from 'react-markdown';
+import { useNarrator } from '@/hooks/use-narrator';
 
 import type { MapMarker } from '@/components/party/battlemap/types';
 
@@ -313,6 +314,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const photoInputRef = useRef<HTMLInputElement>(null);
   const gmGuides = useGMGuides();
   const { toast } = useToast();
+  const narrator = useNarrator();
 
   // Bottom nav state
   const [activeNavTab, setActiveNavTab] = useState<DMNavTab | null>(null);
@@ -882,6 +884,38 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
               style={{ touchAction: 'manipulation' }}
             >
               <Send className="w-5 h-5 text-amber-400" />
+            </button>
+          )}
+          {/* Narrator speaker button */}
+          {narrator.hasElevenLabsKey && (
+            <button
+              onClick={() => {
+                if (narrator.isPlaying) {
+                  narrator.stop();
+                } else {
+                  const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant');
+                  if (lastAssistant) {
+                    narrator.playMessage(lastAssistant.content);
+                  }
+                }
+              }}
+              disabled={narrator.isLoading}
+              className={cn(
+                "p-2.5 rounded-xl border shrink-0 transition-colors",
+                narrator.isPlaying
+                  ? "bg-amber-900/40 border-amber-500/30 hover:bg-amber-900/60"
+                  : "bg-white/5 border-white/10 hover:border-amber-500/30 hover:bg-amber-900/20"
+              )}
+              style={{ touchAction: 'manipulation' }}
+              title={narrator.isPlaying ? "Stop narration" : "Narrate last message"}
+            >
+              {narrator.isLoading ? (
+                <Loader2 className="w-5 h-5 text-amber-400 animate-spin" />
+              ) : narrator.isPlaying ? (
+                <VolumeX className="w-5 h-5 text-amber-400" />
+              ) : (
+                <Volume2 className="w-5 h-5 text-white/50" />
+              )}
             </button>
           )}
         </div>

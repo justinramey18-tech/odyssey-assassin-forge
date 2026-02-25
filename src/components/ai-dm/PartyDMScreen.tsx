@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, MessageSquare, Plus, Save } from 'lucide-react';
+import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, MessageSquare, Plus, Save, Volume2, VolumeX } from 'lucide-react';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { CampaignDropdown } from './CampaignDropdown';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
+import { useNarrator } from '@/hooks/use-narrator';
 import type { usePartyDm, PartyDmMessage, PartyDmPrompt } from '@/hooks/use-party-dm';
 import { DMDiceRoller } from './DMDiceRoller';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
@@ -347,6 +348,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
 export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, characterContext, showBattleMap, battleMapContent, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns }: PartyDMScreenProps) {
   const [input, setInput] = useState('');
   const [, setTick] = useState(0);
+  const narrator = useNarrator();
 
   useEffect(() => {
     if (!partyDm.lastAutoSaveTime) return;
@@ -999,6 +1001,36 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                   >
                     {isUploadingVideo ? <Loader2 className="w-4 h-4 text-amber-400 animate-spin" /> : <Film className="w-4 h-4 text-white/50" />}
                   </button>
+                  {/* Narrator speaker button */}
+                  {narrator.hasElevenLabsKey && (
+                    <button
+                      onClick={() => {
+                        if (narrator.isPlaying) {
+                          narrator.stop();
+                        } else {
+                          const lastAssistant = [...partyDm.messages].reverse().find(m => m.role === 'assistant');
+                          if (lastAssistant) narrator.playMessage(lastAssistant.content);
+                        }
+                      }}
+                      disabled={narrator.isLoading}
+                      className={cn(
+                        "p-2 rounded-xl border shrink-0 transition-colors",
+                        narrator.isPlaying
+                          ? "bg-amber-900/40 border-amber-500/30 hover:bg-amber-900/60"
+                          : "bg-white/5 border-white/10 hover:border-amber-500/30 hover:bg-amber-900/20"
+                      )}
+                      style={{ touchAction: 'manipulation' }}
+                      title={narrator.isPlaying ? "Stop narration" : "Narrate last message"}
+                    >
+                      {narrator.isLoading ? (
+                        <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
+                      ) : narrator.isPlaying ? (
+                        <VolumeX className="w-4 h-4 text-amber-400" />
+                      ) : (
+                        <Volume2 className="w-4 h-4 text-white/50" />
+                      )}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -1051,17 +1083,49 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
               <CheckCheck className="w-4 h-4 text-emerald-400" />
               <span className="text-sm text-emerald-300/70">Ready! Waiting for others...</span>
             </div>
-            {isCreator && (
-              <Button
-                onClick={partyDm.generateResponse}
-                disabled={partyDm.isGenerating || partyDm.currentPrompts.length === 0}
-                className="gap-1.5 bg-amber-900/40 border border-amber-500/30 hover:bg-amber-900/60 text-amber-300"
-                size="sm"
-              >
-                <Zap className="w-3.5 h-3.5" />
-                Generate Now
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {/* Narrator speaker button */}
+              {narrator.hasElevenLabsKey && (
+                <button
+                  onClick={() => {
+                    if (narrator.isPlaying) {
+                      narrator.stop();
+                    } else {
+                      const lastAssistant = [...partyDm.messages].reverse().find(m => m.role === 'assistant');
+                      if (lastAssistant) narrator.playMessage(lastAssistant.content);
+                    }
+                  }}
+                  disabled={narrator.isLoading}
+                  className={cn(
+                    "p-2 rounded-xl border shrink-0 transition-colors",
+                    narrator.isPlaying
+                      ? "bg-amber-900/40 border-amber-500/30 hover:bg-amber-900/60"
+                      : "bg-white/5 border-white/10 hover:border-amber-500/30 hover:bg-amber-900/20"
+                  )}
+                  style={{ touchAction: 'manipulation' }}
+                  title={narrator.isPlaying ? "Stop narration" : "Narrate last message"}
+                >
+                  {narrator.isLoading ? (
+                    <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
+                  ) : narrator.isPlaying ? (
+                    <VolumeX className="w-4 h-4 text-amber-400" />
+                  ) : (
+                    <Volume2 className="w-4 h-4 text-white/50" />
+                  )}
+                </button>
+              )}
+              {isCreator && (
+                <Button
+                  onClick={partyDm.generateResponse}
+                  disabled={partyDm.isGenerating || partyDm.currentPrompts.length === 0}
+                  className="gap-1.5 bg-amber-900/40 border border-amber-500/30 hover:bg-amber-900/60 text-amber-300"
+                  size="sm"
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  Generate Now
+                </Button>
+              )}
+            </div>
           </div>
         )}
 
