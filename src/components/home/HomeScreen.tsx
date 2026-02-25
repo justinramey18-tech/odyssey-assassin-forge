@@ -452,15 +452,20 @@ export function HomeScreen({
   // When custom background is a video, use default image as fallback for the image layer
   const defaultBg = (customVideoUrl ? null : customBackground) || homeBackground;
 
-  // Magic Build mode: looping video background for all users
+  // Mode-specific looping video backgrounds for all users
   const MAGIC_BUILD_VIDEO_URL = 'https://rkkgmonjfvncpvlzsojw.supabase.co/storage/v1/object/public/videos/magic-build-bg.mp4';
-  const isMagicBuildVideo = appMode === 'magicBuild' && !customBackground;
+  const PARTY_VIDEO_URL = 'https://rkkgmonjfvncpvlzsojw.supabase.co/storage/v1/object/public/videos/party-bg.mp4';
   
-  // Determine active video source: custom video > Magic Build video > none
+  const modeVideoUrl = appMode === 'magicBuild' ? MAGIC_BUILD_VIDEO_URL
+    : appMode === 'party' ? PARTY_VIDEO_URL
+    : undefined;
+  const hasModeVideo = !!modeVideoUrl && !customBackground;
+  
+  // Determine active video source: custom video > mode-specific video > none
   const activeVideoSrc = customVideoUrl
     ? customVideoUrl
-    : isMagicBuildVideo
-      ? MAGIC_BUILD_VIDEO_URL
+    : hasModeVideo
+      ? modeVideoUrl
       : undefined;
   // Chronicler mode: render simplified narrative home
   if (appMode === 'chronicler') {
