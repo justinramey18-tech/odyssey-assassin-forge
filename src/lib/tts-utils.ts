@@ -130,6 +130,31 @@ export function setCachedVoices(voices: CachedVoice[]): void {
 // Selected voice persistence
 const VOICE_ID_KEY = 'dnd-elevenlabs-voice-id';
 
+// Narration speed persistence
+const NARRATION_SPEED_KEY = 'dnd-elevenlabs-narration-speed';
+const DEFAULT_NARRATION_SPEED = 1.0;
+
+export function loadNarrationSpeed(): number {
+  try {
+    const raw = localStorage.getItem(NARRATION_SPEED_KEY);
+    if (!raw) return DEFAULT_NARRATION_SPEED;
+    const speed = parseFloat(raw);
+    if (isNaN(speed) || speed < 0.5 || speed > 2.0) return DEFAULT_NARRATION_SPEED;
+    return speed;
+  } catch {
+    return DEFAULT_NARRATION_SPEED;
+  }
+}
+
+export function saveNarrationSpeed(speed: number): void {
+  try {
+    const clamped = Math.min(2.0, Math.max(0.5, speed));
+    localStorage.setItem(NARRATION_SPEED_KEY, clamped.toString());
+  } catch {
+    // ignore
+  }
+}
+
 export function loadSelectedVoiceId(): string | null {
   try {
     return localStorage.getItem(VOICE_ID_KEY) || null;

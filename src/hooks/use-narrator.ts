@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { loadApiKey } from '@/lib/api-keys';
-import { stripMarkdownForTTS, splitTextForStitching, loadSelectedVoiceId } from '@/lib/tts-utils';
+import { stripMarkdownForTTS, splitTextForStitching, loadSelectedVoiceId, loadNarrationSpeed } from '@/lib/tts-utils';
 import { toast } from 'sonner';
 
 interface UseNarratorReturn {
@@ -125,6 +125,7 @@ export function useNarrator(): UseNarratorReturn {
         cleanupAudio();
       };
 
+      audio.playbackRate = loadNarrationSpeed();
       setIsLoading(false);
       setIsPlaying(true);
       await audio.play();
