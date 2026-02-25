@@ -11,7 +11,8 @@ import {
   DEFAULT_WEAPONS,
   getSneakAttackDice,
 } from '@/lib/combat/combatTypes';
-import { ActiveConditionInfo, SetBonusInfo, TargetPromptInfo, formatTargetForPrompt } from '@/lib/combat/promptContext';
+import { ActiveConditionInfo, SetBonusInfo, TargetPromptInfo } from '@/lib/combat/promptContext';
+import { generateMobileWeaponPrompt } from '@/lib/combat/weaponPrompts';
 import { loadCombatSettings, COMBAT_SETTINGS_CHANGE_EVENT, CombatSettings } from '@/lib/combat/combatSettings';
 import { ExecutedAttack } from '@/lib/combat/attackQueue';
 import { generateMultiAttackPrompt, generateQueuedAttackPrompt } from '@/lib/combat/attackQueuePrompts';
@@ -38,8 +39,6 @@ import { CombatFAB } from './CombatFAB';
 import { TurnSummaryPanel } from './TurnSummaryPanel';
 import { CombatLogPanel } from './CombatLogPanel';
 import { SmartPromptSheet } from './SmartPromptSheet';
-import { MobileAbilityList } from './MobileAbilityList';
-import { EnhancedMobileAbilityList } from './EnhancedMobileAbilityList';
 import { CombatAbilityCard } from './CombatAbilityCard';
 import { MobileItemsGrid } from './MobileItemsGrid';
 import { MobileSpellList } from './MobileSpellList';
@@ -536,7 +535,7 @@ export function MobileCombatLayout({
     
     // Include current target in prompt
     const currentTargetForPrompt = targetTracker.getTargetForPrompt();
-    const prompt = generateWeaponPrompt(rollType, weapon, roll, damage, character.name, currentTargetForPrompt);
+    const prompt = generateMobileWeaponPrompt(rollType, weapon, roll, damage, character.name, currentTargetForPrompt);
     
     // Add target name to action if available
     const targetSuffix = currentTargetForPrompt ? ` vs. ${currentTargetForPrompt.name}` : '';
@@ -577,7 +576,7 @@ export function MobileCombatLayout({
     
     // Include current target in prompt
     const currentTargetForPrompt = targetTracker.getTargetForPrompt();
-    const prompt = generateWeaponPrompt('normal', weapon, roll, damage, character.name, currentTargetForPrompt, true);
+    const prompt = generateMobileWeaponPrompt('normal', weapon, roll, damage, character.name, currentTargetForPrompt, true);
     
     // Add target name to action if available
     const targetSuffix = currentTargetForPrompt ? ` vs. ${currentTargetForPrompt.name}` : '';
@@ -1409,55 +1408,3 @@ export function MobileCombatLayout({
 }
 
 // Generate weapon attack RP prompt
-function generateWeaponPrompt(
-  rollType: 'normal' | 'sneak' | 'assassinate',
-  weapon: WeaponAttack,
-  roll: DiceRoll,
-  damage: string,
-  characterName: string,
-  target?: TargetPromptInfo | null,
-  isOffhand?: boolean
-): string {
-  const isCrit = roll.rolls.includes(20);
-  const isFumble = roll.rolls.includes(1);
-  const hasAdvantage = roll.rolls.length > 1;
-  
-  let title = isOffhand
-    ? '⚡ OFFHAND ATTACK'
-    : rollType === 'assassinate' 
-      ? '💀 ASSASSINATION ATTEMPT' 
-      : rollType === 'sneak' 
-        ? '🗡️ SNEAK ATTACK'
-        : '⚔️ ATTACK';
-  
-  const quips = isOffhand
-    ? [
-        "Left hand doesn't know what the right hand is doing... but both are stabbing!",
-        "Dual wielding: because one sword is for amateurs.",
-        "Two weapons, twice the pain!",
-        "Ambidextrous AND dangerous!",
-      ]
-    : [
-        "Maximum effort!",
-        "Nailed it. Add it to my highlight reel.",
-        "Did you see that?!",
-        "Chimichangas for everyone!",
-      ];
-  const quip = quips[Math.floor(Math.random() * quips.length)];
-  
-  // Format target section if target is provided
-  const targetSection = target ? formatTargetForPrompt(target) : '';
-  
-  const offhandNote = isOffhand ? '\n**Note:** Offhand attack (bonus action) - no ability modifier to damage unless you have the Two-Weapon Fighting style.\n' : '';
-  
-  return `## ${title}
-
-**Character:** ${characterName || 'The Merc'}
-**Weapon:** ${weapon.name}${isOffhand ? ' (Offhand)' : ''}
-**Roll:** ${hasAdvantage ? '2d20kh1' : '1d20'}+${roll.modifier} = [${roll.rolls.join(', ')}] = **${roll.total}**
-${isCrit ? '\n🎯 **NATURAL 20! CRITICAL HIT!**' : ''}
-${isFumble ? '\n💀 **NATURAL 1! CRITICAL MISS!**' : ''}
-${targetSection ? `\n${targetSection}\n` : ''}
-**Damage on Hit:** ${damage}${offhandNote}
-*"${quip}"*`;
-}
