@@ -22,7 +22,7 @@ import {
 } from '@/lib/combat/combatTypes';
 import { ActiveConditionInfo, SetBonusInfo } from '@/lib/combat/promptContext';
 import { DiceRoll, isCriticalHit, isCriticalMiss, inferRollMode } from '@/lib/diceRoller';
-import { getD20RollQuality } from '@/lib/rollQuality';
+import { generateDesktopWeaponPrompt } from '@/lib/combat/weaponPrompts';
 import { Activity, Skull } from 'lucide-react';
 import './CombatHUDStyles.css';
 import './mobile/MobileCombatStyles.css';
@@ -218,7 +218,7 @@ export function CombatTabScreen({
     });
     
     setDiceRoll(roll);
-    setDicePrompt(generateWeaponPrompt(rollType, weapon, roll, damage, character.name));
+    setDicePrompt(generateDesktopWeaponPrompt(rollType, weapon, roll, damage, character.name));
     setActiveAbility(null);
     setShowDiceModal(true);
     setLastAction(`${rollName.toUpperCase()} ROLL`);
@@ -390,93 +390,3 @@ export function CombatTabScreen({
   );
 }
 
-// Generate weapon attack RP prompt
-function generateWeaponPrompt(
-  rollType: 'normal' | 'sneak' | 'assassinate',
-  weapon: WeaponAttack,
-  roll: DiceRoll,
-  damage: string,
-  characterName: string
-): string {
-  const rollMode = inferRollMode(roll.rolls, roll.total, roll.modifier);
-  const isCrit = isCriticalHit(roll.rolls, rollMode, roll.die);
-  const isFumble = isCriticalMiss(roll.rolls, rollMode, roll.die);
-  const hasAdvantage = roll.rolls.length > 1;
-  const attackQuality = getD20RollQuality(roll.rolls, rollMode, roll.total);
-  
-  let title = rollType === 'assassinate' 
-    ? '💀 ASSASSINATION ATTEMPT' 
-    : rollType === 'sneak' 
-      ? '🗡️ SNEAK ATTACK'
-      : '⚔️ ATTACK';
-  
-  let quip = getDeadpoolQuip(rollType, roll.total, isCrit, isFumble);
-  
-  return `## ${title}
-
-**Character:** ${characterName || 'The Merc'}
-**Weapon:** ${weapon.name}
-**Roll:** ${hasAdvantage ? '2d20kh1' : '1d20'}+${roll.modifier} = [${roll.rolls.join(', ')}] = **${roll.total}**
-${isCrit ? '\n🎯 **NATURAL 20! CRITICAL HIT!**' : ''}
-${isFumble ? '\n💀 **NATURAL 1! CRITICAL MISS!**' : ''}
-
-**Damage on Hit:** ${damage}
-
----
-
-### Narration Guide
-${rollType === 'assassinate' 
-  ? 'Describe a devastating strike from the shadows. The target never saw it coming. The damage is automatically maximized - this is a killing blow.' 
-  : rollType === 'sneak' 
-    ? 'Describe a precise strike exploiting a momentary weakness or distraction. The extra damage represents finding a vital point.'
-    : attackQuality.narrativeGuide}
-
-${isCrit ? '**CRITICAL:** Double all damage dice. Describe something exceptionally brutal.' : ''}
-
-*"${quip}"*`;
-}
-
-// Deadpool quips
-function getDeadpoolQuip(rollType: string, total: number, isCrit: boolean, isFumble: boolean): string {
-  if (isCrit) {
-    const critQuips = [
-      "Maximum effort!",
-      "I'm touching myself tonight!",
-      "Did you see that?! Somebody better be taking notes!",
-      "Chimichangas for everyone!",
-      "That's what peak performance looks like, folks.",
-      "Insert slow-mo here. You're welcome, audience.",
-    ];
-    return critQuips[Math.floor(Math.random() * critQuips.length)];
-  }
-  
-  if (isFumble) {
-    const fumbleQuips = [
-      "Well, that's coming out of my budget.",
-      "Fourth wall? Meet the floor.",
-      "I've made a huge mistake.",
-      "This is fine. Everything is fine.",
-      "Plot armor, don't fail me now!",
-      "I blame the writers for this one.",
-    ];
-    return fumbleQuips[Math.floor(Math.random() * fumbleQuips.length)];
-  }
-  
-  if (rollType === 'assassinate') {
-    const assassinQuips = [
-      "Surprise, motherf—",
-      "Nobody expects the Spanish Inquisition. Or me. Mostly me.",
-      "And THAT'S why they call me an assassin.",
-      "Target eliminated. Time for tacos.",
-    ];
-    return assassinQuips[Math.floor(Math.random() * assassinQuips.length)];
-  }
-  
-  if (total >= 18) {
-    return "Nailed it. Add it to my highlight reel.";
-  } else if (total >= 12) {
-    return "Good enough for government work.";
-  } else {
-    return "At least I'm pretty...";
-  }
-}
