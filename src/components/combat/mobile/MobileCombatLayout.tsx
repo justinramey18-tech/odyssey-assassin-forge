@@ -4,10 +4,7 @@ import { allAbilities } from '@/lib/abilities';
 import { cn } from '@/lib/utils';
 import { 
   ActionEconomy, 
-  ActiveEffect,
-  TurnAction,
   WeaponAttack,
-  COMBAT_CONDITIONS,
   DEFAULT_WEAPONS,
   getSneakAttackDice,
 } from '@/lib/combat/combatTypes';
@@ -31,17 +28,12 @@ import { isLegacyAbilityId, resolveLegacyAbility } from '@/lib/prestigeTree/abil
 // Mobile components
 import { CombatBottomNav, CombatTab } from './CombatBottomNav';
 import { CombatTopBar } from './CombatTopBar';
-import { MobileWeaponCard } from './MobileWeaponCard';
-import { OffhandAttackCard } from './OffhandAttackCard';
 import { CombatFAB } from './CombatFAB';
 import { TurnSummaryPanel } from './TurnSummaryPanel';
 import { CombatLogPanel } from './CombatLogPanel';
 import { SmartPromptSheet } from './SmartPromptSheet';
-import { CombatAbilityCard } from './CombatAbilityCard';
 
-import { QuickCastPanel } from './QuickCastPanel';
 import { TurnWizardPanel } from './TurnWizardPanel';
-import { DeathSavesTracker } from '@/components/character/DeathSavesTracker';
 import { CombatSectionContent } from './CombatSectionContent';
 import { ActionsSectionContent } from './ActionsSectionContent';
 import { SpellsSectionContent } from './SpellsSectionContent';
@@ -57,9 +49,8 @@ import { useInitiative } from '@/hooks/use-initiative';
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
 import { getSpellById } from '@/lib/magic/spells';
 import { usePromptDrawers } from '@/components/drawers';
-import { CharacterEquipment, EquipmentSlotType } from '@/lib/inventory/types';
+import { CharacterEquipment } from '@/lib/inventory/types';
 import { getEquippedWeapons, convertToWeaponAttack } from '@/lib/combat/weaponConverter';
-import { Reaction, DEFAULT_REACTIONS, REACTIONS_STORAGE_KEY } from '@/lib/combat/reactions';
 import { useEquipmentImages } from '@/hooks/use-equipment-images';
 import { useAbilityImages } from '@/hooks/use-ability-images';
 import { AggregatedStats } from '@/hooks/use-equipment-stats';
