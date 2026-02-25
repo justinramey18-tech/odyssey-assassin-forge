@@ -73,11 +73,8 @@ export function usePersonalityGate({ userId }: UsePersonalityGateOptions): UsePe
   const hasCompletedTest = !!profile;
 
   const attemptOpenDM = useCallback((): boolean => {
-    if (profile) return true; // Has profile → allowed
-    // No profile → show wizard (may resume from progress)
-    setShowWizard(true);
-    return false;
-  }, [profile]);
+    return true;
+  }, []);
 
   const handleTestComplete = useCallback(async (answers: Answer[]) => {
     if (!userId) return;
