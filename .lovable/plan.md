@@ -1,180 +1,138 @@
 
 
-# Plan: Idea 5 — Extract `renderCombatContent()` Into `<CombatSectionContent />`
+# Plan: Idea 7 — Extract Combat Action Handlers Into `useCombatActions` Hook
 
 ## The Problem
 
-`renderCombatContent()` (lines 794–911) is a 120-line render function defined *inside* `MobileCombatLayout`. It closes over ~25 variables from the parent scope. It is the largest of the five `render*Content()` functions and contains six distinct subsections: Death Saves, Quick Cast, Sneak Attack info, Attack Queue, Weapons list, Offhand, and Stealth abilities.
+After ideas 5–6 and the section content extractions, `MobileCombatLayout.tsx` is ~1125 lines. The largest remaining complexity is the block of **combat action callback handlers** (lines 449–676, ~230 lines):
 
-Extracting it into its own component file makes `MobileCombatLayout` shorter and gives the combat section a clear, self-documenting props contract.
+- `handleEnhancedAbilityUse` (lines 449–483)
+- `handleWeaponRoll` (lines 486–528)
+- `handleOffhandRoll` (lines 531–569)
+- `handleQueueAttack` (lines 572–580)
+- `handleExecuteQueue` (lines 583–676)
+
+These all follow the same pattern: receive roll data → set dice modal state → log to combatLog → call handleAddToTurn. They close over `combatStats`, `combatSettings`, `conditions`, `character`, `targetTracker`, `combatLog`, `attackQueue`, and the dice modal setters.
+
+Extracting them into a `useCombatActions` hook will:
+- Remove ~200 lines from the layout component
+- Co-locate all roll-handling logic in one testable unit
+- Make the dice modal state internal to the hook (it's only set by these handlers and read by the JSX)
 
 ## Dependency Audit
 
-`renderCombatContent` references these parent-scope variables:
+The handlers depend on:
 
 | Category | Variables |
 |----------|-----------|
+| **Dice modal** | `setDiceRoll`, `setDicePrompt`, `setActiveAbility`, `setActiveTier`, `setShowDiceModal` |
+| **Status** | `setLastAction` |
 | **Character** | `character.name`, `character.level` |
-| **HP/Death** | `currentHP`, `deathSaves`, `onDeathSavesChange`, `onRegainHP` |
-| **Spellcasting** | `spellcasting` |
-| **Weapons** | `equippedWeapons`, `weaponsMap`, `expandedWeaponId`, `setExpandedWeaponId`, `equipmentImages` |
-| **Combat state** | `conditions`, `hasPoisonedWeapon`, `sneakAttackDice`, `combatStats`, `combatSettings` |
-| **Action economy** | `actionEconomy.bonusActionUsed`, `actionEconomyState.useBonus()` |
-| **Attack queue** | `attackQueue` (sortedQueue, defaultTargetId, actionEconomy, removeFromQueue, reorderAttack, updateAttackTarget, clearQueue) |
-| **Targets** | `targetTracker.enemies`, `targetTracker.getTargetForPrompt()` |
-| **Abilities** | `stealthAbilities`, `cooldownStateMap`, `abilityImages`, `globalConditions`, `activeSetBonuses`, `concentrationSpell` |
-| **Callbacks** | `handleAddToTurn`, `setLastAction`, `handleSpellCastResult`, `handleWeaponRoll`, `handleOffhandRoll`, `handleExecuteQueue`, `handleQueueAttack`, `handleEnhancedAbilityUse`, `cooldownSystem.triggerCooldown` |
+| **Combat** | `combatStats`, `combatSettings`, `conditions`, `hasPoisonedWeapon` |
+| **Systems** | `combatLog`, `targetTracker`, `attackQueue`, `cooldownSystem`, `handleAddToTurn` |
 
-That is ~30 individual values. To keep the props interface manageable, I will group them into logical clusters.
+The dice modal state (`diceRoll`, `dicePrompt`, `activeAbility`, `activeTier`, `showDiceModal`) is **only written** by these handlers and **only read** by the `DiceRollModal` JSX. Moving these `useState` calls into the hook is safe.
 
 ## Changes
 
-### File 1 (NEW): `src/components/combat/mobile/CombatSectionContent.tsx`
-
-Create a new component with a grouped props interface:
+### File 1 (NEW): `src/hooks/use-combat-actions.ts`
 
 ```typescript
-interface CombatSectionContentProps {
-  // Character basics
+interface UseCombatActionsProps {
   characterName: string;
   characterLevel: number;
-  
-  // HP & Death Saves
-  currentHP?: number;
-  deathSaves?: { successes: number; failures: number };
-  onDeathSavesChange?: (saves: { successes: number; failures: number }) => void;
-  onRegainHP?: (amount: number) => void;
-  
-  // Spellcasting (for QuickCastPanel)
-  spellcasting?: UseSpellcastingReturn;
-  
-  // Weapons
-  equippedWeapons: WeaponAttack[];
-  weaponsMap: { primary: WeaponAttack | null; secondary: WeaponAttack | null; ranged: WeaponAttack | null };
-  expandedWeaponId: string | null;
-  onToggleWeaponExpand: (id: string | null) => void;
-  equipmentImages: Record<string, string>;
-  
-  // Combat state
-  conditions: string[];
-  hasPoisonedWeapon: boolean;
-  sneakAttackDice: string;
   combatStats: { attackBonus: number; damageBonus: number; ac: number };
   combatSettings: { hasTwoWeaponFightingStyle: boolean; hasDualWielderFeat: boolean };
-  bonusActionUsed: boolean;
-  
-  // Attack queue
-  attackQueue: {
-    sortedQueue: any[];
-    defaultTargetId: string | null;
-    actionEconomy: any;
-    removeFromQueue: (id: string) => void;
-    reorderAttack: (id: string, direction: 'up' | 'down') => void;
-    updateAttackTarget: (id: string, targetId: string) => void;
-    clearQueue: () => void;
-  };
-  
-  // Targets
-  enemies: Enemy[];
-  getTargetForPrompt: () => TargetPromptInfo | null;
-  
-  // Stealth abilities
-  stealthAbilities: (Ability & { tier: 1 | 2 | 3 })[];
-  cooldownStateMap: Map<string, { isOnCooldown: boolean; remaining: number; total: number }>;
-  abilityImages: Record<string, string>;
-  globalConditions: ActiveConditionInfo[];
-  activeSetBonuses: SetBonusInfo[];
-  concentrationSpell: string | null | undefined;
-  
-  // Callbacks
-  onAddToTurn: (type: 'action' | 'bonus' | 'reaction', description: string, roll?: string) => void;
-  onSetLastAction: (action: string) => void;
-  onSpellCastResult: (spellName: string) => void;
-  onWeaponRoll: (...args: any[]) => void;
-  onOffhandRoll: (...args: any[]) => void;
-  onExecuteQueue: () => void;
-  onQueueAttack: (...args: any[]) => void;
-  onUseAbility: (...args: any[]) => void;
-  onUseBonus: () => void;
-  onTriggerCooldown: (abilityId: string) => void;
+  conditions: string[];
+  hasPoisonedWeapon: boolean;
+  combatLog: UseCombatLogReturn;
+  targetTracker: UseTargetsReturn;
+  attackQueue: UseAttackQueueReturn;
+  cooldownSystem: UseCooldownsReturn;
+  onAddToTurn: (type: 'action' | 'bonus' | 'reaction', desc: string, roll?: string) => void;
+}
+
+interface UseCombatActionsReturn {
+  // Dice modal state (moved here)
+  diceRoll: DiceRoll | null;
+  dicePrompt: string;
+  activeAbility: Ability | null;
+  activeTier: 1 | 2 | 3;
+  showDiceModal: boolean;
+  setShowDiceModal: (open: boolean) => void;
+  lastAction: string;
+  setLastAction: (action: string) => void;
+
+  // Handlers
+  handleEnhancedAbilityUse: (...) => void;
+  handleWeaponRoll: (...) => void;
+  handleOffhandRoll: (...) => void;
+  handleQueueAttack: (...) => void;
+  handleExecuteQueue: () => void;
+  handleAbilityUse: (ability: Ability & { tier: 1|2|3 }) => void;
+  handleQuickRoll: () => void;
+  handleQuickAttack: () => void;
+  handleQuickHide: () => void;
 }
 ```
 
-The component body will be the exact JSX currently inside `renderCombatContent()`, referencing props instead of closure variables.
+The hook body will contain all the `useState` declarations for the dice modal and `lastAction`, plus all six `useCallback` handlers, moved verbatim from `MobileCombatLayout`.
 
 ### File 2: `src/components/combat/mobile/MobileCombatLayout.tsx`
 
-**A.** Add import for `CombatSectionContent`.
+**A.** Add import for `useCombatActions`.
 
-**B.** Delete `renderCombatContent` function definition (lines 794–911, ~120 lines).
+**B.** Remove these `useState` declarations (~6 lines):
+- `showDiceModal`, `diceRoll`, `dicePrompt`, `activeAbility`, `activeTier`, `lastAction`
 
-**C.** Replace the call site (line 1221) with the new component:
+**C.** Remove these handler functions (~230 lines):
+- `handleAbilityUse`, `handleEnhancedAbilityUse`, `handleWeaponRoll`, `handleOffhandRoll`, `handleQueueAttack`, `handleExecuteQueue`, `handleQuickRoll`, `handleQuickAttack`, `handleQuickHide`
+
+**D.** Call the hook and destructure:
 ```typescript
-{/* was: {renderCombatContent()} */}
-<CombatSectionContent
-  characterName={character.name}
-  characterLevel={character.level}
-  currentHP={currentHP}
-  deathSaves={deathSaves}
-  onDeathSavesChange={onDeathSavesChange}
-  onRegainHP={onRegainHP}
-  spellcasting={spellcasting}
-  equippedWeapons={equippedWeapons}
-  weaponsMap={weaponsMap}
-  expandedWeaponId={expandedWeaponId}
-  onToggleWeaponExpand={(id) => setExpandedWeaponId(expandedWeaponId === id ? null : id)}
-  equipmentImages={equipmentImages}
-  conditions={conditions}
-  hasPoisonedWeapon={hasPoisonedWeapon}
-  sneakAttackDice={sneakAttackDice}
-  combatStats={combatStats}
-  combatSettings={combatSettings}
-  bonusActionUsed={actionEconomy.bonusActionUsed}
-  attackQueue={attackQueue}
-  enemies={targetTracker.enemies}
-  getTargetForPrompt={targetTracker.getTargetForPrompt}
-  stealthAbilities={stealthAbilities}
-  cooldownStateMap={cooldownStateMap}
-  abilityImages={abilityImages}
-  globalConditions={globalConditions}
-  activeSetBonuses={activeSetBonuses}
-  concentrationSpell={concentrationSpell}
-  onAddToTurn={handleAddToTurn}
-  onSetLastAction={setLastAction}
-  onSpellCastResult={handleSpellCastResult}
-  onWeaponRoll={handleWeaponRoll}
-  onOffhandRoll={handleOffhandRoll}
-  onExecuteQueue={handleExecuteQueue}
-  onQueueAttack={handleQueueAttack}
-  onUseAbility={handleEnhancedAbilityUse}
-  onUseBonus={() => actionEconomyState.useBonus()}
-  onTriggerCooldown={cooldownSystem.triggerCooldown}
-/>
+const {
+  diceRoll, dicePrompt, activeAbility, activeTier,
+  showDiceModal, setShowDiceModal,
+  lastAction, setLastAction,
+  handleEnhancedAbilityUse, handleWeaponRoll,
+  handleOffhandRoll, handleQueueAttack,
+  handleExecuteQueue, handleAbilityUse,
+  handleQuickRoll, handleQuickAttack, handleQuickHide,
+} = useCombatActions({
+  characterName: character.name,
+  characterLevel: character.level,
+  combatStats,
+  combatSettings,
+  conditions,
+  hasPoisonedWeapon,
+  combatLog,
+  targetTracker,
+  attackQueue,
+  cooldownSystem,
+  onAddToTurn: handleAddToTurn,
+});
 ```
 
-### File 3: `src/components/combat/mobile/index.ts`
-
-Add the new export:
-```typescript
-export { CombatSectionContent } from './CombatSectionContent';
-```
+All existing references to these names remain unchanged — destructured names match current names.
 
 ## Net Effect
 
-- `MobileCombatLayout.tsx` shrinks by ~90 lines (120 lines of function body removed, ~30 lines of JSX props added at call site).
-- The combat section gains a self-documenting props interface that explicitly lists every dependency.
-- No behavioral changes — pure refactor.
+- `MobileCombatLayout.tsx` shrinks by ~230 lines (from ~1125 to ~895).
+- All roll-handling and dice modal state is co-located in one hook.
+- No behavioral changes — pure extraction.
 
 ## Risk Assessment
 
-**Very low.** This is a mechanical extraction — the JSX moves from a closure function to a component with explicit props. No logic changes. The same values are passed; they just travel via props instead of closure capture.
+**Low.** The handlers are self-contained callbacks. The dice modal state is only written by these handlers and read by `DiceRollModal` in the JSX. Moving them into a hook changes nothing about data flow.
+
+One subtlety: `handleQuickAttack` calls `handleWeaponRoll`, and `handleQuickHide` calls `handleAddToTurn`. Both will be internal to the hook, so inter-handler references become simpler (no stale closure risk since they share the same hook scope).
 
 ## Testing Criteria
 
-1. Open the Combat tab — verify all six subsections render (Death Saves when HP=0, Quick Cast, Sneak Attack info, Attack Queue, Weapons, Offhand, Stealth abilities)
-2. Use a weapon attack — verify roll triggers and action economy updates
-3. Use an offhand attack — verify bonus action marks as used
-4. Expand/collapse weapon cards — verify accordion behavior persists
-5. Queue and execute attacks — verify attack queue panel works
+1. Open Combat tab — use a weapon attack, verify dice modal appears with correct prompt
+2. Use an offhand attack — verify bonus action logged
+3. Queue 2+ attacks and execute — verify multi-attack prompt and combat log entries
+4. Use an ability from ACTIONS section — verify enhanced ability use with weapon synergy
+5. Tap FAB quick-roll, quick-attack, quick-hide — verify each works
 6. No console errors or warnings
 
