@@ -25,4 +25,5 @@ export { AddEnemySheet } from './AddEnemySheet';
 export { EnemyCard } from './EnemyCard';
 export { CombatDiceRoller } from './CombatDiceRoller';
 export { CombatSectionContent } from './CombatSectionContent';
+export { CombatDashboard } from './CombatDashboard';
 export { MobileCombatLayout } from './MobileCombatLayout';
