@@ -1,68 +1,73 @@
 
 
-# Plan: Fix Solo DM Not Rendering + Make Personality Quiz Optional
+# Implementation Plan: Magic Build Video Background
 
-## Root Cause
+## What This Does
 
-The Solo DM fails to open because `attemptOpenDM()` in `use-personality-gate.ts` returns `false` when no personality profile exists, and instead sets `showWizard = true`. However, the `PersonalityTestWizard` only renders when `userId` is truthy (line 699 of `PromptDrawerProvider.tsx`). When the user isn't signed in, there's no `userId`, so:
+When a user selects "Magic Build" mode, a looping video automatically plays as the Home Screen background — behind all overlays and content. If a custom background is set, it takes priority. All users see this video; it's a built-in atmospheric layer.
 
-- `attemptOpenDM()` returns false → DM doesn't open
-- `showWizard` is set to true → wizard condition checks `userId && showWizard` → false → wizard doesn't render
-- Result: nothing happens — the user is stuck
+## Steps
 
-## Changes
+### 1. Upload the video to cloud storage
 
-### File 1: `src/components/drawers/PromptDrawerProvider.tsx` (line 499-502)
+Upload `VID_20260225_135652_561.mp4` to the existing public `videos` bucket. Store the resulting public URL as a constant in the codebase.
 
-Remove the personality gate from `openAIDMScreen`. The DM should always open. Change:
+### 2. Update `BackgroundWrapper.tsx` — add native `videoSrc` support
 
-```typescript
-openAIDMScreen: useCallback(() => {
-  if (!personalityGate.attemptOpenDM()) return;
-  closeAllDrawers(); setAiDMOpen(true);
-}, [closeAllDrawers, personalityGate]),
+Add the following props and logic:
+
+- **New prop**: `videoSrc?: string` — when provided, renders a `<video>` element instead of the CSS `background-image` div
+- **Video element**: `autoPlay`, `muted`, `loop`, `playsInline`, `object-fit: cover`, same position as the image layer (`absolute inset-0 z-0`)
+- **Fade-in**: Track `videoReady` state via the `onCanPlayThrough` event, apply `opacity-0 → opacity-100` transition (same pattern as the existing `imageLoaded` state)
+- **Reduced motion**: Use the existing `prefersReducedMotion` detection. When true, pause the video via a `useRef<HTMLVideoElement>` and effect
+- **Memory cleanup**: On unmount, pause the video, clear `.src`, and call `.load()` to release the buffer
+- **Fallback**: While video loads, the existing `fallbackGradient` shows (already handled by the opacity transition)
+
+The image layer is skipped when `videoSrc` is provided — no competing layers.
+
+### 3. Update `HomeScreen.tsx` — wire video for Magic Build mode
+
+Around line 449 (where `defaultBg` is computed), add:
+
+```ts
+const MAGIC_BUILD_VIDEO_URL = 'https://rkkgmonjfvncpvlzsojw.supabase.co/storage/v1/object/public/videos/magic-build-bg.mp4';
+const isMagicBuildVideo = appMode === 'magicBuild' && !customBackground;
 ```
 
-To:
+Then at line 464-475, conditionally pass `videoSrc` to `BackgroundWrapper`:
 
-```typescript
-openAIDMScreen: useCallback(() => {
-  closeAllDrawers(); setAiDMOpen(true);
-}, [closeAllDrawers]),
+```tsx
+<BackgroundWrapper
+  imagePath={defaultBg}
+  videoSrc={isMagicBuildVideo ? MAGIC_BUILD_VIDEO_URL : undefined}
+  overlayOpacity={customBackground ? 55 : 55}
+  tintColor="cyan"
+  tintOpacity={10}
+  fixed={true}
+  backgroundSize="cover"
+  backgroundPosition="center center"
+  className="fixed inset-0 z-0"
+>
+  <div />
+</BackgroundWrapper>
 ```
 
-### File 2: `src/hooks/use-personality-gate.ts` (line 75-80)
+When `videoSrc` is present, `BackgroundWrapper` renders the video; when absent, the normal image path applies. Custom background always wins because `isMagicBuildVideo` is false when `customBackground` is set.
 
-Change `attemptOpenDM` to always return `true`. It no longer gates access — the quiz is optional. The method can remain for future use but shouldn't block:
+## Files Changed
 
-```typescript
-const attemptOpenDM = useCallback((): boolean => {
-  return true;
-}, []);
-```
+| File | Change |
+|------|--------|
+| Cloud storage (`videos` bucket) | Upload the MP4 file |
+| `src/components/ui/BackgroundWrapper.tsx` | Add `videoSrc` prop, `<video>` rendering, fade-in, reduced-motion pause, cleanup |
+| `src/components/home/HomeScreen.tsx` | Add video URL constant, conditional `videoSrc` prop for `magicBuild` mode |
 
-### File 3: `src/components/drawers/PromptDrawerProvider.tsx` (lines 698-718)
+## Testing
 
-The personality test wizard and results screen JSX blocks remain in place. They can still be triggered via the "Retake Personality Test" button in the DM Tools drawer (which calls `personalityGate.retakeTest()`), but they no longer block initial DM access.
-
-No changes needed to these JSX blocks — they already conditionally render based on `showWizard` and `showResults` state.
-
-### Optional cleanup
-
-The `attemptOpenDM` function is no longer meaningful. It could be removed from the hook's return value and all references, but keeping it is harmless and preserves the option to re-enable gating later.
-
-## Net Effect
-
-- Solo DM opens immediately when tapped, regardless of sign-in or personality test status
-- Personality test remains available via "Retake Personality Test" in the DM Tools drawer (requires sign-in)
-- If a user has completed the test, their DM persona prompt is still passed to the DM screen
-- If they haven't, `dmPersonaPrompt` is `undefined` and the DM uses its default personality
-
-## Testing Criteria
-
-1. Without signing in → tap Solo DM → DM screen should open immediately
-2. While signed in without a profile → tap Solo DM → DM screen should open (no quiz gate)
-3. While signed in with a profile → tap Solo DM → DM screen opens with persona-customized DM
-4. "Retake Personality Test" in Tools drawer still works for signed-in users
-5. No console errors
+1. Switch to Magic Build mode — video loops silently in the background behind overlays
+2. Switch to any other mode — video gone, normal image background shows
+3. Upload a custom background while in Magic Build — custom image takes priority
+4. Clear custom background — video returns
+5. Reload the page in Magic Build mode — video loads and plays
+6. Enable "reduce motion" in OS accessibility settings — video should pause
 
