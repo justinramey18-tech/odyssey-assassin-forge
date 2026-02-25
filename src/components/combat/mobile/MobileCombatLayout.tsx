@@ -40,11 +40,12 @@ import { SmartPromptSheet } from './SmartPromptSheet';
 import { CombatAbilityCard } from './CombatAbilityCard';
 import { MobileItemsGrid } from './MobileItemsGrid';
 import { MobileSpellList } from './MobileSpellList';
-import { MobileReactionsList } from './MobileReactionsList';
+
 import { QuickCastPanel } from './QuickCastPanel';
 import { TurnWizardPanel } from './TurnWizardPanel';
 import { DeathSavesTracker } from '@/components/character/DeathSavesTracker';
 import { CombatSectionContent } from './CombatSectionContent';
+import { ActionsSectionContent } from './ActionsSectionContent';
 import { CombatDashboard } from './CombatDashboard';
 import { EdgeDrawer } from '@/components/drawers/EdgeDrawer';
 import { PartyPanel } from '@/components/party/PartyPanel';
@@ -140,7 +141,7 @@ export function MobileCombatLayout({
   // Navigation state
   const [activeTab, setActiveTab] = useState<CombatTab>('combat');
   const [showPartyDrawer, setShowPartyDrawer] = useState(false);
-  const [actionsFilter, setActionsFilter] = useState<'all' | 'action' | 'bonus_action' | 'reaction'>('all');
+  
   const [pendingHealSpell, setPendingHealSpell] = useState<{ spellName: string; amount: number } | null>(null);
   const [round, setRound] = useState(1);
   const [isYourTurn, setIsYourTurn] = useState(true);
@@ -787,100 +788,7 @@ export function MobileCombatLayout({
 
   // renderCombatContent extracted to <CombatSectionContent /> component
 
-  // Render actions section content
-  const renderActionsContent = () => {
-    const filteredAbilities = actionsFilter === 'all' 
-      ? [...specialAbilities, ...unlockedAbilities.filter(a => a.actionType === 'reaction')]
-      : actionsFilter === 'reaction'
-        ? unlockedAbilities.filter(a => a.actionType === 'reaction')
-        : specialAbilities.filter(a => a.actionType === actionsFilter);
-    
-    return (
-      <div className="p-4 space-y-4">
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {(['all', 'action', 'bonus_action', 'reaction'] as const).map(filter => (
-            <button
-              key={filter}
-              onClick={() => setActionsFilter(filter)}
-              className={cn(
-                "flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-mono whitespace-nowrap transition-all active:scale-95",
-                actionsFilter === filter
-                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/50"
-                  : "bg-muted/20 text-muted-foreground border border-muted/30"
-              )}
-            >
-              {filter === 'all' ? 'All' : 
-               filter === 'action' ? '⚔️ Action' : 
-               filter === 'bonus_action' ? '⚡ Bonus' : 
-               '🛡️ Reaction'}
-            </button>
-          ))}
-        </div>
-        {actionsFilter === 'reaction' && actionEconomy.reactionUsed && (
-          <div className="p-2 bg-red-500/10 border border-red-500/30 rounded-lg text-center">
-            <span className="text-xs text-red-400 font-mono">⚠️ REACTION USED THIS ROUND</span>
-          </div>
-        )}
-        {filteredAbilities.length > 0 ? (
-          <div className="space-y-3">
-            {filteredAbilities.map(ability => {
-              const cdState = cooldownStateMap.get(ability.id);
-              const isReaction = ability.actionType === 'reaction';
-              return (
-                <div key={ability.id} className={cn(
-                  isReaction && "border-l-2 border-cyan-500 pl-2"
-                )}>
-                  <CombatAbilityCard
-                    ability={ability}
-                    characterName={character.name}
-                    weapons={weaponsMap}
-                    cooldownState={cdState ? {
-                      isOnCooldown: cdState.isOnCooldown,
-                      remaining: cdState.remaining,
-                      total: cdState.total,
-                    } : undefined}
-                    customImage={abilityImages[ability.id]}
-                    activeConditions={globalConditions}
-                    activeSetBonuses={activeSetBonuses}
-                    concentrationSpell={concentrationSpell}
-                    currentTarget={targetTracker.getTargetForPrompt()}
-                    onUse={(ability, roll, prompt, combinedDamage) => {
-                      handleEnhancedAbilityUse(ability, roll, prompt, combinedDamage);
-                      if (ability.actionType === 'reaction') {
-                        actionEconomyState.useReaction();
-                      }
-                    }}
-                    onTriggerCooldown={cooldownSystem.triggerCooldown}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="text-center py-8 text-muted-foreground">
-            <p>No {actionsFilter === 'all' ? 'abilities' : actionsFilter.replace('_', ' ') + 's'} unlocked</p>
-          </div>
-        )}
-        {(actionsFilter === 'all' || actionsFilter === 'reaction') && (
-          <div className="pt-2 border-t border-muted/20">
-            <MobileReactionsList
-              reactionUsed={actionEconomy.reactionUsed}
-              onUseReaction={(reaction) => {
-                actionEconomyState.useReaction();
-                setLastAction(`⚡ ${reaction.name.toUpperCase()}`);
-                handleAddToTurn('reaction', reaction.name);
-                combatLog.addEntry({
-                  actionType: 'reaction',
-                  actionName: reaction.name,
-                  prompt: reaction.dmPrompt || `## ⚡ REACTION: ${reaction.name.toUpperCase()}\n\n**Character:** ${character.name}\n**Trigger:** ${reaction.trigger}\n\n### Effect\n${reaction.effect}\n\n---\n\n*Narrate how ${character.name} instinctively responds with ${reaction.name}.*`,
-                });
-              }}
-            />
-          </div>
-        )}
-      </div>
-    );
-  };
+  // renderActionsContent extracted to <ActionsSectionContent /> component
 
   // Render spells section content
   const renderSpellsContent = () => {
@@ -1114,7 +1022,31 @@ export function MobileCombatLayout({
           {/* ACTIONS Section */}
           <div ref={actionsRef} id="section-actions">
             {renderSectionHeader('actions')}
-            {renderActionsContent()}
+            <ActionsSectionContent
+              characterName={character.name}
+              specialAbilities={specialAbilities}
+              unlockedAbilities={unlockedAbilities}
+              weaponsMap={weaponsMap}
+              cooldownStateMap={cooldownStateMap}
+              abilityImages={abilityImages}
+              reactionUsed={actionEconomy.reactionUsed}
+              globalConditions={globalConditions}
+              activeSetBonuses={activeSetBonuses}
+              concentrationSpell={concentrationSpell}
+              getTargetForPrompt={targetTracker.getTargetForPrompt}
+              onUseAbility={handleEnhancedAbilityUse}
+              onUseReaction={() => actionEconomyState.useReaction()}
+              onTriggerCooldown={cooldownSystem.triggerCooldown}
+              onSetLastAction={setLastAction}
+              onAddToTurn={handleAddToTurn}
+              onLogReaction={(reaction) => {
+                combatLog.addEntry({
+                  actionType: 'reaction',
+                  actionName: reaction.name,
+                  prompt: reaction.dmPrompt || `## ⚡ REACTION: ${reaction.name.toUpperCase()}\n\n**Character:** ${character.name}\n**Trigger:** ${reaction.trigger}\n\n### Effect\n${reaction.effect}\n\n---\n\n*Narrate how ${character.name} instinctively responds with ${reaction.name}.*`,
+                });
+              }}
+            />
           </div>
           
           {/* MAGIC Section */}
