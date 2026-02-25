@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Loader2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { RefreshCw, Loader2, Play, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { loadApiKey } from '@/lib/api-keys';
@@ -10,6 +10,24 @@ export function ElevenLabsVoicePicker() {
   const [voices, setVoices] = useState<CachedVoice[]>(() => getCachedVoices() || []);
   const [selectedId, setSelectedId] = useState<string>(() => loadSelectedVoiceId() || '');
   const [isLoading, setIsLoading] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+  const previewUrlRef = useRef<string | null>(null);
+
+  const cleanupPreview = useCallback(() => {
+    if (previewAudioRef.current) {
+      previewAudioRef.current.pause();
+      previewAudioRef.current = null;
+    }
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    }
+    setIsPreviewing(false);
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => cleanupPreview, [cleanupPreview]);
 
   const fetchVoices = useCallback(async () => {
     const apiKey = loadApiKey('elevenlabs');
@@ -59,6 +77,66 @@ export function ElevenLabsVoicePicker() {
     saveSelectedVoiceId(voiceId);
   }, []);
 
+  const handlePreview = useCallback(async () => {
+    if (isPreviewing) {
+      cleanupPreview();
+      return;
+    }
+
+    // Try preview_url from cached voice data first
+    const voice = voices.find(v => v.voice_id === selectedId);
+    if (voice?.preview_url) {
+      cleanupPreview();
+      setIsPreviewing(true);
+      const audio = new Audio(voice.preview_url);
+      previewAudioRef.current = audio;
+      audio.onended = () => setIsPreviewing(false);
+      audio.onerror = () => { toast.error('Preview playback failed'); setIsPreviewing(false); };
+      await audio.play();
+      return;
+    }
+
+    // Fallback: generate a short sample via TTS edge function
+    const apiKey = loadApiKey('elevenlabs');
+    if (!apiKey || !selectedId) return;
+
+    cleanupPreview();
+    setIsPreviewing(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            text: 'The ancient dragon stirred in its lair, its eyes gleaming like molten gold in the darkness.',
+            voiceId: selectedId,
+            user_api_key: apiKey,
+          }),
+        }
+      );
+
+      if (!response.ok) throw new Error('Preview failed');
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      previewUrlRef.current = url;
+
+      const audio = new Audio(url);
+      previewAudioRef.current = audio;
+      audio.onended = () => cleanupPreview();
+      audio.onerror = () => { toast.error('Preview playback failed'); cleanupPreview(); };
+      await audio.play();
+    } catch (error) {
+      toast.error('Voice preview failed');
+      cleanupPreview();
+    }
+  }, [isPreviewing, selectedId, voices, cleanupPreview]);
+
   // Group voices by category
   const grouped = voices.reduce<Record<string, CachedVoice[]>>((acc, v) => {
     const cat = v.category || 'premade';
@@ -99,25 +177,43 @@ export function ElevenLabsVoicePicker() {
       </div>
 
       {voices.length > 0 ? (
-        <Select value={selectedId} onValueChange={handleSelect}>
-          <SelectTrigger className="h-8 text-xs">
-            <SelectValue placeholder="Choose a voice..." />
-          </SelectTrigger>
-          <SelectContent>
-            {sortedCategories.map(cat => (
-              <SelectGroup key={cat}>
-                <SelectLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  {categoryLabels[cat] || cat}
-                </SelectLabel>
-                {grouped[cat].map(voice => (
-                  <SelectItem key={voice.voice_id} value={voice.voice_id} className="text-xs">
-                    {voice.name}
-                  </SelectItem>
+        <div className="flex items-center gap-1.5">
+          <div className="flex-1">
+            <Select value={selectedId} onValueChange={handleSelect}>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder="Choose a voice..." />
+              </SelectTrigger>
+              <SelectContent>
+                {sortedCategories.map(cat => (
+                  <SelectGroup key={cat}>
+                    <SelectLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      {categoryLabels[cat] || cat}
+                    </SelectLabel>
+                    {grouped[cat].map(voice => (
+                      <SelectItem key={voice.voice_id} value={voice.voice_id} className="text-xs">
+                        {voice.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 ))}
-              </SelectGroup>
-            ))}
-          </SelectContent>
-        </Select>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handlePreview}
+            disabled={!selectedId}
+            className="h-8 w-8 p-0 shrink-0"
+            title={isPreviewing ? 'Stop preview' : 'Preview voice'}
+          >
+            {isPreviewing ? (
+              <Square className="w-3 h-3" />
+            ) : (
+              <Play className="w-3 h-3" />
+            )}
+          </Button>
+        </div>
       ) : (
         <p className="text-[10px] text-muted-foreground italic">
           {isLoading ? 'Loading voices...' : 'Save an API key to load voices'}
