@@ -3,8 +3,10 @@ import { Key, Eye, EyeOff, ChevronDown, ChevronUp, Check, Trash2 } from 'lucide-
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
+import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
 import { loadApiKey, saveApiKey, clearApiKey, hasApiKey, maskKey } from '@/lib/api-keys';
+import { loadNarrationSpeed, saveNarrationSpeed } from '@/lib/tts-utils';
 import { ElevenLabsVoicePicker } from './ElevenLabsVoicePicker';
 
 function ApiKeyInput({ provider, label, placeholder }: { provider: 'anthropic' | 'elevenlabs'; label: string; placeholder: string }) {
@@ -89,6 +91,40 @@ function ApiKeyInput({ provider, label, placeholder }: { provider: 'anthropic' |
   );
 }
 
+function NarrationSpeedSlider() {
+  const [speed, setSpeed] = useState(() => loadNarrationSpeed());
+
+  const handleChange = useCallback((value: number[]) => {
+    const newSpeed = Math.round(value[0] * 10) / 10;
+    setSpeed(newSpeed);
+    saveNarrationSpeed(newSpeed);
+  }, []);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-medium text-muted-foreground">
+          Narration Speed
+        </label>
+        <span className="text-xs font-mono text-foreground">{speed.toFixed(1)}x</span>
+      </div>
+      <Slider
+        min={0.5}
+        max={2.0}
+        step={0.1}
+        value={[speed]}
+        onValueChange={handleChange}
+        className="w-full"
+      />
+      <div className="flex justify-between text-[10px] text-muted-foreground">
+        <span>0.5x Slow</span>
+        <span>1.0x Normal</span>
+        <span>2.0x Fast</span>
+      </div>
+    </div>
+  );
+}
+
 export function ApiKeySettings() {
   const [expanded, setExpanded] = useState(false);
   const hasAnthropicKey = hasApiKey('anthropic');
@@ -137,9 +173,12 @@ export function ApiKeySettings() {
             placeholder="sk_..."
           />
 
-          {/* Voice picker — only show when ElevenLabs key is saved */}
+          {/* Voice picker & speed — only show when ElevenLabs key is saved */}
           {hasApiKey('elevenlabs') && (
-            <ElevenLabsVoicePicker />
+            <>
+              <ElevenLabsVoicePicker />
+              <NarrationSpeedSlider />
+            </>
           )}
         </div>
       )}
