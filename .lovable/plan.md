@@ -1,37 +1,88 @@
 
 
-# Implementation Plan: Magic Build Video Background — COMPLETED
+# Fix: Video Background Not Looping on Mobile
 
-## What This Does
+## Root Cause
 
-When a user selects "Magic Build" mode, a looping video automatically plays as the Home Screen background — behind all overlays and content. If a custom background is set, it takes priority. All users see this video; it's a built-in atmospheric layer.
+Mobile browsers (iOS Safari, Android Chrome) have strict autoplay policies and buffering behavior that differ from desktop:
 
-## Steps — All Done
+1. **`onCanPlayThrough` rarely fires on mobile** — mobile browsers don't preload video data, so this event never triggers. The video stays at `opacity-0` forever (fade-in never happens), making it appear as a still frame or invisible.
 
-### 1. ✅ Upload the video to cloud storage
+2. **`contain: layout style paint`** can interfere with video rendering on some mobile WebViews — the browser may optimize away the video paint since it thinks nothing has changed.
 
-Uploaded `VID_20260225_135652_561.mp4` to the public `videos` bucket as `magic-build-bg.mp4`.
-Public URL: `https://rkkgmonjfvncpvlzsojw.supabase.co/storage/v1/object/public/videos/magic-build-bg.mp4`
+3. **No explicit `play()` call on mount** — while `autoPlay` works on desktop, mobile browsers sometimes need a programmatic `.play()` call to reliably start playback (especially after the element mounts into the DOM).
 
-### 2. ✅ Updated `BackgroundWrapper.tsx` — native `videoSrc` support
+## Changes
 
-- New prop `videoSrc?: string` renders a `<video>` element instead of the CSS `background-image` div
-- Video: `autoPlay`, `muted`, `loop`, `playsInline`, `object-fit: cover`, absolute inset-0 z-0
-- Fade-in via `onCanPlayThrough` → `videoReady` state
-- Reduced motion: `useRef<HTMLVideoElement>` + effect pauses/plays based on `prefersReducedMotion`
-- Memory cleanup: on unmount, `pause()` + `removeAttribute('src')` + `load()`
-- Image layer skipped when `videoSrc` is provided
+### `src/components/ui/BackgroundWrapper.tsx`
 
-### 3. ✅ Updated `HomeScreen.tsx` — wired video for Magic Build mode
+**A. Switch from `onCanPlayThrough` to multiple readiness events**
 
-- `MAGIC_BUILD_VIDEO_URL` constant
-- `isMagicBuildVideo = appMode === 'magicBuild' && !customBackground`
-- `videoSrc` passed conditionally to `BackgroundWrapper`
+Replace the single `onCanPlayThrough` handler with both `onCanPlay` and `onLoadedData` — these fire much earlier and more reliably on mobile:
 
-## Files Changed
+```tsx
+onCanPlay={() => {
+  setVideoReady(true);
+  onLoad?.();
+}}
+onLoadedData={() => {
+  // Fallback for mobile browsers that skip canplay
+  setVideoReady(true);
+}}
+```
+
+**B. Add explicit `play()` call when video element mounts**
+
+Add an effect that calls `videoRef.current.play()` once the video element is available, as a safety net for mobile autoplay:
+
+```tsx
+useEffect(() => {
+  if (!videoRef.current || !videoSrc || prefersReducedMotion) return;
+  const playPromise = videoRef.current.play();
+  if (playPromise) {
+    playPromise.catch(() => { /* autoplay blocked */ });
+  }
+}, [videoSrc, prefersReducedMotion]);
+```
+
+**C. Remove `contain` from video element styles**
+
+The `contain: layout style paint` hint can cause mobile renderers to skip repainting the video frames. Remove it from the video element specifically (keep it for the image layer where it's beneficial):
+
+```tsx
+style={{ willChange: 'transform' }}
+```
+
+**D. Add `webkit-playsinline` attribute**
+
+Older iOS versions need this attribute for inline playback:
+
+```tsx
+<video
+  ...
+  playsInline
+  {...{ 'webkit-playsinline': '' }}
+/>
+```
+
+**E. Add `preload="auto"` to encourage mobile buffering**
+
+```tsx
+<video preload="auto" ... />
+```
+
+## Summary of Changes
 
 | File | Change |
 |------|--------|
-| Cloud storage (`videos` bucket) | Uploaded `magic-build-bg.mp4` |
-| `src/components/ui/BackgroundWrapper.tsx` | Added `videoSrc` prop, `<video>` rendering, fade-in, reduced-motion pause, cleanup |
-| `src/components/home/HomeScreen.tsx` | Added video URL constant, conditional `videoSrc` prop for `magicBuild` mode |
+| `src/components/ui/BackgroundWrapper.tsx` | Replace `onCanPlayThrough` with `onCanPlay` + `onLoadedData`; add explicit `play()` effect on mount; remove `contain` from video styles; add `webkit-playsinline` and `preload="auto"` |
+
+No other files need changes — the issue is entirely in how the `<video>` element is configured for mobile browsers.
+
+## Testing
+
+1. Open on mobile (or mobile emulator) in Magic Build mode — video should loop, not freeze on first frame
+2. Verify fade-in transition still works (video appears smoothly, not a pop-in)
+3. Verify desktop behavior is unchanged
+4. Test with "reduce motion" enabled — video should pause
+
