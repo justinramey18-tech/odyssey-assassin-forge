@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
 import { sendChatMessageNotification } from '@/lib/party-notifications';
+import { loadCombatSettings } from '@/lib/combat/combatSettings';
 import type { PendingHealAction } from '@/components/party/IncomingHealNotification';
 import type { PendingTradeAction } from '@/components/party/IncomingTradeNotification';
 
@@ -853,9 +854,12 @@ export function usePartySync(): UsePartySyncReturn {
           if (payload.eventType === 'INSERT') {
             const msg = payload.new as PartyMessage;
             setPartyMessages(prev => [...prev.slice(-49), msg]);
-            // Notify for messages from other party members
+            // Notify for messages from other party members (if enabled)
             if (msg.user_id !== user?.id) {
-              sendChatMessageNotification(msg.sender_name, msg.message);
+              const settings = loadCombatSettings();
+              if (settings.showPartyChatNotifications !== false) {
+                sendChatMessageNotification(msg.sender_name, msg.message);
+              }
             }
           } else if (payload.eventType === 'UPDATE') {
             const msg = payload.new as PartyMessage;

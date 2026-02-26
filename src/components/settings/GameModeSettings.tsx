@@ -417,6 +417,39 @@ export function GameModeSettings({ settings, onChange }: GameModeSettingsProps) 
             />
           </div>
         </div>
+
+        {/* Party Chat Notifications */}
+        <div
+          className={cn(
+            'p-3 rounded-lg border transition-all',
+            combatSettings.showPartyChatNotifications !== false
+              ? 'border-purple-500/50 bg-purple-500/5'
+              : 'border-border/30 bg-card/30'
+          )}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <Label
+                htmlFor="chat-notifications"
+                className={cn(
+                  'text-sm font-medium cursor-pointer',
+                  combatSettings.showPartyChatNotifications !== false ? 'text-purple-400' : 'text-foreground'
+                )}
+              >
+                Party Chat Notifications
+              </Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Show toast and push notifications for incoming party chat messages.
+              </p>
+            </div>
+            <Switch
+              id="chat-notifications"
+              checked={combatSettings.showPartyChatNotifications !== false}
+              onCheckedChange={(checked) => handleCombatSettingToggle('showPartyChatNotifications', checked)}
+              className="data-[state=checked]:bg-purple-500"
+            />
+          </div>
+        </div>
       </div>
 
       <Separator />
