@@ -22,6 +22,21 @@ export function useOneSignal() {
         allowLocalhostAsSecureOrigin: true,
         serviceWorkerParam: { scope: '/' },
         serviceWorkerPath: '/OneSignalSDKWorker.js',
+        autoResubscribe: true,
+        promptOptions: {
+          slidedown: {
+            prompts: [{
+              type: 'push' as const,
+              autoPrompt: true,
+              delay: { pageViews: 1, timeDelay: 3 },
+              text: {
+                actionMessage: 'Get notified when your party sends messages or readies up!',
+                acceptButton: 'Allow',
+                cancelButton: 'Later',
+              },
+            }],
+          },
+        },
       }).catch((err) => {
         console.error('OneSignal init error:', err);
         initPromise = null;
@@ -36,9 +51,19 @@ export function useOneSignal() {
     const login = async () => {
       try {
         await initPromise;
+
+        // Enable debug logging temporarily for diagnostics
+        OneSignal.Debug.setLogLevel('debug');
+
         await OneSignal.login(user.id);
         loggedInRef.current = true;
-        console.log('[OneSignal] Logged in as', user.id);
+
+        // Ensure push subscription is active
+        await OneSignal.User.PushSubscription.optIn();
+
+        const subId = OneSignal.User.PushSubscription.id;
+        const optedIn = OneSignal.User.PushSubscription.optedIn;
+        console.log('[OneSignal] Logged in as', user.id, '| Sub ID:', subId, '| Opted in:', optedIn);
       } catch (err) {
         console.error('[OneSignal] Login error:', err);
       }
@@ -51,6 +76,10 @@ export function useOneSignal() {
     try {
       await initPromise;
       const permission = await OneSignal.Notifications.requestPermission();
+      if (permission) {
+        await OneSignal.User.PushSubscription.optIn();
+        console.log('[OneSignal] Opted in after permission grant');
+      }
       return permission;
     } catch (err) {
       console.error('[OneSignal] Permission request error:', err);
