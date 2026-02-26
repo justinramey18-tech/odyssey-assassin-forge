@@ -16,75 +16,34 @@ export async function requestPartyNotificationPermission(): Promise<Notification
 }
 
 /**
- * Send a ready-up notification via in-app toast and browser push.
- * Tagged to replace (not stack) successive ready-up notifications.
+ * Send an in-app toast for ready-up events.
+ * Push notifications are now handled server-side via the Postgres trigger
+ * → send-party-notification edge function → VAPID Web Push.
+ * This function only provides foreground UI feedback.
  */
-export async function sendReadyUpNotification(
+export function sendReadyUpNotification(
   characterName: string,
   readyCount: number,
   totalCount: number,
-): Promise<void> {
+): void {
   const allReady = readyCount >= totalCount && totalCount > 0;
-  const timestamp = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
   if (allReady) {
-    const allMessage = `All ${totalCount} players readied up at ${timestamp}!`;
-
-    toast(`🎯 ${allMessage}`, {
+    const timestamp = new Date().toLocaleTimeString([], {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+    toast(`🎯 All ${totalCount} players readied up at ${timestamp}!`, {
       duration: 6000,
       icon: '🎯',
       id: 'all-ready-toast',
     });
-
-    if ('Notification' in window && Notification.permission === 'granted') {
-      const payload = {
-        title: '🎯 All Players Ready!',
-        body: allMessage,
-        icon: '/pwa-192x192.png',
-        badge: '/pwa-192x192.png',
-        tag: `all-ready-${Date.now()}`,
-      };
-
-      try {
-        const reg = await navigator.serviceWorker?.ready;
-        if (reg?.active) {
-          reg.active.postMessage({ type: 'SHOW_NOTIFICATION', payload });
-        } else {
-          new Notification(payload.title, payload);
-        }
-      } catch {
-        try { new Notification(payload.title, payload); } catch { /* silent */ }
-      }
-    }
   }
 
-  // Individual ready-up notification (always sent, even when all ready)
-  const message = `${characterName} has readied up! (${readyCount}/${totalCount} ready)`;
-
-  toast(`⚔️ ${message}`, {
+  // Individual ready-up toast (always shown, even when all ready)
+  toast(`⚔️ ${characterName} has readied up! (${readyCount}/${totalCount} ready)`, {
     duration: 4000,
     icon: '⚔️',
     id: `ready-up-toast-${Date.now()}`,
   });
-
-  if ('Notification' in window && Notification.permission === 'granted') {
-    const payload = {
-      title: 'Party Ready Up',
-      body: `⚔️ ${message}`,
-      icon: '/pwa-192x192.png',
-      badge: '/pwa-192x192.png',
-      tag: `ready-up-${Date.now()}`,
-    };
-
-    try {
-      const reg = await navigator.serviceWorker?.ready;
-      if (reg?.active) {
-        reg.active.postMessage({ type: 'SHOW_NOTIFICATION', payload });
-      } else {
-        new Notification(payload.title, payload);
-      }
-    } catch {
-      try { new Notification(payload.title, payload); } catch { /* silent */ }
-    }
-  }
 }

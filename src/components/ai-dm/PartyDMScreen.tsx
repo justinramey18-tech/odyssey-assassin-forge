@@ -11,7 +11,8 @@ import { supabase } from '@/integrations/supabase/client';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 import { useNarrator } from '@/hooks/use-narrator';
-import { requestPartyNotificationPermission } from '@/lib/party-notifications';
+import { subscribeToPush, getPushSubscriptionState } from '@/lib/push-subscription';
+import { useAuth } from '@/hooks/use-auth';
 import { NarrationSpeedPopover } from './NarrationSpeedPopover';
 import type { usePartyDm, PartyDmMessage, PartyDmPrompt } from '@/hooks/use-party-dm';
 import { DMDiceRoller } from './DMDiceRoller';
@@ -402,10 +403,18 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
 
   const mode = partyDm.sessionConfig?.mode || 'shared';
 
-  // Request browser notification permission for ready-up alerts
+  // Auto-prompt push subscription 1.5s after mount (user gesture not strictly needed on most browsers for permission prompt)
+  const { user } = useAuth();
   useEffect(() => {
-    requestPartyNotificationPermission();
-  }, []);
+    if (!user?.id) return;
+    const timer = setTimeout(async () => {
+      const state = await getPushSubscriptionState();
+      if (state === 'supported' || state === 'unsubscribed') {
+        await subscribeToPush(user.id);
+      }
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [user?.id]);
 
   useEffect(() => {
     if (scrollRef.current) {

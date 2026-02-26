@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.guide-creator]
 verify_jwt = false
+
+[functions.send-party-notification]
+verify_jwt = false
