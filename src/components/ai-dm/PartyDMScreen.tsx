@@ -1147,6 +1147,13 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
             <div className="flex items-center gap-2">
               <CheckCheck className="w-4 h-4 text-emerald-400" />
               <span className="text-sm text-emerald-300/70">Ready! Waiting for others...</span>
+              <button
+                onClick={partyDm.unready}
+                disabled={partyDm.isGenerating}
+                className="ml-2 px-2 py-0.5 text-[11px] rounded border border-amber-500/30 bg-amber-900/20 text-amber-300 hover:bg-amber-900/40 transition-colors disabled:opacity-40"
+              >
+                Undo
+              </button>
             </div>
             <div className="flex items-center gap-2">
               {/* Narrator speaker button */}
