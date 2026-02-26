@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { loadTimezone, TIMEZONE_CHANGE_EVENT } from '@/lib/timezone-storage';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Character, CharacterAbility, getAbilityPointsForLevel, getTotalPointsSpent, getActiveSlotsByLevel } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
 import { achievementCategories, Achievement } from '@/lib/achievements';
@@ -566,7 +566,8 @@ const Index = () => {
   }, [abilityImages]);
 
   // Auth & Party system
-  const { user, isAuthenticated, sessionExpired } = useAuth();
+  const { user, isAuthenticated, sessionExpired, signOut } = useAuth();
+  const navigate = useNavigate();
   const partySync = usePartySync();
   const { playMode, setPlayMode, isSoloMode, isPartyMode } = usePlayMode();
 
@@ -2354,7 +2355,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       {/* Category-based Navigation */}
       <div className="w-full flex flex-col">
         {/* Assassin's Creed Styled Header Navigation - 4 Main Tabs with Dropdowns */}
-        <AssassinHeader 
+         <AssassinHeader 
           onHomeClick={() => setShowHomeScreen(true)}
           activeCategory={categoryNav.mainCategory}
           activeSubTab={categoryNav.activeSubTab}
@@ -2372,6 +2373,18 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           currentCharacterLevel={character.level}
           onLoadSave={handleLoadCloudSave}
           onCloudClick={() => setShowCloudSaveModal(true)}
+          onSignOut={async () => {
+            const { error } = await signOut();
+            if (!error) {
+              const { toast } = await import('@/hooks/use-toast');
+              toast({
+                title: '👋 Signed Out',
+                description: 'You have been logged out successfully.',
+                duration: 3000,
+              });
+              navigate('/auth');
+            }
+          }}
         />
 
         {/* Content Area - Conditional Rendering Based on Active Sub-Tab */}
