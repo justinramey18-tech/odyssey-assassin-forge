@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.party-chat-send]
 verify_jwt = false
+
+[functions.party-ready-notify]
+verify_jwt = false
