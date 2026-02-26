@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { BuildProvider } from "@/lib/buildConfig";
 import { AuthGuard } from "@/components/auth/AuthGuard";
-import { useOneSignal } from "@/hooks/use-onesignal";
 import Index from "./pages/Index";
 import Install from "./pages/Install";
 import Auth from "./pages/Auth";
@@ -16,8 +15,6 @@ import Features from "./pages/Features";
 const queryClient = new QueryClient();
 
 const AppContent = () => {
-  useOneSignal();
-
   return (
     <TooltipProvider>
       <Toaster />

@@ -2,8 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
-import { sendChatMessageNotification } from '@/lib/party-notifications';
-import { loadCombatSettings } from '@/lib/combat/combatSettings';
 import type { PendingHealAction } from '@/components/party/IncomingHealNotification';
 import type { PendingTradeAction } from '@/components/party/IncomingTradeNotification';
 
@@ -854,13 +852,6 @@ export function usePartySync(): UsePartySyncReturn {
           if (payload.eventType === 'INSERT') {
             const msg = payload.new as PartyMessage;
             setPartyMessages(prev => [...prev.slice(-49), msg]);
-            // Notify for messages from other party members (if enabled)
-            if (msg.user_id !== user?.id) {
-              const settings = loadCombatSettings();
-              if (settings.showPartyChatNotifications !== false) {
-                sendChatMessageNotification(msg.sender_name, msg.message);
-              }
-            }
           } else if (payload.eventType === 'UPDATE') {
             const msg = payload.new as PartyMessage;
             setPartyMessages(prev => prev.map(m => m.id === msg.id ? msg : m));
@@ -1344,30 +1335,19 @@ export function usePartySync(): UsePartySyncReturn {
   const sendMessage = useCallback(async (message: string, senderName: string, options?: { replyToId?: string; imageUrl?: string }) => {
     if (!user || !party.partyId) return;
 
-    // Route through edge function for Web Push fan-out
-    const { error } = await supabase.functions.invoke('party-chat-send', {
-      body: {
-        partyId: party.partyId,
-        message: message.slice(0, 500),
-        senderName,
-        replyToId: options?.replyToId,
-        imageUrl: options?.imageUrl,
-      },
-    });
+    const insertData: Record<string, unknown> = {
+      party_id: party.partyId,
+      user_id: user.id,
+      sender_name: senderName,
+      message: message.slice(0, 500),
+    };
+    if (options?.replyToId) insertData.reply_to_id = options.replyToId;
+    if (options?.imageUrl) insertData.image_url = options.imageUrl;
 
+    const { error } = await (supabase.from('party_messages') as any).insert(insertData);
     if (error) {
-      console.error('party-chat-send error:', error);
-      // Fallback to direct insert if edge function fails
-      const insertData: Record<string, unknown> = {
-        party_id: party.partyId,
-        user_id: user.id,
-        sender_name: senderName,
-        message: message.slice(0, 500),
-      };
-      if (options?.replyToId) insertData.reply_to_id = options.replyToId;
-      if (options?.imageUrl) insertData.image_url = options.imageUrl;
-
-      await (supabase.from('party_messages') as any).insert(insertData);
+      console.error('sendMessage error:', error);
+      toast.error('Failed to send message');
     }
   }, [user, party.partyId]);
 
