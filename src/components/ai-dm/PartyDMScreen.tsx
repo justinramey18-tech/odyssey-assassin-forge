@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, MessageSquare, Plus, Save, Volume2, VolumeX } from 'lucide-react';
+import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, MessageSquare, Plus, Save, Volume2, VolumeX, GitBranch } from 'lucide-react';
+import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { CampaignDropdown } from './CampaignDropdown';
@@ -67,7 +68,7 @@ function getMemberColor(userId: string, members: Array<{ user_id: string }>): st
 const PARTY_VIDEO_REGEX = /^\s*\[video:(https?:\/\/.+)\]\s*$/;
 const PARTY_IMAGE_REGEX = /^\s*\[image:(https?:\/\/.+)\]\s*$/;
 
-function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate }: {
+function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, showTeamTag }: {
   message: PartyDmMessage;
   currentUserId?: string;
   members: Array<{ user_id: string; character_name: string }>;
@@ -77,6 +78,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
   onEdit?: (messageId: string, content: string) => void;
   onDelete?: (messageId: string) => void;
   onRegenerate?: (messageId: string) => void;
+  showTeamTag?: boolean;
 }) {
   const [showActions, setShowActions] = useState(false);
   const [isEditingMsg, setIsEditingMsg] = useState(false);
@@ -111,6 +113,15 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
           <Crown className="w-3.5 h-3.5 text-amber-400" />
         </div>
         <div className="flex-1 min-w-0 rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-2.5 bg-amber-950/50 border border-amber-500/20 rounded-bl-sm overflow-hidden">
+          {showTeamTag && message.team && (
+            <span className={cn(
+              "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-cinzel mb-1",
+              message.team === 'alpha' ? "bg-blue-900/30 text-blue-300 border border-blue-500/20" : "bg-purple-900/30 text-purple-300 border border-purple-500/20"
+            )}>
+              <GitBranch className="w-2.5 h-2.5" />
+              {message.team === 'alpha' ? 'Alpha' : 'Beta'}
+            </span>
+          )}
           {isEditingMsg ? (
             <div className="space-y-2">
               <textarea
@@ -242,6 +253,15 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
         <Users className="w-3.5 h-3.5 text-primary" />
       </div>
       <div className="flex-1 min-w-0 rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-2.5 bg-white/5 border border-white/10 rounded-bl-sm overflow-hidden">
+        {showTeamTag && message.team && (
+          <span className={cn(
+            "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-cinzel mb-1",
+            message.team === 'alpha' ? "bg-blue-900/30 text-blue-300 border border-blue-500/20" : "bg-purple-900/30 text-purple-300 border border-purple-500/20"
+          )}>
+            <GitBranch className="w-2.5 h-2.5" />
+            {message.team === 'alpha' ? 'Alpha' : 'Beta'}
+          </span>
+        )}
         <p className="text-[11px] font-semibold text-primary mb-1">Party Actions</p>
         {isEditingMsg ? (
           <div className="space-y-2">
@@ -373,6 +393,11 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
   const [navExpanded, setNavExpanded] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [showStoneDrawer, setShowStoneDrawer] = useState(false);
+
+  // Split party state
+  const [showSplitInitiator, setShowSplitInitiator] = useState(false);
+  const [showRegroupDialog, setShowRegroupDialog] = useState(false);
+  const [showSplitSummaries, setShowSplitSummaries] = useState(false);
 
   const mode = partyDm.sessionConfig?.mode || 'shared';
 
@@ -611,6 +636,33 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
         )}
         {isCreator && (
           <>
+            {/* Split / Regroup buttons */}
+            {partyDm.isSplitActive ? (
+              <>
+                <button
+                  onClick={() => setShowSplitSummaries(true)}
+                  className="px-2 py-1 rounded-lg text-[11px] font-cinzel text-amber-300/80 hover:bg-amber-900/30 transition-colors whitespace-nowrap"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <Eye className="w-3 h-3 inline mr-0.5" />Summaries
+                </button>
+                <button
+                  onClick={() => setShowRegroupDialog(true)}
+                  className="px-2 py-1 rounded-lg text-[11px] font-cinzel text-emerald-300/80 hover:bg-emerald-900/30 transition-colors whitespace-nowrap"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <Users className="w-3 h-3 inline mr-0.5" />Regroup
+                </button>
+              </>
+            ) : memberCount >= 4 && (
+              <button
+                onClick={() => setShowSplitInitiator(true)}
+                className="px-2 py-1 rounded-lg text-[11px] font-cinzel text-white/50 hover:bg-white/10 transition-colors whitespace-nowrap"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <GitBranch className="w-3 h-3 inline mr-0.5" />Split
+              </button>
+            )}
             <button
               onClick={() => {
                 const newMode = mode === 'shared' ? 'private' : 'shared';
@@ -707,6 +759,16 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
         )}
       </AnimatePresence>
 
+      {/* Split Banner */}
+      {partyDm.isSplitActive && partyDm.splitState && (
+        <SplitBanner
+          splitState={partyDm.splitState}
+          myTeam={partyDm.myTeam}
+          isCreator={isCreator}
+          members={members}
+        />
+      )}
+
       {/* Messages OR Inline Battle Map */}
       {showBattleMap && battleMapContent ? (
         battleMapContent
@@ -734,6 +796,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                   onEdit={handleEditMessage}
                   onDelete={handleDeleteMessage}
                   onRegenerate={handleRegenerateMessage}
+                  showTeamTag={isCreator && partyDm.isSplitActive}
                 />
               ))}
             </AnimatePresence>
@@ -766,6 +829,9 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
               const isSelf = m.user_id === currentUserId;
               const hasAction = prompt && prompt.prompt.trim().length > 0;
               const isExpanded = expandedPillUserId === m.user_id;
+              const memberTeam = partyDm.isSplitActive && partyDm.splitState
+                ? partyDm.splitState.alphaMembers.includes(m.user_id) ? 'alpha' : 'beta'
+                : null;
               return (
                 <div
                   key={m.user_id}
@@ -791,6 +857,12 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                     isExpanded && "ring-1 ring-white/30",
                   )}
                 >
+                  {memberTeam && (
+                    <span className={cn(
+                      "w-2 h-2 rounded-full shrink-0",
+                      memberTeam === 'alpha' ? "bg-blue-400" : "bg-purple-400"
+                    )} />
+                  )}
                   <span className="max-w-[80px] truncate">{m.character_name}</span>
                   {prompt?.is_ready ? (
                     <CheckCheck className="w-3 h-3 text-emerald-400" />
@@ -1166,6 +1238,28 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
         characterName={characterContext?.name || 'The Adventurer'}
         onUsePrompt={handleUsePrompt}
       />
+
+      {/* Split Party Overlays */}
+      <SplitInitiator
+        open={showSplitInitiator}
+        onClose={() => setShowSplitInitiator(false)}
+        members={members}
+        currentUserId={currentUserId}
+        onInitiate={(alphaMembers) => partyDm.initiateSplit(alphaMembers)}
+      />
+      <RegroupDialog
+        open={showRegroupDialog}
+        onClose={() => setShowRegroupDialog(false)}
+        onRegroup={(prompt) => partyDm.regroupParty(prompt)}
+        isGenerating={partyDm.isGenerating}
+      />
+      {partyDm.splitState && (
+        <SplitSummariesViewer
+          open={showSplitSummaries}
+          onClose={() => setShowSplitSummaries(false)}
+          splitState={partyDm.splitState}
+        />
+      )}
     </div>
   );
 }

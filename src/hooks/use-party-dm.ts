@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
 import { getAuthToken } from '@/lib/auth-token';
 import type { CharacterContext } from '@/components/oracle/types';
+import type { DmSplitState, SplitTeam } from '@/lib/party-split-types';
 
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
 const SUMMARIZE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm-summarize`;
@@ -17,6 +18,7 @@ export interface PartyDmMessage {
   sender_user_id: string | null;
   sender_name: string;
   created_at: string;
+  team?: string | null;
 }
 
 export interface PartyDmPrompt {
@@ -28,6 +30,7 @@ export interface PartyDmPrompt {
   is_ready: boolean;
   round_id: string;
   created_at: string;
+  team?: string | null;
 }
 
 export interface DmSessionConfig {
@@ -36,6 +39,7 @@ export interface DmSessionConfig {
   currentRoundId: string;
   campaignSummary: string | null;
   isGenerating: boolean;
+  splitActive?: boolean;
 }
 
 interface UsePartyDmOptions {
@@ -58,12 +62,30 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const abortRef = useRef<AbortController | null>(null);
   const autoGenTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Split state
+  const [splitState, setSplitState] = useState<DmSplitState | null>(null);
+
   const isActive = sessionConfig?.active === true;
+  const isSplitActive = splitState?.active === true;
+
+  // Determine current user's team
+  const myTeam: SplitTeam = isSplitActive && user
+    ? splitState.alphaMembers.includes(user.id) ? 'alpha'
+    : splitState.betaMembers.includes(user.id) ? 'beta'
+    : null
+    : null;
 
   // Derived: all members ready
   const allReady = currentPrompts.length > 0 &&
     currentPrompts.length >= memberCount &&
     currentPrompts.every(p => p.is_ready);
+
+  // Filter messages based on team membership
+  const filteredMessages = isSplitActive && user
+    ? isCreator
+      ? messages // Host sees all
+      : messages.filter(m => !m.team || m.team === myTeam)
+    : messages;
 
   // Load existing data when session becomes active
   useEffect(() => {
@@ -99,6 +121,16 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         .maybeSingle();
       if (data?.state_data) {
         setSessionConfig(data.state_data as DmSessionConfig);
+      }
+
+      // Load split state
+      const { data: splitData } = await (supabase.from('party_shared_state') as any)
+        .select('*')
+        .eq('party_id', partyId)
+        .eq('state_type', 'dm_split')
+        .maybeSingle();
+      if (splitData?.state_data) {
+        setSplitState(splitData.state_data as DmSplitState);
       }
     })();
   }, [partyId]);
@@ -155,7 +187,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           if (old.id) {
             setCurrentPrompts(prev => prev.filter(x => x.id !== old.id));
           } else {
-            // Full round cleared — refetch
             setCurrentPrompts([]);
           }
         }
@@ -177,11 +208,17 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             setMessages([]);
             setCurrentPrompts([]);
           }
+          if (old.state_type === 'dm_split') {
+            setSplitState(null);
+          }
           return;
         }
         const row = (payload.new || payload.old) as { state_type: string; state_data: unknown };
         if (row.state_type === 'dm_session') {
           setSessionConfig(row.state_data as DmSessionConfig);
+        }
+        if (row.state_type === 'dm_split') {
+          setSplitState(row.state_data as DmSplitState);
         }
       })
       .subscribe();
@@ -222,7 +259,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       .delete()
       .eq('party_id', partyId)
       .eq('state_type', 'dm_session');
+    // Also clean up split state if active
+    await (supabase.from('party_shared_state') as any)
+      .delete()
+      .eq('party_id', partyId)
+      .eq('state_type', 'dm_split');
     setSessionConfig(null);
+    setSplitState(null);
     setMessages([]);
     setCurrentPrompts([]);
     toast.info('Party DM session ended');
@@ -274,15 +317,19 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   const startNewCampaign = useCallback(async (campaignName?: string) => {
     if (!partyId || !user || !isCreator) return;
-    // Delete all messages for this party
     await (supabase.from('party_dm_messages') as any)
       .delete()
       .eq('party_id', partyId);
-    // Delete all prompts for this party
     await (supabase.from('party_dm_prompts') as any)
       .delete()
       .eq('party_id', partyId);
-    // Reset session config with fresh round and no summary
+    // Clear split state if any
+    await (supabase.from('party_shared_state') as any)
+      .delete()
+      .eq('party_id', partyId)
+      .eq('state_type', 'dm_split');
+    setSplitState(null);
+
     const roundId = crypto.randomUUID();
     const currentMode = sessionConfig?.mode || 'shared';
     const config: DmSessionConfig = {
@@ -361,11 +408,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   const loadCampaign = useCallback(async (campaignId: string, campaignMessages: any[], campaignSummary: string | null) => {
     if (!partyId || !user || !isCreator) return;
-    // Clear existing
     await (supabase.from('party_dm_messages') as any).delete().eq('party_id', partyId);
     await (supabase.from('party_dm_prompts') as any).delete().eq('party_id', partyId);
 
-    // Insert loaded messages
     for (const msg of campaignMessages) {
       await (supabase.from('party_dm_messages') as any).insert({
         party_id: partyId,
@@ -376,7 +421,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       });
     }
 
-    // Update session config
     const roundId = crypto.randomUUID();
     const config: DmSessionConfig = {
       ...(sessionConfig || { active: true, mode: 'shared', isGenerating: false }),
@@ -397,42 +441,48 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   const submitPrompt = useCallback(async (text: string) => {
     if (!partyId || !user || !sessionConfig) return;
-    // Check if already submitted this round
     const existing = currentPrompts.find(p => p.user_id === user.id);
     if (existing) {
       toast.error('You already submitted a prompt this round');
       return;
     }
-    await (supabase.from('party_dm_prompts') as any).insert({
+    const insertData: Record<string, unknown> = {
       party_id: partyId,
       user_id: user.id,
       character_name: characterName,
       prompt: text.trim(),
       is_ready: false,
       round_id: sessionConfig.currentRoundId,
-    });
-  }, [partyId, user, sessionConfig, characterName, currentPrompts]);
+    };
+    // Tag with team if split is active
+    if (isSplitActive && myTeam) {
+      insertData.team = myTeam;
+    }
+    await (supabase.from('party_dm_prompts') as any).insert(insertData);
+  }, [partyId, user, sessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
 
   const setReady = useCallback(async () => {
     if (!user || !partyId || !sessionConfig) return;
     const myPrompt = currentPrompts.find(p => p.user_id === user.id);
     if (myPrompt) {
-      // Already submitted — just mark ready
       await (supabase.from('party_dm_prompts') as any)
         .update({ is_ready: true })
         .eq('id', myPrompt.id);
     } else {
-      // No prompt yet — insert a ready-only entry (empty action)
-      await (supabase.from('party_dm_prompts') as any).insert({
+      const insertData: Record<string, unknown> = {
         party_id: partyId,
         user_id: user.id,
         character_name: characterName,
         prompt: '',
         is_ready: true,
         round_id: sessionConfig.currentRoundId,
-      });
+      };
+      if (isSplitActive && myTeam) {
+        insertData.team = myTeam;
+      }
+      await (supabase.from('party_dm_prompts') as any).insert(insertData);
     }
-  }, [user, partyId, sessionConfig, characterName, currentPrompts]);
+  }, [user, partyId, sessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
 
   const editPrompt = useCallback(async (newText: string) => {
     if (!user) return;
@@ -498,6 +548,98 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
   }, [partyId, isCreator, sessionConfig]);
 
+  // Helper: stream an AI response and return the content
+  const streamAIResponse = useCallback(async (
+    apiMessages: Array<{ role: string; content: string }>,
+    extraGuides: string,
+    signal: AbortSignal,
+  ): Promise<string> => {
+    const authToken = await getAuthToken();
+    const response = await fetch(AI_DM_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({
+        messages: apiMessages.slice(-100),
+        characterContext,
+        campaignSummary: sessionConfig?.campaignSummary || undefined,
+        customGuides: extraGuides,
+      }),
+      signal,
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error((err as { error?: string }).error || 'AI request failed');
+    }
+
+    if (!response.body) throw new Error('No response body');
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let textBuffer = '';
+    let assistantContent = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      textBuffer += decoder.decode(value, { stream: true });
+      let newlineIndex: number;
+      while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
+        let line = textBuffer.slice(0, newlineIndex);
+        textBuffer = textBuffer.slice(newlineIndex + 1);
+        if (line.endsWith('\r')) line = line.slice(0, -1);
+        if (line.startsWith(':') || line.trim() === '') continue;
+        if (!line.startsWith('data: ')) continue;
+        const jsonStr = line.slice(6).trim();
+        if (jsonStr === '[DONE]') break;
+        try {
+          const parsed = JSON.parse(jsonStr);
+          const delta = parsed.choices?.[0]?.delta?.content as string | undefined;
+          if (delta) assistantContent += delta;
+        } catch { /* skip */ }
+      }
+    }
+    return assistantContent;
+  }, [characterContext, sessionConfig?.campaignSummary]);
+
+  // Build party members system prompt section
+  const buildPartyMembersGuide = useCallback((memberIds?: string[]) => {
+    const relevantMembers = memberIds
+      ? partyMembers.filter(m => memberIds.includes(m.user_id))
+      : partyMembers;
+    const partyMembersSummary = relevantMembers.map(m => {
+      const s = m.character_status as Record<string, unknown>;
+      return `- ${m.character_name} (Level ${s.level || '?'} ${s.className || 'Adventurer'}, ${s.currentHP || '?'}/${s.maxHP || '?'} HP)`;
+    }).join('\n');
+    return partyMembersSummary;
+  }, [partyMembers]);
+
+  // Generate split summary for a team
+  const generateSplitSummary = useCallback(async (teamMessages: PartyDmMessage[], previousSummary: string | null): Promise<string | null> => {
+    try {
+      const authToken = await getAuthToken();
+      const response = await fetch(SUMMARIZE_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          messages: teamMessages.map(m => ({ role: m.role, content: m.content })),
+          previousSummary: previousSummary || undefined,
+        }),
+      });
+      if (!response.ok) return previousSummary;
+      const data = await response.json();
+      return data.summary || previousSummary;
+    } catch {
+      return previousSummary;
+    }
+  }, []);
+
   const generateResponse = useCallback(async () => {
     if (!partyId || !user || !sessionConfig || isGenerating) return;
     if (currentPrompts.length === 0) {
@@ -507,110 +649,175 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
     setIsGenerating(true);
 
-    // Update session state to isGenerating
     await (supabase.from('party_shared_state') as any)
       .update({ state_data: { ...sessionConfig, isGenerating: true } })
       .eq('party_id', partyId)
       .eq('state_type', 'dm_session');
 
-    // Build combined user message
-    const combined = currentPrompts
-      .map(p => `[${p.character_name}]: ${p.prompt}`)
-      .join('\n');
-
-    // Insert combined user message
-    await (supabase.from('party_dm_messages') as any).insert({
-      party_id: partyId,
-      role: 'user',
-      content: combined,
-      sender_user_id: user.id,
-      sender_name: 'Party',
-    });
-
-    // Build party members section for system prompt
-    const partyMembersSummary = partyMembers.map(m => {
-      const s = m.character_status as Record<string, unknown>;
-      return `- ${m.character_name} (Level ${s.level || '?'} ${s.className || 'Adventurer'}, ${s.currentHP || '?'}/${s.maxHP || '?'} HP)`;
-    }).join('\n');
-
-    // Build API messages from history
-    const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
-    apiMessages.push({ role: 'user', content: combined });
-
-    // Augment character context with party info
-    const augmentedContext = {
-      ...characterContext,
-    };
-
     abortRef.current = new AbortController();
 
     try {
-      const authToken = await getAuthToken();
-      const response = await fetch(AI_DM_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({
-          messages: apiMessages.slice(-100),
-          characterContext: augmentedContext,
-          campaignSummary: sessionConfig.campaignSummary || undefined,
-          customGuides: [
+      if (isSplitActive && splitState) {
+        // === SPLIT MODE: Generate two sequential responses ===
+        const alphaPrompts = currentPrompts.filter(p =>
+          splitState.alphaMembers.includes(p.user_id)
+        );
+        const betaPrompts = currentPrompts.filter(p =>
+          splitState.betaMembers.includes(p.user_id)
+        );
+
+        const alphaMessages = messages.filter(m => m.team === 'alpha');
+        const betaMessages = messages.filter(m => m.team === 'beta');
+
+        // --- Team Alpha ---
+        if (alphaPrompts.length > 0) {
+          const alphaCombined = alphaPrompts
+            .map(p => `[${p.character_name}]: ${p.prompt}`)
+            .join('\n');
+
+          await (supabase.from('party_dm_messages') as any).insert({
+            party_id: partyId,
+            role: 'user',
+            content: alphaCombined,
+            sender_user_id: user.id,
+            sender_name: 'Team Alpha',
+            team: 'alpha',
+          });
+
+          const alphaMembersSummary = buildPartyMembersGuide(splitState.alphaMembers);
+          const alphaApiMsgs = alphaMessages.map(m => ({ role: m.role, content: m.content }));
+          alphaApiMsgs.push({ role: 'user', content: alphaCombined });
+
+          const alphaGuides = [
             customGuidesContent || '',
-            `\n\n## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
-          ].filter(Boolean).join('\n\n'),
-        }),
-        signal: abortRef.current.signal,
-      });
+            `\n\n## PARTY SPLIT — TEAM ALPHA\nThe party has split up. You are narrating ONLY for Team Alpha.\n${alphaMembersSummary}\nDo NOT narrate what the other team is doing. Focus solely on this group's adventure.`,
+            splitState.betaSummary ? `\n\n## OTHER TEAM CONTEXT (hidden from players)\nTeam Beta's adventure summary (for narrative coherence only — do NOT reveal to Team Alpha):\n${splitState.betaSummary}` : '',
+            splitState.alphaSummary ? `\n\n## PREVIOUS ALPHA SUMMARY\n${splitState.alphaSummary}` : '',
+          ].filter(Boolean).join('\n\n');
 
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error || 'AI request failed');
-      }
+          const alphaContent = await streamAIResponse(alphaApiMsgs, alphaGuides, abortRef.current!.signal);
 
-      if (!response.body) throw new Error('No response body');
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let textBuffer = '';
-      let assistantContent = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        textBuffer += decoder.decode(value, { stream: true });
-
-        let newlineIndex: number;
-        while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
-          let line = textBuffer.slice(0, newlineIndex);
-          textBuffer = textBuffer.slice(newlineIndex + 1);
-
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (line.startsWith(':') || line.trim() === '') continue;
-          if (!line.startsWith('data: ')) continue;
-
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === '[DONE]') break;
-
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const delta = parsed.choices?.[0]?.delta?.content as string | undefined;
-            if (delta) assistantContent += delta;
-          } catch { /* skip */ }
+          if (alphaContent) {
+            await (supabase.from('party_dm_messages') as any).insert({
+              party_id: partyId,
+              role: 'assistant',
+              content: alphaContent,
+              sender_user_id: null,
+              sender_name: 'DM',
+              team: 'alpha',
+            });
+          }
         }
-      }
 
-      // Insert assistant message
-      if (assistantContent) {
+        // --- Team Beta ---
+        if (betaPrompts.length > 0) {
+          const betaCombined = betaPrompts
+            .map(p => `[${p.character_name}]: ${p.prompt}`)
+            .join('\n');
+
+          await (supabase.from('party_dm_messages') as any).insert({
+            party_id: partyId,
+            role: 'user',
+            content: betaCombined,
+            sender_user_id: user.id,
+            sender_name: 'Team Beta',
+            team: 'beta',
+          });
+
+          const betaMembersSummary = buildPartyMembersGuide(splitState.betaMembers);
+          const betaApiMsgs = betaMessages.map(m => ({ role: m.role, content: m.content }));
+          betaApiMsgs.push({ role: 'user', content: betaCombined });
+
+          // Re-read alpha messages after alpha generation to include the new ones
+          const updatedAlphaMessages = messages.filter(m => m.team === 'alpha');
+
+          const betaGuides = [
+            customGuidesContent || '',
+            `\n\n## PARTY SPLIT — TEAM BETA\nThe party has split up. You are narrating ONLY for Team Beta.\n${betaMembersSummary}\nDo NOT narrate what the other team is doing. Focus solely on this group's adventure.`,
+            splitState.alphaSummary ? `\n\n## OTHER TEAM CONTEXT (hidden from players)\nTeam Alpha's adventure summary (for narrative coherence only — do NOT reveal to Team Beta):\n${splitState.alphaSummary}` : '',
+            splitState.betaSummary ? `\n\n## PREVIOUS BETA SUMMARY\n${splitState.betaSummary}` : '',
+          ].filter(Boolean).join('\n\n');
+
+          const betaContent = await streamAIResponse(betaApiMsgs, betaGuides, abortRef.current!.signal);
+
+          if (betaContent) {
+            await (supabase.from('party_dm_messages') as any).insert({
+              party_id: partyId,
+              role: 'assistant',
+              content: betaContent,
+              sender_user_id: null,
+              sender_name: 'DM',
+              team: 'beta',
+            });
+          }
+        }
+
+        // Generate rolling split summaries (fire-and-forget)
+        const allAlpha = [...messages.filter(m => m.team === 'alpha')];
+        const allBeta = [...messages.filter(m => m.team === 'beta')];
+
+        // Fire off summary generation
+        Promise.all([
+          allAlpha.length > 0 ? generateSplitSummary(allAlpha, splitState.alphaSummary) : Promise.resolve(splitState.alphaSummary),
+          allBeta.length > 0 ? generateSplitSummary(allBeta, splitState.betaSummary) : Promise.resolve(splitState.betaSummary),
+        ]).then(async ([newAlphaSummary, newBetaSummary]) => {
+          if (newAlphaSummary !== splitState.alphaSummary || newBetaSummary !== splitState.betaSummary) {
+            const updatedSplit: DmSplitState = {
+              ...splitState,
+              alphaSummary: newAlphaSummary,
+              betaSummary: newBetaSummary,
+            };
+            await (supabase.from('party_shared_state') as any)
+              .update({ state_data: updatedSplit })
+              .eq('party_id', partyId)
+              .eq('state_type', 'dm_split');
+          }
+        }).catch(console.error);
+
+      } else {
+        // === NORMAL MODE ===
+        const combined = currentPrompts
+          .map(p => `[${p.character_name}]: ${p.prompt}`)
+          .join('\n');
+
         await (supabase.from('party_dm_messages') as any).insert({
           party_id: partyId,
-          role: 'assistant',
-          content: assistantContent,
-          sender_user_id: null,
-          sender_name: 'DM',
+          role: 'user',
+          content: combined,
+          sender_user_id: user.id,
+          sender_name: 'Party',
         });
+
+        const partyMembersSummary = buildPartyMembersGuide();
+        const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
+        apiMessages.push({ role: 'user', content: combined });
+
+        const guides = [
+          customGuidesContent || '',
+          `\n\n## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
+        ].filter(Boolean).join('\n\n');
+
+        const assistantContent = await streamAIResponse(apiMessages, guides, abortRef.current!.signal);
+
+        if (assistantContent) {
+          await (supabase.from('party_dm_messages') as any).insert({
+            party_id: partyId,
+            role: 'assistant',
+            content: assistantContent,
+            sender_user_id: null,
+            sender_name: 'DM',
+          });
+        }
+
+        // Trigger summary and auto-save
+        if (assistantContent) {
+          const updatedMessages = [...messages,
+            { id: '', party_id: partyId, role: 'user' as const, content: combined, sender_user_id: user.id, sender_name: 'Party', created_at: '' },
+            { id: '', party_id: partyId, role: 'assistant' as const, content: assistantContent, sender_user_id: null, sender_name: 'DM', created_at: '' },
+          ];
+          triggerSummaryIfNeeded(updatedMessages);
+          silentAutoSave(updatedMessages, sessionConfig.campaignSummary || null);
+        }
       }
 
       // Clear prompts and start new round
@@ -630,22 +837,11 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         .eq('party_id', partyId)
         .eq('state_type', 'dm_session');
 
-      // Trigger summary generation and auto-save (fire-and-forget, host only)
-      if (assistantContent) {
-        const updatedMessages = [...messages, 
-          { id: '', party_id: partyId, role: 'user' as const, content: combined, sender_user_id: user.id, sender_name: 'Party', created_at: '' },
-          { id: '', party_id: partyId, role: 'assistant' as const, content: assistantContent, sender_user_id: null, sender_name: 'DM', created_at: '' },
-        ];
-        triggerSummaryIfNeeded(updatedMessages);
-        silentAutoSave(updatedMessages, sessionConfig.campaignSummary || null);
-      }
-
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
       console.error('Party DM generation error:', error);
       toast.error(error instanceof Error ? error.message : 'Generation failed');
 
-      // Reset isGenerating
       await (supabase.from('party_shared_state') as any)
         .update({ state_data: { ...sessionConfig, isGenerating: false } })
         .eq('party_id', partyId)
@@ -654,7 +850,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       setIsGenerating(false);
       abortRef.current = null;
     }
-  }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, customGuidesContent, triggerSummaryIfNeeded, silentAutoSave]);
+  }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, customGuidesContent, triggerSummaryIfNeeded, silentAutoSave, isSplitActive, splitState, streamAIResponse, buildPartyMembersGuide, generateSplitSummary]);
 
   // Auto-trigger generation when all ready (host only)
   useEffect(() => {
@@ -690,25 +886,21 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   const regenerateMessage = useCallback(async (messageId: string) => {
     if (!partyId || !user || !sessionConfig || isGenerating) return;
-    // Find the message index, delete it and all messages after it
     const msgIndex = messages.findIndex(m => m.id === messageId);
     if (msgIndex === -1) return;
 
-    // Get the user message just before this assistant message for context
     const precedingUserMsg = messages.slice(0, msgIndex).reverse().find(m => m.role === 'user');
     if (!precedingUserMsg) {
       toast.error('No preceding prompt found to regenerate from');
       return;
     }
 
-    // Delete the assistant message from DB
     await (supabase.from('party_dm_messages') as any)
       .delete()
       .eq('id', messageId)
       .eq('party_id', partyId);
     setMessages(prev => prev.filter(m => m.id !== messageId));
 
-    // Re-generate using messages up to (but not including) the deleted assistant message
     setIsGenerating(true);
 
     await (supabase.from('party_shared_state') as any)
@@ -719,76 +911,33 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     const historyMessages = messages.slice(0, msgIndex);
     const apiMessages = historyMessages.map(m => ({ role: m.role, content: m.content }));
 
-    const partyMembersSummary = partyMembers.map(m => {
-      const s = m.character_status as Record<string, unknown>;
-      return `- ${m.character_name} (Level ${s.level || '?'} ${s.className || 'Adventurer'}, ${s.currentHP || '?'}/${s.maxHP || '?'} HP)`;
-    }).join('\n');
+    const partyMembersSummary = buildPartyMembersGuide();
 
     abortRef.current = new AbortController();
 
     try {
-      const response = await fetch(AI_DM_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({
-          messages: apiMessages.slice(-100),
-          characterContext,
-          campaignSummary: sessionConfig.campaignSummary || undefined,
-          customGuides: [
-            customGuidesContent || '',
-            `\n\n## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
-          ].filter(Boolean).join('\n\n'),
-        }),
-        signal: abortRef.current.signal,
-      });
+      const guides = [
+        customGuidesContent || '',
+        `\n\n## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
+      ].filter(Boolean).join('\n\n');
 
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error || 'AI request failed');
-      }
-
-      if (!response.body) throw new Error('No response body');
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let textBuffer = '';
-      let assistantContent = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        textBuffer += decoder.decode(value, { stream: true });
-        let newlineIndex: number;
-        while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
-          let line = textBuffer.slice(0, newlineIndex);
-          textBuffer = textBuffer.slice(newlineIndex + 1);
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (line.startsWith(':') || line.trim() === '') continue;
-          if (!line.startsWith('data: ')) continue;
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === '[DONE]') break;
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const delta = parsed.choices?.[0]?.delta?.content as string | undefined;
-            if (delta) assistantContent += delta;
-          } catch { /* skip */ }
-        }
-      }
+      const assistantContent = await streamAIResponse(apiMessages, guides, abortRef.current!.signal);
 
       if (assistantContent) {
-        await (supabase.from('party_dm_messages') as any).insert({
+        const insertData: Record<string, unknown> = {
           party_id: partyId,
           role: 'assistant',
           content: assistantContent,
           sender_user_id: null,
           sender_name: 'DM',
-        });
+        };
+        // Preserve team tag if regenerating a split message
+        const originalMsg = messages[msgIndex];
+        if (originalMsg?.team) insertData.team = originalMsg.team;
+
+        await (supabase.from('party_dm_messages') as any).insert(insertData);
       }
 
-      // Reset isGenerating
       await (supabase.from('party_shared_state') as any)
         .update({ state_data: { ...sessionConfig, isGenerating: false } })
         .eq('party_id', partyId)
@@ -796,7 +945,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
       toast.success('Response regenerated');
 
-      // Auto-save after regeneration
       if (assistantContent) {
         const updatedMessages = [...historyMessages,
           { id: '', party_id: partyId, role: 'assistant' as const, content: assistantContent, sender_user_id: null, sender_name: 'DM', created_at: '' },
@@ -816,24 +964,204 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       setIsGenerating(false);
       abortRef.current = null;
     }
-  }, [partyId, user, sessionConfig, isGenerating, messages, characterContext, partyMembers, customGuidesContent, silentAutoSave]);
+  }, [partyId, user, sessionConfig, isGenerating, messages, characterContext, partyMembers, customGuidesContent, silentAutoSave, streamAIResponse, buildPartyMembersGuide]);
 
-  // Add a media-only message (video/photo) without triggering AI response
   const addMediaMessage = useCallback(async (content: string, senderName: string) => {
     if (!partyId || !user) return;
-    await (supabase.from('party_dm_messages') as any).insert({
+    const insertData: Record<string, unknown> = {
       party_id: partyId,
       role: 'user',
       content: content.trim(),
       sender_user_id: user.id,
       sender_name: senderName,
-    });
-  }, [partyId, user]);
+    };
+    if (isSplitActive && myTeam) {
+      insertData.team = myTeam;
+    }
+    await (supabase.from('party_dm_messages') as any).insert(insertData);
+  }, [partyId, user, isSplitActive, myTeam]);
+
+  // === SPLIT PARTY FUNCTIONS ===
+
+  const initiateSplit = useCallback(async (alphaMembers: string[]) => {
+    if (!partyId || !user || !isCreator || !sessionConfig) return;
+    if (isSplitActive) {
+      toast.error('A split is already active');
+      return;
+    }
+
+    const allMemberIds = partyMembers.map(m => m.user_id);
+    const betaMembers = allMemberIds.filter(id => !alphaMembers.includes(id));
+
+    if (alphaMembers.length < 2 || betaMembers.length < 2) {
+      toast.error('Each team must have at least 2 members');
+      return;
+    }
+
+    // Snapshot current messages
+    const snapshotMessages = messages.map(m => ({
+      id: m.id,
+      role: m.role,
+      content: m.content,
+      sender_user_id: m.sender_user_id,
+      sender_name: m.sender_name,
+      created_at: m.created_at,
+    }));
+
+    const splitData: DmSplitState = {
+      active: true,
+      alphaMembers,
+      betaMembers,
+      initiatedBy: user.id,
+      initiatedAt: new Date().toISOString(),
+      snapshotMessages,
+      alphaSummary: null,
+      betaSummary: null,
+    };
+
+    // Save split state
+    await (supabase.from('party_shared_state') as any).upsert({
+      party_id: partyId,
+      user_id: user.id,
+      state_type: 'dm_split',
+      state_data: splitData,
+    }, { onConflict: 'party_id,user_id,state_type' });
+
+    // Clear current messages and prompts
+    await (supabase.from('party_dm_messages') as any)
+      .delete()
+      .eq('party_id', partyId);
+    await (supabase.from('party_dm_prompts') as any)
+      .delete()
+      .eq('party_id', partyId);
+
+    // Update session config
+    const newRoundId = crypto.randomUUID();
+    const updatedConfig: DmSessionConfig = {
+      ...sessionConfig,
+      currentRoundId: newRoundId,
+      isGenerating: false,
+      splitActive: true,
+    };
+    await (supabase.from('party_shared_state') as any)
+      .update({ state_data: updatedConfig })
+      .eq('party_id', partyId)
+      .eq('state_type', 'dm_session');
+
+    setSplitState(splitData);
+    setSessionConfig(updatedConfig);
+    setMessages([]);
+    setCurrentPrompts([]);
+
+    toast.success('Party has split! Each team now has their own adventure.');
+  }, [partyId, user, isCreator, sessionConfig, isSplitActive, messages, partyMembers]);
+
+  const regroupParty = useCallback(async (reunionPrompt: string) => {
+    if (!partyId || !user || !isCreator || !sessionConfig || !splitState) return;
+
+    setIsGenerating(true);
+
+    await (supabase.from('party_shared_state') as any)
+      .update({ state_data: { ...sessionConfig, isGenerating: true } })
+      .eq('party_id', partyId)
+      .eq('state_type', 'dm_session');
+
+    try {
+      // Delete all split messages
+      await (supabase.from('party_dm_messages') as any)
+        .delete()
+        .eq('party_id', partyId);
+      await (supabase.from('party_dm_prompts') as any)
+        .delete()
+        .eq('party_id', partyId);
+
+      // Restore snapshot messages
+      for (const msg of splitState.snapshotMessages) {
+        await (supabase.from('party_dm_messages') as any).insert({
+          party_id: partyId,
+          role: msg.role,
+          content: msg.content,
+          sender_user_id: msg.sender_user_id || null,
+          sender_name: msg.sender_name,
+        });
+      }
+
+      // Generate unification response
+      const restoredApiMsgs = splitState.snapshotMessages.map(m => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      const partyMembersSummary = buildPartyMembersGuide();
+
+      const unificationGuides = [
+        customGuidesContent || '',
+        `\n\n## PARTY MEMBERS\n${partyMembersSummary}`,
+        `\n\n## PARTY REUNION\nThe party was split into two groups. They are now regrouping.\n\nHost's reunion prompt: "${reunionPrompt}"`,
+        splitState.alphaSummary ? `\n\n## TEAM ALPHA'S SIDE ADVENTURE\n${splitState.alphaSummary}` : '',
+        splitState.betaSummary ? `\n\n## TEAM BETA'S SIDE ADVENTURE\n${splitState.betaSummary}` : '',
+        `\n\nNarrate the reunion scene. Describe what each group experienced (briefly) and how they come back together. Make it dramatic and engaging. Do NOT dump the full summary — weave key highlights into the reunion narrative.`,
+      ].filter(Boolean).join('\n\n');
+
+      restoredApiMsgs.push({ role: 'user', content: `[DM Note]: The party regroups. ${reunionPrompt}` });
+
+      abortRef.current = new AbortController();
+      const unificationContent = await streamAIResponse(restoredApiMsgs, unificationGuides, abortRef.current.signal);
+
+      if (unificationContent) {
+        await (supabase.from('party_dm_messages') as any).insert({
+          party_id: partyId,
+          role: 'assistant',
+          content: unificationContent,
+          sender_user_id: null,
+          sender_name: 'DM',
+        });
+      }
+
+      // Clear split state
+      await (supabase.from('party_shared_state') as any)
+        .delete()
+        .eq('party_id', partyId)
+        .eq('state_type', 'dm_split');
+
+      // Update session config
+      const newRoundId = crypto.randomUUID();
+      const updatedConfig: DmSessionConfig = {
+        ...sessionConfig,
+        currentRoundId: newRoundId,
+        isGenerating: false,
+        splitActive: false,
+      };
+      await (supabase.from('party_shared_state') as any)
+        .update({ state_data: updatedConfig })
+        .eq('party_id', partyId)
+        .eq('state_type', 'dm_session');
+
+      setSplitState(null);
+      setSessionConfig(updatedConfig);
+      setCurrentPrompts([]);
+
+      toast.success('Party has regrouped!');
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
+      console.error('Regroup error:', error);
+      toast.error(error instanceof Error ? error.message : 'Regroup failed');
+
+      await (supabase.from('party_shared_state') as any)
+        .update({ state_data: { ...sessionConfig, isGenerating: false } })
+        .eq('party_id', partyId)
+        .eq('state_type', 'dm_session');
+    } finally {
+      setIsGenerating(false);
+      abortRef.current = null;
+    }
+  }, [partyId, user, isCreator, sessionConfig, splitState, streamAIResponse, buildPartyMembersGuide, customGuidesContent]);
 
   const myPrompt = currentPrompts.find(p => p.user_id === user?.id) || null;
 
   return {
-    messages,
+    messages: filteredMessages,
+    allMessages: messages,
     currentPrompts,
     sessionConfig,
     isActive,
@@ -843,6 +1171,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     myPrompt,
     activeCampaignId,
     lastAutoSaveTime,
+    splitState,
+    isSplitActive,
+    myTeam,
     startSession,
     endSession,
     startNewCampaign,
@@ -857,5 +1188,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     deleteMessage,
     regenerateMessage,
     addMediaMessage,
+    initiateSplit,
+    regroupParty,
   };
 }
