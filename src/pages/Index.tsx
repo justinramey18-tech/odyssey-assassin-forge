@@ -408,7 +408,7 @@ const Index = () => {
   // Determine if character is using Rogue class (legacy Magic Path system)
   const isRogueClass = (character.primaryClass ?? 'rogue') === 'rogue';
 
-  const { requiresOrganicLevelUp, requiresGearUnlocks, rerollsDisabled, infinityStonesLocked, enforceWildShapeDuration } = useGameMode();
+  const { requiresOrganicLevelUp, enforceWildShapeDuration } = useGameMode();
 
   // Wild Shape - lifted to app level for cross-tab sync
   const druidCircle = useMemo<DruidCircle | null>(() => {
@@ -771,7 +771,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
 
     window.addEventListener('dm-quick-action-remove', handleRemove);
     return () => window.removeEventListener('dm-quick-action-remove', handleRemove);
-  }, [setEquipment, setCharacter, allAbilities, consumablesInventory, setConsumableQuantity]);
+  }, [setEquipment, setCharacter, consumablesInventory, setConsumableQuantity]);
 
   // Auto-apply incoming party buffs as conditions (only in party mode)
   useEffect(() => {
@@ -1311,7 +1311,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     }
   }, [abilityScores.applyScores, handleHPChange, toast]);
 
-  const handleAddXP = (amount: number, source: string) => {
+  const handleAddXP = useCallback((amount: number, source: string) => {
     const multiplier = XP_PRESETS[xpPreset].multiplier;
     
     // Milestone mode - manual level ups only
@@ -1328,14 +1328,12 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       const result = awardPrestigeXP(amount);
       
       if (result.type === 'prestige_levelup') {
-        // Toast instead of modal
         toast({
           title: "🌟 Prestige Level Up!",
           description: `Reached Prestige Level ${result.newLevel}. +${result.pointsAwarded} Ability Point${result.pointsAwarded && result.pointsAwarded > 1 ? 's' : ''} earned.`,
           className: "border-amber-500 bg-amber-500/10",
         });
         
-        // Milestone toast every 10 levels
         if (result.newLevel && result.newLevel % 10 === 0) {
           toast({
             title: `🏆 Prestige Milestone: Level ${result.newLevel}!`,
@@ -1355,14 +1353,12 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     const newXP = currentXP + amount;
     setCurrentXP(newXP);
     
-    // Check for level ups - auto-level immediately (no modal)
     const levelsToGain = calculatePendingLevelUps(character.level, newXP, multiplier);
     
     if (levelsToGain > 0) {
       const newLevel = character.level + levelsToGain;
       const xpAfterLevelUp = newXP - getXPForLevel(newLevel - 1, multiplier);
       
-      // Auto-equip newly unlocked abilities
       const unlockedActiveAbilities = character.abilities
         .filter(ca => {
           const ability = allAbilities.find(a => a.id === ca.abilityId);
@@ -1375,10 +1371,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       setCharacter(prev => {
         const newEquipped = [...prev.equippedAbilities];
         
-        // Find abilities that are unlocked but not equipped
         const unequippedAbilities = unlockedActiveAbilities.filter(id => !newEquipped.includes(id));
         
-        // Add to empty slots
         for (const abilityId of unequippedAbilities) {
           if (newEquipped.filter(Boolean).length < maxSlots) {
             const emptySlot = newEquipped.findIndex((slot, idx) => !slot && idx < maxSlots);
@@ -1410,7 +1404,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         description: source,
       });
     }
-  };
+  }, [xpPreset, isMaxLevel, awardPrestigeXP, currentXP, character.level, character.abilities, character.name, prestigeData.totalPrestigePoints, toast]);
 
   const handleUpgradeAbility = (abilityId: string) => {
     // Simple unified check
@@ -1602,13 +1596,15 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     URL.revokeObjectURL(url);
   };
 
-  const handleShortRest = () => {
+  const handleShortRest = useCallback(() => {
     // Short rest restores 25% of max HP (rounded up), capped at max
     const healAmount = Math.ceil(hpState.max * 0.25);
     const newCurrentHP = Math.min(hpState.max, hpState.current + healAmount);
     const actualHealed = newCurrentHP - hpState.current;
     
-    setHpState(prev => ({ ...prev, current: newCurrentHP }));
+    const newHpState = { ...hpState, current: newCurrentHP };
+    setHpState(newHpState);
+    try { localStorage.setItem('odyssey-hp-state', JSON.stringify(newHpState)); } catch {}
     
     // Reset action economy (combat would have ended for short rest)
     actionEconomy.onShortRest();
@@ -1637,17 +1633,15 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         : "You've rested for 1 hour. HP already full. Some abilities refreshed.",
       className: "border-amber-500/30 bg-amber-500/10",
     });
-  };
+  }, [hpState, actionEconomy, conditions, spellcasting, classSpellcasting, isRogueClass, wildShape, toast]);
 
-  const handleLongRest = () => {
+  const handleLongRest = useCallback(() => {
     // Long rest fully restores HP and clears temp HP
     const wasFullHP = hpState.current === hpState.max;
     
-    setHpState(prev => ({ 
-      ...prev, 
-      current: prev.max,
-      temp: 0 // Temp HP doesn't persist through long rest
-    }));
+    const newHpState = { ...hpState, current: hpState.max, temp: 0 };
+    setHpState(newHpState);
+    try { localStorage.setItem('odyssey-hp-state', JSON.stringify(newHpState)); } catch {}
     
     // Reset action economy
     actionEconomy.onLongRest();
@@ -1680,7 +1674,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         : `You've rested for 8 hours. HP fully restored to ${hpState.max}. All abilities refreshed.`,
       className: "border-indigo-500/30 bg-indigo-500/10",
     });
-  };
+  }, [hpState, actionEconomy, conditions, spellcasting, classSpellcasting, isRogueClass, wildShape, toast]);
 
   // Chronicle auto-apply handlers
   const handleChronicleGold = useCallback((netChange: number) => {
@@ -1733,7 +1727,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
   }), [handleChronicleHP, handleAddXP, handleChronicleGold, handleChronicleConditions, handleChronicleRest, hpState.current, shop.currentGold]);
 
 
-  const handleApplyChronicleChanges = (changes: ApprovedChanges) => {
+  const handleApplyChronicleChanges = useCallback((changes: ApprovedChanges) => {
     // Create undo snapshot before applying changes
     const snapshot = {
       currentXP,
@@ -1838,7 +1832,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       description: `Applied ${changes.totalApplied} changes successfully.`,
       className: "border-blue-500 bg-blue-500/10",
     });
-  };
+  }, [currentXP, character.level, character.name, achievements, consumablesInventory, handleAddXP, addConsumableItem, useConsumableItem, shop, toast]);
 
   // Handle shop purchases - routes items to correct inventory
   const handleShopPurchase = useCallback((itemId: string) => {
@@ -1883,7 +1877,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
   }, [shop, addConsumableItem, setEquipment, toast]);
 
   // Manual level up trigger (for milestone mode or testing)
-  const handleManualLevelUp = () => {
+  const handleManualLevelUp = useCallback(() => {
     if (character.level >= 20) return;
     
     const newLevel = character.level + 1;
@@ -1898,7 +1892,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       description: `${character.name} is now Level ${newLevel}!`,
       className: "border-primary bg-primary/10",
     });
-  };
+  }, [character.level, character.name, toast]);
 
   // New Character Handler - saves current character to cloud, then resets to wizard
   const handleNewCharacter = useCallback(() => {
@@ -1948,7 +1942,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         variant: "destructive",
       });
     }
-  }, [autoSync, allAbilities, toast, prestigeTree, shop, loot]);
+  }, [autoSync, toast, prestigeTree, shop, loot]);
 
   // App Reset Handler - clears all state and localStorage
   const handleResetApp = () => {
