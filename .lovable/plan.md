@@ -1,58 +1,76 @@
 
 
-# Fix: AI Guide Creator Should Follow the Prompt, Not Force Context
+# Transform DM Headers: Prominent "Dungeon Master" Title + Clean Sub-Header
 
 ## Problem
 
-The system prompt unconditionally injects campaign summary, chat history, and existing guides as context, and instructs the AI to use them to "make the guide contextually relevant." This causes the AI to generate scene/setting guides even when the user simply wants a narration style guide. The AI treats the context as mandatory input rather than optional reference.
+Currently both Solo and Party DM headers cram everything into a single row: back button, crown icon, campaign dropdown, model label, cost, settings button (solo) / player count, sync, map, saves, chat, guides, visibility toggle, new campaign, end session buttons (party). This is cluttered on mobile and doesn't match the prominent "Dungeon Master" title style shown in the reference image.
 
-## Root Cause
+## Design
 
-In `supabase/functions/guide-creator/index.ts`, the `buildSystemPrompt` function:
-1. Always appends campaign context with "Use the following campaign summary to make the guide contextually relevant" — this actively tells the AI to incorporate it
-2. Always appends chat history as "additional context" — the AI interprets this as content to build upon
-3. The quality standards section lists only world-building content types (NPCs, locations, encounters, factions) — biasing the AI toward scene generation even for non-scene prompts
+The reference image shows a clean, prominent header with "DUNGEON MASTER" in large Cinzel font spanning the full width, with a back arrow on the left. Secondary actions (player count, sync) are beside the title but smaller. Below that is a secondary info strip.
 
-## Fix (single file change)
+We'll adopt this two-row pattern for both screens:
 
-**File: `supabase/functions/guide-creator/index.ts`** — Rewrite `buildSystemPrompt` (lines 38-74)
-
-Changes:
-1. **Core instruction**: Add a top-level directive: "Follow the user's prompt exactly. Only create what they ask for."
-2. **Broaden guide types**: Replace the world-building-only quality standards with a note that guides can be about anything — narration style, house rules, tone, pacing, etc.
-3. **Context framing**: Change context injection from "use this to make the guide relevant" to "reference this ONLY if it's relevant to what the user asked for." Make it clear the AI should not force-fit context.
-4. **Existing guides**: Keep the deduplication note but soften it — "be aware of these, don't duplicate" rather than treating them as a creative constraint.
-
-Revised system prompt structure:
-
-```
-## PRIME DIRECTIVE
-Follow the user's prompt exactly. Create only what they ask for.
-Do NOT expand the scope beyond the prompt. If they ask for a narration 
-style guide, write a narration style guide — not a setting or scene guide.
-
-## OUTPUT FORMAT
-- Start with a single # Title heading
-- Use ## and ### headings to organize sections
-- Write content a DM can reference during play
-- Keep output under 25,000 characters
-- No meta-commentary
-
-## GUIDE TYPES
-Guides can cover ANY topic: narration style, prose tone, house rules, 
-pacing guidelines, NPC behavior templates, combat style, setting details, 
-encounter design, faction politics, random tables, etc. Match the type 
-to what the user requests.
-
-## CONTEXT (reference only if relevant)
-[campaign summary — "Available for reference IF the user's request 
-relates to campaign-specific content. Do not force this into the guide."]
-
-[chat history — "Available for reference IF relevant to what the user 
-asked. Do not base the guide on this unless the prompt calls for it."]
-
-[existing guides — "These already exist. Avoid duplicating their content."]
+```text
+┌──────────────────────────────────────────┐
+│ ← 👑 DUNGEON MASTER ▼    [save badge]   │  ← Row 1: Main header
+│         (campaign dropdown)              │
+├──────────────────────────────────────────┤
+│ 5 Players · Sync · Map · Saves · Chat · │  ← Row 2: Sub-header (scrollable)
+│ Guides · 👁 · + · ✕                     │
+└──────────────────────────────────────────┘
 ```
 
-This is a single-file change to the edge function. No component or prop changes needed.
+### Row 1 — Main Header (both screens)
+- Back arrow (left)
+- Crown icon + "DUNGEON MASTER" in large `font-cinzel` text (or campaign name via dropdown)
+- Save indicator (party) / model label + cost (solo)
+- Settings gear (solo only — opens tools drawer)
+
+### Row 2 — Sub-Header Strip (horizontally scrollable)
+- **Solo**: HP · Level · Conditions · Summary size · Cloud sync · Model label (moved from row 1 context banner)
+- **Party**: Player count · Sync toggle · Map · Saves · Chat · Guides (with badge) · Visibility toggle · New campaign · End session
+
+This moves the current Solo "context banner" (HP/Level/Conditions/Cloud) into the sub-header, and moves all the Party action buttons from the cramped header row into the sub-header.
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `src/components/ai-dm/AIDMScreen.tsx` | Redesign header (lines 543-586) into two rows: prominent title + sub-header with context info. Remove separate context banner button (lines 589-642) and merge its content into sub-header row |
+| `src/components/ai-dm/PartyDMScreen.tsx` | Redesign header (lines 493-648) into two rows: prominent title + scrollable sub-header with all action buttons. Remove/merge the mode indicator strip (lines 651-671) into sub-header |
+
+## Detailed Changes
+
+### Solo DM (`AIDMScreen.tsx`)
+
+**Row 1** (replaces lines 543-586):
+- Back button
+- Crown icon + CampaignDropdown (with larger font, `text-lg font-cinzel`)
+- Model label (small, muted) + Settings button
+
+**Row 2** (replaces the context banner at lines 589-642):
+- Horizontally scrollable strip with: HP display, Level, active conditions, campaign summary size, cloud sync status, summarizing indicator
+- Tapping still toggles expanded context details (loadout, spell slots)
+
+### Party DM (`PartyDMScreen.tsx`)
+
+**Row 1** (replaces lines 493-531):
+- Back button
+- Crown icon + "DUNGEON MASTER" title (or CampaignDropdown for creators)
+- Save badge (tap to save)
+- Player count badge
+
+**Row 2** (replaces lines 532-648 action buttons + mode indicator at 651-671):
+- Horizontally scrollable strip containing all the existing action buttons: Sync, Map, Saves, Chat, Guides, visibility toggle, new campaign, end session
+- Mode indicator (Shared/Private) + message count integrated into this row
+
+## Technical Notes
+
+- Both row 1 headers use `font-cinzel text-lg` for the title to match the reference image's prominent style
+- Sub-header uses `overflow-x-auto scrollbar-hide` for horizontal scroll on mobile
+- All existing functionality is preserved — just reorganized into the two-row layout
+- The expanded context details panel (solo) remains as an expandable section below the sub-header
+- No new components needed — this is a JSX restructuring within the two existing files
 
