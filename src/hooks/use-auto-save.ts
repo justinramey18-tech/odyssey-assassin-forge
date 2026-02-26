@@ -1,3 +1,4 @@
+import { useEffect, useRef, useCallback } from 'react';
 import { Character } from '@/lib/types';
 import { CharacterEquipment } from '@/lib/inventory/types';
 import { Achievement } from '@/lib/achievements';
@@ -11,6 +12,7 @@ import { ConditionsState } from '@/lib/conditions/types';
 import { CooldownSaveState } from '@/lib/cooldowns/types';
 
 const STORAGE_KEY = 'odyssey-character-autosave';
+const DEBOUNCE_MS = 1000; // Save 1 second after last change
 
 export interface SaveData {
   character: Character;
@@ -87,6 +89,72 @@ export function serializeConsumables(inventory: InventoryItem[]): SaveData['cons
 // Version 2: Updated ability points formula (tiered progression)
 // Version 2: Updated prestige points formula (variable 2-5 per level)
 const CURRENT_VERSION = 2;
+
+export function useAutoSave(
+  data: Omit<SaveData, 'savedAt' | 'version'>,
+  enabled: boolean = true
+) {
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSaveRef = useRef<string>('');
+
+  const save = useCallback(() => {
+    if (!enabled) return;
+    
+    const saveData: SaveData = {
+      ...data,
+      savedAt: new Date().toISOString(),
+      version: CURRENT_VERSION,
+    };
+    
+    const serialized = JSON.stringify(saveData);
+    
+    // Only save if data changed
+    if (serialized !== lastSaveRef.current) {
+      try {
+        localStorage.setItem(STORAGE_KEY, serialized);
+        lastSaveRef.current = serialized;
+        console.log('[AutoSave] Saved at', new Date().toLocaleTimeString());
+      } catch (error) {
+        console.error('[AutoSave] Failed to save:', error);
+      }
+    }
+  }, [data, enabled]);
+
+  // Debounced auto-save on data change
+  useEffect(() => {
+    if (!enabled) return;
+    
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    timeoutRef.current = setTimeout(() => {
+      save();
+    }, DEBOUNCE_MS);
+    
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [data, save, enabled]);
+
+  // Save on page unload
+  useEffect(() => {
+    if (!enabled) return;
+    
+    const handleBeforeUnload = () => {
+      save();
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [save, enabled]);
+
+  return { save };
+}
 
 export function loadAutoSave(): SaveData | null {
   try {

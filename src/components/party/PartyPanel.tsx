@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Users, Plus, LogIn, LogOut, Trash2, Copy, Check, Dices, Package, Crosshair, MessageSquare, Vote, Map, Swords, Crown, Bell, BellOff } from 'lucide-react';
+import { useState, useMemo, useCallback } from 'react';
+import { Users, Plus, LogIn, LogOut, Trash2, Copy, Check, Dices, Package, Crosshair, MessageSquare, Vote, Map, Swords, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -16,7 +16,6 @@ import { PartyVote } from './PartyVote';
 import { PartyBattleMap } from './PartyBattleMap';
 import { PartyCombatLog } from './PartyCombatLog';
 import { SendItemScreen } from './SendItemScreen';
-import { usePushNotifications } from '@/hooks/use-push-notifications';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import type { UsePartySyncReturn, PartyMember } from '@/hooks/use-party-sync';
 import { useOnlineStatus } from '@/hooks/use-online-status';
@@ -67,18 +66,8 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
   const [bgUploading, setBgUploading] = useState(false);
   const [bgOpacity, setBgOpacity] = useState<number>(1);
   const { party } = partySync;
-  const { isSubscribed, permission, isLoading: pushLoading, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePushNotifications();
-
-  // Auto-prompt for push notifications when user opens a party (one-time)
-  useEffect(() => {
-    if (!party.partyId || !isAuthenticated || isSubscribed || permission === 'denied' || pushLoading) return;
-    const timer = setTimeout(async () => {
-      const ok = await pushSubscribe();
-      if (ok) toast.success('Notifications enabled — you\'ll know when your party is ready!');
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, [party.partyId, isAuthenticated, isSubscribed, permission, pushLoading]);
   const onlineStatusMap = useOnlineStatus(party.members);
+
   const MEMBER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7', '#ef4444', '#06b6d4'];
   const memberColors = useMemo(() => {
     const colors: Record<string, string> = {};
@@ -130,10 +119,6 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
     }
     await partySync.updateMapCustomTiers(updated);
   }, [partySync]);
-
-  const handleChatOpenChange = useCallback((open: boolean): void => {
-    setShowChat(open);
-  }, []);
 
   if (!isAuthenticated) {
     return (
@@ -221,26 +206,19 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
             {party.members.length}/6
           </span>
         </div>
-        <div className="flex items-center gap-1.5">
-          {permission === 'denied' && (
-            <span className="text-[10px] text-destructive flex items-center gap-1">
-              <BellOff className="w-3 h-3" /> Blocked
-            </span>
+        <button
+          onClick={handleCopyCode}
+          className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/10 border border-primary/30 hover:bg-primary/20 transition-colors"
+        >
+          <span className="font-mono text-xs font-bold text-primary tracking-wider">
+            {party.linkCode}
+          </span>
+          {codeCopied ? (
+            <Check className="w-3 h-3 text-emerald-400" />
+          ) : (
+            <Copy className="w-3 h-3 text-primary" />
           )}
-          <button
-            onClick={handleCopyCode}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/10 border border-primary/30 hover:bg-primary/20 transition-colors"
-          >
-            <span className="font-mono text-xs font-bold text-primary tracking-wider">
-              {party.linkCode}
-            </span>
-            {codeCopied ? (
-              <Check className="w-3 h-3 text-emerald-400" />
-            ) : (
-              <Copy className="w-3 h-3 text-primary" />
-            )}
-          </button>
-        </div>
+        </button>
       </div>
 
       {/* Focus Target Banner */}
@@ -328,7 +306,7 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
 
       {/* Party Chat - Collapsible */}
       <div className="pt-2 border-t border-border/30">
-        <Collapsible open={showChat} onOpenChange={handleChatOpenChange}>
+        <Collapsible open={showChat} onOpenChange={setShowChat}>
           <CollapsibleTrigger className="flex items-center gap-2 w-full py-1 hover:bg-muted/10 rounded px-1 transition-colors">
             <MessageSquare className="w-3.5 h-3.5 text-primary" />
             <span className="text-xs font-semibold">Party Chat</span>

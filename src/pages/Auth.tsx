@@ -150,22 +150,31 @@ export default function Auth() {
       tintOpacity={20}
     >
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
+        <Button
+          variant="ghost"
+          onClick={() => navigate('/')}
+          className="absolute top-4 left-4 gap-2"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back
+        </Button>
+
         <Card className="w-full max-w-md border-border/50 bg-card/90 backdrop-blur-sm">
           <CardHeader className="text-center space-y-2">
             <div className="mx-auto w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
               {showForgotPassword ? (
                 <KeyRound className="w-6 h-6 text-primary" />
               ) : (
-                <Shield className="w-6 h-6 text-primary" />
+                <Cloud className="w-6 h-6 text-primary" />
               )}
             </div>
             <CardTitle className="font-cinzel text-2xl">
-              {showForgotPassword ? 'Reset Password' : 'Welcome, Assassin'}
+              {showForgotPassword ? 'Reset Password' : 'Cloud Saves'}
             </CardTitle>
             <CardDescription>
               {showForgotPassword
                 ? 'Enter your email to receive a password reset link'
-                : 'Sign in to begin your journey'}
+                : 'Sign in to sync your character across devices'}
             </CardDescription>
           </CardHeader>
           

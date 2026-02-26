@@ -59,64 +59,14 @@ const CATEGORY_LABELS: Record<string, string> = {
   dm: 'DM Drawer',
 };
 
-interface ActiveModeSectionProps {
-  appMode: AppMode;
-  onModeChange: (mode: AppMode) => void;
-}
-
-export function ActiveModeSection({ appMode, onModeChange }: ActiveModeSectionProps) {
-  return (
-    <div className="grid gap-2">
-      {APP_MODES_ORDERED.map((mode) => {
-        const config = APP_MODE_CONFIGS[mode];
-        const Icon = ICON_MAP[config.icon] ?? Sparkles;
-        const isActive = appMode === mode;
-        const colorClass = isActive ? COLOR_MAP[config.color] ?? INACTIVE_COLOR : INACTIVE_COLOR;
-
-        return (
-          <button
-            key={mode}
-            onClick={() => {
-              onModeChange(mode);
-              const ts = TOAST_COLORS[config.color] ?? TOAST_COLORS.emerald;
-              toast.success(`${config.label} mode applied`, {
-                description: config.description,
-                style: { ...ts, backdropFilter: 'blur(12px)' },
-              });
-            }}
-            className={cn(
-              'flex items-center gap-3 p-3 rounded-lg border transition-all text-left',
-              colorClass,
-              isActive && 'ring-1 ring-current',
-            )}
-          >
-            <Icon className="w-5 h-5 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm">{config.label}</p>
-              <p className="text-[11px] opacity-70 truncate">{config.description}</p>
-            </div>
-            {isActive && <Check className="w-4 h-4 shrink-0" />}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-interface FeatureVisibilitySectionProps {
-  appMode: AppMode;
-  customOverrides: CustomOverrides;
-  onCustomOverride: (featureId: string, visible: boolean) => void;
-  onResetCustomizations: () => void;
-  isFeatureVisible: (id: string) => boolean;
-}
-
-export function FeatureVisibilitySection({
+export function AppModeSettings({
+  appMode,
+  onModeChange,
   customOverrides,
   onCustomOverride,
   onResetCustomizations,
   isFeatureVisible,
-}: FeatureVisibilitySectionProps) {
+}: AppModeSettingsProps) {
   const allFeatures = useMemo(() => getAllFeatureIds(), []);
   const hasOverrides = Object.keys(customOverrides).length > 0;
 
@@ -126,86 +76,115 @@ export function FeatureVisibilitySection({
   }, [onResetCustomizations]);
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-xs text-muted-foreground">
-          Toggle individual features on or off. Changes are saved per mode.
-        </p>
-        {hasOverrides && (
-          <Button variant="ghost" size="sm" onClick={handleReset} className="h-7 text-xs gap-1.5">
-            <RotateCcw className="w-3 h-3" />
-            Reset
-          </Button>
-        )}
+    <div className="space-y-6 pb-6">
+      {/* Mode Selector */}
+      <div>
+        <h3 className="font-cinzel font-semibold text-sm mb-3">Active Mode</h3>
+        <div className="grid gap-2">
+          {APP_MODES_ORDERED.map((mode) => {
+            const config = APP_MODE_CONFIGS[mode];
+            const Icon = ICON_MAP[config.icon] ?? Sparkles;
+            const isActive = appMode === mode;
+            const colorClass = isActive ? COLOR_MAP[config.color] ?? INACTIVE_COLOR : INACTIVE_COLOR;
+
+            return (
+              <button
+                key={mode}
+                onClick={() => {
+                  onModeChange(mode);
+                  const ts = TOAST_COLORS[config.color] ?? TOAST_COLORS.emerald;
+                  toast.success(`${config.label} mode applied`, {
+                    description: config.description,
+                    style: { ...ts, backdropFilter: 'blur(12px)' },
+                  });
+                }}
+                className={cn(
+                  'flex items-center gap-3 p-3 rounded-lg border transition-all text-left',
+                  colorClass,
+                  isActive && 'ring-1 ring-current',
+                )}
+              >
+                <Icon className="w-5 h-5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm">{config.label}</p>
+                  <p className="text-[11px] opacity-70 truncate">{config.description}</p>
+                </div>
+                {isActive && <Check className="w-4 h-4 shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <Accordion type="multiple" className="space-y-1">
-        {Object.entries(allFeatures).map(([category, features]) => (
-          <AccordionItem key={category} value={category} className="border-border/30">
-            <AccordionTrigger className="py-2 text-sm hover:no-underline">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold">{CATEGORY_LABELS[category] ?? category}</span>
-                <Badge variant="outline" className="text-[10px] h-5">
-                  {features.filter(f => isFeatureVisible(f.id)).length}/{features.length}
-                </Badge>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent>
-              <div className="space-y-2 py-1">
-                {features.map((feature) => {
-                  const visible = isFeatureVisible(feature.id);
-                  const isOverridden = feature.id in customOverrides;
-                  return (
-                    <div
-                      key={feature.id}
-                      className="flex items-center justify-between gap-2 px-1"
-                    >
-                      <Label
-                        htmlFor={`feature-${feature.id}`}
-                        className={cn(
-                          'text-sm cursor-pointer',
-                          !visible && 'text-muted-foreground line-through',
-                          isOverridden && 'italic',
-                        )}
-                      >
-                        {feature.label}
-                        {isOverridden && (
-                          <span className="text-[10px] text-primary ml-1.5">(custom)</span>
-                        )}
-                      </Label>
-                      <Switch
-                        id={`feature-${feature.id}`}
-                        checked={visible}
-                        onCheckedChange={(checked) => onCustomOverride(feature.id, checked)}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-        ))}
-      </Accordion>
+      <Separator className="bg-border/30" />
 
-      <p className="text-xs text-muted-foreground text-center mt-3">
+      {/* Feature Customization */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-cinzel font-semibold text-sm">Feature Visibility</h3>
+          {hasOverrides && (
+            <Button variant="ghost" size="sm" onClick={handleReset} className="h-7 text-xs gap-1.5">
+              <RotateCcw className="w-3 h-3" />
+              Reset
+            </Button>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground mb-3">
+          Toggle individual features on or off. Changes are saved per mode.
+        </p>
+
+        <Accordion type="multiple" className="space-y-1">
+          {Object.entries(allFeatures).map(([category, features]) => (
+            <AccordionItem key={category} value={category} className="border-border/30">
+              <AccordionTrigger className="py-2 text-sm hover:no-underline">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">{CATEGORY_LABELS[category] ?? category}</span>
+                  <Badge variant="outline" className="text-[10px] h-5">
+                    {features.filter(f => isFeatureVisible(f.id)).length}/{features.length}
+                  </Badge>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-2 py-1">
+                  {features.map((feature) => {
+                    const visible = isFeatureVisible(feature.id);
+                    const isOverridden = feature.id in customOverrides;
+                    return (
+                      <div
+                        key={feature.id}
+                        className="flex items-center justify-between gap-2 px-1"
+                      >
+                        <Label
+                          htmlFor={`feature-${feature.id}`}
+                          className={cn(
+                            'text-sm cursor-pointer',
+                            !visible && 'text-muted-foreground line-through',
+                            isOverridden && 'italic',
+                          )}
+                        >
+                          {feature.label}
+                          {isOverridden && (
+                            <span className="text-[10px] text-primary ml-1.5">(custom)</span>
+                          )}
+                        </Label>
+                        <Switch
+                          id={`feature-${feature.id}`}
+                          checked={visible}
+                          onCheckedChange={(checked) => onCustomOverride(feature.id, checked)}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      </div>
+
+      <p className="text-xs text-muted-foreground text-center">
         Your data is never deleted when switching modes — only visibility changes.
       </p>
-    </div>
-  );
-}
-
-export function AppModeSettings(props: AppModeSettingsProps) {
-  return (
-    <div className="space-y-6 pb-6">
-      <ActiveModeSection appMode={props.appMode} onModeChange={props.onModeChange} />
-      <Separator className="bg-border/30" />
-      <FeatureVisibilitySection
-        appMode={props.appMode}
-        customOverrides={props.customOverrides}
-        onCustomOverride={props.onCustomOverride}
-        onResetCustomizations={props.onResetCustomizations}
-        isFeatureVisible={props.isFeatureVisible}
-      />
     </div>
   );
 }

@@ -1344,21 +1344,7 @@ export function usePartySync(): UsePartySyncReturn {
     if (options?.replyToId) insertData.reply_to_id = options.replyToId;
     if (options?.imageUrl) insertData.image_url = options.imageUrl;
 
-    const { error } = await (supabase.from('party_messages') as any).insert(insertData);
-    if (error) {
-      console.error('sendMessage error:', error);
-      toast.error('Failed to send message');
-    } else {
-      // Fire-and-forget push notification
-      supabase.functions.invoke('send-party-notification', {
-        body: {
-          partyId: party.partyId,
-          triggerType: 'chat',
-          playerName: senderName,
-          message: message.slice(0, 100),
-        },
-      }).catch(() => {});
-    }
+    await (supabase.from('party_messages') as any).insert(insertData);
   }, [user, party.partyId]);
 
   const editMessage = useCallback(async (messageId: string, newText: string) => {

@@ -30,7 +30,7 @@ const DEFAULT_SETTINGS: CombatSettings = {
   hasSentinel: false,
   hasPolearmMaster: false,
   hasMonkMartialArts: false,
-  showRoundNotifications: true,
+  showRoundNotifications: true, // On by default
 };
 
 // Custom event for same-tab synchronization

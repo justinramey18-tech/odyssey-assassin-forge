@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { getAuthToken } from '@/lib/auth-token';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { DmSplitState, SplitTeam } from '@/lib/party-split-types';
+import { sendReadyUpNotification } from '@/lib/party-notifications';
 
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
 const SUMMARIZE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm-summarize`;
@@ -178,12 +179,23 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           setCurrentPrompts(prev => {
             if (prev.some(x => x.id === p.id)) return prev;
             const updated = [...prev, p];
+            // Notify if the inserted prompt is already ready and not from current user
+            if (p.is_ready && p.user_id !== user?.id) {
+              const readyCount = updated.filter(x => x.is_ready).length;
+              sendReadyUpNotification(p.character_name, readyCount, memberCount);
+            }
             return updated;
           });
         } else if (payload.eventType === 'UPDATE') {
           const p = payload.new as PartyDmPrompt;
+          const oldPrompt = payload.old as Partial<PartyDmPrompt>;
           setCurrentPrompts(prev => {
             const updated = prev.map(x => x.id === p.id ? p : x);
+            // Notify on is_ready transition (false → true) from another user
+            if (p.is_ready && !oldPrompt.is_ready && p.user_id !== user?.id) {
+              const readyCount = updated.filter(x => x.is_ready).length;
+              sendReadyUpNotification(p.character_name, readyCount, memberCount);
+            }
             return updated;
           });
         } else if (payload.eventType === 'DELETE') {
@@ -486,20 +498,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       }
       await (supabase.from('party_dm_prompts') as any).insert(insertData);
     }
-
-    // Fire-and-forget push notification for ready-up
-    const readyCount = currentPrompts.filter(p => p.is_ready).length + 1;
-    supabase.functions.invoke('send-party-notification', {
-      body: {
-        partyId,
-        triggerType: 'ready',
-        playerName: characterName,
-        readyCount,
-        totalPlayers: memberCount,
-      },
-    }).catch(() => {});
-
-  }, [user, partyId, sessionConfig, characterName, currentPrompts, isSplitActive, myTeam, memberCount]);
+  }, [user, partyId, sessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
 
   const unready = useCallback(async () => {
     if (!user || !partyId || !sessionConfig) return;

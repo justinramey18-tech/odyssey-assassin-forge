@@ -1,42 +1,22 @@
 
 
-## Diagnosis
+# Stacking Notifications + "All Ready" Alert
 
-Two problems preventing notifications:
+## Changes
 
-1. **No subscribers exist** — The `party_push_subscriptions` table is empty. The bell icon opt-in was added but no unique constraint exists on `(user_id, endpoint)`, so the `upsert` with `onConflict: 'user_id,endpoint'` silently fails. Users who clicked subscribe were never actually stored.
+**File: `src/lib/party-notifications.ts`**
 
-2. **Ready-up only fires on first ready** — The `setReady` function fires the notification, but after `unready` + re-ready, the notification should fire again every time. The current code does handle this (it calls the edge function each time `setReady` is called), but since there are no subscribers stored, nothing is delivered.
+Two changes in `sendReadyUpNotification`:
 
-## Plan
+1. **Unique tags for stacking**: Change `tag: 'ready-up'` to `tag: 'ready-up-${Date.now()}'` so each notification gets a unique tag and Android stacks them in the notification bar instead of replacing.
 
-### Step 1: Add unique constraint on `party_push_subscriptions`
+2. **"All Players Ready" notification**: When `readyCount >= totalCount`, send a distinct notification with:
+   - Title: "🎯 All Players Ready!"
+   - Body includes a timestamp (e.g., "All 4 players readied up at 7:32 PM!")
+   - In-app toast uses 🎯 icon with longer 6s duration
+   - Individual ready-ups keep the ⚔️ icon
 
-Database migration to add the missing unique constraint so the upsert actually works:
+The in-app toast `id` also becomes unique per notification (`ready-up-toast-${Date.now()}`) so multiple toasts can stack, except the "all ready" toast which uses a fixed id `all-ready-toast` to replace any prior "all ready" toast.
 
-```sql
-ALTER TABLE public.party_push_subscriptions
-  ADD CONSTRAINT party_push_subscriptions_user_endpoint_unique
-  UNIQUE (user_id, endpoint);
-```
-
-### Step 2: Add console logging to subscription flow
-
-In `src/hooks/use-push-notifications.ts`, add `console.log` after the upsert call to confirm the subscription was stored, and log any errors from the upsert so failures are visible during testing.
-
-### Step 3: Add logging to the edge function
-
-Add `console.log` statements in `send-party-notification/index.ts` to trace execution: log the number of members found, subscriptions queried, and send results. This will make debugging visible in the function logs.
-
-### Step 4: Verify ready-up notification fires on every ready (including after undo)
-
-The current `setReady` already calls the edge function unconditionally each time it's invoked — this is correct. The fix is the subscription storage (Step 1). No logic change needed for re-ready after undo.
-
-### Testing
-
-1. Publish the app
-2. Open on two devices/browsers, log in on both, join same party
-3. Both users click the bell icon to subscribe — check console for successful storage log
-4. User A clicks Ready — User B should receive a push notification
-5. User A clicks Undo, then Ready again — User B should receive another notification
+No other files need changes — the detection logic in `use-party-dm.ts` already passes the correct `readyCount` and `totalCount` to this function.
 

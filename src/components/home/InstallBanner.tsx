@@ -8,6 +8,7 @@ import { Glass } from '@/components/ui/glass';
 export function InstallBanner() {
   const { isInstallable, isInstalled, installApp, isIOS } = usePWAInstall();
   const [dismissed, setDismissed] = useState(() => {
+    // Check if user has dismissed the banner recently (within 7 days)
     const dismissedAt = localStorage.getItem('pwa-banner-dismissed');
     if (dismissedAt) {
       const daysSinceDismissed = (Date.now() - parseInt(dismissedAt)) / (1000 * 60 * 60 * 24);
@@ -33,6 +34,7 @@ export function InstallBanner() {
     navigate('/install');
   };
 
+  // Don't show if already installed, dismissed, or not installable (except iOS which shows manual instructions)
   if (isInstalled || dismissed) return null;
   if (!isInstallable && !isIOS) return null;
 
@@ -42,6 +44,7 @@ export function InstallBanner() {
         variant="interactive" 
         className="relative p-3 border-primary/30 shadow-lg shadow-primary/20"
       >
+        {/* Dismiss button */}
         <button
           onClick={handleDismiss}
           className="absolute top-2 right-2 p-1 rounded-full hover:bg-white/20 transition-colors"
@@ -64,9 +67,7 @@ export function InstallBanner() {
               Install for Offline Access
             </p>
             <p className="text-xs text-white/70 truncate">
-              {isIOS 
-                ? 'Add to Home Screen via Share · Sign in again after install' 
-                : 'Quick install, no app store needed'}
+              {isIOS ? 'Add to Home Screen via Share' : 'Quick install, no app store needed'}
             </p>
           </div>
 
