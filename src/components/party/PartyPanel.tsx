@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Users, Plus, LogIn, LogOut, Trash2, Copy, Check, Dices, Package, Crosshair, MessageSquare, Vote, Map, Swords, Crown } from 'lucide-react';
+import { Users, Plus, LogIn, LogOut, Trash2, Copy, Check, Dices, Package, Crosshair, MessageSquare, Vote, Map, Swords, Crown, Bell, BellOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -16,6 +16,7 @@ import { PartyVote } from './PartyVote';
 import { PartyBattleMap } from './PartyBattleMap';
 import { PartyCombatLog } from './PartyCombatLog';
 import { SendItemScreen } from './SendItemScreen';
+import { usePushNotifications } from '@/hooks/use-push-notifications';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import type { UsePartySyncReturn, PartyMember } from '@/hooks/use-party-sync';
 import { useOnlineStatus } from '@/hooks/use-online-status';
@@ -66,6 +67,7 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
   const [bgUploading, setBgUploading] = useState(false);
   const [bgOpacity, setBgOpacity] = useState<number>(1);
   const { party } = partySync;
+  const { isSubscribed, permission, isLoading: pushLoading, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePushNotifications();
   const onlineStatusMap = useOnlineStatus(party.members);
   const MEMBER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7', '#ef4444', '#06b6d4'];
   const memberColors = useMemo(() => {
@@ -209,19 +211,42 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
             {party.members.length}/6
           </span>
         </div>
-        <button
-          onClick={handleCopyCode}
-          className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/10 border border-primary/30 hover:bg-primary/20 transition-colors"
-        >
-          <span className="font-mono text-xs font-bold text-primary tracking-wider">
-            {party.linkCode}
-          </span>
-          {codeCopied ? (
-            <Check className="w-3 h-3 text-emerald-400" />
-          ) : (
-            <Copy className="w-3 h-3 text-primary" />
-          )}
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={async () => {
+              if (isSubscribed) {
+                await pushUnsubscribe();
+                toast.success('Push notifications disabled');
+              } else {
+                const ok = await pushSubscribe();
+                if (ok) toast.success('Push notifications enabled!');
+                else if (permission === 'denied') toast.error('Notifications blocked — check browser settings');
+              }
+            }}
+            disabled={pushLoading}
+            className="p-1 rounded-md hover:bg-muted/20 transition-colors"
+            title={isSubscribed ? 'Disable push notifications' : 'Enable push notifications'}
+          >
+            {isSubscribed ? (
+              <Bell className="w-3.5 h-3.5 text-primary" />
+            ) : (
+              <BellOff className="w-3.5 h-3.5 text-muted-foreground" />
+            )}
+          </button>
+          <button
+            onClick={handleCopyCode}
+            className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/10 border border-primary/30 hover:bg-primary/20 transition-colors"
+          >
+            <span className="font-mono text-xs font-bold text-primary tracking-wider">
+              {party.linkCode}
+            </span>
+            {codeCopied ? (
+              <Check className="w-3 h-3 text-emerald-400" />
+            ) : (
+              <Copy className="w-3 h-3 text-primary" />
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Focus Target Banner */}

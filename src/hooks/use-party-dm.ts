@@ -487,7 +487,19 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       await (supabase.from('party_dm_prompts') as any).insert(insertData);
     }
 
-  }, [user, partyId, sessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
+    // Fire-and-forget push notification for ready-up
+    const readyCount = currentPrompts.filter(p => p.is_ready).length + 1;
+    supabase.functions.invoke('send-party-notification', {
+      body: {
+        partyId,
+        triggerType: 'ready',
+        playerName: characterName,
+        readyCount,
+        totalPlayers: memberCount,
+      },
+    }).catch(() => {});
+
+  }, [user, partyId, sessionConfig, characterName, currentPrompts, isSplitActive, myTeam, memberCount]);
 
   const unready = useCallback(async () => {
     if (!user || !partyId || !sessionConfig) return;
