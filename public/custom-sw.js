@@ -7,25 +7,52 @@ self.addEventListener('message', (event) => {
       icon,
       badge,
       tag,
-      renotify: true, // Vibrate/sound even when replacing same tag
+      renotify: true,
       requireInteraction: false,
     });
   }
 });
 
+// Handle Web Push events (server-sent, works when app is backgrounded/closed)
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+
+  let payload;
+  try {
+    payload = event.data.json();
+  } catch {
+    payload = { title: 'New notification', body: event.data.text() };
+  }
+
+  const { title, body, icon, badge, tag, data } = payload;
+
+  event.waitUntil(
+    self.registration.showNotification(title || 'Party Alert', {
+      body: body || '',
+      icon: icon || '/pwa-192x192.png',
+      badge: badge || '/pwa-192x192.png',
+      tag: tag || `push-${Date.now()}`,
+      renotify: true,
+      requireInteraction: false,
+      data: data || {},
+    })
+  );
+});
+
 // Re-focus or open the app when a notification is tapped
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+
+  const targetUrl = event.notification.data?.url || '/';
+
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-      // Focus existing tab if available
       for (const client of clients) {
         if (client.url.includes(self.registration.scope) && 'focus' in client) {
           return client.focus();
         }
       }
-      // Otherwise open a new tab
-      return self.clients.openWindow('/');
+      return self.clients.openWindow(targetUrl);
     })
   );
 });
