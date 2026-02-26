@@ -103,11 +103,10 @@ export async function sendReadyUpNotification(
       icon: '🎯',
       id: 'all-ready-toast',
     });
-
-    await pushNotification('🎯 All Players Ready!', allMessage, `all-ready-${Date.now()}`);
   }
 
   // Individual ready-up notification (always sent, even when all ready)
+  // Push notification is handled server-side by party-ready-notify edge function
   const message = `${characterName} has readied up! (${readyCount}/${totalCount} ready)`;
 
   toast(`⚔️ ${message}`, {
@@ -115,8 +114,6 @@ export async function sendReadyUpNotification(
     icon: '⚔️',
     id: `ready-up-toast-${Date.now()}`,
   });
-
-  await pushNotification('Party Ready Up', `⚔️ ${message}`, `ready-up-${Date.now()}`);
 }
 
 /**

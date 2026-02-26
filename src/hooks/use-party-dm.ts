@@ -506,7 +506,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       }
       await (supabase.from('party_dm_prompts') as any).insert(insertData);
     }
-  }, [user, partyId, sessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
+
+    // Server-side push notification fan-out for ready-up
+    const readyCount = currentPrompts.filter(p => p.is_ready).length + 1; // +1 for self
+    supabase.functions.invoke('party-ready-notify', {
+      body: { partyId, characterName, readyCount, totalCount: memberCount },
+    }).catch((err: unknown) => console.warn('[party-ready-notify] push failed:', err));
+  }, [user, partyId, sessionConfig, characterName, currentPrompts, isSplitActive, myTeam, memberCount]);
 
   const unready = useCallback(async () => {
     if (!user || !partyId || !sessionConfig) return;
