@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Users, Plus, LogIn, LogOut, Trash2, Copy, Check, Dices, Package, Crosshair, MessageSquare, Vote, Map, Swords, Crown, Bell, BellOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -68,6 +68,16 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
   const [bgOpacity, setBgOpacity] = useState<number>(1);
   const { party } = partySync;
   const { isSubscribed, permission, isLoading: pushLoading, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePushNotifications();
+
+  // Auto-prompt for push notifications when user opens a party (one-time)
+  useEffect(() => {
+    if (!party.partyId || !isAuthenticated || isSubscribed || permission === 'denied' || pushLoading) return;
+    const timer = setTimeout(async () => {
+      const ok = await pushSubscribe();
+      if (ok) toast.success('Notifications enabled — you\'ll know when your party is ready!');
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [party.partyId, isAuthenticated, isSubscribed, permission, pushLoading]);
   const onlineStatusMap = useOnlineStatus(party.members);
   const MEMBER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7', '#ef4444', '#06b6d4'];
   const memberColors = useMemo(() => {
@@ -212,27 +222,11 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
           </span>
         </div>
         <div className="flex items-center gap-1.5">
-          <button
-            onClick={async () => {
-              if (isSubscribed) {
-                await pushUnsubscribe();
-                toast.success('Push notifications disabled');
-              } else {
-                const ok = await pushSubscribe();
-                if (ok) toast.success('Push notifications enabled!');
-                else if (permission === 'denied') toast.error('Notifications blocked — check browser settings');
-              }
-            }}
-            disabled={pushLoading}
-            className="p-1 rounded-md hover:bg-muted/20 transition-colors"
-            title={isSubscribed ? 'Disable push notifications' : 'Enable push notifications'}
-          >
-            {isSubscribed ? (
-              <Bell className="w-3.5 h-3.5 text-primary" />
-            ) : (
-              <BellOff className="w-3.5 h-3.5 text-muted-foreground" />
-            )}
-          </button>
+          {permission === 'denied' && (
+            <span className="text-[10px] text-destructive flex items-center gap-1">
+              <BellOff className="w-3 h-3" /> Blocked
+            </span>
+          )}
           <button
             onClick={handleCopyCode}
             className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/10 border border-primary/30 hover:bg-primary/20 transition-colors"
