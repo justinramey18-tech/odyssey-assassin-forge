@@ -22,23 +22,29 @@ export async function requestPartyNotificationPermission(): Promise<Notification
 async function pushNotification(title: string, body: string, tag: string): Promise<void> {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
-  const payload = {
-    title,
+  const options: NotificationOptions = {
     body,
     icon: '/pwa-192x192.png',
     badge: '/pwa-192x192.png',
     tag,
+    requireInteraction: false,
   };
 
+  // Prefer ServiceWorkerRegistration.showNotification for Android/PWA reliability.
   try {
     const reg = await navigator.serviceWorker?.ready;
-    if (reg?.active) {
-      reg.active.postMessage({ type: 'SHOW_NOTIFICATION', payload });
-    } else {
-      new Notification(payload.title, payload);
+    if (reg) {
+      await reg.showNotification(title, options);
+      return;
     }
   } catch {
-    try { new Notification(payload.title, payload); } catch { /* silent */ }
+    // fallback below
+  }
+
+  try {
+    new Notification(title, options);
+  } catch {
+    // silent
   }
 }
 

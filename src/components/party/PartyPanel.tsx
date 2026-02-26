@@ -17,6 +17,7 @@ import { PartyBattleMap } from './PartyBattleMap';
 import { PartyCombatLog } from './PartyCombatLog';
 import { SendItemScreen } from './SendItemScreen';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { requestPartyNotificationPermission } from '@/lib/party-notifications';
 import type { UsePartySyncReturn, PartyMember } from '@/hooks/use-party-sync';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import type { InventoryItem } from '@/lib/consumables/types';
@@ -119,6 +120,13 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
     }
     await partySync.updateMapCustomTiers(updated);
   }, [partySync]);
+
+  const handleChatOpenChange = useCallback((open: boolean): void => {
+    setShowChat(open);
+    if (open) {
+      void requestPartyNotificationPermission();
+    }
+  }, []);
 
   if (!isAuthenticated) {
     return (
@@ -306,7 +314,7 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
 
       {/* Party Chat - Collapsible */}
       <div className="pt-2 border-t border-border/30">
-        <Collapsible open={showChat} onOpenChange={setShowChat}>
+        <Collapsible open={showChat} onOpenChange={handleChatOpenChange}>
           <CollapsibleTrigger className="flex items-center gap-2 w-full py-1 hover:bg-muted/10 rounded px-1 transition-colors">
             <MessageSquare className="w-3.5 h-3.5 text-primary" />
             <span className="text-xs font-semibold">Party Chat</span>
