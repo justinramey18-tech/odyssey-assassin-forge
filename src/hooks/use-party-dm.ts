@@ -983,7 +983,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   // === SPLIT PARTY FUNCTIONS ===
 
-  const initiateSplit = useCallback(async (alphaMembers: string[]) => {
+  const initiateSplit = useCallback(async (alphaMembers: string[], alphaName?: string, betaName?: string) => {
     if (!partyId || !user || !isCreator || !sessionConfig) return;
     if (isSplitActive) {
       toast.error('A split is already active');
@@ -1017,6 +1017,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       snapshotMessages,
       alphaSummary: null,
       betaSummary: null,
+      alphaName: alphaName?.trim() || 'Team Alpha',
+      betaName: betaName?.trim() || 'Team Beta',
     };
 
     // Save split state

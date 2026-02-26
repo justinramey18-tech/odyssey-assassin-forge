@@ -14,6 +14,8 @@ export interface DmSplitState {
   }>;
   alphaSummary: string | null;
   betaSummary: string | null;
+  alphaName?: string;
+  betaName?: string;
 }
 
 export type SplitTeam = 'alpha' | 'beta' | null;
