@@ -192,6 +192,7 @@ export function StandalonePartyDMScreen({
           onUpdate={gmGuides.updateGuide}
           onDelete={gmGuides.deleteGuide}
           onToggle={gmGuides.toggleGuide}
+          chatMessages={partyDm.messages.slice(-20).map(m => ({ role: m.role, content: m.content }))}
         />
       )}
 
