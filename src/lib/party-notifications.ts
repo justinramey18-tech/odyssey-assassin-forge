@@ -24,23 +24,56 @@ export async function sendReadyUpNotification(
   readyCount: number,
   totalCount: number,
 ): Promise<void> {
+  const allReady = readyCount >= totalCount && totalCount > 0;
+  const timestamp = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+  if (allReady) {
+    const allMessage = `All ${totalCount} players readied up at ${timestamp}!`;
+
+    toast(`🎯 ${allMessage}`, {
+      duration: 6000,
+      icon: '🎯',
+      id: 'all-ready-toast',
+    });
+
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const payload = {
+        title: '🎯 All Players Ready!',
+        body: allMessage,
+        icon: '/pwa-192x192.png',
+        badge: '/pwa-192x192.png',
+        tag: `all-ready-${Date.now()}`,
+      };
+
+      try {
+        const reg = await navigator.serviceWorker?.ready;
+        if (reg?.active) {
+          reg.active.postMessage({ type: 'SHOW_NOTIFICATION', payload });
+        } else {
+          new Notification(payload.title, payload);
+        }
+      } catch {
+        try { new Notification(payload.title, payload); } catch { /* silent */ }
+      }
+    }
+  }
+
+  // Individual ready-up notification (always sent, even when all ready)
   const message = `${characterName} has readied up! (${readyCount}/${totalCount} ready)`;
 
-  // In-app toast (always shown)
   toast(`⚔️ ${message}`, {
     duration: 4000,
     icon: '⚔️',
-    id: 'ready-up-toast',
+    id: `ready-up-toast-${Date.now()}`,
   });
 
-  // Browser push notification via Service Worker (works when backgrounded on Android)
   if ('Notification' in window && Notification.permission === 'granted') {
     const payload = {
       title: 'Party Ready Up',
       body: `⚔️ ${message}`,
       icon: '/pwa-192x192.png',
       badge: '/pwa-192x192.png',
-      tag: 'ready-up',
+      tag: `ready-up-${Date.now()}`,
     };
 
     try {
