@@ -5,7 +5,8 @@ import { toast } from 'sonner';
 import { getAuthToken } from '@/lib/auth-token';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { DmSplitState, SplitTeam } from '@/lib/party-split-types';
-import { sendReadyUpNotification } from '@/lib/party-notifications';
+import { sendReadyUpNotification, sendChatMessageNotification } from '@/lib/party-notifications';
+import { loadCombatSettings } from '@/lib/combat/combatSettings';
 
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
 const SUMMARIZE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm-summarize`;
@@ -154,6 +155,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             if (prev.some(m => m.id === newMsg.id)) return prev;
             return [...prev, newMsg];
           });
+          // Notify for user messages from other party members (if enabled)
+          if (newMsg.role === 'user' && newMsg.sender_user_id && newMsg.sender_user_id !== user?.id) {
+            const settings = loadCombatSettings();
+            if (settings.showPartyChatNotifications !== false) {
+              sendChatMessageNotification(newMsg.sender_name, newMsg.content);
+            }
+          }
         } else if (payload.eventType === 'UPDATE') {
           const updated = payload.new as PartyDmMessage;
           setMessages(prev => prev.map(m => m.id === updated.id ? updated : m));
