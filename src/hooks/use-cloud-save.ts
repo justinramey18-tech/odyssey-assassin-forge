@@ -288,7 +288,7 @@ export function useCloudSave(userId: string | undefined) {
         partyId: extendedData.partyId as SaveData['partyId'],
         backgroundUrl: extendedData.backgroundUrl as SaveData['backgroundUrl'],
         savedAt: data.updated_at,
-        version: 1,
+        version: 2,
       };
       
       return saveData;
