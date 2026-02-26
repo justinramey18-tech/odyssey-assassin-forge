@@ -1,19 +1,21 @@
 // Dice Roll Odds System
-// Allows weighted dice rolls for different play styles
+// Uses explicit bracket-based probability distributions
 
 export type DiceOddsMode = 'fair' | 'heroic' | 'dramatic' | 'chaotic' | 'cursed';
+
+export interface OddsBracket {
+  chance: number;  // 0-1 probability
+  min: number;     // minimum roll value
+  max: number;     // maximum roll value
+  label?: string;  // display label for visualization
+}
 
 export interface DiceOddsConfig {
   mode: DiceOddsMode;
   label: string;
   description: string;
   deadpoolQuote: string;
-  // Weights for roll quality (low, mid, high rolls)
-  weights: {
-    low: number;   // Rolls in bottom third
-    mid: number;   // Rolls in middle third
-    high: number;  // Rolls in top third
-  };
+  brackets: OddsBracket[];
 }
 
 export const DICE_ODDS_CONFIGS: Record<DiceOddsMode, DiceOddsConfig> = {
@@ -22,71 +24,84 @@ export const DICE_ODDS_CONFIGS: Record<DiceOddsMode, DiceOddsConfig> = {
     label: 'Fair Play',
     description: 'Pure random chance. May the dice gods favor you.',
     deadpoolQuote: '"Boring, but mathematically honest."',
-    weights: { low: 1, mid: 1, high: 1 },
+    brackets: [], // empty = pure uniform random
   },
   heroic: {
     mode: 'heroic',
     label: 'Heroic',
     description: 'Slightly better odds. For protagonists who deserve a break.',
     deadpoolQuote: '"Plot armor: activated."',
-    weights: { low: 0.6, mid: 1, high: 1.4 },
+    brackets: [
+      { chance: 0.15, min: 20, max: 20, label: 'Nat 20' },
+      { chance: 0.65, min: 15, max: 19, label: '15-19' },
+      { chance: 0.15, min: 10, max: 14, label: '10-14' },
+      { chance: 0.05, min: 1, max: 9, label: '1-9' },
+    ],
   },
   dramatic: {
     mode: 'dramatic',
     label: 'Dramatic',
     description: 'Extremes are more likely. Epic highs and crushing lows.',
     deadpoolQuote: '"Go big or go home... probably crying."',
-    weights: { low: 1.3, mid: 0.4, high: 1.3 },
+    brackets: [
+      { chance: 0.50, min: 18, max: 20, label: '18-20' },
+      { chance: 0.50, min: 1, max: 7, label: '1-7' },
+    ],
   },
   chaotic: {
     mode: 'chaotic',
     label: 'Chaotic Neutral',
     description: 'Completely unpredictable. Pure narrative chaos.',
     deadpoolQuote: '"I roll dice like I live life—recklessly."',
-    weights: { low: 1.2, mid: 0.8, high: 1.2 },
+    brackets: [
+      { chance: 0.50, min: 15, max: 20, label: '15-20' },
+      { chance: 0.25, min: 8, max: 14, label: '8-14' },
+      { chance: 0.25, min: 1, max: 3, label: '1-3' },
+    ],
   },
   cursed: {
     mode: 'cursed',
     label: 'Cursed',
     description: 'The dice hate you. Embrace the suffering.',
     deadpoolQuote: '"Maximum pain, minimal effort."',
-    weights: { low: 1.5, mid: 1, high: 0.5 },
+    brackets: [
+      { chance: 0.15, min: 1, max: 1, label: 'Nat 1' },
+      { chance: 0.65, min: 2, max: 7, label: '2-7' },
+      { chance: 0.15, min: 8, max: 14, label: '8-14' },
+      { chance: 0.05, min: 15, max: 20, label: '15-20' },
+    ],
   },
 };
 
-// Weighted random roll
+// Bracket-based weighted roll for d20
 export function rollWeightedDie(sides: number, mode: DiceOddsMode): number {
-  const config = DICE_ODDS_CONFIGS[mode];
-  const { weights } = config;
-  
-  // Divide dice into thirds
-  const lowMax = Math.floor(sides / 3);
-  const midMax = Math.floor((2 * sides) / 3);
-  
-  // Calculate total weight
-  const totalWeight = weights.low + weights.mid + weights.high;
-  
-  // Pick which third to roll in
-  const roll = Math.random() * totalWeight;
-  
-  let min: number, max: number;
-  
-  if (roll < weights.low) {
-    // Low roll (1 to lowMax)
-    min = 1;
-    max = lowMax;
-  } else if (roll < weights.low + weights.mid) {
-    // Mid roll (lowMax+1 to midMax)
-    min = lowMax + 1;
-    max = midMax;
-  } else {
-    // High roll (midMax+1 to sides)
-    min = midMax + 1;
-    max = sides;
+  // Fair mode: pure uniform random
+  if (mode === 'fair') {
+    return Math.floor(Math.random() * sides) + 1;
   }
-  
-  // Roll within the selected range
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+
+  const config = DICE_ODDS_CONFIGS[mode];
+  const { brackets } = config;
+
+  // For non-d20 dice, fall back to uniform
+  if (sides !== 20 || brackets.length === 0) {
+    return Math.floor(Math.random() * sides) + 1;
+  }
+
+  // Pick bracket based on cumulative probability
+  const roll = Math.random();
+  let cumulative = 0;
+
+  for (const bracket of brackets) {
+    cumulative += bracket.chance;
+    if (roll < cumulative) {
+      return Math.floor(Math.random() * (bracket.max - bracket.min + 1)) + bracket.min;
+    }
+  }
+
+  // Fallback (shouldn't happen if brackets sum to 1)
+  const last = brackets[brackets.length - 1];
+  return Math.floor(Math.random() * (last.max - last.min + 1)) + last.min;
 }
 
 // Storage key for persisting odds preference

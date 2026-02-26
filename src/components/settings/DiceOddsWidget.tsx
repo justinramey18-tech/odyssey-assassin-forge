@@ -1,9 +1,7 @@
-import { useState, useEffect } from 'react';
 import { 
   DiceOddsMode, 
   DICE_ODDS_CONFIGS, 
   saveDiceOddsMode, 
-  loadDiceOddsMode 
 } from '@/lib/diceOdds';
 import { cn } from '@/lib/utils';
 import { Dices, Sparkles, Flame, Skull, Shuffle, Scale } from 'lucide-react';
@@ -28,6 +26,13 @@ const modeColors: Record<DiceOddsMode, string> = {
   chaotic: 'border-cyan-500/30 bg-cyan-500/5 text-cyan-600/70 data-[selected=true]:border-cyan-400 data-[selected=true]:bg-cyan-500/20 data-[selected=true]:text-cyan-400',
   cursed: 'border-red-500/30 bg-red-500/5 text-red-600/70 data-[selected=true]:border-red-400 data-[selected=true]:bg-red-500/20 data-[selected=true]:text-red-400',
 };
+
+const bracketColors = [
+  'bg-green-500/60',
+  'bg-emerald-500/60',
+  'bg-amber-500/60',
+  'bg-red-500/60',
+];
 
 export function DiceOddsWidget({ value, onChange }: DiceOddsWidgetProps) {
   const modes = Object.values(DICE_ODDS_CONFIGS);
@@ -92,33 +97,31 @@ export function DiceOddsWidget({ value, onChange }: DiceOddsWidgetProps) {
           {currentConfig.deadpoolQuote}
         </p>
         
-        {/* Weight Visualization */}
+        {/* Bracket Visualization */}
         <div className="mt-3 pt-3 border-t border-current/20">
           <div className="text-[9px] uppercase tracking-wider mb-2 opacity-70 font-mono">
             Roll Distribution
           </div>
-          <div className="flex gap-1 h-4">
-            <div 
-              className="bg-red-500/60 rounded-sm flex items-center justify-center text-[8px] font-mono"
-              style={{ flex: currentConfig.weights.low }}
-              title="Low rolls"
-            >
-              LOW
-            </div>
-            <div 
-              className="bg-amber-500/60 rounded-sm flex items-center justify-center text-[8px] font-mono"
-              style={{ flex: currentConfig.weights.mid }}
-              title="Mid rolls"
-            >
-              MID
-            </div>
-            <div 
-              className="bg-green-500/60 rounded-sm flex items-center justify-center text-[8px] font-mono"
-              style={{ flex: currentConfig.weights.high }}
-              title="High rolls"
-            >
-              HIGH
-            </div>
+          <div className="flex gap-1 h-5">
+            {currentConfig.brackets.length === 0 ? (
+              <div 
+                className="bg-primary/40 rounded-sm flex items-center justify-center text-[8px] font-mono flex-1"
+                title="Uniform 1-20"
+              >
+                1-20 (uniform)
+              </div>
+            ) : (
+              currentConfig.brackets.map((bracket, i) => (
+                <div 
+                  key={i}
+                  className={cn(bracketColors[i % bracketColors.length], "rounded-sm flex items-center justify-center text-[7px] font-mono leading-none")}
+                  style={{ flex: bracket.chance }}
+                  title={`${bracket.label}: ${Math.round(bracket.chance * 100)}%`}
+                >
+                  {bracket.label}
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
