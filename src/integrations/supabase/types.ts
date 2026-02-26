@@ -645,6 +645,7 @@ export type Database = {
           role: string
           sender_name: string
           sender_user_id: string | null
+          team: string | null
         }
         Insert: {
           content: string
@@ -654,6 +655,7 @@ export type Database = {
           role: string
           sender_name?: string
           sender_user_id?: string | null
+          team?: string | null
         }
         Update: {
           content?: string
@@ -663,6 +665,7 @@ export type Database = {
           role?: string
           sender_name?: string
           sender_user_id?: string | null
+          team?: string | null
         }
         Relationships: [
           {
@@ -683,6 +686,7 @@ export type Database = {
           party_id: string
           prompt: string
           round_id: string
+          team: string | null
           user_id: string
         }
         Insert: {
@@ -693,6 +697,7 @@ export type Database = {
           party_id: string
           prompt: string
           round_id: string
+          team?: string | null
           user_id: string
         }
         Update: {
@@ -703,6 +708,7 @@ export type Database = {
           party_id?: string
           prompt?: string
           round_id?: string
+          team?: string | null
           user_id?: string
         }
         Relationships: [
