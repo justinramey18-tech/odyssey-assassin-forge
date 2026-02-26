@@ -6,7 +6,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ChevronDown, Lock } from 'lucide-react';
+import { ChevronDown, Lock, LogOut } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { CharacterQuickSwitcher } from './CharacterQuickSwitcher';
 import { SaveData } from '@/hooks/use-auto-save';
 
@@ -24,6 +35,7 @@ interface AssassinHeaderProps {
   currentCharacterLevel?: number;
   onLoadSave?: (data: SaveData, saveId?: string) => void;
   onCloudClick?: () => void;
+  onSignOut?: () => void;
 }
 
 // Haptic feedback helper
@@ -46,6 +58,7 @@ export function AssassinHeader({
   currentCharacterLevel = 1,
   onLoadSave,
   onCloudClick,
+  onSignOut,
 }: AssassinHeaderProps) {
   const categories: { value: MainCategory; config: typeof CATEGORY_CONFIG['home'] }[] = [
     { value: 'home', config: CATEGORY_CONFIG.home },
@@ -92,8 +105,8 @@ export function AssassinHeader({
         <div className="absolute top-[8px] right-[8px] w-4 h-4 border-t-2 border-r-2 border-red-400/60" />
       </div>
       
-      {/* Main Navigation Row - 4 tabs only */}
-      <div className="h-[60px] w-full flex items-center justify-center px-2">
+      {/* Main Navigation Row - 4 tabs + logout */}
+      <div className="h-[60px] w-full flex items-center justify-between px-2">
         <div className="flex bg-transparent p-0 rounded-none gap-1">
           {categories.map(({ value, config }) => {
             const Icon = config.icon;
@@ -229,6 +242,42 @@ export function AssassinHeader({
             );
           })}
         </div>
+        
+        {/* Logout Button */}
+        {onSignOut && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <button
+                className={cn(
+                  "h-[56px] flex items-center justify-center px-3",
+                  "rounded-none border-x border-red-900/20",
+                  "text-muted-foreground hover:text-red-400 hover:bg-red-900/20",
+                  "transition-all",
+                )}
+                aria-label="Sign out"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="font-cinzel">Sign Out</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to log out? You will need to sign in again to access your character data.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={onSignOut}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Log Out
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </div>
       
       {/* Bottom decorative border with angular accent */}
