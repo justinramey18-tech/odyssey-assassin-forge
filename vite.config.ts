@@ -49,7 +49,6 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
-        importScripts: ['/custom-sw.js'],
         navigateFallbackDenylist: [/^\/auth/, /^\/reset-password/, /^\/~oauth/],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp,woff,woff2}"],
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10 MB limit for large bundles
