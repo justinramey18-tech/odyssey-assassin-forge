@@ -384,7 +384,7 @@ export function SettingsContent({
     return (
       <div className="flex-1 overflow-y-auto max-h-[70vh]">
         <div className="pb-6">
-          <Accordion type="multiple" defaultValue={['game-rules', 'progression', 'dice-tools']} className="space-y-2">
+          <Accordion type="multiple" defaultValue={['game-rules']} className="space-y-2">
             {/* Section: Game Rules */}
             <AccordionItem value="game-rules" className="border border-border/30 rounded-lg px-3 overflow-hidden">
               <AccordionTrigger className="py-3 hover:no-underline gap-2">
