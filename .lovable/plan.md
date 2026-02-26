@@ -1,72 +1,22 @@
 
 
-# Fix Background Notifications on Android
+# Stacking Notifications + "All Ready" Alert
 
-## Problem
+## Changes
 
-The current implementation uses `new Notification()` directly from the main page thread. On Android, when you press the home button, the browser tab is suspended — JavaScript stops executing, and `new Notification()` silently fails or never fires. This is why you see nothing in your notification bar.
+**File: `src/lib/party-notifications.ts`**
 
-## Root Cause
+Two changes in `sendReadyUpNotification`:
 
-To show notifications when the app is backgrounded on Android, the notification **must** be dispatched from the **Service Worker**, not from the page. The Service Worker stays alive even when the tab is suspended.
+1. **Unique tags for stacking**: Change `tag: 'ready-up'` to `tag: 'ready-up-${Date.now()}'` so each notification gets a unique tag and Android stacks them in the notification bar instead of replacing.
 
-## Solution
+2. **"All Players Ready" notification**: When `readyCount >= totalCount`, send a distinct notification with:
+   - Title: "🎯 All Players Ready!"
+   - Body includes a timestamp (e.g., "All 4 players readied up at 7:32 PM!")
+   - In-app toast uses 🎯 icon with longer 6s duration
+   - Individual ready-ups keep the ⚔️ icon
 
-Since the app already has a service worker via `vite-plugin-pwa` + Workbox, we need to:
+The in-app toast `id` also becomes unique per notification (`ready-up-toast-${Date.now()}`) so multiple toasts can stack, except the "all ready" toast which uses a fixed id `all-ready-toast` to replace any prior "all ready" toast.
 
-1. **Create a custom service worker file** (`public/custom-sw.js`) that listens for `postMessage` events from the main thread and calls `self.registration.showNotification()` — the only API that works when the app is backgrounded on Android.
-
-2. **Import the custom SW into the generated Workbox SW** by adding `injectManifest` or using VitePWA's `customWorkerSrc` — actually, the simplest approach is to use the `importScripts` option in the workbox config to pull in the custom file.
-
-3. **Update `src/lib/party-notifications.ts`** to send notifications via the Service Worker instead of `new Notification()`:
-   - Get the active SW registration via `navigator.serviceWorker.ready`
-   - Post a message to the SW with the notification payload
-   - The SW receives the message and calls `self.registration.showNotification()`
-   - Fall back to `new Notification()` if no SW is available
-
-## Files Changed
-
-| File | Change |
-|------|--------|
-| `public/custom-sw.js` | **New** — Service worker script that listens for `SHOW_NOTIFICATION` messages and calls `self.registration.showNotification()` |
-| `vite.config.ts` | Add `importScripts: ['/custom-sw.js']` to the workbox config so the custom code is included in the generated SW |
-| `src/lib/party-notifications.ts` | Replace `new Notification()` with `navigator.serviceWorker.ready` → `postMessage()` to delegate notification display to the SW |
-
-## Technical Detail
-
-**`public/custom-sw.js`:**
-```js
-self.addEventListener('message', (event) => {
-  if (event.data?.type === 'SHOW_NOTIFICATION') {
-    const { title, body, icon, badge, tag } = event.data.payload;
-    self.registration.showNotification(title, { body, icon, badge, tag });
-  }
-});
-```
-
-**`party-notifications.ts` change:**
-```typescript
-// Instead of: new Notification('Party Ready Up', { ... })
-// Use:
-const reg = await navigator.serviceWorker?.ready;
-if (reg?.active) {
-  reg.active.postMessage({
-    type: 'SHOW_NOTIFICATION',
-    payload: { title, body, icon, badge, tag },
-  });
-} else {
-  // Fallback for browsers without SW
-  new Notification(title, { body, icon, badge, tag });
-}
-```
-
-**`vite.config.ts` workbox addition:**
-```typescript
-workbox: {
-  importScripts: ['/custom-sw.js'],
-  // ... existing config
-}
-```
-
-This ensures the notification is dispatched by the Service Worker, which Android keeps alive even when the PWA tab is in the background.
+No other files need changes — the detection logic in `use-party-dm.ts` already passes the correct `readyCount` and `totalCount` to this function.
 
