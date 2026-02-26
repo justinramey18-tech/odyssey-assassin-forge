@@ -16,6 +16,33 @@ export async function requestPartyNotificationPermission(): Promise<Notification
 }
 
 /**
+ * Helper: send a push notification via Service Worker (preferred on Android)
+ * or fallback to the Notification constructor.
+ */
+async function pushNotification(title: string, body: string, tag: string): Promise<void> {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+  const payload = {
+    title,
+    body,
+    icon: '/pwa-192x192.png',
+    badge: '/pwa-192x192.png',
+    tag,
+  };
+
+  try {
+    const reg = await navigator.serviceWorker?.ready;
+    if (reg?.active) {
+      reg.active.postMessage({ type: 'SHOW_NOTIFICATION', payload });
+    } else {
+      new Notification(payload.title, payload);
+    }
+  } catch {
+    try { new Notification(payload.title, payload); } catch { /* silent */ }
+  }
+}
+
+/**
  * Send a ready-up notification via in-app toast and browser push.
  * Tagged to replace (not stack) successive ready-up notifications.
  */
@@ -36,26 +63,7 @@ export async function sendReadyUpNotification(
       id: 'all-ready-toast',
     });
 
-    if ('Notification' in window && Notification.permission === 'granted') {
-      const payload = {
-        title: '🎯 All Players Ready!',
-        body: allMessage,
-        icon: '/pwa-192x192.png',
-        badge: '/pwa-192x192.png',
-        tag: `all-ready-${Date.now()}`,
-      };
-
-      try {
-        const reg = await navigator.serviceWorker?.ready;
-        if (reg?.active) {
-          reg.active.postMessage({ type: 'SHOW_NOTIFICATION', payload });
-        } else {
-          new Notification(payload.title, payload);
-        }
-      } catch {
-        try { new Notification(payload.title, payload); } catch { /* silent */ }
-      }
-    }
+    await pushNotification('🎯 All Players Ready!', allMessage, `all-ready-${Date.now()}`);
   }
 
   // Individual ready-up notification (always sent, even when all ready)
@@ -67,60 +75,27 @@ export async function sendReadyUpNotification(
     id: `ready-up-toast-${Date.now()}`,
   });
 
-  if ('Notification' in window && Notification.permission === 'granted') {
-    const payload = {
-      title: 'Party Ready Up',
-      body: `⚔️ ${message}`,
-      icon: '/pwa-192x192.png',
-      badge: '/pwa-192x192.png',
-      tag: `ready-up-${Date.now()}`,
-    };
-
-    try {
-      const reg = await navigator.serviceWorker?.ready;
-      if (reg?.active) {
-        reg.active.postMessage({ type: 'SHOW_NOTIFICATION', payload });
-      } else {
-        new Notification(payload.title, payload);
-      }
-    } catch {
-      try { new Notification(payload.title, payload); } catch { /* silent */ }
-    }
-  }
+  await pushNotification('Party Ready Up', `⚔️ ${message}`, `ready-up-${Date.now()}`);
 }
 
 /**
  * Send a chat message notification via in-app toast and browser push.
  * Each notification gets a unique tag so they stack on Android.
+ * Skips the in-app toast when the page is hidden (backgrounded) to avoid
+ * queued toasts flooding the screen on return.
  */
 export async function sendChatMessageNotification(
   senderName: string,
   messageText: string,
 ): Promise<void> {
-  toast(`💬 ${senderName}: ${messageText}`, {
-    duration: 4000,
-    icon: '💬',
-    id: `chat-msg-toast-${Date.now()}`,
-  });
-
-  if ('Notification' in window && Notification.permission === 'granted') {
-    const payload = {
-      title: `💬 ${senderName}`,
-      body: messageText,
-      icon: '/pwa-192x192.png',
-      badge: '/pwa-192x192.png',
-      tag: `chat-msg-${Date.now()}`,
-    };
-
-    try {
-      const reg = await navigator.serviceWorker?.ready;
-      if (reg?.active) {
-        reg.active.postMessage({ type: 'SHOW_NOTIFICATION', payload });
-      } else {
-        new Notification(payload.title, payload);
-      }
-    } catch {
-      try { new Notification(payload.title, payload); } catch { /* silent */ }
-    }
+  // Only show in-app toast when page is visible
+  if (document.visibilityState === 'visible') {
+    toast(`💬 ${senderName}: ${messageText}`, {
+      duration: 4000,
+      icon: '💬',
+      id: `chat-msg-toast-${Date.now()}`,
+    });
   }
+
+  await pushNotification(`💬 ${senderName}`, messageText, `chat-msg-${Date.now()}`);
 }
