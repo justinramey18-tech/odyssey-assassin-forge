@@ -54,7 +54,8 @@ export function NarrationSpeedPopover({ iconSize = 'w-4 h-4' }: NarrationSpeedPo
       <PopoverContent
         side="top"
         align="center"
-        className="w-52 p-3 bg-[hsl(var(--card))] border-white/10"
+        className="w-52 p-3 bg-[hsl(var(--card))] border-white/10 z-[10000]"
+        sideOffset={8}
       >
         <div className="space-y-3">
           <div className="flex items-center justify-between">
