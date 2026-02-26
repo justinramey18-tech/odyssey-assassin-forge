@@ -5,6 +5,7 @@ import type { AppMode, CustomOverrides } from '@/lib/app-modes';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -382,36 +383,47 @@ export function SettingsContent({
   if (activeTab === 'gameplay') {
     return (
       <div className="flex-1 overflow-y-auto max-h-[70vh]">
-        <div className="space-y-6 pb-6">
-          {/* Section: Game Rules */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <Swords className="w-4 h-4 text-red-400" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Game Rules</span>
-            </div>
-            <GameModeSettings settings={gameModeSettings} onChange={onGameModeChange} />
-          </div>
+        <div className="pb-6">
+          <Accordion type="multiple" defaultValue={['game-rules', 'progression', 'dice-tools']} className="space-y-2">
+            {/* Section: Game Rules */}
+            <AccordionItem value="game-rules" className="border border-border/30 rounded-lg px-3 overflow-hidden">
+              <AccordionTrigger className="py-3 hover:no-underline gap-2">
+                <div className="flex items-center gap-2">
+                  <Swords className="w-4 h-4 text-red-400" />
+                  <span className="text-sm font-semibold">Game Rules</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pb-4">
+                <GameModeSettings settings={gameModeSettings} onChange={onGameModeChange} />
+              </AccordionContent>
+            </AccordionItem>
 
-          <Separator className="bg-border/30" />
+            {/* Section: Progression */}
+            <AccordionItem value="progression" className="border border-border/30 rounded-lg px-3 overflow-hidden">
+              <AccordionTrigger className="py-3 hover:no-underline gap-2">
+                <div className="flex items-center gap-2">
+                  <Star className="w-4 h-4 text-amber-400" />
+                  <span className="text-sm font-semibold">Progression</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pb-4">
+                <XPProgressionWidget value={xpProgressionMode} onChange={onXPProgressionChange} />
+              </AccordionContent>
+            </AccordionItem>
 
-          {/* Section: Progression */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <Star className="w-4 h-4 text-amber-400" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Progression</span>
-            </div>
-            <XPProgressionWidget value={xpProgressionMode} onChange={onXPProgressionChange} />
-          </div>
-
-          <Separator className="bg-border/30" />
-
-          {/* Section: Tools */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">🎲 Dice Tools</span>
-            </div>
-            <DiceOddsWidget value={diceOddsMode} onChange={onDiceOddsChange} />
-          </div>
+            {/* Section: Dice Tools */}
+            <AccordionItem value="dice-tools" className="border border-border/30 rounded-lg px-3 overflow-hidden">
+              <AccordionTrigger className="py-3 hover:no-underline gap-2">
+                <div className="flex items-center gap-2">
+                  <span>🎲</span>
+                  <span className="text-sm font-semibold">Dice Tools</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pb-4">
+                <DiceOddsWidget value={diceOddsMode} onChange={onDiceOddsChange} />
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
       </div>
     );
