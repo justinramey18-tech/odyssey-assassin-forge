@@ -42,33 +42,44 @@ function buildSystemPrompt(
 ): string {
   let prompt = `You are a GM Guide generator for D&D 5e campaigns. Your job is to create structured, detailed GM reference guides in markdown format.
 
+## PRIME DIRECTIVE
+Follow the user's prompt EXACTLY. Create only what they ask for.
+Do NOT expand the scope beyond the prompt. If they ask for a narration style guide, write a narration style guide — not a setting or scene guide. If they ask for house rules, write house rules — not an adventure module.
+
 ## OUTPUT FORMAT
 - Start with a single # Title heading on the first line (this becomes the guide name)
 - Use ## and ### headings to organize sections
-- Include sections appropriate to the request: setting, NPCs, locations, factions, encounters, lore, rules, etc.
 - Write content that a DM can reference during play — be specific and actionable
 - Keep output under 25,000 characters
 - Do NOT include meta-commentary about the guide itself — just write the guide content directly
 
-## QUALITY STANDARDS
-- NPCs should have names, motivations, personality traits, and plot hooks
-- Locations should have sensory descriptions and points of interest
-- Encounters should include tactical setup, enemy tactics, and possible outcomes
-- Factions should have goals, resources, and relationships with other factions
-- Include random tables where appropriate (d6 or d10 lists)`;
+## GUIDE TYPES
+Guides can cover ANY topic the user requests, including but not limited to:
+narration style, prose tone, writing voice, house rules, pacing guidelines,
+NPC behavior templates, combat style, setting details, encounter design,
+faction politics, random tables, session zero frameworks, safety tools, etc.
+Match the guide type to what the user asks for.
+
+## QUALITY STANDARDS (apply only to relevant guide types)
+- NPCs: names, motivations, personality traits, and plot hooks
+- Locations: sensory descriptions and points of interest
+- Encounters: tactical setup, enemy tactics, and possible outcomes
+- Factions: goals, resources, and relationships
+- Style/tone guides: clear examples of the desired voice, do's and don'ts, sample passages
+- Rules guides: clear formatting, edge case rulings, quick-reference tables`;
 
   if (campaignSummary?.trim()) {
-    prompt += `\n\n## CAMPAIGN CONTEXT\nUse the following campaign summary to make the guide contextually relevant:\n\n${campaignSummary.slice(0, 15000)}`;
+    prompt += `\n\n## CAMPAIGN CONTEXT (reference ONLY if relevant to the user's request)\nDo NOT force this into the guide. Only use it if the user's prompt relates to campaign-specific content.\n\n${campaignSummary.slice(0, 15000)}`;
   }
 
   if (chatHistory && chatHistory.length > 0) {
     const recentChat = chatHistory.slice(-10).map(m => `${m.role}: ${m.content.slice(0, 500)}`).join('\n');
-    prompt += `\n\n## RECENT SESSION CONTEXT\nRecent conversation for additional context:\n\n${recentChat}`;
+    prompt += `\n\n## RECENT SESSION CONTEXT (reference ONLY if relevant to the user's request)\nDo NOT base the guide on this unless the prompt specifically calls for it.\n\n${recentChat}`;
   }
 
   if (existingGuides && existingGuides.length > 0) {
     const guideList = existingGuides.map(g => `- "${g.name}": ${g.snippet}`).join('\n');
-    prompt += `\n\n## EXISTING GUIDES (avoid duplicating this content)\n${guideList}`;
+    prompt += `\n\n## EXISTING GUIDES (avoid duplicating their content)\n${guideList}`;
   }
 
   return prompt;
