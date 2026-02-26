@@ -975,6 +975,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           onUpdate={gmGuides.updateGuide}
           onDelete={gmGuides.deleteGuide}
           onToggle={gmGuides.toggleGuide}
+          chatMessages={messages.slice(-20).map(m => ({ role: m.role, content: m.content }))}
         />
       )}
       {/* Campaign Sessions Overlay */}

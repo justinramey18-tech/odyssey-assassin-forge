@@ -4,6 +4,7 @@ import { ArrowLeft, Plus, Edit2, Trash2, BookOpen, Check, X, ScrollText } from '
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { GMGuide, MAX_GUIDE_CHARS, MAX_TOTAL_CHARS } from '@/lib/gm-guides-storage';
+import { AIGuideCreator } from './AIGuideCreator';
 
 interface GMGuidesManagerProps {
   onBack: () => void;
@@ -15,6 +16,7 @@ interface GMGuidesManagerProps {
   onUpdate: (id: string, updates: Partial<Pick<GMGuide, 'name' | 'content' | 'enabled'>>) => boolean;
   onDelete: (id: string) => void;
   onToggle: (id: string) => void;
+  chatMessages?: Array<{ role: string; content: string }>;
 }
 
 function CharCounter({ current, max, className }: { current: number; max: number; className?: string }) {
@@ -30,7 +32,7 @@ function CharCounter({ current, max, className }: { current: number; max: number
   );
 }
 
-export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, onCampaignSummaryChange, onAdd, onUpdate, onDelete, onToggle }: GMGuidesManagerProps) {
+export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, onCampaignSummaryChange, onAdd, onUpdate, onDelete, onToggle, chatMessages }: GMGuidesManagerProps) {
   const [editingGuide, setEditingGuide] = useState<GMGuide | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [editingSummary, setEditingSummary] = useState(false);
@@ -128,6 +130,14 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, o
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
+        {!showEditor && (
+          <AIGuideCreator
+            guides={guides}
+            campaignSummary={campaignSummary}
+            chatMessages={chatMessages}
+            onAdd={onAdd}
+          />
+        )}
         <AnimatePresence mode="wait">
           {showEditor ? (
             <motion.div key="editor" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex flex-col gap-3 h-full">
