@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
+import { sendChatMessageNotification } from '@/lib/party-notifications';
 import type { PendingHealAction } from '@/components/party/IncomingHealNotification';
 import type { PendingTradeAction } from '@/components/party/IncomingTradeNotification';
 
@@ -852,6 +853,10 @@ export function usePartySync(): UsePartySyncReturn {
           if (payload.eventType === 'INSERT') {
             const msg = payload.new as PartyMessage;
             setPartyMessages(prev => [...prev.slice(-49), msg]);
+            // Notify for messages from other party members
+            if (msg.user_id !== user?.id) {
+              sendChatMessageNotification(msg.sender_name, msg.message);
+            }
           } else if (payload.eventType === 'UPDATE') {
             const msg = payload.new as PartyMessage;
             setPartyMessages(prev => prev.map(m => m.id === msg.id ? msg : m));
