@@ -55,6 +55,7 @@ Deno.serve(async (req) => {
     }
 
     const { partyId, triggerType, playerName, readyCount, totalPlayers, message } = body;
+    console.log(`[Notify] trigger=${triggerType} party=${partyId} player=${playerName}`);
 
     if (!partyId || !triggerType) {
       return new Response(JSON.stringify({ error: "Missing partyId or triggerType" }), {
@@ -91,6 +92,8 @@ Deno.serve(async (req) => {
       .select("*")
       .in("user_id", memberUserIds)
       .eq("notifications_enabled", true);
+
+    console.log(`[Notify] Found ${subscriptions?.length ?? 0} subscriptions for ${memberUserIds.length} members`);
 
     if (!subscriptions || subscriptions.length === 0) {
       return new Response(JSON.stringify({ sent: 0 }), {
