@@ -1344,16 +1344,31 @@ export function usePartySync(): UsePartySyncReturn {
   const sendMessage = useCallback(async (message: string, senderName: string, options?: { replyToId?: string; imageUrl?: string }) => {
     if (!user || !party.partyId) return;
 
-    const insertData: Record<string, unknown> = {
-      party_id: party.partyId,
-      user_id: user.id,
-      sender_name: senderName,
-      message: message.slice(0, 500),
-    };
-    if (options?.replyToId) insertData.reply_to_id = options.replyToId;
-    if (options?.imageUrl) insertData.image_url = options.imageUrl;
+    // Route through edge function for Web Push fan-out
+    const { error } = await supabase.functions.invoke('party-chat-send', {
+      body: {
+        partyId: party.partyId,
+        message: message.slice(0, 500),
+        senderName,
+        replyToId: options?.replyToId,
+        imageUrl: options?.imageUrl,
+      },
+    });
 
-    await (supabase.from('party_messages') as any).insert(insertData);
+    if (error) {
+      console.error('party-chat-send error:', error);
+      // Fallback to direct insert if edge function fails
+      const insertData: Record<string, unknown> = {
+        party_id: party.partyId,
+        user_id: user.id,
+        sender_name: senderName,
+        message: message.slice(0, 500),
+      };
+      if (options?.replyToId) insertData.reply_to_id = options.replyToId;
+      if (options?.imageUrl) insertData.image_url = options.imageUrl;
+
+      await (supabase.from('party_messages') as any).insert(insertData);
+    }
   }, [user, party.partyId]);
 
   const editMessage = useCallback(async (messageId: string, newText: string) => {
