@@ -1,84 +1,128 @@
 
 
-## Diagnosis
+## Plan: PWA Web Push Notifications for Party Ready-Up and Chat
 
-The OneSignal error `"All included players are not subscribed"` means devices never completed push subscription registration. The current `init()` call has no `promptOptions`, so OneSignal never triggers the subscription flow. Even if the browser permission is "Allowed", OneSignal needs its own opt-in step.
+Most of the requested functionality already exists in the project (party system, lobby, ready-up via `party_dm_prompts`, real-time sync, auth, PWA, party codes). The missing piece is **push notifications** — previously attempted via OneSignal and removed.
 
-## Plan: Fix OneSignal push subscription registration
+This plan uses the **Web Push API** directly (no third-party SDK) with the VAPID keys already stored in backend secrets. This is simpler and more reliable than OneSignal or FCM for PWAs.
 
-### File: `src/hooks/use-onesignal.ts`
+---
 
-**Change 1 — Add `promptOptions` and `autoResubscribe` to `OneSignal.init()`:**
+### Architecture
 
-```typescript
-initPromise = OneSignal.init({
-  appId: ONESIGNAL_APP_ID,
-  allowLocalhostAsSecureOrigin: true,
-  serviceWorkerParam: { scope: '/' },
-  serviceWorkerPath: '/OneSignalSDKWorker.js',
-  autoResubscribe: true,
-  promptOptions: {
-    slidedown: {
-      prompts: [{
-        type: 'push',
-        autoPrompt: true,
-        delay: { pageViews: 1, timeDelay: 3 },
-        text: {
-          actionMessage: 'Get notified when your party sends messages or readies up!',
-          acceptButton: 'Allow',
-          cancelButton: 'Later',
-        },
-      }],
-    },
-  },
-}).catch(/* existing error handler */);
+```text
+Player clicks "Ready" → Client calls edge function → Edge function:
+  1. Queries party_push_subscriptions for all party members
+  2. Sends Web Push via VAPID to each subscription endpoint
+  3. Logs to notifications_log table
+
+Service Worker (push event) → Shows system notification with party deep link
 ```
 
-**Change 2 — After `OneSignal.login()`, explicitly call `optIn()` and add debug logging:**
+---
 
-```typescript
-await OneSignal.login(user.id);
-loggedInRef.current = true;
+### Step 1: Create `notifications_log` table
 
-// Ensure push subscription is active
-await OneSignal.User.PushSubscription.optIn();
+New migration to create the logging table:
 
-const subId = OneSignal.User.PushSubscription.id;
-const optedIn = OneSignal.User.PushSubscription.optedIn;
-console.log('[OneSignal] Logged in as', user.id, '| Sub ID:', subId, '| Opted in:', optedIn);
+```sql
+CREATE TABLE public.notifications_log (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  party_id uuid NOT NULL,
+  triggered_by_user_id uuid NOT NULL,
+  triggered_by_name text NOT NULL DEFAULT 'Adventurer',
+  ready_count integer NOT NULL DEFAULT 0,
+  total_players integer NOT NULL DEFAULT 0,
+  notification_type text NOT NULL DEFAULT 'ready',
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.notifications_log ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Members can insert notifications"
+  ON public.notifications_log FOR INSERT
+  WITH CHECK (auth.uid() = triggered_by_user_id);
+
+CREATE POLICY "Members can read party notifications"
+  ON public.notifications_log FOR SELECT
+  USING (is_party_member(auth.uid(), party_id));
 ```
 
-**Change 3 — In `requestPermission`, call `optIn()` after permission grant:**
+---
 
+### Step 2: Create `public/push-sw.js` service worker
+
+A dedicated push service worker (separate from the Workbox PWA SW) that handles `push` and `notificationclick` events. Shows system notifications with the party deep link. Notifications stack (unique tag per event).
+
+---
+
+### Step 3: Create `src/hooks/use-push-notifications.ts`
+
+Client-side hook that:
+- Registers `push-sw.js` service worker
+- Requests notification permission
+- Subscribes via `PushManager.subscribe()` using the VAPID public key (fetched from an edge function or hardcoded)
+- Stores the subscription (`endpoint`, `p256dh`, `auth`) in `party_push_subscriptions` table
+- Provides `isSubscribed`, `subscribe()`, `unsubscribe()` to the UI
+
+---
+
+### Step 4: Create edge function `send-party-notification`
+
+New edge function at `supabase/functions/send-party-notification/index.ts`:
+- Accepts `{ partyId, triggerType, playerName, readyCount, totalPlayers }`
+- Queries `party_push_subscriptions` for all members of the party (excluding sender)
+- Sends Web Push using the `web-push` npm package (or raw fetch to the push endpoint with VAPID signing)
+- Uses existing `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` secrets
+- Logs to `notifications_log`
+- Returns success/failure count
+
+---
+
+### Step 5: Wire up notification triggers
+
+**Ready-up trigger** — In `use-party-dm.ts`, after a player sets `is_ready = true`, call the edge function:
 ```typescript
-const permission = await OneSignal.Notifications.requestPermission();
-if (permission) {
-  await OneSignal.User.PushSubscription.optIn();
-  console.log('[OneSignal] Opted in after permission grant');
-}
-return permission;
+await supabase.functions.invoke('send-party-notification', {
+  body: { partyId, triggerType: 'ready', playerName, readyCount, totalPlayers }
+});
 ```
 
-**Change 4 — Enable debug logging temporarily to diagnose issues:**
-
-Add after init resolves in the login effect:
-
+**Chat trigger** — In `use-party-sync.ts`, after `sendMessage`, call the edge function:
 ```typescript
-OneSignal.Debug.setLogLevel('debug');
+await supabase.functions.invoke('send-party-notification', {
+  body: { partyId, triggerType: 'chat', playerName, message: messagePreview }
+});
 ```
 
-### Why this fixes it
+---
 
-1. `autoPrompt: true` with slidedown triggers OneSignal's subscription registration flow
-2. `autoResubscribe: true` re-registers returning users whose subscription expired
-3. `optIn()` explicitly registers the push subscription with OneSignal servers -- this is the critical missing call
-4. Debug logging will confirm subscription status in console
+### Step 6: Add notification opt-in UI
+
+Add a bell icon button in the `PartyPanel` header that:
+- Shows current permission state (granted/denied/default)
+- Calls `subscribe()` from the hook on click
+- Shows toast confirmation
+
+---
+
+### Step 7: Update `vite.config.ts`
+
+Ensure `push-sw.js` is excluded from Workbox precaching so it remains as a standalone service worker file.
+
+---
+
+### Dependencies
+
+- **No new npm packages** — Web Push API is browser-native on the client side
+- **Deno `web-push` for edge function** — use `npm:web-push` import in the edge function for VAPID signing
+- **Existing secrets** — `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` already configured
 
 ### Testing
 
-1. Publish the app and open on two devices/browsers
-2. Log in on both -- check console for `Sub ID: <non-null>` and `Opted in: true`
-3. Verify subscribers appear in OneSignal dashboard under Audience > All Users
-4. Send a chat message from one user -- the other should receive a push notification
-5. Once confirmed working, remove `Debug.setLogLevel('debug')` line
+1. Publish the app, open on two devices/browsers
+2. Both users join a party and click the bell to subscribe
+3. User A clicks "Ready" — User B should receive a system notification
+4. User A sends a chat message — User B should receive a notification
+5. Verify notifications appear when app is backgrounded
 
