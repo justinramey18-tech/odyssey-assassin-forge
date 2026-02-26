@@ -736,14 +736,17 @@ export function SettingsContent({
           </div>
 
           {/* Collapsible sections */}
-          <Accordion type="multiple" defaultValue={['active-mode']} className="space-y-2">
-            {/* Active Mode */}
+          <Accordion type="multiple" defaultValue={[]} className="space-y-2">
+            {/* Playstyle */}
             {appMode && onAppModeChange && (
               <AccordionItem value="active-mode" className="border border-border/30 rounded-lg px-3 overflow-hidden">
                 <AccordionTrigger className="py-3 hover:no-underline gap-2">
-                  <div className="flex items-center gap-2">
-                    <Star className="w-4 h-4 text-amber-400" />
-                    <span className="font-semibold text-sm">Active Mode</span>
+                  <div className="flex flex-col items-start gap-0.5">
+                    <div className="flex items-center gap-2">
+                      <Star className="w-4 h-4 text-amber-400" />
+                      <span className="font-semibold text-sm">Playstyle</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground italic pl-6">Customize your homescreen and navigation based on how you want to play</p>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
