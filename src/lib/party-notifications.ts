@@ -50,38 +50,6 @@ export async function requestPartyNotificationPermission(): Promise<Notification
   }
 }
 
-/**
- * Helper: send a push notification via Service Worker (preferred on Android)
- * or fallback to the Notification constructor.
- */
-async function pushNotification(title: string, body: string, tag: string): Promise<void> {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
-
-  const options: NotificationOptions = {
-    body,
-    icon: '/pwa-192x192.png',
-    badge: '/pwa-192x192.png',
-    tag,
-    requireInteraction: false,
-  };
-
-  // Prefer ServiceWorkerRegistration.showNotification for Android/PWA reliability.
-  try {
-    const reg = await navigator.serviceWorker?.ready;
-    if (reg) {
-      await reg.showNotification(title, options);
-      return;
-    }
-  } catch {
-    // fallback below
-  }
-
-  try {
-    new Notification(title, options);
-  } catch {
-    // silent
-  }
-}
 
 /**
  * Send a ready-up notification via in-app toast and browser push.
@@ -127,6 +95,7 @@ export async function sendChatMessageNotification(
   messageText: string,
 ): Promise<void> {
   // Only show in-app toast when page is visible
+  // Push notification is handled server-side by party-chat-send edge function
   if (document.visibilityState === 'visible') {
     toast(`💬 ${senderName}: ${messageText}`, {
       duration: 4000,
@@ -134,6 +103,4 @@ export async function sendChatMessageNotification(
       id: `chat-msg-toast-${Date.now()}`,
     });
   }
-
-  await pushNotification(`💬 ${senderName}`, messageText, `chat-msg-${Date.now()}`);
 }

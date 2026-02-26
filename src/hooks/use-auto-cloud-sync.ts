@@ -31,26 +31,25 @@ export function useAutoCloudSync(
   const lastLocalSaveRef = useRef<string>('');
   const lastCloudSaveRef = useRef<string>('');
   const pendingCloudSaveRef = useRef<boolean>(false);
+  // Use refs to break dependency chains that cause excessive re-renders
+  const dataRef = useRef(data);
+  dataRef.current = data;
+  const cloudSavesRef = useRef(cloudSaves);
+  cloudSavesRef.current = cloudSaves;
   
-  const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string | null>(() => {
-    // Try to get from existing cloud saves on mount
-    return null;
-  });
+  const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string | null>(null);
   const [lastLocalSaveTime, setLastLocalSaveTime] = useState<string | null>(null);
 
   // Fetch cloud saves on mount to get last sync time
   useEffect(() => {
     if (isAuthenticated && user?.id) {
-      fetchSaves().then(() => {
-        // Will be set when cloudSaves updates
-      });
+      fetchSaves();
     }
   }, [isAuthenticated, user?.id, fetchSaves]);
 
   // Update last sync time when cloud saves are fetched
   useEffect(() => {
     if (cloudSaves.length > 0) {
-      // Find the most recent save for current character
       const characterName = data.character?.name;
       const matchingSave = cloudSaves.find(s => 
         s.character_name === characterName || s.save_name === characterName
@@ -58,7 +57,6 @@ export function useAutoCloudSync(
       if (matchingSave) {
         setLastCloudSyncTime(matchingSave.updated_at);
       } else if (cloudSaves[0]) {
-        // Fallback to most recent save
         setLastCloudSyncTime(cloudSaves[0].updated_at);
       }
     }
@@ -68,15 +66,15 @@ export function useAutoCloudSync(
   const saveLocally = useCallback(() => {
     if (!enabled) return;
     
+    const currentData = dataRef.current;
     const saveData: SaveData = {
-      ...data,
+      ...currentData,
       savedAt: new Date().toISOString(),
       version: CURRENT_VERSION,
     };
     
     const serialized = JSON.stringify(saveData);
     
-    // Only save if data changed
     if (serialized !== lastLocalSaveRef.current) {
       try {
         localStorage.setItem(STORAGE_KEY, serialized);
@@ -84,7 +82,6 @@ export function useAutoCloudSync(
         setLastLocalSaveTime(saveData.savedAt);
         console.log('[AutoSave] Local save at', new Date().toLocaleTimeString());
         
-        // Mark that we need a cloud save
         if (isAuthenticated) {
           pendingCloudSaveRef.current = true;
         }
@@ -92,29 +89,30 @@ export function useAutoCloudSync(
         console.error('[AutoSave] Failed to save locally:', error);
       }
     }
-  }, [data, enabled, isAuthenticated]);
+  }, [enabled, isAuthenticated]);
 
-  // Cloud save function
+  // Cloud save function — uses refs to avoid stale closures
   const saveToCloudNow = useCallback(async () => {
-    if (!enabled || !isAuthenticated || !user?.id || !data.character?.name) return;
+    if (!enabled || !isAuthenticated || !user?.id) return;
+    const currentData = dataRef.current;
+    if (!currentData.character?.name) return;
     
-    const serialized = JSON.stringify(data);
+    const serialized = JSON.stringify(currentData);
     
-    // Only save if data changed since last cloud save
     if (serialized === lastCloudSaveRef.current) {
       console.log('[AutoSave] Cloud data unchanged, skipping');
       return;
     }
     
     try {
-      // Find existing save for this character to update
-      const existingSave = cloudSaves.find(s => 
-        s.character_name === data.character?.name || s.save_name === data.character?.name
+      // Use ref to get latest cloud saves without triggering re-renders
+      const existingSave = cloudSavesRef.current.find(s => 
+        s.character_name === currentData.character?.name || s.save_name === currentData.character?.name
       );
       
       const result = await saveToCloud(
-        data,
-        data.character.name,
+        currentData,
+        currentData.character.name,
         existingSave?.id
       );
       
@@ -128,7 +126,7 @@ export function useAutoCloudSync(
     } catch (error) {
       console.error('[AutoSave] Cloud sync failed:', error);
     }
-  }, [data, enabled, isAuthenticated, user?.id, cloudSaves, saveToCloud]);
+  }, [enabled, isAuthenticated, user?.id, saveToCloud]);
 
   // Manual sync function for external use
   const syncNow = useCallback(async () => {
@@ -181,9 +179,10 @@ export function useAutoCloudSync(
     if (!enabled) return;
     
     const handleBeforeUnload = () => {
-      // Force local save immediately
+      // Force local save immediately using ref for latest data
+      const currentData = dataRef.current;
       const saveData: SaveData = {
-        ...data,
+        ...currentData,
         savedAt: new Date().toISOString(),
         version: CURRENT_VERSION,
       };
@@ -191,9 +190,8 @@ export function useAutoCloudSync(
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(saveData));
         
-        // Try to sync to cloud if authenticated (best effort, may not complete)
+        // Best-effort cloud sync (may not complete before page closes)
         if (isAuthenticated && pendingCloudSaveRef.current) {
-          // Note: This is best-effort, sync may not complete before page closes
           saveToCloudNow();
         }
       } catch (error) {
@@ -205,7 +203,7 @@ export function useAutoCloudSync(
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [data, enabled, isAuthenticated, saveToCloudNow]);
+  }, [enabled, isAuthenticated, saveToCloudNow]);
 
   // Periodic cloud sync every 2 minutes if authenticated and data changed
   useEffect(() => {
