@@ -1,8 +1,8 @@
 import { useState, useCallback, useMemo } from 'react';
-import { Dices, Shield, Sparkles } from 'lucide-react';
+import { Dices, Shield, Sparkles, Scale, Flame, Shuffle, Skull } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { rollDie } from '@/lib/diceRoller';
-import { rollWeightedDie, loadDiceOddsMode } from '@/lib/diceOdds';
+import { rollWeightedDie, loadDiceOddsMode, saveDiceOddsMode, DICE_ODDS_CONFIGS, type DiceOddsMode } from '@/lib/diceOdds';
 import { SKILLS, ABILITY_SCORES, type AbilityScore } from '@/lib/diceRollerConfig';
 import type { CharacterContext } from '@/components/oracle/types';
 
@@ -22,6 +22,30 @@ const ABILITY_MAP: Record<string, AbilityScore> = {
   intelligence: 'int',
   wisdom: 'wis',
   charisma: 'cha',
+};
+
+const MODE_ICONS: Record<DiceOddsMode, React.ReactNode> = {
+  fair: <Scale className="w-3.5 h-3.5" />,
+  heroic: <Sparkles className="w-3.5 h-3.5" />,
+  dramatic: <Flame className="w-3.5 h-3.5" />,
+  chaotic: <Shuffle className="w-3.5 h-3.5" />,
+  cursed: <Skull className="w-3.5 h-3.5" />,
+};
+
+const MODE_COLORS: Record<DiceOddsMode, string> = {
+  fair: 'text-white/60 border-white/10 hover:bg-white/10',
+  heroic: 'text-amber-300 border-amber-500/30 hover:bg-amber-900/30',
+  dramatic: 'text-purple-300 border-purple-500/30 hover:bg-purple-900/30',
+  chaotic: 'text-cyan-300 border-cyan-500/30 hover:bg-cyan-900/30',
+  cursed: 'text-red-300 border-red-500/30 hover:bg-red-900/30',
+};
+
+const MODE_COLORS_SELECTED: Record<DiceOddsMode, string> = {
+  fair: 'text-white/80 bg-white/10 border-white/20',
+  heroic: 'text-amber-300 bg-amber-900/40 border-amber-500/40',
+  dramatic: 'text-purple-300 bg-purple-900/40 border-purple-500/40',
+  chaotic: 'text-cyan-300 bg-cyan-900/40 border-cyan-500/40',
+  cursed: 'text-red-300 bg-red-900/40 border-red-500/40',
 };
 
 function getModifier(ctx: CharacterContext, ability: AbilityScore): number {
@@ -60,7 +84,6 @@ function formatRollMessage(label: string, roll: ReturnType<typeof rollD20>, modi
   return `🎲 **${label}**: [${roll.rolls[0]}] ${modStr} = **${total}**${critStr}`;
 }
 
-// Quick d20 rolls
 const QUICK_DICE = [
   { label: 'd4', sides: 4 },
   { label: 'd6', sides: 6 },
@@ -72,6 +95,8 @@ const QUICK_DICE = [
 export function DMDiceRoller({ characterContext, onRollResult, disabled = false }: DMDiceRollerProps) {
   const [tab, setTab] = useState<Tab>('d20');
   const [rollMode, setRollMode] = useState<RollMode>('normal');
+  const [showOddsPanel, setShowOddsPanel] = useState(false);
+  const [currentOddsMode, setCurrentOddsMode] = useState<DiceOddsMode>(() => loadDiceOddsMode());
 
   const handleRoll = useCallback((label: string, modifier: number) => {
     const roll = rollD20(rollMode);
@@ -84,6 +109,12 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
     const message = `🎲 **${label}**: [${result}] = **${result}**`;
     onRollResult(message);
   }, [onRollResult]);
+
+  const handleSelectOddsMode = useCallback((mode: DiceOddsMode) => {
+    setCurrentOddsMode(mode);
+    saveDiceOddsMode(mode);
+    setShowOddsPanel(false);
+  }, []);
 
   const profBonus = useMemo(() => {
     const level = characterContext.level;
@@ -100,8 +131,10 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
     { id: 'saves', label: 'Saves', icon: Shield },
   ];
 
+  const currentOddsConfig = DICE_ODDS_CONFIGS[currentOddsMode];
+
   return (
-    <div className="bg-black/20">
+    <div className="bg-black/20 relative">
       <div className="px-3 py-2 space-y-2">
         {/* Roll mode toggle */}
         <div className="flex items-center gap-1">
@@ -147,7 +180,6 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
         {/* Tab content */}
         {tab === 'd20' && (
           <div className="space-y-1.5">
-            {/* Main d20 + Initiative */}
             <div className="flex gap-1.5">
               <button
                 onClick={() => handleRoll('d20', 0)}
@@ -168,7 +200,6 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
               </button>
             </div>
             
-            {/* Ability check buttons */}
             <div className="grid grid-cols-6 gap-1">
               {(Object.entries(ABILITY_SCORES) as [AbilityScore, typeof ABILITY_SCORES[AbilityScore]][]).map(([key, info]) => {
                 const mod = getModifier(characterContext, key);
@@ -186,7 +217,6 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
               })}
             </div>
 
-            {/* Quick damage dice */}
             <div className="flex gap-1">
               {QUICK_DICE.map(d => (
                 <button
@@ -242,7 +272,54 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
             })}
           </div>
         )}
+
+        {/* Dice Odds Button */}
+        <button
+          onClick={() => setShowOddsPanel(prev => !prev)}
+          className={cn(
+            "w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md border text-[10px] font-semibold transition-all",
+            MODE_COLORS_SELECTED[currentOddsMode]
+          )}
+          style={{ touchAction: 'manipulation' }}
+        >
+          {MODE_ICONS[currentOddsMode]}
+          <span>Dice Odds: {currentOddsConfig.label}</span>
+        </button>
       </div>
+
+      {/* Rising Odds Panel */}
+      {showOddsPanel && (
+        <div className="absolute bottom-full left-0 right-0 bg-black/95 border-t border-white/10 rounded-t-lg p-3 space-y-2 animate-in slide-in-from-bottom duration-200 z-50">
+          <div className="text-[10px] uppercase tracking-wider text-white/40 font-mono text-center">
+            Select Dice Odds
+          </div>
+          <div className="grid grid-cols-5 gap-1.5">
+            {(Object.keys(DICE_ODDS_CONFIGS) as DiceOddsMode[]).map(mode => {
+              const config = DICE_ODDS_CONFIGS[mode];
+              const isSelected = currentOddsMode === mode;
+              return (
+                <button
+                  key={mode}
+                  onClick={() => handleSelectOddsMode(mode)}
+                  className={cn(
+                    "flex flex-col items-center gap-1 py-2 px-1 rounded-lg border transition-all",
+                    isSelected ? MODE_COLORS_SELECTED[mode] : MODE_COLORS[mode]
+                  )}
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  {MODE_ICONS[mode]}
+                  <span className="text-[8px] font-mono uppercase leading-tight text-center">
+                    {config.label.split(' ')[0]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[9px] text-white/40 text-center italic">
+            {currentOddsConfig.deadpoolQuote}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
