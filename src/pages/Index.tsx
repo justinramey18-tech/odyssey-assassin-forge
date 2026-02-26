@@ -566,9 +566,23 @@ const Index = () => {
   }, [abilityImages]);
 
   // Auth & Party system
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, sessionExpired } = useAuth();
   const partySync = usePartySync();
   const { playMode, setPlayMode, isSoloMode, isPartyMode } = usePlayMode();
+
+  // Show session-expired toast for iOS PWA users whose session was lost
+  useEffect(() => {
+    if (sessionExpired) {
+      import('@/hooks/use-toast').then(({ toast }) => {
+        toast({
+          title: '🔒 Session Expired',
+          description: 'Your session was lost (common on iOS). Please sign in again to access party features.',
+          variant: 'destructive',
+          duration: 10000,
+        });
+      });
+    }
+  }, [sessionExpired]);
 
   // HP change handler with localStorage persistence, concentration check, and Wild Shape routing
   const handleHPChange = useCallback((current: number, max: number, temp: number) => {
