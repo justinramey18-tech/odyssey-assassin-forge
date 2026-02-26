@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
  * VAPID public key — safe to expose in client code.
  * Generate a new pair with: npx web-push generate-vapid-keys
  */
-const VAPID_PUBLIC_KEY = 'REPLACE_WITH_YOUR_VAPID_PUBLIC_KEY';
+const VAPID_PUBLIC_KEY = 'BDXWPYwt5U-_EK4L657QCQqGS-k9VcHgPUFz0RHSgdyLT-LJ1R-ISLAfnqu24SrvxP2xc67PcaipSlMpmUlnGhY';
 
 export type PushSubscriptionState =
   | 'supported'
@@ -50,10 +50,6 @@ export async function getPushSubscriptionState(): Promise<PushSubscriptionState>
  * Subscribe this device to VAPID Web Push and persist to DB.
  */
 export async function subscribeToPush(userId: string): Promise<boolean> {
-  if (VAPID_PUBLIC_KEY === 'REPLACE_WITH_YOUR_VAPID_PUBLIC_KEY') {
-    console.warn('VAPID public key not configured');
-    return false;
-  }
 
   try {
     const registration = await navigator.serviceWorker.ready as any;
