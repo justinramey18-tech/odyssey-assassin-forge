@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Dices, Shield, Sparkles, Scale, Flame, Shuffle, Skull } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { rollDie } from '@/lib/diceRoller';
@@ -287,9 +288,17 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
         </button>
       </div>
 
-      {/* Rising Odds Panel */}
+      {/* Odds Panel (inline) */}
+      <AnimatePresence>
       {showOddsPanel && (
-        <div className="absolute bottom-full left-0 right-0 bg-black/95 border-t border-white/10 rounded-t-lg p-3 space-y-2 animate-in slide-in-from-bottom duration-200 z-50">
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="overflow-hidden"
+        >
+        <div className="bg-black/95 border-t border-white/10 rounded-lg p-3 space-y-2 mt-2">
           <div className="text-[10px] uppercase tracking-wider text-white/40 font-mono text-center">
             Select Dice Odds
           </div>
@@ -319,7 +328,9 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
             {currentOddsConfig.deadpoolQuote}
           </p>
         </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }
