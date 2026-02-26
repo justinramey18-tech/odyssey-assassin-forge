@@ -1,15 +1,50 @@
 import { toast } from 'sonner';
 
 /**
+ * Detect if the app is running as an installed PWA (standalone mode).
+ */
+function isStandalone(): boolean {
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (navigator as any).standalone === true
+  );
+}
+
+/**
+ * Detect iOS (iPhone/iPad).
+ */
+function isIOS(): boolean {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent);
+}
+
+/**
  * Request notification permission for party events.
- * Gracefully handles unsupported browsers.
+ * On iOS Safari (not installed as PWA), shows a guidance toast instead
+ * because iOS only supports push notifications in installed PWAs.
  */
 export async function requestPartyNotificationPermission(): Promise<NotificationPermission> {
-  if (!('Notification' in window)) return 'denied';
+  // iOS Safari doesn't have Notification API at all unless installed as PWA
+  if (!('Notification' in window)) {
+    if (isIOS() && !isStandalone()) {
+      toast.info('📲 To receive notifications on iPhone, install this app first: tap the Share button in Safari, then "Add to Home Screen".', {
+        duration: 8000,
+        id: 'ios-install-prompt',
+      });
+    }
+    return 'denied';
+  }
+
   if (Notification.permission !== 'default') return Notification.permission;
 
   try {
-    return await Notification.requestPermission();
+    const result = await Notification.requestPermission();
+    if (result === 'granted') {
+      toast.success('Notifications enabled! You\'ll be alerted when party members send messages.', {
+        duration: 4000,
+        id: 'notif-granted',
+      });
+    }
+    return result;
   } catch {
     return 'denied';
   }
