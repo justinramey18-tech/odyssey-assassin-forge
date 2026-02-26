@@ -18,6 +18,8 @@ export interface CombatSettings {
   hasMonkMartialArts: boolean;
   /** Show round advance notifications in combat */
   showRoundNotifications: boolean;
+  /** Show toast and push notifications for incoming party chat messages */
+  showPartyChatNotifications: boolean;
 }
 
 const STORAGE_KEY = 'odyssey-combat-settings';
@@ -30,7 +32,8 @@ const DEFAULT_SETTINGS: CombatSettings = {
   hasSentinel: false,
   hasPolearmMaster: false,
   hasMonkMartialArts: false,
-  showRoundNotifications: true, // On by default
+  showRoundNotifications: true,
+  showPartyChatNotifications: true,
 };
 
 // Custom event for same-tab synchronization
@@ -98,6 +101,10 @@ export function getCombatSettingDescription(key: keyof CombatSettings): { label:
     showRoundNotifications: {
       label: 'Round Advance Notifications',
       description: 'Show toast notifications when combat rounds advance.',
+    },
+    showPartyChatNotifications: {
+      label: 'Party Chat Notifications',
+      description: 'Show toast and push notifications for incoming party chat messages.',
     },
   };
   return descriptions[key];
