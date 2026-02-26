@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
-import { sendChatMessageNotification } from '@/lib/party-notifications';
 import { loadCombatSettings } from '@/lib/combat/combatSettings';
 import type { PendingHealAction } from '@/components/party/IncomingHealNotification';
 import type { PendingTradeAction } from '@/components/party/IncomingTradeNotification';
@@ -854,11 +853,16 @@ export function usePartySync(): UsePartySyncReturn {
           if (payload.eventType === 'INSERT') {
             const msg = payload.new as PartyMessage;
             setPartyMessages(prev => [...prev.slice(-49), msg]);
-            // Notify for messages from other party members (if enabled)
-            if (msg.user_id !== user?.id) {
+            // In-app toast for messages from other members when page is visible
+            // (Push notifications are handled server-side for background delivery)
+            if (msg.user_id !== user?.id && document.visibilityState === 'visible') {
               const settings = loadCombatSettings();
               if (settings.showPartyChatNotifications !== false) {
-                sendChatMessageNotification(msg.sender_name, msg.message);
+                toast(`💬 ${msg.sender_name}: ${msg.message.slice(0, 100)}`, {
+                  duration: 4000,
+                  icon: '💬',
+                  id: `chat-msg-toast-${Date.now()}`,
+                });
               }
             }
           } else if (payload.eventType === 'UPDATE') {
@@ -1344,16 +1348,29 @@ export function usePartySync(): UsePartySyncReturn {
   const sendMessage = useCallback(async (message: string, senderName: string, options?: { replyToId?: string; imageUrl?: string }) => {
     if (!user || !party.partyId) return;
 
-    const insertData: Record<string, unknown> = {
-      party_id: party.partyId,
-      user_id: user.id,
-      sender_name: senderName,
-      message: message.slice(0, 500),
-    };
-    if (options?.replyToId) insertData.reply_to_id = options.replyToId;
-    if (options?.imageUrl) insertData.image_url = options.imageUrl;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke('party-chat-send', {
+        body: {
+          partyId: party.partyId,
+          message: message.slice(0, 500),
+          senderName,
+          replyToId: options?.replyToId,
+          imageUrl: options?.imageUrl,
+        },
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+      });
 
-    await (supabase.from('party_messages') as any).insert(insertData);
+      if (res.error) {
+        console.error('[PartySync] Send message error:', res.error);
+        toast.error('Failed to send message');
+      }
+    } catch (err) {
+      console.error('[PartySync] Send message failed:', err);
+      toast.error('Failed to send message');
+    }
   }, [user, party.partyId]);
 
   const editMessage = useCallback(async (messageId: string, newText: string) => {
