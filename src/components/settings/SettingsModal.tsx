@@ -94,7 +94,7 @@ export function SettingsModal({
   isFeatureVisible,
 }: SettingsModalProps) {
   const [internalOpen, setInternalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<SettingsTab>('game');
+  const [activeTab, setActiveTab] = useState<SettingsTab>('character');
   const [showContent, setShowContent] = useState(false);
   
   // Settings state

@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
-import { Gamepad2, FileText, User, Dices, Wand2, Layers, ChevronRight } from 'lucide-react';
+import { User, Swords, Wand2, BookOpen, Settings, ChevronRight } from 'lucide-react';
 
-export type SettingsTab = 'game' | 'setup' | 'character' | 'tools' | 'customizations' | 'appMode';
+export type SettingsTab = 'character' | 'gameplay' | 'customizations' | 'gameMaster' | 'appSystem';
 
 interface TabConfig {
   id: SettingsTab;
@@ -13,46 +13,39 @@ interface TabConfig {
 
 const tabs: TabConfig[] = [
   { 
-    id: 'appMode', 
-    label: 'App Mode', 
-    icon: Layers, 
-    description: 'Switch modes & features',
-    color: 'text-emerald-400'
+    id: 'character', 
+    label: 'Character & Party', 
+    icon: User, 
+    description: 'Your hero & teammates',
+    color: 'text-purple-400'
   },
   {
-    id: 'game', 
-    label: 'Game Mode', 
-    icon: Gamepad2, 
-    description: 'XP & difficulty settings',
+    id: 'gameplay', 
+    label: 'Gameplay', 
+    icon: Swords, 
+    description: 'Rules & progression',
     color: 'text-red-400'
-  },
-  { 
-    id: 'setup', 
-    label: 'AI Set Up', 
-    icon: FileText, 
-    description: 'Sync with your GM',
-    color: 'text-amber-400'
   },
   { 
     id: 'customizations', 
     label: 'Customizations', 
     icon: Wand2, 
-    description: 'Homebrew abilities',
+    description: 'Homebrew rules & images',
     color: 'text-violet-400'
   },
   { 
-    id: 'character', 
-    label: 'Character', 
-    icon: User, 
-    description: 'Edit & reset options',
-    color: 'text-purple-400'
+    id: 'gameMaster', 
+    label: 'Game Master', 
+    icon: BookOpen, 
+    description: 'AI dungeon master',
+    color: 'text-amber-400'
   },
   { 
-    id: 'tools', 
-    label: 'Dice Tools', 
-    icon: Dices, 
-    description: 'Roll odds & modifiers',
-    color: 'text-green-400'
+    id: 'appSystem', 
+    label: 'App & System', 
+    icon: Settings, 
+    description: 'App settings & data',
+    color: 'text-emerald-400'
   },
 ];
 

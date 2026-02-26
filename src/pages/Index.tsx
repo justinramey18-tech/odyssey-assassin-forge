@@ -130,7 +130,7 @@ const Index = () => {
   });
   const [showHomeScreen, setShowHomeScreen] = useState(true); // Home is default after wizard
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [settingsInitialTab, setSettingsInitialTab] = useState<'game' | 'setup' | 'character' | 'tools' | undefined>(undefined);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<'character' | 'gameplay' | 'customizations' | 'gameMaster' | 'appSystem' | undefined>(undefined);
   const [showCloudSaveModal, setShowCloudSaveModal] = useState(false);
   const [openPartyChatRequested, setOpenPartyChatRequested] = useState(false);
   const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string | null>(null);
