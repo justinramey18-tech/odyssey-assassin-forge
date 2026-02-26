@@ -19,33 +19,39 @@ export async function requestPartyNotificationPermission(): Promise<Notification
  * Send a ready-up notification via in-app toast and browser push.
  * Tagged to replace (not stack) successive ready-up notifications.
  */
-export function sendReadyUpNotification(
+export async function sendReadyUpNotification(
   characterName: string,
   readyCount: number,
   totalCount: number,
-): void {
+): Promise<void> {
   const message = `${characterName} has readied up! (${readyCount}/${totalCount} ready)`;
 
   // In-app toast (always shown)
   toast(`⚔️ ${message}`, {
     duration: 4000,
     icon: '⚔️',
-    id: 'ready-up-toast', // replace previous ready-up toast
+    id: 'ready-up-toast',
   });
 
-  // Browser push notification (if permitted & app is backgrounded)
+  // Browser push notification via Service Worker (works when backgrounded on Android)
   if ('Notification' in window && Notification.permission === 'granted') {
+    const payload = {
+      title: 'Party Ready Up',
+      body: `⚔️ ${message}`,
+      icon: '/pwa-192x192.png',
+      badge: '/pwa-192x192.png',
+      tag: 'ready-up',
+    };
+
     try {
-      new Notification('Party Ready Up', {
-        body: `⚔️ ${message}`,
-        icon: '/pwa-192x192.png',
-        badge: '/pwa-192x192.png',
-        tag: 'ready-up', // replaces previous ready-up notification
-        requireInteraction: false,
-        silent: false,
-      });
+      const reg = await navigator.serviceWorker?.ready;
+      if (reg?.active) {
+        reg.active.postMessage({ type: 'SHOW_NOTIFICATION', payload });
+      } else {
+        new Notification(payload.title, payload);
+      }
     } catch {
-      // Fail silently if notification API errors
+      try { new Notification(payload.title, payload); } catch { /* silent */ }
     }
   }
 }
