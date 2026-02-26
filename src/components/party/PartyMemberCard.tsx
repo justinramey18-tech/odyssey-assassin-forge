@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { getThistleBadges, getBadgeColorClasses } from '@/lib/easter-eggs';
+
 import { Heart, Shield, Sparkles, ChevronDown, ChevronUp, Eye, Clock, Gift } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { formatTimeForTimezone, getTimezoneAbbr } from '@/lib/timezone-storage';
@@ -40,7 +40,7 @@ export function PartyMemberCard({ member, isSelf, onViewActions, onSendItem, onl
   const spellSlots = status.spellSlots ?? {};
   const hasSpellSlots = Object.keys(spellSlots).length > 0;
   const profileImage = status.profileImage;
-  const easterBadges = getThistleBadges(member.character_name);
+  
 
   const isTappable = !isSelf && onViewActions;
 
@@ -122,22 +122,6 @@ export function PartyMemberCard({ member, isSelf, onViewActions, onSendItem, onl
         <p className="text-[9px] text-muted-foreground/60 -mt-1 pl-9">{onlineInfo.lastSeenLabel}</p>
       )}
 
-      {/* Easter egg badges */}
-      {easterBadges.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {easterBadges.map(b => (
-            <span
-              key={b.label}
-              className={cn(
-                "text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider border",
-                getBadgeColorClasses(b.color)
-              )}
-            >
-              {b.label}
-            </span>
-          ))}
-        </div>
-      )}
 
       {/* HP Bar */}
       <div className="space-y-1">
