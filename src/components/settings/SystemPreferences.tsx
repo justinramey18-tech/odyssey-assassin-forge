@@ -68,141 +68,159 @@ export function SystemPreferences() {
 
   return (
     <div className="space-y-4">
-      {/* 4th Wall Time */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Clock className="w-4 h-4 text-cyan-400" />
-          <span className="text-sm font-medium text-cyan-400">AI Integration</span>
-        </div>
+      <AIIntegrationSection
+        fourthWallTime={fourthWallTime}
+        onFourthWallTimeToggle={handleFourthWallTimeToggle}
+        timezone={timezone}
+        onTimezoneChange={handleTimezoneChange}
+      />
+      <NotificationsSection
+        combatSettings={combatSettings}
+        onCombatSettingToggle={handleCombatSettingToggle}
+      />
+    </div>
+  );
+}
 
-        <div
-          className={cn(
-            'p-3 rounded-lg border transition-all',
-            fourthWallTime
-              ? 'border-cyan-500/50 bg-cyan-500/5'
-              : 'border-border/30 bg-card/30'
-          )}
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <Label
-                htmlFor="fourth-wall-time-sys"
-                className={cn(
-                  'text-sm font-medium cursor-pointer',
-                  fourthWallTime ? 'text-cyan-400' : 'text-foreground'
-                )}
-              >
-                4th Wall Time
-              </Label>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Prefix all AI prompts with the current timestamp so your AI DM knows the real-world time.
-              </p>
-            </div>
-            <Switch
-              id="fourth-wall-time-sys"
-              checked={fourthWallTime}
-              onCheckedChange={handleFourthWallTimeToggle}
-              className="data-[state=checked]:bg-cyan-500"
-            />
-          </div>
-        </div>
+interface AIIntegrationSectionProps {
+  fourthWallTime: boolean;
+  onFourthWallTimeToggle: (checked: boolean) => void;
+  timezone: string;
+  onTimezoneChange: (value: string) => void;
+}
 
-        {/* Timezone Selector */}
-        <div className="p-3 rounded-lg border border-border/30 bg-card/30">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5">
-                <Globe className="w-3.5 h-3.5 text-cyan-400" />
-                <Label className="text-sm font-medium text-foreground cursor-pointer">
-                  Time Zone
-                </Label>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Your local clock is shown on your party card for other players.
-              </p>
-            </div>
+export function AIIntegrationSection({ fourthWallTime, onFourthWallTimeToggle, timezone, onTimezoneChange }: AIIntegrationSectionProps) {
+  return (
+    <div className="space-y-3">
+      <div
+        className={cn(
+          'p-3 rounded-lg border transition-all',
+          fourthWallTime
+            ? 'border-cyan-500/50 bg-cyan-500/5'
+            : 'border-border/30 bg-card/30'
+        )}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <Label
+              htmlFor="fourth-wall-time-sys"
+              className={cn(
+                'text-sm font-medium cursor-pointer',
+                fourthWallTime ? 'text-cyan-400' : 'text-foreground'
+              )}
+            >
+              4th Wall Time
+            </Label>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Prefix all AI prompts with the current timestamp so your AI DM knows the real-world time.
+            </p>
           </div>
-          <select
-            value={timezone}
-            onChange={e => handleTimezoneChange(e.target.value)}
-            className="mt-2 w-full bg-card/60 border border-border/40 rounded-lg px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:border-cyan-500/50"
-          >
-            {TIMEZONE_OPTIONS.map(tz => (
-              <option key={tz.value} value={tz.value}>{tz.label}</option>
-            ))}
-          </select>
+          <Switch
+            id="fourth-wall-time-sys"
+            checked={fourthWallTime}
+            onCheckedChange={onFourthWallTimeToggle}
+            className="data-[state=checked]:bg-cyan-500"
+          />
         </div>
       </div>
 
-      {/* Notifications */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Bell className="w-4 h-4 text-purple-400" />
-          <span className="text-sm font-medium text-purple-400">Notifications</span>
-        </div>
-
-        <div
-          className={cn(
-            'p-3 rounded-lg border transition-all',
-            combatSettings.showRoundNotifications
-              ? 'border-purple-500/50 bg-purple-500/5'
-              : 'border-border/30 bg-card/30'
-          )}
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <Label
-                htmlFor="round-notifications-sys"
-                className={cn(
-                  'text-sm font-medium cursor-pointer',
-                  combatSettings.showRoundNotifications ? 'text-purple-400' : 'text-foreground'
-                )}
-              >
-                Round Advance Notifications
+      <div className="p-3 rounded-lg border border-border/30 bg-card/30">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5 text-cyan-400" />
+              <Label className="text-sm font-medium text-foreground cursor-pointer">
+                Time Zone
               </Label>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Show toast notifications when combat rounds advance.
-              </p>
             </div>
-            <Switch
-              id="round-notifications-sys"
-              checked={combatSettings.showRoundNotifications !== false}
-              onCheckedChange={(checked) => handleCombatSettingToggle('showRoundNotifications', checked)}
-              className="data-[state=checked]:bg-purple-500"
-            />
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Your local clock is shown on your party card for other players.
+            </p>
           </div>
         </div>
-
-        <div
-          className={cn(
-            'p-3 rounded-lg border transition-all',
-            combatSettings.showPartyChatNotifications !== false
-              ? 'border-purple-500/50 bg-purple-500/5'
-              : 'border-border/30 bg-card/30'
-          )}
+        <select
+          value={timezone}
+          onChange={e => onTimezoneChange(e.target.value)}
+          className="mt-2 w-full bg-card/60 border border-border/40 rounded-lg px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:border-cyan-500/50"
         >
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <Label
-                htmlFor="chat-notifications-sys"
-                className={cn(
-                  'text-sm font-medium cursor-pointer',
-                  combatSettings.showPartyChatNotifications !== false ? 'text-purple-400' : 'text-foreground'
-                )}
-              >
-                Party Chat Notifications
-              </Label>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Show toast and push notifications for incoming party chat messages.
-              </p>
-            </div>
-            <Switch
-              id="chat-notifications-sys"
-              checked={combatSettings.showPartyChatNotifications !== false}
-              onCheckedChange={(checked) => handleCombatSettingToggle('showPartyChatNotifications', checked)}
-              className="data-[state=checked]:bg-purple-500"
-            />
+          {TIMEZONE_OPTIONS.map(tz => (
+            <option key={tz.value} value={tz.value}>{tz.label}</option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
+interface NotificationsSectionProps {
+  combatSettings: CombatSettings;
+  onCombatSettingToggle: (key: keyof CombatSettings, checked: boolean) => void;
+}
+
+export function NotificationsSection({ combatSettings, onCombatSettingToggle }: NotificationsSectionProps) {
+  return (
+    <div className="space-y-3">
+      <div
+        className={cn(
+          'p-3 rounded-lg border transition-all',
+          combatSettings.showRoundNotifications
+            ? 'border-purple-500/50 bg-purple-500/5'
+            : 'border-border/30 bg-card/30'
+        )}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <Label
+              htmlFor="round-notifications-sys"
+              className={cn(
+                'text-sm font-medium cursor-pointer',
+                combatSettings.showRoundNotifications ? 'text-purple-400' : 'text-foreground'
+              )}
+            >
+              Round Advance Notifications
+            </Label>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Show toast notifications when combat rounds advance.
+            </p>
           </div>
+          <Switch
+            id="round-notifications-sys"
+            checked={combatSettings.showRoundNotifications !== false}
+            onCheckedChange={(checked) => onCombatSettingToggle('showRoundNotifications', checked)}
+            className="data-[state=checked]:bg-purple-500"
+          />
+        </div>
+      </div>
+
+      <div
+        className={cn(
+          'p-3 rounded-lg border transition-all',
+          combatSettings.showPartyChatNotifications !== false
+            ? 'border-purple-500/50 bg-purple-500/5'
+            : 'border-border/30 bg-card/30'
+        )}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <Label
+              htmlFor="chat-notifications-sys"
+              className={cn(
+                'text-sm font-medium cursor-pointer',
+                combatSettings.showPartyChatNotifications !== false ? 'text-purple-400' : 'text-foreground'
+              )}
+            >
+              Party Chat Notifications
+            </Label>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Show toast and push notifications for incoming party chat messages.
+            </p>
+          </div>
+          <Switch
+            id="chat-notifications-sys"
+            checked={combatSettings.showPartyChatNotifications !== false}
+            onCheckedChange={(checked) => onCombatSettingToggle('showPartyChatNotifications', checked)}
+            className="data-[state=checked]:bg-purple-500"
+          />
         </div>
       </div>
     </div>

@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
-import { Check, Copy, RefreshCw, Camera, Star, Lock, RotateCcw, AlertTriangle, Download, ImageOff, Users, User, BookOpen, Swords } from 'lucide-react';
-import { AppModeSettings } from './AppModeSettings';
+import { Check, Copy, RefreshCw, Camera, Star, Lock, RotateCcw, AlertTriangle, Download, ImageOff, Users, User, BookOpen, Swords, Clock, Bell, Key, Eye } from 'lucide-react';
+import { AppModeSettings, ActiveModeSection, FeatureVisibilitySection } from './AppModeSettings';
 import type { AppMode, CustomOverrides } from '@/lib/app-modes';
+import { useSystemPreferences } from '@/hooks/use-system-preferences';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +25,7 @@ import { GMGuidePrompts } from './GMGuidePrompts';
 import { CustomizationsPanel } from './CustomizationsPanel';
 import { EmpyreanCampaignPack } from './EmpyreanCampaignPack';
 import { EmpyreanPromptLibrary } from './EmpyreanPromptLibrary';
-import { SystemPreferences } from './SystemPreferences';
+import { AIIntegrationSection, NotificationsSection } from './SystemPreferences';
 import { ApiCredentials } from './ApiCredentials';
 import { DiceOddsMode } from '@/lib/diceOdds';
 import { GameModeSettings as GameModeSettingsType } from '@/lib/gameModes';
@@ -134,6 +135,7 @@ export function SettingsContent({
   
   const gmGuides = useGMGuides();
   const { prestigeRespecDisabled } = useGameMode();
+  const systemPrefs = useSystemPreferences();
 
   const hasDynamicData = !!dynamicGuide;
   const hasPrestigePoints = prestigeData && prestigeData.totalPrestigePoints > 0;
@@ -716,28 +718,8 @@ export function SettingsContent({
   if (activeTab === 'appSystem') {
     return (
       <div className="flex-1 overflow-y-auto max-h-[70vh]">
-        <div className="space-y-6 pb-6">
-          {/* App Mode */}
-          {appMode && onAppModeChange && onCustomOverride && onResetCustomizations && isFeatureVisibleProp && (
-            <>
-              <AppModeSettings
-                appMode={appMode}
-                onModeChange={onAppModeChange}
-                customOverrides={customOverrides ?? {}}
-                onCustomOverride={onCustomOverride}
-                onResetCustomizations={onResetCustomizations}
-                isFeatureVisible={isFeatureVisibleProp}
-              />
-              <Separator className="bg-border/30" />
-            </>
-          )}
-
-          {/* System Preferences (4th Wall, Timezone, Notifications) */}
-          <SystemPreferences />
-
-          <Separator className="bg-border/30" />
-
-          {/* App Updates */}
+        <div className="space-y-4 pb-6">
+          {/* App Updates — first thing players see */}
           <div className="p-4 rounded-lg border border-primary/30 bg-primary/5 space-y-3">
             <div className="flex items-start gap-3">
               <div className="p-2 rounded-lg bg-primary/20 shrink-0">
@@ -753,14 +735,93 @@ export function SettingsContent({
             </Button>
           </div>
 
-          <Separator className="bg-border/30" />
+          {/* Collapsible sections */}
+          <Accordion type="multiple" defaultValue={['active-mode']} className="space-y-2">
+            {/* Active Mode */}
+            {appMode && onAppModeChange && (
+              <AccordionItem value="active-mode" className="border border-border/30 rounded-lg px-3 overflow-hidden">
+                <AccordionTrigger className="py-3 hover:no-underline gap-2">
+                  <div className="flex items-center gap-2">
+                    <Star className="w-4 h-4 text-amber-400" />
+                    <span className="font-semibold text-sm">Active Mode</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <ActiveModeSection appMode={appMode} onModeChange={onAppModeChange} />
+                </AccordionContent>
+              </AccordionItem>
+            )}
 
-          {/* API Credentials */}
-          <ApiCredentials />
+            {/* Feature Visibility */}
+            {appMode && onCustomOverride && onResetCustomizations && isFeatureVisibleProp && (
+              <AccordionItem value="feature-visibility" className="border border-border/30 rounded-lg px-3 overflow-hidden">
+                <AccordionTrigger className="py-3 hover:no-underline gap-2">
+                  <div className="flex items-center gap-2">
+                    <Eye className="w-4 h-4 text-blue-400" />
+                    <span className="font-semibold text-sm">Feature Visibility</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <FeatureVisibilitySection
+                    appMode={appMode}
+                    customOverrides={customOverrides ?? {}}
+                    onCustomOverride={onCustomOverride}
+                    onResetCustomizations={onResetCustomizations}
+                    isFeatureVisible={isFeatureVisibleProp}
+                  />
+                </AccordionContent>
+              </AccordionItem>
+            )}
 
-          <Separator className="bg-border/30" />
+            {/* AI Integration */}
+            <AccordionItem value="ai-integration" className="border border-border/30 rounded-lg px-3 overflow-hidden">
+              <AccordionTrigger className="py-3 hover:no-underline gap-2">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-cyan-400" />
+                  <span className="font-semibold text-sm">AI Integration</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <AIIntegrationSection
+                  fourthWallTime={systemPrefs.fourthWallTime}
+                  onFourthWallTimeToggle={systemPrefs.handleFourthWallTimeToggle}
+                  timezone={systemPrefs.timezone}
+                  onTimezoneChange={systemPrefs.handleTimezoneChange}
+                />
+              </AccordionContent>
+            </AccordionItem>
 
-          {/* Danger Zone */}
+            {/* Notifications */}
+            <AccordionItem value="notifications" className="border border-border/30 rounded-lg px-3 overflow-hidden">
+              <AccordionTrigger className="py-3 hover:no-underline gap-2">
+                <div className="flex items-center gap-2">
+                  <Bell className="w-4 h-4 text-purple-400" />
+                  <span className="font-semibold text-sm">Notifications</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <NotificationsSection
+                  combatSettings={systemPrefs.combatSettings}
+                  onCombatSettingToggle={systemPrefs.handleCombatSettingToggle}
+                />
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* API Keys */}
+            <AccordionItem value="api-keys" className="border border-border/30 rounded-lg px-3 overflow-hidden">
+              <AccordionTrigger className="py-3 hover:no-underline gap-2">
+                <div className="flex items-center gap-2">
+                  <Key className="w-4 h-4 text-primary" />
+                  <span className="font-semibold text-sm">API Keys</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <ApiCredentials />
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+
+          {/* Danger Zone — always at bottom */}
           <div className="border-2 border-destructive/50 rounded-lg p-4 bg-destructive/5 space-y-4">
             <div className="flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
