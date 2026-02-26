@@ -680,7 +680,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             role: 'user',
             content: alphaCombined,
             sender_user_id: user.id,
-            sender_name: 'Team Alpha',
+            sender_name: splitState.alphaName || 'Team Alpha',
             team: 'alpha',
           });
 
@@ -690,9 +690,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
           const alphaGuides = [
             customGuidesContent || '',
-            `\n\n## PARTY SPLIT — TEAM ALPHA\nThe party has split up. You are narrating ONLY for Team Alpha.\n${alphaMembersSummary}\nDo NOT narrate what the other team is doing. Focus solely on this group's adventure.`,
-            splitState.betaSummary ? `\n\n## OTHER TEAM CONTEXT (hidden from players)\nTeam Beta's adventure summary (for narrative coherence only — do NOT reveal to Team Alpha):\n${splitState.betaSummary}` : '',
-            splitState.alphaSummary ? `\n\n## PREVIOUS ALPHA SUMMARY\n${splitState.alphaSummary}` : '',
+            `\n\n## PARTY SPLIT — ${splitState.alphaName || 'Team Alpha'}\nThe party has split up. You are narrating ONLY for "${splitState.alphaName || 'Team Alpha'}".\n${alphaMembersSummary}\nDo NOT narrate what the other team ("${splitState.betaName || 'Team Beta'}") is doing. Focus solely on this group's adventure. Refer to this group as "${splitState.alphaName || 'Team Alpha'}" in your narration.`,
+            splitState.betaSummary ? `\n\n## OTHER TEAM CONTEXT (hidden from players)\n"${splitState.betaName || 'Team Beta'}"'s adventure summary (for narrative coherence only — do NOT reveal to "${splitState.alphaName || 'Team Alpha'}"):\n${splitState.betaSummary}` : '',
+            splitState.alphaSummary ? `\n\n## PREVIOUS "${splitState.alphaName || 'Team Alpha'}" SUMMARY\n${splitState.alphaSummary}` : '',
           ].filter(Boolean).join('\n\n');
 
           const alphaContent = await streamAIResponse(alphaApiMsgs, alphaGuides, abortRef.current!.signal);
@@ -720,7 +720,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             role: 'user',
             content: betaCombined,
             sender_user_id: user.id,
-            sender_name: 'Team Beta',
+            sender_name: splitState.betaName || 'Team Beta',
             team: 'beta',
           });
 
@@ -733,9 +733,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
           const betaGuides = [
             customGuidesContent || '',
-            `\n\n## PARTY SPLIT — TEAM BETA\nThe party has split up. You are narrating ONLY for Team Beta.\n${betaMembersSummary}\nDo NOT narrate what the other team is doing. Focus solely on this group's adventure.`,
-            splitState.alphaSummary ? `\n\n## OTHER TEAM CONTEXT (hidden from players)\nTeam Alpha's adventure summary (for narrative coherence only — do NOT reveal to Team Beta):\n${splitState.alphaSummary}` : '',
-            splitState.betaSummary ? `\n\n## PREVIOUS BETA SUMMARY\n${splitState.betaSummary}` : '',
+            `\n\n## PARTY SPLIT — ${splitState.betaName || 'Team Beta'}\nThe party has split up. You are narrating ONLY for "${splitState.betaName || 'Team Beta'}".\n${betaMembersSummary}\nDo NOT narrate what the other team ("${splitState.alphaName || 'Team Alpha'}") is doing. Focus solely on this group's adventure. Refer to this group as "${splitState.betaName || 'Team Beta'}" in your narration.`,
+            splitState.alphaSummary ? `\n\n## OTHER TEAM CONTEXT (hidden from players)\n"${splitState.alphaName || 'Team Alpha'}"'s adventure summary (for narrative coherence only — do NOT reveal to "${splitState.betaName || 'Team Beta'}"):\n${splitState.alphaSummary}` : '',
+            splitState.betaSummary ? `\n\n## PREVIOUS "${splitState.betaName || 'Team Beta'}" SUMMARY\n${splitState.betaSummary}` : '',
           ].filter(Boolean).join('\n\n');
 
           const betaContent = await streamAIResponse(betaApiMsgs, betaGuides, abortRef.current!.signal);
@@ -1099,10 +1099,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       const unificationGuides = [
         customGuidesContent || '',
         `\n\n## PARTY MEMBERS\n${partyMembersSummary}`,
-        `\n\n## PARTY REUNION\nThe party was split into two groups. They are now regrouping.\n\nHost's reunion prompt: "${reunionPrompt}"`,
-        splitState.alphaSummary ? `\n\n## TEAM ALPHA'S SIDE ADVENTURE\n${splitState.alphaSummary}` : '',
-        splitState.betaSummary ? `\n\n## TEAM BETA'S SIDE ADVENTURE\n${splitState.betaSummary}` : '',
-        `\n\nNarrate the reunion scene. Describe what each group experienced (briefly) and how they come back together. Make it dramatic and engaging. Do NOT dump the full summary — weave key highlights into the reunion narrative.`,
+        `\n\n## PARTY REUNION\nThe party was split into two groups ("${splitState.alphaName || 'Team Alpha'}" and "${splitState.betaName || 'Team Beta'}"). They are now regrouping.\n\nHost's reunion prompt: "${reunionPrompt}"`,
+        splitState.alphaSummary ? `\n\n## "${splitState.alphaName || 'Team Alpha'}"'S SIDE ADVENTURE\n${splitState.alphaSummary}` : '',
+        splitState.betaSummary ? `\n\n## "${splitState.betaName || 'Team Beta'}"'S SIDE ADVENTURE\n${splitState.betaSummary}` : '',
+        `\n\nNarrate the reunion scene. Describe what each group experienced (briefly, using their team names "${splitState.alphaName || 'Team Alpha'}" and "${splitState.betaName || 'Team Beta'}") and how they come back together. Make it dramatic and engaging. Do NOT dump the full summary — weave key highlights into the reunion narrative.`,
       ].filter(Boolean).join('\n\n');
 
       restoredApiMsgs.push({ role: 'user', content: `[DM Note]: The party regroups. ${reunionPrompt}` });
