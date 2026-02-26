@@ -81,7 +81,8 @@ export function usePushNotifications() {
       const auth = subJson.keys!.auth!;
 
       // Upsert to party_push_subscriptions
-      await (supabase.from('party_push_subscriptions') as any).upsert({
+      console.log('[PushNotifications] Upserting subscription for user:', user.id, 'endpoint:', endpoint.slice(0, 60));
+      const { error: upsertError } = await (supabase.from('party_push_subscriptions') as any).upsert({
         user_id: user.id,
         endpoint,
         p256dh,
@@ -90,6 +91,12 @@ export function usePushNotifications() {
         platform: /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
         user_agent: navigator.userAgent.slice(0, 200),
       }, { onConflict: 'user_id,endpoint' });
+
+      if (upsertError) {
+        console.error('[PushNotifications] Upsert failed:', upsertError);
+        return false;
+      }
+      console.log('[PushNotifications] Subscription stored successfully');
 
       setIsSubscribed(true);
       return true;
