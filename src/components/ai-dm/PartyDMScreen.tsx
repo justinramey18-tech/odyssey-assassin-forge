@@ -1245,7 +1245,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
         onClose={() => setShowSplitInitiator(false)}
         members={members}
         currentUserId={currentUserId}
-        onInitiate={(alphaMembers) => partyDm.initiateSplit(alphaMembers)}
+        onInitiate={(alphaMembers, alphaName, betaName) => partyDm.initiateSplit(alphaMembers, alphaName, betaName)}
       />
       <RegroupDialog
         open={showRegroupDialog}

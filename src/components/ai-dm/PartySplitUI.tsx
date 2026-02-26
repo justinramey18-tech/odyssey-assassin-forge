@@ -10,11 +10,13 @@ interface SplitInitiatorProps {
   onClose: () => void;
   members: Array<{ user_id: string; character_name: string }>;
   currentUserId?: string;
-  onInitiate: (alphaMembers: string[]) => void;
+  onInitiate: (alphaMembers: string[], alphaName: string, betaName: string) => void;
 }
 
 export function SplitInitiator({ open, onClose, members, currentUserId, onInitiate }: SplitInitiatorProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set(currentUserId ? [currentUserId] : []));
+  const [alphaName, setAlphaName] = useState('Team Alpha');
+  const [betaName, setBetaName] = useState('Team Beta');
 
   const toggleMember = useCallback((userId: string) => {
     setSelected(prev => {
@@ -50,7 +52,7 @@ export function SplitInitiator({ open, onClose, members, currentUserId, onInitia
         </div>
 
         <p className="text-[11px] text-white/40 mb-3">
-          Select members for <span className="text-blue-400">Team Alpha</span>. Everyone else becomes <span className="text-purple-400">Team Beta</span>.
+          Select members for <span className="text-blue-400">{alphaName}</span>. Everyone else becomes <span className="text-purple-400">{betaName}</span>.
           Each team needs at least 2 members.
         </p>
 
@@ -81,10 +83,33 @@ export function SplitInitiator({ open, onClose, members, currentUserId, onInitia
           })}
         </div>
 
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <div>
+            <label className="text-[10px] text-blue-400/70 mb-1 block">Team 1 Name</label>
+            <input
+              value={alphaName}
+              onChange={e => setAlphaName(e.target.value)}
+              maxLength={24}
+              className="w-full bg-blue-900/20 border border-blue-500/30 rounded-lg px-2.5 py-1.5 text-xs text-blue-300 placeholder:text-blue-400/30 focus:outline-none focus:border-blue-500/50"
+              placeholder="Team Alpha"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] text-purple-400/70 mb-1 block">Team 2 Name</label>
+            <input
+              value={betaName}
+              onChange={e => setBetaName(e.target.value)}
+              maxLength={24}
+              className="w-full bg-purple-900/20 border border-purple-500/30 rounded-lg px-2.5 py-1.5 text-xs text-purple-300 placeholder:text-purple-400/30 focus:outline-none focus:border-purple-500/50"
+              placeholder="Team Beta"
+            />
+          </div>
+        </div>
+
         <div className="flex items-center justify-between mb-3">
           <div className="flex gap-3 text-[11px]">
-            <span className="text-blue-400">Alpha: {alphaCount}</span>
-            <span className="text-purple-400">Beta: {betaCount}</span>
+            <span className="text-blue-400">{alphaName}: {alphaCount}</span>
+            <span className="text-purple-400">{betaName}: {betaCount}</span>
           </div>
           {!isValid && (
             <span className="text-[10px] text-red-400">Min 2 per team</span>
@@ -92,7 +117,7 @@ export function SplitInitiator({ open, onClose, members, currentUserId, onInitia
         </div>
 
         <Button
-          onClick={() => { onInitiate(Array.from(selected)); onClose(); }}
+          onClick={() => { onInitiate(Array.from(selected), alphaName, betaName); onClose(); }}
           disabled={!isValid}
           className="w-full gap-2 bg-amber-900/40 border border-amber-500/30 hover:bg-amber-900/60 text-amber-300"
         >
@@ -112,7 +137,9 @@ interface SplitBannerProps {
 }
 
 export function SplitBanner({ splitState, myTeam, isCreator, members }: SplitBannerProps) {
-  const teamLabel = myTeam === 'alpha' ? 'Team Alpha' : myTeam === 'beta' ? 'Team Beta' : 'Observer';
+  const alphaLabel = splitState.alphaName || 'Team Alpha';
+  const betaLabel = splitState.betaName || 'Team Beta';
+  const teamLabel = myTeam === 'alpha' ? alphaLabel : myTeam === 'beta' ? betaLabel : 'Observer';
   const teamColor = myTeam === 'alpha' ? 'blue' : 'purple';
 
   const teamMembers = myTeam === 'alpha'
@@ -247,7 +274,7 @@ export function SplitSummariesViewer({ open, onClose, splitState }: SplitSummari
             <div>
               <h4 className="text-xs font-cinzel text-blue-300 mb-1.5 flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-blue-400" />
-                Team Alpha Summary
+                {splitState.alphaName || 'Team Alpha'} Summary
               </h4>
               <div className="bg-blue-950/20 border border-blue-500/10 rounded-xl p-3">
                 <p className="text-xs text-white/60 whitespace-pre-wrap">
@@ -258,7 +285,7 @@ export function SplitSummariesViewer({ open, onClose, splitState }: SplitSummari
             <div>
               <h4 className="text-xs font-cinzel text-purple-300 mb-1.5 flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-purple-400" />
-                Team Beta Summary
+                {splitState.betaName || 'Team Beta'} Summary
               </h4>
               <div className="bg-purple-950/20 border border-purple-500/10 rounded-xl p-3">
                 <p className="text-xs text-white/60 whitespace-pre-wrap">
