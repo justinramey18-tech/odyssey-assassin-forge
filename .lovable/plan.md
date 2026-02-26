@@ -1,67 +1,158 @@
 
 
-# Add Dice Odds Selector to Inline DM Dice Roller + New Odds Distributions
+# Party Split Feature: Snapshot + Restore Model with Hidden Split Summaries
 
-## Overview
+## Updated Concept
 
-Add a "Dice Odds" button at the bottom of the `DMDiceRoller` component (used in both Solo and Party DM). Tapping it reveals a rising panel with the 5 mode options. Selecting one applies it immediately and auto-closes the panel. Also completely rework the odds engine to use the user's specific percentage-based bracket distributions instead of the current simple thirds weighting.
+Based on your clarification, the split works differently from what was originally planned:
 
-## New Odds Distributions (d20)
+```text
+SPLIT INITIATION:
+1. Host assigns teams
+2. Main chat is SNAPSHOT-SAVED (quick save to DB)
+3. Both teams start fresh parallel chats from that save point
+4. Each team sees ONLY their own split chat (not the other's)
 
-| Mode | Bracket 1 | Bracket 2 | Bracket 3 | Bracket 4 |
-|------|-----------|-----------|-----------|-----------|
-| Fair | Uniform 1-20 (5% each) | | | |
-| Heroic | 15% → nat 20 | 65% → 15-19 | 15% → 10-14 | 5% → 1-9 |
-| Dramatic | 50% → 18-20 | — | — | 50% → 1-7 |
-| Chaotic | 50% → 15-20 | 25% → 8-14 | 25% → 1-3 | — |
-| Cursed | 15% → nat 1 | 65% → 2-7 | 15% → 8-14 | 5% → 15-20 |
+DURING SPLIT:
+- Ready-up remains synced across all members
+- Host generates two sequential AI responses (one per team)
+- The AI DM knows BOTH teams' context via hidden "split summaries"
+- Split summaries are auto-generated and visible ONLY to the host
 
-## Changes
+REGROUP:
+1. Host initiates regroup with a reunion prompt
+2. The ORIGINAL snapshot chat is RELOADED (not the split chats)
+3. A unification response from the AI is appended to that restored chat
+4. Neither team ever sees the other team's split adventure messages
+5. The split summaries remain available to the host for narrative continuity
+```
 
-### 1. `src/lib/diceOdds.ts` — Rewrite odds engine
+## Key Difference from Previous Plan
 
-Replace the `weights: {low, mid, high}` system with explicit bracket definitions:
+Previously: split messages would be tagged with a `team` column and merged chronologically on regroup.
+
+Now: split messages are **ephemeral side adventures** stored separately. On regroup, the **original pre-split chat is restored** plus a unification scene. The split adventures are never visible to non-host players after regroup — they exist only as AI-summarized context.
+
+## Database Changes
+
+### 1. Add `team` column to `party_dm_messages`
+Still needed so that during the split, messages are tagged and filtered per team.
+
+```sql
+ALTER TABLE party_dm_messages ADD COLUMN team text DEFAULT NULL;
+```
+
+### 2. Add `team` column to `party_dm_prompts`
+So prompts are also team-scoped during a split.
+
+```sql
+ALTER TABLE party_dm_prompts ADD COLUMN team text DEFAULT NULL;
+```
+
+### 3. Split state stored in `party_shared_state` (`state_type: 'dm_split'`)
 
 ```typescript
-interface OddsBracket {
-  chance: number;  // 0-1 probability
-  min: number;     // minimum roll value
-  max: number;     // maximum roll value
+interface DmSplitState {
+  active: boolean;
+  alphaMembers: string[];    // user_ids
+  betaMembers: string[];     // user_ids
+  initiatedBy: string;
+  initiatedAt: string;
+  snapshotMessages: Array<{  // The quick-saved main chat at split time
+    id: string;
+    role: string;
+    content: string;
+    sender_user_id: string | null;
+    sender_name: string;
+    created_at: string;
+  }>;
+  alphaSummary: string | null;  // Hidden split summary for Team Alpha
+  betaSummary: string | null;   // Hidden split summary for Team Beta
 }
 ```
 
-Each mode gets an array of `OddsBracket[]`. The `rollWeightedDie` function picks a bracket based on cumulative probability, then rolls uniformly within that bracket's range.
+The `snapshotMessages` array stores the full pre-split chat so it can be restored on regroup. The `alphaSummary` and `betaSummary` fields hold AI-generated summaries of each team's side adventure, visible only to the host.
 
-**Fair mode** bypasses brackets entirely — pure `Math.random()`.
+**Why store the snapshot in `state_data` rather than a new table?** The snapshot is bounded by the existing 200-message limit. A JSONB field in `party_shared_state` handles this without schema complexity. If the snapshot is too large for a single JSONB field (unlikely at ~200 messages), we can truncate to the last 100.
 
-Keep the existing `DiceOddsConfig` interface shape (label, description, deadpoolQuote) but replace `weights` with `brackets`. The `DiceOddsWidget` in settings still works since it only reads label/description/quote — the weight visualization bar will be updated to show the new brackets instead.
+## Flow Details
 
-### 2. `src/components/ai-dm/DMDiceRoller.tsx` — Add odds selector UI
+### Split Initiation (`initiateSplit`)
+1. Snapshot current `messages` array into the split state
+2. Delete all `party_dm_messages` for this party (clears the visible chat)
+3. Delete all `party_dm_prompts` for this party
+4. Insert the `dm_split` state into `party_shared_state`
+5. Update `dm_session` config to add `splitActive: true`
+6. Start a new round
 
-Add to the bottom of the component:
-- A "Dice Odds" button showing the current mode icon + label
-- When tapped, a panel slides up (using local state `showOddsPanel`) displaying the 5 mode buttons in a row (reusing the same icon map from `DiceOddsWidget`)
-- Selecting a mode calls `saveDiceOddsMode()`, updates local state, and closes the panel
-- The dice roller remains open throughout
+### During Split — Message Handling
+- When a user submits a prompt, the `team` column is set based on their membership in `alphaMembers` or `betaMembers`
+- Messages inserted by the AI are also tagged with the appropriate `team`
+- The realtime subscription filters: each user only sees messages where `team` matches their assignment (or `team IS NULL` for pre-split history — but there won't be any since the chat was cleared)
+- The host sees ALL messages but with team labels
 
-The component will track `currentOddsMode` in local state (initialized from `loadDiceOddsMode()`). When changed, the next roll automatically uses the new mode since `rollD20` calls `loadDiceOddsMode()`.
+### During Split — Generation
+When all members ready up, the host generates two sequential responses:
+1. Filter alpha prompts, build alpha context (alpha messages + main campaign summary + alpha split summary), call AI
+2. Filter beta prompts, build beta context (beta messages + main campaign summary + beta split summary), call AI
+3. After each generation, trigger a mini-summary for that team's split adventure and store it in the split state's `alphaSummary`/`betaSummary`
 
-### 3. `src/components/settings/DiceOddsWidget.tsx` — Update visualization
+### During Split — Split Summaries
+After every AI response during a split, the host auto-generates a rolling summary of that team's adventure. This uses the existing `ai-dm-summarize` edge function. The summaries are stored in the `DmSplitState` and are:
+- **Visible to the host** via a "Split Summaries" button in the UI
+- **Hidden from team members** (client-side filtering — the host reads from `party_shared_state`)
+- **Fed to the AI** during generation so it maintains narrative coherence across both threads
 
-Update the weight distribution bar at the bottom to reflect the new bracket system instead of the old low/mid/high thirds. Show each bracket as a proportional bar segment labeled with its range.
+### Regroup (`regroupParty`)
+1. Host provides a reunion prompt (e.g., "The two groups meet at the tavern")
+2. Restore the `snapshotMessages` from the split state back into `party_dm_messages`
+3. Delete all team-tagged messages (the split adventures)
+4. Generate a unification response using: restored chat context + alphaSummary + betaSummary + reunion prompt
+5. Append the unification response to the restored chat
+6. Clear the `dm_split` state
+7. Update `dm_session` config to remove `splitActive`
+8. The split summaries persist in the host's local state for reference but are no longer in the DB
+
+### What Players See After Regroup
+- The original pre-split chat, exactly as it was
+- Plus a new AI message describing the reunion scene
+- No trace of either team's split adventures in the chat
+- The AI DM still knows what happened (via the summaries fed into its context)
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/lib/diceOdds.ts` | Rewrite: replace thirds-based weights with explicit bracket distributions, new `rollWeightedDie` implementation |
-| `src/components/ai-dm/DMDiceRoller.tsx` | Add "Dice Odds" button + sliding panel with mode selection at bottom of roller |
-| `src/components/settings/DiceOddsWidget.tsx` | Update distribution visualization bar to show new bracket data |
+| **Migration SQL** | Add `team` column to `party_dm_messages` and `party_dm_prompts` |
+| `src/hooks/use-party-dm.ts` | Add split state management, snapshot/restore logic, team-filtered message display, split-aware dual generation, `initiateSplit()`, `regroupParty()`, split summary generation |
+| `src/components/ai-dm/PartyDMScreen.tsx` | Add Split/Regroup buttons in sub-header, team banner, split member selection UI, host-only "Split Summaries" viewer |
+| `src/components/ai-dm/StandalonePartyDMScreen.tsx` | Pass through new split-related props |
 
-## Technical Notes
+## Risk Mitigation
 
-- The `rollWeightedDie` function signature stays the same `(sides: number, mode: DiceOddsMode) => number` so all existing callers (combat, ability cards, equipped loadout) work without changes
-- For non-d20 dice, the bracket ranges will be proportionally scaled to the die's sides
-- The odds panel in DMDiceRoller uses simple absolute positioning within the roller container, no Sheet/Dialog needed
-- Current mode persists via `localStorage` (existing `saveDiceOddsMode`/`loadDiceOddsMode`)
+1. **Snapshot stored in JSONB** — no new tables, bounded by message count
+2. **Sequential generation** — avoids race conditions
+3. **Client-side team filtering** — no RLS changes needed (all party members can already read all `party_dm_messages`)
+4. **Clean restore** — snapshot is the source of truth; split messages are deleted on regroup
+5. **Split summaries as JSONB fields** — no separate storage, auto-cleaned when split state is deleted
+6. **Single split only** — enforced by checking `splitState.active`
+7. **Minimum 2 per team** — validated in UI
+
+## Technical Details: Split Summary Generation
+
+After each AI response during a split, the host calls the existing `ai-dm-summarize` function with that team's messages and stores the result:
+
+```typescript
+// After generating Team Alpha's response:
+const alphaSummaryResult = await fetch(SUMMARIZE_URL, {
+  method: 'POST',
+  body: JSON.stringify({
+    messages: alphaMessages.map(m => ({ role: m.role, content: m.content })),
+    previousSummary: splitState.alphaSummary || undefined,
+  }),
+});
+// Update splitState.alphaSummary in party_shared_state
+```
+
+This happens every round during the split (not on an interval like the main summary) to keep the summaries fresh for the AI and for the eventual regroup context.
 
