@@ -949,48 +949,6 @@ export type Database = {
           },
         ]
       }
-      party_push_subscriptions: {
-        Row: {
-          auth: string
-          created_at: string
-          endpoint: string
-          id: string
-          last_seen_at: string
-          notifications_enabled: boolean
-          p256dh: string
-          platform: string | null
-          updated_at: string
-          user_agent: string | null
-          user_id: string
-        }
-        Insert: {
-          auth: string
-          created_at?: string
-          endpoint: string
-          id?: string
-          last_seen_at?: string
-          notifications_enabled?: boolean
-          p256dh: string
-          platform?: string | null
-          updated_at?: string
-          user_agent?: string | null
-          user_id: string
-        }
-        Update: {
-          auth?: string
-          created_at?: string
-          endpoint?: string
-          id?: string
-          last_seen_at?: string
-          notifications_enabled?: boolean
-          p256dh?: string
-          platform?: string | null
-          updated_at?: string
-          user_agent?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       party_shared_state: {
         Row: {
           created_at: string

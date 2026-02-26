@@ -93,7 +93,6 @@ import { useWildShape } from '@/hooks/use-wild-shape';
 import { DruidCircle } from '@/lib/classes/druidCircles';
 import { useSpellCustomization } from '@/hooks/use-spell-customization';
 import { usePartySync } from '@/hooks/use-party-sync';
-import { usePartyPushSubscription } from '@/hooks/use-party-push-subscription';
 import { useAbilityCustomization } from '@/hooks/use-ability-customization';
 import { useAbilityImages } from '@/hooks/use-ability-images';
 import { homebrewToAbility } from '@/lib/abilityCustomization/utils';
@@ -570,9 +569,6 @@ const Index = () => {
   const { user, isAuthenticated } = useAuth();
   const partySync = usePartySync();
   const { playMode, setPlayMode, isSoloMode, isPartyMode } = usePlayMode();
-
-  // Web Push subscription for background party chat notifications
-  usePartyPushSubscription(partySync.party.partyId);
 
   // HP change handler with localStorage persistence, concentration check, and Wild Shape routing
   const handleHPChange = useCallback((current: number, max: number, temp: number) => {
