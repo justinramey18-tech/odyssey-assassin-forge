@@ -1,41 +1,37 @@
 
 
-## Plan: Collapsible Accordion Sections in App & System Tab
+## Plan: Server-Side Ready-Up Push Notifications
 
-### Current state
-The App & System tab renders everything in a flat vertical layout with separators. AppModeSettings internally has "Active Mode" and "Feature Visibility" as static headers. SystemPreferences has "AI Integration" and "Notifications" as static headers. ApiCredentials is a single block.
+### Problem
+Ready-up notifications are entirely client-side: the Realtime subscription in `use-party-dm.ts` calls `sendReadyUpNotification()` which fires a local push. When the app is backgrounded, the Realtime WebSocket is suspended by the OS, so no notification fires. Chat messages work in background because `party-chat-send` does server-side Web Push fan-out.
 
 ### Changes
 
-#### 1. Restructure `SettingsContent.tsx` — appSystem branch (lines 716-817)
-Replace the flat layout with:
-1. **App Updates** card at the very top (moved from middle)
-2. **Accordion** with `type="multiple"` and `defaultValue={['active-mode']}` (only Active Mode open by default) containing 5 collapsible sections:
-   - **Active Mode** — the mode selector grid from AppModeSettings
-   - **Feature Visibility** — the feature toggle accordion from AppModeSettings
-   - **AI Integration** — 4th Wall Time + Timezone from SystemPreferences
-   - **Notifications** — notification toggles from SystemPreferences
-   - **API Keys** — ApiCredentials content
-3. **Danger Zone** stays at the bottom, outside the accordion
+#### 1. Create `supabase/functions/party-ready-notify/index.ts`
+Clone the Web Push encryption helpers from `party-chat-send` (base64, HKDF, ECDH, VAPID, `sendWebPush`). The handler will:
+- Accept `{ partyId, characterName, readyCount, totalCount }` 
+- Auth the caller via JWT
+- Fetch push subscriptions for all party members except the sender
+- Build payload: `{ title: "⚔️ Party Ready Up", body: "CharName has readied up! (X/Y ready)" }` (or "🎯 All Players Ready!" when `readyCount >= totalCount`)
+- Fan out via Web Push, clean up expired (410/404) subscriptions
 
-This requires splitting `AppModeSettings` and `SystemPreferences` into sub-components or rendering their internals directly.
+#### 2. Register the function in `supabase/config.toml`
+Add `[functions.party-ready-notify]` with `verify_jwt = false` (matches existing pattern; auth is done in-code).
 
-#### 2. Split `AppModeSettings.tsx` into two exported sections
-Export two additional components:
-- `ActiveModeSection` — just the mode selector grid
-- `FeatureVisibilitySection` — the feature toggles with reset button
+#### 3. Update `src/hooks/use-party-dm.ts` — `setReady` callback
+After the DB update/insert succeeds, call:
+```typescript
+supabase.functions.invoke('party-ready-notify', {
+  body: { partyId, characterName, readyCount, totalCount }
+});
+```
+Calculate `readyCount` from `currentPrompts` (adding 1 for self) and `totalCount` from `memberCount`.
 
-Keep the existing `AppModeSettings` export for backward compatibility (renders both).
+#### 4. Update `src/lib/party-notifications.ts` — `sendReadyUpNotification`
+Remove the `pushNotification()` calls (server handles push now). Keep the in-app toasts so foreground users still see them instantly.
 
-#### 3. Split `SystemPreferences.tsx` into two exported sections
-Export two additional components:
-- `AIIntegrationSection` — 4th Wall Time + Timezone
-- `NotificationsSection` — notification toggles
-
-Keep the existing `SystemPreferences` export intact.
-
-### Files to modify
-- `src/components/settings/AppModeSettings.tsx` — export `ActiveModeSection` and `FeatureVisibilitySection`
-- `src/components/settings/SystemPreferences.tsx` — export `AIIntegrationSection` and `NotificationsSection`
-- `src/components/settings/SettingsContent.tsx` — rewrite appSystem branch with accordion + reordered content
+### Files
+- **Create:** `supabase/functions/party-ready-notify/index.ts`
+- **Modify:** `src/hooks/use-party-dm.ts` (add edge function call in `setReady`)
+- **Modify:** `src/lib/party-notifications.ts` (remove local push calls, keep toasts)
 
