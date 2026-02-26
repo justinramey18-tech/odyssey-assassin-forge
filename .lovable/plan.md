@@ -1,22 +1,75 @@
 
 
-# Stacking Notifications + "All Ready" Alert
+# Add Background Notifications for Party Chat
 
-## Changes
+## Problem
+When the app is backgrounded on Android, incoming party chat messages produce no notification. The realtime subscription updates state silently.
 
-**File: `src/lib/party-notifications.ts`**
+## Solution
+Reuse the existing Service Worker notification infrastructure (from ready-up notifications) to send a push notification for each incoming chat message from another party member.
 
-Two changes in `sendReadyUpNotification`:
+## Files Changed
 
-1. **Unique tags for stacking**: Change `tag: 'ready-up'` to `tag: 'ready-up-${Date.now()}'` so each notification gets a unique tag and Android stacks them in the notification bar instead of replacing.
+| File | Change |
+|------|--------|
+| `src/lib/party-notifications.ts` | Add new `sendChatMessageNotification(senderName, messageText)` function |
+| `src/hooks/use-party-sync.ts` | Call `sendChatMessageNotification` on INSERT events where `user_id !== currentUserId` |
 
-2. **"All Players Ready" notification**: When `readyCount >= totalCount`, send a distinct notification with:
-   - Title: "🎯 All Players Ready!"
-   - Body includes a timestamp (e.g., "All 4 players readied up at 7:32 PM!")
-   - In-app toast uses 🎯 icon with longer 6s duration
-   - Individual ready-ups keep the ⚔️ icon
+## Detail
 
-The in-app toast `id` also becomes unique per notification (`ready-up-toast-${Date.now()}`) so multiple toasts can stack, except the "all ready" toast which uses a fixed id `all-ready-toast` to replace any prior "all ready" toast.
+### `src/lib/party-notifications.ts`
+Add a new exported async function:
 
-No other files need changes — the detection logic in `use-party-dm.ts` already passes the correct `readyCount` and `totalCount` to this function.
+```typescript
+export async function sendChatMessageNotification(
+  senderName: string,
+  messageText: string,
+): Promise<void> {
+  // In-app toast
+  toast(`💬 ${senderName}: ${messageText}`, {
+    duration: 4000,
+    icon: '💬',
+    id: `chat-msg-toast-${Date.now()}`,
+  });
+
+  // Background push via Service Worker
+  if ('Notification' in window && Notification.permission === 'granted') {
+    const payload = {
+      title: `💬 ${senderName}`,
+      body: messageText,
+      icon: '/pwa-192x192.png',
+      badge: '/pwa-192x192.png',
+      tag: `chat-msg-${Date.now()}`, // unique tag → stacking
+    };
+
+    try {
+      const reg = await navigator.serviceWorker?.ready;
+      if (reg?.active) {
+        reg.active.postMessage({ type: 'SHOW_NOTIFICATION', payload });
+      } else {
+        new Notification(payload.title, payload);
+      }
+    } catch {
+      try { new Notification(payload.title, payload); } catch { /* silent */ }
+    }
+  }
+}
+```
+
+### `src/hooks/use-party-sync.ts`
+In the realtime INSERT handler (~line 852), after adding the message to state, call the notification if the sender is not the current user:
+
+```typescript
+if (payload.eventType === 'INSERT') {
+  const msg = payload.new as PartyMessage;
+  setPartyMessages(prev => [...prev.slice(-49), msg]);
+  
+  // Notify for messages from other members
+  if (msg.user_id !== user?.id) {
+    sendChatMessageNotification(msg.sender_name, msg.message);
+  }
+}
+```
+
+No changes needed to `public/custom-sw.js` or `vite.config.ts` — the existing SW message handler already supports the `SHOW_NOTIFICATION` type used here.
 
