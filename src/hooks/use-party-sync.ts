@@ -1348,6 +1348,16 @@ export function usePartySync(): UsePartySyncReturn {
     if (error) {
       console.error('sendMessage error:', error);
       toast.error('Failed to send message');
+    } else {
+      // Fire-and-forget push notification
+      supabase.functions.invoke('send-party-notification', {
+        body: {
+          partyId: party.partyId,
+          triggerType: 'chat',
+          playerName: senderName,
+          message: message.slice(0, 100),
+        },
+      }).catch(() => {});
     }
   }, [user, party.partyId]);
 

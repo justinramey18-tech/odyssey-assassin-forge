@@ -483,6 +483,39 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications_log: {
+        Row: {
+          created_at: string
+          id: string
+          notification_type: string
+          party_id: string
+          ready_count: number
+          total_players: number
+          triggered_by_name: string
+          triggered_by_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notification_type?: string
+          party_id: string
+          ready_count?: number
+          total_players?: number
+          triggered_by_name?: string
+          triggered_by_user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notification_type?: string
+          party_id?: string
+          ready_count?: number
+          total_players?: number
+          triggered_by_name?: string
+          triggered_by_user_id?: string
+        }
+        Relationships: []
+      }
       parties: {
         Row: {
           created_at: string
