@@ -1,7 +1,7 @@
 import { usePWAInstall } from '@/hooks/use-pwa-install';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Download, CheckCircle, Smartphone, Share, PlusSquare } from 'lucide-react';
+import { Download, CheckCircle, Smartphone, Share, PlusSquare, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Install() {
@@ -63,8 +63,21 @@ export default function Install() {
                   <li>Tap the <strong>Share</strong> button in Safari</li>
                   <li>Scroll down and tap <strong>"Add to Home Screen"</strong></li>
                   <li>Tap <strong>"Add"</strong> in the top right</li>
+                  <li>Open the app from your Home Screen and <strong>sign in again</strong></li>
                 </ol>
               </div>
+
+              {/* iOS-specific auth warning */}
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 flex gap-2">
+                <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium text-yellow-500">Important for iPhone users</p>
+                  <p className="text-muted-foreground mt-1">
+                    The installed app uses separate storage from Safari. You'll need to <strong>sign in again</strong> after installing. This also enables push notifications.
+                  </p>
+                </div>
+              </div>
+
               <Button variant="outline" onClick={() => navigate('/')} className="w-full">
                 Continue in Browser
               </Button>
@@ -116,6 +129,10 @@ export default function Install() {
               <li className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-500" />
                 All character data saved locally
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                Push notifications for party events
               </li>
             </ul>
           </div>
