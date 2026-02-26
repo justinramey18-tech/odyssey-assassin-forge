@@ -1,4 +1,3 @@
-import { useEffect, useRef, useCallback } from 'react';
 import { Character } from '@/lib/types';
 import { CharacterEquipment } from '@/lib/inventory/types';
 import { Achievement } from '@/lib/achievements';
@@ -12,7 +11,6 @@ import { ConditionsState } from '@/lib/conditions/types';
 import { CooldownSaveState } from '@/lib/cooldowns/types';
 
 const STORAGE_KEY = 'odyssey-character-autosave';
-const DEBOUNCE_MS = 1000; // Save 1 second after last change
 
 export interface SaveData {
   character: Character;

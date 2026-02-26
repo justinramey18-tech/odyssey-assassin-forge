@@ -71,6 +71,7 @@ export async function sendReadyUpNotification(
       icon: '🎯',
       id: 'all-ready-toast',
     });
+    return;
   }
 
   // Individual ready-up notification (always sent, even when all ready)
