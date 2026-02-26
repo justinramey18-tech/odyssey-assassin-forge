@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -29,11 +29,30 @@ function arrayBufferToBase64Url(buffer: ArrayBuffer): string {
 /**
  * Hook that subscribes the browser to Web Push notifications
  * and registers the subscription with the backend.
- * Call this once after the user joins a party and grants notification permission.
+ * Automatically re-triggers when notification permission changes to 'granted'.
  */
 export function usePushSubscription() {
   const { user } = useAuth();
   const subscribedRef = useRef(false);
+  const [permissionState, setPermissionState] = useState<NotificationPermission>(
+    typeof Notification !== 'undefined' ? Notification.permission : 'denied'
+  );
+
+  // Track permission changes (e.g. user grants permission after prompt)
+  useEffect(() => {
+    if (typeof Notification === 'undefined') return;
+
+    // Poll for permission changes since there's no reliable cross-browser event
+    const interval = setInterval(() => {
+      const current = Notification.permission;
+      setPermissionState(prev => {
+        if (prev !== current) return current;
+        return prev;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const subscribe = useCallback(async (): Promise<boolean> => {
     if (!user) return false;
@@ -105,12 +124,12 @@ export function usePushSubscription() {
     }
   }, []);
 
-  // Auto-subscribe when conditions are met
+  // Auto-subscribe when user is present AND permission is granted
   useEffect(() => {
-    if (user && !subscribedRef.current) {
+    if (user && permissionState === 'granted' && !subscribedRef.current) {
       subscribe();
     }
-  }, [user, subscribe]);
+  }, [user, permissionState, subscribe]);
 
   return { subscribe, unsubscribe, isSubscribed: subscribedRef.current };
 }

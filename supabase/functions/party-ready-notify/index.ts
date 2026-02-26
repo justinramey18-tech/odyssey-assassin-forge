@@ -254,12 +254,14 @@ Deno.serve(async (req) => {
       .neq('user_id', user.id);
 
     if (!members || members.length === 0) {
+      console.log(`[ready-notify] No other members in party ${partyId}`);
       return new Response(JSON.stringify({ ok: true, pushed: 0 }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const memberUserIds = members.map((m) => m.user_id);
+    console.log(`[ready-notify] Party ${partyId}: ${members.length} other members, userIds:`, memberUserIds);
 
     // Get push subscriptions
     const { data: subscriptions } = await supabase
@@ -269,10 +271,12 @@ Deno.serve(async (req) => {
       .eq('notifications_enabled', true);
 
     if (!subscriptions || subscriptions.length === 0) {
+      console.log(`[ready-notify] No push subscriptions found for members`);
       return new Response(JSON.stringify({ ok: true, pushed: 0 }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    console.log(`[ready-notify] Found ${subscriptions.length} push subscriptions`);
 
     // Build payload
     const allReady = readyCount >= totalCount && totalCount > 0;
@@ -309,6 +313,7 @@ Deno.serve(async (req) => {
     }
 
     const successCount = results.filter((r) => r.status === 'fulfilled' && r.value.success).length;
+    console.log(`[ready-notify] Push results: ${successCount} succeeded, ${expiredEndpoints.length} expired out of ${results.length} total`);
 
     return new Response(
       JSON.stringify({ ok: true, pushed: successCount, expired: expiredEndpoints.length }),
