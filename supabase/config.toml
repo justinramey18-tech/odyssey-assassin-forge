@@ -38,3 +38,12 @@ verify_jwt = false
 
 [functions.guide-creator]
 verify_jwt = false
+
+[functions.vapid-setup]
+verify_jwt = false
+
+[functions.party-push-subscribe]
+verify_jwt = false
+
+[functions.party-chat-send]
+verify_jwt = false
