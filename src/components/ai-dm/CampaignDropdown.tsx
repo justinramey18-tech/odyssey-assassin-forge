@@ -44,7 +44,7 @@ export function CampaignDropdown({
   if (!isSignedIn) {
     return (
       <div className="flex items-center gap-2">
-        <h1 className="text-base font-cinzel text-amber-200 tracking-wide">Dungeon Master</h1>
+        <h1 className="text-lg font-cinzel text-amber-200 tracking-wide">Dungeon Master</h1>
       </div>
     );
   }
@@ -52,11 +52,11 @@ export function CampaignDropdown({
   return (
     <DropdownMenu open={open} onOpenChange={handleOpen}>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-1.5 max-w-[180px] group" style={{ touchAction: 'manipulation' }}>
-          <h1 className="text-base font-cinzel text-amber-200 tracking-wide truncate">
+        <button className="flex items-center gap-1.5 max-w-[200px] group" style={{ touchAction: 'manipulation' }}>
+          <h1 className="text-lg font-cinzel text-amber-200 tracking-wide truncate">
             {displayName}
           </h1>
-          <ChevronDown className="w-3.5 h-3.5 text-amber-400/60 shrink-0 group-hover:text-amber-400 transition-colors" />
+          <ChevronDown className="w-4 h-4 text-amber-400/60 shrink-0 group-hover:text-amber-400 transition-colors" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent

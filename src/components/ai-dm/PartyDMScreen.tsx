@@ -490,182 +490,165 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]">
       {/* Header */}
-      <header className="flex items-center justify-between px-3 py-2 border-b border-amber-900/30 bg-black/40 backdrop-blur-sm">
+      {/* Row 1: Main Header */}
+      <header className="flex items-center justify-between px-3 py-2.5 border-b border-amber-900/30 bg-black/40 backdrop-blur-sm">
         <div className="flex items-center gap-2">
           <button onClick={onBack} className="p-2 rounded-lg hover:bg-white/10 transition-colors" style={{ touchAction: 'manipulation' }}>
             <ArrowLeft className="w-5 h-5 text-white/80" />
           </button>
-          <Users className="w-5 h-5 text-primary" />
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              {isCreator && campaignSessions && onNewGame && onLoadCampaign && onRefreshCampaigns ? (
-                <CampaignDropdown
-                  sessions={campaignSessions}
-                  activeCampaignId={partyDm.activeCampaignId}
-                  isSignedIn={campaignSessionsSignedIn ?? false}
-                  isLoading={campaignSessionsLoading ?? false}
-                  onNewGame={onNewGame}
-                  onLoadCampaign={onLoadCampaign}
-                  onRefresh={onRefreshCampaigns}
-                />
-              ) : (
-                <h1 className="text-base font-cinzel text-amber-200 tracking-wide">Party DM</h1>
-              )}
-              <span className="text-[10px] text-muted-foreground">{memberCount} players</span>
-            </div>
-            {partyDm.messages.length > 0 ? (
-              <button
-                onClick={() => {
-                  const name = partyDm.activeCampaignId ? undefined : `Party Campaign ${new Date().toLocaleDateString()}`;
-                  partyDm.saveCampaign(name || 'Party Campaign', partyDm.activeCampaignId || undefined);
-                }}
-                className="text-[9px] text-white/25 leading-none hover:text-amber-400/60 transition-colors text-left"
-                style={{ touchAction: 'manipulation' }}
-                title="Tap to save now"
-              >
-                <Save className="w-2.5 h-2.5 inline mr-0.5 -mt-px" />
-                {partyDm.lastAutoSaveTime ? `Saved ${formatAutoSaveTime(partyDm.lastAutoSaveTime)} · Tap to save` : 'Tap to save now'}
-              </button>
-            ) : null}
-          </div>
+          <Crown className="w-6 h-6 text-amber-400" />
+          {isCreator && campaignSessions && onNewGame && onLoadCampaign && onRefreshCampaigns ? (
+            <CampaignDropdown
+              sessions={campaignSessions}
+              activeCampaignId={partyDm.activeCampaignId}
+              isSignedIn={campaignSessionsSignedIn ?? false}
+              isLoading={campaignSessionsLoading ?? false}
+              onNewGame={onNewGame}
+              onLoadCampaign={onLoadCampaign}
+              onRefresh={onRefreshCampaigns}
+            />
+          ) : (
+            <h1 className="text-lg font-cinzel text-amber-200 tracking-wide">Dungeon Master</h1>
+          )}
         </div>
-        <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide flex-shrink min-w-0">
-          {onToggleAutoSync && (
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-muted-foreground whitespace-nowrap">{memberCount} players</span>
+          {partyDm.messages.length > 0 && (
             <button
-              onClick={() => onToggleAutoSync(!autoSyncEnabled)}
-              className={cn(
-                "px-2 py-1.5 rounded-lg text-xs font-cinzel transition-colors",
-                autoSyncEnabled ? "text-amber-300 bg-amber-900/30" : "text-white/50 hover:bg-white/10"
-              )}
+              onClick={() => {
+                const name = partyDm.activeCampaignId ? undefined : `Party Campaign ${new Date().toLocaleDateString()}`;
+                partyDm.saveCampaign(name || 'Party Campaign', partyDm.activeCampaignId || undefined);
+              }}
+              className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
               style={{ touchAction: 'manipulation' }}
-              title={autoSyncEnabled ? 'Auto-Sync enabled' : 'Enable Auto-Sync'}
+              title={partyDm.lastAutoSaveTime ? `Saved ${formatAutoSaveTime(partyDm.lastAutoSaveTime)}` : 'Save now'}
             >
-              <Zap className={cn("w-3.5 h-3.5 inline mr-0.5", isExtracting && "animate-pulse")} />
-              Sync
+              <Save className="w-4 h-4 text-white/30 hover:text-amber-400/60" />
             </button>
-          )}
-          {onShowMap && (
-            <button
-              onClick={onShowMap}
-              className="px-2 py-1.5 rounded-lg text-xs font-cinzel text-white/50 hover:bg-white/10 transition-colors"
-              style={{ touchAction: 'manipulation' }}
-            >
-              <Map className="w-3.5 h-3.5 inline mr-0.5" />
-              Map
-            </button>
-          )}
-          {onShowSaves && (
-            <button
-              onClick={onShowSaves}
-              className="px-2 py-1.5 rounded-lg text-xs font-cinzel text-white/50 hover:bg-white/10 transition-colors"
-              style={{ touchAction: 'manipulation' }}
-            >
-              <FolderOpen className="w-3.5 h-3.5 inline mr-0.5" />
-              Saves
-            </button>
-          )}
-          {onShowChat && (
-            <button
-              onClick={onShowChat}
-              className="px-2 py-1.5 rounded-lg text-xs font-cinzel text-white/50 hover:bg-white/10 transition-colors"
-              style={{ touchAction: 'manipulation' }}
-            >
-              <MessageSquare className="w-3.5 h-3.5 inline mr-0.5" />
-              Chat
-            </button>
-          )}
-          {onShowGuides && (
-            <button
-              onClick={onShowGuides}
-              className={cn(
-                "px-2 py-1.5 rounded-lg text-xs font-cinzel transition-colors relative",
-                guidesCount > 0 ? "text-amber-300/80 hover:bg-amber-900/30" : "text-white/50 hover:bg-white/10"
-              )}
-              style={{ touchAction: 'manipulation' }}
-            >
-              <BookOpen className="w-3.5 h-3.5 inline mr-0.5" />
-              Guides
-              {guidesCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-amber-600 text-[8px] flex items-center justify-center text-white">
-                  {guidesCount}
-                </span>
-              )}
-            </button>
-          )}
-          {isCreator && (
-            <>
-              <button
-                onClick={() => {
-                  const newMode = mode === 'shared' ? 'private' : 'shared';
-                  if (partyDm.sessionConfig) {
-                    const updated = { ...partyDm.sessionConfig, mode: newMode as 'shared' | 'private' };
-                    (supabase.from('party_shared_state') as any)
-                      .update({ state_data: updated })
-                      .eq('state_type', 'dm_session')
-                      .then(() => {});
-                  }
-                }}
-                className={cn(
-                  "p-1.5 rounded-lg text-xs transition-colors",
-                  mode === 'shared' ? "bg-emerald-900/30 text-emerald-400" : "bg-purple-900/30 text-purple-400"
-                )}
-                title={mode === 'shared' ? 'Shared prompts' : 'Private prompts'}
-                style={{ touchAction: 'manipulation' }}
-              >
-                {mode === 'shared' ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-              </button>
-              {onShowSaves && (
-                <button
-                  onClick={onShowSaves}
-                  className="p-1.5 rounded-lg text-xs text-amber-300/80 hover:bg-amber-900/30 transition-colors"
-                  title="Campaign saves"
-                  style={{ touchAction: 'manipulation' }}
-                >
-                  <Save className="w-4 h-4" />
-                </button>
-              )}
-              <button
-                onClick={() => {
-                  setShowNewCampaignInput(true);
-                  setNewCampaignName('');
-                }}
-                className="p-1.5 rounded-lg text-xs text-amber-400 hover:bg-amber-900/20 transition-colors"
-                title="Start new campaign"
-                style={{ touchAction: 'manipulation' }}
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-              <button
-                onClick={partyDm.endSession}
-                className="p-1.5 rounded-lg text-xs text-red-400 hover:bg-red-900/20 transition-colors"
-                style={{ touchAction: 'manipulation' }}
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </>
           )}
         </div>
       </header>
 
-      {/* Mode indicator */}
-      <div className="flex items-center justify-center gap-2 px-3 py-1 bg-black/30 border-b border-amber-900/20">
+      {/* Row 2: Sub-Header Strip */}
+      <div className="flex items-center gap-1 px-2 py-1 bg-black/30 border-b border-amber-900/20 overflow-x-auto scrollbar-hide">
+        {/* Mode indicator */}
         {mode === 'shared' ? (
-          <>
-            <Eye className="w-3 h-3 text-emerald-400" />
-            <span className="text-[11px] text-emerald-300/70">Shared Prompts</span>
-          </>
+          <span className="flex items-center gap-1 text-[11px] text-emerald-300/70 whitespace-nowrap px-1">
+            <Eye className="w-3 h-3 text-emerald-400" />Shared
+          </span>
         ) : (
-          <>
-            <EyeOff className="w-3 h-3 text-purple-400" />
-            <span className="text-[11px] text-purple-300/70">Private Prompts</span>
-          </>
+          <span className="flex items-center gap-1 text-[11px] text-purple-300/70 whitespace-nowrap px-1">
+            <EyeOff className="w-3 h-3 text-purple-400" />Private
+          </span>
         )}
-        <span className="text-[11px] text-white/30">•</span>
-        <span className="text-[11px] text-white/40">{partyDm.messages.length} messages</span>
+        <span className="text-[11px] text-white/20">•</span>
+        <span className="text-[11px] text-white/40 whitespace-nowrap">{partyDm.messages.length} msgs</span>
         {partyDm.isSummarizing && (
           <>
-            <span className="text-[11px] text-white/30">•</span>
-            <span className="text-[11px] text-purple-400 animate-pulse">Summarizing...</span>
+            <span className="text-[11px] text-white/20">•</span>
+            <span className="text-[11px] text-purple-400 animate-pulse whitespace-nowrap">Summarizing...</span>
+          </>
+        )}
+        <span className="text-[11px] text-white/20">•</span>
+
+        {onToggleAutoSync && (
+          <button
+            onClick={() => onToggleAutoSync(!autoSyncEnabled)}
+            className={cn(
+              "px-2 py-1 rounded-lg text-[11px] font-cinzel transition-colors whitespace-nowrap",
+              autoSyncEnabled ? "text-amber-300 bg-amber-900/30" : "text-white/50 hover:bg-white/10"
+            )}
+            style={{ touchAction: 'manipulation' }}
+            title={autoSyncEnabled ? 'Auto-Sync enabled' : 'Enable Auto-Sync'}
+          >
+            <Zap className={cn("w-3 h-3 inline mr-0.5", isExtracting && "animate-pulse")} />
+            Sync
+          </button>
+        )}
+        {onShowMap && (
+          <button
+            onClick={onShowMap}
+            className="px-2 py-1 rounded-lg text-[11px] font-cinzel text-white/50 hover:bg-white/10 transition-colors whitespace-nowrap"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <Map className="w-3 h-3 inline mr-0.5" />Map
+          </button>
+        )}
+        {onShowSaves && (
+          <button
+            onClick={onShowSaves}
+            className="px-2 py-1 rounded-lg text-[11px] font-cinzel text-white/50 hover:bg-white/10 transition-colors whitespace-nowrap"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <FolderOpen className="w-3 h-3 inline mr-0.5" />Saves
+          </button>
+        )}
+        {onShowChat && (
+          <button
+            onClick={onShowChat}
+            className="px-2 py-1 rounded-lg text-[11px] font-cinzel text-white/50 hover:bg-white/10 transition-colors whitespace-nowrap"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <MessageSquare className="w-3 h-3 inline mr-0.5" />Chat
+          </button>
+        )}
+        {onShowGuides && (
+          <button
+            onClick={onShowGuides}
+            className={cn(
+              "px-2 py-1 rounded-lg text-[11px] font-cinzel transition-colors relative whitespace-nowrap",
+              guidesCount > 0 ? "text-amber-300/80 hover:bg-amber-900/30" : "text-white/50 hover:bg-white/10"
+            )}
+            style={{ touchAction: 'manipulation' }}
+          >
+            <BookOpen className="w-3 h-3 inline mr-0.5" />Guides
+            {guidesCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-amber-600 text-[8px] flex items-center justify-center text-white">
+                {guidesCount}
+              </span>
+            )}
+          </button>
+        )}
+        {isCreator && (
+          <>
+            <button
+              onClick={() => {
+                const newMode = mode === 'shared' ? 'private' : 'shared';
+                if (partyDm.sessionConfig) {
+                  const updated = { ...partyDm.sessionConfig, mode: newMode as 'shared' | 'private' };
+                  (supabase.from('party_shared_state') as any)
+                    .update({ state_data: updated })
+                    .eq('state_type', 'dm_session')
+                    .then(() => {});
+                }
+              }}
+              className={cn(
+                "p-1 rounded-lg text-[11px] transition-colors",
+                mode === 'shared' ? "bg-emerald-900/30 text-emerald-400" : "bg-purple-900/30 text-purple-400"
+              )}
+              title={mode === 'shared' ? 'Switch to private' : 'Switch to shared'}
+              style={{ touchAction: 'manipulation' }}
+            >
+              {mode === 'shared' ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+            </button>
+            <button
+              onClick={() => {
+                setShowNewCampaignInput(true);
+                setNewCampaignName('');
+              }}
+              className="p-1 rounded-lg text-[11px] text-amber-400 hover:bg-amber-900/20 transition-colors"
+              title="Start new campaign"
+              style={{ touchAction: 'manipulation' }}
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={partyDm.endSession}
+              className="p-1 rounded-lg text-[11px] text-red-400 hover:bg-red-900/20 transition-colors"
+              style={{ touchAction: 'manipulation' }}
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </>
         )}
       </div>
