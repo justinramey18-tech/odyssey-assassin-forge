@@ -500,6 +500,16 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
   }, [user, partyId, sessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
 
+  const unready = useCallback(async () => {
+    if (!user || !partyId || !sessionConfig) return;
+    const myPrompt = currentPrompts.find(p => p.user_id === user.id);
+    if (myPrompt && myPrompt.is_ready) {
+      await (supabase.from('party_dm_prompts') as any)
+        .update({ is_ready: false })
+        .eq('id', myPrompt.id);
+    }
+  }, [partyId, user, sessionConfig, currentPrompts]);
+
   const editPrompt = useCallback(async (newText: string) => {
     if (!user) return;
     const myPrompt = currentPrompts.find(p => p.user_id === user.id);
@@ -1201,6 +1211,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     editPrompt,
     retractPrompt,
     setReady,
+    unready,
     generateResponse,
     editMessage,
     deleteMessage,
