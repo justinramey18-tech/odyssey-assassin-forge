@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, MessageSquare, Plus, Save, Volume2, VolumeX, GitBranch } from 'lucide-react';
+import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, MessageSquare, Plus, Save, Volume2, VolumeX, GitBranch, Bell, BellOff } from 'lucide-react';
 import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 import { useNarrator } from '@/hooks/use-narrator';
-import { subscribeToPush, getPushSubscriptionState } from '@/lib/push-subscription';
+import { subscribeToPush, unsubscribeFromPush, getPushSubscriptionState, type PushSubscriptionState } from '@/lib/push-subscription';
 import { useAuth } from '@/hooks/use-auth';
 import { NarrationSpeedPopover } from './NarrationSpeedPopover';
 import type { usePartyDm, PartyDmMessage, PartyDmPrompt } from '@/hooks/use-party-dm';
@@ -403,18 +403,52 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
 
   const mode = partyDm.sessionConfig?.mode || 'shared';
 
-  // Auto-prompt push subscription 1.5s after mount (user gesture not strictly needed on most browsers for permission prompt)
+  // Push notification state
   const { user } = useAuth();
+  const [pushState, setPushState] = useState<PushSubscriptionState>('unsupported');
+
+  // Check push state on mount and after toggle
+  const refreshPushState = useCallback(async () => {
+    const state = await getPushSubscriptionState();
+    setPushState(state);
+  }, []);
+
+  useEffect(() => {
+    refreshPushState();
+  }, [refreshPushState]);
+
+  // Auto-prompt push subscription 1.5s after mount
   useEffect(() => {
     if (!user?.id) return;
     const timer = setTimeout(async () => {
       const state = await getPushSubscriptionState();
       if (state === 'supported' || state === 'unsubscribed') {
-        await subscribeToPush(user.id);
+        const success = await subscribeToPush(user.id);
+        if (success) setPushState('subscribed');
       }
     }, 1500);
     return () => clearTimeout(timer);
   }, [user?.id]);
+
+  const handleTogglePush = useCallback(async () => {
+    if (!user?.id) return;
+    if (pushState === 'subscribed') {
+      await unsubscribeFromPush(user.id);
+      setPushState('unsubscribed');
+      toast('🔕 Push notifications disabled');
+    } else if (pushState === 'unsubscribed' || pushState === 'supported') {
+      const success = await subscribeToPush(user.id);
+      if (success) {
+        setPushState('subscribed');
+        toast('🔔 Push notifications enabled');
+      } else {
+        await refreshPushState();
+        if (Notification.permission === 'denied') {
+          toast.error('Notifications blocked — enable in browser settings');
+        }
+      }
+    }
+  }, [user?.id, pushState, refreshPushState]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -647,6 +681,33 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                 {guidesCount}
               </span>
             )}
+          </button>
+        )}
+        {/* Push notification toggle */}
+        {pushState !== 'unsupported' && (
+          <button
+            onClick={handleTogglePush}
+            className={cn(
+              "px-2 py-1 rounded-lg text-[11px] font-cinzel transition-colors whitespace-nowrap",
+              pushState === 'subscribed'
+                ? "text-amber-300 bg-amber-900/30"
+                : pushState === 'denied'
+                  ? "text-red-400/60 cursor-not-allowed"
+                  : "text-white/50 hover:bg-white/10"
+            )}
+            style={{ touchAction: 'manipulation' }}
+            title={
+              pushState === 'subscribed' ? 'Push notifications on'
+                : pushState === 'denied' ? 'Blocked — enable in browser settings'
+                : 'Enable push notifications'
+            }
+            disabled={pushState === 'denied'}
+          >
+            {pushState === 'subscribed'
+              ? <Bell className="w-3 h-3 inline mr-0.5" />
+              : <BellOff className="w-3 h-3 inline mr-0.5" />
+            }
+            {pushState === 'denied' ? 'Blocked' : pushState === 'subscribed' ? 'Alerts' : 'Alerts'}
           </button>
         )}
         {isCreator && (
