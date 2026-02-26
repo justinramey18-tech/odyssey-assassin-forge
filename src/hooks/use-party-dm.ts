@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { getAuthToken } from '@/lib/auth-token';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { DmSplitState, SplitTeam } from '@/lib/party-split-types';
+import { sendReadyUpNotification } from '@/lib/party-notifications';
 
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
 const SUMMARIZE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm-summarize`;
@@ -177,11 +178,26 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           const p = payload.new as PartyDmPrompt;
           setCurrentPrompts(prev => {
             if (prev.some(x => x.id === p.id)) return prev;
-            return [...prev, p];
+            const updated = [...prev, p];
+            // Notify if the inserted prompt is already ready and not from current user
+            if (p.is_ready && p.user_id !== user?.id) {
+              const readyCount = updated.filter(x => x.is_ready).length;
+              sendReadyUpNotification(p.character_name, readyCount, memberCount);
+            }
+            return updated;
           });
         } else if (payload.eventType === 'UPDATE') {
           const p = payload.new as PartyDmPrompt;
-          setCurrentPrompts(prev => prev.map(x => x.id === p.id ? p : x));
+          const oldPrompt = payload.old as Partial<PartyDmPrompt>;
+          setCurrentPrompts(prev => {
+            const updated = prev.map(x => x.id === p.id ? p : x);
+            // Notify on is_ready transition (false → true) from another user
+            if (p.is_ready && !oldPrompt.is_ready && p.user_id !== user?.id) {
+              const readyCount = updated.filter(x => x.is_ready).length;
+              sendReadyUpNotification(p.character_name, readyCount, memberCount);
+            }
+            return updated;
+          });
         } else if (payload.eventType === 'DELETE') {
           const old = payload.old as { id?: string };
           if (old.id) {

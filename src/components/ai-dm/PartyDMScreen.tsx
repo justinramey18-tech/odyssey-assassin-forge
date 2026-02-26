@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 import { useNarrator } from '@/hooks/use-narrator';
+import { requestPartyNotificationPermission } from '@/lib/party-notifications';
 import { NarrationSpeedPopover } from './NarrationSpeedPopover';
 import type { usePartyDm, PartyDmMessage, PartyDmPrompt } from '@/hooks/use-party-dm';
 import { DMDiceRoller } from './DMDiceRoller';
@@ -400,6 +401,11 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
   const [showSplitSummaries, setShowSplitSummaries] = useState(false);
 
   const mode = partyDm.sessionConfig?.mode || 'shared';
+
+  // Request browser notification permission for ready-up alerts
+  useEffect(() => {
+    requestPartyNotificationPermission();
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
