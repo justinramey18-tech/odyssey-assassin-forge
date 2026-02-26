@@ -88,3 +88,39 @@ export async function sendReadyUpNotification(
     }
   }
 }
+
+/**
+ * Send a chat message notification via in-app toast and browser push.
+ * Each notification gets a unique tag so they stack on Android.
+ */
+export async function sendChatMessageNotification(
+  senderName: string,
+  messageText: string,
+): Promise<void> {
+  toast(`💬 ${senderName}: ${messageText}`, {
+    duration: 4000,
+    icon: '💬',
+    id: `chat-msg-toast-${Date.now()}`,
+  });
+
+  if ('Notification' in window && Notification.permission === 'granted') {
+    const payload = {
+      title: `💬 ${senderName}`,
+      body: messageText,
+      icon: '/pwa-192x192.png',
+      badge: '/pwa-192x192.png',
+      tag: `chat-msg-${Date.now()}`,
+    };
+
+    try {
+      const reg = await navigator.serviceWorker?.ready;
+      if (reg?.active) {
+        reg.active.postMessage({ type: 'SHOW_NOTIFICATION', payload });
+      } else {
+        new Notification(payload.title, payload);
+      }
+    } catch {
+      try { new Notification(payload.title, payload); } catch { /* silent */ }
+    }
+  }
+}
