@@ -17,8 +17,7 @@ import { PartyBattleMap } from './PartyBattleMap';
 import { PartyCombatLog } from './PartyCombatLog';
 import { SendItemScreen } from './SendItemScreen';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
-import { requestPartyNotificationPermission } from '@/lib/party-notifications';
-import { usePushSubscription } from '@/hooks/use-push-subscription';
+import { useOneSignal } from '@/hooks/use-onesignal';
 import type { UsePartySyncReturn, PartyMember } from '@/hooks/use-party-sync';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import type { InventoryItem } from '@/lib/consumables/types';
@@ -69,7 +68,7 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
   const [bgOpacity, setBgOpacity] = useState<number>(1);
   const { party } = partySync;
   const onlineStatusMap = useOnlineStatus(party.members);
-  const { subscribe: subscribePush } = usePushSubscription();
+  const { requestPermission } = useOneSignal();
 
   const MEMBER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7', '#ef4444', '#06b6d4'];
   const memberColors = useMemo(() => {
@@ -126,11 +125,9 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
   const handleChatOpenChange = useCallback((open: boolean): void => {
     setShowChat(open);
     if (open) {
-      requestPartyNotificationPermission().then((perm) => {
-        if (perm === 'granted') subscribePush();
-      });
+      requestPermission();
     }
-  }, [subscribePush]);
+  }, [requestPermission]);
 
   if (!isAuthenticated) {
     return (

@@ -11,8 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 import { useNarrator } from '@/hooks/use-narrator';
-import { requestPartyNotificationPermission } from '@/lib/party-notifications';
-import { usePushSubscription } from '@/hooks/use-push-subscription';
+import { useOneSignal } from '@/hooks/use-onesignal';
 import { NarrationSpeedPopover } from './NarrationSpeedPopover';
 import type { usePartyDm, PartyDmMessage, PartyDmPrompt } from '@/hooks/use-party-dm';
 import { DMDiceRoller } from './DMDiceRoller';
@@ -372,7 +371,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
   const [input, setInput] = useState('');
   const [, setTick] = useState(0);
   const narrator = useNarrator();
-  const { subscribe: subscribePush } = usePushSubscription();
+  const { requestPermission } = useOneSignal();
 
   useEffect(() => {
     if (!partyDm.lastAutoSaveTime) return;
@@ -404,14 +403,10 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
 
   const mode = partyDm.sessionConfig?.mode || 'shared';
 
-  // Request browser notification permission and register push subscription
+  // Request push notification permission via OneSignal
   useEffect(() => {
-    requestPartyNotificationPermission().then((result) => {
-      if (result === 'granted') {
-        subscribePush();
-      }
-    });
-  }, [subscribePush]);
+    requestPermission();
+  }, [requestPermission]);
 
   useEffect(() => {
     if (scrollRef.current) {
