@@ -1,71 +1,45 @@
 
 
-## Comprehensive Code Audit — Findings & Plan
+## Code Audit: Saving, Push Notifications, Auth Persistence
 
 ### Issues Found
 
-#### 1. Bug: `handleShortRest` and `handleLongRest` are not memoized but used as dependencies
-**File:** `src/pages/Index.tsx` (lines 1605, 1642)
-- `handleShortRest` and `handleLongRest` are plain arrow functions (not `useCallback`), but `handleChronicleRest` (line 1716) wraps them in `useCallback` and lists them as dependencies. Since they're recreated every render, `handleChronicleRest` also recreates every render, defeating the purpose.
-- **Fix:** Wrap both in `useCallback`.
+#### 1. Bug: `loadFromCloud` hardcodes `version: 1` instead of `CURRENT_VERSION` (2)
+**File:** `src/hooks/use-cloud-save.ts`, line 291
+- When loading a cloud save, the version is hardcoded to `1`. The app's current version is `2`. This means cloud-loaded saves will always appear to need migration, and if any code checks `version === CURRENT_VERSION`, it will fail.
+- **Fix:** Import `CURRENT_VERSION` or hardcode `2` to match. Best: set `version: 2`.
 
-#### 2. Bug: `handleAddXP` is not memoized but used as a dependency
-**File:** `src/pages/Index.tsx` (line 1314)
-- `handleAddXP` is a plain function, used in `autoSyncCallbacks` useMemo dependency array (line 1733). This causes `autoSyncCallbacks` to recreate every render.
-- **Fix:** Wrap in `useCallback`.
+#### 2. Bug: `readyCount` calculation in `setReady` is inaccurate
+**File:** `src/hooks/use-party-dm.ts`, line 511
+- `readyCount` is calculated as `currentPrompts.filter(p => p.is_ready).length + 1`. But `currentPrompts` is captured at callback creation time (it's in the dependency array), and the user's own prompt may already be in `currentPrompts` and already marked as ready from a previous round. The `+1` assumes the user wasn't already counted, but if the user had an existing prompt that was updated (line 492-494), the filter already includes them in the count after the DB update propagates via Realtime.
+- The count is sent to the server *before* the Realtime UPDATE event arrives, so `currentPrompts` still reflects the pre-update state — the `+1` is correct for the INSERT path (line 507) but also correct for the UPDATE path (line 492) since the old prompt had `is_ready: false`. This is actually fine on closer inspection. No fix needed.
 
-#### 3. Bug: `handleManualLevelUp` is not memoized
-**File:** `src/pages/Index.tsx` (line 1886)
-- Passed as prop to `HomeScreen`, causing unnecessary re-renders.
-- **Fix:** Wrap in `useCallback`.
+#### 3. Issue: `sendReadyUpNotification` shows duplicate toasts — both "all ready" AND individual
+**File:** `src/lib/party-notifications.ts`, lines 66-84
+- When all players are ready, the function shows *both* the "All players readied up" toast AND the individual "X has readied up" toast. The individual toast should be skipped when `allReady` is true to avoid noise.
+- **Fix:** Add early return after the "all ready" toast.
 
-#### 4. Unused destructured variables in Index.tsx
-**File:** `src/pages/Index.tsx` (line 411)
-- `requiresGearUnlocks`, `rerollsDisabled`, `infinityStonesLocked` are destructured from `useGameMode()` but never used in Index.tsx — each consuming component calls `useGameMode()` independently.
-- **Fix:** Remove unused destructurings.
+#### 4. Dead code: `use-auto-save.ts` still has unused imports
+**File:** `src/hooks/use-auto-save.ts`, lines 1-12
+- `useEffect`, `useRef`, `useCallback` are imported from React but no longer used (the hook function was removed in a previous audit, only types/helpers remain).
+- `Character`, `CharacterEquipment`, `Achievement`, `InventoryItem`, `SpellcastingState`, `ActiveSpellEffect`, `PrestigeTreeProgress`, `LootState`, `CombatSettings`, `ConditionsState`, `CooldownSaveState` — many are only used in the `SaveData` interface and are fine. But the React imports are dead.
+- Also `DEBOUNCE_MS` (line 15) is unused.
+- **Fix:** Remove unused React imports and `DEBOUNCE_MS`.
 
-#### 5. Bug: `allAbilities` in useEffect dependency array
-**File:** `src/pages/Index.tsx` (line 774)
-- `allAbilities` is a module-level import (constant), not a state variable. It shouldn't be in the dependency array. While it won't cause bugs (it's stable), it's misleading. Same issue in `handleNewCharacter` deps (line 1951).
-- **Fix:** Remove from dependency arrays.
+#### 5. Issue: `usePushSubscription` `isSubscribed` always returns initial ref value
+**File:** `src/hooks/use-push-subscription.ts`, line 115
+- `isSubscribed: subscribedRef.current` is evaluated once at render time and never triggers re-renders since it's a ref. Any consumer checking `isSubscribed` will always get `false` on first render and won't update when subscription succeeds.
+- This is a minor issue since no consumer currently relies on reactive `isSubscribed` state, but it's misleading API. No fix needed now — flagging for awareness.
 
-#### 6. `handleNewCharacter` dependency on `allAbilities`
-**File:** `src/pages/Index.tsx` (line 1951)
-- `allAbilities` is a module-level constant, not a dependency.
-- **Fix:** Remove from useCallback deps.
-
-#### 7. Missing `hpState` persistence in `handleShortRest`
-**File:** `src/pages/Index.tsx` (line 1611)
-- `handleShortRest` uses `setHpState(prev => ...)` but doesn't persist to localStorage (unlike `handleLongRest` and `handleHPChange` which do). The auto-save will eventually catch it, but there's an inconsistency.
-- **Fix:** Add localStorage persistence after state update.
-
-#### 8. `handleApplyChronicleChanges` not memoized
-**File:** `src/pages/Index.tsx` (line 1736)
-- Large function passed as prop, recreated every render.
-- **Fix:** Wrap in `useCallback`.
-
-#### 9. `handleExportJSON` not memoized
-**File:** `src/pages/Index.tsx` (line 1559)
-- Not critical but follows the pattern issue.
-- **Fix:** Wrap in `useCallback` for consistency.
-
-#### 10. Stale closure risk in `handleChronicleRest`
-**File:** `src/pages/Index.tsx` (line 1716-1722)
-- Calls `handleLongRest()` and `handleShortRest()` which close over `hpState`. If `handleChronicleRest` is memoized but the rest handlers aren't, this creates stale closure bugs.
-- **Fix:** Fixed by issue #1 above — wrapping rest handlers in useCallback with proper deps.
+#### 6. Bug: `beforeunload` handler calls async `saveToCloudNow()` which won't complete
+**File:** `src/hooks/use-auto-cloud-sync.ts`, lines 194-196
+- `saveToCloudNow()` is async and uses `fetch` internally. In `beforeunload`, the page is closing and async operations are killed. The `navigator.sendBeacon` API should be used for unload saves, but since this is a "best-effort" scenario and the periodic sync covers it, this is acceptable. No fix needed — the comment already acknowledges this.
 
 ### Plan Summary
 
-All changes are in `src/pages/Index.tsx`:
+**Files to modify:**
 
-1. **Remove unused destructurings** from `useGameMode()` on line 411
-2. **Wrap `handleShortRest`** in `useCallback` with proper deps + add localStorage persistence
-3. **Wrap `handleLongRest`** in `useCallback` with proper deps
-4. **Wrap `handleAddXP`** in `useCallback` with proper deps
-5. **Wrap `handleManualLevelUp`** in `useCallback` with proper deps
-6. **Wrap `handleApplyChronicleChanges`** in `useCallback` with proper deps
-7. **Remove `allAbilities`** from dependency arrays (lines 774, 1951) — it's a module constant
-8. **Add localStorage persistence** to `handleShortRest` for HP state consistency
-
-These fixes address re-render cascades, stale closure risks, and data persistence gaps. No breaking changes — all are internal optimizations that maintain current functionality.
+1. **`src/hooks/use-cloud-save.ts`** — Fix `version: 1` → `version: 2` on line 291
+2. **`src/lib/party-notifications.ts`** — Skip individual toast when all players are ready (add early return after allReady toast)
+3. **`src/hooks/use-auto-save.ts`** — Remove unused React imports (`useEffect`, `useRef`, `useCallback`) and unused `DEBOUNCE_MS` constant
 
