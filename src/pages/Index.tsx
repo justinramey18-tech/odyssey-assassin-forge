@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { getScopedKey } from '@/lib/scoped-storage';
 import { loadTimezone, TIMEZONE_CHANGE_EVENT } from '@/lib/timezone-storage';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { Character, CharacterAbility, getAbilityPointsForLevel, getTotalPointsSpent, getActiveSlotsByLevel } from '@/lib/types';
 import { allAbilities } from '@/lib/abilities';
 import { achievementCategories, Achievement } from '@/lib/achievements';
@@ -107,7 +107,12 @@ import { useAppMode } from '@/hooks/use-app-mode';
 const EMPTY_MULTICLASS_LEVELS: Record<string, never> = {};
 
 const Index = () => {
+  const location = useLocation();
+  const routerNavigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Roster navigation state: saveData/saveId from character selection, or newCharacter flag
+  const rosterState = location.state as { saveData?: SaveData; saveId?: string; newCharacter?: boolean } | null;
   
   // Check for reset parameter on mount
   useEffect(() => {
@@ -571,6 +576,39 @@ const Index = () => {
   // Auth & Party system
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { loadFromCloud, saveToCloud, renameSave } = useCloudSave(user?.id);
+
+  // ── Roster gate: redirect unauthenticated users to /roster ──
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      routerNavigate('/roster', { replace: true });
+    }
+  }, [authLoading, isAuthenticated, routerNavigate]);
+
+  // ── Consume roster navigation state (character selection or new character) ──
+  const hasConsumedRosterState = useRef(false);
+  useEffect(() => {
+    if (hasConsumedRosterState.current || !rosterState) return;
+    hasConsumedRosterState.current = true;
+
+    if (rosterState.newCharacter) {
+      // "Create New" was picked — show wizard
+      setShowWizard(true);
+      setShowHomeScreen(false);
+      // Clear route state so refresh doesn't re-trigger
+      routerNavigate('/', { replace: true, state: null });
+      return;
+    }
+
+    if (rosterState.saveData && rosterState.saveId) {
+      // Character selected from roster — hydrate via the existing load handler
+      // We call handleLoadCloudSave later (after it's defined), so we store the intent
+      // and let the dedicated effect below pick it up.
+      console.log('[Roster] Character selected:', rosterState.saveData.character?.name, 'saveId:', rosterState.saveId);
+    }
+
+    // Clear route state
+    routerNavigate('/', { replace: true, state: null });
+  }, [rosterState, routerNavigate]);
   const partySync = usePartySync();
   const { playMode, setPlayMode, isSoloMode, isPartyMode } = usePlayMode();
 
@@ -1276,11 +1314,24 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     }, 500);
   }, [abilityScores.applyScores, setPrestigeData, toast, partySync, customBackground, activeCloudSaveId, character.name, saveData, saveToCloud]);
 
+  // ── Hydrate from roster selection (runs once after handleLoadCloudSave is defined) ──
+  const hasHydratedFromRoster = useRef(false);
+  useEffect(() => {
+    if (hasHydratedFromRoster.current) return;
+    if (!rosterState?.saveData || !rosterState?.saveId) return;
+    hasHydratedFromRoster.current = true;
+
+    // Use the full load handler to restore all state
+    handleLoadCloudSave(rosterState.saveData, rosterState.saveId);
+  }, [rosterState, handleLoadCloudSave]);
+
   // Auto-restore from cloud when authenticated but no local save found
+  // SKIP if roster already provided character data
   // Uses DIRECT state restoration — NOT handleLoadCloudSave which would
   // sync the empty default character to cloud (overwriting real data) and reload
   const hasAttemptedCloudRestore = useRef(false);
   useEffect(() => {
+    if (hasHydratedFromRoster.current) return; // Roster already handled it
     if (!showWizard || hasAttemptedCloudRestore.current) return;
     if (authLoading || !isAuthenticated || !user) return;
 
