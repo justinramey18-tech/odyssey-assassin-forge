@@ -68,6 +68,21 @@ export default function AICreationAssistant() {
       }
     }
 
+    // Auto-equip homebrew gear into matching slots
+    if (homebrewSummary.createdGearItems.length > 0) {
+      for (const item of homebrewSummary.createdGearItems) {
+        const slot = item.slotType;
+        // Only equip if the slot is currently empty
+        if (slot && !wizardState.equipment.slots[slot]) {
+          wizardState.equipment.slots[slot] = item;
+        } else if (slot) {
+          // Slot occupied — add to inventory instead
+          wizardState.equipment.inventory.push(item);
+        }
+      }
+      console.log('[AICreation] Auto-equipped homebrew gear into slots');
+    }
+
     // Navigate to Index with the wizard state to apply
     navigate('/', { 
       state: { 
