@@ -23,6 +23,7 @@ import {
 } from '@/lib/abilityCustomization/types';
 import { generateHomebrewId } from '@/lib/abilityCustomization/utils';
 import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
+import { getConsumableById } from '@/lib/consumables';
 import type { SpellSchool, CastingTime } from '@/lib/magic/types';
 import type { AbilityTree, ActionType, UsageType } from '@/lib/types';
 import type { EquipmentSlotType, Rarity } from '@/lib/inventory/types';
@@ -177,6 +178,42 @@ export function saveHomebrewContentFromBuildData(data: CharacterBuildData): Save
       summary.consumables = newConsumables.length;
     } catch (e) {
       console.error('[AICreation] Failed to save homebrew consumables:', e);
+    }
+  }
+
+  // ── Preset Consumables (from static registry) ──
+  if (data.consumables && data.consumables.length > 0) {
+    try {
+      const CONSUMABLE_KEY = 'odyssey-consumables-inventory';
+      let existing: any[] = [];
+      try {
+        const stored = getScopedItem(CONSUMABLE_KEY);
+        existing = stored ? JSON.parse(stored) : [];
+      } catch { existing = []; }
+
+      let presetCount = 0;
+      for (const consumableId of data.consumables) {
+        const consumable = getConsumableById(consumableId);
+        if (!consumable) {
+          console.warn(`[AICreation] Preset consumable not found: ${consumableId}`);
+          continue;
+        }
+        // Merge: increment quantity if already present
+        const existingEntry = existing.find((e: any) => e.consumableId === consumableId);
+        if (existingEntry) {
+          existingEntry.quantity = (existingEntry.quantity || 1) + 1;
+        } else {
+          existing.push({ consumableId, quantity: 1 });
+        }
+        presetCount++;
+      }
+
+      if (presetCount > 0) {
+        setScopedItem(CONSUMABLE_KEY, JSON.stringify(existing));
+        console.log(`[AICreation] Saved ${presetCount} preset consumables`);
+      }
+    } catch (e) {
+      console.error('[AICreation] Failed to save preset consumables:', e);
     }
   }
 

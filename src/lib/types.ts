@@ -41,6 +41,9 @@ export interface Character {
   abilities: CharacterAbility[];
   equippedAbilities: string[]; // Array of ability IDs in loadout slots
   
+  // Portrait icon (Lucide icon name)
+  portraitIcon?: string;
+  
   // Multiclass support (optional - defaults to 'rogue' for backward compatibility)
   primaryClass?: DnDClass;
   multiclassLevels?: ClassLevelMap;

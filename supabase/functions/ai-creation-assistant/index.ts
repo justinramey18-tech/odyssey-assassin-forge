@@ -88,10 +88,22 @@ Three trees with abilities (each has tiers 1-3):
 - **Custom Selection** — Start empty
 
 ### 10. Consumables (Optional)
-Common starting consumables:
-- Potions: Healing (2d4+2), Greater Healing (4d4+4), Antitoxin
-- Poisons: Basic Poison (1d4), Drow Poison (unconscious), Serpent Venom (3d6)
-- Scrolls: Various utility scrolls
+You can suggest preset consumables from the registry by their exact ID. Include them in the "consumables" array of the final JSON.
+
+**Available Potion IDs:**
+potion-healing, potion-climbing, potion-greater-healing, potion-animal-friendship, potion-fire-breath, potion-growth, potion-hill-giant-strength, potion-poison, potion-resistance, potion-water-breathing, potion-superior-healing, potion-clairvoyance, potion-diminution, potion-gaseous-form, potion-frost-giant-strength, potion-stone-giant-strength, potion-heroism, potion-invulnerability, potion-mind-reading, potion-supreme-healing, potion-fire-giant-strength, potion-cloud-giant-strength, potion-flying, potion-invisibility, potion-longevity, potion-speed, potion-vitality, potion-storm-giant-strength, potion-swimming, potion-philter-of-love, potion-oil-of-slipperiness, potion-watchful-rest, potion-elixir-of-health, potion-truesight, potion-oil-of-etherealness, potion-maximum-power, potion-possibility, potion-giant-size, potion-dragons-majesty, potion-undying, potion-sovereign-glue, potion-universal-solvent
+
+**Available Poison IDs:**
+poison-assassins-blood, poison-midnight-tears, poison-torpor, poison-essence-of-ether, poison-malice, poison-oil-of-taggit, poison-burnt-othur-fumes, poison-truth-serum, poison-basic, poison-drow, poison-serpent-venom, poison-wyvern, poison-purple-worm, poison-carrion-crawler, poison-pale-tincture, poison-lolths-sting, poison-dragon-bile, poison-demon-ichor, poison-nightmare-vapor, poison-shadowfell-essence, poison-pit-fiend-venom, poison-eye-of-basilisk, poison-primordial-blight
+
+**Available Scroll IDs:**
+scroll-disguise-self, scroll-invisibility, scroll-pass-without-trace, scroll-silence, scroll-misty-step, scroll-gaseous-form, scroll-nondetection, scroll-greater-invisibility, scroll-sleep, scroll-hold-person, scroll-darkness, scroll-blindness-deafness, scroll-suggestion, scroll-haste, scroll-fear, scroll-dimension-door, scroll-detect-magic, scroll-detect-poison-disease, scroll-comprehend-languages, scroll-detect-thoughts, scroll-locate-object, scroll-clairvoyance, scroll-tongues, scroll-feather-fall, scroll-fog-cloud, scroll-charm-person, scroll-healing-word, scroll-spider-climb, scroll-mirror-image, scroll-knock, scroll-web, scroll-counterspell, scroll-fly, scroll-dispel-magic, scroll-fireball, scroll-polymorph, scroll-banishment, scroll-wall-of-force
+
+**Recommended starter kits by level:**
+- Level 1-4: potion-healing ×2, poison-basic
+- Level 5-10: potion-greater-healing ×2, potion-healing, poison-drow, scroll-misty-step
+- Level 11-15: potion-superior-healing ×2, potion-speed, poison-wyvern, scroll-greater-invisibility, scroll-counterspell
+- Level 16-20: potion-supreme-healing ×2, potion-speed, potion-invisibility, poison-purple-worm, scroll-dimension-door, scroll-counterspell
 
 ## HOMEBREW CONTENT CREATION
 You can also create fully custom homebrew content when the user asks for it. This includes custom gear, spells, abilities, and consumables. When a user describes something custom (e.g. "give me flight leathers" or "create a shadow bolt spell"), generate the full mechanical spec.
