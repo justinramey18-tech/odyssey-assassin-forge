@@ -10,6 +10,7 @@ import { LootState } from '@/lib/loot/types';
 import { CombatSettings } from '@/lib/combat/combatSettings';
 import { ConditionsState } from '@/lib/conditions/types';
 import { CooldownSaveState } from '@/lib/cooldowns/types';
+import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 
 const STORAGE_KEY = 'odyssey-character-autosave';
 const DEBOUNCE_MS = 1000; // Save 1 second after last change
@@ -45,34 +46,21 @@ export interface SaveData {
     successes: number;
     failures: number;
   };
-  // Spellcasting state (magic path, slots, spells)
   spellcasting?: SpellcastingState;
-  // Active spell effects (duration tracking)
   activeSpells?: ActiveSpellEffect[];
-  // Prestige skill tree progress (Drizzt's Legacy)
   prestigeTree?: PrestigeTreeProgress;
-  // Shop gold balance
   shopGold?: number;
-  // Loot items and sold history
   loot?: LootState;
-  // Proficiencies (skills and saves)
   proficiencies?: {
     skills: string[];
     saves: string[];
   };
-  // Expertise skills (double proficiency)
   expertise?: string[];
-  // D&D Inspiration
   inspiration?: boolean;
-  // Combat settings (feat toggles)
   combatSettings?: CombatSettings;
-  // Conditions state (buffs/debuffs/concentration)
   conditions?: ConditionsState;
-  // Cooldown state (ability timers and session)
   cooldownState?: CooldownSaveState;
-  // Party association (persists across sessions)
   partyId?: string | null;
-  // Custom home background URL (cloud storage)
   backgroundUrl?: string | null;
   savedAt: string;
   version: number;
@@ -90,6 +78,10 @@ export function serializeConsumables(inventory: InventoryItem[]): SaveData['cons
 // Version 2: Updated prestige points formula (variable 2-5 per level)
 const CURRENT_VERSION = 2;
 
+/**
+ * @deprecated Use useAutoCloudSync instead. This hook is kept only for the
+ * SaveData interface and loadAutoSave/clearAutoSave utilities.
+ */
 export function useAutoSave(
   data: Omit<SaveData, 'savedAt' | 'version'>,
   enabled: boolean = true
@@ -108,10 +100,9 @@ export function useAutoSave(
     
     const serialized = JSON.stringify(saveData);
     
-    // Only save if data changed
     if (serialized !== lastSaveRef.current) {
       try {
-        localStorage.setItem(STORAGE_KEY, serialized);
+        setScopedItem(STORAGE_KEY, serialized);
         lastSaveRef.current = serialized;
         console.log('[AutoSave] Saved at', new Date().toLocaleTimeString());
       } catch (error) {
@@ -120,7 +111,6 @@ export function useAutoSave(
     }
   }, [data, enabled]);
 
-  // Debounced auto-save on data change
   useEffect(() => {
     if (!enabled) return;
     
@@ -139,7 +129,6 @@ export function useAutoSave(
     };
   }, [data, save, enabled]);
 
-  // Save on page unload
   useEffect(() => {
     if (!enabled) return;
     
@@ -156,18 +145,26 @@ export function useAutoSave(
   return { save };
 }
 
+/**
+ * Load the monolithic autosave snapshot from SCOPED localStorage.
+ * Falls back to the unscoped key for migration from pre-scoped versions.
+ */
 export function loadAutoSave(): SaveData | null {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    // Try scoped key first (character-isolated)
+    let saved = getScopedItem(STORAGE_KEY);
+    
+    // Fallback to unscoped key for legacy/migration
+    if (!saved) {
+      saved = localStorage.getItem(STORAGE_KEY);
+    }
+    
     if (!saved) return null;
     
     const data = JSON.parse(saved) as SaveData;
     
-    // Version migration if needed
     if (data.version !== CURRENT_VERSION) {
       console.log('[AutoSave] Migrating from version', data.version, 'to', CURRENT_VERSION);
-      // Character level points auto-migrate via getAbilityPointsForLevel() formula
-      // Prestige points migrate via usePrestige hook's migratePrestigeData()
     }
     
     return data;
@@ -180,6 +177,16 @@ export function loadAutoSave(): SaveData | null {
 export function clearAutoSave(): void {
   try {
     localStorage.removeItem(STORAGE_KEY);
+    // Also try to remove scoped version
+    try {
+      const scopedKey = getScopedItem(STORAGE_KEY);
+      if (scopedKey !== null) {
+        const saveId = localStorage.getItem('odyssey-active-cloud-save-id');
+        if (saveId) {
+          localStorage.removeItem(`${STORAGE_KEY}::${saveId}`);
+        }
+      }
+    } catch {}
     console.log('[AutoSave] Cleared');
   } catch (error) {
     console.error('[AutoSave] Failed to clear:', error);
@@ -188,7 +195,7 @@ export function clearAutoSave(): void {
 
 export function hasAutoSave(): boolean {
   try {
-    return localStorage.getItem(STORAGE_KEY) !== null;
+    return getScopedItem(STORAGE_KEY) !== null || localStorage.getItem(STORAGE_KEY) !== null;
   } catch {
     return false;
   }

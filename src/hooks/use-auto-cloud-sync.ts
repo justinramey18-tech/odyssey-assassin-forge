@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { useAuth } from './use-auth';
 import { useCloudSave } from './use-cloud-save';
 import { SaveData } from './use-auto-save';
+import { setScopedItem } from '@/lib/scoped-storage';
 
 const CLOUD_DEBOUNCE_MS = 30000; // 30 seconds debounce for cloud saves
 const LOCAL_DEBOUNCE_MS = 1000; // 1 second for local saves
@@ -13,11 +14,16 @@ export interface AutoCloudSyncResult {
   isSyncing: boolean;
   syncNow: () => Promise<void>;
   lastLocalSaveTime: string | null;
+  /** Resolves when any in-flight cloud save completes. Use before character switch. */
+  pendingFlush: () => Promise<void>;
 }
 
 /**
  * Enhanced auto-save hook that saves locally AND to cloud when authenticated.
  * Local saves happen frequently (1s debounce), cloud saves are less frequent (30s debounce).
+ * 
+ * Local saves write to the scoped autosave key (character-isolated) so
+ * each character's monolithic snapshot stays separated in localStorage.
  */
 export function useAutoCloudSync(
   data: Omit<SaveData, 'savedAt' | 'version'>,
@@ -31,9 +37,11 @@ export function useAutoCloudSync(
   const lastLocalSaveRef = useRef<string>('');
   const lastCloudSaveRef = useRef<string>('');
   const pendingCloudSaveRef = useRef<boolean>(false);
+  // Promise that resolves when the current in-flight cloud save completes
+  const flushResolveRef = useRef<(() => void) | null>(null);
+  const flushPromiseRef = useRef<Promise<void> | null>(null);
   
   const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string | null>(() => {
-    // Try to get from existing cloud saves on mount
     return null;
   });
   const [lastLocalSaveTime, setLastLocalSaveTime] = useState<string | null>(null);
@@ -41,9 +49,7 @@ export function useAutoCloudSync(
   // Fetch cloud saves on mount to get last sync time
   useEffect(() => {
     if (isAuthenticated && user?.id) {
-      fetchSaves().then(() => {
-        // Will be set when cloudSaves updates
-      });
+      fetchSaves().then(() => {});
     }
   }, [isAuthenticated, user?.id, fetchSaves]);
 
@@ -60,7 +66,6 @@ export function useAutoCloudSync(
       }
     }
 
-    // Fallback: match by character name, then most recent
     const characterName = data.character?.name;
     const matchingSave = cloudSaves.find(s => 
       s.character_name === characterName || s.save_name === characterName
@@ -72,7 +77,7 @@ export function useAutoCloudSync(
     }
   }, [cloudSaves, data.character?.name]);
 
-  // Local save function
+  // Local save function — writes to SCOPED autosave key for character isolation
   const saveLocally = useCallback(() => {
     if (!enabled) return;
     
@@ -87,7 +92,8 @@ export function useAutoCloudSync(
     // Only save if data changed
     if (serialized !== lastLocalSaveRef.current) {
       try {
-        localStorage.setItem(STORAGE_KEY, serialized);
+        // Write to scoped key so each character gets its own local snapshot
+        setScopedItem(STORAGE_KEY, serialized);
         lastLocalSaveRef.current = serialized;
         setLastLocalSaveTime(saveData.savedAt);
         console.log('[AutoSave] Local save at', new Date().toLocaleTimeString());
@@ -111,15 +117,17 @@ export function useAutoCloudSync(
     // Only save if data changed since last cloud save
     if (serialized === lastCloudSaveRef.current) {
       console.log('[AutoSave] Cloud data unchanged, skipping');
+      // Resolve any pending flush even if we skip
+      flushResolveRef.current?.();
+      flushResolveRef.current = null;
+      flushPromiseRef.current = null;
       return;
     }
     
     try {
-      // Prefer active save ID for strict per-character isolation
       const activeSaveId = localStorage.getItem('odyssey-active-cloud-save-id');
       let targetSaveId: string | undefined = activeSaveId ?? undefined;
 
-      // Fallback for legacy sessions without active save ID
       if (!targetSaveId) {
         const existingSave = cloudSaves.find(s => 
           s.character_name === data.character?.name || s.save_name === data.character?.name
@@ -142,6 +150,11 @@ export function useAutoCloudSync(
       }
     } catch (error) {
       console.error('[AutoSave] Cloud sync failed:', error);
+    } finally {
+      // Always resolve flush promise so character switching isn't blocked
+      flushResolveRef.current?.();
+      flushResolveRef.current = null;
+      flushPromiseRef.current = null;
     }
   }, [data, enabled, isAuthenticated, user?.id, cloudSaves, saveToCloud]);
 
@@ -150,6 +163,42 @@ export function useAutoCloudSync(
     saveLocally();
     await saveToCloudNow();
   }, [saveLocally, saveToCloudNow]);
+
+  /**
+   * Returns a promise that resolves when any in-flight or pending cloud save completes.
+   * If no save is pending, resolves immediately.
+   * Used by character switching to guarantee flush-before-switch.
+   */
+  const pendingFlush = useCallback((): Promise<void> => {
+    if (!pendingCloudSaveRef.current && !saving) {
+      return Promise.resolve();
+    }
+
+    // If there's already a flush promise, return it
+    if (flushPromiseRef.current) {
+      return flushPromiseRef.current;
+    }
+
+    // Create a new flush promise and trigger immediate save
+    flushPromiseRef.current = new Promise<void>((resolve) => {
+      flushResolveRef.current = resolve;
+      // Timeout after 3s to prevent blocking forever
+      setTimeout(() => {
+        if (flushResolveRef.current === resolve) {
+          console.warn('[AutoSave] Flush timed out after 3s');
+          resolve();
+          flushResolveRef.current = null;
+          flushPromiseRef.current = null;
+        }
+      }, 3000);
+    });
+
+    // Trigger immediate cloud save
+    saveLocally();
+    saveToCloudNow();
+
+    return flushPromiseRef.current;
+  }, [saving, saveLocally, saveToCloudNow]);
 
   // Debounced local auto-save on data change
   useEffect(() => {
@@ -196,7 +245,6 @@ export function useAutoCloudSync(
     if (!enabled) return;
     
     const handleBeforeUnload = () => {
-      // Force local save immediately
       const saveData: SaveData = {
         ...data,
         savedAt: new Date().toISOString(),
@@ -204,11 +252,9 @@ export function useAutoCloudSync(
       };
       
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(saveData));
+        setScopedItem(STORAGE_KEY, JSON.stringify(saveData));
         
-        // Try to sync to cloud if authenticated (best effort, may not complete)
         if (isAuthenticated && pendingCloudSaveRef.current) {
-          // Note: This is best-effort, sync may not complete before page closes
           saveToCloudNow();
         }
       } catch (error) {
@@ -231,7 +277,7 @@ export function useAutoCloudSync(
         console.log('[AutoSave] Periodic cloud sync triggered');
         saveToCloudNow();
       }
-    }, 120000); // 2 minutes
+    }, 120000);
     
     return () => clearInterval(interval);
   }, [enabled, isAuthenticated, saveToCloudNow]);
@@ -255,5 +301,6 @@ export function useAutoCloudSync(
     isSyncing: saving,
     syncNow,
     lastLocalSaveTime,
+    pendingFlush,
   };
 }

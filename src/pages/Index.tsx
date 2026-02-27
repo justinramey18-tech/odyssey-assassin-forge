@@ -1127,8 +1127,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     }
     setIsSwitchingCharacter(true);
     
-    // Save current character to cloud ONLY (do not touch local autosave here)
+    // Flush any pending auto-save for current character before switching
     try {
+      await autoSync.pendingFlush();
       if (character.name?.trim()) {
         await saveToCloud(saveData, character.name, previousActiveSaveId ?? undefined);
         console.log('[CloudSave] Saved current character to cloud before switching');
@@ -1315,7 +1316,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         savedAt: new Date().toISOString(),
         version: data.version ?? 2,
       };
-      localStorage.setItem('odyssey-character-autosave', JSON.stringify(localSaveSnapshot));
+      setScopedItem('odyssey-character-autosave', JSON.stringify(localSaveSnapshot));
       console.log('[CloudSave] Primed local autosave for selected character:', data.character.name);
     } catch (e) {
       console.warn('[CloudSave] Failed to prime local autosave:', e);
@@ -1334,7 +1335,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       className: 'border-primary bg-primary/10',
       duration: 2500,
     });
-  }, [abilityScores.applyScores, setPrestigeData, toast, partySync, customBackground, activeCloudSaveId, character.name, saveData, saveToCloud]);
+  }, [abilityScores.applyScores, setPrestigeData, toast, partySync, customBackground, activeCloudSaveId, character.name, saveData, saveToCloud, autoSync.pendingFlush]);
 
   // ── Hydrate from roster selection (runs once after handleLoadCloudSave is defined) ──
   const hasHydratedFromRoster = useRef(false);
@@ -2130,11 +2131,12 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
   };
 
   // New Character Handler - saves current character to cloud, then resets to wizard
-  const handleNewCharacter = useCallback(() => {
+  const handleNewCharacter = useCallback(async () => {
     try {
-      // Trigger a cloud save of current data before resetting
+      // Flush pending saves + cloud save current character before resetting
       if (character.name) {
-        autoSync.syncNow().catch(e => console.warn('[NewCharacter] Cloud save failed:', e));
+        await autoSync.pendingFlush();
+        await autoSync.syncNow();
       }
       
       // Reset all React state to defaults

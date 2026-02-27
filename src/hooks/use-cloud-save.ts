@@ -70,6 +70,8 @@ const SCOPED_KEYS = [
   'novel-npc-master-enabled',
   'novel-protagonist-master-enabled',
   'scribe-last-processor',
+  // Monolithic autosave snapshot (scoped per character)
+  'odyssey-character-autosave',
 ] as const;
 
 export interface CloudSavePreview {
