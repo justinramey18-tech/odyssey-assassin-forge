@@ -1,75 +1,35 @@
 
 
-## Plan: Enable Homebrew Content Creation in AI Assistant
+## Plan: Auto-apply Portrait Icon, Preset Consumables + Expand Consumable Registry
 
-The AI assistant currently only handles basic character config (name, class, stats, presets). This plan adds full homebrew creation for gear, spells, abilities, and consumables — with mechanics, lore, and auto-application.
+### 1. Add `portraitIcon` to Character interface and apply it
+**File:** `src/lib/types.ts`
+- Add `portraitIcon?: string` to `Character` interface
 
-### 1. Expand the Edge Function System Prompt
+**File:** `src/components/wizard/utils/apply-wizard-state.ts`
+- In `applyWizardState`, add `portraitIcon: wizardState.portraitIcon` to the `setCharacter` updater (line 160-166)
+
+### 2. Save preset consumables from `buildData.consumables` array
+**File:** `src/lib/ai-creation/saveHomebrew.ts`
+- Add a new section after homebrew consumables that processes `data.consumables` (string[] of IDs like `"potion-healing"`)
+- For each ID, look it up via `getConsumableById()` from the static registry
+- If found, add as a `StoredItem` (`{ consumableId, quantity }`) to the scoped `odyssey-consumables-inventory` key
+- Merge with existing entries: if same consumableId already exists, increment quantity
+- Track count in `summary.presetConsumables`
+
+### 3. Expand potions registry (~15 new)
+**File:** `src/lib/consumables/potions.ts`
+- Add: Potion of Swimming (common), Philter of Love (uncommon), Oil of Slipperiness (uncommon), Elixir of Health (rare), Potion of Truesight (rare), Oil of Etherealness (rare), Potion of Maximum Power (rare), Potion of Giant Size (very rare), Potion of Dragon's Majesty (very rare), Potion of Watchful Rest (uncommon), Potion of Possibility (rare), Sovereign Glue (legendary), Universal Solvent (legendary), Potion of Undying (legendary)
+
+### 4. Expand poisons registry (~10 new)
+**File:** `src/lib/consumables/poisons.ts`
+- Add: Pale Tincture (uncommon, ingested), Lolth's Sting (uncommon, injury), Dragon Bile (rare, contact), Demon Ichor (rare, injury), Nightmare Vapor (rare, inhaled), Shadowfell Essence (rare, inhaled), Pit Fiend Venom (very rare, injury), Eye of Basilisk (very rare, contact), Primordial Blight (legendary, injury), Crawler Mucus already exists — skip
+
+### 5. Expand scrolls registry (~15 new)
+**File:** `src/lib/consumables/scrolls.ts`
+- Add: Scroll of Feather Fall (common, 1st), Scroll of Fog Cloud (common, 1st), Scroll of Charm Person (common, 1st), Scroll of Healing Word (common, 1st), Scroll of Spider Climb (uncommon, 2nd), Scroll of Mirror Image (uncommon, 2nd), Scroll of Knock (uncommon, 2nd), Scroll of Web (uncommon, 2nd), Scroll of Counterspell (rare, 3rd), Scroll of Fly (rare, 3rd), Scroll of Dispel Magic (rare, 3rd), Scroll of Fireball (rare, 3rd), Scroll of Polymorph (very rare, 4th), Scroll of Banishment (very rare, 4th), Scroll of Wall of Force (very rare, 5th)
+
+### 6. Update edge function system prompt
 **File:** `supabase/functions/ai-creation-assistant/index.ts`
-
-Add new sections to the system prompt covering:
-- **Homebrew Gear Creation** — AI can generate custom equipment items with slot type, rarity, stats (AC, damage, attack bonus, ability modifiers), properties, weight, value, description, and lore. Knows all valid slot types and stat fields from `EquipmentStats`.
-- **Homebrew Spell Creation** — AI can create custom spells with level (0-9), school, casting time, range, components (V/S/M), duration, concentration, ritual, damage dice/type, description, and higher-level scaling.
-- **Homebrew Ability Creation** — AI can design custom abilities for any tree (hunter/warrior/assassin) with type (active/passive), action type, usage type, tier effects (3 tiers with descriptions), dice per tier, cooldown, attack type, and prerequisites.
-- **Custom Consumables** — AI can create potions, poisons, and scrolls with rarity, effect text, duration, usage type, and description.
-
-Update the JSON output schema to include arrays: `homebrewGear`, `homebrewSpells`, `homebrewAbilities`, `homebrewConsumables` alongside existing fields. When a user asks for custom content (e.g., "flight leathers"), the AI generates fully-specced items with all required fields.
-
-### 2. Expand CharacterBuildData Interface
-**File:** `src/hooks/use-ai-creation-chat.ts`
-
-Add to `CharacterBuildData`:
-```typescript
-homebrewGear?: Array<{
-  name: string; slotType: EquipmentSlotType; rarity: Rarity;
-  level: number; icon: string; weight: number; value: number;
-  description: string; lore: string; properties: string[];
-  stats: Record<string, number | string>; damage: string;
-}>;
-homebrewSpells?: Array<{
-  name: string; level: number; school: string;
-  castingTime: string; range: string;
-  components: { verbal: boolean; somatic: boolean; material?: string };
-  duration: string; concentration: boolean; ritual: boolean;
-  description: string; damageType?: string; damageDice?: string;
-  iconName: string;
-}>;
-homebrewAbilities?: Array<{
-  name: string; tree: string; icon: string;
-  type: 'active' | 'passive'; actionType: string; usageType: string;
-  tierEffects: Array<{ tier: number; description: string }>;
-  dice?: { tier1?: { count: number; die: number }; ... };
-  cooldownMinutes: number; attackType?: string; notes?: string;
-}>;
-homebrewConsumables?: Array<{
-  name: string; type: 'potion' | 'poison' | 'scroll';
-  rarity: string; effect: string; duration: string;
-  description: string; usageType: string; icon: string;
-}>;
-```
-
-### 3. Update Apply Logic to Save Homebrew Content
-**File:** `src/pages/AICreationAssistant.tsx`
-
-In `handleApply`, before navigating, save all homebrew content directly to localStorage using the existing save functions:
-- **Gear:** Import `saveHomebrewGear`/`loadHomebrewGear` from `homebrewGear.ts`, convert each item via `formToEquipmentItem`, append to existing homebrew gear, and save.
-- **Spells:** Import `saveSpellCustomization`/`loadSpellCustomization` from `spellCustomization/utils.ts`, create `HomebrewSpell` objects with generated IDs, append to existing state, and save.
-- **Abilities:** Load/save the ability customization state from localStorage key (`odyssey-ability-customization` or similar — will verify), create `HomebrewAbility` objects with generated IDs, append, and save.
-- **Consumables:** Save as custom consumable inventory items to the character-scoped consumable storage key.
-
-Also pass the homebrew gear to the equipment slots if slot types match (auto-equip created gear).
-
-### 4. Update Index.tsx to Dispatch Events
-**File:** `src/pages/Index.tsx`
-
-After applying the AI character state, dispatch `odyssey-character-loaded` event so hooks that read from localStorage (spell customization, ability customization, homebrew gear) re-initialize and pick up the newly saved homebrew content.
-
-### 5. Update Summary Display
-The system prompt summary section will be expanded to list all homebrew items created:
-```
-🗡️ Custom Gear: Flight Leathers (chest, rare), Rider's Blade (primary, uncommon)
-📜 Custom Spells: Dragon's Breath (3rd, evocation)
-⚡ Custom Abilities: Wing Slash (hunter, active)
-🧪 Custom Consumables: Rider's Tonic (potion, uncommon)
-```
+- Add the new consumable IDs to the system prompt's known consumable list so the AI can reference them in the `consumables` array
 
