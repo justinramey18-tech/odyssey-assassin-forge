@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { getScopedItem, setScopedItem, removeScopedItem } from '@/lib/scoped-storage';
 
 export interface CombatLogEntry {
   id: string;
@@ -22,7 +23,7 @@ const MAX_ENTRIES = 50;
 // Load persisted log from localStorage
 function loadLog(): CombatLogEntry[] {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = getScopedItem(STORAGE_KEY);
     if (!saved) return [];
     const parsed = JSON.parse(saved);
     return parsed.map((entry: any) => ({
@@ -37,7 +38,7 @@ function loadLog(): CombatLogEntry[] {
 // Save log to localStorage
 function saveLog(entries: CombatLogEntry[]): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries.slice(0, MAX_ENTRIES)));
+    setScopedItem(STORAGE_KEY, JSON.stringify(entries.slice(0, MAX_ENTRIES)));
   } catch (error) {
     console.error('[CombatLog] Failed to save:', error);
   }
@@ -64,7 +65,7 @@ export function useCombatLog() {
 
   const clearLog = useCallback(() => {
     setEntries([]);
-    localStorage.removeItem(STORAGE_KEY);
+    removeScopedItem(STORAGE_KEY);
   }, []);
 
   const removeEntry = useCallback((id: string) => {

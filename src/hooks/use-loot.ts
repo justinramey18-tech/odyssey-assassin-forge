@@ -3,6 +3,7 @@
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { LootItem, LootState, ParsedLootItem, SoldLootRecord, lootRarityConfig, LootRarity, LootCategory } from '@/lib/loot/types';
+import { getScopedItem, setScopedItem, removeScopedItem } from '@/lib/scoped-storage';
 
 const STORAGE_KEY = 'odyssey-loot';
 
@@ -14,7 +15,7 @@ export interface LootSellResult {
 
 export function useLoot() {
   const [state, setState] = useState<LootState>(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = getScopedItem(STORAGE_KEY);
     if (stored) {
       try {
         return JSON.parse(stored);
@@ -27,7 +28,7 @@ export function useLoot() {
 
   // Persist to localStorage
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    setScopedItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
 
   // Add loot items (from Chronicle Sync or Random Generator)
@@ -135,7 +136,7 @@ export function useLoot() {
   // Reset loot (for app reset)
   const resetLoot = useCallback(() => {
     setState({ items: [], soldHistory: [] });
-    localStorage.removeItem(STORAGE_KEY);
+    removeScopedItem(STORAGE_KEY);
   }, []);
 
   // Total value of all loot

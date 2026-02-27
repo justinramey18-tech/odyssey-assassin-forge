@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { 
   PrestigeData, 
   DEFAULT_PRESTIGE_DATA,
@@ -52,7 +53,7 @@ function migratePrestigeData(saved: any): PrestigeData {
  */
 function loadPrestigeData(): PrestigeData {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = getScopedItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
       return migratePrestigeData(parsed);
@@ -68,7 +69,7 @@ function loadPrestigeData(): PrestigeData {
  */
 function savePrestigeData(data: PrestigeData): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    setScopedItem(STORAGE_KEY, JSON.stringify(data));
     window.dispatchEvent(new CustomEvent(PRESTIGE_CHANGE_EVENT, { detail: data }));
   } catch (e) {
     console.error('Failed to save prestige data:', e);

@@ -27,6 +27,7 @@ const SCOPED_KEYS = [
   'odyssey-combat-settings',
   'odyssey-cooldown-state',
   'odyssey-conditions-state',
+  'odyssey-combat-log',
   // Magic
   'odyssey-spellcasting',
   'odyssey-active-spells',
