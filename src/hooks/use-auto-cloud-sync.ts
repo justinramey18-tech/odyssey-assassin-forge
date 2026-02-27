@@ -2,7 +2,8 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { useAuth } from './use-auth';
 import { useCloudSave } from './use-cloud-save';
 import { SaveData } from './use-auto-save';
-import { setScopedItem } from '@/lib/scoped-storage';
+import { setScopedItem, migrateToScoped } from '@/lib/scoped-storage';
+import { SCOPED_KEYS } from '@/lib/scoped-keys';
 
 const CLOUD_DEBOUNCE_MS = 30000; // 30 seconds debounce for cloud saves
 const LOCAL_DEBOUNCE_MS = 1000; // 1 second for local saves
@@ -155,6 +156,12 @@ export function useAutoCloudSync(
           if (!currentActiveId || currentActiveId !== returnedId) {
             localStorage.setItem('odyssey-active-cloud-save-id', returnedId);
             console.log('[AutoSave] Stored active cloud save ID:', returnedId);
+            // Migrate any unscoped data to the new scoped keys so hooks
+            // don't lose track of data that was written before the ID existed
+            for (const key of SCOPED_KEYS) {
+              migrateToScoped(key);
+            }
+            console.log('[AutoSave] Migrated unscoped keys to save ID:', returnedId);
           }
         }
 
