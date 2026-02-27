@@ -28,6 +28,34 @@ export interface CharacterBuildData {
   starterAbilities: Array<{ abilityId: string; currentTier: number }>;
   selectedPresetId: string | null;
   consumables: string[];
+  // Homebrew content arrays
+  homebrewGear?: Array<{
+    name: string; slotType: string; rarity: string;
+    level: number; icon: string; weight: number; value: number;
+    description: string; lore: string; properties: string[];
+    stats: Record<string, number | string>; damage: string;
+  }>;
+  homebrewSpells?: Array<{
+    name: string; level: number; school: string;
+    castingTime: string; range: string;
+    components: { verbal: boolean; somatic: boolean; material?: string };
+    duration: string; concentration: boolean; ritual: boolean;
+    description: string; higherLevels?: string;
+    damageType?: string; damageDice?: string;
+    iconName: string;
+  }>;
+  homebrewAbilities?: Array<{
+    name: string; tree: string; icon: string;
+    type: 'active' | 'passive'; actionType: string; usageType: string;
+    tierEffects: Array<{ tier: number; description: string }>;
+    dice?: { tier1?: { count: number; die: number }; tier2?: { count: number; die: number }; tier3?: { count: number; die: number } };
+    cooldownMinutes: number; attackType?: string; notes?: string;
+  }>;
+  homebrewConsumables?: Array<{
+    name: string; type: string; rarity: string;
+    effect: string; duration: string;
+    description: string; icon: string;
+  }>;
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-creation-assistant`;
