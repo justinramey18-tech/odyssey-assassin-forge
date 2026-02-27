@@ -176,7 +176,7 @@ export default function Auth() {
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Summon your hero'}
               </button>
 
-              <div className="flex items-center justify-between -mt-2">
+              <div className="flex items-center justify-between -mt-3">
                 <button
                 type="button"
                 onClick={() => {switchView('forgot');setResetEmail(email);}}
