@@ -1294,8 +1294,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     // Exit wizard if showing
     setShowWizard(false);
     
-    // Prime local autosave with the selected character before reload
-    // so post-reload bootstrap never restores the previously active character.
+    // Prime local autosave with the loaded character data
     try {
       const localSaveSnapshot: SaveData = {
         ...data,
@@ -1305,13 +1304,22 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       localStorage.setItem('odyssey-character-autosave', JSON.stringify(localSaveSnapshot));
       console.log('[CloudSave] Primed local autosave for selected character:', data.character.name);
     } catch (e) {
-      console.warn('[CloudSave] Failed to prime local autosave before reload:', e);
+      console.warn('[CloudSave] Failed to prime local autosave:', e);
     }
 
-    // Force a page reload to ensure all localStorage-dependent hooks reinitialize
-    setTimeout(() => {
-      window.location.reload();
-    }, 500);
+    // Notify localStorage-dependent hooks to re-initialize from their scoped keys
+    window.dispatchEvent(new CustomEvent('odyssey-character-loaded', { detail: { saveId } }));
+
+    // Show home screen with newly loaded character
+    setShowHomeScreen(true);
+    setIsSwitchingCharacter(false);
+
+    toast({
+      title: `⚔️ ${data.character.name}`,
+      description: `Level ${data.character.level} loaded`,
+      className: 'border-primary bg-primary/10',
+      duration: 2500,
+    });
   }, [abilityScores.applyScores, setPrestigeData, toast, partySync, customBackground, activeCloudSaveId, character.name, saveData, saveToCloud]);
 
   // ── Hydrate from roster selection (runs once after handleLoadCloudSave is defined) ──
