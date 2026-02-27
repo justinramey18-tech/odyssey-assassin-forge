@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import {
   AbilityCustomizationState,
   AbilityOverride,
@@ -16,7 +17,7 @@ const STORAGE_KEY = 'odyssey-ability-customization';
 export function useAbilityCustomization() {
   const [state, setState] = useState<AbilityCustomizationState>(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = getScopedItem(STORAGE_KEY);
       if (saved) {
         return { ...DEFAULT_CUSTOMIZATION_STATE, ...JSON.parse(saved) };
       }
@@ -29,11 +30,23 @@ export function useAbilityCustomization() {
   // Persist to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      setScopedItem(STORAGE_KEY, JSON.stringify(state));
     } catch (e) {
       console.error('[AbilityCustomization] Failed to save:', e);
     }
   }, [state]);
+
+  // Re-init when character is switched in-memory
+  useEffect(() => {
+    const handleCharacterLoaded = () => {
+      try {
+        const saved = getScopedItem(STORAGE_KEY);
+        setState(saved ? { ...DEFAULT_CUSTOMIZATION_STATE, ...JSON.parse(saved) } : DEFAULT_CUSTOMIZATION_STATE);
+      } catch { setState(DEFAULT_CUSTOMIZATION_STATE); }
+    };
+    window.addEventListener('odyssey-character-loaded', handleCharacterLoaded);
+    return () => window.removeEventListener('odyssey-character-loaded', handleCharacterLoaded);
+  }, []);
 
   // ═══════════════════════════════════════════════════════════════
   // OVERRIDE OPERATIONS

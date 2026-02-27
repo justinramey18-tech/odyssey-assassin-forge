@@ -1402,13 +1402,13 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
                 prestigeXP: cloudData.prestige.prestigeXP ?? 0,
                 totalPrestigePoints: cloudData.prestige.totalPrestigePoints ?? 0,
               };
-              localStorage.setItem('odyssey-prestige-data', JSON.stringify(prestigeState));
+              setScopedItem('odyssey-prestige-data', JSON.stringify(prestigeState));
               setPrestigeData(prestigeState);
             }
 
             // Consumables
             if (cloudData.consumables && Array.isArray(cloudData.consumables)) {
-              localStorage.setItem('odyssey-consumables-inventory', JSON.stringify(cloudData.consumables));
+              setScopedItem('odyssey-consumables-inventory', JSON.stringify(cloudData.consumables));
             }
 
             // Ability scores
@@ -1419,41 +1419,41 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
             // HP state
             if (cloudData.hpState) {
               setHpState(cloudData.hpState);
-              localStorage.setItem('odyssey-hp-state', JSON.stringify(cloudData.hpState));
+              setScopedItem('odyssey-hp-state', JSON.stringify(cloudData.hpState));
             }
 
             // Death saves
             if (cloudData.deathSaves) {
               setDeathSaves(cloudData.deathSaves);
-              localStorage.setItem('odyssey-death-saves', JSON.stringify(cloudData.deathSaves));
+              setScopedItem('odyssey-death-saves', JSON.stringify(cloudData.deathSaves));
             }
 
             // Spellcasting, prestige tree, shop, loot, proficiencies, etc.
-            if (cloudData.spellcasting) localStorage.setItem('odyssey-spellcasting', JSON.stringify(cloudData.spellcasting));
-            if (cloudData.prestigeTree) localStorage.setItem('odyssey-prestige-tree', JSON.stringify(cloudData.prestigeTree));
+            if (cloudData.spellcasting) setScopedItem('odyssey-spellcasting', JSON.stringify(cloudData.spellcasting));
+            if (cloudData.prestigeTree) setScopedItem('odyssey-prestige-tree', JSON.stringify(cloudData.prestigeTree));
             if (cloudData.shopGold !== undefined) {
-              const shopState = JSON.parse(localStorage.getItem(getScopedKey('odyssey-shop')) || '{"currentGold":0,"items":[],"purchaseHistory":[]}');
+              const shopState = JSON.parse(getScopedItem('odyssey-shop') || '{"currentGold":0,"items":[],"purchaseHistory":[]}');
               shopState.currentGold = cloudData.shopGold;
-              localStorage.setItem(getScopedKey('odyssey-shop'), JSON.stringify(shopState));
+              setScopedItem('odyssey-shop', JSON.stringify(shopState));
             }
-            if (cloudData.loot) localStorage.setItem('odyssey-loot', JSON.stringify(cloudData.loot));
+            if (cloudData.loot) setScopedItem('odyssey-loot', JSON.stringify(cloudData.loot));
             if (cloudData.proficiencies) {
-              localStorage.setItem('odyssey-proficient-skills', JSON.stringify(cloudData.proficiencies.skills || []));
-              localStorage.setItem('odyssey-proficient-saves', JSON.stringify(cloudData.proficiencies.saves || []));
+              setScopedItem('odyssey-proficient-skills', JSON.stringify(cloudData.proficiencies.skills || []));
+              setScopedItem('odyssey-proficient-saves', JSON.stringify(cloudData.proficiencies.saves || []));
             }
-            if (cloudData.expertise) localStorage.setItem('odyssey-expertise-skills', JSON.stringify(cloudData.expertise));
+            if (cloudData.expertise) setScopedItem('odyssey-expertise-skills', JSON.stringify(cloudData.expertise));
             if (cloudData.inspiration !== undefined) {
               setHasInspiration(cloudData.inspiration);
-              localStorage.setItem('odyssey-inspiration', cloudData.inspiration.toString());
+              setScopedItem('odyssey-inspiration', cloudData.inspiration.toString());
             }
-            if (cloudData.combatSettings) localStorage.setItem('odyssey-combat-settings', JSON.stringify(cloudData.combatSettings));
-            if (cloudData.activeSpells) localStorage.setItem('odyssey-active-spells', JSON.stringify(cloudData.activeSpells));
-            if (cloudData.conditions) localStorage.setItem('odyssey-conditions-state', JSON.stringify(cloudData.conditions));
-            if (cloudData.cooldownState) localStorage.setItem('odyssey-cooldown-state', JSON.stringify(cloudData.cooldownState));
+            if (cloudData.combatSettings) setScopedItem('odyssey-combat-settings', JSON.stringify(cloudData.combatSettings));
+            if (cloudData.activeSpells) setScopedItem('odyssey-active-spells', JSON.stringify(cloudData.activeSpells));
+            if (cloudData.conditions) setScopedItem('odyssey-conditions-state', JSON.stringify(cloudData.conditions));
+            if (cloudData.cooldownState) setScopedItem('odyssey-cooldown-state', JSON.stringify(cloudData.cooldownState));
 
             // Party
             if (cloudData.partyId) {
-              localStorage.setItem('odyssey-active-party-id', cloudData.partyId);
+              setScopedItem('odyssey-active-party-id', cloudData.partyId);
             }
 
             // Background

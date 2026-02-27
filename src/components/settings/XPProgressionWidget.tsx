@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { Zap, Snail, Gauge } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -42,7 +43,7 @@ const STORAGE_KEY = 'odyssey-xp-progression';
 
 export function loadXPProgressionMode(): XPProgressionMode {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = getScopedItem(STORAGE_KEY);
     if (stored && (stored === 'slow' || stored === 'natural' || stored === 'fast')) {
       return stored;
     }
@@ -54,7 +55,7 @@ export function loadXPProgressionMode(): XPProgressionMode {
 
 export function saveXPProgressionMode(mode: XPProgressionMode): void {
   try {
-    localStorage.setItem(STORAGE_KEY, mode);
+    setScopedItem(STORAGE_KEY, mode);
     window.dispatchEvent(new CustomEvent('odyssey-xp-progression-change', { detail: mode }));
   } catch (e) {
     console.error('Failed to save XP progression mode:', e);
