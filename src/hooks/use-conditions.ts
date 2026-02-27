@@ -214,6 +214,8 @@ export function useConditions(options: UseConditionsOptions = {}): UseConditions
           ...prev,
           conditions: prev.conditions.filter(c => c.category !== 'concentration'),
         }));
+        // Notify spellcasting system so it clears concentratingOn
+        onConcentrationBroken?.(existingConcentration.name, `Replaced by ${input.name}`);
         toast({
           title: "Concentration Broken",
           description: `${existingConcentration.name} ended - Replaced by ${input.name}`,
@@ -278,9 +280,9 @@ export function useConditions(options: UseConditionsOptions = {}): UseConditions
 
     toast({
       title: `${condition.name} removed`,
-      description: undoBuffer ? "Use undo within 5 seconds to restore" : undefined,
+      description: "Undo within 5 seconds to restore",
     });
-  }, [state.conditions, undoBuffer]);
+  }, [state.conditions]);
 
   const updateDuration = useCallback((id: string, newValue: number) => {
     setState(prev => ({

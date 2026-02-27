@@ -890,11 +890,37 @@ export function useSpellcasting(
       ? getPactSlotsForLevel(newLevel) 
       : undefined;
 
-    setState(prev => ({
-      ...prev,
-      spellSlots: newSlots,
-      pactSlots: newPactSlots,
-    }));
+    setState(prev => {
+      // Merge new slot maxes with existing current values (don't reset used slots)
+      const mergedSlots: Record<number, SpellSlotLevel> = {};
+      for (const [level, newSlot] of Object.entries(newSlots)) {
+        const lvl = parseInt(level);
+        const existing = prev.spellSlots[lvl];
+        if (existing) {
+          // Keep current usage, but clamp to new max
+          mergedSlots[lvl] = {
+            ...newSlot,
+            current: Math.min(existing.current, newSlot.max),
+          };
+        } else {
+          // New slot level unlocked — give full slots
+          mergedSlots[lvl] = newSlot;
+        }
+      }
+
+      // Merge pact slots similarly
+      const mergedPact = newPactSlots
+        ? prev.pactSlots
+          ? { ...newPactSlots, current: Math.min(prev.pactSlots.current, newPactSlots.max) }
+          : newPactSlots
+        : undefined;
+
+      return {
+        ...prev,
+        spellSlots: mergedSlots,
+        pactSlots: mergedPact,
+      };
+    });
   }, [state.path]);
 
   return {

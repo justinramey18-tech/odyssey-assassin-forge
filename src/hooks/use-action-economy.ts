@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { ActionEconomy, TurnAction } from '@/lib/combat/combatTypes';
+import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 
 const STORAGE_KEY = 'odyssey-action-economy';
 const TURN_ACTIONS_KEY = 'odyssey-turn-actions';
@@ -13,10 +14,10 @@ const DEFAULT_ECONOMY: ActionEconomy = {
   maxMovement: 30,
 };
 
-// Load from localStorage
+// Load from localStorage (character-scoped)
 function loadEconomy(): ActionEconomy {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = getScopedItem(STORAGE_KEY);
     if (stored) {
       return { ...DEFAULT_ECONOMY, ...JSON.parse(stored) };
     }
@@ -28,7 +29,7 @@ function loadEconomy(): ActionEconomy {
 
 function loadTurnActions(): TurnAction[] {
   try {
-    const stored = localStorage.getItem(TURN_ACTIONS_KEY);
+    const stored = getScopedItem(TURN_ACTIONS_KEY);
     if (stored) {
       return JSON.parse(stored);
     }
@@ -38,10 +39,10 @@ function loadTurnActions(): TurnAction[] {
   return [];
 }
 
-// Save to localStorage
+// Save to localStorage (character-scoped)
 function saveEconomy(economy: ActionEconomy): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(economy));
+    setScopedItem(STORAGE_KEY, JSON.stringify(economy));
   } catch (e) {
     console.error('[ActionEconomy] Failed to save:', e);
   }
@@ -49,7 +50,7 @@ function saveEconomy(economy: ActionEconomy): void {
 
 function saveTurnActions(actions: TurnAction[]): void {
   try {
-    localStorage.setItem(TURN_ACTIONS_KEY, JSON.stringify(actions));
+    setScopedItem(TURN_ACTIONS_KEY, JSON.stringify(actions));
   } catch (e) {
     console.error('[ActionEconomy] Failed to save turn actions:', e);
   }
@@ -90,6 +91,16 @@ export interface UseActionEconomyReturn {
 export function useActionEconomy(): UseActionEconomyReturn {
   const [economy, setEconomyState] = useState<ActionEconomy>(loadEconomy);
   const [turnActions, setTurnActionsState] = useState<TurnAction[]>(loadTurnActions);
+
+  // Re-init when character is switched
+  useEffect(() => {
+    const handleCharacterLoaded = () => {
+      setEconomyState(loadEconomy());
+      setTurnActionsState(loadTurnActions());
+    };
+    window.addEventListener('odyssey-character-loaded', handleCharacterLoaded);
+    return () => window.removeEventListener('odyssey-character-loaded', handleCharacterLoaded);
+  }, []);
 
   // Persist economy changes
   useEffect(() => {
