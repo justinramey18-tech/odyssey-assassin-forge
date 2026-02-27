@@ -145,7 +145,8 @@ export default function AICreationAssistant() {
                     setInput('');
                     sendMessage(s);
                   }}
-                  className="px-3 py-1.5 text-xs font-display rounded-full border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors animate-fade-in"
+                  className="px-3 py-1.5 text-xs font-display rounded-full border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors opacity-0 animate-scale-in"
+                  style={{ animationDelay: `${i * 100}ms`, animationFillMode: 'forwards' }}
                 >
                   {s}
                 </button>
