@@ -76,10 +76,29 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     : null
     : null;
 
-  // Derived: all members ready
-  const allReady = currentPrompts.length > 0 &&
-    currentPrompts.length >= memberCount &&
-    currentPrompts.every(p => p.is_ready);
+  // Derived: all members ready (in split mode, only count the relevant team)
+  const effectiveMemberCount = isSplitActive && splitState && user
+    ? (splitState.alphaMembers.includes(user.id)
+        ? splitState.alphaMembers.length
+        : splitState.betaMembers.includes(user.id)
+          ? splitState.betaMembers.length
+          : memberCount)
+    : memberCount;
+
+  // In split mode, the host triggers generation when BOTH teams have all members ready
+  const allReady = (() => {
+    if (!isSplitActive || !splitState) {
+      return currentPrompts.length > 0 &&
+        currentPrompts.length >= memberCount &&
+        currentPrompts.every(p => p.is_ready);
+    }
+    // Split mode: check each team independently — all must be ready
+    const alphaPrompts = currentPrompts.filter(p => splitState.alphaMembers.includes(p.user_id));
+    const betaPrompts = currentPrompts.filter(p => splitState.betaMembers.includes(p.user_id));
+    const alphaReady = alphaPrompts.length >= splitState.alphaMembers.length && alphaPrompts.every(p => p.is_ready);
+    const betaReady = betaPrompts.length >= splitState.betaMembers.length && betaPrompts.every(p => p.is_ready);
+    return alphaReady && betaReady;
+  })();
 
   // Filter messages based on team membership
   const filteredMessages = isSplitActive && user
@@ -290,6 +309,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
   const [lastAutoSaveTime, setLastAutoSaveTime] = useState<Date | null>(null);
 
+  // Use a ref to track activeCampaignId to prevent duplicate campaign creation
+  const activeCampaignIdRef = useRef<string | null>(null);
+  useEffect(() => { activeCampaignIdRef.current = activeCampaignId; }, [activeCampaignId]);
+
   // Silent auto-save after each DM response (no toasts)
   const silentAutoSave = useCallback(async (allMessages: PartyDmMessage[], summary: string | null) => {
     if (!user || allMessages.length === 0) return;
@@ -303,14 +326,16 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         created_at: m.created_at,
       }));
 
-      if (activeCampaignId) {
+      const currentCampaignId = activeCampaignIdRef.current;
+
+      if (currentCampaignId) {
         await supabase
           .from('ai_dm_campaigns')
           .update({
             messages: serializedMessages as any,
             campaign_summary: summary,
           })
-          .eq('id', activeCampaignId)
+          .eq('id', currentCampaignId)
           .eq('user_id', user.id);
       } else {
         const { data } = await supabase
@@ -323,13 +348,16 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           })
           .select('id')
           .single();
-        if (data) setActiveCampaignId(data.id);
+        if (data) {
+          activeCampaignIdRef.current = data.id;
+          setActiveCampaignId(data.id);
+        }
       }
       setLastAutoSaveTime(new Date());
     } catch (error) {
       console.warn('[Party Auto-Save] Failed:', error);
     }
-  }, [user, activeCampaignId]);
+  }, [user]);
 
   const startNewCampaign = useCallback(async (campaignName?: string) => {
     if (!partyId || !user || !isCreator) return;
@@ -753,9 +781,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           const betaMembersSummary = buildPartyMembersGuide(splitState.betaMembers);
           const betaApiMsgs = betaMessages.map(m => ({ role: m.role, content: m.content }));
           betaApiMsgs.push({ role: 'user', content: betaCombined });
-
-          // Re-read alpha messages after alpha generation to include the new ones
-          const updatedAlphaMessages = messages.filter(m => m.team === 'alpha');
 
           const betaGuides = [
             customGuidesContent || '',
