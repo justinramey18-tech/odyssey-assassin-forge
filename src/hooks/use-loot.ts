@@ -31,6 +31,20 @@ export function useLoot() {
     setScopedItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
 
+  // Re-init when character is switched in-memory
+  useEffect(() => {
+    const handleCharacterLoaded = () => {
+      const stored = getScopedItem(STORAGE_KEY);
+      if (stored) {
+        try { setState(JSON.parse(stored)); } catch { setState({ items: [], soldHistory: [] }); }
+      } else {
+        setState({ items: [], soldHistory: [] });
+      }
+    };
+    window.addEventListener('odyssey-character-loaded', handleCharacterLoaded);
+    return () => window.removeEventListener('odyssey-character-loaded', handleCharacterLoaded);
+  }, []);
+
   // Add loot items (from Chronicle Sync or Random Generator)
   const addLootItems = useCallback((items: LootItem[]) => {
     setState(prev => ({

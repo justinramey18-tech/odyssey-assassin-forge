@@ -261,6 +261,16 @@ export function useSpellcasting(
     saveActiveSpells(activeSpells);
   }, [activeSpells]);
 
+  // Re-init when character is switched in-memory
+  useEffect(() => {
+    const handleCharacterLoaded = () => {
+      setState(loadState());
+      setActiveSpells(loadActiveSpells());
+    };
+    window.addEventListener('odyssey-character-loaded', handleCharacterLoaded);
+    return () => window.removeEventListener('odyssey-character-loaded', handleCharacterLoaded);
+  }, []);
+
   // Check for expired spells every second
   useEffect(() => {
     const checkExpired = () => {

@@ -113,6 +113,13 @@ export function useConditions(options: UseConditionsOptions = {}): UseConditions
     saveState(state);
   }, [state]);
 
+  // Re-init when character is switched in-memory
+  useEffect(() => {
+    const handleCharacterLoaded = () => setState(loadState());
+    window.addEventListener('odyssey-character-loaded', handleCharacterLoaded);
+    return () => window.removeEventListener('odyssey-character-loaded', handleCharacterLoaded);
+  }, []);
+
   // Clear undo buffer after 5 seconds
   useEffect(() => {
     if (undoBuffer) {

@@ -37,6 +37,20 @@ export function useShop() {
     setScopedItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
 
+  // Re-init when character is switched in-memory
+  useEffect(() => {
+    const handleCharacterLoaded = () => {
+      const stored = getScopedItem(STORAGE_KEY);
+      if (stored) {
+        try { setState(JSON.parse(stored)); } catch { setState({ currentGold: 0, items: [], purchaseHistory: [] }); }
+      } else {
+        setState({ currentGold: 0, items: [], purchaseHistory: [] });
+      }
+    };
+    window.addEventListener('odyssey-character-loaded', handleCharacterLoaded);
+    return () => window.removeEventListener('odyssey-character-loaded', handleCharacterLoaded);
+  }, []);
+
   // Add gold (from Chronicle Sync)
   const addGold = useCallback((amount: number, source?: string) => {
     setState(prev => ({
