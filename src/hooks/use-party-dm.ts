@@ -803,11 +803,21 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           }
         }
 
-        // Generate rolling split summaries (fire-and-forget)
-        const allAlpha = [...messages.filter(m => m.team === 'alpha')];
-        const allBeta = [...messages.filter(m => m.team === 'beta')];
+        // Build up-to-date message arrays that include what we just inserted
+        // (React state won't have them yet — they arrive via realtime async)
+        const newAlphaUserMsg: PartyDmMessage = { id: '', party_id: partyId, role: 'user', content: alphaPrompts.map(p => `[${p.character_name}]: ${p.prompt}`).join('\n'), sender_user_id: user.id, sender_name: splitState.alphaName || 'Team Alpha', created_at: '', team: 'alpha' };
+        const newBetaUserMsg: PartyDmMessage = { id: '', party_id: partyId, role: 'user', content: betaPrompts.map(p => `[${p.character_name}]: ${p.prompt}`).join('\n'), sender_user_id: user.id, sender_name: splitState.betaName || 'Team Beta', created_at: '', team: 'beta' };
 
-        // Fire off summary generation
+        const allAlpha = [
+          ...alphaMessages,
+          ...(alphaPrompts.length > 0 ? [newAlphaUserMsg] : []),
+        ];
+        const allBeta = [
+          ...betaMessages,
+          ...(betaPrompts.length > 0 ? [newBetaUserMsg] : []),
+        ];
+
+        // Generate rolling split summaries (fire-and-forget)
         Promise.all([
           allAlpha.length > 0 ? generateSplitSummary(allAlpha, splitState.alphaSummary) : Promise.resolve(splitState.alphaSummary),
           allBeta.length > 0 ? generateSplitSummary(allBeta, splitState.betaSummary) : Promise.resolve(splitState.betaSummary),
@@ -824,6 +834,12 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
               .eq('state_type', 'dm_split');
           }
         }).catch(console.error);
+
+        // Auto-save split session to campaign record
+        const allSplitMessages = [...allAlpha, ...allBeta];
+        if (allSplitMessages.length > 0) {
+          silentAutoSave(allSplitMessages, sessionConfig.campaignSummary || null);
+        }
 
       } else {
         // === NORMAL MODE ===
@@ -940,6 +956,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     const msgIndex = messages.findIndex(m => m.id === messageId);
     if (msgIndex === -1) return;
 
+    const originalMsg = messages[msgIndex];
+    const msgTeam = originalMsg?.team || null;
+
     const precedingUserMsg = messages.slice(0, msgIndex).reverse().find(m => m.role === 'user');
     if (!precedingUserMsg) {
       toast.error('No preceding prompt found to regenerate from');
@@ -959,18 +978,46 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       .eq('party_id', partyId)
       .eq('state_type', 'dm_session');
 
-    const historyMessages = messages.slice(0, msgIndex);
-    const apiMessages = historyMessages.map(m => ({ role: m.role, content: m.content }));
-
-    const partyMembersSummary = buildPartyMembersGuide();
-
     abortRef.current = new AbortController();
 
     try {
-      const guides = [
-        customGuidesContent || '',
-        `\n\n## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
-      ].filter(Boolean).join('\n\n');
+      let guides: string;
+      let apiMessages: Array<{ role: string; content: string }>;
+      let historyMessages: PartyDmMessage[];
+
+      if (isSplitActive && splitState && msgTeam) {
+        // Split mode: filter history to only this team's messages
+        historyMessages = messages.slice(0, msgIndex).filter(m => m.team === msgTeam);
+        apiMessages = historyMessages.map(m => ({ role: m.role, content: m.content }));
+
+        const teamName = msgTeam === 'alpha'
+          ? (splitState.alphaName || 'Team Alpha')
+          : (splitState.betaName || 'Team Beta');
+        const otherTeamName = msgTeam === 'alpha'
+          ? (splitState.betaName || 'Team Beta')
+          : (splitState.alphaName || 'Team Alpha');
+        const teamMembers = msgTeam === 'alpha' ? splitState.alphaMembers : splitState.betaMembers;
+        const otherSummary = msgTeam === 'alpha' ? splitState.betaSummary : splitState.alphaSummary;
+        const thisSummary = msgTeam === 'alpha' ? splitState.alphaSummary : splitState.betaSummary;
+
+        const membersSummary = buildPartyMembersGuide(teamMembers);
+        guides = [
+          customGuidesContent || '',
+          `\n\n## PARTY SPLIT — ${teamName}\nThe party has split up. You are narrating ONLY for "${teamName}".\n${membersSummary}\nDo NOT narrate what the other team ("${otherTeamName}") is doing. Focus solely on this group's adventure. Refer to this group as "${teamName}" in your narration.`,
+          otherSummary ? `\n\n## OTHER TEAM CONTEXT (hidden from players)\n"${otherTeamName}"'s adventure summary (for narrative coherence only — do NOT reveal to "${teamName}"):\n${otherSummary}` : '',
+          thisSummary ? `\n\n## PREVIOUS "${teamName}" SUMMARY\n${thisSummary}` : '',
+        ].filter(Boolean).join('\n\n');
+      } else {
+        // Normal mode
+        historyMessages = messages.slice(0, msgIndex);
+        apiMessages = historyMessages.map(m => ({ role: m.role, content: m.content }));
+
+        const partyMembersSummary = buildPartyMembersGuide();
+        guides = [
+          customGuidesContent || '',
+          `\n\n## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
+        ].filter(Boolean).join('\n\n');
+      }
 
       const assistantContent = await streamAIResponse(apiMessages, guides, abortRef.current!.signal);
 
@@ -982,9 +1029,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           sender_user_id: null,
           sender_name: 'DM',
         };
-        // Preserve team tag if regenerating a split message
-        const originalMsg = messages[msgIndex];
-        if (originalMsg?.team) insertData.team = originalMsg.team;
+        if (msgTeam) insertData.team = msgTeam;
 
         await (supabase.from('party_dm_messages') as any).insert(insertData);
       }
@@ -1015,7 +1060,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       setIsGenerating(false);
       abortRef.current = null;
     }
-  }, [partyId, user, sessionConfig, isGenerating, messages, characterContext, partyMembers, customGuidesContent, silentAutoSave, streamAIResponse, buildPartyMembersGuide]);
+  }, [partyId, user, sessionConfig, isGenerating, messages, characterContext, partyMembers, customGuidesContent, silentAutoSave, streamAIResponse, buildPartyMembersGuide, isSplitActive, splitState]);
 
   const addMediaMessage = useCallback(async (content: string, senderName: string) => {
     if (!partyId || !user) return;
