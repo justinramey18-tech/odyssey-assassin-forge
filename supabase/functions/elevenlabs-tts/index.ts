@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { text, voiceId, user_api_key } = await req.json();
+    const { text, voiceId, user_api_key, voice_settings } = await req.json();
 
     if (!text || !voiceId) {
       return new Response(
@@ -45,10 +45,10 @@ serve(async (req) => {
           text,
           model_id: "eleven_turbo_v2_5",
           voice_settings: {
-            stability: 0.6,
-            similarity_boost: 0.75,
-            style: 0.3,
-            use_speaker_boost: true,
+            stability: voice_settings?.stability ?? 0.6,
+            similarity_boost: voice_settings?.similarity_boost ?? 0.75,
+            style: voice_settings?.style ?? 0.3,
+            use_speaker_boost: voice_settings?.use_speaker_boost ?? true,
           },
         }),
       }

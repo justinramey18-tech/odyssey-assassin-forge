@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { loadApiKey } from '@/lib/api-keys';
-import { stripMarkdownForTTS, splitTextForStitching, loadSelectedVoiceId, loadNarrationSpeed } from '@/lib/tts-utils';
+import { stripMarkdownForTTS, splitTextForStitching, loadSelectedVoiceId, loadNarrationSpeed, loadVoiceSettings } from '@/lib/tts-utils';
 import { toast } from 'sonner';
 
 interface UseNarratorReturn {
@@ -68,11 +68,14 @@ export function useNarrator(): UseNarratorReturn {
       // For simplicity, fetch all chunks and concatenate
       const audioBlobs: Blob[] = [];
 
+      const voiceSettings = loadVoiceSettings();
+
       for (let i = 0; i < chunks.length; i++) {
-        const body: Record<string, string> = {
+        const body: Record<string, unknown> = {
           text: chunks[i],
           voiceId,
           user_api_key: apiKey,
+          voice_settings: voiceSettings,
         };
 
         // Request stitching context

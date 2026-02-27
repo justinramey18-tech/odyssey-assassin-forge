@@ -33,8 +33,7 @@ import type { SettingsTab } from './MobileSettingsTabs';
 import { SettingsSection } from './SettingsSection';
 import { SystemPreferences } from './SystemPreferences';
 import { ApiCredentials } from './ApiCredentials';
-import { ElevenLabsVoicePicker } from './ElevenLabsVoicePicker';
-import { hasApiKey } from '@/lib/api-keys';
+import { ElevenLabsSettingsTab } from './ElevenLabsSettingsTab';
 
 import { PartyPanel } from '@/components/party';
 import type { UsePartySyncReturn } from '@/hooks/use-party-sync';
@@ -516,16 +515,6 @@ export function SettingsContent({
             </SettingsSection>
           )}
 
-          <SettingsSection title="Voice Settings">
-            {hasApiKey('elevenlabs') ? (
-              <ElevenLabsVoicePicker />
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Add your ElevenLabs API key in App & System → Updates & API to enable voice selection.
-              </p>
-            )}
-          </SettingsSection>
-
           {/* Empyrean drawers */}
           <EmpyreanCampaignPack
             open={showEmpyreanPack}
@@ -543,6 +532,11 @@ export function SettingsContent({
         </div>
       </div>
     );
+  }
+
+  // ─── ELEVENLABS ───
+  if (activeTab === 'elevenlabs') {
+    return <ElevenLabsSettingsTab />;
   }
 
   // ─── APP & SYSTEM ───

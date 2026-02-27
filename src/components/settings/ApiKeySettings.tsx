@@ -3,11 +3,8 @@ import { Key, Eye, EyeOff, ChevronDown, ChevronUp, Check, Trash2 } from 'lucide-
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
 import { loadApiKey, saveApiKey, clearApiKey, hasApiKey, maskKey } from '@/lib/api-keys';
-import { loadNarrationSpeed, saveNarrationSpeed } from '@/lib/tts-utils';
-import { ElevenLabsVoicePicker } from './ElevenLabsVoicePicker';
 
 function ApiKeyInput({ provider, label, placeholder }: { provider: 'anthropic' | 'elevenlabs'; label: string; placeholder: string }) {
   const [keyInput, setKeyInput] = useState('');
@@ -16,10 +13,7 @@ function ApiKeyInput({ provider, label, placeholder }: { provider: 'anthropic' |
 
   const handleSave = useCallback(() => {
     const trimmed = keyInput.trim();
-    if (!trimmed) {
-      toast.error('Please enter an API key');
-      return;
-    }
+    if (!trimmed) { toast.error('Please enter an API key'); return; }
     saveApiKey(provider, trimmed);
     setHasSavedKey(true);
     setKeyInput('');
@@ -38,21 +32,13 @@ function ApiKeyInput({ provider, label, placeholder }: { provider: 'anthropic' |
 
   return (
     <div className="space-y-2">
-      <label className="text-xs font-medium text-muted-foreground">
-        {label}
-      </label>
-
+      <label className="text-xs font-medium text-muted-foreground">{label}</label>
       {hasSavedKey && savedKey ? (
         <div className="flex items-center gap-2">
           <div className="flex-1 px-3 py-1.5 rounded-md border border-green-500/30 bg-green-500/5 text-xs font-mono text-green-400 truncate">
             {maskKey(savedKey)}
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleClear}
-            className="h-8 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          >
+          <Button variant="ghost" size="sm" onClick={handleClear} className="h-8 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
             <Trash2 className="w-3.5 h-3.5" />
           </Button>
         </div>
@@ -67,21 +53,11 @@ function ApiKeyInput({ provider, label, placeholder }: { provider: 'anthropic' |
               onKeyDown={(e) => e.key === 'Enter' && handleSave()}
               className="h-8 text-sm pr-8 font-mono"
             />
-            <button
-              type="button"
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              onClick={() => setShowKey(!showKey)}
-              tabIndex={-1}
-            >
+            <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowKey(!showKey)} tabIndex={-1}>
               {showKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
             </button>
           </div>
-          <Button
-            size="sm"
-            className="w-full gap-1.5"
-            onClick={handleSave}
-            disabled={!keyInput.trim()}
-          >
+          <Button size="sm" className="w-full gap-1.5" onClick={handleSave} disabled={!keyInput.trim()}>
             <Key className="w-3 h-3" />
             Save Key
           </Button>
@@ -91,45 +67,9 @@ function ApiKeyInput({ provider, label, placeholder }: { provider: 'anthropic' |
   );
 }
 
-function NarrationSpeedSlider() {
-  const [speed, setSpeed] = useState(() => loadNarrationSpeed());
-
-  const handleChange = useCallback((value: number[]) => {
-    const newSpeed = Math.round(value[0] * 10) / 10;
-    setSpeed(newSpeed);
-    saveNarrationSpeed(newSpeed);
-  }, []);
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <label className="text-xs font-medium text-muted-foreground">
-          Narration Speed
-        </label>
-        <span className="text-xs font-mono text-foreground">{speed.toFixed(1)}x</span>
-      </div>
-      <Slider
-        min={0.5}
-        max={2.0}
-        step={0.1}
-        value={[speed]}
-        onValueChange={handleChange}
-        className="w-full"
-      />
-      <div className="flex justify-between text-[10px] text-muted-foreground">
-        <span>0.5x Slow</span>
-        <span>1.0x Normal</span>
-        <span>2.0x Fast</span>
-      </div>
-    </div>
-  );
-}
-
 export function ApiKeySettings() {
   const [expanded, setExpanded] = useState(false);
   const hasAnthropicKey = hasApiKey('anthropic');
-  const hasElevenLabsKey = hasApiKey('elevenlabs');
-  const hasAnyKey = hasAnthropicKey || hasElevenLabsKey;
 
   return (
     <div className="rounded-lg border border-border/50 bg-muted/20">
@@ -140,7 +80,7 @@ export function ApiKeySettings() {
         <span className="flex items-center gap-2">
           <Key className="w-4 h-4 text-primary" />
           API Keys
-          {hasAnyKey && <Check className="w-3.5 h-3.5 text-green-500" />}
+          {hasAnthropicKey && <Check className="w-3.5 h-3.5 text-green-500" />}
         </span>
         {expanded ? (
           <ChevronUp className="w-4 h-4 text-muted-foreground" />
@@ -152,34 +92,10 @@ export function ApiKeySettings() {
       {expanded && (
         <div className="px-3 pb-3 space-y-3">
           <Separator />
-
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Add your own API keys to use additional features. Keys are stored locally in your browser and never on our servers.
+            Add your own API keys. Keys are stored locally in your browser. ElevenLabs settings have moved to the ElevenLabs tab.
           </p>
-
-          {/* Anthropic key */}
-          <ApiKeyInput
-            provider="anthropic"
-            label="Anthropic API Key"
-            placeholder="sk-ant-..."
-          />
-
-          <Separator />
-
-          {/* ElevenLabs key */}
-          <ApiKeyInput
-            provider="elevenlabs"
-            label="ElevenLabs API Key"
-            placeholder="sk_..."
-          />
-
-          {/* Voice picker & speed — only show when ElevenLabs key is saved */}
-          {hasApiKey('elevenlabs') && (
-            <>
-              <ElevenLabsVoicePicker />
-              <NarrationSpeedSlider />
-            </>
-          )}
+          <ApiKeyInput provider="anthropic" label="Anthropic API Key" placeholder="sk-ant-..." />
         </div>
       )}
     </div>
