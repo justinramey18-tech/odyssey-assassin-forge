@@ -1,35 +1,27 @@
 
 
-## Testing Assessment
+## Plan: Limit to One Character Per User
 
-I navigated to the `/auth` page and can confirm the Sign In / Sign Up UI renders correctly with the "Cloud Saves" branding. However, **I cannot complete end-to-end testing** because:
+**What changes:** Right now, the app supports multiple characters per account. You'll be limited to exactly one character. When you log in, the app will automatically load your character (no roster selection screen). If you have no character yet, it goes straight to the character creation wizard.
 
-1. **Authentication wall** — I need valid credentials to sign in. The browser automation session doesn't share the user's auth state from the preview iframe.
-2. **No test account available** — Creating a new account requires email verification (auto-confirm is disabled per project policy).
+**What gets removed:**
+- The "Create New Character" button on the roster screen
+- The "New" button in the Settings panel
+- The `handleNewCharacter` function in the main app (which saves the current character and starts a fresh one)
 
-### What I verified visually
-- Auth page renders correctly at mobile viewport (390×844)
-- Sign In / Sign Up tabs are functional
-- Email and password fields are pre-populated (likely from browser autofill or previous state)
-- "Forgot Password" link is present
-- The Sign In button is visible and styled correctly
+**What changes in behavior:**
+- The **Character Roster page** will auto-load your single save and skip straight to the main app. If you have zero saves, it will go straight to character creation. You'll never see the roster grid anymore.
+- The **Settings panel** will still show "Edit" (to re-open the wizard for your current character) but the "New" button will be gone.
+- The **back button** behavior will stay the same (navigates to roster, which just bounces you right back).
+- **Deleting your character** will still be possible from the Cloud Save management area, which would send you back to the creation wizard.
 
-### Recommended manual testing checklist
+**Files to change:**
 
-The user should test these scenarios manually in the preview:
+1. **`src/pages/CharacterRoster.tsx`** -- Instead of showing a list of character cards, automatically load the first (and only) save, or navigate to `/ ` with `newCharacter: true` if none exist. Remove the `CreateNewCharacterCard` import and usage entirely.
 
-1. **Sign in** → confirm redirect to `/roster`
-2. **Roster loads** → verify character cards display with name, level, last-played time, preview badges
-3. **Select a character** → confirm it loads into the main app with correct HP, spells, gold, loot, conditions
-4. **Press browser Back** → confirm it navigates to `/roster` (not out of the app)
-5. **Create New Character** → confirm the wizard launches with a clean slate (no data from previous character)
-6. **Switch characters** (via header quick-switcher or back to roster) → confirm:
-   - Previous character's data is flushed to cloud before switch
-   - New character loads with its own isolated data
-   - No data bleeding (HP, gold, spells, ability scores all belong to the correct character)
-7. **Reload the page** after switching → confirm the correct character reloads from scoped autosave
+2. **`src/components/settings/SettingsContent.tsx`** -- Remove the "New" button (the `onNewCharacter` conditional block around line 242-244).
 
-### If issues are found
+3. **`src/components/settings/SettingsModal.tsx`** -- Remove the `onNewCharacter` prop from the interface and stop passing it through to `SettingsContent`.
 
-Report which step fails and I can inspect console logs, network requests, and the relevant code to diagnose and fix.
+4. **`src/pages/Index.tsx`** -- Remove the `handleNewCharacter` callback and stop passing `onNewCharacter` to the settings modal.
 
