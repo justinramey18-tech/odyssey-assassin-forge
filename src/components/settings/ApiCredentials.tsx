@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react';
 import { Key, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { loadApiKey, saveApiKey, clearApiKey, hasApiKey, maskKey } from '@/lib/api-keys';
 
@@ -74,8 +73,6 @@ export function ApiCredentials() {
         Keys are stored locally in your browser, never on servers.
       </p>
       <ApiKeyInput provider="anthropic" label="Anthropic API Key" placeholder="sk-ant-..." />
-      <Separator />
-      <ApiKeyInput provider="elevenlabs" label="ElevenLabs API Key" placeholder="sk_..." />
     </div>
   );
 }

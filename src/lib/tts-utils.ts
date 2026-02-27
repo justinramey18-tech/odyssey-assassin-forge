@@ -127,6 +127,47 @@ export function setCachedVoices(voices: CachedVoice[]): void {
   }
 }
 
+// Voice tuning settings persistence
+const VOICE_SETTINGS_KEY = 'dnd-elevenlabs-voice-settings';
+
+export interface VoiceSettings {
+  stability: number;
+  similarity_boost: number;
+  style: number;
+  use_speaker_boost: boolean;
+}
+
+export const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
+  stability: 0.6,
+  similarity_boost: 0.75,
+  style: 0.3,
+  use_speaker_boost: true,
+};
+
+export function loadVoiceSettings(): VoiceSettings {
+  try {
+    const raw = localStorage.getItem(VOICE_SETTINGS_KEY);
+    if (!raw) return { ...DEFAULT_VOICE_SETTINGS };
+    const parsed = JSON.parse(raw);
+    return {
+      stability: typeof parsed.stability === 'number' ? parsed.stability : DEFAULT_VOICE_SETTINGS.stability,
+      similarity_boost: typeof parsed.similarity_boost === 'number' ? parsed.similarity_boost : DEFAULT_VOICE_SETTINGS.similarity_boost,
+      style: typeof parsed.style === 'number' ? parsed.style : DEFAULT_VOICE_SETTINGS.style,
+      use_speaker_boost: typeof parsed.use_speaker_boost === 'boolean' ? parsed.use_speaker_boost : DEFAULT_VOICE_SETTINGS.use_speaker_boost,
+    };
+  } catch {
+    return { ...DEFAULT_VOICE_SETTINGS };
+  }
+}
+
+export function saveVoiceSettings(settings: VoiceSettings): void {
+  try {
+    localStorage.setItem(VOICE_SETTINGS_KEY, JSON.stringify(settings));
+  } catch {
+    // ignore
+  }
+}
+
 // Selected voice persistence
 const VOICE_ID_KEY = 'dnd-elevenlabs-voice-id';
 
