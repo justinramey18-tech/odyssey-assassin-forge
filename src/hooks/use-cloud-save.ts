@@ -37,6 +37,10 @@ const SCOPED_KEYS = [
   'odyssey-ability-custom-images',
   // Dice modifiers (synced from ability scores)
   'odyssey-dice-modifiers',
+  'odyssey-initiative',
+  'odyssey-ability-customization',
+  'odyssey-xp-progression',
+  'odyssey-assassin-dice-odds',
   // Class-specific
   'dnd-druid-circle',
   'dnd-cleric-domain',

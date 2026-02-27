@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Enemy } from '@/lib/combat/targetTypes';
+import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 
 const STORAGE_KEY = 'odyssey-initiative';
 
@@ -31,7 +32,7 @@ const DEFAULT_STATE: InitiativeState = {
 // Load from localStorage
 function loadState(): InitiativeState {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = getScopedItem(STORAGE_KEY);
     if (stored) {
       return { ...DEFAULT_STATE, ...JSON.parse(stored) };
     }
@@ -44,7 +45,7 @@ function loadState(): InitiativeState {
 // Save to localStorage
 function saveState(state: InitiativeState): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    setScopedItem(STORAGE_KEY, JSON.stringify(state));
   } catch (e) {
     console.error('[Initiative] Failed to save:', e);
   }
@@ -93,6 +94,13 @@ export function useInitiative(
   useEffect(() => {
     saveState(state);
   }, [state]);
+
+  // Re-init when character is switched in-memory
+  useEffect(() => {
+    const handleCharacterLoaded = () => setState(loadState());
+    window.addEventListener('odyssey-character-loaded', handleCharacterLoaded);
+    return () => window.removeEventListener('odyssey-character-loaded', handleCharacterLoaded);
+  }, []);
 
   // Build initiative order from player + enemies
   const initiativeOrder = useMemo(() => {

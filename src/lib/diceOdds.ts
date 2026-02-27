@@ -1,5 +1,6 @@
 // Dice Roll Odds System
 // Uses explicit bracket-based probability distributions
+import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 
 export type DiceOddsMode = 'fair' | 'heroic' | 'dramatic' | 'chaotic' | 'cursed';
 
@@ -108,11 +109,11 @@ export function rollWeightedDie(sides: number, mode: DiceOddsMode): number {
 const DICE_ODDS_STORAGE_KEY = 'odyssey-assassin-dice-odds';
 
 export function saveDiceOddsMode(mode: DiceOddsMode): void {
-  localStorage.setItem(DICE_ODDS_STORAGE_KEY, mode);
+  setScopedItem(DICE_ODDS_STORAGE_KEY, mode);
 }
 
 export function loadDiceOddsMode(): DiceOddsMode {
-  const stored = localStorage.getItem(DICE_ODDS_STORAGE_KEY);
+  const stored = getScopedItem(DICE_ODDS_STORAGE_KEY);
   if (stored && stored in DICE_ODDS_CONFIGS) {
     return stored as DiceOddsMode;
   }
