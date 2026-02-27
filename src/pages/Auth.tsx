@@ -116,6 +116,7 @@ export default function Auth() {
   return (
     <BackgroundWrapper
       imagePath={homeBackground}
+      videoSrc="/videos/auth-background.mp4"
       overlayOpacity={85}
     >
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
