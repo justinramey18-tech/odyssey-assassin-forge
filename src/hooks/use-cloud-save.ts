@@ -26,11 +26,17 @@ const SCOPED_KEYS = [
   // Combat
   'odyssey-combat-settings',
   'odyssey-cooldown-state',
+  'odyssey-cooldown-settings',
   'odyssey-conditions-state',
   'odyssey-combat-log',
   // Magic
   'odyssey-spellcasting',
   'odyssey-active-spells',
+  // Custom images
+  'odyssey-equipment-custom-images',
+  'odyssey-ability-custom-images',
+  // Dice modifiers (synced from ability scores)
+  'odyssey-dice-modifiers',
   // Class-specific
   'dnd-druid-circle',
   'dnd-cleric-domain',

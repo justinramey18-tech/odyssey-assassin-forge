@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { EquipmentSlotType } from '@/lib/inventory/types';
+import { getScopedItem, setScopedItem, removeScopedItem } from '@/lib/scoped-storage';
 
 const STORAGE_KEY = 'odyssey-equipment-custom-images';
 
@@ -16,7 +17,7 @@ export interface EquipmentImagesState {
 export function useEquipmentImages(): EquipmentImagesState {
   const [images, setImages] = useState<EquipmentImages>(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = getScopedItem(STORAGE_KEY);
       return stored ? JSON.parse(stored) : {};
     } catch {
       return {};
@@ -27,9 +28,9 @@ export function useEquipmentImages(): EquipmentImagesState {
   useEffect(() => {
     try {
       if (Object.keys(images).length > 0) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(images));
+        setScopedItem(STORAGE_KEY, JSON.stringify(images));
       } else {
-        localStorage.removeItem(STORAGE_KEY);
+        removeScopedItem(STORAGE_KEY);
       }
     } catch (error) {
       console.error('Failed to save equipment images:', error);

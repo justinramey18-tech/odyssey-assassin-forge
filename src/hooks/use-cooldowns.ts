@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { toast } from 'sonner';
 import { CharacterAbility } from '@/lib/types';
 import {
@@ -44,7 +45,7 @@ export function useCooldowns({
   const [sessionState, setSessionState] = useState<SessionState>(DEFAULT_SESSION_STATE);
   const [settings, setSettings] = useState<CooldownSettings>(() => {
     try {
-      const saved = localStorage.getItem(SETTINGS_KEY);
+      const saved = getScopedItem(SETTINGS_KEY);
       return saved ? { ...DEFAULT_COOLDOWN_SETTINGS, ...JSON.parse(saved) } : DEFAULT_COOLDOWN_SETTINGS;
     } catch {
       return DEFAULT_COOLDOWN_SETTINGS;
@@ -295,7 +296,7 @@ export function useCooldowns({
     setSettings(prev => {
       const updated = { ...prev, ...newSettings };
       try {
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
+        setScopedItem(SETTINGS_KEY, JSON.stringify(updated));
       } catch (e) {
         console.error('Failed to save cooldown settings:', e);
       }
@@ -410,7 +411,7 @@ export function useCooldowns({
           modifiers,
           settings,
         };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(saveState));
+        setScopedItem(STORAGE_KEY, JSON.stringify(saveState));
       } catch (e) {
         console.error('Failed to save cooldown state:', e);
       }
@@ -426,7 +427,7 @@ export function useCooldowns({
   // Restore from localStorage on mount
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = getScopedItem(STORAGE_KEY);
       if (!saved) return;
       
       const { cooldowns: savedCooldowns, session, modifiers: savedMods }: CooldownSaveState = JSON.parse(saved);

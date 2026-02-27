@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { getScopedItem, setScopedItem, removeScopedItem } from '@/lib/scoped-storage';
 
 const STORAGE_KEY = 'odyssey-ability-custom-images';
 
@@ -15,7 +16,7 @@ export interface AbilityImagesState {
 export function useAbilityImages(): AbilityImagesState {
   const [images, setImages] = useState<AbilityImages>(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = getScopedItem(STORAGE_KEY);
       return stored ? JSON.parse(stored) : {};
     } catch {
       return {};
@@ -26,9 +27,9 @@ export function useAbilityImages(): AbilityImagesState {
   useEffect(() => {
     try {
       if (Object.keys(images).length > 0) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(images));
+        setScopedItem(STORAGE_KEY, JSON.stringify(images));
       } else {
-        localStorage.removeItem(STORAGE_KEY);
+        removeScopedItem(STORAGE_KEY);
       }
     } catch (error) {
       console.error('Failed to save ability images:', error);

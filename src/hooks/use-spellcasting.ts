@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { getScopedItem, setScopedItem, removeScopedItem } from '@/lib/scoped-storage';
 import {
   SpellcastingState,
   MagicPath,
@@ -62,7 +63,7 @@ function getDefaultState(): SpellcastingState {
 
 function loadActiveSpells(): ActiveSpellEffect[] {
   try {
-    const stored = localStorage.getItem(ACTIVE_SPELLS_KEY);
+    const stored = getScopedItem(ACTIVE_SPELLS_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
       // Filter out expired spells on load
@@ -76,7 +77,7 @@ function loadActiveSpells(): ActiveSpellEffect[] {
 
 function saveActiveSpells(effects: ActiveSpellEffect[]): void {
   try {
-    localStorage.setItem(ACTIVE_SPELLS_KEY, JSON.stringify(effects));
+    setScopedItem(ACTIVE_SPELLS_KEY, JSON.stringify(effects));
   } catch (e) {
     console.error('[Spellcasting] Failed to save active spells:', e);
   }
@@ -88,7 +89,7 @@ function saveActiveSpells(effects: ActiveSpellEffect[]): void {
 
 function loadState(): SpellcastingState {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = getScopedItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
       return { ...getDefaultState(), ...parsed };
@@ -101,7 +102,7 @@ function loadState(): SpellcastingState {
 
 function saveState(state: SpellcastingState): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    setScopedItem(STORAGE_KEY, JSON.stringify(state));
   } catch (e) {
     console.error('[Spellcasting] Failed to save state:', e);
   }
@@ -859,7 +860,7 @@ export function useSpellcasting(
   const resetSpellcasting = useCallback(() => {
     const defaultState = getDefaultState();
     setState(defaultState);
-    localStorage.removeItem(STORAGE_KEY);
+    removeScopedItem(STORAGE_KEY);
     toast({
       title: 'Magic System Reset',
       description: 'All spellcasting data has been cleared.',

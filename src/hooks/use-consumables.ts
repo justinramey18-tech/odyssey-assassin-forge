@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { Consumable, InventoryItem } from '@/lib/consumables/types';
 import { allConsumables, getConsumableById } from '@/lib/consumables';
 
@@ -18,7 +19,7 @@ export function useConsumables() {
   // Load from localStorage on mount
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = getScopedItem(STORAGE_KEY);
       if (stored) {
         const storedItems: StoredItem[] = JSON.parse(stored);
         const loadedInventory: InventoryItem[] = [];
@@ -53,7 +54,7 @@ export function useConsumables() {
           ...(isInRegistry ? {} : { customConsumable: item.consumable }),
         };
       });
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
+      setScopedItem(STORAGE_KEY, JSON.stringify(toStore));
     } catch (error) {
       console.error('Failed to save consumables inventory:', error);
     }
