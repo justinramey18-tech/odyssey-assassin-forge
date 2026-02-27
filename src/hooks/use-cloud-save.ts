@@ -3,75 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { SaveData } from './use-auto-save';
 import { Json } from '@/integrations/supabase/types';
 import { getScopedKey } from '@/lib/scoped-storage';
-
-// Keys whose localStorage data should be captured per-character in cloud saves
-const SCOPED_KEYS = [
-  // Shop & Inventory
-  'odyssey-shop',
-  'odyssey-loot',
-  'odyssey-consumables-inventory',
-  // Character stats & HP
-  'odyssey-hp-state',
-  'odyssey-death-saves',
-  'odyssey-inspiration',
-  'odyssey-ability-scores',
-  // Progression
-  'odyssey-prestige-data',
-  'odyssey-prestige-tree',
-  'odyssey-xp-progression',
-  // Proficiencies & Expertise
-  'odyssey-proficient-skills',
-  'odyssey-proficient-saves',
-  'odyssey-expertise-skills',
-  // Combat
-  'odyssey-combat-settings',
-  'odyssey-cooldown-state',
-  'odyssey-cooldown-settings',
-  'odyssey-conditions-state',
-  'odyssey-combat-log',
-  // Magic
-  'odyssey-spellcasting',
-  'odyssey-active-spells',
-  // Custom images
-  'odyssey-equipment-custom-images',
-  'odyssey-ability-custom-images',
-  // Dice modifiers (synced from ability scores)
-  'odyssey-dice-modifiers',
-  'odyssey-initiative',
-  'odyssey-ability-customization',
-  'odyssey-assassin-dice-odds',
-  // Class-specific
-  'dnd-druid-circle',
-  'dnd-cleric-domain',
-  'dnd-cleric-deity',
-  'dnd-wild-shape-state',
-  'odyssey-wild-shape-backgrounds',
-  // Party
-  'odyssey-active-party-id',
-  // Narrative & AI
-  'narrative-forge-saved-stories',
-  'narrative-forge-active-story-id',
-  'odyssey-chronicle-sessions',
-  'odyssey-chronicle-analytics',
-  'dnd-ai-dm-campaign-summary',
-  'dnd-novel-builder-campaign-summary',
-  // Play mode & UI
-  'odyssey-play-mode',
-  'dnd-protagonist-cards',
-  // Novel/Scribe context
-  'novel-ctx-state',
-  'scribe-ctx-state',
-  'novel-style',
-  'scribe-style',
-  'novel-tone-intensity',
-  'scribe-tone-intensity',
-  'scribe-custom-style-prompt',
-  'novel-npc-master-enabled',
-  'novel-protagonist-master-enabled',
-  'scribe-last-processor',
-  // Monolithic autosave snapshot (scoped per character)
-  'odyssey-character-autosave',
-] as const;
+import { SCOPED_KEYS } from '@/lib/scoped-keys';
 
 export interface CloudSavePreview {
   gold?: number;
