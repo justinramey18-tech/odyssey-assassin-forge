@@ -125,6 +125,20 @@ const Index = () => {
     }
   }, [searchParams, setSearchParams]);
 
+  // Navigation guard: intercept browser back button to go to roster instead of leaving the app
+  useEffect(() => {
+    // Push a guard entry so pressing back doesn't leave the app
+    window.history.pushState({ guard: true }, '');
+
+    const handlePopState = (e: PopStateEvent) => {
+      // When user presses back, navigate to roster
+      routerNavigate('/roster');
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [routerNavigate]);
+
   // Handle deep-link via ?tab= query param (e.g. from /features page)
   const pendingTab = searchParams.get('tab');
 
