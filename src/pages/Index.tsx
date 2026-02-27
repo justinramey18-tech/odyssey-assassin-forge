@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { loadTimezone, TIMEZONE_CHANGE_EVENT } from '@/lib/timezone-storage';
 import { useSearchParams } from 'react-router-dom';
 import { Character, CharacterAbility, getAbilityPointsForLevel, getTotalPointsSpent, getActiveSlotsByLevel } from '@/lib/types';
@@ -97,6 +98,7 @@ import { useAbilityCustomization } from '@/hooks/use-ability-customization';
 import { useAbilityImages } from '@/hooks/use-ability-images';
 import { homebrewToAbility } from '@/lib/abilityCustomization/utils';
 import { useAuth } from '@/hooks/use-auth';
+import { useCloudSave } from '@/hooks/use-cloud-save';
 import { usePlayMode } from '@/hooks/use-play-mode';
 import { useAppMode } from '@/hooks/use-app-mode';
 
@@ -566,7 +568,8 @@ const Index = () => {
   }, [abilityImages]);
 
   // Auth & Party system
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { loadFromCloud } = useCloudSave(user?.id);
   const partySync = usePartySync();
   const { playMode, setPlayMode, isSoloMode, isPartyMode } = usePlayMode();
 
@@ -1033,6 +1036,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     }
   }, []);
 
+
   // Handle loading cloud save - RESTORES ALL CHARACTER STATE
   const handleLoadCloudSave = useCallback(async (data: SaveData, saveId?: string) => {
     console.log('[CloudSave] Loading character:', data.character.name, 'saveId:', saveId);
@@ -1235,6 +1239,50 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       window.location.reload();
     }, 500);
   }, [abilityScores.applyScores, setPrestigeData, toast, partySync, customBackground, autoSync]);
+
+  // Auto-restore from cloud when authenticated but no local save found
+  const hasAttemptedCloudRestore = useRef(false);
+  useEffect(() => {
+    if (!showWizard || hasAttemptedCloudRestore.current) return;
+    if (authLoading || !isAuthenticated || !user) return;
+
+    hasAttemptedCloudRestore.current = true;
+
+    (async () => {
+      try {
+        const targetId = localStorage.getItem('odyssey-active-cloud-save-id');
+        let query = supabase
+          .from('character_saves')
+          .select('id')
+          .eq('user_id', user.id)
+          .order('updated_at', { ascending: false })
+          .limit(1);
+
+        if (targetId) {
+          query = supabase
+            .from('character_saves')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('id', targetId)
+            .limit(1);
+        }
+
+        const { data: saves } = await query;
+        if (saves && saves.length > 0) {
+          const saveId = saves[0].id;
+          console.log('[AutoRestore] Found cloud save, loading:', saveId);
+          const cloudData = await loadFromCloud(saveId);
+          if (cloudData) {
+            await handleLoadCloudSave(cloudData, saveId);
+          }
+        } else {
+          console.log('[AutoRestore] No cloud saves found for user');
+        }
+      } catch (e) {
+        console.warn('[AutoRestore] Failed:', e);
+      }
+    })();
+  }, [showWizard, authLoading, isAuthenticated, user, loadFromCloud, handleLoadCloudSave]);
 
   // Calculate unlocked abilities map for drawer
   const unlockedAbilities = useMemo(() => {
@@ -2016,6 +2064,18 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm">
         <div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full mb-4" />
         <p className="text-lg font-cinzel text-foreground/80 animate-pulse">Switching Character…</p>
+      </div>
+    );
+  }
+
+  // Show loading screen while auth resolves (prevents wizard flash before cloud restore)
+  if (showWizard && authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-muted-foreground text-sm">Loading your adventure...</p>
+        </div>
       </div>
     );
   }
