@@ -110,7 +110,7 @@ export default function Auth() {
   // Icon box style (dark square with icon)
   const iconBoxClass = "absolute left-0 top-0 bottom-0 w-12 flex items-center justify-center bg-[#3a3228]/80 border-r-2 border-[#8b7355]/50 rounded-l-sm";
   const iconClass = "w-5 h-5 text-[#c4a96a]";
-  const inputClass = "w-full pl-14 pr-4 py-3.5 bg-[#d4c8a8] border-2 border-[#9a8a6a] text-[#2a1f14] placeholder:text-[#7a6a4a] rounded-sm font-medium text-base focus:outline-none focus:border-[#d4a030] focus:ring-1 focus:ring-[#d4a030]/50 transition-colors";
+  const inputClass = "w-full pl-14 pr-4 py-3.5 bg-[#d4c8a8] border-2 border-[#9a8a6a] text-[#2a1f14] placeholder:text-[#7a6a4a] rounded-sm font-medium text-base focus:outline-none focus:border-[#d4a030] focus:ring-1 focus:ring-[#d4a030]/50 transition-colors ml-4";
 
   return (
     <BackgroundWrapper
