@@ -10,7 +10,7 @@ import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 
 export default function AICreationAssistant() {
   const navigate = useNavigate();
-  const { messages, isLoading, buildData, error, sendMessage, reset } = useAICreationChat();
+  const { messages, isLoading, buildData, error, suggestions, sendMessage, reset } = useAICreationChat();
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -132,6 +132,24 @@ export default function AICreationAssistant() {
               <div className="bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2 text-sm text-destructive">
                 {error}
               </div>
+            </div>
+          )}
+
+          {/* Quick-reply suggestion chips */}
+          {suggestions.length > 0 && !isLoading && (
+            <div className="flex flex-wrap gap-2 px-1">
+              {suggestions.map((s, i) => (
+                <button
+                  key={i}
+                  onClick={() => {
+                    setInput('');
+                    sendMessage(s);
+                  }}
+                  className="px-3 py-1.5 text-xs font-display rounded-full border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors animate-fade-in"
+                >
+                  {s}
+                </button>
+              ))}
             </div>
           )}
         </div>

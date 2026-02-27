@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { WizardState, QUICK_START_DEFAULTS } from '@/components/wizard/types';
 import { HonestModeRules } from '@/lib/gameModes';
 
@@ -46,6 +46,28 @@ function tryExtractBuildData(content: string): CharacterBuildData | null {
     console.error('[AICreation] Failed to parse build data:', e);
   }
   return null;
+}
+
+function parseSuggestions(content: string): string[] {
+  const match = content.match(/\[SUGGESTIONS:\s*(.*?)\]\s*$/);
+  if (!match) return [];
+  try {
+    // Parse comma-separated quoted strings
+    const raw = match[1];
+    const suggestions: string[] = [];
+    const regex = /"([^"]+)"/g;
+    let m;
+    while ((m = regex.exec(raw)) !== null) {
+      suggestions.push(m[1]);
+    }
+    return suggestions;
+  } catch {
+    return [];
+  }
+}
+
+function stripSuggestions(content: string): string {
+  return content.replace(/\n?\[SUGGESTIONS:\s*.*?\]\s*$/, '').trimEnd();
 }
 
 export function buildDataToWizardState(data: CharacterBuildData): WizardState {
@@ -206,11 +228,26 @@ export function useAICreationChat() {
     setIsLoading(false);
   }, []);
 
+  // Parse suggestions from last assistant message
+  const suggestions = useMemo(() => {
+    const lastMsg = messages[messages.length - 1];
+    if (!lastMsg || lastMsg.role !== 'assistant' || isLoading) return [];
+    return parseSuggestions(lastMsg.content);
+  }, [messages, isLoading]);
+
+  // Strip suggestion tags from displayed messages
+  const displayMessages = useMemo(() => {
+    return messages.map(m => 
+      m.role === 'assistant' ? { ...m, content: stripSuggestions(m.content) } : m
+    );
+  }, [messages]);
+
   return {
-    messages,
+    messages: displayMessages,
     isLoading,
     buildData,
     error,
+    suggestions,
     sendMessage,
     reset,
   };
