@@ -141,11 +141,23 @@ export function useAutoCloudSync(
         targetSaveId
       );
       
-      if (!result.error) {
+      if (!result.error && result.data) {
         lastCloudSaveRef.current = serialized;
         pendingCloudSaveRef.current = false;
         const now = new Date().toISOString();
         setLastCloudSyncTime(now);
+
+        // Persist the returned save ID so future auto-saves update the same record
+        // instead of creating duplicates via name-matching fallback
+        const returnedId = result.data.id;
+        if (returnedId) {
+          const currentActiveId = localStorage.getItem('odyssey-active-cloud-save-id');
+          if (!currentActiveId || currentActiveId !== returnedId) {
+            localStorage.setItem('odyssey-active-cloud-save-id', returnedId);
+            console.log('[AutoSave] Stored active cloud save ID:', returnedId);
+          }
+        }
+
         console.log('[AutoSave] Cloud sync at', new Date().toLocaleTimeString());
       }
     } catch (error) {
