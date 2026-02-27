@@ -2601,6 +2601,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           currentCharacterLevel={character.level}
           onLoadSave={handleLoadCloudSave}
           onCloudClick={() => setShowCloudSaveModal(true)}
+          onBeforeSwitch={autoSync.syncNow}
         />
 
         {/* Content Area - Conditional Rendering Based on Active Sub-Tab */}

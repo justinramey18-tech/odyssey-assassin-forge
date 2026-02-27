@@ -20,6 +20,8 @@ interface CharacterQuickSwitcherProps {
   currentCharacterLevel: number;
   onLoadSave: (data: SaveData, saveId?: string) => void;
   onCloudClick: () => void;
+  /** Called before navigating to roster — flush current character to cloud */
+  onBeforeSwitch?: () => Promise<void>;
 }
 
 export function CharacterQuickSwitcher({
@@ -27,6 +29,7 @@ export function CharacterQuickSwitcher({
   currentCharacterLevel,
   onLoadSave,
   onCloudClick,
+  onBeforeSwitch,
 }: CharacterQuickSwitcherProps) {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
@@ -158,8 +161,13 @@ export function CharacterQuickSwitcher({
 
         <DropdownMenuItem 
           className="flex items-center gap-2 py-2 cursor-pointer text-primary"
-          onClick={() => {
+          onClick={async () => {
             setIsOpen(false);
+            try {
+              await onBeforeSwitch?.();
+            } catch (e) {
+              console.warn('[QuickSwitcher] Pre-switch save failed:', e);
+            }
             navigate('/roster');
           }}
         >

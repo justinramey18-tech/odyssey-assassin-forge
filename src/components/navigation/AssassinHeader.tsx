@@ -24,6 +24,7 @@ interface AssassinHeaderProps {
   currentCharacterLevel?: number;
   onLoadSave?: (data: SaveData, saveId?: string) => void;
   onCloudClick?: () => void;
+  onBeforeSwitch?: () => Promise<void>;
 }
 
 // Haptic feedback helper
@@ -46,6 +47,7 @@ export function AssassinHeader({
   currentCharacterLevel = 1,
   onLoadSave,
   onCloudClick,
+  onBeforeSwitch,
 }: AssassinHeaderProps) {
   const categories: { value: MainCategory; config: typeof CATEGORY_CONFIG['home'] }[] = [
     { value: 'home', config: CATEGORY_CONFIG.home },
@@ -248,6 +250,7 @@ export function AssassinHeader({
             currentCharacterLevel={currentCharacterLevel}
             onLoadSave={onLoadSave}
             onCloudClick={onCloudClick}
+            onBeforeSwitch={onBeforeSwitch}
           />
         </div>
       )}
