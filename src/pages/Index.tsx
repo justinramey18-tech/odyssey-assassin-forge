@@ -2161,56 +2161,6 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     });
   };
 
-  // New Character Handler - saves current character to cloud, then resets to wizard
-  const handleNewCharacter = useCallback(async () => {
-    try {
-      // Flush pending saves + cloud save current character before resetting
-      if (character.name) {
-        await autoSync.pendingFlush();
-        await autoSync.syncNow();
-      }
-      
-      // Reset all React state to defaults
-      setCharacter({
-        name: '',
-        level: 1,
-        abilities: allAbilities.map(a => ({ abilityId: a.id, currentTier: 0 as const })),
-        equippedAbilities: [],
-      });
-      setCurrentXP(0);
-      setXPPreset('standard');
-      setEquipment(createInitialEquipment());
-      setAchievements(achievementCategories.map(a => ({ ...a })));
-      setPrestigeData({ prestigeLevel: 0, prestigeXP: 0, totalPrestigePoints: 0 });
-      setPrestigeTreeSpentState(0);
-      prestigeTree.resetTree();
-      setHpState({ current: 8, max: 8, temp: 0 });
-      shop.resetShop();
-      loot.resetLoot();
-
-      // Clear localStorage for fresh wizard
-      resetAllAppData();
-      localStorage.removeItem('odyssey-prestige-tree');
-      
-      // Show wizard
-      setShowHomeScreen(false);
-      setShowWizard(true);
-
-      toast({
-        title: "✨ New Character",
-        description: "Previous character saved. Create your new hero!",
-        className: "border-primary bg-primary/10",
-        duration: 3000,
-      });
-    } catch (error) {
-      console.error('[NewCharacter] Failed:', error);
-      toast({
-        title: "Error",
-        description: "Could not start new character. Try again.",
-        variant: "destructive",
-      });
-    }
-  }, [autoSync, allAbilities, toast, prestigeTree, shop, loot]);
 
   // App Reset Handler - clears all state and localStorage
   const handleResetApp = () => {
@@ -2504,7 +2454,6 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         <SettingsModal 
           characterName={character.name} 
           onEditCharacter={() => setShowWizard(true)}
-          onNewCharacter={handleNewCharacter}
           open={showSettingsModal}
           onOpenChange={(open) => {
             setShowSettingsModal(open);
@@ -3088,7 +3037,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         <SettingsModal 
           characterName={character.name} 
           onEditCharacter={() => setShowWizard(true)}
-          onNewCharacter={handleNewCharacter}
+          
           open={showSettingsModal}
           onOpenChange={(open) => {
             setShowSettingsModal(open);
