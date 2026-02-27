@@ -120,7 +120,7 @@ export default function Auth() {
     >
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
         {/* Container */}
-        <div className="w-full max-w-[22rem] flex flex-col items-center scale-[0.65] origin-center mt-[10px]">
+        <div className="w-full max-w-[22rem] flex flex-col items-center scale-[0.65] origin-center mt-[20px]">
           {/* Alerts */}
           {error && (
             <Alert variant="destructive" className="mb-4 w-full border-red-800/50 bg-red-900/30">
