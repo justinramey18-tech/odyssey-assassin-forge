@@ -2,11 +2,12 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, Sparkles, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useAICreationChat, buildDataToWizardState } from '@/hooks/use-ai-creation-chat';
+import { useAICreationChat, buildDataToWizardState, CharacterBuildData } from '@/hooks/use-ai-creation-chat';
 import { presetToEquipment, getPresetById } from '@/components/wizard/presets/equipment-presets';
 import ReactMarkdown from 'react-markdown';
 import wizardBackground from '@/assets/wizard-background.jpg';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
+import { saveHomebrewContentFromBuildData } from '@/lib/ai-creation/saveHomebrew';
 
 export default function AICreationAssistant() {
   const navigate = useNavigate();
@@ -50,6 +51,13 @@ export default function AICreationAssistant() {
 
   const handleApply = useCallback(() => {
     if (!buildData) return;
+    
+    // Save all homebrew content to localStorage BEFORE navigating
+    const homebrewSummary = saveHomebrewContentFromBuildData(buildData);
+    if (homebrewSummary.totalItems > 0) {
+      console.log('[AICreation] Saved homebrew content:', homebrewSummary);
+    }
+
     const wizardState = buildDataToWizardState(buildData);
     
     // Resolve equipment from preset

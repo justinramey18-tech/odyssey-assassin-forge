@@ -1571,6 +1571,11 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       setShowWizard(false);
       // Show mode selection screen
       setShowIntroSplash(true);
+      // Dispatch event so homebrew hooks re-initialize with saved content
+      setTimeout(() => {
+        window.dispatchEvent(new Event('odyssey-character-loaded'));
+        console.log('[AICreation] Dispatched odyssey-character-loaded for homebrew content sync');
+      }, 100);
     } else {
       console.error('[AICreation] Failed:', result.errors);
     }

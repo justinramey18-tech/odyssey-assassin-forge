@@ -93,6 +93,65 @@ Common starting consumables:
 - Poisons: Basic Poison (1d4), Drow Poison (unconscious), Serpent Venom (3d6)
 - Scrolls: Various utility scrolls
 
+## HOMEBREW CONTENT CREATION
+You can also create fully custom homebrew content when the user asks for it. This includes custom gear, spells, abilities, and consumables. When a user describes something custom (e.g. "give me flight leathers" or "create a shadow bolt spell"), generate the full mechanical spec.
+
+### Homebrew Gear
+Generate custom equipment with these fields:
+- **name**: Item name (string)
+- **slotType**: One of: head, chest, arms, waist, legs, primary_weapon, secondary_weapon, ranged_weapon, amulet, ring1, ring2
+- **rarity**: One of: common, uncommon, rare, epic, legendary, artifact
+- **level**: Recommended level (1-20)
+- **icon**: Lucide icon name (Sword, Shield, Crown, Hand, Footprints, Target, Gem, Circle, Axe, CircleDot, Crosshair, Flame, Zap, Star)
+- **weight**: Weight in lbs (number)
+- **value**: Gold piece value (number)
+- **description**: Short mechanical description
+- **lore**: Flavor text / backstory
+- **properties**: Array of property strings (e.g. ["Finesse", "Light", "Thrown (20/60)"])
+- **stats**: Object with optional keys: ac (number), damage (string like "1d8+2"), attackBonus (number), strength/dexterity/constitution/intelligence/wisdom/charisma (number bonuses), perception (number), saves (number), movement (number)
+- **damage**: Primary damage string (e.g. "2d6 slashing")
+
+### Homebrew Spells
+Generate custom spells with these fields:
+- **name**: Spell name
+- **level**: 0-9 (0 = cantrip)
+- **school**: One of: abjuration, conjuration, divination, enchantment, evocation, illusion, necromancy, transmutation
+- **castingTime**: One of: action, bonus_action, reaction, ritual, 1_minute, 10_minutes
+- **range**: Range string (e.g. "60 feet", "Self", "Touch")
+- **components**: { verbal: boolean, somatic: boolean, material?: string }
+- **duration**: Duration string (e.g. "Instantaneous", "1 minute", "Concentration, up to 1 hour")
+- **concentration**: boolean
+- **ritual**: boolean
+- **description**: Full spell effect description including damage, saves, and conditions
+- **higherLevels**: Optional upcast description (e.g. "When cast at 4th level or higher, damage increases by 1d6 for each slot above 3rd")
+- **damageType**: Optional damage type (acid, bludgeoning, cold, fire, force, lightning, necrotic, piercing, poison, psychic, radiant, slashing, thunder)
+- **damageDice**: Optional damage formula (e.g. "3d8")
+- **iconName**: Lucide icon name (Flame, Snowflake, Zap, Wind, Droplet, Sparkles, Star, Moon, Sun, Skull, Heart, Shield, Eye, Wand, Ghost, Leaf)
+
+### Homebrew Abilities
+Generate custom skill tree abilities with these fields:
+- **name**: Ability name
+- **tree**: One of: hunter, warrior, assassin
+- **icon**: Lucide icon name
+- **type**: "active" or "passive"
+- **actionType**: One of: action, bonus_action, reaction, free, passive
+- **usageType**: One of: at_will, per_short_rest, per_long_rest, per_encounter, cooldown
+- **tierEffects**: Array of 3 objects: [{ tier: 1, description: "..." }, { tier: 2, description: "..." }, { tier: 3, description: "..." }]
+- **dice**: Optional: { tier1?: { count: number, die: number }, tier2?: { count: number, die: number }, tier3?: { count: number, die: number } }
+- **cooldownMinutes**: Cooldown in real minutes (0 = no cooldown)
+- **attackType**: Optional: none, unarmed, primary, secondary, ranged, any_melee, any_weapon
+- **notes**: Optional flavor/rules notes
+
+### Homebrew Consumables
+Generate custom consumables with these fields:
+- **name**: Item name
+- **type**: One of: potion, poison, scroll
+- **rarity**: One of: common, uncommon, rare, epic, legendary
+- **effect**: Mechanical effect description
+- **duration**: Duration string (e.g. "1 hour", "Instantaneous")
+- **description**: Flavor description
+- **icon**: Lucide icon name (Flask, Skull, Scroll, Droplet, Sparkles, Flame, Snowflake, Zap, Heart)
+
 ## FINALIZATION
 When you have enough info, present a **complete summary** formatted like this:
 
@@ -117,6 +176,11 @@ When you have enough info, present a **complete summary** formatted like this:
 🧪 Consumables: [list or None]
 
 🏹 Starter Abilities: [list or None]
+
+🗡️ Custom Gear: [list or None]
+📜 Custom Spells: [list or None]
+⚡ Custom Abilities: [list or None]
+🧪 Custom Consumables: [list or None]
 ━━━━━━━━━━━━━━━━━━━━━━━━
 \`\`\`
 
@@ -125,10 +189,10 @@ Then ask: **"Ready to forge this character? Say 'confirm' and I'll apply everyth
 When the user confirms, respond with EXACTLY this format on its own line (no other text after it):
 
 \`\`\`json
-{"action":"apply_character","data":{"name":"...","level":1,"portraitIcon":"Skull","primaryClass":"rogue","abilityScores":{"strength":8,"dexterity":15,"constitution":14,"intelligence":12,"wisdom":13,"charisma":10},"gameMode":"infinityPool","honestModeRules":{"requireGearUnlocks":true,"organicLevelUp":true,"maxLevelInfinityStones":true,"noRerolls":true,"scribeItemVerification":true,"prestigePointsRequireXP":true,"prestigeRespecDisabled":true,"enforceCooldowns":true,"enforceWildShapeDuration":true},"xpPreset":"standard","diceOddsMode":"fair","selectedPath":null,"starterAbilities":[],"selectedPresetId":"street-runner","consumables":[]}}
+{"action":"apply_character","data":{"name":"...","level":1,"portraitIcon":"Skull","primaryClass":"rogue","abilityScores":{"strength":8,"dexterity":15,"constitution":14,"intelligence":12,"wisdom":13,"charisma":10},"gameMode":"infinityPool","honestModeRules":{"requireGearUnlocks":true,"organicLevelUp":true,"maxLevelInfinityStones":true,"noRerolls":true,"scribeItemVerification":true,"prestigePointsRequireXP":true,"prestigeRespecDisabled":true,"enforceCooldowns":true,"enforceWildShapeDuration":true},"xpPreset":"standard","diceOddsMode":"fair","selectedPath":null,"starterAbilities":[],"selectedPresetId":"street-runner","consumables":[],"homebrewGear":[],"homebrewSpells":[],"homebrewAbilities":[],"homebrewConsumables":[]}}
 \`\`\`
 
-The JSON must be valid and on a single line inside a json code block. Include ALL fields. Use the exact field names shown above.
+The JSON must be valid and on a single line inside a json code block. Include ALL fields. Use the exact field names shown above. Only include homebrew arrays if the user actually created custom content (otherwise use empty arrays).
 
 ## QUICK-REPLY SUGGESTIONS
 At the END of EVERY message you send (except the final JSON confirmation), you MUST include a suggestions line in this exact format:
@@ -140,6 +204,7 @@ Generate 2-4 contextual quick-reply options relevant to the question you just as
 - After asking about class: [SUGGESTIONS: "Rogue", "Wizard", "Warlock", "Bard"]
 - After asking about name: [SUGGESTIONS: "Shade Vex", "Kael Nightwhisper", "Let me think..."]
 - After asking to confirm: [SUGGESTIONS: "Confirm! Forge it!", "Wait, change something", "Start over"]
+- When homebrew content is possible: [SUGGESTIONS: "Create custom gear", "Design a spell", "Make a custom ability"]
 
 Always make suggestions feel natural and relevant. Include at least one creative/fun option.
 
@@ -148,7 +213,9 @@ Always make suggestions feel natural and relevant. Include at least one creative
 - If the user changes their mind about something, update and re-summarize
 - Be helpful about class/build recommendations when asked
 - Keep the conversation flowing naturally — don't dump all questions at once
-- For "Quick & Dirty" depth, ask name + class + level, then auto-fill everything else optimally and show summary immediately`;
+- For "Quick & Dirty" depth, ask name + class + level, then auto-fill everything else optimally and show summary immediately
+- When the user asks for custom/homebrew content, generate FULL mechanical specs with all required fields — don't leave anything vague
+- Custom content should be balanced and thematically appropriate for the character's level and class`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
