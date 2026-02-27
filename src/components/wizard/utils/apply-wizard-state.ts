@@ -162,6 +162,7 @@ export function applyWizardState(
       name: wizardState.name,
       level: wizardState.level,
       primaryClass: wizardState.primaryClass,
+      portraitIcon: wizardState.portraitIcon || prev.portraitIcon,
       abilities: mergeAbilities(prev.abilities, wizardState.starterAbilities),
     }));
     appliedChanges.push(`Character: ${wizardState.name}, Level ${wizardState.level} ${wizardState.primaryClass.charAt(0).toUpperCase() + wizardState.primaryClass.slice(1)}`);
