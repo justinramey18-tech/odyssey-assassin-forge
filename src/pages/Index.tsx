@@ -570,7 +570,7 @@ const Index = () => {
 
   // Auth & Party system
   const { user, isAuthenticated, loading: authLoading } = useAuth();
-  const { loadFromCloud, saveToCloud } = useCloudSave(user?.id);
+  const { loadFromCloud, saveToCloud, renameSave } = useCloudSave(user?.id);
   const partySync = usePartySync();
   const { playMode, setPlayMode, isSoloMode, isPartyMode } = usePlayMode();
 
@@ -1037,6 +1037,32 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     }
   }, []);
 
+
+  // Handle character rename - persists across all systems
+  const handleRenameCharacter = useCallback(async (newName: string) => {
+    setCharacter(prev => ({ ...prev, name: newName }));
+    
+    // Update cloud save name
+    if (activeCloudSaveId) {
+      renameSave(activeCloudSaveId, newName).catch(e => 
+        console.warn('[Rename] Failed to rename cloud save:', e)
+      );
+    }
+    
+    // Update party member character_name in DB
+    if (partySync.party.partyId && user?.id) {
+      supabase
+        .from('party_members')
+        .update({ character_name: newName })
+        .eq('party_id', partySync.party.partyId)
+        .eq('user_id', user.id)
+        .then(({ error }) => {
+          if (error) console.warn('[Rename] Failed to update party name:', error);
+        });
+    }
+    
+    toast({ title: '✏️ Character Renamed', description: `Now known as "${newName}"` });
+  }, [activeCloudSaveId, renameSave, partySync.party.partyId, user?.id, toast]);
 
   // Handle loading cloud save - RESTORES ALL CHARACTER STATE
   const handleLoadCloudSave = useCallback(async (data: SaveData, saveId?: string) => {
@@ -2400,6 +2426,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           onCustomOverride={appMode.setCustomOverride}
           onResetCustomizations={appMode.resetCustomizations}
           isFeatureVisible={appMode.isFeatureVisible}
+          onRenameCharacter={handleRenameCharacter}
         />
       </PromptDrawerProvider>
     );
@@ -2998,6 +3025,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           onCustomOverride={appMode.setCustomOverride}
           onResetCustomizations={appMode.resetCustomizations}
           isFeatureVisible={appMode.isFeatureVisible}
+          onRenameCharacter={handleRenameCharacter}
         />
       </div>
 
