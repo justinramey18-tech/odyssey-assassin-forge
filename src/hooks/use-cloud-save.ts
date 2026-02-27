@@ -356,6 +356,22 @@ export function useCloudSave(userId: string | undefined) {
       
       if (error) throw error;
       
+      // Clean up scoped localStorage keys for the deleted character
+      try {
+        for (const baseKey of SCOPED_KEYS) {
+          const scopedKey = `${baseKey}::${saveId}`;
+          localStorage.removeItem(scopedKey);
+        }
+        console.log('[CloudSave] Cleaned up scoped localStorage for deleted save:', saveId);
+      } catch (e) {
+        console.warn('[CloudSave] Failed to clean up scoped localStorage:', e);
+      }
+
+      // Clear active save ID if it matches the deleted save
+      if (localStorage.getItem('odyssey-active-cloud-save-id') === saveId) {
+        localStorage.removeItem('odyssey-active-cloud-save-id');
+      }
+      
       // Refresh saves list
       await fetchSaves();
       

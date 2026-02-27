@@ -1466,6 +1466,30 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
               customBackground.setBackgroundFromUrl(cloudData.backgroundUrl);
             }
 
+            // Update prestige tree spent state (must match handleLoadCloudSave logic)
+            if (cloudData.prestige) {
+              const treeSpent = (cloudData.character.abilities || []).reduce((sum: number, ca: CharacterAbility) => {
+                if (ca.abilityId.startsWith('prestige_')) {
+                  const ability = getPrestigeAbilityById(ca.abilityId);
+                  return sum + (ability?.prestigeCost ?? 0);
+                }
+                return sum;
+              }, 0);
+              setPrestigeTreeSpentState(treeSpent);
+            }
+
+            // Prime local autosave so crash recovery works immediately
+            try {
+              const localSnapshot: SaveData = {
+                ...cloudData,
+                savedAt: new Date().toISOString(),
+                version: cloudData.version ?? 2,
+              };
+              setScopedItem('odyssey-character-autosave', JSON.stringify(localSnapshot));
+            } catch (e) {
+              console.warn('[AutoRestore] Failed to prime local autosave:', e);
+            }
+
             setLastCloudSyncTime(cloudData.savedAt);
             setShowWizard(false);
 
@@ -1665,7 +1689,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     
     // Get ability data - check homebrew first, then base abilities
     const homebrewAbility = isHomebrew 
-      ? JSON.parse(localStorage.getItem('odyssey-ability-customization') || '{}')?.homebrewAbilities?.find((h: any) => h.id === abilityId)
+      ? JSON.parse(getScopedItem('odyssey-ability-customization') || '{}')?.homebrewAbilities?.find((h: any) => h.id === abilityId)
       : null;
     const ability = homebrewAbility || allAbilities.find(a => a.id === abilityId);
     if (!ability) return;
