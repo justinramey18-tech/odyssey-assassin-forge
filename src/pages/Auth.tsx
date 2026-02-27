@@ -4,10 +4,9 @@ import { z } from 'zod';
 import { useAuth } from '@/hooks/use-auth';
 import { supabase } from '@/integrations/supabase/client';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, ArrowLeft, User, Lock, KeyRound } from 'lucide-react';
+import { Loader2, User, Lock, KeyRound } from 'lucide-react';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 import homeBackground from '@/assets/home-background.jpg';
-import assassinLogo from '@/assets/assassin-logo.png';
 
 const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
@@ -117,43 +116,11 @@ export default function Auth() {
     <BackgroundWrapper
       imagePath={homeBackground}
       videoSrc="/videos/auth-background.mp4"
-      overlayOpacity={85}
+      overlayOpacity={0}
     >
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        {/* Back button */}
-        <button
-          onClick={() => navigate('/')}
-          className="absolute top-4 left-4 flex items-center gap-2 text-[#d4c4a0]/70 hover:text-[#d4a030] transition-colors font-cinzel text-sm"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back
-        </button>
-
         {/* Container */}
         <div className="w-full max-w-sm flex flex-col items-center">
-          {/* Emblem */}
-          <img
-            src={assassinLogo}
-            alt="Assassin Ledger Emblem"
-            className="w-40 h-40 object-contain mb-2 drop-shadow-[0_0_20px_rgba(212,160,48,0.3)]"
-          />
-
-          {/* Title */}
-          <h1 className="font-cinzel text-[#d4a030] text-3xl tracking-[0.15em] uppercase mb-1"
-            style={{
-              textShadow: '0 0 30px rgba(212, 160, 48, 0.4), 0 2px 4px rgba(0,0,0,0.8)'
-            }}
-          >
-            Assassin Ledger
-          </h1>
-
-          {/* Ornament divider */}
-          <div className="flex items-center gap-2 mb-8">
-            <div className="w-10 h-px bg-gradient-to-r from-transparent to-[#8b7355]" />
-            <span className="text-[#d4a030] text-xs">✦</span>
-            <div className="w-10 h-px bg-gradient-to-l from-transparent to-[#8b7355]" />
-          </div>
-
           {/* Alerts */}
           {error && (
             <Alert variant="destructive" className="mb-4 w-full border-red-800/50 bg-red-900/30">
