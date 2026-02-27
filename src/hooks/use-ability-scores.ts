@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { 
   AbilityName, 
   BaseAbilityScores, 
@@ -43,7 +44,7 @@ interface UseAbilityScoresReturn {
  */
 function loadBaseScores(): BaseAbilityScores {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = getScopedItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
       // Validate structure
@@ -53,7 +54,7 @@ function loadBaseScores(): BaseAbilityScores {
     }
     
     // Migration: Check for existing dice modifiers and reverse-calculate
-    const modifiersStored = localStorage.getItem(DICE_MODIFIERS_KEY);
+    const modifiersStored = getScopedItem(DICE_MODIFIERS_KEY);
     if (modifiersStored) {
       const modifiers = JSON.parse(modifiersStored);
       const migrated: BaseAbilityScores = {
@@ -65,7 +66,7 @@ function loadBaseScores(): BaseAbilityScores {
         charisma: modifierToBaseScore(modifiers.cha ?? 0),
       };
       // Save migrated scores
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+      setScopedItem(STORAGE_KEY, JSON.stringify(migrated));
       console.log('[AbilityScores] Migrated from dice modifiers');
       return migrated;
     }
@@ -89,7 +90,7 @@ function syncToDiceRollerStorage(modifiers: BaseAbilityScores): void {
       wis: scoreToModifier(modifiers.wisdom),
       cha: scoreToModifier(modifiers.charisma),
     };
-    localStorage.setItem(DICE_MODIFIERS_KEY, JSON.stringify(diceModifiers));
+    setScopedItem(DICE_MODIFIERS_KEY, JSON.stringify(diceModifiers));
   } catch (error) {
     console.error('[AbilityScores] Failed to sync to DiceRoller:', error);
   }
@@ -132,7 +133,7 @@ export function useAbilityScores(options: UseAbilityScoresOptions = {}): UseAbil
   // Persist and sync on change
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(baseScores));
+      setScopedItem(STORAGE_KEY, JSON.stringify(baseScores));
       syncToDiceRollerStorage(finalScores);
     } catch (error) {
       console.error('[AbilityScores] Failed to save:', error);
