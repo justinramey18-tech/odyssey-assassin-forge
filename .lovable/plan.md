@@ -1,91 +1,69 @@
 
 
-## Bug: Authenticated Users See Wizard Instead of Their Cloud Character
+## Plan: Debug Panel, Cloud Save ID Assignment, and Character Rename
 
-### Root Cause
-`showWizard` initializes as `true`. The only path to `false` on mount is `loadAutoSave()` finding data in localStorage. When localStorage is empty (new device, cleared storage, iOS PWA purge), the wizard shows even if the user is authenticated with cloud saves available.
+### 1. Create Debug Panel Component
+**New file: `src/components/settings/CloudSaveDebugPanel.tsx`**
 
-There is **no auto-load-from-cloud fallback** — the app never checks the database for existing saves when localStorage is empty.
+A collapsible panel showing:
+- **Active Cloud Save ID**: Read from `localStorage('odyssey-active-cloud-save-id')`
+- **Local Autosave Character**: Parse `localStorage('odyssey-character-autosave')` → show `character.name`, `character.level`, `savedAt`
+- **Last Cloud Sync Target**: Show the `save_name` / `character_name` of the cloud save matching the active ID (query from `useCloudSave` cloud saves list)
+- **All Cloud Saves**: List each save's ID, name, and `updated_at` with a "Copy ID" button
+- Live-refreshing via a "Refresh" button
 
-### Fix
+### 2. Add Debug Panel to App & System Tab
+**Edit: `src/components/settings/SettingsContent.tsx`**
 
-**File: `src/pages/Index.tsx`**
+Add a new `<SettingsSection title="Cloud Save Debug">` inside the `appSystem` tab, after "Danger Zone". Import and render `<CloudSaveDebugPanel />`. Pass `userId` prop so it can query cloud saves.
 
-Add a new `useEffect` after the existing auto-save load (around line 1034) that:
+### 3. Manual Cloud Save ID Assignment
+**Edit: `src/components/settings/CloudSaveDebugPanel.tsx`**
 
-1. Waits for auth to resolve (`!loading && isAuthenticated && user`)
-2. Only runs if `showWizard` is still `true` (no local save was found)
-3. Checks if `activeCloudSaveId` exists in localStorage — if so, fetches that specific save from the `character_saves` table
-4. If no `activeCloudSaveId`, fetches the most recent cloud save for the user (`ORDER BY updated_at DESC LIMIT 1`)
-5. If a cloud save is found, calls `handleLoadCloudSave(data, saveId)` which already handles full state restoration and sets `showWizard(false)`
-6. Uses a ref to prevent double-execution
+Within the debug panel, for each cloud save listed, add a "Set Active" button that:
+- Sets `localStorage('odyssey-active-cloud-save-id')` to that save's ID
+- Updates `activeCloudSaveId` state in Index.tsx via a callback prop or by dispatching a custom event (`odyssey-active-save-changed`)
 
-```typescript
-// After line 1034 (after the loadAutoSave useEffect)
-const hasAttemptedCloudRestore = useRef(false);
-useEffect(() => {
-  if (!showWizard || hasAttemptedCloudRestore.current) return;
-  if (loading || !isAuthenticated || !user) return;
-  
-  hasAttemptedCloudRestore.current = true;
-  
-  (async () => {
-    try {
-      // Try active save ID first, then most recent
-      const targetId = localStorage.getItem('odyssey-active-cloud-save-id');
-      let query = supabase
-        .from('character_saves')
-        .select('id')
-        .eq('user_id', user.id)
-        .order('updated_at', { ascending: false })
-        .limit(1);
-      
-      if (targetId) {
-        query = supabase
-          .from('character_saves')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('id', targetId)
-          .limit(1);
-      }
-      
-      const { data: saves } = await query;
-      if (saves && saves.length > 0) {
-        // Use existing loadFromCloud + handleLoadCloudSave flow
-        const { loadFromCloud } = useCloudSave — NO, need to call directly
-      }
-    } catch (e) {
-      console.warn('[AutoRestore] Failed:', e);
-    }
-  })();
-}, [showWizard, loading, isAuthenticated, user]);
-```
+Also add a text input for manual ID entry with a "Set" button for advanced users.
 
-**Refined approach** — since `handleLoadCloudSave` needs a full `SaveData` object and the `useCloudSave` hook is not used in Index.tsx directly, the effect should:
+### 4. Character Rename Feature
+**New file: `src/components/settings/CharacterRenameWidget.tsx`**
 
-1. Query `character_saves` for the save row
-2. Parse it into `SaveData` format (same logic as `loadFromCloud` in `use-cloud-save.ts`)
-3. Call `handleLoadCloudSave(saveData, saveId)`
+A small widget with:
+- Current name display
+- Text input + "Rename" button
+- On submit: calls `onRename(newName)` callback
 
-However, to avoid duplicating the parsing logic, a cleaner approach:
+**Edit: `src/pages/Index.tsx`**
 
-**Add `useCloudSave` to Index.tsx** (or just the `loadFromCloud` function), and call it in the effect.
+Add a `handleRenameCharacter` function that:
+1. Updates `character.name` via `setCharacter(prev => ({ ...prev, name: newName }))`
+2. Updates the cloud save's `save_name` via `renameSave(activeCloudSaveId, newName)` 
+3. Updates `character_data.name` in the DB via a direct Supabase update (or trigger a cloud sync)
+4. Updates party member name via `partySync.updateStatus({ characterName: newName })` if in a party
+5. Shows a success toast
 
-### Implementation Steps
+**Edit: `src/components/settings/SettingsContent.tsx`**
 
-1. **Import `useCloudSave`** in `Index.tsx` and instantiate it with `user?.id`
-2. **Add a `useEffect`** after the local auto-save load that:
-   - Guards on `showWizard === true && !loading && isAuthenticated && user`
-   - Uses a ref to run only once
-   - Fetches the active or most recent save ID
-   - Calls `loadFromCloud(saveId)` to get full `SaveData`
-   - Calls `handleLoadCloudSave(data, saveId)` to restore state
-3. **Also need to import `loading`** from `useAuth()` (currently only `user` and `isAuthenticated` are destructured — need to add `loading`)
-4. **Edge case**: If auth is still loading when the wizard renders, consider showing a brief loading spinner instead of the wizard to prevent flash-of-wizard before cloud restore completes
+Add the rename widget to the "Character Profile" section, replacing the static name display with an editable version. Pass `onRename` prop through from `SettingsModal`.
 
-### Additional Consideration
-The wizard currently renders immediately while auth is resolving. We should delay showing the wizard by ~1-2 seconds or until auth resolves, to prevent the wizard from flashing before the cloud restore can run. A simple approach: when `loading` is true from useAuth, show a loading screen instead of the wizard.
+**Edit: `src/components/settings/SettingsModal.tsx`**
 
-### Files to Modify
-- `src/pages/Index.tsx` — Add cloud restore effect, update `useAuth` destructuring, add brief loading gate before wizard
+Add `onRenameCharacter?: (name: string) => void` prop and thread it through to `SettingsContent`.
+
+### 5. Persist Rename Across Systems
+
+The character name flows from `character.name` state in Index.tsx. Since the home screen, AI DM, and party chat all read from this state (or from `characterName` prop), renaming via `setCharacter` will automatically update:
+- **Home screen**: `CharacterNamePlaque` receives `character.name` as prop
+- **Party chat**: `partySync.updateStatus` will push the new name to `party_members.character_name`
+- **AI DM**: Uses `character.name` from context passed to `OracleDrawer`
+- **Cloud save**: The next auto-sync will write the updated `character_data.name` to the DB. Additionally, call `renameSave` to update `save_name` for consistency in the saves drawer.
+
+### Files to Create
+- `src/components/settings/CloudSaveDebugPanel.tsx`
+
+### Files to Edit
+- `src/components/settings/SettingsContent.tsx` — Add debug panel to appSystem tab, add rename to character tab
+- `src/components/settings/SettingsModal.tsx` — Thread `onRenameCharacter` and `userId` props
+- `src/pages/Index.tsx` — Add `handleRenameCharacter` callback, pass to SettingsModal
 
