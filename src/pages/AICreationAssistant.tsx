@@ -24,12 +24,15 @@ export default function AICreationAssistant() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-scroll to bottom on new messages
+  // Smooth auto-scroll to bottom on new messages or loading state
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      scrollRef.current.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
     }
-  }, [messages]);
+  }, [messages, isLoading]);
 
   const handleSend = useCallback(() => {
     const text = input.trim();
@@ -116,8 +119,10 @@ export default function AICreationAssistant() {
 
           {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
             <div className="flex justify-start">
-              <div className="bg-card/80 border border-border rounded-lg px-3 py-2">
-                <Loader2 className="w-4 h-4 animate-spin text-primary" />
+              <div className="bg-card/80 border border-border rounded-lg px-4 py-3 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-primary/70 animate-bounce [animation-delay:0ms]" />
+                <span className="w-2 h-2 rounded-full bg-primary/70 animate-bounce [animation-delay:150ms]" />
+                <span className="w-2 h-2 rounded-full bg-primary/70 animate-bounce [animation-delay:300ms]" />
               </div>
             </div>
           )}
