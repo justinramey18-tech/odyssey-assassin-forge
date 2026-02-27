@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getScopedKey } from '@/lib/scoped-storage';
 import { loadTimezone, TIMEZONE_CHANGE_EVENT } from '@/lib/timezone-storage';
 import { useSearchParams } from 'react-router-dom';
 import { Character, CharacterAbility, getAbilityPointsForLevel, getTotalPointsSpent, getActiveSlotsByLevel } from '@/lib/types';
@@ -1241,6 +1242,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
   }, [abilityScores.applyScores, setPrestigeData, toast, partySync, customBackground, autoSync]);
 
   // Auto-restore from cloud when authenticated but no local save found
+  // Uses DIRECT state restoration — NOT handleLoadCloudSave which would
+  // sync the empty default character to cloud (overwriting real data) and reload
   const hasAttemptedCloudRestore = useRef(false);
   useEffect(() => {
     if (!showWizard || hasAttemptedCloudRestore.current) return;
@@ -1273,7 +1276,92 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           console.log('[AutoRestore] Found cloud save, loading:', saveId);
           const cloudData = await loadFromCloud(saveId);
           if (cloudData) {
-            await handleLoadCloudSave(cloudData, saveId);
+            // Direct state restoration — no pre-save sync, no reload
+            setActiveCloudSaveId(saveId);
+            try { localStorage.setItem('odyssey-active-cloud-save-id', saveId); } catch {}
+
+            // Core character data
+            setCharacter(cloudData.character);
+            setEquipment(cloudData.equipment);
+            setAchievements(cloudData.achievements);
+            setCurrentXP(cloudData.xp.currentXP);
+            setXPPreset(cloudData.xp.xpPreset as XPPreset);
+
+            // Prestige
+            if (cloudData.prestige) {
+              const prestigeState = {
+                prestigeLevel: cloudData.prestige.prestigeLevel ?? 0,
+                prestigeXP: cloudData.prestige.prestigeXP ?? 0,
+                totalPrestigePoints: cloudData.prestige.totalPrestigePoints ?? 0,
+              };
+              localStorage.setItem('odyssey-prestige-data', JSON.stringify(prestigeState));
+              setPrestigeData(prestigeState);
+            }
+
+            // Consumables
+            if (cloudData.consumables && Array.isArray(cloudData.consumables)) {
+              localStorage.setItem('odyssey-consumables-inventory', JSON.stringify(cloudData.consumables));
+            }
+
+            // Ability scores
+            if (cloudData.abilityScores) {
+              abilityScores.applyScores(cloudData.abilityScores);
+            }
+
+            // HP state
+            if (cloudData.hpState) {
+              setHpState(cloudData.hpState);
+              localStorage.setItem('odyssey-hp-state', JSON.stringify(cloudData.hpState));
+            }
+
+            // Death saves
+            if (cloudData.deathSaves) {
+              setDeathSaves(cloudData.deathSaves);
+              localStorage.setItem('odyssey-death-saves', JSON.stringify(cloudData.deathSaves));
+            }
+
+            // Spellcasting, prestige tree, shop, loot, proficiencies, etc.
+            if (cloudData.spellcasting) localStorage.setItem('odyssey-spellcasting', JSON.stringify(cloudData.spellcasting));
+            if (cloudData.prestigeTree) localStorage.setItem('odyssey-prestige-tree', JSON.stringify(cloudData.prestigeTree));
+            if (cloudData.shopGold !== undefined) {
+              const shopState = JSON.parse(localStorage.getItem(getScopedKey('odyssey-shop')) || '{"currentGold":0,"items":[],"purchaseHistory":[]}');
+              shopState.currentGold = cloudData.shopGold;
+              localStorage.setItem(getScopedKey('odyssey-shop'), JSON.stringify(shopState));
+            }
+            if (cloudData.loot) localStorage.setItem('odyssey-loot', JSON.stringify(cloudData.loot));
+            if (cloudData.proficiencies) {
+              localStorage.setItem('odyssey-proficient-skills', JSON.stringify(cloudData.proficiencies.skills || []));
+              localStorage.setItem('odyssey-proficient-saves', JSON.stringify(cloudData.proficiencies.saves || []));
+            }
+            if (cloudData.expertise) localStorage.setItem('odyssey-expertise-skills', JSON.stringify(cloudData.expertise));
+            if (cloudData.inspiration !== undefined) {
+              setHasInspiration(cloudData.inspiration);
+              localStorage.setItem('odyssey-inspiration', cloudData.inspiration.toString());
+            }
+            if (cloudData.combatSettings) localStorage.setItem('odyssey-combat-settings', JSON.stringify(cloudData.combatSettings));
+            if (cloudData.activeSpells) localStorage.setItem('odyssey-active-spells', JSON.stringify(cloudData.activeSpells));
+            if (cloudData.conditions) localStorage.setItem('odyssey-conditions-state', JSON.stringify(cloudData.conditions));
+            if (cloudData.cooldownState) localStorage.setItem('odyssey-cooldown-state', JSON.stringify(cloudData.cooldownState));
+
+            // Party
+            if (cloudData.partyId) {
+              localStorage.setItem('odyssey-active-party-id', cloudData.partyId);
+            }
+
+            // Background
+            if (cloudData.backgroundUrl) {
+              customBackground.setBackgroundFromUrl(cloudData.backgroundUrl);
+            }
+
+            setLastCloudSyncTime(cloudData.savedAt);
+            setShowWizard(false);
+
+            console.log('[AutoRestore] Character restored:', cloudData.character.name, 'Level', cloudData.character.level);
+            toast({
+              title: "Welcome back!",
+              description: `${cloudData.character.name} (Level ${cloudData.character.level}) restored from cloud`,
+              className: "border-primary bg-primary/10",
+            });
           }
         } else {
           console.log('[AutoRestore] No cloud saves found for user');
@@ -1282,7 +1370,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         console.warn('[AutoRestore] Failed:', e);
       }
     })();
-  }, [showWizard, authLoading, isAuthenticated, user, loadFromCloud, handleLoadCloudSave]);
+  }, [showWizard, authLoading, isAuthenticated, user, loadFromCloud, abilityScores, setPrestigeData, customBackground, toast]);
 
   // Calculate unlocked abilities map for drawer
   const unlockedAbilities = useMemo(() => {
