@@ -49,18 +49,26 @@ export function useAutoCloudSync(
 
   // Update last sync time when cloud saves are fetched
   useEffect(() => {
-    if (cloudSaves.length > 0) {
-      // Find the most recent save for current character
-      const characterName = data.character?.name;
-      const matchingSave = cloudSaves.find(s => 
-        s.character_name === characterName || s.save_name === characterName
-      );
-      if (matchingSave) {
-        setLastCloudSyncTime(matchingSave.updated_at);
-      } else if (cloudSaves[0]) {
-        // Fallback to most recent save
-        setLastCloudSyncTime(cloudSaves[0].updated_at);
+    if (cloudSaves.length === 0) return;
+
+    const activeSaveId = localStorage.getItem('odyssey-active-cloud-save-id');
+    if (activeSaveId) {
+      const activeSave = cloudSaves.find(s => s.id === activeSaveId);
+      if (activeSave) {
+        setLastCloudSyncTime(activeSave.updated_at);
+        return;
       }
+    }
+
+    // Fallback: match by character name, then most recent
+    const characterName = data.character?.name;
+    const matchingSave = cloudSaves.find(s => 
+      s.character_name === characterName || s.save_name === characterName
+    );
+    if (matchingSave) {
+      setLastCloudSyncTime(matchingSave.updated_at);
+    } else if (cloudSaves[0]) {
+      setLastCloudSyncTime(cloudSaves[0].updated_at);
     }
   }, [cloudSaves, data.character?.name]);
 
@@ -107,15 +115,22 @@ export function useAutoCloudSync(
     }
     
     try {
-      // Find existing save for this character to update
-      const existingSave = cloudSaves.find(s => 
-        s.character_name === data.character?.name || s.save_name === data.character?.name
-      );
+      // Prefer active save ID for strict per-character isolation
+      const activeSaveId = localStorage.getItem('odyssey-active-cloud-save-id');
+      let targetSaveId: string | undefined = activeSaveId ?? undefined;
+
+      // Fallback for legacy sessions without active save ID
+      if (!targetSaveId) {
+        const existingSave = cloudSaves.find(s => 
+          s.character_name === data.character?.name || s.save_name === data.character?.name
+        );
+        targetSaveId = existingSave?.id;
+      }
       
       const result = await saveToCloud(
         data,
         data.character.name,
-        existingSave?.id
+        targetSaveId
       );
       
       if (!result.error) {

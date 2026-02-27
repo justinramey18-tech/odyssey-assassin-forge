@@ -570,7 +570,7 @@ const Index = () => {
 
   // Auth & Party system
   const { user, isAuthenticated, loading: authLoading } = useAuth();
-  const { loadFromCloud } = useCloudSave(user?.id);
+  const { loadFromCloud, saveToCloud } = useCloudSave(user?.id);
   const partySync = usePartySync();
   const { playMode, setPlayMode, isSoloMode, isPartyMode } = usePlayMode();
 
@@ -1040,20 +1040,23 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
 
   // Handle loading cloud save - RESTORES ALL CHARACTER STATE
   const handleLoadCloudSave = useCallback(async (data: SaveData, saveId?: string) => {
-    console.log('[CloudSave] Loading character:', data.character.name, 'saveId:', saveId);
+    const previousActiveSaveId = activeCloudSaveId;
+    console.log('[CloudSave] Loading character:', data.character.name, 'saveId:', saveId, 'previousSaveId:', previousActiveSaveId);
+
     if (saveId) {
       setActiveCloudSaveId(saveId);
       try { localStorage.setItem('odyssey-active-cloud-save-id', saveId); } catch {}
     }
     setIsSwitchingCharacter(true);
     
-    // CRITICAL: Save current character to cloud BEFORE switching
-    // This preserves background URL, party association, and all state for the current character
+    // Save current character to cloud ONLY (do not touch local autosave here)
     try {
-      await autoSync.syncNow();
-      console.log('[CloudSave] Saved current character before switching');
+      if (character.name?.trim()) {
+        await saveToCloud(saveData, character.name, previousActiveSaveId ?? undefined);
+        console.log('[CloudSave] Saved current character to cloud before switching');
+      }
     } catch (e) {
-      console.warn('[CloudSave] Pre-switch save failed:', e);
+      console.warn('[CloudSave] Pre-switch cloud save failed:', e);
     }
     
     // 1. Core character data
@@ -1227,19 +1230,25 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     // Exit wizard if showing
     setShowWizard(false);
     
+    // Prime local autosave with the selected character before reload
+    // so post-reload bootstrap never restores the previously active character.
+    try {
+      const localSaveSnapshot: SaveData = {
+        ...data,
+        savedAt: new Date().toISOString(),
+        version: data.version ?? 2,
+      };
+      localStorage.setItem('odyssey-character-autosave', JSON.stringify(localSaveSnapshot));
+      console.log('[CloudSave] Primed local autosave for selected character:', data.character.name);
+    } catch (e) {
+      console.warn('[CloudSave] Failed to prime local autosave before reload:', e);
+    }
+
     // Force a page reload to ensure all localStorage-dependent hooks reinitialize
-    // This is the most reliable way to ensure all state is synchronized
-    toast({
-      title: "✅ Character Loaded!",
-      description: `${data.character.name} (Level ${data.character.level}) loaded from cloud`,
-      className: "border-primary bg-primary/10",
-    });
-    
-    // Small delay to allow toast to show, then reload to sync all hooks
     setTimeout(() => {
       window.location.reload();
     }, 500);
-  }, [abilityScores.applyScores, setPrestigeData, toast, partySync, customBackground, autoSync]);
+  }, [abilityScores.applyScores, setPrestigeData, toast, partySync, customBackground, activeCloudSaveId, character.name, saveData, saveToCloud]);
 
   // Auto-restore from cloud when authenticated but no local save found
   // Uses DIRECT state restoration — NOT handleLoadCloudSave which would
