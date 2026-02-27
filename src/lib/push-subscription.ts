@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
  * VAPID public key — safe to expose in client code.
  * Generate a new pair with: npx web-push generate-vapid-keys
  */
-const VAPID_PUBLIC_KEY = 'BDXWPYwt5U-_EK4L657QCQqGS-k9VcHgPUFz0RHSgdyLT-LJ1R-ISLAfnqu24SrvxP2xc67PcaipSlMpmUlnGhY';
+const VAPID_PUBLIC_KEY = 'BDpjt6QQ67FCYG3jOY0bD_Kp2fWOKetbWyvJGeVwNT6EQZe6JzugSp_755-iqEXCHUkDiHox5Om1fMvPsba6ct4';
 
 export type PushSubscriptionState =
   | 'supported'
