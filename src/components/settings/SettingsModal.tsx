@@ -58,6 +58,7 @@ interface SettingsModalProps {
   onCustomOverride?: (featureId: string, visible: boolean) => void;
   onResetCustomizations?: () => void;
   isFeatureVisible?: (id: string) => boolean;
+  onRenameCharacter?: (name: string) => void;
 }
 
 export function SettingsModal({ 
@@ -92,6 +93,7 @@ export function SettingsModal({
   onCustomOverride,
   onResetCustomizations,
   isFeatureVisible,
+  onRenameCharacter,
 }: SettingsModalProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<SettingsTab>('character');
@@ -277,6 +279,7 @@ export function SettingsModal({
                    onCustomOverride={onCustomOverride}
                    onResetCustomizations={onResetCustomizations}
                    isFeatureVisible={isFeatureVisible}
+                   onRenameCharacter={onRenameCharacter}
               />
               ) : (
                 <MobileSettingsTabs
@@ -352,6 +355,7 @@ export function SettingsModal({
                 onCustomOverride={onCustomOverride}
                 onResetCustomizations={onResetCustomizations}
                 isFeatureVisible={isFeatureVisible}
+                onRenameCharacter={onRenameCharacter}
               />
             </div>
           </ScrollArea>

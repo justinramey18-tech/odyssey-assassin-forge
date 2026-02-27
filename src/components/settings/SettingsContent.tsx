@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Check, Copy, RefreshCw, Camera, Star, Lock, RotateCcw, AlertTriangle, Download, ImageOff, Users, User, BookOpen } from 'lucide-react';
+import { Check, Copy, RefreshCw, Camera, Star, Lock, RotateCcw, AlertTriangle, Download, ImageOff, Users, User, BookOpen, Database } from 'lucide-react';
 import { AppModeSettings } from './AppModeSettings';
 import type { AppMode, CustomOverrides } from '@/lib/app-modes';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,8 @@ import { ElevenLabsSettingsTab } from './ElevenLabsSettingsTab';
 
 import { PartyPanel } from '@/components/party';
 import type { UsePartySyncReturn } from '@/hooks/use-party-sync';
+import { CloudSaveDebugPanel } from './CloudSaveDebugPanel';
+import { CharacterRenameWidget } from './CharacterRenameWidget';
 
 interface SettingsContentProps {
   activeTab: SettingsTab;
@@ -79,6 +81,7 @@ interface SettingsContentProps {
   onCustomOverride?: (featureId: string, visible: boolean) => void;
   onResetCustomizations?: () => void;
   isFeatureVisible?: (id: string) => boolean;
+  onRenameCharacter?: (name: string) => void;
 }
 
 export function SettingsContent({
@@ -119,6 +122,7 @@ export function SettingsContent({
   onCustomOverride,
   onResetCustomizations,
   isFeatureVisible: isFeatureVisibleProp,
+  onRenameCharacter,
 }: SettingsContentProps) {
   const [copiedStatic, setCopiedStatic] = useState(false);
   const [copiedDynamic, setCopiedDynamic] = useState(false);
@@ -228,7 +232,11 @@ export function SettingsContent({
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <p className="text-xs text-muted-foreground">Current Character</p>
-                  <p className="font-cinzel font-bold text-lg truncate">{characterName || 'Unnamed'}</p>
+                  {onRenameCharacter ? (
+                    <CharacterRenameWidget currentName={characterName} onRename={onRenameCharacter} />
+                  ) : (
+                    <p className="font-cinzel font-bold text-lg truncate">{characterName || 'Unnamed'}</p>
+                  )}
                 </div>
                 <Button variant="outline" size="sm" onClick={() => { onClose(); onEditCharacter(); }} className="shrink-0">Edit</Button>
                 {onNewCharacter && (
@@ -626,6 +634,10 @@ export function SettingsContent({
                 </AlertDialogContent>
               </AlertDialog>
             </div>
+          </SettingsSection>
+
+          <SettingsSection title="Cloud Save Debug" icon={<Database className="w-4 h-4 text-muted-foreground" />}>
+            <CloudSaveDebugPanel userId={userId} />
           </SettingsSection>
         </div>
       </div>
