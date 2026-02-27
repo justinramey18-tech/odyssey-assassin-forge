@@ -108,14 +108,15 @@ export default function Auth() {
     );
   }
 
-  // Shared input styles
-  const inputClass = "w-full pl-11 pr-4 py-3 bg-[#c4b99a]/90 border-2 border-[#8b7355] text-[#2a1f14] placeholder:text-[#6b5a45] rounded-sm font-medium text-sm focus:outline-none focus:border-[#d4a030] focus:ring-1 focus:ring-[#d4a030]/50 transition-colors";
-  const iconClass = "absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#6b5a45]";
+  // Icon box style (dark square with icon)
+  const iconBoxClass = "absolute left-0 top-0 bottom-0 w-12 flex items-center justify-center bg-[#3a3228]/80 border-r-2 border-[#8b7355]/50 rounded-l-sm";
+  const iconClass = "w-5 h-5 text-[#c4a96a]";
+  const inputClass = "w-full pl-14 pr-4 py-3.5 bg-[#d4c8a8] border-2 border-[#9a8a6a] text-[#2a1f14] placeholder:text-[#7a6a4a] rounded-sm font-medium text-base focus:outline-none focus:border-[#d4a030] focus:ring-1 focus:ring-[#d4a030]/50 transition-colors";
 
   return (
     <BackgroundWrapper
       imagePath={homeBackground}
-      overlayOpacity={90}
+      overlayOpacity={85}
     >
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
         {/* Back button */}
@@ -128,24 +129,28 @@ export default function Auth() {
         </button>
 
         {/* Container */}
-        <div className="w-full max-w-xs flex flex-col items-center">
+        <div className="w-full max-w-sm flex flex-col items-center">
           {/* Emblem */}
           <img
             src={assassinLogo}
             alt="Assassin Ledger Emblem"
-            className="w-24 h-24 object-contain mb-4 opacity-90"
+            className="w-40 h-40 object-contain mb-2 drop-shadow-[0_0_20px_rgba(212,160,48,0.3)]"
           />
 
           {/* Title */}
-          <h1 className="font-cinzel text-[#d4a030] text-2xl tracking-[0.2em] uppercase mb-1">
+          <h1 className="font-cinzel text-[#d4a030] text-3xl tracking-[0.15em] uppercase mb-1"
+            style={{
+              textShadow: '0 0 30px rgba(212, 160, 48, 0.4), 0 2px 4px rgba(0,0,0,0.8)'
+            }}
+          >
             Assassin Ledger
           </h1>
 
           {/* Ornament divider */}
-          <div className="flex items-center gap-2 mb-6">
-            <div className="w-8 h-px bg-[#8b7355]" />
+          <div className="flex items-center gap-2 mb-8">
+            <div className="w-10 h-px bg-gradient-to-r from-transparent to-[#8b7355]" />
             <span className="text-[#d4a030] text-xs">✦</span>
-            <div className="w-8 h-px bg-[#8b7355]" />
+            <div className="w-10 h-px bg-gradient-to-l from-transparent to-[#8b7355]" />
           </div>
 
           {/* Alerts */}
@@ -162,9 +167,11 @@ export default function Auth() {
 
           {/* LOGIN VIEW */}
           {view === 'login' && (
-            <form onSubmit={handleSignIn} className="w-full space-y-4">
+            <form onSubmit={handleSignIn} className="w-full space-y-3">
               <div className="relative">
-                <User className={iconClass} />
+                <div className={iconBoxClass}>
+                  <User className={iconClass} />
+                </div>
                 <input
                   type="email"
                   placeholder="Username"
@@ -176,7 +183,9 @@ export default function Auth() {
                 />
               </div>
               <div className="relative">
-                <Lock className={iconClass} />
+                <div className={iconBoxClass}>
+                  <Lock className={iconClass} />
+                </div>
                 <input
                   type="password"
                   placeholder="Password"
@@ -191,23 +200,26 @@ export default function Auth() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-[#5a4a3a] border-2 border-[#8b7355] text-[#d4c4a0] font-cinzel uppercase tracking-[0.15em] text-sm hover:bg-[#6b5a45] hover:border-[#d4a030] disabled:opacity-50 transition-colors rounded-sm flex items-center justify-center gap-2"
+                className="w-full py-3.5 mt-1 bg-[#4a3c2e] border-2 border-[#8b7355] text-[#d4c4a0] font-cinzel uppercase tracking-[0.2em] text-base hover:bg-[#5a4a3a] hover:border-[#d4a030] disabled:opacity-50 transition-colors rounded-sm flex items-center justify-center gap-2"
+                style={{
+                  boxShadow: 'inset 0 1px 0 rgba(212,160,48,0.15), 0 2px 8px rgba(0,0,0,0.5)'
+                }}
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Log In'}
               </button>
 
-              <div className="flex items-center justify-between pt-2">
+              <div className="flex items-center justify-between pt-3">
                 <button
                   type="button"
                   onClick={() => { switchView('forgot'); setResetEmail(email); }}
-                  className="text-[#d4c4a0]/60 hover:text-[#d4a030] text-xs font-cinzel transition-colors"
+                  className="text-[#c4a96a]/70 hover:text-[#d4a030] text-sm font-cinzel transition-colors"
                 >
                   Forgot Password?
                 </button>
                 <button
                   type="button"
                   onClick={() => switchView('signup')}
-                  className="text-[#d4c4a0]/60 hover:text-[#d4a030] text-xs font-cinzel transition-colors"
+                  className="text-[#c4a96a]/70 hover:text-[#d4a030] text-sm font-cinzel transition-colors"
                 >
                   Create Account
                 </button>
@@ -217,9 +229,11 @@ export default function Auth() {
 
           {/* SIGNUP VIEW */}
           {view === 'signup' && (
-            <form onSubmit={handleSignUp} className="w-full space-y-4">
+            <form onSubmit={handleSignUp} className="w-full space-y-3">
               <div className="relative">
-                <User className={iconClass} />
+                <div className={iconBoxClass}>
+                  <User className={iconClass} />
+                </div>
                 <input
                   type="email"
                   placeholder="Email"
@@ -231,7 +245,9 @@ export default function Auth() {
                 />
               </div>
               <div className="relative">
-                <Lock className={iconClass} />
+                <div className={iconBoxClass}>
+                  <Lock className={iconClass} />
+                </div>
                 <input
                   type="password"
                   placeholder="Password"
@@ -243,7 +259,9 @@ export default function Auth() {
                 />
               </div>
               <div className="relative">
-                <Lock className={iconClass} />
+                <div className={iconBoxClass}>
+                  <Lock className={iconClass} />
+                </div>
                 <input
                   type="password"
                   placeholder="Confirm Password"
@@ -258,7 +276,10 @@ export default function Auth() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-[#5a4a3a] border-2 border-[#8b7355] text-[#d4c4a0] font-cinzel uppercase tracking-[0.15em] text-sm hover:bg-[#6b5a45] hover:border-[#d4a030] disabled:opacity-50 transition-colors rounded-sm flex items-center justify-center gap-2"
+                className="w-full py-3.5 mt-1 bg-[#4a3c2e] border-2 border-[#8b7355] text-[#d4c4a0] font-cinzel uppercase tracking-[0.2em] text-base hover:bg-[#5a4a3a] hover:border-[#d4a030] disabled:opacity-50 transition-colors rounded-sm flex items-center justify-center gap-2"
+                style={{
+                  boxShadow: 'inset 0 1px 0 rgba(212,160,48,0.15), 0 2px 8px rgba(0,0,0,0.5)'
+                }}
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Account'}
               </button>
@@ -266,7 +287,7 @@ export default function Auth() {
               <button
                 type="button"
                 onClick={() => switchView('login')}
-                className="w-full text-center text-[#d4c4a0]/60 hover:text-[#d4a030] text-xs font-cinzel transition-colors pt-2"
+                className="w-full text-center text-[#c4a96a]/70 hover:text-[#d4a030] text-sm font-cinzel transition-colors pt-3"
               >
                 ← Back to Login
               </button>
@@ -275,12 +296,14 @@ export default function Auth() {
 
           {/* FORGOT PASSWORD VIEW */}
           {view === 'forgot' && (
-            <form onSubmit={handleForgotPassword} className="w-full space-y-4">
-              <p className="text-[#d4c4a0]/70 text-xs text-center font-cinzel mb-2">
+            <form onSubmit={handleForgotPassword} className="w-full space-y-3">
+              <p className="text-[#c4a96a]/70 text-sm text-center font-cinzel mb-2">
                 Enter your email to receive a reset link
               </p>
               <div className="relative">
-                <KeyRound className={iconClass} />
+                <div className={iconBoxClass}>
+                  <KeyRound className={iconClass} />
+                </div>
                 <input
                   type="email"
                   placeholder="Email"
@@ -295,7 +318,10 @@ export default function Auth() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-[#5a4a3a] border-2 border-[#8b7355] text-[#d4c4a0] font-cinzel uppercase tracking-[0.15em] text-sm hover:bg-[#6b5a45] hover:border-[#d4a030] disabled:opacity-50 transition-colors rounded-sm flex items-center justify-center gap-2"
+                className="w-full py-3.5 mt-1 bg-[#4a3c2e] border-2 border-[#8b7355] text-[#d4c4a0] font-cinzel uppercase tracking-[0.2em] text-base hover:bg-[#5a4a3a] hover:border-[#d4a030] disabled:opacity-50 transition-colors rounded-sm flex items-center justify-center gap-2"
+                style={{
+                  boxShadow: 'inset 0 1px 0 rgba(212,160,48,0.15), 0 2px 8px rgba(0,0,0,0.5)'
+                }}
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send Reset Link'}
               </button>
@@ -303,17 +329,12 @@ export default function Auth() {
               <button
                 type="button"
                 onClick={() => switchView('login')}
-                className="w-full text-center text-[#d4c4a0]/60 hover:text-[#d4a030] text-xs font-cinzel transition-colors pt-2"
+                className="w-full text-center text-[#c4a96a]/70 hover:text-[#d4a030] text-sm font-cinzel transition-colors pt-3"
               >
                 ← Back to Login
               </button>
             </form>
           )}
-
-          {/* Footer */}
-          <p className="text-[#6b5a45] text-[10px] text-center mt-8 font-cinzel tracking-wider">
-            Your data is encrypted and stored securely
-          </p>
         </div>
       </div>
     </BackgroundWrapper>
