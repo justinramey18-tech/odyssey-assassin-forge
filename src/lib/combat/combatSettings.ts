@@ -1,6 +1,8 @@
 // Combat Settings System
 // Manages combat-related feature toggles like Two-Weapon Fighting Style
 
+import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
+
 export interface CombatSettings {
   /** Two-Weapon Fighting Style: Adds ability modifier to offhand damage */
   hasTwoWeaponFightingStyle: boolean;
@@ -39,7 +41,7 @@ export const COMBAT_SETTINGS_CHANGE_EVENT = 'odyssey-combat-settings-change';
 // Load settings from localStorage
 export function loadCombatSettings(): CombatSettings {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = getScopedItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
       return {
@@ -56,7 +58,7 @@ export function loadCombatSettings(): CombatSettings {
 // Save settings to localStorage and dispatch sync event
 export function saveCombatSettings(settings: CombatSettings): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    setScopedItem(STORAGE_KEY, JSON.stringify(settings));
     // Dispatch custom event for same-tab listeners
     window.dispatchEvent(new CustomEvent(COMBAT_SETTINGS_CHANGE_EVENT, { detail: settings }));
   } catch (e) {

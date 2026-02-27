@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { toast } from '@/hooks/use-toast';
+import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import {
   ActiveCondition,
   NewConditionInput,
@@ -29,7 +30,7 @@ const DEFAULT_STATE: ConditionsState = {
 // Load state from localStorage
 const loadState = (): ConditionsState => {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = getScopedItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
       return {
@@ -46,7 +47,7 @@ const loadState = (): ConditionsState => {
 // Save state to localStorage with error handling
 const saveState = (state: ConditionsState): void => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    setScopedItem(STORAGE_KEY, JSON.stringify(state));
   } catch (e) {
     console.error('Failed to save conditions:', e);
     toast({
