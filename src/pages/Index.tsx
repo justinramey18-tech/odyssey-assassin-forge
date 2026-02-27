@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { getScopedKey } from '@/lib/scoped-storage';
+import { getScopedKey, getScopedItem, setScopedItem, removeScopedItem } from '@/lib/scoped-storage';
 import { loadTimezone, TIMEZONE_CHANGE_EVENT } from '@/lib/timezone-storage';
 import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { Character, CharacterAbility, getAbilityPointsForLevel, getTotalPointsSpent, getActiveSlotsByLevel } from '@/lib/types';
@@ -159,13 +159,13 @@ const Index = () => {
   
   // Inspiration State (D&D 5e)
   const [hasInspiration, setHasInspiration] = useState(() => {
-    const stored = localStorage.getItem('odyssey-inspiration');
+    const stored = getScopedItem('odyssey-inspiration');
     return stored === 'true';
   });
   
-  // Persist inspiration to localStorage
+  // Persist inspiration to scoped localStorage
   useEffect(() => {
-    localStorage.setItem('odyssey-inspiration', hasInspiration.toString());
+    setScopedItem('odyssey-inspiration', hasInspiration.toString());
   }, [hasInspiration]);
   
   // Prestige System State - simplified (no separate spending/respec)
@@ -187,7 +187,7 @@ const Index = () => {
   
   // Track prestige tree spending with reactive state (initialized from localStorage)
   const [prestigeTreeSpentState, setPrestigeTreeSpentState] = useState(() => {
-    const stored = localStorage.getItem('odyssey-prestige-tree');
+    const stored = getScopedItem('odyssey-prestige-tree');
     if (stored) {
       try {
         const progress = JSON.parse(stored);
@@ -288,7 +288,7 @@ const Index = () => {
       const result = conditionsEndTurnRef.current();
       
       // Check if round notifications are enabled
-      const combatSettings = JSON.parse(localStorage.getItem('odyssey-combat-settings') || '{}');
+      const combatSettings = JSON.parse(getScopedItem('odyssey-combat-settings') || '{}');
       const showNotifications = combatSettings.showRoundNotifications !== false; // Default to true
       
       if (!showNotifications) {
@@ -361,7 +361,7 @@ const Index = () => {
   // HP State Management (persisted to localStorage)
   // Note: max HP is now calculated dynamically, but we still store it for persistence
   const [hpState, setHpState] = useState<{ current: number; max: number; temp: number }>(() => {
-    const stored = localStorage.getItem('odyssey-hp-state');
+    const stored = getScopedItem('odyssey-hp-state');
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
@@ -375,7 +375,7 @@ const Index = () => {
 
   // Death Saves State (persisted to localStorage)
   const [deathSaves, setDeathSaves] = useState<{ successes: number; failures: number }>(() => {
-    const stored = localStorage.getItem('odyssey-death-saves');
+    const stored = getScopedItem('odyssey-death-saves');
     if (stored) {
       try {
         return JSON.parse(stored);
@@ -389,7 +389,7 @@ const Index = () => {
   // Death saves change handler with localStorage persistence
   const handleDeathSavesChange = useCallback((saves: { successes: number; failures: number }) => {
     setDeathSaves(saves);
-    localStorage.setItem('odyssey-death-saves', JSON.stringify(saves));
+    setScopedItem('odyssey-death-saves', JSON.stringify(saves));
   }, []);
 
   // Aggregated equipment stats for GM guide
@@ -421,7 +421,7 @@ const Index = () => {
   // Wild Shape - lifted to app level for cross-tab sync
   const druidCircle = useMemo<DruidCircle | null>(() => {
     try {
-      const saved = localStorage.getItem('dnd-druid-circle');
+      const saved = getScopedItem('dnd-druid-circle');
       return saved as DruidCircle | null;
     } catch { return null; }
   }, []);
@@ -479,7 +479,7 @@ const Index = () => {
     let domainName: string | undefined;
     let deityName: string | undefined;
     try {
-      const savedDomain = localStorage.getItem('dnd-cleric-domain') as ClericDomain | null;
+      const savedDomain = getScopedItem('dnd-cleric-domain') as ClericDomain | null;
       if (savedDomain) {
         const domainConfig = getDomainById(savedDomain);
         domainName = domainConfig?.name;
@@ -491,7 +491,7 @@ const Index = () => {
           isDomain: true,
         }));
       }
-      deityName = localStorage.getItem('dnd-cleric-deity') || undefined;
+      deityName = getScopedItem('dnd-cleric-deity') || undefined;
     } catch {}
     const baseOptions = BASE_CHANNEL_DIVINITY_OPTIONS
       .filter(opt => clericLevel >= opt.unlockedAtLevel)
@@ -626,7 +626,7 @@ const Index = () => {
           const newCharHP = Math.max(0, hpState.current - result.overflow);
           const newState = { current: newCharHP, max: hpState.max, temp: hpState.temp };
           setHpState(newState);
-          localStorage.setItem('odyssey-hp-state', JSON.stringify(newState));
+          setScopedItem('odyssey-hp-state', JSON.stringify(newState));
         }
       } else if (damageTaken < 0) {
         // Healing in beast form
@@ -641,12 +641,12 @@ const Index = () => {
     
     const newState = { current, max, temp };
     setHpState(newState);
-    localStorage.setItem('odyssey-hp-state', JSON.stringify(newState));
+    setScopedItem('odyssey-hp-state', JSON.stringify(newState));
     
     // Reset death saves when regaining HP from 0
     if (current > 0 && deathSaves.successes + deathSaves.failures > 0) {
       setDeathSaves({ successes: 0, failures: 0 });
-      localStorage.setItem('odyssey-death-saves', JSON.stringify({ successes: 0, failures: 0 }));
+      setScopedItem('odyssey-death-saves', JSON.stringify({ successes: 0, failures: 0 }));
     }
     
     // Trigger concentration check if damage was taken while concentrating
@@ -704,7 +704,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         temp: hpState.temp 
       };
       setHpState(newState);
-      localStorage.setItem('odyssey-hp-state', JSON.stringify(newState));
+      setScopedItem('odyssey-hp-state', JSON.stringify(newState));
       
       // Show toast for significant changes, but NOT on initial app load
       if (hasInitialHPSynced.current && hpState.max > 8 && hpDiff !== 0) {
@@ -973,12 +973,12 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
   // Data for auto-save (comprehensive character backup for cloud persistence)
   const saveData = useMemo(() => {
     // Load proficiencies/expertise from localStorage (they're managed by DiceRollerScreen)
-    const proficientSkills = JSON.parse(localStorage.getItem('odyssey-proficient-skills') || '[]');
-    const proficientSaves = JSON.parse(localStorage.getItem('odyssey-proficient-saves') || '[]');
-    const expertiseSkills = JSON.parse(localStorage.getItem('odyssey-expertise-skills') || '[]');
-    const combatSettings = JSON.parse(localStorage.getItem('odyssey-combat-settings') || '{}');
-    // Load cooldown state from localStorage
-    const cooldownState = JSON.parse(localStorage.getItem('odyssey-cooldown-state') || 'null');
+    const proficientSkills = JSON.parse(getScopedItem('odyssey-proficient-skills') || '[]');
+    const proficientSaves = JSON.parse(getScopedItem('odyssey-proficient-saves') || '[]');
+    const expertiseSkills = JSON.parse(getScopedItem('odyssey-expertise-skills') || '[]');
+    const combatSettings = JSON.parse(getScopedItem('odyssey-combat-settings') || '{}');
+    // Load cooldown state from scoped localStorage
+    const cooldownState = JSON.parse(getScopedItem('odyssey-cooldown-state') || 'null');
     
     return {
       character,
@@ -1139,7 +1139,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         prestigeXP: data.prestige.prestigeXP ?? 0,
         totalPrestigePoints: data.prestige.totalPrestigePoints ?? 0,
       };
-      localStorage.setItem('odyssey-prestige-data', JSON.stringify(prestigeState));
+      setScopedItem('odyssey-prestige-data', JSON.stringify(prestigeState));
       setPrestigeData(prestigeState);
       
       // Update prestige tree spent state to recalculate from loaded abilities
@@ -1157,7 +1157,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     
     // 4. Consumables - update localStorage (hook will sync on next render)
     if (data.consumables && Array.isArray(data.consumables)) {
-      localStorage.setItem('odyssey-consumables-inventory', JSON.stringify(data.consumables));
+      setScopedItem('odyssey-consumables-inventory', JSON.stringify(data.consumables));
       console.log('[CloudSave] Loaded consumables:', data.consumables.length, 'items');
     }
     
@@ -1171,7 +1171,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     if (data.hpState) {
       // Restore exact HP state from cloud save
       setHpState(data.hpState);
-      localStorage.setItem('odyssey-hp-state', JSON.stringify(data.hpState));
+      setScopedItem('odyssey-hp-state', JSON.stringify(data.hpState));
       console.log('[CloudSave] Restored HP:', data.hpState.current, '/', data.hpState.max, 'temp:', data.hpState.temp);
     } else if (data.abilityScores) {
       // Fallback: Calculate max HP if HP state wasn't saved (legacy saves)
@@ -1180,87 +1180,87 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       const newMaxHP = calculateMaxHP(data.character.level, loadedConMod, loadedPrestigeLevel);
       const newHPState = { current: newMaxHP, max: newMaxHP, temp: 0 };
       setHpState(newHPState);
-      localStorage.setItem('odyssey-hp-state', JSON.stringify(newHPState));
+      setScopedItem('odyssey-hp-state', JSON.stringify(newHPState));
       console.log('[CloudSave] HP not in save, reset to max:', newMaxHP);
     }
     
     // 7. Restore death saves from saved data (or reset if not saved)
     if (data.deathSaves) {
       setDeathSaves(data.deathSaves);
-      localStorage.setItem('odyssey-death-saves', JSON.stringify(data.deathSaves));
+      setScopedItem('odyssey-death-saves', JSON.stringify(data.deathSaves));
       console.log('[CloudSave] Restored death saves:', data.deathSaves);
     } else {
       setDeathSaves({ successes: 0, failures: 0 });
-      localStorage.setItem('odyssey-death-saves', JSON.stringify({ successes: 0, failures: 0 }));
+      setScopedItem('odyssey-death-saves', JSON.stringify({ successes: 0, failures: 0 }));
     }
     
     // 8. Restore spellcasting state (magic path, slots, spells)
     if (data.spellcasting) {
-      localStorage.setItem('odyssey-spellcasting', JSON.stringify(data.spellcasting));
+      setScopedItem('odyssey-spellcasting', JSON.stringify(data.spellcasting));
       console.log('[CloudSave] Restored spellcasting:', data.spellcasting.path);
     }
     
     // 9. Restore prestige tree progress (Drizzt's Legacy)
     if (data.prestigeTree) {
-      localStorage.setItem('odyssey-prestige-tree', JSON.stringify(data.prestigeTree));
+      setScopedItem('odyssey-prestige-tree', JSON.stringify(data.prestigeTree));
       console.log('[CloudSave] Restored prestige tree:', data.prestigeTree.unlockedAbilities?.length, 'abilities');
     }
     
     // 10. Restore shop gold balance
     if (data.shopGold !== undefined) {
-      const shopState = JSON.parse(localStorage.getItem('odyssey-shop') || '{"currentGold":0,"items":[],"purchaseHistory":[]}');
+      const shopState = JSON.parse(getScopedItem('odyssey-shop') || '{"currentGold":0,"items":[],"purchaseHistory":[]}');
       shopState.currentGold = data.shopGold;
-      localStorage.setItem('odyssey-shop', JSON.stringify(shopState));
+      setScopedItem('odyssey-shop', JSON.stringify(shopState));
       console.log('[CloudSave] Restored shop gold:', data.shopGold);
     }
     
     // 11. Restore loot items and sold history
     if (data.loot) {
-      localStorage.setItem('odyssey-loot', JSON.stringify(data.loot));
+      setScopedItem('odyssey-loot', JSON.stringify(data.loot));
       console.log('[CloudSave] Restored loot:', data.loot.items?.length, 'items');
     }
     
     // 12. Restore proficiencies (skills and saves)
     if (data.proficiencies) {
-      localStorage.setItem('odyssey-proficient-skills', JSON.stringify(data.proficiencies.skills || []));
-      localStorage.setItem('odyssey-proficient-saves', JSON.stringify(data.proficiencies.saves || []));
+      setScopedItem('odyssey-proficient-skills', JSON.stringify(data.proficiencies.skills || []));
+      setScopedItem('odyssey-proficient-saves', JSON.stringify(data.proficiencies.saves || []));
       console.log('[CloudSave] Restored proficiencies');
     }
     
     // 13. Restore expertise skills
     if (data.expertise) {
-      localStorage.setItem('odyssey-expertise-skills', JSON.stringify(data.expertise));
+      setScopedItem('odyssey-expertise-skills', JSON.stringify(data.expertise));
       console.log('[CloudSave] Restored expertise:', data.expertise.length, 'skills');
     }
     
     // 14. Restore inspiration
     if (data.inspiration !== undefined) {
       setHasInspiration(data.inspiration);
-      localStorage.setItem('odyssey-inspiration', data.inspiration.toString());
+      setScopedItem('odyssey-inspiration', data.inspiration.toString());
       console.log('[CloudSave] Restored inspiration:', data.inspiration);
     }
     
     // 15. Restore combat settings (feat toggles)
     if (data.combatSettings) {
-      localStorage.setItem('odyssey-combat-settings', JSON.stringify(data.combatSettings));
+      setScopedItem('odyssey-combat-settings', JSON.stringify(data.combatSettings));
       console.log('[CloudSave] Restored combat settings');
     }
     
     // 16. Restore active spell effects (duration tracking)
     if (data.activeSpells) {
-      localStorage.setItem('odyssey-active-spells', JSON.stringify(data.activeSpells));
+      setScopedItem('odyssey-active-spells', JSON.stringify(data.activeSpells));
       console.log('[CloudSave] Restored active spells:', data.activeSpells.length, 'effects');
     }
     
     // 17. Restore conditions state (buffs/debuffs/concentration)
     if (data.conditions) {
-      localStorage.setItem('odyssey-conditions-state', JSON.stringify(data.conditions));
+      setScopedItem('odyssey-conditions-state', JSON.stringify(data.conditions));
       console.log('[CloudSave] Restored conditions:', data.conditions.conditions?.length, 'active');
     }
     
     // 18. Restore cooldown state (ability timers and session)
     if (data.cooldownState) {
-      localStorage.setItem('odyssey-cooldown-state', JSON.stringify(data.cooldownState));
+      setScopedItem('odyssey-cooldown-state', JSON.stringify(data.cooldownState));
       console.log('[CloudSave] Restored cooldown state');
     }
     
@@ -1273,10 +1273,10 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     // (the page reloads after load, so in-memory reconnect won't persist — this localStorage flag
     // tells the mount effect which party is valid for the active character)
     if (data.partyId) {
-      localStorage.setItem('odyssey-active-party-id', data.partyId);
-      console.log('[CloudSave] Set active party ID for reconnect after reload:', data.partyId);
+      setScopedItem('odyssey-active-party-id', data.partyId);
+      console.log('[CloudSave] Set active party ID for reconnect:', data.partyId);
     } else {
-      localStorage.removeItem('odyssey-active-party-id');
+      removeScopedItem('odyssey-active-party-id');
       console.log('[CloudSave] No party for this character — cleared active party ID');
     }
     
