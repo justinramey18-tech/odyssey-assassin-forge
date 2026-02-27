@@ -69,7 +69,7 @@ export default function Auth() {
           setError(error.message);
         }
       } else {
-        navigate('/');
+        navigate('/roster');
       }
     } catch (err) {
       setError('Sign in failed. Please check your connection and try again.');

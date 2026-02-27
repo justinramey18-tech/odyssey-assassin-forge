@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import Features from "./pages/Features";
+import CharacterRoster from "./pages/CharacterRoster";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/roster" element={<CharacterRoster />} />
             <Route path="/features" element={<Features />} />
             
             <Route path="/install" element={<Install />} />
