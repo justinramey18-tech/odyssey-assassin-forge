@@ -168,7 +168,7 @@ export default function Auth() {
               <button
               type="submit"
               disabled={loading}
-              className="w-[calc(100%-3rem)] mx-auto py-3.5 mt-5 border-2 border-[#8b7355] text-[#d4c4a0] font-cinzel uppercase tracking-[0.2em] text-base hover:border-[#d4a030] disabled:opacity-50 transition-colors rounded-sm flex items-center justify-center gap-2 bg-[#4b3d2f]/[0.07]"
+              className="w-[calc(100%-3rem)] mx-auto py-3.5 mt-9 border-2 border-[#8b7355] text-[#d4c4a0] font-cinzel uppercase tracking-[0.2em] text-base hover:border-[#d4a030] disabled:opacity-50 transition-colors rounded-sm flex items-center justify-center gap-2 bg-[#4b3d2f]/[0.07]"
               style={{
                 boxShadow: 'inset 0 1px 0 rgba(212,160,48,0.15), 0 2px 8px rgba(0,0,0,0.5)'
               }}>
