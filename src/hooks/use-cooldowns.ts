@@ -425,7 +425,7 @@ export function useCooldowns({
   }, [cooldowns, sessionState, modifiers, settings]);
 
   // Restore from localStorage on mount
-  useEffect(() => {
+  const restoreFromStorage = useCallback(() => {
     try {
       const saved = getScopedItem(STORAGE_KEY);
       if (!saved) return;
@@ -440,14 +440,12 @@ export function useCooldowns({
       savedCooldowns.forEach(([id, state]) => {
         if (state.isOnCooldown && state.availableAt) {
           if (state.availableAt <= now) {
-            // Expired while offline
             restoredCooldowns.set(id, { ...state, isOnCooldown: false, availableAt: null });
             const config = COOLDOWN_CONFIGS[id];
             if (config) {
               readyAbilities.push(config.displayName);
             }
           } else {
-            // Still cooling
             restoredCooldowns.set(id, state);
           }
         } else {
@@ -459,7 +457,6 @@ export function useCooldowns({
       setSessionState(session);
       setModifiers(savedMods);
       
-      // Notify about abilities that became ready while offline
       if (readyAbilities.length > 0) {
         toast.success(`⚡ ${readyAbilities.length} ability(s) ready: ${readyAbilities.slice(0, 3).join(', ')}${readyAbilities.length > 3 ? '...' : ''}`);
       }
@@ -467,6 +464,26 @@ export function useCooldowns({
       console.error('Failed to restore cooldown state:', e);
     }
   }, []);
+
+  useEffect(() => {
+    restoreFromStorage();
+  }, [restoreFromStorage]);
+
+  // Re-init when character is switched in-memory
+  useEffect(() => {
+    const handleCharacterLoaded = () => {
+      // Reload settings
+      try {
+        const saved = getScopedItem(SETTINGS_KEY);
+        setSettings(saved ? { ...DEFAULT_COOLDOWN_SETTINGS, ...JSON.parse(saved) } : DEFAULT_COOLDOWN_SETTINGS);
+      } catch {
+        setSettings(DEFAULT_COOLDOWN_SETTINGS);
+      }
+      restoreFromStorage();
+    };
+    window.addEventListener('odyssey-character-loaded', handleCharacterLoaded);
+    return () => window.removeEventListener('odyssey-character-loaded', handleCharacterLoaded);
+  }, [restoreFromStorage]);
 
   // Listen for rest events dispatched from Index.tsx
   useEffect(() => {

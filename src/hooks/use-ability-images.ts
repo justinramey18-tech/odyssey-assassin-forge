@@ -36,6 +36,18 @@ export function useAbilityImages(): AbilityImagesState {
     }
   }, [images]);
 
+  // Re-init when character is switched in-memory
+  useEffect(() => {
+    const handleCharacterLoaded = () => {
+      try {
+        const stored = getScopedItem(STORAGE_KEY);
+        setImages(stored ? JSON.parse(stored) : {});
+      } catch { setImages({}); }
+    };
+    window.addEventListener('odyssey-character-loaded', handleCharacterLoaded);
+    return () => window.removeEventListener('odyssey-character-loaded', handleCharacterLoaded);
+  }, []);
+
   const setAbilityImage = useCallback((abilityId: string, imageDataUrl: string | null) => {
     setImages(prev => {
       if (imageDataUrl === null) {

@@ -115,12 +115,19 @@ export function usePrestige(currentLevel: number): UsePrestigeReturn {
       setPrestigeData(e.detail);
     };
 
+    // Re-init when character is switched in-memory
+    const handleCharacterLoaded = () => {
+      setPrestigeData(loadPrestigeData());
+    };
+
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener(PRESTIGE_CHANGE_EVENT, handlePrestigeChange as EventListener);
+    window.addEventListener('odyssey-character-loaded', handleCharacterLoaded);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener(PRESTIGE_CHANGE_EVENT, handlePrestigeChange as EventListener);
+      window.removeEventListener('odyssey-character-loaded', handleCharacterLoaded);
     };
   }, []);
 

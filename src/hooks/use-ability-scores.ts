@@ -139,6 +139,13 @@ export function useAbilityScores(options: UseAbilityScoresOptions = {}): UseAbil
       console.error('[AbilityScores] Failed to save:', error);
     }
   }, [baseScores, finalScores]);
+
+  // Re-init when character is switched in-memory
+  useEffect(() => {
+    const handleCharacterLoaded = () => setBaseScores(loadBaseScores());
+    window.addEventListener('odyssey-character-loaded', handleCharacterLoaded);
+    return () => window.removeEventListener('odyssey-character-loaded', handleCharacterLoaded);
+  }, []);
   
   // Get full breakdown for UI display
   const getScoreBreakdown = useCallback((ability: AbilityName): AbilityScoreBreakdown => {

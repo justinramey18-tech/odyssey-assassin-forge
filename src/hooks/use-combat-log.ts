@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { getScopedItem, setScopedItem, removeScopedItem } from '@/lib/scoped-storage';
 
 export interface CombatLogEntry {
@@ -46,6 +46,13 @@ function saveLog(entries: CombatLogEntry[]): void {
 
 export function useCombatLog() {
   const [entries, setEntries] = useState<CombatLogEntry[]>(loadLog);
+
+  // Re-init when character is switched in-memory
+  useEffect(() => {
+    const handleCharacterLoaded = () => setEntries(loadLog());
+    window.addEventListener('odyssey-character-loaded', handleCharacterLoaded);
+    return () => window.removeEventListener('odyssey-character-loaded', handleCharacterLoaded);
+  }, []);
 
   const addEntry = useCallback((entry: Omit<CombatLogEntry, 'id' | 'timestamp'>) => {
     const newEntry: CombatLogEntry = {

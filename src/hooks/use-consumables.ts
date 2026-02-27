@@ -16,8 +16,8 @@ export function useConsumables() {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load from localStorage on mount
-  useEffect(() => {
+  // Load from scoped localStorage on mount
+  const loadFromStorage = useCallback(() => {
     try {
       const stored = getScopedItem(STORAGE_KEY);
       if (stored) {
@@ -25,7 +25,6 @@ export function useConsumables() {
         const loadedInventory: InventoryItem[] = [];
         
         for (const item of storedItems) {
-          // Try static registry first, fall back to stored custom data
           const consumable = getConsumableById(item.consumableId) || item.customConsumable;
           if (consumable && item.quantity > 0) {
             loadedInventory.push({ consumable, quantity: item.quantity });
@@ -33,12 +32,26 @@ export function useConsumables() {
         }
         
         setInventory(loadedInventory);
+      } else {
+        setInventory([]);
       }
     } catch (error) {
       console.error('Failed to load consumables inventory:', error);
     }
     setIsLoaded(true);
   }, []);
+
+  // Load on mount
+  useEffect(() => {
+    loadFromStorage();
+  }, [loadFromStorage]);
+
+  // Re-init when character is switched in-memory
+  useEffect(() => {
+    const handleCharacterLoaded = () => loadFromStorage();
+    window.addEventListener('odyssey-character-loaded', handleCharacterLoaded);
+    return () => window.removeEventListener('odyssey-character-loaded', handleCharacterLoaded);
+  }, [loadFromStorage]);
 
   // Save to localStorage whenever inventory changes
   useEffect(() => {
