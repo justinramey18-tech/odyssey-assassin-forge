@@ -108,9 +108,9 @@ export default function Auth() {
   }
 
   // Icon box style (dark square with icon)
-  const iconBoxClass = "absolute left-0 top-0 bottom-0 w-12 flex items-center justify-center bg-[#3a3228]/80 border-r-2 border-[#8b7355]/50 rounded-l-sm";
-  const iconClass = "w-5 h-5 text-[#c4a96a]";
-  const inputClass = "w-full pl-14 pr-4 py-3.5 bg-[#d4c8a8] border-2 border-[#9a8a6a] text-[#2a1f14] placeholder:text-[#7a6a4a] rounded-sm font-medium text-base focus:outline-none focus:border-[#d4a030] focus:ring-1 focus:ring-[#d4a030]/50 transition-colors ml-4";
+  const iconBoxClass = "absolute left-0 top-0 bottom-0 w-12 flex items-center justify-center bg-transparent border-none rounded-l-sm";
+  const iconClass = "w-5 h-5 text-transparent";
+  const inputClass = "w-full pl-14 pr-4 py-3.5 bg-transparent border-none text-[#2a1f14] placeholder:text-transparent rounded-sm font-medium text-base focus:outline-none focus:ring-0 transition-colors ml-4";
 
   return (
     <BackgroundWrapper
@@ -168,10 +168,8 @@ export default function Auth() {
               <button
               type="submit"
               disabled={loading}
-              className="w-[calc(100%-3rem)] mx-auto py-3.5 mt-[2.5rem] border-2 border-[#8b7355] text-[#d4c4a0] font-cinzel uppercase tracking-[0.2em] text-base hover:border-[#d4a030] disabled:opacity-50 transition-colors rounded-sm flex items-center justify-center gap-2 bg-[#4b3d2f]/[0.07]"
-              style={{
-                boxShadow: 'inset 0 1px 0 rgba(212,160,48,0.15), 0 2px 8px rgba(0,0,0,0.5)'
-              }}>
+              className="w-[calc(100%-3rem)] mx-auto py-3.5 mt-[2.5rem] border-none text-transparent font-cinzel uppercase tracking-[0.2em] text-base disabled:opacity-50 transition-colors rounded-sm flex items-center justify-center gap-2 bg-transparent"
+              style={{}}>
 
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Summon your hero'}
               </button>
@@ -180,14 +178,14 @@ export default function Auth() {
                 <button
                 type="button"
                 onClick={() => {switchView('forgot');setResetEmail(email);}}
-                className="text-[#c4a96a]/70 hover:text-[#d4a030] text-sm font-cinzel transition-colors">
+                className="text-transparent text-sm font-cinzel transition-colors">
 
                   Forgot Password?
                 </button>
                 <button
                 type="button"
                 onClick={() => switchView('signup')}
-                className="text-[#c4a96a]/70 hover:text-[#d4a030] text-sm font-cinzel transition-colors">
+                className="text-transparent text-sm font-cinzel transition-colors">
 
                   Create Account
                 </button>
