@@ -11,6 +11,7 @@ import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import Features from "./pages/Features";
 import CharacterRoster from "./pages/CharacterRoster";
+import AICreationAssistant from "./pages/AICreationAssistant";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/roster" element={<CharacterRoster />} />
             <Route path="/features" element={<Features />} />
+            <Route path="/ai-create" element={<AICreationAssistant />} />
             
             <Route path="/install" element={<Install />} />
             <Route path="/auth" element={<Auth />} />

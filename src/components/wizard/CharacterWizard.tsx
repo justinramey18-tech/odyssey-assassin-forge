@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useWizardState } from './hooks/use-wizard-state';
 import { useWizardValidation, validateStep } from './hooks/use-wizard-validation';
@@ -15,7 +16,7 @@ import { CombatPrimerStep } from './steps/CombatPrimerStep';
 import { SummaryStep } from './steps/SummaryStep';
 import { WizardState, QUICK_START_DEFAULTS } from './types';
 import { Button } from '@/components/ui/button';
-import { Skull, Zap, Settings2, Cloud } from 'lucide-react';
+import { Skull, Zap, Settings2, Cloud, Sparkles } from 'lucide-react';
 import wizardBackground from '@/assets/wizard-background.jpg';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { DnDClass } from '@/lib/classes';
@@ -39,6 +40,7 @@ export function CharacterWizard({
   const [mode, setMode] = useState<WizardMode>('choice');
   const [showResumePrompt, setShowResumePrompt] = useState(false);
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   
   const wizard = useWizardState();
   const { state, hasResumableProgress, restoreProgress, clearProgress, reset } = wizard;
@@ -280,6 +282,25 @@ export function CharacterWizard({
               </div>
               <p className="text-[10px] text-muted-foreground pl-13">
                 Full wizard with ability scores, game mode, and more
+              </p>
+            </button>
+
+            {/* AI Creation Assistant */}
+            <button
+              onClick={() => navigate('/ai-create')}
+              className="w-full p-4 rounded-lg border-2 border-border bg-background/50 hover:border-primary/50 hover:bg-primary/5 transition-all text-left group"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-display font-bold text-foreground">AI Creation Assistant</p>
+                  <p className="text-xs text-muted-foreground">Let AI guide your build</p>
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground pl-13">
+                Answer questions and get a custom character built for you
               </p>
             </button>
 

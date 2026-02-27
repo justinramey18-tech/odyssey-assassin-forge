@@ -111,8 +111,8 @@ const Index = () => {
   const routerNavigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   
-  // Roster navigation state: saveData/saveId from character selection, or newCharacter flag
-  const rosterState = location.state as { saveData?: SaveData; saveId?: string; newCharacter?: boolean } | null;
+  // Roster navigation state: saveData/saveId from character selection, newCharacter flag, or AI-created character
+  const rosterState = location.state as { saveData?: SaveData; saveId?: string; newCharacter?: boolean; aiCreatedCharacter?: WizardState } | null;
   
   // Check for reset parameter on mount
   useEffect(() => {
@@ -603,6 +603,13 @@ const Index = () => {
   useEffect(() => {
     if (hasConsumedRosterState.current || !rosterState) return;
     hasConsumedRosterState.current = true;
+
+    if (rosterState.aiCreatedCharacter) {
+      // AI Creation Assistant completed — will be consumed after wizardSetters are defined
+      // Just clear route state, the dedicated effect below handles application
+      routerNavigate('/', { replace: true, state: null });
+      return;
+    }
 
     if (rosterState.newCharacter) {
       // "Create New" was picked — show wizard
@@ -1550,6 +1557,24 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       console.error('[Wizard] Creation failed:', result.errors);
     }
   }, [wizardSetters]);
+
+  // ── AI Creation Assistant: apply character when navigated back with aiCreatedCharacter state ──
+  const hasAppliedAICharacter = useRef(false);
+  useEffect(() => {
+    if (hasAppliedAICharacter.current) return;
+    if (!rosterState?.aiCreatedCharacter) return;
+    hasAppliedAICharacter.current = true;
+
+    console.log('[AICreation] Applying AI-created character:', rosterState.aiCreatedCharacter.name);
+    const result = applyWizardState(rosterState.aiCreatedCharacter, wizardSetters);
+    if (result.success) {
+      setShowWizard(false);
+      // Show mode selection screen
+      setShowIntroSplash(true);
+    } else {
+      console.error('[AICreation] Failed:', result.errors);
+    }
+  }, [rosterState, wizardSetters]);
   
   // Quick start handler - uses utility for simplified state application
   const handleQuickStart = useCallback((wizardState: WizardState) => {
