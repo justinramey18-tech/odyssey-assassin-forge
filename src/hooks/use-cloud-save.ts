@@ -39,7 +39,6 @@ const SCOPED_KEYS = [
   'odyssey-dice-modifiers',
   'odyssey-initiative',
   'odyssey-ability-customization',
-  'odyssey-xp-progression',
   'odyssey-assassin-dice-odds',
   // Class-specific
   'dnd-druid-circle',

@@ -1121,13 +1121,11 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     const previousActiveSaveId = activeCloudSaveId;
     console.log('[CloudSave] Loading character:', data.character.name, 'saveId:', saveId, 'previousSaveId:', previousActiveSaveId);
 
-    if (saveId) {
-      setActiveCloudSaveId(saveId);
-      try { localStorage.setItem('odyssey-active-cloud-save-id', saveId); } catch {}
-    }
     setIsSwitchingCharacter(true);
     
-    // Flush any pending auto-save for current character before switching
+    // Flush any pending auto-save for current character BEFORE updating the active save ID.
+    // If we set the save ID first, getScopedKey() would read the NEW character's scoped keys,
+    // causing the pre-switch save to capture the wrong character's localStorage data.
     try {
       await autoSync.pendingFlush();
       if (character.name?.trim()) {
@@ -1136,6 +1134,12 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       }
     } catch (e) {
       console.warn('[CloudSave] Pre-switch cloud save failed:', e);
+    }
+
+    // NOW safe to update the active save ID for the incoming character
+    if (saveId) {
+      setActiveCloudSaveId(saveId);
+      try { localStorage.setItem('odyssey-active-cloud-save-id', saveId); } catch {}
     }
     
     // 1. Core character data
@@ -1464,6 +1468,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
 
             setLastCloudSyncTime(cloudData.savedAt);
             setShowWizard(false);
+
+            // Notify localStorage-dependent hooks to re-initialize from their scoped keys
+            window.dispatchEvent(new CustomEvent('odyssey-character-loaded', { detail: { saveId } }));
 
             console.log('[AutoRestore] Character restored:', cloudData.character.name, 'Level', cloudData.character.level);
             toast({
