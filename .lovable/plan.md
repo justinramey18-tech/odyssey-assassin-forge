@@ -1,73 +1,75 @@
 
 
-## Plan: AI Creation Assistant
+## Plan: Enable Homebrew Content Creation in AI Assistant
 
-Add a fourth option "AI Creation Assistant" to the character wizard choice screen that leads to a new full-screen, mobile-first AI chat page. The AI guides users through character creation by asking questions about all aspects of their character, then applies everything automatically.
+The AI assistant currently only handles basic character config (name, class, stats, presets). This plan adds full homebrew creation for gear, spells, abilities, and consumables — with mechanics, lore, and auto-application.
 
-### New Files to Create
+### 1. Expand the Edge Function System Prompt
+**File:** `supabase/functions/ai-creation-assistant/index.ts`
 
-1. **`supabase/functions/ai-creation-assistant/index.ts`** — New edge function for the AI character builder chat. Uses Lovable AI (gemini-3-flash-preview) with a system prompt that:
-   - Opens by asking how in-depth the user wants creation to be (quick overview vs deep customization)
-   - Progressively asks about: name, class, ability scores, game mode, skills/abilities, spells/arcana, equipment/gear, consumables, settings preferences
-   - Aware of all app systems (ability trees: hunter/warrior/assassin, magic paths, equipment presets, game modes, XP presets, dice odds)
-   - Returns structured JSON tool calls for each decision category
-   - Summarizes all planned changes and asks for confirmation before finalizing
-   - Uses tool-calling to extract structured character data at the end
+Add new sections to the system prompt covering:
+- **Homebrew Gear Creation** — AI can generate custom equipment items with slot type, rarity, stats (AC, damage, attack bonus, ability modifiers), properties, weight, value, description, and lore. Knows all valid slot types and stat fields from `EquipmentStats`.
+- **Homebrew Spell Creation** — AI can create custom spells with level (0-9), school, casting time, range, components (V/S/M), duration, concentration, ritual, damage dice/type, description, and higher-level scaling.
+- **Homebrew Ability Creation** — AI can design custom abilities for any tree (hunter/warrior/assassin) with type (active/passive), action type, usage type, tier effects (3 tiers with descriptions), dice per tier, cooldown, attack type, and prerequisites.
+- **Custom Consumables** — AI can create potions, poisons, and scrolls with rarity, effect text, duration, usage type, and description.
 
-2. **`src/pages/AICreationAssistant.tsx`** — New full-screen, mobile-first page with vertical scrolling chat interface. Contains:
-   - Streaming AI chat UI (message list + input bar) using the same SSE pattern as other AI features
-   - Dark themed to match the app aesthetic
-   - Back button to return to wizard choice screen
-   - "Apply & Continue" button that appears after AI confirms the build summary
-   - On completion, navigates to `/ ` with the built character data applied, then shows mode selection screen
+Update the JSON output schema to include arrays: `homebrewGear`, `homebrewSpells`, `homebrewAbilities`, `homebrewConsumables` alongside existing fields. When a user asks for custom content (e.g., "flight leathers"), the AI generates fully-specced items with all required fields.
 
-3. **`src/hooks/use-ai-creation-chat.ts`** — Hook managing chat state, streaming, message history, and parsing the AI's structured output into a `WizardState`-compatible object plus additional app state (homebrew abilities, spells, gear, consumables, settings)
+### 2. Expand CharacterBuildData Interface
+**File:** `src/hooks/use-ai-creation-chat.ts`
 
-### Files to Modify
-
-4. **`src/components/wizard/CharacterWizard.tsx`** — Add a 4th button "AI Creation Assistant" in the choice screen (between Custom Build and Load from Cloud). Uses a `Bot` or `Sparkles` icon. Clicking navigates to `/ai-create`.
-
-5. **`src/App.tsx`** — Add route: `<Route path="/ai-create" element={<AICreationAssistant />} />`
-
-6. **`src/pages/Index.tsx`** — Handle incoming navigation state from the AI assistant (similar to how `rosterState` works). The AI assistant will navigate to `/` with state containing all the character data to apply.
-
-### Flow
-
-```text
-Wizard Choice Screen
-  ├─ Quick Start
-  ├─ Custom Build (existing wizard)
-  ├─ AI Creation Assistant ← NEW
-  │    └─ /ai-create (full-screen chat)
-  │         ├─ AI asks depth preference
-  │         ├─ AI asks character questions progressively
-  │         ├─ AI summarizes all changes
-  │         ├─ User confirms → data applied
-  │         └─ Navigate to / with character data
-  │              └─ Mode Selection Screen shown
-  └─ Load from Cloud
+Add to `CharacterBuildData`:
+```typescript
+homebrewGear?: Array<{
+  name: string; slotType: EquipmentSlotType; rarity: Rarity;
+  level: number; icon: string; weight: number; value: number;
+  description: string; lore: string; properties: string[];
+  stats: Record<string, number | string>; damage: string;
+}>;
+homebrewSpells?: Array<{
+  name: string; level: number; school: string;
+  castingTime: string; range: string;
+  components: { verbal: boolean; somatic: boolean; material?: string };
+  duration: string; concentration: boolean; ritual: boolean;
+  description: string; damageType?: string; damageDice?: string;
+  iconName: string;
+}>;
+homebrewAbilities?: Array<{
+  name: string; tree: string; icon: string;
+  type: 'active' | 'passive'; actionType: string; usageType: string;
+  tierEffects: Array<{ tier: number; description: string }>;
+  dice?: { tier1?: { count: number; die: number }; ... };
+  cooldownMinutes: number; attackType?: string; notes?: string;
+}>;
+homebrewConsumables?: Array<{
+  name: string; type: 'potion' | 'poison' | 'scroll';
+  rarity: string; effect: string; duration: string;
+  description: string; usageType: string; icon: string;
+}>;
 ```
 
-### AI System Prompt Design
+### 3. Update Apply Logic to Save Homebrew Content
+**File:** `src/pages/AICreationAssistant.tsx`
 
-The edge function system prompt will encode knowledge of:
-- **Classes**: rogue, wizard, sorcerer, warlock, cleric, druid, bard (with suggested ability arrays from `CLASS_SUGGESTED_ARRAYS`)
-- **Ability scores**: standard array, point buy, or manual
-- **Game modes**: honest vs infinity pool, XP presets, dice odds
-- **Magic paths** (rogue only): the available paths from the magic system
-- **Equipment presets**: from `equipment-presets.ts`
-- **Skill trees**: hunter, warrior, assassin ability trees
-- **Consumables**: starting potions and items
-- **Settings**: play mode preferences
+In `handleApply`, before navigating, save all homebrew content directly to localStorage using the existing save functions:
+- **Gear:** Import `saveHomebrewGear`/`loadHomebrewGear` from `homebrewGear.ts`, convert each item via `formToEquipmentItem`, append to existing homebrew gear, and save.
+- **Spells:** Import `saveSpellCustomization`/`loadSpellCustomization` from `spellCustomization/utils.ts`, create `HomebrewSpell` objects with generated IDs, append to existing state, and save.
+- **Abilities:** Load/save the ability customization state from localStorage key (`odyssey-ability-customization` or similar — will verify), create `HomebrewAbility` objects with generated IDs, append, and save.
+- **Consumables:** Save as custom consumable inventory items to the character-scoped consumable storage key.
 
-The AI uses tool-calling to return a structured `CharacterBuildResult` at the end, which the frontend parses and applies through the same `applyWizardState` + additional setter paths used by Quick Start and the full wizard.
+Also pass the homebrew gear to the equipment slots if slot types match (auto-equip created gear).
 
-### Technical Details
+### 4. Update Index.tsx to Dispatch Events
+**File:** `src/pages/Index.tsx`
 
-- Edge function streams responses via SSE for real-time chat feel
-- Chat history is sent with each request (conversation memory in frontend state)
-- The final "apply" step uses the same `WizardState` setters and `handleLoadCloudSave`-style bulk state application
-- Homebrew abilities created by the AI are saved via `abilityCustomization` hooks
-- Custom spells saved via `spellCustomization` hooks
-- Equipment applied via the same equipment state setters
+After applying the AI character state, dispatch `odyssey-character-loaded` event so hooks that read from localStorage (spell customization, ability customization, homebrew gear) re-initialize and pick up the newly saved homebrew content.
+
+### 5. Update Summary Display
+The system prompt summary section will be expanded to list all homebrew items created:
+```
+🗡️ Custom Gear: Flight Leathers (chest, rare), Rider's Blade (primary, uncommon)
+📜 Custom Spells: Dragon's Breath (3rd, evocation)
+⚡ Custom Abilities: Wing Slash (hunter, active)
+🧪 Custom Consumables: Rider's Tonic (potion, uncommon)
+```
 
