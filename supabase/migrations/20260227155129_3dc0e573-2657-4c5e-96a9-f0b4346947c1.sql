@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX unique_one_save_per_user ON public.character_saves (user_id);
