@@ -173,7 +173,7 @@ export default function Auth() {
                 boxShadow: 'inset 0 1px 0 rgba(212,160,48,0.15), 0 2px 8px rgba(0,0,0,0.5)'
               }}>
 
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Log In'}
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Summon your hero'}
               </button>
 
               <div className="flex items-center justify-between pt-3">
