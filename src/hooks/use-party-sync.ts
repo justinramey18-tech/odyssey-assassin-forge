@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
+import { getScopedItem, removeScopedItem } from '@/lib/scoped-storage';
 import { toast } from 'sonner';
 import type { PendingHealAction } from '@/components/party/IncomingHealNotification';
 import type { PendingTradeAction } from '@/components/party/IncomingTradeNotification';
@@ -349,12 +350,13 @@ export function usePartySync(): UsePartySyncReturn {
 
     const checkExisting = async () => {
       // Check if a character switch set a specific party expectation
-      const activePartyId = localStorage.getItem('odyssey-active-party-id');
+      // Uses getScopedItem because handleLoadCloudSave writes with setScopedItem
+      const activePartyId = getScopedItem('odyssey-active-party-id');
       const hasPartyFlag = activePartyId !== null;
       
       // Clean up the flag — it's a one-shot signal from the character switch
       if (hasPartyFlag) {
-        localStorage.removeItem('odyssey-active-party-id');
+        removeScopedItem('odyssey-active-party-id');
       }
 
       // If the flag was set but empty/null, the loaded character has no party — skip reconnect
@@ -503,7 +505,8 @@ export function usePartySync(): UsePartySyncReturn {
             if (buffs) {
               const myBuffs = buffs.filter(b => b.targetUserId === user.id);
               if (myBuffs.length > 0) {
-                setIncomingBuffs(prev => [...prev, ...myBuffs]);
+                // Replace (not append) to prevent duplicates on reconnect
+                setIncomingBuffs(myBuffs);
               }
             }
           }
@@ -1443,18 +1446,30 @@ export function usePartySync(): UsePartySyncReturn {
   }, [user, party.partyId]);
 
   const castVote = useCallback(async (optionLabel: string, voterName: string) => {
-    if (!user || !party.partyId || !activeVote) return;
+    if (!user || !party.partyId) return;
+
+    // Read fresh vote state from DB to avoid read-modify-write race with concurrent voters
+    const { data: voteRows } = await (supabase.from('party_shared_state') as any)
+      .select('state_data, user_id')
+      .eq('party_id', party.partyId)
+      .eq('state_type', 'vote')
+      .limit(1);
+
+    const voteRow = voteRows?.[0];
+    if (!voteRow) return;
+
+    const freshVote = voteRow.state_data as ActiveVote;
 
     // Prevent double-voting
-    const alreadyVoted = activeVote.options.some(o => o.voters.some(v => v.userId === user.id));
+    const alreadyVoted = freshVote.options.some(o => o.voters.some(v => v.userId === user.id));
     if (alreadyVoted) return;
 
-    const updatedOptions = activeVote.options.map(o => ({
+    const updatedOptions = freshVote.options.map(o => ({
       ...o,
       voters: o.label === optionLabel ? [...o.voters, { userId: user.id, name: voterName }] : o.voters,
     }));
 
-    const updatedVote = { ...activeVote, options: updatedOptions };
+    const updatedVote = { ...freshVote, options: updatedOptions };
     delete (updatedVote as any).myVote;
 
     // Check if all members voted
@@ -1463,14 +1478,12 @@ export function usePartySync(): UsePartySyncReturn {
       updatedVote.closed = true;
     }
 
-    // Use .update() instead of .upsert() — non-creators can't insert with another user's id (RLS),
-    // but the new "Members can update vote shared state" policy allows any member to update vote rows.
     await (supabase.from('party_shared_state') as any)
       .update({ state_data: updatedVote })
       .eq('party_id', party.partyId)
-      .eq('user_id', updatedVote.creatorUserId)
+      .eq('user_id', voteRow.user_id)
       .eq('state_type', 'vote');
-  }, [user, party.partyId, activeVote, party.members.length]);
+  }, [user, party.partyId, party.members.length]);
 
   const closeVote = useCallback(async () => {
     if (!user || !party.partyId || !activeVote) return;
