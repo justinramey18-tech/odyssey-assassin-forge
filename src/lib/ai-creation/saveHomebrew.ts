@@ -9,6 +9,7 @@ import {
   saveHomebrewGear,
   HomebrewGearFormState,
 } from '@/lib/inventory/homebrewGear';
+import type { EquipmentItem } from '@/lib/inventory/types';
 import {
   loadSpellCustomization,
   saveSpellCustomization,
@@ -32,10 +33,12 @@ interface SaveSummary {
   abilities: number;
   consumables: number;
   totalItems: number;
+  /** The created gear items (as EquipmentItem) so they can be auto-equipped */
+  createdGearItems: EquipmentItem[];
 }
 
 export function saveHomebrewContentFromBuildData(data: CharacterBuildData): SaveSummary {
-  const summary: SaveSummary = { gear: 0, spells: 0, abilities: 0, consumables: 0, totalItems: 0 };
+  const summary: SaveSummary = { gear: 0, spells: 0, abilities: 0, consumables: 0, totalItems: 0, createdGearItems: [] };
 
   // ── Homebrew Gear ──
   if (data.homebrewGear && data.homebrewGear.length > 0) {
@@ -60,6 +63,7 @@ export function saveHomebrewContentFromBuildData(data: CharacterBuildData): Save
       });
       saveHomebrewGear([...existing, ...newItems]);
       summary.gear = newItems.length;
+      summary.createdGearItems = newItems;
     } catch (e) {
       console.error('[AICreation] Failed to save homebrew gear:', e);
     }
