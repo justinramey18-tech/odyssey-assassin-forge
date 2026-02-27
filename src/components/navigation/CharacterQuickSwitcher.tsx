@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { ChevronDown, User, Cloud, Loader2, LogIn, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ChevronDown, User, Cloud, Loader2, LogIn, LogOut, Users } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +28,7 @@ export function CharacterQuickSwitcher({
   onLoadSave,
   onCloudClick,
 }: CharacterQuickSwitcherProps) {
+  const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const { loading, cloudSaves, fetchSaves, loadFromCloud } = useCloudSave(user?.id);
   const [isOpen, setIsOpen] = useState(false);
@@ -156,6 +158,17 @@ export function CharacterQuickSwitcher({
 
         <DropdownMenuItem 
           className="flex items-center gap-2 py-2 cursor-pointer text-primary"
+          onClick={() => {
+            setIsOpen(false);
+            navigate('/roster');
+          }}
+        >
+          <Users className="w-4 h-4" />
+          <span className="text-sm">Switch Character</span>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem 
+          className="flex items-center gap-2 py-2 cursor-pointer text-muted-foreground"
           onClick={() => {
             setIsOpen(false);
             onCloudClick();
