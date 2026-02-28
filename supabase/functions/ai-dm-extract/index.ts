@@ -175,21 +175,28 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const systemPrompt = `You are a D&D 5e game state parser. Given a Dungeon Master's narrative response, extract ONLY changes that are explicitly stated or clearly implied.
+    const companionInfo = characterContext?.companionName
+      ? `\n\nCOMPANION INFO (CRITICAL): The player has a companion named "${characterContext.companionName}" currently at ${characterContext.companionHP ?? "?"}/${characterContext.companionMaxHP ?? "?"} HP. Any damage or healing to "${characterContext.companionName}" MUST go in companion_hp_changes, NOT hp_changes. Any damage or healing to "${characterContext.name || "the player"}" MUST go in hp_changes, NOT companion_hp_changes. Never mix them up.`
+      : '';
 
-Rules:
-- Only extract damage/healing that has a specific number mentioned
-- Only extract XP if a specific amount is stated
-- Only extract gold if a specific amount is stated  
-- Only extract items if specifically named as acquired or consumed
-- Only extract conditions if explicitly applied or removed (e.g., "you are now poisoned")
-- For map_entities, extract ONLY creatures or objects that are NEWLY introduced into the scene in THIS message. Do NOT re-extract creatures already mentioned previously. Include a count for groups (e.g., "three goblins" = count 3).
-- For map_entities_removed, include creatures that are definitively killed, defeated, destroyed, or flee the scene.
-- For companion_hp_changes, extract damage/healing specifically applied to the player's animal companion (e.g., Geralt the owlbear). Do NOT include player HP changes here.
-- For companion_conditions_added/removed, extract conditions applied to or removed from the companion only.
+    const systemPrompt = `You are a precise D&D 5e game state parser. Given a Dungeon Master's narrative response, extract ONLY mechanical changes with EXACT numbers.
+
+CRITICAL ACCURACY RULES:
+- ONLY extract damage/healing when a SPECIFIC NUMBER is explicitly stated (e.g. "takes 8 damage", "heals 5 HP"). Do NOT infer or estimate numbers.
+- If the text says "takes damage" without a number, do NOT extract it.
+- Each damage/healing event should appear EXACTLY ONCE. Do not duplicate.
+- hp_changes is ONLY for the PLAYER CHARACTER "${characterContext?.name || "the player"}". 
+- companion_hp_changes is ONLY for the companion. NEVER put player damage in companion fields or vice versa.
+- Damage amounts are always POSITIVE numbers. The "type" field indicates damage vs healing.
+- Only extract XP if a specific amount is stated (e.g. "gain 50 XP").
+- Only extract gold if a specific amount is stated (e.g. "find 10 gold").
+- Only extract items if specifically named as acquired or consumed.
+- Only extract conditions if explicitly applied or removed (e.g., "you are now poisoned").
+- For map_entities, extract ONLY creatures/objects NEWLY introduced in THIS message. Include count for groups.
+- For map_entities_removed, include creatures definitively killed, defeated, destroyed, or fled.
 - If no changes are found, return empty arrays and null values.
 
-Character context: ${characterContext?.name || "Adventurer"} is Level ${characterContext?.level || 1}, currently at ${characterContext?.currentHP || "?"}/${characterContext?.maxHP || "?"} HP.${characterContext?.companionName ? ` Companion: ${characterContext.companionName} at ${characterContext.companionHP || "?"}/${characterContext.companionMaxHP || "?"} HP.` : ''}`;
+CHARACTER: "${characterContext?.name || "Adventurer"}" is Level ${characterContext?.level || 1}, currently at ${characterContext?.currentHP || "?"}/${characterContext?.maxHP || "?"} HP.${companionInfo}`;
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -283,6 +290,41 @@ Character context: ${characterContext?.name || "Adventurer"} is Level ${characte
         companion_conditions_removed: [],
       };
     }
+
+    // Validate and sanitize numeric values to prevent bad data
+    if (Array.isArray(extracted.hp_changes)) {
+      extracted.hp_changes = extracted.hp_changes.filter(
+        (h: any) => typeof h.amount === 'number' && h.amount > 0 && Number.isFinite(h.amount) && h.amount <= 999
+      );
+    }
+    if (Array.isArray(extracted.companion_hp_changes)) {
+      extracted.companion_hp_changes = extracted.companion_hp_changes.filter(
+        (h: any) => typeof h.amount === 'number' && h.amount > 0 && Number.isFinite(h.amount) && h.amount <= 999
+      );
+    }
+    if (Array.isArray(extracted.gold_changes)) {
+      extracted.gold_changes = extracted.gold_changes.filter(
+        (g: any) => typeof g.amount === 'number' && g.amount > 0 && Number.isFinite(g.amount) && g.amount <= 99999
+      );
+    }
+    if (typeof extracted.xp_gained === 'number') {
+      if (!Number.isFinite(extracted.xp_gained) || extracted.xp_gained <= 0 || extracted.xp_gained > 99999) {
+        extracted.xp_gained = null;
+      }
+    }
+
+    // Deduplicate HP changes (same source + type + amount = likely duplicate)
+    const dedup = (arr: any[]) => {
+      const seen = new Set<string>();
+      return arr.filter((item: any) => {
+        const key = `${item.type}|${item.amount}|${(item.source || '').toLowerCase().trim()}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    };
+    if (Array.isArray(extracted.hp_changes)) extracted.hp_changes = dedup(extracted.hp_changes);
+    if (Array.isArray(extracted.companion_hp_changes)) extracted.companion_hp_changes = dedup(extracted.companion_hp_changes);
 
     return new Response(JSON.stringify(extracted), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -117,12 +117,16 @@ export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
       const result: ExtractionResult = await response.json();
       setLastExtraction(result);
 
-      // Apply HP changes
-      for (const hpChange of result.hp_changes) {
-        cb.onHPChange(
-          hpChange.type === 'damage' ? -hpChange.amount : hpChange.amount,
-          hpChange.type
-        );
+      // Apply HP changes — aggregate to a single net change to avoid sequential rounding issues
+      if (result.hp_changes.length > 0) {
+        let netHP = 0;
+        for (const hpChange of result.hp_changes) {
+          if (typeof hpChange.amount !== 'number' || hpChange.amount <= 0) continue;
+          netHP += hpChange.type === 'damage' ? -hpChange.amount : hpChange.amount;
+        }
+        if (netHP !== 0) {
+          cb.onHPChange(netHP, netHP < 0 ? 'damage' : 'healing');
+        }
       }
 
       // Apply XP
@@ -158,13 +162,15 @@ export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
         }
       }
 
-      // Apply companion HP changes
+      // Apply companion HP changes — aggregate to a single net change to avoid sequential rounding issues
       if (cb.onCompanionHPChange && result.companion_hp_changes?.length > 0) {
+        let netChange = 0;
         for (const hpChange of result.companion_hp_changes) {
-          cb.onCompanionHPChange(
-            hpChange.type === 'damage' ? -hpChange.amount : hpChange.amount,
-            hpChange.type
-          );
+          if (typeof hpChange.amount !== 'number' || hpChange.amount <= 0) continue;
+          netChange += hpChange.type === 'damage' ? -hpChange.amount : hpChange.amount;
+        }
+        if (netChange !== 0) {
+          cb.onCompanionHPChange(netChange, netChange < 0 ? 'damage' : 'healing');
         }
       }
 
