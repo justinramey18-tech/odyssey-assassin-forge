@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
 import { AnimatedD20Trigger } from '@/components/diceRoller';
-import { PanelLeft, Map as MapIcon, PawPrint } from 'lucide-react';
+import { PanelLeft, Map as MapIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import geraltButton from '@/assets/geralt-button.jpg';
 
 interface EnlargedD20SectionProps {
   onClick: () => void;
@@ -33,17 +34,17 @@ export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompan
           <button
             onClick={onCompanionClick}
             className={cn(
-              "w-16 h-16 rounded-xl",
-              "border-2 border-amber-500/40 hover:border-amber-400/60",
-              "bg-black/40 backdrop-blur-sm hover:bg-black/50",
-              "flex items-center justify-center",
+              "w-16 h-16 rounded-2xl overflow-hidden",
+              "border-2 border-amber-500/50 hover:border-amber-400/80",
               "transition-all duration-300",
-              "hover:shadow-[0_0_15px_rgba(180,120,40,0.25)]"
+              "hover:scale-105 active:scale-95",
+              "shadow-[0_6px_20px_rgba(0,0,0,0.5),0_2px_4px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.15)]",
+              "hover:shadow-[0_8px_25px_rgba(180,120,40,0.4),0_4px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.2)]"
             )}
-            style={{ touchAction: 'manipulation' }}
+            style={{ touchAction: 'manipulation', transform: 'perspective(500px) rotateY(-3deg) rotateX(2deg)' }}
             aria-label="Open Geralt companion"
           >
-            <PawPrint className="w-6 h-6 text-amber-400" />
+            <img src={geraltButton} alt="Geralt" className="w-full h-full object-cover" />
           </button>
           <p className="text-[10px] text-muted-foreground font-cinzel uppercase tracking-widest">
             Geralt
