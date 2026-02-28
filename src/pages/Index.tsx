@@ -142,6 +142,7 @@ const Index = () => {
   const [settingsInitialTab, setSettingsInitialTab] = useState<'character' | 'gameplay' | 'customizations' | 'gameMaster' | 'appSystem' | undefined>(undefined);
   const [showCloudSaveModal, setShowCloudSaveModal] = useState(false);
   const [openPartyChatRequested, setOpenPartyChatRequested] = useState(false);
+  const [autoOpenPartyDM, setAutoOpenPartyDM] = useState(false);
   const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string | null>(null);
   const [isSwitchingCharacter, setIsSwitchingCharacter] = useState(false);
   const [activeCloudSaveId, setActiveCloudSaveId] = useState<string | null>(() => {
@@ -2339,6 +2340,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         onSelectMode={(mode) => {
           appMode.setAppMode(mode);
           setShowIntroSplash(false);
+          if (mode === 'party') {
+            setAutoOpenPartyDM(true);
+          }
         }}
       />
     );
@@ -2501,6 +2505,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           tabFilter={appMode.isTabVisible}
           appMode={appMode.appMode ?? undefined}
           onOpenModeSelection={() => setShowIntroSplash(true)}
+          autoOpenPartyDM={autoOpenPartyDM}
+          onAutoOpenPartyDMHandled={() => setAutoOpenPartyDM(false)}
         />
         
         {/* Settings Modal */}
