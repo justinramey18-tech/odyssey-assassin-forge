@@ -34,7 +34,7 @@ export function GeraltGameplayWidget({ open, onClose, characterId, onHpChange }:
   const [lastRoll, setLastRoll] = useState<AttackRollResult | null>(null);
 
   useEffect(() => { setState(loadState(characterId)); }, [characterId]);
-  useEffect(() => { if (open) { saveState(characterId, state); onHpChange?.(state.currentHP, state.maxHP); } }, [state, characterId, open, onHpChange]);
+  useEffect(() => { if (open) { saveState(characterId, state); onHpChange?.(state.currentHP, state.maxHP); window.dispatchEvent(new CustomEvent('geralt-hp-changed', { detail: { characterId, currentHP: state.currentHP, maxHP: state.maxHP } })); } }, [state, characterId, open, onHpChange]);
 
   const update = useCallback((patch: Partial<GeraltState>) => {
     setState(prev => ({ ...prev, ...patch }));
