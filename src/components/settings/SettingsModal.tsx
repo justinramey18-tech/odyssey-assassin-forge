@@ -210,8 +210,8 @@ export function SettingsModal({
   // Mobile: Full screen drawer with back navigation
   if (isMobile) {
     return (
-      <Drawer open={open} onOpenChange={handleOpenChange}>
-        <DrawerContent className="h-[90vh] max-h-[90vh] overflow-x-hidden">
+      <Drawer open={open} onOpenChange={handleOpenChange} repositionInputs={false}>
+        <DrawerContent className="h-[100dvh] max-h-[100dvh] overflow-x-hidden">
           <DrawerHeader className="border-b border-border/50 pb-3 shrink-0">
             {showContent ? (
               <div className="flex items-center gap-3">
