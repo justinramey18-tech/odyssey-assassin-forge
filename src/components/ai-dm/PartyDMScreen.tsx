@@ -946,120 +946,116 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                 ? partyDm.splitState.alphaMembers.includes(m.user_id) ? 'alpha' : 'beta'
                 : null;
               return (
-                <div
-                  key={m.user_id}
-                  title={
-                    prompt?.is_ready
-                      ? `${m.character_name} — Ready${hasAction ? ' (with action)' : ' (no action)'}`
-                      : prompt
-                        ? `${m.character_name} — Action submitted, not ready`
-                        : `${m.character_name} — Waiting...`
-                  }
-                  onClick={() => {
-                    if (mode !== 'shared' || !hasAction) return;
-                    const toggled = isExpanded ? null : m.user_id;
-                    setExpandedPillUserId(toggled);
-                    if (toggled && isSelf && prompt) setPillEditText(prompt.prompt);
-                  }}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] border transition-all w-full",
-                    !prompt && "bg-white/5 border-white/10 text-white/30",
-                    prompt && !prompt.is_ready && "bg-amber-900/20 border-amber-500/30 text-amber-300",
-                    prompt?.is_ready && "bg-emerald-900/20 border-emerald-500/30 text-emerald-300 animate-pulse",
-                    mode === 'shared' && hasAction && "cursor-pointer hover:brightness-125",
-                    isExpanded && "ring-1 ring-white/30",
-                  )}
-                >
-                  {memberTeam && (
-                    <span className={cn(
-                      "w-2 h-2 rounded-full shrink-0",
-                      memberTeam === 'alpha' ? "bg-blue-400" : "bg-purple-400"
-                    )} />
-                  )}
-                  <span className="truncate flex-1">{m.character_name}</span>
-                  {prompt?.is_ready ? (
-                    <CheckCheck className="w-3 h-3 text-emerald-400" />
-                  ) : prompt ? (
-                    <Check className="w-3 h-3 text-amber-400" />
-                  ) : (
-                    <span className="w-1.5 h-1.5 rounded-full bg-white/20 shrink-0" />
-                  )}
-                  {mode === 'shared' && hasAction && !isExpanded && (
-                    <>
-                      <span className="text-[9px] text-white/30 max-w-[60px] truncate">{prompt!.prompt}</span>
-                      <Eye className="w-2.5 h-2.5 text-white/20 shrink-0" />
-                    </>
-                  )}
-                  {mode === 'shared' && hasAction && isExpanded && (
-                    <Eye className="w-2.5 h-2.5 text-white/50 shrink-0" />
-                  )}
+                <div key={m.user_id} className="flex flex-col">
+                  <div
+                    title={
+                      prompt?.is_ready
+                        ? `${m.character_name} — Ready${hasAction ? ' (with action)' : ' (no action)'}`
+                        : prompt
+                          ? `${m.character_name} — Action submitted, not ready`
+                          : `${m.character_name} — Waiting...`
+                    }
+                    onClick={() => {
+                      if (mode !== 'shared' || !hasAction) return;
+                      const toggled = isExpanded ? null : m.user_id;
+                      setExpandedPillUserId(toggled);
+                      if (toggled && isSelf && prompt) setPillEditText(prompt.prompt);
+                    }}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] border transition-all w-full",
+                      !prompt && "bg-white/5 border-white/10 text-white/30",
+                      prompt && !prompt.is_ready && "bg-amber-900/20 border-amber-500/30 text-amber-300",
+                      prompt?.is_ready && "bg-emerald-900/20 border-emerald-500/30 text-emerald-300 animate-pulse",
+                      mode === 'shared' && hasAction && "cursor-pointer hover:brightness-125",
+                      isExpanded && "ring-1 ring-white/30",
+                    )}
+                  >
+                    {memberTeam && (
+                      <span className={cn(
+                        "w-2 h-2 rounded-full shrink-0",
+                        memberTeam === 'alpha' ? "bg-blue-400" : "bg-purple-400"
+                      )} />
+                    )}
+                    <span className="truncate flex-1">{m.character_name}</span>
+                    {prompt?.is_ready ? (
+                      <CheckCheck className="w-3 h-3 text-emerald-400" />
+                    ) : prompt ? (
+                      <Check className="w-3 h-3 text-amber-400" />
+                    ) : (
+                      <span className="w-1.5 h-1.5 rounded-full bg-white/20 shrink-0" />
+                    )}
+                    {mode === 'shared' && hasAction && !isExpanded && (
+                      <>
+                        <span className="text-[9px] text-white/30 max-w-[60px] truncate">{prompt!.prompt}</span>
+                        <Eye className="w-2.5 h-2.5 text-white/20 shrink-0" />
+                      </>
+                    )}
+                    {mode === 'shared' && hasAction && isExpanded && (
+                      <Eye className="w-2.5 h-2.5 text-white/50 shrink-0" />
+                    )}
+                  </div>
+                  {/* Inline expanded prompt content */}
+                  <AnimatePresence>
+                    {isExpanded && hasAction && prompt && (() => {
+                      const canEdit = isSelf && !prompt.is_ready && !partyDm.isGenerating;
+                      return (
+                        <motion.div
+                          key={`expanded-${m.user_id}`}
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="mt-1 rounded-lg bg-white/5 border border-white/10 p-2.5">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-[10px] font-semibold text-white/60">{m.character_name}'s Prompt</span>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setExpandedPillUserId(null); }}
+                                className="p-0.5 rounded hover:bg-white/10 text-white/30 hover:text-white/60 transition-colors"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                            {canEdit ? (
+                              <div className="space-y-1.5">
+                                <textarea
+                                  value={pillEditText}
+                                  onChange={(e) => setPillEditText(e.target.value)}
+                                  className="w-full bg-black/30 border border-white/10 rounded-md px-2.5 py-1.5 text-xs text-white/90 placeholder:text-white/30 focus:outline-none focus:border-amber-500/40 resize-none min-h-[60px] max-h-[120px]"
+                                  rows={3}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                                <div className="flex justify-end">
+                                  <Button
+                                    size="sm"
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      if (pillEditText.trim()) {
+                                        await partyDm.editPrompt(pillEditText.trim());
+                                        toast.success('Prompt updated');
+                                        setExpandedPillUserId(null);
+                                      }
+                                    }}
+                                    className="h-6 px-2.5 text-[10px] gap-1 bg-amber-900/40 border border-amber-500/30 hover:bg-amber-900/60 text-amber-300"
+                                  >
+                                    <Check className="w-2.5 h-2.5" />
+                                    Save
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-xs text-white/70 whitespace-pre-wrap break-words">{prompt.prompt}</p>
+                            )}
+                          </div>
+                        </motion.div>
+                      );
+                    })()}
+                  </AnimatePresence>
                 </div>
               );
             })}
           </div>
-
-          {/* Expanded pill content */}
-          <AnimatePresence>
-            {expandedPillUserId && (() => {
-              const m = members.find(mem => mem.user_id === expandedPillUserId);
-              const prompt = partyDm.currentPrompts.find(p => p.user_id === expandedPillUserId);
-              if (!m || !prompt || !prompt.prompt.trim()) return null;
-              const isSelf = expandedPillUserId === currentUserId;
-              const canEdit = isSelf && !prompt.is_ready && !partyDm.isGenerating;
-              return (
-                <motion.div
-                  key="expanded-pill"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="overflow-hidden"
-                >
-                  <div className="mt-2 rounded-lg bg-white/5 border border-white/10 p-2.5">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[10px] font-semibold text-white/60">{m.character_name}'s Prompt</span>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setExpandedPillUserId(null); }}
-                        className="p-0.5 rounded hover:bg-white/10 text-white/30 hover:text-white/60 transition-colors"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                    {canEdit ? (
-                      <div className="space-y-1.5">
-                        <textarea
-                          value={pillEditText}
-                          onChange={(e) => setPillEditText(e.target.value)}
-                          className="w-full bg-black/30 border border-white/10 rounded-md px-2.5 py-1.5 text-xs text-white/90 placeholder:text-white/30 focus:outline-none focus:border-amber-500/40 resize-none min-h-[60px] max-h-[120px]"
-                          rows={3}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <div className="flex justify-end">
-                          <Button
-                            size="sm"
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              if (pillEditText.trim()) {
-                                await partyDm.editPrompt(pillEditText.trim());
-                                toast.success('Prompt updated');
-                                setExpandedPillUserId(null);
-                              }
-                            }}
-                            className="h-6 px-2.5 text-[10px] gap-1 bg-amber-900/40 border border-amber-500/30 hover:bg-amber-900/60 text-amber-300"
-                          >
-                            <Check className="w-2.5 h-2.5" />
-                            Save
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-white/70 whitespace-pre-wrap break-words">{prompt.prompt}</p>
-                    )}
-                  </div>
-                </motion.div>
-              );
-            })()}
-          </AnimatePresence>
         </div>
       )}
 
