@@ -490,7 +490,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       toast.error('You already submitted a prompt this round');
       return;
     }
+    const optimisticId = crypto.randomUUID();
     const insertData: Record<string, unknown> = {
+      id: optimisticId,
       party_id: partyId,
       user_id: user.id,
       character_name: characterName,
@@ -502,18 +504,40 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     if (isSplitActive && myTeam) {
       insertData.team = myTeam;
     }
-    await (supabase.from('party_dm_prompts') as any).insert(insertData);
+    // Optimistic update — add prompt locally so UI transitions immediately
+    const optimisticPrompt: PartyDmPrompt = {
+      id: optimisticId,
+      party_id: partyId,
+      user_id: user.id,
+      character_name: characterName,
+      prompt: text.trim(),
+      is_ready: false,
+      round_id: sessionConfig.currentRoundId,
+      created_at: new Date().toISOString(),
+      team: (isSplitActive && myTeam) ? myTeam : null,
+    };
+    setCurrentPrompts(prev => [...prev, optimisticPrompt]);
+    const { error } = await (supabase.from('party_dm_prompts') as any).insert(insertData);
+    if (error) {
+      // Rollback optimistic update on failure
+      setCurrentPrompts(prev => prev.filter(p => p.id !== optimisticId));
+      toast.error('Failed to submit prompt');
+    }
   }, [partyId, user, sessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
 
   const setReady = useCallback(async () => {
     if (!user || !partyId || !sessionConfig) return;
     const myPrompt = currentPrompts.find(p => p.user_id === user.id);
     if (myPrompt) {
+      // Optimistic update
+      setCurrentPrompts(prev => prev.map(p => p.id === myPrompt.id ? { ...p, is_ready: true } : p));
       await (supabase.from('party_dm_prompts') as any)
         .update({ is_ready: true })
         .eq('id', myPrompt.id);
     } else {
+      const optimisticId = crypto.randomUUID();
       const insertData: Record<string, unknown> = {
+        id: optimisticId,
         party_id: partyId,
         user_id: user.id,
         character_name: characterName,
@@ -524,6 +548,19 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       if (isSplitActive && myTeam) {
         insertData.team = myTeam;
       }
+      // Optimistic update
+      const optimisticPrompt: PartyDmPrompt = {
+        id: optimisticId,
+        party_id: partyId,
+        user_id: user.id,
+        character_name: characterName,
+        prompt: '',
+        is_ready: true,
+        round_id: sessionConfig.currentRoundId,
+        created_at: new Date().toISOString(),
+        team: (isSplitActive && myTeam) ? myTeam : null,
+      };
+      setCurrentPrompts(prev => [...prev, optimisticPrompt]);
       await (supabase.from('party_dm_prompts') as any).insert(insertData);
     }
   }, [user, partyId, sessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
@@ -532,6 +569,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     if (!user || !partyId || !sessionConfig) return;
     const myPrompt = currentPrompts.find(p => p.user_id === user.id);
     if (myPrompt && myPrompt.is_ready) {
+      // Optimistic update
+      setCurrentPrompts(prev => prev.map(p => p.id === myPrompt.id ? { ...p, is_ready: false } : p));
       await (supabase.from('party_dm_prompts') as any)
         .update({ is_ready: false })
         .eq('id', myPrompt.id);
@@ -542,6 +581,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     if (!user) return;
     const myPrompt = currentPrompts.find(p => p.user_id === user.id);
     if (!myPrompt || myPrompt.is_ready) return;
+    // Optimistic update
+    setCurrentPrompts(prev => prev.map(p => p.id === myPrompt.id ? { ...p, prompt: newText.trim() } : p));
     await (supabase.from('party_dm_prompts') as any)
       .update({ prompt: newText.trim() })
       .eq('id', myPrompt.id);
@@ -551,6 +592,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     if (!user) return;
     const myPrompt = currentPrompts.find(p => p.user_id === user.id);
     if (!myPrompt || myPrompt.is_ready) return;
+    // Optimistic update
+    setCurrentPrompts(prev => prev.filter(p => p.id !== myPrompt.id));
     await (supabase.from('party_dm_prompts') as any)
       .delete()
       .eq('id', myPrompt.id);
