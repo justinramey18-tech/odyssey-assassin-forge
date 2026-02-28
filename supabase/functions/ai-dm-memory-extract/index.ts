@@ -12,7 +12,7 @@ const EXTRACT_TOOL = {
   function: {
     name: "extract_world_facts",
     description:
-      "Extract newly introduced world facts (NPCs, locations, consequences) from a DM narrative message. Only extract facts that are new and significant — skip atmospheric flavor or things already in existing anchors.",
+      "Extract newly introduced world facts (NPCs, locations, consequences, narrative subtext) from a DM narrative message. Only extract facts that are new and significant — skip atmospheric flavor or things already in existing anchors.",
     parameters: {
       type: "object",
       properties: {
@@ -81,8 +81,28 @@ const EXTRACT_TOOL = {
             additionalProperties: false,
           },
         },
+        subtext: {
+          type: "array",
+          description:
+            "Implied tensions, emotional shifts, foreshadowing, unresolved ambiguities, character motivations hinted at but not stated, or tonal changes in the narrative. These are the subtle undercurrents that shape the story's direction.",
+          items: {
+            type: "object",
+            properties: {
+              key: {
+                type: "string",
+                description: "Short label for the subtext element (3-6 words, e.g. 'Innkeeper hiding something', 'Growing distrust in party', 'Foreshadowed betrayal')",
+              },
+              value: {
+                type: "string",
+                description: "The implied meaning or narrative thread to remember (one sentence describing what's hinted at, not what's explicitly stated)",
+              },
+            },
+            required: ["key", "value"],
+            additionalProperties: false,
+          },
+        },
       },
-      required: ["npcs", "locations", "consequences"],
+      required: ["npcs", "locations", "consequences", "subtext"],
       additionalProperties: false,
     },
   },
@@ -121,7 +141,7 @@ serve(async (req) => {
 
     if (!message || typeof message !== "string" || message.trim().length < 20) {
       return new Response(
-        JSON.stringify({ npcs: [], locations: [], consequences: [] }),
+        JSON.stringify({ npcs: [], locations: [], consequences: [], subtext: [] }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -129,7 +149,7 @@ serve(async (req) => {
     const characterName = characterContext?.name || "the adventurer";
     const existingKeys = existingAnchors.map((a: any) => `${a.category}:${a.key}`).join(", ");
 
-    const systemPrompt = `You are a memory extraction engine for a D&D campaign. Your job is to extract meaningful world facts from a DM's narrative response so they can be persisted for future sessions.
+    const systemPrompt = `You are a memory extraction engine for a D&D campaign. Your job is to extract meaningful world facts AND subtle narrative undercurrents from a DM's narrative response so they can be persisted for future sessions.
 
 CHARACTER: ${characterName}
 
@@ -144,7 +164,17 @@ RULES:
 - Consequences: only significant choices, reputations, injuries, debts, or secrets
 - Keep notes extremely brief (one short sentence each)
 - Return empty arrays if nothing significant was introduced
-- Never duplicate what's already in EXISTING MEMORY`;
+- Never duplicate what's already in EXISTING MEMORY
+
+SUBTEXT EXTRACTION (critical for narrative continuity):
+- Look for IMPLIED tensions between characters (e.g. "her smile didn't reach her eyes")
+- Capture EMOTIONAL SHIFTS in NPCs or the scene's mood (e.g. "the crowd grew uneasy")
+- Note FORESHADOWING — hints about future events, dangers, or revelations
+- Track UNRESOLVED AMBIGUITIES — things left deliberately unclear or suspicious
+- Record unstated CHARACTER MOTIVATIONS hinted through behavior or dialogue
+- Identify TONAL SHIFTS — when the narrative mood changes significantly
+- Only extract subtext that matters for future storytelling; skip routine atmosphere
+- Phrase subtext as what's IMPLIED, not what's explicitly stated`;
 
     // Anthropic path
     if (user_api_key && typeof user_api_key === 'string' && user_api_key.trim()) {
@@ -158,13 +188,13 @@ RULES:
         temperature: 0.1,
       });
       if (result.error) {
-        return new Response(JSON.stringify({ npcs: [], locations: [], consequences: [] }), {
+        return new Response(JSON.stringify({ npcs: [], locations: [], consequences: [], subtext: [] }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const extracted = result.toolArguments || { npcs: [], locations: [], consequences: [] };
+      const extracted = result.toolArguments || { npcs: [], locations: [], consequences: [], subtext: [] };
       return new Response(JSON.stringify({
-        npcs: extracted.npcs || [], locations: extracted.locations || [], consequences: extracted.consequences || [],
+        npcs: extracted.npcs || [], locations: extracted.locations || [], consequences: extracted.consequences || [], subtext: extracted.subtext || [],
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -201,19 +231,19 @@ RULES:
     if (!response.ok) {
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ error: "Rate limit exceeded", npcs: [], locations: [], consequences: [] }),
+          JSON.stringify({ error: "Rate limit exceeded", npcs: [], locations: [], consequences: [], subtext: [] }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       if (response.status === 402) {
         return new Response(
-          JSON.stringify({ error: "Payment required", npcs: [], locations: [], consequences: [] }),
+          JSON.stringify({ error: "Payment required", npcs: [], locations: [], consequences: [], subtext: [] }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       console.error("AI gateway error:", response.status, await response.text());
       return new Response(
-        JSON.stringify({ npcs: [], locations: [], consequences: [] }),
+        JSON.stringify({ npcs: [], locations: [], consequences: [], subtext: [] }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -223,7 +253,7 @@ RULES:
 
     if (!toolCall?.function?.arguments) {
       return new Response(
-        JSON.stringify({ npcs: [], locations: [], consequences: [] }),
+        JSON.stringify({ npcs: [], locations: [], consequences: [], subtext: [] }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -232,7 +262,7 @@ RULES:
     try {
       extracted = JSON.parse(toolCall.function.arguments);
     } catch {
-      extracted = { npcs: [], locations: [], consequences: [] };
+      extracted = { npcs: [], locations: [], consequences: [], subtext: [] };
     }
 
     return new Response(
@@ -240,13 +270,14 @@ RULES:
         npcs: extracted.npcs || [],
         locations: extracted.locations || [],
         consequences: extracted.consequences || [],
+        subtext: extracted.subtext || [],
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
     console.error("ai-dm-memory-extract error:", err);
     return new Response(
-      JSON.stringify({ npcs: [], locations: [], consequences: [] }),
+      JSON.stringify({ npcs: [], locations: [], consequences: [], subtext: [] }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

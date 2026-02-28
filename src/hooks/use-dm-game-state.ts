@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type MemoryAnchorCategory = 'npc' | 'quest' | 'location' | 'reputation' | 'debt' | 'injury' | 'secret' | 'fact';
+export type MemoryAnchorCategory = 'npc' | 'quest' | 'location' | 'reputation' | 'debt' | 'injury' | 'secret' | 'fact' | 'subtext';
 
 export interface MemoryAnchor {
   id: string;
@@ -405,6 +405,7 @@ export function buildMemoryAnchorsPrompt(state: DMGameState): string {
       injury: '🩸 Injuries & Conditions',
       secret: '🔐 Secrets',
       fact: '📌 World Facts',
+      subtext: '🎭 Narrative Tone & Subtext',
     };
 
     for (const [cat, anchors] of Object.entries(byCategory)) {

@@ -24,10 +24,16 @@ interface ExtractedConsequence {
   value: string;
 }
 
+interface ExtractedSubtext {
+  key: string;
+  value: string;
+}
+
 interface ExtractionResponse {
   npcs: ExtractedNPC[];
   locations: ExtractedLocation[];
   consequences: ExtractedConsequence[];
+  subtext: ExtractedSubtext[];
 }
 
 interface UseDmMemoryExtractionOptions {
@@ -99,6 +105,17 @@ export function useDmMemoryExtraction({ addMemoryAnchor }: UseDmMemoryExtraction
           category: con.category,
           key: con.key.trim(),
           value: con.value.trim(),
+        });
+        addedCount++;
+      }
+
+      // Add subtext (narrative tone, foreshadowing, implied tensions)
+      for (const sub of data.subtext || []) {
+        if (!sub.key?.trim() || !sub.value?.trim()) continue;
+        addMemoryAnchor({
+          category: 'subtext',
+          key: sub.key.trim(),
+          value: sub.value.trim(),
         });
         addedCount++;
       }

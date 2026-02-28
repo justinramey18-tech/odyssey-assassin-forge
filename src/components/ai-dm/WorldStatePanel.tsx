@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Trash2, ChevronDown, ChevronUp, BookOpen, ScrollText, MapPin, Star, Coins, Swords, Lock, FileText, Package } from 'lucide-react';
+import { X, Plus, Trash2, ChevronDown, ChevronUp, BookOpen, ScrollText, MapPin, Star, Coins, Swords, Lock, FileText, Package, Drama } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { DMGameState, MemoryAnchor, MemoryAnchorCategory, QuestFlag } from '@/hooks/use-dm-game-state';
 
@@ -21,6 +21,7 @@ const CATEGORY_CONFIG: Record<MemoryAnchorCategory, { label: string; icon: React
   injury: { label: 'Injuries', icon: Swords },
   secret: { label: 'Secrets', icon: Lock },
   fact: { label: 'World Facts', icon: FileText },
+  subtext: { label: 'Tone & Subtext', icon: Drama },
 };
 
 const CATEGORIES = Object.entries(CATEGORY_CONFIG) as [MemoryAnchorCategory, typeof CATEGORY_CONFIG[MemoryAnchorCategory]][];
