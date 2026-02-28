@@ -74,17 +74,29 @@ export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompan
       : 'ring-red-400/20'
     : 'ring-amber-400/20';
 
-  // Generate stable ember particles for injured state
-  const embers = useMemo(() => 
-    Array.from({ length: 8 }, (_, i) => ({
+  // Particle field scales with HP — more particles + faster when damaged
+  const particleCount = hpState === 'happy' ? 4 : hpState === 'angry' ? 8 : 14;
+  const particleSpeedMult = hpState === 'happy' ? 1 : hpState === 'angry' ? 0.7 : 0.4;
+
+  const particles = useMemo(() => 
+    Array.from({ length: 14 }, (_, i) => ({
       id: i,
-      x: Math.random() * 80 - 40,       // spread around button
+      x: Math.random() * 80 - 40,
       delay: Math.random() * 3,
       duration: 2 + Math.random() * 2,
       size: 2 + Math.random() * 3,
-      drift: (Math.random() - 0.5) * 20, // horizontal drift
+      drift: (Math.random() - 0.5) * 20,
     })),
   []);
+
+  // Crack overlay intensity based on HP
+  const crackOpacity = companionHpPct !== undefined
+    ? companionHpPct > 80 ? 0
+      : companionHpPct > 50 ? 0.15
+      : companionHpPct > 30 ? 0.35
+      : companionHpPct > 15 ? 0.55
+      : 0.75
+    : 0;
 
   return (
     <motion.div
@@ -217,27 +229,31 @@ export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompan
               }}
             />
 
-            {/* Ember particles when injured */}
-            {isInjured && embers.map(ember => (
+            {/* Scaled particle field — density and speed shift with HP */}
+            {particles.slice(0, particleCount).map(p => (
               <motion.div
-                key={ember.id}
+                key={p.id}
                 className="absolute pointer-events-none rounded-full"
                 style={{
-                  width: ember.size,
-                  height: ember.size,
+                  width: p.size,
+                  height: p.size,
                   left: '50%',
                   bottom: '10%',
-                  background: `radial-gradient(circle, rgba(255,${60 + Math.random() * 80},0,0.9), rgba(255,0,0,0.3))`,
+                  background: hpState === 'happy'
+                    ? `radial-gradient(circle, rgba(245,180,60,0.8), rgba(245,158,11,0.2))`
+                    : hpState === 'angry'
+                      ? `radial-gradient(circle, rgba(255,140,20,0.9), rgba(249,115,22,0.2))`
+                      : `radial-gradient(circle, rgba(255,${60 + Math.random() * 80},0,0.9), rgba(255,0,0,0.3))`,
                 }}
                 animate={{
-                  x: [ember.x * 0.3, ember.x * 0.6 + ember.drift, ember.x],
+                  x: [p.x * 0.3, p.x * 0.6 + p.drift, p.x],
                   y: [0, -40 - Math.random() * 30, -70 - Math.random() * 20],
-                  opacity: [0, 0.9, 0],
+                  opacity: [0, hpState === 'happy' ? 0.5 : 0.9, 0],
                   scale: [0.5, 1, 0.2],
                 }}
                 transition={{
-                  duration: ember.duration,
-                  delay: ember.delay,
+                  duration: p.duration * particleSpeedMult,
+                  delay: p.delay * particleSpeedMult,
                   repeat: Infinity,
                   ease: 'easeOut',
                 }}
@@ -268,7 +284,7 @@ export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompan
               <button
                 onClick={onCompanionClick}
                 className={cn(
-                  "w-24 h-24 rounded-2xl overflow-hidden",
+                  "w-24 h-24 rounded-2xl overflow-hidden relative",
                   `border-2 ${borderColor}`,
                   "transition-colors duration-300",
                   `ring-2 ${ringColor} ring-offset-0`
@@ -277,6 +293,90 @@ export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompan
                 aria-label="Open Geralt companion"
               >
                 <img src={geraltButton} alt="Geralt" className="w-full h-full object-cover" />
+                
+                {/* Cracking overlay — intensifies as HP drops */}
+                {crackOpacity > 0 && (
+                  <svg
+                    className="absolute inset-0 w-full h-full pointer-events-none"
+                    viewBox="0 0 96 96"
+                    style={{ opacity: crackOpacity }}
+                  >
+                    {/* Primary diagonal crack */}
+                    <path
+                      d="M 30 0 L 33 18 L 28 32 L 35 48 L 30 62 L 38 80 L 34 96"
+                      fill="none"
+                      stroke="rgba(200,60,40,0.8)"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                    />
+                    {/* Branch crack right */}
+                    <path
+                      d="M 33 18 L 50 24 L 58 20"
+                      fill="none"
+                      stroke="rgba(200,60,40,0.6)"
+                      strokeWidth="1"
+                      strokeLinecap="round"
+                    />
+                    {/* Branch crack left */}
+                    <path
+                      d="M 28 32 L 14 38 L 8 52"
+                      fill="none"
+                      stroke="rgba(200,60,40,0.5)"
+                      strokeWidth="1"
+                      strokeLinecap="round"
+                    />
+                    {/* Secondary crack from right */}
+                    {crackOpacity > 0.3 && (
+                      <path
+                        d="M 96 25 L 78 30 L 65 45 L 60 58 L 68 75 L 62 96"
+                        fill="none"
+                        stroke="rgba(180,50,30,0.7)"
+                        strokeWidth="1.2"
+                        strokeLinecap="round"
+                      />
+                    )}
+                    {/* Tertiary web cracks at low HP */}
+                    {crackOpacity > 0.5 && (
+                      <>
+                        <path
+                          d="M 35 48 L 50 52 L 65 45"
+                          fill="none"
+                          stroke="rgba(180,50,30,0.5)"
+                          strokeWidth="0.8"
+                          strokeLinecap="round"
+                        />
+                        <path
+                          d="M 50 52 L 48 72 L 55 90"
+                          fill="none"
+                          stroke="rgba(160,40,20,0.5)"
+                          strokeWidth="0.8"
+                          strokeLinecap="round"
+                        />
+                        <path
+                          d="M 0 60 L 15 55 L 28 60"
+                          fill="none"
+                          stroke="rgba(160,40,20,0.4)"
+                          strokeWidth="0.8"
+                          strokeLinecap="round"
+                        />
+                      </>
+                    )}
+                    {/* Glow along cracks */}
+                    <path
+                      d="M 30 0 L 33 18 L 28 32 L 35 48 L 30 62 L 38 80 L 34 96"
+                      fill="none"
+                      stroke="rgba(255,80,40,0.3)"
+                      strokeWidth="4"
+                      strokeLinecap="round"
+                      filter="url(#crackGlow)"
+                    />
+                    <defs>
+                      <filter id="crackGlow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="2" />
+                      </filter>
+                    </defs>
+                  </svg>
+                )}
               </button>
             </motion.div>
           </div>
