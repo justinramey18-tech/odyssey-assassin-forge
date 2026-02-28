@@ -71,7 +71,7 @@ export function DMToolsDrawer({
       <SheetContent
         side="right"
         onOpenAutoFocus={(e) => e.preventDefault()}
-        className="w-[280px] max-w-[85vw] p-0 bg-glass backdrop-blur-xl border-glass"
+        className="w-[280px] max-w-[85vw] p-0 bg-glass backdrop-blur-xl border-glass z-[70]"
         style={{
           borderLeft: '2px solid hsl(36 60% 50% / 0.25)',
           boxShadow: '-4px 0 30px hsl(36 60% 50% / 0.12)',
