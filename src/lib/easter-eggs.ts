@@ -1,4 +1,4 @@
-const THISTLE_NAMES = ['thistle', 'thistlepig'];
+const THISTLE_NAMES = ['thistle'];
 
 const THISTLE_BADGES = [
   { label: 'R4', color: 'emerald' },
@@ -6,30 +6,11 @@ const THISTLE_BADGES = [
   { label: '007, DTF, Rising Pheonix', color: 'purple' },
 ] as const;
 
-const ATLAS_NAMES = ['atlas'];
-
-const ATLAS_BADGES = [
-  { label: 'R5', color: 'emerald' },
-  { label: 'Dr.Ape', color: 'amber' },
-  { label: 'Biggus Maximus Dickimus', color: 'purple' },
-  { label: 'Over 9000 lust factor', color: 'rose' },
-] as const;
-
-const NULL_NAMES = ['null'];
-
-const NULL_BADGES = [
-  { label: 'Extra Most Bestest', color: 'emerald' },
-  { label: 'Deer Tanker', color: 'amber' },
-  { label: "Kratos's Muse", color: 'purple' },
-] as const;
-
 export type EasterEggBadge = { label: string; color: string };
 
 export function getThistleBadges(name: string): readonly EasterEggBadge[] {
   const n = name.toLowerCase().trim();
   if (THISTLE_NAMES.includes(n)) return THISTLE_BADGES;
-  if (ATLAS_NAMES.includes(n)) return ATLAS_BADGES;
-  if (NULL_NAMES.includes(n)) return NULL_BADGES;
   return [];
 }
 
