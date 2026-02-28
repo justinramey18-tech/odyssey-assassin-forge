@@ -221,7 +221,7 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, o
                   </div>
                 </div>
                 <p className="text-[10px] text-white/30 font-mono">
-                  {campaignSummary ? `${campaignSummary.length.toLocaleString()} chars · Auto-updated every 10 messages` : 'No summary yet · Paste your campaign setting to get started'}
+                  {campaignSummary ? `${campaignSummary.length.toLocaleString()} chars · Auto-updated every 5 messages` : 'No summary yet · Paste your campaign setting to get started'}
                 </p>
                 {campaignSummary && (
                   <p className="text-[11px] text-white/40 mt-1.5 line-clamp-2">{campaignSummary.slice(0, 200)}</p>

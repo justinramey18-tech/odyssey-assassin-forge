@@ -9,7 +9,7 @@ import { sendReadyUpNotification } from '@/lib/party-notifications';
 
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
 const SUMMARIZE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm-summarize`;
-const SUMMARY_INTERVAL = 10;
+const SUMMARY_INTERVAL = 5;
 
 export interface PartyDmMessage {
   id: string;
