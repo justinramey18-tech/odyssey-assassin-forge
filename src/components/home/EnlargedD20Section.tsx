@@ -1,5 +1,5 @@
-import { motion } from 'framer-motion';
-import { useMemo } from 'react';
+import { motion, useAnimationControls } from 'framer-motion';
+import { useMemo, useEffect, useState } from 'react';
 import { AnimatedD20Trigger } from '@/components/diceRoller';
 import { PanelLeft, Map as MapIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -23,8 +23,38 @@ export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompan
       : 'injured'
     : 'happy';
 
-  const breatheDuration = hpState === 'happy' ? 10 : hpState === 'angry' ? 4 : 2;
+  const breatheDuration = hpState === 'happy' ? 10 : hpState === 'angry' ? 4 : 3;
   const breatheScale = hpState === 'happy' ? 1.12 : hpState === 'angry' ? 1.18 : 1.25;
+
+  // Ocean breathing: inhale (40%), hold at peak (10%), exhale (40%), rest (10%)
+  // For action breathing (angry/injured): shorter hold, more direct
+  const isOcean = hpState === 'happy';
+  const inhaleRatio = isOcean ? 0.4 : 0.45;
+  const holdRatio = isOcean ? 0.1 : 0.05;
+  const exhaleRatio = isOcean ? 0.4 : 0.45;
+  // rest fills remainder
+
+  // Breathwork text cycling
+  const [breathPhase, setBreathPhase] = useState<'inhale' | 'hold' | 'exhale' | 'rest'>('inhale');
+
+  useEffect(() => {
+    const inMs = breatheDuration * inhaleRatio * 1000;
+    const holdMs = breatheDuration * holdRatio * 1000;
+    const outMs = breatheDuration * exhaleRatio * 1000;
+    const restMs = breatheDuration * (1 - inhaleRatio - holdRatio - exhaleRatio) * 1000;
+
+    let mounted = true;
+    const cycle = () => {
+      if (!mounted) return;
+      setBreathPhase('inhale');
+      setTimeout(() => { if (mounted) setBreathPhase('hold'); }, inMs);
+      setTimeout(() => { if (mounted) setBreathPhase('exhale'); }, inMs + holdMs);
+      setTimeout(() => { if (mounted) setBreathPhase('rest'); }, inMs + holdMs + outMs);
+    };
+    cycle();
+    const interval = setInterval(cycle, breatheDuration * 1000);
+    return () => { mounted = false; clearInterval(interval); };
+  }, [breatheDuration, inhaleRatio, holdRatio, exhaleRatio]);
   const breatheGlow = hpState === 'happy'
     ? 'rgba(245,158,11,0.55)'
     : hpState === 'angry'
@@ -116,8 +146,27 @@ export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompan
 
       {/* Center slot: Geralt Companion Button (or D20 fallback) */}
       {onCompanionClick ? (
-        <div className="flex flex-col items-center gap-2">
-          <div className="relative">
+        <div className="flex flex-col items-center gap-1">
+          <div className="relative flex items-center justify-center" style={{ width: 120, height: 120 }}>
+            {/* Breathwork ring — expands/contracts in sync */}
+            <motion.div
+              className="absolute inset-0 rounded-full pointer-events-none"
+              style={{
+                border: `2px solid ${breatheGlow}`,
+                willChange: 'transform, opacity',
+              }}
+              animate={{
+                scale: [0.85, 1.15, 1.15, 0.85, 0.85],
+                opacity: [0.3, 0.7, 0.7, 0.3, 0.3],
+              }}
+              transition={{
+                duration: breatheDuration,
+                times: [0, inhaleRatio, inhaleRatio + holdRatio, inhaleRatio + holdRatio + exhaleRatio, 1],
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }}
+            />
+
             {/* Ember particles when injured */}
             {isInjured && embers.map(ember => (
               <motion.div
@@ -144,19 +193,24 @@ export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompan
                 }}
               />
             ))}
+
+            {/* Main breathing button */}
             <motion.div
               className="rounded-2xl"
               style={{ willChange: 'transform, box-shadow' }}
               animate={{
-                scale: [1, breatheScale, 1],
+                scale: [1, breatheScale, breatheScale, 1, 1],
                 boxShadow: [
-                  `0 0 10px ${breatheGlow}`,
-                  `0 0 30px ${breatheGlow}`,
-                  `0 0 10px ${breatheGlow}`,
+                  `0 0 8px ${breatheGlow}`,
+                  `0 0 35px ${breatheGlow}`,
+                  `0 0 35px ${breatheGlow}`,
+                  `0 0 8px ${breatheGlow}`,
+                  `0 0 8px ${breatheGlow}`,
                 ],
               }}
               transition={{
                 duration: breatheDuration,
+                times: [0, inhaleRatio, inhaleRatio + holdRatio, inhaleRatio + holdRatio + exhaleRatio, 1],
                 repeat: Infinity,
                 ease: 'easeInOut',
               }}
@@ -176,9 +230,18 @@ export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompan
               </button>
             </motion.div>
           </div>
-          <p className="text-[10px] text-muted-foreground font-cinzel uppercase tracking-widest">
-            Geralt
-          </p>
+
+          {/* Breathwork text cue */}
+          <motion.p
+            key={breathPhase}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 0.7, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+            className="text-[10px] text-muted-foreground font-cinzel uppercase tracking-[0.2em] select-none"
+          >
+            {breathPhase === 'inhale' ? 'Inhale...' : breathPhase === 'hold' ? 'Hold...' : breathPhase === 'exhale' ? 'Exhale...' : '...'}
+          </motion.p>
         </div>
       ) : (
         <div className="flex flex-col items-center gap-2">
