@@ -743,15 +743,36 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   }, []);
 
   const generateResponse = useCallback(async () => {
-    console.log('[PartyDM] generateResponse called', { partyId: !!partyId, user: !!user, sessionConfig: !!sessionConfig, isGenerating, promptCount: currentPrompts.length });
-    if (!partyId || !user || !sessionConfig || isGenerating) {
-      console.warn('[PartyDM] generateResponse early return', { partyId: !!partyId, user: !!user, sessionConfig: !!sessionConfig, isGenerating });
+    if (!partyId || !user || !sessionConfig || isGenerating) return;
+
+    const readyPrompts = currentPrompts.filter(p => p.is_ready);
+    if (readyPrompts.length === 0) {
+      toast.error('No ready prompts to generate from');
       return;
     }
-    if (currentPrompts.length === 0) {
-      toast.error('No prompts to generate from');
-      return;
-    }
+
+    const formatPromptLine = (p: PartyDmPrompt) =>
+      `[${p.character_name}]: ${p.prompt.trim() || '(no action)'}`;
+
+    const insertPartyMessage = async (insertData: Record<string, unknown>) => {
+      const { data, error } = await (supabase.from('party_dm_messages') as any)
+        .insert(insertData)
+        .select('*')
+        .single();
+
+      if (error) {
+        throw new Error(`Failed to save message: ${error.message}`);
+      }
+
+      if (data) {
+        setMessages(prev => {
+          if (prev.some(m => m.id === data.id)) return prev;
+          return [...prev, data as PartyDmMessage];
+        });
+      }
+
+      return data as PartyDmMessage | null;
+    };
 
     setIsGenerating(true);
 
@@ -764,11 +785,11 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     abortRef.current = new AbortController();
     try {
       if (isSplitActive && splitState) {
-        // === SPLIT MODE: Generate two sequential responses ===
-        const alphaPrompts = currentPrompts.filter(p =>
+        // === SPLIT MODE: Generate two sequential responses from READY prompts ===
+        const alphaPrompts = readyPrompts.filter(p =>
           splitState.alphaMembers.includes(p.user_id)
         );
-        const betaPrompts = currentPrompts.filter(p =>
+        const betaPrompts = readyPrompts.filter(p =>
           splitState.betaMembers.includes(p.user_id)
         );
 
@@ -778,10 +799,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         // --- Team Alpha ---
         if (alphaPrompts.length > 0) {
           const alphaCombined = alphaPrompts
-            .map(p => `[${p.character_name}]: ${p.prompt}`)
+            .map(formatPromptLine)
             .join('\n');
 
-          await (supabase.from('party_dm_messages') as any).insert({
+          await insertPartyMessage({
             party_id: partyId,
             role: 'user',
             content: alphaCombined,
@@ -803,8 +824,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
           const alphaContent = await streamAIResponse(alphaApiMsgs, alphaGuides, abortRef.current!.signal);
 
-          if (alphaContent) {
-            await (supabase.from('party_dm_messages') as any).insert({
+          if (alphaContent?.trim()) {
+            await insertPartyMessage({
               party_id: partyId,
               role: 'assistant',
               content: alphaContent,
@@ -818,10 +839,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         // --- Team Beta ---
         if (betaPrompts.length > 0) {
           const betaCombined = betaPrompts
-            .map(p => `[${p.character_name}]: ${p.prompt}`)
+            .map(formatPromptLine)
             .join('\n');
 
-          await (supabase.from('party_dm_messages') as any).insert({
+          await insertPartyMessage({
             party_id: partyId,
             role: 'user',
             content: betaCombined,
@@ -843,8 +864,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
           const betaContent = await streamAIResponse(betaApiMsgs, betaGuides, abortRef.current!.signal);
 
-          if (betaContent) {
-            await (supabase.from('party_dm_messages') as any).insert({
+          if (betaContent?.trim()) {
+            await insertPartyMessage({
               party_id: partyId,
               role: 'assistant',
               content: betaContent,
@@ -856,9 +877,27 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         }
 
         // Build up-to-date message arrays that include what we just inserted
-        // (React state won't have them yet — they arrive via realtime async)
-        const newAlphaUserMsg: PartyDmMessage = { id: '', party_id: partyId, role: 'user', content: alphaPrompts.map(p => `[${p.character_name}]: ${p.prompt}`).join('\n'), sender_user_id: user.id, sender_name: splitState.alphaName || 'Team Alpha', created_at: '', team: 'alpha' };
-        const newBetaUserMsg: PartyDmMessage = { id: '', party_id: partyId, role: 'user', content: betaPrompts.map(p => `[${p.character_name}]: ${p.prompt}`).join('\n'), sender_user_id: user.id, sender_name: splitState.betaName || 'Team Beta', created_at: '', team: 'beta' };
+        // (React state won't have all realtime updates yet)
+        const newAlphaUserMsg: PartyDmMessage = {
+          id: '',
+          party_id: partyId,
+          role: 'user',
+          content: alphaPrompts.map(formatPromptLine).join('\n'),
+          sender_user_id: user.id,
+          sender_name: splitState.alphaName || 'Team Alpha',
+          created_at: '',
+          team: 'alpha',
+        };
+        const newBetaUserMsg: PartyDmMessage = {
+          id: '',
+          party_id: partyId,
+          role: 'user',
+          content: betaPrompts.map(formatPromptLine).join('\n'),
+          sender_user_id: user.id,
+          sender_name: splitState.betaName || 'Team Beta',
+          created_at: '',
+          team: 'beta',
+        };
 
         const allAlpha = [
           ...alphaMessages,
@@ -895,22 +934,17 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
       } else {
         // === NORMAL MODE ===
-        const combined = currentPrompts
-          .map(p => `[${p.character_name}]: ${p.prompt}`)
+        const combined = readyPrompts
+          .map(formatPromptLine)
           .join('\n');
 
-        console.log('[PartyDM] Inserting combined prompt into chat:', combined.slice(0, 100));
-        const { error: insertErr } = await (supabase.from('party_dm_messages') as any).insert({
+        await insertPartyMessage({
           party_id: partyId,
           role: 'user',
           content: combined,
           sender_user_id: user.id,
           sender_name: 'Party',
         });
-        if (insertErr) {
-          console.error('[PartyDM] Failed to insert user message:', insertErr);
-          throw new Error(`Failed to save prompt: ${insertErr.message}`);
-        }
 
         const partyMembersSummary = buildPartyMembersGuide();
         const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
@@ -921,23 +955,18 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           `\n\n## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
         ].filter(Boolean).join('\n\n');
 
-        console.log('[PartyDM] Calling AI with', apiMessages.length, 'messages');
         const assistantContent = await streamAIResponse(apiMessages, guides, abortRef.current!.signal);
-        console.log('[PartyDM] AI response received, length:', assistantContent?.length || 0);
 
-        if (assistantContent) {
-          const { error: aiInsertErr } = await (supabase.from('party_dm_messages') as any).insert({
+        if (assistantContent?.trim()) {
+          await insertPartyMessage({
             party_id: partyId,
             role: 'assistant',
             content: assistantContent,
             sender_user_id: null,
             sender_name: 'DM',
           });
-          if (aiInsertErr) console.error('[PartyDM] Failed to insert AI response:', aiInsertErr);
-        }
 
-        // Trigger summary and auto-save
-        if (assistantContent) {
+          // Trigger summary and auto-save
           const updatedMessages = [...messages,
             { id: '', party_id: partyId, role: 'user' as const, content: combined, sender_user_id: user.id, sender_name: 'Party', created_at: '' },
             { id: '', party_id: partyId, role: 'assistant' as const, content: assistantContent, sender_user_id: null, sender_name: 'DM', created_at: '' },
@@ -965,9 +994,11 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         .eq('state_type', 'dm_session');
 
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') return;
-      console.error('Party DM generation error:', error);
-      toast.error(error instanceof Error ? error.message : 'Generation failed');
+      const isAbort = error instanceof Error && error.name === 'AbortError';
+      if (!isAbort) {
+        console.error('Party DM generation error:', error);
+        toast.error(error instanceof Error ? error.message : 'Generation failed');
+      }
 
       await (supabase.from('party_shared_state') as any)
         .update({ state_data: { ...sessionConfig, isGenerating: false } })
