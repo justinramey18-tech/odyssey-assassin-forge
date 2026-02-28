@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Menu, Cloud, CloudOff, Loader2, LogIn, User, Settings, Trash2, Save, Check,
-  Coins, Wand2, Package, Heart, Swords, Sparkles, Edit3, X
+  Coins, Wand2, Package, Heart, Swords, Sparkles, Edit3, X, Download, Upload
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
@@ -26,6 +26,7 @@ import { useCloudSave, CloudSave, CloudSavePreview } from '@/hooks/use-cloud-sav
 import { SaveData } from '@/hooks/use-auto-save';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { exportSaveToFile, importSaveFromFile } from '@/lib/save-export';
 
 interface CharacterSavesDrawerProps {
   isOpen: boolean;
@@ -105,6 +106,8 @@ export function CharacterSavesDrawer({
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [quickSaving, setQuickSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const importFileRef = useRef<HTMLInputElement>(null);
 
   const formatLastSync = useMemo(() => {
     if (!lastCloudSyncTime) return null;
@@ -181,6 +184,49 @@ export function CharacterSavesDrawer({
       toast.success('Save deleted');
     }
     setDeleteConfirmId(null);
+  };
+
+  const handleExport = async (save: CloudSave) => {
+    const data = await loadFromCloud(save.id);
+    if (data) {
+      exportSaveToFile(data, save.character_name || save.save_name);
+      toast.success('Save exported!');
+    } else {
+      toast.error('Failed to export save');
+    }
+  };
+
+  const handleImportClick = () => {
+    importFileRef.current?.click();
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Reset input so same file can be re-selected
+    e.target.value = '';
+
+    setImporting(true);
+    try {
+      const result = await importSaveFromFile(file);
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      // Load the imported data into the app
+      const saveData: SaveData = {
+        ...result.data,
+        savedAt: new Date().toISOString(),
+        version: 1,
+      };
+      onLoadSave(saveData);
+      toast.success(`Imported "${result.saveName}"`);
+      onOpenChange(false);
+    } catch {
+      toast.error('Failed to import save');
+    } finally {
+      setImporting(false);
+    }
   };
 
   const formatDate = (dateStr: string) => {
@@ -421,6 +467,19 @@ export function CharacterSavesDrawer({
                                         <Button
                                           size="icon"
                                           variant="ghost"
+                                          className="h-7 w-7"
+                                          onClick={() => handleExport(save)}
+                                        >
+                                          <Download className="w-3.5 h-3.5" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top">Export</TooltipContent>
+                                    </Tooltip>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
                                           className="h-7 w-7 text-destructive hover:text-destructive"
                                           onClick={() => setDeleteConfirmId(save.id)}
                                         >
@@ -444,7 +503,29 @@ export function CharacterSavesDrawer({
           </ScrollArea>
 
           {/* Footer */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border/50 bg-background/90 backdrop-blur-sm">
+          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border/50 bg-background/90 backdrop-blur-sm space-y-2">
+            <input
+              ref={importFileRef}
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={handleImportFile}
+            />
+            {isAuthenticated && (
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={handleImportClick}
+                disabled={importing}
+              >
+                {importing ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4 mr-2" />
+                )}
+                Import Save from File
+              </Button>
+            )}
             <Button
               variant="outline"
               className="w-full"
