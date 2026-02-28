@@ -939,6 +939,20 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
             onClick={() => setQueueDrawerOpen(prev => !prev)}
             className="w-full flex items-center gap-1.5 px-3 py-1.5 hover:bg-white/5 transition-colors"
             style={{ touchAction: 'manipulation' }}
+            onTouchStart={(e) => {
+              const touch = e.touches[0];
+              (e.currentTarget as any)._swipeStartY = touch.clientY;
+            }}
+            onTouchEnd={(e) => {
+              const startY = (e.currentTarget as any)._swipeStartY;
+              if (startY == null) return;
+              const diffY = e.changedTouches[0].clientY - startY;
+              if (diffY < -30 && !queueDrawerOpen) {
+                e.preventDefault();
+                setQueueDrawerOpen(true);
+              }
+              (e.currentTarget as any)._swipeStartY = null;
+            }}
           >
             <span className="text-[10px] text-white/50 uppercase tracking-wider font-semibold">Round Queue</span>
             <span className="text-[10px] text-white/30">
