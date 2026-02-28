@@ -1,52 +1,44 @@
 
 
-## Plan: Fix Mobile Full-Screen & Keyboard Visibility Issues
+## Root Cause
 
-### Problem
-1. The DevTools panel (after password unlock) and other settings content don't fill the mobile screen properly — the `max-h-[70vh]` on the content wrapper constrains height inside an already-constrained `h-[90vh]` drawer, leaving dead space.
-2. The password input field gets hidden behind the mobile keyboard when tapped.
+Vaul (the drawer library) has a feature called `repositionInputs` (enabled by default) that **directly modifies the drawer's inline `style.height`** when a text input is focused and the mobile keyboard opens. Here's what happens step by step:
 
-### Changes
+1. User opens Settings → drawer renders at `h-[90vh]` — looks correct
+2. User navigates to R&D Developer Tools → password input appears
+3. User taps the password input → mobile keyboard opens
+4. Vaul's `onVisualViewportChange` handler fires, caches the drawer height as `initialDrawerHeight`, then sets a new smaller `style.height` inline to fit above the keyboard
+5. User submits password or keyboard closes → Vaul tries to restore `initialDrawerHeight`, but the inline `style.height` now **permanently overrides** the CSS class `h-[90vh]`
+6. The drawer is now stuck at a reduced height — the "cut off" you see in the screenshot
+7. Navigating back to tab menu or other tabs doesn't fix it because the inline style persists on the same DOM element
 
-#### 1. `src/components/settings/SettingsModal.tsx` — Remove `max-h-[70vh]` on mobile
-The mobile drawer is already `h-[90vh]` with its own scroll container (`overflow-y-auto`). The inner `max-h-[70vh]` (designed for the desktop dialog) clips content unnecessarily on mobile. The `SettingsContent` wrapper `max-h-[70vh]` should only apply on desktop.
+This only affects DevTools because it's the only settings tab with a text input that triggers the keyboard.
 
-**Approach:** Wrap the content area in a container that removes the height cap. The simplest fix is to add a CSS override in the mobile drawer's content `div` that neutralizes the `max-h-[70vh]` from `SettingsContent` returns. Add `[&>div]:max-h-none` to the wrapper `div` around `<SettingsContent>` in the mobile branch (line ~247).
+## Fix — 2 files
 
-Change the mobile content wrapper from:
+### 1. `src/components/settings/SettingsModal.tsx` (line 213-214)
+
+Add `repositionInputs={false}` to the Drawer and change to 100dvh:
+
 ```tsx
-<div className="p-4 w-full max-w-full">
-```
-to:
-```tsx
-<div className="p-4 w-full max-w-full [&>div]:max-h-none">
-```
+// Before
+<Drawer open={open} onOpenChange={handleOpenChange}>
+  <DrawerContent className="h-[90vh] max-h-[90vh] overflow-x-hidden">
 
-This uses Tailwind's child selector to override the `max-h-[70vh]` that each tab's return wrapper sets, allowing content to flow naturally within the drawer's own scroll area.
-
-#### 2. `src/components/settings/DevToolsPanel.tsx` — Fix keyboard visibility for password input
-Add `scroll-margin-bottom` and use the `onFocus` event to scroll the input into view when the mobile keyboard appears.
-
-Change the password `<Input>` (line ~271-276) to add an `onFocus` handler:
-```tsx
-<Input
-  type="password"
-  placeholder="Password"
-  value={password}
-  onChange={(e) => { setPassword(e.target.value); setError(false); }}
-  className={cn("scroll-mt-20", error ? 'border-destructive' : '')}
-  autoFocus
-  onFocus={(e) => {
-    setTimeout(() => {
-      e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 300);
-  }}
-/>
+// After
+<Drawer open={open} onOpenChange={handleOpenChange} repositionInputs={false}>
+  <DrawerContent className="h-[100dvh] max-h-[100dvh] overflow-x-hidden">
 ```
 
-The 300ms delay allows the mobile keyboard to finish animating before scrolling.
+- `repositionInputs={false}` prevents Vaul from modifying the drawer's height when the keyboard opens, using native browser scroll behavior instead ("stability first")
+- `100dvh` makes the drawer truly full-screen per user preference
+
+### 2. `src/components/settings/SettingsContent.tsx` (line 648)
+
+Remove `max-h-[70vh]` from the devTools wrapper since the parent is now 100dvh and the mobile override `[&>div]:max-h-none` already neutralizes it — but on desktop the dialog still needs it. Keep the pattern consistent with other tabs:
+
+No change needed here — the existing `[&>div]:max-h-none` on the mobile wrapper (line 242) already handles this correctly.
 
 ### Files Modified
-- `src/components/settings/SettingsModal.tsx` — add `[&>div]:max-h-none` to mobile content wrapper
-- `src/components/settings/DevToolsPanel.tsx` — add `onFocus` scroll-into-view on password input
+- `src/components/settings/SettingsModal.tsx` — add `repositionInputs={false}`, change to `100dvh`
 
