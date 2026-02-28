@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { RotateCcw, Map, FolderOpen, BookOpen, Globe, Zap, Trash2, Brain, Cpu, Gem } from 'lucide-react';
+import { RotateCcw, Map, FolderOpen, BookOpen, Globe, Zap, Trash2, Brain, Cpu } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import {
@@ -36,10 +36,6 @@ interface DMToolsDrawerProps {
   onEmpyreanPrompts?: () => void;
   selectedModel?: string;
   onModelChange?: (modelId: string) => void;
-  /** Momo easter egg: show Geralt companion button */
-  isMomo?: boolean;
-  onGeraltOpen?: () => void;
-  onGeraltStones?: () => void;
 }
 
 export function DMToolsDrawer({
@@ -62,9 +58,6 @@ export function DMToolsDrawer({
   onEmpyreanPrompts,
   selectedModel,
   onModelChange,
-  isMomo,
-  onGeraltOpen,
-  onGeraltStones,
 }: DMToolsDrawerProps) {
   const [showRetakeConfirm, setShowRetakeConfirm] = useState(false);
 
@@ -138,22 +131,6 @@ export function DMToolsDrawer({
             badgeColor="bg-purple-600"
             onClick={() => closeAndRun(onWorldState)}
           />
-
-          {/* Geralt Companion (momo only) */}
-          {isMomo && onGeraltOpen && (
-            <ToolRow
-              icon={<span className="text-sm">🦉</span>}
-              label="Geralt"
-              onClick={() => closeAndRun(onGeraltOpen)}
-            />
-          )}
-          {isMomo && onGeraltStones && (
-            <ToolRow
-              icon={<Gem className="w-4 h-4" />}
-              label="Geralt's Stones"
-              onClick={() => closeAndRun(onGeraltStones)}
-            />
-          )}
 
           {/* AI Model Selector */}
           {selectedModel !== undefined && onModelChange && (

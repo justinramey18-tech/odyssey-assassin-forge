@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import {
   Heart, Shield, Plus, Minus, X, Zap, Skull,
-  Swords, Star, Smile, Frown, Meh, AlertTriangle, Dices,
+  Swords, Star, Smile, Frown, Meh, AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -54,36 +54,11 @@ const MOOD_CONFIG = {
   enraged: { icon: AlertTriangle, label: 'Enraged', color: 'text-rose-400 border-rose-500/40' },
 };
 
-interface AttackDef {
-  name: string;
-  bonus: string;
-  damage: string;
-  desc: string;
-  diceExpr?: string; // e.g. '1d10+5' for rolling
-  hitDice?: string;  // e.g. '1d20+7' for attack roll
-}
-
-const ATTACKS: AttackDef[] = [
-  { name: 'Beak', bonus: '+7', damage: '1d10 + 5 piercing', desc: 'Melee Weapon Attack', diceExpr: '1d10+5', hitDice: '1d20+7' },
-  { name: 'Claws', bonus: '+7', damage: '2d8 + 5 slashing', desc: 'Melee Weapon Attack', diceExpr: '2d8+5', hitDice: '1d20+7' },
+const ATTACKS = [
+  { name: 'Beak', bonus: '+7', damage: '1d10 + 5 piercing', desc: 'Melee Weapon Attack' },
+  { name: 'Claws', bonus: '+7', damage: '2d8 + 5 slashing', desc: 'Melee Weapon Attack' },
   { name: 'Bear Hug', bonus: '—', damage: 'Grapple (DC 15)', desc: 'On Claws hit, target is grappled' },
 ];
-
-// Simple dice roller
-function rollDice(expr: string): { total: number; rolls: number[]; expression: string } {
-  // Parse expressions like '1d10+5', '2d8+5', '1d20+7'
-  const match = expr.match(/^(\d+)d(\d+)([+-]\d+)?$/);
-  if (!match) return { total: 0, rolls: [], expression: expr };
-  const count = parseInt(match[1]);
-  const sides = parseInt(match[2]);
-  const mod = parseInt(match[3] || '0');
-  const rolls: number[] = [];
-  for (let i = 0; i < count; i++) {
-    rolls.push(Math.floor(Math.random() * sides) + 1);
-  }
-  const total = rolls.reduce((a, b) => a + b, 0) + mod;
-  return { total, rolls, expression: expr };
-}
 
 // ── Helpers ──
 
@@ -130,7 +105,6 @@ interface GeraltCompanionScreenProps {
 export function GeraltCompanionScreen({ open, onClose, characterId }: GeraltCompanionScreenProps) {
   const [state, setState] = useState<GeraltState>(() => loadState(characterId));
   const [hpDelta, setHpDelta] = useState('');
-  const [lastRoll, setLastRoll] = useState<{ attack: string; type: 'hit' | 'damage'; total: number; rolls: number[]; expr: string; isNat20?: boolean } | null>(null);
 
   // Load on characterId change
   useEffect(() => {
@@ -183,7 +157,7 @@ export function GeraltCompanionScreen({ open, onClose, characterId }: GeraltComp
         {/* Dynamic background image */}
         <div className="absolute inset-0 z-0 transition-opacity duration-700">
           <img src={backgroundImage} alt="" className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/15 to-black/35" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/25 to-black/50" />
         </div>
         <ScrollArea className="h-full relative z-10">
           <div className="p-4 space-y-5">
@@ -209,7 +183,7 @@ export function GeraltCompanionScreen({ open, onClose, characterId }: GeraltComp
 
             {/* ── HP Widget ── */}
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-              className="rounded-xl border border-amber-800/40 bg-black/15 backdrop-blur-sm p-4 space-y-3">
+              className="rounded-xl border border-amber-800/40 bg-black/30 p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {isDown ? <Skull className="w-5 h-5 text-rose-400" /> : <Heart className={cn("w-5 h-5", hpColor)} />}
@@ -265,7 +239,7 @@ export function GeraltCompanionScreen({ open, onClose, characterId }: GeraltComp
 
             {/* ── Level / XP ── */}
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-              className="rounded-xl border border-amber-800/40 bg-black/15 backdrop-blur-sm p-4 space-y-3">
+              className="rounded-xl border border-amber-800/40 bg-black/30 p-4 space-y-3">
               <div className="flex items-center gap-2 mb-1">
                 <Star className="w-5 h-5 text-amber-400" />
                 <span className="font-cinzel text-sm text-muted-foreground uppercase tracking-wider">Level & Experience</span>
@@ -289,7 +263,7 @@ export function GeraltCompanionScreen({ open, onClose, characterId }: GeraltComp
 
             {/* ── Ability Scores ── */}
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
-              className="rounded-xl border border-amber-800/40 bg-black/15 backdrop-blur-sm p-4 space-y-3">
+              className="rounded-xl border border-amber-800/40 bg-black/30 p-4 space-y-3">
               <span className="font-cinzel text-sm text-muted-foreground uppercase tracking-wider">Ability Scores</span>
               <div className="grid grid-cols-3 gap-2">
                 {(Object.entries(state.abilities) as [keyof GeraltState['abilities'], number][]).map(([key, val]) => (
@@ -304,71 +278,21 @@ export function GeraltCompanionScreen({ open, onClose, characterId }: GeraltComp
 
             {/* ── Attacks / Abilities ── */}
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-              className="rounded-xl border border-amber-800/40 bg-black/15 backdrop-blur-sm p-4 space-y-3">
+              className="rounded-xl border border-amber-800/40 bg-black/30 p-4 space-y-3">
               <div className="flex items-center gap-2 mb-1">
                 <Swords className="w-5 h-5 text-rose-400" />
                 <span className="font-cinzel text-sm text-muted-foreground uppercase tracking-wider">Attacks</span>
               </div>
-              {/* Roll result banner */}
-              {lastRoll && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className={cn(
-                    "p-3 rounded-lg border text-center",
-                    lastRoll.isNat20
-                      ? "bg-amber-500/20 border-amber-400/50"
-                      : "bg-black/20 border-border/30"
-                  )}
-                >
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                    {lastRoll.attack} — {lastRoll.type === 'hit' ? 'Attack Roll' : 'Damage Roll'}
-                  </p>
-                  <p className={cn(
-                    "text-2xl font-bold",
-                    lastRoll.isNat20 ? "text-amber-300" : lastRoll.type === 'hit' ? "text-amber-400" : "text-rose-400"
-                  )}>
-                    {lastRoll.isNat20 && '✦ NAT 20! ✦ '}
-                    {lastRoll.total}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    [{lastRoll.rolls.join(', ')}] ({lastRoll.expr})
-                  </p>
-                </motion.div>
-              )}
               {ATTACKS.map(atk => (
-                <div key={atk.name} className="flex items-center justify-between p-2 rounded-lg border border-border/30 bg-black/10 gap-2">
-                  <div className="flex-1 min-w-0">
+                <div key={atk.name} className="flex items-center justify-between p-2 rounded-lg border border-border/30 bg-black/20">
+                  <div>
                     <p className="text-sm font-semibold text-foreground">{atk.name}</p>
                     <p className="text-[10px] text-muted-foreground">{atk.desc}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-xs text-amber-400">{atk.bonus} to hit</span>
-                      <span className="text-xs text-rose-400">{atk.damage}</span>
-                    </div>
                   </div>
-                  {(atk.hitDice || atk.diceExpr) && (
-                    <div className="flex flex-col gap-1 shrink-0">
-                      {atk.hitDice && (
-                        <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1 text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
-                          onClick={() => {
-                            const result = rollDice(atk.hitDice!);
-                            const isNat20 = result.rolls.length === 1 && result.rolls[0] === 20;
-                            setLastRoll({ attack: atk.name, type: 'hit', total: result.total, rolls: result.rolls, expr: result.expression, isNat20 });
-                          }}>
-                          <Dices className="w-3 h-3" /> Hit
-                        </Button>
-                      )}
-                      {atk.diceExpr && (
-                        <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1 text-rose-400 border-rose-500/30 hover:bg-rose-500/10"
-                          onClick={() => {
-                            const result = rollDice(atk.diceExpr!);
-                            setLastRoll({ attack: atk.name, type: 'damage', total: result.total, rolls: result.rolls, expr: result.expression });
-                          }}>
-                          <Dices className="w-3 h-3" /> Dmg
-                        </Button>
-                      )}
-                    </div>
-                  )}
+                  <div className="text-right">
+                    <p className="text-xs text-amber-400">{atk.bonus} to hit</p>
+                    <p className="text-xs text-rose-400">{atk.damage}</p>
+                  </div>
                 </div>
               ))}
               {/* Traits */}
@@ -380,7 +304,7 @@ export function GeraltCompanionScreen({ open, onClose, characterId }: GeraltComp
 
             {/* ── Conditions ── */}
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
-              className="rounded-xl border border-amber-800/40 bg-black/15 backdrop-blur-sm p-4 space-y-3">
+              className="rounded-xl border border-amber-800/40 bg-black/30 p-4 space-y-3">
               <span className="font-cinzel text-sm text-muted-foreground uppercase tracking-wider">Conditions</span>
               <div className="flex flex-wrap gap-2">
                 {CONDITIONS.map(c => {
@@ -400,7 +324,7 @@ export function GeraltCompanionScreen({ open, onClose, characterId }: GeraltComp
 
             {/* ── Mood / Loyalty ── */}
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
-              className="rounded-xl border border-amber-800/40 bg-black/15 backdrop-blur-sm p-4 space-y-3">
+              className="rounded-xl border border-amber-800/40 bg-black/30 p-4 space-y-3">
               <span className="font-cinzel text-sm text-muted-foreground uppercase tracking-wider">Mood & Loyalty</span>
               <div className="flex gap-2">
                 {MOODS.map(m => {
@@ -434,7 +358,7 @@ export function GeraltCompanionScreen({ open, onClose, characterId }: GeraltComp
 
             {/* ── Notes ── */}
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
-              className="rounded-xl border border-amber-800/40 bg-black/15 backdrop-blur-sm p-4 space-y-2">
+              className="rounded-xl border border-amber-800/40 bg-black/30 p-4 space-y-2">
               <span className="font-cinzel text-sm text-muted-foreground uppercase tracking-wider">Notes</span>
               <Textarea
                 placeholder="Jot down notes about Geralt..."
