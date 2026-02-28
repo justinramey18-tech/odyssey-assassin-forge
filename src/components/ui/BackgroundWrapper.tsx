@@ -4,6 +4,8 @@ import { cn } from '@/lib/utils';
 interface BackgroundWrapperProps {
   imagePath: string;
   videoSrc?: string;
+  /** Scale factor to crop letterboxed videos (e.g. 1.35 to zoom past black bars) */
+  videoScale?: number;
   overlayOpacity?: number;
   tintColor?: 'red' | 'amber' | 'purple' | 'cyan' | 'green' | 'indigo';
   tintOpacity?: number;
@@ -32,6 +34,7 @@ const DEFAULT_FALLBACK_GRADIENT = 'linear-gradient(135deg, #1a1a2e 0%, #16213e 5
 export function BackgroundWrapper({
   imagePath,
   videoSrc,
+  videoScale,
   overlayOpacity = 60,
   tintColor,
   tintOpacity = 20,
@@ -156,9 +159,10 @@ export function BackgroundWrapper({
             'absolute inset-0 w-full h-full object-cover z-0 transition-opacity duration-500',
             videoReady ? 'opacity-100' : 'opacity-0'
           )}
-          style={enablePerformanceHints ? {
-            willChange: 'transform',
-          } : undefined}
+          style={{
+            ...(enablePerformanceHints && { willChange: 'transform' }),
+            ...(videoScale && { transform: `scale(${videoScale})` }),
+          }}
           aria-hidden="true"
           src={videoSrc}
         />
