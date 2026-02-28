@@ -166,8 +166,27 @@ export default function AICreationAssistant() {
 
           {error && (
             <div className="flex justify-center">
-              <div className="bg-destructive/20 border border-destructive/40 backdrop-blur-sm rounded-lg px-3 py-2 text-sm text-destructive shadow-lg">
-                {error}
+              <div className="bg-destructive/20 border border-destructive/40 backdrop-blur-sm rounded-lg px-4 py-3 text-sm text-destructive shadow-lg max-w-[90%] space-y-2">
+                <p className="font-display font-bold">⚠️ {error}</p>
+                {(error.includes('too large') || error.includes('too complex') || error.includes('cut off')) && (
+                  <div className="text-xs text-destructive/80 space-y-1">
+                    <p>💡 Tips to fix this:</p>
+                    <ul className="list-disc list-inside space-y-0.5">
+                      <li>Reduce homebrew items (max 5 per category)</li>
+                      <li>Keep descriptions short and mechanical</li>
+                      <li>Try "Quick & Dirty" mode for a faster build</li>
+                      <li>Start a new session with the button below</li>
+                    </ul>
+                    <Button
+                      onClick={() => { reset(); hasSentGreeting.current = false; }}
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 w-full border-destructive/40 text-destructive hover:bg-destructive/10"
+                    >
+                      🔄 Start Fresh
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           )}
