@@ -589,7 +589,7 @@ const Index = () => {
 
   // Auth & Party system
   const { user, isAuthenticated, loading: authLoading } = useAuth();
-  const { loadFromCloud, saveToCloud, renameSave } = useCloudSave(user?.id);
+  const { loadFromCloud, saveToCloud, renameSave, deleteCloudSave } = useCloudSave(user?.id);
 
   // ── Roster gate: redirect unauthenticated users to /roster ──
   useEffect(() => {
@@ -2193,8 +2193,14 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
 
 
   // App Reset Handler - clears all state and localStorage
-  const handleResetApp = () => {
+  const handleResetApp = async () => {
     try {
+      // 0. Delete cloud save if one is active
+      const cloudSaveId = activeCloudSaveId || localStorage.getItem('odyssey-active-cloud-save-id');
+      if (cloudSaveId) {
+        console.log('[AppReset] Deleting cloud save:', cloudSaveId);
+        await deleteCloudSave(cloudSaveId);
+      }
       // 1. Reset all React state FIRST (prevents hooks reading stale data)
       
       // Reset character to default
@@ -2249,6 +2255,10 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       // Ensure intro splash flag is also cleared for true first-launch experience
       localStorage.removeItem('odyssey-intro-seen');
 
+      // Clear active cloud save ID
+      localStorage.removeItem('odyssey-active-cloud-save-id');
+      setActiveCloudSaveId(null);
+
       // 4. Success feedback
       toast({
         title: "🔄 App Reset Complete",
@@ -2256,6 +2266,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         className: "border-blue-500 bg-blue-500/10",
         duration: 4000,
       });
+
+      // 5. Navigate to roster (will redirect to character creation since no saves exist)
+      routerNavigate('/roster', { replace: true });
 
     } catch (error) {
       console.error('[AppReset] Reset failed:', error);
