@@ -743,7 +743,11 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   }, []);
 
   const generateResponse = useCallback(async () => {
-    if (!partyId || !user || !sessionConfig || isGenerating) return;
+    console.log('[PartyDM] generateResponse called', { partyId: !!partyId, user: !!user, sessionConfig: !!sessionConfig, isGenerating, promptCount: currentPrompts.length });
+    if (!partyId || !user || !sessionConfig || isGenerating) {
+      console.warn('[PartyDM] generateResponse early return', { partyId: !!partyId, user: !!user, sessionConfig: !!sessionConfig, isGenerating });
+      return;
+    }
     if (currentPrompts.length === 0) {
       toast.error('No prompts to generate from');
       return;
@@ -751,13 +755,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
     setIsGenerating(true);
 
-    await (supabase.from('party_shared_state') as any)
+    const { error: stateErr } = await (supabase.from('party_shared_state') as any)
       .update({ state_data: { ...sessionConfig, isGenerating: true } })
       .eq('party_id', partyId)
       .eq('state_type', 'dm_session');
+    if (stateErr) console.error('[PartyDM] Failed to set isGenerating state:', stateErr);
 
     abortRef.current = new AbortController();
-
     try {
       if (isSplitActive && splitState) {
         // === SPLIT MODE: Generate two sequential responses ===
@@ -895,13 +899,18 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           .map(p => `[${p.character_name}]: ${p.prompt}`)
           .join('\n');
 
-        await (supabase.from('party_dm_messages') as any).insert({
+        console.log('[PartyDM] Inserting combined prompt into chat:', combined.slice(0, 100));
+        const { error: insertErr } = await (supabase.from('party_dm_messages') as any).insert({
           party_id: partyId,
           role: 'user',
           content: combined,
           sender_user_id: user.id,
           sender_name: 'Party',
         });
+        if (insertErr) {
+          console.error('[PartyDM] Failed to insert user message:', insertErr);
+          throw new Error(`Failed to save prompt: ${insertErr.message}`);
+        }
 
         const partyMembersSummary = buildPartyMembersGuide();
         const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
@@ -912,16 +921,19 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           `\n\n## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
         ].filter(Boolean).join('\n\n');
 
+        console.log('[PartyDM] Calling AI with', apiMessages.length, 'messages');
         const assistantContent = await streamAIResponse(apiMessages, guides, abortRef.current!.signal);
+        console.log('[PartyDM] AI response received, length:', assistantContent?.length || 0);
 
         if (assistantContent) {
-          await (supabase.from('party_dm_messages') as any).insert({
+          const { error: aiInsertErr } = await (supabase.from('party_dm_messages') as any).insert({
             party_id: partyId,
             role: 'assistant',
             content: assistantContent,
             sender_user_id: null,
             sender_name: 'DM',
           });
+          if (aiInsertErr) console.error('[PartyDM] Failed to insert AI response:', aiInsertErr);
         }
 
         // Trigger summary and auto-save
