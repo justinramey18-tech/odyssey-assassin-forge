@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { isMomoEasterEgg } from '@/lib/easter-eggs';
+import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { loadSelectedModel, saveSelectedModel, getModelLabel } from '@/lib/dm-models';
 import { formatUsage, formatCostShort } from '@/lib/token-usage';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -513,6 +515,10 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     }
   }, [activeCampaignId, addMediaMessage, toast]);
 
+  // Geralt widget state (momo easter egg)
+  const [showGeraltWidget, setShowGeraltWidget] = useState(false);
+  const isMomo = useMemo(() => isMomoEasterEgg(characterName), [characterName]);
+
   // Bottom nav tab handler
   const handleNavTabChange = useCallback((tab: DMNavTab) => {
     if (tab === 'prompts') {
@@ -521,6 +527,10 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     }
     if (tab === 'actions') {
       setQuickActionsOpen(true);
+      return;
+    }
+    if (tab === 'geralt') {
+      setShowGeraltWidget(true);
       return;
     }
     // Dice tab toggles
@@ -931,6 +941,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         isExpanded={navExpanded}
         onExpandedChange={setNavExpanded}
         disabled={isLoading}
+        showGeralt={isMomo}
         diceContent={showDiceContent ? (
           <DMDiceRoller
             characterContext={characterContext}
@@ -939,6 +950,15 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           />
         ) : undefined}
       />
+
+      {/* Geralt Gameplay Widget (momo only) */}
+      {isMomo && (
+        <GeraltGameplayWidget
+          open={showGeraltWidget}
+          onClose={() => setShowGeraltWidget(false)}
+          characterId={userId || 'default'}
+        />
+      )}
 
       {/* Tools Drawer */}
       <DMToolsDrawer

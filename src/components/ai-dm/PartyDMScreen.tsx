@@ -1,4 +1,6 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { isMomoEasterEgg } from '@/lib/easter-eggs';
+import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, MessageSquare, Plus, Save, Volume2, VolumeX, GitBranch, Bell, BellOff } from 'lucide-react';
 import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer } from './PartySplitUI';
@@ -543,6 +545,10 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
     setInput(prev => prev ? `${prev}\n${prompt}` : prompt);
   }, []);
 
+  // Geralt widget state (momo easter egg)
+  const [showGeraltWidget, setShowGeraltWidget] = useState(false);
+  const isMomo = useMemo(() => isMomoEasterEgg(characterContext?.name || ''), [characterContext?.name]);
+
   // Bottom nav tab handler
   const handleNavTabChange = useCallback((tab: DMNavTab) => {
     if (tab === 'prompts') {
@@ -551,6 +557,10 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
     }
     if (tab === 'actions') {
       setQuickActionsOpen(true);
+      return;
+    }
+    if (tab === 'geralt') {
+      setShowGeraltWidget(true);
       return;
     }
     // Dice tab toggles
@@ -1297,6 +1307,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
         isExpanded={navExpanded}
         onExpandedChange={setNavExpanded}
         disabled={partyDm.isGenerating}
+        showGeralt={isMomo}
         diceContent={showDiceContent ? (
           <DMDiceRoller
             characterContext={characterContext!}
@@ -1305,6 +1316,15 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
           />
         ) : undefined}
       />
+
+      {/* Geralt Gameplay Widget (momo only) */}
+      {isMomo && (
+        <GeraltGameplayWidget
+          open={showGeraltWidget}
+          onClose={() => setShowGeraltWidget(false)}
+          characterId={currentUserId || 'default'}
+        />
+      )}
 
       {/* Quick Actions Drawer */}
       <PartyDMQuickActions

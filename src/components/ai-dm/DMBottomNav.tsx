@@ -1,9 +1,9 @@
 import { useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Dices, Gem, ListChecks } from 'lucide-react';
+import { Dices, Gem, ListChecks, Bird } from 'lucide-react';
 
-export type DMNavTab = 'dice' | 'prompts' | 'actions';
+export type DMNavTab = 'dice' | 'prompts' | 'actions' | 'geralt';
 
 interface DMBottomNavProps {
   activeTab: DMNavTab | null;
@@ -13,21 +13,27 @@ interface DMBottomNavProps {
   disabled?: boolean;
   /** Rendered below tabs when dice tab is active */
   diceContent?: React.ReactNode;
+  /** Show the Geralt tab (momo easter egg) */
+  showGeralt?: boolean;
 }
 
-const tabs = [
+const BASE_TABS = [
   { id: 'dice' as DMNavTab, label: 'DICE', icon: Dices, color: 'text-amber-400', activeBg: 'bg-amber-500/10' },
   { id: 'prompts' as DMNavTab, label: 'RP PROMPTS', icon: Gem, color: 'text-yellow-400', activeBg: 'bg-yellow-500/10' },
   { id: 'actions' as DMNavTab, label: 'ACTIONS', icon: ListChecks, color: 'text-emerald-400', activeBg: 'bg-emerald-500/10' },
 ];
 
+const GERALT_TAB = { id: 'geralt' as DMNavTab, label: 'GERALT', icon: Bird, color: 'text-pink-400', activeBg: 'bg-pink-500/10' };
+
 const activeIndicatorColors: Record<DMNavTab, string> = {
   dice: 'bg-amber-500',
   prompts: 'bg-yellow-500',
   actions: 'bg-emerald-500',
+  geralt: 'bg-pink-500',
 };
 
-export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent }: DMBottomNavProps) {
+export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, showGeralt }: DMBottomNavProps) {
+  const tabs = showGeralt ? [...BASE_TABS, GERALT_TAB] : BASE_TABS;
   const touchStartY = useRef(0);
   const touchStartTime = useRef(0);
 
