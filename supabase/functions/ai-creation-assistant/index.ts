@@ -311,6 +311,20 @@ serve(async (req) => {
       content: m.content,
     }));
 
+    // Estimate input size and reject if too large (prevent context window overflow)
+    const totalInputChars = SYSTEM_PROMPT.length + userMessages.reduce((sum: number, m: { content: string }) => sum + m.content.length, 0);
+    const estimatedTokens = Math.ceil(totalInputChars / 3.5); // ~3.5 chars per token for mixed content
+    const MAX_INPUT_TOKENS = 150000;
+
+    if (estimatedTokens > MAX_INPUT_TOKENS) {
+      return new Response(
+        JSON.stringify({
+          error: "Your conversation has grown too large for the AI to process. Try starting a new session with fewer homebrew items (max 5 per category, 15 total). Use 'Quick & Dirty' mode for faster builds!"
+        }),
+        { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const response = await fetch(
       "https://api.anthropic.com/v1/messages",
       {
