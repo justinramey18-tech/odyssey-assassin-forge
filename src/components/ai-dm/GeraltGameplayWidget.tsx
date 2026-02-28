@@ -197,7 +197,7 @@ export function GeraltGameplayWidget({ open, onClose, characterId, onHpChange, o
       {/* Dynamic background */}
       <div className="absolute inset-0 z-0 transition-opacity duration-700">
         <img src={backgroundImage} alt="" className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/15 to-black/35" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-black/80" />
       </div>
 
         <div className="relative z-10 flex flex-col h-full">
@@ -480,10 +480,10 @@ export function GeraltGameplayWidget({ open, onClose, characterId, onHpChange, o
                       return (
                         <AccordionItem key={cat.id} value={cat.id} className="border-0">
                           <AccordionTrigger
-                            className="w-full flex items-center gap-3 p-3 rounded-lg hover:no-underline transition-all duration-200"
+                            className="w-full flex items-center gap-3 p-3 rounded-lg hover:no-underline transition-all duration-200 backdrop-blur-sm"
                             style={{
-                              backgroundColor: `${cat.color}15`,
-                              border: `1px solid ${cat.color}40`,
+                              backgroundColor: `${cat.color}25`,
+                              border: `1px solid ${cat.color}50`,
                             }}
                           >
                             <span
@@ -504,9 +504,9 @@ export function GeraltGameplayWidget({ open, onClose, characterId, onHpChange, o
                             </span>
                           </AccordionTrigger>
 
-                          <AccordionContent className="rounded-b-lg border border-t-0 p-2 space-y-1" style={{ borderColor: `${cat.color}40` }}>
+                          <AccordionContent className="rounded-b-lg border border-t-0 p-2 space-y-1 bg-black/40 backdrop-blur-sm" style={{ borderColor: `${cat.color}40` }}>
                             {prompts.map(prompt => (
-                              <div key={prompt.id} className="flex items-start gap-2 p-2.5 rounded-lg bg-white/5 hover:bg-white/10 transition-all group">
+                              <div key={prompt.id} className="flex items-start gap-2 p-2.5 rounded-lg bg-black/30 hover:bg-black/40 transition-all group">
                                 <div className="flex-1 min-w-0 py-1">
                                   <div className="flex items-center gap-2">
                                     <span className="text-base shrink-0">{prompt.icon}</span>
