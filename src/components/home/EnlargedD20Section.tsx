@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useMemo } from 'react';
 import { AnimatedD20Trigger } from '@/components/diceRoller';
 import { PanelLeft, Map as MapIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -14,6 +15,8 @@ interface EnlargedD20SectionProps {
 
 export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompanionClick, companionHpPct }: EnlargedD20SectionProps) {
   // Determine breathing animation class based on companion HP
+  const isInjured = companionHpPct !== undefined && companionHpPct <= 30;
+
   const breatheClass = companionHpPct !== undefined
     ? companionHpPct > 80 ? 'animate-breathe-slow'
       : companionHpPct > 30 ? 'animate-breathe-medium'
@@ -32,6 +35,18 @@ export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompan
       : companionHpPct > 30 ? 'ring-orange-400/20'
       : 'ring-red-400/20'
     : 'ring-amber-400/20';
+
+  // Generate stable ember particles for injured state
+  const embers = useMemo(() => 
+    Array.from({ length: 8 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 80 - 40,       // spread around button
+      delay: Math.random() * 3,
+      duration: 2 + Math.random() * 2,
+      size: 2 + Math.random() * 3,
+      drift: (Math.random() - 0.5) * 20, // horizontal drift
+    })),
+  []);
 
   return (
     <motion.div
@@ -52,23 +67,51 @@ export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompan
           transition={{ delay: 0.7, duration: 0.3 }}
           className="flex flex-col items-center gap-2"
         >
-          <button
-            onClick={onCompanionClick}
-            className={cn(
-              "w-20 h-20 rounded-2xl overflow-hidden",
-              `border-2 ${borderColor}`,
-              "transition-all duration-300",
-              "hover:scale-105 active:scale-95",
-              "shadow-[0_6px_20px_rgba(0,0,0,0.5),0_2px_4px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.15)]",
-              "hover:shadow-[0_8px_25px_rgba(180,120,40,0.4),0_4px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.2)]",
-              `ring-2 ${ringColor} ring-offset-0`,
-              breatheClass
-            )}
-            style={{ touchAction: 'manipulation', transform: 'perspective(500px) rotateY(-3deg) rotateX(2deg)' }}
-            aria-label="Open Geralt companion"
-          >
-            <img src={geraltButton} alt="Geralt" className="w-full h-full object-cover" />
-          </button>
+          <div className="relative">
+            {/* Ember particles when injured */}
+            {isInjured && embers.map(ember => (
+              <motion.div
+                key={ember.id}
+                className="absolute pointer-events-none rounded-full"
+                style={{
+                  width: ember.size,
+                  height: ember.size,
+                  left: '50%',
+                  bottom: '10%',
+                  background: `radial-gradient(circle, rgba(255,${60 + Math.random() * 80},0,0.9), rgba(255,0,0,0.3))`,
+                }}
+                animate={{
+                  x: [ember.x * 0.3, ember.x * 0.6 + ember.drift, ember.x],
+                  y: [0, -40 - Math.random() * 30, -70 - Math.random() * 20],
+                  opacity: [0, 0.9, 0],
+                  scale: [0.5, 1, 0.2],
+                }}
+                transition={{
+                  duration: ember.duration,
+                  delay: ember.delay,
+                  repeat: Infinity,
+                  ease: 'easeOut',
+                }}
+              />
+            ))}
+            <button
+              onClick={onCompanionClick}
+              className={cn(
+                "w-20 h-20 rounded-2xl overflow-hidden",
+                `border-2 ${borderColor}`,
+                "transition-all duration-300",
+                "hover:scale-105 active:scale-95",
+                "shadow-[0_6px_20px_rgba(0,0,0,0.5),0_2px_4px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.15)]",
+                "hover:shadow-[0_8px_25px_rgba(180,120,40,0.4),0_4px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.2)]",
+                `ring-2 ${ringColor} ring-offset-0`,
+                breatheClass
+              )}
+              style={{ touchAction: 'manipulation', transform: 'perspective(500px) rotateY(-3deg) rotateX(2deg)' }}
+              aria-label="Open Geralt companion"
+            >
+              <img src={geraltButton} alt="Geralt" className="w-full h-full object-cover" />
+            </button>
+          </div>
           <p className="text-[10px] text-muted-foreground font-cinzel uppercase tracking-widest">
             Geralt
           </p>
