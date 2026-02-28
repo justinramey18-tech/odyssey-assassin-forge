@@ -239,7 +239,7 @@ export function SettingsModal({
           </DrawerHeader>
 
           <div className="flex-1 overflow-x-hidden overflow-y-auto">
-            <div className="p-4 w-full max-w-full">
+            <div className="p-4 w-full max-w-full [&>div]:max-h-none">
               {showContent ? (
                 <SettingsContent
                   activeTab={activeTab}

@@ -3,6 +3,7 @@ import { Lock, Unlock, Copy, Check } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { SettingsSection } from './SettingsSection';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 interface FileMapSection {
   title: string;
@@ -268,13 +269,18 @@ export function DevToolsPanel() {
           <p className="text-sm text-muted-foreground">Enter password to access internal reference</p>
         </div>
         <form onSubmit={handleSubmit} className="w-full max-w-xs space-y-3">
-          <Input
+           <Input
             type="password"
             placeholder="Password"
             value={password}
             onChange={(e) => { setPassword(e.target.value); setError(false); }}
-            className={error ? 'border-destructive' : ''}
+            className={cn("scroll-mt-20", error ? 'border-destructive' : '')}
             autoFocus
+            onFocus={(e) => {
+              setTimeout(() => {
+                e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }, 300);
+            }}
           />
           {error && <p className="text-xs text-destructive text-center">Incorrect password</p>}
           <button
