@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -11,6 +11,10 @@ import {
   Swords, Star, Smile, Frown, Meh, AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+import geraltHappy from '@/assets/geralt-happy.jpg';
+import geraltAngry from '@/assets/geralt-angry.jpg';
+import geraltInjured from '@/assets/geralt-injured.jpg';
 
 // ── Types ──
 
@@ -121,6 +125,13 @@ export function GeraltCompanionScreen({ open, onClose, characterId }: GeraltComp
   const barColor = hpPct > 50 ? 'bg-emerald-500' : hpPct > 25 ? 'bg-amber-500' : 'bg-rose-500';
   const isDown = state.currentHP === 0;
 
+  // Dynamic background based on HP
+  const backgroundImage = useMemo(() => {
+    if (hpPct > 50) return geraltHappy;
+    if (hpPct > 25) return geraltAngry;
+    return geraltInjured;
+  }, [hpPct]);
+
   const applyDamage = (amount: number) => {
     let remaining = amount;
     let newTemp = state.tempHP;
@@ -142,8 +153,13 @@ export function GeraltCompanionScreen({ open, onClose, characterId }: GeraltComp
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-lg w-full h-[100dvh] max-h-[100dvh] p-0 border-amber-900/40 bg-gradient-to-b from-amber-950/95 via-background/95 to-background/95 backdrop-blur-xl sm:rounded-none overflow-hidden [&>button]:hidden">
-        <ScrollArea className="h-full">
+      <DialogContent className="max-w-lg w-full h-[100dvh] max-h-[100dvh] p-0 border-amber-900/40 bg-background sm:rounded-none overflow-hidden [&>button]:hidden">
+        {/* Dynamic background image */}
+        <div className="absolute inset-0 z-0 transition-opacity duration-700">
+          <img src={backgroundImage} alt="" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/80 to-black/90" />
+        </div>
+        <ScrollArea className="h-full relative z-10">
           <div className="p-4 space-y-5">
 
             {/* Header */}
