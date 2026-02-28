@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -83,14 +82,15 @@ export function GeraltGameplayWidget({ open, onClose, characterId }: GeraltGamep
     setLastRoll({ attackName: atk.name, type: 'damage', roll, isNat20: false, isNat1: false });
   }, []);
 
+  if (!open) return null;
+
   return (
-    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-lg w-full h-[100dvh] max-h-[100dvh] p-0 border-amber-900/40 bg-background sm:rounded-none overflow-hidden [&>button]:hidden">
-        {/* Dynamic background */}
-        <div className="absolute inset-0 z-0 transition-opacity duration-700">
-          <img src={backgroundImage} alt="" className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/15 to-black/35" />
-        </div>
+    <div className="fixed inset-0 z-[9999] bg-background">
+      {/* Dynamic background */}
+      <div className="absolute inset-0 z-0 transition-opacity duration-700">
+        <img src={backgroundImage} alt="" className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/15 to-black/35" />
+      </div>
 
         <div className="relative z-10 flex flex-col h-full">
           {/* Header */}
@@ -346,7 +346,6 @@ export function GeraltGameplayWidget({ open, onClose, characterId }: GeraltGamep
             </TabsContent>
           </Tabs>
         </div>
-      </DialogContent>
-    </Dialog>
+    </div>
   );
 }
