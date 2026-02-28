@@ -1,15 +1,16 @@
 import { motion } from 'framer-motion';
 import { AnimatedD20Trigger } from '@/components/diceRoller';
-import { PanelLeft, Map as MapIcon } from 'lucide-react';
+import { PanelLeft, Map as MapIcon, PawPrint } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface EnlargedD20SectionProps {
   onClick: () => void;
   onMenusClick?: () => void;
   onMapClick?: () => void;
+  onCompanionClick?: () => void;
 }
 
-export function EnlargedD20Section({ onClick, onMenusClick, onMapClick }: EnlargedD20SectionProps) {
+export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompanionClick }: EnlargedD20SectionProps) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.8 }}
@@ -21,8 +22,34 @@ export function EnlargedD20Section({ onClick, onMenusClick, onMapClick }: Enlarg
       }}
       className="flex items-center justify-center gap-6 py-4"
     >
-      {/* Map Button — left of D20 */}
-      {onMapClick && (
+      {/* Companion Button (replaces Map for momo) OR Map Button */}
+      {onCompanionClick ? (
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.7, duration: 0.3 }}
+          className="flex flex-col items-center gap-2"
+        >
+          <button
+            onClick={onCompanionClick}
+            className={cn(
+              "w-16 h-16 rounded-xl",
+              "border-2 border-amber-500/40 hover:border-amber-400/60",
+              "bg-black/40 backdrop-blur-sm hover:bg-black/50",
+              "flex items-center justify-center",
+              "transition-all duration-300",
+              "hover:shadow-[0_0_15px_rgba(180,120,40,0.25)]"
+            )}
+            style={{ touchAction: 'manipulation' }}
+            aria-label="Open Geralt companion"
+          >
+            <PawPrint className="w-6 h-6 text-amber-400" />
+          </button>
+          <p className="text-[10px] text-muted-foreground font-cinzel uppercase tracking-widest">
+            Geralt
+          </p>
+        </motion.div>
+      ) : onMapClick && (
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}

@@ -30,7 +30,8 @@ import { CharacterSavesDrawer, CharacterSavesTrigger } from './CharacterSavesDra
 import { FAQDrawer } from './FAQDrawer';
 import { DMDrawer } from './DMDrawer';
 import { EmpyreanScreen } from '@/components/empyrean/EmpyreanScreen';
-
+import { isMomoEasterEgg } from '@/lib/easter-eggs';
+import { GeraltCompanionScreen } from '@/components/companion';
 // New redesigned components
 import { CharacterNamePlaque } from './CharacterNamePlaque';
 import { DynamicHealthBar } from './DynamicHealthBar';
@@ -293,6 +294,7 @@ export function HomeScreen({
   const [showFAQDrawer, setShowFAQDrawer] = useState(false);
   const [showSoloConfirm, setShowSoloConfirm] = useState(false);
   const [showEmpyreanScreen, setShowEmpyreanScreen] = useState(false);
+  const [showCompanionScreen, setShowCompanionScreen] = useState(false);
   const lastSeenMessageCount = useRef(0);
 
   // Track if chat was opened from Party DM (so we can return to it on close)
@@ -714,7 +716,8 @@ export function HomeScreen({
             {/* Enlarged D20 Section */}
             <EnlargedD20Section 
               onClick={() => setShowDiceRoller(true)}
-              onMapClick={() => setShowBattleMap(true)}
+              onMapClick={isMomoEasterEgg(character.name) ? undefined : () => setShowBattleMap(true)}
+              onCompanionClick={isMomoEasterEgg(character.name) ? () => setShowCompanionScreen(true) : undefined}
               onMenusClick={() => {
                 triggerHaptic('light');
                 setShowDrawersMenu(true);
@@ -949,6 +952,13 @@ export function HomeScreen({
         open={showBattleMap}
         onClose={() => setShowBattleMap(false)}
         characterName={character.name || 'Me'}
+      />
+
+      {/* Geralt Companion Screen (momo easter egg) */}
+      <GeraltCompanionScreen
+        open={showCompanionScreen}
+        onClose={() => setShowCompanionScreen(false)}
+        characterId={character.name?.toLowerCase().trim() || 'unknown'}
       />
 
       {/* Dice Roller Overlay */}

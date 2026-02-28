@@ -14,3 +14,8 @@ const BADGE_COLORS: Record<string, string> = {
 export function getBadgeColorClasses(color: string): string {
   return BADGE_COLORS[color] ?? '';
 }
+
+/** Easter egg: detect if the character name is "momo" */
+export function isMomoEasterEgg(name: string): boolean {
+  return name.toLowerCase().trim() === 'momo';
+}
