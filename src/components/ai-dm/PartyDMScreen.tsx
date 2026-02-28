@@ -1200,7 +1200,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
               />
               <button
                 onClick={handleSubmit}
-                disabled={!input.trim()}
+                disabled={!input.trim() || !!partyDm.myPrompt}
                 className={cn(
                   "p-2.5 rounded-xl border shrink-0 transition-colors",
                   input.trim() ? "bg-amber-900/40 border-amber-500/30 hover:bg-amber-900/60" : "bg-white/5 border-white/10 opacity-40"

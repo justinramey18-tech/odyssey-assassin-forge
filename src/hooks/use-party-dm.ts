@@ -483,13 +483,17 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     toast.success('Campaign loaded!');
   }, [partyId, user, isCreator, sessionConfig]);
 
+  const submitLockRef = useRef(false);
+
   const submitPrompt = useCallback(async (text: string) => {
     if (!partyId || !user || !sessionConfig) return;
+    if (submitLockRef.current) return;
     const existing = currentPrompts.find(p => p.user_id === user.id);
     if (existing) {
       toast.error('You already submitted a prompt this round');
       return;
     }
+    submitLockRef.current = true;
     const optimisticId = crypto.randomUUID();
     const insertData: Record<string, unknown> = {
       id: optimisticId,
@@ -523,6 +527,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       setCurrentPrompts(prev => prev.filter(p => p.id !== optimisticId));
       toast.error('Failed to submit prompt');
     }
+    submitLockRef.current = false;
   }, [partyId, user, sessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
 
   const setReady = useCallback(async () => {
