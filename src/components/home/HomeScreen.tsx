@@ -295,10 +295,37 @@ export function HomeScreen({
   const [showSoloConfirm, setShowSoloConfirm] = useState(false);
   const [showEmpyreanScreen, setShowEmpyreanScreen] = useState(false);
   const [showCompanionScreen, setShowCompanionScreen] = useState(false);
+  const [geraltHpPct, setGeraltHpPct] = useState<number | undefined>(undefined);
   const lastSeenMessageCount = useRef(0);
 
   // Track if chat was opened from Party DM (so we can return to it on close)
   const chatOpenedFromDM = useRef(false);
+
+  // Read Geralt companion HP for breathing animation on button
+  const readGeraltHp = useCallback(() => {
+    if (!isMomoEasterEgg(character.name)) return;
+    const charId = character.name?.toLowerCase().trim() || 'unknown';
+    try {
+      const raw = localStorage.getItem(`odyssey_${charId}_geralt_companion`);
+      if (raw) {
+        const data = JSON.parse(raw);
+        const pct = Math.max(0, Math.min(100, ((data.currentHP ?? 0) / (data.maxHP ?? 1)) * 100));
+        setGeraltHpPct(pct);
+      }
+    } catch { /* ignore */ }
+  }, [character.name]);
+
+  useEffect(() => {
+    readGeraltHp();
+    const handler = () => readGeraltHp();
+    window.addEventListener('geralt-hp-changed', handler);
+    return () => window.removeEventListener('geralt-hp-changed', handler);
+  }, [readGeraltHp]);
+
+  // Re-read Geralt HP when companion screen closes
+  useEffect(() => {
+    if (!showCompanionScreen) readGeraltHp();
+  }, [showCompanionScreen, readGeraltHp]);
 
   // Open party chat when requested externally (e.g. from Party DM)
   useEffect(() => {
@@ -718,6 +745,7 @@ export function HomeScreen({
               onClick={() => setShowDiceRoller(true)}
               onMapClick={isMomoEasterEgg(character.name) ? undefined : () => setShowBattleMap(true)}
               onCompanionClick={isMomoEasterEgg(character.name) ? () => setShowCompanionScreen(true) : undefined}
+              companionHpPct={geraltHpPct}
               onMenusClick={() => {
                 triggerHaptic('light');
                 setShowDrawersMenu(true);

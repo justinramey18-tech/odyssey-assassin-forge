@@ -121,14 +121,14 @@ export function GeraltCompanionScreen({ open, onClose, characterId }: GeraltComp
   }, []);
 
   const hpPct = Math.max(0, Math.min(100, (state.currentHP / state.maxHP) * 100));
-  const hpColor = hpPct > 50 ? 'text-emerald-400' : hpPct > 25 ? 'text-amber-400' : 'text-rose-400';
-  const barColor = hpPct > 50 ? 'bg-emerald-500' : hpPct > 25 ? 'bg-amber-500' : 'bg-rose-500';
+  const hpColor = hpPct > 80 ? 'text-emerald-400' : hpPct > 30 ? 'text-amber-400' : 'text-rose-400';
+  const barColor = hpPct > 80 ? 'bg-emerald-500' : hpPct > 30 ? 'bg-amber-500' : 'bg-rose-500';
   const isDown = state.currentHP === 0;
 
   // Dynamic background based on HP
   const backgroundImage = useMemo(() => {
-    if (hpPct > 50) return geraltHappy;
-    if (hpPct > 25) return geraltAngry;
+    if (hpPct > 80) return geraltHappy;
+    if (hpPct > 30) return geraltAngry;
     return geraltInjured;
   }, [hpPct]);
 

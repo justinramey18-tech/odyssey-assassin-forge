@@ -9,9 +9,17 @@ interface EnlargedD20SectionProps {
   onMenusClick?: () => void;
   onMapClick?: () => void;
   onCompanionClick?: () => void;
+  companionHpPct?: number;
 }
 
-export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompanionClick }: EnlargedD20SectionProps) {
+export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompanionClick, companionHpPct }: EnlargedD20SectionProps) {
+  // Determine breathing animation class based on companion HP
+  const breatheClass = companionHpPct !== undefined
+    ? companionHpPct > 80 ? 'animate-breathe-slow'
+      : companionHpPct > 30 ? 'animate-breathe-medium'
+      : 'animate-breathe-fast'
+    : 'animate-pulse';
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.8 }}
@@ -40,7 +48,8 @@ export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompan
               "hover:scale-105 active:scale-95",
               "shadow-[0_6px_20px_rgba(0,0,0,0.5),0_2px_4px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.15)]",
               "hover:shadow-[0_8px_25px_rgba(180,120,40,0.4),0_4px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.2)]",
-              "ring-2 ring-amber-400/20 ring-offset-0 animate-pulse"
+              "ring-2 ring-amber-400/20 ring-offset-0",
+              breatheClass
             )}
             style={{ touchAction: 'manipulation', transform: 'perspective(500px) rotateY(-3deg) rotateX(2deg)' }}
             aria-label="Open Geralt companion"
