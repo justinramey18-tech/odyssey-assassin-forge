@@ -30,6 +30,9 @@ import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
 import { InlineBattleMap } from './InlineBattleMap';
 import ReactMarkdown from 'react-markdown';
 import { useNarrator } from '@/hooks/use-narrator';
+import { isMomoEasterEgg } from '@/lib/easter-eggs';
+import { GeraltCompanionScreen } from '@/components/companion/GeraltCompanionScreen';
+import { GeraltStoneDMDrawer } from './GeraltStoneDMDrawer';
 
 import type { MapMarker } from '@/components/party/battlemap/types';
 
@@ -301,6 +304,8 @@ const NOOP_RETURN_ZERO = () => 0;
 
 export function AIDMScreen({ onBack, characterContext, userId, characterName = 'Adventurer', autoSyncCallbacks, dmPersonaPrompt, dmPersonaName, onRetakePersonalityTest }: AIDMScreenProps) {
   const [showToolsDrawer, setShowToolsDrawer] = useState(false);
+  const [showGeraltOverlay, setShowGeraltOverlay] = useState(false);
+  const [showGeraltStones, setShowGeraltStones] = useState(false);
   const [showWorldBuilder, setShowWorldBuilder] = useState(false);
   const [selectedModel, setSelectedModel] = useState(() => loadSelectedModel());
   const [showBattleMap, setShowBattleMap] = useState(false);
@@ -960,7 +965,28 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         dmPersonaName={dmPersonaName}
         selectedModel={selectedModel}
         onModelChange={(id) => { setSelectedModel(id); saveSelectedModel(id); }}
+        isMomo={isMomoEasterEgg(characterName)}
+        onGeraltOpen={() => setShowGeraltOverlay(true)}
+        onGeraltStones={() => setShowGeraltStones(true)}
       />
+
+      {/* Geralt Companion Overlay (momo only) */}
+      {isMomoEasterEgg(characterName) && (
+        <GeraltCompanionScreen
+          open={showGeraltOverlay}
+          onClose={() => setShowGeraltOverlay(false)}
+          characterId={userId || 'default'}
+        />
+      )}
+
+      {/* Geralt Stones Drawer (momo only) */}
+      {isMomoEasterEgg(characterName) && (
+        <GeraltStoneDMDrawer
+          open={showGeraltStones}
+          onOpenChange={setShowGeraltStones}
+          onUsePrompt={handleUsePrompt}
+        />
+      )}
 
       {/* GM Guides Overlay */}
       {showGuides && (
