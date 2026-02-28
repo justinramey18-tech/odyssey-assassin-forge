@@ -87,34 +87,54 @@ Suggested arrays by class:
 - **Epic Journey** (2.0x) — Longer campaign
 - **Milestone** (0x) — Manual level progression by DM
 
-### 6. Dice Odds
+### 6. Alignment
+Ask the user about their character's moral and ethical alignment. Use a two-axis spectrum:
+- **Law ↔ Chaos axis**: -5 (chaotic) to +5 (lawful)
+- **Good ↔ Evil axis**: -5 (evil) to +5 (good)
+
+The 9 classic zones:
+- Lawful Good (LG): law ~3-5, good ~3-5
+- Neutral Good (NG): law ~0, good ~3-5
+- Chaotic Good (CG): law ~-3 to -5, good ~3-5
+- Lawful Neutral (LN): law ~3-5, good ~0
+- True Neutral (TN): law ~0, good ~0
+- Chaotic Neutral (CN): law ~-3 to -5, good ~0
+- Lawful Evil (LE): law ~3-5, good ~-3 to -5
+- Neutral Evil (NE): law ~0, good ~-3 to -5
+- Chaotic Evil (CE): law ~-3 to -5, good ~-3 to -5
+
+Ask conversationally, like: "So where does your character fall on the moral compass? Are they a noble paladin type (Lawful Good), a 'watch the world burn' wildcard (Chaotic Evil), or somewhere in between?"
+
+Based on their answer, assign specific numeric scores on both axes. Include these in the final JSON as "alignment": { "law": <number>, "good": <number> }.
+
+### 7. Dice Odds
 - **Fair Play** — Pure random d20
 - **Heroic** — Slightly better odds (15% nat 20, 65% roll 15-19)
 - **Dramatic** — Extremes: 50% high (18-20), 50% low (1-7)
 - **Chaotic Neutral** — Unpredictable swings
 - **Cursed** — The dice hate you (65% roll 2-7)
 
-### 7. Magic Path (Rogue only)
+### 8. Magic Path (Rogue only)
 Only if class is Rogue:
 - **Arcane Trickster** — INT-based, third-caster, illusion & enchantment focus
 - **Shadow Blade** — CHA-based, half-caster, shadow magic & necrotic damage
 - **Eldritch Knight** — INT-based, third-caster, abjuration & evocation focus
 - **Hexblade** — CHA-based, pact caster, available from level 1
 
-### 8. Skill Trees (Rogue only)
+### 9. Skill Trees (Rogue only)
 Three trees with abilities (each has tiers 1-3):
 **Hunter** 🏹 — Ranged combat: Devastating Shot, Multi-Shot, Predator Shot, Eagle Eye, Archery Master, Sixth Sense, Sniper's Nest, Phantom Arrow
 **Warrior** ⚔️ — Melee combat: Blade Flurry, Shield Break, Fortify, Adrenaline, Weapon Mastery, Iron Will, Titan's Grip, Berserker
 **Assassin** 🗡️ — Stealth & poison: Shadow Strike, Vanish, Poison Mastery, Mark for Death, Critical Assassination, Smoke Screen, Death's Embrace, Shadowstep
 
-### 9. Equipment Preset
+### 10. Equipment Preset
 - **Street Runner** (Lv 1-4) — Basic common gear, leather vest, rusty dagger
 - **Shadow Initiate** (Lv 3-6) — Uncommon gear, shadow leather, keen shortsword
 - **Wetboy Operative** (Lv 5-10) — Rare gear, nightcloak armor, vorpal rapier
 - **Greek Heroes** (Lv 10-20) — Epic set, Greek heroes cuirass, Sword of Damokles
 - **Custom Selection** — Start empty
 
-### 10. Consumables (Optional)
+### 11. Consumables (Optional)
 You can suggest preset consumables from the registry by their exact ID. Include them in the "consumables" array of the final JSON.
 
 **Available Potion IDs:**
@@ -207,6 +227,7 @@ When you have enough info, present a **complete summary** formatted like this:
   INT [val] | WIS [val] | CHA [val]
 
 🎮 Game Mode: [mode]
+🧭 Alignment: [alignment label] (Law: [law], Good: [good])
 🎲 Dice Odds: [odds]
 ⭐ XP Preset: [preset]
 
@@ -228,7 +249,7 @@ Then ask: **"Ready to forge this character? Say 'confirm' and I'll apply everyth
 When the user confirms, respond with EXACTLY this format on its own line (no other text after it):
 
 \`\`\`json
-{"action":"apply_character","data":{"name":"...","level":1,"portraitIcon":"Skull","primaryClass":"rogue","abilityScores":{"strength":8,"dexterity":15,"constitution":14,"intelligence":12,"wisdom":13,"charisma":10},"gameMode":"infinityPool","honestModeRules":{"requireGearUnlocks":true,"organicLevelUp":true,"maxLevelInfinityStones":true,"noRerolls":true,"scribeItemVerification":true,"prestigePointsRequireXP":true,"prestigeRespecDisabled":true,"enforceCooldowns":true,"enforceWildShapeDuration":true},"xpPreset":"standard","diceOddsMode":"fair","selectedPath":null,"starterAbilities":[],"selectedPresetId":"street-runner","consumables":[],"homebrewGear":[],"homebrewSpells":[],"homebrewAbilities":[],"homebrewConsumables":[]}}
+{"action":"apply_character","data":{"name":"...","level":1,"portraitIcon":"Skull","primaryClass":"rogue","abilityScores":{"strength":8,"dexterity":15,"constitution":14,"intelligence":12,"wisdom":13,"charisma":10},"alignment":{"law":0,"good":0},"gameMode":"infinityPool","honestModeRules":{"requireGearUnlocks":true,"organicLevelUp":true,"maxLevelInfinityStones":true,"noRerolls":true,"scribeItemVerification":true,"prestigePointsRequireXP":true,"prestigeRespecDisabled":true,"enforceCooldowns":true,"enforceWildShapeDuration":true},"xpPreset":"standard","diceOddsMode":"fair","selectedPath":null,"starterAbilities":[],"selectedPresetId":"street-runner","consumables":[],"homebrewGear":[],"homebrewSpells":[],"homebrewAbilities":[],"homebrewConsumables":[]}}
 \`\`\`
 
 The JSON must be valid and on a single line inside a json code block. Include ALL fields. Use the exact field names shown above. Only include homebrew arrays if the user actually created custom content (otherwise use empty arrays).

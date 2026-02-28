@@ -72,15 +72,38 @@ export default function AICreationAssistant() {
     if (homebrewSummary.createdGearItems.length > 0) {
       for (const item of homebrewSummary.createdGearItems) {
         const slot = item.slotType;
-        // Only equip if the slot is currently empty
         if (slot && !wizardState.equipment.slots[slot]) {
           wizardState.equipment.slots[slot] = item;
         } else if (slot) {
-          // Slot occupied — add to inventory instead
           wizardState.equipment.inventory.push(item);
         }
       }
       console.log('[AICreation] Auto-equipped homebrew gear into slots');
+    }
+
+    // Store alignment from AI creation for auto-filtering across the app
+    if (buildData.alignment) {
+      try {
+        const activeId = localStorage.getItem('odyssey-active-cloud-save-id');
+        const key = activeId
+          ? `odyssey-alignment-drift_${activeId}`
+          : 'odyssey-alignment-drift';
+        // Seed the drift tracker with an initial entry matching declared alignment
+        const seedEntry = {
+          promptId: '_ai_creation_seed',
+          law: buildData.alignment.law,
+          good: buildData.alignment.good,
+          ts: Date.now(),
+        };
+        // Load existing or start fresh
+        let existing = [];
+        try { existing = JSON.parse(localStorage.getItem(key) || '[]'); } catch {}
+        existing.push(seedEntry);
+        localStorage.setItem(key, JSON.stringify(existing.slice(-50)));
+        console.log('[AICreation] Seeded alignment drift:', buildData.alignment);
+      } catch (e) {
+        console.error('[AICreation] Failed to store alignment:', e);
+      }
     }
 
     // Navigate to Index with the wizard state to apply

@@ -9,7 +9,7 @@ import { useFavoritePrompts } from '@/hooks/use-favorite-prompts';
 import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
 import { AlignmentBanner } from '@/components/alignment/AlignmentBanner';
 import { AlignmentRecommender } from '@/components/alignment/AlignmentRecommender';
-import { type AlignmentScore, getPromptAlignment, isAlignmentMatch } from '@/lib/alignmentSpectrum';
+import { type AlignmentScore, getPromptAlignment, isAlignmentMatch, sortByAlignmentProximity } from '@/lib/alignmentSpectrum';
 import { Badge } from '@/components/ui/badge';
 import {
   Drawer,
@@ -440,7 +440,8 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
             {activeLibrary === 'infinity' && (
               <Accordion type="single" collapsible value={expandedStone} onValueChange={setExpandedStone} className="w-full space-y-2">
                 {infinityStones.map((stone) => {
-                  const prompts = filterByIntensity(getPromptsForStone(stone.id));
+                  const rawPrompts = filterByIntensity(getPromptsForStone(stone.id));
+                  const prompts = alignmentTarget ? sortByAlignmentProximity(rawPrompts, alignmentTarget) : rawPrompts;
                   if (prompts.length === 0) return null;
 
                   return (
@@ -470,7 +471,8 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
             {activeLibrary === 'empyrean' && (
               <Accordion type="single" collapsible value={expandedStone} onValueChange={setExpandedStone} className="w-full space-y-2">
                 {empyreanStones.map((stone) => {
-                  const prompts = filteredEmpyreanPrompts.filter(p => p.category === stone.category);
+                  const rawPrompts = filteredEmpyreanPrompts.filter(p => p.category === stone.category);
+                  const prompts = alignmentTarget ? sortByAlignmentProximity(rawPrompts, alignmentTarget) : rawPrompts;
                   if (prompts.length === 0) return null;
 
                   return (
