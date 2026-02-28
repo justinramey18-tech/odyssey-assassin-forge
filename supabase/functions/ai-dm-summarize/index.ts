@@ -13,7 +13,7 @@ interface SummarizeRequest {
   previousSummary?: string;
 }
 
-const SUMMARIZER_SYSTEM_PROMPT = `You are a campaign chronicler for a D&D 5e session. Your job is to produce a structured campaign summary that captures everything a Dungeon Master needs to maintain narrative continuity.
+const SUMMARIZER_SYSTEM_PROMPT = `You are a campaign chronicler for a D&D 5e session. Your job is to produce a structured campaign summary that captures everything a Dungeon Master needs to maintain narrative continuity — including subtle narrative undercurrents that shape the story's direction.
 
 If a PREVIOUS SUMMARY is provided, UPDATE it with new events from the conversation — do not start from scratch. Merge new information into the existing sections.
 
@@ -39,6 +39,18 @@ Notable encounters, outcomes, and tactical patterns.
 
 ## Unresolved Threads
 Loose ends, foreshadowing, mysteries, and dangling plot hooks.
+
+## Subtle Details & Narrative Undercurrents
+This section is CRITICAL for narrative continuity. Preserve:
+- **Implied tensions**: Unspoken conflicts between NPCs, or between NPCs and the player (e.g. "the barkeep's warmth seemed forced after the player mentioned the guild")
+- **Emotional shifts**: Changes in mood, atmosphere, or NPC demeanor that hint at deeper currents
+- **Foreshadowing**: Hints dropped about future events, dangers, or revelations — even if the player hasn't noticed them yet
+- **Unresolved ambiguities**: Things left deliberately unclear, suspicious behaviors, unanswered questions
+- **Character subtext**: What NPCs seem to want vs. what they say, hidden motivations suggested through behavior
+- **Tonal threads**: The overall emotional arc of the story — is it darkening, lightening, building tension?
+- **Minor narrative details**: Small recurring motifs, symbols, or details that could become significant later
+
+Do NOT discard subtle details from previous summaries — they are as important as plot events for maintaining the story's texture and emotional continuity.
 
 Keep the summary concise but comprehensive. Target under 25,000 characters. Use bullet points within sections for clarity.`;
 
