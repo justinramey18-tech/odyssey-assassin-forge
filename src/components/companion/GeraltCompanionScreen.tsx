@@ -157,7 +157,7 @@ export function GeraltCompanionScreen({ open, onClose, characterId }: GeraltComp
         {/* Dynamic background image */}
         <div className="absolute inset-0 z-0 transition-opacity duration-700">
           <img src={backgroundImage} alt="" className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/80 to-black/90" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/55 to-black/75" />
         </div>
         <ScrollArea className="h-full relative z-10">
           <div className="p-4 space-y-5">
