@@ -18,7 +18,7 @@ export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompan
     ? companionHpPct > 80 ? 'animate-breathe-slow'
       : companionHpPct > 30 ? 'animate-breathe-medium'
       : 'animate-breathe-fast'
-    : 'animate-pulse';
+    : '';
 
   // Border/ring color shifts with HP state
   const borderColor = companionHpPct !== undefined
