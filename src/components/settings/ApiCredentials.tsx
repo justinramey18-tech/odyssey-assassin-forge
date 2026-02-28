@@ -1,9 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Key, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { loadApiKey, saveApiKey, clearApiKey, hasApiKey, maskKey } from '@/lib/api-keys';
+import { loadApiKey, saveApiKey, clearApiKey, hasApiKey, maskKey, isClaudeEverywhereEnabled, setClaudeEverywhere } from '@/lib/api-keys';
 
 function ApiKeyInput({ provider, label, placeholder }: { provider: 'anthropic' | 'elevenlabs'; label: string; placeholder: string }) {
   const [keyInput, setKeyInput] = useState('');
@@ -24,6 +25,10 @@ function ApiKeyInput({ provider, label, placeholder }: { provider: 'anthropic' |
     clearApiKey(provider);
     setHasSavedKey(false);
     setKeyInput('');
+    // Also disable Claude Everywhere if clearing the key
+    if (provider === 'anthropic' && isClaudeEverywhereEnabled()) {
+      setClaudeEverywhere(false);
+    }
     toast.success(`${label} removed`);
   }, [provider, label]);
 
@@ -66,6 +71,41 @@ function ApiKeyInput({ provider, label, placeholder }: { provider: 'anthropic' |
   );
 }
 
+function ClaudeEverywhereToggle() {
+  const [enabled, setEnabled] = useState(() => isClaudeEverywhereEnabled());
+  const hasKey = hasApiKey('anthropic');
+
+  // Sync if key is removed externally
+  useEffect(() => {
+    if (!hasKey && enabled) {
+      setEnabled(false);
+      setClaudeEverywhere(false);
+    }
+  }, [hasKey, enabled]);
+
+  if (!hasKey) return null;
+
+  return (
+    <div className="flex items-start gap-3 p-3 rounded-lg border border-purple-500/20 bg-purple-500/5">
+      <Switch
+        checked={enabled}
+        onCheckedChange={(checked) => {
+          setEnabled(checked);
+          setClaudeEverywhere(checked);
+          toast.success(checked ? 'Claude 4.5 Sonnet enabled for all AI features' : 'Reverted to default AI models');
+        }}
+        className="mt-0.5"
+      />
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium text-foreground">Use Claude for all AI features</p>
+        <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">
+          Routes Oracle, Homebrew, World Builder, Chronicler & more through Claude 4.5 Sonnet using your API key. Also auto-selects Claude for AI DM, Scribe & Guide Creator.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function ApiCredentials() {
   return (
     <div className="space-y-3">
@@ -73,6 +113,7 @@ export function ApiCredentials() {
         Keys are stored locally in your browser, never on servers.
       </p>
       <ApiKeyInput provider="anthropic" label="Anthropic API Key" placeholder="sk-ant-..." />
+      <ClaudeEverywhereToggle />
     </div>
   );
 }

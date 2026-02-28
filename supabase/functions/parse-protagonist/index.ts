@@ -41,7 +41,7 @@ serve(async (req) => {
       });
     }
 
-    const { text } = await req.json();
+    const { text, user_api_key } = await req.json();
     if (!text || typeof text !== 'string' || text.length < 10) {
       return new Response(JSON.stringify({ error: 'Provide at least 10 characters of character description' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -50,6 +50,64 @@ serve(async (req) => {
 
     const systemPrompt = `You are a character profile extractor for fantasy/TTRPG characters.
 Extract structured protagonist information from the user's text. Fill in as many fields as possible from the description. Leave fields empty string if the text doesn't mention them.`;
+
+    const openaiTools = [{
+      type: 'function' as const,
+      function: {
+        name: 'create_protagonist',
+        description: 'Create a structured protagonist profile from text description.',
+        parameters: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', description: 'Character name' },
+            raceClass: { type: 'string', description: 'Race and class, e.g. "Half-Elf Warlock"' },
+            personality: { type: 'string', description: 'Core personality traits, 1-2 sentences' },
+            speechStyle: { type: 'string', description: 'How they speak — accent, vocabulary, cadence' },
+            povStyle: { type: 'string', enum: ['first', 'third', 'rotating'], description: 'Recommended narrative POV' },
+            backstory: { type: 'string', description: 'Character history and origin' },
+            goalsConflicts: { type: 'string', description: 'Current goals and internal/external conflicts' },
+            relationships: { type: 'string', description: 'Key relationships with other characters' },
+            appearanceMannerisms: { type: 'string', description: 'Physical appearance and habitual mannerisms' },
+            flawsWeaknesses: { type: 'string', description: 'Character flaws and vulnerabilities' },
+            skillsAbilities: { type: 'string', description: 'Notable skills, abilities, or powers' },
+            characterArc: { type: 'string', description: 'Expected character development or arc' },
+          },
+          required: ['name', 'personality', 'speechStyle', 'povStyle'],
+          additionalProperties: false,
+        },
+      },
+    }];
+
+    // Anthropic path
+    if (user_api_key && typeof user_api_key === 'string' && user_api_key.trim()) {
+      const { callAnthropicNonStreaming } = await import("../_shared/anthropic-helper.ts");
+      const result = await callAnthropicNonStreaming({
+        userApiKey: user_api_key.trim(),
+        systemPrompt,
+        messages: [{ role: "user", content: `Extract protagonist details from this description:\n\n${text.slice(0, 10000)}` }],
+        tools: openaiTools,
+        toolChoice: 'create_protagonist',
+      });
+      if (result.error) {
+        return new Response(JSON.stringify({ error: result.error }), {
+          status: result.status || 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (!result.toolArguments) {
+        return new Response(JSON.stringify({ error: 'AI did not return structured data' }), {
+          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ protagonist: result.toolArguments }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (!LOVABLE_API_KEY) {
+      return new Response(JSON.stringify({ error: 'AI service not configured' }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const response = await fetch(AI_GATEWAY_URL, {
       method: 'POST',
@@ -63,32 +121,7 @@ Extract structured protagonist information from the user's text. Fill in as many
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `Extract protagonist details from this description:\n\n${text.slice(0, 10000)}` },
         ],
-        tools: [{
-          type: 'function',
-          function: {
-            name: 'create_protagonist',
-            description: 'Create a structured protagonist profile from text description.',
-            parameters: {
-              type: 'object',
-              properties: {
-                name: { type: 'string', description: 'Character name' },
-                raceClass: { type: 'string', description: 'Race and class, e.g. "Half-Elf Warlock"' },
-                personality: { type: 'string', description: 'Core personality traits, 1-2 sentences' },
-                speechStyle: { type: 'string', description: 'How they speak — accent, vocabulary, cadence' },
-                povStyle: { type: 'string', enum: ['first', 'third', 'rotating'], description: 'Recommended narrative POV' },
-                backstory: { type: 'string', description: 'Character history and origin' },
-                goalsConflicts: { type: 'string', description: 'Current goals and internal/external conflicts' },
-                relationships: { type: 'string', description: 'Key relationships with other characters' },
-                appearanceMannerisms: { type: 'string', description: 'Physical appearance and habitual mannerisms' },
-                flawsWeaknesses: { type: 'string', description: 'Character flaws and vulnerabilities' },
-                skillsAbilities: { type: 'string', description: 'Notable skills, abilities, or powers' },
-                characterArc: { type: 'string', description: 'Expected character development or arc' },
-              },
-              required: ['name', 'personality', 'speechStyle', 'povStyle'],
-              additionalProperties: false,
-            },
-          },
-        }],
+        tools: openaiTools,
         tool_choice: { type: 'function', function: { name: 'create_protagonist' } },
       }),
     });

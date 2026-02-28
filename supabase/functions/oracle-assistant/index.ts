@@ -565,7 +565,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, personality, characterContext, mode = 'chat' }: OracleRequest = await req.json();
+    const { messages, personality, characterContext, mode = 'chat', user_api_key }: OracleRequest & { user_api_key?: string } = await req.json();
     
     if (!messages || !personality || !characterContext) {
       return new Response(
@@ -605,15 +605,6 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      console.error("LOVABLE_API_KEY is not configured");
-      return new Response(
-        JSON.stringify({ error: "AI service not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     // Combine personality prompt with mode modifier
     const personalityPrompt = getPersonalityPrompt(personality, characterContext);
     const modeModifier = getModePromptModifier(mode);
@@ -627,6 +618,38 @@ serve(async (req) => {
     else if (mode === 'plan') maxTokens = 300;
     else if (mode === 'choice') maxTokens = 600;
     else if (mode === 'analyze') maxTokens = 1500;
+
+    // Anthropic streaming path
+    if (user_api_key && typeof user_api_key === 'string' && user_api_key.trim()) {
+      try {
+        const { callAnthropicStreaming } = await import("../_shared/anthropic-helper.ts");
+        const streamResponse = await callAnthropicStreaming({
+          userApiKey: user_api_key.trim(),
+          systemPrompt,
+          messages,
+          maxTokens,
+          temperature: personality === 'deadpool' ? 0.9 : 0.7,
+        });
+        return new Response(streamResponse.body, {
+          headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+        });
+      } catch (err: any) {
+        return new Response(JSON.stringify({ error: err.message || "Anthropic error" }), {
+          status: err.status || 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // Default: Lovable gateway
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      console.error("LOVABLE_API_KEY is not configured");
+      return new Response(
+        JSON.stringify({ error: "AI service not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

@@ -117,7 +117,7 @@ serve(async (req) => {
       });
     }
 
-    const { message, existingAnchors = [], characterContext } = await req.json();
+    const { message, existingAnchors = [], characterContext, user_api_key } = await req.json();
 
     if (!message || typeof message !== "string" || message.trim().length < 20) {
       return new Response(
@@ -127,11 +127,7 @@ serve(async (req) => {
     }
 
     const characterName = characterContext?.name || "the adventurer";
-
-    // Build a compact list of existing anchor keys so the AI skips them
-    const existingKeys = existingAnchors
-      .map((a: any) => `${a.category}:${a.key}`)
-      .join(", ");
+    const existingKeys = existingAnchors.map((a: any) => `${a.category}:${a.key}`).join(", ");
 
     const systemPrompt = `You are a memory extraction engine for a D&D campaign. Your job is to extract meaningful world facts from a DM's narrative response so they can be persisted for future sessions.
 
@@ -150,10 +146,30 @@ RULES:
 - Return empty arrays if nothing significant was introduced
 - Never duplicate what's already in EXISTING MEMORY`;
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY not configured");
+    // Anthropic path
+    if (user_api_key && typeof user_api_key === 'string' && user_api_key.trim()) {
+      const { callAnthropicNonStreaming } = await import("../_shared/anthropic-helper.ts");
+      const result = await callAnthropicNonStreaming({
+        userApiKey: user_api_key.trim(),
+        systemPrompt,
+        messages: [{ role: "user", content: `Extract world facts from this DM narrative:\n\n${message.slice(0, 4000)}` }],
+        tools: [EXTRACT_TOOL],
+        toolChoice: "extract_world_facts",
+        temperature: 0.1,
+      });
+      if (result.error) {
+        return new Response(JSON.stringify({ npcs: [], locations: [], consequences: [] }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const extracted = result.toolArguments || { npcs: [], locations: [], consequences: [] };
+      return new Response(JSON.stringify({
+        npcs: extracted.npcs || [], locations: extracted.locations || [], consequences: extracted.consequences || [],
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",

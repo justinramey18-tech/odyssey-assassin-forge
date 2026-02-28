@@ -311,7 +311,7 @@ serve(async (req) => {
       });
     }
 
-    const { prompt, context, mode, count } = await req.json() as HomebrewRequest;
+    const { prompt, context, mode, count, user_api_key } = await req.json() as HomebrewRequest & { user_api_key?: string };
     // Pass count through context.currentName for batch modes
     if ((mode === 'batch_spells' || mode === 'batch_abilities') && count) {
       context.currentName = String(count);
@@ -346,12 +346,36 @@ serve(async (req) => {
       );
     }
 
+    const systemPrompt = buildSystemPrompt(context, mode);
+    const maxTokens = (mode === 'batch_spells' || mode === 'batch_abilities') ? 3000 : 800;
+
+    // Anthropic path: use user's API key with Claude 4.5 Sonnet
+    if (user_api_key && typeof user_api_key === 'string' && user_api_key.trim()) {
+      const { callAnthropicNonStreaming } = await import("../_shared/anthropic-helper.ts");
+      const result = await callAnthropicNonStreaming({
+        userApiKey: user_api_key.trim(),
+        systemPrompt,
+        messages: [{ role: "user", content: prompt }],
+        maxTokens,
+        temperature: 0.8,
+      });
+      if (result.error) {
+        return new Response(JSON.stringify({ error: result.error }), {
+          status: result.status || 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(
+        JSON.stringify({ result: result.text || "" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Default: Lovable gateway
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
-
-    const systemPrompt = buildSystemPrompt(context, mode);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -365,7 +389,7 @@ serve(async (req) => {
           { role: "system", content: systemPrompt },
           { role: "user", content: prompt },
         ],
-        max_tokens: (mode === 'batch_spells' || mode === 'batch_abilities') ? 3000 : 800,
+        max_tokens: maxTokens,
         temperature: 0.8,
       }),
     });

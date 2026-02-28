@@ -68,20 +68,41 @@ serve(async (req) => {
       });
     }
 
-    const { messages, previousSummary } = (await req.json()) as SummarizeRequest;
+    const { messages, previousSummary, user_api_key } = (await req.json()) as SummarizeRequest & { user_api_key?: string };
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
-
-    // Build the user prompt with conversation and previous summary
+    // Build the user prompt
     let userPrompt = "";
     if (previousSummary) {
       userPrompt += `PREVIOUS SUMMARY:\n${previousSummary}\n\n---\n\n`;
     }
     userPrompt += "CONVERSATION TO SUMMARIZE:\n\n";
     userPrompt += messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join("\n\n");
+
+    // Anthropic path
+    if (user_api_key && typeof user_api_key === 'string' && user_api_key.trim()) {
+      const { callAnthropicNonStreaming } = await import("../_shared/anthropic-helper.ts");
+      const result = await callAnthropicNonStreaming({
+        userApiKey: user_api_key.trim(),
+        systemPrompt: SUMMARIZER_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userPrompt }],
+        maxTokens: 8000,
+      });
+      if (result.error) {
+        return new Response(JSON.stringify({ error: result.error }), {
+          status: result.status || 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      let summary = result.text || "";
+      if (summary.length > SUMMARY_MAX_CHARS) summary = summary.slice(0, SUMMARY_MAX_CHARS);
+      return new Response(JSON.stringify({ summary }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
+    }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
