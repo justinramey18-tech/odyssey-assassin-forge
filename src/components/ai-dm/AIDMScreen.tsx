@@ -4,7 +4,8 @@ import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { loadSelectedModel, saveSelectedModel, getModelLabel } from '@/lib/dm-models';
 import { formatUsage, formatCostShort } from '@/lib/token-usage';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Zap, Map, Film, Image as ImageIcon, Copy, Check, Pencil, RefreshCw, X, MoreVertical, Globe, Settings, Volume2, VolumeX } from 'lucide-react';
+import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Zap, Map, Film, Image as ImageIcon, Copy, Check, Pencil, RefreshCw, X, MoreVertical, Globe, Settings, Volume2, VolumeX, Bird } from 'lucide-react';
+import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
 import { NarrationSpeedPopover } from './NarrationSpeedPopover';
 import { DMToolsDrawer } from './DMToolsDrawer';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
@@ -545,6 +546,10 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     ? Math.round((characterContext.currentHP / characterContext.maxHP) * 100)
     : 100;
 
+  // Geralt HP for sub-header (momo only)
+  const geraltState = useMemo(() => isMomo ? loadGeraltState(userId || 'default') : null, [isMomo, userId, showGeraltWidget]);
+  const geraltHpPct = geraltState ? Math.max(0, Math.min(100, (geraltState.currentHP / geraltState.maxHP) * 100)) : 0;
+
   const showDiceContent = activeNavTab === 'dice' && messages.length > 0;
 
   return (
@@ -607,6 +612,18 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         )}>
           {characterContext.currentHP}/{characterContext.maxHP}
         </span>
+        {isMomo && geraltState && (
+          <>
+            <span className="text-[11px] text-white/40">•</span>
+            <Bird className="w-3 h-3 text-pink-400 shrink-0" />
+            <span className={cn(
+              "text-[11px] font-mono whitespace-nowrap",
+              geraltHpPct > 50 ? "text-emerald-400" : geraltHpPct > 25 ? "text-amber-400" : "text-red-400"
+            )}>
+              {geraltState.currentHP}/{geraltState.maxHP}
+            </span>
+          </>
+        )}
         <span className="text-[11px] text-white/40">•</span>
         <span className="text-[11px] text-white/60 whitespace-nowrap">Lv {characterContext.level}</span>
         {characterContext.activeConditions && characterContext.activeConditions.length > 0 && (
