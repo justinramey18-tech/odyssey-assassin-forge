@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
-import { User, Swords, Wand2, BookOpen, Settings, ChevronRight, Mic } from 'lucide-react';
+import { User, Swords, Wand2, BookOpen, Settings, ChevronRight, Mic, Code } from 'lucide-react';
 
-export type SettingsTab = 'character' | 'gameplay' | 'customizations' | 'gameMaster' | 'elevenlabs' | 'appSystem';
+export type SettingsTab = 'character' | 'gameplay' | 'customizations' | 'gameMaster' | 'elevenlabs' | 'appSystem' | 'devTools';
 
 interface TabConfig {
   id: SettingsTab;
@@ -53,6 +53,13 @@ const tabs: TabConfig[] = [
     icon: Settings, 
     description: 'App settings & data',
     color: 'text-emerald-400'
+  },
+  {
+    id: 'devTools',
+    label: 'R&D Developer Tools',
+    icon: Code,
+    description: 'Internal file map reference',
+    color: 'text-rose-400'
   },
 ];
 
