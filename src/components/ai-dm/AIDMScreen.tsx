@@ -377,12 +377,12 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const memoryAnchorsRef = useRef<any[]>([]);
 
   const handleMessageComplete = useCallback((content: string) => {
-    if (autoSync.autoSyncEnabled && autoSyncCallbacks) {
+    if (autoSync.autoSyncEnabled) {
       autoSync.extractAndApply(content, characterContext);
     }
     // Always run memory extraction in the background via ref — avoids hook ordering issues
     extractMemoryRef.current?.(content, memoryAnchorsRef.current, characterContext);
-  }, [autoSync.autoSyncEnabled, autoSyncCallbacks, autoSync.extractAndApply, characterContext]);
+  }, [autoSync.autoSyncEnabled, autoSync.extractAndApply, characterContext]);
 
   const handleCampaignSwitch = useCallback((guideIds: string[] | null) => {
     gmGuides.setActiveGuideIds(guideIds);
