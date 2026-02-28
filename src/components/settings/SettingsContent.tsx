@@ -645,8 +645,10 @@ export function SettingsContent({
   // ─── DEV TOOLS ───
   if (activeTab === 'devTools') {
     return (
-      <div className="flex-1 overflow-y-auto">
-        <DevToolsPanel />
+      <div className="flex-1 overflow-y-auto max-h-[70vh]">
+        <div className="space-y-3 pb-6">
+          <DevToolsPanel />
+        </div>
       </div>
     );
   }
