@@ -233,6 +233,15 @@ export function GeraltMeditationButton({ onClick, companionHpPct }: GeraltMedita
             aria-label="Open Geralt companion"
           >
             <img src={geraltButton} alt="Geralt" className="w-full h-full object-cover" />
+            {/* Red vignette — darkens edges as HP drops */}
+            {crackOpacity > 0 && (
+              <div
+                className="absolute inset-0 pointer-events-none rounded-2xl"
+                style={{
+                  background: `radial-gradient(ellipse at center, transparent 30%, rgba(120,15,15,${crackOpacity * 0.6}) 90%, rgba(60,5,5,${crackOpacity * 0.8}) 100%)`,
+                }}
+              />
+            )}
             <CrackOverlay opacity={crackOpacity} />
           </button>
         </motion.div>
