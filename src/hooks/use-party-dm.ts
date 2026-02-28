@@ -41,6 +41,12 @@ export interface DmSessionConfig {
   campaignSummary: string | null;
   isGenerating: boolean;
   splitActive?: boolean;
+  // Round timer
+  timerEnabled?: boolean;
+  timerDurationSeconds?: number; // default duration for new rounds
+  timerStartedAt?: string | null; // ISO timestamp when timer was started
+  timerPausedRemaining?: number | null; // seconds remaining when paused
+  extensionRequests?: Array<{ userId: string; name: string }>;
 }
 
 interface UsePartyDmOptions {
@@ -987,6 +993,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         ...sessionConfig,
         currentRoundId: newRoundId,
         isGenerating: false,
+        // Auto-start timer for new round if enabled
+        timerStartedAt: sessionConfig.timerEnabled ? new Date().toISOString() : null,
+        timerPausedRemaining: null,
+        extensionRequests: [],
       };
       await (supabase.from('party_shared_state') as any)
         .update({ state_data: newConfig })
@@ -1348,6 +1358,93 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   const myPrompt = currentPrompts.find(p => p.user_id === user?.id) || null;
 
+  // ── Timer Controls ──────────────────────────────────────────────────────
+  const updateSessionConfig = useCallback(async (patch: Partial<DmSessionConfig>) => {
+    if (!partyId || !sessionConfig) return;
+    const updated: DmSessionConfig = { ...sessionConfig, ...patch };
+    await (supabase.from('party_shared_state') as any)
+      .update({ state_data: updated })
+      .eq('party_id', partyId)
+      .eq('state_type', 'dm_session');
+    setSessionConfig(updated);
+  }, [partyId, sessionConfig]);
+
+  const setTimerConfig = useCallback(async (enabled: boolean, durationSeconds: number) => {
+    await updateSessionConfig({
+      timerEnabled: enabled,
+      timerDurationSeconds: durationSeconds,
+      timerStartedAt: null,
+      timerPausedRemaining: null,
+      extensionRequests: [],
+    });
+  }, [updateSessionConfig]);
+
+  const startTimer = useCallback(async () => {
+    if (!sessionConfig?.timerEnabled || !sessionConfig.timerDurationSeconds) return;
+    await updateSessionConfig({
+      timerStartedAt: new Date().toISOString(),
+      timerPausedRemaining: null,
+      extensionRequests: [],
+    });
+  }, [sessionConfig, updateSessionConfig]);
+
+  const pauseTimer = useCallback(async () => {
+    if (!sessionConfig?.timerStartedAt) return;
+    const elapsed = (Date.now() - new Date(sessionConfig.timerStartedAt).getTime()) / 1000;
+    const remaining = Math.max(0, (sessionConfig.timerDurationSeconds || 0) - elapsed);
+    await updateSessionConfig({
+      timerStartedAt: null,
+      timerPausedRemaining: remaining,
+    });
+  }, [sessionConfig, updateSessionConfig]);
+
+  const resumeTimer = useCallback(async () => {
+    if (sessionConfig?.timerPausedRemaining == null) return;
+    // Set a new startedAt so that (now - startedAt) = (duration - remaining)
+    const offset = (sessionConfig.timerDurationSeconds || 0) - sessionConfig.timerPausedRemaining;
+    const fakeStart = new Date(Date.now() - offset * 1000).toISOString();
+    await updateSessionConfig({
+      timerStartedAt: fakeStart,
+      timerPausedRemaining: null,
+    });
+  }, [sessionConfig, updateSessionConfig]);
+
+  const cancelTimer = useCallback(async () => {
+    await updateSessionConfig({
+      timerStartedAt: null,
+      timerPausedRemaining: null,
+      extensionRequests: [],
+    });
+  }, [updateSessionConfig]);
+
+  const requestExtension = useCallback(async () => {
+    if (!sessionConfig || !user) return;
+    const existing = sessionConfig.extensionRequests || [];
+    if (existing.some(r => r.userId === user.id)) return; // already requested
+    const charName = characterName || 'Unknown';
+    await updateSessionConfig({
+      extensionRequests: [...existing, { userId: user.id, name: charName }],
+    });
+  }, [sessionConfig, user, characterName, updateSessionConfig]);
+
+  const approveExtension = useCallback(async (additionalSeconds: number) => {
+    if (!sessionConfig?.timerStartedAt) return;
+    // Shift startedAt forward to add time
+    const newStart = new Date(new Date(sessionConfig.timerStartedAt).getTime() + additionalSeconds * 1000).toISOString();
+    // Hmm, shifting forward is wrong — we need to shift it BACK to add more time
+    // remaining = duration - (now - startedAt). To add time: shift startedAt back.
+    const shiftedStart = new Date(new Date(sessionConfig.timerStartedAt).getTime() - additionalSeconds * 1000).toISOString();
+    await updateSessionConfig({
+      timerStartedAt: shiftedStart,
+      extensionRequests: [],
+    });
+    toast.success(`Added ${additionalSeconds >= 60 ? `${Math.round(additionalSeconds / 60)}m` : `${additionalSeconds}s`} to the timer`);
+  }, [sessionConfig, updateSessionConfig]);
+
+  const dismissExtensions = useCallback(async () => {
+    await updateSessionConfig({ extensionRequests: [] });
+  }, [updateSessionConfig]);
+
   return {
     messages: filteredMessages,
     allMessages: messages,
@@ -1380,5 +1477,14 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     addMediaMessage,
     initiateSplit,
     regroupParty,
+    // Timer
+    setTimerConfig,
+    startTimer,
+    pauseTimer,
+    resumeTimer,
+    cancelTimer,
+    requestExtension,
+    approveExtension,
+    dismissExtensions,
   };
 }
