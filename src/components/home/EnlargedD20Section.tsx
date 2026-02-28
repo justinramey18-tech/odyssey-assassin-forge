@@ -23,7 +23,8 @@ export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompan
       : 'injured'
     : 'happy';
 
-  const breatheDuration = hpState === 'happy' ? 20 : hpState === 'angry' ? 10 : 6;
+  const breatheDuration = hpState === 'happy' ? 10 : hpState === 'angry' ? 4 : 2;
+  const breatheScale = hpState === 'happy' ? 1.12 : hpState === 'angry' ? 1.18 : 1.25;
   const breatheGlow = hpState === 'happy'
     ? 'rgba(245,158,11,0.55)'
     : hpState === 'angry'
@@ -66,7 +67,7 @@ export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompan
       }}
       className="flex items-center justify-center gap-6 py-4"
     >
-      {/* Companion Button (replaces Map for momo) OR Map Button */}
+      {/* Left slot: Static D20 Dice Roller (or Map fallback) */}
       {onCompanionClick ? (
         <motion.div
           initial={{ opacity: 0, x: -20 }}
@@ -74,69 +75,15 @@ export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompan
           transition={{ delay: 0.7, duration: 0.3 }}
           className="flex flex-col items-center gap-2"
         >
-          <div className="relative">
-            {/* Ember particles when injured */}
-            {isInjured && embers.map(ember => (
-              <motion.div
-                key={ember.id}
-                className="absolute pointer-events-none rounded-full"
-                style={{
-                  width: ember.size,
-                  height: ember.size,
-                  left: '50%',
-                  bottom: '10%',
-                  background: `radial-gradient(circle, rgba(255,${60 + Math.random() * 80},0,0.9), rgba(255,0,0,0.3))`,
-                }}
-                animate={{
-                  x: [ember.x * 0.3, ember.x * 0.6 + ember.drift, ember.x],
-                  y: [0, -40 - Math.random() * 30, -70 - Math.random() * 20],
-                  opacity: [0, 0.9, 0],
-                  scale: [0.5, 1, 0.2],
-                }}
-                transition={{
-                  duration: ember.duration,
-                  delay: ember.delay,
-                  repeat: Infinity,
-                  ease: 'easeOut',
-                }}
-              />
-            ))}
-            <motion.div
-              className="rounded-2xl"
-              animate={{
-                scale: [1, 1.08, 1],
-                boxShadow: [
-                  `0 0 10px ${breatheGlow}`,
-                  `0 0 24px ${breatheGlow}`,
-                  `0 0 10px ${breatheGlow}`,
-                ],
-              }}
-              transition={{
-                duration: breatheDuration,
-                repeat: Infinity,
-                ease: 'easeInOut',
-              }}
-            >
-              <button
-                onClick={onCompanionClick}
-                className={cn(
-                  "w-20 h-20 rounded-2xl overflow-hidden",
-                  `border-2 ${borderColor}`,
-                  "transition-all duration-300",
-                  "hover:scale-105 active:scale-95",
-                  "shadow-[0_6px_20px_rgba(0,0,0,0.5),0_2px_4px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.15)]",
-                  "hover:shadow-[0_8px_25px_rgba(180,120,40,0.4),0_4px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.2)]",
-                  `ring-2 ${ringColor} ring-offset-0`
-                )}
-                style={{ touchAction: 'manipulation', transform: 'perspective(500px) rotateY(-3deg) rotateX(2deg)' }}
-                aria-label="Open Geralt companion"
-              >
-                <img src={geraltButton} alt="Geralt" className="w-full h-full object-cover" />
-              </button>
-            </motion.div>
+          <div className="relative w-16 h-16">
+            <div className="relative w-full h-full flex items-center justify-center transform scale-[1.6] pointer-events-none">
+              <div className="pointer-events-auto">
+                <AnimatedD20Trigger onClick={onClick} />
+              </div>
+            </div>
           </div>
           <p className="text-[10px] text-muted-foreground font-cinzel uppercase tracking-widest">
-            Geralt
+            Roll
           </p>
         </motion.div>
       ) : onMapClick && (
@@ -167,36 +114,98 @@ export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompan
         </motion.div>
       )}
 
-      {/* D20 Dice Roller Button */}
-      <div className="flex flex-col items-center gap-2">
-        <div 
-          className={cn(
-            "relative w-24 h-24",
-            "animate-dice-wobble"
-          )}
-        >
-          <div 
-            className={cn(
-              "absolute inset-0 rounded-full pointer-events-none",
-              "bg-gradient-to-r from-cyan-500/20 to-primary/20",
-              "blur-xl animate-pulse"
-            )} 
-          />
-          <div className="relative w-full h-full flex items-center justify-center transform scale-[2.4] pointer-events-none">
-            <div className="pointer-events-auto">
-              <AnimatedD20Trigger onClick={onClick} />
+      {/* Center slot: Geralt Companion Button (or D20 fallback) */}
+      {onCompanionClick ? (
+        <div className="flex flex-col items-center gap-2">
+          <div className="relative">
+            {/* Ember particles when injured */}
+            {isInjured && embers.map(ember => (
+              <motion.div
+                key={ember.id}
+                className="absolute pointer-events-none rounded-full"
+                style={{
+                  width: ember.size,
+                  height: ember.size,
+                  left: '50%',
+                  bottom: '10%',
+                  background: `radial-gradient(circle, rgba(255,${60 + Math.random() * 80},0,0.9), rgba(255,0,0,0.3))`,
+                }}
+                animate={{
+                  x: [ember.x * 0.3, ember.x * 0.6 + ember.drift, ember.x],
+                  y: [0, -40 - Math.random() * 30, -70 - Math.random() * 20],
+                  opacity: [0, 0.9, 0],
+                  scale: [0.5, 1, 0.2],
+                }}
+                transition={{
+                  duration: ember.duration,
+                  delay: ember.delay,
+                  repeat: Infinity,
+                  ease: 'easeOut',
+                }}
+              />
+            ))}
+            <motion.div
+              className="rounded-2xl"
+              style={{ willChange: 'transform, box-shadow' }}
+              animate={{
+                scale: [1, breatheScale, 1],
+                boxShadow: [
+                  `0 0 10px ${breatheGlow}`,
+                  `0 0 30px ${breatheGlow}`,
+                  `0 0 10px ${breatheGlow}`,
+                ],
+              }}
+              transition={{
+                duration: breatheDuration,
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }}
+            >
+              <button
+                onClick={onCompanionClick}
+                className={cn(
+                  "w-24 h-24 rounded-2xl overflow-hidden",
+                  `border-2 ${borderColor}`,
+                  "transition-colors duration-300",
+                  `ring-2 ${ringColor} ring-offset-0`
+                )}
+                style={{ touchAction: 'manipulation', transform: 'perspective(500px) rotateY(-3deg) rotateX(2deg)' }}
+                aria-label="Open Geralt companion"
+              >
+                <img src={geraltButton} alt="Geralt" className="w-full h-full object-cover" />
+              </button>
+            </motion.div>
+          </div>
+          <p className="text-[10px] text-muted-foreground font-cinzel uppercase tracking-widest">
+            Geralt
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center gap-2">
+          <div className="relative w-24 h-24">
+            <div 
+              className={cn(
+                "absolute inset-0 rounded-full pointer-events-none",
+                "bg-gradient-to-r from-cyan-500/20 to-primary/20",
+                "blur-xl animate-pulse"
+              )} 
+            />
+            <div className="relative w-full h-full flex items-center justify-center transform scale-[2.4] pointer-events-none">
+              <div className="pointer-events-auto">
+                <AnimatedD20Trigger onClick={onClick} />
+              </div>
             </div>
           </div>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.7 }}
+            className="text-xs text-muted-foreground font-cinzel uppercase tracking-widest"
+          >
+            Tap to Roll
+          </motion.p>
         </div>
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.7 }}
-          className="text-xs text-muted-foreground font-cinzel uppercase tracking-widest"
-        >
-          Tap to Roll
-        </motion.p>
-      </div>
+      )}
 
       {/* Quick Menus Drawer Button */}
       {onMenusClick && (
