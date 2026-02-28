@@ -8,103 +8,19 @@ import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import {
   Heart, Shield, Plus, Minus, X, Zap, Skull,
-  Swords, Star, Smile, Frown, Meh, AlertTriangle, Dices,
+  Swords, Star, Dices,
 } from 'lucide-react';
-import { rollDice, DiceRoll, DieType } from '@/lib/diceRoller';
+import { rollDice } from '@/lib/diceRoller';
 import { cn } from '@/lib/utils';
+import {
+  GeraltState, DEFAULT_STATE, ATTACKS, CONDITIONS, MOODS, MOOD_CONFIG,
+  loadState, saveState, formatMod,
+  AttackRollResult,
+} from './geralt-data';
 
 import geraltHappy from '@/assets/geralt-happy.jpg';
 import geraltAngry from '@/assets/geralt-angry.jpg';
 import geraltInjured from '@/assets/geralt-injured.jpg';
-
-// ── Types ──
-
-interface GeraltState {
-  currentHP: number;
-  maxHP: number;
-  tempHP: number;
-  level: number;
-  xp: number;
-  abilities: { str: number; dex: number; con: number; wis: number; int: number; cha: number };
-  conditions: string[];
-  mood: 'happy' | 'neutral' | 'agitated' | 'enraged';
-  loyalty: number; // 0-100
-  notes: string;
-}
-
-const DEFAULT_STATE: GeraltState = {
-  currentHP: 59,
-  maxHP: 59,
-  tempHP: 0,
-  level: 3,
-  xp: 0,
-  abilities: { str: 20, dex: 12, con: 17, wis: 12, int: 3, cha: 7 },
-  conditions: [],
-  mood: 'happy',
-  loyalty: 80,
-  notes: '',
-};
-
-const CONDITIONS = ['Frightened', 'Prone', 'Charmed', 'Restrained', 'Poisoned', 'Stunned', 'Blinded'];
-const MOODS: GeraltState['mood'][] = ['happy', 'neutral', 'agitated', 'enraged'];
-
-const MOOD_CONFIG = {
-  happy: { icon: Smile, label: 'Happy', color: 'text-emerald-400 border-emerald-500/40' },
-  neutral: { icon: Meh, label: 'Neutral', color: 'text-amber-400 border-amber-500/40' },
-  agitated: { icon: Frown, label: 'Agitated', color: 'text-orange-400 border-orange-500/40' },
-  enraged: { icon: AlertTriangle, label: 'Enraged', color: 'text-rose-400 border-rose-500/40' },
-};
-
-const ATTACKS: {
-  name: string; bonus: string; damage: string; desc: string;
-  hitMod?: number; damageDie?: DieType; damageCount?: number; damageMod?: number;
-}[] = [
-  { name: 'Beak', bonus: '+7', damage: '1d10 + 5 piercing', desc: 'Melee Weapon Attack', hitMod: 7, damageDie: 'd10', damageCount: 1, damageMod: 5 },
-  { name: 'Claws', bonus: '+7', damage: '2d8 + 5 slashing', desc: 'Melee Weapon Attack', hitMod: 7, damageDie: 'd8', damageCount: 2, damageMod: 5 },
-  { name: 'Bear Hug', bonus: '—', damage: 'Grapple (DC 15)', desc: 'On Claws hit, target is grappled' },
-];
-
-interface AttackRollResult {
-  attackName: string;
-  type: 'hit' | 'damage';
-  roll: DiceRoll;
-  isNat20: boolean;
-  isNat1: boolean;
-}
-
-// ── Helpers ──
-
-function getStorageKey(characterId: string) {
-  return `odyssey_${characterId}_geralt_companion`;
-}
-
-function loadState(characterId: string): GeraltState {
-  try {
-    const raw = localStorage.getItem(getStorageKey(characterId));
-    if (!raw) return { ...DEFAULT_STATE };
-    const parsed = JSON.parse(raw);
-    return { ...DEFAULT_STATE, ...parsed };
-  } catch {
-    return { ...DEFAULT_STATE };
-  }
-}
-
-function saveState(characterId: string, state: GeraltState) {
-  try {
-    localStorage.setItem(getStorageKey(characterId), JSON.stringify(state));
-  } catch (e) {
-    console.error('Failed to save Geralt state:', e);
-  }
-}
-
-function getModifier(score: number) {
-  return Math.floor((score - 10) / 2);
-}
-
-function formatMod(score: number) {
-  const mod = getModifier(score);
-  return mod >= 0 ? `+${mod}` : `${mod}`;
-}
 
 // ── Component ──
 
