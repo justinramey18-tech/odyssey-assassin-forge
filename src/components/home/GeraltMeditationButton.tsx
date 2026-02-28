@@ -27,22 +27,22 @@ function useBreathingConfig(companionHpPct?: number) {
   const exhaleRatio = isOcean ? 0.4 : 0.45;
 
   const breatheGlow = hpState === 'happy'
-    ? 'rgba(245,158,11,0.55)'
+    ? 'rgba(190,60,180,0.55)'
     : hpState === 'angry'
-      ? 'rgba(249,115,22,0.55)'
+      ? 'rgba(160,40,200,0.55)'
       : 'rgba(239,68,68,0.55)';
 
   const borderColor = companionHpPct !== undefined
-    ? companionHpPct > 80 ? 'border-amber-500/50 hover:border-amber-400/80'
-      : companionHpPct > 30 ? 'border-orange-500/50 hover:border-orange-400/80'
+    ? companionHpPct > 80 ? 'border-pink-700/50 hover:border-pink-500/80'
+      : companionHpPct > 30 ? 'border-purple-600/50 hover:border-purple-400/80'
       : 'border-red-500/50 hover:border-red-400/80'
-    : 'border-amber-500/50 hover:border-amber-400/80';
+    : 'border-pink-700/50 hover:border-pink-500/80';
 
   const ringColor = companionHpPct !== undefined
-    ? companionHpPct > 80 ? 'ring-amber-400/20'
-      : companionHpPct > 30 ? 'ring-orange-400/20'
+    ? companionHpPct > 80 ? 'ring-pink-500/20'
+      : companionHpPct > 30 ? 'ring-purple-400/20'
       : 'ring-red-400/20'
-    : 'ring-amber-400/20';
+    : 'ring-pink-500/20';
 
   const particleCount = hpState === 'happy' ? 4 : hpState === 'angry' ? 8 : 14;
   const particleSpeedMult = hpState === 'happy' ? 1 : hpState === 'angry' ? 0.7 : 0.4;
@@ -193,9 +193,9 @@ export function GeraltMeditationButton({ onClick, companionHpPct }: GeraltMedita
             style={{
               width: p.size, height: p.size, left: '50%', bottom: '10%',
               background: hpState === 'happy'
-                ? 'radial-gradient(circle, rgba(245,180,60,0.8), rgba(245,158,11,0.2))'
+                ? 'radial-gradient(circle, rgba(200,80,190,0.8), rgba(160,40,150,0.2))'
                 : hpState === 'angry'
-                  ? 'radial-gradient(circle, rgba(255,140,20,0.9), rgba(249,115,22,0.2))'
+                  ? 'radial-gradient(circle, rgba(170,60,220,0.9), rgba(130,30,180,0.2))'
                   : `radial-gradient(circle, rgba(255,${60 + Math.random() * 80},0,0.9), rgba(255,0,0,0.3))`,
             }}
             animate={{
