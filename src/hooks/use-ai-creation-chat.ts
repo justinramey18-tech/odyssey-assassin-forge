@@ -21,6 +21,7 @@ export interface CharacterBuildData {
     charisma: number;
   };
   gameMode: 'honest' | 'infinityPool';
+  alignment?: { law: number; good: number };
   honestModeRules: HonestModeRules;
   xpPreset: 'standard' | 'fastTrack' | 'epicJourney' | 'milestone';
   diceOddsMode: string;

@@ -11,7 +11,7 @@ import { applyTimePrefix } from '@/lib/fourthWallTime';
 import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
 import { AlignmentBanner } from '@/components/alignment/AlignmentBanner';
 import { AlignmentRecommender } from '@/components/alignment/AlignmentRecommender';
-import { type AlignmentScore, getPromptAlignment, isAlignmentMatch } from '@/lib/alignmentSpectrum';
+import { type AlignmentScore, getPromptAlignment, isAlignmentMatch, sortByAlignmentProximity } from '@/lib/alignmentSpectrum';
 
 const FAVORITES_KEY = 'empyrean-favorite-prompts';
 
@@ -79,8 +79,14 @@ export function EmpyreanPromptLibrary({ open, onOpenChange, characterName }: Emp
       list.push(p);
       map.set(p.category as EmpyreanPromptCategory, list);
     }
+    // Sort each category by alignment proximity if target is set
+    if (alignmentTarget) {
+      for (const [cat, list] of map) {
+        map.set(cat, sortByAlignmentProximity(list, alignmentTarget));
+      }
+    }
     return map;
-  }, [filteredPrompts]);
+  }, [filteredPrompts, alignmentTarget]);
 
   const toggleFavorite = useCallback((id: string) => {
     setFavorites(prev => {
