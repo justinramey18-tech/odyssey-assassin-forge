@@ -2,7 +2,8 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, MessageSquare, Plus, Save, Volume2, VolumeX, GitBranch, Bell, BellOff } from 'lucide-react';
+import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, MessageSquare, Plus, Save, Volume2, VolumeX, GitBranch, Bell, BellOff, Heart, Bird } from 'lucide-react';
+import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
 import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
@@ -549,6 +550,19 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
   const [showGeraltWidget, setShowGeraltWidget] = useState(false);
   const isMomo = useMemo(() => isMomoEasterEgg(characterContext?.name || ''), [characterContext?.name]);
 
+  // Geralt HP for sub-header (momo only) — reactive via callback
+  const [geraltHp, setGeraltHp] = useState<{ current: number; max: number } | null>(null);
+  useEffect(() => {
+    if (isMomo) {
+      const s = loadGeraltState(currentUserId || 'default');
+      setGeraltHp({ current: s.currentHP, max: s.maxHP });
+    }
+  }, [isMomo, currentUserId]);
+  const handleGeraltHpChange = useCallback((currentHP: number, maxHP: number) => {
+    setGeraltHp({ current: currentHP, max: maxHP });
+  }, []);
+  const geraltHpPct = geraltHp ? Math.max(0, Math.min(100, (geraltHp.current / geraltHp.max) * 100)) : 0;
+
   // Bottom nav tab handler
   const handleNavTabChange = useCallback((tab: DMNavTab) => {
     if (tab === 'prompts') {
@@ -631,6 +645,18 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
           <>
             <span className="text-[11px] text-white/20">•</span>
             <span className="text-[11px] text-purple-400 animate-pulse whitespace-nowrap">Summarizing...</span>
+          </>
+        )}
+        {isMomo && geraltHp && (
+          <>
+            <span className="text-[11px] text-white/20">•</span>
+            <Bird className="w-3 h-3 text-pink-400 shrink-0" />
+            <span className={cn(
+              "text-[11px] font-mono whitespace-nowrap",
+              geraltHpPct > 50 ? "text-emerald-400" : geraltHpPct > 25 ? "text-amber-400" : "text-red-400"
+            )}>
+              {geraltHp.current}/{geraltHp.max}
+            </span>
           </>
         )}
         <span className="text-[11px] text-white/20">•</span>
@@ -1323,6 +1349,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
           open={showGeraltWidget}
           onClose={() => setShowGeraltWidget(false)}
           characterId={currentUserId || 'default'}
+          onHpChange={handleGeraltHpChange}
         />
       )}
 
