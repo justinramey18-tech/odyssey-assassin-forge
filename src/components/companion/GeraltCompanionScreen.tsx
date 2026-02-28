@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -8,8 +8,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import {
   Heart, Shield, Plus, Minus, X, Zap, Skull,
-  Swords, Star, Smile, Frown, Meh, AlertTriangle,
+  Swords, Star, Smile, Frown, Meh, AlertTriangle, Dices,
 } from 'lucide-react';
+import { rollDice, DiceRoll, DieType } from '@/lib/diceRoller';
 import { cn } from '@/lib/utils';
 
 import geraltHappy from '@/assets/geralt-happy.jpg';
@@ -54,11 +55,22 @@ const MOOD_CONFIG = {
   enraged: { icon: AlertTriangle, label: 'Enraged', color: 'text-rose-400 border-rose-500/40' },
 };
 
-const ATTACKS = [
-  { name: 'Beak', bonus: '+7', damage: '1d10 + 5 piercing', desc: 'Melee Weapon Attack' },
-  { name: 'Claws', bonus: '+7', damage: '2d8 + 5 slashing', desc: 'Melee Weapon Attack' },
+const ATTACKS: {
+  name: string; bonus: string; damage: string; desc: string;
+  hitMod?: number; damageDie?: DieType; damageCount?: number; damageMod?: number;
+}[] = [
+  { name: 'Beak', bonus: '+7', damage: '1d10 + 5 piercing', desc: 'Melee Weapon Attack', hitMod: 7, damageDie: 'd10', damageCount: 1, damageMod: 5 },
+  { name: 'Claws', bonus: '+7', damage: '2d8 + 5 slashing', desc: 'Melee Weapon Attack', hitMod: 7, damageDie: 'd8', damageCount: 2, damageMod: 5 },
   { name: 'Bear Hug', bonus: '—', damage: 'Grapple (DC 15)', desc: 'On Claws hit, target is grappled' },
 ];
+
+interface AttackRollResult {
+  attackName: string;
+  type: 'hit' | 'damage';
+  roll: DiceRoll;
+  isNat20: boolean;
+  isNat1: boolean;
+}
 
 // ── Helpers ──
 
@@ -105,6 +117,20 @@ interface GeraltCompanionScreenProps {
 export function GeraltCompanionScreen({ open, onClose, characterId }: GeraltCompanionScreenProps) {
   const [state, setState] = useState<GeraltState>(() => loadState(characterId));
   const [hpDelta, setHpDelta] = useState('');
+  const [lastRoll, setLastRoll] = useState<AttackRollResult | null>(null);
+
+  const rollHit = useCallback((atk: typeof ATTACKS[0]) => {
+    if (!atk.hitMod) return;
+    const roll = rollDice('d20', 1, atk.hitMod);
+    const nat = roll.rolls[0];
+    setLastRoll({ attackName: atk.name, type: 'hit', roll, isNat20: nat === 20, isNat1: nat === 1 });
+  }, []);
+
+  const rollDamage = useCallback((atk: typeof ATTACKS[0]) => {
+    if (!atk.damageDie || !atk.damageCount) return;
+    const roll = rollDice(atk.damageDie, atk.damageCount, atk.damageMod ?? 0);
+    setLastRoll({ attackName: atk.name, type: 'damage', roll, isNat20: false, isNat1: false });
+  }, []);
 
   // Load on characterId change
   useEffect(() => {
@@ -283,16 +309,79 @@ export function GeraltCompanionScreen({ open, onClose, characterId }: GeraltComp
                 <Swords className="w-5 h-5 text-rose-400" />
                 <span className="font-cinzel text-sm text-muted-foreground uppercase tracking-wider">Attacks</span>
               </div>
+
+              {/* Roll result banner */}
+              <AnimatePresence mode="wait">
+                {lastRoll && (
+                  <motion.div
+                    key={`${lastRoll.attackName}-${lastRoll.type}-${lastRoll.roll.total}`}
+                    initial={{ opacity: 0, scale: 0.9, y: -8 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9, y: -8 }}
+                    transition={{ duration: 0.3 }}
+                    className={cn(
+                      "rounded-lg p-3 text-center border",
+                      lastRoll.isNat20
+                        ? "bg-amber-500/20 border-amber-400/50"
+                        : lastRoll.isNat1
+                          ? "bg-rose-500/20 border-rose-400/50"
+                          : "bg-black/20 border-border/30"
+                    )}
+                  >
+                    {lastRoll.isNat20 && (
+                      <p className="text-[10px] font-cinzel uppercase tracking-widest text-amber-300 mb-1">⚔️ Natural 20!</p>
+                    )}
+                    {lastRoll.isNat1 && (
+                      <p className="text-[10px] font-cinzel uppercase tracking-widest text-rose-300 mb-1">💀 Natural 1!</p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      {lastRoll.attackName} — {lastRoll.type === 'hit' ? 'To Hit' : 'Damage'}
+                    </p>
+                    <p className={cn(
+                      "text-2xl font-bold font-cinzel",
+                      lastRoll.isNat20 ? "text-amber-300" : lastRoll.isNat1 ? "text-rose-400" : "text-foreground"
+                    )}>
+                      {lastRoll.roll.total}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      [{lastRoll.roll.rolls.join(', ')}]{lastRoll.roll.modifier !== 0 ? ` ${lastRoll.roll.modifier > 0 ? '+' : ''}${lastRoll.roll.modifier}` : ''}
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {ATTACKS.map(atk => (
-                <div key={atk.name} className="flex items-center justify-between p-2 rounded-lg border border-border/20 bg-black/10">
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">{atk.name}</p>
-                    <p className="text-[10px] text-muted-foreground">{atk.desc}</p>
+                <div key={atk.name} className="rounded-lg border border-border/20 bg-black/10 p-2 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{atk.name}</p>
+                      <p className="text-[10px] text-muted-foreground">{atk.desc}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-amber-400">{atk.bonus} to hit</p>
+                      <p className="text-xs text-rose-400">{atk.damage}</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs text-amber-400">{atk.bonus} to hit</p>
-                    <p className="text-xs text-rose-400">{atk.damage}</p>
-                  </div>
+                  {atk.hitMod !== undefined && (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 h-8 text-xs text-amber-300 border-amber-700/40 hover:bg-amber-500/10"
+                        onClick={() => rollHit(atk)}
+                      >
+                        <Dices className="w-3 h-3 mr-1.5" />Hit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 h-8 text-xs text-rose-400 border-rose-700/40 hover:bg-rose-500/10"
+                        onClick={() => rollDamage(atk)}
+                      >
+                        <Dices className="w-3 h-3 mr-1.5" />Dmg
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))}
               {/* Traits */}
