@@ -216,46 +216,44 @@ function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading }:
           )}
         </div>
 
-        {/* Action buttons for assistant messages */}
+        {/* Action buttons for assistant messages (desktop) */}
         {!isUser && message.content && !isEditing && (
           <div className="flex items-center gap-0.5 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              onClick={handleCopy}
-              className="p-1.5 rounded-md hover:bg-white/10 text-white/40 hover:text-white/70 transition-colors"
-              title="Copy"
-            >
+            <button onClick={handleCopy} className="p-1.5 rounded-md hover:bg-white/10 text-white/40 hover:text-white/70 transition-colors" title="Copy">
               {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
             </button>
-            <button
-              onClick={handleEdit}
-              className="p-1.5 rounded-md hover:bg-white/10 text-white/40 hover:text-white/70 transition-colors"
-              title="Edit"
-            >
+            <button onClick={handleEdit} className="p-1.5 rounded-md hover:bg-white/10 text-white/40 hover:text-white/70 transition-colors" title="Edit">
               <Pencil className="w-3.5 h-3.5" />
             </button>
-            <button
-              onClick={handleRegenerate}
-              disabled={isLoading}
-              className="p-1.5 rounded-md hover:bg-white/10 text-white/40 hover:text-white/70 transition-colors disabled:opacity-30"
-              title="Regenerate"
-            >
+            <button onClick={handleRegenerate} disabled={isLoading} className="p-1.5 rounded-md hover:bg-white/10 text-white/40 hover:text-white/70 transition-colors disabled:opacity-30" title="Regenerate">
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
-            <button
-              onClick={handleDelete}
-              className="p-1.5 rounded-md hover:bg-red-900/30 text-white/40 hover:text-red-400 transition-colors"
-              title="Delete"
-            >
+            <button onClick={handleDelete} className="p-1.5 rounded-md hover:bg-red-900/30 text-white/40 hover:text-red-400 transition-colors" title="Delete">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
 
-        {/* Mobile: tap to show actions for assistant messages */}
-        {!isUser && message.content && !isEditing && (
+        {/* Action buttons for user messages (desktop) */}
+        {isUser && message.content && !isEditing && (
+          <div className="flex items-center gap-0.5 mt-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+            <button onClick={handleEdit} className="p-1.5 rounded-md hover:bg-white/10 text-white/40 hover:text-white/70 transition-colors" title="Edit">
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+            <button onClick={handleDelete} className="p-1.5 rounded-md hover:bg-red-900/30 text-white/40 hover:text-red-400 transition-colors" title="Delete">
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* Mobile: tap to show actions */}
+        {message.content && !isEditing && (
           <button
             onClick={() => setShowActions(prev => !prev)}
-            className="absolute top-1 right-1 p-1 rounded-md sm:hidden text-white/30 hover:text-white/60"
+            className={cn(
+              "absolute top-1 p-1 rounded-md sm:hidden text-white/30 hover:text-white/60",
+              isUser ? "left-1" : "right-1"
+            )}
           >
             <MoreVertical className="w-3.5 h-3.5" />
           </button>
@@ -263,22 +261,29 @@ function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading }:
 
         {/* Mobile action menu */}
         <AnimatePresence>
-          {showActions && !isUser && (
+          {showActions && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="absolute top-0 right-0 z-20 bg-[#1a1520] border border-amber-500/30 rounded-xl shadow-xl p-1 flex flex-col gap-0.5 sm:hidden"
+              className={cn(
+                "absolute top-0 z-20 bg-[#1a1520] border border-amber-500/30 rounded-xl shadow-xl p-1 flex flex-col gap-0.5 sm:hidden",
+                isUser ? "left-0" : "right-0"
+              )}
             >
-              <button onClick={handleCopy} className="flex items-center gap-2 px-3 py-2 text-xs text-white/70 hover:bg-white/10 rounded-lg">
-                {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />} Copy
-              </button>
+              {!isUser && (
+                <button onClick={handleCopy} className="flex items-center gap-2 px-3 py-2 text-xs text-white/70 hover:bg-white/10 rounded-lg">
+                  {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />} Copy
+                </button>
+              )}
               <button onClick={handleEdit} className="flex items-center gap-2 px-3 py-2 text-xs text-white/70 hover:bg-white/10 rounded-lg">
                 <Pencil className="w-3.5 h-3.5" /> Edit
               </button>
-              <button onClick={handleRegenerate} disabled={isLoading} className="flex items-center gap-2 px-3 py-2 text-xs text-white/70 hover:bg-white/10 rounded-lg disabled:opacity-30">
-                <RefreshCw className="w-3.5 h-3.5" /> Regenerate
-              </button>
+              {!isUser && (
+                <button onClick={handleRegenerate} disabled={isLoading} className="flex items-center gap-2 px-3 py-2 text-xs text-white/70 hover:bg-white/10 rounded-lg disabled:opacity-30">
+                  <RefreshCw className="w-3.5 h-3.5" /> Regenerate
+                </button>
+              )}
               <button onClick={handleDelete} className="flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-red-900/20 rounded-lg">
                 <Trash2 className="w-3.5 h-3.5" /> Delete
               </button>
