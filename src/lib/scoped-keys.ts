@@ -67,4 +67,6 @@ export const SCOPED_KEYS = [
   'scribe-last-processor',
   // Monolithic autosave snapshot (scoped per character)
   'odyssey-character-autosave',
+  // Alignment drift tracking
+  'odyssey-alignment-drift',
 ] as const;

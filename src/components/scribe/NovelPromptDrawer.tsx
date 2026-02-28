@@ -6,6 +6,10 @@ import { characterPrompts, type CharacterPrompt } from '@/lib/characterPrompts';
 import { empyreanPrompts, type EmpyreanPromptCategory } from '@/lib/empyreanPrompts';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
 import { useFavoritePrompts } from '@/hooks/use-favorite-prompts';
+import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
+import { AlignmentBanner } from '@/components/alignment/AlignmentBanner';
+import { AlignmentRecommender } from '@/components/alignment/AlignmentRecommender';
+import { type AlignmentScore, getPromptAlignment, isAlignmentMatch } from '@/lib/alignmentSpectrum';
 import { Badge } from '@/components/ui/badge';
 import {
   Drawer,
@@ -157,6 +161,10 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
     } catch { return new Set(); }
   });
 
+  // Alignment integration
+  const { driftPosition, historyCount, logPromptUsage } = useAlignmentDrift();
+  const [alignmentTarget, setAlignmentTarget] = useState<AlignmentScore | null>(null);
+
   const toggleEmpyreanFavorite = useCallback((id: string) => {
     setEmpyreanFavorites(prev => {
       const next = new Set(prev);
@@ -189,6 +197,7 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
   }, [selectedIntensity, empyreanFavorites]);
 
   const processAndUse = useCallback(async (prompt: CharacterPrompt) => {
+    logPromptUsage(prompt.id);
     const name = characterName || 'The Character';
     const base = prompt.prompt
       .replace(/\[Character Name\]/g, name)
@@ -200,7 +209,7 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
     } catch {
       toast.error('Failed to copy to clipboard');
     }
-  }, [characterName, fictionMode]);
+  }, [characterName, fictionMode, logPromptUsage]);
 
   const pickRandom = useCallback(() => {
     if (activeLibrary === 'empyrean') {
@@ -233,9 +242,17 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
   const renderPromptRow = useCallback((prompt: CharacterPrompt, isStarred: boolean, onToggleStar: () => void) => {
     const intensity = getPromptIntensity(prompt.id);
     const intensityConfig = intensity ? intensityLevels.find(l => l.id === intensity) : null;
+    const promptAlign = getPromptAlignment(prompt.id);
+    const matched = alignmentTarget ? isAlignmentMatch(promptAlign, alignmentTarget) : false;
 
     return (
-      <div key={prompt.id} className="flex items-start gap-2 p-2.5 rounded-lg bg-white/5 hover:bg-white/10 transition-all group">
+      <div
+        key={prompt.id}
+        className={cn(
+          'flex items-start gap-2 p-2.5 rounded-lg transition-all group',
+          matched ? 'bg-white/10 ring-1 ring-white/20' : alignmentTarget ? 'bg-white/3 opacity-60' : 'bg-white/5 hover:bg-white/10',
+        )}
+      >
         <button
           onClick={() => { onToggleStar(); toast.success(isStarred ? 'Removed from favorites' : 'Added to favorites'); }}
           className="shrink-0 p-1 min-w-[44px] min-h-[44px] flex items-center justify-center rounded hover:bg-yellow-500/20 transition-colors"
@@ -251,6 +268,9 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
                 {intensityConfig.icon}
               </span>
             )}
+            {matched && (
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 shrink-0">✦ match</span>
+            )}
           </div>
           {prompt.description && <p className="text-xs text-white/40 mt-0.5 leading-relaxed">{prompt.description}</p>}
         </div>
@@ -263,7 +283,7 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
         </button>
       </div>
     );
-  }, [processAndUse]);
+  }, [processAndUse, alignmentTarget]);
 
   return (
     <>
@@ -298,6 +318,27 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
           </DrawerHeader>
 
           <div className="flex-1 overflow-y-auto px-4 pb-8 space-y-3">
+            {/* Alignment banner */}
+            {historyCount > 0 && !alignmentTarget && (
+              <AlignmentBanner
+                alignmentTarget={driftPosition}
+                onApply={(target) => setAlignmentTarget(target)}
+                onDismiss={() => {}}
+                className="mt-2"
+              />
+            )}
+
+            {/* Alignment recommender */}
+            {alignmentTarget && (
+              <div className="pt-2">
+                <AlignmentRecommender
+                  value={alignmentTarget}
+                  onChange={setAlignmentTarget}
+                  compact
+                />
+              </div>
+            )}
+
             {/* Library toggle */}
             <div className="flex gap-1.5 pt-2">
               <button

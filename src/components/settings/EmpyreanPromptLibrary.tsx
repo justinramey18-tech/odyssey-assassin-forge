@@ -8,6 +8,10 @@ import { toast } from 'sonner';
 import { X } from 'lucide-react';
 import { empyreanPrompts, type EmpyreanPromptCategory } from '@/lib/empyreanPrompts';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
+import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
+import { AlignmentBanner } from '@/components/alignment/AlignmentBanner';
+import { AlignmentRecommender } from '@/components/alignment/AlignmentRecommender';
+import { type AlignmentScore, getPromptAlignment, isAlignmentMatch } from '@/lib/alignmentSpectrum';
 
 const FAVORITES_KEY = 'empyrean-favorite-prompts';
 
@@ -59,6 +63,10 @@ export function EmpyreanPromptLibrary({ open, onOpenChange, characterName }: Emp
   const [favorites, setFavorites] = useState<Set<string>>(loadFavorites);
   const [activeFilter, setActiveFilter] = useState<FilterMode>('all');
 
+  // Alignment integration
+  const { driftPosition, historyCount, logPromptUsage } = useAlignmentDrift();
+  const [alignmentTarget, setAlignmentTarget] = useState<AlignmentScore | null>(null);
+
   const filteredPrompts = useMemo(() => {
     if (activeFilter === 'favorites') return empyreanPrompts.filter(p => favorites.has(p.id));
     return empyreanPrompts;
@@ -85,6 +93,7 @@ export function EmpyreanPromptLibrary({ open, onOpenChange, characterName }: Emp
   }, []);
 
   const copyPrompt = useCallback(async (prompt: string, id: string) => {
+    logPromptUsage(id);
     const processed = applyTimePrefix(
       prompt.replace(/\[Character Name\]/g, characterName || '[Character Name]'),
     );
@@ -96,7 +105,7 @@ export function EmpyreanPromptLibrary({ open, onOpenChange, characterName }: Emp
     } catch {
       toast.error('Failed to copy');
     }
-  }, [characterName]);
+  }, [characterName, logPromptUsage]);
 
   const randomPrompt = useCallback(() => {
     const pool = filteredPrompts.length > 0 ? filteredPrompts : empyreanPrompts;
@@ -126,6 +135,24 @@ export function EmpyreanPromptLibrary({ open, onOpenChange, characterName }: Emp
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto overscroll-contain">
         <div className="px-4 py-4 space-y-3 max-w-2xl mx-auto pb-20">
+          {/* Alignment banner */}
+          {historyCount > 0 && !alignmentTarget && (
+            <AlignmentBanner
+              alignmentTarget={driftPosition}
+              onApply={(target) => setAlignmentTarget(target)}
+              onDismiss={() => {}}
+            />
+          )}
+
+          {/* Alignment recommender */}
+          {alignmentTarget && (
+            <AlignmentRecommender
+              value={alignmentTarget}
+              onChange={setAlignmentTarget}
+              compact
+            />
+          )}
+
           {/* Filter toggles */}
           <div className="flex gap-2">
             <button
@@ -191,15 +218,23 @@ export function EmpyreanPromptLibrary({ open, onOpenChange, characterName }: Emp
                       {prompts.map(p => {
                         const isCopied = copiedId === p.id;
                         const isFav = favorites.has(p.id);
+                        const promptAlign = getPromptAlignment(p.id);
+                        const matched = alignmentTarget ? isAlignmentMatch(promptAlign, alignmentTarget) : false;
 
                         return (
                           <div
                             key={p.id}
-                            className="flex items-center gap-2 rounded-lg border border-border/30 bg-background/30 p-2.5"
+                            className={cn(
+                              'flex items-center gap-2 rounded-lg border p-2.5 transition-all',
+                              matched ? 'border-emerald-500/30 bg-emerald-500/5' : alignmentTarget ? 'border-border/20 bg-background/20 opacity-60' : 'border-border/30 bg-background/30',
+                            )}
                           >
                             <span className="text-base shrink-0">{p.icon}</span>
                             <div className="flex-1 min-w-0">
-                              <p className="text-[13px] font-medium leading-tight truncate">{p.title}</p>
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-[13px] font-medium leading-tight truncate">{p.title}</p>
+                                {matched && <span className="text-[8px] px-1 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 shrink-0">✦</span>}
+                              </div>
                               <p className="text-[10px] text-muted-foreground line-clamp-1">{p.description}</p>
                             </div>
                             <button

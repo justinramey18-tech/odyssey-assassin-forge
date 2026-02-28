@@ -49,6 +49,7 @@ import { WildShapeLightningBorder, CRScaledPulse, TransformationBurst } from './
 import { DragonParticles } from './DragonParticles';
 import { PrestigeData } from '@/lib/prestige';
 import { ChroniclerHomeView } from './ChroniclerHomeView';
+import { AlignmentDriftIndicator } from '@/components/alignment/AlignmentDriftIndicator';
 
 import homeBackground from '@/assets/home-background-mobile.jpg';
 
@@ -583,6 +584,9 @@ export function HomeScreen({
           name={character.name} 
           level={character.level}
         />
+
+        {/* Alignment Drift Indicator */}
+        <AlignmentDriftIndicator className="px-4 py-1" />
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-auto flex flex-col">
