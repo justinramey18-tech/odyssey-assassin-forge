@@ -309,6 +309,7 @@ const NOOP_RETURN_ZERO = () => 0;
 
 export function AIDMScreen({ onBack, characterContext, userId, characterName = 'Adventurer', autoSyncCallbacks, dmPersonaPrompt, dmPersonaName, onRetakePersonalityTest }: AIDMScreenProps) {
   const isMomo = useMemo(() => isMomoEasterEgg(characterName), [characterName]);
+  const geraltCharacterId = useMemo(() => characterName?.toLowerCase().trim() || 'unknown', [characterName]);
   const [showToolsDrawer, setShowToolsDrawer] = useState(false);
   const [showWorldBuilder, setShowWorldBuilder] = useState(false);
   const [selectedModel, setSelectedModel] = useState(() => loadSelectedModel());
@@ -335,33 +336,34 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   // Geralt companion auto-sync callbacks (momo only)
   const handleCompanionHPChange = useCallback((change: number, type: 'damage' | 'healing') => {
     if (!isMomo) return;
-    const charId = userId || 'default';
+    const charId = geraltCharacterId;
     const gs = loadGeraltState(charId);
     const newHP = Math.max(0, Math.min(gs.maxHP, gs.currentHP + change));
     saveGeraltState(charId, { ...gs, currentHP: newHP });
     setGeraltHp({ current: newHP, max: gs.maxHP });
-  }, [isMomo, userId]);
+    window.dispatchEvent(new CustomEvent('geralt-hp-changed', { detail: { characterId: charId, currentHP: newHP, maxHP: gs.maxHP } }));
+  }, [isMomo, geraltCharacterId]);
 
   const handleCompanionHPSet = useCallback((hp: number) => {
     if (!isMomo) return;
-    const charId = userId || 'default';
+    const charId = geraltCharacterId;
     const gs = loadGeraltState(charId);
     const newHP = Math.max(0, Math.min(gs.maxHP, Math.round(hp)));
     saveGeraltState(charId, { ...gs, currentHP: newHP });
     setGeraltHp({ current: newHP, max: gs.maxHP });
-    window.dispatchEvent(new CustomEvent('geralt-hp-changed', { detail: { currentHP: newHP, maxHP: gs.maxHP } }));
-  }, [isMomo, userId]);
+    window.dispatchEvent(new CustomEvent('geralt-hp-changed', { detail: { characterId: charId, currentHP: newHP, maxHP: gs.maxHP } }));
+  }, [isMomo, geraltCharacterId]);
 
   const handleCompanionConditionChange = useCallback((toAdd: string[], toRemove: string[]) => {
     if (!isMomo) return;
-    const charId = userId || 'default';
+    const charId = geraltCharacterId;
     const gs = loadGeraltState(charId);
     let conditions = gs.conditions.filter(c => !toRemove.map(r => r.toLowerCase()).includes(c.toLowerCase()));
     for (const c of toAdd) {
       if (!conditions.map(x => x.toLowerCase()).includes(c.toLowerCase())) conditions.push(c);
     }
     saveGeraltState(charId, { ...gs, conditions });
-  }, [isMomo, userId]);
+  }, [isMomo, geraltCharacterId]);
 
   // Auto-sync hook
   const autoSync = useDmAutoSync({
@@ -589,10 +591,10 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const [geraltHp, setGeraltHp] = useState<{ current: number; max: number } | null>(null);
   useEffect(() => {
     if (isMomo) {
-      const s = loadGeraltState(userId || 'default');
+      const s = loadGeraltState(geraltCharacterId);
       setGeraltHp({ current: s.currentHP, max: s.maxHP });
     }
-  }, [isMomo, userId]);
+  }, [isMomo, geraltCharacterId]);
   const handleGeraltHpChange = useCallback((currentHP: number, maxHP: number) => {
     setGeraltHp({ current: currentHP, max: maxHP });
   }, []);
@@ -1021,7 +1023,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         <GeraltGameplayWidget
           open={showGeraltWidget}
           onClose={() => setShowGeraltWidget(false)}
-          characterId={userId || 'default'}
+          characterId={geraltCharacterId}
           onHpChange={handleGeraltHpChange}
         />
       )}

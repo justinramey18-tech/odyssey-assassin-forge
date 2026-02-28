@@ -549,15 +549,16 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
   // Geralt widget state (momo easter egg)
   const [showGeraltWidget, setShowGeraltWidget] = useState(false);
   const isMomo = useMemo(() => isMomoEasterEgg(characterContext?.name || ''), [characterContext?.name]);
+  const geraltCharacterId = useMemo(() => (characterContext?.name || '').toLowerCase().trim() || 'unknown', [characterContext?.name]);
 
   // Geralt HP for sub-header (momo only) — reactive via callback
   const [geraltHp, setGeraltHp] = useState<{ current: number; max: number } | null>(null);
   useEffect(() => {
     if (isMomo) {
-      const s = loadGeraltState(currentUserId || 'default');
+      const s = loadGeraltState(geraltCharacterId);
       setGeraltHp({ current: s.currentHP, max: s.maxHP });
     }
-  }, [isMomo, currentUserId]);
+  }, [isMomo, geraltCharacterId]);
   const handleGeraltHpChange = useCallback((currentHP: number, maxHP: number) => {
     setGeraltHp({ current: currentHP, max: maxHP });
   }, []);
@@ -1348,7 +1349,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
         <GeraltGameplayWidget
           open={showGeraltWidget}
           onClose={() => setShowGeraltWidget(false)}
-          characterId={currentUserId || 'default'}
+          characterId={geraltCharacterId}
           onHpChange={handleGeraltHpChange}
         />
       )}
