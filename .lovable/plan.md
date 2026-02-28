@@ -32,4 +32,3 @@
 ### No new files or dependencies needed
 - Framer motion already available for animations
 - Touch gesture pattern copied from `DMBottomNav.tsx`
-
