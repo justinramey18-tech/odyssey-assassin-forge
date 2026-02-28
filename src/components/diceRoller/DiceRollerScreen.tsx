@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Copy, Check, Dices, Sparkles, Swords, Eye, MessageCircle, Wrench, Plus, Minus, Settings2, ChevronUp, ChevronDown, Equal, Wand2, RotateCcw, Play, SlidersHorizontal, Users, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -25,6 +25,9 @@ import { rollDie } from '@/lib/diceRoller';
 import { getD20RollQuality } from '@/lib/rollQuality';
 import { DiceOddsWidget } from '@/components/settings/DiceOddsWidget';
 import { DiceOddsMode, loadDiceOddsMode, saveDiceOddsMode } from '@/lib/diceOdds';
+import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
+import { AlignmentBanner } from '@/components/alignment/AlignmentBanner';
+import { type AlignmentScore as AlignmentScoreType, getPromptAlignment, isAlignmentMatch } from '@/lib/alignmentSpectrum';
 
 // Ability score presets
 interface AbilityPreset {
@@ -609,8 +612,13 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
     copyToClipboard(text, 'roll-result');
   }, [currentRoll, copyToClipboard]);
 
+  // Alignment drift tracking
+  const { driftPosition, historyCount, logPromptUsage } = useAlignmentDrift();
+  const [alignmentTarget, setAlignmentTarget] = useState<AlignmentScoreType | null>(null);
+
   // Handle AI prompt selection
   const handlePromptSelect = (prompt: AIPromptTemplate) => {
+    logPromptUsage(prompt.id);
     setSelectedPrompt(prompt);
     setPromptSheetOpen(true);
   };
@@ -1348,6 +1356,15 @@ export function DiceRollerScreen({ onBack, onShareToParty }: DiceRollerScreenPro
                   Roll a die first, then select a prompt to generate AI DM text
                 </p>
               </div>
+            )}
+
+            {/* Alignment drift banner */}
+            {historyCount > 0 && !alignmentTarget && (
+              <AlignmentBanner
+                alignmentTarget={driftPosition}
+                onApply={(target) => setAlignmentTarget(target)}
+                onDismiss={() => {}}
+              />
             )}
 
             {/* Combat Prompts */}
