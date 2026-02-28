@@ -1,16 +1,6 @@
-const THISTLE_NAMES = ['thistle'];
-
-const THISTLE_BADGES = [
-  { label: 'R4', color: 'emerald' },
-  { label: 'The True Butler', color: 'amber' },
-  { label: '007, DTF, Rising Pheonix', color: 'purple' },
-] as const;
-
 export type EasterEggBadge = { label: string; color: string };
 
-export function getThistleBadges(name: string): readonly EasterEggBadge[] {
-  const n = name.toLowerCase().trim();
-  if (THISTLE_NAMES.includes(n)) return THISTLE_BADGES;
+export function getThistleBadges(_name: string): readonly EasterEggBadge[] {
   return [];
 }
 
