@@ -3,7 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, MessageSquare, Plus, Save, Volume2, VolumeX, GitBranch, Bell, BellOff } from 'lucide-react';
 import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
+import { GeraltStoneDMDrawer } from './GeraltStoneDMDrawer';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
+import { isMomoEasterEgg } from '@/lib/easter-eggs';
+import { GeraltCompanionScreen } from '@/components/companion/GeraltCompanionScreen';
 import { CampaignDropdown } from './CampaignDropdown';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -395,6 +398,11 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
   const [navExpanded, setNavExpanded] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [showStoneDrawer, setShowStoneDrawer] = useState(false);
+  const [showGeraltOverlay, setShowGeraltOverlay] = useState(false);
+  const [showGeraltStones, setShowGeraltStones] = useState(false);
+
+  const characterName = characterContext?.name || 'The Adventurer';
+  const isMomo = isMomoEasterEgg(characterName);
 
   // Split party state
   const [showSplitInitiator, setShowSplitInitiator] = useState(false);
@@ -682,6 +690,25 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
               </span>
             )}
           </button>
+        )}
+        {/* Geralt buttons (momo only) */}
+        {isMomo && (
+          <>
+            <button
+              onClick={() => setShowGeraltOverlay(true)}
+              className="px-2 py-1 rounded-lg text-[11px] font-cinzel text-pink-400/80 hover:bg-pink-900/30 transition-colors whitespace-nowrap"
+              style={{ touchAction: 'manipulation' }}
+            >
+              🦉 Geralt
+            </button>
+            <button
+              onClick={() => setShowGeraltStones(true)}
+              className="px-2 py-1 rounded-lg text-[11px] font-cinzel text-purple-400/80 hover:bg-purple-900/30 transition-colors whitespace-nowrap"
+              style={{ touchAction: 'manipulation' }}
+            >
+              💎 Stones
+            </button>
+          </>
         )}
         {/* Push notification toggle */}
         {pushState !== 'unsupported' && (
@@ -1322,7 +1349,22 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
         onUsePrompt={handleUsePrompt}
       />
 
-      {/* Split Party Overlays */}
+      {/* Geralt features (momo only) */}
+      {isMomo && (
+        <>
+          <GeraltStoneDMDrawer
+            open={showGeraltStones}
+            onOpenChange={setShowGeraltStones}
+            onUsePrompt={handleUsePrompt}
+          />
+          {showGeraltOverlay && (
+            <div className="fixed inset-0 z-[100]">
+              <GeraltCompanionScreen open={true} onClose={() => setShowGeraltOverlay(false)} characterId="momo" />
+            </div>
+          )}
+        </>
+      )}
+
       <SplitInitiator
         open={showSplitInitiator}
         onClose={() => setShowSplitInitiator(false)}
