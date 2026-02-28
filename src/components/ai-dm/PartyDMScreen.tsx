@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, MessageSquare, Plus, Save, Volume2, VolumeX, GitBranch, Bell, BellOff, Heart, Bird, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, MessageSquare, Plus, Save, Volume2, VolumeX, GitBranch, Bell, BellOff, Heart, Bird, ChevronDown, Timer } from 'lucide-react';
 import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
 import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
@@ -20,6 +20,7 @@ import { NarrationSpeedPopover } from './NarrationSpeedPopover';
 import type { usePartyDm, PartyDmMessage, PartyDmPrompt } from '@/hooks/use-party-dm';
 import { DMDiceRoller } from './DMDiceRoller';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
+import { RoundTimer, TimerSettings } from './RoundTimer';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { CampaignSession } from '@/hooks/use-campaign-sessions';
 
@@ -404,6 +405,24 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
   const [showSplitInitiator, setShowSplitInitiator] = useState(false);
   const [showRegroupDialog, setShowRegroupDialog] = useState(false);
   const [showSplitSummaries, setShowSplitSummaries] = useState(false);
+  const [showTimerSettings, setShowTimerSettings] = useState(false);
+  const [localTimerEnabled, setLocalTimerEnabled] = useState(partyDm.sessionConfig?.timerEnabled ?? false);
+  const [localTimerDuration, setLocalTimerDuration] = useState(partyDm.sessionConfig?.timerDurationSeconds ?? 120);
+
+  // Sync local timer state when sessionConfig changes
+  useEffect(() => {
+    if (partyDm.sessionConfig) {
+      setLocalTimerEnabled(partyDm.sessionConfig.timerEnabled ?? false);
+      setLocalTimerDuration(partyDm.sessionConfig.timerDurationSeconds ?? 120);
+    }
+  }, [partyDm.sessionConfig?.timerEnabled, partyDm.sessionConfig?.timerDurationSeconds]);
+
+  // Handle timer expiry — auto-generate for host
+  const handleTimerExpire = useCallback(() => {
+    if (isCreator && !partyDm.isGenerating) {
+      partyDm.generateResponse();
+    }
+  }, [isCreator, partyDm.isGenerating, partyDm.generateResponse]);
 
   const mode = partyDm.sessionConfig?.mode || 'shared';
 
@@ -934,6 +953,20 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
       {/* Prompt Queue Status */}
       {partyDm.isActive && (
         <div className="border-t border-amber-900/20 bg-black/30 overflow-hidden">
+          {/* Round Timer */}
+          <RoundTimer
+            sessionConfig={partyDm.sessionConfig}
+            isCreator={isCreator}
+            currentUserId={currentUserId}
+            onStartTimer={partyDm.startTimer}
+            onPauseTimer={partyDm.pauseTimer}
+            onResumeTimer={partyDm.resumeTimer}
+            onCancelTimer={partyDm.cancelTimer}
+            onRequestExtension={partyDm.requestExtension}
+            onApproveExtension={partyDm.approveExtension}
+            onDismissExtensions={partyDm.dismissExtensions}
+            onTimerExpire={handleTimerExpire}
+          />
           {/* Collapsed status strip with mini dots + chevron toggle */}
           <button
             onClick={() => setQueueDrawerOpen(prev => !prev)}
@@ -1125,6 +1158,45 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                       </div>
                     );
                   })}
+
+                  {/* Timer Settings (host only, inside queue drawer) */}
+                  {isCreator && (
+                    <div className="mt-2 pt-2 border-t border-white/5">
+                      <button
+                        onClick={() => setShowTimerSettings(prev => !prev)}
+                        className="flex items-center gap-1.5 text-[10px] text-white/40 hover:text-white/60 transition-colors w-full"
+                      >
+                        <Timer className="w-3 h-3" />
+                        Timer Settings
+                        <ChevronDown className={cn("w-3 h-3 ml-auto transition-transform", showTimerSettings && "rotate-180")} />
+                      </button>
+                      <AnimatePresence>
+                        {showTimerSettings && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="pt-2">
+                              <TimerSettings
+                                enabled={localTimerEnabled}
+                                durationSeconds={localTimerDuration}
+                                onEnabledChange={(e) => {
+                                  setLocalTimerEnabled(e);
+                                  partyDm.setTimerConfig(e, localTimerDuration);
+                                }}
+                                onDurationChange={(s) => {
+                                  setLocalTimerDuration(s);
+                                  partyDm.setTimerConfig(localTimerEnabled, s);
+                                }}
+                              />
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             )}
