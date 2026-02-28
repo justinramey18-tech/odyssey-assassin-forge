@@ -6,8 +6,14 @@ import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import {
   Heart, Shield, Plus, Minus, X, Zap, Skull,
-  Swords, Star, Dices, Gem,
+  Swords, Star, Dices, Gem, Play, Copy, Check, Shuffle,
 } from 'lucide-react';
 import { rollDice } from '@/lib/diceRoller';
 import { cn } from '@/lib/utils';
@@ -16,6 +22,9 @@ import {
   loadState, saveState, formatMod,
   AttackRollResult,
 } from '@/components/companion/geralt-data';
+import { GERALT_CATEGORIES, GERALT_PROMPTS, GeraltPrompt } from '@/lib/geralt-prompts';
+import { applyTimePrefix } from '@/lib/fourthWallTime';
+import { toast } from 'sonner';
 
 import geraltHappy from '@/assets/geralt-happy.jpg';
 import geraltAngry from '@/assets/geralt-angry.jpg';
@@ -26,12 +35,43 @@ interface GeraltGameplayWidgetProps {
   onClose: () => void;
   characterId: string;
   onHpChange?: (currentHP: number, maxHP: number) => void;
+  onUsePrompt?: (prompt: string) => void;
 }
 
-export function GeraltGameplayWidget({ open, onClose, characterId, onHpChange }: GeraltGameplayWidgetProps) {
+// ── Attack prompt generator ──
+function buildAttackPrompt(attackName: string, roll: AttackRollResult | null, state: GeraltState): string {
+  const moodLabel = MOOD_CONFIG[state.mood].label.toLowerCase();
+  const hpPct = state.maxHP > 0 ? Math.round((state.currentHP / state.maxHP) * 100) : 0;
+  const healthStatus = hpPct > 75 ? 'healthy' : hpPct > 40 ? 'bloodied' : hpPct > 0 ? 'badly wounded' : 'unconscious';
+  const conditions = state.conditions.length > 0 ? state.conditions.join(', ') : 'none';
+
+  let rollContext = '';
+  if (roll) {
+    if (roll.type === 'hit') {
+      rollContext = `\n**Roll:** To Hit = ${roll.roll.total} [${roll.roll.rolls.join(', ')}]${roll.roll.modifier !== 0 ? ` ${roll.roll.modifier > 0 ? '+' : ''}${roll.roll.modifier}` : ''}`;
+      if (roll.isNat20) rollContext += ' ⚔️ **NATURAL 20 — CRITICAL HIT!**';
+      if (roll.isNat1) rollContext += ' 💀 **NATURAL 1 — CRITICAL MISS!**';
+    } else {
+      rollContext = `\n**Roll:** Damage = ${roll.roll.total} [${roll.roll.rolls.join(', ')}]${roll.roll.modifier !== 0 ? ` ${roll.roll.modifier > 0 ? '+' : ''}${roll.roll.modifier}` : ''}`;
+    }
+  }
+
+  const prompt = `## 🐻 Geralt's Attack: ${attackName}
+
+**Companion:** Geralt the Owlbear (Level ${state.level})
+**HP:** ${state.currentHP}/${state.maxHP} (${healthStatus}) | **Mood:** ${moodLabel} | **Conditions:** ${conditions}
+**Attack:** ${attackName}${rollContext}
+
+Narrate Geralt the owlbear companion using **${attackName}**. He's a ${moodLabel}, cat-like narcissistic owlbear — describe his predatory grace, his smug satisfaction, or his dramatic flair as he strikes. Factor in his current condition (${healthStatus}).`;
+
+  return applyTimePrefix(prompt);
+}
+
+export function GeraltGameplayWidget({ open, onClose, characterId, onHpChange, onUsePrompt }: GeraltGameplayWidgetProps) {
   const [state, setState] = useState<GeraltState>(() => loadState(characterId));
   const [hpDelta, setHpDelta] = useState('');
   const [lastRoll, setLastRoll] = useState<AttackRollResult | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => { setState(loadState(characterId)); }, [characterId]);
 
@@ -106,6 +146,49 @@ export function GeraltGameplayWidget({ open, onClose, characterId, onHpChange }:
     const roll = rollDice(atk.damageDie, atk.damageCount, atk.damageMod ?? 0);
     setLastRoll({ attackName: atk.name, type: 'damage', roll, isNat20: false, isNat1: false });
   }, []);
+
+  // ── Prompt handlers ──
+  const handleUseAttackPrompt = useCallback((atkName: string) => {
+    const prompt = buildAttackPrompt(atkName, lastRoll?.attackName === atkName ? lastRoll : null, state);
+    if (onUsePrompt) {
+      onUsePrompt(prompt);
+      onClose();
+      toast.success(`⚔️ ${atkName}`, { description: 'Added to DM input' });
+    }
+  }, [lastRoll, state, onUsePrompt, onClose]);
+
+  const handleCopyAttackPrompt = useCallback(async (atkName: string) => {
+    const prompt = buildAttackPrompt(atkName, lastRoll?.attackName === atkName ? lastRoll : null, state);
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setCopiedId(`atk-${atkName}`);
+      toast.success(`⚔️ ${atkName}`, { description: 'Prompt copied!' });
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch { toast.error('Copy failed'); }
+  }, [lastRoll, state]);
+
+  const handleUseRPPrompt = useCallback((prompt: GeraltPrompt) => {
+    const processed = applyTimePrefix(prompt.prompt);
+    if (onUsePrompt) {
+      onUsePrompt(processed);
+      onClose();
+      toast.success(`${prompt.icon} ${prompt.title}`, { description: 'Added to DM input' });
+    }
+  }, [onUsePrompt, onClose]);
+
+  const handleCopyRPPrompt = useCallback(async (prompt: GeraltPrompt) => {
+    try {
+      await navigator.clipboard.writeText(applyTimePrefix(prompt.prompt));
+      setCopiedId(prompt.id);
+      toast.success(`${prompt.icon} ${prompt.title}`, { description: 'Prompt copied!' });
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch { toast.error('Copy failed'); }
+  }, []);
+
+  const pickRandomRP = useCallback(() => {
+    const prompt = GERALT_PROMPTS[Math.floor(Math.random() * GERALT_PROMPTS.length)];
+    handleUseRPPrompt(prompt);
+  }, [handleUseRPPrompt]);
 
   if (!open) return null;
 
@@ -347,6 +430,18 @@ export function GeraltGameplayWidget({ open, onClose, characterId, onHpChange }:
                             </Button>
                           </div>
                         )}
+                        {/* Use / Copy prompt buttons */}
+                        <div className="flex gap-2">
+                          {onUsePrompt && (
+                            <Button variant="outline" size="sm" className="flex-1 h-8 text-xs text-emerald-300 border-emerald-700/40 hover:bg-emerald-500/10" onClick={() => handleUseAttackPrompt(atk.name)}>
+                              <Play className="w-3 h-3 mr-1.5" />Use
+                            </Button>
+                          )}
+                          <Button variant="outline" size="sm" className={cn("flex-1 h-8 text-xs border-border/30 hover:bg-white/5", copiedId === `atk-${atk.name}` ? "text-green-400 border-green-500/40" : "text-muted-foreground")} onClick={() => handleCopyAttackPrompt(atk.name)}>
+                            {copiedId === `atk-${atk.name}` ? <Check className="w-3 h-3 mr-1.5" /> : <Copy className="w-3 h-3 mr-1.5" />}
+                            {copiedId === `atk-${atk.name}` ? 'Copied' : 'Copy'}
+                          </Button>
+                        </div>
                       </div>
                     ))}
 
@@ -363,11 +458,98 @@ export function GeraltGameplayWidget({ open, onClose, characterId, onHpChange }:
 
             {/* ── RP Prompts Tab ── */}
             <TabsContent value="rp" className="flex-1 min-h-0 mt-0">
-              <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                <Gem className="w-10 h-10 text-purple-400/40 mb-4" />
-                <h3 className="font-cinzel text-lg text-purple-300/70 mb-2">Role-Playing Prompts</h3>
-                <p className="text-sm text-muted-foreground">Coming soon — curated prompts for Geralt interactions during gameplay.</p>
-              </div>
+              <ScrollArea className="h-full">
+                <div className="p-4 space-y-3">
+                  {/* Random button */}
+                  {onUsePrompt && (
+                    <button
+                      onClick={pickRandomRP}
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] rounded-xl text-sm font-medium bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white transition-all"
+                    >
+                      <Shuffle className="w-4 h-4" />
+                      Random Prompt
+                    </button>
+                  )}
+
+                  {/* Category Accordions */}
+                  <Accordion type="single" collapsible className="w-full space-y-2">
+                    {GERALT_CATEGORIES.map(cat => {
+                      const prompts = GERALT_PROMPTS.filter(p => p.category === cat.id);
+                      if (prompts.length === 0) return null;
+
+                      return (
+                        <AccordionItem key={cat.id} value={cat.id} className="border-0">
+                          <AccordionTrigger
+                            className="w-full flex items-center gap-3 p-3 rounded-lg hover:no-underline transition-all duration-200"
+                            style={{
+                              backgroundColor: `${cat.color}15`,
+                              border: `1px solid ${cat.color}40`,
+                            }}
+                          >
+                            <span
+                              className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-base"
+                              style={{ backgroundColor: `${cat.color}30` }}
+                            >
+                              {cat.icon}
+                            </span>
+                            <div className="flex-1 text-left">
+                              <p className="font-medium text-sm" style={{ color: cat.color }}>{cat.name}</p>
+                              <p className="text-[10px] text-white/40">{cat.description}</p>
+                            </div>
+                            <span
+                              className="text-xs font-medium px-2 py-0.5 rounded-full"
+                              style={{ backgroundColor: `${cat.color}30`, color: cat.color }}
+                            >
+                              {prompts.length}
+                            </span>
+                          </AccordionTrigger>
+
+                          <AccordionContent className="rounded-b-lg border border-t-0 p-2 space-y-1" style={{ borderColor: `${cat.color}40` }}>
+                            {prompts.map(prompt => (
+                              <div key={prompt.id} className="flex items-start gap-2 p-2.5 rounded-lg bg-white/5 hover:bg-white/10 transition-all group">
+                                <div className="flex-1 min-w-0 py-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-base shrink-0">{prompt.icon}</span>
+                                    <span className="text-sm text-white/90 font-medium">{prompt.title}</span>
+                                  </div>
+                                  {prompt.description && (
+                                    <p className="text-xs text-white/40 mt-0.5 leading-relaxed">{prompt.description}</p>
+                                  )}
+                                </div>
+
+                                <div className="flex gap-1 shrink-0">
+                                  {onUsePrompt && (
+                                    <button
+                                      onClick={() => handleUseRPPrompt(prompt)}
+                                      className="flex items-center gap-1 px-3 min-h-[44px] rounded-lg bg-emerald-900/40 border border-emerald-500/30 hover:bg-emerald-900/60 text-emerald-300 text-xs font-medium transition-colors"
+                                    >
+                                      <Play className="w-3.5 h-3.5" />
+                                      Use
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => handleCopyRPPrompt(prompt)}
+                                    className={cn(
+                                      "flex items-center gap-1 px-2 min-h-[44px] rounded-lg border text-xs font-medium transition-colors",
+                                      copiedId === prompt.id
+                                        ? "bg-green-900/40 border-green-500/30 text-green-300"
+                                        : "bg-white/5 border-border/30 text-muted-foreground hover:bg-white/10"
+                                    )}
+                                  >
+                                    {copiedId === prompt.id ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </AccordionContent>
+                        </AccordionItem>
+                      );
+                    })}
+                  </Accordion>
+
+                  <div className="h-4" />
+                </div>
+              </ScrollArea>
             </TabsContent>
           </Tabs>
         </div>

@@ -1351,6 +1351,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
           onClose={() => setShowGeraltWidget(false)}
           characterId={geraltCharacterId}
           onHpChange={handleGeraltHpChange}
+          onUsePrompt={handleUsePrompt}
         />
       )}
 
