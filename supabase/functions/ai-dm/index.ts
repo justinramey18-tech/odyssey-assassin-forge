@@ -103,6 +103,15 @@ interface CharacterContext {
       wasCrit?: boolean;
     }>;
   };
+  companion?: {
+    name: string;
+    currentHP: number;
+    maxHP: number;
+    conditions: string[];
+    mood: string;
+    abilities: { str: number; dex: number; con: number; wis: number; int: number; cha: number };
+    attacks: Array<{ name: string; bonus: string; damage: string; desc: string }>;
+  };
 }
 
 interface DMRequest {
@@ -267,7 +276,20 @@ function buildContextSummary(ctx: CharacterContext): string {
       lines.push(`   Enemies: ${enemyList}`);
     }
   }
-  
+
+  // Companion (Geralt) context
+  if (ctx.companion) {
+    const c = ctx.companion;
+    const cMod = (s: number) => { const m = Math.floor((s - 10) / 2); return m >= 0 ? `+${m}` : `${m}`; };
+    lines.push(`\n🐻 COMPANION: ${c.name} (Owlbear)`);
+    lines.push(`   HP: ${c.currentHP}/${c.maxHP} (${Math.round((c.currentHP / c.maxHP) * 100)}%)`);
+    lines.push(`   Mood: ${c.mood}`);
+    lines.push(`   Stats: STR ${c.abilities.str}(${cMod(c.abilities.str)}) DEX ${c.abilities.dex}(${cMod(c.abilities.dex)}) CON ${c.abilities.con}(${cMod(c.abilities.con)}) WIS ${c.abilities.wis}(${cMod(c.abilities.wis)}) INT ${c.abilities.int}(${cMod(c.abilities.int)}) CHA ${c.abilities.cha}(${cMod(c.abilities.cha)})`);
+    const attackList = c.attacks.map(a => `${a.name} (${a.bonus}, ${a.damage})`).join(', ');
+    lines.push(`   Attacks: ${attackList}`);
+    if (c.conditions.length > 0) lines.push(`   ⚠️ Conditions: ${c.conditions.join(', ')}`);
+  }
+
   return lines.join('\n');
 }
 
@@ -322,7 +344,16 @@ ${contextSummary}
 - Always wait for the player's input before resolving their actions
 - If the player's stated action requires a check, ask for the roll before describing the outcome
 - Be fair but not adversarial — create challenge, not frustration
-- Celebrate creative solutions even if they bypass your planned encounters`;
+- Celebrate creative solutions even if they bypass your planned encounters
+
+## COMPANION RULES (if companion is present)
+- The player has an animal companion (listed in CHARACTER STATE). Include it naturally in the narrative.
+- The companion acts on the player's turn in combat. Narrate its attacks and behavior when the player directs it.
+- When the companion takes damage, state the exact amount clearly (e.g., "Geralt takes 8 slashing damage").
+- When the companion is healed, state the exact amount (e.g., "Geralt recovers 5 HP").
+- Track the companion's conditions separately from the player (e.g., "Geralt is now frightened").
+- Describe the companion's mood and reactions based on its current state.
+- The companion can be knocked unconscious at 0 HP but does not make death saves — it stabilizes automatically.`;
 
   if (dmPersonaPrompt && dmPersonaPrompt.trim()) {
     prompt += `\n\n${dmPersonaPrompt}`;

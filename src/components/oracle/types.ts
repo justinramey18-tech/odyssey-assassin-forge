@@ -134,6 +134,16 @@ export interface CharacterContext {
     ac?: number;
     conditions?: string[];
   }>;
+  // Companion (Geralt the owlbear) context — momo only
+  companion?: {
+    name: string;
+    currentHP: number;
+    maxHP: number;
+    conditions: string[];
+    mood: string;
+    abilities: { str: number; dex: number; con: number; wis: number; int: number; cha: number };
+    attacks: Array<{ name: string; bonus: string; damage: string; desc: string }>;
+  };
 }
 
 export interface PersonalityConfig {

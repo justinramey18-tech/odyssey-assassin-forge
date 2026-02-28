@@ -93,6 +93,30 @@ const EXTRACT_TOOL = {
           items: { type: "string" },
           description: "Names of creatures definitively killed, defeated, or fled",
         },
+        companion_hp_changes: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              amount: { type: "number", description: "Positive number representing the magnitude" },
+              type: { type: "string", enum: ["damage", "healing"] },
+              source: { type: "string", description: "What caused the damage/healing to the companion" },
+            },
+            required: ["amount", "type", "source"],
+            additionalProperties: false,
+          },
+          description: "HP changes to the player's animal companion (e.g. Geralt the owlbear) with specific numbers mentioned",
+        },
+        companion_conditions_added: {
+          type: "array",
+          items: { type: "string" },
+          description: "Conditions explicitly applied to the companion (e.g. frightened, restrained)",
+        },
+        companion_conditions_removed: {
+          type: "array",
+          items: { type: "string" },
+          description: "Conditions explicitly removed from the companion",
+        },
       },
       required: [
         "hp_changes",
@@ -104,6 +128,9 @@ const EXTRACT_TOOL = {
         "rest_occurred",
         "map_entities",
         "map_entities_removed",
+        "companion_hp_changes",
+        "companion_conditions_added",
+        "companion_conditions_removed",
       ],
       additionalProperties: false,
     },
@@ -158,9 +185,11 @@ Rules:
 - Only extract conditions if explicitly applied or removed (e.g., "you are now poisoned")
 - For map_entities, extract ONLY creatures or objects that are NEWLY introduced into the scene in THIS message. Do NOT re-extract creatures already mentioned previously. Include a count for groups (e.g., "three goblins" = count 3).
 - For map_entities_removed, include creatures that are definitively killed, defeated, destroyed, or flee the scene.
+- For companion_hp_changes, extract damage/healing specifically applied to the player's animal companion (e.g., Geralt the owlbear). Do NOT include player HP changes here.
+- For companion_conditions_added/removed, extract conditions applied to or removed from the companion only.
 - If no changes are found, return empty arrays and null values.
 
-Character context: ${characterContext?.name || "Adventurer"} is Level ${characterContext?.level || 1}, currently at ${characterContext?.currentHP || "?"}/${characterContext?.maxHP || "?"} HP.`;
+Character context: ${characterContext?.name || "Adventurer"} is Level ${characterContext?.level || 1}, currently at ${characterContext?.currentHP || "?"}/${characterContext?.maxHP || "?"} HP.${characterContext?.companionName ? ` Companion: ${characterContext.companionName} at ${characterContext.companionHP || "?"}/${characterContext.companionMaxHP || "?"} HP.` : ''}`;
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -224,6 +253,9 @@ Character context: ${characterContext?.name || "Adventurer"} is Level ${characte
           rest_occurred: null,
           map_entities: [],
           map_entities_removed: [],
+          companion_hp_changes: [],
+          companion_conditions_added: [],
+          companion_conditions_removed: [],
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -246,6 +278,9 @@ Character context: ${characterContext?.name || "Adventurer"} is Level ${characte
         rest_occurred: null,
         map_entities: [],
         map_entities_removed: [],
+        companion_hp_changes: [],
+        companion_conditions_added: [],
+        companion_conditions_removed: [],
       };
     }
 
