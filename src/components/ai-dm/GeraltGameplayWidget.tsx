@@ -506,7 +506,7 @@ export function GeraltGameplayWidget({ open, onClose, characterId, onHpChange, o
 
                           <AccordionContent className="rounded-b-lg border border-t-0 p-2 space-y-1" style={{ borderColor: `${cat.color}40` }}>
                             {prompts.map(prompt => (
-                              <div key={prompt.id} className="flex items-start gap-2 p-2.5 rounded-lg bg-white/5 hover:bg-white/10 transition-all group">
+                              <div key={prompt.id} className="flex items-start gap-2 p-2.5 rounded-lg bg-white/50 hover:bg-white/60 transition-all group">
                                 <div className="flex-1 min-w-0 py-1">
                                   <div className="flex items-center gap-2">
                                     <span className="text-base shrink-0">{prompt.icon}</span>
