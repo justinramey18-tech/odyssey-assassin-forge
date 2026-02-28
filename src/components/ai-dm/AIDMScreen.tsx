@@ -546,9 +546,18 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     ? Math.round((characterContext.currentHP / characterContext.maxHP) * 100)
     : 100;
 
-  // Geralt HP for sub-header (momo only)
-  const geraltState = useMemo(() => isMomo ? loadGeraltState(userId || 'default') : null, [isMomo, userId, showGeraltWidget]);
-  const geraltHpPct = geraltState ? Math.max(0, Math.min(100, (geraltState.currentHP / geraltState.maxHP) * 100)) : 0;
+  // Geralt HP for sub-header (momo only) — reactive via callback
+  const [geraltHp, setGeraltHp] = useState<{ current: number; max: number } | null>(null);
+  useEffect(() => {
+    if (isMomo) {
+      const s = loadGeraltState(userId || 'default');
+      setGeraltHp({ current: s.currentHP, max: s.maxHP });
+    }
+  }, [isMomo, userId]);
+  const handleGeraltHpChange = useCallback((currentHP: number, maxHP: number) => {
+    setGeraltHp({ current: currentHP, max: maxHP });
+  }, []);
+  const geraltHpPct = geraltHp ? Math.max(0, Math.min(100, (geraltHp.current / geraltHp.max) * 100)) : 0;
 
   const showDiceContent = activeNavTab === 'dice' && messages.length > 0;
 
@@ -612,7 +621,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         )}>
           {characterContext.currentHP}/{characterContext.maxHP}
         </span>
-        {isMomo && geraltState && (
+        {isMomo && geraltHp && (
           <>
             <span className="text-[11px] text-white/40">•</span>
             <Bird className="w-3 h-3 text-pink-400 shrink-0" />
@@ -620,7 +629,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
               "text-[11px] font-mono whitespace-nowrap",
               geraltHpPct > 50 ? "text-emerald-400" : geraltHpPct > 25 ? "text-amber-400" : "text-red-400"
             )}>
-              {geraltState.currentHP}/{geraltState.maxHP}
+              {geraltHp.current}/{geraltHp.max}
             </span>
           </>
         )}
@@ -974,6 +983,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           open={showGeraltWidget}
           onClose={() => setShowGeraltWidget(false)}
           characterId={userId || 'default'}
+          onHpChange={handleGeraltHpChange}
         />
       )}
 

@@ -25,15 +25,16 @@ interface GeraltGameplayWidgetProps {
   open: boolean;
   onClose: () => void;
   characterId: string;
+  onHpChange?: (currentHP: number, maxHP: number) => void;
 }
 
-export function GeraltGameplayWidget({ open, onClose, characterId }: GeraltGameplayWidgetProps) {
+export function GeraltGameplayWidget({ open, onClose, characterId, onHpChange }: GeraltGameplayWidgetProps) {
   const [state, setState] = useState<GeraltState>(() => loadState(characterId));
   const [hpDelta, setHpDelta] = useState('');
   const [lastRoll, setLastRoll] = useState<AttackRollResult | null>(null);
 
   useEffect(() => { setState(loadState(characterId)); }, [characterId]);
-  useEffect(() => { if (open) saveState(characterId, state); }, [state, characterId, open]);
+  useEffect(() => { if (open) { saveState(characterId, state); onHpChange?.(state.currentHP, state.maxHP); } }, [state, characterId, open, onHpChange]);
 
   const update = useCallback((patch: Partial<GeraltState>) => {
     setState(prev => ({ ...prev, ...patch }));
