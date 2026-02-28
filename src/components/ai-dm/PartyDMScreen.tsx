@@ -586,7 +586,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
   const showDiceContent = activeNavTab === 'dice' && characterContext && !partyDm.isGenerating;
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]">
+    <div className="fixed inset-0 z-[45] flex flex-col bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]">
       {/* Header */}
       {/* Row 1: Main Header */}
       <header className="flex items-center justify-between px-3 py-2.5 border-b border-amber-900/30 bg-black/40 backdrop-blur-sm">

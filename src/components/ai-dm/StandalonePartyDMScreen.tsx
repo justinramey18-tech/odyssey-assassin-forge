@@ -119,7 +119,7 @@ export function StandalonePartyDMScreen({
   if (!partyDm.isActive && !isPartyCreator) {
     // Show a waiting state
     return (
-      <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]">
+      <div className="fixed inset-0 z-[45] flex flex-col items-center justify-center bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]">
         <button
           onClick={onBack}
           className="absolute top-4 left-4 p-2 rounded-lg hover:bg-white/10 transition-colors"
@@ -153,7 +153,7 @@ export function StandalonePartyDMScreen({
   );
 
   return (
-    <div className="fixed inset-0 z-[60]">
+    <div className="fixed inset-0 z-[45]">
       <PartyDMScreen
         onBack={onBack}
         partyDm={partyDm}
