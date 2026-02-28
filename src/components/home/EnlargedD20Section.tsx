@@ -147,11 +147,61 @@ export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompan
       {/* Center slot: Geralt Companion Button (or D20 fallback) */}
       {onCompanionClick ? (
         <div className="flex flex-col items-center gap-1">
-          <div className="relative flex items-center justify-center" style={{ width: 120, height: 120 }}>
+          <div className="relative flex items-center justify-center" style={{ width: 140, height: 140 }}>
+            {/* Aura halo — radial gradient that breathes behind everything */}
+            <motion.div
+              className="absolute rounded-full pointer-events-none"
+              style={{
+                width: 140,
+                height: 140,
+                background: `radial-gradient(circle, ${breatheGlow} 0%, transparent 70%)`,
+                willChange: 'transform, opacity',
+              }}
+              animate={{
+                scale: [0.6, 1.3, 1.3, 0.6, 0.6],
+                opacity: [0.15, 0.5, 0.5, 0.15, 0.15],
+              }}
+              transition={{
+                duration: breatheDuration,
+                times: [0, inhaleRatio, inhaleRatio + holdRatio, inhaleRatio + holdRatio + exhaleRatio, 1],
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }}
+            />
+
+            {/* Background blur shift — area pulses between sharp and blurred */}
+            <motion.div
+              className="absolute rounded-full pointer-events-none"
+              style={{
+                width: 130,
+                height: 130,
+                background: `radial-gradient(circle, ${breatheGlow.replace('0.55', '0.12')} 0%, transparent 60%)`,
+                willChange: 'filter',
+              }}
+              animate={{
+                filter: [
+                  'blur(8px)',
+                  'blur(20px)',
+                  'blur(20px)',
+                  'blur(8px)',
+                  'blur(8px)',
+                ],
+                opacity: [0.4, 0.8, 0.8, 0.4, 0.4],
+              }}
+              transition={{
+                duration: breatheDuration,
+                times: [0, inhaleRatio, inhaleRatio + holdRatio, inhaleRatio + holdRatio + exhaleRatio, 1],
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }}
+            />
+
             {/* Breathwork ring — expands/contracts in sync */}
             <motion.div
-              className="absolute inset-0 rounded-full pointer-events-none"
+              className="absolute rounded-full pointer-events-none"
               style={{
+                width: 120,
+                height: 120,
                 border: `2px solid ${breatheGlow}`,
                 willChange: 'transform, opacity',
               }}
