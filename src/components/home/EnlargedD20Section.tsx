@@ -17,11 +17,7 @@ export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompan
   // Determine breathing animation class based on companion HP
   const isInjured = companionHpPct !== undefined && companionHpPct <= 30;
 
-  const breatheClass = companionHpPct !== undefined
-    ? companionHpPct > 80 ? 'animate-breathe-slow'
-      : companionHpPct > 30 ? 'animate-breathe-medium'
-      : 'animate-breathe-fast'
-    : '';
+  const breatheClass = '';
 
   // Border/ring color shifts with HP state
   const borderColor = companionHpPct !== undefined
