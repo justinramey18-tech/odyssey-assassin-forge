@@ -17,5 +17,5 @@ export function getBadgeColorClasses(color: string): string {
 
 /** Easter egg: detect if the character name is "momo" */
 export function isMomoEasterEgg(name: string): boolean {
-  return name.toLowerCase().trim() === 'momo';
+  return name.toLowerCase().trim().includes('momo');
 }
