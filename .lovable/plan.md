@@ -1,44 +1,70 @@
 
 
-## Root Cause
+## Plan: "Use Claude Everywhere" Toggle
 
-Vaul (the drawer library) has a feature called `repositionInputs` (enabled by default) that **directly modifies the drawer's inline `style.height`** when a text input is focused and the mobile keyboard opens. Here's what happens step by step:
+### What This Does
+Adds a toggle in Settings below the Anthropic API key input. When enabled, ALL AI features use Claude 4.5 Sonnet via your personal Anthropic API key instead of the default models.
 
-1. User opens Settings → drawer renders at `h-[90vh]` — looks correct
-2. User navigates to R&D Developer Tools → password input appears
-3. User taps the password input → mobile keyboard opens
-4. Vaul's `onVisualViewportChange` handler fires, caches the drawer height as `initialDrawerHeight`, then sets a new smaller `style.height` inline to fit above the keyboard
-5. User submits password or keyboard closes → Vaul tries to restore `initialDrawerHeight`, but the inline `style.height` now **permanently overrides** the CSS class `h-[90vh]`
-6. The drawer is now stuck at a reduced height — the "cut off" you see in the screenshot
-7. Navigating back to tab menu or other tabs doesn't fix it because the inline style persists on the same DOM element
+### Step 1: Add Toggle Utilities to `src/lib/api-keys.ts`
+- Add `isClaudeEverywhereEnabled()` / `setClaudeEverywhere()` helpers using localStorage key `dnd-use-claude-everywhere`
 
-This only affects DevTools because it's the only settings tab with a text input that triggers the keyboard.
+### Step 2: Add Toggle UI to `src/components/settings/ApiCredentials.tsx`
+- Add a Switch component below the Anthropic key input (only visible when a key is saved)
+- Label: "Use Claude for all AI features"
+- Description text explaining it routes Oracle, Homebrew, World Builder, etc. through Claude
 
-## Fix — 2 files
+### Step 3: Update Frontend Callers (5 files)
+Pass `user_api_key` in request bodies when toggle is enabled:
+- `src/hooks/use-homebrew-assistant.ts` — add key to fetch body
+- `src/hooks/use-oracle.ts` — add key to fetch body  
+- `src/hooks/use-worldbuilder.ts` — add key to fetch body
+- `src/components/inventory/HomebrewGearAI.tsx` — add key to `supabase.functions.invoke` body
+- `src/components/magic/HomebrewSpellCreateSheet.tsx` — add key to fetch body
 
-### 1. `src/components/settings/SettingsModal.tsx` (line 213-214)
+For features that already support model selection (AI DM, Scribe, Guide Creator), auto-force model to `anthropic/claude-sonnet-4-5` when toggle is on:
+- `src/hooks/use-ai-dm.ts`
+- Scribe/Narrative Forge model selector
+- Guide Creator caller
 
-Add `repositionInputs={false}` to the Drawer and change to 100dvh:
+### Step 4: Update Edge Functions (9 functions)
+Add an Anthropic code path to each function — when `user_api_key` is present, call `api.anthropic.com/v1/messages` with `claude-sonnet-4-5-20250929` instead of the Lovable gateway. Reuse the same SSE transform pattern already in `ai-dm/index.ts`.
 
-```tsx
-// Before
-<Drawer open={open} onOpenChange={handleOpenChange}>
-  <DrawerContent className="h-[90vh] max-h-[90vh] overflow-x-hidden">
+| Edge Function | Streaming? | Change |
+|---|---|---|
+| `homebrew-assistant` | No | Add non-streaming Anthropic path |
+| `oracle-assistant` | Yes | Add streaming Anthropic path with SSE transform |
+| `ai-dm-worldbuilder` | No | Add non-streaming Anthropic path |
+| `ai-dm-summarize` | No | Add non-streaming Anthropic path |
+| `ai-dm-extract` | No | Add non-streaming Anthropic path (tool calling) |
+| `ai-dm-memory-extract` | No | Add non-streaming Anthropic path (tool calling) |
+| `combat-log-synthesize` | No | Add non-streaming Anthropic path |
+| `chronicle-sync` | No | Add non-streaming Anthropic path |
+| `parse-protagonist` | No | Add non-streaming Anthropic path (tool calling) |
 
-// After
-<Drawer open={open} onOpenChange={handleOpenChange} repositionInputs={false}>
-  <DrawerContent className="h-[100dvh] max-h-[100dvh] overflow-x-hidden">
+### Technical Detail
+
+**Edge function pattern** (non-streaming):
+```text
+const user_api_key = body.user_api_key;
+if (user_api_key) {
+  → call api.anthropic.com/v1/messages with claude-sonnet-4-5-20250929
+  → parse response.content[0].text (or tool_use block)
+  → return same JSON shape as current Lovable gateway path
+} else {
+  → existing Lovable gateway logic (unchanged)
+}
 ```
 
-- `repositionInputs={false}` prevents Vaul from modifying the drawer's height when the keyboard opens, using native browser scroll behavior instead ("stability first")
-- `100dvh` makes the drawer truly full-screen per user preference
+**Edge function pattern** (streaming, oracle-assistant):
+```text
+if (user_api_key) {
+  → call api.anthropic.com/v1/messages with stream:true
+  → transform Anthropic SSE → OpenAI-compatible SSE (same transform from ai-dm)
+  → return transformed stream
+} else {
+  → existing Lovable gateway streaming (unchanged)
+}
+```
 
-### 2. `src/components/settings/SettingsContent.tsx` (line 648)
-
-Remove `max-h-[70vh]` from the devTools wrapper since the parent is now 100dvh and the mobile override `[&>div]:max-h-none` already neutralizes it — but on desktop the dialog still needs it. Keep the pattern consistent with other tabs:
-
-No change needed here — the existing `[&>div]:max-h-none` on the mobile wrapper (line 242) already handles this correctly.
-
-### Files Modified
-- `src/components/settings/SettingsModal.tsx` — add `repositionInputs={false}`, change to `100dvh`
+**Tool-calling functions** (extract, memory-extract, parse-protagonist): Anthropic has native tool calling — convert the existing OpenAI-format tool definitions to Anthropic's `tools` format and extract results from `tool_use` content blocks.
 
