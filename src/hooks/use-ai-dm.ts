@@ -110,6 +110,10 @@ function saveSession(messages: Message[]): void {
 }
 
 export function useAIDM({ characterContext, customGuidesContent, worldStatePrompt, dmPersonaPrompt, onMessageComplete, activeGuideIds, onCampaignSwitch, selectedModel }: UseAIDMOptions) {
+  // Store onMessageComplete in a ref so sendMessage always calls the latest version
+  const onMessageCompleteRef = useRef(onMessageComplete);
+  useEffect(() => { onMessageCompleteRef.current = onMessageComplete; }, [onMessageComplete]);
+
   const [messages, setMessages] = useState<Message[]>(() => loadSession());
   const [isLoading, setIsLoading] = useState(false);
   const [campaignSummary, setCampaignSummary] = useState<string | null>(() => loadCampaignSummary());
@@ -495,7 +499,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
           timestamp: new Date(),
         }];
         triggerSummaryIfNeeded(updatedMessages);
-        onMessageComplete?.(assistantContent);
+        onMessageCompleteRef.current?.(assistantContent);
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
