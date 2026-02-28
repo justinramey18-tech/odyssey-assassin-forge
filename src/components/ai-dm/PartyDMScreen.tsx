@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, MessageSquare, Plus, Save, Volume2, VolumeX, GitBranch, Bell, BellOff, Heart, Bird, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, MessageSquare, Plus, Save, Volume2, VolumeX, GitBranch, Bell, BellOff, Heart, Bird } from 'lucide-react';
 import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
 import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
@@ -386,9 +386,6 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [expandedPillUserId, setExpandedPillUserId] = useState<string | null>(null);
   const [pillEditText, setPillEditText] = useState('');
-  const [isQueueExpanded, setIsQueueExpanded] = useState(true);
-  const queueTouchStartY = useRef(0);
-  const queueTouchStartTime = useRef(0);
   const [showNewCampaignInput, setShowNewCampaignInput] = useState(false);
   const [newCampaignName, setNewCampaignName] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -463,10 +460,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
   }, [partyDm.messages, partyDm.currentPrompts]);
 
   useEffect(() => {
-    if (partyDm.isGenerating) {
-      setExpandedPillUserId(null);
-      setIsQueueExpanded(false);
-    }
+    if (partyDm.isGenerating) setExpandedPillUserId(null);
   }, [partyDm.isGenerating]);
 
   const handleSubmit = useCallback(() => {
@@ -933,186 +927,141 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
         </div>
       )}
 
-      {/* Prompt Queue Status — Collapsible Drawer */}
-      {partyDm.isActive && (() => {
-        const readyCount = partyDm.currentPrompts.filter(p => p.is_ready).length;
-        const allReady = readyCount === memberCount && memberCount > 0;
-        return (
-        <div className={cn(
-          "border-t border-amber-900/20 bg-black/30 transition-all duration-500",
-          allReady && "border-t-emerald-500/50 bg-emerald-950/20 shadow-[inset_0_1px_12px_-4px_rgba(16,185,129,0.25)]"
-        )}>
-          {/* Tap-to-expand status strip */}
-          <div
-            className="flex items-center justify-between px-3 py-2 cursor-pointer select-none touch-none"
-            onClick={() => setIsQueueExpanded(prev => !prev)}
-            onTouchStart={(e) => {
-              queueTouchStartY.current = e.touches[0].clientY;
-              queueTouchStartTime.current = Date.now();
-            }}
-            onTouchEnd={(e) => {
-              const dy = queueTouchStartY.current - e.changedTouches[0].clientY;
-              const dt = Date.now() - queueTouchStartTime.current;
-              const velocity = Math.abs(dy) / Math.max(dt, 1);
-              if (dy > 30 || (dy > 10 && velocity > 0.3)) {
-                setIsQueueExpanded(true);
-              } else if (dy < -30 || (dy < -10 && velocity > 0.3)) {
-                setIsQueueExpanded(false);
-              }
-            }}
-          >
-            <div className="flex items-center gap-1.5">
-              <span className={cn(
-                "text-[10px] uppercase tracking-wider font-semibold transition-colors duration-500",
-                allReady ? "text-emerald-400" : "text-white/50"
-              )}>Round Queue</span>
-              <span className={cn(
-                "text-[10px] transition-colors duration-500",
-                allReady ? "text-emerald-300/70 animate-pulse" : "text-white/30"
-              )}>
-                {readyCount}/{memberCount} ready
-                {allReady && " ✦"}
-              </span>
-            </div>
-            <motion.div
-              animate={{ rotate: isQueueExpanded ? 180 : 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <ChevronUp className={cn(
-                "w-3.5 h-3.5 transition-colors duration-500",
-                allReady ? "text-emerald-400/60" : "text-white/30"
-              )} />
-            </motion.div>
+      {/* Prompt Queue Status */}
+      {partyDm.isActive && (
+        <div className="px-3 py-2 border-t border-amber-900/20 bg-black/30">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <span className="text-[10px] text-white/50 uppercase tracking-wider font-semibold">Round Queue</span>
+            <span className="text-[10px] text-white/30">
+              {partyDm.currentPrompts.filter(p => p.is_ready).length}/{memberCount} ready
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {members.map(m => {
+              const prompt = partyDm.currentPrompts.find(p => p.user_id === m.user_id);
+              const isSelf = m.user_id === currentUserId;
+              const hasAction = prompt && prompt.prompt.trim().length > 0;
+              const isExpanded = expandedPillUserId === m.user_id;
+              const memberTeam = partyDm.isSplitActive && partyDm.splitState
+                ? partyDm.splitState.alphaMembers.includes(m.user_id) ? 'alpha' : 'beta'
+                : null;
+              return (
+                <div
+                  key={m.user_id}
+                  title={
+                    prompt?.is_ready
+                      ? `${m.character_name} — Ready${hasAction ? ' (with action)' : ' (no action)'}`
+                      : prompt
+                        ? `${m.character_name} — Action submitted, not ready`
+                        : `${m.character_name} — Waiting...`
+                  }
+                  onClick={() => {
+                    if (mode !== 'shared' || !hasAction) return;
+                    const toggled = isExpanded ? null : m.user_id;
+                    setExpandedPillUserId(toggled);
+                    if (toggled && isSelf && prompt) setPillEditText(prompt.prompt);
+                  }}
+                  className={cn(
+                    "flex items-center gap-1 px-2 py-1 rounded-full text-[10px] border transition-all",
+                    !prompt && "bg-white/5 border-white/10 text-white/30",
+                    prompt && !prompt.is_ready && "bg-amber-900/20 border-amber-500/30 text-amber-300",
+                    prompt?.is_ready && "bg-emerald-900/20 border-emerald-500/30 text-emerald-300 animate-pulse",
+                    mode === 'shared' && hasAction && "cursor-pointer hover:brightness-125",
+                    isExpanded && "ring-1 ring-white/30",
+                  )}
+                >
+                  {memberTeam && (
+                    <span className={cn(
+                      "w-2 h-2 rounded-full shrink-0",
+                      memberTeam === 'alpha' ? "bg-blue-400" : "bg-purple-400"
+                    )} />
+                  )}
+                  <span className="max-w-[80px] truncate">{m.character_name}</span>
+                  {prompt?.is_ready ? (
+                    <CheckCheck className="w-3 h-3 text-emerald-400" />
+                  ) : prompt ? (
+                    <Check className="w-3 h-3 text-amber-400" />
+                  ) : (
+                    <span className="w-1.5 h-1.5 rounded-full bg-white/20 shrink-0" />
+                  )}
+                  {mode === 'shared' && hasAction && !isExpanded && (
+                    <>
+                      <span className="text-[9px] text-white/30 max-w-[60px] truncate">{prompt!.prompt}</span>
+                      <Eye className="w-2.5 h-2.5 text-white/20 shrink-0" />
+                    </>
+                  )}
+                  {mode === 'shared' && hasAction && isExpanded && (
+                    <Eye className="w-2.5 h-2.5 text-white/50 shrink-0" />
+                  )}
+                </div>
+              );
+            })}
           </div>
 
-          {/* Expandable dropdown stack */}
+          {/* Expanded pill content */}
           <AnimatePresence>
-            {isQueueExpanded && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                className="overflow-hidden"
-              >
-                <div className="px-3 pb-2 space-y-1">
-                  {members.map(m => {
-                    const prompt = partyDm.currentPrompts.find(p => p.user_id === m.user_id);
-                    const isSelf = m.user_id === currentUserId;
-                    const hasAction = prompt && prompt.prompt.trim().length > 0;
-                    const isExpanded = expandedPillUserId === m.user_id;
-                    const memberTeam = partyDm.isSplitActive && partyDm.splitState
-                      ? partyDm.splitState.alphaMembers.includes(m.user_id) ? 'alpha' : 'beta'
-                      : null;
-
-                    return (
-                      <div key={m.user_id}>
-                        {/* Dropdown trigger row */}
-                        <button
-                          onClick={() => {
-                            if (!hasAction) return;
-                            // In private mode, only allow expanding own prompt
-                            if (mode !== 'shared' && !isSelf) return;
-                            const toggled = isExpanded ? null : m.user_id;
-                            setExpandedPillUserId(toggled);
-                            if (toggled && isSelf && prompt) setPillEditText(prompt.prompt);
-                          }}
-                          className={cn(
-                            "w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs border transition-all text-left",
-                            !prompt && "bg-white/5 border-white/10 text-white/30",
-                            prompt && !prompt.is_ready && "bg-amber-900/20 border-amber-500/30 text-amber-300",
-                            prompt?.is_ready && "bg-emerald-900/20 border-emerald-500/30 text-emerald-300",
-                            mode === 'shared' && hasAction && "cursor-pointer hover:brightness-125",
-                            isExpanded && "ring-1 ring-white/30 rounded-b-none",
-                          )}
-                        >
-                          {memberTeam && (
-                            <span className={cn(
-                              "w-2 h-2 rounded-full shrink-0",
-                              memberTeam === 'alpha' ? "bg-blue-400" : "bg-purple-400"
-                            )} />
-                          )}
-                          <span className="flex-1 truncate">{m.character_name}</span>
-                          {(mode === 'shared' || isSelf) && hasAction && !isExpanded && (
-                            <span className="text-[10px] text-white/30 max-w-[100px] truncate">{prompt!.prompt}</span>
-                          )}
-                          {prompt?.is_ready ? (
-                            <CheckCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                          ) : prompt ? (
-                            <Check className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                          ) : (
-                            <span className="w-1.5 h-1.5 rounded-full bg-white/20 shrink-0" />
-                          )}
-                          {(mode === 'shared' || isSelf) && hasAction && (
-                            <motion.div
-                              animate={{ rotate: isExpanded ? 180 : 0 }}
-                              transition={{ duration: 0.15 }}
-                            >
-                              <ChevronUp className="w-3 h-3 text-white/30" />
-                            </motion.div>
-                          )}
-                        </button>
-
-                        {/* Expanded dropdown content */}
-                        <AnimatePresence>
-                          {isExpanded && (() => {
-                            if (!prompt || !prompt.prompt.trim()) return null;
-                            const canEdit = isSelf && !prompt.is_ready && !partyDm.isGenerating;
-                            return (
-                              <motion.div
-                                key="dropdown-content"
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                exit={{ opacity: 0, height: 0 }}
-                                transition={{ duration: 0.2 }}
-                                className="overflow-hidden"
-                              >
-                                <div className="rounded-b-lg bg-white/5 border border-t-0 border-white/10 p-2.5">
-                                  {canEdit ? (
-                                    <div className="space-y-1.5">
-                                      <textarea
-                                        value={pillEditText}
-                                        onChange={(e) => setPillEditText(e.target.value)}
-                                        className="w-full bg-black/30 border border-white/10 rounded-md px-2.5 py-1.5 text-xs text-white/90 placeholder:text-white/30 focus:outline-none focus:border-amber-500/40 resize-none min-h-[60px] max-h-[120px]"
-                                        rows={3}
-                                        onClick={(e) => e.stopPropagation()}
-                                      />
-                                      <div className="flex justify-end">
-                                        <Button
-                                          size="sm"
-                                          onClick={async (e) => {
-                                            e.stopPropagation();
-                                            if (pillEditText.trim()) {
-                                              await partyDm.editPrompt(pillEditText.trim());
-                                              toast.success('Prompt updated');
-                                              setExpandedPillUserId(null);
-                                            }
-                                          }}
-                                          className="h-6 px-2.5 text-[10px] gap-1 bg-amber-900/40 border border-amber-500/30 hover:bg-amber-900/60 text-amber-300"
-                                        >
-                                          <Check className="w-2.5 h-2.5" />
-                                          Save
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <p className="text-xs text-white/70 whitespace-pre-wrap break-words">{prompt.prompt}</p>
-                                  )}
-                                </div>
-                              </motion.div>
-                            );
-                          })()}
-                        </AnimatePresence>
+            {expandedPillUserId && (() => {
+              const m = members.find(mem => mem.user_id === expandedPillUserId);
+              const prompt = partyDm.currentPrompts.find(p => p.user_id === expandedPillUserId);
+              if (!m || !prompt || !prompt.prompt.trim()) return null;
+              const isSelf = expandedPillUserId === currentUserId;
+              const canEdit = isSelf && !prompt.is_ready && !partyDm.isGenerating;
+              return (
+                <motion.div
+                  key="expanded-pill"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-2 rounded-lg bg-white/5 border border-white/10 p-2.5">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-semibold text-white/60">{m.character_name}'s Prompt</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setExpandedPillUserId(null); }}
+                        className="p-0.5 rounded hover:bg-white/10 text-white/30 hover:text-white/60 transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                    {canEdit ? (
+                      <div className="space-y-1.5">
+                        <textarea
+                          value={pillEditText}
+                          onChange={(e) => setPillEditText(e.target.value)}
+                          className="w-full bg-black/30 border border-white/10 rounded-md px-2.5 py-1.5 text-xs text-white/90 placeholder:text-white/30 focus:outline-none focus:border-amber-500/40 resize-none min-h-[60px] max-h-[120px]"
+                          rows={3}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <div className="flex justify-end">
+                          <Button
+                            size="sm"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (pillEditText.trim()) {
+                                await partyDm.editPrompt(pillEditText.trim());
+                                toast.success('Prompt updated');
+                                setExpandedPillUserId(null);
+                              }
+                            }}
+                            className="h-6 px-2.5 text-[10px] gap-1 bg-amber-900/40 border border-amber-500/30 hover:bg-amber-900/60 text-amber-300"
+                          >
+                            <Check className="w-2.5 h-2.5" />
+                            Save
+                          </Button>
+                        </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </motion.div>
-            )}
+                    ) : (
+                      <p className="text-xs text-white/70 whitespace-pre-wrap break-words">{prompt.prompt}</p>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })()}
           </AnimatePresence>
         </div>
-        );
-      })()}
+      )}
 
       {/* Hidden file inputs */}
       <input
@@ -1271,7 +1220,6 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                     onClick={() => {
                       const myUserId = currentUserId;
                       if (!myUserId) return;
-                      setIsQueueExpanded(true);
                       setExpandedPillUserId(prev => prev === myUserId ? null : myUserId);
                       setPillEditText(partyDm.myPrompt?.prompt || '');
                     }}
