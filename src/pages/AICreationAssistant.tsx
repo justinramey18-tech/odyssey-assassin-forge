@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Sparkles, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send, Sparkles, Loader2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { useAICreationChat, buildDataToWizardState, CharacterBuildData } from '@/hooks/use-ai-creation-chat';
 import { presetToEquipment, getPresetById } from '@/components/wizard/presets/equipment-presets';
 import ReactMarkdown from 'react-markdown';
@@ -16,6 +17,16 @@ export default function AICreationAssistant() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const hasSentGreeting = useRef(false);
+
+  // Complexity meter: estimate token usage from conversation length
+  const complexity = useMemo(() => {
+    const totalChars = messages.reduce((sum, m) => sum + m.content.length, 0);
+    const estimatedTokens = Math.ceil(totalChars / 3.5);
+    const maxTokens = 150000;
+    const percent = Math.min(Math.round((estimatedTokens / maxTokens) * 100), 100);
+    const level = percent < 50 ? 'low' : percent < 75 ? 'moderate' : percent < 90 ? 'high' : 'critical';
+    return { percent, level, estimatedTokens };
+  }, [messages]);
 
   useEffect(() => {
     if (!hasSentGreeting.current && messages.length === 0) {
@@ -122,11 +133,45 @@ export default function AICreationAssistant() {
             <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-primary" />
             </div>
-            <div>
+            <div className="flex-1">
               <p className="font-display text-sm font-bold text-foreground">AI Creation Assistant</p>
-              <p className="text-[10px] text-muted-foreground">Build your character through conversation</p>
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] text-muted-foreground">Build your character through conversation</p>
+              </div>
             </div>
           </div>
+          {/* Complexity indicator — only show after a few messages */}
+          {messages.length > 2 && (
+            <div className="flex items-center gap-2 ml-auto">
+              <div className="flex flex-col items-end gap-0.5">
+                <span className={`text-[9px] font-display tracking-wider ${
+                  complexity.level === 'critical' ? 'text-destructive animate-pulse' :
+                  complexity.level === 'high' ? 'text-amber-400' :
+                  complexity.level === 'moderate' ? 'text-yellow-500/70' :
+                  'text-muted-foreground'
+                }`}>
+                  {complexity.level === 'critical' ? '⚠️ LIMIT' :
+                   complexity.level === 'high' ? '🔥 HIGH' :
+                   complexity.level === 'moderate' ? '📊 MED' :
+                   '✨ LOW'}
+                </span>
+                <div className="w-16 h-1.5 rounded-full bg-black/40 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      complexity.level === 'critical' ? 'bg-destructive' :
+                      complexity.level === 'high' ? 'bg-amber-400' :
+                      complexity.level === 'moderate' ? 'bg-yellow-500' :
+                      'bg-primary/60'
+                    }`}
+                    style={{ width: `${complexity.percent}%` }}
+                  />
+                </div>
+              </div>
+              {complexity.level === 'critical' && (
+                <AlertTriangle className="w-4 h-4 text-destructive animate-pulse" />
+              )}
+            </div>
+          )}
         </div>
 
         {/* Messages — only this area scrolls */}
