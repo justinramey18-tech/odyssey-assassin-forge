@@ -224,6 +224,10 @@ export default {
           "0%, 100%": { opacity: "1", transform: "scale(1)" },
           "50%": { opacity: "0.8", transform: "scale(1.1)" },
         },
+        "breathe": {
+          "0%, 100%": { transform: "scale(1)", boxShadow: "0 0 10px rgba(245,158,11,0.3)" },
+          "50%": { transform: "scale(1.08)", boxShadow: "0 0 25px rgba(245,158,11,0.6)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -248,6 +252,9 @@ export default {
         "ability-unlock-mobile": "ability-unlock-mobile 0.3s ease-out",
         "ability-unlock-flash": "ability-unlock-flash 0.6s ease-out",
         "badge-pulse": "badge-pulse 2s ease-in-out infinite",
+        "breathe-slow": "breathe 20s ease-in-out infinite",
+        "breathe-medium": "breathe 10s ease-in-out infinite",
+        "breathe-fast": "breathe 6s ease-in-out infinite",
       },
     },
   },
