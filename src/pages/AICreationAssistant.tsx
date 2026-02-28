@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useAICreationChat, buildDataToWizardState, CharacterBuildData } from '@/hooks/use-ai-creation-chat';
 import { presetToEquipment, getPresetById } from '@/components/wizard/presets/equipment-presets';
 import ReactMarkdown from 'react-markdown';
-import wizardBackground from '@/assets/wizard-background.jpg';
+import aiCreationBg from '@/assets/ai-creation-bg.jpeg';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 import { saveHomebrewContentFromBuildData } from '@/lib/ai-creation/saveHomebrew';
 
@@ -17,7 +17,6 @@ export default function AICreationAssistant() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const hasSentGreeting = useRef(false);
 
-  // Auto-send greeting to trigger AI's first message
   useEffect(() => {
     if (!hasSentGreeting.current && messages.length === 0) {
       hasSentGreeting.current = true;
@@ -25,7 +24,6 @@ export default function AICreationAssistant() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Smooth auto-scroll to bottom on new messages or loading state
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTo({
@@ -52,7 +50,6 @@ export default function AICreationAssistant() {
   const handleApply = useCallback(() => {
     if (!buildData) return;
     
-    // Save all homebrew content to localStorage BEFORE navigating
     const homebrewSummary = saveHomebrewContentFromBuildData(buildData);
     if (homebrewSummary.totalItems > 0) {
       console.log('[AICreation] Saved homebrew content:', homebrewSummary);
@@ -60,7 +57,6 @@ export default function AICreationAssistant() {
 
     const wizardState = buildDataToWizardState(buildData);
     
-    // Resolve equipment from preset
     if (wizardState.selectedPresetId) {
       const preset = getPresetById(wizardState.selectedPresetId);
       if (preset) {
@@ -68,7 +64,6 @@ export default function AICreationAssistant() {
       }
     }
 
-    // Auto-equip homebrew gear into matching slots
     if (homebrewSummary.createdGearItems.length > 0) {
       for (const item of homebrewSummary.createdGearItems) {
         const slot = item.slotType;
@@ -81,21 +76,18 @@ export default function AICreationAssistant() {
       console.log('[AICreation] Auto-equipped homebrew gear into slots');
     }
 
-    // Store alignment from AI creation for auto-filtering across the app
     if (buildData.alignment) {
       try {
         const activeId = localStorage.getItem('odyssey-active-cloud-save-id');
         const key = activeId
           ? `odyssey-alignment-drift_${activeId}`
           : 'odyssey-alignment-drift';
-        // Seed the drift tracker with an initial entry matching declared alignment
         const seedEntry = {
           promptId: '_ai_creation_seed',
           law: buildData.alignment.law,
           good: buildData.alignment.good,
           ts: Date.now(),
         };
-        // Load existing or start fresh
         let existing = [];
         try { existing = JSON.parse(localStorage.getItem(key) || '[]'); } catch {}
         existing.push(seedEntry);
@@ -106,7 +98,6 @@ export default function AICreationAssistant() {
       }
     }
 
-    // Navigate to Index with the wizard state to apply
     navigate('/', { 
       state: { 
         aiCreatedCharacter: wizardState,
@@ -120,10 +111,10 @@ export default function AICreationAssistant() {
   }, [navigate, reset]);
 
   return (
-    <BackgroundWrapper imagePath={wizardBackground} overlayOpacity={90}>
-      <div className="min-h-screen flex flex-col max-w-lg mx-auto relative">
+    <BackgroundWrapper imagePath={aiCreationBg} overlayOpacity={75}>
+      <div className="h-screen flex flex-col max-w-lg mx-auto relative">
         {/* Header */}
-        <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b border-border px-4 py-3 flex items-center gap-3">
+        <div className="shrink-0 z-50 bg-black/60 backdrop-blur-md border-b border-border/50 px-4 py-3 flex items-center gap-3">
           <button onClick={handleBack} className="text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -138,22 +129,22 @@ export default function AICreationAssistant() {
           </div>
         </div>
 
-        {/* Messages */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        {/* Messages — only this area scrolls */}
+        <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0 px-4 py-4 space-y-4">
           {messages.map((msg, i) => (
             <div
               key={i}
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+                className={`max-w-[85%] rounded-lg px-3 py-2 text-sm shadow-lg ${
                   msg.role === 'user'
-                    ? 'bg-primary/20 text-foreground border border-primary/30'
-                    : 'bg-card/80 text-foreground border border-border'
+                    ? 'bg-primary/30 text-foreground border border-primary/40 backdrop-blur-sm'
+                    : 'bg-black/60 text-foreground border border-border/50 backdrop-blur-sm'
                 }`}
               >
                 {msg.role === 'assistant' ? (
-                  <div className="prose prose-sm prose-invert max-w-none [&>p]:mb-2 [&>p:last-child]:mb-0 [&>ul]:mb-2 [&>ol]:mb-2 [&>pre]:bg-background/50 [&>pre]:border [&>pre]:border-border [&>pre]:rounded">
+                  <div className="prose prose-sm prose-invert max-w-none [&>p]:mb-2 [&>p:last-child]:mb-0 [&>ul]:mb-2 [&>ol]:mb-2 [&>pre]:bg-black/40 [&>pre]:border [&>pre]:border-border/50 [&>pre]:rounded">
                     <ReactMarkdown>{msg.content}</ReactMarkdown>
                   </div>
                 ) : (
@@ -165,7 +156,7 @@ export default function AICreationAssistant() {
 
           {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
             <div className="flex justify-start">
-              <div className="bg-card/80 border border-border rounded-lg px-4 py-3 flex items-center gap-1.5">
+              <div className="bg-black/60 border border-border/50 backdrop-blur-sm rounded-lg px-4 py-3 flex items-center gap-1.5 shadow-lg">
                 <span className="w-2 h-2 rounded-full bg-primary/70 animate-bounce [animation-delay:0ms]" />
                 <span className="w-2 h-2 rounded-full bg-primary/70 animate-bounce [animation-delay:150ms]" />
                 <span className="w-2 h-2 rounded-full bg-primary/70 animate-bounce [animation-delay:300ms]" />
@@ -175,13 +166,12 @@ export default function AICreationAssistant() {
 
           {error && (
             <div className="flex justify-center">
-              <div className="bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2 text-sm text-destructive">
+              <div className="bg-destructive/20 border border-destructive/40 backdrop-blur-sm rounded-lg px-3 py-2 text-sm text-destructive shadow-lg">
                 {error}
               </div>
             </div>
           )}
 
-          {/* Quick-reply suggestion chips */}
           {suggestions.length > 0 && !isLoading && (
             <div className="flex flex-wrap gap-2 px-1">
               {suggestions.map((s, i) => (
@@ -191,7 +181,7 @@ export default function AICreationAssistant() {
                     setInput('');
                     sendMessage(s);
                   }}
-                  className="px-3 py-1.5 text-xs font-display rounded-full border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors opacity-0 animate-scale-in"
+                  className="px-3 py-1.5 text-xs font-display rounded-full border border-primary/40 bg-black/50 text-primary hover:bg-primary/20 backdrop-blur-sm transition-colors opacity-0 animate-scale-in shadow-lg"
                   style={{ animationDelay: `${i * 100}ms`, animationFillMode: 'forwards' }}
                 >
                   {s}
@@ -201,9 +191,9 @@ export default function AICreationAssistant() {
           )}
         </div>
 
-        {/* Apply button - shows when build data is ready */}
+        {/* Apply button */}
         {buildData && (
-          <div className="px-4 py-2 border-t border-border bg-background/80 backdrop-blur-sm">
+          <div className="shrink-0 px-4 py-2 border-t border-border/50 bg-black/60 backdrop-blur-md">
             <Button
               onClick={handleApply}
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-display tracking-wider"
@@ -214,8 +204,8 @@ export default function AICreationAssistant() {
           </div>
         )}
 
-        {/* Input */}
-        <div className="sticky bottom-0 px-4 py-3 border-t border-border bg-background/80 backdrop-blur-sm">
+        {/* Input — fixed at bottom */}
+        <div className="shrink-0 px-4 py-3 border-t border-border/50 bg-black/60 backdrop-blur-md">
           <div className="flex items-end gap-2">
             <textarea
               ref={inputRef}
@@ -224,7 +214,7 @@ export default function AICreationAssistant() {
               onKeyDown={handleKeyDown}
               placeholder="Describe your character..."
               rows={1}
-              className="flex-1 resize-none bg-card/60 border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 max-h-24"
+              className="flex-1 resize-none bg-black/40 border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 max-h-24 backdrop-blur-sm"
               disabled={isLoading}
             />
             <Button
