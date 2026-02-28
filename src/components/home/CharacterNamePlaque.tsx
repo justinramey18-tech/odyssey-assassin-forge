@@ -1,14 +1,31 @@
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { getThistleBadges, getBadgeColorClasses } from '@/lib/easter-eggs';
+import { type AlignmentScore, getAlignmentZone } from '@/lib/alignmentSpectrum';
+import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
 
 interface CharacterNamePlaqueProps {
   name: string;
   level: number;
+  primaryClass?: string;
 }
 
-export function CharacterNamePlaque({ name, level }: CharacterNamePlaqueProps) {
+const CLASS_LABELS: Record<string, string> = {
+  rogue: 'Rogue',
+  wizard: 'Wizard',
+  sorcerer: 'Sorcerer',
+  warlock: 'Warlock',
+  cleric: 'Cleric',
+  druid: 'Druid',
+  bard: 'Bard',
+};
+
+export function CharacterNamePlaque({ name, level, primaryClass }: CharacterNamePlaqueProps) {
   const badges = getThistleBadges(name || '');
+  const { driftPosition, historyCount } = useAlignmentDrift();
+
+  const classLabel = primaryClass ? (CLASS_LABELS[primaryClass] || primaryClass) : null;
+  const alignmentZone = historyCount > 0 ? getAlignmentZone(driftPosition) : null;
 
   return (
     <motion.div
@@ -37,6 +54,25 @@ export function CharacterNamePlaque({ name, level }: CharacterNamePlaqueProps) {
           Level {level}
         </span>
       </div>
+
+      {/* Class & Alignment subtitle */}
+      {(classLabel || alignmentZone) && (
+        <div className="flex items-center justify-center gap-1.5 mt-0.5">
+          {classLabel && (
+            <span className="text-[11px] font-cinzel text-muted-foreground uppercase tracking-wider">
+              {classLabel}
+            </span>
+          )}
+          {classLabel && alignmentZone && (
+            <span className="text-muted-foreground/40 text-[10px]">·</span>
+          )}
+          {alignmentZone && (
+            <span className={cn("text-[11px] font-cinzel uppercase tracking-wider", alignmentZone.color)}>
+              {alignmentZone.emoji} {alignmentZone.label}
+            </span>
+          )}
+        </div>
+      )}
 
       {badges.length > 0 && (
         <div className="flex items-center justify-center gap-1.5 mt-1">

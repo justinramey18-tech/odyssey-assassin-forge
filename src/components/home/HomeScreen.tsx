@@ -583,6 +583,7 @@ export function HomeScreen({
         <CharacterNamePlaque 
           name={character.name} 
           level={character.level}
+          primaryClass={character.primaryClass}
         />
 
         {/* Alignment Drift Indicator */}
