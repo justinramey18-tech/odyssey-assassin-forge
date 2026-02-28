@@ -1010,7 +1010,9 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                         {/* Dropdown trigger row */}
                         <button
                           onClick={() => {
-                            if (mode !== 'shared' || !hasAction) return;
+                            if (!hasAction) return;
+                            // In private mode, only allow expanding own prompt
+                            if (mode !== 'shared' && !isSelf) return;
                             const toggled = isExpanded ? null : m.user_id;
                             setExpandedPillUserId(toggled);
                             if (toggled && isSelf && prompt) setPillEditText(prompt.prompt);
@@ -1031,7 +1033,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                             )} />
                           )}
                           <span className="flex-1 truncate">{m.character_name}</span>
-                          {mode === 'shared' && hasAction && !isExpanded && (
+                          {(mode === 'shared' || isSelf) && hasAction && !isExpanded && (
                             <span className="text-[10px] text-white/30 max-w-[100px] truncate">{prompt!.prompt}</span>
                           )}
                           {prompt?.is_ready ? (
@@ -1041,7 +1043,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                           ) : (
                             <span className="w-1.5 h-1.5 rounded-full bg-white/20 shrink-0" />
                           )}
-                          {mode === 'shared' && hasAction && (
+                          {(mode === 'shared' || isSelf) && hasAction && (
                             <motion.div
                               animate={{ rotate: isExpanded ? 180 : 0 }}
                               transition={{ duration: 0.15 }}
@@ -1269,6 +1271,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                     onClick={() => {
                       const myUserId = currentUserId;
                       if (!myUserId) return;
+                      setIsQueueExpanded(true);
                       setExpandedPillUserId(prev => prev === myUserId ? null : myUserId);
                       setPillEditText(partyDm.myPrompt?.prompt || '');
                     }}
