@@ -4,6 +4,10 @@
  * Claude models route directly to the Anthropic API using ANTHROPIC_API_KEY.
  */
 
+import { isClaudeEverywhereEnabled } from '@/lib/api-keys';
+
+export const CLAUDE_EVERYWHERE_MODEL_ID = 'anthropic/claude-sonnet-4-5';
+
 export interface DMAIModel {
   id: string;
   label: string;
@@ -29,6 +33,8 @@ export const DEFAULT_MODEL_ID = 'google/gemini-3-pro-preview';
 const STORAGE_KEY = 'dnd-dm-ai-model';
 
 export function loadSelectedModel(): string {
+  // If Claude Everywhere is on, always return Claude 4.5 Sonnet
+  if (isClaudeEverywhereEnabled()) return CLAUDE_EVERYWHERE_MODEL_ID;
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved && DM_MODELS.some(m => m.id === saved)) return saved;

@@ -27,6 +27,7 @@ import { createDefaultHomebrewSpell, validateHomebrewSpell, generateHomebrewSpel
 import { SpellSchool, CastingTime, SaveStat } from '@/lib/magic/types';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
 import { toast } from 'sonner';
+import { getClaudeEverywhereKey } from '@/lib/api-keys';
 
 interface HomebrewSpellCreateSheetProps {
   isOpen: boolean;
@@ -76,6 +77,7 @@ export function HomebrewSpellCreateSheet({
         `Create a complete ${spell.level === 0 ? 'cantrip' : `level ${spell.level}`} ${spell.school || 'evocation'} spell for a ${primaryClass}. Make it balanced for D&D 5e. Return ONLY a JSON object with: name, level (number 0-9), school, castingTime (action/bonus_action/reaction/ritual/1_minute/10_minutes), range (string like "60 feet"), duration (string like "1 minute" or "Instantaneous"), concentration (boolean), ritual (boolean), description (string), higherLevels (optional string), damageFormula (optional string like "3d8"), damageType (optional string), attackType (optional: melee/ranged/save/auto), saveStat (optional: STR/DEX/CON/INT/WIS/CHA), healingFormula (optional string), iconName (one of: ${SPELL_ICON_OPTIONS.join(', ')}), personalityQuips (object with thunderhead, jarvis, deadpool strings - short combat quips in each voice).`
       );
 
+      const claudeKey = getClaudeEverywhereKey();
       const response = await fetch(ASSISTANT_URL, {
         method: 'POST',
         headers: {
@@ -86,6 +88,7 @@ export function HomebrewSpellCreateSheet({
           prompt,
           context: { tree: 'hunter', type: 'active', currentName: spell.name || undefined },
           mode: 'spell_concept',
+          ...(claudeKey ? { user_api_key: claudeKey } : {}),
         }),
       });
 

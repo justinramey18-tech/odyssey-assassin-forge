@@ -3,6 +3,10 @@
  * Reuses the same shape as DMAIModel from dm-models.ts.
  */
 
+import { isClaudeEverywhereEnabled } from '@/lib/api-keys';
+
+const CLAUDE_EVERYWHERE_MODEL_ID = 'anthropic/claude-sonnet-4-5';
+
 export interface ScribeModel {
   id: string;
   label: string;
@@ -26,6 +30,7 @@ export const DEFAULT_SCRIBE_MODEL = 'google/gemini-3-pro-preview';
 const STORAGE_KEY = 'dnd-scribe-ai-model';
 
 export function loadScribeModel(): string {
+  if (isClaudeEverywhereEnabled()) return CLAUDE_EVERYWHERE_MODEL_ID;
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved && SCRIBE_MODELS.some(m => m.id === saved)) return saved;

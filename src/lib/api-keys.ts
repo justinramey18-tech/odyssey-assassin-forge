@@ -37,3 +37,28 @@ export function maskKey(key: string): string {
   if (key.length <= 8) return '••••••••';
   return key.slice(0, 7) + '•••' + key.slice(-4);
 }
+
+const CLAUDE_EVERYWHERE_KEY = 'dnd-use-claude-everywhere';
+
+export function isClaudeEverywhereEnabled(): boolean {
+  try {
+    return localStorage.getItem(CLAUDE_EVERYWHERE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export function setClaudeEverywhere(enabled: boolean): void {
+  try {
+    localStorage.setItem(CLAUDE_EVERYWHERE_KEY, enabled ? 'true' : 'false');
+    window.dispatchEvent(new CustomEvent('claude-everywhere-changed', { detail: { enabled } }));
+  } catch {
+    // ignore
+  }
+}
+
+/** Returns the user's Anthropic API key if "Claude Everywhere" is enabled, otherwise null */
+export function getClaudeEverywhereKey(): string | null {
+  if (!isClaudeEverywhereEnabled()) return null;
+  return loadApiKey('anthropic');
+}

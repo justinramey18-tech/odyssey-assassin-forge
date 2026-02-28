@@ -143,7 +143,7 @@ serve(async (req) => {
       });
     }
 
-    const { entries, mode, characterName, chaosLevel = 5 }: SynthesizeRequest = await req.json();
+    const { entries, mode, characterName, chaosLevel = 5, user_api_key }: SynthesizeRequest & { user_api_key?: string } = await req.json();
 
     // Validate inputs
     if (!entries || !Array.isArray(entries) || entries.length === 0) {
@@ -182,6 +182,32 @@ serve(async (req) => {
       );
     }
 
+    const systemPrompt = getSystemPrompt(mode, chaosLevel);
+    const userContent = formatEntriesForAI(entries, characterName);
+    const maxTokens = mode === 'simplified' ? 500 : mode === 'high-rp' ? 1500 : 1200;
+
+    console.log(`[combat-log-synthesize] Mode: ${mode}, Entries: ${entries.length}, Chaos: ${chaosLevel}`);
+
+    // Anthropic path
+    if (user_api_key && typeof user_api_key === 'string' && user_api_key.trim()) {
+      const { callAnthropicNonStreaming } = await import("../_shared/anthropic-helper.ts");
+      const result = await callAnthropicNonStreaming({
+        userApiKey: user_api_key.trim(),
+        systemPrompt,
+        messages: [{ role: "user", content: userContent }],
+        maxTokens,
+      });
+      if (result.error) {
+        return new Response(JSON.stringify({ error: result.error }), {
+          status: result.status || 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({
+        synthesis: result.text || "", mode, actionCount: entries.length,
+        chaosLevel: mode === 'deadpool' ? chaosLevel : undefined,
+      }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       console.error("LOVABLE_API_KEY not configured");
@@ -190,11 +216,6 @@ serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const systemPrompt = getSystemPrompt(mode, chaosLevel);
-    const userContent = formatEntriesForAI(entries, characterName);
-
-    console.log(`[combat-log-synthesize] Mode: ${mode}, Entries: ${entries.length}, Chaos: ${chaosLevel}`);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -209,7 +230,7 @@ serve(async (req) => {
           { role: "user", content: userContent },
         ],
         stream: false,
-        max_tokens: mode === 'simplified' ? 500 : mode === 'high-rp' ? 1500 : 1200,
+        max_tokens: maxTokens,
       }),
     });
 

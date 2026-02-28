@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ChevronDown, ChevronUp, Loader2, Wand2, ScrollText, MessageSquare, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DM_MODELS, DMAIModel } from '@/lib/dm-models';
-import { loadApiKey } from '@/lib/api-keys';
+import { loadApiKey, isClaudeEverywhereEnabled } from '@/lib/api-keys';
 import { getAuthToken } from '@/lib/auth-token';
 import { useToast } from '@/hooks/use-toast';
 import { GMGuide } from '@/lib/gm-guides-storage';
@@ -17,7 +17,9 @@ interface AIGuideCreatorProps {
 
 export function AIGuideCreator({ guides, campaignSummary, chatMessages, onAdd }: AIGuideCreatorProps) {
   const [expanded, setExpanded] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('google/gemini-3-flash-preview');
+  const [selectedModel, setSelectedModel] = useState(() => 
+    isClaudeEverywhereEnabled() ? 'anthropic/claude-sonnet-4-5' : 'google/gemini-3-flash-preview'
+  );
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();

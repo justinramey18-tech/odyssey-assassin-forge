@@ -173,17 +173,13 @@ serve(async (req) => {
       });
     }
 
-    const { message, characterContext } = await req.json();
+    const { message, characterContext, user_api_key } = await req.json();
 
     if (!message || typeof message !== "string") {
       return new Response(JSON.stringify({ error: "Missing message" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     const companionInfo = characterContext?.companionName
       ? `\n\nCOMPANION INFO (CRITICAL): The player has a companion named "${characterContext.companionName}" currently at ${characterContext.companionHP ?? "?"}/${characterContext.companionMaxHP ?? "?"} HP. Any damage or healing to "${characterContext.companionName}" MUST go in companion_hp_changes, NOT hp_changes. Any damage or healing to "${characterContext.name || "the player"}" MUST go in hp_changes, NOT companion_hp_changes. Never mix them up.`
@@ -208,6 +204,30 @@ CRITICAL ACCURACY RULES:
 - If no changes are found, return empty arrays and null values.
 
 CHARACTER: "${characterContext?.name || "Adventurer"}" is Level ${characterContext?.level || 1}, currently at ${characterContext?.currentHP || "?"}/${characterContext?.maxHP || "?"} HP.${companionInfo}`;
+
+    // Anthropic path with tool calling
+    if (user_api_key && typeof user_api_key === 'string' && user_api_key.trim()) {
+      const { callAnthropicNonStreaming } = await import("../_shared/anthropic-helper.ts");
+      const result = await callAnthropicNonStreaming({
+        userApiKey: user_api_key.trim(),
+        systemPrompt,
+        messages: [{ role: "user", content: message }],
+        tools: [EXTRACT_TOOL],
+        toolChoice: "extract_state_changes",
+      });
+      if (result.error) {
+        return new Response(JSON.stringify({ error: result.error }), {
+          status: result.status || 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const extracted = result.toolArguments || { hp_changes: [], xp_gained: null, gold_changes: [], conditions_added: [], conditions_removed: [], items_acquired: [], rest_occurred: null, map_entities: [], map_entities_removed: [], companion_hp_changes: [], companion_conditions_added: [], companion_conditions_removed: [], hp_absolute: null, companion_hp_absolute: null };
+      return new Response(JSON.stringify(extracted), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
