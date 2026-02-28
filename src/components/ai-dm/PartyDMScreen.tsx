@@ -936,7 +936,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
               {partyDm.currentPrompts.filter(p => p.is_ready).length}/{memberCount} ready
             </span>
           </div>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-col gap-1.5 mx-1">
             {members.map(m => {
               const prompt = partyDm.currentPrompts.find(p => p.user_id === m.user_id);
               const isSelf = m.user_id === currentUserId;
@@ -962,7 +962,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                     if (toggled && isSelf && prompt) setPillEditText(prompt.prompt);
                   }}
                   className={cn(
-                    "flex items-center gap-1 px-2 py-1 rounded-full text-[10px] border transition-all",
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] border transition-all w-full",
                     !prompt && "bg-white/5 border-white/10 text-white/30",
                     prompt && !prompt.is_ready && "bg-amber-900/20 border-amber-500/30 text-amber-300",
                     prompt?.is_ready && "bg-emerald-900/20 border-emerald-500/30 text-emerald-300 animate-pulse",
@@ -976,7 +976,7 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                       memberTeam === 'alpha' ? "bg-blue-400" : "bg-purple-400"
                     )} />
                   )}
-                  <span className="max-w-[80px] truncate">{m.character_name}</span>
+                  <span className="truncate flex-1">{m.character_name}</span>
                   {prompt?.is_ready ? (
                     <CheckCheck className="w-3 h-3 text-emerald-400" />
                   ) : prompt ? (
