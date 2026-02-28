@@ -934,8 +934,14 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
       )}
 
       {/* Prompt Queue Status — Collapsible Drawer */}
-      {partyDm.isActive && (
-        <div className="border-t border-amber-900/20 bg-black/30">
+      {partyDm.isActive && (() => {
+        const readyCount = partyDm.currentPrompts.filter(p => p.is_ready).length;
+        const allReady = readyCount === memberCount && memberCount > 0;
+        return (
+        <div className={cn(
+          "border-t border-amber-900/20 bg-black/30 transition-all duration-500",
+          allReady && "border-t-emerald-500/50 bg-emerald-950/20 shadow-[inset_0_1px_12px_-4px_rgba(16,185,129,0.25)]"
+        )}>
           {/* Tap-to-expand status strip */}
           <div
             className="flex items-center justify-between px-3 py-2 cursor-pointer select-none touch-none"
@@ -956,16 +962,26 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
             }}
           >
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] text-white/50 uppercase tracking-wider font-semibold">Round Queue</span>
-              <span className="text-[10px] text-white/30">
-                {partyDm.currentPrompts.filter(p => p.is_ready).length}/{memberCount} ready
+              <span className={cn(
+                "text-[10px] uppercase tracking-wider font-semibold transition-colors duration-500",
+                allReady ? "text-emerald-400" : "text-white/50"
+              )}>Round Queue</span>
+              <span className={cn(
+                "text-[10px] transition-colors duration-500",
+                allReady ? "text-emerald-300/70 animate-pulse" : "text-white/30"
+              )}>
+                {readyCount}/{memberCount} ready
+                {allReady && " ✦"}
               </span>
             </div>
             <motion.div
               animate={{ rotate: isQueueExpanded ? 180 : 0 }}
               transition={{ duration: 0.2 }}
             >
-              <ChevronUp className="w-3.5 h-3.5 text-white/30" />
+              <ChevronUp className={cn(
+                "w-3.5 h-3.5 transition-colors duration-500",
+                allReady ? "text-emerald-400/60" : "text-white/30"
+              )} />
             </motion.div>
           </div>
 
@@ -1093,7 +1109,8 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
             )}
           </AnimatePresence>
         </div>
-      )}
+        );
+      })()}
 
       {/* Hidden file inputs */}
       <input
