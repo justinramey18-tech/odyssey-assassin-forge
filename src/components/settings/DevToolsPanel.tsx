@@ -275,12 +275,6 @@ export function DevToolsPanel() {
             value={password}
             onChange={(e) => { setPassword(e.target.value); setError(false); }}
             className={cn("scroll-mt-20", error ? 'border-destructive' : '')}
-            autoFocus
-            onFocus={(e) => {
-              setTimeout(() => {
-                e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }, 300);
-            }}
           />
           {error && <p className="text-xs text-destructive text-center">Incorrect password</p>}
           <button
