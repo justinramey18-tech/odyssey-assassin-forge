@@ -125,19 +125,6 @@ const Index = () => {
     }
   }, [searchParams, setSearchParams]);
 
-  // Navigation guard: intercept browser back button to go to roster instead of leaving the app
-  useEffect(() => {
-    // Push a guard entry so pressing back doesn't leave the app
-    window.history.pushState({ guard: true }, '');
-
-    const handlePopState = (e: PopStateEvent) => {
-      // When user presses back, navigate to roster
-      routerNavigate('/roster');
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [routerNavigate]);
 
   // Handle deep-link via ?tab= query param (e.g. from /features page)
   const pendingTab = searchParams.get('tab');
@@ -181,6 +168,29 @@ const Index = () => {
   useEffect(() => {
     setScopedItem('odyssey-inspiration', hasInspiration.toString());
   }, [hasInspiration]);
+
+  // Navigation guard: intercept Android back button to navigate within the app
+  useEffect(() => {
+    window.history.pushState({ guard: true }, '');
+
+    const handlePopState = () => {
+      window.history.pushState({ guard: true }, '');
+
+      if (showSettingsModal) {
+        setShowSettingsModal(false);
+        return;
+      }
+
+      if (!showHomeScreen) {
+        setShowHomeScreen(true);
+        return;
+      }
+      // On home screen: inert
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [showHomeScreen, showSettingsModal]);
   
   // Prestige System State - simplified (no separate spending/respec)
   const { 
