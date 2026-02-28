@@ -28,9 +28,10 @@ interface GeraltCompanionScreenProps {
   open: boolean;
   onClose: () => void;
   characterId: string;
+  onHpChange?: (currentHP: number, maxHP: number) => void;
 }
 
-export function GeraltCompanionScreen({ open, onClose, characterId }: GeraltCompanionScreenProps) {
+export function GeraltCompanionScreen({ open, onClose, characterId, onHpChange }: GeraltCompanionScreenProps) {
   const [state, setState] = useState<GeraltState>(() => loadState(characterId));
   const [hpDelta, setHpDelta] = useState('');
   const [lastRoll, setLastRoll] = useState<AttackRollResult | null>(null);
@@ -53,10 +54,14 @@ export function GeraltCompanionScreen({ open, onClose, characterId }: GeraltComp
     setState(loadState(characterId));
   }, [characterId]);
 
-  // Auto-save on state change
+  // Auto-save on state change & notify listeners
   useEffect(() => {
-    if (open) saveState(characterId, state);
-  }, [state, characterId, open]);
+    if (open) {
+      saveState(characterId, state);
+      onHpChange?.(state.currentHP, state.maxHP);
+      window.dispatchEvent(new CustomEvent('geralt-hp-changed', { detail: { characterId, currentHP: state.currentHP, maxHP: state.maxHP } }));
+    }
+  }, [state, characterId, open, onHpChange]);
 
   const update = useCallback((patch: Partial<GeraltState>) => {
     setState(prev => ({ ...prev, ...patch }));
