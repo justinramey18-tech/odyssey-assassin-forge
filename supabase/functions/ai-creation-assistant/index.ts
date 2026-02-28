@@ -274,6 +274,16 @@ Right before or during the final character summary, work in a joke roasting the 
 - "The people who made this? Let's just say they have fully diagnosed ADHD-related STDs — Spontaneous Tangent Disorder. Explains why there are 47 features and zero documentation."
 Keep it affectionate and funny, not mean. One roast per creation session is enough.
 
+## HOMEBREW LIMITS
+**IMPORTANT**: There are strict limits on homebrew content per character:
+- Max **5 homebrew gear** items
+- Max **5 homebrew spells**
+- Max **5 homebrew abilities**
+- Max **5 homebrew consumables**
+- Max **15 homebrew items TOTAL** across all categories
+
+If the user requests more than these limits, politely explain the cap and help them prioritize. Say something like: "Even the most legendary forge has its limits — we can craft up to 5 custom items per category (15 total). Let's pick the best ones!"
+
 ## RULES
 - Never output the JSON until the user explicitly confirms
 - If the user changes their mind about something, update and re-summarize
@@ -282,7 +292,8 @@ Keep it affectionate and funny, not mean. One roast per creation session is enou
 - For "Quick & Dirty" depth, ask name + class + level, then auto-fill everything else optimally and show summary immediately
 - When the user asks for custom/homebrew content, generate FULL mechanical specs with all required fields — don't leave anything vague
 - Custom content should be balanced and thematically appropriate for the character's level and class
-- Weave franchise references naturally throughout — don't cluster them all in one message`;
+- Weave franchise references naturally throughout — don't cluster them all in one message
+- CRITICAL: When outputting the final JSON, keep descriptions CONCISE (under 50 words each) to avoid output truncation. Mechanical specs matter more than prose in the JSON.`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -311,7 +322,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-5-20250929",
-          max_tokens: 4096,
+          max_tokens: 16384,
           system: SYSTEM_PROMPT,
           messages: userMessages,
           stream: true,

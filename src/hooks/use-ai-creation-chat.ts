@@ -238,6 +238,9 @@ export function useAICreationChat() {
       const extractedData = tryExtractBuildData(assistantSoFar);
       if (extractedData) {
         setBuildData(extractedData);
+      } else if (assistantSoFar.includes('"action":"apply_character"') || assistantSoFar.includes('"action": "apply_character"')) {
+        // JSON was present but likely truncated — notify user
+        setError('The character build was too large and got cut off. Please ask the assistant to try again with shorter descriptions, or reduce homebrew items.');
       }
     } catch (e: any) {
       if (e.name !== 'AbortError') {
