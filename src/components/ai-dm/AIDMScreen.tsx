@@ -1025,6 +1025,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           onClose={() => setShowGeraltWidget(false)}
           characterId={geraltCharacterId}
           onHpChange={handleGeraltHpChange}
+          onUsePrompt={handleUsePrompt}
         />
       )}
 
