@@ -17,11 +17,18 @@ export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompan
   // Determine breathing animation class based on companion HP
   const isInjured = companionHpPct !== undefined && companionHpPct <= 30;
 
-  const breatheClass = companionHpPct !== undefined
-    ? companionHpPct > 80 ? 'animate-breathe-slow'
-      : companionHpPct > 30 ? 'animate-breathe-medium'
-      : 'animate-breathe-fast'
-    : '';
+  const hpState = companionHpPct !== undefined
+    ? companionHpPct > 80 ? 'happy'
+      : companionHpPct > 30 ? 'angry'
+      : 'injured'
+    : 'happy';
+
+  const breatheDuration = hpState === 'happy' ? 20 : hpState === 'angry' ? 10 : 6;
+  const breatheGlow = hpState === 'happy'
+    ? 'rgba(245,158,11,0.55)'
+    : hpState === 'angry'
+      ? 'rgba(249,115,22,0.55)'
+      : 'rgba(239,68,68,0.55)';
 
   // Border/ring color shifts with HP state
   const borderColor = companionHpPct !== undefined
@@ -94,23 +101,39 @@ export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompan
                 }}
               />
             ))}
-            <button
-              onClick={onCompanionClick}
-              className={cn(
-                "w-20 h-20 rounded-2xl overflow-hidden",
-                `border-2 ${borderColor}`,
-                "transition-all duration-300",
-                "hover:scale-105 active:scale-95",
-                "shadow-[0_6px_20px_rgba(0,0,0,0.5),0_2px_4px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.15)]",
-                "hover:shadow-[0_8px_25px_rgba(180,120,40,0.4),0_4px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.2)]",
-                `ring-2 ${ringColor} ring-offset-0`,
-                breatheClass
-              )}
-              style={{ touchAction: 'manipulation', transform: 'perspective(500px) rotateY(-3deg) rotateX(2deg)' }}
-              aria-label="Open Geralt companion"
+            <motion.div
+              className="rounded-2xl"
+              animate={{
+                scale: [1, 1.08, 1],
+                boxShadow: [
+                  `0 0 10px ${breatheGlow}`,
+                  `0 0 24px ${breatheGlow}`,
+                  `0 0 10px ${breatheGlow}`,
+                ],
+              }}
+              transition={{
+                duration: breatheDuration,
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }}
             >
-              <img src={geraltButton} alt="Geralt" className="w-full h-full object-cover" />
-            </button>
+              <button
+                onClick={onCompanionClick}
+                className={cn(
+                  "w-20 h-20 rounded-2xl overflow-hidden",
+                  `border-2 ${borderColor}`,
+                  "transition-all duration-300",
+                  "hover:scale-105 active:scale-95",
+                  "shadow-[0_6px_20px_rgba(0,0,0,0.5),0_2px_4px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.15)]",
+                  "hover:shadow-[0_8px_25px_rgba(180,120,40,0.4),0_4px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.2)]",
+                  `ring-2 ${ringColor} ring-offset-0`
+                )}
+                style={{ touchAction: 'manipulation', transform: 'perspective(500px) rotateY(-3deg) rotateX(2deg)' }}
+                aria-label="Open Geralt companion"
+              >
+                <img src={geraltButton} alt="Geralt" className="w-full h-full object-cover" />
+              </button>
+            </motion.div>
           </div>
           <p className="text-[10px] text-muted-foreground font-cinzel uppercase tracking-widest">
             Geralt
