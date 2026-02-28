@@ -645,7 +645,7 @@ export function SettingsContent({
   // ─── DEV TOOLS ───
   if (activeTab === 'devTools') {
     return (
-      <div className="flex-1 overflow-y-auto max-h-[70vh] overscroll-contain">
+      <div className="flex-1 max-h-[70vh] overscroll-contain">
         <DevToolsPanel />
       </div>
     );
