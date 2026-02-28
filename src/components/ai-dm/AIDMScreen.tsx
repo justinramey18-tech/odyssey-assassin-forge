@@ -342,6 +342,16 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     setGeraltHp({ current: newHP, max: gs.maxHP });
   }, [isMomo, userId]);
 
+  const handleCompanionHPSet = useCallback((hp: number) => {
+    if (!isMomo) return;
+    const charId = userId || 'default';
+    const gs = loadGeraltState(charId);
+    const newHP = Math.max(0, Math.min(gs.maxHP, Math.round(hp)));
+    saveGeraltState(charId, { ...gs, currentHP: newHP });
+    setGeraltHp({ current: newHP, max: gs.maxHP });
+    window.dispatchEvent(new CustomEvent('geralt-hp-changed', { detail: { currentHP: newHP, maxHP: gs.maxHP } }));
+  }, [isMomo, userId]);
+
   const handleCompanionConditionChange = useCallback((toAdd: string[], toRemove: string[]) => {
     if (!isMomo) return;
     const charId = userId || 'default';
@@ -365,6 +375,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
       if (namesToRemove.length > 0) setPendingMapRemovals(namesToRemove);
     }, []),
     onCompanionHPChange: isMomo ? handleCompanionHPChange : undefined,
+    onCompanionHPSet: isMomo ? handleCompanionHPSet : undefined,
     onCompanionConditionChange: isMomo ? handleCompanionConditionChange : undefined,
     getCurrentHP: autoSyncCallbacks?.getCurrentHP ?? NOOP_RETURN_ZERO,
     getCurrentGold: autoSyncCallbacks?.getCurrentGold ?? NOOP_RETURN_ZERO,
