@@ -157,7 +157,7 @@ export function GeraltCompanionScreen({ open, onClose, characterId }: GeraltComp
         {/* Dynamic background image */}
         <div className="absolute inset-0 z-0 transition-opacity duration-700">
           <img src={backgroundImage} alt="" className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/25 to-black/50" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/15 to-black/35" />
         </div>
         <ScrollArea className="h-full relative z-10">
           <div className="p-4 space-y-5">
@@ -183,7 +183,7 @@ export function GeraltCompanionScreen({ open, onClose, characterId }: GeraltComp
 
             {/* ── HP Widget ── */}
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-              className="rounded-xl border border-amber-800/40 bg-black/30 p-4 space-y-3">
+              className="rounded-xl border border-amber-800/30 bg-black/15 backdrop-blur-[2px] p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {isDown ? <Skull className="w-5 h-5 text-rose-400" /> : <Heart className={cn("w-5 h-5", hpColor)} />}
@@ -239,7 +239,7 @@ export function GeraltCompanionScreen({ open, onClose, characterId }: GeraltComp
 
             {/* ── Level / XP ── */}
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-              className="rounded-xl border border-amber-800/40 bg-black/30 p-4 space-y-3">
+              className="rounded-xl border border-amber-800/30 bg-black/15 backdrop-blur-[2px] p-4 space-y-3">
               <div className="flex items-center gap-2 mb-1">
                 <Star className="w-5 h-5 text-amber-400" />
                 <span className="font-cinzel text-sm text-muted-foreground uppercase tracking-wider">Level & Experience</span>
@@ -263,7 +263,7 @@ export function GeraltCompanionScreen({ open, onClose, characterId }: GeraltComp
 
             {/* ── Ability Scores ── */}
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
-              className="rounded-xl border border-amber-800/40 bg-black/30 p-4 space-y-3">
+              className="rounded-xl border border-amber-800/30 bg-black/15 backdrop-blur-[2px] p-4 space-y-3">
               <span className="font-cinzel text-sm text-muted-foreground uppercase tracking-wider">Ability Scores</span>
               <div className="grid grid-cols-3 gap-2">
                 {(Object.entries(state.abilities) as [keyof GeraltState['abilities'], number][]).map(([key, val]) => (
@@ -278,13 +278,13 @@ export function GeraltCompanionScreen({ open, onClose, characterId }: GeraltComp
 
             {/* ── Attacks / Abilities ── */}
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-              className="rounded-xl border border-amber-800/40 bg-black/30 p-4 space-y-3">
+              className="rounded-xl border border-amber-800/30 bg-black/15 backdrop-blur-[2px] p-4 space-y-3">
               <div className="flex items-center gap-2 mb-1">
                 <Swords className="w-5 h-5 text-rose-400" />
                 <span className="font-cinzel text-sm text-muted-foreground uppercase tracking-wider">Attacks</span>
               </div>
               {ATTACKS.map(atk => (
-                <div key={atk.name} className="flex items-center justify-between p-2 rounded-lg border border-border/30 bg-black/20">
+                <div key={atk.name} className="flex items-center justify-between p-2 rounded-lg border border-border/20 bg-black/10">
                   <div>
                     <p className="text-sm font-semibold text-foreground">{atk.name}</p>
                     <p className="text-[10px] text-muted-foreground">{atk.desc}</p>
@@ -304,7 +304,7 @@ export function GeraltCompanionScreen({ open, onClose, characterId }: GeraltComp
 
             {/* ── Conditions ── */}
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
-              className="rounded-xl border border-amber-800/40 bg-black/30 p-4 space-y-3">
+              className="rounded-xl border border-amber-800/30 bg-black/15 backdrop-blur-[2px] p-4 space-y-3">
               <span className="font-cinzel text-sm text-muted-foreground uppercase tracking-wider">Conditions</span>
               <div className="flex flex-wrap gap-2">
                 {CONDITIONS.map(c => {
@@ -324,7 +324,7 @@ export function GeraltCompanionScreen({ open, onClose, characterId }: GeraltComp
 
             {/* ── Mood / Loyalty ── */}
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
-              className="rounded-xl border border-amber-800/40 bg-black/30 p-4 space-y-3">
+              className="rounded-xl border border-amber-800/30 bg-black/15 backdrop-blur-[2px] p-4 space-y-3">
               <span className="font-cinzel text-sm text-muted-foreground uppercase tracking-wider">Mood & Loyalty</span>
               <div className="flex gap-2">
                 {MOODS.map(m => {
@@ -358,7 +358,7 @@ export function GeraltCompanionScreen({ open, onClose, characterId }: GeraltComp
 
             {/* ── Notes ── */}
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
-              className="rounded-xl border border-amber-800/40 bg-black/30 p-4 space-y-2">
+              className="rounded-xl border border-amber-800/30 bg-black/15 backdrop-blur-[2px] p-4 space-y-2">
               <span className="font-cinzel text-sm text-muted-foreground uppercase tracking-wider">Notes</span>
               <Textarea
                 placeholder="Jot down notes about Geralt..."
