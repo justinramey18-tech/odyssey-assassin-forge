@@ -1,55 +1,55 @@
 
 
-## Plan: Update HP Thresholds & Add Breathing Animation to Geralt Button
+## Plan: Add Geralt Gameplay Widget to DM Screens (Momo-Only)
 
-### Changes Overview
+### Overview
+Add a 4th "GERALT" tab to the DM bottom navigation bar (visible only when the character is named "momo") that opens a fullscreen, mobile-first widget with 3 tabbed sections: Stats, Actions, and Role-Playing Prompts.
 
-**1. Update HP thresholds in `GeraltCompanionScreen.tsx`** (lines 123-133)
-- Change background image thresholds: >80% = happy, 30-79% = angry, <30% = injured
-- Update HP color thresholds to match
+### Architecture
 
-**2. Add breathing animation to `EnlargedD20Section.tsx`**
-- Accept a new prop `companionHpPct` (number) to know current HP percentage
-- Replace `animate-pulse` with a custom CSS breathing animation that scales the button
-- Animation speed depends on HP state:
-  - Happy (>80%): 20s total cycle (10s expand, 10s contract)
-  - Angry (30-79%): 10s total cycle (5s expand, 5s contract)
-  - Injured (<30%): 6s total cycle (3s expand, 3s contract)
-- Also apply a slow pulsing glow at the same rate
-
-**3. Pass HP data from `HomeScreen.tsx`**
-- In `HomeScreen.tsx`, read Geralt's current HP from localStorage using the same storage key pattern (`odyssey_${characterId}_geralt_companion`)
-- Pass `companionHpPct` prop to `EnlargedD20Section`
-- Listen for storage changes to keep it in sync when the companion screen updates HP
-
-**4. Add custom breathing keyframes in `tailwind.config.ts`**
-- Add three breathing animations: `breathe-slow` (20s), `breathe-medium` (10s), `breathe-fast` (6s)
-- Keyframes: scale from 1.0 → 1.08 → 1.0 with matching ring glow intensity changes
-
-### Technical Details
-
-**Threshold changes** (`GeraltCompanionScreen.tsx`):
-```
-hpPct > 80 → happy background
-hpPct > 30 → angry background  
-else → injured background
+```text
+DMBottomNav
+  ├── DICE
+  ├── RP PROMPTS
+  ├── ACTIONS
+  └── GERALT (momo-only, 4th tab)
+        → Opens fullscreen GeraltGameplayWidget
+            ├── Stats tab (HP, Level/XP, Ability Scores, Conditions, Mood)
+            ├── Actions tab (Attacks with dice rolls, Bear Hug)
+            └── RP Prompts tab (placeholder for future content)
 ```
 
-**Breathing animation** (`EnlargedD20Section.tsx`):
-- Determine animation class based on `companionHpPct`:
-  - `>80`: `animate-breathe-slow`
-  - `>30`: `animate-breathe-medium`
-  - else: `animate-breathe-fast`
-- Apply to the button wrapper using inline `style` for the animation duration, or via Tailwind custom classes
+### Implementation Steps
 
-**Data flow** (`HomeScreen.tsx`):
-- Read Geralt state from localStorage on mount and when companion screen closes
-- Compute `hpPct = (currentHP / maxHP) * 100`
-- Pass to `EnlargedD20Section` as `companionHpPct`
+1. **Create `src/components/ai-dm/GeraltGameplayWidget.tsx`**
+   - Fullscreen mobile-first overlay (like other DM overlays)
+   - 3 header tabs using existing `Tabs` component: Stats, Actions, RP Prompts
+   - **Stats tab**: Extract and reuse HP widget, Level/XP, Ability Scores, Conditions, and Mood sections from `GeraltCompanionScreen.tsx`
+   - **Actions tab**: Extract and reuse Attacks section with dice rolling (Hit/Dmg buttons, roll result banner, NAT 20/1 detection) from `GeraltCompanionScreen.tsx`
+   - **RP Prompts tab**: Empty placeholder with "Coming soon" message
+   - Uses same `GeraltState` type, `loadState`/`saveState` helpers, and `characterId`-scoped localStorage
+   - Back button to close
 
-### Files Modified
-1. `src/components/companion/GeraltCompanionScreen.tsx` — threshold updates
-2. `src/components/home/EnlargedD20Section.tsx` — breathing animation, new prop
-3. `src/components/home/HomeScreen.tsx` — read/pass companion HP data
-4. `tailwind.config.ts` — breathing keyframes
+2. **Update `DMBottomNav.tsx`**
+   - Add optional `showGeralt` prop and `'geralt'` to `DMNavTab` type
+   - Conditionally render 4th tab with a paw/bird icon (e.g., `Bird` from lucide) in pink/purple theme
+   - Only show when `showGeralt` is true
+
+3. **Update `AIDMScreen.tsx`**
+   - Import `isMomoEasterEgg` and `GeraltGameplayWidget`
+   - Detect momo from `characterName` prop
+   - Pass `showGeralt` to `DMBottomNav`
+   - Add state for `showGeraltWidget`, open it when the geralt tab is selected
+   - Pass `characterId` (derive from `characterContext` or `userId`) to the widget
+
+4. **Update `PartyDMScreen.tsx`**
+   - Same momo detection and `showGeralt` passthrough to `DMBottomNav`
+   - Same state and overlay rendering for `GeraltGameplayWidget`
+
+### Shared Logic
+The `GeraltState` type, `DEFAULT_STATE`, `ATTACKS`, `CONDITIONS`, `MOODS`, `MOOD_CONFIG`, storage helpers, and `formatMod` will be extracted from `GeraltCompanionScreen.tsx` into a shared file `src/components/companion/geralt-data.ts` so both the home screen overlay and the DM gameplay widget reuse the same data and state.
+
+### What Gets Built Now vs Later
+- **Now**: Full architecture, Stats tab (complete), Actions tab (complete with dice rolls)
+- **Later**: RP Prompts tab content (placeholder only for now)
 
