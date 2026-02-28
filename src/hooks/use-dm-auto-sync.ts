@@ -21,6 +21,8 @@ export interface ExtractionResult {
   companion_hp_changes: { amount: number; type: 'damage' | 'healing'; source: string }[];
   companion_conditions_added: string[];
   companion_conditions_removed: string[];
+  hp_absolute: number | null;
+  companion_hp_absolute: number | null;
 }
 
 interface AutoSyncSnapshot {
@@ -39,7 +41,9 @@ interface AutoSyncCallbacks {
   onRestOccurred: (type: 'short' | 'long') => void;
   onMapUpdate: (markersToAdd: MapMarker[], namesToRemove: string[]) => void;
   onCompanionHPChange?: (change: number, type: 'damage' | 'healing') => void;
+  onCompanionHPSet?: (hp: number) => void;
   onCompanionConditionChange?: (toAdd: string[], toRemove: string[]) => void;
+  onHPSet?: (hp: number) => void;
   // snapshot getters
   getCurrentHP: () => number;
   getCurrentGold: () => number;
@@ -117,8 +121,10 @@ export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
       const result: ExtractionResult = await response.json();
       setLastExtraction(result);
 
-      // Apply HP changes — aggregate to a single net change to avoid sequential rounding issues
-      if (result.hp_changes.length > 0) {
+      // Apply HP — absolute takes priority over deltas
+      if (typeof result.hp_absolute === 'number' && cb.onHPSet) {
+        cb.onHPSet(result.hp_absolute);
+      } else if (result.hp_changes.length > 0) {
         let netHP = 0;
         for (const hpChange of result.hp_changes) {
           if (typeof hpChange.amount !== 'number' || hpChange.amount <= 0) continue;
@@ -162,8 +168,10 @@ export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
         }
       }
 
-      // Apply companion HP changes — aggregate to a single net change to avoid sequential rounding issues
-      if (cb.onCompanionHPChange && result.companion_hp_changes?.length > 0) {
+      // Apply companion HP — absolute takes priority over deltas
+      if (typeof result.companion_hp_absolute === 'number' && cb.onCompanionHPSet) {
+        cb.onCompanionHPSet(result.companion_hp_absolute);
+      } else if (cb.onCompanionHPChange && result.companion_hp_changes?.length > 0) {
         let netChange = 0;
         for (const hpChange of result.companion_hp_changes) {
           if (typeof hpChange.amount !== 'number' || hpChange.amount <= 0) continue;

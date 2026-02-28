@@ -117,6 +117,14 @@ const EXTRACT_TOOL = {
           items: { type: "string" },
           description: "Conditions explicitly removed from the companion",
         },
+        hp_absolute: {
+          type: ["number", "null"],
+          description: "If the DM states the player character's exact current HP (e.g. 'Momo: 26/38 HP'), extract the CURRENT number (26). null if not stated.",
+        },
+        companion_hp_absolute: {
+          type: ["number", "null"],
+          description: "If the DM states the companion's exact current HP (e.g. 'Geralt: 53/59 HP'), extract the CURRENT number (53). null if not stated.",
+        },
       },
       required: [
         "hp_changes",
@@ -131,6 +139,8 @@ const EXTRACT_TOOL = {
         "companion_hp_changes",
         "companion_conditions_added",
         "companion_conditions_removed",
+        "hp_absolute",
+        "companion_hp_absolute",
       ],
       additionalProperties: false,
     },
@@ -194,6 +204,7 @@ CRITICAL ACCURACY RULES:
 - Only extract conditions if explicitly applied or removed (e.g., "you are now poisoned").
 - For map_entities, extract ONLY creatures/objects NEWLY introduced in THIS message. Include count for groups.
 - For map_entities_removed, include creatures definitively killed, defeated, destroyed, or fled.
+- ABSOLUTE HP EXTRACTION (CRITICAL): If the text shows an absolute HP value like "Geralt: 53/59 HP" or "Momo: 26/38 HP", extract the CURRENT number into hp_absolute (for the player) or companion_hp_absolute (for the companion). ALWAYS prefer extracting absolute values when available — they are more reliable than deltas.
 - If no changes are found, return empty arrays and null values.
 
 CHARACTER: "${characterContext?.name || "Adventurer"}" is Level ${characterContext?.level || 1}, currently at ${characterContext?.currentHP || "?"}/${characterContext?.maxHP || "?"} HP.${companionInfo}`;
@@ -263,6 +274,8 @@ CHARACTER: "${characterContext?.name || "Adventurer"}" is Level ${characterConte
           companion_hp_changes: [],
           companion_conditions_added: [],
           companion_conditions_removed: [],
+          hp_absolute: null,
+          companion_hp_absolute: null,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -288,6 +301,8 @@ CHARACTER: "${characterContext?.name || "Adventurer"}" is Level ${characterConte
         companion_hp_changes: [],
         companion_conditions_added: [],
         companion_conditions_removed: [],
+        hp_absolute: null,
+        companion_hp_absolute: null,
       };
     }
 
@@ -325,6 +340,22 @@ CHARACTER: "${characterContext?.name || "Adventurer"}" is Level ${characterConte
     };
     if (Array.isArray(extracted.hp_changes)) extracted.hp_changes = dedup(extracted.hp_changes);
     if (Array.isArray(extracted.companion_hp_changes)) extracted.companion_hp_changes = dedup(extracted.companion_hp_changes);
+
+    // Validate absolute HP values
+    if (typeof extracted.hp_absolute === 'number') {
+      if (!Number.isFinite(extracted.hp_absolute) || extracted.hp_absolute < 0 || extracted.hp_absolute > 999) {
+        extracted.hp_absolute = null;
+      }
+    } else {
+      extracted.hp_absolute = null;
+    }
+    if (typeof extracted.companion_hp_absolute === 'number') {
+      if (!Number.isFinite(extracted.companion_hp_absolute) || extracted.companion_hp_absolute < 0 || extracted.companion_hp_absolute > 999) {
+        extracted.companion_hp_absolute = null;
+      }
+    } else {
+      extracted.companion_hp_absolute = null;
+    }
 
     return new Response(JSON.stringify(extracted), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
