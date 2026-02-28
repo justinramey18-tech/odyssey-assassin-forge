@@ -20,6 +20,19 @@ export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompan
       : 'animate-breathe-fast'
     : 'animate-pulse';
 
+  // Border/ring color shifts with HP state
+  const borderColor = companionHpPct !== undefined
+    ? companionHpPct > 80 ? 'border-amber-500/50 hover:border-amber-400/80'
+      : companionHpPct > 30 ? 'border-orange-500/50 hover:border-orange-400/80'
+      : 'border-red-500/50 hover:border-red-400/80'
+    : 'border-amber-500/50 hover:border-amber-400/80';
+
+  const ringColor = companionHpPct !== undefined
+    ? companionHpPct > 80 ? 'ring-amber-400/20'
+      : companionHpPct > 30 ? 'ring-orange-400/20'
+      : 'ring-red-400/20'
+    : 'ring-amber-400/20';
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.8 }}
@@ -43,12 +56,12 @@ export function EnlargedD20Section({ onClick, onMenusClick, onMapClick, onCompan
             onClick={onCompanionClick}
             className={cn(
               "w-20 h-20 rounded-2xl overflow-hidden",
-              "border-2 border-amber-500/50 hover:border-amber-400/80",
+              `border-2 ${borderColor}`,
               "transition-all duration-300",
               "hover:scale-105 active:scale-95",
               "shadow-[0_6px_20px_rgba(0,0,0,0.5),0_2px_4px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.15)]",
               "hover:shadow-[0_8px_25px_rgba(180,120,40,0.4),0_4px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.2)]",
-              "ring-2 ring-amber-400/20 ring-offset-0",
+              `ring-2 ${ringColor} ring-offset-0`,
               breatheClass
             )}
             style={{ touchAction: 'manipulation', transform: 'perspective(500px) rotateY(-3deg) rotateX(2deg)' }}
