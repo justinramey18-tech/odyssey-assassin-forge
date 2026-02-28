@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -34,7 +34,31 @@ export function GeraltGameplayWidget({ open, onClose, characterId, onHpChange }:
   const [lastRoll, setLastRoll] = useState<AttackRollResult | null>(null);
 
   useEffect(() => { setState(loadState(characterId)); }, [characterId]);
-  useEffect(() => { if (open) { saveState(characterId, state); onHpChange?.(state.currentHP, state.maxHP); window.dispatchEvent(new CustomEvent('geralt-hp-changed', { detail: { characterId, currentHP: state.currentHP, maxHP: state.maxHP } })); } }, [state, characterId, open, onHpChange]);
+
+  // Listen for external HP changes (from companion screen or AI DM)
+  const isLocalUpdate = useRef(false);
+  useEffect(() => {
+    const handler = (e: Event) => {
+      if (isLocalUpdate.current) return;
+      const detail = (e as CustomEvent).detail;
+      if (detail?.characterId === characterId || !detail?.characterId) {
+        setState(loadState(characterId));
+      }
+    };
+    window.addEventListener('geralt-hp-changed', handler);
+    return () => window.removeEventListener('geralt-hp-changed', handler);
+  }, [characterId]);
+
+  // Auto-save on state change & notify listeners
+  useEffect(() => {
+    if (open) {
+      isLocalUpdate.current = true;
+      saveState(characterId, state);
+      onHpChange?.(state.currentHP, state.maxHP);
+      window.dispatchEvent(new CustomEvent('geralt-hp-changed', { detail: { characterId, currentHP: state.currentHP, maxHP: state.maxHP } }));
+      isLocalUpdate.current = false;
+    }
+  }, [state, characterId, open, onHpChange]);
 
   const update = useCallback((patch: Partial<GeraltState>) => {
     setState(prev => ({ ...prev, ...patch }));
