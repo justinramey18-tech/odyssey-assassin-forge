@@ -33,9 +33,9 @@ export function DynamicHealthBar({
       if (isInjured) return 'bg-gradient-to-r from-green-800 to-green-600';
       return 'bg-gradient-to-r from-green-700 to-green-500';
     }
-    if (isCritical) return 'bg-gradient-to-r from-red-900 to-red-700';
-    if (isInjured) return 'bg-gradient-to-r from-red-800 to-red-600';
-    return 'bg-gradient-to-r from-red-700 to-red-500';
+    if (isCritical) return 'bg-gradient-to-r from-red-950 to-red-900';
+    if (isInjured) return 'bg-gradient-to-r from-red-950 to-red-800';
+    return 'bg-gradient-to-r from-red-900 to-red-700';
   };
   
   // Get glow color
@@ -45,9 +45,9 @@ export function DynamicHealthBar({
       if (isInjured) return 'shadow-green-700/40';
       return 'shadow-green-500/40';
     }
-    if (isCritical) return 'shadow-red-900/50';
-    if (isInjured) return 'shadow-red-700/40';
-    return 'shadow-red-500/40';
+    if (isCritical) return 'shadow-red-950/60';
+    if (isInjured) return 'shadow-red-900/50';
+    return 'shadow-red-800/45';
   };
   
   // Get text color
@@ -56,9 +56,9 @@ export function DynamicHealthBar({
       if (isCritical) return 'text-green-300';
       return 'text-green-400';
     }
-    if (isCritical) return 'text-red-300';
-    if (isInjured) return 'text-red-400';
-    return 'text-red-400';
+    if (isCritical) return 'text-red-400';
+    if (isInjured) return 'text-red-500';
+    return 'text-red-600';
   };
 
   // Haptic feedback helper
