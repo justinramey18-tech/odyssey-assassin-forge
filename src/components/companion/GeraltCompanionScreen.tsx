@@ -180,13 +180,6 @@ export function GeraltCompanionScreen({ open, onClose, characterId }: GeraltComp
               </button>
             </div>
 
-            {/* Owlbear Emblem */}
-            <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}
-              className="flex justify-center">
-              <div className="w-24 h-24 rounded-full bg-amber-900/30 border-2 border-amber-600/40 flex items-center justify-center text-4xl shadow-[0_0_30px_rgba(180,120,40,0.15)]">
-                🦉🐻
-              </div>
-            </motion.div>
 
             {/* ── HP Widget ── */}
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
