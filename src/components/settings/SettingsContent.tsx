@@ -39,6 +39,7 @@ import { PartyPanel } from '@/components/party';
 import type { UsePartySyncReturn } from '@/hooks/use-party-sync';
 import { CloudSaveDebugPanel } from './CloudSaveDebugPanel';
 import { CharacterRenameWidget } from './CharacterRenameWidget';
+import { DevToolsPanel } from './DevToolsPanel';
 
 interface SettingsContentProps {
   activeTab: SettingsTab;
@@ -637,6 +638,15 @@ export function SettingsContent({
             <CloudSaveDebugPanel userId={userId} />
           </SettingsSection>
         </div>
+      </div>
+    );
+  }
+
+  // ─── DEV TOOLS ───
+  if (activeTab === 'devTools') {
+    return (
+      <div className="flex-1 overflow-y-auto max-h-[70vh]">
+        <DevToolsPanel />
       </div>
     );
   }
