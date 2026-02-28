@@ -291,23 +291,29 @@ serve(async (req) => {
 
   try {
     const { messages } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not configured");
+
+    // Anthropic Messages API requires system prompt separate from messages
+    const userMessages = messages.map((m: { role: string; content: string }) => ({
+      role: m.role,
+      content: m.content,
+    }));
 
     const response = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      "https://api.anthropic.com/v1/messages",
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "x-api-key": ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            ...messages,
-          ],
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 4096,
+          system: SYSTEM_PROMPT,
+          messages: userMessages,
           stream: true,
         }),
       }
@@ -320,21 +326,64 @@ serve(async (req) => {
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits exhausted. Please add credits to continue." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
       const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
+      console.error("Anthropic API error:", response.status, t);
       return new Response(
         JSON.stringify({ error: "AI service error" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    return new Response(response.body, {
+    // Transform Anthropic SSE stream to OpenAI-compatible SSE format
+    const { readable, writable } = new TransformStream();
+    const writer = writable.getWriter();
+    const encoder = new TextEncoder();
+
+    (async () => {
+      try {
+        const reader = response.body!.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          let newlineIdx: number;
+          while ((newlineIdx = buffer.indexOf("\n")) !== -1) {
+            const line = buffer.slice(0, newlineIdx).trim();
+            buffer = buffer.slice(newlineIdx + 1);
+
+            if (!line.startsWith("data: ")) continue;
+            const jsonStr = line.slice(6);
+            if (jsonStr === "[DONE]") continue;
+
+            try {
+              const event = JSON.parse(jsonStr);
+              if (event.type === "content_block_delta" && event.delta?.text) {
+                // Emit OpenAI-compatible SSE chunk
+                const chunk = {
+                  choices: [{ delta: { content: event.delta.text } }],
+                };
+                await writer.write(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
+              } else if (event.type === "message_stop") {
+                await writer.write(encoder.encode("data: [DONE]\n\n"));
+              }
+            } catch {
+              // skip unparseable lines
+            }
+          }
+        }
+        await writer.write(encoder.encode("data: [DONE]\n\n"));
+      } catch (e) {
+        console.error("Stream transform error:", e);
+      } finally {
+        await writer.close();
+      }
+    })();
+
+    return new Response(readable, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (e) {
