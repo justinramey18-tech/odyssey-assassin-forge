@@ -485,8 +485,13 @@ export function HomeScreen({
   // Mode-specific looping video backgrounds for all users
   const MAGIC_BUILD_VIDEO_URL = 'https://rkkgmonjfvncpvlzsojw.supabase.co/storage/v1/object/public/videos/magic-build-bg.mp4';
   const PARTY_VIDEO_URL = 'https://rkkgmonjfvncpvlzsojw.supabase.co/storage/v1/object/public/videos/party-bg.mp4';
+  const MOMO_VIDEO_URL = '/videos/momo-bg.mp4';
   
-  const modeVideoUrl = appMode === 'magicBuild' ? MAGIC_BUILD_VIDEO_URL
+  // Momo easter egg: override party mode background with special video
+  const isMomo = isMomoEasterEgg(character.name);
+  
+  const modeVideoUrl = isMomo && appMode === 'party' ? MOMO_VIDEO_URL
+    : appMode === 'magicBuild' ? MAGIC_BUILD_VIDEO_URL
     : appMode === 'party' ? PARTY_VIDEO_URL
     : undefined;
   const hasModeVideo = !!modeVideoUrl && !customBackground;
