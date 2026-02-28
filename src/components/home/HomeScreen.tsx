@@ -484,7 +484,7 @@ export function HomeScreen({
 
   // Mode-specific looping video backgrounds for all users
   const MAGIC_BUILD_VIDEO_URL = 'https://rkkgmonjfvncpvlzsojw.supabase.co/storage/v1/object/public/videos/magic-build-bg.mp4';
-  const PARTY_VIDEO_URL = '/videos/home-bg.mp4';
+  const PARTY_VIDEO_URL = 'https://rkkgmonjfvncpvlzsojw.supabase.co/storage/v1/object/public/videos/party-bg.mp4';
   const MOMO_VIDEO_URL = '/videos/momo-bg.mp4';
   
   // Momo easter egg: override party mode background with special video
@@ -519,7 +519,6 @@ export function HomeScreen({
       <BackgroundWrapper
         imagePath={defaultBg}
         videoSrc={activeVideoSrc}
-        videoScale={activeVideoSrc === '/videos/home-bg.mp4' ? 1.4 : undefined}
         overlayOpacity={customBackground ? 55 : 55}
         tintColor="cyan"
         tintOpacity={10}
