@@ -1,55 +1,61 @@
 
 
-## Plan: Add Geralt Gameplay Widget to DM Screens (Momo-Only)
+## What the Screenshot Shows
 
-### Overview
-Add a 4th "GERALT" tab to the DM bottom navigation bar (visible only when the character is named "momo") that opens a fullscreen, mobile-first widget with 3 tabbed sections: Stats, Actions, and Role-Playing Prompts.
+The DM response explicitly states **"Geralt: 53/59 HP"**, yet the sub-header still shows **59/59**. The auto-sync system failed to update Geralt's HP.
 
-### Architecture
+## Root Causes Identified
 
-```text
-DMBottomNav
-  ├── DICE
-  ├── RP PROMPTS
-  ├── ACTIONS
-  └── GERALT (momo-only, 4th tab)
-        → Opens fullscreen GeraltGameplayWidget
-            ├── Stats tab (HP, Level/XP, Ability Scores, Conditions, Mood)
-            ├── Actions tab (Attacks with dice rolls, Bear Hug)
-            └── RP Prompts tab (placeholder for future content)
-```
+### 1. Companion context is built once at memo time and goes stale
+In `PromptDrawerProvider.tsx` (line 466-478), `aiDMCharacterContext` reads Geralt's state from `loadGeraltState()` inside a `useMemo`. This snapshot is sent to the extraction edge function as `characterContext.companion.currentHP`. However, this value is **not a dependency** of the memo -- `userId` appears in the dep array but the actual Geralt localStorage data does not trigger a re-memo. The companion HP sent to the AI extractor may be stale, but this is secondary.
 
-### Implementation Steps
+### 2. The extraction prompt only looks for damage/healing deltas, not absolute HP values
+The edge function (`ai-dm-extract/index.ts`) system prompt says: *"ONLY extract damage/healing when a SPECIFIC NUMBER is explicitly stated (e.g. 'takes 8 damage', 'heals 5 HP')"*. When the DM writes "Geralt: 53/59 HP" without mentioning "takes 6 damage", the extractor returns empty `companion_hp_changes` because there's no explicit delta.
 
-1. **Create `src/components/ai-dm/GeraltGameplayWidget.tsx`**
-   - Fullscreen mobile-first overlay (like other DM overlays)
-   - 3 header tabs using existing `Tabs` component: Stats, Actions, RP Prompts
-   - **Stats tab**: Extract and reuse HP widget, Level/XP, Ability Scores, Conditions, and Mood sections from `GeraltCompanionScreen.tsx`
-   - **Actions tab**: Extract and reuse Attacks section with dice rolling (Hit/Dmg buttons, roll result banner, NAT 20/1 detection) from `GeraltCompanionScreen.tsx`
-   - **RP Prompts tab**: Empty placeholder with "Coming soon" message
-   - Uses same `GeraltState` type, `loadState`/`saveState` helpers, and `characterId`-scoped localStorage
-   - Back button to close
+### 3. No absolute HP extraction capability exists
+The extraction tool schema has no field for "set HP to X". It only supports `companion_hp_changes` with `amount` + `type` (damage/healing). When the DM responds with absolute values like "53/59 HP", the system has no way to capture and apply them.
 
-2. **Update `DMBottomNav.tsx`**
-   - Add optional `showGeralt` prop and `'geralt'` to `DMNavTab` type
-   - Conditionally render 4th tab with a paw/bird icon (e.g., `Bird` from lucide) in pink/purple theme
-   - Only show when `showGeralt` is true
+### 4. `handleCompanionHPChange` applies a delta, not an absolute set
+In `AIDMScreen.tsx` (line 336-343), `handleCompanionHPChange` does `gs.currentHP + change`, which is correct for deltas but cannot handle an absolute HP set.
 
-3. **Update `AIDMScreen.tsx`**
-   - Import `isMomoEasterEgg` and `GeraltGameplayWidget`
-   - Detect momo from `characterName` prop
-   - Pass `showGeralt` to `DMBottomNav`
-   - Add state for `showGeraltWidget`, open it when the geralt tab is selected
-   - Pass `characterId` (derive from `characterContext` or `userId`) to the widget
+## Fix Plan
 
-4. **Update `PartyDMScreen.tsx`**
-   - Same momo detection and `showGeralt` passthrough to `DMBottomNav`
-   - Same state and overlay rendering for `GeraltGameplayWidget`
+### Step 1: Add absolute HP fields to the extraction tool schema (edge function)
+**File:** `supabase/functions/ai-dm-extract/index.ts`
 
-### Shared Logic
-The `GeraltState` type, `DEFAULT_STATE`, `ATTACKS`, `CONDITIONS`, `MOODS`, `MOOD_CONFIG`, storage helpers, and `formatMod` will be extracted from `GeraltCompanionScreen.tsx` into a shared file `src/components/companion/geralt-data.ts` so both the home screen overlay and the DM gameplay widget reuse the same data and state.
+- Add two new fields to the tool schema:
+  - `companion_hp_absolute: { type: ["number", "null"], description: "If the DM states Geralt's exact current HP (e.g. 'Geralt: 53/59 HP'), extract that number here. null otherwise." }`
+  - `hp_absolute: { type: ["number", "null"], description: "If the DM states the player's exact current HP, extract that number here. null otherwise." }`
+- Add them to the `required` array
+- Update the system prompt to instruct: "If the text shows an absolute HP value like 'Geralt: 53/59 HP' or 'Momo: 26/38 HP', extract the current number into the corresponding `_hp_absolute` field. PREFER absolute values when available as they are more reliable."
+- Add validation: clamp to 0-999 range
 
-### What Gets Built Now vs Later
-- **Now**: Full architecture, Stats tab (complete), Actions tab (complete with dice rolls)
-- **Later**: RP Prompts tab content (placeholder only for now)
+### Step 2: Update the ExtractionResult type (client)
+**File:** `src/hooks/use-dm-auto-sync.ts`
+
+- Add `companion_hp_absolute: number | null` and `hp_absolute: number | null` to the `ExtractionResult` interface
+
+### Step 3: Apply absolute HP when available (client)
+**File:** `src/hooks/use-dm-auto-sync.ts`
+
+- In `extractAndApply`, after existing companion HP delta logic, add:
+  - If `result.companion_hp_absolute` is a valid number, call a new callback `onCompanionHPSet(absoluteValue)` instead of the delta-based `onCompanionHPChange`
+  - If `result.hp_absolute` is a valid number, call a new callback `onHPSet(absoluteValue)` instead of the delta-based `onHPChange`
+  - Absolute values take priority over deltas (skip delta application if absolute is present)
+
+### Step 4: Add `onCompanionHPSet` callback
+**File:** `src/hooks/use-dm-auto-sync.ts` (interface) and `src/components/ai-dm/AIDMScreen.tsx` (implementation)
+
+- Add optional `onCompanionHPSet?: (hp: number) => void` and `onHPSet?: (hp: number) => void` to `AutoSyncCallbacks`
+- In `AIDMScreen.tsx`, implement `handleCompanionHPSet` that directly sets Geralt's `currentHP` to the absolute value (clamped to 0..maxHP) and saves + dispatches event
+- Wire it into the `useDmAutoSync` call
+
+### Step 5: Dispatch `geralt-hp-changed` event after auto-sync sets HP
+Already handled by `handleCompanionHPChange` / the new `handleCompanionHPSet` -- both call `setGeraltHp` and `saveGeraltState`, which will update the sub-header.
+
+## Technical Details
+
+The key insight is that the extraction AI model cannot infer delta amounts from absolute HP statements reliably (it would need to know prior HP to compute the difference). Instead, we should extract absolute HP values directly and set them, which is more robust and matches the user's preference.
+
+The system prompt update will prioritize absolute extraction: if the DM says both "takes 6 damage" AND "Geralt: 53/59 HP", the absolute value wins on the client side.
 
