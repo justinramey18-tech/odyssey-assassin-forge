@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 interface AnimatedD20TriggerProps {
@@ -8,7 +7,7 @@ interface AnimatedD20TriggerProps {
 
 export function AnimatedD20Trigger({ onClick, className }: AnimatedD20TriggerProps) {
   return (
-    <motion.button
+    <button
       onClick={onClick}
       className={cn(
         'relative w-10 h-10 rounded-lg',
@@ -19,23 +18,12 @@ export function AnimatedD20Trigger({ onClick, className }: AnimatedD20TriggerPro
         'touch-manipulation',
         className,
       )}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
       aria-label="Open Dice Roller"
     >
       {/* D20 SVG */}
-      <motion.svg
+      <svg
         viewBox="0 0 100 100"
         className="w-7 h-7"
-        initial={{ rotate: 0 }}
-        animate={{ 
-          rotate: [0, 5, -5, 0],
-        }}
-        transition={{
-          duration: 4,
-          repeat: Infinity,
-          ease: 'easeInOut',
-        }}
       >
         {/* D20 shape - icosahedron face */}
         <defs>
@@ -43,30 +31,14 @@ export function AnimatedD20Trigger({ onClick, className }: AnimatedD20TriggerPro
             <stop offset="0%" stopColor="hsl(var(--primary))" />
             <stop offset="100%" stopColor="hsl(var(--destructive))" />
           </linearGradient>
-          <filter id="d20Glow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="2" result="coloredBlur" />
-            <feMerge>
-              <feMergeNode in="coloredBlur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
         </defs>
         
         {/* Main d20 body */}
-        <motion.polygon
+        <polygon
           points="50,5 95,35 80,90 20,90 5,35"
           fill="url(#d20Gradient)"
           stroke="hsl(var(--primary))"
           strokeWidth="2"
-          filter="url(#d20Glow)"
-          animate={{
-            opacity: [0.9, 1, 0.9],
-          }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
         />
         
         {/* Inner details */}
@@ -91,21 +63,7 @@ export function AnimatedD20Trigger({ onClick, className }: AnimatedD20TriggerPro
         >
           20
         </text>
-      </motion.svg>
-
-      {/* Pulse ring animation */}
-      <motion.div
-        className="absolute inset-0 rounded-lg border-2 border-red-400/50"
-        animate={{
-          scale: [1, 1.2, 1],
-          opacity: [0.5, 0, 0.5],
-        }}
-        transition={{
-          duration: 2,
-          repeat: Infinity,
-          ease: 'easeOut',
-        }}
-      />
-    </motion.button>
+      </svg>
+    </button>
   );
 }
