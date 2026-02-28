@@ -979,16 +979,18 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.25, ease: 'easeInOut' }}
-                className="overflow-hidden"
+                className="overflow-hidden touch-pan-x"
                 drag="y"
                 dragConstraints={{ top: 0, bottom: 0 }}
                 dragElastic={0.3}
+                dragSnapToOrigin
                 onDragEnd={(_e, info) => {
                   if (info.offset.y > 40) {
                     setQueueDrawerOpen(false);
                     setExpandedPillUserId(null);
                   }
                 }}
+                style={{ touchAction: 'pan-x' }}
               >
                 <div className="flex flex-col gap-1.5 mx-1 pb-2">
                   {members.map(m => {
