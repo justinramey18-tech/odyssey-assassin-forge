@@ -5,7 +5,7 @@ import { loadSelectedModel, saveSelectedModel, getModelLabel } from '@/lib/dm-mo
 import { formatUsage, formatCostShort } from '@/lib/token-usage';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Zap, Map, Film, Image as ImageIcon, Copy, Check, Pencil, RefreshCw, X, MoreVertical, Globe, Settings, Volume2, VolumeX, Bird } from 'lucide-react';
-import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
+import { loadState as loadGeraltState, saveState as saveGeraltState } from '@/components/companion/geralt-data';
 import { NarrationSpeedPopover } from './NarrationSpeedPopover';
 import { DMToolsDrawer } from './DMToolsDrawer';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
@@ -303,6 +303,7 @@ const NOOP_TWO_ARG = () => {};
 const NOOP_RETURN_ZERO = () => 0;
 
 export function AIDMScreen({ onBack, characterContext, userId, characterName = 'Adventurer', autoSyncCallbacks, dmPersonaPrompt, dmPersonaName, onRetakePersonalityTest }: AIDMScreenProps) {
+  const isMomo = useMemo(() => isMomoEasterEgg(characterName), [characterName]);
   const [showToolsDrawer, setShowToolsDrawer] = useState(false);
   const [showWorldBuilder, setShowWorldBuilder] = useState(false);
   const [selectedModel, setSelectedModel] = useState(() => loadSelectedModel());
@@ -326,6 +327,27 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const [showStoneDrawer, setShowStoneDrawer] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
 
+  // Geralt companion auto-sync callbacks (momo only)
+  const handleCompanionHPChange = useCallback((change: number, type: 'damage' | 'healing') => {
+    if (!isMomo) return;
+    const charId = userId || 'default';
+    const gs = loadGeraltState(charId);
+    const newHP = Math.max(0, Math.min(gs.maxHP, gs.currentHP + change));
+    saveGeraltState(charId, { ...gs, currentHP: newHP });
+    setGeraltHp({ current: newHP, max: gs.maxHP });
+  }, [isMomo, userId]);
+
+  const handleCompanionConditionChange = useCallback((toAdd: string[], toRemove: string[]) => {
+    if (!isMomo) return;
+    const charId = userId || 'default';
+    const gs = loadGeraltState(charId);
+    let conditions = gs.conditions.filter(c => !toRemove.map(r => r.toLowerCase()).includes(c.toLowerCase()));
+    for (const c of toAdd) {
+      if (!conditions.map(x => x.toLowerCase()).includes(c.toLowerCase())) conditions.push(c);
+    }
+    saveGeraltState(charId, { ...gs, conditions });
+  }, [isMomo, userId]);
+
   // Auto-sync hook
   const autoSync = useDmAutoSync({
     onHPChange: autoSyncCallbacks?.onHPChange ?? NOOP_TWO_ARG,
@@ -337,6 +359,8 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
       if (markersToAdd.length > 0) setPendingMapAdds(markersToAdd);
       if (namesToRemove.length > 0) setPendingMapRemovals(namesToRemove);
     }, []),
+    onCompanionHPChange: isMomo ? handleCompanionHPChange : undefined,
+    onCompanionConditionChange: isMomo ? handleCompanionConditionChange : undefined,
     getCurrentHP: autoSyncCallbacks?.getCurrentHP ?? NOOP_RETURN_ZERO,
     getCurrentGold: autoSyncCallbacks?.getCurrentGold ?? NOOP_RETURN_ZERO,
     getCurrentMarkers: useCallback(() => battleMapMarkersRef.current, []),
@@ -518,7 +542,6 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
 
   // Geralt widget state (momo easter egg)
   const [showGeraltWidget, setShowGeraltWidget] = useState(false);
-  const isMomo = useMemo(() => isMomoEasterEgg(characterName), [characterName]);
 
   // Bottom nav tab handler
   const handleNavTabChange = useCallback((tab: DMNavTab) => {

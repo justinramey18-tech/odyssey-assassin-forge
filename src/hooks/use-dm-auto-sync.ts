@@ -18,6 +18,9 @@ export interface ExtractionResult {
   rest_occurred: 'short' | 'long' | null;
   map_entities: MapEntity[];
   map_entities_removed: string[];
+  companion_hp_changes: { amount: number; type: 'damage' | 'healing'; source: string }[];
+  companion_conditions_added: string[];
+  companion_conditions_removed: string[];
 }
 
 interface AutoSyncSnapshot {
@@ -35,6 +38,8 @@ interface AutoSyncCallbacks {
   onConditionChange: (toAdd: string[], toRemove: string[]) => void;
   onRestOccurred: (type: 'short' | 'long') => void;
   onMapUpdate: (markersToAdd: MapMarker[], namesToRemove: string[]) => void;
+  onCompanionHPChange?: (change: number, type: 'damage' | 'healing') => void;
+  onCompanionConditionChange?: (toAdd: string[], toRemove: string[]) => void;
   // snapshot getters
   getCurrentHP: () => number;
   getCurrentGold: () => number;
@@ -91,6 +96,9 @@ export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
             level: characterContext.level,
             currentHP: characterContext.currentHP,
             maxHP: characterContext.maxHP,
+            companionName: characterContext.companion?.name,
+            companionHP: characterContext.companion?.currentHP,
+            companionMaxHP: characterContext.companion?.maxHP,
           },
         }),
       });
@@ -148,6 +156,24 @@ export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
         if (markersToAdd.length > 0 || namesToRemove.length > 0) {
           cb.onMapUpdate(markersToAdd, namesToRemove);
         }
+      }
+
+      // Apply companion HP changes
+      if (cb.onCompanionHPChange && result.companion_hp_changes?.length > 0) {
+        for (const hpChange of result.companion_hp_changes) {
+          cb.onCompanionHPChange(
+            hpChange.type === 'damage' ? -hpChange.amount : hpChange.amount,
+            hpChange.type
+          );
+        }
+      }
+
+      // Apply companion conditions
+      if (cb.onCompanionConditionChange && (result.companion_conditions_added?.length > 0 || result.companion_conditions_removed?.length > 0)) {
+        cb.onCompanionConditionChange(
+          result.companion_conditions_added || [],
+          result.companion_conditions_removed || []
+        );
       }
 
       return result;

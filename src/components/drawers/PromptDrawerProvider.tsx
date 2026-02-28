@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, createContext, useContext, ReactNode, useMemo, useRef } from 'react';
+import { isMomoEasterEgg } from '@/lib/easter-eggs';
+import { loadState as loadGeraltState, ATTACKS as GERALT_ATTACKS } from '@/components/companion/geralt-data';
 import { Gem, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { InfinityStoneDrawer } from './InfinityStoneDrawer';
@@ -460,6 +462,21 @@ export function PromptDrawerProvider({
       }
     } catch {}
 
+    // Geralt companion context (momo only)
+    let companionContext: CharacterContext['companion'] = undefined;
+    if (isMomoEasterEgg(character.name)) {
+      const gs = loadGeraltState(userId || 'default');
+      companionContext = {
+        name: 'Geralt',
+        currentHP: gs.currentHP,
+        maxHP: gs.maxHP,
+        conditions: gs.conditions,
+        mood: gs.mood,
+        abilities: gs.abilities,
+        attacks: GERALT_ATTACKS.map(a => ({ name: a.name, bonus: a.bonus, damage: a.damage, desc: a.desc })),
+      };
+    }
+
     return {
       name: character.name, level: character.level, currentHP: hp, maxHP: hpMax,
       deity, domain,
@@ -469,6 +486,7 @@ export function PromptDrawerProvider({
       prestigeLevel, prestigeAbilities, activeConditions, activeBuffs,
       spellcasting: spellcastingContext, loot: lootContext, combat: combatContextData,
       abilityScores: abilityScoresContext,
+      companion: companionContext,
     };
   }, [character, currentHP, maxHP, equipment, consumables, cooldownSystem.cooldowns, cooldownSystem.getRemainingTime,
       prestigeLevel, prestigeAbilities, spellcasting, lootItems, totalLootValue, combatContext, conditionsSystem.debuffs, conditionsSystem.buffs,
