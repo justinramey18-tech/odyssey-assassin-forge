@@ -378,7 +378,7 @@ export function AfkPersonalityGuide({
                 )}
 
                 {/* Chat messages */}
-                <ScrollArea className="flex-1 min-h-0" style={{ maxHeight: '35vh' }}>
+                <ScrollArea className="flex-1 min-h-0 overflow-y-auto" style={{ height: '35vh' }}>
                   <div className="p-3 space-y-3">
                     {chatMessages.map((msg, i) => (
                       <div
