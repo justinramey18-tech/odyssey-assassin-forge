@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dices, Shield, Sparkles, Scale, Flame, Shuffle, Skull } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -14,6 +14,20 @@ interface DMDiceRollerProps {
   characterContext: CharacterContext;
   onRollResult: (message: string) => void;
   disabled?: boolean;
+}
+
+interface RollDisplay {
+  label: string;
+  rolls: number[];
+  kept: number;
+  modifier: number;
+  total: number;
+  isCrit: boolean;
+  isFumble: boolean;
+  mode: RollMode;
+  isQuickDie?: boolean;
+  dieSides?: number;
+  id: number; // for animation key
 }
 
 const ABILITY_MAP: Record<string, AbilityScore> = {
@@ -93,21 +107,95 @@ const QUICK_DICE = [
   { label: 'd12', sides: 12 },
 ];
 
+// Animated rolling number component
+function RollingNumber({ target, sides, duration = 600 }: { target: number; sides: number; duration?: number }) {
+  const [display, setDisplay] = useState(target);
+  const [isRolling, setIsRolling] = useState(true);
+  const frameRef = useRef<number>(0);
+
+  useEffect(() => {
+    setIsRolling(true);
+    const startTime = Date.now();
+    const tick = () => {
+      const elapsed = Date.now() - startTime;
+      if (elapsed < duration) {
+        // Show random numbers, slowing down toward the end
+        const progress = elapsed / duration;
+        const interval = 40 + progress * 120; // starts fast, slows down
+        setDisplay(Math.floor(Math.random() * sides) + 1);
+        frameRef.current = window.setTimeout(tick, interval);
+      } else {
+        setDisplay(target);
+        setIsRolling(false);
+      }
+    };
+    tick();
+    return () => { if (frameRef.current) clearTimeout(frameRef.current); };
+  }, [target, sides, duration]);
+
+  return (
+    <span className={cn(
+      "tabular-nums transition-transform",
+      isRolling && "animate-pulse"
+    )}>
+      {display}
+    </span>
+  );
+}
+
 export function DMDiceRoller({ characterContext, onRollResult, disabled = false }: DMDiceRollerProps) {
   const [tab, setTab] = useState<Tab>('d20');
   const [rollMode, setRollMode] = useState<RollMode>('normal');
   const [showOddsPanel, setShowOddsPanel] = useState(false);
   const [currentOddsMode, setCurrentOddsMode] = useState<DiceOddsMode>(() => loadDiceOddsMode());
+  const [lastRoll, setLastRoll] = useState<RollDisplay | null>(null);
+  const rollIdRef = useRef(0);
+  const dismissTimerRef = useRef<number>(0);
+
+  // Auto-dismiss after 5 seconds
+  useEffect(() => {
+    if (lastRoll) {
+      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+      dismissTimerRef.current = window.setTimeout(() => setLastRoll(null), 5000);
+    }
+    return () => { if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current); };
+  }, [lastRoll]);
 
   const handleRoll = useCallback((label: string, modifier: number) => {
     const roll = rollD20(rollMode);
     const message = formatRollMessage(label, roll, modifier, rollMode);
+    rollIdRef.current += 1;
+    setLastRoll({
+      label,
+      rolls: roll.rolls,
+      kept: roll.kept,
+      modifier,
+      total: roll.kept + modifier,
+      isCrit: roll.kept === 20,
+      isFumble: roll.kept === 1,
+      mode: rollMode,
+      id: rollIdRef.current,
+    });
     onRollResult(message);
   }, [rollMode, onRollResult]);
 
   const handleQuickDie = useCallback((sides: number, label: string) => {
     const result = rollDie(sides);
     const message = `🎲 **${label}**: [${result}] = **${result}**`;
+    rollIdRef.current += 1;
+    setLastRoll({
+      label,
+      rolls: [result],
+      kept: result,
+      modifier: 0,
+      total: result,
+      isCrit: false,
+      isFumble: false,
+      mode: 'normal',
+      isQuickDie: true,
+      dieSides: sides,
+      id: rollIdRef.current,
+    });
     onRollResult(message);
   }, [onRollResult]);
 
@@ -136,6 +224,120 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
 
   return (
     <div className="bg-black/20 relative">
+      {/* Roll Result Display */}
+      <AnimatePresence mode="wait">
+        {lastRoll && (
+          <motion.div
+            key={lastRoll.id}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className="overflow-hidden"
+          >
+            <div
+              className={cn(
+                "mx-3 mt-2 mb-1 px-3 py-2.5 rounded-lg border text-center relative",
+                lastRoll.isCrit
+                  ? "bg-amber-900/40 border-amber-400/50"
+                  : lastRoll.isFumble
+                  ? "bg-red-900/40 border-red-400/50"
+                  : "bg-white/5 border-white/10"
+              )}
+              onClick={() => setLastRoll(null)}
+              style={{ cursor: 'pointer' }}
+            >
+              {/* Label */}
+              <div className="text-[10px] uppercase tracking-wider text-white/40 font-mono mb-1">
+                {lastRoll.label}
+                {lastRoll.mode !== 'normal' && (
+                  <span className={cn(
+                    "ml-1",
+                    lastRoll.mode === 'advantage' ? 'text-emerald-400/60' : 'text-red-400/60'
+                  )}>
+                    ({lastRoll.mode})
+                  </span>
+                )}
+              </div>
+
+              {/* Dice values */}
+              <div className="flex items-center justify-center gap-2">
+                {/* Individual dice */}
+                <div className="flex items-center gap-1">
+                  {lastRoll.rolls.map((r, i) => {
+                    const isDropped = lastRoll.rolls.length > 1 && r !== lastRoll.kept;
+                    return (
+                      <span
+                        key={i}
+                        className={cn(
+                          "inline-flex items-center justify-center w-8 h-8 rounded-md text-sm font-bold font-mono border",
+                          isDropped
+                            ? "bg-white/5 border-white/10 text-white/25 line-through"
+                            : lastRoll.isCrit
+                            ? "bg-amber-500/20 border-amber-400/40 text-amber-200"
+                            : lastRoll.isFumble
+                            ? "bg-red-500/20 border-red-400/40 text-red-200"
+                            : "bg-white/10 border-white/15 text-white/80"
+                        )}
+                      >
+                        <RollingNumber
+                          target={r}
+                          sides={lastRoll.isQuickDie ? (lastRoll.dieSides ?? 20) : 20}
+                          duration={isDropped ? 400 : 600}
+                        />
+                      </span>
+                    );
+                  })}
+                </div>
+
+                {/* Modifier */}
+                {lastRoll.modifier !== 0 && (
+                  <span className="text-xs text-white/40 font-mono">
+                    {lastRoll.modifier >= 0 ? `+${lastRoll.modifier}` : lastRoll.modifier}
+                  </span>
+                )}
+
+                {/* Equals + Total */}
+                <span className="text-white/30 text-xs">=</span>
+                <motion.span
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.65, type: 'spring', stiffness: 400, damping: 15 }}
+                  className={cn(
+                    "text-xl font-bold font-cinzel tabular-nums",
+                    lastRoll.isCrit
+                      ? "text-amber-300"
+                      : lastRoll.isFumble
+                      ? "text-red-300"
+                      : "text-white"
+                  )}
+                >
+                  {lastRoll.total}
+                </motion.span>
+              </div>
+
+              {/* Crit / Fumble banner */}
+              {(lastRoll.isCrit || lastRoll.isFumble) && (
+                <motion.div
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.7 }}
+                  className={cn(
+                    "text-[10px] font-bold uppercase tracking-widest mt-1",
+                    lastRoll.isCrit ? "text-amber-400" : "text-red-400"
+                  )}
+                >
+                  {lastRoll.isCrit ? '⭐ Natural 20!' : '💀 Natural 1!'}
+                </motion.div>
+              )}
+
+              {/* Tap to dismiss hint */}
+              <div className="text-[8px] text-white/20 mt-1">tap to dismiss</div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="px-3 py-2 space-y-2">
         {/* Roll mode toggle */}
         <div className="flex items-center gap-1">
