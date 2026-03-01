@@ -77,6 +77,28 @@ const PARTY_VIDEO_REGEX = /^\s*\[video:(https?:\/\/.+)\]\s*$/;
 const PARTY_IMAGE_REGEX = /^\s*\[image:(https?:\/\/.+)\]\s*$/;
 const AFK_LINE_REGEX = /^(\[.+?\]) \(AFK\): (.+)$/;
 
+function highlightAfkNames(children: React.ReactNode, afkNames: string[]): React.ReactNode {
+  if (!afkNames.length) return children;
+  const processNode = (node: React.ReactNode, key?: number): React.ReactNode => {
+    if (typeof node === 'string') {
+      const pattern = new RegExp(`\\b(${afkNames.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`, 'g');
+      const parts = node.split(pattern);
+      if (parts.length === 1) return node;
+      return parts.map((part, i) =>
+        afkNames.some(n => n.toLowerCase() === part.toLowerCase()) ? (
+          <span key={i} className="inline-flex items-center gap-0.5">
+            <Ghost className="w-3 h-3 text-purple-400 inline" />
+            <span className="text-purple-300 font-medium">{part}</span>
+          </span>
+        ) : part
+      );
+    }
+    if (Array.isArray(node)) return node.map((child, i) => processNode(child, i));
+    return node;
+  };
+  return processNode(children);
+}
+
 function AfkAnnotatedContent({ content }: { content: string }) {
   const lines = content.split('\n');
   return (
@@ -100,7 +122,7 @@ function AfkAnnotatedContent({ content }: { content: string }) {
   );
 }
 
-function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, showTeamTag }: {
+function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, showTeamTag, allMessages }: {
   message: PartyDmMessage;
   currentUserId?: string;
   members: Array<{ user_id: string; character_name: string }>;
@@ -111,6 +133,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
   onDelete?: (messageId: string) => void;
   onRegenerate?: (messageId: string) => void;
   showTeamTag?: boolean;
+  allMessages?: PartyDmMessage[];
 }) {
   const [showActions, setShowActions] = useState(false);
   const [isEditingMsg, setIsEditingMsg] = useState(false);
@@ -119,6 +142,25 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
   const isMine = message.sender_user_id === currentUserId;
   const videoMatch = message.content.match(PARTY_VIDEO_REGEX);
   const imageMatch = !videoMatch ? message.content.match(PARTY_IMAGE_REGEX) : null;
+
+  // Extract AFK character names from the preceding user message
+  const afkCharNames = useMemo(() => {
+    if (!isAssistant || !allMessages) return [];
+    const idx = allMessages.findIndex(m => m.id === message.id);
+    if (idx <= 0) return [];
+    const prev = allMessages[idx - 1];
+    if (prev.role !== 'user') return [];
+    const names: string[] = [];
+    for (const line of prev.content.split('\n')) {
+      const match = line.match(AFK_LINE_REGEX);
+      if (match) {
+        // match[1] is like "[CharName]", extract the name
+        const name = match[1].replace(/^\[|\]$/g, '');
+        if (name) names.push(name);
+      }
+    }
+    return names;
+  }, [isAssistant, allMessages, message.id]);
 
   // In private mode, hide other players' user messages content
   if (!isAssistant && !isMine && mode === 'private') {
@@ -212,7 +254,10 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
               ) : (
                 <ReactMarkdown
                   components={{
-                    p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                    p: ({ children }) => {
+                      if (afkCharNames.length === 0) return <p className="mb-2 last:mb-0">{children}</p>;
+                      return <p className="mb-2 last:mb-0">{highlightAfkNames(children, afkCharNames)}</p>;
+                    },
                     strong: ({ children }) => <strong className="text-amber-300">{children}</strong>,
                     em: ({ children }) => <em className="text-white/70">{children}</em>,
                     ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
@@ -980,6 +1025,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
                   onDelete={handleDeleteMessage}
                   onRegenerate={handleRegenerateMessage}
                   showTeamTag={isCreator && partyDm.isSplitActive}
+                  allMessages={partyDm.messages}
                 />
               ))}
             </AnimatePresence>
