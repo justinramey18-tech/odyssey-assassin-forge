@@ -186,19 +186,29 @@ async function spotifyFetch(endpoint: string, options: RequestInit = {}): Promis
   if (!contentType?.includes('application/json')) {
     const text = await res.text().catch(() => '');
     console.error('[Spotify] Non-JSON response:', res.status, text.substring(0, 200));
-    throw new Error(`Spotify returned an unexpected response (${res.status}). Try again.`);
+    throw new Error(`Spotify returned an unexpected response (${res.status}). Try reconnecting Spotify.`);
   }
 
-  const data = await res.json();
+  let data: any = null;
+  try {
+    data = await res.json();
+  } catch {
+    if (!res.ok) throw new Error(`Spotify API error ${res.status}`);
+    throw new Error('Spotify returned malformed data. Please try again.');
+  }
+
   if (!res.ok) {
     throw new Error(data?.error?.message || `Spotify API error ${res.status}`);
   }
+
   return data;
 }
 
 export async function searchPlaylists(query: string, limit = 10) {
   const data = await spotifyFetch(`/search?${new URLSearchParams({ q: query, type: 'playlist', limit: String(limit) })}`);
-  return data?.playlists?.items || [];
+  const items = data?.playlists?.items;
+  if (!Array.isArray(items)) return [];
+  return items.filter((item: any) => item && typeof item === 'object' && item.id && item.uri);
 }
 
 export async function getPlaylistTracks(playlistId: string) {

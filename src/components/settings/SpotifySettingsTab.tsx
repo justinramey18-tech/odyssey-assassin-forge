@@ -21,8 +21,9 @@ export function SpotifySettingsTab() {
     setIsSearchingManual(true);
     try {
       const results = await searchPlaylists(searchQuery, 10);
-      setSearchResults(results);
-      if (results.length === 0) toast.info('No playlists found');
+      const safeResults = Array.isArray(results) ? results.filter(Boolean) : [];
+      setSearchResults(safeResults);
+      if (safeResults.length === 0) toast.info('No playlists found');
     } catch (e: any) {
       toast.error(e.message || 'Search failed');
     } finally {
