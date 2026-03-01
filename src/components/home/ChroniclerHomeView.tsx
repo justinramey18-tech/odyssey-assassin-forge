@@ -114,8 +114,12 @@ export function ChroniclerHomeView({
       const contextExtra = buildContextBody(ctxState, campaignSummary, stories.stories, cards, protags);
 
       const userKey = loadApiKey('anthropic') || undefined;
+      const openaiKey = loadApiKey('openai') || undefined;
+      const isOpenAIDirect = selectedModel.startsWith('openai-direct/');
       const body = isAnthropic
         ? { text: textToProcess, style, intensity: toneIntensity, model: selectedModel, user_api_key: userKey, ...contextExtra }
+        : isOpenAIDirect
+        ? { text: textToProcess, style, intensity: toneIntensity, model: selectedModel, user_openai_key: openaiKey, ...contextExtra }
         : { text: textToProcess, style, model: selectedModel, ...contextExtra };
 
       const { data, error } = await supabase.functions.invoke(edgeFn, { body });

@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { Message, Personality, CharacterContext, OracleMode } from '@/components/oracle/types';
 import { toast } from 'sonner';
 import { getAuthToken } from '@/lib/auth-token';
-import { getClaudeEverywhereKey } from '@/lib/api-keys';
+import { getEverywhereKey } from '@/lib/api-keys';
 
 const ORACLE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/oracle-assistant`;
 
@@ -55,7 +55,11 @@ export function useOracle({ characterContext }: UseOracleOptions) {
           personality,
           characterContext,
           mode,
-          ...(getClaudeEverywhereKey() ? { user_api_key: getClaudeEverywhereKey() } : {}),
+          ...(() => {
+            const ek = getEverywhereKey();
+            if (!ek) return {};
+            return ek.provider === 'anthropic' ? { user_api_key: ek.key } : { user_openai_key: ek.key };
+          })(),
         }),
         signal: abortControllerRef.current.signal,
       });

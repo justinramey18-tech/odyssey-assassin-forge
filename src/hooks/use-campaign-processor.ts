@@ -8,6 +8,7 @@ import {
 } from '@/lib/scribe/sessionDetection';
 import { processTextOffline, ProcessingOptions } from '@/lib/narrativeProcessor';
 import { supabase } from '@/integrations/supabase/client';
+import { loadApiKey } from '@/lib/api-keys';
 
 // Type for custom editing rules passed to the API
 export interface CustomEditingRuleInput {
@@ -293,6 +294,7 @@ export function useCampaignProcessor(): UseCampaignProcessorReturn {
             style: options.narrativeStyle,
             model: selectedModel,
             user_api_key: userApiKey,
+            user_openai_key: loadApiKey('openai') || undefined,
             ...(contextExtra || {}),
           },
         });

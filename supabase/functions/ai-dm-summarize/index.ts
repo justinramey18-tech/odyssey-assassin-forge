@@ -80,7 +80,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, previousSummary, user_api_key } = (await req.json()) as SummarizeRequest & { user_api_key?: string };
+    const { messages, previousSummary, user_api_key, user_openai_key } = (await req.json()) as SummarizeRequest & { user_api_key?: string; user_openai_key?: string };
 
     // Build the user prompt
     let userPrompt = "";
@@ -98,6 +98,28 @@ serve(async (req) => {
         systemPrompt: SUMMARIZER_SYSTEM_PROMPT,
         messages: [{ role: "user", content: userPrompt }],
         maxTokens: 8000,
+      });
+      if (result.error) {
+        return new Response(JSON.stringify({ error: result.error }), {
+          status: result.status || 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      let summary = result.text || "";
+      if (summary.length > SUMMARY_MAX_CHARS) summary = summary.slice(0, SUMMARY_MAX_CHARS);
+      return new Response(JSON.stringify({ summary }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // OpenAI direct path
+    if (user_openai_key && typeof user_openai_key === 'string' && user_openai_key.trim()) {
+      const { callOpenAINonStreaming } = await import("../_shared/openai-helper.ts");
+      const result = await callOpenAINonStreaming({
+        userApiKey: user_openai_key.trim(),
+        systemPrompt: SUMMARIZER_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userPrompt }],
+        maxTokens: 8000,
+        model: 'gpt-5',
       });
       if (result.error) {
         return new Response(JSON.stringify({ error: result.error }), {

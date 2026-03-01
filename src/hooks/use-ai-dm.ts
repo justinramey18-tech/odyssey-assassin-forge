@@ -385,6 +385,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
           dmPersonaPrompt: dmPersonaPrompt || undefined,
           model: selectedModel || undefined,
           user_api_key: loadApiKey('anthropic') || undefined,
+          user_openai_key: loadApiKey('openai') || undefined,
         }),
         signal: abortControllerRef.current.signal,
       });

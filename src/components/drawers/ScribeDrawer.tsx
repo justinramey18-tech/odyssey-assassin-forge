@@ -273,6 +273,7 @@ export function ScribeDrawer({
                       intensity: toneIntensity,
                       customPrompt: selectedGenre === 'custom' ? customStylePrompt : undefined,
                       user_api_key: loadApiKey('anthropic') || undefined,
+                      user_openai_key: loadApiKey('openai') || undefined,
                       ...contextExtra,
                     },
                   });

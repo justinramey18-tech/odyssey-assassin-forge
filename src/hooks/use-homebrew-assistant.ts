@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
-import { getClaudeEverywhereKey } from '@/lib/api-keys';
+import { getEverywhereKey } from '@/lib/api-keys';
 
 const ASSISTANT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/homebrew-assistant`;
 
@@ -45,14 +45,18 @@ export function useHomebrewAssistant() {
     setLastError(null);
 
     try {
-      const claudeKey = getClaudeEverywhereKey();
+      const everywhereKey = getEverywhereKey();
       const response = await fetch(ASSISTANT_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ prompt, context, mode, count, ...(claudeKey ? { user_api_key: claudeKey } : {}) }),
+        body: JSON.stringify({
+          prompt, context, mode, count,
+          ...(everywhereKey?.provider === 'anthropic' ? { user_api_key: everywhereKey.key } : {}),
+          ...(everywhereKey?.provider === 'openai' ? { user_openai_key: everywhereKey.key } : {}),
+        }),
       });
 
       if (!response.ok) {

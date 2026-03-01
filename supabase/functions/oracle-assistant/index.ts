@@ -565,7 +565,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, personality, characterContext, mode = 'chat', user_api_key }: OracleRequest & { user_api_key?: string } = await req.json();
+    const { messages, personality, characterContext, mode = 'chat', user_api_key, user_openai_key }: OracleRequest & { user_api_key?: string; user_openai_key?: string } = await req.json();
     
     if (!messages || !personality || !characterContext) {
       return new Response(
@@ -635,6 +635,29 @@ serve(async (req) => {
         });
       } catch (err: any) {
         return new Response(JSON.stringify({ error: err.message || "Anthropic error" }), {
+          status: err.status || 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // OpenAI direct streaming path
+    if (user_openai_key && typeof user_openai_key === 'string' && user_openai_key.trim()) {
+      try {
+        const { callOpenAIStreaming } = await import("../_shared/openai-helper.ts");
+        const streamResponse = await callOpenAIStreaming({
+          userApiKey: user_openai_key.trim(),
+          systemPrompt,
+          messages,
+          maxTokens,
+          temperature: personality === 'deadpool' ? 0.9 : 0.7,
+          model: 'gpt-5',
+        });
+        return new Response(streamResponse.body, {
+          headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+        });
+      } catch (err: any) {
+        return new Response(JSON.stringify({ error: err.message || "OpenAI error" }), {
           status: err.status || 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });

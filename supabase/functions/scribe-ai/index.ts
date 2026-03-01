@@ -118,7 +118,7 @@ serve(async (req) => {
 
   try {
     const {
-      text, style, intensity, customPrompt, model, user_api_key,
+      text, style, intensity, customPrompt, model, user_api_key, user_openai_key,
       processingMode, campaignSummary, storyContext, characterCards, protagonistCards,
     } = await req.json();
 
@@ -155,11 +155,13 @@ serve(async (req) => {
     }
 
     const hasUserKey = typeof user_api_key === 'string' && user_api_key.trim().length > 0;
+    const hasOpenAIKey = typeof user_openai_key === 'string' && user_openai_key.trim().length > 0;
+    const useOpenAI = hasOpenAIKey && !hasUserKey; // OpenAI only if no Anthropic key provided
 
-    if (!hasUserKey) {
+    if (!hasUserKey && !hasOpenAIKey) {
       const authHeader = req.headers.get("Authorization");
       if (!authHeader?.startsWith("Bearer ")) {
-        return new Response(JSON.stringify({ error: "Unauthorized – sign in or add your own Anthropic API key in Settings.", code: "unauthorized" }), {
+        return new Response(JSON.stringify({ error: "Unauthorized – sign in or add your own API key in Settings.", code: "unauthorized" }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -172,7 +174,7 @@ serve(async (req) => {
       const token = authHeader.replace("Bearer ", "");
       const { error: claimsError } = await supabaseClient.auth.getClaims(token);
       if (claimsError) {
-        return new Response(JSON.stringify({ error: "Unauthorized – sign in or add your own Anthropic API key in Settings.", code: "unauthorized" }), {
+        return new Response(JSON.stringify({ error: "Unauthorized – sign in or add your own API key in Settings.", code: "unauthorized" }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -183,9 +185,9 @@ serve(async (req) => {
       ? user_api_key.trim()
       : Deno.env.get("ANTHROPIC_API_KEY");
 
-    if (!ANTHROPIC_API_KEY) {
+    if (!useOpenAI && !ANTHROPIC_API_KEY) {
       return new Response(
-        JSON.stringify({ error: "No Anthropic API key available. Add your key in Settings → API Keys, or configure the backend secret.", code: "no_api_key" }),
+        JSON.stringify({ error: "No API key available. Add your key in Settings → API Keys, or configure the backend secret.", code: "no_api_key" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -280,6 +282,70 @@ ${contextBlocks}`;
 
     const maxTokens = getMaxTokens(slicedText.length);
 
+    // ── OpenAI direct path ──
+    if (useOpenAI) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), ANTHROPIC_TIMEOUT_MS);
+
+      let response: Response;
+      try {
+        response = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${user_openai_key!.trim()}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "gpt-5",
+            max_tokens: maxTokens,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userMessage },
+            ],
+          }),
+          signal: controller.signal,
+        });
+      } catch (fetchErr: unknown) {
+        clearTimeout(timeoutId);
+        const elapsed = Date.now() - startTime;
+        if (fetchErr instanceof DOMException && fetchErr.name === 'AbortError') {
+          return new Response(JSON.stringify({ error: `Request timed out after ${Math.round(elapsed / 1000)}s.`, code: "request_timeout", elapsed_ms: elapsed }), {
+            status: 504, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        throw fetchErr;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      const elapsed = Date.now() - startTime;
+
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error(`[scribe-ai] OpenAI error: ${response.status} (${elapsed}ms)`, errText);
+        if (response.status === 401) {
+          return new Response(JSON.stringify({ error: "Invalid OpenAI API key.", code: "invalid_api_key" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        if (response.status === 429) {
+          return new Response(JSON.stringify({ error: "OpenAI rate limit hit.", code: "rate_limited" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        return new Response(JSON.stringify({ error: `AI processing failed (status ${response.status})`, code: "upstream_error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const result = await response.json();
+      const outputText = result.choices?.[0]?.message?.content || "";
+      const usage = result.usage ?? {};
+
+      console.log(`[scribe-ai] OpenAI success: ${elapsed}ms, in=${usage.prompt_tokens || '?'}, out=${usage.completion_tokens || '?'}`);
+
+      return new Response(JSON.stringify({
+        text: outputText,
+        usage: { input_tokens: usage.prompt_tokens ?? 0, output_tokens: usage.completion_tokens ?? 0 },
+        meta: { elapsed_ms: elapsed, model_used: 'gpt-5', model_fallback: false, max_tokens: maxTokens, text_chars_sent: slicedText.length },
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // ── Anthropic path ──
     // Abort controller for timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), ANTHROPIC_TIMEOUT_MS);
@@ -289,7 +355,7 @@ ${contextBlocks}`;
       response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
-          "x-api-key": ANTHROPIC_API_KEY,
+          "x-api-key": ANTHROPIC_API_KEY!,
           "anthropic-version": "2023-06-01",
           "content-type": "application/json",
         },
