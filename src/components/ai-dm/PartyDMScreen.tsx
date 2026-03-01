@@ -1161,7 +1161,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
                                 : `${m.character_name} — Waiting...`
                           }
                           onClick={() => {
-                            if (mode !== 'shared' || !hasAction) return;
+                            if (!hasAction) return;
+                            // In private mode, only self can expand; in shared mode, anyone can
+                            if (!isSelf && mode !== 'shared') return;
                             const toggled = isExpanded ? null : m.user_id;
                             setExpandedPillUserId(toggled);
                             if (toggled && isSelf && prompt) setPillEditText(prompt.prompt);
@@ -1171,7 +1173,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
                             !prompt && "bg-white/5 border-white/10 text-white/30",
                             prompt && !prompt.is_ready && "bg-amber-900/20 border-amber-500/30 text-amber-300",
                             prompt?.is_ready && "bg-emerald-900/20 border-emerald-500/30 text-emerald-300 animate-pulse",
-                            mode === 'shared' && hasAction && "cursor-pointer hover:brightness-125",
+                            (isSelf || mode === 'shared') && hasAction && "cursor-pointer hover:brightness-125",
                             isExpanded && "ring-1 ring-white/30",
                           )}
                         >
@@ -1468,21 +1470,19 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
                   <p className="text-[10px] text-white/40 mb-0.5">Your action:</p>
                   <p className="text-sm text-white/70 truncate">{partyDm.myPrompt?.prompt || '(no action)'}</p>
                 </div>
-                {mode === 'shared' && (
-                  <button
-                    onClick={() => {
-                      const myUserId = currentUserId;
-                      if (!myUserId) return;
-                      setExpandedPillUserId(prev => prev === myUserId ? null : myUserId);
-                      setPillEditText(partyDm.myPrompt?.prompt || '');
-                    }}
-                    className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/40 hover:text-white/70"
-                    title="Edit prompt via pill"
-                    style={{ touchAction: 'manipulation' }}
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                )}
+                <button
+                  onClick={() => {
+                    const myUserId = currentUserId;
+                    if (!myUserId) return;
+                    setExpandedPillUserId(prev => prev === myUserId ? null : myUserId);
+                    setPillEditText(partyDm.myPrompt?.prompt || '');
+                  }}
+                  className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/40 hover:text-white/70"
+                  title="Edit prompt via pill"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
                 <button
                   onClick={() => partyDm.retractPrompt()}
                   className="p-2 rounded-lg hover:bg-red-900/20 transition-colors text-white/40 hover:text-red-400"
