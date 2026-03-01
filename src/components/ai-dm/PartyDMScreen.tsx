@@ -841,6 +841,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
       )}
 
       {/* Messages OR Inline Battle Map */}
+      <div className="flex-1 min-h-0 relative flex flex-col overflow-hidden">
       {showBattleMap && battleMapContent ? (
         battleMapContent
       ) : (
@@ -860,13 +861,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
                   key={msg.id}
                   message={msg}
                   currentUserId={currentUserId}
-                  members={members}
-                  mode={mode}
+                  members={members.map(m => ({ user_id: m.user_id, character_name: m.character_name }))}
+                  mode={partyDm.isSplitActive ? 'private' : 'shared'}
                   isCreator={isCreator}
-                  onCopy={handleCopyMessage}
-                  onEdit={handleEditMessage}
-                  onDelete={handleDeleteMessage}
-                  onRegenerate={handleRegenerateMessage}
+                  onCopy={(content) => { navigator.clipboard.writeText(content); }}
                   showTeamTag={isCreator && partyDm.isSplitActive}
                   allMessages={partyDm.messages}
                 />
@@ -885,6 +883,23 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
           )}
         </div>
       )}
+        {/* Fullscreen toggle - bottom-right of chat area */}
+        <button
+          onClick={() => {
+            if (!isFullscreen) setNavExpanded(false);
+            setIsFullscreen(f => !f);
+          }}
+          className="absolute bottom-2 right-2 z-[5] w-9 h-9 rounded-full flex items-center justify-center bg-black/40 hover:bg-black/60 transition-all"
+          style={{ touchAction: 'manipulation' }}
+          title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+        >
+          {isFullscreen ? (
+            <Minimize2 className="w-4 h-4 text-white/70" />
+          ) : (
+            <Maximize2 className="w-4 h-4 text-white/40" />
+          )}
+        </button>
+      </div>
 
       {/* Prompt Queue Status */}
       {partyDm.isActive && (
@@ -1508,27 +1523,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
         />
       )}
 
-      {/* Fullscreen Toggle Button - always bottom-left of chat area */}
-      <button
-        onClick={() => {
-          if (!isFullscreen) setNavExpanded(false);
-          setIsFullscreen(f => !f);
-        }}
-        className={cn(
-          "fixed left-3 z-[61] w-9 h-9 rounded-full flex items-center justify-center transition-all",
-          isFullscreen
-            ? "bottom-8 bg-black/50 hover:bg-black/70"
-            : "bottom-[176px] bg-black/30 hover:bg-black/50"
-        )}
-        style={{ touchAction: 'manipulation' }}
-        title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-      >
-        {isFullscreen ? (
-          <Minimize2 className="w-4 h-4 text-white/70" />
-        ) : (
-          <Maximize2 className="w-4 h-4 text-white/40" />
-        )}
-      </button>
+
 
       {/* Geralt Gameplay Widget (momo only) */}
       {isMomo && (
