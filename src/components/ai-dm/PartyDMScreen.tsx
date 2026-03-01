@@ -2,10 +2,11 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, MessageSquare, Plus, Save, Volume2, VolumeX, GitBranch, Bell, BellOff, Heart, Bird, ChevronDown, Timer, Ghost, Lock } from 'lucide-react';
+import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock } from 'lucide-react';
 import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
 import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
+import { PartyDMSettings } from './PartyDMSettings';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { CampaignDropdown } from './CampaignDropdown';
 import { cn } from '@/lib/utils';
@@ -686,7 +687,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
       setShowAfkGuide(true);
       return;
     }
-    // Dice tab toggles
+    // Dice and settings tabs toggle
     setActiveNavTab(prev => prev === tab ? null : tab);
   }, []);
 
@@ -736,15 +737,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
         </div>
       </header>
 
-      {/* Row 2: Sub-Header Strip */}
-      <div className="flex items-center gap-1 px-2 py-1 bg-black/30 border-b border-amber-900/20 overflow-x-auto scrollbar-hide">
-        {/* Mode indicator */}
+      {/* Row 2: Sub-Header Strip (status only) */}
+      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-black/30 border-b border-amber-900/20">
         {mode === 'shared' ? (
-          <span className="flex items-center gap-1 text-[11px] text-emerald-300/70 whitespace-nowrap px-1">
+          <span className="flex items-center gap-1 text-[11px] text-emerald-300/70 whitespace-nowrap">
             <Eye className="w-3 h-3 text-emerald-400" />Shared
           </span>
         ) : (
-          <span className="flex items-center gap-1 text-[11px] text-purple-300/70 whitespace-nowrap px-1">
+          <span className="flex items-center gap-1 text-[11px] text-purple-300/70 whitespace-nowrap">
             <EyeOff className="w-3 h-3 text-purple-400" />Private
           </span>
         )}
@@ -766,179 +766,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
             )}>
               {geraltHp.current}/{geraltHp.max}
             </span>
-          </>
-        )}
-        <span className="text-[11px] text-white/20">•</span>
-
-        {onToggleAutoSync && (
-          <button
-            onClick={() => onToggleAutoSync(!autoSyncEnabled)}
-            className={cn(
-              "px-2 py-1 rounded-lg text-[11px] font-cinzel transition-colors whitespace-nowrap",
-              autoSyncEnabled ? "text-amber-300 bg-amber-900/30" : "text-white/50 hover:bg-white/10"
-            )}
-            style={{ touchAction: 'manipulation' }}
-            title={autoSyncEnabled ? 'Auto-Sync enabled' : 'Enable Auto-Sync'}
-          >
-            <Zap className={cn("w-3 h-3 inline mr-0.5", isExtracting && "animate-pulse")} />
-            Sync
-          </button>
-        )}
-        {onShowMap && (
-          <button
-            onClick={onShowMap}
-            className="px-2 py-1 rounded-lg text-[11px] font-cinzel text-white/50 hover:bg-white/10 transition-colors whitespace-nowrap"
-            style={{ touchAction: 'manipulation' }}
-          >
-            <Map className="w-3 h-3 inline mr-0.5" />Map
-          </button>
-        )}
-        {onShowSaves && (
-          <button
-            onClick={onShowSaves}
-            className="px-2 py-1 rounded-lg text-[11px] font-cinzel text-white/50 hover:bg-white/10 transition-colors whitespace-nowrap"
-            style={{ touchAction: 'manipulation' }}
-          >
-            <FolderOpen className="w-3 h-3 inline mr-0.5" />Saves
-          </button>
-        )}
-        {onShowChat && (
-          <button
-            onClick={onShowChat}
-            className="px-2 py-1 rounded-lg text-[11px] font-cinzel text-white/50 hover:bg-white/10 transition-colors whitespace-nowrap"
-            style={{ touchAction: 'manipulation' }}
-          >
-            <MessageSquare className="w-3 h-3 inline mr-0.5" />Chat
-          </button>
-        )}
-        {onShowGuides && (
-          <button
-            onClick={onShowGuides}
-            className={cn(
-              "px-2 py-1 rounded-lg text-[11px] font-cinzel transition-colors relative whitespace-nowrap",
-              guidesCount > 0 ? "text-amber-300/80 hover:bg-amber-900/30" : "text-white/50 hover:bg-white/10"
-            )}
-            style={{ touchAction: 'manipulation' }}
-          >
-            <BookOpen className="w-3 h-3 inline mr-0.5" />Guides
-            {guidesCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-amber-600 text-[8px] flex items-center justify-center text-white">
-                {guidesCount}
-              </span>
-            )}
-          </button>
-        )}
-        {/* AFK Personality Guide button (all players) */}
-        <button
-          onClick={() => setShowAfkGuide(true)}
-          className={cn(
-            "px-2 py-1 rounded-lg text-[11px] font-cinzel transition-colors whitespace-nowrap",
-            myAfkGuide ? "text-purple-300 bg-purple-900/30" : "text-white/50 hover:bg-white/10"
-          )}
-          style={{ touchAction: 'manipulation' }}
-          title={myAfkGuide ? 'AFK guide configured' : 'Set AFK personality guide'}
-        >
-          <Ghost className="w-3 h-3 inline mr-0.5" />AFK
-          {myAfkCascade && myAfkCascade.length > 0 && (
-            <span className="ml-0.5 inline-flex items-center justify-center min-w-[14px] h-[14px] rounded-full bg-purple-500/60 text-[9px] font-bold text-purple-100 px-0.5">
-              {myAfkCascade.length}
-            </span>
-          )}
-        </button>
-        {/* Push notification toggle */}
-        {pushState !== 'unsupported' && (
-          <button
-            onClick={handleTogglePush}
-            className={cn(
-              "px-2 py-1 rounded-lg text-[11px] font-cinzel transition-colors whitespace-nowrap",
-              pushState === 'subscribed'
-                ? "text-amber-300 bg-amber-900/30"
-                : pushState === 'denied'
-                  ? "text-red-400/60 cursor-not-allowed"
-                  : "text-white/50 hover:bg-white/10"
-            )}
-            style={{ touchAction: 'manipulation' }}
-            title={
-              pushState === 'subscribed' ? 'Push notifications on'
-                : pushState === 'denied' ? 'Blocked — enable in browser settings'
-                : 'Enable push notifications'
-            }
-            disabled={pushState === 'denied'}
-          >
-            {pushState === 'subscribed'
-              ? <Bell className="w-3 h-3 inline mr-0.5" />
-              : <BellOff className="w-3 h-3 inline mr-0.5" />
-            }
-            {pushState === 'denied' ? 'Blocked' : pushState === 'subscribed' ? 'Alerts' : 'Alerts'}
-          </button>
-        )}
-        {isCreator && (
-          <>
-            {/* Split / Regroup buttons */}
-            {partyDm.isSplitActive ? (
-              <>
-                <button
-                  onClick={() => setShowSplitSummaries(true)}
-                  className="px-2 py-1 rounded-lg text-[11px] font-cinzel text-amber-300/80 hover:bg-amber-900/30 transition-colors whitespace-nowrap"
-                  style={{ touchAction: 'manipulation' }}
-                >
-                  <Eye className="w-3 h-3 inline mr-0.5" />Summaries
-                </button>
-                <button
-                  onClick={() => setShowRegroupDialog(true)}
-                  className="px-2 py-1 rounded-lg text-[11px] font-cinzel text-emerald-300/80 hover:bg-emerald-900/30 transition-colors whitespace-nowrap"
-                  style={{ touchAction: 'manipulation' }}
-                >
-                  <Users className="w-3 h-3 inline mr-0.5" />Regroup
-                </button>
-              </>
-            ) : memberCount >= 4 && (
-              <button
-                onClick={() => setShowSplitInitiator(true)}
-                className="px-2 py-1 rounded-lg text-[11px] font-cinzel text-white/50 hover:bg-white/10 transition-colors whitespace-nowrap"
-                style={{ touchAction: 'manipulation' }}
-              >
-                <GitBranch className="w-3 h-3 inline mr-0.5" />Split
-              </button>
-            )}
-            <button
-              onClick={() => {
-                const newMode = mode === 'shared' ? 'private' : 'shared';
-                if (partyDm.sessionConfig) {
-                  const updated = { ...partyDm.sessionConfig, mode: newMode as 'shared' | 'private' };
-                  (supabase.from('party_shared_state') as any)
-                    .update({ state_data: updated })
-                    .eq('state_type', 'dm_session')
-                    .then(() => {});
-                }
-              }}
-              className={cn(
-                "p-1 rounded-lg text-[11px] transition-colors",
-                mode === 'shared' ? "bg-emerald-900/30 text-emerald-400" : "bg-purple-900/30 text-purple-400"
-              )}
-              title={mode === 'shared' ? 'Switch to private' : 'Switch to shared'}
-              style={{ touchAction: 'manipulation' }}
-            >
-              {mode === 'shared' ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-            </button>
-            <button
-              onClick={() => {
-                setShowNewCampaignInput(true);
-                setNewCampaignName('');
-              }}
-              className="p-1 rounded-lg text-[11px] text-amber-400 hover:bg-amber-900/20 transition-colors"
-              title="Start new campaign"
-              style={{ touchAction: 'manipulation' }}
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={partyDm.endSession}
-              className="p-1 rounded-lg text-[11px] text-red-400 hover:bg-red-900/20 transition-colors"
-              style={{ touchAction: 'manipulation' }}
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
           </>
         )}
       </div>
@@ -1606,6 +1433,45 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
             characterContext={characterContext!}
             onRollResult={handleDiceRoll}
             disabled={partyDm.isGenerating}
+          />
+        ) : undefined}
+        settingsContent={activeNavTab === 'settings' ? (
+          <PartyDMSettings
+            mode={mode}
+            onToggleMode={() => {
+              const newMode = mode === 'shared' ? 'private' : 'shared';
+              if (partyDm.sessionConfig) {
+                const updated = { ...partyDm.sessionConfig, mode: newMode as 'shared' | 'private' };
+                (supabase.from('party_shared_state') as any)
+                  .update({ state_data: updated })
+                  .eq('state_type', 'dm_session')
+                  .then(() => {});
+              }
+            }}
+            isCreator={isCreator}
+            autoSyncEnabled={autoSyncEnabled}
+            onToggleAutoSync={onToggleAutoSync}
+            isExtracting={isExtracting}
+            pushState={pushState}
+            onTogglePush={handleTogglePush}
+            onShowMap={onShowMap}
+            onShowSaves={onShowSaves}
+            onShowGuides={onShowGuides}
+            onShowChat={onShowChat}
+            onShowAfkGuide={() => setShowAfkGuide(true)}
+            guidesCount={guidesCount}
+            myAfkGuide={myAfkGuide}
+            myAfkCascadeCount={myAfkCascade?.length ?? 0}
+            isSplitActive={partyDm.isSplitActive}
+            memberCount={memberCount}
+            onShowSplitInitiator={() => setShowSplitInitiator(true)}
+            onShowRegroupDialog={() => setShowRegroupDialog(true)}
+            onShowSplitSummaries={() => setShowSplitSummaries(true)}
+            onNewCampaign={() => {
+              setShowNewCampaignInput(true);
+              setNewCampaignName('');
+            }}
+            onEndSession={partyDm.endSession}
           />
         ) : undefined}
       />
