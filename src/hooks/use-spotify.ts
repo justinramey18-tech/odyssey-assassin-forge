@@ -192,7 +192,7 @@ export function useSpotify() {
     }
   }, []);
 
-  const playPlaylist = useCallback(async (playlistUri: string) => {
+  const playPlaylist = useCallback(async (playlistUri: string, retryCount = 0) => {
     try {
       const devices = await getDevices();
       const activeDevice = devices?.find((d: any) => d.is_active);
@@ -210,10 +210,19 @@ export function useSpotify() {
       }
 
       if (!targetDeviceId) {
+        // Auto-retry up to 3 times (wait for SDK to initialize)
+        if (isPremium !== false && retryCount < 3) {
+          if (retryCount === 0) {
+            toast.info('Browser player is loading — hang on...', { duration: 3000 });
+          }
+          setTimeout(() => playPlaylist(playlistUri, retryCount + 1), 2000);
+          return;
+        }
+
         if (isPremium === false) {
           toast.error('No Spotify device found. Open Spotify on your phone or computer first, then try again.', { duration: 6000 });
         } else {
-          toast.error('No Spotify device found. The browser player is loading — try again in a moment.', { duration: 6000 });
+          toast.error('No Spotify device found. Try again in a moment or open Spotify on another device.', { duration: 6000 });
         }
         return;
       }
