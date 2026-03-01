@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, MessageSquare, Plus, Save, Volume2, VolumeX, GitBranch, Bell, BellOff, Heart, Bird, ChevronDown, Timer } from 'lucide-react';
+import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Map, FolderOpen, BookOpen, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, MessageSquare, Plus, Save, Volume2, VolumeX, GitBranch, Bell, BellOff, Heart, Bird, ChevronDown, Timer, Ghost } from 'lucide-react';
 import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
 import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
@@ -21,6 +21,7 @@ import type { usePartyDm, PartyDmMessage, PartyDmPrompt } from '@/hooks/use-part
 import { DMDiceRoller } from './DMDiceRoller';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
 import { RoundTimer, TimerSettings } from './RoundTimer';
+import { AfkPersonalityGuide } from './AfkPersonalityGuide';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { CampaignSession } from '@/hooks/use-campaign-sessions';
 
@@ -28,11 +29,12 @@ type PartyDmReturn = ReturnType<typeof usePartyDm>;
 
 interface PartyDMScreenProps {
   onBack: () => void;
+  partyId?: string | null;
   partyDm: PartyDmReturn;
   isCreator: boolean;
   currentUserId?: string;
   memberCount: number;
-  members: Array<{ user_id: string; character_name: string }>;
+  members: Array<{ user_id: string; character_name: string; character_status?: Record<string, unknown> }>;
   onShowGuides?: () => void;
   onShowMap?: () => void;
   onShowSaves?: () => void;
@@ -372,7 +374,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
   );
 }
 
-export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, characterContext, showBattleMap, battleMapContent, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns }: PartyDMScreenProps) {
+export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, characterContext, showBattleMap, battleMapContent, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns }: PartyDMScreenProps) {
   const [input, setInput] = useState('');
   const [, setTick] = useState(0);
   const narrator = useNarrator();
@@ -406,6 +408,11 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
   const [showRegroupDialog, setShowRegroupDialog] = useState(false);
   const [showSplitSummaries, setShowSplitSummaries] = useState(false);
   const [showTimerSettings, setShowTimerSettings] = useState(false);
+  const [showAfkGuide, setShowAfkGuide] = useState(false);
+  const [myAfkGuide, setMyAfkGuide] = useState<string | null>(() => {
+    const me = members.find(m => m.user_id === currentUserId);
+    return (me?.character_status?.afkPersonalityGuide as string) || null;
+  });
   const [localTimerEnabled, setLocalTimerEnabled] = useState(partyDm.sessionConfig?.timerEnabled ?? false);
   const [localTimerDuration, setLocalTimerDuration] = useState(partyDm.sessionConfig?.timerDurationSeconds ?? 120);
 
@@ -743,6 +750,18 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
             )}
           </button>
         )}
+        {/* AFK Personality Guide button (all players) */}
+        <button
+          onClick={() => setShowAfkGuide(true)}
+          className={cn(
+            "px-2 py-1 rounded-lg text-[11px] font-cinzel transition-colors whitespace-nowrap",
+            myAfkGuide ? "text-purple-300 bg-purple-900/30" : "text-white/50 hover:bg-white/10"
+          )}
+          style={{ touchAction: 'manipulation' }}
+          title={myAfkGuide ? 'AFK guide configured' : 'Set AFK personality guide'}
+        >
+          <Ghost className="w-3 h-3 inline mr-0.5" />AFK
+        </button>
         {/* Push notification toggle */}
         {pushState !== 'unsupported' && (
           <button
@@ -1080,6 +1099,9 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
                             )} />
                           )}
                           <span className="truncate flex-1">{m.character_name}</span>
+                          {(m as any).character_status?.afkPersonalityGuide && (
+                            <span title="AFK guide configured"><Ghost className="w-2.5 h-2.5 text-purple-400/60 shrink-0" /></span>
+                          )}
                           {prompt?.is_ready ? (
                             <CheckCheck className="w-3 h-3 text-emerald-400" />
                           ) : prompt ? (
@@ -1531,6 +1553,19 @@ export function PartyDMScreen({ onBack, partyDm, isCreator, currentUserId, membe
           open={showSplitSummaries}
           onClose={() => setShowSplitSummaries(false)}
           splitState={partyDm.splitState}
+        />
+      )}
+
+      {/* AFK Personality Guide Dialog */}
+      {partyDm.sessionConfig && currentUserId && (
+        <AfkPersonalityGuide
+          open={showAfkGuide}
+          onOpenChange={setShowAfkGuide}
+          partyId={partyId || ''}
+          userId={currentUserId}
+          characterName={members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown'}
+          currentGuide={myAfkGuide}
+          onSaved={setMyAfkGuide}
         />
       )}
     </div>
