@@ -111,7 +111,7 @@ export function PartyDMSettings({
   return (
     <div className="px-3 py-3 space-y-2.5 max-h-[50vh] overflow-y-auto overscroll-contain">
       {/* Session Controls */}
-      <SettingsSection title="Session Controls" defaultOpen icon={<ClipboardList className="w-4 h-4 text-amber-400" />}>
+      <SettingsSection title="Session Controls" icon={<ClipboardList className="w-4 h-4 text-amber-400" />}>
         {isCreator && (
           <ToggleRow
             icon={mode === 'shared' ? <Eye className="w-4 h-4 text-emerald-400" /> : <EyeOff className="w-4 h-4 text-purple-400" />}
@@ -157,7 +157,7 @@ export function PartyDMSettings({
       </SettingsSection>
 
       {/* Tools */}
-      <SettingsSection title="Tools" defaultOpen icon={<Map className="w-4 h-4 text-emerald-400" />}>
+      <SettingsSection title="Tools" icon={<Map className="w-4 h-4 text-emerald-400" />}>
         {onShowMap && (
           <ToolRow icon={<Map className="w-4 h-4" />} label="Battle Map" description="View the tactical map" onClick={onShowMap} />
         )}
