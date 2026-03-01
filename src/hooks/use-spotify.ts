@@ -17,6 +17,8 @@ import {
   saveMoodPresets,
   loadAutoMood,
   saveAutoMood,
+  extractPlaylistId,
+  getPlaylistInfo,
   type MoodPreset,
 } from '@/lib/spotify';
 import { initPlayer, destroyPlayer, getSDKDeviceId, isSDKPlayerActive } from '@/lib/spotify-player-sdk';
@@ -259,6 +261,46 @@ export function useSpotify() {
     saveMoodPresets(presets);
   }, []);
 
+  const assignPlaylistToPreset = useCallback(async (presetId: string, input: string): Promise<boolean> => {
+    const playlistId = extractPlaylistId(input);
+    if (!playlistId) {
+      toast.error('Invalid Spotify playlist link');
+      return false;
+    }
+
+    try {
+      const info = await getPlaylistInfo(playlistId);
+      if (!info) {
+        toast.error('Could not find that playlist. It may be private or invalid.');
+        return false;
+      }
+
+      const updated = moodPresets.map(p =>
+        p.id === presetId
+          ? { ...p, playlistUri: info.uri, playlistName: info.name }
+          : p
+      );
+      setMoodPresets(updated);
+      saveMoodPresets(updated);
+      toast.success(`Linked "${info.name}" to preset`);
+      return true;
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to assign playlist');
+      return false;
+    }
+  }, [moodPresets]);
+
+  const clearPresetPlaylist = useCallback((presetId: string) => {
+    const updated = moodPresets.map(p =>
+      p.id === presetId
+        ? { ...p, playlistUri: undefined, playlistName: undefined }
+        : p
+    );
+    setMoodPresets(updated);
+    saveMoodPresets(updated);
+    toast.success('Custom playlist removed — will use search instead');
+  }, [moodPresets]);
+
   const setAutoMoodEnabled = useCallback((enabled: boolean) => {
     setAutoMoodEnabledState(enabled);
     saveAutoMood(enabled);
@@ -333,6 +375,8 @@ export function useSpotify() {
     playPlaylist,
     searchAndAssignPreset,
     updateMoodPresets,
+    assignPlaylistToPreset,
+    clearPresetPlaylist,
     setAutoMoodEnabled,
     playMoodForText,
   };

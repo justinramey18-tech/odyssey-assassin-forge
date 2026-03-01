@@ -1,10 +1,127 @@
 import { useState } from 'react';
-import { Play, Pause, SkipForward, SkipBack, Volume2, Music, Wifi, WifiOff, Plus, Trash2, X, Sparkles, Monitor } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, Volume2, Music, Wifi, WifiOff, Plus, Trash2, X, Sparkles, Monitor, Link, Unlink } from 'lucide-react';
 import { useSpotify } from '@/hooks/use-spotify';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import type { MoodPreset } from '@/lib/spotify';
+
+function PresetPill({ preset, spotify }: { preset: MoodPreset; spotify: ReturnType<typeof useSpotify> }) {
+  const [linkInput, setLinkInput] = useState('');
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  const handleAssign = async () => {
+    if (!linkInput.trim()) return;
+    setIsAssigning(true);
+    const ok = await spotify.assignPlaylistToPreset(preset.id, linkInput.trim());
+    setIsAssigning(false);
+    if (ok) {
+      setLinkInput('');
+      setOpen(false);
+    }
+  };
+
+  const handlePlay = () => {
+    if (preset.playlistUri) {
+      spotify.playPlaylist(preset.playlistUri);
+    } else {
+      spotify.searchAndAssignPreset(preset.id);
+    }
+  };
+
+  return (
+    <div className="group relative">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            onClick={(e) => {
+              // Single click = play, long press handled by popover
+              // We use onContextMenu-like UX: tap plays, the popover trigger wraps for edit
+            }}
+            onDoubleClick={() => setOpen(true)}
+            disabled={spotify.isSearching}
+            className={cn(
+              "text-xs px-2.5 py-1 rounded-full border transition-colors flex items-center gap-1",
+              preset.playlistUri
+                ? "border-border/50 hover:bg-emerald-500/10 hover:border-emerald-500/30"
+                : "border-dashed border-muted-foreground/30 hover:border-muted-foreground/50 text-muted-foreground"
+            )}
+            title={preset.playlistUri ? `Play: ${preset.playlistName} (double-tap to edit)` : `Tap to search, double-tap to paste link`}
+          >
+            {preset.emoji} <span className="text-[10px]">{preset.label}</span>
+            {preset.playlistUri && preset.playlistName && (
+              <Link className="w-2.5 h-2.5 text-emerald-500 shrink-0" />
+            )}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-3 space-y-2" side="top" align="start">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold">{preset.emoji} {preset.label}</p>
+            {preset.playlistName && (
+              <p className="text-[10px] text-muted-foreground truncate">🎵 {preset.playlistName}</p>
+            )}
+          </div>
+
+          {/* Play button */}
+          <button
+            onClick={() => { handlePlay(); setOpen(false); }}
+            disabled={spotify.isSearching}
+            className="w-full text-xs py-1.5 rounded bg-emerald-600 hover:bg-emerald-600/80 text-white disabled:opacity-40 transition-colors"
+          >
+            {preset.playlistUri ? '▶ Play Playlist' : '🔍 Search & Play'}
+          </button>
+
+          {/* Paste link */}
+          <div className="space-y-1.5">
+            <p className="text-[10px] text-muted-foreground font-medium">Paste Spotify playlist link:</p>
+            <div className="flex gap-1">
+              <input
+                type="text"
+                value={linkInput}
+                onChange={e => setLinkInput(e.target.value.slice(0, 200))}
+                onKeyDown={e => { if (e.key === 'Enter') handleAssign(); }}
+                className="flex-1 text-[11px] bg-background/50 border border-border/50 rounded px-2 py-1 placeholder:text-muted-foreground/40"
+                placeholder="https://open.spotify.com/playlist/..."
+                maxLength={200}
+                disabled={isAssigning}
+              />
+              <button
+                onClick={handleAssign}
+                disabled={!linkInput.trim() || isAssigning}
+                className="text-[10px] px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-600/80 text-white disabled:opacity-40 transition-colors shrink-0"
+              >
+                {isAssigning ? '...' : 'Set'}
+              </button>
+            </div>
+          </div>
+
+          {/* Clear custom assignment */}
+          {preset.playlistUri && (
+            <button
+              onClick={() => { spotify.clearPresetPlaylist(preset.id); setOpen(false); }}
+              className="w-full text-[10px] py-1 rounded border border-destructive/30 text-destructive hover:bg-destructive/10 flex items-center justify-center gap-1 transition-colors"
+            >
+              <Unlink className="w-3 h-3" /> Clear custom playlist
+            </button>
+          )}
+        </PopoverContent>
+      </Popover>
+
+      {/* Delete custom presets */}
+      {preset.id.startsWith('custom_') && (
+        <button
+          onClick={(e) => { e.stopPropagation(); spotify.updateMoodPresets(spotify.moodPresets.filter(p => p.id !== preset.id)); }}
+          className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+          title="Remove preset"
+        >
+          <Trash2 className="w-2.5 h-2.5 text-destructive-foreground" />
+        </button>
+      )}
+    </div>
+  );
+}
 
 export function DMSpotifyControls() {
   const spotify = useSpotify();
@@ -12,8 +129,9 @@ export function DMSpotifyControls() {
   const [newLabel, setNewLabel] = useState('');
   const [newQuery, setNewQuery] = useState('');
   const [newEmoji, setNewEmoji] = useState('🎵');
+  const [newPlaylistLink, setNewPlaylistLink] = useState('');
 
-  const handleAddPreset = () => {
+  const handleAddPreset = async () => {
     const label = newLabel.trim();
     const query = newQuery.trim();
     if (!label || !query) return;
@@ -21,14 +139,17 @@ export function DMSpotifyControls() {
     const id = `custom_${Date.now()}`;
     const newPreset: MoodPreset = { id, label, searchQuery: query, emoji: newEmoji || '🎵' };
     spotify.updateMoodPresets([...spotify.moodPresets, newPreset]);
+
+    // If they also pasted a playlist link, assign it
+    if (newPlaylistLink.trim()) {
+      await spotify.assignPlaylistToPreset(id, newPlaylistLink.trim());
+    }
+
     setNewLabel('');
     setNewQuery('');
     setNewEmoji('🎵');
+    setNewPlaylistLink('');
     setShowAddForm(false);
-  };
-
-  const handleDeletePreset = (presetId: string) => {
-    spotify.updateMoodPresets(spotify.moodPresets.filter(p => p.id !== presetId));
   };
 
   if (!spotify.connected) {
@@ -169,6 +290,17 @@ export function DMSpotifyControls() {
               placeholder="Search query (e.g. dark cave ambient)"
               maxLength={100}
             />
+            <div className="flex items-center gap-1.5">
+              <Link className="w-3 h-3 text-muted-foreground shrink-0" />
+              <input
+                type="text"
+                value={newPlaylistLink}
+                onChange={e => setNewPlaylistLink(e.target.value.slice(0, 200))}
+                className="flex-1 text-[11px] bg-background/50 border border-border/50 rounded px-2 py-1 placeholder:text-muted-foreground/40"
+                placeholder="Playlist link (optional)"
+                maxLength={200}
+              />
+            </div>
             <button
               onClick={handleAddPreset}
               disabled={!newLabel.trim() || !newQuery.trim()}
@@ -181,38 +313,11 @@ export function DMSpotifyControls() {
 
         <div className="flex flex-wrap gap-1.5">
           {spotify.moodPresets.map(preset => (
-            <div key={preset.id} className="group relative">
-              <button
-                onClick={() => {
-                  if (preset.playlistUri) {
-                    spotify.playPlaylist(preset.playlistUri);
-                  } else {
-                    spotify.searchAndAssignPreset(preset.id);
-                  }
-                }}
-                disabled={spotify.isSearching}
-                className={cn(
-                  "text-xs px-2.5 py-1 rounded-full border transition-colors",
-                  preset.playlistUri
-                    ? "border-border/50 hover:bg-emerald-500/10 hover:border-emerald-500/30"
-                    : "border-dashed border-muted-foreground/30 hover:border-muted-foreground/50 text-muted-foreground"
-                )}
-                title={preset.playlistUri ? `Play: ${preset.playlistName}` : `Tap to search: ${preset.searchQuery}`}
-              >
-                {preset.emoji} <span className="text-[10px]">{preset.label}</span>
-              </button>
-              {preset.id.startsWith('custom_') && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleDeletePreset(preset.id); }}
-                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Remove preset"
-                >
-                  <Trash2 className="w-2.5 h-2.5 text-destructive-foreground" />
-                </button>
-              )}
-            </div>
+            <PresetPill key={preset.id} preset={preset} spotify={spotify} />
           ))}
         </div>
+
+        <p className="text-[9px] text-muted-foreground/60 text-center">Tap to play · Double-tap to edit link</p>
       </div>
 
       {/* Connection info */}

@@ -257,6 +257,38 @@ export async function getUserProfile() {
   return spotifyFetch('/me');
 }
 
+// ── Playlist URI Helpers ──────────────────────────────────────────────────
+export function extractPlaylistId(input: string): string | null {
+  if (!input || typeof input !== 'string') return null;
+  const trimmed = input.trim();
+
+  // spotify:playlist:<id>
+  const uriMatch = trimmed.match(/^spotify:playlist:([a-zA-Z0-9]{22})$/);
+  if (uriMatch) return uriMatch[1];
+
+  // https://open.spotify.com/playlist/<id>?...
+  const urlMatch = trimmed.match(/open\.spotify\.com\/playlist\/([a-zA-Z0-9]{22})/);
+  if (urlMatch) return urlMatch[1];
+
+  // Raw 22-char alphanumeric ID
+  if (/^[a-zA-Z0-9]{22}$/.test(trimmed)) return trimmed;
+
+  return null;
+}
+
+export async function getPlaylistInfo(playlistId: string): Promise<{ name: string; uri: string; imageUrl?: string } | null> {
+  try {
+    const data = await spotifyFetch(`/playlists/${playlistId}?fields=name,uri,images`);
+    return {
+      name: data?.name || 'Unknown Playlist',
+      uri: data?.uri || `spotify:playlist:${playlistId}`,
+      imageUrl: data?.images?.[0]?.url,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ── Mood Presets ──────────────────────────────────────────────────────────
 export interface MoodPreset {
   id: string;
