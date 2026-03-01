@@ -304,7 +304,14 @@ export function HomeScreen({
   const [showEmpyreanScreen, setShowEmpyreanScreen] = useState(false);
   const [showCompanionScreen, setShowCompanionScreen] = useState(false);
   const [geraltHpPct, setGeraltHpPct] = useState<number | undefined>(undefined);
+  // Persist last-read message count per party in localStorage
+  const partyIdForChat = partySync?.party?.partyId;
+  const lastSeenKey = partyIdForChat ? `odyssey_chat_lastSeen_${partyIdForChat}` : null;
   const lastSeenMessageCount = useRef(0);
+  useEffect(() => {
+    if (!lastSeenKey) { lastSeenMessageCount.current = 0; return; }
+    try { lastSeenMessageCount.current = parseInt(localStorage.getItem(lastSeenKey) || '0', 10) || 0; } catch { lastSeenMessageCount.current = 0; }
+  }, [lastSeenKey]);
 
   // Track if chat was opened from Party DM (so we can return to it on close)
   const chatOpenedFromDM = useRef(false);
@@ -753,6 +760,7 @@ export function HomeScreen({
                 onClick={() => {
                   triggerHaptic('light');
                   lastSeenMessageCount.current = partySync.partyMessages.length;
+                  if (lastSeenKey) try { localStorage.setItem(lastSeenKey, String(partySync.partyMessages.length)); } catch {}
                   setShowPartyChatFullscreen(true);
                 }}
                 className="mx-4 flex items-center justify-center gap-2 py-2.5 rounded-lg border border-emerald-500/30 bg-emerald-900/20 hover:bg-emerald-900/30 transition-colors"
@@ -1082,6 +1090,7 @@ export function HomeScreen({
           open={showPartyChatFullscreen}
           onClose={() => {
             lastSeenMessageCount.current = partySync.partyMessages.length;
+            if (lastSeenKey) try { localStorage.setItem(lastSeenKey, String(partySync.partyMessages.length)); } catch {}
             setShowPartyChatFullscreen(false);
             if (chatOpenedFromDM.current) {
               chatOpenedFromDM.current = false;
