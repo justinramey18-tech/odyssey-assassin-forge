@@ -993,7 +993,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
             </button>
           )}
           {/* Narrator speaker button */}
-          {narrator.hasElevenLabsKey && (
+          {narrator.hasTTSKey && (
             <button
               onClick={() => {
                 if (narrator.isPlaying) {
@@ -1024,7 +1024,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
               )}
             </button>
           )}
-          {narrator.hasElevenLabsKey && (
+          {narrator.hasTTSKey && (
             <NarrationSpeedPopover iconSize="w-5 h-5" />
           )}
         </div>

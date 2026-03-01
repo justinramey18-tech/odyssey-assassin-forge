@@ -1352,7 +1352,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
                     {isUploadingVideo ? <Loader2 className="w-4 h-4 text-amber-400 animate-spin" /> : <Film className="w-4 h-4 text-white/50" />}
                   </button>
                   {/* Narrator speaker button */}
-                  {narrator.hasElevenLabsKey && (
+                   {narrator.hasTTSKey && (
                     <button
                       onClick={() => {
                         if (narrator.isPlaying) {
@@ -1381,7 +1381,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
                       )}
                     </button>
                   )}
-                  {narrator.hasElevenLabsKey && (
+                   {narrator.hasTTSKey && (
                     <NarrationSpeedPopover iconSize="w-4 h-4" />
                   )}
                 </div>
@@ -1443,7 +1443,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
             </div>
             <div className="flex items-center gap-2">
               {/* Narrator speaker button */}
-              {narrator.hasElevenLabsKey && (
+               {narrator.hasTTSKey && (
                 <button
                   onClick={() => {
                     if (narrator.isPlaying) {
@@ -1472,7 +1472,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
                   )}
                 </button>
               )}
-              {narrator.hasElevenLabsKey && (
+              {narrator.hasTTSKey && (
                 <NarrationSpeedPopover iconSize="w-4 h-4" />
               )}
               {isCreator && (
