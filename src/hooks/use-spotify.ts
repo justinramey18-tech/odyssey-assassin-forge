@@ -15,8 +15,11 @@ import {
   getDevices,
   loadMoodPresets,
   saveMoodPresets,
+  loadAutoMood,
+  saveAutoMood,
   type MoodPreset,
 } from '@/lib/spotify';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface PlaybackState {
@@ -29,6 +32,8 @@ interface PlaybackState {
   deviceName: string;
 }
 
+const AUTO_MOOD_COOLDOWN_MS = 30_000; // 30 seconds between mood switches
+
 export function useSpotify() {
   const [connected, setConnected] = useState(isConnected);
   const [userName, setUserName] = useState<string | null>(null);
@@ -37,14 +42,16 @@ export function useSpotify() {
   const [volume, setVolume] = useState(50);
   const [moodPresets, setMoodPresets] = useState<MoodPreset[]>(loadMoodPresets);
   const [isSearching, setIsSearching] = useState(false);
+  const [autoMoodEnabled, setAutoMoodEnabledState] = useState(loadAutoMood);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastAutoMoodPresetIdRef = useRef<string | null>(null);
+  const lastAutoMoodTimeRef = useRef<number>(0);
 
   // Handle OAuth callback on mount
   useEffect(() => {
     const url = new URL(window.location.href);
     const code = url.searchParams.get('code');
     if (code) {
-      // Remove code from URL
       url.searchParams.delete('code');
       window.history.replaceState({}, '', url.toString());
 
@@ -131,7 +138,6 @@ export function useSpotify() {
       } else {
         await play();
       }
-      // Quick update
       setPlayback(p => p ? { ...p, isPlaying: !p.isPlaying } : null);
     } catch (e: any) {
       toast.error(e.message || 'Playback failed');
@@ -206,6 +212,64 @@ export function useSpotify() {
     saveMoodPresets(presets);
   }, []);
 
+  const setAutoMoodEnabled = useCallback((enabled: boolean) => {
+    setAutoMoodEnabledState(enabled);
+    saveAutoMood(enabled);
+  }, []);
+
+  // AI-powered mood detection and auto-play
+  const playMoodForText = useCallback(async (text: string) => {
+    if (!connected || !autoMoodEnabled) return;
+
+    // Cooldown check
+    const now = Date.now();
+    if (now - lastAutoMoodTimeRef.current < AUTO_MOOD_COOLDOWN_MS) return;
+
+    try {
+      const presetsForAI = moodPresets.map(p => ({ id: p.id, label: p.label }));
+
+      const { data, error } = await supabase.functions.invoke('detect-mood', {
+        body: { text, presets: presetsForAI },
+      });
+
+      if (error) {
+        console.error('[AutoMood] Edge function error:', error);
+        return;
+      }
+
+      const detectedId = data?.preset_id;
+      if (!detectedId || detectedId === lastAutoMoodPresetIdRef.current) return;
+
+      const preset = moodPresets.find(p => p.id === detectedId);
+      if (!preset) return;
+
+      lastAutoMoodPresetIdRef.current = detectedId;
+      lastAutoMoodTimeRef.current = now;
+
+      if (preset.playlistUri) {
+        await playPlaylist(preset.playlistUri);
+      } else {
+        // Search and assign first, then play
+        const results = await searchPlaylists(preset.searchQuery, 5);
+        if (results.length > 0) {
+          const best = results[0];
+          const updated = moodPresets.map(p =>
+            p.id === detectedId
+              ? { ...p, playlistUri: best.uri, playlistName: best.name }
+              : p
+          );
+          setMoodPresets(updated);
+          saveMoodPresets(updated);
+          await playPlaylist(best.uri);
+        }
+      }
+
+      toast.success(`🎵 Auto-Mood: ${preset.emoji} ${preset.label}`, { duration: 3000 });
+    } catch (e) {
+      console.error('[AutoMood] Detection error:', e);
+    }
+  }, [connected, autoMoodEnabled, moodPresets, playPlaylist]);
+
   return {
     connected,
     userName,
@@ -214,6 +278,7 @@ export function useSpotify() {
     volume,
     moodPresets,
     isSearching,
+    autoMoodEnabled,
     connect,
     disconnect,
     togglePlay,
@@ -223,5 +288,7 @@ export function useSpotify() {
     playPlaylist,
     searchAndAssignPreset,
     updateMoodPresets,
+    setAutoMoodEnabled,
+    playMoodForText,
   };
 }

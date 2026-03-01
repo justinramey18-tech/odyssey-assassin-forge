@@ -16,6 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 import { useNarrator } from '@/hooks/use-narrator';
+import { useSpotify } from '@/hooks/use-spotify';
 import { subscribeToPush, unsubscribeFromPush, getPushSubscriptionState, type PushSubscriptionState } from '@/lib/push-subscription';
 import { useAuth } from '@/hooks/use-auth';
 import { NarrationSpeedPopover } from './NarrationSpeedPopover';
@@ -449,6 +450,20 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
   const [input, setInput] = useState('');
   const [, setTick] = useState(0);
   const narrator = useNarrator();
+  const spotify = useSpotify();
+  const lastProcessedMsgIdRef = useRef<string | null>(null);
+
+  // Auto-mood for party DM: detect new assistant messages and trigger mood detection
+  useEffect(() => {
+    if (!spotify.autoMoodEnabled || !spotify.connected) return;
+    const msgs = partyDm.messages;
+    if (msgs.length === 0) return;
+    const lastMsg = msgs[msgs.length - 1];
+    if (lastMsg.role === 'assistant' && lastMsg.id !== lastProcessedMsgIdRef.current && lastMsg.content) {
+      lastProcessedMsgIdRef.current = lastMsg.id;
+      spotify.playMoodForText(lastMsg.content);
+    }
+  }, [partyDm.messages, spotify.autoMoodEnabled, spotify.connected, spotify.playMoodForText]);
 
   useEffect(() => {
     if (!partyDm.lastAutoSaveTime) return;

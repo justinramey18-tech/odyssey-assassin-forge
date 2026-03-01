@@ -7,6 +7,7 @@ const KEYS = {
   expiresAt: 'spotify_expires_at',
   codeVerifier: 'spotify_code_verifier',
   moodPresets: 'spotify_mood_presets',
+  autoMood: 'spotify_auto_mood',
 } as const;
 
 // ── PKCE Helpers ──────────────────────────────────────────────────────────
@@ -305,4 +306,19 @@ export function saveMoodPresets(presets: MoodPreset[]) {
   } catch (e) {
     console.error('[Spotify] Failed to save mood presets:', e);
   }
+}
+
+// ── Auto-Mood ────────────────────────────────────────────────────────────
+export function loadAutoMood(): boolean {
+  try {
+    return localStorage.getItem(KEYS.autoMood) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export function saveAutoMood(enabled: boolean) {
+  try {
+    localStorage.setItem(KEYS.autoMood, String(enabled));
+  } catch {}
 }

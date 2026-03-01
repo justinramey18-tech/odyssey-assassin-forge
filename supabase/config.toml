@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.spotify-auth]
 verify_jwt = false
+
+[functions.detect-mood]
+verify_jwt = false
