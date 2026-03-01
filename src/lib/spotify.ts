@@ -273,12 +273,28 @@ export const DEFAULT_MOOD_PRESETS: MoodPreset[] = [
   { id: 'exploration', label: 'Forest Exploration', searchQuery: 'fantasy forest exploration ambient nature', emoji: '🌲' },
   { id: 'boss', label: 'Epic Boss Battle', searchQuery: 'epic boss battle orchestral intense', emoji: '🐉' },
   { id: 'mystery', label: 'Mystery & Intrigue', searchQuery: 'mystery intrigue suspense ambient', emoji: '🔮' },
+  { id: 'village', label: 'Peaceful Village', searchQuery: 'peaceful village medieval calm ambient', emoji: '🏘️' },
+  { id: 'ocean', label: 'Ocean Voyage', searchQuery: 'ocean sea voyage sailing adventure ambient', emoji: '⛵' },
+  { id: 'court', label: 'Royal Court', searchQuery: 'royal court medieval regal fanfare orchestral', emoji: '👑' },
+  { id: 'stealth', label: 'Stealth & Shadows', searchQuery: 'stealth shadows sneaking dark ambient tense', emoji: '🗡️' },
+  { id: 'temple', label: 'Sacred Temple', searchQuery: 'sacred temple holy choir ambient peaceful', emoji: '⛪' },
+  { id: 'campfire', label: 'Campfire Rest', searchQuery: 'campfire rest night calm acoustic ambient', emoji: '🔥' },
 ];
 
 export function loadMoodPresets(): MoodPreset[] {
   try {
     const stored = localStorage.getItem(KEYS.moodPresets);
-    if (stored) return JSON.parse(stored);
+    if (stored) {
+      const existing: MoodPreset[] = JSON.parse(stored);
+      const existingIds = new Set(existing.map(p => p.id));
+      const newDefaults = DEFAULT_MOOD_PRESETS.filter(p => !existingIds.has(p.id));
+      if (newDefaults.length > 0) {
+        const merged = [...existing, ...newDefaults];
+        localStorage.setItem(KEYS.moodPresets, JSON.stringify(merged));
+        return merged;
+      }
+      return existing;
+    }
   } catch {}
   return DEFAULT_MOOD_PRESETS;
 }
