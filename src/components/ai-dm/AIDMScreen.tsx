@@ -8,6 +8,7 @@ import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, Chevr
 import { loadState as loadGeraltState, saveState as saveGeraltState } from '@/components/companion/geralt-data';
 import { NarrationSpeedPopover } from './NarrationSpeedPopover';
 import { DMToolsDrawer } from './DMToolsDrawer';
+import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
@@ -1041,6 +1042,11 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
               onRollResult={handleUsePrompt}
               disabled={isLoading}
             />
+          ) : undefined}
+          settingsContent={activeNavTab === 'settings' ? (
+            <div className="px-3 py-3 space-y-2.5 max-h-[50vh] overflow-y-auto overscroll-contain">
+              <DMSpotifyControls />
+            </div>
           ) : undefined}
         />
       )}

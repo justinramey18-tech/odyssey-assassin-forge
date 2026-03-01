@@ -1,7 +1,8 @@
 import { cn } from '@/lib/utils';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/ui/switch';
-import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer } from 'lucide-react';
+import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music } from 'lucide-react';
+import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
 import { TimerSettings } from './RoundTimer';
 import type { PushSubscriptionState } from '@/lib/push-subscription';
 
@@ -176,6 +177,11 @@ export function PartyDMSettings({
           badge={myAfkCascadeCount}
           onClick={onShowAfkGuide}
         />
+      </SettingsSection>
+
+      {/* Spotify Controls */}
+      <SettingsSection title="Ambient Music" icon={<Music className="w-4 h-4 text-emerald-400" />}>
+        <DMSpotifyControls />
       </SettingsSection>
 
       {/* Party Management (creator only) */}
