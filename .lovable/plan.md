@@ -1,70 +1,65 @@
 
 
-## Plan: "Use Claude Everywhere" Toggle
+## AFK Character Roleplay Personality Guide
 
-### What This Does
-Adds a toggle in Settings below the Anthropic API key input. When enabled, ALL AI features use Claude 4.5 Sonnet via your personal Anthropic API key instead of the default models.
+### Concept
+Each party member can upload a short "AFK personality guide" describing how the AI should roleplay their character if the round timer expires before they submit a prompt. When the timer runs out, instead of a generic "holds their action," the AI receives their personality guide and generates an in-character action for absent players.
 
-### Step 1: Add Toggle Utilities to `src/lib/api-keys.ts`
-- Add `isClaudeEverywhereEnabled()` / `setClaudeEverywhere()` helpers using localStorage key `dnd-use-claude-everywhere`
+### Data Storage
+- Store the AFK guide in the existing `party_members` table inside the `character_status` JSONB column as `afkPersonalityGuide: string`.
+- No migration needed — `character_status` is already a flexible JSONB field that each user can update via existing RLS policies.
 
-### Step 2: Add Toggle UI to `src/components/settings/ApiCredentials.tsx`
-- Add a Switch component below the Anthropic key input (only visible when a key is saved)
-- Label: "Use Claude for all AI features"
-- Description text explaining it routes Oracle, Homebrew, World Builder, etc. through Claude
+### Implementation Steps
 
-### Step 3: Update Frontend Callers (5 files)
-Pass `user_api_key` in request bodies when toggle is enabled:
-- `src/hooks/use-homebrew-assistant.ts` — add key to fetch body
-- `src/hooks/use-oracle.ts` — add key to fetch body  
-- `src/hooks/use-worldbuilder.ts` — add key to fetch body
-- `src/components/inventory/HomebrewGearAI.tsx` — add key to `supabase.functions.invoke` body
-- `src/components/magic/HomebrewSpellCreateSheet.tsx` — add key to fetch body
+**1. Add AFK guide UI component**
+- Create `src/components/ai-dm/AfkPersonalityGuide.tsx` — a small dialog/sheet where players write their AFK personality guide (textarea, max ~2000 chars).
+- Include a save button that writes to `party_members.character_status.afkPersonalityGuide`.
+- Show a small indicator (e.g., a ghost/sleep icon) in the round queue next to their pill if they have an AFK guide configured.
 
-For features that already support model selection (AI DM, Scribe, Guide Creator), auto-force model to `anthropic/claude-sonnet-4-5` when toggle is on:
-- `src/hooks/use-ai-dm.ts`
-- Scribe/Narrative Forge model selector
-- Guide Creator caller
+**2. Wire into PartyDMScreen**
+- Add an "AFK Guide" button accessible from the sub-header strip or settings area (visible to all players, not just host).
+- Load the current user's `character_status.afkPersonalityGuide` and pre-fill the editor.
 
-### Step 4: Update Edge Functions (9 functions)
-Add an Anthropic code path to each function — when `user_api_key` is present, call `api.anthropic.com/v1/messages` with `claude-sonnet-4-5-20250929` instead of the Lovable gateway. Reuse the same SSE transform pattern already in `ai-dm/index.ts`.
+**3. Modify timer expiry logic in `use-party-dm.ts`**
+- When the timer expires and `generateResponse()` is auto-triggered:
+  - For each member who has NOT submitted a prompt (or hasn't readied up):
+    - Check their `party_members.character_status.afkPersonalityGuide`.
+    - If a guide exists: auto-insert a prompt like `[Character] (AFK — AI roleplaying): The AI will roleplay this character based on their personality guide.` and include the guide content in the system prompt sent to the AI.
+    - If no guide exists: use the current fallback behavior (generic "holds their action").
+- The AFK guide text is injected into the AI system prompt as a special section: `## AFK CHARACTER GUIDES\nRoleplay the following absent characters in-character based on their personality descriptions:\n- [CharName]: [guide text]`.
 
-| Edge Function | Streaming? | Change |
-|---|---|---|
-| `homebrew-assistant` | No | Add non-streaming Anthropic path |
-| `oracle-assistant` | Yes | Add streaming Anthropic path with SSE transform |
-| `ai-dm-worldbuilder` | No | Add non-streaming Anthropic path |
-| `ai-dm-summarize` | No | Add non-streaming Anthropic path |
-| `ai-dm-extract` | No | Add non-streaming Anthropic path (tool calling) |
-| `ai-dm-memory-extract` | No | Add non-streaming Anthropic path (tool calling) |
-| `combat-log-synthesize` | No | Add non-streaming Anthropic path |
-| `chronicle-sync` | No | Add non-streaming Anthropic path |
-| `parse-protagonist` | No | Add non-streaming Anthropic path (tool calling) |
+**4. AI prompt integration**
+- In `generateResponse()` and `streamAIResponse()`, when building the guides string, append AFK character personality sections for absent players.
+- The combined user message still lists absent players but flags them as `[CharName] (AFK)` rather than `[CharName]: Holds their action`.
 
-### Technical Detail
+### Technical Details
 
-**Edge function pattern** (non-streaming):
 ```text
-const user_api_key = body.user_api_key;
-if (user_api_key) {
-  → call api.anthropic.com/v1/messages with claude-sonnet-4-5-20250929
-  → parse response.content[0].text (or tool_use block)
-  → return same JSON shape as current Lovable gateway path
-} else {
-  → existing Lovable gateway logic (unchanged)
+party_members.character_status JSONB shape (extended):
+{
+  level: number,
+  className: string,
+  currentHP: number,
+  maxHP: number,
+  afkPersonalityGuide: string | null   // ← NEW
 }
 ```
 
-**Edge function pattern** (streaming, oracle-assistant):
+Timer expiry flow:
 ```text
-if (user_api_key) {
-  → call api.anthropic.com/v1/messages with stream:true
-  → transform Anthropic SSE → OpenAI-compatible SSE (same transform from ai-dm)
-  → return transformed stream
-} else {
-  → existing Lovable gateway streaming (unchanged)
-}
+Timer hits 0
+  → host's handleTimerExpire() fires
+  → generateResponse() called
+  → For each member without a ready prompt:
+      → Look up their character_status.afkPersonalityGuide
+      → If guide exists: auto-create prompt "[CharName] (AFK - AI roleplaying)"
+        + inject guide into AI system prompt
+      → If no guide: "[CharName]: Holds their action"
+  → Normal generation proceeds
 ```
 
-**Tool-calling functions** (extract, memory-extract, parse-protagonist): Anthropic has native tool calling — convert the existing OpenAI-format tool definitions to Anthropic's `tools` format and extract results from `tool_use` content blocks.
+Files to create/modify:
+- **Create**: `src/components/ai-dm/AfkPersonalityGuide.tsx`
+- **Modify**: `src/hooks/use-party-dm.ts` (generateResponse, add getAfkGuides helper)
+- **Modify**: `src/components/ai-dm/PartyDMScreen.tsx` (add AFK guide button + indicator)
 
