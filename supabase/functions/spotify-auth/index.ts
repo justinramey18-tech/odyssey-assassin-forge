@@ -21,7 +21,7 @@ serve(async (req) => {
       );
     }
 
-    const { action, code, redirect_uri, refresh_token } = await req.json();
+    const { action, code, redirect_uri, refresh_token, code_verifier } = await req.json();
 
     if (action === 'exchange') {
       // Exchange authorization code for tokens
@@ -32,17 +32,24 @@ serve(async (req) => {
         );
       }
 
+      const bodyParams: Record<string, string> = {
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri,
+        client_id: clientId,
+      };
+      // Include code_verifier for PKCE flow
+      if (code_verifier) {
+        bodyParams.code_verifier = code_verifier;
+      }
+
       const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
           'Authorization': `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
         },
-        body: new URLSearchParams({
-          grant_type: 'authorization_code',
-          code,
-          redirect_uri,
-        }),
+        body: new URLSearchParams(bodyParams),
       });
 
       const tokenData = await tokenResponse.json();
