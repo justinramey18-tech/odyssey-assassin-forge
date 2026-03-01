@@ -1491,6 +1491,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
                 }
               }}
               isCreator={isCreator}
+              partyId={partyId}
               autoSyncEnabled={autoSyncEnabled}
               onToggleAutoSync={onToggleAutoSync}
               isExtracting={isExtracting}
