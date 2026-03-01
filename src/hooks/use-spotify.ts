@@ -32,6 +32,7 @@ interface PlaybackState {
 export function useSpotify() {
   const [connected, setConnected] = useState(isConnected);
   const [userName, setUserName] = useState<string | null>(null);
+  const [isPremium, setIsPremium] = useState<boolean | null>(null);
   const [playback, setPlayback] = useState<PlaybackState | null>(null);
   const [volume, setVolume] = useState(50);
   const [moodPresets, setMoodPresets] = useState<MoodPreset[]>(loadMoodPresets);
@@ -62,10 +63,14 @@ export function useSpotify() {
   useEffect(() => {
     if (connected) {
       getUserProfile()
-        .then(p => setUserName(p?.display_name || p?.email || 'Connected'))
+        .then(p => {
+          setUserName(p?.display_name || p?.email || 'Connected');
+          setIsPremium(p?.product === 'premium');
+        })
         .catch(() => {});
     } else {
       setUserName(null);
+      setIsPremium(null);
     }
   }, [connected]);
 
@@ -204,6 +209,7 @@ export function useSpotify() {
   return {
     connected,
     userName,
+    isPremium,
     playback,
     volume,
     moodPresets,
