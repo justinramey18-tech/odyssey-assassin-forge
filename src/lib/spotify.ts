@@ -181,11 +181,19 @@ async function spotifyFetch(endpoint: string, options: RequestInit = {}): Promis
   });
 
   if (res.status === 204) return null;
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `Spotify API error ${res.status}`);
+
+  const contentType = res.headers.get('content-type');
+  if (!contentType?.includes('application/json')) {
+    const text = await res.text().catch(() => '');
+    console.error('[Spotify] Non-JSON response:', res.status, text.substring(0, 200));
+    throw new Error(`Spotify returned an unexpected response (${res.status}). Try again.`);
   }
-  return res.json();
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data?.error?.message || `Spotify API error ${res.status}`);
+  }
+  return data;
 }
 
 export async function searchPlaylists(query: string, limit = 10) {
