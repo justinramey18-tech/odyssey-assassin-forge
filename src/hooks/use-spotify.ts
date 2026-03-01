@@ -143,7 +143,11 @@ export function useSpotify() {
 
   const changeVolume = useCallback(async (v: number) => {
     setVolume(v);
-    try { await setSpotifyVolume(v); } catch {}
+    try {
+      await setSpotifyVolume(v);
+    } catch (e: any) {
+      toast.error(e.message || 'Volume control requires Spotify Premium');
+    }
   }, []);
 
   const playPlaylist = useCallback(async (playlistUri: string) => {
