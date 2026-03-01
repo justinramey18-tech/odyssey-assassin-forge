@@ -19,6 +19,7 @@ import {
   saveAutoMood,
   type MoodPreset,
 } from '@/lib/spotify';
+import { initPlayer, destroyPlayer, getSDKDeviceId, isSDKPlayerActive } from '@/lib/spotify-player-sdk';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -32,7 +33,7 @@ interface PlaybackState {
   deviceName: string;
 }
 
-const AUTO_MOOD_COOLDOWN_MS = 30_000; // 30 seconds between mood switches
+const AUTO_MOOD_COOLDOWN_MS = 30_000;
 
 export function useSpotify() {
   const [connected, setConnected] = useState(isConnected);
@@ -43,6 +44,8 @@ export function useSpotify() {
   const [moodPresets, setMoodPresets] = useState<MoodPreset[]>(loadMoodPresets);
   const [isSearching, setIsSearching] = useState(false);
   const [autoMoodEnabled, setAutoMoodEnabledState] = useState(loadAutoMood);
+  const [sdkDeviceId, setSdkDeviceId] = useState<string | null>(null);
+  const [sdkReady, setSdkReady] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastAutoMoodPresetIdRef = useRef<string | null>(null);
   const lastAutoMoodTimeRef = useRef<number>(0);
@@ -80,6 +83,29 @@ export function useSpotify() {
       setIsPremium(null);
     }
   }, [connected]);
+
+  // Initialize SDK player for Premium users
+  useEffect(() => {
+    if (!connected || isPremium !== true) return;
+
+    initPlayer(
+      (id) => {
+        setSdkDeviceId(id);
+        setSdkReady(true);
+        console.log('[Spotify] Browser player ready');
+      },
+      () => {
+        setSdkDeviceId(null);
+        setSdkReady(false);
+      },
+    );
+
+    return () => {
+      destroyPlayer();
+      setSdkDeviceId(null);
+      setSdkReady(false);
+    };
+  }, [connected, isPremium]);
 
   // Poll playback state
   useEffect(() => {
@@ -124,10 +150,13 @@ export function useSpotify() {
   }, []);
 
   const disconnect = useCallback(() => {
+    destroyPlayer();
     clearTokens();
     setConnected(false);
     setPlayback(null);
     setUserName(null);
+    setSdkDeviceId(null);
+    setSdkReady(false);
     toast.success('Spotify disconnected');
   }, []);
 
@@ -164,13 +193,31 @@ export function useSpotify() {
   const playPlaylist = useCallback(async (playlistUri: string) => {
     try {
       const devices = await getDevices();
-      if (!devices || devices.length === 0) {
-        toast.error('No Spotify device found. Open Spotify on your phone or computer first, then try again.', { duration: 6000 });
+      const activeDevice = devices?.find((d: any) => d.is_active);
+
+      // Prefer active external device, fall back to SDK browser device
+      let targetDeviceId = activeDevice?.id;
+      let targetDeviceName = activeDevice?.name;
+
+      if (!targetDeviceId && sdkDeviceId) {
+        targetDeviceId = sdkDeviceId;
+        targetDeviceName = 'Browser Player';
+      } else if (!targetDeviceId && devices?.length > 0) {
+        targetDeviceId = devices[0].id;
+        targetDeviceName = devices[0].name;
+      }
+
+      if (!targetDeviceId) {
+        if (isPremium === false) {
+          toast.error('No Spotify device found. Open Spotify on your phone or computer first, then try again.', { duration: 6000 });
+        } else {
+          toast.error('No Spotify device found. The browser player is loading — try again in a moment.', { duration: 6000 });
+        }
         return;
       }
-      const activeDevice = devices.find((d: any) => d.is_active) || devices[0];
-      await play({ context_uri: playlistUri, device_id: activeDevice.id });
-      toast.success(`Now playing on ${activeDevice.name}`);
+
+      await play({ context_uri: playlistUri, device_id: targetDeviceId });
+      toast.success(`Now playing on ${targetDeviceName}`);
     } catch (e: any) {
       if (e.message?.toLowerCase().includes('no active device')) {
         toast.error('No Spotify device found. Open Spotify on your phone or computer first.', { duration: 6000 });
@@ -178,7 +225,7 @@ export function useSpotify() {
         toast.error(e.message || 'Failed to play playlist');
       }
     }
-  }, []);
+  }, [sdkDeviceId, isPremium]);
 
   const searchAndAssignPreset = useCallback(async (presetId: string) => {
     const preset = moodPresets.find(p => p.id === presetId);
@@ -217,11 +264,9 @@ export function useSpotify() {
     saveAutoMood(enabled);
   }, []);
 
-  // AI-powered mood detection and auto-play
   const playMoodForText = useCallback(async (text: string) => {
     if (!connected || !autoMoodEnabled) return;
 
-    // Cooldown check
     const now = Date.now();
     if (now - lastAutoMoodTimeRef.current < AUTO_MOOD_COOLDOWN_MS) return;
 
@@ -249,7 +294,6 @@ export function useSpotify() {
       if (preset.playlistUri) {
         await playPlaylist(preset.playlistUri);
       } else {
-        // Search and assign first, then play
         const results = await searchPlaylists(preset.searchQuery, 5);
         if (results.length > 0) {
           const best = results[0];
@@ -279,6 +323,7 @@ export function useSpotify() {
     moodPresets,
     isSearching,
     autoMoodEnabled,
+    sdkReady,
     connect,
     disconnect,
     togglePlay,

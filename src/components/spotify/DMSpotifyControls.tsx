@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Play, Pause, SkipForward, SkipBack, Volume2, Music, Wifi, WifiOff, Plus, Trash2, X, Sparkles } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, Volume2, Music, Wifi, WifiOff, Plus, Trash2, X, Sparkles, Monitor } from 'lucide-react';
 import { useSpotify } from '@/hooks/use-spotify';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
@@ -238,6 +238,19 @@ export function DMSpotifyControls() {
           Disconnect
         </button>
       </div>
+
+      {/* Browser player status */}
+      {spotify.isPremium && spotify.sdkReady && (
+        <div className="flex items-center gap-1.5 px-1">
+          <Monitor className="w-3 h-3 text-emerald-500" />
+          <span className="text-[10px] text-emerald-400">Playing in browser — no Spotify app needed</span>
+        </div>
+      )}
+      {spotify.isPremium === false && (
+        <p className="text-[9px] text-muted-foreground/70 text-center">
+          Free accounts require the Spotify app open to play music
+        </p>
+      )}
     </div>
   );
 }
