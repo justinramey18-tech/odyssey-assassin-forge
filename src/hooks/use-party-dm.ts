@@ -763,7 +763,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       const guide = status?.afkPersonalityGuide as string | null;
       if (guide) {
         afkLines.push(`- ${m.character_name}: ${guide}`);
-        afkPromptLines.push(`[${m.character_name}] (AFK — AI roleplaying)`);
+        afkPromptLines.push(`[${m.character_name}] (AFK): ${guide}`);
       } else {
         afkPromptLines.push(`[${m.character_name}]: Holds their action`);
       }
