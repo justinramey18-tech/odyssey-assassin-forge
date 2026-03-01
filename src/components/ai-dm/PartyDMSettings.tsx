@@ -1,7 +1,8 @@
 import { cn } from '@/lib/utils';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/ui/switch';
-import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList } from 'lucide-react';
+import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer } from 'lucide-react';
+import { TimerSettings } from './RoundTimer';
 import type { PushSubscriptionState } from '@/lib/push-subscription';
 
 interface ToolRowProps {
@@ -89,6 +90,11 @@ export interface PartyDMSettingsProps {
   onNewCampaign: () => void;
   // Danger zone
   onEndSession: () => void;
+  // Timer
+  timerEnabled: boolean;
+  timerDurationSeconds: number;
+  onTimerEnabledChange: (enabled: boolean) => void;
+  onTimerDurationChange: (seconds: number) => void;
 }
 
 export function PartyDMSettings({
@@ -99,6 +105,7 @@ export function PartyDMSettings({
   guidesCount = 0, myAfkGuide, myAfkCascadeCount = 0,
   isSplitActive, memberCount, onShowSplitInitiator, onShowRegroupDialog, onShowSplitSummaries,
   onNewCampaign, onEndSession,
+  timerEnabled, timerDurationSeconds, onTimerEnabledChange, onTimerDurationChange,
 }: PartyDMSettingsProps) {
   return (
     <div className="px-3 py-3 space-y-2.5 max-h-[50vh] overflow-y-auto overscroll-contain">
@@ -131,6 +138,20 @@ export function PartyDMSettings({
             onCheckedChange={onTogglePush}
             disabled={pushState === 'denied'}
           />
+        )}
+        {isCreator && (
+          <div className="px-3 py-2">
+            <div className="flex items-center gap-2 mb-2">
+              <Timer className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-foreground">Round Timer</span>
+            </div>
+            <TimerSettings
+              enabled={timerEnabled}
+              durationSeconds={timerDurationSeconds}
+              onEnabledChange={onTimerEnabledChange}
+              onDurationChange={onTimerDurationChange}
+            />
+          </div>
         )}
       </SettingsSection>
 
