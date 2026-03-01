@@ -9,6 +9,7 @@ import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { CampaignDropdown } from './CampaignDropdown';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import ReactMarkdown from 'react-markdown';
@@ -1211,7 +1212,16 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
                             <Eye className="w-2.5 h-2.5 text-white/50 shrink-0" />
                           )}
                           {mode !== 'shared' && !isSelf && hasAction && (
-                            <Lock className="w-2.5 h-2.5 text-white/20 shrink-0" />
+                            <TooltipProvider delayDuration={300}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Lock className="w-2.5 h-2.5 text-white/20 shrink-0" />
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  <p>Prompt hidden — host has private mode enabled</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           )}
                         </div>
                         {/* Inline expanded prompt content */}
