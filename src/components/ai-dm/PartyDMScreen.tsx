@@ -865,8 +865,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
                   mode={partyDm.isSplitActive ? 'private' : 'shared'}
                   isCreator={isCreator}
                   onCopy={(content) => { navigator.clipboard.writeText(content); }}
+                  onDelete={handleDeleteMessage}
                   showTeamTag={isCreator && partyDm.isSplitActive}
-                  allMessages={partyDm.messages}
                 />
               ))}
             </AnimatePresence>
