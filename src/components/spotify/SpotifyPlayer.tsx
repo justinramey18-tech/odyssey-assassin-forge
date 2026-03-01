@@ -68,16 +68,22 @@ export function SpotifyPlayer() {
           </div>
 
           {/* Volume */}
-          <div className="flex items-center gap-2">
-            <Volume2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-            <Slider
-              value={[spotify.volume]}
-              onValueChange={([v]) => spotify.changeVolume(v)}
-              max={100}
-              step={1}
-              className="flex-1"
-            />
-            <span className="text-[10px] text-muted-foreground w-6 text-right">{spotify.volume}</span>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Volume2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              <Slider
+                value={[spotify.volume]}
+                onValueChange={([v]) => spotify.changeVolume(v)}
+                max={100}
+                step={1}
+                className="flex-1"
+                disabled={spotify.isPremium === false}
+              />
+              <span className="text-[10px] text-muted-foreground w-6 text-right">{spotify.volume}</span>
+            </div>
+            {spotify.isPremium === false && (
+              <p className="text-[9px] text-yellow-500/80 text-center">Premium required for volume control</p>
+            )}
           </div>
 
           {/* Mood quick-select */}
