@@ -211,3 +211,46 @@ export function saveSelectedVoiceId(voiceId: string): void {
     // ignore
   }
 }
+
+// ── TTS Provider Selection ──────────────────────────────────────────────────
+
+export type TTSProvider = 'elevenlabs' | 'speechify';
+
+const TTS_PROVIDER_KEY = 'dnd-tts-provider';
+
+export function loadTTSProvider(): TTSProvider {
+  try {
+    const raw = localStorage.getItem(TTS_PROVIDER_KEY);
+    if (raw === 'speechify') return 'speechify';
+    return 'elevenlabs';
+  } catch {
+    return 'elevenlabs';
+  }
+}
+
+export function saveTTSProvider(provider: TTSProvider): void {
+  try {
+    localStorage.setItem(TTS_PROVIDER_KEY, provider);
+  } catch {
+    // ignore
+  }
+}
+
+// Speechify voice persistence
+const SPEECHIFY_VOICE_KEY = 'dnd-speechify-voice-id';
+
+export function loadSpeechifyVoiceId(): string {
+  try {
+    return localStorage.getItem(SPEECHIFY_VOICE_KEY) || 'george';
+  } catch {
+    return 'george';
+  }
+}
+
+export function saveSpeechifyVoiceId(voiceId: string): void {
+  try {
+    localStorage.setItem(SPEECHIFY_VOICE_KEY, voiceId);
+  } catch {
+    // ignore
+  }
+}

@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
 import { loadApiKey, saveApiKey, clearApiKey, hasApiKey, maskKey } from '@/lib/api-keys';
-import { loadNarrationSpeed, saveNarrationSpeed } from '@/lib/tts-utils';
+import { loadNarrationSpeed, saveNarrationSpeed, loadTTSProvider, saveTTSProvider, loadSpeechifyVoiceId, saveSpeechifyVoiceId, type TTSProvider } from '@/lib/tts-utils';
 import { ElevenLabsVoicePicker } from './ElevenLabsVoicePicker';
 import { VoiceTuningWidget } from './VoiceTuningWidget';
 import { SoundEffectsWidget } from './SoundEffectsWidget';
@@ -102,48 +102,181 @@ function NarrationSpeedSlider() {
   );
 }
 
+const SPEECHIFY_VOICES = [
+  { id: 'george', name: 'George', description: 'Warm male narrator' },
+  { id: 'henry', name: 'Henry', description: 'British male' },
+  { id: 'mrbeast', name: 'MrBeast', description: 'Energetic male' },
+  { id: 'snoop', name: 'Snoop Dogg', description: 'Smooth male' },
+  { id: 'gwyneth', name: 'Gwyneth', description: 'Warm female' },
+  { id: 'simba', name: 'Simba', description: 'Young male' },
+  { id: 'lisa', name: 'Lisa', description: 'Professional female' },
+  { id: 'oliver', name: 'Oliver', description: 'Clear male' },
+];
+
+function TTSProviderSelector() {
+  const [provider, setProvider] = useState<TTSProvider>(() => loadTTSProvider());
+  const hasEL = hasApiKey('elevenlabs');
+  const hasSP = hasApiKey('speechify');
+
+  const handleSelect = useCallback((p: TTSProvider) => {
+    setProvider(p);
+    saveTTSProvider(p);
+    toast.success(`TTS engine switched to ${p === 'elevenlabs' ? 'ElevenLabs' : 'Speechify'}`);
+  }, []);
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] text-muted-foreground leading-relaxed">
+        Choose which TTS engine powers narration. You need an API key for the selected engine.
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          onClick={() => handleSelect('elevenlabs')}
+          className={`p-3 rounded-lg border text-left transition-colors ${
+            provider === 'elevenlabs'
+              ? 'border-primary/50 bg-primary/10'
+              : 'border-border/50 bg-muted/20 hover:border-border'
+          }`}
+        >
+          <p className="text-xs font-medium text-foreground">ElevenLabs</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">High-quality voices</p>
+          {!hasEL && <p className="text-[10px] text-amber-400 mt-1">No key set</p>}
+        </button>
+        <button
+          onClick={() => handleSelect('speechify')}
+          className={`p-3 rounded-lg border text-left transition-colors ${
+            provider === 'speechify'
+              ? 'border-primary/50 bg-primary/10'
+              : 'border-border/50 bg-muted/20 hover:border-border'
+          }`}
+        >
+          <p className="text-xs font-medium text-foreground">Speechify</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">Fast & natural</p>
+          {!hasSP && <p className="text-[10px] text-amber-400 mt-1">No key set</p>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SpeechifyVoicePicker() {
+  const [selected, setSelected] = useState(() => loadSpeechifyVoiceId());
+
+  const handleSelect = useCallback((id: string) => {
+    setSelected(id);
+    saveSpeechifyVoiceId(id);
+    toast.success('Speechify voice updated');
+  }, []);
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] text-muted-foreground leading-relaxed">
+        Select a Speechify narrator voice. You can also use custom voice IDs from your Speechify account.
+      </p>
+      <div className="grid grid-cols-2 gap-1.5">
+        {SPEECHIFY_VOICES.map((v) => (
+          <button
+            key={v.id}
+            onClick={() => handleSelect(v.id)}
+            className={`p-2 rounded-md border text-left transition-colors ${
+              selected === v.id
+                ? 'border-primary/50 bg-primary/10'
+                : 'border-border/30 bg-muted/10 hover:border-border/50'
+            }`}
+          >
+            <p className="text-xs font-medium text-foreground">{v.name}</p>
+            <p className="text-[10px] text-muted-foreground">{v.description}</p>
+          </button>
+        ))}
+      </div>
+      <div className="pt-1">
+        <label className="text-[10px] text-muted-foreground">Custom Voice ID</label>
+        <Input
+          placeholder="Enter Speechify voice ID..."
+          className="h-7 text-xs font-mono mt-1"
+          defaultValue={!SPEECHIFY_VOICES.some(v => v.id === selected) ? selected : ''}
+          onBlur={(e) => {
+            const val = e.target.value.trim();
+            if (val) handleSelect(val);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              const val = (e.target as HTMLInputElement).value.trim();
+              if (val) handleSelect(val);
+            }
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function ElevenLabsSettingsTab() {
-  const hasKey = hasApiKey('elevenlabs');
+  const hasElKey = hasApiKey('elevenlabs');
+  const hasSpKey = hasApiKey('speechify');
+  const provider = loadTTSProvider();
 
   return (
     <div className="flex-1 overflow-y-auto max-h-[70vh]">
       <div className="space-y-3 pb-6">
-        <SettingsSection title="API Key" defaultOpen>
-          <ElevenLabsApiKeyInput />
+        <SettingsSection title="TTS Engine" defaultOpen>
+          <TTSProviderSelector />
         </SettingsSection>
 
-        <SettingsSection title="Narrator Voice">
-          {hasKey ? (
-            <ElevenLabsVoicePicker />
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              Add your ElevenLabs API key above to select a narrator voice.
-            </p>
-          )}
-        </SettingsSection>
+        {provider === 'elevenlabs' && (
+          <>
+            <SettingsSection title="ElevenLabs API Key" defaultOpen>
+              <ElevenLabsApiKeyInput />
+            </SettingsSection>
+
+            <SettingsSection title="Narrator Voice">
+              {hasElKey ? (
+                <ElevenLabsVoicePicker />
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Add your ElevenLabs API key above to select a narrator voice.
+                </p>
+              )}
+            </SettingsSection>
+
+            <SettingsSection title="Voice Tuning">
+              {hasElKey ? (
+                <VoiceTuningWidget />
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Add your ElevenLabs API key above to tune voice settings.
+                </p>
+              )}
+            </SettingsSection>
+
+            <SettingsSection title="Sound Effects">
+              {hasElKey ? (
+                <SoundEffectsWidget />
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Add your ElevenLabs API key above to enable sound effects.
+                </p>
+              )}
+            </SettingsSection>
+          </>
+        )}
+
+        {provider === 'speechify' && (
+          <>
+            <SettingsSection title="Speechify Voice" defaultOpen>
+              {hasSpKey ? (
+                <SpeechifyVoicePicker />
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Add your Speechify API key in Settings → API Keys to select a voice.
+                </p>
+              )}
+            </SettingsSection>
+          </>
+        )}
 
         <SettingsSection title="Narration Speed">
           <NarrationSpeedSlider />
-        </SettingsSection>
-
-        <SettingsSection title="Voice Tuning">
-          {hasKey ? (
-            <VoiceTuningWidget />
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              Add your ElevenLabs API key above to tune voice settings.
-            </p>
-          )}
-        </SettingsSection>
-
-        <SettingsSection title="Sound Effects">
-          {hasKey ? (
-            <SoundEffectsWidget />
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              Add your ElevenLabs API key above to enable sound effects.
-            </p>
-          )}
         </SettingsSection>
       </div>
     </div>
