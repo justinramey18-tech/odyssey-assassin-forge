@@ -12,6 +12,7 @@ import {
   setVolume as setSpotifyVolume,
   searchPlaylists,
   getUserProfile,
+  getDevices,
   loadMoodPresets,
   saveMoodPresets,
   type MoodPreset,
@@ -147,10 +148,20 @@ export function useSpotify() {
 
   const playPlaylist = useCallback(async (playlistUri: string) => {
     try {
-      await play({ context_uri: playlistUri });
-      toast.success('Now playing playlist');
+      const devices = await getDevices();
+      if (!devices || devices.length === 0) {
+        toast.error('No Spotify device found. Open Spotify on your phone or computer first, then try again.', { duration: 6000 });
+        return;
+      }
+      const activeDevice = devices.find((d: any) => d.is_active) || devices[0];
+      await play({ context_uri: playlistUri, device_id: activeDevice.id });
+      toast.success(`Now playing on ${activeDevice.name}`);
     } catch (e: any) {
-      toast.error(e.message || 'Failed to play playlist. Make sure Spotify is open on a device.');
+      if (e.message?.toLowerCase().includes('no active device')) {
+        toast.error('No Spotify device found. Open Spotify on your phone or computer first.', { duration: 6000 });
+      } else {
+        toast.error(e.message || 'Failed to play playlist');
+      }
     }
   }, []);
 
