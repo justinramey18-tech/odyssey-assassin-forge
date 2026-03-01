@@ -643,6 +643,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
                   intensity: options.toneIntensity,
                   model: selectedModel,
                   user_api_key: loadApiKey('anthropic') || undefined,
+                  user_openai_key: loadApiKey('openai') || undefined,
                   ...contextExtra,
                   // Only include full story context on first chunk
                   ...(i > 0 ? { storyContext: undefined, campaignSummary: undefined } : {}),
@@ -668,6 +669,7 @@ export function NarrativeForgeScreen({ characterName, onBack }: NarrativeForgeSc
                 intensity: options.toneIntensity,
                 model: selectedModel,
                 user_api_key: loadApiKey('anthropic') || undefined,
+                user_openai_key: loadApiKey('openai') || undefined,
                 ...contextExtra,
               },
             });

@@ -311,7 +311,7 @@ serve(async (req) => {
       });
     }
 
-    const { prompt, context, mode, count, user_api_key } = await req.json() as HomebrewRequest & { user_api_key?: string };
+    const { prompt, context, mode, count, user_api_key, user_openai_key } = await req.json() as HomebrewRequest & { user_api_key?: string; user_openai_key?: string };
     // Pass count through context.currentName for batch modes
     if ((mode === 'batch_spells' || mode === 'batch_abilities') && count) {
       context.currentName = String(count);
@@ -358,6 +358,29 @@ serve(async (req) => {
         messages: [{ role: "user", content: prompt }],
         maxTokens,
         temperature: 0.8,
+      });
+      if (result.error) {
+        return new Response(JSON.stringify({ error: result.error }), {
+          status: result.status || 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(
+        JSON.stringify({ result: result.text || "" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // OpenAI direct path
+    if (user_openai_key && typeof user_openai_key === 'string' && user_openai_key.trim()) {
+      const { callOpenAINonStreaming } = await import("../_shared/openai-helper.ts");
+      const result = await callOpenAINonStreaming({
+        userApiKey: user_openai_key.trim(),
+        systemPrompt,
+        messages: [{ role: "user", content: prompt }],
+        maxTokens,
+        temperature: 0.8,
+        model: 'gpt-5',
       });
       if (result.error) {
         return new Response(JSON.stringify({ error: result.error }), {

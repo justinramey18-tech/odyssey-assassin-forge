@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { getClaudeEverywhereKey } from '@/lib/api-keys';
+import { getEverywhereKey } from '@/lib/api-keys';
 
 export interface WorldBuilderState {
   genre: string;
@@ -68,7 +68,11 @@ export function useWorldBuilder({ characterName, characterLevel }: UseWorldBuild
             characterHook: worldBuilderState.characterHook,
             characterName,
             characterLevel,
-            ...(getClaudeEverywhereKey() ? { user_api_key: getClaudeEverywhereKey() } : {}),
+            ...(() => {
+              const ek = getEverywhereKey();
+              if (!ek) return {};
+              return ek.provider === 'anthropic' ? { user_api_key: ek.key } : { user_openai_key: ek.key };
+            })(),
           }),
         }
       );

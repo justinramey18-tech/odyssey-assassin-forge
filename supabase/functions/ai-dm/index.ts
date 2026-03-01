@@ -123,6 +123,7 @@ interface DMRequest {
   dmPersonaPrompt?: string;
   model?: string;
   user_api_key?: string;
+  user_openai_key?: string;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -148,6 +149,16 @@ const ANTHROPIC_MODELS: Record<string, string> = {
   'anthropic/claude-sonnet-4': 'claude-sonnet-4-20250514',
   'anthropic/claude-sonnet-4-5': 'claude-sonnet-4-5-20250929',
   'anthropic/claude-sonnet-4-6': 'claude-sonnet-4-6-20260219',
+};
+
+// Models routed directly to OpenAI API (user's own key)
+const OPENAI_DIRECT_MODELS: Record<string, string> = {
+  'openai-direct/gpt-5': 'gpt-5',
+  'openai-direct/gpt-4o': 'gpt-4o',
+  'openai-direct/gpt-4o-mini': 'gpt-4o-mini',
+  'openai-direct/gpt-4-turbo': 'gpt-4-turbo',
+  'openai-direct/o1': 'o1',
+  'openai-direct/o1-mini': 'o1-mini',
 };
 
 const DEFAULT_MODEL = 'google/gemini-3-pro-preview';
@@ -520,7 +531,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key } = (await req.json()) as DMRequest;
+    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key } = (await req.json()) as DMRequest;
     
     // Trim to last 100 messages
     const trimmedMessages = messages.length > MAX_MESSAGES
@@ -532,6 +543,7 @@ serve(async (req) => {
     // Determine which provider to use
     const requestedModel = model || DEFAULT_MODEL;
     const anthropicModelId = ANTHROPIC_MODELS[requestedModel];
+    const openaiDirectModelId = OPENAI_DIRECT_MODELS[requestedModel];
 
     if (anthropicModelId) {
       // ── Anthropic path ──
@@ -543,6 +555,29 @@ serve(async (req) => {
       } catch (e: any) {
         const status = e?.status || 500;
         const message = e?.message || "Anthropic error";
+        return new Response(JSON.stringify({ error: message }), {
+          status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    if (openaiDirectModelId && user_openai_key && typeof user_openai_key === 'string' && user_openai_key.trim()) {
+      // ── OpenAI direct path ──
+      try {
+        const { callOpenAIStreaming } = await import("../_shared/openai-helper.ts");
+        const streamResponse = await callOpenAIStreaming({
+          userApiKey: user_openai_key.trim(),
+          systemPrompt,
+          messages: trimmedMessages,
+          maxTokens: 8000,
+          model: openaiDirectModelId,
+        });
+        return new Response(streamResponse.body, {
+          headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+        });
+      } catch (e: any) {
+        const status = e?.status || 500;
+        const message = e?.message || "OpenAI error";
         return new Response(JSON.stringify({ error: message }), {
           status, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });

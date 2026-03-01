@@ -143,7 +143,7 @@ serve(async (req) => {
       });
     }
 
-    const { entries, mode, characterName, chaosLevel = 5, user_api_key }: SynthesizeRequest & { user_api_key?: string } = await req.json();
+    const { entries, mode, characterName, chaosLevel = 5, user_api_key, user_openai_key }: SynthesizeRequest & { user_api_key?: string; user_openai_key?: string } = await req.json();
 
     // Validate inputs
     if (!entries || !Array.isArray(entries) || entries.length === 0) {
@@ -196,6 +196,27 @@ serve(async (req) => {
         systemPrompt,
         messages: [{ role: "user", content: userContent }],
         maxTokens,
+      });
+      if (result.error) {
+        return new Response(JSON.stringify({ error: result.error }), {
+          status: result.status || 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({
+        synthesis: result.text || "", mode, actionCount: entries.length,
+        chaosLevel: mode === 'deadpool' ? chaosLevel : undefined,
+      }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // OpenAI direct path
+    if (user_openai_key && typeof user_openai_key === 'string' && user_openai_key.trim()) {
+      const { callOpenAINonStreaming } = await import("../_shared/openai-helper.ts");
+      const result = await callOpenAINonStreaming({
+        userApiKey: user_openai_key.trim(),
+        systemPrompt,
+        messages: [{ role: "user", content: userContent }],
+        maxTokens,
+        model: 'gpt-5',
       });
       if (result.error) {
         return new Response(JSON.stringify({ error: result.error }), {

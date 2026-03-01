@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { EquipmentSlotType, Rarity } from '@/lib/inventory/types';
-import { getClaudeEverywhereKey } from '@/lib/api-keys';
+import { getEverywhereKey } from '@/lib/api-keys';
 import { HomebrewGearItem, SLOT_ICONS } from '@/lib/inventory/homebrewGear';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -48,14 +48,15 @@ export function HomebrewGearAI({ open, onOpenChange, onSave }: HomebrewGearAIPro
     setSelected(new Set());
 
     try {
-      const claudeKey = getClaudeEverywhereKey();
+      const everywhereKey = getEverywhereKey();
       const { data, error } = await supabase.functions.invoke('homebrew-assistant', {
         body: {
           prompt: prompt.trim(),
           context: { tree: 'warrior', type: 'active' },
           mode: 'batch_gear',
           count: 4,
-          ...(claudeKey ? { user_api_key: claudeKey } : {}),
+          ...(everywhereKey?.provider === 'anthropic' ? { user_api_key: everywhereKey.key } : {}),
+          ...(everywhereKey?.provider === 'openai' ? { user_openai_key: everywhereKey.key } : {}),
         },
       });
 
@@ -79,13 +80,14 @@ export function HomebrewGearAI({ open, onOpenChange, onSave }: HomebrewGearAIPro
     setRegeneratingIdx(idx);
     try {
       const existingNames = results.map(r => r.name).filter((_, i) => i !== idx);
-      const claudeKey = getClaudeEverywhereKey();
+      const everywhereKey = getEverywhereKey();
       const { data, error } = await supabase.functions.invoke('homebrew-assistant', {
         body: {
           prompt: `${prompt.trim()}\n\nAvoid these names: ${existingNames.join(', ')}`,
           context: { tree: 'warrior', type: 'active' },
           mode: 'gear_concept',
-          ...(claudeKey ? { user_api_key: claudeKey } : {}),
+          ...(everywhereKey?.provider === 'anthropic' ? { user_api_key: everywhereKey.key } : {}),
+          ...(everywhereKey?.provider === 'openai' ? { user_openai_key: everywhereKey.key } : {}),
         },
       });
 

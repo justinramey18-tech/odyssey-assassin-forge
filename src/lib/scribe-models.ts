@@ -3,14 +3,15 @@
  * Reuses the same shape as DMAIModel from dm-models.ts.
  */
 
-import { isClaudeEverywhereEnabled } from '@/lib/api-keys';
+import { isClaudeEverywhereEnabled, isGPTEverywhereEnabled } from '@/lib/api-keys';
 
 const CLAUDE_EVERYWHERE_MODEL_ID = 'anthropic/claude-sonnet-4-5';
+const GPT_EVERYWHERE_MODEL_ID = 'openai-direct/gpt-5';
 
 export interface ScribeModel {
   id: string;
   label: string;
-  provider: 'lovable' | 'anthropic';
+  provider: 'lovable' | 'anthropic' | 'openai-direct';
   description: string;
 }
 
@@ -23,6 +24,12 @@ export const SCRIBE_MODELS: ScribeModel[] = [
   { id: 'anthropic/claude-sonnet-4', label: 'Claude Sonnet 4', provider: 'anthropic', description: 'Excellent narrative (own key)' },
   { id: 'anthropic/claude-sonnet-4-5', label: 'Claude 4.5 Sonnet', provider: 'anthropic', description: 'Strong creative writing (own key)' },
   { id: 'anthropic/claude-sonnet-4-6', label: 'Claude 4.6 Sonnet', provider: 'anthropic', description: 'Best creative writing (own key)' },
+  { id: 'openai-direct/gpt-5', label: 'GPT-5 (own key)', provider: 'openai-direct', description: 'Full GPT-5 via your OpenAI key' },
+  { id: 'openai-direct/gpt-4o', label: 'GPT-4o (own key)', provider: 'openai-direct', description: 'Fast multimodal (own key)' },
+  { id: 'openai-direct/gpt-4o-mini', label: 'GPT-4o Mini (own key)', provider: 'openai-direct', description: 'Cheapest & fastest (own key)' },
+  { id: 'openai-direct/gpt-4-turbo', label: 'GPT-4 Turbo (own key)', provider: 'openai-direct', description: 'Large context (own key)' },
+  { id: 'openai-direct/o1', label: 'o1 (own key)', provider: 'openai-direct', description: 'Advanced reasoning (own key)' },
+  { id: 'openai-direct/o1-mini', label: 'o1 Mini (own key)', provider: 'openai-direct', description: 'Fast reasoning (own key)' },
 ];
 
 export const DEFAULT_SCRIBE_MODEL = 'google/gemini-3-pro-preview';
@@ -31,6 +38,7 @@ const STORAGE_KEY = 'dnd-scribe-ai-model';
 
 export function loadScribeModel(): string {
   if (isClaudeEverywhereEnabled()) return CLAUDE_EVERYWHERE_MODEL_ID;
+  if (isGPTEverywhereEnabled()) return GPT_EVERYWHERE_MODEL_ID;
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved && SCRIBE_MODELS.some(m => m.id === saved)) return saved;
@@ -51,9 +59,14 @@ export function getScribeModelLabel(modelId: string): string {
 /** Returns which edge function to call based on the model provider. */
 export function getEdgeFunctionForModel(modelId: string): 'scribe-ai' | 'narrative-forge' {
   const model = SCRIBE_MODELS.find(m => m.id === modelId);
-  return model?.provider === 'anthropic' ? 'scribe-ai' : 'narrative-forge';
+  // anthropic and openai-direct both use scribe-ai (which handles direct API calls)
+  return (model?.provider === 'anthropic' || model?.provider === 'openai-direct') ? 'scribe-ai' : 'narrative-forge';
 }
 
 export function isAnthropicModel(modelId: string): boolean {
   return modelId.startsWith('anthropic/');
+}
+
+export function isOpenAIDirectModel(modelId: string): boolean {
+  return modelId.startsWith('openai-direct/');
 }

@@ -106,6 +106,7 @@ export function AfkPersonalityGuide({
 
     try {
       const anthropicKey = loadApiKey('anthropic');
+      const openaiKey = loadApiKey('openai');
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/afk-guide-chat`;
 
       const resp = await fetch(url, {
@@ -118,6 +119,7 @@ export function AfkPersonalityGuide({
           messages: newMessages,
           characterName,
           user_api_key: anthropicKey || undefined,
+          user_openai_key: openaiKey || undefined,
         }),
         signal: controller.signal,
       });
@@ -274,6 +276,7 @@ export function AfkPersonalityGuide({
         let assistantContent = '';
         try {
           const anthropicKey = loadApiKey('anthropic');
+          const openaiKey = loadApiKey('openai');
           const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/afk-guide-chat`;
 
           const resp = await fetch(url, {
@@ -286,6 +289,7 @@ export function AfkPersonalityGuide({
               messages: [{ role: 'user', content: 'Start the interview.' }],
               characterName,
               user_api_key: anthropicKey || undefined,
+              user_openai_key: openaiKey || undefined,
             }),
             signal: controller.signal,
           });

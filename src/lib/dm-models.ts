@@ -2,16 +2,18 @@
  * AI model definitions for the Solo AI DM.
  * Models from the Lovable AI gateway use LOVABLE_API_KEY;
  * Claude models route directly to the Anthropic API using ANTHROPIC_API_KEY.
+ * OpenAI models route directly to the OpenAI API using user's own key.
  */
 
-import { isClaudeEverywhereEnabled } from '@/lib/api-keys';
+import { isClaudeEverywhereEnabled, isGPTEverywhereEnabled } from '@/lib/api-keys';
 
 export const CLAUDE_EVERYWHERE_MODEL_ID = 'anthropic/claude-sonnet-4-5';
+export const GPT_EVERYWHERE_MODEL_ID = 'openai-direct/gpt-5';
 
 export interface DMAIModel {
   id: string;
   label: string;
-  provider: 'lovable' | 'anthropic';
+  provider: 'lovable' | 'anthropic' | 'openai-direct';
   description: string;
 }
 
@@ -26,6 +28,12 @@ export const DM_MODELS: DMAIModel[] = [
   { id: 'anthropic/claude-sonnet-4', label: 'Claude 4 Sonnet', provider: 'anthropic', description: 'Excellent narrative & reasoning (own key)' },
   { id: 'anthropic/claude-sonnet-4-5', label: 'Claude 4.5 Sonnet', provider: 'anthropic', description: 'Strong creative writing (own key)' },
   { id: 'anthropic/claude-sonnet-4-6', label: 'Claude 4.6 Sonnet', provider: 'anthropic', description: 'Best creative writing (own key)' },
+  { id: 'openai-direct/gpt-5', label: 'GPT-5 (own key)', provider: 'openai-direct', description: 'Full GPT-5 via your OpenAI key' },
+  { id: 'openai-direct/gpt-4o', label: 'GPT-4o (own key)', provider: 'openai-direct', description: 'Fast multimodal (own key)' },
+  { id: 'openai-direct/gpt-4o-mini', label: 'GPT-4o Mini (own key)', provider: 'openai-direct', description: 'Cheapest & fastest (own key)' },
+  { id: 'openai-direct/gpt-4-turbo', label: 'GPT-4 Turbo (own key)', provider: 'openai-direct', description: 'Large context, high quality (own key)' },
+  { id: 'openai-direct/o1', label: 'o1 (own key)', provider: 'openai-direct', description: 'Advanced reasoning (own key)' },
+  { id: 'openai-direct/o1-mini', label: 'o1 Mini (own key)', provider: 'openai-direct', description: 'Fast reasoning (own key)' },
 ];
 
 export const DEFAULT_MODEL_ID = 'google/gemini-3-pro-preview';
@@ -33,8 +41,8 @@ export const DEFAULT_MODEL_ID = 'google/gemini-3-pro-preview';
 const STORAGE_KEY = 'dnd-dm-ai-model';
 
 export function loadSelectedModel(): string {
-  // If Claude Everywhere is on, always return Claude 4.5 Sonnet
   if (isClaudeEverywhereEnabled()) return CLAUDE_EVERYWHERE_MODEL_ID;
+  if (isGPTEverywhereEnabled()) return GPT_EVERYWHERE_MODEL_ID;
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved && DM_MODELS.some(m => m.id === saved)) return saved;

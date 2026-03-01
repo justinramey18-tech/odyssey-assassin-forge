@@ -52,6 +52,9 @@ export function AIGuideCreator({ guides, campaignSummary, chatMessages, onAdd }:
         const key = loadApiKey('anthropic');
         if (key) body.user_api_key = key;
       }
+      // Also pass OpenAI key if available for openai-direct models
+      const openaiKey = loadApiKey('openai');
+      if (openaiKey) body.user_openai_key = openaiKey;
 
       const token = await getAuthToken();
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
