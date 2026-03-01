@@ -40,6 +40,7 @@ import type { UsePartySyncReturn } from '@/hooks/use-party-sync';
 import { CloudSaveDebugPanel } from './CloudSaveDebugPanel';
 import { CharacterRenameWidget } from './CharacterRenameWidget';
 import { DevToolsPanel } from './DevToolsPanel';
+import { SpotifySettingsTab } from './SpotifySettingsTab';
 
 interface SettingsContentProps {
   activeTab: SettingsTab;
@@ -543,6 +544,11 @@ export function SettingsContent({
   // ─── ELEVENLABS ───
   if (activeTab === 'elevenlabs') {
     return <ElevenLabsSettingsTab />;
+  }
+
+  // ─── SPOTIFY ───
+  if (activeTab === 'spotify') {
+    return <SpotifySettingsTab />;
   }
 
   // ─── APP & SYSTEM ───
