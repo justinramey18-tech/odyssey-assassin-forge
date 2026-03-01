@@ -4,7 +4,7 @@ import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { loadSelectedModel, saveSelectedModel, getModelLabel } from '@/lib/dm-models';
 import { formatUsage, formatCostShort } from '@/lib/token-usage';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Zap, Map, Film, Image as ImageIcon, Copy, Check, Pencil, RefreshCw, X, MoreVertical, Globe, Settings, Volume2, VolumeX, Bird } from 'lucide-react';
+import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Zap, Map, Film, Image as ImageIcon, Copy, Check, Pencil, RefreshCw, X, MoreVertical, Globe, Settings, Volume2, VolumeX, Bird, Maximize2, Minimize2 } from 'lucide-react';
 import { loadState as loadGeraltState, saveState as saveGeraltState } from '@/components/companion/geralt-data';
 import { NarrationSpeedPopover } from './NarrationSpeedPopover';
 import { DMToolsDrawer } from './DMToolsDrawer';
@@ -332,6 +332,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const [navExpanded, setNavExpanded] = useState(false);
   const [showStoneDrawer, setShowStoneDrawer] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Geralt companion auto-sync callbacks (momo only)
   const handleCompanionHPChange = useCallback((change: number, type: 'damage' | 'healing') => {
@@ -605,6 +606,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]">
       {/* Row 1: Main Header */}
+      {!isFullscreen && (
       <header className="flex items-center justify-between px-3 py-2.5 border-b border-amber-900/30 bg-black/40 backdrop-blur-sm">
         <div className="flex items-center gap-2">
           <button
@@ -635,6 +637,14 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
             </span>
           )}
           <button
+            onClick={() => { setIsFullscreen(true); setNavExpanded(false); }}
+            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+            style={{ touchAction: 'manipulation' }}
+            title="Fullscreen"
+          >
+            <Maximize2 className="w-5 h-5 text-white/60" />
+          </button>
+          <button
             onClick={() => setShowToolsDrawer(true)}
             className="p-2 rounded-lg hover:bg-white/10 transition-colors"
             style={{ touchAction: 'manipulation' }}
@@ -644,8 +654,10 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           </button>
         </div>
       </header>
+      )}
 
-      {/* Row 2: Sub-Header Strip */}
+      {!isFullscreen && (
+      <>
       <button
         onClick={() => setShowContext(prev => !prev)}
         className="flex items-center gap-2 px-3 py-1.5 bg-black/30 border-b border-amber-900/20 hover:bg-black/40 transition-colors overflow-x-auto scrollbar-hide"
@@ -740,6 +752,8 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           </motion.div>
         )}
       </AnimatePresence>
+      </>
+      )}
 
       {/* Messages / Battle Map + World State Panel side-by-side */}
       <div className="flex-1 min-h-0 relative flex overflow-hidden">
@@ -1002,21 +1016,35 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
       </div>
 
       {/* Bottom Navigation Drawer */}
-      <DMBottomNav
-        activeTab={activeNavTab}
-        onTabChange={handleNavTabChange}
-        isExpanded={navExpanded}
-        onExpandedChange={setNavExpanded}
-        disabled={isLoading}
-        showGeralt={isMomo}
-        diceContent={showDiceContent ? (
-          <DMDiceRoller
-            characterContext={characterContext}
-            onRollResult={handleUsePrompt}
-            disabled={isLoading}
-          />
-        ) : undefined}
-      />
+      {!isFullscreen && (
+        <DMBottomNav
+          activeTab={activeNavTab}
+          onTabChange={handleNavTabChange}
+          isExpanded={navExpanded}
+          onExpandedChange={setNavExpanded}
+          disabled={isLoading}
+          showGeralt={isMomo}
+          diceContent={showDiceContent ? (
+            <DMDiceRoller
+              characterContext={characterContext}
+              onRollResult={handleUsePrompt}
+              disabled={isLoading}
+            />
+          ) : undefined}
+        />
+      )}
+
+      {/* Fullscreen Exit Button */}
+      {isFullscreen && (
+        <button
+          onClick={() => setIsFullscreen(false)}
+          className="fixed bottom-20 right-3 z-[61] w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center transition-colors"
+          style={{ touchAction: 'manipulation' }}
+          title="Exit fullscreen"
+        >
+          <Minimize2 className="w-4 h-4 text-white/70" />
+        </button>
+      )}
 
       {/* Geralt Gameplay Widget (momo only) */}
       {isMomo && (

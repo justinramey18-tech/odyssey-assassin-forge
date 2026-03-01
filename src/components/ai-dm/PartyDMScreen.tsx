@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock } from 'lucide-react';
+import { ArrowLeft, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock, Maximize2, Minimize2 } from 'lucide-react';
 import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
 import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
@@ -480,6 +480,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
   const [showSplitSummaries, setShowSplitSummaries] = useState(false);
   const [showTimerSettings, setShowTimerSettings] = useState(false);
   const [showAfkGuide, setShowAfkGuide] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [myAfkGuide, setMyAfkGuide] = useState<string | null>(() => {
     const me = members.find(m => m.user_id === currentUserId);
     return (me?.character_status?.afkPersonalityGuide as string) || null;
@@ -699,6 +700,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
     <div className="fixed inset-0 z-[60] flex flex-col bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]">
       {/* Header */}
       {/* Row 1: Main Header */}
+      {!isFullscreen && (
       <header className="flex items-center justify-between px-3 py-2.5 border-b border-amber-900/30 bg-black/40 backdrop-blur-sm">
         <div className="flex items-center gap-2">
           <button onClick={onBack} className="p-2 rounded-lg hover:bg-white/10 transition-colors" style={{ touchAction: 'manipulation' }}>
@@ -734,10 +736,20 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
               <Save className="w-4 h-4 text-white/30 hover:text-amber-400/60" />
             </button>
           )}
+          <button
+            onClick={() => { setIsFullscreen(true); setNavExpanded(false); }}
+            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+            style={{ touchAction: 'manipulation' }}
+            title="Fullscreen"
+          >
+            <Maximize2 className="w-5 h-5 text-white/60" />
+          </button>
         </div>
       </header>
+      )}
 
       {/* Row 2: Sub-Header Strip (status only) */}
+      {!isFullscreen && (
       <div className="flex items-center gap-1.5 px-3 py-1.5 bg-black/30 border-b border-amber-900/20">
         {mode === 'shared' ? (
           <span className="flex items-center gap-1 text-[11px] text-emerald-300/70 whitespace-nowrap">
@@ -769,6 +781,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
           </>
         )}
       </div>
+      )}
 
       {/* New Campaign Name Input */}
       <AnimatePresence>
@@ -1421,82 +1434,96 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
       </div>
 
       {/* Bottom Navigation Drawer */}
-      <DMBottomNav
-        activeTab={activeNavTab}
-        onTabChange={handleNavTabChange}
-        isExpanded={navExpanded}
-        onExpandedChange={setNavExpanded}
-        disabled={partyDm.isGenerating}
-        showGeralt={isMomo}
-        diceContent={showDiceContent ? (
-          <DMDiceRoller
-            characterContext={characterContext!}
-            onRollResult={handleDiceRoll}
-            disabled={partyDm.isGenerating}
-          />
-        ) : undefined}
-        settingsContent={activeNavTab === 'settings' ? (
-          <PartyDMSettings
-            mode={mode}
-            onToggleMode={() => {
-              const newMode = mode === 'shared' ? 'private' : 'shared';
-              if (partyDm.sessionConfig) {
-                const updated = { ...partyDm.sessionConfig, mode: newMode as 'shared' | 'private' };
-                (supabase.from('party_shared_state') as any)
-                  .update({ state_data: updated })
-                  .eq('state_type', 'dm_session')
-                  .then(() => {});
-              }
-            }}
-            isCreator={isCreator}
-            autoSyncEnabled={autoSyncEnabled}
-            onToggleAutoSync={onToggleAutoSync}
-            isExtracting={isExtracting}
-            pushState={pushState}
-            onTogglePush={handleTogglePush}
-            onShowMap={onShowMap}
-            onShowSaves={onShowSaves}
-            onShowGuides={onShowGuides}
-            onShowChat={onShowChat}
-            onShowAfkGuide={() => setShowAfkGuide(true)}
-            guidesCount={guidesCount}
-            myAfkGuide={myAfkGuide}
-            myAfkCascadeCount={myAfkCascade?.length ?? 0}
-            isSplitActive={partyDm.isSplitActive}
-            memberCount={memberCount}
-            onShowSplitInitiator={() => setShowSplitInitiator(true)}
-            onShowRegroupDialog={() => setShowRegroupDialog(true)}
-            onShowSplitSummaries={() => setShowSplitSummaries(true)}
-            onNewCampaign={() => {
-              setShowNewCampaignInput(true);
-              setNewCampaignName('');
-            }}
-            onEndSession={partyDm.endSession}
-            timerEnabled={localTimerEnabled}
-            timerDurationSeconds={localTimerDuration}
-            onTimerEnabledChange={(enabled) => {
-              setLocalTimerEnabled(enabled);
-              if (partyDm.sessionConfig) {
-                const updated = { ...partyDm.sessionConfig, timerEnabled: enabled };
-                (supabase.from('party_shared_state') as any)
-                  .update({ state_data: updated })
-                  .eq('state_type', 'dm_session')
-                  .then(() => {});
-              }
-            }}
-            onTimerDurationChange={(seconds) => {
-              setLocalTimerDuration(seconds);
-              if (partyDm.sessionConfig) {
-                const updated = { ...partyDm.sessionConfig, timerDurationSeconds: seconds };
-                (supabase.from('party_shared_state') as any)
-                  .update({ state_data: updated })
-                  .eq('state_type', 'dm_session')
-                  .then(() => {});
-              }
-            }}
-          />
-        ) : undefined}
-      />
+      {!isFullscreen && (
+        <DMBottomNav
+          activeTab={activeNavTab}
+          onTabChange={handleNavTabChange}
+          isExpanded={navExpanded}
+          onExpandedChange={setNavExpanded}
+          disabled={partyDm.isGenerating}
+          showGeralt={isMomo}
+          diceContent={showDiceContent ? (
+            <DMDiceRoller
+              characterContext={characterContext!}
+              onRollResult={handleDiceRoll}
+              disabled={partyDm.isGenerating}
+            />
+          ) : undefined}
+          settingsContent={activeNavTab === 'settings' ? (
+            <PartyDMSettings
+              mode={mode}
+              onToggleMode={() => {
+                const newMode = mode === 'shared' ? 'private' : 'shared';
+                if (partyDm.sessionConfig) {
+                  const updated = { ...partyDm.sessionConfig, mode: newMode as 'shared' | 'private' };
+                  (supabase.from('party_shared_state') as any)
+                    .update({ state_data: updated })
+                    .eq('state_type', 'dm_session')
+                    .then(() => {});
+                }
+              }}
+              isCreator={isCreator}
+              autoSyncEnabled={autoSyncEnabled}
+              onToggleAutoSync={onToggleAutoSync}
+              isExtracting={isExtracting}
+              pushState={pushState}
+              onTogglePush={handleTogglePush}
+              onShowMap={onShowMap}
+              onShowSaves={onShowSaves}
+              onShowGuides={onShowGuides}
+              onShowChat={onShowChat}
+              onShowAfkGuide={() => setShowAfkGuide(true)}
+              guidesCount={guidesCount}
+              myAfkGuide={myAfkGuide}
+              myAfkCascadeCount={myAfkCascade?.length ?? 0}
+              isSplitActive={partyDm.isSplitActive}
+              memberCount={memberCount}
+              onShowSplitInitiator={() => setShowSplitInitiator(true)}
+              onShowRegroupDialog={() => setShowRegroupDialog(true)}
+              onShowSplitSummaries={() => setShowSplitSummaries(true)}
+              onNewCampaign={() => {
+                setShowNewCampaignInput(true);
+                setNewCampaignName('');
+              }}
+              onEndSession={partyDm.endSession}
+              timerEnabled={localTimerEnabled}
+              timerDurationSeconds={localTimerDuration}
+              onTimerEnabledChange={(enabled) => {
+                setLocalTimerEnabled(enabled);
+                if (partyDm.sessionConfig) {
+                  const updated = { ...partyDm.sessionConfig, timerEnabled: enabled };
+                  (supabase.from('party_shared_state') as any)
+                    .update({ state_data: updated })
+                    .eq('state_type', 'dm_session')
+                    .then(() => {});
+                }
+              }}
+              onTimerDurationChange={(seconds) => {
+                setLocalTimerDuration(seconds);
+                if (partyDm.sessionConfig) {
+                  const updated = { ...partyDm.sessionConfig, timerDurationSeconds: seconds };
+                  (supabase.from('party_shared_state') as any)
+                    .update({ state_data: updated })
+                    .eq('state_type', 'dm_session')
+                    .then(() => {});
+                }
+              }}
+            />
+          ) : undefined}
+        />
+      )}
+
+      {/* Fullscreen Exit Button */}
+      {isFullscreen && (
+        <button
+          onClick={() => setIsFullscreen(false)}
+          className="fixed bottom-20 right-3 z-[61] w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center transition-colors"
+          style={{ touchAction: 'manipulation' }}
+          title="Exit fullscreen"
+        >
+          <Minimize2 className="w-4 h-4 text-white/70" />
+        </button>
+      )}
 
       {/* Geralt Gameplay Widget (momo only) */}
       {isMomo && (
