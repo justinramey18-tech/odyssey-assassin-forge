@@ -143,6 +143,7 @@ const Index = () => {
   const [showCloudSaveModal, setShowCloudSaveModal] = useState(false);
   const [openPartyChatRequested, setOpenPartyChatRequested] = useState(false);
   const [autoOpenPartyDM, setAutoOpenPartyDM] = useState(false);
+  const [autoOpenSoloDM, setAutoOpenSoloDM] = useState(false);
   const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string | null>(null);
   const [isSwitchingCharacter, setIsSwitchingCharacter] = useState(false);
   const [activeCloudSaveId, setActiveCloudSaveId] = useState<string | null>(() => {
@@ -2342,6 +2343,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           setShowIntroSplash(false);
           if (mode === 'party') {
             setAutoOpenPartyDM(true);
+          } else if (mode === 'storyteller') {
+            setAutoOpenSoloDM(true);
           }
         }}
       />
@@ -2507,6 +2510,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           onOpenModeSelection={() => setShowIntroSplash(true)}
           autoOpenPartyDM={autoOpenPartyDM}
           onAutoOpenPartyDMHandled={() => setAutoOpenPartyDM(false)}
+          autoOpenSoloDM={autoOpenSoloDM}
+          onAutoOpenSoloDMHandled={() => setAutoOpenSoloDM(false)}
         />
         
         {/* Settings Modal */}
