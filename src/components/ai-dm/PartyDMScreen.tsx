@@ -1508,14 +1508,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
         />
       )}
 
-      {/* Fullscreen Toggle Button - always bottom-right of chat area */}
+      {/* Fullscreen Toggle Button - always bottom-left of chat area */}
       <button
         onClick={() => {
           if (!isFullscreen) setNavExpanded(false);
           setIsFullscreen(f => !f);
         }}
         className={cn(
-          "fixed right-3 z-[61] w-9 h-9 rounded-full flex items-center justify-center transition-all",
+          "fixed left-3 z-[61] w-9 h-9 rounded-full flex items-center justify-center transition-all",
           isFullscreen
             ? "bottom-8 bg-black/50 hover:bg-black/70"
             : "bottom-[176px] bg-black/30 hover:bg-black/50"
