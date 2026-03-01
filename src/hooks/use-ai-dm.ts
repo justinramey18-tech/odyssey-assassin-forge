@@ -339,7 +339,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
     }
   }, [campaignSummary]);
 
-  const sendMessage = useCallback(async (content: string) => {
+  const sendMessage = useCallback(async (content: string, overrideHistory?: Message[]) => {
     if (!content.trim() || isLoading) return;
 
     const userMessage: Message = {
@@ -353,7 +353,8 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
     setIsLoading(true);
 
     // Build API messages with sliding window
-    const allMessages = [...messages, userMessage];
+    const baseMessages = overrideHistory ?? messages;
+    const allMessages = [...baseMessages, userMessage];
     const apiMessages = allMessages.length > MAX_MESSAGES
       ? [...allMessages.slice(0, 2), ...allMessages.slice(-(MAX_MESSAGES - 2))]
       : allMessages;
@@ -597,37 +598,39 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
   }, []);
 
   const deleteMessage = useCallback((messageId: string) => {
-    setMessages(prev => prev.filter(m => m.id !== messageId));
+    setMessages(prev => {
+      const idx = prev.findIndex(m => m.id === messageId);
+      if (idx === -1) return prev;
+      const msg = prev[idx];
+      if (msg.role === 'user') {
+        // Also remove the paired assistant response (next message)
+        const next = prev[idx + 1];
+        if (next && next.role === 'assistant') {
+          return prev.filter((_, i) => i !== idx && i !== idx + 1);
+        }
+      }
+      return prev.filter(m => m.id !== messageId);
+    });
   }, []);
 
   const regenerateMessage = useCallback(async (messageId: string) => {
     if (isLoading) return;
 
-    // Find the assistant message to regenerate
     const idx = messages.findIndex(m => m.id === messageId);
     if (idx === -1) return;
 
-    // Get all messages up to (but not including) the assistant message
     const precedingMessages = messages.slice(0, idx);
-
-    // Find the last user message before this assistant message
     const lastUserMsg = [...precedingMessages].reverse().find(m => m.role === 'user');
     if (!lastUserMsg) {
       toast.error('No user message to regenerate from');
       return;
     }
 
-    // Remove the assistant message + everything after it, AND the last user message
-    // (sendMessage will re-add the user message)
-    const messagesWithoutLastUser = precedingMessages.filter(m => m.id !== lastUserMsg.id);
-    setMessages(messagesWithoutLastUser);
+    const trimmedHistory = precedingMessages.filter(m => m.id !== lastUserMsg.id);
+    setMessages(trimmedHistory);
 
-    // Use setTimeout to let state settle, then re-send
-    // We need to call sendMessage with the correct preceding context
-    // Since sendMessage reads `messages` from state, we schedule it after the state update
-    setTimeout(() => {
-      sendMessage(lastUserMsg.content);
-    }, 0);
+    // Pass trimmed history directly to avoid stale closure
+    sendMessage(lastUserMsg.content, trimmedHistory);
   }, [messages, isLoading, sendMessage]);
 
   return {
