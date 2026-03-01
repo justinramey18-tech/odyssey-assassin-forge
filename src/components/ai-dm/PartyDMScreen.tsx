@@ -482,6 +482,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
     const me = members.find(m => m.user_id === currentUserId);
     return (me?.character_status?.afkPersonalityGuide as string) || null;
   });
+  const [myAfkCascade, setMyAfkCascade] = useState<string[] | null>(() => {
+    const me = members.find(m => m.user_id === currentUserId);
+    return (me?.character_status?.afkPromptCascade as string[]) || null;
+  });
   const [localTimerEnabled, setLocalTimerEnabled] = useState(partyDm.sessionConfig?.timerEnabled ?? false);
   const [localTimerDuration, setLocalTimerDuration] = useState(partyDm.sessionConfig?.timerDurationSeconds ?? 120);
 
@@ -1639,7 +1643,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
           userId={currentUserId}
           characterName={members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown'}
           currentGuide={myAfkGuide}
-          onSaved={setMyAfkGuide}
+          currentCascade={myAfkCascade}
+          onSaved={(guide, cascade) => {
+            setMyAfkGuide(guide);
+            setMyAfkCascade(cascade);
+          }}
         />
       )}
     </div>
