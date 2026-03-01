@@ -161,6 +161,8 @@ interface HomeScreenProps {
   onOpenModeSelection?: () => void;
   autoOpenPartyDM?: boolean;
   onAutoOpenPartyDMHandled?: () => void;
+  autoOpenSoloDM?: boolean;
+  onAutoOpenSoloDMHandled?: () => void;
 }
 
 /** Map dragon form names to element-appropriate tint colors */
@@ -260,6 +262,8 @@ export function HomeScreen({
   onOpenModeSelection,
   autoOpenPartyDM = false,
   onAutoOpenPartyDMHandled,
+  autoOpenSoloDM = false,
+  onAutoOpenSoloDMHandled,
 }: HomeScreenProps) {
   // Default visibility: show everything if no filter provided
   const showFeature = isHomeFeatureVisible ?? (() => true);
@@ -414,6 +418,14 @@ export function HomeScreen({
       onAutoOpenPartyDMHandled?.();
     }
   }, [autoOpenPartyDM, drawerContext, onAutoOpenPartyDMHandled]);
+
+  // Auto-open Solo DM when selected from onboarding
+  useEffect(() => {
+    if (autoOpenSoloDM && drawerContext) {
+      drawerContext.openAIDMScreen();
+      onAutoOpenSoloDMHandled?.();
+    }
+  }, [autoOpenSoloDM, drawerContext, onAutoOpenSoloDMHandled]);
 
   const handleQuickAction = (action: 'shortRest' | 'longRest' | 'levelUp') => {
     triggerHaptic('medium');
