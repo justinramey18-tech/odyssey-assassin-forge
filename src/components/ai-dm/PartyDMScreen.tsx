@@ -838,6 +838,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
           title={myAfkGuide ? 'AFK guide configured' : 'Set AFK personality guide'}
         >
           <Ghost className="w-3 h-3 inline mr-0.5" />AFK
+          {myAfkCascade && myAfkCascade.length > 0 && (
+            <span className="ml-0.5 inline-flex items-center justify-center min-w-[14px] h-[14px] rounded-full bg-purple-500/60 text-[9px] font-bold text-purple-100 px-0.5">
+              {myAfkCascade.length}
+            </span>
+          )}
         </button>
         {/* Push notification toggle */}
         {pushState !== 'unsupported' && (
@@ -1178,7 +1183,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
                           )}
                           <span className="truncate flex-1">{m.character_name}</span>
                           {(m as any).character_status?.afkPersonalityGuide && (
-                            <span title="AFK guide configured"><Ghost className="w-2.5 h-2.5 text-purple-400/60 shrink-0" /></span>
+                            <span title="AFK guide configured" className="flex items-center gap-0.5">
+                              <Ghost className="w-2.5 h-2.5 text-purple-400/60 shrink-0" />
+                              {((m as any).character_status?.afkPromptCascade as string[] | undefined)?.length ? (
+                                <span className="text-[8px] font-bold text-purple-400/80 min-w-[10px] text-center">
+                                  {((m as any).character_status.afkPromptCascade as string[]).length}
+                                </span>
+                              ) : null}
+                            </span>
                           )}
                           {prompt?.is_ready ? (
                             <CheckCheck className="w-3 h-3 text-emerald-400" />
