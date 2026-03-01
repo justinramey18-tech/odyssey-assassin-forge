@@ -1038,8 +1038,8 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         className={cn(
           "fixed right-3 z-[61] w-9 h-9 rounded-full flex items-center justify-center transition-all",
           isFullscreen
-            ? "bottom-4 bg-black/50 hover:bg-black/70"
-            : "bottom-[160px] bg-black/30 hover:bg-black/50"
+            ? "bottom-8 bg-black/50 hover:bg-black/70"
+            : "bottom-[176px] bg-black/30 hover:bg-black/50"
         )}
         style={{ touchAction: 'manipulation' }}
         title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
