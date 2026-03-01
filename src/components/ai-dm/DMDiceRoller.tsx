@@ -6,6 +6,7 @@ import { rollDie } from '@/lib/diceRoller';
 import { rollWeightedDie, loadDiceOddsMode, saveDiceOddsMode, DICE_ODDS_CONFIGS, type DiceOddsMode } from '@/lib/diceOdds';
 import { SKILLS, ABILITY_SCORES, type AbilityScore } from '@/lib/diceRollerConfig';
 import type { CharacterContext } from '@/components/oracle/types';
+import { playDiceRattle, playDiceThud } from '@/lib/diceSounds';
 
 type RollMode = 'normal' | 'advantage' | 'disadvantage';
 type Tab = 'd20' | 'skills' | 'saves';
@@ -108,25 +109,26 @@ const QUICK_DICE = [
 ];
 
 // Animated rolling number component
-function RollingNumber({ target, sides, duration = 600 }: { target: number; sides: number; duration?: number }) {
+function RollingNumber({ target, sides, duration = 600, onLand }: { target: number; sides: number; duration?: number; onLand?: () => void }) {
   const [display, setDisplay] = useState(target);
   const [isRolling, setIsRolling] = useState(true);
   const frameRef = useRef<number>(0);
 
   useEffect(() => {
     setIsRolling(true);
+    playDiceRattle(duration);
     const startTime = Date.now();
     const tick = () => {
       const elapsed = Date.now() - startTime;
       if (elapsed < duration) {
-        // Show random numbers, slowing down toward the end
         const progress = elapsed / duration;
-        const interval = 40 + progress * 120; // starts fast, slows down
+        const interval = 40 + progress * 120;
         setDisplay(Math.floor(Math.random() * sides) + 1);
         frameRef.current = window.setTimeout(tick, interval);
       } else {
         setDisplay(target);
         setIsRolling(false);
+        onLand?.();
       }
     };
     tick();
@@ -284,6 +286,7 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
                           target={r}
                           sides={lastRoll.isQuickDie ? (lastRoll.dieSides ?? 20) : 20}
                           duration={isDropped ? 400 : 600}
+                          onLand={!isDropped ? () => playDiceThud(lastRoll.isCrit, lastRoll.isFumble) : undefined}
                         />
                       </span>
                     );
