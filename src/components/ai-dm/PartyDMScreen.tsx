@@ -75,6 +75,30 @@ function getMemberColor(userId: string, members: Array<{ user_id: string }>): st
 
 const PARTY_VIDEO_REGEX = /^\s*\[video:(https?:\/\/.+)\]\s*$/;
 const PARTY_IMAGE_REGEX = /^\s*\[image:(https?:\/\/.+)\]\s*$/;
+const AFK_LINE_REGEX = /^(\[.+?\]) \(AFK\): (.+)$/;
+
+function AfkAnnotatedContent({ content }: { content: string }) {
+  const lines = content.split('\n');
+  return (
+    <>
+      {lines.map((line, i) => {
+        const match = line.match(AFK_LINE_REGEX);
+        if (match) {
+          return (
+            <span key={i} className="block">
+              <span className="inline-flex items-center gap-1 rounded-md bg-purple-500/15 border border-purple-500/20 px-1.5 py-0.5 mr-1 text-[10px] text-purple-300 font-medium align-middle">
+                <Ghost className="w-3 h-3" />
+                AFK
+              </span>
+              <span>{match[1]}: {match[2]}</span>
+            </span>
+          );
+        }
+        return <span key={i} className="block">{line}</span>;
+      })}
+    </>
+  );
+}
 
 function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, showTeamTag }: {
   message: PartyDmMessage;
@@ -327,7 +351,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
               </span>
             </span>
           ) : (
-            message.content
+            <AfkAnnotatedContent content={message.content} />
           )}
         </p>
         )}
