@@ -1,13 +1,19 @@
 import { useState } from 'react';
-import { Play, Pause, SkipForward, SkipBack, Volume2, Music, Wifi, WifiOff, Plus, Trash2, X, Sparkles, Monitor, Link, Unlink } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, Volume2, Music, Wifi, WifiOff, Plus, Trash2, X, Sparkles, Monitor, Link, Unlink, Radio } from 'lucide-react';
 import { useSpotify } from '@/hooks/use-spotify';
+import { usePartySpotifySync } from '@/hooks/use-party-spotify-sync';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import type { MoodPreset } from '@/lib/spotify';
 
-function PresetPill({ preset, spotify }: { preset: MoodPreset; spotify: ReturnType<typeof useSpotify> }) {
+interface DMSpotifyControlsProps {
+  partyId?: string | null;
+  isCreator?: boolean;
+}
+
+function PresetPill({ preset, spotify, onPlay }: { preset: MoodPreset; spotify: ReturnType<typeof useSpotify>; onPlay?: (uri: string, name: string) => void }) {
   const [linkInput, setLinkInput] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
   const [open, setOpen] = useState(false);
@@ -26,6 +32,7 @@ function PresetPill({ preset, spotify }: { preset: MoodPreset; spotify: ReturnTy
   const handlePlay = () => {
     if (preset.playlistUri) {
       spotify.playPlaylist(preset.playlistUri);
+      onPlay?.(preset.playlistUri, preset.playlistName || preset.label);
     } else {
       spotify.searchAndAssignPreset(preset.id);
     }
@@ -123,8 +130,15 @@ function PresetPill({ preset, spotify }: { preset: MoodPreset; spotify: ReturnTy
   );
 }
 
-export function DMSpotifyControls() {
+export function DMSpotifyControls({ partyId, isCreator = false }: DMSpotifyControlsProps = {}) {
   const spotify = useSpotify();
+  const partySync = usePartySpotifySync({
+    partyId: partyId || null,
+    isCreator,
+    connected: spotify.connected,
+    playback: spotify.playback,
+    playPlaylist: spotify.playPlaylist,
+  });
   const [showAddForm, setShowAddForm] = useState(false);
   const [newLabel, setNewLabel] = useState('');
   const [newQuery, setNewQuery] = useState('');
@@ -249,6 +263,45 @@ export function DMSpotifyControls() {
         />
       </div>
 
+      {/* Party Music Sync */}
+      {partyId && (
+        <div className="flex items-center justify-between py-1">
+          <div className="flex items-center gap-2 min-w-0">
+            <Radio className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+            <div className="min-w-0">
+              {isCreator ? (
+                <>
+                  <p className="text-xs font-medium">Broadcasting Music</p>
+                  <p className="text-[10px] text-muted-foreground">Party members synced to your audio</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs font-medium">Sync to Host</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {partySync.syncEnabled
+                      ? partySync.hostPlaylist
+                        ? `Playing: ${partySync.hostPlaylist.name}`
+                        : 'Waiting for host to play...'
+                      : 'Play the same music as the host'
+                    }
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+          {!isCreator && (
+            <Switch
+              checked={partySync.syncEnabled}
+              onCheckedChange={partySync.toggleSync}
+              className="data-[state=checked]:bg-blue-600"
+            />
+          )}
+          {isCreator && (
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400 font-medium">Live</span>
+          )}
+        </div>
+      )}
+
       {/* Mood presets */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
@@ -313,7 +366,7 @@ export function DMSpotifyControls() {
 
         <div className="flex flex-wrap gap-1.5">
           {spotify.moodPresets.map(preset => (
-            <PresetPill key={preset.id} preset={preset} spotify={spotify} />
+            <PresetPill key={preset.id} preset={preset} spotify={spotify} onPlay={partySync.onHostPlayPlaylist} />
           ))}
         </div>
 

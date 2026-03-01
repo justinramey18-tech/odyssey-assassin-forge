@@ -68,6 +68,7 @@ export interface PartyDMSettingsProps {
   mode: 'shared' | 'private';
   onToggleMode: () => void;
   isCreator: boolean;
+  partyId?: string | null;
   autoSyncEnabled?: boolean;
   onToggleAutoSync?: (enabled: boolean) => void;
   isExtracting?: boolean;
@@ -99,7 +100,7 @@ export interface PartyDMSettingsProps {
 }
 
 export function PartyDMSettings({
-  mode, onToggleMode, isCreator,
+  mode, onToggleMode, isCreator, partyId,
   autoSyncEnabled, onToggleAutoSync, isExtracting,
   pushState, onTogglePush,
   onShowMap, onShowSaves, onShowGuides, onShowChat, onShowAfkGuide,
@@ -181,7 +182,7 @@ export function PartyDMSettings({
 
       {/* Spotify Controls */}
       <SettingsSection title="Ambient Music" icon={<Music className="w-4 h-4 text-emerald-400" />}>
-        <DMSpotifyControls />
+        <DMSpotifyControls partyId={partyId} isCreator={isCreator} />
       </SettingsSection>
 
       {/* Party Management (creator only) */}
