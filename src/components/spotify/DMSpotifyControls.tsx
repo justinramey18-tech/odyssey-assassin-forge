@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Play, Pause, SkipForward, SkipBack, Volume2, Music, Wifi, WifiOff, Plus, Trash2, X } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, Volume2, Music, Wifi, WifiOff, Plus, Trash2, X, Sparkles } from 'lucide-react';
 import { useSpotify } from '@/hooks/use-spotify';
 import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import type { MoodPreset } from '@/lib/spotify';
 
@@ -109,6 +110,22 @@ export function DMSpotifyControls() {
         {spotify.isPremium === false && (
           <p className="text-[9px] text-amber-500/80 text-center">Premium required for volume control</p>
         )}
+      </div>
+
+      {/* Auto-Mood toggle */}
+      <div className="flex items-center justify-between py-1">
+        <div className="flex items-center gap-2 min-w-0">
+          <Sparkles className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-xs font-medium">Auto-Mood</p>
+            <p className="text-[10px] text-muted-foreground">AI picks music based on the story</p>
+          </div>
+        </div>
+        <Switch
+          checked={spotify.autoMoodEnabled}
+          onCheckedChange={spotify.setAutoMoodEnabled}
+          className="data-[state=checked]:bg-emerald-600"
+        />
       </div>
 
       {/* Mood presets */}

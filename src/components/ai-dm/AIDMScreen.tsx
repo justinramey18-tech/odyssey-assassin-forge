@@ -9,6 +9,7 @@ import { loadState as loadGeraltState, saveState as saveGeraltState } from '@/co
 import { NarrationSpeedPopover } from './NarrationSpeedPopover';
 import { DMToolsDrawer } from './DMToolsDrawer';
 import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
+import { useSpotify } from '@/hooks/use-spotify';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
@@ -327,6 +328,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const gmGuides = useGMGuides();
   const { toast } = useToast();
   const narrator = useNarrator();
+  const spotify = useSpotify();
 
   // Bottom nav state
   const [activeNavTab, setActiveNavTab] = useState<DMNavTab | null>(null);
@@ -397,7 +399,9 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     }
     // Always run memory extraction in the background via ref — avoids hook ordering issues
     extractMemoryRef.current?.(content, memoryAnchorsRef.current, characterContext);
-  }, [autoSync.autoSyncEnabled, autoSync.extractAndApply, characterContext]);
+    // Auto-mood: detect narrative mood and switch Spotify preset
+    spotify.playMoodForText(content);
+  }, [autoSync.autoSyncEnabled, autoSync.extractAndApply, characterContext, spotify.playMoodForText]);
 
   const handleCampaignSwitch = useCallback((guideIds: string[] | null) => {
     gmGuides.setActiveGuideIds(guideIds);
