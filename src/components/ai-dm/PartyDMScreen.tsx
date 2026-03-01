@@ -608,6 +608,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
       setShowGeraltWidget(true);
       return;
     }
+    if (tab === 'afk') {
+      setShowAfkGuide(true);
+      return;
+    }
     // Dice tab toggles
     setActiveNavTab(prev => prev === tab ? null : tab);
   }, []);

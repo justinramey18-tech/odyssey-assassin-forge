@@ -1,9 +1,9 @@
 import { useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Dices, Gem, ListChecks, Bird } from 'lucide-react';
+import { Dices, Gem, ListChecks, Bird, Ghost } from 'lucide-react';
 
-export type DMNavTab = 'dice' | 'prompts' | 'actions' | 'geralt';
+export type DMNavTab = 'dice' | 'prompts' | 'actions' | 'geralt' | 'afk';
 
 interface DMBottomNavProps {
   activeTab: DMNavTab | null;
@@ -24,16 +24,18 @@ const BASE_TABS = [
 ];
 
 const GERALT_TAB = { id: 'geralt' as DMNavTab, label: 'GERALT', icon: Bird, color: 'text-pink-400', activeBg: 'bg-pink-500/10' };
+const AFK_TAB = { id: 'afk' as DMNavTab, label: 'AFK', icon: Ghost, color: 'text-purple-400', activeBg: 'bg-purple-500/10' };
 
 const activeIndicatorColors: Record<DMNavTab, string> = {
   dice: 'bg-amber-500',
   prompts: 'bg-yellow-500',
   actions: 'bg-emerald-500',
   geralt: 'bg-pink-500',
+  afk: 'bg-purple-500',
 };
 
 export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, showGeralt }: DMBottomNavProps) {
-  const tabs = showGeralt ? [...BASE_TABS, GERALT_TAB] : BASE_TABS;
+  const tabs = [...BASE_TABS, AFK_TAB, ...(showGeralt ? [GERALT_TAB] : [])];
   const touchStartY = useRef(0);
   const touchStartTime = useRef(0);
 
