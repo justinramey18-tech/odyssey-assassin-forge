@@ -1,14 +1,34 @@
-import { Play, Pause, SkipForward, SkipBack, Volume2, Music, Wifi, WifiOff } from 'lucide-react';
+import { useState } from 'react';
+import { Play, Pause, SkipForward, SkipBack, Volume2, Music, Wifi, WifiOff, Plus, Trash2, X } from 'lucide-react';
 import { useSpotify } from '@/hooks/use-spotify';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
+import type { MoodPreset } from '@/lib/spotify';
 
-/**
- * Compact Spotify controls designed to embed inside DM settings panels.
- * Shows connect button when disconnected, playback + mood presets when connected.
- */
 export function DMSpotifyControls() {
   const spotify = useSpotify();
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newLabel, setNewLabel] = useState('');
+  const [newQuery, setNewQuery] = useState('');
+  const [newEmoji, setNewEmoji] = useState('🎵');
+
+  const handleAddPreset = () => {
+    const label = newLabel.trim();
+    const query = newQuery.trim();
+    if (!label || !query) return;
+
+    const id = `custom_${Date.now()}`;
+    const newPreset: MoodPreset = { id, label, searchQuery: query, emoji: newEmoji || '🎵' };
+    spotify.updateMoodPresets([...spotify.moodPresets, newPreset]);
+    setNewLabel('');
+    setNewQuery('');
+    setNewEmoji('🎵');
+    setShowAddForm(false);
+  };
+
+  const handleDeletePreset = (presetId: string) => {
+    spotify.updateMoodPresets(spotify.moodPresets.filter(p => p.id !== presetId));
+  };
 
   if (!spotify.connected) {
     return (
@@ -92,26 +112,91 @@ export function DMSpotifyControls() {
       </div>
 
       {/* Mood presets */}
-      {spotify.moodPresets.some(p => p.playlistUri) && (
-        <div className="space-y-1">
-          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Mood</p>
-          <div className="flex flex-wrap gap-1.5">
-            {spotify.moodPresets.filter(p => p.playlistUri).map(preset => (
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Mood Presets</p>
+          <button
+            onClick={() => setShowAddForm(s => !s)}
+            className="text-[10px] text-emerald-500 hover:text-emerald-400 flex items-center gap-0.5 transition-colors"
+          >
+            {showAddForm ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+            {showAddForm ? 'Cancel' : 'Add'}
+          </button>
+        </div>
+
+        {showAddForm && (
+          <div className="p-2 rounded-lg border border-border/50 bg-muted/10 space-y-2">
+            <div className="flex gap-1.5">
+              <input
+                type="text"
+                value={newEmoji}
+                onChange={e => setNewEmoji(e.target.value.slice(0, 2))}
+                className="w-9 text-center text-sm bg-background/50 border border-border/50 rounded px-1 py-1"
+                placeholder="🎵"
+                maxLength={2}
+              />
+              <input
+                type="text"
+                value={newLabel}
+                onChange={e => setNewLabel(e.target.value.slice(0, 30))}
+                className="flex-1 text-xs bg-background/50 border border-border/50 rounded px-2 py-1 placeholder:text-muted-foreground/50"
+                placeholder="Preset name"
+                maxLength={30}
+              />
+            </div>
+            <input
+              type="text"
+              value={newQuery}
+              onChange={e => setNewQuery(e.target.value.slice(0, 100))}
+              className="w-full text-xs bg-background/50 border border-border/50 rounded px-2 py-1 placeholder:text-muted-foreground/50"
+              placeholder="Search query (e.g. dark cave ambient)"
+              maxLength={100}
+            />
+            <button
+              onClick={handleAddPreset}
+              disabled={!newLabel.trim() || !newQuery.trim()}
+              className="w-full text-xs py-1.5 rounded bg-emerald-600 hover:bg-emerald-600/80 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Add Preset
+            </button>
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-1.5">
+          {spotify.moodPresets.map(preset => (
+            <div key={preset.id} className="group relative">
               <button
-                key={preset.id}
-                onClick={() => spotify.playPlaylist(preset.playlistUri!)}
+                onClick={() => {
+                  if (preset.playlistUri) {
+                    spotify.playPlaylist(preset.playlistUri);
+                  } else {
+                    spotify.searchAndAssignPreset(preset.id);
+                  }
+                }}
+                disabled={spotify.isSearching}
                 className={cn(
-                  "text-xs px-2.5 py-1 rounded-full border border-border/50 transition-colors",
-                  "hover:bg-emerald-500/10 hover:border-emerald-500/30"
+                  "text-xs px-2.5 py-1 rounded-full border transition-colors",
+                  preset.playlistUri
+                    ? "border-border/50 hover:bg-emerald-500/10 hover:border-emerald-500/30"
+                    : "border-dashed border-muted-foreground/30 hover:border-muted-foreground/50 text-muted-foreground"
                 )}
-                title={preset.label}
+                title={preset.playlistUri ? `Play: ${preset.playlistName}` : `Tap to search: ${preset.searchQuery}`}
               >
                 {preset.emoji} <span className="text-[10px]">{preset.label}</span>
               </button>
-            ))}
-          </div>
+              {preset.id.startsWith('custom_') && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleDeletePreset(preset.id); }}
+                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Remove preset"
+                >
+                  <Trash2 className="w-2.5 h-2.5 text-destructive-foreground" />
+                </button>
+              )}
+            </div>
+          ))}
         </div>
-      )}
+      </div>
 
       {/* Connection info */}
       <div className="flex items-center justify-between">
