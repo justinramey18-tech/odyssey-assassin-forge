@@ -246,17 +246,27 @@ export function TimerSettings({ enabled, durationSeconds, onEnabledChange, onDur
     return 'seconds';
   });
 
-  const displayValue = useMemo(() => {
-    if (unit === 'hours') return Math.round(durationSeconds / 3600);
-    if (unit === 'minutes') return Math.round(durationSeconds / 60);
-    return durationSeconds;
-  }, [durationSeconds, unit]);
+  const getDisplayValue = useCallback((secs: number, u: typeof unit) => {
+    if (u === 'hours') return Math.round(secs / 3600);
+    if (u === 'minutes') return Math.round(secs / 60);
+    return secs;
+  }, []);
 
-  const handleValueChange = useCallback((val: number) => {
-    const clamped = Math.max(1, val);
-    if (unit === 'hours') onDurationChange(clamped * 3600);
-    else if (unit === 'minutes') onDurationChange(clamped * 60);
-    else onDurationChange(clamped);
+  // Local string state so user can clear the field while typing
+  const [localValue, setLocalValue] = useState(() => String(getDisplayValue(durationSeconds, unit)));
+
+  // Sync from parent when durationSeconds changes externally
+  useEffect(() => {
+    setLocalValue(String(getDisplayValue(durationSeconds, unit)));
+  }, [durationSeconds, unit, getDisplayValue]);
+
+  const commitValue = useCallback((raw: string) => {
+    const parsed = parseInt(raw);
+    const val = isNaN(parsed) || parsed < 1 ? 1 : parsed;
+    if (unit === 'hours') onDurationChange(val * 3600);
+    else if (unit === 'minutes') onDurationChange(val * 60);
+    else onDurationChange(val);
+    setLocalValue(String(val));
   }, [unit, onDurationChange]);
 
   const handleUnitChange = useCallback((newUnit: typeof unit) => {
@@ -299,8 +309,10 @@ export function TimerSettings({ enabled, durationSeconds, onEnabledChange, onDur
               <input
                 type="number"
                 min={1}
-                value={displayValue}
-                onChange={(e) => handleValueChange(parseInt(e.target.value) || 1)}
+                value={localValue}
+                onChange={(e) => setLocalValue(e.target.value)}
+                onBlur={() => commitValue(localValue)}
+                onKeyDown={(e) => { if (e.key === 'Enter') commitValue(localValue); }}
                 className="w-16 bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white text-center focus:outline-none focus:border-amber-500/40"
               />
               <div className="flex rounded-lg border border-white/10 overflow-hidden">
