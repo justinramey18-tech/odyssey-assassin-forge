@@ -156,11 +156,12 @@ export function StandalonePartyDMScreen({
     <div className="fixed inset-0 z-[60]">
       <PartyDMScreen
         onBack={onBack}
+        partyId={partyId}
         partyDm={partyDm}
         isCreator={isPartyCreator}
         currentUserId={userId}
         memberCount={partyMembers.length}
-        members={partyMembers.map(m => ({ user_id: m.user_id, character_name: m.character_name }))}
+        members={partyMembers.map(m => ({ user_id: m.user_id, character_name: m.character_name, character_status: m.character_status as Record<string, unknown> }))}
         onShowGuides={() => setShowGuides(true)}
         onShowMap={() => setShowBattleMap(true)}
         onShowSaves={() => setShowSaves(true)}

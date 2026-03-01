@@ -748,6 +748,33 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
   }, []);
 
+  // Helper: build AFK guide context for absent members
+  const buildAfkGuidesContext = useCallback((readyPrompts: PartyDmPrompt[], teamMemberIds?: string[]) => {
+    const relevantMembers = teamMemberIds
+      ? partyMembers.filter(m => teamMemberIds.includes(m.user_id))
+      : partyMembers;
+    const absentMembers = relevantMembers.filter(
+      m => !readyPrompts.some(p => p.user_id === m.user_id)
+    );
+    const afkLines: string[] = [];
+    const afkPromptLines: string[] = [];
+    for (const m of absentMembers) {
+      const status = m.character_status as Record<string, unknown>;
+      const guide = status?.afkPersonalityGuide as string | null;
+      if (guide) {
+        afkLines.push(`- ${m.character_name}: ${guide}`);
+        afkPromptLines.push(`[${m.character_name}] (AFK — AI roleplaying)`);
+      } else {
+        afkPromptLines.push(`[${m.character_name}]: Holds their action`);
+      }
+    }
+    const guidesSection = afkLines.length > 0
+      ? `\n\n## AFK CHARACTER GUIDES\nRoleplay the following absent characters in-character based on their personality descriptions:\n${afkLines.join('\n')}`
+      : '';
+    const promptSection = afkPromptLines.length > 0 ? '\n' + afkPromptLines.join('\n') : '';
+    return { guidesSection, promptSection };
+  }, [partyMembers]);
+
   const generateResponse = useCallback(async () => {
     if (!partyId || !user || !sessionConfig || isGenerating) return;
 
@@ -804,9 +831,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
         // --- Team Alpha ---
         if (alphaPrompts.length > 0) {
+          const { guidesSection: alphaAfkGuides, promptSection: alphaAfkPrompts } = buildAfkGuidesContext(alphaPrompts, splitState.alphaMembers);
           const alphaCombined = alphaPrompts
             .map(formatPromptLine)
-            .join('\n');
+            .join('\n') + alphaAfkPrompts;
 
           await insertPartyMessage({
             party_id: partyId,
@@ -826,6 +854,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             `\n\n## PARTY SPLIT — ${splitState.alphaName || 'Team Alpha'}\nThe party has split up. You are narrating ONLY for "${splitState.alphaName || 'Team Alpha'}".\n${alphaMembersSummary}\nDo NOT narrate what the other team ("${splitState.betaName || 'Team Beta'}") is doing. Focus solely on this group's adventure. Refer to this group as "${splitState.alphaName || 'Team Alpha'}" in your narration.`,
             splitState.betaSummary ? `\n\n## OTHER TEAM CONTEXT (hidden from players)\n"${splitState.betaName || 'Team Beta'}"'s adventure summary (for narrative coherence only — do NOT reveal to "${splitState.alphaName || 'Team Alpha'}"):\n${splitState.betaSummary}` : '',
             splitState.alphaSummary ? `\n\n## PREVIOUS "${splitState.alphaName || 'Team Alpha'}" SUMMARY\n${splitState.alphaSummary}` : '',
+            alphaAfkGuides,
           ].filter(Boolean).join('\n\n');
 
           const alphaContent = await streamAIResponse(alphaApiMsgs, alphaGuides, abortRef.current!.signal);
@@ -844,9 +873,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
         // --- Team Beta ---
         if (betaPrompts.length > 0) {
+          const { guidesSection: betaAfkGuides, promptSection: betaAfkPrompts } = buildAfkGuidesContext(betaPrompts, splitState.betaMembers);
           const betaCombined = betaPrompts
             .map(formatPromptLine)
-            .join('\n');
+            .join('\n') + betaAfkPrompts;
 
           await insertPartyMessage({
             party_id: partyId,
@@ -866,6 +896,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             `\n\n## PARTY SPLIT — ${splitState.betaName || 'Team Beta'}\nThe party has split up. You are narrating ONLY for "${splitState.betaName || 'Team Beta'}".\n${betaMembersSummary}\nDo NOT narrate what the other team ("${splitState.alphaName || 'Team Alpha'}") is doing. Focus solely on this group's adventure. Refer to this group as "${splitState.betaName || 'Team Beta'}" in your narration.`,
             splitState.alphaSummary ? `\n\n## OTHER TEAM CONTEXT (hidden from players)\n"${splitState.alphaName || 'Team Alpha'}"'s adventure summary (for narrative coherence only — do NOT reveal to "${splitState.betaName || 'Team Beta'}"):\n${splitState.alphaSummary}` : '',
             splitState.betaSummary ? `\n\n## PREVIOUS "${splitState.betaName || 'Team Beta'}" SUMMARY\n${splitState.betaSummary}` : '',
+            betaAfkGuides,
           ].filter(Boolean).join('\n\n');
 
           const betaContent = await streamAIResponse(betaApiMsgs, betaGuides, abortRef.current!.signal);
@@ -940,9 +971,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
       } else {
         // === NORMAL MODE ===
+        const { guidesSection: afkGuidesSection, promptSection: afkPromptSection } = buildAfkGuidesContext(readyPrompts);
         const combined = readyPrompts
           .map(formatPromptLine)
-          .join('\n');
+          .join('\n') + afkPromptSection;
 
         await insertPartyMessage({
           party_id: partyId,
@@ -959,6 +991,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         const guides = [
           customGuidesContent || '',
           `\n\n## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
+          afkGuidesSection,
         ].filter(Boolean).join('\n\n');
 
         const assistantContent = await streamAIResponse(apiMessages, guides, abortRef.current!.signal);
@@ -1018,7 +1051,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       setIsGenerating(false);
       abortRef.current = null;
     }
-  }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, customGuidesContent, triggerSummaryIfNeeded, silentAutoSave, isSplitActive, splitState, streamAIResponse, buildPartyMembersGuide, generateSplitSummary]);
+  }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, customGuidesContent, triggerSummaryIfNeeded, silentAutoSave, isSplitActive, splitState, streamAIResponse, buildPartyMembersGuide, generateSplitSummary, buildAfkGuidesContext]);
 
   // Auto-trigger generation when all ready (host only)
   useEffect(() => {
