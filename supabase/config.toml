@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.afk-guide-chat]
 verify_jwt = false
+
+[functions.spotify-auth]
+verify_jwt = false
