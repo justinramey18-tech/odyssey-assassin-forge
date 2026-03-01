@@ -749,6 +749,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   }, []);
 
   // Helper: build AFK guide context for absent members
+  // Returns guidesSection, promptSection, and consumedCascades (members whose first cascade prompt was used)
   const buildAfkGuidesContext = useCallback((readyPrompts: PartyDmPrompt[], teamMemberIds?: string[]) => {
     const relevantMembers = teamMemberIds
       ? partyMembers.filter(m => teamMemberIds.includes(m.user_id))
@@ -758,10 +759,21 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     );
     const afkLines: string[] = [];
     const afkPromptLines: string[] = [];
+    const consumedCascades: { userId: string; remainingCascade: string[] }[] = [];
+
     for (const m of absentMembers) {
       const status = m.character_status as Record<string, unknown>;
+      const cascade = status?.afkPromptCascade as string[] | null;
       const guide = status?.afkPersonalityGuide as string | null;
-      if (guide) {
+
+      if (cascade && cascade.length > 0) {
+        // Use the first cascade prompt
+        const nextPrompt = cascade[0];
+        const remaining = cascade.slice(1);
+        afkPromptLines.push(`[${m.character_name}] (AFK — Cascade Prompt): ${nextPrompt}`);
+        afkLines.push(`- ${m.character_name}: ${guide || '(no general guide)'}`);
+        consumedCascades.push({ userId: m.user_id, remainingCascade: remaining });
+      } else if (guide) {
         afkLines.push(`- ${m.character_name}: ${guide}`);
         afkPromptLines.push(`[${m.character_name}] (AFK): ${guide}`);
       } else {
@@ -772,8 +784,35 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       ? `\n\n## AFK CHARACTER GUIDES\nRoleplay the following absent characters in-character based on their personality descriptions:\n${afkLines.join('\n')}`
       : '';
     const promptSection = afkPromptLines.length > 0 ? '\n' + afkPromptLines.join('\n') : '';
-    return { guidesSection, promptSection };
+    return { guidesSection, promptSection, consumedCascades };
   }, [partyMembers]);
+
+  // Consume cascade prompts after they've been used for AFK members
+  const consumeCascadePrompts = useCallback(async (consumed: { userId: string; remainingCascade: string[] }[]) => {
+    if (!partyId) return;
+    for (const { userId, remainingCascade } of consumed) {
+      try {
+        const { data: member } = await (supabase.from('party_members') as any)
+          .select('character_status')
+          .eq('party_id', partyId)
+          .eq('user_id', userId)
+          .single();
+
+        const currentStatus = (member?.character_status as Record<string, unknown>) || {};
+        await (supabase.from('party_members') as any)
+          .update({
+            character_status: {
+              ...currentStatus,
+              afkPromptCascade: remainingCascade.length > 0 ? remainingCascade : null,
+            },
+          })
+          .eq('party_id', partyId)
+          .eq('user_id', userId);
+      } catch (err) {
+        console.error(`[PartyDM] Failed to consume cascade for user ${userId}:`, err);
+      }
+    }
+  }, [partyId]);
 
   const generateResponse = useCallback(async () => {
     if (!partyId || !user || !sessionConfig || isGenerating) return;
@@ -818,6 +857,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     abortRef.current = new AbortController();
     try {
       if (isSplitActive && splitState) {
+        let allConsumedCascades: { userId: string; remainingCascade: string[] }[] = [];
         // === SPLIT MODE: Generate two sequential responses from READY prompts ===
         const alphaPrompts = readyPrompts.filter(p =>
           splitState.alphaMembers.includes(p.user_id)
@@ -831,7 +871,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
         // --- Team Alpha ---
         if (alphaPrompts.length > 0) {
-          const { guidesSection: alphaAfkGuides, promptSection: alphaAfkPrompts } = buildAfkGuidesContext(alphaPrompts, splitState.alphaMembers);
+          const { guidesSection: alphaAfkGuides, promptSection: alphaAfkPrompts, consumedCascades: alphaConsumed } = buildAfkGuidesContext(alphaPrompts, splitState.alphaMembers);
+          allConsumedCascades = [...allConsumedCascades, ...alphaConsumed];
           const alphaCombined = alphaPrompts
             .map(formatPromptLine)
             .join('\n') + alphaAfkPrompts;
@@ -873,7 +914,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
         // --- Team Beta ---
         if (betaPrompts.length > 0) {
-          const { guidesSection: betaAfkGuides, promptSection: betaAfkPrompts } = buildAfkGuidesContext(betaPrompts, splitState.betaMembers);
+          const { guidesSection: betaAfkGuides, promptSection: betaAfkPrompts, consumedCascades: betaConsumed } = buildAfkGuidesContext(betaPrompts, splitState.betaMembers);
+          allConsumedCascades = [...allConsumedCascades, ...betaConsumed];
           const betaCombined = betaPrompts
             .map(formatPromptLine)
             .join('\n') + betaAfkPrompts;
@@ -969,9 +1011,14 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           silentAutoSave(allSplitMessages, sessionConfig.campaignSummary || null);
         }
 
+        // Consume used cascade prompts for split mode
+        if (allConsumedCascades.length > 0) {
+          await consumeCascadePrompts(allConsumedCascades);
+        }
+
       } else {
         // === NORMAL MODE ===
-        const { guidesSection: afkGuidesSection, promptSection: afkPromptSection } = buildAfkGuidesContext(readyPrompts);
+        const { guidesSection: afkGuidesSection, promptSection: afkPromptSection, consumedCascades: normalConsumed } = buildAfkGuidesContext(readyPrompts);
         const combined = readyPrompts
           .map(formatPromptLine)
           .join('\n') + afkPromptSection;
@@ -1013,6 +1060,11 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           triggerSummaryIfNeeded(updatedMessages);
           silentAutoSave(updatedMessages, sessionConfig.campaignSummary || null);
         }
+
+        // Consume used cascade prompts for normal mode
+        if (normalConsumed.length > 0) {
+          await consumeCascadePrompts(normalConsumed);
+        }
       }
 
       // Clear prompts and start new round
@@ -1051,7 +1103,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       setIsGenerating(false);
       abortRef.current = null;
     }
-  }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, customGuidesContent, triggerSummaryIfNeeded, silentAutoSave, isSplitActive, splitState, streamAIResponse, buildPartyMembersGuide, generateSplitSummary, buildAfkGuidesContext]);
+  }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, customGuidesContent, triggerSummaryIfNeeded, silentAutoSave, isSplitActive, splitState, streamAIResponse, buildPartyMembersGuide, generateSplitSummary, buildAfkGuidesContext, consumeCascadePrompts]);
 
   // Auto-trigger generation when all ready (host only)
   useEffect(() => {
