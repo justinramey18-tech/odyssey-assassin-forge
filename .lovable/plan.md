@@ -1,36 +1,38 @@
 
 
-## Plan: Embed Spotify Web Playback SDK
+## Plan: Paste Playlist Links & Per-Preset Assignment
 
-Add an in-browser Spotify player so Premium users can play music without opening Spotify separately.
-
-### How It Works
-The Web Playback SDK creates a virtual player device in the browser. When a user plays a mood preset, it targets this embedded device instead of requiring an external Spotify app.
+Allow players to paste a Spotify playlist URL/link directly onto any mood preset, giving them full control over which playlist plays for each mood.
 
 ### Changes
 
-**1. `index.html`** — Load the SDK script
-- Add `<script src="https://sdk.scdn.co/spotify-player.js"></script>`
+**1. `src/lib/spotify.ts`** — Add playlist URI extraction helper
+- Add `extractPlaylistUri(input: string): string | null` that accepts:
+  - Full URLs like `https://open.spotify.com/playlist/37i9dQZF1DX...`
+  - Spotify URIs like `spotify:playlist:37i9dQZF1DX...`
+  - Raw playlist IDs
+- Returns a normalized `spotify:playlist:<id>` URI or null if invalid
 
-**2. `src/lib/spotify-player-sdk.ts`** (new file) — SDK wrapper
-- Initialize `Spotify.Player` with the user's access token
-- Handle `ready`, `not_ready`, `player_state_changed` events
-- Export `initPlayer()`, `destroyPlayer()`, `getDeviceId()`
-- Auto-reconnect on token refresh
+**2. `src/components/spotify/DMSpotifyControls.tsx`** — Add paste-to-assign UI
+- When a user **long-presses or taps an edit icon** on a preset, show a small inline input field where they can paste a Spotify playlist link
+- Add a small "link" icon badge on presets that have a custom-assigned playlist (vs auto-searched)
+- Add a "clear" option to remove a custom assignment and revert to search-based
+- Update the "Add Preset" form to include an optional "Playlist Link" field so new custom presets can be created with a direct link from the start
 
-**3. `src/hooks/use-spotify.ts`** — Integrate the SDK player
-- When connected and Premium, call `initPlayer()` to create the browser device
-- Store the SDK device ID so `playPlaylist` can target it as a fallback when no other device is active
-- On disconnect, call `destroyPlayer()`
-- Update `playPlaylist`: if no active external device found, use the SDK device ID
+**3. `src/hooks/use-spotify.ts`** — Add `assignPlaylistToPreset` method
+- New method: `assignPlaylistToPreset(presetId: string, playlistUrl: string)` — validates the URL with `extractPlaylistUri`, fetches the playlist name via the Spotify API, and updates the preset with the URI and name
+- Expose in return value
 
-**4. `src/components/spotify/DMSpotifyControls.tsx`** — UI indicator
-- Show a small badge/label like "Playing in browser" when the SDK device is active
-- Show "Requires Premium" note near the embedded player toggle for Free users
+### UI Flow
+1. Player taps a preset pill → opens a small popover/inline editor
+2. Two options: "Search Spotify" (existing behavior) or "Paste Link"
+3. Pasting a valid link immediately assigns and saves it
+4. A small link icon on the pill indicates a custom assignment
+5. Long-press or edit shows option to clear the custom link
 
-### Limitations
-- **Premium only** — Free accounts cannot use the SDK; they still need the Spotify app open
-- The `isPremium` check already exists in the hook, so we gate SDK initialization on it
-
-### No database or edge function changes needed.
+### Technical Details
+- Validates pasted URLs client-side before making any API calls
+- Fetches playlist metadata (name, image) via `GET /playlists/{id}` to confirm it exists and display the name
+- Falls back gracefully if the playlist is private or invalid
+- No database changes needed — presets remain in localStorage
 
