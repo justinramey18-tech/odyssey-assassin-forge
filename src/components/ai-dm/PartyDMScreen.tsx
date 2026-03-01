@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock, Maximize2, Minimize2 } from 'lucide-react';
+import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock, Maximize2, Minimize2, Radio } from 'lucide-react';
 import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
 import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
@@ -524,6 +524,43 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
 
   const mode = partyDm.sessionConfig?.mode || 'shared';
 
+  // Host broadcast playlist indicator
+  const [broadcastPlaylist, setBroadcastPlaylist] = useState<string | null>(null);
+  useEffect(() => {
+    if (!partyId) return;
+
+    // Fetch initial
+    supabase
+      .from('party_shared_state')
+      .select('state_data')
+      .eq('party_id', partyId)
+      .eq('state_type', 'spotify_sync')
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.state_data && typeof data.state_data === 'object') {
+          const sd = data.state_data as any;
+          setBroadcastPlaylist(sd.playlistName || null);
+        }
+      });
+
+    // Subscribe to real-time changes
+    const channel = supabase
+      .channel(`broadcast-indicator-${partyId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'party_shared_state', filter: `party_id=eq.${partyId}` },
+        (payload) => {
+          const row = payload.new as any;
+          if (row?.state_type !== 'spotify_sync') return;
+          const sd = row.state_data;
+          setBroadcastPlaylist(sd?.playlistName || null);
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [partyId]);
+
   // Push notification state
   const { user } = useAuth();
   const [pushState, setPushState] = useState<PushSubscriptionState>('unsupported');
@@ -785,6 +822,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
               geraltHpPct > 50 ? "text-emerald-400" : geraltHpPct > 25 ? "text-amber-400" : "text-red-400"
             )}>
               {geraltHp.current}/{geraltHp.max}
+            </span>
+          </>
+        )}
+        {broadcastPlaylist && (
+          <>
+            <span className="text-[11px] text-white/20">•</span>
+            <Radio className="w-3 h-3 text-blue-400 shrink-0 animate-pulse" />
+            <span className="text-[11px] text-blue-300/70 truncate max-w-[120px]" title={broadcastPlaylist}>
+              {broadcastPlaylist}
             </span>
           </>
         )}
