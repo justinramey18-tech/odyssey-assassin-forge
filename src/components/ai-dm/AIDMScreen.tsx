@@ -636,14 +636,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
               {formatCostShort(sessionUsage, selectedModel)}
             </span>
           )}
-          <button
-            onClick={() => { setIsFullscreen(true); setNavExpanded(false); }}
-            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-            style={{ touchAction: 'manipulation' }}
-            title="Fullscreen"
-          >
-            <Maximize2 className="w-5 h-5 text-white/60" />
-          </button>
+          
           <button
             onClick={() => setShowToolsDrawer(true)}
             className="p-2 rounded-lg hover:bg-white/10 transition-colors"
@@ -854,6 +847,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         </AnimatePresence>
       </div>{/* end flex-1 relative flex */}
 
+      {!isFullscreen && (
       <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm mb-[48px]">
         <input
           ref={videoInputRef}
@@ -1014,6 +1008,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           )}
         </div>
       </div>
+      )}
 
       {/* Bottom Navigation Drawer */}
       {!isFullscreen && (
@@ -1034,17 +1029,27 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         />
       )}
 
-      {/* Fullscreen Exit Button */}
-      {isFullscreen && (
-        <button
-          onClick={() => setIsFullscreen(false)}
-          className="fixed bottom-20 right-3 z-[61] w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center transition-colors"
-          style={{ touchAction: 'manipulation' }}
-          title="Exit fullscreen"
-        >
+      {/* Fullscreen Toggle Button - always bottom-right */}
+      <button
+        onClick={() => {
+          if (!isFullscreen) setNavExpanded(false);
+          setIsFullscreen(f => !f);
+        }}
+        className={cn(
+          "fixed right-3 z-[61] w-8 h-8 rounded-full flex items-center justify-center transition-colors",
+          isFullscreen
+            ? "bottom-4 bg-black/40 hover:bg-black/60"
+            : "bottom-[108px] bg-black/30 hover:bg-black/50"
+        )}
+        style={{ touchAction: 'manipulation' }}
+        title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+      >
+        {isFullscreen ? (
           <Minimize2 className="w-4 h-4 text-white/70" />
-        </button>
-      )}
+        ) : (
+          <Maximize2 className="w-4 h-4 text-white/40" />
+        )}
+      </button>
 
       {/* Geralt Gameplay Widget (momo only) */}
       {isMomo && (
