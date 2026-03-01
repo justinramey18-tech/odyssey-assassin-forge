@@ -114,9 +114,10 @@ export async function startAuth() {
 export async function handleCallback(code: string): Promise<boolean> {
   try {
     const redirectUri = window.location.origin + window.location.pathname;
+    const codeVerifier = localStorage.getItem(KEYS.codeVerifier);
 
     const { data, error } = await supabase.functions.invoke('spotify-auth', {
-      body: { action: 'exchange', code, redirect_uri: redirectUri },
+      body: { action: 'exchange', code, redirect_uri: redirectUri, code_verifier: codeVerifier },
     });
 
     if (error || !data?.access_token) {
