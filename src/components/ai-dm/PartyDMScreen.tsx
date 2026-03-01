@@ -1472,6 +1472,28 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
               setNewCampaignName('');
             }}
             onEndSession={partyDm.endSession}
+            timerEnabled={localTimerEnabled}
+            timerDurationSeconds={localTimerDuration}
+            onTimerEnabledChange={(enabled) => {
+              setLocalTimerEnabled(enabled);
+              if (partyDm.sessionConfig) {
+                const updated = { ...partyDm.sessionConfig, timerEnabled: enabled };
+                (supabase.from('party_shared_state') as any)
+                  .update({ state_data: updated })
+                  .eq('state_type', 'dm_session')
+                  .then(() => {});
+              }
+            }}
+            onTimerDurationChange={(seconds) => {
+              setLocalTimerDuration(seconds);
+              if (partyDm.sessionConfig) {
+                const updated = { ...partyDm.sessionConfig, timerDurationSeconds: seconds };
+                (supabase.from('party_shared_state') as any)
+                  .update({ state_data: updated })
+                  .eq('state_type', 'dm_session')
+                  .then(() => {});
+              }
+            }}
           />
         ) : undefined}
       />
