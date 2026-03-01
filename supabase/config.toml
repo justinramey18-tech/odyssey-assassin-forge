@@ -2,3 +2,6 @@ project_id = "sqvcszzbkyzidigsdqgk"
 
 [functions.ai-creation-assistant]
 verify_jwt = false
+
+[functions.afk-guide-chat]
+verify_jwt = false
