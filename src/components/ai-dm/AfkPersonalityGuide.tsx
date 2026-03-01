@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
-import { Ghost, Save, Trash2, Sparkles, MessageSquare, Send, ChevronDown, ChevronUp, ArrowDownToLine, Loader2 } from 'lucide-react';
+import { Ghost, Save, Trash2, Sparkles, MessageSquare, Send, ChevronDown, ChevronUp, ArrowDownToLine, Loader2, Plus, GripVertical, X, ListOrdered } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { loadApiKey } from '@/lib/api-keys';
@@ -26,7 +26,8 @@ interface AfkPersonalityGuideProps {
   userId: string;
   characterName: string;
   currentGuide: string | null;
-  onSaved: (guide: string | null) => void;
+  currentCascade?: string[] | null;
+  onSaved: (guide: string | null, cascade: string[] | null) => void;
 }
 
 export function AfkPersonalityGuide({
@@ -36,10 +37,14 @@ export function AfkPersonalityGuide({
   userId,
   characterName,
   currentGuide,
+  currentCascade,
   onSaved,
 }: AfkPersonalityGuideProps) {
   const [guide, setGuide] = useState('');
+  const [cascadePrompts, setCascadePrompts] = useState<string[]>([]);
+  const [newPrompt, setNewPrompt] = useState('');
   const [saving, setSaving] = useState(false);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
 
   // Chat state
   const [chatOpen, setChatOpen] = useState(false);
@@ -53,7 +58,7 @@ export function AfkPersonalityGuide({
   useEffect(() => {
     if (open) {
       setGuide(currentGuide || '');
-    } else {
+      setCascadePrompts(currentCascade || []);
       // Reset chat on close
       setChatMessages([]);
       setChatInput('');
@@ -62,7 +67,7 @@ export function AfkPersonalityGuide({
       setIsStreaming(false);
       if (abortRef.current) abortRef.current.abort();
     }
-  }, [open, currentGuide]);
+  }, [open, currentGuide, currentCascade]);
 
   // Auto-scroll chat
   useEffect(() => {
@@ -194,18 +199,20 @@ export function AfkPersonalityGuide({
 
       const currentStatus = (member?.character_status as Record<string, unknown>) || {};
       const trimmed = guide.trim() || null;
+      const cascadeToSave = cascadePrompts.filter(p => p.trim()).length > 0 ? cascadePrompts.filter(p => p.trim()) : null;
 
       await (supabase.from('party_members') as any)
         .update({
           character_status: {
             ...currentStatus,
             afkPersonalityGuide: trimmed,
+            afkPromptCascade: cascadeToSave,
           },
         })
         .eq('party_id', partyId)
         .eq('user_id', userId);
 
-      onSaved(trimmed);
+      onSaved(trimmed, cascadeToSave);
       toast.success(trimmed ? 'AFK guide saved!' : 'AFK guide removed');
       onOpenChange(false);
     } catch (err) {
@@ -218,6 +225,7 @@ export function AfkPersonalityGuide({
 
   const handleClear = async () => {
     setGuide('');
+    setCascadePrompts([]);
     setSaving(true);
     try {
       const { data: member } = await (supabase.from('party_members') as any)
@@ -233,12 +241,13 @@ export function AfkPersonalityGuide({
           character_status: {
             ...currentStatus,
             afkPersonalityGuide: null,
+            afkPromptCascade: null,
           },
         })
         .eq('party_id', partyId)
         .eq('user_id', userId);
 
-      onSaved(null);
+      onSaved(null, null);
       toast.success('AFK guide removed');
       onOpenChange(false);
     } catch (err) {
@@ -457,6 +466,92 @@ export function AfkPersonalityGuide({
           <p className="text-[11px] text-muted-foreground text-right">
             {guide.length}/{MAX_GUIDE_LENGTH}
           </p>
+
+          {/* Prompt Cascade Editor */}
+          <div className="space-y-2 mt-1">
+            <div className="flex items-center gap-2">
+              <ListOrdered className="w-4 h-4 text-purple-400" />
+              <span className="text-sm font-medium text-purple-200">Prompt Cascade</span>
+              <span className="text-[10px] text-muted-foreground">(consumed one per round when AFK)</span>
+            </div>
+
+            {cascadePrompts.length > 0 && (
+              <div className="space-y-1.5">
+                {cascadePrompts.map((prompt, idx) => (
+                  <div
+                    key={idx}
+                    draggable
+                    onDragStart={() => setDragIdx(idx)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => {
+                      if (dragIdx === null || dragIdx === idx) return;
+                      const updated = [...cascadePrompts];
+                      const [moved] = updated.splice(dragIdx, 1);
+                      updated.splice(idx, 0, moved);
+                      setCascadePrompts(updated);
+                      setDragIdx(null);
+                    }}
+                    onDragEnd={() => setDragIdx(null)}
+                    className={`flex items-start gap-1.5 group rounded-md border border-border/40 bg-background/30 px-2 py-1.5 transition-opacity ${dragIdx === idx ? 'opacity-50' : ''}`}
+                  >
+                    <GripVertical className="w-3.5 h-3.5 text-muted-foreground/50 mt-0.5 cursor-grab shrink-0" />
+                    <span className="text-[11px] font-mono text-purple-400/70 mt-0.5 shrink-0">{idx + 1}.</span>
+                    <Input
+                      value={prompt}
+                      onChange={(e) => {
+                        const updated = [...cascadePrompts];
+                        updated[idx] = e.target.value;
+                        setCascadePrompts(updated);
+                      }}
+                      className="flex-1 h-7 text-xs bg-transparent border-none shadow-none focus-visible:ring-0 px-1"
+                      placeholder="Round-specific instruction..."
+                    />
+                    <button
+                      onClick={() => setCascadePrompts(cascadePrompts.filter((_, i) => i !== idx))}
+                      className="text-muted-foreground/40 hover:text-destructive transition-colors mt-0.5 shrink-0"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Input
+                value={newPrompt}
+                onChange={(e) => setNewPrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newPrompt.trim()) {
+                    setCascadePrompts([...cascadePrompts, newPrompt.trim()]);
+                    setNewPrompt('');
+                  }
+                }}
+                placeholder="Add a round-specific prompt..."
+                className="flex-1 h-8 text-sm bg-background/50 border-border/50"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (newPrompt.trim()) {
+                    setCascadePrompts([...cascadePrompts, newPrompt.trim()]);
+                    setNewPrompt('');
+                  }
+                }}
+                disabled={!newPrompt.trim()}
+                className="h-8 px-2 border-purple-500/30 text-purple-300"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+
+            {cascadePrompts.length > 0 && (
+              <p className="text-[10px] text-muted-foreground">
+                {cascadePrompts.length} prompt{cascadePrompts.length !== 1 ? 's' : ''} queued. Drag to reorder. Each is used once per AFK round, then removed.
+              </p>
+            )}
+          </div>
         </div>
 
         <SheetFooter className="p-4 pt-2 border-t border-purple-500/20 shrink-0 gap-2 sm:gap-2 flex-row justify-end">
