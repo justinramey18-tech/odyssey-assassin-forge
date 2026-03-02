@@ -20,6 +20,7 @@ export function AlignmentBanner({ alignmentTarget, onApply, onDismiss, className
   if (dismissed || !alignmentTarget) return null;
 
   const zone = getAlignmentZone(alignmentTarget);
+  const c = zone.cssColor;
 
   return (
     <div
@@ -28,22 +29,22 @@ export function AlignmentBanner({ alignmentTarget, onApply, onDismiss, className
         className,
       )}
       style={{
-        backgroundColor: `${zone.color.replace(')', ', 0.1)').replace('hsl', 'hsla')}`,
-        borderColor: `${zone.color.replace(')', ', 0.3)').replace('hsl', 'hsla')}`,
+        backgroundColor: `${c}1a`,
+        borderColor: `${c}4d`,
       }}
     >
-      <Compass className="w-4 h-4 shrink-0" style={{ color: zone.color }} />
+      <Compass className="w-4 h-4 shrink-0" style={{ color: c }} />
       <span className="flex-1 min-w-0">
         <span className="text-muted-foreground">Your drift is </span>
-        <span className="font-medium" style={{ color: zone.color }}>{zone.label}</span>
+        <span className="font-medium" style={{ color: c }}>{zone.label}</span>
         <span className="text-muted-foreground"> — tap to highlight matching prompts</span>
       </span>
       <button
         onClick={() => onApply(alignmentTarget)}
         className="shrink-0 px-2 py-1 rounded text-[10px] font-medium border transition-colors min-h-[28px]"
         style={{
-          borderColor: zone.color,
-          color: zone.color,
+          borderColor: c,
+          color: c,
         }}
       >
         Apply

@@ -15,12 +15,9 @@ interface AlignmentRecommenderProps {
 }
 
 const GRID_SIZE = 160;
-const CELL = GRID_SIZE / 3;
 
 /** Convert alignment score (-5..+5) to pixel position on the grid */
 function toPixel(score: AlignmentScore): { x: number; y: number } {
-  // law: -5 (left) to +5 (right)
-  // good: -5 (bottom) to +5 (top), but CSS y is inverted
   return {
     x: ((score.law + 5) / 10) * GRID_SIZE,
     y: ((5 - score.good) / 10) * GRID_SIZE,
@@ -30,7 +27,7 @@ function toPixel(score: AlignmentScore): { x: number; y: number } {
 /** Convert pixel position to alignment score */
 function toScore(x: number, y: number): AlignmentScore {
   return {
-    law: Math.round(((x / GRID_SIZE) * 10 - 5) * 2) / 2, // snap to 0.5
+    law: Math.round(((x / GRID_SIZE) * 10 - 5) * 2) / 2,
     good: Math.round(((1 - y / GRID_SIZE) * 10 - 5) * 2) / 2,
   };
 }
@@ -95,9 +92,9 @@ export function AlignmentRecommender({ value, onChange, compact }: AlignmentReco
                 )}
                 style={{
                   backgroundColor: isActive
-                    ? `${zone.color.replace(')', ', 0.3)').replace('hsl', 'hsla')}`
+                    ? `${zone.cssColor}4d`
                     : isHovered
-                      ? `${zone.color.replace(')', ', 0.15)').replace('hsl', 'hsla')}`
+                      ? `${zone.cssColor}26`
                       : 'hsla(0, 0%, 100%, 0.03)',
                 }}
                 onMouseEnter={() => setHoveredZone(zoneId)}
@@ -116,8 +113,8 @@ export function AlignmentRecommender({ value, onChange, compact }: AlignmentReco
           <motion.div
             className="absolute w-3.5 h-3.5 rounded-full border-2 border-white shadow-lg pointer-events-none"
             style={{
-              backgroundColor: activeZone?.color || 'white',
-              boxShadow: `0 0 8px ${activeZone?.color || 'white'}`,
+              backgroundColor: activeZone?.cssColor || 'white',
+              boxShadow: `0 0 8px ${activeZone?.cssColor || 'white'}`,
             }}
             initial={{ scale: 0 }}
             animate={{
@@ -140,7 +137,7 @@ export function AlignmentRecommender({ value, onChange, compact }: AlignmentReco
       {activeZone && (
         <div className="flex items-center gap-1.5">
           <span className="text-sm">{activeZone.emoji}</span>
-          <span className="text-xs font-medium" style={{ color: activeZone.color }}>
+          <span className="text-xs font-medium" style={{ color: activeZone.cssColor }}>
             {activeZone.label}
           </span>
         </div>

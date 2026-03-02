@@ -12,7 +12,8 @@ export interface AlignmentZone {
   label: string;
   shortLabel: string;
   emoji: string;
-  color: string;       // tailwind-style color
+  color: string;       // tailwind class for text color
+  cssColor: string;    // actual CSS color value for inline styles
   bgColor: string;
   lawRange: [number, number];
   goodRange: [number, number];
@@ -20,17 +21,17 @@ export interface AlignmentZone {
 
 export const ALIGNMENT_ZONES: AlignmentZone[] = [
   // Row 1 (top): Good
-  { id: 'cg', label: 'Chaotic Good',   shortLabel: 'CG', emoji: '🌿', color: 'text-emerald-400', bgColor: 'bg-emerald-500/15', lawRange: [-5, -1.67], goodRange: [1.67, 5] },
-  { id: 'ng', label: 'Neutral Good',   shortLabel: 'NG', emoji: '🌟', color: 'text-amber-300',   bgColor: 'bg-amber-500/15',   lawRange: [-1.67, 1.67], goodRange: [1.67, 5] },
-  { id: 'lg', label: 'Lawful Good',    shortLabel: 'LG', emoji: '⚜️', color: 'text-sky-400',     bgColor: 'bg-sky-500/15',     lawRange: [1.67, 5], goodRange: [1.67, 5] },
+  { id: 'cg', label: 'Chaotic Good',   shortLabel: 'CG', emoji: '🌿', color: 'text-emerald-400', cssColor: '#34d399', bgColor: 'bg-emerald-500/15', lawRange: [-5, -1.67], goodRange: [1.67, 5] },
+  { id: 'ng', label: 'Neutral Good',   shortLabel: 'NG', emoji: '🌟', color: 'text-amber-300',   cssColor: '#fcd34d', bgColor: 'bg-amber-500/15',   lawRange: [-1.67, 1.67], goodRange: [1.67, 5] },
+  { id: 'lg', label: 'Lawful Good',    shortLabel: 'LG', emoji: '⚜️', color: 'text-sky-400',     cssColor: '#38bdf8', bgColor: 'bg-sky-500/15',     lawRange: [1.67, 5], goodRange: [1.67, 5] },
   // Row 2 (middle): Neutral
-  { id: 'cn', label: 'Chaotic Neutral', shortLabel: 'CN', emoji: '🎲', color: 'text-purple-400', bgColor: 'bg-purple-500/15', lawRange: [-5, -1.67], goodRange: [-1.67, 1.67] },
-  { id: 'tn', label: 'True Neutral',    shortLabel: 'TN', emoji: '⚖️', color: 'text-gray-400',   bgColor: 'bg-gray-500/15',   lawRange: [-1.67, 1.67], goodRange: [-1.67, 1.67] },
-  { id: 'ln', label: 'Lawful Neutral',  shortLabel: 'LN', emoji: '📜', color: 'text-blue-400',   bgColor: 'bg-blue-500/15',   lawRange: [1.67, 5], goodRange: [-1.67, 1.67] },
+  { id: 'cn', label: 'Chaotic Neutral', shortLabel: 'CN', emoji: '🎲', color: 'text-purple-400', cssColor: '#c084fc', bgColor: 'bg-purple-500/15', lawRange: [-5, -1.67], goodRange: [-1.67, 1.67] },
+  { id: 'tn', label: 'True Neutral',    shortLabel: 'TN', emoji: '⚖️', color: 'text-gray-400',   cssColor: '#9ca3af', bgColor: 'bg-gray-500/15',   lawRange: [-1.67, 1.67], goodRange: [-1.67, 1.67] },
+  { id: 'ln', label: 'Lawful Neutral',  shortLabel: 'LN', emoji: '📜', color: 'text-blue-400',   cssColor: '#60a5fa', bgColor: 'bg-blue-500/15',   lawRange: [1.67, 5], goodRange: [-1.67, 1.67] },
   // Row 3 (bottom): Evil
-  { id: 'ce', label: 'Chaotic Evil',   shortLabel: 'CE', emoji: '💀', color: 'text-red-500',    bgColor: 'bg-red-500/15',    lawRange: [-5, -1.67], goodRange: [-5, -1.67] },
-  { id: 'ne', label: 'Neutral Evil',   shortLabel: 'NE', emoji: '🐍', color: 'text-rose-400',   bgColor: 'bg-rose-500/15',   lawRange: [-1.67, 1.67], goodRange: [-5, -1.67] },
-  { id: 'le', label: 'Lawful Evil',    shortLabel: 'LE', emoji: '👑', color: 'text-indigo-400', bgColor: 'bg-indigo-500/15', lawRange: [1.67, 5], goodRange: [-5, -1.67] },
+  { id: 'ce', label: 'Chaotic Evil',   shortLabel: 'CE', emoji: '💀', color: 'text-red-500',    cssColor: '#ef4444', bgColor: 'bg-red-500/15',    lawRange: [-5, -1.67], goodRange: [-5, -1.67] },
+  { id: 'ne', label: 'Neutral Evil',   shortLabel: 'NE', emoji: '🐍', color: 'text-rose-400',   cssColor: '#fb7185', bgColor: 'bg-rose-500/15',   lawRange: [-1.67, 1.67], goodRange: [-5, -1.67] },
+  { id: 'le', label: 'Lawful Evil',    shortLabel: 'LE', emoji: '👑', color: 'text-indigo-400', cssColor: '#818cf8', bgColor: 'bg-indigo-500/15', lawRange: [1.67, 5], goodRange: [-5, -1.67] },
 ];
 
 /** Get the alignment zone for a given score */
