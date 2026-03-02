@@ -175,7 +175,10 @@ export function SpotifySettingsTab() {
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{pl.name}</p>
-                    <p className="text-xs text-muted-foreground">{pl.tracks?.total || 0} tracks</p>
+                    <p className="text-xs text-muted-foreground">
+                      {pl.tracks?.total != null ? `${pl.tracks.total} tracks` : 'Playlist'}
+                      {pl._personal && ' · Yours'}
+                    </p>
                   </div>
                   <Play className="w-4 h-4 text-[#1DB954] shrink-0" />
                 </button>
