@@ -188,7 +188,13 @@ export function useSpotify() {
     try {
       await setSpotifyVolume(v);
     } catch (e: any) {
-      toast.error(e.message || 'Volume control requires Spotify Premium');
+      // Silently ignore "cannot control device volume" — common on mobile/external devices
+      const msg = (e.message || '').toLowerCase();
+      if (msg.includes('volume') || msg.includes('player command failed')) {
+        console.warn('[Spotify] Volume control not supported on current device');
+      } else {
+        toast.error(e.message || 'Volume control requires Spotify Premium');
+      }
     }
   }, []);
 
