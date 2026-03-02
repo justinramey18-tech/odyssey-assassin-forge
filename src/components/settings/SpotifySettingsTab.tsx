@@ -53,7 +53,7 @@ export function SpotifySettingsTab() {
     if (!assigningPlaylist) return;
     const updated = spotify.moodPresets.map((p: MoodPreset) =>
       p.id === presetId
-        ? { ...p, playlistUri: assigningPlaylist.uri, playlistName: assigningPlaylist.name }
+        ? { ...p, playlistUri: assigningPlaylist.uri, playlistName: assigningPlaylist.name, manuallyAssigned: true }
         : p
     );
     spotify.updateMoodPresets(updated);
@@ -143,7 +143,12 @@ export function SpotifySettingsTab() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold">{preset.label}</p>
                   {preset.playlistName ? (
-                    <p className="text-xs text-[#1DB954] truncate">{preset.playlistName}</p>
+                    <p className="text-xs text-[#1DB954] truncate flex items-center gap-1">
+                      {preset.playlistName}
+                      <span className="text-[10px] text-muted-foreground/70">
+                        {preset.manuallyAssigned ? '· linked' : '· auto'}
+                      </span>
+                    </p>
                   ) : (
                     <p className="text-xs text-muted-foreground">No playlist assigned</p>
                   )}

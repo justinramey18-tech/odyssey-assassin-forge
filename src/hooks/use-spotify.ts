@@ -255,7 +255,7 @@ export function useSpotify() {
         const best = results[0];
         const updated = moodPresets.map(p =>
           p.id === presetId
-            ? { ...p, playlistUri: best.uri, playlistName: best.name }
+            ? { ...p, playlistUri: best.uri, playlistName: best.name, manuallyAssigned: false }
             : p
         );
         setMoodPresets(updated);
