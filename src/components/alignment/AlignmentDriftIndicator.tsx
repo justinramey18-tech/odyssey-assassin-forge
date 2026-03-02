@@ -37,7 +37,7 @@ export function AlignmentDriftIndicator({ declaredAlignment, className }: Alignm
                 key={id}
                 className="border border-border/5"
                 style={{
-                  backgroundColor: `${zone.color.replace(')', ', 0.08)').replace('hsl', 'hsla')}`,
+                  backgroundColor: `${zone.cssColor}14`,
                 }}
               />
             );
@@ -58,8 +58,8 @@ export function AlignmentDriftIndicator({ declaredAlignment, className }: Alignm
           style={{
             left: driftPx.x - 5,
             top: driftPx.y - 5,
-            backgroundColor: driftZone.color,
-            boxShadow: `0 0 6px ${driftZone.color}`,
+            backgroundColor: driftZone.cssColor,
+            boxShadow: `0 0 6px ${driftZone.cssColor}`,
           }}
         />
       </div>
@@ -69,7 +69,7 @@ export function AlignmentDriftIndicator({ declaredAlignment, className }: Alignm
         <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Alignment Drift</p>
         <p className="text-xs font-medium flex items-center gap-1">
           <span>{driftZone.emoji}</span>
-          <span style={{ color: driftZone.color }}>{driftZone.label}</span>
+          <span style={{ color: driftZone.cssColor }}>{driftZone.label}</span>
         </p>
         <p className="text-[10px] text-muted-foreground">
           Based on {historyCount} prompt{historyCount !== 1 ? 's' : ''} used

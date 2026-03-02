@@ -67,7 +67,7 @@ export function CharacterNamePlaque({ name, level, primaryClass }: CharacterName
             <span className="text-muted-foreground/40 text-[10px]">·</span>
           )}
           {alignmentZone && (
-            <span className={cn("text-[11px] font-cinzel uppercase tracking-wider", alignmentZone.color)}>
+            <span className="text-[11px] font-cinzel uppercase tracking-wider" style={{ color: alignmentZone.cssColor }}>
               {alignmentZone.emoji} {alignmentZone.label}
             </span>
           )}
