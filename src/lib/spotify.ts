@@ -324,6 +324,7 @@ export interface MoodPreset {
   emoji: string;
   playlistUri?: string;
   playlistName?: string;
+  manuallyAssigned?: boolean;
 }
 
 export const DEFAULT_MOOD_PRESETS: MoodPreset[] = [
