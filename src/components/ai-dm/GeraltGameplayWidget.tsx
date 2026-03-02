@@ -25,6 +25,7 @@ import {
 import { GERALT_CATEGORIES, GERALT_PROMPTS, GeraltPrompt } from '@/lib/geralt-prompts';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
 import { AlignmentBadge } from '@/components/alignment/AlignmentBadge';
+import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
 import { toast } from 'sonner';
 
 import geraltHappy from '@/assets/geralt-happy.jpg';
@@ -73,6 +74,7 @@ export function GeraltGameplayWidget({ open, onClose, characterId, onHpChange, o
   const [hpDelta, setHpDelta] = useState('');
   const [lastRoll, setLastRoll] = useState<AttackRollResult | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const { logPromptUsage } = useAlignmentDrift();
 
   useEffect(() => { setState(loadState(characterId)); }, [characterId]);
 
@@ -170,21 +172,23 @@ export function GeraltGameplayWidget({ open, onClose, characterId, onHpChange, o
 
   const handleUseRPPrompt = useCallback((prompt: GeraltPrompt) => {
     const processed = applyTimePrefix(prompt.prompt);
+    logPromptUsage(prompt.id);
     if (onUsePrompt) {
       onUsePrompt(processed);
       onClose();
       toast.success(`${prompt.icon} ${prompt.title}`, { description: 'Added to DM input' });
     }
-  }, [onUsePrompt, onClose]);
+  }, [onUsePrompt, onClose, logPromptUsage]);
 
   const handleCopyRPPrompt = useCallback(async (prompt: GeraltPrompt) => {
+    logPromptUsage(prompt.id);
     try {
       await navigator.clipboard.writeText(applyTimePrefix(prompt.prompt));
       setCopiedId(prompt.id);
       toast.success(`${prompt.icon} ${prompt.title}`, { description: 'Prompt copied!' });
       setTimeout(() => setCopiedId(null), 2000);
     } catch { toast.error('Copy failed'); }
-  }, []);
+  }, [logPromptUsage]);
 
   const pickRandomRP = useCallback(() => {
     const prompt = GERALT_PROMPTS[Math.floor(Math.random() * GERALT_PROMPTS.length)];
