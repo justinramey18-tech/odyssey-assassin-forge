@@ -24,6 +24,7 @@ import {
 } from '@/components/companion/geralt-data';
 import { GERALT_CATEGORIES, GERALT_PROMPTS, GeraltPrompt } from '@/lib/geralt-prompts';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
+import { AlignmentBadge } from '@/components/alignment/AlignmentBadge';
 import { toast } from 'sonner';
 
 import geraltHappy from '@/assets/geralt-happy.jpg';
@@ -511,6 +512,7 @@ export function GeraltGameplayWidget({ open, onClose, characterId, onHpChange, o
                                   <div className="flex items-center gap-2">
                                     <span className="text-base shrink-0">{prompt.icon}</span>
                                     <span className="text-sm text-white/90 font-medium">{prompt.title}</span>
+                                    <AlignmentBadge promptId={prompt.id} />
                                   </div>
                                   {prompt.description && (
                                     <p className="text-xs text-white/40 mt-0.5 leading-relaxed">{prompt.description}</p>

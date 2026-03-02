@@ -237,9 +237,81 @@ const EMPYREAN_ALIGNMENT_MAP: Record<string, AlignmentScore> = {
   'emp-forbidden-5': { law: -3, good: -3 },
 };
 
+// ── DM Quick Actions ──
+const DM_ACTION_ALIGNMENT_MAP: Record<string, AlignmentScore> = {
+  'dm-combat-encounter': { law: 0, good: -1 },
+  'dm-explore-dungeon': { law: 1, good: 0 },
+  'dm-visit-tavern': { law: 0, good: 1 },
+  'dm-wilderness-journey': { law: 0, good: 0 },
+  'dm-mystery-quest': { law: 1, good: 1 },
+  'dm-look-around': { law: 1, good: 0 },
+  'dm-attack': { law: -1, good: -2 },
+  'dm-talk-npc': { law: 1, good: 2 },
+  'dm-check-traps': { law: 2, good: 0 },
+  'dm-cast-spell': { law: 0, good: 0 },
+  'dm-stealth': { law: -2, good: 0 },
+  'dm-investigate': { law: 2, good: 1 },
+  'dm-rest': { law: 1, good: 1 },
+};
+
+// ── Geralt Prompts ──
+const GERALT_ALIGNMENT_MAP: Record<string, AlignmentScore> = {
+  // Disdain
+  'disdain-1': { law: -1, good: -2 }, 'disdain-2': { law: -2, good: -1 },
+  'disdain-3': { law: -1, good: -1 }, 'disdain-4': { law: -2, good: -2 },
+  'disdain-5': { law: -1, good: -3 }, 'disdain-6': { law: -3, good: -1 },
+  'disdain-7': { law: -2, good: -2 }, 'disdain-8': { law: -1, good: -1 },
+  'disdain-9': { law: -2, good: -3 },
+  // Affection
+  'affection-1': { law: 1, good: 3 }, 'affection-2': { law: 0, good: 4 },
+  'affection-3': { law: 1, good: 2 }, 'affection-4': { law: -1, good: 3 },
+  'affection-5': { law: 0, good: 5 }, 'affection-6': { law: 1, good: 4 },
+  'affection-7': { law: 0, good: 3 }, 'affection-8': { law: -1, good: 2 },
+  // Hunting
+  'hunting-1': { law: -2, good: -3 }, 'hunting-2': { law: -3, good: -2 },
+  'hunting-3': { law: -1, good: -4 }, 'hunting-4': { law: -2, good: -2 },
+  'hunting-5': { law: -3, good: -3 }, 'hunting-6': { law: -1, good: -2 },
+  'hunting-7': { law: -4, good: -3 }, 'hunting-8': { law: -2, good: -1 },
+  // Preening
+  'preening-1': { law: 0, good: 0 }, 'preening-2': { law: -1, good: -1 },
+  'preening-3': { law: 0, good: 0 }, 'preening-4': { law: -1, good: 0 },
+  'preening-5': { law: 0, good: -1 }, 'preening-6': { law: -1, good: 0 },
+  'preening-7': { law: 0, good: 0 }, 'preening-8': { law: -1, good: -1 },
+  // Chaos
+  'chaos-1': { law: -4, good: -1 }, 'chaos-2': { law: -5, good: -2 },
+  'chaos-3': { law: -3, good: 0 }, 'chaos-4': { law: -4, good: -3 },
+  'chaos-5': { law: -5, good: -1 }, 'chaos-6': { law: -3, good: -2 },
+  'chaos-7': { law: -4, good: -1 }, 'chaos-8': { law: -5, good: -3 },
+  // Nap & Territory
+  'nap-1': { law: 1, good: 0 }, 'nap-2': { law: 0, good: 0 },
+  'nap-3': { law: -1, good: 0 }, 'nap-4': { law: 0, good: 1 },
+  'nap-5': { law: 1, good: 0 }, 'nap-6': { law: -1, good: -1 },
+  'nap-7': { law: 0, good: 0 }, 'nap-8': { law: 1, good: 0 },
+  // Battle
+  'battle-1': { law: -1, good: -2 }, 'battle-2': { law: 0, good: 2 },
+  'battle-3': { law: -3, good: -4 }, 'battle-4': { law: -2, good: -1 },
+  'battle-5': { law: 1, good: 3 }, 'battle-6': { law: -2, good: -3 },
+  'battle-7': { law: -1, good: -1 }, 'battle-8': { law: 0, good: 1 },
+  // Social
+  'social-1': { law: -2, good: -1 }, 'social-2': { law: -1, good: 0 },
+  'social-3': { law: -3, good: -2 }, 'social-4': { law: 0, good: 1 },
+  'social-5': { law: -2, good: -1 }, 'social-6': { law: -1, good: -2 },
+  'social-7': { law: -3, good: -1 }, 'social-8': { law: -2, good: 0 },
+  // Environment
+  'environment-1': { law: 0, good: 0 }, 'environment-2': { law: 0, good: 1 },
+  'environment-3': { law: -1, good: -1 }, 'environment-4': { law: 1, good: 0 },
+  'environment-5': { law: 0, good: 0 }, 'environment-6': { law: -1, good: 0 },
+  'environment-7': { law: 0, good: 1 }, 'environment-8': { law: 1, good: 0 },
+  // Party Dynamics
+  'party-1': { law: -2, good: -1 }, 'party-2': { law: -1, good: 1 },
+  'party-3': { law: -3, good: -2 }, 'party-4': { law: 0, good: 2 },
+  'party-5': { law: -2, good: 0 }, 'party-6': { law: -1, good: -1 },
+  'party-7': { law: -2, good: -2 },
+};
+
 /** Get alignment score for a prompt by ID. Returns null if unscored. */
 export function getPromptAlignment(promptId: string): AlignmentScore | null {
-  return PROMPT_ALIGNMENT_MAP[promptId] ?? EMPYREAN_ALIGNMENT_MAP[promptId] ?? null;
+  return PROMPT_ALIGNMENT_MAP[promptId] ?? EMPYREAN_ALIGNMENT_MAP[promptId] ?? DM_ACTION_ALIGNMENT_MAP[promptId] ?? GERALT_ALIGNMENT_MAP[promptId] ?? null;
 }
 
 /** Sort prompts by proximity to a target alignment. Closer = first. */
