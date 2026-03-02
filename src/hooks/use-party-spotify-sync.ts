@@ -86,7 +86,7 @@ export function usePartySpotifySync({
 
   // ── Member: Subscribe to host's broadcast via real-time ─────────────
   useEffect(() => {
-    if (!partyId || isCreator || !syncEnabled || !connected) return;
+    if (!partyId || isCreator || !syncEnabled) return;
 
     // Fetch initial state
     const fetchInitial = async () => {
@@ -101,8 +101,8 @@ export function usePartySpotifySync({
         const state = data.state_data as unknown as SpotifySyncState;
         if (state.playlistUri && state.playlistName) {
           setHostPlaylist({ uri: state.playlistUri, name: state.playlistName });
-          // Auto-play on initial sync
-          if (state.playlistUri !== lastPlayedUriRef.current) {
+          // Auto-play only if member has their own Spotify connected
+          if (connected && state.playlistUri !== lastPlayedUriRef.current) {
             lastPlayedUriRef.current = state.playlistUri;
             playPlaylist(state.playlistUri);
             toast.success(`🎵 Synced: ${state.playlistName}`, { duration: 3000 });
@@ -130,7 +130,8 @@ export function usePartySpotifySync({
           const state = row.state_data as SpotifySyncState;
           if (state?.playlistUri && state?.playlistName) {
             setHostPlaylist({ uri: state.playlistUri, name: state.playlistName });
-            if (state.playlistUri !== lastPlayedUriRef.current) {
+            // Auto-play only if member has their own Spotify connected
+            if (connected && state.playlistUri !== lastPlayedUriRef.current) {
               lastPlayedUriRef.current = state.playlistUri;
               playPlaylist(state.playlistUri);
               toast.success(`🎵 Synced: ${state.playlistName}`, { duration: 3000 });

@@ -201,14 +201,79 @@ export function DMSpotifyControls({ partyId, isCreator = false }: DMSpotifyContr
   };
 
   const handleSyncToggle = (enabled: boolean) => {
-    if (enabled && !spotify.connected) {
-      // Member must connect their own Spotify first
-      spotify.connect();
-      return;
-    }
     partySync.toggleSync(enabled);
   };
 
+  // ── Party member without Spotify: show sync toggle + optional connect ──
+  if (!spotify.connected && partyId && !isCreator) {
+    return (
+      <div className="px-3 py-2 space-y-3">
+        {/* Sync to Host — always visible for party members */}
+        <div className="flex items-center justify-between py-1">
+          <div className="flex items-center gap-2 min-w-0">
+            <Radio className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs font-medium">Sync to Host</p>
+              <p className="text-[10px] text-muted-foreground">
+                {partySync.syncEnabled
+                  ? partySync.hostPlaylist
+                    ? `Playing: ${partySync.hostPlaylist.name}`
+                    : 'Waiting for host to play...'
+                  : 'Hear the same music as the host'
+                }
+              </p>
+            </div>
+          </div>
+          <Switch
+            checked={partySync.syncEnabled}
+            onCheckedChange={handleSyncToggle}
+            className="data-[state=checked]:bg-blue-600"
+          />
+        </div>
+
+        {/* Info banner when synced */}
+        {partySync.syncEnabled && (
+          <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2">
+            <p className="text-[10px] text-blue-300 leading-relaxed">
+              🎧 The host is sharing music with the party. Connect your own Spotify below for playback controls on your device.
+            </p>
+          </div>
+        )}
+
+        {/* Host playlist display when synced */}
+        {partySync.syncEnabled && partySync.hostPlaylist && (
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-md bg-blue-500/15 flex items-center justify-center shrink-0">
+              <Music className="w-4 h-4 text-blue-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold truncate">{partySync.hostPlaylist.name}</p>
+              <p className="text-[9px] text-blue-400 flex items-center gap-1 mt-0.5">
+                <Radio className="w-2.5 h-2.5" /> Synced to host
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Optional: Connect own Spotify */}
+        <button
+          onClick={spotify.connect}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/20 active:scale-[0.98] transition-colors min-h-[44px] border border-border/30"
+          style={{ touchAction: 'manipulation' }}
+        >
+          <WifiOff className="w-4 h-4 text-muted-foreground shrink-0" />
+          <div className="flex-1 text-left min-w-0">
+            <span className="text-sm font-medium text-foreground">Connect Spotify</span>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Optional — play the host's music on your own device
+            </p>
+          </div>
+        </button>
+      </div>
+    );
+  }
+
+  // ── Not connected, not in party (or is creator): standard connect prompt ──
   if (!spotify.connected) {
     return (
       <button
@@ -219,11 +284,7 @@ export function DMSpotifyControls({ partyId, isCreator = false }: DMSpotifyContr
         <WifiOff className="w-4 h-4 text-muted-foreground shrink-0" />
         <div className="flex-1 text-left min-w-0">
           <span className="text-sm font-medium text-foreground">Connect Spotify</span>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
-            {partyId && !isCreator
-              ? 'Connect your Spotify to sync with the host'
-              : 'Link your account for ambient music'}
-          </p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">Link your account for ambient music</p>
         </div>
       </button>
     );
