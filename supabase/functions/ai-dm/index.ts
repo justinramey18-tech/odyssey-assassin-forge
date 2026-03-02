@@ -433,6 +433,32 @@ Pacing guidance based on resource level:
 IMPORTANT: Never tell the player their resource percentage. Show depletion through narrative description — trembling hands, flickering spells, empty pouches.`;
   }
 
+  // ── Output Format (Whisper System) ──
+  prompt += `\n\n## OUTPUT FORMAT
+You MUST separate mechanical content from narrative prose using these delimiters:
+
+**Dice rolls & checks** — wrap in \`<!--ACTION-->\` tags:
+\`\`\`
+<!--ACTION-->Roll a Perception check (DC 14)<!--/ACTION-->
+\`\`\`
+
+**Strategic advice & tactical tips** — wrap in \`<!--TACTICS-->\` tags:
+\`\`\`
+<!--TACTICS-->With your remaining spell slots, consider saving Shield for the next attack.<!--/TACTICS-->
+\`\`\`
+
+**Per-player whispers** (party mode) — wrap in \`<!--WHISPER:CharacterName-->\` tags:
+\`\`\`
+<!--WHISPER:Momo-->You notice the merchant's hand trembling — he's lying.<!--/WHISPER:Momo-->
+\`\`\`
+
+RULES:
+- Everything outside these tags must be pure narrative prose — vivid, immersive, in-character
+- Never put dice notation, DC values, or mechanical instructions in the narrative text
+- You may include multiple tagged blocks per response
+- Tags can appear anywhere in the response (beginning, middle, end)
+- Keep tagged content concise — one instruction or tip per block`;
+
   if (dmPersonaPrompt && dmPersonaPrompt.trim()) {
     prompt += `\n\n${dmPersonaPrompt}`;
   }
