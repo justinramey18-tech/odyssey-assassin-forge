@@ -636,12 +636,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
     if (inputRef.current) inputRef.current.style.height = 'auto';
   }, [input, partyDm]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit();
-    }
-  }, [handleSubmit]);
+  const handleKeyDown = useCallback((_e: React.KeyboardEvent) => {
+    // Enter inserts newline naturally (textarea default); send via button only
+  }, []);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
