@@ -8,6 +8,7 @@ import { applyTimePrefix } from '@/lib/fourthWallTime';
 import { useFavoritePrompts } from '@/hooks/use-favorite-prompts';
 import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
 import { AlignmentBanner } from '@/components/alignment/AlignmentBanner';
+import { AlignmentBadge } from '@/components/alignment/AlignmentBadge';
 import { AlignmentRecommender } from '@/components/alignment/AlignmentRecommender';
 import { type AlignmentScore, getPromptAlignment, isAlignmentMatch, sortByAlignmentProximity } from '@/lib/alignmentSpectrum';
 import { Badge } from '@/components/ui/badge';
@@ -263,6 +264,7 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
           <div className="flex items-center gap-2">
             <span className="text-base shrink-0">{prompt.icon}</span>
             <span className="text-sm text-white/90 font-medium">{prompt.title}</span>
+            <AlignmentBadge promptId={prompt.id} />
             {intensityConfig && (
               <span className="text-[10px] px-1.5 py-0.5 rounded shrink-0" style={{ backgroundColor: `${intensityConfig.color}20`, color: intensityConfig.color }}>
                 {intensityConfig.icon}
