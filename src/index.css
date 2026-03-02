@@ -16,8 +16,8 @@
     --card: 220 18% 12% / 0.7;
     --card-foreground: 40 15% 90%;
 
-    /* Popover/modal styling - semi-transparent */
-    --popover: 220 20% 10% / 0.85;
+    /* Popover/modal styling - opaque for dropdown readability */
+    --popover: 220 20% 10%;
     --popover-foreground: 40 15% 90%;
 
     /* Primary - warm gold accent */
