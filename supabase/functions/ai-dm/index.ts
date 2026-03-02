@@ -124,6 +124,7 @@ interface DMRequest {
   model?: string;
   user_api_key?: string;
   user_openai_key?: string;
+  encounterGuidance?: string;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -306,7 +307,7 @@ function buildContextSummary(ctx: CharacterContext): string {
 
 // ── System Prompt Builder ──────────────────────────────────────────────────────
 
-function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string): string {
+function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string, encounterGuidance?: string): string {
   const contextSummary = buildContextSummary(ctx);
   
   let prompt = `You are an expert Dungeon Master running a live D&D 5e session for a single player. You are immersive, adaptive, and mechanically precise.
@@ -365,6 +366,10 @@ ${contextSummary}
 - Track the companion's conditions separately from the player (e.g., "Geralt is now frightened").
 - Describe the companion's mood and reactions based on its current state.
 - The companion can be knocked unconscious at 0 HP but does not make death saves — it stabilizes automatically.`;
+
+  if (encounterGuidance && encounterGuidance.trim()) {
+    prompt += `\n\n## ENCOUNTER DIFFICULTY CALIBRATION\n${encounterGuidance}`;
+  }
 
   if (dmPersonaPrompt && dmPersonaPrompt.trim()) {
     prompt += `\n\n${dmPersonaPrompt}`;
@@ -531,14 +536,14 @@ serve(async (req) => {
       });
     }
 
-    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key } = (await req.json()) as DMRequest;
+    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, encounterGuidance } = (await req.json()) as DMRequest;
     
     // Trim to last 100 messages
     const trimmedMessages = messages.length > MAX_MESSAGES
       ? [...messages.slice(0, 2), ...messages.slice(-(MAX_MESSAGES - 2))]
       : messages;
 
-    const systemPrompt = buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt);
+    const systemPrompt = buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance);
 
     // Determine which provider to use
     const requestedModel = model || DEFAULT_MODEL;
