@@ -177,6 +177,8 @@ export function DMSpotifyControls({ partyId, isCreator = false }: DMSpotifyContr
   const [newEmoji, setNewEmoji] = useState('🎵');
   const [newPlaylistLink, setNewPlaylistLink] = useState('');
 
+  const isMemberSynced = !isCreator && partySync.syncEnabled;
+
   const handleAddPreset = async () => {
     const label = newLabel.trim();
     const query = newQuery.trim();
@@ -198,6 +200,15 @@ export function DMSpotifyControls({ partyId, isCreator = false }: DMSpotifyContr
     setShowAddForm(false);
   };
 
+  const handleSyncToggle = (enabled: boolean) => {
+    if (enabled && !spotify.connected) {
+      // Member must connect their own Spotify first
+      spotify.connect();
+      return;
+    }
+    partySync.toggleSync(enabled);
+  };
+
   if (!spotify.connected) {
     return (
       <button
@@ -208,7 +219,11 @@ export function DMSpotifyControls({ partyId, isCreator = false }: DMSpotifyContr
         <WifiOff className="w-4 h-4 text-muted-foreground shrink-0" />
         <div className="flex-1 text-left min-w-0">
           <span className="text-sm font-medium text-foreground">Connect Spotify</span>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Link your account for ambient music</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            {partyId && !isCreator
+              ? 'Connect your Spotify to sync with the host'
+              : 'Link your account for ambient music'}
+          </p>
         </div>
       </button>
     );
@@ -229,6 +244,11 @@ export function DMSpotifyControls({ partyId, isCreator = false }: DMSpotifyContr
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold truncate">{spotify.playback.trackName}</p>
             <p className="text-[10px] text-muted-foreground truncate">{spotify.playback.artistName}</p>
+            {isMemberSynced && (
+              <p className="text-[9px] text-blue-400 flex items-center gap-1 mt-0.5">
+                <Radio className="w-2.5 h-2.5" /> Synced to host
+              </p>
+            )}
           </div>
         </div>
       ) : (
@@ -236,46 +256,68 @@ export function DMSpotifyControls({ partyId, isCreator = false }: DMSpotifyContr
           <div className="w-10 h-10 rounded-md bg-muted/30 flex items-center justify-center shrink-0">
             <Music className="w-4 h-4 text-muted-foreground" />
           </div>
-          <p className="text-xs text-muted-foreground">No track playing</p>
+          <p className="text-xs text-muted-foreground">
+            {isMemberSynced ? 'Waiting for host to play music...' : 'No track playing'}
+          </p>
         </div>
       )}
 
-      {/* Playback controls */}
-      <div className="flex items-center justify-center gap-2">
-        <button onClick={spotify.previous} className="p-1.5 rounded-full hover:bg-muted/30 transition-colors">
-          <SkipBack className="w-4 h-4" />
-        </button>
-        <button
-          onClick={spotify.togglePlay}
-          className="p-2 rounded-full bg-emerald-600 hover:bg-emerald-600/80 transition-colors"
-        >
-          {spotify.playback?.isPlaying ? (
-            <Pause className="w-4 h-4 text-white" />
-          ) : (
-            <Play className="w-4 h-4 text-white" />
-          )}
-        </button>
-        <button onClick={spotify.next} className="p-1.5 rounded-full hover:bg-muted/30 transition-colors">
-          <SkipForward className="w-4 h-4" />
-        </button>
-      </div>
-
-
-      {/* Auto-Mood toggle */}
-      <div className="flex items-center justify-between py-1">
-        <div className="flex items-center gap-2 min-w-0">
-          <Sparkles className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-          <div className="min-w-0">
-            <p className="text-xs font-medium">Auto-Mood</p>
-            <p className="text-[10px] text-muted-foreground">AI picks music based on the story</p>
-          </div>
+      {/* Playback controls — scoped for synced members */}
+      {isMemberSynced ? (
+        /* Synced member: local pause/resume only, no skip controls */
+        <div className="flex items-center justify-center gap-3">
+          <button
+            onClick={spotify.togglePlay}
+            className="p-2 rounded-full bg-blue-600 hover:bg-blue-600/80 transition-colors"
+            title="Pause/resume on your device only"
+          >
+            {spotify.playback?.isPlaying ? (
+              <Pause className="w-4 h-4 text-white" />
+            ) : (
+              <Play className="w-4 h-4 text-white" />
+            )}
+          </button>
+          <p className="text-[9px] text-muted-foreground">Your device only</p>
         </div>
-        <Switch
-          checked={spotify.autoMoodEnabled}
-          onCheckedChange={spotify.setAutoMoodEnabled}
-          className="data-[state=checked]:bg-emerald-600"
-        />
-      </div>
+      ) : (
+        /* Host / unsynced member: full controls */
+        <div className="flex items-center justify-center gap-2">
+          <button onClick={spotify.previous} className="p-1.5 rounded-full hover:bg-muted/30 transition-colors">
+            <SkipBack className="w-4 h-4" />
+          </button>
+          <button
+            onClick={spotify.togglePlay}
+            className="p-2 rounded-full bg-emerald-600 hover:bg-emerald-600/80 transition-colors"
+          >
+            {spotify.playback?.isPlaying ? (
+              <Pause className="w-4 h-4 text-white" />
+            ) : (
+              <Play className="w-4 h-4 text-white" />
+            )}
+          </button>
+          <button onClick={spotify.next} className="p-1.5 rounded-full hover:bg-muted/30 transition-colors">
+            <SkipForward className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Auto-Mood toggle — host only when in party */}
+      {(!partyId || isCreator) && (
+        <div className="flex items-center justify-between py-1">
+          <div className="flex items-center gap-2 min-w-0">
+            <Sparkles className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs font-medium">Auto-Mood</p>
+              <p className="text-[10px] text-muted-foreground">AI picks music based on the story</p>
+            </div>
+          </div>
+          <Switch
+            checked={spotify.autoMoodEnabled}
+            onCheckedChange={spotify.setAutoMoodEnabled}
+            className="data-[state=checked]:bg-emerald-600"
+          />
+        </div>
+      )}
 
       {/* Party Music Sync */}
       {partyId && (
@@ -296,7 +338,7 @@ export function DMSpotifyControls({ partyId, isCreator = false }: DMSpotifyContr
                       ? partySync.hostPlaylist
                         ? `Playing: ${partySync.hostPlaylist.name}`
                         : 'Waiting for host to play...'
-                      : 'Play the same music as the host'
+                      : 'Hear the same music as the host'
                     }
                   </p>
                 </>
@@ -306,7 +348,7 @@ export function DMSpotifyControls({ partyId, isCreator = false }: DMSpotifyContr
           {!isCreator && (
             <Switch
               checked={partySync.syncEnabled}
-              onCheckedChange={partySync.toggleSync}
+              onCheckedChange={handleSyncToggle}
               className="data-[state=checked]:bg-blue-600"
             />
           )}
@@ -316,76 +358,87 @@ export function DMSpotifyControls({ partyId, isCreator = false }: DMSpotifyContr
         </div>
       )}
 
-      {/* Mood presets */}
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Mood Presets</p>
-          <button
-            onClick={() => setShowAddForm(s => !s)}
-            className="text-[10px] text-emerald-500 hover:text-emerald-400 flex items-center gap-0.5 transition-colors"
-          >
-            {showAddForm ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
-            {showAddForm ? 'Cancel' : 'Add'}
-          </button>
+      {/* Synced member info banner */}
+      {isMemberSynced && (
+        <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2">
+          <p className="text-[10px] text-blue-300 leading-relaxed">
+            🎧 You're hearing the host's music on your device. Pausing only stops it on your end — the host's music keeps playing for everyone.
+          </p>
         </div>
+      )}
 
-        {showAddForm && (
-          <div className="p-2 rounded-lg border border-border/50 bg-muted/10 space-y-2">
-            <div className="flex gap-1.5">
-              <input
-                type="text"
-                value={newEmoji}
-                onChange={e => setNewEmoji(e.target.value.slice(0, 2))}
-                className="w-9 text-center text-sm bg-background/50 border border-border/50 rounded px-1 py-1"
-                placeholder="🎵"
-                maxLength={2}
-              />
-              <input
-                type="text"
-                value={newLabel}
-                onChange={e => setNewLabel(e.target.value.slice(0, 30))}
-                className="flex-1 text-xs bg-background/50 border border-border/50 rounded px-2 py-1 placeholder:text-muted-foreground/50"
-                placeholder="Preset name"
-                maxLength={30}
-              />
-            </div>
-            <input
-              type="text"
-              value={newQuery}
-              onChange={e => setNewQuery(e.target.value.slice(0, 100))}
-              className="w-full text-xs bg-background/50 border border-border/50 rounded px-2 py-1 placeholder:text-muted-foreground/50"
-              placeholder="Search query (e.g. dark cave ambient)"
-              maxLength={100}
-            />
-            <div className="flex items-center gap-1.5">
-              <Link className="w-3 h-3 text-muted-foreground shrink-0" />
-              <input
-                type="text"
-                value={newPlaylistLink}
-                onChange={e => setNewPlaylistLink(e.target.value.slice(0, 200))}
-                className="flex-1 text-[11px] bg-background/50 border border-border/50 rounded px-2 py-1 placeholder:text-muted-foreground/40"
-                placeholder="Playlist link (optional)"
-                maxLength={200}
-              />
-            </div>
+      {/* Mood presets — host only when in party */}
+      {(!partyId || isCreator) && (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Mood Presets</p>
             <button
-              onClick={handleAddPreset}
-              disabled={!newLabel.trim() || !newQuery.trim()}
-              className="w-full text-xs py-1.5 rounded bg-emerald-600 hover:bg-emerald-600/80 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              onClick={() => setShowAddForm(s => !s)}
+              className="text-[10px] text-emerald-500 hover:text-emerald-400 flex items-center gap-0.5 transition-colors"
             >
-              Add Preset
+              {showAddForm ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+              {showAddForm ? 'Cancel' : 'Add'}
             </button>
           </div>
-        )}
 
-        <div className="flex flex-wrap gap-1.5">
-          {spotify.moodPresets.map(preset => (
-            <PresetPill key={preset.id} preset={preset} spotify={spotify} onPlay={partySync.onHostPlayPlaylist} />
-          ))}
+          {showAddForm && (
+            <div className="p-2 rounded-lg border border-border/50 bg-muted/10 space-y-2">
+              <div className="flex gap-1.5">
+                <input
+                  type="text"
+                  value={newEmoji}
+                  onChange={e => setNewEmoji(e.target.value.slice(0, 2))}
+                  className="w-9 text-center text-sm bg-background/50 border border-border/50 rounded px-1 py-1"
+                  placeholder="🎵"
+                  maxLength={2}
+                />
+                <input
+                  type="text"
+                  value={newLabel}
+                  onChange={e => setNewLabel(e.target.value.slice(0, 30))}
+                  className="flex-1 text-xs bg-background/50 border border-border/50 rounded px-2 py-1 placeholder:text-muted-foreground/50"
+                  placeholder="Preset name"
+                  maxLength={30}
+                />
+              </div>
+              <input
+                type="text"
+                value={newQuery}
+                onChange={e => setNewQuery(e.target.value.slice(0, 100))}
+                className="w-full text-xs bg-background/50 border border-border/50 rounded px-2 py-1 placeholder:text-muted-foreground/50"
+                placeholder="Search query (e.g. dark cave ambient)"
+                maxLength={100}
+              />
+              <div className="flex items-center gap-1.5">
+                <Link className="w-3 h-3 text-muted-foreground shrink-0" />
+                <input
+                  type="text"
+                  value={newPlaylistLink}
+                  onChange={e => setNewPlaylistLink(e.target.value.slice(0, 200))}
+                  className="flex-1 text-[11px] bg-background/50 border border-border/50 rounded px-2 py-1 placeholder:text-muted-foreground/40"
+                  placeholder="Playlist link (optional)"
+                  maxLength={200}
+                />
+              </div>
+              <button
+                onClick={handleAddPreset}
+                disabled={!newLabel.trim() || !newQuery.trim()}
+                className="w-full text-xs py-1.5 rounded bg-emerald-600 hover:bg-emerald-600/80 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Add Preset
+              </button>
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-1.5">
+            {spotify.moodPresets.map(preset => (
+              <PresetPill key={preset.id} preset={preset} spotify={spotify} onPlay={partySync.onHostPlayPlaylist} />
+            ))}
+          </div>
+
+          <p className="text-[9px] text-muted-foreground/60 text-center">Tap to play · Hold to edit link</p>
         </div>
-
-        <p className="text-[9px] text-muted-foreground/60 text-center">Tap to play · Hold to edit link</p>
-      </div>
+      )}
 
       {/* Connection info */}
       <div className="flex items-center justify-between">
