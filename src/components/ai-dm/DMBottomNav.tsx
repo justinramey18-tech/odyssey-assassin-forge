@@ -191,7 +191,7 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
-                    className="overflow-hidden"
+                    className="overflow-hidden max-h-[50vh] overflow-y-auto overscroll-contain"
                   >
                     {oracleContent}
                   </motion.div>
