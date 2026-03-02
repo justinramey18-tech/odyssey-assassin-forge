@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
+import { AlignmentBadge } from '@/components/alignment/AlignmentBadge';
 import { Copy, Check, Star, Shuffle, Gem } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -239,6 +240,7 @@ export function EmpyreanPromptLibrary({ open, onOpenChange, characterName }: Emp
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5">
                                 <p className="text-[13px] font-medium leading-tight truncate">{p.title}</p>
+                                <AlignmentBadge promptId={p.id} />
                                 {matched && <span className="text-[8px] px-1 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 shrink-0">✦</span>}
                               </div>
                               <p className="text-[10px] text-muted-foreground line-clamp-1">{p.description}</p>
