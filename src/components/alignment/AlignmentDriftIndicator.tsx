@@ -19,8 +19,7 @@ function toPixel(score: AlignmentScore) {
 export function AlignmentDriftIndicator({ declaredAlignment, className }: AlignmentDriftIndicatorProps) {
   const { driftPosition, driftZone, historyCount } = useAlignmentDrift();
 
-  if (historyCount === 0) return null;
-
+  const hasData = historyCount > 0;
   const driftPx = toPixel(driftPosition);
   const declaredPx = declaredAlignment ? toPixel(declaredAlignment) : null;
 
@@ -72,7 +71,9 @@ export function AlignmentDriftIndicator({ declaredAlignment, className }: Alignm
           <span style={{ color: driftZone.cssColor }}>{driftZone.label}</span>
         </p>
         <p className="text-[10px] text-muted-foreground">
-          Based on {historyCount} prompt{historyCount !== 1 ? 's' : ''} used
+          {hasData
+            ? `Based on ${historyCount} prompt${historyCount !== 1 ? 's' : ''} used`
+            : 'No drift data yet'}
         </p>
       </div>
     </div>
