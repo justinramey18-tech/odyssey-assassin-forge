@@ -29,7 +29,10 @@ export function ElevenLabsVoicePicker() {
   // Cleanup on unmount
   useEffect(() => cleanupPreview, [cleanupPreview]);
 
-  const fetchVoices = useCallback(async () => {
+  const retryCountRef = useRef(0);
+  const MAX_RETRIES = 2;
+
+  const fetchVoices = useCallback(async (isRetry = false) => {
     const apiKey = loadApiKey('elevenlabs');
     if (!apiKey) return;
 
@@ -57,11 +60,22 @@ export function ElevenLabsVoicePicker() {
       const fetchedVoices: CachedVoice[] = data.voices || [];
       setVoices(fetchedVoices);
       setCachedVoices(fetchedVoices);
+      retryCountRef.current = 0;
     } catch (error) {
       console.error('[VoicePicker] Fetch error:', error);
+      if (!isRetry && retryCountRef.current < MAX_RETRIES) {
+        retryCountRef.current += 1;
+        const delay = retryCountRef.current * 2000;
+        console.log(`[VoicePicker] Retrying in ${delay}ms (attempt ${retryCountRef.current}/${MAX_RETRIES})`);
+        setTimeout(() => fetchVoices(true), delay);
+        return; // keep isLoading true during retry
+      }
+      retryCountRef.current = 0;
       toast.error(error instanceof Error ? error.message : 'Failed to fetch voices');
     } finally {
-      setIsLoading(false);
+      if (!retryCountRef.current) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
@@ -166,7 +180,7 @@ export function ElevenLabsVoicePicker() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={fetchVoices}
+          onClick={() => fetchVoices()}
           disabled={isLoading || !hasApiKey}
           className="h-6 px-1.5 text-muted-foreground hover:text-foreground"
         >
