@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Shield, Infinity, Info, Swords } from 'lucide-react';
+import { Shield, Infinity, Info, Swords, Target } from 'lucide-react';
+import type { DifficultyPreference } from '@/lib/combat/encounterDifficulty';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
@@ -68,6 +69,52 @@ function CombatSettingToggle({
           onCheckedChange={(c) => onToggle(settingKey, c)}
           className="data-[state=checked]:bg-amber-500"
         />
+      </div>
+    </div>
+  );
+}
+
+const DIFFICULTY_OPTIONS: { value: DifficultyPreference; label: string; description: string; color: string }[] = [
+  { value: 'easy', label: 'Easy', description: 'Forgiving encounters. Foes flee early, fight in small numbers.', color: 'text-emerald-400' },
+  { value: 'normal', label: 'Normal', description: 'Balanced challenge. Fair tactics, reasonable threat.', color: 'text-blue-400' },
+  { value: 'hard', label: 'Hard', description: 'Tough fights. Smart enemies, terrain hazards, reinforcements.', color: 'text-orange-400' },
+  { value: 'deadly', label: 'Deadly', description: 'Brutal. Optimal tactics, lethal combos. Death is real.', color: 'text-red-400' },
+];
+
+function DifficultyPreferenceSelector({
+  value,
+  onChange,
+}: {
+  value: DifficultyPreference;
+  onChange: (pref: DifficultyPreference) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Target className="w-4 h-4 text-amber-400" />
+        <span className="text-sm font-medium text-amber-400">AI DM Encounter Difficulty</span>
+      </div>
+      <p className="text-xs text-muted-foreground -mt-1">
+        Sets the target difficulty tier the AI DM aims for when generating combat encounters.
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        {DIFFICULTY_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => onChange(opt.value)}
+            className={cn(
+              'p-3 rounded-lg border-2 transition-all text-left',
+              value === opt.value
+                ? 'border-amber-500/60 bg-amber-500/10'
+                : 'border-border/30 bg-card/30 hover:border-muted-foreground/40'
+            )}
+          >
+            <span className={cn('text-sm font-cinzel font-bold', value === opt.value ? opt.color : 'text-foreground')}>
+              {opt.label}
+            </span>
+            <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{opt.description}</p>
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -265,8 +312,17 @@ export function GameModeSettings({ settings, onChange }: GameModeSettingsProps) 
         />
       </div>
 
+      <Separator />
 
-
+      {/* Encounter Difficulty Preference */}
+      <DifficultyPreferenceSelector
+        value={combatSettings.difficultyPreference ?? 'normal'}
+        onChange={(pref) => {
+          const newSettings = { ...combatSettings, difficultyPreference: pref };
+          setCombatSettings(newSettings);
+          saveCombatSettings(newSettings);
+        }}
+      />
 
       {/* Honest Mode Rules */}
       <div className={cn('space-y-4', !isHonestMode && 'opacity-50 pointer-events-none')}>

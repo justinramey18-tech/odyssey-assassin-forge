@@ -2,6 +2,7 @@
 // Manages combat-related feature toggles like Two-Weapon Fighting Style
 
 import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
+import type { DifficultyPreference } from './encounterDifficulty';
 
 export interface CombatSettings {
   /** Two-Weapon Fighting Style: Adds ability modifier to offhand damage */
@@ -20,6 +21,8 @@ export interface CombatSettings {
   hasMonkMartialArts: boolean;
   /** Show round advance notifications in combat */
   showRoundNotifications: boolean;
+  /** AI DM encounter difficulty preference */
+  difficultyPreference: DifficultyPreference;
 }
 
 const STORAGE_KEY = 'odyssey-combat-settings';
@@ -33,6 +36,7 @@ const DEFAULT_SETTINGS: CombatSettings = {
   hasPolearmMaster: false,
   hasMonkMartialArts: false,
   showRoundNotifications: true, // On by default
+  difficultyPreference: 'normal',
 };
 
 // Custom event for same-tab synchronization
@@ -100,6 +104,10 @@ export function getCombatSettingDescription(key: keyof CombatSettings): { label:
     showRoundNotifications: {
       label: 'Round Advance Notifications',
       description: 'Show toast notifications when combat rounds advance.',
+    },
+    difficultyPreference: {
+      label: 'Encounter Difficulty',
+      description: 'Sets the AI DM target difficulty tier for combat encounters.',
     },
   };
   return descriptions[key];
