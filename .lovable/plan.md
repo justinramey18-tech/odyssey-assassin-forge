@@ -1,38 +1,45 @@
 
 
-## Plan: Paste Playlist Links & Per-Preset Assignment
+## Step-by-Step Rollout Plan
 
-Allow players to paste a Spotify playlist URL/link directly onto any mood preset, giving them full control over which playlist plays for each mood.
+Here's the full sequence, one prompt at a time. We'll start with **Step 1** now and do each subsequent step in its own prompt.
 
-### Changes
+### The Order
 
-**1. `src/lib/spotify.ts`** — Add playlist URI extraction helper
-- Add `extractPlaylistUri(input: string): string | null` that accepts:
-  - Full URLs like `https://open.spotify.com/playlist/37i9dQZF1DX...`
-  - Spotify URIs like `spotify:playlist:37i9dQZF1DX...`
-  - Raw playlist IDs
-- Returns a normalized `spotify:playlist:<id>` URI or null if invalid
+1. **Encounter difficulty utility module** — `src/lib/combat/encounterDifficulty.ts` (pure math, no UI, no integrations)
+2. **Difficulty preference setting** — Add to `combatSettings.ts` + UI selector in settings
+3. **Wire into Solo AI DM** — Update `use-ai-dm.ts` to compute and send `encounterGuidance`
+4. **Wire into Party AI DM** — Update `use-party-dm.ts` with party-level extraction
+5. **Update edge function** — Accept `encounterGuidance` and inject into system prompt
+6. **Class & multiclass context** — Add class identity to `CharacterContext` and pipe to AI
+7. **Combat feats context** — Pass `combatSettings` flags to AI prompt
+8. **Alignment context** — Feed alignment spectrum data to AI
+9. **Resource pressure metric** — Computed HP%/slots/hit dice metric for pacing
 
-**2. `src/components/spotify/DMSpotifyControls.tsx`** — Add paste-to-assign UI
-- When a user **long-presses or taps an edit icon** on a preset, show a small inline input field where they can paste a Spotify playlist link
-- Add a small "link" icon badge on presets that have a custom-assigned playlist (vs auto-searched)
-- Add a "clear" option to remove a custom assignment and revert to search-based
-- Update the "Add Preset" form to include an optional "Playlist Link" field so new custom presets can be created with a direct link from the start
+### Step 1: Encounter Difficulty Utility Module
 
-**3. `src/hooks/use-spotify.ts`** — Add `assignPlaylistToPreset` method
-- New method: `assignPlaylistToPreset(presetId: string, playlistUrl: string)` — validates the URL with `extractPlaylistUri`, fetches the playlist name via the Spotify API, and updates the preset with the URI and name
-- Expose in return value
+**New file: `src/lib/combat/encounterDifficulty.ts`**
 
-### UI Flow
-1. Player taps a preset pill → opens a small popover/inline editor
-2. Two options: "Search Spotify" (existing behavior) or "Paste Link"
-3. Pasting a valid link immediately assigns and saves it
-4. A small link icon on the pill indicates a custom assignment
-5. Long-press or edit shows option to clear the custom link
+Pure functions, zero dependencies beyond TypeScript types:
 
-### Technical Details
-- Validates pasted URLs client-side before making any API calls
-- Fetches playlist metadata (name, image) via `GET /playlists/{id}` to confirm it exists and display the name
-- Falls back gracefully if the playlist is private or invalid
-- No database changes needed — presets remain in localStorage
+- `DifficultyPreference` type: `'easy' | 'normal' | 'hard' | 'deadly'`
+- `EncounterDifficulty` type: `'trivial' | 'easy' | 'medium' | 'hard' | 'deadly'`
+- `EncounterResult` interface with difficulty, adjustedXP, rawXP, multiplier, thresholds, xpPerPlayer
+- `XP_THRESHOLDS` — DMG p.82 table, levels 1–20, four tiers
+- `CR_TO_XP` — CR 0 through 30 (34 entries including fractional CRs)
+- `ENCOUNTER_MULTIPLIERS` — monster count brackets with party-size adjustment
+- `getXPThresholds(level)` — single character thresholds
+- `getPartyThresholds(partyLevels[])` — summed across party
+- `crToXP(cr)` — CR number to XP value
+- `getEncounterMultiplier(monsterCount, partySize)` — with bracket shifting for small/large parties
+- `calculateEncounterDifficulty(partyLevels[], monsterCRs[])` — full result object
+- `getEncounterBudget(partyLevels[], difficulty)` — max XP for a target tier
+- `getRecommendedCRRange(partyLevels[], preference)` — CR ranges per tier, shifted by preference
+- `formatPartyPowerForPrompt(partyLevels[], preference)` — pre-formatted string for AI injection
+
+**Updated file: `src/lib/combat/index.ts`**
+
+Add `export * from './encounterDifficulty'`.
+
+No UI, no settings changes, no hook modifications. Just the math foundation that everything else will build on.
 
