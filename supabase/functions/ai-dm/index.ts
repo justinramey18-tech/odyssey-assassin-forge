@@ -127,6 +127,7 @@ interface DMRequest {
   user_api_key?: string;
   user_openai_key?: string;
   encounterGuidance?: string;
+  combatFeats?: string[];
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -319,7 +320,7 @@ function buildContextSummary(ctx: CharacterContext): string {
 
 // ── System Prompt Builder ──────────────────────────────────────────────────────
 
-function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string, encounterGuidance?: string): string {
+function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string, encounterGuidance?: string, combatFeats?: string[]): string {
   const contextSummary = buildContextSummary(ctx);
   
   let prompt = `You are an expert Dungeon Master running a live D&D 5e session for a single player. You are immersive, adaptive, and mechanically precise.
@@ -381,6 +382,10 @@ ${contextSummary}
 
   if (encounterGuidance && encounterGuidance.trim()) {
     prompt += `\n\n## ENCOUNTER DIFFICULTY CALIBRATION\n${encounterGuidance}`;
+  }
+
+  if (combatFeats && combatFeats.length > 0) {
+    prompt += `\n\n## ACTIVE COMBAT FEATS & FIGHTING STYLES\nThe player has the following feats/styles enabled: ${combatFeats.join(', ')}.\n\nWhen narrating combat:\n- Reference these feats by name when the player uses relevant weapons or tactics\n- Suggest optimal plays that leverage these feats (e.g., "You could use your Great Weapon Master power attack for extra damage")\n- Describe feat-specific moments cinematically (e.g., Sentinel stopping an enemy in its tracks, Polearm Master striking as a foe enters reach)\n- Apply mechanical effects correctly: GWM/Sharpshooter -5/+10 tradeoff, Sentinel reducing speed to 0, Dual Wielder +1 AC, etc.`;
   }
 
   if (dmPersonaPrompt && dmPersonaPrompt.trim()) {
@@ -548,14 +553,14 @@ serve(async (req) => {
       });
     }
 
-    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, encounterGuidance } = (await req.json()) as DMRequest;
+    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, encounterGuidance, combatFeats } = (await req.json()) as DMRequest;
     
     // Trim to last 100 messages
     const trimmedMessages = messages.length > MAX_MESSAGES
       ? [...messages.slice(0, 2), ...messages.slice(-(MAX_MESSAGES - 2))]
       : messages;
 
-    const systemPrompt = buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance);
+    const systemPrompt = buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats);
 
     // Determine which provider to use
     const requestedModel = model || DEFAULT_MODEL;

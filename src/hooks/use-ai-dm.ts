@@ -388,10 +388,21 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
           model: selectedModel || undefined,
           user_api_key: loadApiKey('anthropic') || undefined,
           user_openai_key: loadApiKey('openai') || undefined,
-          encounterGuidance: formatPartyPowerForPrompt(
-            [characterContext.level ?? 1],
-            loadCombatSettings().difficultyPreference
-          ) || undefined,
+          ...(() => {
+            const cs = loadCombatSettings();
+            const feats: string[] = [];
+            if (cs.hasGreatWeaponMaster) feats.push('Great Weapon Master');
+            if (cs.hasSharpshooter) feats.push('Sharpshooter');
+            if (cs.hasSentinel) feats.push('Sentinel');
+            if (cs.hasPolearmMaster) feats.push('Polearm Master');
+            if (cs.hasDualWielderFeat) feats.push('Dual Wielder');
+            if (cs.hasTwoWeaponFightingStyle) feats.push('Two-Weapon Fighting Style');
+            if (cs.hasMonkMartialArts) feats.push('Monk Martial Arts');
+            return {
+              encounterGuidance: formatPartyPowerForPrompt([characterContext.level ?? 1], cs.difficultyPreference) || undefined,
+              combatFeats: feats.length > 0 ? feats : undefined,
+            };
+          })(),
         }),
         signal: abortControllerRef.current.signal,
       });
