@@ -5,3 +5,4 @@ export * from './promptContext';
 export * from './combatSettings';
 export * from './attackQueue';
 export * from './attackQueuePrompts';
+export * from './encounterDifficulty';
