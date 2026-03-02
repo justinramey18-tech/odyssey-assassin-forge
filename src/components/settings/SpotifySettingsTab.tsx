@@ -191,10 +191,9 @@ export function SpotifySettingsTab() {
           {searchResults.length > 0 && (
             <div className="space-y-2 mt-3">
               {searchResults.map((pl: any) => (
-                <button
+                <div
                   key={pl.id}
-                  onClick={() => spotify.playPlaylist(pl.uri)}
-                  className="flex items-center gap-3 p-2 rounded-lg border border-border/30 bg-card/20 hover:bg-card/50 transition-colors w-full text-left"
+                  className="flex items-center gap-3 p-2 rounded-lg border border-border/30 bg-card/20 hover:bg-card/50 transition-colors w-full"
                 >
                   {pl.images?.[0]?.url ? (
                     <img src={pl.images[0].url} alt="" className="w-10 h-10 rounded" />
@@ -210,8 +209,27 @@ export function SpotifySettingsTab() {
                       {pl._personal && ' · Yours'}
                     </p>
                   </div>
-                  <Play className="w-4 h-4 text-[#1DB954] shrink-0" />
-                </button>
+                  <div className="flex gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setAssigningPlaylist({ uri: pl.uri, name: pl.name })}
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                      title="Assign to mood"
+                    >
+                      <Link className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => spotify.playPlaylist(pl.uri)}
+                      className="h-8 w-8 p-0 text-[#1DB954]"
+                      title="Play now"
+                    >
+                      <Play className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
               ))}
             </div>
           )}
