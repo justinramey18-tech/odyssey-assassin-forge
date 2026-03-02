@@ -226,7 +226,7 @@ export function SettingsContent({
   // ─── CHARACTER & PARTY ───
   if (activeTab === 'character') {
     return (
-      <div className="flex-1 overflow-y-auto max-h-[70vh]">
+      <div className="flex-1">
         <div className="space-y-3 pb-6">
           <SettingsSection title="Character Profile">
             {/* Character Card */}
@@ -350,7 +350,7 @@ export function SettingsContent({
   // ─── GAMEPLAY ───
   if (activeTab === 'gameplay') {
     return (
-      <div className="flex-1 overflow-y-auto max-h-[70vh]">
+      <div className="flex-1">
         <div className="space-y-3 pb-6">
           <SettingsSection title="Game Rules">
             <GameModeSettings settings={gameModeSettings} onChange={onGameModeChange} />
@@ -371,7 +371,7 @@ export function SettingsContent({
   // ─── CUSTOMIZATIONS ───
   if (activeTab === 'customizations') {
     return (
-      <div className="flex-1 overflow-y-auto max-h-[70vh] overscroll-contain">
+      <div className="flex-1">
         <div className="space-y-3 pb-6">
           <SettingsSection title="Homebrew Content">
             <CustomizationsPanel onClose={onClose} />
@@ -446,7 +446,7 @@ export function SettingsContent({
   // ─── GAME MASTER ───
   if (activeTab === 'gameMaster') {
     return (
-      <div className="flex-1 overflow-y-auto overflow-x-hidden max-h-[70vh] w-full max-w-full min-w-0 overscroll-contain">
+      <div className="flex-1 overflow-x-hidden w-full max-w-full min-w-0">
         <div className="space-y-3 pb-8 w-full max-w-full min-w-0 overflow-hidden">
           <SettingsSection title="GM Synchronization">
             <div className="space-y-3">
