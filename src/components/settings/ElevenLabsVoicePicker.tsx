@@ -155,6 +155,8 @@ export function ElevenLabsVoicePicker() {
   const categoryOrder = ['cloned', 'generated', 'professional', 'premade'];
   const sortedCategories = categoryOrder.filter(c => grouped[c]?.length > 0);
 
+  const hasApiKey = !!loadApiKey('elevenlabs');
+
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
@@ -165,7 +167,7 @@ export function ElevenLabsVoicePicker() {
           variant="ghost"
           size="sm"
           onClick={fetchVoices}
-          disabled={isLoading}
+          disabled={isLoading || !hasApiKey}
           className="h-6 px-1.5 text-muted-foreground hover:text-foreground"
         >
           {isLoading ? (
@@ -176,12 +178,20 @@ export function ElevenLabsVoicePicker() {
         </Button>
       </div>
 
-      {voices.length > 0 ? (
+      {!hasApiKey ? (
+        <p className="text-[10px] text-muted-foreground italic">
+          Save an API key to load voices
+        </p>
+      ) : isLoading && voices.length === 0 ? (
+        <p className="text-[10px] text-muted-foreground italic">
+          Loading voices...
+        </p>
+      ) : (
         <div className="flex items-center gap-1.5">
           <div className="flex-1">
             <Select value={selectedId} onValueChange={handleSelect}>
               <SelectTrigger className="h-8 text-xs">
-                <SelectValue placeholder="Choose a voice..." />
+                <SelectValue placeholder={voices.length === 0 ? "Tap refresh to load voices" : "Choose a voice..."} />
               </SelectTrigger>
               <SelectContent>
                 {sortedCategories.map(cat => (
@@ -214,10 +224,6 @@ export function ElevenLabsVoicePicker() {
             )}
           </Button>
         </div>
-      ) : (
-        <p className="text-[10px] text-muted-foreground italic">
-          {isLoading ? 'Loading voices...' : 'Save an API key to load voices'}
-        </p>
       )}
     </div>
   );
