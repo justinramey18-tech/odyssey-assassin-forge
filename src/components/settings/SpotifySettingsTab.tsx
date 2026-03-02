@@ -19,6 +19,7 @@ export function SpotifySettingsTab() {
   const [isLoadingLibrary, setIsLoadingLibrary] = useState(false);
   const [libraryLoaded, setLibraryLoaded] = useState(false);
   const [assigningPlaylist, setAssigningPlaylist] = useState<{ uri: string; name: string } | null>(null);
+  const [libraryFilter, setLibraryFilter] = useState('');
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -271,7 +272,22 @@ export function SpotifySettingsTab() {
             <p className="text-sm text-muted-foreground text-center py-3">No playlists found in your library</p>
           ) : (
             <div className="space-y-2">
-              {myLibrary.map((pl: any) => (
+              <Input
+                placeholder="Filter playlists..."
+                value={libraryFilter}
+                onChange={(e) => setLibraryFilter(e.target.value)}
+                className="h-9"
+              />
+              {(() => {
+                const filtered = libraryFilter.trim()
+                  ? myLibrary.filter((pl: any) => pl.name?.toLowerCase().includes(libraryFilter.toLowerCase()))
+                  : myLibrary;
+                if (filtered.length === 0) return (
+                  <p className="text-sm text-muted-foreground text-center py-2">No matches</p>
+                );
+                return (
+                  <div className="space-y-2">
+              {filtered.map((pl: any) => (
                 <div
                   key={pl.id}
                   className="flex items-center gap-3 p-2 rounded-lg border border-border/30 bg-card/20 hover:bg-card/50 transition-colors w-full"
@@ -311,6 +327,9 @@ export function SpotifySettingsTab() {
                   </div>
                 </div>
               ))}
+              </div>
+                );
+              })()}
             </div>
           )}
         </SettingsSection>
