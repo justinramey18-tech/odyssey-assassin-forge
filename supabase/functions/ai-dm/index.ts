@@ -128,6 +128,7 @@ interface DMRequest {
   user_openai_key?: string;
   encounterGuidance?: string;
   combatFeats?: string[];
+  alignmentContext?: { law: number; good: number; zone: string };
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -320,7 +321,7 @@ function buildContextSummary(ctx: CharacterContext): string {
 
 // ── System Prompt Builder ──────────────────────────────────────────────────────
 
-function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string, encounterGuidance?: string, combatFeats?: string[]): string {
+function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string, encounterGuidance?: string, combatFeats?: string[], alignmentContext?: { law: number; good: number; zone: string }): string {
   const contextSummary = buildContextSummary(ctx);
   
   let prompt = `You are an expert Dungeon Master running a live D&D 5e session for a single player. You are immersive, adaptive, and mechanically precise.
@@ -386,6 +387,21 @@ ${contextSummary}
 
   if (combatFeats && combatFeats.length > 0) {
     prompt += `\n\n## ACTIVE COMBAT FEATS & FIGHTING STYLES\nThe player has the following feats/styles enabled: ${combatFeats.join(', ')}.\n\nWhen narrating combat:\n- Reference these feats by name when the player uses relevant weapons or tactics\n- Suggest optimal plays that leverage these feats (e.g., "You could use your Great Weapon Master power attack for extra damage")\n- Describe feat-specific moments cinematically (e.g., Sentinel stopping an enemy in its tracks, Polearm Master striking as a foe enters reach)\n- Apply mechanical effects correctly: GWM/Sharpshooter -5/+10 tradeoff, Sentinel reducing speed to 0, Dual Wielder +1 AC, etc.`;
+  }
+
+  if (alignmentContext) {
+    const lawDesc = alignmentContext.law > 1.5 ? 'lawful' : alignmentContext.law < -1.5 ? 'chaotic' : 'neutral on the law-chaos axis';
+    const goodDesc = alignmentContext.good > 1.5 ? 'good' : alignmentContext.good < -1.5 ? 'evil' : 'neutral on the good-evil axis';
+    prompt += `\n\n## CHARACTER ALIGNMENT & MORAL COMPASS
+The character's behavioral alignment drift is **${alignmentContext.zone}** (Law: ${alignmentContext.law}, Good: ${alignmentContext.good}).
+This means the character tends toward being ${lawDesc} and ${goodDesc}.
+
+Use this to calibrate the narrative:
+- **Moral Dilemmas**: Present choices that test or reinforce this alignment. A chaotic good character might face a choice between breaking an unjust law to help innocents vs. working within the system. An evil character might be tempted by selfish power at a cost.
+- **NPC Reactions**: NPCs with opposing alignments should feel natural friction. Lawful NPCs may distrust a chaotic character; good NPCs may sense darkness in an evil one. Aligned NPCs should feel kinship.
+- **Temptation & Growth**: Occasionally offer opportunities that would push the character toward a different alignment — these create dramatic tension. Don't force alignment shifts, but let consequences flow naturally.
+- **Tone Matching**: A lawful good campaign should feel heroic and principled. A chaotic evil campaign should feel dangerous and morally grey. Match your narrative tone to the character's ethical position.
+- **Don't lecture**: Never tell the player their alignment. Show it through the world's reactions to them.`;
   }
 
   if (dmPersonaPrompt && dmPersonaPrompt.trim()) {
@@ -553,14 +569,14 @@ serve(async (req) => {
       });
     }
 
-    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, encounterGuidance, combatFeats } = (await req.json()) as DMRequest;
+    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, encounterGuidance, combatFeats, alignmentContext } = (await req.json()) as DMRequest;
     
     // Trim to last 100 messages
     const trimmedMessages = messages.length > MAX_MESSAGES
       ? [...messages.slice(0, 2), ...messages.slice(-(MAX_MESSAGES - 2))]
       : messages;
 
-    const systemPrompt = buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats);
+    const systemPrompt = buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext);
 
     // Determine which provider to use
     const requestedModel = model || DEFAULT_MODEL;
