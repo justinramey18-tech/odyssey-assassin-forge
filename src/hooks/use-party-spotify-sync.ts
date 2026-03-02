@@ -3,12 +3,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const SYNC_STATE_TYPE = 'spotify_sync';
-const BROADCAST_INTERVAL_MS = 8_000;
 
 interface SpotifySyncState {
   playlistUri?: string;
   playlistName?: string;
   trackUri?: string;
+  isPlaying?: boolean;
   updatedAt: string;
 }
 
@@ -18,6 +18,7 @@ interface UsePartySpotifySyncOptions {
   connected: boolean;
   playback: { isPlaying: boolean; trackName: string } | null;
   playPlaylist: (uri: string) => Promise<void>;
+  pausePlayback: () => Promise<void>;
 }
 
 export function usePartySpotifySync({
@@ -26,6 +27,7 @@ export function usePartySpotifySync({
   connected,
   playback,
   playPlaylist,
+  pausePlayback,
 }: UsePartySpotifySyncOptions) {
   const [syncEnabled, setSyncEnabled] = useState(false);
   const [hostPlaylist, setHostPlaylist] = useState<{ uri: string; name: string } | null>(null);
@@ -33,10 +35,10 @@ export function usePartySpotifySync({
   const lastPlayedUriRef = useRef<string | null>(null);
 
   // ── Host: Broadcast current playback to party_shared_state ──────────
-  const broadcastPlayback = useCallback(async (playlistUri: string, playlistName: string) => {
+  const broadcastPlayback = useCallback(async (playlistUri: string, playlistName: string, isPlaying: boolean) => {
     if (!partyId || !isCreator || !connected) return;
 
-    const key = `${playlistUri}`;
+    const key = `${playlistUri}:${isPlaying ? 'playing' : 'paused'}`;
     if (key === lastBroadcastRef.current) return;
     lastBroadcastRef.current = key;
 
@@ -51,6 +53,7 @@ export function usePartySpotifySync({
       const stateData: SpotifySyncState = {
         playlistUri,
         playlistName,
+        isPlaying,
         updatedAt: new Date().toISOString(),
       };
 
@@ -77,18 +80,50 @@ export function usePartySpotifySync({
   }, [partyId, isCreator, connected]);
 
   // ── Host: Auto-broadcast on mood preset play ────────────────────────
-  // This is called externally when the host plays a playlist
   const onHostPlayPlaylist = useCallback((uri: string, name: string) => {
-    if (isCreator && partyId) {
-      broadcastPlayback(uri, name);
-    }
+    if (!isCreator || !partyId) return;
+    setHostPlaylist({ uri, name });
+    void broadcastPlayback(uri, name, true);
   }, [isCreator, partyId, broadcastPlayback]);
+
+  // ── Host: Keep member playback synced to host pause/resume state ─────
+  useEffect(() => {
+    if (!partyId || !isCreator || !connected || !hostPlaylist) return;
+    void broadcastPlayback(hostPlaylist.uri, hostPlaylist.name, playback?.isPlaying ?? false);
+  }, [partyId, isCreator, connected, hostPlaylist, playback?.isPlaying, broadcastPlayback]);
+
+  const applyHostState = useCallback(async (state: SpotifySyncState) => {
+    if (!state?.playlistUri || !state?.playlistName) return;
+
+    setHostPlaylist({ uri: state.playlistUri, name: state.playlistName });
+
+    if (!connected) return;
+
+    const hostIsPlaying = state.isPlaying !== false;
+
+    if (!hostIsPlaying) {
+      if (playback?.isPlaying) {
+        await pausePlayback();
+      }
+      return;
+    }
+
+    if (state.playlistUri !== lastPlayedUriRef.current) {
+      lastPlayedUriRef.current = state.playlistUri;
+      await playPlaylist(state.playlistUri);
+      toast.success(`🎵 Synced: ${state.playlistName}`, { duration: 3000 });
+      return;
+    }
+
+    if (!playback?.isPlaying) {
+      await playPlaylist(state.playlistUri);
+    }
+  }, [connected, playback?.isPlaying, pausePlayback, playPlaylist]);
 
   // ── Member: Subscribe to host's broadcast via real-time ─────────────
   useEffect(() => {
     if (!partyId || isCreator || !syncEnabled) return;
 
-    // Fetch initial state
     const fetchInitial = async () => {
       const { data } = await supabase
         .from('party_shared_state')
@@ -99,20 +134,11 @@ export function usePartySpotifySync({
 
       if (data?.state_data) {
         const state = data.state_data as unknown as SpotifySyncState;
-        if (state.playlistUri && state.playlistName) {
-          setHostPlaylist({ uri: state.playlistUri, name: state.playlistName });
-          // Auto-play only if member has their own Spotify connected
-          if (connected && state.playlistUri !== lastPlayedUriRef.current) {
-            lastPlayedUriRef.current = state.playlistUri;
-            playPlaylist(state.playlistUri);
-            toast.success(`🎵 Synced: ${state.playlistName}`, { duration: 3000 });
-          }
-        }
+        await applyHostState(state);
       }
     };
-    fetchInitial();
+    void fetchInitial();
 
-    // Subscribe to real-time changes
     const channel = supabase
       .channel(`spotify-sync-${partyId}`)
       .on(
@@ -128,15 +154,7 @@ export function usePartySpotifySync({
           if (row?.state_type !== SYNC_STATE_TYPE) return;
 
           const state = row.state_data as SpotifySyncState;
-          if (state?.playlistUri && state?.playlistName) {
-            setHostPlaylist({ uri: state.playlistUri, name: state.playlistName });
-            // Auto-play only if member has their own Spotify connected
-            if (connected && state.playlistUri !== lastPlayedUriRef.current) {
-              lastPlayedUriRef.current = state.playlistUri;
-              playPlaylist(state.playlistUri);
-              toast.success(`🎵 Synced: ${state.playlistName}`, { duration: 3000 });
-            }
-          }
+          void applyHostState(state);
         }
       )
       .subscribe();
@@ -144,7 +162,7 @@ export function usePartySpotifySync({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [partyId, isCreator, syncEnabled, connected, playPlaylist]);
+  }, [partyId, isCreator, syncEnabled, applyHostState]);
 
   // Reset when sync is disabled
   useEffect(() => {

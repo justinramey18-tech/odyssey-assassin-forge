@@ -175,6 +175,15 @@ export function useSpotify() {
     }
   }, [playback?.isPlaying]);
 
+  const pausePlayback = useCallback(async () => {
+    try {
+      await pause();
+      setPlayback(p => (p ? { ...p, isPlaying: false } : p));
+    } catch (e: any) {
+      toast.error(e.message || 'Pause failed');
+    }
+  }, []);
+
   const next = useCallback(async () => {
     try { await skipNext(); } catch (e: any) { toast.error(e.message || 'Skip failed'); }
   }, []);
@@ -384,6 +393,7 @@ export function useSpotify() {
     connect,
     disconnect,
     togglePlay,
+    pausePlayback,
     next,
     previous,
     changeVolume,
