@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Dices, Lightbulb, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import type { Whisper } from '@/components/oracle/types';
 
 interface WhisperableMessage {
@@ -54,7 +54,7 @@ export function OracleWhisperFeed({ messages }: OracleWhisperFeedProps) {
   }
 
   return (
-    <ScrollArea className="max-h-[50vh]">
+    <div className="max-h-[50vh] overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch]">
       <div className="px-3 py-2 space-y-1.5">
         {entries.map((entry, i) => {
           const config = ICON_MAP[entry.whisper.type];
@@ -91,6 +91,6 @@ export function OracleWhisperFeed({ messages }: OracleWhisperFeedProps) {
           );
         })}
       </div>
-    </ScrollArea>
+    </div>
   );
 }
