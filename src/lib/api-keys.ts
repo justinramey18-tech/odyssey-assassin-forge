@@ -18,6 +18,7 @@ export function loadApiKey(provider: ApiKeyProvider): string | null {
 export function saveApiKey(provider: ApiKeyProvider, key: string): void {
   try {
     localStorage.setItem(STORAGE_KEYS[provider], key);
+    window.dispatchEvent(new CustomEvent('api-key-changed', { detail: { provider } }));
   } catch (error) {
     console.error(`[API Keys] Failed to save ${provider} key:`, error);
   }
@@ -26,6 +27,7 @@ export function saveApiKey(provider: ApiKeyProvider, key: string): void {
 export function clearApiKey(provider: ApiKeyProvider): void {
   try {
     localStorage.removeItem(STORAGE_KEYS[provider]);
+    window.dispatchEvent(new CustomEvent('api-key-changed', { detail: { provider } }));
   } catch {
     // ignore
   }

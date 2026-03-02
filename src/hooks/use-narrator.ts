@@ -22,13 +22,18 @@ export function useNarrator(): UseNarratorReturn {
   const [isLoading, setIsLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const blobUrlRef = useRef<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const hasElevenLabsKey = !!loadApiKey('elevenlabs');
   const hasSpeechifyKey = !!loadApiKey('speechify');
   const hasTTSKey = hasElevenLabsKey || hasSpeechifyKey;
 
-  // Cleanup blob URL
+  // Cleanup blob URL and abort in-flight requests
   const cleanupAudio = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
@@ -59,6 +64,9 @@ export function useNarrator(): UseNarratorReturn {
     cleanupAudio();
     setIsLoading(true);
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       const cleanText = stripMarkdownForTTS(rawText);
       const chunks = splitTextForStitching(cleanText, 5000);
@@ -66,9 +74,9 @@ export function useNarrator(): UseNarratorReturn {
       const audioBlobs: Blob[] = [];
 
       if (provider === 'speechify') {
-        await playSpeechify(chunks, audioBlobs);
+        await playSpeechify(chunks, audioBlobs, controller.signal);
       } else {
-        await playElevenLabs(chunks, audioBlobs);
+        await playElevenLabs(chunks, audioBlobs, controller.signal);
       }
 
       // Concatenate all audio blobs
@@ -104,7 +112,7 @@ export function useNarrator(): UseNarratorReturn {
 
 // ── ElevenLabs provider ─────────────────────────────────────────────────────
 
-async function playElevenLabs(chunks: string[], audioBlobs: Blob[]) {
+async function playElevenLabs(chunks: string[], audioBlobs: Blob[], signal: AbortSignal) {
   const apiKey = loadApiKey('elevenlabs');
   const voiceId = loadSelectedVoiceId();
 
@@ -145,6 +153,7 @@ async function playElevenLabs(chunks: string[], audioBlobs: Blob[]) {
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify(body),
+        signal,
       }
     );
 
@@ -160,7 +169,7 @@ async function playElevenLabs(chunks: string[], audioBlobs: Blob[]) {
 
 // ── Speechify provider ──────────────────────────────────────────────────────
 
-async function playSpeechify(chunks: string[], audioBlobs: Blob[]) {
+async function playSpeechify(chunks: string[], audioBlobs: Blob[], signal: AbortSignal) {
   const apiKey = loadApiKey('speechify');
   const voiceId = loadSpeechifyVoiceId();
 
@@ -184,6 +193,7 @@ async function playSpeechify(chunks: string[], audioBlobs: Blob[]) {
           user_api_key: apiKey,
           audio_format: 'mp3',
         }),
+        signal,
       }
     );
 

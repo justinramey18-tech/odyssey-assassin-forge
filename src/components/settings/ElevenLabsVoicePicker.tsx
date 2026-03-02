@@ -86,6 +86,24 @@ export function ElevenLabsVoicePicker() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Re-fetch voices when ElevenLabs API key changes
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.provider === 'elevenlabs') {
+        // Clear stale cache from old key
+        setCachedVoices([]);
+        setVoices([]);
+        setSelectedId('');
+        if (loadApiKey('elevenlabs')) {
+          fetchVoices();
+        }
+      }
+    };
+    window.addEventListener('api-key-changed', handler);
+    return () => window.removeEventListener('api-key-changed', handler);
+  }, [fetchVoices]);
+
   const handleSelect = useCallback((voiceId: string) => {
     setSelectedId(voiceId);
     saveSelectedVoiceId(voiceId);
