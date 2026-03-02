@@ -1537,6 +1537,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
                   const updated = { ...partyDm.sessionConfig, mode: newMode as 'shared' | 'private' };
                   (supabase.from('party_shared_state') as any)
                     .update({ state_data: updated })
+                    .eq('party_id', partyId)
                     .eq('state_type', 'dm_session')
                     .then(() => {});
                 }
@@ -1574,6 +1575,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
                   const updated = { ...partyDm.sessionConfig, timerEnabled: enabled };
                   (supabase.from('party_shared_state') as any)
                     .update({ state_data: updated })
+                    .eq('party_id', partyId)
                     .eq('state_type', 'dm_session')
                     .then(() => {});
                 }
@@ -1584,6 +1586,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
                   const updated = { ...partyDm.sessionConfig, timerDurationSeconds: seconds };
                   (supabase.from('party_shared_state') as any)
                     .update({ state_data: updated })
+                    .eq('party_id', partyId)
                     .eq('state_type', 'dm_session')
                     .then(() => {});
                 }
