@@ -404,6 +404,35 @@ Use this to calibrate the narrative:
 - **Don't lecture**: Never tell the player their alignment. Show it through the world's reactions to them.`;
   }
 
+  // ── Resource Pressure Metric ──
+  {
+    const hpPct = ctx.maxHP > 0 ? ctx.currentHP / ctx.maxHP : 1;
+    let slotPct = 1;
+    if (ctx.spellcasting?.slots && ctx.spellcasting.slots.length > 0) {
+      const totalMax = ctx.spellcasting.slots.reduce((s, sl) => s + sl.max, 0)
+        + (ctx.spellcasting.pactSlots?.max ?? 0);
+      const totalCur = ctx.spellcasting.slots.reduce((s, sl) => s + sl.current, 0)
+        + (ctx.spellcasting.pactSlots?.current ?? 0);
+      slotPct = totalMax > 0 ? totalCur / totalMax : 1;
+    }
+    // Consumables pressure: fraction of consumables remaining (assume baseline of 5 expected items)
+    const consumableCount = ctx.consumables?.reduce((s, c) => s + c.quantity, 0) ?? 0;
+    const consumablePct = Math.min(consumableCount / 5, 1);
+    // Composite: HP weighted heaviest (50%), slots 35%, consumables 15%
+    const pressure = Math.round((hpPct * 0.5 + slotPct * 0.35 + consumablePct * 0.15) * 100);
+    const pressureLabel = pressure >= 80 ? 'Fresh' : pressure >= 55 ? 'Steady' : pressure >= 30 ? 'Strained' : 'Critical';
+    prompt += `\n\n## RESOURCE PRESSURE
+**Status: ${pressureLabel}** (${pressure}% resources remaining — HP ${Math.round(hpPct * 100)}%, Spell Slots ${Math.round(slotPct * 100)}%, Consumables ${Math.round(consumablePct * 100)}%)
+
+Pacing guidance based on resource level:
+- **Fresh (80-100%)**: Full encounters are appropriate. Feel free to use deadly difficulty, multi-wave combat, and resource-draining traps.
+- **Steady (55-79%)**: Standard encounters work well. Mix combat with exploration and social encounters. Offer short rest opportunities after hard fights.
+- **Strained (30-54%)**: The character is running low. Increase tension narratively — describe fatigue, labored breathing, dwindling supplies. Offer creative non-combat solutions. Combat should feel dangerous and escapable. Present opportunities for rest or resupply.
+- **Critical (0-29%)**: The character is nearly spent. Avoid forcing combat unless it serves the narrative climax. Create tension through atmosphere, not mechanics. Offer escape routes, allied reinforcements, or environmental advantages. If combat occurs, make it short and decisive — no grinding attrition.
+
+IMPORTANT: Never tell the player their resource percentage. Show depletion through narrative description — trembling hands, flickering spells, empty pouches.`;
+  }
+
   if (dmPersonaPrompt && dmPersonaPrompt.trim()) {
     prompt += `\n\n${dmPersonaPrompt}`;
   }
