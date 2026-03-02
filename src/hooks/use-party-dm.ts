@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
 import { getAuthToken } from '@/lib/auth-token';
-import type { CharacterContext } from '@/components/oracle/types';
+import type { CharacterContext, Whisper } from '@/components/oracle/types';
 import type { DmSplitState, SplitTeam } from '@/lib/party-split-types';
 import { sendReadyUpNotification } from '@/lib/party-notifications';
+import { parseWhispers } from '@/lib/whisper-parser';
 import { loadCombatSettings } from '@/lib/combat/combatSettings';
 import { formatPartyPowerForPrompt } from '@/lib/combat/encounterDifficulty';
 import { getAlignmentZone, type AlignmentScore } from '@/lib/alignmentSpectrum';
@@ -48,6 +49,30 @@ export interface PartyDmMessage {
   sender_name: string;
   created_at: string;
   team?: string | null;
+  whispers?: Whisper[];
+}
+
+/**
+ * Parse whispers from an assistant message, filter by character name,
+ * and return the message with clean content + filtered whispers.
+ */
+function enrichMessageWithWhispers(msg: PartyDmMessage, myCharacterName?: string): PartyDmMessage {
+  if (msg.role !== 'assistant') return msg;
+  const { narrative, whispers } = parseWhispers(msg.content);
+  if (whispers.length === 0) return { ...msg, content: narrative };
+
+  // Filter: keep actions + tactics (shared), and whispers targeted at this player
+  const filtered = whispers.filter(w => {
+    if (w.type !== 'whisper') return true; // actions & tactics visible to all
+    if (!myCharacterName) return false; // no character name = hide targeted whispers
+    return w.target?.toLowerCase() === myCharacterName.toLowerCase();
+  });
+
+  return {
+    ...msg,
+    content: narrative,
+    whispers: filtered.length > 0 ? filtered : undefined,
+  };
 }
 
 export interface PartyDmPrompt {
@@ -134,12 +159,16 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     return alphaReady && betaReady;
   })();
 
-  // Filter messages based on team membership
-  const filteredMessages = isSplitActive && user
-    ? isCreator
-      ? messages // Host sees all
-      : messages.filter(m => !m.team || m.team === myTeam)
-    : messages;
+  // Filter messages based on team membership + enrich with parsed whispers
+  const filteredMessages = useMemo(() => {
+    const teamFiltered = isSplitActive && user
+      ? isCreator
+        ? messages // Host sees all
+        : messages.filter(m => !m.team || m.team === myTeam)
+      : messages;
+    // Parse whispers from assistant messages and filter by character name
+    return teamFiltered.map(m => enrichMessageWithWhispers(m, characterName));
+  }, [messages, isSplitActive, user, isCreator, myTeam, characterName]);
 
   // Load existing data when session becomes active
   useEffect(() => {

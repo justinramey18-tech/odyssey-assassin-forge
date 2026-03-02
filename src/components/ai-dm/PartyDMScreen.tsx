@@ -6,6 +6,8 @@ import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shiel
 import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
 import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
+import { WhisperTray } from './WhisperTray';
+import { OracleWhisperFeed } from './OracleWhisperFeed';
 import { PartyDMSettings } from './PartyDMSettings';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { CampaignDropdown } from './CampaignDropdown';
@@ -322,6 +324,12 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
             </div>
           )}
         </div>
+        {/* Whisper tray for AI messages with whispers */}
+        {message.whispers && message.whispers.length > 0 && (
+          <div className="flex-1 min-w-0 ml-[calc(1.75rem+0.375rem)]">
+            <WhisperTray whispers={message.whispers} />
+          </div>
+        )}
       </motion.div>
     );
   }
@@ -1585,6 +1593,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
               }}
             />
           ) : undefined}
+          oracleContent={activeNavTab === 'oracle' ? (
+            <OracleWhisperFeed messages={partyDm.messages} />
+          ) : undefined}
+          oracleCount={partyDm.messages.reduce((count: number, m: any) => count + (m.whispers?.length ?? 0), 0)}
         />
       )}
 

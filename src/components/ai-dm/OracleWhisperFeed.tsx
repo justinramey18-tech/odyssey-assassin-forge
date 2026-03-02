@@ -2,10 +2,17 @@ import { useMemo } from 'react';
 import { Dices, Lightbulb, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import type { Message, Whisper } from '@/components/oracle/types';
+import type { Whisper } from '@/components/oracle/types';
+
+interface WhisperableMessage {
+  role: 'user' | 'assistant' | string;
+  whispers?: Whisper[];
+  timestamp?: Date;
+  created_at?: string;
+}
 
 interface OracleWhisperFeedProps {
-  messages: Message[];
+  messages: WhisperableMessage[];
 }
 
 interface FeedEntry {
@@ -25,8 +32,11 @@ export function OracleWhisperFeed({ messages }: OracleWhisperFeedProps) {
     const result: FeedEntry[] = [];
     messages.forEach((msg, idx) => {
       if (msg.role === 'assistant' && msg.whispers) {
+        const ts = msg.timestamp instanceof Date
+          ? msg.timestamp
+          : msg.created_at ? new Date(msg.created_at) : new Date();
         for (const w of msg.whispers) {
-          result.push({ whisper: w, messageIndex: idx, timestamp: msg.timestamp });
+          result.push({ whisper: w, messageIndex: idx, timestamp: ts });
         }
       }
     });
