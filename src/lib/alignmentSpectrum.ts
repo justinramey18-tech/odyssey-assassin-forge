@@ -235,6 +235,60 @@ const EMPYREAN_ALIGNMENT_MAP: Record<string, AlignmentScore> = {
   'emp-lore-price': { law: -5, good: -4 },
   'emp-lore-oral': { law: -2, good: -1 },
   'emp-lore-redacted': { law: -4, good: -3 },
+
+  // Dragon Bond — NEW
+  'emp-dragon-council': { law: 2, good: 1 },
+  'emp-dragon-grooming': { law: 1, good: 3 },
+  'emp-dragon-ancient-memory': { law: 0, good: 1 },
+  'emp-dragon-rivalry': { law: -1, good: -1 },
+  'emp-dragon-feeding': { law: -2, good: -2 },
+  'emp-dragon-humor': { law: -2, good: 2 },
+  'emp-dragon-den': { law: 0, good: 2 },
+
+  // Signet Abilities — NEW
+  'emp-signet-resonance': { law: 0, good: 1 },
+  'emp-signet-oath': { law: 3, good: 0 },
+  'emp-signet-null': { law: 0, good: -1 },
+  'emp-signet-inheritance': { law: 1, good: 1 },
+  'emp-signet-weaponize': { law: 2, good: -3 },
+  'emp-signet-bleed': { law: -2, good: -2 },
+  'emp-signet-duel': { law: 1, good: 0 },
+
+  // Basgiath War College — NEW
+  'emp-basgiath-night-exam': { law: 4, good: 0 },
+  'emp-basgiath-transfer': { law: 2, good: 0 },
+  'emp-basgiath-instructor-secret': { law: -1, good: 1 },
+  'emp-basgiath-infirmary': { law: 0, good: 1 },
+  'emp-basgiath-graduation': { law: 3, good: 1 },
+  'emp-basgiath-black-market': { law: -3, good: -1 },
+  'emp-basgiath-riot': { law: -4, good: -2 },
+
+  // Venin and Dark Forces — NEW
+  'emp-venin-trap': { law: -3, good: -3 },
+  'emp-venin-turned-friend': { law: -2, good: -3 },
+  'emp-venin-corruption-creep': { law: -3, good: -4 },
+  'emp-venin-nest': { law: -4, good: -4 },
+  'emp-venin-dark-witness': { law: -3, good: -2 },
+  'emp-venin-wyvern-taming': { law: -2, good: 1 },
+  'emp-venin-sage': { law: -1, good: -1 },
+
+  // Relationships and Politics — NEW
+  'emp-rel-ex': { law: -1, good: 1 },
+  'emp-rel-marriage': { law: 3, good: 0 },
+  'emp-rel-squad-fracture': { law: -2, good: -1 },
+  'emp-rel-mentor-fall': { law: -1, good: 1 },
+  'emp-rel-enemy-respect': { law: 1, good: 2 },
+  'emp-rel-correspondence': { law: -2, good: -1 },
+  'emp-rel-favor': { law: 2, good: -2 },
+
+  // Combat and Survival — NEW
+  'emp-combat-night-raid': { law: -2, good: -1 },
+  'emp-combat-siege': { law: 2, good: 0 },
+  'emp-combat-honor-duel': { law: 3, good: 1 },
+  'emp-combat-false-flag': { law: -3, good: -3 },
+  'emp-combat-multi-wing': { law: 3, good: 0 },
+  'emp-combat-assassination': { law: -4, good: -3 },
+  'emp-combat-no-magic': { law: 1, good: 0 },
 };
 
 // ── DM Quick Actions ──
