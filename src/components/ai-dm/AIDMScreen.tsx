@@ -28,7 +28,7 @@ import { WorldStatePanel } from './WorldStatePanel';
 import { useDMGameState, buildMemoryAnchorsPrompt } from '@/hooks/use-dm-game-state';
 import { useDmMemoryExtraction } from '@/hooks/use-dm-memory-extraction';
 import { WorldBuilderWizard } from './WorldBuilderWizard';
-
+import { WhisperTray } from './WhisperTray';
 import { AutoSyncBanner } from './AutoSyncBanner';
 
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
@@ -218,6 +218,10 @@ function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading }:
           )}
         </div>
 
+        {/* Whisper tray for AI messages with whispers */}
+        {!isUser && message.whispers && message.whispers.length > 0 && (
+          <WhisperTray whispers={message.whispers} />
+        )}
         {/* Action buttons for assistant messages (desktop) */}
         {!isUser && message.content && !isEditing && (
           <div className="flex items-center gap-0.5 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
