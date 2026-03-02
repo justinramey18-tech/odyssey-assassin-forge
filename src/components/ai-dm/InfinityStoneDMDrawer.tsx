@@ -5,7 +5,8 @@ import { cn } from '@/lib/utils';
 import { characterPrompts, CharacterPrompt } from '@/lib/characterPrompts';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
 import { useFavoritePrompts } from '@/hooks/use-favorite-prompts';
-import { Badge } from '@/components/ui/badge';
+import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
+import { AlignmentBadge } from '@/components/alignment/AlignmentBadge';
 import {
   Drawer,
   DrawerContent,
@@ -57,6 +58,7 @@ export function InfinityStoneDMDrawer({ open, onOpenChange, characterName, onUse
   const [expandedStone, setExpandedStone] = useState<string | undefined>(undefined);
   const [selectedIntensity, setSelectedIntensity] = useState<IntensityLevel>('all');
   const { favoriteCount, toggleFavorite, isFavorite } = useFavoritePrompts();
+  const { logPromptUsage } = useAlignmentDrift();
 
   const getPromptsForStone = useCallback((stoneId: string) => {
     const stone = infinityStones.find(s => s.id === stoneId);
@@ -81,10 +83,11 @@ export function InfinityStoneDMDrawer({ open, onOpenChange, characterName, onUse
     const processed = prompt.prompt
       .replace(/\[Character Name\]/g, characterName || 'The Character')
       .replace(/\[Name\]/g, characterName || 'The Character');
+    logPromptUsage(prompt.id);
     onUsePrompt(applyTimePrefix(processed));
     onOpenChange(false);
     toast.success(`${prompt.icon} ${prompt.title}`, { description: 'Added to input' });
-  }, [characterName, onUsePrompt, onOpenChange]);
+  }, [characterName, logPromptUsage, onUsePrompt, onOpenChange]);
 
   const pickRandom = useCallback(() => {
     if (allFilteredPrompts.length === 0) { toast.error('No prompts available'); return; }
@@ -234,17 +237,18 @@ export function InfinityStoneDMDrawer({ open, onOpenChange, characterName, onUse
 
                             {/* Content */}
                             <div className="flex-1 min-w-0 py-1">
-                              <div className="flex items-center gap-2">
-                                <span className="text-base shrink-0">{prompt.icon}</span>
-                                <span className="text-sm text-white/90 font-medium">{prompt.title}</span>
-                                {intensityConfig && (
-                                  <span
-                                    className="text-[10px] px-1.5 py-0.5 rounded shrink-0"
-                                    style={{ backgroundColor: `${intensityConfig.color}20`, color: intensityConfig.color }}
-                                  >
-                                    {intensityConfig.icon}
-                                  </span>
-                                )}
+                            <div className="flex items-center gap-2">
+                              <span className="text-base shrink-0">{prompt.icon}</span>
+                              <span className="text-sm text-white/90 font-medium">{prompt.title}</span>
+                              <AlignmentBadge promptId={prompt.id} />
+                              {intensityConfig && (
+                                <span
+                                  className="text-[10px] px-1.5 py-0.5 rounded shrink-0"
+                                  style={{ backgroundColor: `${intensityConfig.color}20`, color: intensityConfig.color }}
+                                >
+                                  {intensityConfig.icon}
+                                </span>
+                              )}
                               </div>
                               {prompt.description && (
                                 <p className="text-xs text-white/40 mt-0.5 leading-relaxed">{prompt.description}</p>

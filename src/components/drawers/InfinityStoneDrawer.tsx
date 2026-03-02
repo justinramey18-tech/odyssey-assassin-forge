@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils';
 import { EdgeDrawer } from './EdgeDrawer';
 import { characterPrompts, CharacterPrompt } from '@/lib/characterPrompts';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
+import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
+import { AlignmentBadge } from '@/components/alignment/AlignmentBadge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import {
@@ -101,6 +103,7 @@ export function InfinityStoneDrawer({
   const [expandedStone, setExpandedStone] = useState<string | undefined>(undefined);
   const [selectedIntensity, setSelectedIntensity] = useState<IntensityLevel>('all');
   const { favorites, favoriteCount, toggleFavorite, isFavorite, exportFavorites, importFavorites } = useFavoritePrompts();
+  const { logPromptUsage } = useAlignmentDrift();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleExportFavorites = () => {
@@ -167,6 +170,7 @@ export function InfinityStoneDrawer({
     const processedText = prompt.prompt.replace(/\[Character Name\]/g, characterName || 'The Character');
     const finalText = applyTimePrefix(processedText);
     await navigator.clipboard.writeText(finalText);
+    logPromptUsage(prompt.id);
     setCopiedId(prompt.id);
     toast.success('Prompt copied to clipboard!');
     setTimeout(() => setCopiedId(null), 2000);
@@ -437,6 +441,7 @@ export function InfinityStoneDrawer({
                               )}>
                                 {prompt.title}
                               </span>
+                              <AlignmentBadge promptId={prompt.id} />
                             </button>
                             {intensityConfig && (
                               <span 
