@@ -2,6 +2,12 @@ export type Personality = 'thunderhead' | 'jarvis' | 'deadpool' | 'gandalf' | 'j
 
 export type OracleMode = 'chat' | 'plan' | 'choice' | 'analyze' | 'quick';
 
+export interface Whisper {
+  type: 'action' | 'tactics' | 'whisper';
+  target?: string;
+  content: string;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -9,6 +15,7 @@ export interface Message {
   timestamp: Date;
   personality?: Personality;
   mode?: OracleMode;
+  whispers?: Whisper[];
 }
 
 export interface OracleModeConfig {
