@@ -61,6 +61,12 @@ export function SpotifySettingsTab() {
     toast.success(`Linked "${assigningPlaylist.name}" to ${spotify.moodPresets.find(p => p.id === presetId)?.label}`);
     setAssigningPlaylist(null);
   };
+  // Auto-load library when connected
+  useEffect(() => {
+    if (spotify.connected && !libraryLoaded) {
+      loadMyLibrary();
+    }
+  }, [spotify.connected]);
 
   if (!spotify.connected) {
     return (
