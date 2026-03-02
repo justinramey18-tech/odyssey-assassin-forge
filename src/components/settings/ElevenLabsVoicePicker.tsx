@@ -120,11 +120,21 @@ export function ElevenLabsVoicePicker() {
     if (voice?.preview_url) {
       cleanupPreview();
       setIsPreviewing(true);
-      const audio = new Audio(voice.preview_url);
-      previewAudioRef.current = audio;
-      audio.onended = () => setIsPreviewing(false);
-      audio.onerror = () => { toast.error('Preview playback failed'); setIsPreviewing(false); };
-      await audio.play();
+      try {
+        const audio = new Audio(voice.preview_url);
+        previewAudioRef.current = audio;
+        audio.onended = () => setIsPreviewing(false);
+        audio.onerror = (e) => {
+          console.error('[VoicePicker] Preview playback error:', e);
+          toast.error('Preview playback failed — check your audio output device');
+          setIsPreviewing(false);
+        };
+        await audio.play();
+      } catch (error) {
+        console.error('[VoicePicker] Preview play() error:', error);
+        toast.error(error instanceof DOMException ? `Audio error: ${error.message}` : 'Could not play preview');
+        setIsPreviewing(false);
+      }
       return;
     }
 
@@ -152,7 +162,10 @@ export function ElevenLabsVoicePicker() {
         }
       );
 
-      if (!response.ok) throw new Error('Preview failed');
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: `TTS error: ${response.status}` }));
+        throw new Error(err.error || `Preview failed: ${response.status}`);
+      }
 
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
@@ -161,10 +174,15 @@ export function ElevenLabsVoicePicker() {
       const audio = new Audio(url);
       previewAudioRef.current = audio;
       audio.onended = () => cleanupPreview();
-      audio.onerror = () => { toast.error('Preview playback failed'); cleanupPreview(); };
+      audio.onerror = (e) => {
+        console.error('[VoicePicker] Playback error:', e);
+        toast.error('Audio playback failed — check your audio output');
+        cleanupPreview();
+      };
       await audio.play();
     } catch (error) {
-      toast.error('Voice preview failed');
+      console.error('[VoicePicker] Voice preview error:', error);
+      toast.error(error instanceof Error ? error.message : 'Voice preview failed');
       cleanupPreview();
     }
   }, [isPreviewing, selectedId, voices, cleanupPreview]);

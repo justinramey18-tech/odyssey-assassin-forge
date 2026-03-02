@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Key, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +31,18 @@ function ElevenLabsApiKeyInput() {
     setHasSavedKey(false);
     setKeyInput('');
     toast.success('ElevenLabs API Key removed');
+  }, []);
+
+  // Listen for external key changes (e.g. from API Keys tab)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.provider === 'elevenlabs') {
+        setHasSavedKey(hasApiKey('elevenlabs'));
+      }
+    };
+    window.addEventListener('api-key-changed', handler);
+    return () => window.removeEventListener('api-key-changed', handler);
   }, []);
 
   const savedKey = loadApiKey('elevenlabs');
@@ -113,7 +125,7 @@ const SPEECHIFY_VOICES = [
   { id: 'oliver', name: 'Oliver', description: 'Clear male' },
 ];
 
-function TTSProviderSelector() {
+function TTSProviderSelector({ onProviderChange }: { onProviderChange?: (p: TTSProvider) => void }) {
   const [provider, setProvider] = useState<TTSProvider>(() => loadTTSProvider());
   const hasEL = hasApiKey('elevenlabs');
   const hasSP = hasApiKey('speechify');
@@ -121,8 +133,9 @@ function TTSProviderSelector() {
   const handleSelect = useCallback((p: TTSProvider) => {
     setProvider(p);
     saveTTSProvider(p);
+    onProviderChange?.(p);
     toast.success(`TTS engine switched to ${p === 'elevenlabs' ? 'ElevenLabs' : 'Speechify'}`);
-  }, []);
+  }, [onProviderChange]);
 
   return (
     <div className="space-y-2">
@@ -212,15 +225,35 @@ function SpeechifyVoicePicker() {
 }
 
 export function ElevenLabsSettingsTab() {
-  const hasElKey = hasApiKey('elevenlabs');
-  const hasSpKey = hasApiKey('speechify');
-  const provider = loadTTSProvider();
+  // Use state so the component re-renders when keys or provider change
+  const [hasElKey, setHasElKey] = useState(() => hasApiKey('elevenlabs'));
+  const [hasSpKey, setHasSpKey] = useState(() => hasApiKey('speechify'));
+  const [provider, setProvider] = useState<TTSProvider>(() => loadTTSProvider());
+
+  // Listen for API key changes from any source (API Keys tab, this tab, etc.)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.provider === 'elevenlabs') {
+        setHasElKey(hasApiKey('elevenlabs'));
+      }
+      if (detail?.provider === 'speechify') {
+        setHasSpKey(hasApiKey('speechify'));
+      }
+    };
+    window.addEventListener('api-key-changed', handler);
+    return () => window.removeEventListener('api-key-changed', handler);
+  }, []);
+
+  const handleProviderChange = useCallback((p: TTSProvider) => {
+    setProvider(p);
+  }, []);
 
   return (
     <div className="flex-1 overflow-y-auto max-h-[70vh]">
       <div className="space-y-3 pb-6">
         <SettingsSection title="TTS Engine" defaultOpen>
-          <TTSProviderSelector />
+          <TTSProviderSelector onProviderChange={handleProviderChange} />
         </SettingsSection>
 
         {provider === 'elevenlabs' && (
