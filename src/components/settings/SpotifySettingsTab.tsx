@@ -154,6 +154,17 @@ export function SpotifySettingsTab() {
                   )}
                 </div>
                 <div className="flex gap-1 shrink-0">
+                  {preset.playlistUri && preset.manuallyAssigned && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => spotify.clearPresetPlaylist(preset.id)}
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                      title="Clear assignment"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
                   {preset.playlistUri && (
                     <Button
                       variant="ghost"
