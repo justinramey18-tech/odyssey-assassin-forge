@@ -477,8 +477,17 @@ export function PromptDrawerProvider({
       };
     }
 
+    // Build class identity
+    const characterClass = character.primaryClass || 'rogue';
+    const multiclassBreakdown: Record<string, number> | undefined =
+      character.multiclassLevels && Object.keys(character.multiclassLevels).length > 0
+        ? { [characterClass]: character.level, ...character.multiclassLevels }
+        : undefined;
+
     return {
       name: character.name, level: character.level, currentHP: hp, maxHP: hpMax,
+      characterClass,
+      multiclassBreakdown,
       deity, domain,
       abilities: abilitiesList, equippedAbilities: equippedAbilitiesList, equipment: equipmentList,
       activeSetBonuses: [], consumables: consumablesList,

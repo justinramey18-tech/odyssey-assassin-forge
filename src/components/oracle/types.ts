@@ -25,6 +25,10 @@ export interface CharacterContext {
   level: number;
   currentHP: number;
   maxHP: number;
+  /** Primary class identity (e.g. 'rogue', 'wizard') */
+  characterClass?: string;
+  /** Multiclass breakdown: e.g. { rogue: 7, warlock: 3 } — only present if multiclassed */
+  multiclassBreakdown?: Record<string, number>;
   deity?: string;
   domain?: string;
   abilities: Array<{ name: string; tier: number; tree: string }>;

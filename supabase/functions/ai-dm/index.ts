@@ -13,6 +13,8 @@ interface CharacterContext {
   level: number;
   currentHP: number;
   maxHP: number;
+  characterClass?: string;
+  multiclassBreakdown?: Record<string, number>;
   deity?: string;
   domain?: string;
   abilities: Array<{ name: string; tier: number; tree: string }>;
@@ -170,6 +172,16 @@ function buildContextSummary(ctx: CharacterContext): string {
   const lines: string[] = [];
   
   lines.push(`CHARACTER: ${ctx.name}, Level ${ctx.level}`);
+  if (ctx.characterClass) {
+    if (ctx.multiclassBreakdown && Object.keys(ctx.multiclassBreakdown).length > 1) {
+      const breakdown = Object.entries(ctx.multiclassBreakdown)
+        .map(([cls, lvl]) => `${cls.charAt(0).toUpperCase() + cls.slice(1)} ${lvl}`)
+        .join(' / ');
+      lines.push(`CLASS: ${breakdown} (multiclass)`);
+    } else {
+      lines.push(`CLASS: ${ctx.characterClass.charAt(0).toUpperCase() + ctx.characterClass.slice(1)} ${ctx.level}`);
+    }
+  }
   if (ctx.deity || ctx.domain) {
     const parts: string[] = [];
     if (ctx.deity) parts.push(`Deity: ${ctx.deity}`);
