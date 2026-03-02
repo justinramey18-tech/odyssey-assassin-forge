@@ -9,6 +9,8 @@ import {
   clearCampaignSummary,
 } from '@/lib/campaign-summary-storage';
 import { loadApiKey } from '@/lib/api-keys';
+import { loadCombatSettings } from '@/lib/combat/combatSettings';
+import { formatPartyPowerForPrompt } from '@/lib/combat/encounterDifficulty';
 
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
 const SUMMARIZE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm-summarize`;
@@ -386,6 +388,10 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
           model: selectedModel || undefined,
           user_api_key: loadApiKey('anthropic') || undefined,
           user_openai_key: loadApiKey('openai') || undefined,
+          encounterGuidance: formatPartyPowerForPrompt(
+            [characterContext.level ?? 1],
+            loadCombatSettings().difficultyPreference
+          ) || undefined,
         }),
         signal: abortControllerRef.current.signal,
       });
