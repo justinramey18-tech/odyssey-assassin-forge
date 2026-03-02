@@ -27,6 +27,7 @@ import { DiceOddsWidget } from '@/components/settings/DiceOddsWidget';
 import { DiceOddsMode, loadDiceOddsMode, saveDiceOddsMode } from '@/lib/diceOdds';
 import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
 import { AlignmentBanner } from '@/components/alignment/AlignmentBanner';
+import { AlignmentBadge } from '@/components/alignment/AlignmentBadge';
 import { type AlignmentScore as AlignmentScoreType, getPromptAlignment, isAlignmentMatch, sortByAlignmentProximity } from '@/lib/alignmentSpectrum';
 
 // Ability score presets
@@ -1718,7 +1719,10 @@ function PromptButton({ prompt, onClick, disabled, currentRoll }: PromptButtonPr
         <Sparkles className="w-5 h-5" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-medium text-sm">{prompt.name}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="font-medium text-sm">{prompt.name}</p>
+          <AlignmentBadge promptId={prompt.id} />
+        </div>
         <p className="text-xs text-muted-foreground truncate">
           {disabled ? 'Roll a die first' : `Generate with roll ${currentRoll}`}
         </p>
