@@ -6,6 +6,8 @@ import { getAuthToken } from '@/lib/auth-token';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { DmSplitState, SplitTeam } from '@/lib/party-split-types';
 import { sendReadyUpNotification } from '@/lib/party-notifications';
+import { loadCombatSettings } from '@/lib/combat/combatSettings';
+import { formatPartyPowerForPrompt } from '@/lib/combat/encounterDifficulty';
 
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
 const SUMMARIZE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm-summarize`;
@@ -674,6 +676,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         characterContext,
         campaignSummary: sessionConfig?.campaignSummary || undefined,
         customGuides: extraGuides,
+        encounterGuidance: formatPartyPowerForPrompt(
+          partyMembers.map(m => Number((m.character_status as any)?.level) || 1),
+          loadCombatSettings().difficultyPreference
+        ) || undefined,
       }),
       signal,
     });
