@@ -205,11 +205,38 @@ async function spotifyFetch(endpoint: string, options: RequestInit = {}): Promis
   return data;
 }
 
+export async function getUserPlaylists(query?: string): Promise<any[]> {
+  try {
+    const data = await spotifyFetch('/me/playlists?limit=50');
+    let items = data?.items;
+    if (!Array.isArray(items)) return [];
+    items = items.filter((item: any) => item && typeof item === 'object' && item.id && item.uri);
+    if (query) {
+      const q = query.toLowerCase();
+      items = items.filter((item: any) => item.name?.toLowerCase().includes(q));
+    }
+    // Mark as personal so UI can distinguish
+    return items.map((item: any) => ({ ...item, _personal: true }));
+  } catch (e) {
+    console.warn('[Spotify] Failed to fetch user playlists:', e);
+    return [];
+  }
+}
+
 export async function searchPlaylists(query: string, limit = 10) {
-  const data = await spotifyFetch(`/search?${new URLSearchParams({ q: query, type: 'playlist', limit: String(limit) })}`);
-  const items = data?.playlists?.items;
-  if (!Array.isArray(items)) return [];
-  return items.filter((item: any) => item && typeof item === 'object' && item.id && item.uri);
+  // Fetch personal and public playlists in parallel
+  const [personal, publicData] = await Promise.all([
+    getUserPlaylists(query).catch(() => []),
+    spotifyFetch(`/search?${new URLSearchParams({ q: query, type: 'playlist', limit: String(limit) })}`).catch(() => null),
+  ]);
+
+  const publicItems = (publicData?.playlists?.items || [])
+    .filter((item: any) => item && typeof item === 'object' && item.id && item.uri);
+
+  // Deduplicate: personal results first
+  const seenIds = new Set(personal.map((p: any) => p.id));
+  const deduped = [...personal, ...publicItems.filter((p: any) => !seenIds.has(p.id))];
+  return deduped.slice(0, Math.max(limit, 20));
 }
 
 export async function getPlaylistTracks(playlistId: string) {
