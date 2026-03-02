@@ -29,6 +29,7 @@ import { useDMGameState, buildMemoryAnchorsPrompt } from '@/hooks/use-dm-game-st
 import { useDmMemoryExtraction } from '@/hooks/use-dm-memory-extraction';
 import { WorldBuilderWizard } from './WorldBuilderWizard';
 import { WhisperTray } from './WhisperTray';
+import { OracleWhisperFeed } from './OracleWhisperFeed';
 import { AutoSyncBanner } from './AutoSyncBanner';
 
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
@@ -1056,6 +1057,10 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
               <DMSpotifyControls />
             </div>
           ) : undefined}
+          oracleContent={activeNavTab === 'oracle' ? (
+            <OracleWhisperFeed messages={messages} />
+          ) : undefined}
+          oracleCount={messages.reduce((count, m) => count + (m.whispers?.length ?? 0), 0)}
         />
       )}
 

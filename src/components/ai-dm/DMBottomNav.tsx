@@ -1,9 +1,9 @@
 import { useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Dices, Gem, ListChecks, Bird, Ghost, Settings } from 'lucide-react';
+import { Dices, Gem, ListChecks, Bird, Ghost, Settings, Eye } from 'lucide-react';
 
-export type DMNavTab = 'dice' | 'prompts' | 'actions' | 'geralt' | 'afk' | 'settings';
+export type DMNavTab = 'dice' | 'prompts' | 'actions' | 'geralt' | 'afk' | 'oracle' | 'settings';
 
 interface DMBottomNavProps {
   activeTab: DMNavTab | null;
@@ -15,8 +15,12 @@ interface DMBottomNavProps {
   diceContent?: React.ReactNode;
   /** Rendered below tabs when settings tab is active */
   settingsContent?: React.ReactNode;
+  /** Rendered below tabs when oracle tab is active */
+  oracleContent?: React.ReactNode;
   /** Show the Geralt tab (momo easter egg) */
   showGeralt?: boolean;
+  /** Badge count for oracle whispers */
+  oracleCount?: number;
 }
 
 const BASE_TABS = [
@@ -27,6 +31,7 @@ const BASE_TABS = [
 
 const GERALT_TAB = { id: 'geralt' as DMNavTab, label: 'GERALT', icon: Bird, color: 'text-pink-400', activeBg: 'bg-pink-500/10' };
 const AFK_TAB = { id: 'afk' as DMNavTab, label: 'AFK', icon: Ghost, color: 'text-purple-400', activeBg: 'bg-purple-500/10' };
+const ORACLE_TAB = { id: 'oracle' as DMNavTab, label: 'ORACLE', icon: Eye, color: 'text-cyan-400', activeBg: 'bg-cyan-500/10' };
 const SETTINGS_TAB = { id: 'settings' as DMNavTab, label: 'SETTINGS', icon: Settings, color: 'text-white/70', activeBg: 'bg-white/5' };
 
 const activeIndicatorColors: Record<DMNavTab, string> = {
@@ -35,11 +40,12 @@ const activeIndicatorColors: Record<DMNavTab, string> = {
   actions: 'bg-emerald-500',
   geralt: 'bg-pink-500',
   afk: 'bg-purple-500',
+  oracle: 'bg-cyan-500',
   settings: 'bg-white/50',
 };
 
-export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, showGeralt }: DMBottomNavProps) {
-  const tabs = [...BASE_TABS, AFK_TAB, ...(showGeralt ? [GERALT_TAB] : []), SETTINGS_TAB];
+export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, showGeralt, oracleCount }: DMBottomNavProps) {
+  const tabs = [...BASE_TABS, AFK_TAB, ORACLE_TAB, ...(showGeralt ? [GERALT_TAB] : []), SETTINGS_TAB];
   const touchStartY = useRef(0);
   const touchStartTime = useRef(0);
 
@@ -67,6 +73,7 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
 
   const showDiceContent = isExpanded && activeTab === 'dice' && diceContent;
   const showSettingsContent = isExpanded && activeTab === 'settings' && settingsContent;
+  const showOracleContent = isExpanded && activeTab === 'oracle' && oracleContent;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 safe-area-bottom">
@@ -121,10 +128,17 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
                       )}
                       style={{ touchAction: 'manipulation' }}
                     >
-                      <Icon className={cn(
-                        "w-5 h-5 transition-colors",
-                        isActive ? tab.color : "text-muted-foreground"
-                      )} />
+                      <div className="relative">
+                        <Icon className={cn(
+                          "w-5 h-5 transition-colors",
+                          isActive ? tab.color : "text-muted-foreground"
+                        )} />
+                        {tab.id === 'oracle' && oracleCount && oracleCount > 0 && !isActive && (
+                          <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-cyan-500 text-[9px] font-bold text-black flex items-center justify-center px-0.5">
+                            {oracleCount > 9 ? '9+' : oracleCount}
+                          </span>
+                        )}
+                      </div>
                       <span className={cn(
                         "text-[10px] font-mono tracking-tight transition-colors",
                         isActive ? "text-foreground" : "text-muted-foreground"
@@ -166,6 +180,20 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
                     className="overflow-hidden max-h-[50vh] overflow-y-auto overscroll-contain"
                   >
                     {settingsContent}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Oracle content (inline in drawer) */}
+              <AnimatePresence>
+                {showOracleContent && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    {oracleContent}
                   </motion.div>
                 )}
               </AnimatePresence>
