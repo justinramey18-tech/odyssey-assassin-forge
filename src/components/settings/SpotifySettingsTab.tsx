@@ -100,20 +100,6 @@ export function SpotifySettingsTab() {
           </SettingsSection>
         )}
 
-        {/* Volume */}
-        <SettingsSection title="Volume">
-          <div className="flex items-center gap-3 px-1">
-            <span className="text-xs text-muted-foreground w-6">🔈</span>
-            <Slider
-              value={[spotify.volume]}
-              onValueChange={([v]) => spotify.changeVolume(v)}
-              max={100}
-              step={1}
-              className="flex-1"
-            />
-            <span className="text-xs text-muted-foreground w-8 text-right">{spotify.volume}%</span>
-          </div>
-        </SettingsSection>
 
         {/* Mood Presets */}
         <SettingsSection title="Mood Presets">

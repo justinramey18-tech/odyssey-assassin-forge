@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Play, Pause, SkipForward, SkipBack, Volume2, Music, Wifi, WifiOff, Plus, Trash2, X, Sparkles, Monitor, Link, Unlink, Radio } from 'lucide-react';
 import { useSpotify } from '@/hooks/use-spotify';
 import { usePartySpotifySync } from '@/hooks/use-party-spotify-sync';
@@ -17,6 +17,8 @@ function PresetPill({ preset, spotify, onPlay }: { preset: MoodPreset; spotify: 
   const [linkInput, setLinkInput] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
   const [open, setOpen] = useState(false);
+  const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const didLongPress = useRef(false);
 
   const handleAssign = async () => {
     if (!linkInput.trim()) return;
@@ -38,24 +40,54 @@ function PresetPill({ preset, spotify, onPlay }: { preset: MoodPreset; spotify: 
     }
   };
 
+  const handleTouchStart = () => {
+    didLongPress.current = false;
+    longPressRef.current = setTimeout(() => {
+      didLongPress.current = true;
+      setOpen(true);
+    }, 500);
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressRef.current) {
+      clearTimeout(longPressRef.current);
+      longPressRef.current = null;
+    }
+    // Short tap = play (only if not a long press)
+    if (!didLongPress.current && !open) {
+      handlePlay();
+    }
+  };
+
+  const handleTouchMove = () => {
+    if (longPressRef.current) {
+      clearTimeout(longPressRef.current);
+      longPressRef.current = null;
+    }
+  };
+
   return (
     <div className="group relative">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            onTouchMove={handleTouchMove}
+            onContextMenu={(e) => { e.preventDefault(); setOpen(true); }}
             onClick={(e) => {
-              // Single click = play, long press handled by popover
-              // We use onContextMenu-like UX: tap plays, the popover trigger wraps for edit
+              // Desktop: single click = play
+              if (e.detail === 1) handlePlay();
             }}
             onDoubleClick={() => setOpen(true)}
             disabled={spotify.isSearching}
             className={cn(
-              "text-xs px-2.5 py-1 rounded-full border transition-colors flex items-center gap-1",
+              "text-xs px-2.5 py-1 rounded-full border transition-colors flex items-center gap-1 select-none",
               preset.playlistUri
                 ? "border-border/50 hover:bg-emerald-500/10 hover:border-emerald-500/30"
                 : "border-dashed border-muted-foreground/30 hover:border-muted-foreground/50 text-muted-foreground"
             )}
-            title={preset.playlistUri ? `Play: ${preset.playlistName} (double-tap to edit)` : `Tap to search, double-tap to paste link`}
+            title={preset.playlistUri ? `Play: ${preset.playlistName} (hold to edit)` : `Tap to search, hold to paste link`}
           >
             {preset.emoji} <span className="text-[10px]">{preset.label}</span>
             {preset.playlistUri && preset.playlistName && (
@@ -228,24 +260,6 @@ export function DMSpotifyControls({ partyId, isCreator = false }: DMSpotifyContr
         </button>
       </div>
 
-      {/* Volume */}
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <Volume2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-          <Slider
-            value={[spotify.volume]}
-            onValueChange={([v]) => spotify.changeVolume(v)}
-            max={100}
-            step={1}
-            className="flex-1"
-            disabled={spotify.isPremium === false}
-          />
-          <span className="text-[10px] text-muted-foreground w-6 text-right">{spotify.volume}</span>
-        </div>
-        {spotify.isPremium === false && (
-          <p className="text-[9px] text-amber-500/80 text-center">Premium required for volume control</p>
-        )}
-      </div>
 
       {/* Auto-Mood toggle */}
       <div className="flex items-center justify-between py-1">
@@ -370,7 +384,7 @@ export function DMSpotifyControls({ partyId, isCreator = false }: DMSpotifyContr
           ))}
         </div>
 
-        <p className="text-[9px] text-muted-foreground/60 text-center">Tap to play · Double-tap to edit link</p>
+        <p className="text-[9px] text-muted-foreground/60 text-center">Tap to play · Hold to edit link</p>
       </div>
 
       {/* Connection info */}
