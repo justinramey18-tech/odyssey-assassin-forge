@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Music, LogOut, Search, Play, ExternalLink, Library, Loader2 } from 'lucide-react';
+import { Music, LogOut, Search, Play, ExternalLink, Library, Loader2, Link, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { SettingsSection } from './SettingsSection';
 import { useSpotify } from '@/hooks/use-spotify';
-import { searchPlaylists, getUserPlaylists } from '@/lib/spotify';
+import { searchPlaylists, getUserPlaylists, type MoodPreset } from '@/lib/spotify';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -18,6 +18,7 @@ export function SpotifySettingsTab() {
   const [myLibrary, setMyLibrary] = useState<any[]>([]);
   const [isLoadingLibrary, setIsLoadingLibrary] = useState(false);
   const [libraryLoaded, setLibraryLoaded] = useState(false);
+  const [assigningPlaylist, setAssigningPlaylist] = useState<{ uri: string; name: string } | null>(null);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -46,6 +47,18 @@ export function SpotifySettingsTab() {
     } finally {
       setIsLoadingLibrary(false);
     }
+  };
+
+  const handleAssignToMood = (presetId: string) => {
+    if (!assigningPlaylist) return;
+    const updated = spotify.moodPresets.map((p: MoodPreset) =>
+      p.id === presetId
+        ? { ...p, playlistUri: assigningPlaylist.uri, playlistName: assigningPlaylist.name }
+        : p
+    );
+    spotify.updateMoodPresets(updated);
+    toast.success(`Linked "${assigningPlaylist.name}" to ${spotify.moodPresets.find(p => p.id === presetId)?.label}`);
+    setAssigningPlaylist(null);
   };
 
   if (!spotify.connected) {
@@ -225,10 +238,9 @@ export function SpotifySettingsTab() {
           ) : (
             <div className="space-y-2">
               {myLibrary.map((pl: any) => (
-                <button
+                <div
                   key={pl.id}
-                  onClick={() => spotify.playPlaylist(pl.uri)}
-                  className="flex items-center gap-3 p-2 rounded-lg border border-border/30 bg-card/20 hover:bg-card/50 transition-colors w-full text-left"
+                  className="flex items-center gap-3 p-2 rounded-lg border border-border/30 bg-card/20 hover:bg-card/50 transition-colors w-full"
                 >
                   {pl.images?.[0]?.url ? (
                     <img src={pl.images[0].url} alt="" className="w-10 h-10 rounded" />
@@ -243,12 +255,67 @@ export function SpotifySettingsTab() {
                       {pl.tracks?.total != null ? `${pl.tracks.total} tracks` : 'Playlist'}
                     </p>
                   </div>
-                  <Play className="w-4 h-4 text-[#1DB954] shrink-0" />
-                </button>
+                  <div className="flex gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setAssigningPlaylist({ uri: pl.uri, name: pl.name })}
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                      title="Assign to mood"
+                    >
+                      <Link className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => spotify.playPlaylist(pl.uri)}
+                      className="h-8 w-8 p-0 text-[#1DB954]"
+                      title="Play now"
+                    >
+                      <Play className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
               ))}
             </div>
           )}
         </SettingsSection>
+
+        {/* Mood Picker Overlay */}
+        {assigningPlaylist && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm">
+            <div className="w-full max-w-md bg-background border border-border rounded-t-2xl p-4 pb-8 animate-in slide-in-from-bottom duration-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold truncate">Assign to Mood</p>
+                  <p className="text-xs text-[#1DB954] truncate">{assigningPlaylist.name}</p>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setAssigningPlaylist(null)} className="h-8 w-8 p-0 shrink-0">
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="space-y-1.5 max-h-[50vh] overflow-y-auto overscroll-contain">
+                {spotify.moodPresets.map((preset: MoodPreset) => (
+                  <button
+                    key={preset.id}
+                    onClick={() => handleAssignToMood(preset.id)}
+                    className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-card/30 hover:bg-card/60 active:bg-card/80 transition-colors w-full text-left"
+                  >
+                    <span className="text-lg shrink-0">{preset.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold">{preset.label}</p>
+                      {preset.playlistName ? (
+                        <p className="text-xs text-muted-foreground truncate">Currently: {preset.playlistName}</p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">No playlist assigned</p>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
