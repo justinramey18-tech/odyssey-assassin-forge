@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { text, voiceId, user_api_key, voice_settings } = await req.json();
+    const { text, voiceId, user_api_key, voice_settings, previous_text, next_text } = await req.json();
 
     if (!text || !voiceId) {
       return new Response(
@@ -50,6 +50,9 @@ serve(async (req) => {
             style: voice_settings?.style ?? 0.3,
             use_speaker_boost: voice_settings?.use_speaker_boost ?? true,
           },
+          // Request stitching context for multi-chunk narration
+          ...(previous_text ? { previous_text } : {}),
+          ...(next_text ? { next_text } : {}),
         }),
       }
     );
