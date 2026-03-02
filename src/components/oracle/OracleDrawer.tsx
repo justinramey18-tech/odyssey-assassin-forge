@@ -273,11 +273,19 @@ export function OracleDrawer({
         conditions: m.character_status.conditions,
       }));
 
+    const characterClass = character.primaryClass || 'rogue';
+    const multiclassBreakdown: Record<string, number> | undefined =
+      character.multiclassLevels && Object.keys(character.multiclassLevels).length > 0
+        ? { [characterClass]: character.level, ...character.multiclassLevels }
+        : undefined;
+
     return {
       name: character.name,
       level: character.level,
       currentHP,
       maxHP,
+      characterClass,
+      multiclassBreakdown,
       abilities: abilitiesList,
       equippedAbilities: equippedAbilitiesList as string[],
       equipment: equipmentList,
