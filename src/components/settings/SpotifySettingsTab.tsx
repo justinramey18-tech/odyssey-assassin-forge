@@ -1,12 +1,12 @@
-import { useState } from 'react';
-import { Music, LogOut, Search, Play, ExternalLink } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Music, LogOut, Search, Play, ExternalLink, Library, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { SettingsSection } from './SettingsSection';
 import { useSpotify } from '@/hooks/use-spotify';
-import { searchPlaylists } from '@/lib/spotify';
+import { searchPlaylists, getUserPlaylists } from '@/lib/spotify';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -15,6 +15,9 @@ export function SpotifySettingsTab() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearchingManual, setIsSearchingManual] = useState(false);
+  const [myLibrary, setMyLibrary] = useState<any[]>([]);
+  const [isLoadingLibrary, setIsLoadingLibrary] = useState(false);
+  const [libraryLoaded, setLibraryLoaded] = useState(false);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -28,6 +31,20 @@ export function SpotifySettingsTab() {
       toast.error(e.message || 'Search failed');
     } finally {
       setIsSearchingManual(false);
+    }
+  };
+
+  const loadMyLibrary = async () => {
+    if (libraryLoaded) return;
+    setIsLoadingLibrary(true);
+    try {
+      const playlists = await getUserPlaylists();
+      setMyLibrary(Array.isArray(playlists) ? playlists : []);
+      setLibraryLoaded(true);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to load library');
+    } finally {
+      setIsLoadingLibrary(false);
     }
   };
 
@@ -178,6 +195,52 @@ export function SpotifySettingsTab() {
                     <p className="text-xs text-muted-foreground">
                       {pl.tracks?.total != null ? `${pl.tracks.total} tracks` : 'Playlist'}
                       {pl._personal && ' · Yours'}
+                    </p>
+                  </div>
+                  <Play className="w-4 h-4 text-[#1DB954] shrink-0" />
+                </button>
+              ))}
+            </div>
+          )}
+        </SettingsSection>
+
+        {/* My Library */}
+        <SettingsSection title="My Library">
+          {!libraryLoaded ? (
+            <Button
+              onClick={loadMyLibrary}
+              disabled={isLoadingLibrary}
+              variant="outline"
+              className="w-full gap-2"
+            >
+              {isLoadingLibrary ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Library className="w-4 h-4" />
+              )}
+              {isLoadingLibrary ? 'Loading...' : 'Load My Playlists'}
+            </Button>
+          ) : myLibrary.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-3">No playlists found in your library</p>
+          ) : (
+            <div className="space-y-2">
+              {myLibrary.map((pl: any) => (
+                <button
+                  key={pl.id}
+                  onClick={() => spotify.playPlaylist(pl.uri)}
+                  className="flex items-center gap-3 p-2 rounded-lg border border-border/30 bg-card/20 hover:bg-card/50 transition-colors w-full text-left"
+                >
+                  {pl.images?.[0]?.url ? (
+                    <img src={pl.images[0].url} alt="" className="w-10 h-10 rounded" />
+                  ) : (
+                    <div className="w-10 h-10 rounded bg-muted/30 flex items-center justify-center">
+                      <Music className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{pl.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {pl.tracks?.total != null ? `${pl.tracks.total} tracks` : 'Playlist'}
                     </p>
                   </div>
                   <Play className="w-4 h-4 text-[#1DB954] shrink-0" />
