@@ -159,14 +159,14 @@ export function useCloudSave(userId: string | undefined) {
           .select()
           .single();
       } else {
-        // Insert new save
+        // Upsert: insert or update if user already has a save (unique_one_save_per_user constraint)
         result = await supabase
           .from('character_saves')
-          .insert({
+          .upsert({
             user_id: userId,
             save_name: saveName,
             ...dbData,
-          })
+          }, { onConflict: 'user_id' })
           .select()
           .single();
       }
