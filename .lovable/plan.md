@@ -1,59 +1,25 @@
 
 
-## Staged Alignment Badge Implementation Plan
+## Problem
 
-The alignment data exists but is never shown passively on prompts. We will break this into **5 sequential prompts**, each adding visible alignment badges to one prompt UI at a time.
+The `searchPlaylists` function in `src/lib/spotify.ts` uses Spotify's `/search` endpoint exclusively. This endpoint only searches **public** playlists across all of Spotify — it does not return the user's own private or collaborative playlists. That's why personal playlists are missing.
 
----
+The "0 tracks" issue is likely due to the Spotify search API sometimes returning `tracks` as an object with only an `href` and no `total` for certain results, or returning `null` items that slip through.
 
-### Prompt 1: Create the reusable `AlignmentBadge` component + update Home Screen drift indicator
+## Plan
 
-**What gets built:**
-- A small `<AlignmentBadge promptId={id} />` component that looks up the prompt's alignment via `getPromptAlignment()` → `getAlignmentZone()` and renders a tiny colored pill (e.g., `🌿 CG` in emerald, `💀 CE` in red)
-- Returns null if no alignment data exists for that prompt ID
-- Update `AlignmentDriftIndicator` to remove the `historyCount === 0` guard — show "True Neutral" with a "No drift data yet" label as the default state
+### 1. Add a "My Playlists" fetch function (`src/lib/spotify.ts`)
+- Add a new `getUserPlaylists(query?: string)` function that calls `/me/playlists?limit=50`
+- If a search query is provided, filter results client-side by name match
 
-**Why first:** This establishes the shared component every subsequent prompt will use, and immediately makes the drift visible on the home screen.
+### 2. Update `searchPlaylists` to merge personal + public results (`src/lib/spotify.ts`)
+- Call both `/me/playlists` and `/search` in parallel
+- Deduplicate by playlist ID (personal results first)
+- Return merged list so personal playlists always appear at the top
 
----
+### 3. Fix "0 tracks" display (`src/components/settings/SpotifySettingsTab.tsx`)
+- The `/me/playlists` endpoint returns `tracks.total` reliably
+- For search results, fall back to `pl.tracks?.total ?? '?'` instead of `|| 0` to avoid showing misleading zeros
 
-### Prompt 2: Add alignment badges to the Empyrean Prompt Library
-
-**What gets built:**
-- Insert `<AlignmentBadge>` next to each prompt title in `EmpyreanPromptLibrary.tsx`
-- Badges show passively on every prompt, independent of the alignment target filter
-- Uses the existing `getPromptAlignment(p.id)` call already in the render loop
-
----
-
-### Prompt 3: Add alignment badges to the Novel Prompt Drawer (Scribe)
-
-**What gets built:**
-- Insert `<AlignmentBadge>` next to each prompt in `NovelPromptDrawer.tsx`
-- Same pattern as Prompt 2, leveraging the shared component
-
----
-
-### Prompt 4: Add alignment badges to the Dice Roller prompt tab
-
-**What gets built:**
-- Insert `<AlignmentBadge>` into the prompt list within `DiceRollerScreen.tsx`
-- Same shared component, same pattern
-
----
-
-### Prompt 5: Add alignment badges to DM Quick Actions + Geralt prompts
-
-**What gets built:**
-- Tag each action in `DMQuickActions.tsx` (both starter and inline variants) with alignment scores and display the badge
-- Add alignment scores to Geralt prompts in `geralt-prompts.ts` and display badges in `GeraltGameplayWidget.tsx`
-
----
-
-### Technical Notes
-
-- The `AlignmentBadge` component will live at `src/components/alignment/AlignmentBadge.tsx`
-- It will use `cssColor` from the zone data for inline styling (proven pattern from previous fix)
-- Each prompt file already imports `getPromptAlignment` — minimal wiring needed
-- For DM Quick Actions and Geralt prompts that lack entries in `PROMPT_ALIGNMENT_MAP`, we will add alignment scores directly to the action/prompt data objects
+These changes touch two files: `src/lib/spotify.ts` and `src/components/settings/SpotifySettingsTab.tsx`.
 
