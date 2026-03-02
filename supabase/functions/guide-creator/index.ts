@@ -9,7 +9,7 @@ const corsHeaders = {
 interface GuideRequest {
   prompt: string;
   campaignSummary?: string;
-  existingGuides?: Array<{ name: string; snippet: string }>;
+  existingGuides?: Array<{ name: string; content: string }>;
   chatHistory?: Array<{ role: string; content: string }>;
   model?: string;
   user_api_key?: string;
@@ -37,7 +37,7 @@ const DEFAULT_MODEL = 'google/gemini-3-flash-preview';
 
 function buildSystemPrompt(
   campaignSummary?: string,
-  existingGuides?: Array<{ name: string; snippet: string }>,
+  existingGuides?: Array<{ name: string; content: string }>,
   chatHistory?: Array<{ role: string; content: string }>,
 ): string {
   let prompt = `You are a GM Guide generator for D&D 5e campaigns. Your job is to create structured, detailed GM reference guides in markdown format.
@@ -78,8 +78,8 @@ Match the guide type to what the user asks for.
   }
 
   if (existingGuides && existingGuides.length > 0) {
-    const guideList = existingGuides.map(g => `- "${g.name}": ${g.snippet}`).join('\n');
-    prompt += `\n\n## EXISTING GUIDES (avoid duplicating their content)\n${guideList}`;
+    const guideList = existingGuides.map(g => `### ${g.name}\n${g.content}`).join('\n\n---\n\n');
+    prompt += `\n\n## EXISTING GUIDES (full content — reference or build upon ONLY if the user's prompt asks you to)\nDo NOT duplicate content from these guides. If the user asks to expand, complement, or riff on existing guides, use them as context.\n\n${guideList}`;
   }
 
   return prompt;

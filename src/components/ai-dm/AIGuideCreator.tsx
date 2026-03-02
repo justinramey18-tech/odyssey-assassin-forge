@@ -45,7 +45,7 @@ export function AIGuideCreator({ guides, campaignSummary, chatMessages, onAdd }:
       if (enabledGuides.length > 0) {
         body.existingGuides = enabledGuides.map(g => ({
           name: g.name,
-          snippet: g.content.slice(0, 200),
+          content: g.content,
         }));
       }
       if (isAnthropic) {
