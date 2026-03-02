@@ -1,7 +1,8 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { type AlignmentScore, getAlignmentZone, getPromptAlignment } from '@/lib/alignmentSpectrum';
 
 const DRIFT_KEY_PREFIX = 'odyssey-alignment-drift';
+const DRIFT_UPDATED_EVENT = 'odyssey-alignment-drift-updated';
 const MAX_HISTORY = 50;
 const DECAY_FACTOR = 0.92; // recent prompts weighted more
 
@@ -33,6 +34,7 @@ function loadHistory(): DriftEntry[] {
 function saveHistory(entries: DriftEntry[]) {
   try {
     localStorage.setItem(getScopedKey(), JSON.stringify(entries.slice(-MAX_HISTORY)));
+    window.dispatchEvent(new Event(DRIFT_UPDATED_EVENT));
   } catch {}
 }
 
@@ -58,6 +60,22 @@ function computeWeightedAverage(entries: DriftEntry[]): AlignmentScore {
 
 export function useAlignmentDrift() {
   const [history, setHistory] = useState<DriftEntry[]>(loadHistory);
+
+  useEffect(() => {
+    const handleDriftUpdate = () => setHistory(loadHistory());
+    const handleStorage = (event: StorageEvent) => {
+      if (!event.key || event.key.startsWith(DRIFT_KEY_PREFIX)) {
+        handleDriftUpdate();
+      }
+    };
+
+    window.addEventListener(DRIFT_UPDATED_EVENT, handleDriftUpdate);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener(DRIFT_UPDATED_EVENT, handleDriftUpdate);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
 
   const logPromptUsage = useCallback((promptId: string) => {
     const alignment = getPromptAlignment(promptId);
