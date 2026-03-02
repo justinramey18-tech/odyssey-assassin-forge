@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { Message, CharacterContext } from '@/components/oracle/types';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { parseWhispers } from '@/lib/whisper-parser';
 import { getAuthToken } from '@/lib/auth-token';
 import {
   loadCampaignSummary,
@@ -538,16 +539,28 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
         }));
       }
 
-      // After successful response, check if we should generate a summary
+      // After successful response, parse whispers and clean the narrative
       if (assistantContent) {
+        const { narrative, whispers } = parseWhispers(assistantContent);
+
+        // Update the assistant message with clean narrative + whispers metadata
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === assistantMessageId
+              ? { ...m, content: narrative, whispers: whispers.length > 0 ? whispers : undefined }
+              : m
+          )
+        );
+
         const updatedMessages = [...allMessages, {
           id: assistantMessageId,
           role: 'assistant' as const,
-          content: assistantContent,
+          content: narrative,
           timestamp: new Date(),
+          whispers: whispers.length > 0 ? whispers : undefined,
         }];
         triggerSummaryIfNeeded(updatedMessages);
-        onMessageCompleteRef.current?.(assistantContent);
+        onMessageCompleteRef.current?.(narrative);
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
