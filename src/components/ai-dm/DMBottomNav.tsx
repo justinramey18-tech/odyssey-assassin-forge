@@ -163,7 +163,7 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
-                    className="overflow-hidden max-h-[50vh] overflow-y-auto overscroll-contain"
+                    className="max-h-[50vh] overflow-y-auto overscroll-contain touch-auto"
                   >
                     {diceContent}
                   </motion.div>
@@ -177,7 +177,7 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
-                    className="overflow-hidden max-h-[50vh] overflow-y-auto overscroll-contain"
+                    className="max-h-[50vh] overflow-y-auto overscroll-contain touch-auto"
                   >
                     {settingsContent}
                   </motion.div>
@@ -191,7 +191,7 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
-                    className="overflow-hidden max-h-[50vh] overflow-y-auto overscroll-contain"
+                    className="max-h-[50vh] overflow-y-auto overscroll-contain touch-auto"
                   >
                     {oracleContent}
                   </motion.div>
