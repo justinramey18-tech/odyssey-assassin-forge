@@ -65,176 +65,176 @@ export function isAlignmentMatch(
 
 // ── Prompt alignment scoring map ──
 // Maps prompt IDs to their alignment scores
-// This is the static data that tags each prompt with its moral/ethical leaning
+// Uses ACTUAL prompt IDs from characterPrompts.ts, empyreanPrompts.ts, etc.
 
 const PROMPT_ALIGNMENT_MAP: Record<string, AlignmentScore> = {
-  // Voice & Tone
+  // Voice & Tone (from characterPrompts.ts)
   'fourth-wall': { law: -3, good: 0 },
   'inappropriate-humor': { law: -4, good: -1 },
-  'dark-humor': { law: -2, good: -2 },
-  'sarcastic-narrator': { law: -2, good: 0 },
-  'deadpan-delivery': { law: 0, good: 0 },
-  'dramatic-monologue': { law: 1, good: 0 },
-  'poetic-speech': { law: 2, good: 1 },
-  'crude-language': { law: -4, good: -2 },
+  'internal-monologue': { law: -2, good: 0 },
 
-  // Combat
+  // Combat (from characterPrompts.ts)
   'creative-kills': { law: -3, good: -4 },
-  'mercy-strikes': { law: 2, good: 4 },
-  'tactical-analysis': { law: 4, good: 0 },
-  'berserker-rage': { law: -4, good: -2 },
-  'defensive-stance': { law: 3, good: 1 },
-  'sneak-attack': { law: -3, good: -1 },
-  'honorable-duel': { law: 5, good: 2 },
-  'dirty-fighting': { law: -4, good: -3 },
-  'protect-allies': { law: 2, good: 5 },
-  'battlefield-commander': { law: 5, good: 1 },
-  'assassination': { law: -2, good: -5 },
-  'non-lethal': { law: 3, good: 4 },
+  'tactical-incompetence': { law: -3, good: -1 },
+  'banter-mid-combat': { law: -2, good: 0 },
 
-  // Social
-  'intimidation': { law: -1, good: -2 },
-  'persuasion': { law: 1, good: 1 },
-  'deception': { law: -3, good: -2 },
-  'diplomacy': { law: 4, good: 3 },
-  'seduction': { law: -2, good: -1 },
-  'bartering': { law: 1, good: 0 },
-  'loyalty-oath': { law: 4, good: 3 },
-  'betrayal': { law: -5, good: -4 },
-  'confession': { law: 2, good: 3 },
-  'blackmail': { law: -3, good: -4 },
+  // Social (from characterPrompts.ts)
+  'negotiation-absurdity': { law: -3, good: 0 },
+  'selective-morals': { law: -2, good: -1 },
+  'alias-addiction': { law: -3, good: -1 },
 
-  // Emotional
-  'inner-conflict': { law: 0, good: 0 },
-  'romantic-tension': { law: -1, good: 1 },
-  'grief-processing': { law: 0, good: 2 },
-  'rage-outburst': { law: -3, good: -1 },
-  'compassion': { law: 1, good: 5 },
-  'jealousy': { law: -1, good: -2 },
-  'forgiveness': { law: 2, good: 4 },
-  'vengeance': { law: -2, good: -4 },
-  'fear-response': { law: 0, good: 0 },
-  'self-sacrifice': { law: 1, good: 5 },
+  // Investigation (from characterPrompts.ts)
+  'chaotic-investigation': { law: -3, good: 0 },
+  'lateral-thinking': { law: -2, good: 0 },
+  'attention-roulette': { law: -3, good: 0 },
 
-  // Investigation
-  'perception-check': { law: 0, good: 0 },
-  'insight-read': { law: 1, good: 1 },
-  'evidence-search': { law: 3, good: 1 },
-  'interrogation': { law: 2, good: -1 },
-  'stealth-recon': { law: -2, good: 0 },
-  'tracking': { law: 1, good: 0 },
-  'lore-check': { law: 2, good: 0 },
-  'trap-detection': { law: 1, good: 1 },
+  // Emotional (from characterPrompts.ts)
+  'mask-slips': { law: 0, good: 1 },
+  'unexpected-loyalty': { law: 1, good: 3 },
+  'trauma-shield': { law: -1, good: 0 },
 
-  // Meta Requests
-  'session-recap': { law: 2, good: 0 },
-  'time-skip': { law: 0, good: 0 },
-  'flashback': { law: 0, good: 0 },
-  'dream-sequence': { law: -1, good: 0 },
-  'tavern-scene': { law: -1, good: 1 },
-  'campfire-moment': { law: 0, good: 2 },
-  'shopping-spree': { law: 1, good: 0 },
-  'downtime-activity': { law: 2, good: 1 },
+  // World (from characterPrompts.ts)
+  'property-damage': { law: -4, good: -1 },
+  'reputation-dissonance': { law: -2, good: 0 },
+  'loot-chaos': { law: -3, good: -1 },
 
-  // World
-  'describe-environment': { law: 0, good: 0 },
-  'weather-mood': { law: 0, good: 0 },
-  'npc-introduction': { law: 0, good: 0 },
-  'world-history': { law: 3, good: 0 },
-  'divine-intervention': { law: 4, good: 3 },
-  'dark-ritual': { law: -3, good: -5 },
-  'natural-disaster': { law: 0, good: 0 },
-  'political-intrigue': { law: 3, good: -1 },
+  // Narrative (from characterPrompts.ts)
+  'unreliable-narrator': { law: -3, good: 0 },
+  'genre-savvy': { law: -2, good: 0 },
 
-  // Narrative
-  'plot-twist': { law: -2, good: 0 },
-  'character-development': { law: 0, good: 1 },
-  'dramatic-entrance': { law: -2, good: 0 },
-  'epic-monologue': { law: 1, good: 0 },
-  'cliffhanger': { law: 0, good: 0 },
-  'revelation': { law: 1, good: 0 },
-  'foreshadowing': { law: 2, good: 0 },
-  'tragic-backstory': { law: 0, good: 1 },
-
-  // Masterwork
-  'masterwork-craft': { law: 3, good: 1 },
-  'legendary-weapon': { law: 2, good: 0 },
-  'ancient-artifact': { law: 0, good: 0 },
-  'forbidden-knowledge': { law: -2, good: -3 },
-  'divine-blessing': { law: 4, good: 4 },
-  'dark-pact': { law: -3, good: -4 },
-  'heroic-sacrifice': { law: 1, good: 5 },
-  'villain-monologue': { law: 2, good: -4 },
+  // Meta Requests (from characterPrompts.ts)
+  'meta-make-funnier': { law: -3, good: 0 },
+  'meta-talk-to-writer': { law: -4, good: 0 },
+  'meta-rewind': { law: -2, good: 0 },
+  'meta-acknowledge-audience': { law: -3, good: 0 },
+  'meta-skip-boring': { law: -2, good: 0 },
+  'meta-chaotic-options': { law: -5, good: -1 },
+  'meta-nerf-me': { law: 1, good: 1 },
+  'meta-dramatic-irony': { law: -1, good: 0 },
+  'meta-musical-number': { law: -3, good: 1 },
+  'meta-morally-ambiguous': { law: 0, good: 0 },
+  'meta-terrible-idea': { law: -4, good: -1 },
+  'meta-comic-relief': { law: -3, good: 0 },
+  'meta-fail-forward': { law: -1, good: 1 },
+  'meta-plot-hole': { law: -3, good: 0 },
+  'meta-nemesis': { law: -2, good: -1 },
+  'meta-injuries-hilarious': { law: -3, good: -1 },
+  'meta-morality-pet': { law: 0, good: 3 },
+  'meta-unreliable-protagonist': { law: -3, good: 0 },
+  'meta-sad-backstory': { law: 0, good: 1 },
+  'meta-voice-of-reason': { law: 2, good: 1 },
+  'meta-dm-for-5-minutes': { law: -3, good: 0 },
+  'meta-trolley-problem': { law: 0, good: 0 },
+  'meta-npc-hates-me': { law: -2, good: -1 },
+  'meta-serious-moment': { law: 0, good: 2 },
+  'meta-what-if-not': { law: -4, good: 0 },
+  'meta-nature-documentary': { law: -2, good: 0 },
+  'meta-dramatic-backfire': { law: -3, good: 0 },
+  'meta-montage': { law: 0, good: 0 },
+  'meta-weapons-argue': { law: -3, good: 0 },
+  'meta-worst-case': { law: -3, good: -1 },
+  'meta-negotiate-dice': { law: -3, good: 0 },
+  'meta-unkillable-inconvenienced': { law: -2, good: 0 },
+  'meta-worthy-opponent': { law: -2, good: 0 },
+  'meta-crowdsource': { law: -1, good: 0 },
+  'meta-break-game': { law: -4, good: 0 },
+  'meta-villain-therapist': { law: -1, good: 2 },
+  'meta-crossover': { law: -4, good: 0 },
+  'meta-crisis-faith-dm': { law: -3, good: 0 },
+  'meta-special-episode': { law: -2, good: 1 },
+  'meta-see-behind-curtain': { law: -2, good: 0 },
+  'meta-fail-successfully': { law: -1, good: 0 },
+  'meta-bottle-episode': { law: 0, good: 0 },
+  'meta-straight-man': { law: 2, good: 0 },
+  'meta-choose-adventure': { law: 0, good: 0 },
 };
 
-// Empyrean prompt alignment map
+// Empyrean prompt alignment map — uses ACTUAL IDs from empyreanPrompts.ts
 const EMPYREAN_ALIGNMENT_MAP: Record<string, AlignmentScore> = {
   // Dragon Bond
-  'emp-dragon-bond-1': { law: 0, good: 2 },
-  'emp-dragon-bond-2': { law: -1, good: 1 },
-  'emp-dragon-bond-3': { law: 1, good: 3 },
-  'emp-dragon-bond-4': { law: -2, good: 0 },
-  'emp-dragon-bond-5': { law: 0, good: 2 },
-  'emp-dragon-bond-6': { law: -1, good: -1 },
-  'emp-dragon-bond-7': { law: 2, good: 3 },
-  'emp-dragon-bond-8': { law: -2, good: 1 },
+  'emp-dragon-conscription': { law: 0, good: 2 },
+  'emp-dragon-threshing': { law: -1, good: 1 },
+  'emp-dragon-bonding': { law: 1, good: 3 },
+  'emp-dragon-flight': { law: -2, good: 0 },
+  'emp-dragon-injury': { law: 0, good: 2 },
+  'emp-dragon-second': { law: -1, good: -1 },
+  'emp-dragon-disagree': { law: 2, good: 3 },
+  'emp-dragon-hatching': { law: -2, good: 1 },
 
   // Signet Abilities
-  'emp-signet-1': { law: 0, good: 0 },
-  'emp-signet-2': { law: -1, good: -2 },
-  'emp-signet-3': { law: 1, good: 1 },
-  'emp-signet-4': { law: -3, good: -1 },
-  'emp-signet-5': { law: 2, good: 2 },
-  'emp-signet-6': { law: -2, good: -3 },
+  'emp-signet-manifest': { law: 0, good: 0 },
+  'emp-signet-overreach': { law: -1, good: -2 },
+  'emp-signet-training': { law: 1, good: 1 },
+  'emp-signet-combo': { law: -3, good: -1 },
+  'emp-signet-malfunction': { law: -2, good: -2 },
+  'emp-signet-conceal': { law: -2, good: -1 },
+  'emp-signet-evolve': { law: 2, good: 2 },
 
   // Basgiath War College
-  'emp-basgiath-1': { law: 4, good: 1 },
-  'emp-basgiath-2': { law: 3, good: -1 },
-  'emp-basgiath-3': { law: 5, good: 0 },
-  'emp-basgiath-4': { law: 2, good: 2 },
-  'emp-basgiath-5': { law: 4, good: -2 },
-  'emp-basgiath-6': { law: 3, good: 1 },
+  'emp-basgiath-gauntlet': { law: 4, good: 1 },
+  'emp-basgiath-brief': { law: 3, good: -1 },
+  'emp-basgiath-mess': { law: 2, good: 0 },
+  'emp-basgiath-spar': { law: 2, good: 2 },
+  'emp-basgiath-wargames': { law: 5, good: 0 },
+  'emp-basgiath-summons': { law: 4, good: -2 },
+  'emp-basgiath-archives': { law: -1, good: 0 },
+  'emp-basgiath-leadership': { law: 3, good: 1 },
 
   // Venin and Dark Forces
-  'emp-venin-1': { law: -3, good: -4 },
-  'emp-venin-2': { law: -4, good: -3 },
-  'emp-venin-3': { law: -2, good: -5 },
-  'emp-venin-4': { law: -1, good: -3 },
-  'emp-venin-5': { law: -3, good: -2 },
-  'emp-venin-6': { law: -5, good: -4 },
-  'emp-venin-7': { law: -2, good: -3 },
+  'emp-venin-first': { law: -3, good: -4 },
+  'emp-venin-wyvern': { law: -4, good: -3 },
+  'emp-venin-ward': { law: -2, good: -5 },
+  'emp-venin-temptation': { law: -1, good: -3 },
+  'emp-venin-intel': { law: -3, good: -2 },
+  'emp-venin-infected': { law: -5, good: -4 },
+  'emp-venin-beyond': { law: -2, good: -3 },
 
   // Relationships and Politics
-  'emp-relations-1': { law: 2, good: 2 },
-  'emp-relations-2': { law: -1, good: 1 },
-  'emp-relations-3': { law: 3, good: -1 },
-  'emp-relations-4': { law: 1, good: 3 },
-  'emp-relations-5': { law: -2, good: -1 },
-  'emp-relations-6': { law: 4, good: 0 },
-  'emp-relations-7': { law: 0, good: 2 },
+  'emp-rel-alliance': { law: -2, good: 1 },
+  'emp-rel-romantic': { law: -1, good: 1 },
+  'emp-rel-betrayal': { law: -3, good: -2 },
+  'emp-rel-legacy': { law: 3, good: 0 },
+  'emp-rel-cross': { law: -1, good: 2 },
+  'emp-rel-loyalty': { law: 1, good: 3 },
+  'emp-rel-powerplay': { law: 4, good: -1 },
+  'emp-rel-truth': { law: -2, good: 2 },
 
   // Combat and Survival
-  'emp-combat-1': { law: 1, good: 0 },
-  'emp-combat-2': { law: -2, good: -1 },
-  'emp-combat-3': { law: 3, good: 1 },
-  'emp-combat-4': { law: -1, good: -2 },
-  'emp-combat-5': { law: 2, good: 2 },
-  'emp-combat-6': { law: 0, good: -1 },
+  'emp-combat-ambush': { law: 1, good: 0 },
+  'emp-combat-defense': { law: 3, good: 1 },
+  'emp-combat-recon': { law: -1, good: 0 },
+  'emp-combat-retreat': { law: 0, good: 3 },
+  'emp-combat-dogfight': { law: -1, good: -1 },
+  'emp-combat-grounded': { law: 0, good: -1 },
+  'emp-combat-last': { law: 1, good: 2 },
 
   // Meta and Narrative
-  'emp-meta-1': { law: 0, good: 0 },
-  'emp-meta-2': { law: -1, good: 0 },
-  'emp-meta-3': { law: 1, good: 1 },
-  'emp-meta-4': { law: 0, good: 0 },
-  'emp-meta-5': { law: -2, good: 0 },
-  'emp-meta-6': { law: 1, good: 0 },
+  'emp-meta-dragon-pov': { law: 0, good: 1 },
+  'emp-meta-history': { law: -1, good: 0 },
+  'emp-meta-dream': { law: -1, good: 0 },
+  'emp-meta-montage': { law: 0, good: 0 },
+  'emp-meta-codex': { law: 2, good: 0 },
+  'emp-meta-villain-pov': { law: -1, good: -1 },
+  'emp-meta-scribe-account': { law: 2, good: 0 },
+  'emp-meta-campfire': { law: 0, good: 2 },
+  'emp-meta-what-if': { law: -1, good: 0 },
+  'emp-meta-bystander': { law: 0, good: 0 },
+  'emp-meta-fourth-wall': { law: -3, good: 0 },
+  'emp-meta-post-credits': { law: 0, good: 0 },
+  'emp-meta-narrator-lies': { law: -2, good: 0 },
+  'emp-meta-enemy-debrief': { law: -1, good: -2 },
+  'emp-meta-parallel': { law: 0, good: 0 },
 
   // Forbidden Lore
-  'emp-forbidden-1': { law: -3, good: -4 },
-  'emp-forbidden-2': { law: -4, good: -3 },
-  'emp-forbidden-3': { law: -2, good: -5 },
-  'emp-forbidden-4': { law: -5, good: -4 },
-  'emp-forbidden-5': { law: -3, good: -3 },
+  'emp-lore-cipher': { law: -3, good: -3 },
+  'emp-lore-burned': { law: -4, good: -3 },
+  'emp-lore-thesis': { law: -2, good: -4 },
+  'emp-lore-memory-stone': { law: -2, good: -2 },
+  'emp-lore-heretic-map': { law: -3, good: -2 },
+  'emp-lore-living-doc': { law: -3, good: -1 },
+  'emp-lore-price': { law: -5, good: -4 },
+  'emp-lore-oral': { law: -2, good: -1 },
+  'emp-lore-redacted': { law: -4, good: -3 },
 };
 
 // ── DM Quick Actions ──
@@ -267,11 +267,13 @@ const GERALT_ALIGNMENT_MAP: Record<string, AlignmentScore> = {
   'affection-3': { law: 1, good: 2 }, 'affection-4': { law: -1, good: 3 },
   'affection-5': { law: 0, good: 5 }, 'affection-6': { law: 1, good: 4 },
   'affection-7': { law: 0, good: 3 }, 'affection-8': { law: -1, good: 2 },
+  'affection-9': { law: 0, good: 3 },
   // Hunting
   'hunting-1': { law: -2, good: -3 }, 'hunting-2': { law: -3, good: -2 },
   'hunting-3': { law: -1, good: -4 }, 'hunting-4': { law: -2, good: -2 },
   'hunting-5': { law: -3, good: -3 }, 'hunting-6': { law: -1, good: -2 },
   'hunting-7': { law: -4, good: -3 }, 'hunting-8': { law: -2, good: -1 },
+  'hunting-9': { law: -2, good: -3 },
   // Preening
   'preening-1': { law: 0, good: 0 }, 'preening-2': { law: -1, good: -1 },
   'preening-3': { law: 0, good: 0 }, 'preening-4': { law: -1, good: 0 },
@@ -282,11 +284,13 @@ const GERALT_ALIGNMENT_MAP: Record<string, AlignmentScore> = {
   'chaos-3': { law: -3, good: 0 }, 'chaos-4': { law: -4, good: -3 },
   'chaos-5': { law: -5, good: -1 }, 'chaos-6': { law: -3, good: -2 },
   'chaos-7': { law: -4, good: -1 }, 'chaos-8': { law: -5, good: -3 },
+  'chaos-9': { law: -4, good: -2 },
   // Nap & Territory
   'nap-1': { law: 1, good: 0 }, 'nap-2': { law: 0, good: 0 },
   'nap-3': { law: -1, good: 0 }, 'nap-4': { law: 0, good: 1 },
   'nap-5': { law: 1, good: 0 }, 'nap-6': { law: -1, good: -1 },
   'nap-7': { law: 0, good: 0 }, 'nap-8': { law: 1, good: 0 },
+  'nap-9': { law: 0, good: 0 },
   // Battle
   'battle-1': { law: -1, good: -2 }, 'battle-2': { law: 0, good: 2 },
   'battle-3': { law: -3, good: -4 }, 'battle-4': { law: -2, good: -1 },
@@ -306,12 +310,78 @@ const GERALT_ALIGNMENT_MAP: Record<string, AlignmentScore> = {
   'party-1': { law: -2, good: -1 }, 'party-2': { law: -1, good: 1 },
   'party-3': { law: -3, good: -2 }, 'party-4': { law: 0, good: 2 },
   'party-5': { law: -2, good: 0 }, 'party-6': { law: -1, good: -1 },
-  'party-7': { law: -2, good: -2 },
+  'party-7': { law: -2, good: -2 }, 'party-8': { law: -1, good: 0 },
 };
+
+// ── Dice Roller Prompts ──
+const DICE_ROLLER_ALIGNMENT_MAP: Record<string, AlignmentScore> = {
+  'describe_attack': { law: -1, good: -2 },
+  'describe_damage': { law: -2, good: -3 },
+  'enemy_reaction': { law: 0, good: -1 },
+  'perception_check': { law: 1, good: 0 },
+  'investigate_area': { law: 2, good: 1 },
+  'environment_description': { law: 0, good: 0 },
+  'persuasion_outcome': { law: 1, good: 1 },
+  'deception_outcome': { law: -3, good: -2 },
+  'intimidation_outcome': { law: -1, good: -2 },
+  'stealth_result': { law: -2, good: 0 },
+  'luck_moment': { law: -1, good: 1 },
+  'generic_outcome': { law: 0, good: 0 },
+};
+
+// ── Prefix-based alignment inference for Infinity Stone prompts ──
+// Covers the 200+ soul-*, reality-*, power-*, time-*, mind-*, space-* prompts
+const PREFIX_ALIGNMENT_RULES: Array<{ prefix: string; score: AlignmentScore }> = [
+  // Soul Stone — emotional/social
+  { prefix: 'soul-mild-', score: { law: 0, good: 2 } },
+  { prefix: 'soul-moderate-', score: { law: 0, good: 1 } },
+  { prefix: 'soul-extreme-', score: { law: 0, good: 0 } },
+  { prefix: 'soul-generic-', score: { law: 0, good: 1 } },
+  // Reality Stone — world interaction
+  { prefix: 'reality-mild-', score: { law: 0, good: 0 } },
+  { prefix: 'reality-moderate-', score: { law: 1, good: -1 } },
+  { prefix: 'reality-extreme-', score: { law: -1, good: -2 } },
+  { prefix: 'reality-agnostic-', score: { law: 0, good: 0 } },
+  // Power Stone — combat/force
+  { prefix: 'power-mild-', score: { law: 0, good: -1 } },
+  { prefix: 'power-moderate-', score: { law: -1, good: -2 } },
+  { prefix: 'power-extreme-', score: { law: -2, good: -3 } },
+  { prefix: 'power-agnostic-', score: { law: -1, good: -1 } },
+  // Time Stone — meta/fourth wall
+  { prefix: 'time-mild-', score: { law: -1, good: 0 } },
+  { prefix: 'time-moderate-', score: { law: -2, good: 0 } },
+  { prefix: 'time-extreme-', score: { law: -3, good: 0 } },
+  { prefix: 'time-agnostic-', score: { law: -2, good: 0 } },
+  // Mind Stone — investigation/insight
+  { prefix: 'mind-mild-', score: { law: 1, good: 0 } },
+  { prefix: 'mind-moderate-', score: { law: 2, good: 0 } },
+  { prefix: 'mind-extreme-', score: { law: 1, good: -1 } },
+  { prefix: 'mind-agnostic-', score: { law: 1, good: 0 } },
+  // Space Stone — voice/tone/narrative
+  { prefix: 'space-mild-', score: { law: -1, good: 0 } },
+  { prefix: 'space-moderate-', score: { law: -2, good: 0 } },
+  { prefix: 'space-extreme-', score: { law: -3, good: -1 } },
+  { prefix: 'space-agnostic-', score: { law: -1, good: 0 } },
+];
+
+function getAlignmentByPrefix(promptId: string): AlignmentScore | null {
+  for (const rule of PREFIX_ALIGNMENT_RULES) {
+    if (promptId.startsWith(rule.prefix)) return rule.score;
+  }
+  return null;
+}
 
 /** Get alignment score for a prompt by ID. Returns null if unscored. */
 export function getPromptAlignment(promptId: string): AlignmentScore | null {
-  return PROMPT_ALIGNMENT_MAP[promptId] ?? EMPYREAN_ALIGNMENT_MAP[promptId] ?? DM_ACTION_ALIGNMENT_MAP[promptId] ?? GERALT_ALIGNMENT_MAP[promptId] ?? null;
+  return (
+    PROMPT_ALIGNMENT_MAP[promptId] ??
+    EMPYREAN_ALIGNMENT_MAP[promptId] ??
+    DM_ACTION_ALIGNMENT_MAP[promptId] ??
+    GERALT_ALIGNMENT_MAP[promptId] ??
+    DICE_ROLLER_ALIGNMENT_MAP[promptId] ??
+    getAlignmentByPrefix(promptId) ??
+    null
+  );
 }
 
 /** Sort prompts by proximity to a target alignment. Closer = first. */
