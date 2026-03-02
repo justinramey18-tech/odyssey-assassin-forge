@@ -508,12 +508,10 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     }
   }, [input, isLoading, sendMessage]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  }, [handleSend]);
+  // Enter creates newline on mobile; no send-on-enter
+  const handleKeyDown = useCallback((_e: React.KeyboardEvent) => {
+    // intentionally no-op: Enter naturally inserts a newline in textarea
+  }, []);
 
   const handleQuickAction = useCallback((prompt: string) => {
     sendMessage(prompt);
@@ -931,107 +929,109 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
             }
           }}
         />
-        <div className="flex items-end gap-2 max-w-2xl mx-auto">
-          {/* Attach buttons */}
-          {userId && (
-            <div className="flex gap-1 shrink-0">
+        <div className="flex flex-col gap-2 max-w-2xl mx-auto">
+          <div className="flex items-end gap-2">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
+              placeholder="What do you do?"
+              rows={1}
+              className="flex-1 bg-white/5 border border-amber-900/30 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-amber-500/40 resize-none min-h-[42px] max-h-[200px]"
+              disabled={isLoading}
+            />
+            {isLoading ? (
               <button
-                onClick={() => photoInputRef.current?.click()}
-                disabled={isLoading || isUploadingPhoto}
-                className="p-2.5 rounded-xl border border-white/10 hover:border-amber-500/30 bg-white/5 hover:bg-amber-900/20 transition-colors"
+                onClick={cancelRequest}
+                className="p-2.5 rounded-xl bg-red-900/40 border border-red-500/30 hover:bg-red-900/60 transition-colors shrink-0"
                 style={{ touchAction: 'manipulation' }}
-                title="Attach photo"
               >
-                {isUploadingPhoto ? (
-                  <Loader2 className="w-5 h-5 text-amber-400 animate-spin" />
-                ) : (
-                  <ImageIcon className="w-5 h-5 text-white/50" />
-                )}
+                <Square className="w-5 h-5 text-red-400" />
               </button>
+            ) : (
               <button
-                onClick={() => videoInputRef.current?.click()}
-                disabled={isLoading || isUploadingVideo}
-                className="p-2.5 rounded-xl border border-white/10 hover:border-amber-500/30 bg-white/5 hover:bg-amber-900/20 transition-colors"
-                style={{ touchAction: 'manipulation' }}
-                title="Attach video"
-              >
-                {isUploadingVideo ? (
-                  <Loader2 className="w-5 h-5 text-amber-400 animate-spin" />
-                ) : (
-                  <Film className="w-5 h-5 text-white/50" />
+                onClick={handleSend}
+                disabled={!input.trim()}
+                className={cn(
+                  "p-2.5 rounded-xl border shrink-0 transition-colors",
+                  input.trim()
+                    ? "bg-amber-900/40 border-amber-500/30 hover:bg-amber-900/60"
+                    : "bg-white/5 border-white/10 opacity-40"
                 )}
+                style={{ touchAction: 'manipulation' }}
+              >
+                <Send className="w-5 h-5 text-amber-400" />
               </button>
-            </div>
-          )}
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            onPaste={handlePaste}
-            placeholder="What do you do?"
-            rows={1}
-            className="flex-1 bg-white/5 border border-amber-900/30 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-amber-500/40 resize-none min-h-[42px] max-h-[200px]"
-            disabled={isLoading}
-          />
-          {isLoading ? (
-            <button
-              onClick={cancelRequest}
-              className="p-2.5 rounded-xl bg-red-900/40 border border-red-500/30 hover:bg-red-900/60 transition-colors shrink-0"
-              style={{ touchAction: 'manipulation' }}
-            >
-              <Square className="w-5 h-5 text-red-400" />
-            </button>
-          ) : (
-            <button
-              onClick={handleSend}
-              disabled={!input.trim()}
-              className={cn(
-                "p-2.5 rounded-xl border shrink-0 transition-colors",
-                input.trim()
-                  ? "bg-amber-900/40 border-amber-500/30 hover:bg-amber-900/60"
-                  : "bg-white/5 border-white/10 opacity-40"
-              )}
-              style={{ touchAction: 'manipulation' }}
-            >
-              <Send className="w-5 h-5 text-amber-400" />
-            </button>
-          )}
-          {/* Narrator speaker button */}
-          {narrator.hasTTSKey && (
-            <button
-              onClick={() => {
-                if (narrator.isPlaying) {
-                  narrator.stop();
-                } else {
-                  const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant');
-                  if (lastAssistant) {
-                    narrator.playMessage(lastAssistant.content);
-                  }
-                }
-              }}
-              disabled={narrator.isLoading}
-              className={cn(
-                "p-2.5 rounded-xl border shrink-0 transition-colors",
-                narrator.isPlaying
-                  ? "bg-amber-900/40 border-amber-500/30 hover:bg-amber-900/60"
-                  : "bg-white/5 border-white/10 hover:border-amber-500/30 hover:bg-amber-900/20"
-              )}
-              style={{ touchAction: 'manipulation' }}
-              title={narrator.isPlaying ? "Stop narration" : "Narrate last message"}
-            >
-              {narrator.isLoading ? (
-                <Loader2 className="w-5 h-5 text-amber-400 animate-spin" />
-              ) : narrator.isPlaying ? (
-                <VolumeX className="w-5 h-5 text-amber-400" />
-              ) : (
-                <Volume2 className="w-5 h-5 text-white/50" />
-              )}
-            </button>
-          )}
-          {narrator.hasTTSKey && (
-            <NarrationSpeedPopover iconSize="w-5 h-5" />
-          )}
+            )}
+          </div>
+          <div className="flex items-center gap-1 justify-center">
+            {userId && (
+              <>
+                <button
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={isLoading || isUploadingPhoto}
+                  className="p-2.5 rounded-xl border border-white/10 hover:border-amber-500/30 bg-white/5 hover:bg-amber-900/20 transition-colors"
+                  style={{ touchAction: 'manipulation' }}
+                  title="Attach photo"
+                >
+                  {isUploadingPhoto ? (
+                    <Loader2 className="w-5 h-5 text-amber-400 animate-spin" />
+                  ) : (
+                    <ImageIcon className="w-5 h-5 text-white/50" />
+                  )}
+                </button>
+                <button
+                  onClick={() => videoInputRef.current?.click()}
+                  disabled={isLoading || isUploadingVideo}
+                  className="p-2.5 rounded-xl border border-white/10 hover:border-amber-500/30 bg-white/5 hover:bg-amber-900/20 transition-colors"
+                  style={{ touchAction: 'manipulation' }}
+                  title="Attach video"
+                >
+                  {isUploadingVideo ? (
+                    <Loader2 className="w-5 h-5 text-amber-400 animate-spin" />
+                  ) : (
+                    <Film className="w-5 h-5 text-white/50" />
+                  )}
+                </button>
+              </>
+            )}
+            {narrator.hasTTSKey && (
+              <>
+                <button
+                  onClick={() => {
+                    if (narrator.isPlaying) {
+                      narrator.stop();
+                    } else {
+                      const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant');
+                      if (lastAssistant) {
+                        narrator.playMessage(lastAssistant.content);
+                      }
+                    }
+                  }}
+                  disabled={narrator.isLoading}
+                  className={cn(
+                    "p-2.5 rounded-xl border shrink-0 transition-colors",
+                    narrator.isPlaying
+                      ? "bg-amber-900/40 border-amber-500/30 hover:bg-amber-900/60"
+                      : "bg-white/5 border-white/10 hover:border-amber-500/30 hover:bg-amber-900/20"
+                  )}
+                  style={{ touchAction: 'manipulation' }}
+                  title={narrator.isPlaying ? "Stop narration" : "Narrate last message"}
+                >
+                  {narrator.isLoading ? (
+                    <Loader2 className="w-5 h-5 text-amber-400 animate-spin" />
+                  ) : narrator.isPlaying ? (
+                    <VolumeX className="w-5 h-5 text-amber-400" />
+                  ) : (
+                    <Volume2 className="w-5 h-5 text-white/50" />
+                  )}
+                </button>
+                <NarrationSpeedPopover iconSize="w-5 h-5" />
+              </>
+            )}
+          </div>
         </div>
       </div>
       )}
