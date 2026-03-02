@@ -11,6 +11,33 @@ import {
 import { loadApiKey } from '@/lib/api-keys';
 import { loadCombatSettings } from '@/lib/combat/combatSettings';
 import { formatPartyPowerForPrompt } from '@/lib/combat/encounterDifficulty';
+import { getAlignmentZone, type AlignmentScore } from '@/lib/alignmentSpectrum';
+
+/** Read alignment drift from localStorage (same format as useAlignmentDrift) */
+function loadAlignmentDrift(): { position: AlignmentScore; zone: string } | null {
+  try {
+    const activeId = localStorage.getItem('odyssey-active-cloud-save-id');
+    const key = activeId ? `odyssey-alignment-drift_${activeId}` : 'odyssey-alignment-drift';
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const entries: Array<{ law: number; good: number }> = JSON.parse(raw);
+    if (!entries.length) return null;
+    const decay = 0.92;
+    let totalW = 0, lawS = 0, goodS = 0;
+    for (let i = 0; i < entries.length; i++) {
+      const w = Math.pow(decay, entries.length - 1 - i);
+      lawS += entries[i].law * w;
+      goodS += entries[i].good * w;
+      totalW += w;
+    }
+    const position: AlignmentScore = {
+      law: Math.round((lawS / totalW) * 10) / 10,
+      good: Math.round((goodS / totalW) * 10) / 10,
+    };
+    const zone = getAlignmentZone(position);
+    return { position, zone: zone.label };
+  } catch { return null; }
+}
 
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
 const SUMMARIZE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm-summarize`;
@@ -398,9 +425,11 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
             if (cs.hasDualWielderFeat) feats.push('Dual Wielder');
             if (cs.hasTwoWeaponFightingStyle) feats.push('Two-Weapon Fighting Style');
             if (cs.hasMonkMartialArts) feats.push('Monk Martial Arts');
+            const drift = loadAlignmentDrift();
             return {
               encounterGuidance: formatPartyPowerForPrompt([characterContext.level ?? 1], cs.difficultyPreference) || undefined,
               combatFeats: feats.length > 0 ? feats : undefined,
+              alignmentContext: drift ? { law: drift.position.law, good: drift.position.good, zone: drift.zone } : undefined,
             };
           })(),
         }),
