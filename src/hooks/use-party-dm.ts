@@ -676,10 +676,24 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         characterContext,
         campaignSummary: sessionConfig?.campaignSummary || undefined,
         customGuides: extraGuides,
-        encounterGuidance: formatPartyPowerForPrompt(
-          partyMembers.map(m => Number((m.character_status as any)?.level) || 1),
-          loadCombatSettings().difficultyPreference
-        ) || undefined,
+        ...(() => {
+          const cs = loadCombatSettings();
+          const feats: string[] = [];
+          if (cs.hasGreatWeaponMaster) feats.push('Great Weapon Master');
+          if (cs.hasSharpshooter) feats.push('Sharpshooter');
+          if (cs.hasSentinel) feats.push('Sentinel');
+          if (cs.hasPolearmMaster) feats.push('Polearm Master');
+          if (cs.hasDualWielderFeat) feats.push('Dual Wielder');
+          if (cs.hasTwoWeaponFightingStyle) feats.push('Two-Weapon Fighting Style');
+          if (cs.hasMonkMartialArts) feats.push('Monk Martial Arts');
+          return {
+            encounterGuidance: formatPartyPowerForPrompt(
+              partyMembers.map(m => Number((m.character_status as any)?.level) || 1),
+              cs.difficultyPreference
+            ) || undefined,
+            combatFeats: feats.length > 0 ? feats : undefined,
+          };
+        })(),
       }),
       signal,
     });
