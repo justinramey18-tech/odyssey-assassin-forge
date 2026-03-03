@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.speechify-voices]
 verify_jwt = false
+
+[functions.speechify-clone-voice]
+verify_jwt = false
