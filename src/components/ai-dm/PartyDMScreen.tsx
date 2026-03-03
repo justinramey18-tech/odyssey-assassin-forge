@@ -1079,11 +1079,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
               }
               onShowChat();
             }}
-            className="absolute bottom-2 left-2 z-[5] w-14 h-14 rounded-full overflow-hidden border-2 border-white/20 hover:border-white/50 transition-all shadow-lg"
+            className="absolute bottom-2 left-2 z-[5] w-[4.5rem] h-[4.5rem] rounded-full overflow-hidden border-2 border-white/20 hover:border-white/50 transition-all shadow-lg"
             style={{ touchAction: 'manipulation' }}
             title="Party Chat"
           >
-            <img src={partyChatIcon} alt="Party Chat" className="w-full h-full object-cover" />
+            <img src={partyChatIcon} alt="Party Chat" className="w-full h-full object-cover scale-110" />
             {chatUnreadCount > 0 && (
               <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] rounded-full bg-primary text-[9px] font-bold text-primary-foreground flex items-center justify-center px-0.5">
                 {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
