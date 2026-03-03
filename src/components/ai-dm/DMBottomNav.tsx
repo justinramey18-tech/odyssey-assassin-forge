@@ -109,6 +109,8 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
               exit={{ height: 0, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
               className="overflow-hidden"
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
             >
               {/* Tab bar */}
               <div className="flex h-14 border-t border-amber-900/20">
