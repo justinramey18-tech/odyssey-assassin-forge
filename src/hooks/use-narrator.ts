@@ -7,6 +7,7 @@ import {
 } from '@/lib/tts-utils';
 import { isSfxEnabled, loadSfxStyle } from '@/components/settings/SoundEffectsWidget';
 import { isContextSfxEnabled } from '@/components/settings/SoundEffectsWidget';
+import { loadSfxMode, fetchCustomSfxBlob } from '@/lib/custom-sfx';
 import { toast } from 'sonner';
 
 // ── SFX Prompt LRU Cache ────────────────────────────────────────────────────
@@ -155,20 +156,29 @@ export function useNarrator(): UseNarratorReturn {
 // ── SFX builder ─────────────────────────────────────────────────────────────
 
 function buildSfxPromise(provider: string, narrativeText: string, signal: AbortSignal): Promise<Blob | null> {
-  if (provider !== 'elevenlabs' || !isSfxEnabled()) return Promise.resolve(null);
+  if (!isSfxEnabled()) return Promise.resolve(null);
 
+  const mode = loadSfxMode();
+
+  // Custom upload mode — no API key needed
+  if (mode === 'custom') {
+    return fetchCustomSfxBlob(signal).catch(err => {
+      console.warn('[Narrator] Custom SFX load failed:', err);
+      return null;
+    });
+  }
+
+  // ElevenLabs modes require API key
+  if (provider !== 'elevenlabs') return Promise.resolve(null);
   const apiKey = loadApiKey('elevenlabs');
   if (!apiKey) return Promise.resolve(null);
 
-  if (isContextSfxEnabled()) {
-    // Context-aware: AI analyzes text → generates SFX prompt → generates audio
+  if (mode === 'context') {
     return fetchContextAwareSfx(apiKey, narrativeText, signal).catch(err => {
       console.warn('[Narrator] Context SFX failed, falling back to static:', err);
-      // Fallback to static style
       return fetchSfxAudio(apiKey, loadSfxStyle(), signal).catch(() => null);
     });
   } else {
-    // Static style prompt
     return fetchSfxAudio(apiKey, loadSfxStyle(), signal).catch(err => {
       console.warn('[Narrator] SFX fetch failed (non-blocking):', err);
       return null;
