@@ -70,6 +70,8 @@ interface InlineBattleMapProps {
   onPartyBackgroundOpacityChange?: (opacity: number) => Promise<void>;
   onPartyTierBackgroundsChange?: (tierBackgrounds: { tierId: string; imageUrl: string }[]) => Promise<void>;
   onPartyCustomTiersChange?: (customTiers: { id: string; distancePerSquare: number; distanceUnit: string }[]) => Promise<void>;
+  partyMarkers?: MapMarker[];
+  onPartyMarkersChange?: (markers: MapMarker[]) => Promise<void>;
 }
 
 export function InlineBattleMap({
@@ -89,9 +91,11 @@ export function InlineBattleMap({
   onPartyBackgroundOpacityChange,
   onPartyTierBackgroundsChange,
   onPartyCustomTiersChange,
+  partyMarkers,
+  onPartyMarkersChange,
 }: InlineBattleMapProps) {
   // ── State (same as StandaloneBattleMap) ──
-  const [markers, setMarkers] = useState<MapMarker[]>(() => loadMapState()?.markers ?? []);
+  const [markers, setMarkers] = useState<MapMarker[]>(() => partyMarkers ?? loadMapState()?.markers ?? []);
   const [addingEnemy, setAddingEnemy] = useState(false);
   const [enemyName, setEnemyName] = useState('');
   const [toolMode, setToolMode] = useState<ToolMode>(null);
@@ -178,6 +182,23 @@ export function InlineBattleMap({
 
   useEffect(() => { onMarkersChange?.(markers); }, [markers, onMarkersChange]);
   useEffect(() => { onGridSizeChangeCallback?.(gridSize); }, [gridSize, onGridSizeChangeCallback]);
+
+  // Sync incoming party markers for non-host players
+  useEffect(() => {
+    if (partyMarkers && !isHost) {
+      setMarkers(partyMarkers);
+    }
+  }, [partyMarkers, isHost]);
+
+  // Broadcast marker changes to party when host edits
+  const lastBroadcastRef = useRef<string>('');
+  useEffect(() => {
+    if (!isHost || !onPartyMarkersChange) return;
+    const key = JSON.stringify(markers);
+    if (key === lastBroadcastRef.current) return;
+    lastBroadcastRef.current = key;
+    onPartyMarkersChange(markers);
+  }, [markers, isHost, onPartyMarkersChange]);
 
   // Process pending marker adds/removals
   useEffect(() => {

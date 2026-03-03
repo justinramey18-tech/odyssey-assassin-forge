@@ -2413,6 +2413,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         onPartyMapBackgroundOpacityChange={isPartyMode ? partySync.updateMapBackgroundOpacity : undefined}
         onPartyMapTierBackgroundsChange={isPartyMode ? partySync.updateMapTierBackgrounds : undefined}
         onPartyMapCustomTiersChange={isPartyMode ? partySync.updateMapCustomTiers : undefined}
+        partyMapMarkers={isPartyMode ? partySync.mapMarkers : undefined}
+        onPartyMapMarkersChange={isPartyMode ? partySync.updateMapMarkers : undefined}
       >
         {isPartyMode && (
           <IncomingHealOverlay
@@ -2618,6 +2620,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         onPartyMapBackgroundOpacityChange={isPartyMode ? partySync.updateMapBackgroundOpacity : undefined}
         onPartyMapTierBackgroundsChange={isPartyMode ? partySync.updateMapTierBackgrounds : undefined}
         onPartyMapCustomTiersChange={isPartyMode ? partySync.updateMapCustomTiers : undefined}
+        partyMapMarkers={isPartyMode ? partySync.mapMarkers : undefined}
+        onPartyMapMarkersChange={isPartyMode ? partySync.updateMapMarkers : undefined}
       >
       {isPartyMode && (
         <IncomingHealOverlay
