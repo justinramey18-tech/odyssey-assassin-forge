@@ -13,6 +13,7 @@ import { ElevenLabsVoicePicker } from './ElevenLabsVoicePicker';
 import { VoiceTuningWidget } from './VoiceTuningWidget';
 import { SoundEffectsWidget } from './SoundEffectsWidget';
 import { SettingsSection } from './SettingsSection';
+import { SpeechifyVoiceCloner } from './SpeechifyVoiceCloner';
 
 function ElevenLabsApiKeyInput() {
   const [keyInput, setKeyInput] = useState('');
@@ -175,10 +176,17 @@ function TTSProviderSelector({ onProviderChange }: { onProviderChange?: (p: TTSP
   );
 }
 
-function SpeechifyVoicePicker() {
+function SpeechifyVoicePicker({ onRefreshRequest }: { onRefreshRequest?: number }) {
   const [selected, setSelected] = useState(() => loadSpeechifyVoiceId());
   const [fetchedVoices, setFetchedVoices] = useState<CachedSpeechifyVoice[]>(() => getCachedSpeechifyVoices() ?? []);
   const [fetching, setFetching] = useState(false);
+
+  // Auto-refresh when onRefreshRequest counter changes
+  useEffect(() => {
+    if (onRefreshRequest && onRefreshRequest > 0) {
+      handleFetchVoices();
+    }
+  }, [onRefreshRequest]);
 
   const handleSelect = useCallback((id: string) => {
     setSelected(id);
@@ -312,6 +320,22 @@ function SpeechifyVoicePicker() {
   );
 }
 
+function SpeechifyVoicePickerWithCloner() {
+  const [refreshCounter, setRefreshCounter] = useState(0);
+
+  const handleCloneSuccess = useCallback(() => {
+    // Trigger voice list refresh
+    setRefreshCounter((c) => c + 1);
+  }, []);
+
+  return (
+    <div className="space-y-4">
+      <SpeechifyVoiceCloner onCloneSuccess={handleCloneSuccess} />
+      <SpeechifyVoicePicker onRefreshRequest={refreshCounter} />
+    </div>
+  );
+}
+
 export function ElevenLabsSettingsTab() {
   // Use state so the component re-renders when keys or provider change
   const [hasElKey, setHasElKey] = useState(() => hasApiKey('elevenlabs'));
@@ -382,18 +406,20 @@ export function ElevenLabsSettingsTab() {
           </>
         )}
 
-        {provider === 'speechify' && (
+        {provider === 'speechify' && hasSpKey && (
           <>
             <SettingsSection title="Speechify Voice" defaultOpen>
-              {hasSpKey ? (
-                <SpeechifyVoicePicker />
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  Add your Speechify API key in Settings → API Keys to select a voice.
-                </p>
-              )}
+              <SpeechifyVoicePickerWithCloner />
             </SettingsSection>
           </>
+        )}
+
+        {provider === 'speechify' && !hasSpKey && (
+          <SettingsSection title="Speechify Voice" defaultOpen>
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Add your Speechify API key in Settings → API Keys to select a voice.
+            </p>
+          </SettingsSection>
         )}
 
         <SettingsSection title="Narration Speed">
