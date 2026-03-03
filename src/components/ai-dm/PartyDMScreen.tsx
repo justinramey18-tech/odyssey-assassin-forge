@@ -1083,7 +1083,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
             style={{ touchAction: 'manipulation' }}
             title="Party Chat"
           >
-            <img src={partyChatIcon} alt="Party Chat" className="w-full h-full object-cover scale-110" />
+            <img src={partyChatIcon} alt="Party Chat" className="w-full h-full object-contain rounded-xl" />
             {chatUnreadCount > 0 && (
               <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] rounded-full bg-primary text-[9px] font-bold text-primary-foreground flex items-center justify-center px-0.5">
                 {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
