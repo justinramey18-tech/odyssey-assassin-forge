@@ -2405,6 +2405,14 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         isPartyCreator={isPartyMode ? partySync.party.isCreator : false}
         autoSyncCallbacks={autoSyncCallbacks}
         onOpenPartyChat={() => setOpenPartyChatRequested(true)}
+        partyMapBackgroundUrl={isPartyMode ? partySync.mapBackgroundUrl : undefined}
+        partyMapBackgroundOpacity={isPartyMode ? partySync.mapBackgroundOpacity : undefined}
+        partyMapTierBackgrounds={isPartyMode ? partySync.mapTierBackgrounds : undefined}
+        partyMapCustomTiers={isPartyMode ? partySync.mapCustomTiers : undefined}
+        onPartyMapBackgroundChange={isPartyMode ? partySync.updateMapBackground : undefined}
+        onPartyMapBackgroundOpacityChange={isPartyMode ? partySync.updateMapBackgroundOpacity : undefined}
+        onPartyMapTierBackgroundsChange={isPartyMode ? partySync.updateMapTierBackgrounds : undefined}
+        onPartyMapCustomTiersChange={isPartyMode ? partySync.updateMapCustomTiers : undefined}
       >
         {isPartyMode && (
           <IncomingHealOverlay
@@ -2602,6 +2610,14 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         partyId={isPartyMode ? partySync.party.partyId : null}
         isPartyCreator={isPartyMode ? partySync.party.isCreator : false}
         autoSyncCallbacks={autoSyncCallbacks}
+        partyMapBackgroundUrl={isPartyMode ? partySync.mapBackgroundUrl : undefined}
+        partyMapBackgroundOpacity={isPartyMode ? partySync.mapBackgroundOpacity : undefined}
+        partyMapTierBackgrounds={isPartyMode ? partySync.mapTierBackgrounds : undefined}
+        partyMapCustomTiers={isPartyMode ? partySync.mapCustomTiers : undefined}
+        onPartyMapBackgroundChange={isPartyMode ? partySync.updateMapBackground : undefined}
+        onPartyMapBackgroundOpacityChange={isPartyMode ? partySync.updateMapBackgroundOpacity : undefined}
+        onPartyMapTierBackgroundsChange={isPartyMode ? partySync.updateMapTierBackgrounds : undefined}
+        onPartyMapCustomTiersChange={isPartyMode ? partySync.updateMapCustomTiers : undefined}
       >
       {isPartyMode && (
         <IncomingHealOverlay
