@@ -1499,27 +1499,36 @@ export function usePartySync(): UsePartySyncReturn {
       .eq('state_type', 'vote');
   }, [user, party.partyId, activeVote]);
 
-  const buildMapStateData = useCallback(() => ({
-    markers: mapMarkers,
-    backgroundUrl: mapBackgroundUrl,
-    tierBackgrounds: mapTierBackgrounds,
-    backgroundOpacity: mapBackgroundOpacity,
-    customTiers: mapCustomTiers,
-  }), [mapMarkers, mapBackgroundUrl, mapTierBackgrounds, mapBackgroundOpacity, mapCustomTiers]);
-
-  const upsertMapState = useCallback(async (stateData: Record<string, unknown>) => {
+  // Fetch current map state from DB, merge partial update, then upsert.
+  // This eliminates stale closure bugs — we always read the latest DB state before writing.
+  const fetchAndMergeMapState = useCallback(async (partial: Record<string, unknown>) => {
     if (!user || !party.partyId) return;
+
+    // 1. Fetch the current row from DB
+    const { data: existing } = await (supabase.from('party_shared_state') as any)
+      .select('state_data')
+      .eq('party_id', party.partyId)
+      .eq('state_type', 'map_markers')
+      .maybeSingle();
+
+    const currentData = (existing?.state_data as Record<string, unknown>) ?? {};
+
+    // 2. Merge partial update into the fetched state
+    const merged = { ...currentData, ...partial };
+
+    // 3. Upsert: try update first, insert if no row exists
     const { count } = await (supabase.from('party_shared_state') as any)
-      .update({ state_data: stateData, updated_at: new Date().toISOString() })
+      .update({ state_data: merged, updated_at: new Date().toISOString() })
       .eq('party_id', party.partyId)
       .eq('state_type', 'map_markers')
       .select('id', { count: 'exact', head: true });
+
     if (!count || count === 0) {
       await (supabase.from('party_shared_state') as any).insert({
         party_id: party.partyId,
         user_id: user.id,
         state_type: 'map_markers',
-        state_data: stateData,
+        state_data: merged,
       });
     }
   }, [user, party.partyId]);
@@ -1527,37 +1536,32 @@ export function usePartySync(): UsePartySyncReturn {
   const updateMapMarkers = useCallback(async (markers: MapMarker[]) => {
     if (!user || !party.partyId) return;
     setMapMarkers(markers);
-    const stateData = { ...buildMapStateData(), markers };
-    await upsertMapState(stateData);
-  }, [user, party.partyId, buildMapStateData, upsertMapState]);
+    await fetchAndMergeMapState({ markers });
+  }, [user, party.partyId, fetchAndMergeMapState]);
 
   const updateMapBackground = useCallback(async (url: string | undefined) => {
     if (!user || !party.partyId) return;
     setMapBackgroundUrl(url);
-    const stateData = { ...buildMapStateData(), backgroundUrl: url };
-    await upsertMapState(stateData);
-  }, [user, party.partyId, buildMapStateData, upsertMapState]);
+    await fetchAndMergeMapState({ backgroundUrl: url });
+  }, [user, party.partyId, fetchAndMergeMapState]);
 
   const updateMapTierBackgrounds = useCallback(async (tierBackgrounds: { tierId: string; imageUrl: string }[]) => {
     if (!user || !party.partyId) return;
     setMapTierBackgrounds(tierBackgrounds);
-    const stateData = { ...buildMapStateData(), tierBackgrounds };
-    await upsertMapState(stateData);
-  }, [user, party.partyId, buildMapStateData, upsertMapState]);
+    await fetchAndMergeMapState({ tierBackgrounds });
+  }, [user, party.partyId, fetchAndMergeMapState]);
 
   const updateMapBackgroundOpacity = useCallback(async (opacity: number) => {
     if (!user || !party.partyId) return;
     setMapBackgroundOpacity(opacity);
-    const stateData = { ...buildMapStateData(), backgroundOpacity: opacity };
-    await upsertMapState(stateData);
-  }, [user, party.partyId, buildMapStateData, upsertMapState]);
+    await fetchAndMergeMapState({ backgroundOpacity: opacity });
+  }, [user, party.partyId, fetchAndMergeMapState]);
 
   const updateMapCustomTiers = useCallback(async (customTiers: { id: string; distancePerSquare: number; distanceUnit: string }[]) => {
     if (!user || !party.partyId) return;
     setMapCustomTiers(customTiers);
-    const stateData = { ...buildMapStateData(), customTiers };
-    await upsertMapState(stateData);
-  }, [user, party.partyId, buildMapStateData, upsertMapState]);
+    await fetchAndMergeMapState({ customTiers });
+  }, [user, party.partyId, fetchAndMergeMapState]);
   const logCombatEvent = useCallback(async (characterName: string, actionType: string, description: string, metadata: Record<string, unknown> = {}) => {
     if (!user || !party.partyId) return;
 
