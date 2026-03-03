@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import partyChatIcon from '@/assets/party-chat-icon.jpg';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1009,11 +1010,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
               }
               onShowChat();
             }}
-            className="absolute bottom-2 left-2 z-[5] w-9 h-9 rounded-full flex items-center justify-center bg-black/40 hover:bg-black/60 transition-all"
+            className="absolute bottom-2 left-2 z-[5] w-10 h-10 rounded-full overflow-hidden border-2 border-white/20 hover:border-white/50 transition-all shadow-lg"
             style={{ touchAction: 'manipulation' }}
             title="Party Chat"
           >
-            <MessageSquare className="w-4 h-4 text-white/40" />
+            <img src={partyChatIcon} alt="Party Chat" className="w-full h-full object-cover" />
             {chatUnreadCount > 0 && (
               <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] rounded-full bg-primary text-[9px] font-bold text-primary-foreground flex items-center justify-center px-0.5">
                 {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
