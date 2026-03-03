@@ -525,6 +525,8 @@ export function InventoryScreen({
         slotType={selectedSlot}
         equipment={equipment}
         customImage={selectedSlot ? equipmentImages[selectedSlot] : null}
+        onImageUpload={selectedSlot ? (file) => handleEquipmentImageUpload(selectedSlot, file) : undefined}
+        onImageClear={selectedSlot ? () => handleEquipmentImageClear(selectedSlot) : undefined}
         isOpen={showItemDetail}
         onClose={() => setShowItemDetail(false)}
         onUnequip={() => selectedSlot && handleUnequip(selectedSlot)}
