@@ -60,6 +60,16 @@ interface InlineBattleMapProps {
   onMarkersChange?: (markers: MapMarker[]) => void;
   onGridSizeChange?: (size: GridSize) => void;
   onClose: () => void;
+  // Party sync props
+  isHost?: boolean;
+  partyBackgroundUrl?: string;
+  partyBackgroundOpacity?: number;
+  partyTierBackgrounds?: { tierId: string; imageUrl: string }[];
+  partyCustomTiers?: { id: string; distancePerSquare: number; distanceUnit: string }[];
+  onPartyBackgroundChange?: (url: string | undefined) => Promise<void>;
+  onPartyBackgroundOpacityChange?: (opacity: number) => Promise<void>;
+  onPartyTierBackgroundsChange?: (tierBackgrounds: { tierId: string; imageUrl: string }[]) => Promise<void>;
+  onPartyCustomTiersChange?: (customTiers: { id: string; distancePerSquare: number; distanceUnit: string }[]) => Promise<void>;
 }
 
 export function InlineBattleMap({
@@ -70,6 +80,15 @@ export function InlineBattleMap({
   onMarkersChange,
   onGridSizeChange: onGridSizeChangeCallback,
   onClose,
+  isHost,
+  partyBackgroundUrl,
+  partyBackgroundOpacity,
+  partyTierBackgrounds,
+  partyCustomTiers,
+  onPartyBackgroundChange,
+  onPartyBackgroundOpacityChange,
+  onPartyTierBackgroundsChange,
+  onPartyCustomTiersChange,
 }: InlineBattleMapProps) {
   // ── State (same as StandaloneBattleMap) ──
   const [markers, setMarkers] = useState<MapMarker[]>(() => loadMapState()?.markers ?? []);
@@ -120,13 +139,25 @@ export function InlineBattleMap({
   const labelHeight = 18 * zoom;
 
   const tiers = customTiers;
+  // Resolve effective values: non-host uses party sync data, host uses local state
+  const resolvedBackgroundUrl = isHost === false ? partyBackgroundUrl : backgroundUrl;
+  const resolvedBackgroundOpacity = isHost === false ? (partyBackgroundOpacity ?? 1) : backgroundOpacity;
+  const resolvedTierBackgrounds = isHost === false ? (partyTierBackgrounds?.map(tb => ({ tierId: tb.tierId, imageUrl: tb.imageUrl })) ?? []) : tierBackgrounds;
+  const resolvedCustomTiers: ScaleTier[] = isHost === false && partyCustomTiers
+    ? partyCustomTiers.map(ct => {
+        const base = DEFAULT_SCALE_TIERS.find(t => t.id === ct.id);
+        return base ? { ...base, distancePerSquare: ct.distancePerSquare, distanceUnit: ct.distanceUnit as DistanceUnit } : { id: ct.id, label: ct.id, minZoom: 0, maxZoom: 10, distancePerSquare: ct.distancePerSquare, distanceUnit: ct.distanceUnit as DistanceUnit, gridMergeFactor: 1, minorLineOpacity: 0.1 };
+      })
+    : customTiers;
+  const effectiveTiers = isHost === false && partyCustomTiers ? resolvedCustomTiers : tiers;
+
   // Active tier: forced tier takes priority, then auto-scale by zoom
   const activeTier = useMemo(() => {
     if (forcedTierId) {
-      return tiers.find(t => t.id === forcedTierId) ?? tiers[0];
+      return effectiveTiers.find(t => t.id === forcedTierId) ?? effectiveTiers[0];
     }
-    return autoScale ? getActiveTier(zoom, tiers) : null;
-  }, [forcedTierId, autoScale, zoom, tiers]);
+    return autoScale ? getActiveTier(zoom, effectiveTiers) : null;
+  }, [forcedTierId, autoScale, zoom, effectiveTiers]);
   const effectiveDistancePerSquare = activeTier ? activeTier.distancePerSquare : distancePerSquare;
   const effectiveDistanceUnit = activeTier ? activeTier.distanceUnit : distanceUnit;
   const effectiveUnitAbbr = getDistanceUnitAbbr(effectiveDistanceUnit);
@@ -305,18 +336,25 @@ export function InlineBattleMap({
       if (error) throw error;
       const { data: { publicUrl } } = supabase.storage.from('gear-images').getPublicUrl(path);
       setBackgroundUrl(publicUrl);
+      onPartyBackgroundChange?.(publicUrl);
       toast.success('Background set');
     } catch (e: any) {
       toast.error(e?.message || 'Upload failed');
     } finally {
       setBackgroundUploading(false);
     }
-  }, []);
+  }, [onPartyBackgroundChange]);
 
   const handleClearBackground = useCallback(() => {
     setBackgroundUrl(undefined);
+    onPartyBackgroundChange?.(undefined);
     toast.success('Background removed');
-  }, []);
+  }, [onPartyBackgroundChange]);
+
+  const handleBackgroundOpacityChange = useCallback((opacity: number) => {
+    setBackgroundOpacity(opacity);
+    onPartyBackgroundOpacityChange?.(opacity);
+  }, [onPartyBackgroundOpacityChange]);
 
   const handleTierBackgroundUpload = useCallback(async (tierId: string, file: File) => {
     if (file.size > MAX_BACKGROUND_SIZE_MB * 1024 * 1024) {
@@ -330,23 +368,31 @@ export function InlineBattleMap({
       const { error } = await supabase.storage.from('gear-images').upload(path, file, { upsert: true });
       if (error) throw error;
       const { data: { publicUrl } } = supabase.storage.from('gear-images').getPublicUrl(path);
-      setTierBackgrounds(prev => [...prev.filter(b => b.tierId !== tierId), { tierId, imageUrl: publicUrl }]);
+      const updated = [...tierBackgrounds.filter(b => b.tierId !== tierId), { tierId, imageUrl: publicUrl }];
+      setTierBackgrounds(updated);
+      onPartyTierBackgroundsChange?.(updated);
       toast.success('Layer image set');
     } catch (e: any) {
       toast.error(e?.message || 'Upload failed');
     } finally {
       setBackgroundUploading(false);
     }
-  }, []);
+  }, [tierBackgrounds, onPartyTierBackgroundsChange]);
 
   const handleTierBackgroundRemove = useCallback((tierId: string) => {
-    setTierBackgrounds(prev => prev.filter(b => b.tierId !== tierId));
+    const updated = tierBackgrounds.filter(b => b.tierId !== tierId);
+    setTierBackgrounds(updated);
+    onPartyTierBackgroundsChange?.(updated);
     toast.success('Layer image removed');
-  }, []);
+  }, [tierBackgrounds, onPartyTierBackgroundsChange]);
 
   const handleTierConfigChange = useCallback((tierId: string, updates: Partial<Pick<ScaleTier, 'distancePerSquare' | 'distanceUnit'>>) => {
-    setCustomTiers(prev => prev.map(t => t.id === tierId ? { ...t, ...updates } : t));
-  }, []);
+    setCustomTiers(prev => {
+      const updated = prev.map(t => t.id === tierId ? { ...t, ...updates } : t);
+      onPartyCustomTiersChange?.(updated.map(t => ({ id: t.id, distancePerSquare: t.distancePerSquare, distanceUnit: t.distanceUnit })));
+      return updated;
+    });
+  }, [onPartyCustomTiersChange]);
 
   const handleCellInteraction = (x: number, y: number) => {
     if (toolMode === 'measure') handleMeasureClick(x, y);
@@ -434,7 +480,7 @@ export function InlineBattleMap({
         </div>
         <div className="flex items-center gap-0.5">
           {/* Manual tier selector */}
-          {tiers.map(tier => {
+          {effectiveTiers.map(tier => {
             const isActive = forcedTierId === tier.id;
             return (
               <Button
@@ -534,13 +580,13 @@ export function InlineBattleMap({
             {/* Grid cells */}
             <div className="relative">
               {/* Layered tier backgrounds */}
-              {tierBackgrounds.length > 0 ? (
-                tiers.map(tier => {
-                  const bg = tierBackgrounds.find(b => b.tierId === tier.id);
+              {resolvedTierBackgrounds.length > 0 ? (
+                effectiveTiers.map(tier => {
+                  const bg = resolvedTierBackgrounds.find(b => b.tierId === tier.id);
                   if (!bg) return null;
                   const tierOpacity = forcedTierId
-                    ? (tier.id === forcedTierId ? backgroundOpacity : 0)
-                    : getTierOpacity(zoom, tier) * backgroundOpacity;
+                    ? (tier.id === forcedTierId ? resolvedBackgroundOpacity : 0)
+                    : getTierOpacity(zoom, tier) * resolvedBackgroundOpacity;
                   if (tierOpacity <= 0) return null;
                   return (
                     <img
@@ -559,9 +605,9 @@ export function InlineBattleMap({
                     />
                   );
                 })
-              ) : backgroundUrl ? (
+              ) : resolvedBackgroundUrl ? (
                 <img
-                  src={backgroundUrl}
+                  src={resolvedBackgroundUrl}
                   alt=""
                   className="absolute inset-0 pointer-events-none"
                   style={{
@@ -569,7 +615,7 @@ export function InlineBattleMap({
                     height: gridSize * cellSize,
                     objectFit: 'cover',
                     zIndex: 0,
-                    opacity: backgroundOpacity,
+                    opacity: resolvedBackgroundOpacity,
                   }}
                 />
               ) : null}
@@ -587,7 +633,7 @@ export function InlineBattleMap({
                   const highlightColorId = highlightedCells.get(`${x},${y}`);
                   const isHighlighted = !!highlightColorId;
                   const isMeasurePoint = (measureStart?.x === x && measureStart?.y === y) || (measureEnd?.x === x && measureEnd?.y === y);
-                  const hasAnyBg = tierBackgrounds.length > 0 || !!backgroundUrl;
+                  const hasAnyBg = resolvedTierBackgrounds.length > 0 || !!resolvedBackgroundUrl;
                   const cellBorderOpacity = hasAnyBg ? 0.02 : 0.05;
                   return (
                     <button
@@ -773,25 +819,27 @@ export function InlineBattleMap({
           onUndo={handleUndo}
           onClearArea={() => setHighlightedCells(new Map())}
           onClearSpells={() => { setSpellTemplates([]); setSpellOrigin(null); }}
-          hasBackground={!!backgroundUrl || tierBackgrounds.length > 0}
+          hasBackground={!!resolvedBackgroundUrl || resolvedTierBackgrounds.length > 0}
           backgroundUploading={backgroundUploading}
-          backgroundOpacity={backgroundOpacity}
-          onBackgroundUpload={handleSetBackground}
-          onClearBackground={handleClearBackground}
-          onBackgroundOpacityChange={setBackgroundOpacity}
+          backgroundOpacity={resolvedBackgroundOpacity}
+          onBackgroundUpload={isHost ? handleSetBackground : undefined}
+          onClearBackground={isHost ? handleClearBackground : undefined}
+          onBackgroundOpacityChange={isHost ? handleBackgroundOpacityChange : undefined}
         />
-        <TierBackgroundPanel
-          tiers={tiers}
-          tierBackgrounds={tierBackgrounds}
-          autoScale={autoScale}
-          masterOpacity={backgroundOpacity}
-          uploading={backgroundUploading}
-          onToggleAutoScale={() => setAutoScale(prev => !prev)}
-          onUpload={handleTierBackgroundUpload}
-          onRemove={handleTierBackgroundRemove}
-          onMasterOpacityChange={setBackgroundOpacity}
-          onTierConfigChange={handleTierConfigChange}
-        />
+        {isHost !== false && (
+          <TierBackgroundPanel
+            tiers={effectiveTiers}
+            tierBackgrounds={tierBackgrounds}
+            autoScale={autoScale}
+            masterOpacity={backgroundOpacity}
+            uploading={backgroundUploading}
+            onToggleAutoScale={() => setAutoScale(prev => !prev)}
+            onUpload={handleTierBackgroundUpload}
+            onRemove={handleTierBackgroundRemove}
+            onMasterOpacityChange={handleBackgroundOpacityChange}
+            onTierConfigChange={handleTierConfigChange}
+          />
+        )}
       </div>
     </div>
   );
