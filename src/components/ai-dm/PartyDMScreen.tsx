@@ -1010,7 +1010,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
               }
               onShowChat();
             }}
-            className="absolute bottom-2 left-2 z-[5] w-10 h-10 rounded-full overflow-hidden border-2 border-white/20 hover:border-white/50 transition-all shadow-lg"
+            className="absolute bottom-2 left-2 z-[5] w-14 h-14 rounded-full overflow-hidden border-2 border-white/20 hover:border-white/50 transition-all shadow-lg"
             style={{ touchAction: 'manipulation' }}
             title="Party Chat"
           >
