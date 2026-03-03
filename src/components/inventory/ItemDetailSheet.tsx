@@ -14,6 +14,7 @@ interface ItemDetailSheetProps {
   item: EquipmentItem | null;
   slotType: EquipmentSlotType | null;
   equipment: CharacterEquipment;
+  customImage?: string | null;
   isOpen: boolean;
   onClose: () => void;
   onUnequip: () => void;
@@ -24,6 +25,7 @@ export function ItemDetailSheet({
   item,
   slotType,
   equipment,
+  customImage,
   isOpen,
   onClose,
   onUnequip,
@@ -90,7 +92,11 @@ export function ItemDetailSheet({
                 item.rarity === 'uncommon' && "border-green-400 bg-green-400/10",
                 item.rarity === 'common' && "border-border bg-muted",
               )}>
-                <ItemIcon className={cn("w-10 h-10", rarity.color)} />
+                {customImage ? (
+                  <img src={customImage} alt={item.name} className="w-full h-full object-cover rounded-xl" />
+                ) : (
+                  <ItemIcon className={cn("w-10 h-10", rarity.color)} />
+                )}
               </div>
               
               <h2 className={cn("text-xl font-bold mb-1", rarity.color)}>
