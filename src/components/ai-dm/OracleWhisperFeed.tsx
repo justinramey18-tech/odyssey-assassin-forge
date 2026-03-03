@@ -13,6 +13,7 @@ interface WhisperableMessage {
 
 interface OracleWhisperFeedProps {
   messages: WhisperableMessage[];
+  characterName?: string;
 }
 
 interface FeedEntry {
@@ -27,7 +28,7 @@ const ICON_MAP: Record<Whisper['type'], { icon: typeof Dices; color: string; bor
   whisper: { icon: Eye,       color: 'text-purple-400',  border: 'border-purple-500/30', bg: 'bg-purple-500/5',  label: 'Whisper' },
 };
 
-export function OracleWhisperFeed({ messages }: OracleWhisperFeedProps) {
+export function OracleWhisperFeed({ messages, characterName }: OracleWhisperFeedProps) {
   const entries = useMemo<FeedEntry[]>(() => {
     const result: FeedEntry[] = [];
     messages.forEach((msg, idx) => {
@@ -36,12 +37,15 @@ export function OracleWhisperFeed({ messages }: OracleWhisperFeedProps) {
           ? msg.timestamp
           : msg.created_at ? new Date(msg.created_at) : new Date();
         for (const w of msg.whispers) {
+          if (characterName && w.type === 'whisper' && w.target && w.target.toLowerCase() !== characterName.toLowerCase()) {
+            continue;
+          }
           result.push({ whisper: w, messageIndex: idx, timestamp: ts });
         }
       }
     });
-    return result.reverse(); // newest first
-  }, [messages]);
+    return result.reverse();
+  }, [messages, characterName]);
 
   if (entries.length === 0) {
     return (
