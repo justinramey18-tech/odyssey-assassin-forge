@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.speechify-clone-voice]
 verify_jwt = false
+
+[functions.party-timer-generate]
+verify_jwt = false
