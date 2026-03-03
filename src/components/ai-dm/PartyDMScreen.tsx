@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock, Maximize2, Minimize2, Radio } from 'lucide-react';
+import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare } from 'lucide-react';
 import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
 import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
@@ -533,6 +533,24 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
   const [showTimerSettings, setShowTimerSettings] = useState(false);
   const [showAfkGuide, setShowAfkGuide] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Chat unread badge tracking
+  const [chatTotalCount, setChatTotalCount] = useState(0);
+  const chatLastSeen = useRef(0);
+  useEffect(() => {
+    if (!partyId) return;
+    try { chatLastSeen.current = parseInt(localStorage.getItem(`odyssey_chat_lastSeen_${partyId}`) || '0', 10) || 0; } catch { chatLastSeen.current = 0; }
+    // Fetch current count
+    supabase.from('party_messages').select('id', { count: 'exact', head: true }).eq('party_id', partyId).then(({ count }) => {
+      setChatTotalCount(count ?? 0);
+    });
+    // Subscribe to new messages
+    const ch = supabase.channel(`chat-badge-${partyId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'party_messages', filter: `party_id=eq.${partyId}` }, () => {
+      setChatTotalCount(prev => prev + 1);
+    }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [partyId]);
+  const chatUnreadCount = Math.max(0, chatTotalCount - chatLastSeen.current);
   const [myAfkGuide, setMyAfkGuide] = useState<string | null>(() => {
     const me = members.find(m => m.user_id === currentUserId);
     return (me?.character_status?.afkPersonalityGuide as string) || null;
@@ -981,6 +999,28 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
           )}
         </div>
       )}
+        {/* Chat FAB - bottom-left of chat area */}
+        {onShowChat && (
+          <button
+            onClick={() => {
+              // Mark messages as seen
+              if (partyId) {
+                try { localStorage.setItem(`odyssey_chat_lastSeen_${partyId}`, String(chatTotalCount)); } catch {}
+              }
+              onShowChat();
+            }}
+            className="absolute bottom-2 left-2 z-[5] w-9 h-9 rounded-full flex items-center justify-center bg-black/40 hover:bg-black/60 transition-all"
+            style={{ touchAction: 'manipulation' }}
+            title="Party Chat"
+          >
+            <MessageSquare className="w-4 h-4 text-white/40" />
+            {chatUnreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] rounded-full bg-primary text-[9px] font-bold text-primary-foreground flex items-center justify-center px-0.5">
+                {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
+              </span>
+            )}
+          </button>
+        )}
         {/* Fullscreen toggle - bottom-right of chat area */}
         <button
           onClick={() => {
