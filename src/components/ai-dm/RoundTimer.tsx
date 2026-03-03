@@ -59,7 +59,7 @@ export function RoundTimer({
     [extensionRequests, currentUserId]
   );
 
-  // Tick every second when running
+  // Tick every second when running + catch up on tab visibility change
   useEffect(() => {
     if (!isRunning || !timerStartedAt) {
       if (isPaused) {
@@ -83,7 +83,25 @@ export function RoundTimer({
 
     tick();
     const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
+
+    // When tab returns from background, immediately check if timer expired
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        tick();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    // Also set a precise setTimeout for the exact expiry moment as a backup
+    const elapsed = (Date.now() - new Date(timerStartedAt).getTime()) / 1000;
+    const msUntilExpiry = Math.max(0, (timerDuration - elapsed) * 1000);
+    const backupTimeout = setTimeout(tick, msUntilExpiry + 100);
+
+    return () => {
+      clearInterval(id);
+      clearTimeout(backupTimeout);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [isRunning, timerStartedAt, timerDuration, isPaused, timerPaused, hasExpired, onTimerExpire]);
 
   if (!timerEnabled) return null;

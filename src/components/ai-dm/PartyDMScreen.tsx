@@ -593,12 +593,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
     }
   }, [partyDm.sessionConfig?.timerEnabled, partyDm.sessionConfig?.timerDurationSeconds]);
 
-  // Handle timer expiry — auto-generate for host
+  // Handle timer expiry — any connected member triggers generation
+  // Database-level lock in generateResponse prevents double-generation
   const handleTimerExpire = useCallback(() => {
-    if (isCreator && !partyDm.isGenerating) {
+    if (!partyDm.isGenerating) {
       partyDm.generateResponse();
     }
-  }, [isCreator, partyDm.isGenerating, partyDm.generateResponse]);
+  }, [partyDm.isGenerating, partyDm.generateResponse]);
 
   const mode = partyDm.sessionConfig?.mode || 'shared';
 
