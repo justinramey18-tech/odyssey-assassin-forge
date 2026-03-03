@@ -104,25 +104,45 @@ function highlightAfkNames(children: React.ReactNode, afkNames: string[]): React
   return processNode(children);
 }
 
-function AfkAnnotatedContent({ content }: { content: string }) {
-  const lines = content.split('\n');
+/** Extract AFK character names from raw content before stripping */
+function extractAfkNames(rawContent: string): string[] {
+  const names: string[] = [];
+  for (const line of rawContent.split('\n')) {
+    const match = line.match(AFK_LINE_REGEX);
+    if (match) {
+      const name = match[1].replace(/^\[|\]$/g, '');
+      if (name) names.push(name);
+    }
+  }
+  return names;
+}
+
+/** Strip AFK guide text lines, keeping only non-AFK content */
+function stripHidden(content: string): string {
+  return content
+    .split('\n')
+    .filter(line => !AFK_LINE_REGEX.test(line))
+    .join('\n');
+}
+
+function AfkAnnotatedContent({ content, afkNames }: { content: string; afkNames?: string[] }) {
+  const strippedContent = stripHidden(content);
+  const names = afkNames ?? [];
   return (
     <>
-      {lines.map((line, i) => {
-        const match = line.match(AFK_LINE_REGEX);
-        if (match) {
-          return (
-            <span key={i} className="block">
-              <span className="inline-flex items-center gap-1 rounded-md bg-purple-500/15 border border-purple-500/20 px-1.5 py-0.5 mr-1 text-[10px] text-purple-300 font-medium align-middle">
-                <Ghost className="w-3 h-3" />
-                AFK
-              </span>
-              <span>{match[1]}: {match[2]}</span>
+      {names.length > 0 && (
+        <span className="flex flex-wrap gap-1 mb-1">
+          {names.map((name, i) => (
+            <span key={i} className="inline-flex items-center gap-1 rounded-md bg-purple-500/15 border border-purple-500/20 px-1.5 py-0.5 text-[10px] text-purple-300 font-medium">
+              <Ghost className="w-3 h-3" />
+              {name}
             </span>
-          );
-        }
-        return <span key={i} className="block">{line}</span>;
-      })}
+          ))}
+        </span>
+      )}
+      {strippedContent.split('\n').map((line, i) => (
+        <span key={i} className="block">{line}</span>
+      ))}
     </>
   );
 }
@@ -407,7 +427,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
               </span>
             </span>
           ) : (
-            <AfkAnnotatedContent content={message.content} />
+            <AfkAnnotatedContent content={message.content} afkNames={extractAfkNames(message.content)} />
           )}
         </p>
         )}
