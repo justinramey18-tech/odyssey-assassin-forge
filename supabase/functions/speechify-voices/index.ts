@@ -37,31 +37,18 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log("Speechify raw response keys:", Object.keys(data));
-    console.log("Speechify raw response (first 2000 chars):", JSON.stringify(data).slice(0, 2000));
 
     // Normalise – the API may return an array directly or wrapped in { voices: [] }
     const rawVoices: any[] = Array.isArray(data) ? data : data.voices ?? [];
-    console.log("Total voices found:", rawVoices.length);
-    
-    // Log first voice to understand shape
-    if (rawVoices.length > 0) {
-      console.log("Sample voice keys:", Object.keys(rawVoices[0]));
-      console.log("Sample voice:", JSON.stringify(rawVoices[0]).slice(0, 500));
-    }
-    
-    // Log any that look cloned
-    const clonedRaw = rawVoices.filter((v: any) => 
-      v.type === 'personal' || v.type === 'cloned' || v.type === 'custom' ||
-      v.category === 'personal' || v.category === 'cloned' || v.category === 'custom' ||
-      v.is_custom || v.is_cloned || v.is_personal
-    );
-    console.log("Cloned/personal voices found:", clonedRaw.length, clonedRaw.map((v: any) => ({ id: v.id, name: v.display_name ?? v.name, type: v.type, category: v.category })));
+
+    // Get unique voice types for debugging
+    const uniqueTypes = [...new Set(rawVoices.map((v: any) => v.type))];
+    console.log(`Speechify: ${rawVoices.length} voices, types: ${JSON.stringify(uniqueTypes)}`);
 
     const voices = rawVoices.map((v: any) => ({
       id: v.id ?? v.voice_id ?? "",
       name: v.display_name ?? v.name ?? "Unnamed",
-      type: v.type ?? v.category ?? "default",
+      type: v.type ?? "default",
     }));
 
     return new Response(JSON.stringify({ voices }), {
