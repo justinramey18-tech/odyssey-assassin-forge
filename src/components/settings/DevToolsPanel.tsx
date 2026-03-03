@@ -1,9 +1,7 @@
 import { useState } from 'react';
-import { Lock, Unlock, Copy, Check } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { Copy, Check, Wrench } from 'lucide-react';
 import { SettingsSection } from './SettingsSection';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
 
 interface FileMapSection {
   title: string;
@@ -248,7 +246,6 @@ const PROMPT_TEMPLATES: PromptTemplate[] = [
   },
 ];
 
-const CORRECT_PASSWORD = 'JRDP2026!';
 
 function CopyablePrompt({ template }: { template: PromptTemplate }) {
   const [copied, setCopied] = useState(false);
@@ -285,55 +282,11 @@ function CopyablePrompt({ template }: { template: PromptTemplate }) {
 }
 
 export function DevToolsPanel() {
-  const [isUnlocked, setIsUnlocked] = useState(false);
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState(false);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password === CORRECT_PASSWORD) {
-      setIsUnlocked(true);
-      setError(false);
-    } else {
-      setError(true);
-    }
-  };
-
-  if (!isUnlocked) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-4 py-12 px-4">
-        <div className="p-3 rounded-full bg-rose-500/10">
-          <Lock className="w-8 h-8 text-rose-400" />
-        </div>
-        <div className="text-center space-y-1">
-          <h3 className="font-cinzel font-bold text-lg">R&D Developer Tools</h3>
-          <p className="text-sm text-muted-foreground">Enter password to access internal reference</p>
-        </div>
-        <form onSubmit={handleSubmit} className="w-full max-w-xs space-y-3">
-           <Input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => { setPassword(e.target.value); setError(false); }}
-            className={cn("scroll-mt-20", error ? 'border-destructive' : '')}
-          />
-          {error && <p className="text-xs text-destructive text-center">Incorrect password</p>}
-          <button
-            type="submit"
-            className="w-full py-2 rounded-lg bg-rose-500/20 text-rose-300 font-cinzel text-sm font-semibold hover:bg-rose-500/30 transition-colors border border-rose-500/30"
-          >
-            Unlock
-          </button>
-        </form>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-3 pb-6">
       <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">
-        <Unlock className="w-3.5 h-3.5 text-rose-400" />
-        <span>File map reference — re-locks when settings close</span>
+        <Wrench className="w-3.5 h-3.5 text-rose-400" />
+        <span>File map reference</span>
       </div>
 
       {FILE_MAP.map((section) => (
