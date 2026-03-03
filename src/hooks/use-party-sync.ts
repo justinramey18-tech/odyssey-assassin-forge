@@ -1526,9 +1526,17 @@ export function usePartySync(): UsePartySyncReturn {
 
   const updateMapMarkers = useCallback(async (markers: MapMarker[]) => {
     if (!user || !party.partyId) return;
-    const stateData = { ...buildMapStateData(), markers };
+    // Optimistic local update so the placing user sees the change immediately
+    setMapMarkers(markers);
+    const stateData = {
+      markers,
+      backgroundUrl: mapBackgroundUrl,
+      tierBackgrounds: mapTierBackgrounds,
+      backgroundOpacity: mapBackgroundOpacity,
+      customTiers: mapCustomTiers,
+    };
     await upsertMapState(stateData);
-  }, [user, party.partyId, buildMapStateData, upsertMapState]);
+  }, [user, party.partyId, mapBackgroundUrl, mapTierBackgrounds, mapBackgroundOpacity, mapCustomTiers, upsertMapState]);
 
   const updateMapBackground = useCallback(async (url: string | undefined) => {
     if (!user || !party.partyId) return;
