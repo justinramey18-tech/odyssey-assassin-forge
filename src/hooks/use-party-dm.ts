@@ -925,11 +925,22 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
     setIsGenerating(true);
 
-    const { error: stateErr } = await (supabase.from('party_shared_state') as any)
+    // Atomic database lock: only proceed if isGenerating was false
+    // This prevents multiple clients from triggering generation simultaneously
+    const { data: lockData, error: stateErr } = await (supabase.from('party_shared_state') as any)
       .update({ state_data: { ...sessionConfig, isGenerating: true } })
       .eq('party_id', partyId)
-      .eq('state_type', 'dm_session');
+      .eq('state_type', 'dm_session')
+      .not('state_data->isGenerating', 'eq', true)
+      .select('id');
     if (stateErr) console.error('[PartyDM] Failed to set isGenerating state:', stateErr);
+    
+    // If no rows updated, another client already claimed generation
+    if (!lockData || lockData.length === 0) {
+      console.log('[PartyDM] Generation already in progress on another client, skipping');
+      setIsGenerating(false);
+      return;
+    }
 
     abortRef.current = new AbortController();
     try {
