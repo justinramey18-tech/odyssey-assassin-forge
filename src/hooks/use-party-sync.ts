@@ -1526,6 +1526,7 @@ export function usePartySync(): UsePartySyncReturn {
 
   const updateMapMarkers = useCallback(async (markers: MapMarker[]) => {
     if (!user || !party.partyId) return;
+    setMapMarkers(markers);
     const stateData = { ...buildMapStateData(), markers };
     await upsertMapState(stateData);
   }, [user, party.partyId, buildMapStateData, upsertMapState]);
