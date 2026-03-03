@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { CharacterEquipment, equipmentSlotDefinitions, EquipmentSlotType, EquipmentItem, rarityConfig } from '@/lib/inventory/index';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
@@ -7,6 +7,47 @@ import type { ViewMode } from './InventoryScreen';
 import type { EquipmentImages } from '@/hooks/use-equipment-images';
 import { getIconByName } from '@/lib/iconUtils';
 import { SlotDrawer } from './SlotDrawer';
+import { ImagePlus } from 'lucide-react';
+
+interface SlotThumbnailProps {
+  slotType: EquipmentSlotType;
+  customImage?: string;
+  onImageUpload?: (slotType: EquipmentSlotType, file: File) => void;
+}
+
+function SlotThumbnail({ slotType, customImage, onImageUpload }: SlotThumbnailProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div
+      className="relative w-12 h-12 rounded-md shrink-0 overflow-hidden bg-muted/40 cursor-pointer"
+      onClick={(e) => {
+        e.stopPropagation();
+        fileInputRef.current?.click();
+      }}
+    >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            onImageUpload?.(slotType, file);
+            e.target.value = '';
+          }
+        }}
+      />
+      {customImage ? (
+        <img src={customImage} alt="" className="w-full h-full object-cover" />
+      ) : null}
+      <div className="absolute bottom-0.5 right-0.5 bg-background/70 rounded p-0.5">
+        <ImagePlus className="w-3 h-3 text-muted-foreground" />
+      </div>
+    </div>
+  );
+}
 
 interface EquipmentListProps {
   equipment: CharacterEquipment;
@@ -78,13 +119,16 @@ export function EquipmentList({
         onMouseEnter={() => onSlotHover?.(slot.type)}
         onMouseLeave={() => onSlotHover?.(null)}
         className={cn(
-          "flex items-center gap-2 w-full px-3 py-2.5 rounded-lg transition-all duration-150 text-left min-h-[48px]",
+          "flex items-center gap-2 w-full px-3 py-2.5 rounded-lg transition-all duration-150 text-left min-h-[72px]",
           "hover:bg-muted/30 active:scale-[0.98]",
           isActive && "bg-muted/40 ring-1 ring-primary/30",
           highlightedSlot === slot.type && "ring-2 ring-primary ring-offset-1 ring-offset-background",
           !item && "opacity-60",
         )}
       >
+        {/* Slot thumbnail */}
+        <SlotThumbnail slotType={slot.type} customImage={equipmentImages?.[slot.type]} onImageUpload={onImageUpload} />
+
         {/* Rarity indicator dot */}
         <div className={cn(
           "w-1.5 h-8 rounded-full shrink-0",
