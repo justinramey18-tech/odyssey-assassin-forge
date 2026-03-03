@@ -1,42 +1,69 @@
 
 
-## Multi-Select TTS Narration Mode
+## Context-Aware SFX During Narration
 
 ### Overview
-When a user clicks the ElevenLabs/Volume button, instead of immediately narrating the last AI message, the app enters a **selection mode**. Checkboxes appear next to every AI DM message. The user selects which messages to narrate, then taps a "Finish Selection" button to send all selected content to ElevenLabs. The spinner animation plays on the button while audio is being fetched.
+When narration plays, the system will use AI to analyze the narrative text and generate a scene-appropriate SFX prompt (e.g., "swords clashing on stone, distant screaming" for a battle scene). This replaces the current static style prompt with a dynamic one derived from the actual content. A limited LRU cache (last 15 prompts) prevents redundant API calls for similar scenes.
+
+### Architecture
+
+```text
+User triggers narration
+        │
+        ▼
+┌─────────────────────┐
+│ use-narrator.ts     │
+│ playMessage(text)   │
+│                     │
+│ if contextSfx ON:   │
+│   check cache ──────┼──► hit? reuse blob
+│   miss? ──────────── │
+│     ▼               │
+│   call edge fn      │
+│   "detect-sfx-prompt"│──► AI analyzes text → returns SFX prompt string
+│     ▼               │
+│   call edge fn      │
+│   "elevenlabs-sfx"  │──► generates audio from prompt
+│     ▼               │
+│   play alongside    │
+│   narration at 25%  │
+└─────────────────────┘
+```
 
 ### Changes Required
 
-**1. Both `AIDMScreen.tsx` and `PartyDMScreen.tsx` — Add selection mode state**
-- Add `ttsSelectMode: boolean` and `ttsSelectedIds: Set<string>` state
-- When the narrator button is clicked and not currently playing: toggle `ttsSelectMode` on (instead of immediately narrating)
-- When already in select mode and user clicks the button again: exit select mode
-- When playing: stop narration as before
+**1. New edge function: `supabase/functions/detect-sfx-prompt/index.ts`**
+- Accepts `{ text: string }` — the narrative content being narrated
+- Uses Lovable AI (gemini-3-flash-preview) to produce a short (~15 word) ElevenLabs SFX prompt describing the soundscape
+- System prompt instructs: "Read this D&D narrative. Output ONLY a short sound effect description suitable for ElevenLabs SFX generation. Focus on the dominant auditory elements — combat sounds, environment, weather, creatures. Be specific and cinematic. Max 20 words."
+- Returns `{ sfx_prompt: string }`
 
-**2. `DMMessageBubble` (in `AIDMScreen.tsx`) and `PartyDMMessage` (in `PartyDMScreen.tsx`) — Add checkbox prop**
-- Add optional props: `ttsSelectMode?: boolean`, `ttsSelected?: boolean`, `onTtsToggle?: (id: string) => void`
-- When `ttsSelectMode` is true and the message is an assistant message, render a styled checkbox (amber/gold themed) to the left of the DM avatar
-- Clicking the checkbox toggles the message ID in `ttsSelectedIds`
+**2. Update `SoundEffectsWidget.tsx` — Add context-aware toggle**
+- Add a new localStorage key `dnd-elevenlabs-context-sfx-enabled`
+- Add a second toggle: "Context-Aware SFX" with description "AI analyzes narrative to generate scene-appropriate sounds"
+- Export `isContextSfxEnabled()` function
+- When context-aware is ON, the static style prompt section is shown as a fallback label only
 
-**3. "Narrate Selection" floating button**
-- When `ttsSelectMode` is true and at least one message is selected, show a fixed/sticky button at the bottom of the message area: **"Narrate (N)"** where N is the count
-- Tapping it: concatenates selected messages' content in chronological order, calls `narrator.playMessage(combinedText)`, exits select mode
-- The existing narrator button shows the spinner (`narrator.isLoading`) / stop icon (`narrator.isPlaying`) as it does today
+**3. Update `use-narrator.ts` — Replace static SFX with context-aware**
+- Import `isContextSfxEnabled`
+- When context SFX is enabled and narration starts:
+  1. Call `detect-sfx-prompt` edge function with the narrative text
+  2. Check a simple in-memory Map cache (keyed by a hash of first 200 chars of the prompt result, limited to 15 entries)
+  3. On cache miss: call `elevenlabs-sfx` with the AI-generated prompt, store blob in cache
+  4. On cache hit: reuse the cached audio blob
+  5. Play alongside narration at 25% volume (same as current ambient SFX)
+- When context SFX is disabled, fall back to current static style prompt behavior
+- Both fetches (detect-sfx-prompt + elevenlabs-sfx) run in parallel with TTS fetching
 
-**4. Cancel selection**
-- A small "Cancel" or X button next to the "Narrate Selection" bar to exit select mode without narrating
+**4. SFX prompt cache utility (inline in `use-narrator.ts`)**
+- Simple Map-based LRU cache: `Map<string, Blob>` with max 15 entries
+- Key = the AI-generated SFX prompt string (short enough to use directly)
+- Evict oldest entry when limit reached
+- Cache lives for the session (resets on page reload)
 
-### UI Flow
-```text
-1. User taps 🔊 (Volume2 icon)
-2. ✅ checkboxes fade in beside each AI message
-3. User taps checkboxes on desired messages
-4. Bottom bar appears: [Cancel] [Narrate 3 ▶]
-5. User taps "Narrate 3" → checkboxes disappear, spinner shows on 🔊 button
-6. Audio plays → spinner becomes stop icon → finishes → back to normal
-```
-
-### Files to Modify
-- `src/components/ai-dm/AIDMScreen.tsx` — selection state, pass props to `DMMessageBubble`, add floating narrate bar, update narrator button behavior
-- `src/components/ai-dm/PartyDMScreen.tsx` — same pattern for `PartyDMMessage`, update both narrator button instances (submitted and ready states)
+### Files to Create/Modify
+- **Create**: `supabase/functions/detect-sfx-prompt/index.ts`
+- **Modify**: `src/components/settings/SoundEffectsWidget.tsx` — add context-aware toggle
+- **Modify**: `src/hooks/use-narrator.ts` — integrate context-aware SFX with caching
+- **Modify**: `supabase/config.toml` — add detect-sfx-prompt function config (verify_jwt = false)
 
