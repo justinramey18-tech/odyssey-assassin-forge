@@ -43,6 +43,8 @@ interface StandalonePartyDMScreenProps {
   onPartyMapBackgroundOpacityChange?: (opacity: number) => Promise<void>;
   onPartyMapTierBackgroundsChange?: (tierBackgrounds: { tierId: string; imageUrl: string }[]) => Promise<void>;
   onPartyMapCustomTiersChange?: (customTiers: { id: string; distancePerSquare: number; distanceUnit: string }[]) => Promise<void>;
+  partyMapMarkers?: MapMarker[];
+  onPartyMapMarkersChange?: (markers: MapMarker[]) => Promise<void>;
 }
 
 export function StandalonePartyDMScreen({
@@ -63,6 +65,8 @@ export function StandalonePartyDMScreen({
   onPartyMapBackgroundOpacityChange,
   onPartyMapTierBackgroundsChange,
   onPartyMapCustomTiersChange,
+  partyMapMarkers,
+  onPartyMapMarkersChange,
 }: StandalonePartyDMScreenProps) {
   const [showGuides, setShowGuides] = useState(false);
   const [showSaves, setShowSaves] = useState(false);
@@ -175,6 +179,8 @@ export function StandalonePartyDMScreen({
       onPartyBackgroundOpacityChange={onPartyMapBackgroundOpacityChange}
       onPartyTierBackgroundsChange={onPartyMapTierBackgroundsChange}
       onPartyCustomTiersChange={onPartyMapCustomTiersChange}
+      partyMarkers={partyMapMarkers}
+      onPartyMarkersChange={onPartyMapMarkersChange}
     />
   );
 

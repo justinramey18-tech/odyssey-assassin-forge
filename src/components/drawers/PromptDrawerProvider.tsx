@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, createContext, useContext, ReactNode, useMemo, useRef } from 'react';
+import type { MapMarker } from '@/components/party/battlemap/types';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { loadState as loadGeraltState, ATTACKS as GERALT_ATTACKS } from '@/components/companion/geralt-data';
 import { Gem, Lock } from 'lucide-react';
@@ -164,6 +165,8 @@ interface PromptDrawerProviderProps {
   onPartyMapBackgroundOpacityChange?: (opacity: number) => Promise<void>;
   onPartyMapTierBackgroundsChange?: (tierBackgrounds: { tierId: string; imageUrl: string }[]) => Promise<void>;
   onPartyMapCustomTiersChange?: (customTiers: { id: string; distancePerSquare: number; distanceUnit: string }[]) => Promise<void>;
+  partyMapMarkers?: MapMarker[];
+  onPartyMapMarkersChange?: (markers: MapMarker[]) => Promise<void>;
   // Auto-sync callbacks for AI DM
   autoSyncCallbacks?: {
     onHPChange: (change: number, type: 'damage' | 'healing') => void;
@@ -225,6 +228,8 @@ export function PromptDrawerProvider({
   onPartyMapBackgroundOpacityChange,
   onPartyMapTierBackgroundsChange,
   onPartyMapCustomTiersChange,
+  partyMapMarkers,
+  onPartyMapMarkersChange,
   autoSyncCallbacks,
 }: PromptDrawerProviderProps) {
   const [infinityOpen, setInfinityOpen] = useState(false);
@@ -780,6 +785,8 @@ export function PromptDrawerProvider({
               onPartyMapBackgroundOpacityChange={onPartyMapBackgroundOpacityChange}
               onPartyMapTierBackgroundsChange={onPartyMapTierBackgroundsChange}
               onPartyMapCustomTiersChange={onPartyMapCustomTiersChange}
+              partyMapMarkers={partyMapMarkers}
+              onPartyMapMarkersChange={onPartyMapMarkersChange}
             />
           )}
         </>
