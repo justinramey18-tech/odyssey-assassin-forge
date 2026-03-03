@@ -1,1 +1,0 @@
-ALTER TABLE public.party_shared_state REPLICA IDENTITY FULL;

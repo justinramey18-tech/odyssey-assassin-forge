@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, createContext, useContext, ReactNode, useMemo, useRef } from 'react';
-import type { MapMarker } from '@/components/party/battlemap/types';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { loadState as loadGeraltState, ATTACKS as GERALT_ATTACKS } from '@/components/companion/geralt-data';
 import { Gem, Lock } from 'lucide-react';
@@ -156,17 +155,6 @@ interface PromptDrawerProviderProps {
   isPartyCreator?: boolean;
   // Party chat callback (opens fullscreen party chat from Party DM)
   onOpenPartyChat?: () => void;
-  // Party map sync props (from usePartySync)
-  partyMapBackgroundUrl?: string;
-  partyMapBackgroundOpacity?: number;
-  partyMapTierBackgrounds?: { tierId: string; imageUrl: string }[];
-  partyMapCustomTiers?: { id: string; distancePerSquare: number; distanceUnit: string }[];
-  onPartyMapBackgroundChange?: (url: string | undefined) => Promise<void>;
-  onPartyMapBackgroundOpacityChange?: (opacity: number) => Promise<void>;
-  onPartyMapTierBackgroundsChange?: (tierBackgrounds: { tierId: string; imageUrl: string }[]) => Promise<void>;
-  onPartyMapCustomTiersChange?: (customTiers: { id: string; distancePerSquare: number; distanceUnit: string }[]) => Promise<void>;
-  partyMapMarkers?: MapMarker[];
-  onPartyMapMarkersChange?: (markers: MapMarker[]) => Promise<void>;
   // Auto-sync callbacks for AI DM
   autoSyncCallbacks?: {
     onHPChange: (change: number, type: 'damage' | 'healing') => void;
@@ -220,16 +208,6 @@ export function PromptDrawerProvider({
   partyId,
   isPartyCreator = false,
   onOpenPartyChat,
-  partyMapBackgroundUrl,
-  partyMapBackgroundOpacity,
-  partyMapTierBackgrounds,
-  partyMapCustomTiers,
-  onPartyMapBackgroundChange,
-  onPartyMapBackgroundOpacityChange,
-  onPartyMapTierBackgroundsChange,
-  onPartyMapCustomTiersChange,
-  partyMapMarkers,
-  onPartyMapMarkersChange,
   autoSyncCallbacks,
 }: PromptDrawerProviderProps) {
   const [infinityOpen, setInfinityOpen] = useState(false);
@@ -777,16 +755,6 @@ export function PromptDrawerProvider({
               characterName={character.name}
               onShowChat={onOpenPartyChat ? () => { setPartyDMOpen(false); onOpenPartyChat(); } : undefined}
               autoSyncCallbacks={autoSyncCallbacks}
-              partyMapBackgroundUrl={partyMapBackgroundUrl}
-              partyMapBackgroundOpacity={partyMapBackgroundOpacity}
-              partyMapTierBackgrounds={partyMapTierBackgrounds}
-              partyMapCustomTiers={partyMapCustomTiers}
-              onPartyMapBackgroundChange={onPartyMapBackgroundChange}
-              onPartyMapBackgroundOpacityChange={onPartyMapBackgroundOpacityChange}
-              onPartyMapTierBackgroundsChange={onPartyMapTierBackgroundsChange}
-              onPartyMapCustomTiersChange={onPartyMapCustomTiersChange}
-              partyMapMarkers={partyMapMarkers}
-              onPartyMapMarkersChange={onPartyMapMarkersChange}
             />
           )}
         </>

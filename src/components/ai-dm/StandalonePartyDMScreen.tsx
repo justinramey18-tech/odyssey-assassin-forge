@@ -34,17 +34,6 @@ interface StandalonePartyDMScreenProps {
     getCurrentHP: () => number;
     getCurrentGold: () => number;
   };
-  // Party map sync props
-  partyMapBackgroundUrl?: string;
-  partyMapBackgroundOpacity?: number;
-  partyMapTierBackgrounds?: { tierId: string; imageUrl: string }[];
-  partyMapCustomTiers?: { id: string; distancePerSquare: number; distanceUnit: string }[];
-  onPartyMapBackgroundChange?: (url: string | undefined) => Promise<void>;
-  onPartyMapBackgroundOpacityChange?: (opacity: number) => Promise<void>;
-  onPartyMapTierBackgroundsChange?: (tierBackgrounds: { tierId: string; imageUrl: string }[]) => Promise<void>;
-  onPartyMapCustomTiersChange?: (customTiers: { id: string; distancePerSquare: number; distanceUnit: string }[]) => Promise<void>;
-  partyMapMarkers?: MapMarker[];
-  onPartyMapMarkersChange?: (markers: MapMarker[]) => Promise<void>;
 }
 
 export function StandalonePartyDMScreen({
@@ -57,16 +46,6 @@ export function StandalonePartyDMScreen({
   characterName,
   onShowChat,
   autoSyncCallbacks,
-  partyMapBackgroundUrl,
-  partyMapBackgroundOpacity,
-  partyMapTierBackgrounds,
-  partyMapCustomTiers,
-  onPartyMapBackgroundChange,
-  onPartyMapBackgroundOpacityChange,
-  onPartyMapTierBackgroundsChange,
-  onPartyMapCustomTiersChange,
-  partyMapMarkers,
-  onPartyMapMarkersChange,
 }: StandalonePartyDMScreenProps) {
   const [showGuides, setShowGuides] = useState(false);
   const [showSaves, setShowSaves] = useState(false);
@@ -170,17 +149,6 @@ export function StandalonePartyDMScreen({
       onMarkersChange={handleMarkersChange}
       onGridSizeChange={handleGridSizeChange}
       onClose={handleCloseBattleMap}
-      isHost={isPartyCreator}
-      partyBackgroundUrl={partyMapBackgroundUrl}
-      partyBackgroundOpacity={partyMapBackgroundOpacity}
-      partyTierBackgrounds={partyMapTierBackgrounds}
-      partyCustomTiers={partyMapCustomTiers}
-      onPartyBackgroundChange={onPartyMapBackgroundChange}
-      onPartyBackgroundOpacityChange={onPartyMapBackgroundOpacityChange}
-      onPartyTierBackgroundsChange={onPartyMapTierBackgroundsChange}
-      onPartyCustomTiersChange={onPartyMapCustomTiersChange}
-      partyMarkers={partyMapMarkers}
-      onPartyMarkersChange={onPartyMapMarkersChange}
     />
   );
 
