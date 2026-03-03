@@ -554,7 +554,7 @@ export function SettingsContent({
   // ─── APP & SYSTEM ───
   if (activeTab === 'appSystem') {
     return (
-      <div className="flex-1 overflow-y-auto max-h-[70vh]">
+      <div className="flex-1">
         <div className="space-y-3 pb-6">
           {appMode && onAppModeChange && onCustomOverride && onResetCustomizations && isFeatureVisibleProp && (
             <SettingsSection title="App Configuration">
@@ -651,7 +651,7 @@ export function SettingsContent({
   // ─── DEV TOOLS ───
   if (activeTab === 'devTools') {
     return (
-      <div className="flex-1 max-h-[70vh] overscroll-contain">
+      <div className="flex-1">
         <DevToolsPanel />
       </div>
     );

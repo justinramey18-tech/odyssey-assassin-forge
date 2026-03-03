@@ -238,8 +238,12 @@ export function SettingsModal({
             )}
           </DrawerHeader>
 
-          <div className="flex-1 overflow-x-hidden overflow-y-auto">
-            <div className="p-4 w-full max-w-full [&>div]:max-h-none">
+          <div
+            className="flex-1 overflow-y-scroll overflow-x-hidden overscroll-contain"
+            style={{ WebkitOverflowScrolling: 'touch' }}
+            data-vaul-no-drag
+          >
+            <div className="p-4 w-full max-w-full">
               {showContent ? (
                 <SettingsContent
                   activeTab={activeTab}
