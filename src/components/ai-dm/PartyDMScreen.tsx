@@ -148,7 +148,7 @@ function AfkAnnotatedContent({ content, afkNames }: { content: string; afkNames?
   );
 }
 
-function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, showTeamTag, allMessages }: {
+function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, showTeamTag, allMessages, ttsSelectMode, ttsSelected, onTtsToggle }: {
   message: PartyDmMessage;
   currentUserId?: string;
   members: Array<{ user_id: string; character_name: string }>;
@@ -160,6 +160,9 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
   onRegenerate?: (messageId: string) => void;
   showTeamTag?: boolean;
   allMessages?: PartyDmMessage[];
+  ttsSelectMode?: boolean;
+  ttsSelected?: boolean;
+  onTtsToggle?: (id: string) => void;
 }) {
   const [showActions, setShowActions] = useState(false);
   const [isEditingMsg, setIsEditingMsg] = useState(false);
@@ -217,6 +220,23 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
     return (
       <>
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-1.5 justify-start group/msg relative min-w-0">
+          {/* TTS Select Checkbox */}
+          {ttsSelectMode && (
+            <button
+              onClick={() => onTtsToggle?.(message.id)}
+              className="flex items-center justify-center w-6 h-6 shrink-0 self-center"
+              style={{ touchAction: 'manipulation' }}
+            >
+              <div className={cn(
+                "w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
+                ttsSelected
+                  ? "bg-amber-500 border-amber-400"
+                  : "border-white/30 hover:border-amber-400/60"
+              )}>
+                {ttsSelected && <Check className="w-3.5 h-3.5 text-black" />}
+              </div>
+            </button>
+          )}
           <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-amber-900/60 border border-amber-500/40">
             <Crown className="w-3.5 h-3.5 text-amber-400" />
           </div>
@@ -489,6 +509,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
   const [, setTick] = useState(0);
   const narrator = useNarrator();
   const spotify = useSpotify();
+  const [ttsSelectMode, setTtsSelectMode] = useState(false);
+  const [ttsSelectedIds, setTtsSelectedIds] = useState<Set<string>>(new Set());
   const lastProcessedMsgIdRef = useRef<string | null>(null);
 
   // Auto-mood for party DM: detect new assistant messages and trigger mood detection
@@ -984,6 +1006,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
                   onRegenerate={handleRegenerateMessage}
                   showTeamTag={isCreator && partyDm.isSplitActive}
                   allMessages={partyDm.messages}
+                  ttsSelectMode={ttsSelectMode}
+                  ttsSelected={ttsSelectedIds.has(msg.id)}
+                  onTtsToggle={(id) => setTtsSelectedIds(prev => {
+                    const next = new Set(prev);
+                    if (next.has(id)) next.delete(id); else next.add(id);
+                    return next;
+                  })}
                 />
               ))}
             </AnimatePresence>
@@ -998,6 +1027,46 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
               <span className="text-sm text-amber-400/60 italic">The DM weaves the tale...</span>
             </motion.div>
           )}
+          {/* TTS Select Floating Bar */}
+          <AnimatePresence>
+            {ttsSelectMode && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                className="sticky bottom-0 z-10 flex items-center justify-center gap-3 px-4 py-2.5 bg-black/80 backdrop-blur-md border-t border-amber-500/30"
+              >
+                <button
+                  onClick={() => { setTtsSelectMode(false); setTtsSelectedIds(new Set()); }}
+                  className="px-3 py-1.5 rounded-lg text-xs text-white/60 hover:bg-white/10 transition-colors border border-white/10"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    const selected = partyDm.messages.filter(m => ttsSelectedIds.has(m.id)).map(m => m.content);
+                    if (selected.length > 0) {
+                      narrator.playMessage(selected.join('\n\n'));
+                    }
+                    setTtsSelectMode(false);
+                    setTtsSelectedIds(new Set());
+                  }}
+                  disabled={ttsSelectedIds.size === 0}
+                  className={cn(
+                    "px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-1.5",
+                    ttsSelectedIds.size > 0
+                      ? "bg-amber-600 hover:bg-amber-500 text-black"
+                      : "bg-white/10 text-white/30"
+                  )}
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <Volume2 className="w-4 h-4" />
+                  Narrate {ttsSelectedIds.size > 0 ? `(${ttsSelectedIds.size})` : ''}
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       )}
         {/* Chat FAB - bottom-left of chat area */}
@@ -1432,20 +1501,20 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
                       onClick={() => {
                         if (narrator.isPlaying) {
                           narrator.stop();
-                        } else {
-                          const lastAssistant = [...partyDm.messages].reverse().find(m => m.role === 'assistant');
-                          if (lastAssistant) narrator.playMessage(lastAssistant.content);
+                        } else if (!narrator.isLoading) {
+                          setTtsSelectMode(prev => !prev);
+                          if (ttsSelectMode) setTtsSelectedIds(new Set());
                         }
                       }}
                       disabled={narrator.isLoading}
                       className={cn(
                         "p-2 rounded-xl border shrink-0 transition-colors",
-                        narrator.isPlaying
+                        narrator.isPlaying || ttsSelectMode
                           ? "bg-amber-900/40 border-amber-500/30 hover:bg-amber-900/60"
                           : "bg-white/5 border-white/10 hover:border-amber-500/30 hover:bg-amber-900/20"
                       )}
                       style={{ touchAction: 'manipulation' }}
-                      title={narrator.isPlaying ? "Stop narration" : "Narrate last message"}
+                      title={narrator.isPlaying ? "Stop narration" : ttsSelectMode ? "Cancel selection" : "Select messages to narrate"}
                     >
                       {narrator.isLoading ? (
                         <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
@@ -1523,20 +1592,20 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
                   onClick={() => {
                     if (narrator.isPlaying) {
                       narrator.stop();
-                    } else {
-                      const lastAssistant = [...partyDm.messages].reverse().find(m => m.role === 'assistant');
-                      if (lastAssistant) narrator.playMessage(lastAssistant.content);
+                    } else if (!narrator.isLoading) {
+                      setTtsSelectMode(prev => !prev);
+                      if (ttsSelectMode) setTtsSelectedIds(new Set());
                     }
                   }}
                   disabled={narrator.isLoading}
                   className={cn(
                     "p-2 rounded-xl border shrink-0 transition-colors",
-                    narrator.isPlaying
+                    narrator.isPlaying || ttsSelectMode
                       ? "bg-amber-900/40 border-amber-500/30 hover:bg-amber-900/60"
                       : "bg-white/5 border-white/10 hover:border-amber-500/30 hover:bg-amber-900/20"
                   )}
                   style={{ touchAction: 'manipulation' }}
-                  title={narrator.isPlaying ? "Stop narration" : "Narrate last message"}
+                  title={narrator.isPlaying ? "Stop narration" : ttsSelectMode ? "Cancel selection" : "Select messages to narrate"}
                 >
                   {narrator.isLoading ? (
                     <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
