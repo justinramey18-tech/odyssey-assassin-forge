@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.detect-sfx-prompt]
 verify_jwt = false
+
+[functions.speechify-voices]
+verify_jwt = false

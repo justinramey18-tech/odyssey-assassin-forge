@@ -254,3 +254,42 @@ export function saveSpeechifyVoiceId(voiceId: string): void {
     // ignore
   }
 }
+
+// ── Speechify voice cache ───────────────────────────────────────────────────
+const SPEECHIFY_VOICE_CACHE_KEY = 'dnd-speechify-voices-cache';
+const SPEECHIFY_VOICE_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+export interface CachedSpeechifyVoice {
+  id: string;
+  name: string;
+  type: string; // "cloned" | "default" | etc.
+}
+
+interface SpeechifyVoiceCacheData {
+  voices: CachedSpeechifyVoice[];
+  timestamp: number;
+}
+
+export function getCachedSpeechifyVoices(): CachedSpeechifyVoice[] | null {
+  try {
+    const raw = localStorage.getItem(SPEECHIFY_VOICE_CACHE_KEY);
+    if (!raw) return null;
+    const data: SpeechifyVoiceCacheData = JSON.parse(raw);
+    if (Date.now() - data.timestamp > SPEECHIFY_VOICE_CACHE_TTL) {
+      localStorage.removeItem(SPEECHIFY_VOICE_CACHE_KEY);
+      return null;
+    }
+    return data.voices;
+  } catch {
+    return null;
+  }
+}
+
+export function setCachedSpeechifyVoices(voices: CachedSpeechifyVoice[]): void {
+  try {
+    const data: SpeechifyVoiceCacheData = { voices, timestamp: Date.now() };
+    localStorage.setItem(SPEECHIFY_VOICE_CACHE_KEY, JSON.stringify(data));
+  } catch {
+    // ignore
+  }
+}

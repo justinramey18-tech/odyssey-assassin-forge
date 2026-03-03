@@ -5,7 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
 import { loadApiKey, saveApiKey, clearApiKey, hasApiKey, maskKey } from '@/lib/api-keys';
-import { loadNarrationSpeed, saveNarrationSpeed, loadTTSProvider, saveTTSProvider, loadSpeechifyVoiceId, saveSpeechifyVoiceId, type TTSProvider } from '@/lib/tts-utils';
+import { loadNarrationSpeed, saveNarrationSpeed, loadTTSProvider, saveTTSProvider, loadSpeechifyVoiceId, saveSpeechifyVoiceId, getCachedSpeechifyVoices, setCachedSpeechifyVoices, type TTSProvider, type CachedSpeechifyVoice } from '@/lib/tts-utils';
+import { loadApiKey as loadKey } from '@/lib/api-keys';
+import { supabase } from '@/integrations/supabase/client';
+import { RefreshCw } from 'lucide-react';
 import { ElevenLabsVoicePicker } from './ElevenLabsVoicePicker';
 import { VoiceTuningWidget } from './VoiceTuningWidget';
 import { SoundEffectsWidget } from './SoundEffectsWidget';
@@ -174,6 +177,8 @@ function TTSProviderSelector({ onProviderChange }: { onProviderChange?: (p: TTSP
 
 function SpeechifyVoicePicker() {
   const [selected, setSelected] = useState(() => loadSpeechifyVoiceId());
+  const [fetchedVoices, setFetchedVoices] = useState<CachedSpeechifyVoice[]>(() => getCachedSpeechifyVoices() ?? []);
+  const [fetching, setFetching] = useState(false);
 
   const handleSelect = useCallback((id: string) => {
     setSelected(id);
@@ -181,33 +186,116 @@ function SpeechifyVoicePicker() {
     toast.success('Speechify voice updated');
   }, []);
 
+  const handleFetchVoices = useCallback(async () => {
+    const key = loadKey('speechify');
+    if (!key) { toast.error('Add your Speechify API key first'); return; }
+    setFetching(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('speechify-voices', {
+        body: { user_api_key: key },
+      });
+      if (error) throw error;
+      const voices: CachedSpeechifyVoice[] = data?.voices ?? [];
+      setCachedSpeechifyVoices(voices);
+      setFetchedVoices(voices);
+      toast.success(`Loaded ${voices.length} voice(s) from Speechify`);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Failed to fetch Speechify voices');
+    } finally {
+      setFetching(false);
+    }
+  }, []);
+
+  const clonedVoices = fetchedVoices.filter(v => v.type === 'cloned' || v.type === 'personal');
+  const otherFetched = fetchedVoices.filter(v => v.type !== 'cloned' && v.type !== 'personal');
+
   return (
-    <div className="space-y-2">
-      <p className="text-[11px] text-muted-foreground leading-relaxed">
-        Select a Speechify narrator voice. You can also use custom voice IDs from your Speechify account.
-      </p>
-      <div className="grid grid-cols-2 gap-1.5">
-        {SPEECHIFY_VOICES.map((v) => (
-          <button
-            key={v.id}
-            onClick={() => handleSelect(v.id)}
-            className={`p-2 rounded-md border text-left transition-colors ${
-              selected === v.id
-                ? 'border-primary/50 bg-primary/10'
-                : 'border-border/30 bg-muted/10 hover:border-border/50'
-            }`}
-          >
-            <p className="text-xs font-medium text-foreground">{v.name}</p>
-            <p className="text-[10px] text-muted-foreground">{v.description}</p>
-          </button>
-        ))}
+    <div className="space-y-3">
+      {/* Fetch button */}
+      <Button size="sm" variant="outline" className="w-full gap-1.5" onClick={handleFetchVoices} disabled={fetching}>
+        <RefreshCw className={`w-3 h-3 ${fetching ? 'animate-spin' : ''}`} />
+        {fetching ? 'Loading…' : 'Fetch My Voices'}
+      </Button>
+
+      {/* Cloned / personal voices */}
+      {clonedVoices.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-[10px] font-medium text-primary uppercase tracking-wider">Your Cloned Voices</p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {clonedVoices.map((v) => (
+              <button
+                key={v.id}
+                onClick={() => handleSelect(v.id)}
+                className={`p-2 rounded-md border text-left transition-colors ${
+                  selected === v.id
+                    ? 'border-primary/50 bg-primary/10'
+                    : 'border-border/30 bg-muted/10 hover:border-border/50'
+                }`}
+              >
+                <p className="text-xs font-medium text-foreground truncate">{v.name}</p>
+                <p className="text-[10px] text-muted-foreground">Cloned</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Other fetched voices */}
+      {otherFetched.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Speechify Library</p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {otherFetched.map((v) => (
+              <button
+                key={v.id}
+                onClick={() => handleSelect(v.id)}
+                className={`p-2 rounded-md border text-left transition-colors ${
+                  selected === v.id
+                    ? 'border-primary/50 bg-primary/10'
+                    : 'border-border/30 bg-muted/10 hover:border-border/50'
+                }`}
+              >
+                <p className="text-xs font-medium text-foreground truncate">{v.name}</p>
+                <p className="text-[10px] text-muted-foreground capitalize">{v.type}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Default presets */}
+      <div className="space-y-1.5">
+        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Default Presets</p>
+        <div className="grid grid-cols-2 gap-1.5">
+          {SPEECHIFY_VOICES.map((v) => (
+            <button
+              key={v.id}
+              onClick={() => handleSelect(v.id)}
+              className={`p-2 rounded-md border text-left transition-colors ${
+                selected === v.id
+                  ? 'border-primary/50 bg-primary/10'
+                  : 'border-border/30 bg-muted/10 hover:border-border/50'
+              }`}
+            >
+              <p className="text-xs font-medium text-foreground">{v.name}</p>
+              <p className="text-[10px] text-muted-foreground">{v.description}</p>
+            </button>
+          ))}
+        </div>
       </div>
+
+      {/* Manual fallback */}
       <div className="pt-1">
         <label className="text-[10px] text-muted-foreground">Custom Voice ID</label>
         <Input
           placeholder="Enter Speechify voice ID..."
           className="h-7 text-xs font-mono mt-1"
-          defaultValue={!SPEECHIFY_VOICES.some(v => v.id === selected) ? selected : ''}
+          defaultValue={
+            !SPEECHIFY_VOICES.some(v => v.id === selected) && !fetchedVoices.some(v => v.id === selected)
+              ? selected
+              : ''
+          }
           onBlur={(e) => {
             const val = e.target.value.trim();
             if (val) handleSelect(val);
