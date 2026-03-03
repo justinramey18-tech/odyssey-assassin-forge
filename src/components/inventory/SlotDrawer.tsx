@@ -86,6 +86,7 @@ ${item.setName ? `\n### Set\nPart of the **${item.setName}** set.` : ''}
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="left"
+        onInteractOutside={(e) => e.preventDefault()}
         onOpenAutoFocus={(e) => e.preventDefault()}
         className={cn(
           'w-[85vw] max-w-[320px] p-0',
