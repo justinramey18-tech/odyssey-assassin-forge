@@ -1336,7 +1336,10 @@ export function usePartySync(): UsePartySyncReturn {
   // --- New feature functions ---
 
   const sendMessage = useCallback(async (message: string, senderName: string, options?: { replyToId?: string; imageUrl?: string }) => {
-    if (!user || !party.partyId) return;
+    if (!user || !party.partyId) {
+      toast.error('Not connected to party');
+      return;
+    }
 
     const insertData: Record<string, unknown> = {
       party_id: party.partyId,
@@ -1347,7 +1350,12 @@ export function usePartySync(): UsePartySyncReturn {
     if (options?.replyToId) insertData.reply_to_id = options.replyToId;
     if (options?.imageUrl) insertData.image_url = options.imageUrl;
 
-    await (supabase.from('party_messages') as any).insert(insertData);
+    const { error } = await (supabase.from('party_messages') as any).insert(insertData);
+    if (error) {
+      console.error('Failed to send party message:', error);
+      toast.error('Failed to send message');
+      throw error;
+    }
   }, [user, party.partyId]);
 
   const editMessage = useCallback(async (messageId: string, newText: string) => {
