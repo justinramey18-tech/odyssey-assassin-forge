@@ -6,7 +6,6 @@ import { Achievement } from '@/lib/achievements';
 import type { ViewMode } from './InventoryScreen';
 import type { EquipmentImages } from '@/hooks/use-equipment-images';
 import { getIconByName } from '@/lib/iconUtils';
-import { SlotDrawer } from './SlotDrawer';
 import { ImagePlus } from 'lucide-react';
 
 interface SlotThumbnailProps {
@@ -87,25 +86,15 @@ export function EquipmentList({
   onImageUpload,
   onImageClear,
 }: EquipmentListProps) {
-  const [openSlot, setOpenSlot] = useState<EquipmentSlotType | null>(null);
-
   const armorSlots = equipmentSlotDefinitions.filter(s => s.category === 'armor');
   const weaponSlots = equipmentSlotDefinitions.filter(s => s.category === 'weapons');
   const accessorySlots = equipmentSlotDefinitions.filter(s => s.category === 'accessories');
-
-  const handleTabClick = useCallback((slotType: EquipmentSlotType) => {
-    setOpenSlot(slotType);
-  }, []);
-
-  const handleDrawerClose = useCallback(() => {
-    setOpenSlot(null);
-  }, []);
 
   const renderTab = (slot: typeof equipmentSlotDefinitions[0]) => {
     const item = equipment.slots[slot.type];
     const rarity = item ? rarityConfig[item.rarity] : null;
     const IconComponent = getIconByName(slot.icon);
-    const isActive = openSlot === slot.type;
+    const isActive = false;
 
     // Rarity dot color
     const dotColor = rarity
@@ -115,7 +104,7 @@ export function EquipmentList({
     return (
       <button
         key={slot.type}
-        onClick={() => handleTabClick(slot.type)}
+        onClick={() => onSlotTap(slot.type)}
         onMouseEnter={() => onSlotHover?.(slot.type)}
         onMouseLeave={() => onSlotHover?.(null)}
         className={cn(
@@ -163,14 +152,6 @@ export function EquipmentList({
     </div>
   );
 
-  // Active slot drawer
-  const activeSlotDef = openSlot
-    ? equipmentSlotDefinitions.find(s => s.type === openSlot)
-    : null;
-  const activeItem = openSlot ? equipment.slots[openSlot] : null;
-  const activeLocked = activeItem && isItemLocked ? isItemLocked(activeItem) : false;
-  const activeLockInfo = activeItem && getItemLockInfo ? getItemLockInfo(activeItem) : undefined;
-
   return (
     <div className="pb-2 space-y-1">
       {/* Armor Tabs */}
@@ -199,29 +180,6 @@ export function EquipmentList({
 
       {/* Accessory Tabs */}
       {renderCategoryTabs(accessorySlots)}
-
-      {/* Slot Drawer */}
-      {activeSlotDef && openSlot && (
-        <SlotDrawer
-          open={!!openSlot}
-          onOpenChange={(open) => { if (!open) handleDrawerClose(); }}
-          slotType={openSlot}
-          label={activeSlotDef.label}
-          icon={activeSlotDef.icon}
-          item={activeItem}
-          isLocked={activeLocked}
-          lockInfo={activeLockInfo}
-          onTap={() => { handleDrawerClose(); onSlotTap(openSlot); }}
-          onLongPress={() => onSlotLongPress(openSlot)}
-          onUnequip={() => { handleDrawerClose(); onUnequip(openSlot); }}
-          onSwap={() => { handleDrawerClose(); onSwap(openSlot); }}
-          onInfoTap={() => onInfoTap(openSlot, activeItem)}
-          viewMode={viewMode}
-          customImage={equipmentImages?.[openSlot]}
-          onImageUpload={(file) => onImageUpload?.(openSlot, file)}
-          onImageClear={() => onImageClear?.(openSlot)}
-        />
-      )}
     </div>
   );
 }

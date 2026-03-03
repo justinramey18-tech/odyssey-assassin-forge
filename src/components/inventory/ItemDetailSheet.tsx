@@ -1,20 +1,24 @@
-import { X, Share2, Star, Sparkles, Shield, Sword, Scale, Coins, ChevronDown, Lock, TrendingUp } from 'lucide-react';
+import { X, Share2, Star, Sparkles, Shield, Sword, Scale, Coins, ChevronDown, Lock, TrendingUp, ImagePlus, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { EquipmentItem, rarityConfig, setDefinitions, EquipmentSlotType, CharacterEquipment } from '@/lib/inventory/index';
+import { EquipmentItem, rarityConfig, setDefinitions, EquipmentSlotType, CharacterEquipment, equipmentSlotDefinitions } from '@/lib/inventory/index';
 import { getIconByName } from '@/lib/iconUtils';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { itemPrerequisites, achievementCategories, getAchievementProgress } from '@/lib/achievements';
+import { applyTimePrefix } from '@/lib/fourthWallTime';
+import { toast } from 'sonner';
 
 interface ItemDetailSheetProps {
   item: EquipmentItem | null;
   slotType: EquipmentSlotType | null;
   equipment: CharacterEquipment;
   customImage?: string | null;
+  onImageUpload?: (file: File) => void;
+  onImageClear?: () => void;
   isOpen: boolean;
   onClose: () => void;
   onUnequip: () => void;
@@ -26,11 +30,14 @@ export function ItemDetailSheet({
   slotType,
   equipment,
   customImage,
+  onImageUpload,
+  onImageClear,
   isOpen,
   onClose,
   onUnequip,
   onCompare,
 }: ItemDetailSheetProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [enchantmentsOpen, setEnchantmentsOpen] = useState(true);
   const [setBonusOpen, setSetBonusOpen] = useState(true);
   const [prerequisiteOpen, setPrerequisiteOpen] = useState(true);
@@ -84,19 +91,38 @@ export function ItemDetailSheet({
 
             {/* Item Header */}
             <div className="flex flex-col items-center text-center mb-6">
-              <div className={cn(
-                "w-20 h-20 rounded-xl flex items-center justify-center border-2 mb-4",
-                item.rarity === 'legendary' && "border-amber-400 bg-amber-400/10 shadow-[0_0_20px_rgba(251,191,36,0.3)]",
-                item.rarity === 'epic' && "border-purple-400 bg-purple-400/10",
-                item.rarity === 'rare' && "border-blue-400 bg-blue-400/10",
-                item.rarity === 'uncommon' && "border-green-400 bg-green-400/10",
-                item.rarity === 'common' && "border-border bg-muted",
-              )}>
+              <div
+                className={cn(
+                  "relative w-20 h-20 rounded-xl flex items-center justify-center border-2 mb-4 cursor-pointer overflow-hidden",
+                  item.rarity === 'legendary' && "border-amber-400 bg-amber-400/10 shadow-[0_0_20px_rgba(251,191,36,0.3)]",
+                  item.rarity === 'epic' && "border-purple-400 bg-purple-400/10",
+                  item.rarity === 'rare' && "border-blue-400 bg-blue-400/10",
+                  item.rarity === 'uncommon' && "border-green-400 bg-green-400/10",
+                  item.rarity === 'common' && "border-border bg-muted",
+                )}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      onImageUpload?.(file);
+                      e.target.value = '';
+                    }
+                  }}
+                />
                 {customImage ? (
                   <img src={customImage} alt={item.name} className="w-full h-full object-cover rounded-xl" />
                 ) : (
                   <ItemIcon className={cn("w-10 h-10", rarity.color)} />
                 )}
+                <div className="absolute bottom-0.5 right-0.5 bg-background/70 rounded p-0.5">
+                  <ImagePlus className="w-3 h-3 text-muted-foreground" />
+                </div>
               </div>
               
               <h2 className={cn("text-xl font-bold mb-1", rarity.color)}>
@@ -108,6 +134,42 @@ export function ItemDetailSheet({
                 {rarity.stars > 0 && <span className="ml-1 text-sm">{rarity.label}</span>}
                 {rarity.stars === 0 && <span className="text-sm">{rarity.label}</span>}
               </div>
+
+              {/* Copy AI Prompt */}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground gap-1.5"
+                onClick={() => {
+                  const slotLabel = slotType
+                    ? equipmentSlotDefinitions.find(s => s.type === slotType)?.label || slotType
+                    : '';
+                  const statsLines = Object.entries(item.stats)
+                    .filter(([_, v]) => v !== undefined)
+                    .map(([k, v]) => `- **${k}:** ${v}`)
+                    .join('\n');
+                  const rawPrompt = `## Gear: ${item.name}
+
+**Slot:** ${slotLabel}
+**Rarity:** ${rarity.label}
+**Level:** ${item.level}
+${statsLines ? `\n### Stats\n${statsLines}` : ''}
+${item.properties?.length ? `\n### Properties\n${item.properties.join(', ')}` : ''}
+${item.enchantments?.length ? `\n### Enchantments\n${item.enchantments.map(e => `- **${e.name}:** ${e.description}`).join('\n')}` : ''}
+${item.description ? `\n### Description\n${item.description}` : ''}
+${item.setName ? `\n### Set\nPart of the **${item.setName}** set.` : ''}
+
+---
+
+*Describe how this gear looks and feels on the character, and how it might influence the current scene.*`;
+                  const prompt = applyTimePrefix(rawPrompt);
+                  navigator.clipboard.writeText(prompt);
+                  toast.success('Gear prompt copied');
+                }}
+              >
+                <Copy className="w-3 h-3" />
+                Copy AI Prompt
+              </Button>
             </div>
 
             <Separator className="mb-4" />
