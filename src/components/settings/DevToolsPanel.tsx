@@ -67,10 +67,51 @@ src/components/geralt/GeraltSubheader.tsx       — Geralt HP sub-header`,
   {
     title: 'Party System',
     description: 'Multiplayer features — party chat, shared battle maps, and group voting.',
-    content: `src/components/party/PartyPanel.tsx      — Party management panel
-src/components/party/PartyChat.tsx       — Party chat
-src/components/party/PartyBattleMap.tsx   — Battle map
-src/components/party/PartyVote.tsx        — Party voting system`,
+    content: `src/components/party/PartyPanel.tsx          — Party management panel
+src/components/party/PartyChat.tsx           — Party text chat (OOC messaging)
+src/components/party/FullscreenPartyChat.tsx — Full-screen chat overlay
+src/components/party/PartyBattleMap.tsx      — Shared battle map viewer
+src/components/party/PartyVote.tsx           — Party voting system
+src/components/party/PartyMemberCard.tsx     — Player card with HP, class, status
+src/components/party/PartyLootQueue.tsx      — Shared loot claim queue
+src/components/party/PartyCombatLog.tsx      — Shared combat log feed
+src/components/party/PartyRollFeed.tsx       — Live dice roll feed
+src/components/party/PartyPingBar.tsx        — Player ping notifications
+src/components/party/PartyFocusTargetBanner.tsx — Focus target banner
+src/components/party/SendItemScreen.tsx      — Send item to another player
+src/components/party/IncomingTradeNotification.tsx — Incoming trade popup
+src/components/party/IncomingHealNotification.tsx  — Incoming heal popup
+src/components/party/HealTargetPicker.tsx    — Pick a party member to heal
+src/components/party/CreatePartyDialog.tsx   — Create a new party dialog
+src/components/party/JoinPartyDialog.tsx     — Join existing party dialog`,
+  },
+  {
+    title: 'Party DM (Multiplayer AI Sessions)',
+    description: 'Everything that powers the multiplayer AI Dungeon Master — the shared chat, round queue, settings panel, split-party mode, and AFK auto-pilot.',
+    content: `src/components/ai-dm/PartyDMScreen.tsx        — Main party DM chat screen (message rendering, AFK badges, round generation)
+src/components/ai-dm/StandalonePartyDMScreen.tsx — Standalone wrapper that loads party DM outside the main app shell
+src/components/ai-dm/PartyDMSettings.tsx      — Settings drawer (share mode, auto-sync, push, timer, tools, party management)
+src/components/ai-dm/PartyDMQuickActions.tsx   — Quick-action buttons below the party DM input
+src/components/ai-dm/DMBottomNav.tsx           — Bottom navigation bar for DM screens
+src/components/ai-dm/DMToolsDrawer.tsx         — Solo DM tools drawer (also used for model selector, guides, world state)
+src/components/ai-dm/DMDiceRoller.tsx           — Dice roller panel inside the DM screen
+src/components/ai-dm/RoundTimer.tsx             — Configurable round timer with countdown display
+src/components/ai-dm/PartySplitUI.tsx           — Split-party mode UI (team assignment, regroup, summaries)
+src/components/ai-dm/PartyCampaignSaves.tsx     — Campaign save/load for party sessions
+src/components/ai-dm/AfkPersonalityGuide.tsx    — AFK personality guide editor (set how AI plays your character)
+src/components/ai-dm/WhisperTray.tsx            — Whisper message tray for private DM messages
+src/components/ai-dm/OracleWhisperFeed.tsx      — Oracle whisper feed overlay
+src/components/ai-dm/InlineBattleMap.tsx         — Inline battle map embedded in DM chat
+src/components/ai-dm/NarrationSpeedPopover.tsx   — Narration speed control popover
+src/components/ai-dm/AutoSyncBanner.tsx          — Banner shown when auto-sync is extracting changes
+src/components/ai-dm/InfinityStoneDMDrawer.tsx   — Infinity Stone stat reference in DM context
+
+src/hooks/use-party-dm.ts                     — Core party DM hook (round queue, prompt submission, generation trigger)
+src/hooks/use-party-sync.ts                   — Realtime sync for party state (members, prompts, messages)
+
+src/lib/rpPromptGenerator.ts                  — Builds the system prompt sent to the AI for DM sessions
+src/lib/gmGuidePrompts.ts                     — Injects GM Guide content into AI prompts
+src/lib/dm-models.ts                          — AI model list and selection config`,
   },
   {
     title: 'Drawers & Overlays',
