@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 
 const SFX_ENABLED_KEY = 'dnd-elevenlabs-sfx-enabled';
 const SFX_STYLE_KEY = 'dnd-elevenlabs-sfx-style';
+const CONTEXT_SFX_ENABLED_KEY = 'dnd-elevenlabs-context-sfx-enabled';
 const DEFAULT_SFX_STYLE = 'dark fantasy dungeon ambiance';
 
 function loadSfxEnabled(): boolean {
@@ -31,6 +32,20 @@ export function isSfxEnabled(): boolean {
   return loadSfxEnabled();
 }
 
+function loadContextSfxEnabled(): boolean {
+  try {
+    return localStorage.getItem(CONTEXT_SFX_ENABLED_KEY) === 'true';
+  } catch { return false; }
+}
+
+function saveContextSfxEnabled(enabled: boolean): void {
+  try { localStorage.setItem(CONTEXT_SFX_ENABLED_KEY, String(enabled)); } catch {}
+}
+
+export function isContextSfxEnabled(): boolean {
+  return loadContextSfxEnabled();
+}
+
 const STYLE_PRESETS = [
   'dark fantasy dungeon ambiance',
   'tavern with crackling fireplace',
@@ -42,12 +57,19 @@ const STYLE_PRESETS = [
 
 export function SoundEffectsWidget() {
   const [enabled, setEnabled] = useState(() => loadSfxEnabled());
+  const [contextEnabled, setContextEnabled] = useState(() => loadContextSfxEnabled());
   const [style, setStyle] = useState(() => loadSfxStyle());
 
   const handleToggle = useCallback((checked: boolean) => {
     setEnabled(checked);
     saveSfxEnabled(checked);
     toast.success(checked ? 'Ambient SFX enabled' : 'Ambient SFX disabled');
+  }, []);
+
+  const handleContextToggle = useCallback((checked: boolean) => {
+    setContextEnabled(checked);
+    saveContextSfxEnabled(checked);
+    toast.success(checked ? 'Context-aware SFX enabled' : 'Context-aware SFX disabled');
   }, []);
 
   const handleStyleChange = useCallback((value: string) => {
@@ -78,20 +100,31 @@ export function SoundEffectsWidget() {
 
       {enabled && (
         <>
-          {/* Custom Style Prompt */}
+          {/* Context-Aware Toggle */}
+          <div className="flex items-center justify-between p-3 rounded-lg border border-primary/20 bg-primary/5">
+            <div>
+              <p className="text-xs font-medium text-foreground">Context-Aware SFX</p>
+              <p className="text-[10px] text-muted-foreground">AI analyzes narrative to generate scene-appropriate sounds</p>
+            </div>
+            <Switch checked={contextEnabled} onCheckedChange={handleContextToggle} />
+          </div>
+
+          {/* Custom Style Prompt — fallback when context-aware is off */}
           <div className="space-y-2">
             <label className="text-xs font-medium text-muted-foreground">
-              SFX Style Prompt
+              {contextEnabled ? 'Fallback SFX Style' : 'SFX Style Prompt'}
             </label>
+            {contextEnabled && (
+              <p className="text-[10px] text-muted-foreground/70 italic">
+                Used only when context analysis is unavailable
+              </p>
+            )}
             <Input
               value={style}
               onChange={(e) => handleStyleChange(e.target.value)}
               placeholder="Describe the ambient sound style..."
               className="h-8 text-sm"
             />
-            <p className="text-[10px] text-muted-foreground">
-              Describe the ambient atmosphere you want generated alongside narration.
-            </p>
           </div>
 
           {/* Presets */}

@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.detect-mood]
 verify_jwt = false
+
+[functions.detect-sfx-prompt]
+verify_jwt = false

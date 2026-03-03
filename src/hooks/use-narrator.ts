@@ -6,7 +6,33 @@ import {
   loadTTSProvider, loadSpeechifyVoiceId,
 } from '@/lib/tts-utils';
 import { isSfxEnabled, loadSfxStyle } from '@/components/settings/SoundEffectsWidget';
+import { isContextSfxEnabled } from '@/components/settings/SoundEffectsWidget';
 import { toast } from 'sonner';
+
+// ── SFX Prompt LRU Cache ────────────────────────────────────────────────────
+const SFX_CACHE_MAX = 15;
+const sfxBlobCache = new Map<string, Blob>();
+
+function getCachedSfx(key: string): Blob | undefined {
+  const blob = sfxBlobCache.get(key);
+  if (blob) {
+    // Move to end (most recent)
+    sfxBlobCache.delete(key);
+    sfxBlobCache.set(key, blob);
+  }
+  return blob;
+}
+
+function setCachedSfx(key: string, blob: Blob): void {
+  if (sfxBlobCache.size >= SFX_CACHE_MAX) {
+    // Evict oldest (first key)
+    const oldest = sfxBlobCache.keys().next().value;
+    if (oldest !== undefined) sfxBlobCache.delete(oldest);
+  }
+  sfxBlobCache.set(key, blob);
+}
+
+// ── Hook ────────────────────────────────────────────────────────────────────
 
 interface UseNarratorReturn {
   isPlaying: boolean;
@@ -31,7 +57,6 @@ export function useNarrator(): UseNarratorReturn {
   const hasSpeechifyKey = !!loadApiKey('speechify');
   const hasTTSKey = hasElevenLabsKey || hasSpeechifyKey;
 
-  // Cleanup blob URL and abort in-flight requests
   const cleanupAudio = useCallback(() => {
     if (abortRef.current) {
       abortRef.current.abort();
@@ -57,21 +82,14 @@ export function useNarrator(): UseNarratorReturn {
     setIsLoading(false);
   }, []);
 
-  // Cleanup on unmount
   useEffect(() => {
-    return () => {
-      cleanupAudio();
-    };
+    return () => { cleanupAudio(); };
   }, [cleanupAudio]);
 
-  const stop = useCallback(() => {
-    cleanupAudio();
-  }, [cleanupAudio]);
+  const stop = useCallback(() => { cleanupAudio(); }, [cleanupAudio]);
 
   const playMessage = useCallback(async (rawText: string) => {
     const provider = loadTTSProvider();
-
-    // Stop any current playback
     cleanupAudio();
     setIsLoading(true);
 
@@ -84,13 +102,8 @@ export function useNarrator(): UseNarratorReturn {
 
       const audioBlobs: Blob[] = [];
 
-      // Fetch TTS and SFX in parallel
-      const sfxPromise = (provider === 'elevenlabs' && isSfxEnabled())
-        ? fetchSfxAudio(loadApiKey('elevenlabs')!, loadSfxStyle(), controller.signal).catch(err => {
-            console.warn('[Narrator] SFX fetch failed (non-blocking):', err);
-            return null;
-          })
-        : Promise.resolve(null);
+      // Build SFX promise — context-aware or static
+      const sfxPromise = buildSfxPromise(provider, rawText, controller.signal);
 
       if (provider === 'speechify') {
         await playSpeechify(chunks, audioBlobs, controller.signal);
@@ -98,7 +111,6 @@ export function useNarrator(): UseNarratorReturn {
         await playElevenLabs(chunks, audioBlobs, controller.signal);
       }
 
-      // Concatenate all audio blobs
       const finalBlob = new Blob(audioBlobs, { type: 'audio/mpeg' });
       const url = URL.createObjectURL(finalBlob);
       blobUrlRef.current = url;
@@ -106,7 +118,7 @@ export function useNarrator(): UseNarratorReturn {
       const audio = new Audio(url);
       audioRef.current = audio;
 
-      // Start SFX playback alongside narration (lower volume, looping)
+      // Start SFX playback alongside narration
       const sfxBlob = await sfxPromise;
       if (sfxBlob) {
         const sfxUrl = URL.createObjectURL(sfxBlob);
@@ -117,10 +129,7 @@ export function useNarrator(): UseNarratorReturn {
         sfxAudioRef.current = sfxAudio;
       }
 
-      audio.onended = () => {
-        cleanupAudio();
-      };
-
+      audio.onended = () => { cleanupAudio(); };
       audio.onerror = () => {
         toast.error('Audio playback failed');
         cleanupAudio();
@@ -130,7 +139,6 @@ export function useNarrator(): UseNarratorReturn {
       setIsLoading(false);
       setIsPlaying(true);
       await audio.play();
-      // Start ambient SFX after narration begins
       if (sfxAudioRef.current) {
         sfxAudioRef.current.play().catch(() => {});
       }
@@ -144,18 +152,77 @@ export function useNarrator(): UseNarratorReturn {
   return { isPlaying, isLoading, playMessage, stop, hasElevenLabsKey, hasSpeechifyKey, hasTTSKey };
 }
 
+// ── SFX builder ─────────────────────────────────────────────────────────────
+
+function buildSfxPromise(provider: string, narrativeText: string, signal: AbortSignal): Promise<Blob | null> {
+  if (provider !== 'elevenlabs' || !isSfxEnabled()) return Promise.resolve(null);
+
+  const apiKey = loadApiKey('elevenlabs');
+  if (!apiKey) return Promise.resolve(null);
+
+  if (isContextSfxEnabled()) {
+    // Context-aware: AI analyzes text → generates SFX prompt → generates audio
+    return fetchContextAwareSfx(apiKey, narrativeText, signal).catch(err => {
+      console.warn('[Narrator] Context SFX failed, falling back to static:', err);
+      // Fallback to static style
+      return fetchSfxAudio(apiKey, loadSfxStyle(), signal).catch(() => null);
+    });
+  } else {
+    // Static style prompt
+    return fetchSfxAudio(apiKey, loadSfxStyle(), signal).catch(err => {
+      console.warn('[Narrator] SFX fetch failed (non-blocking):', err);
+      return null;
+    });
+  }
+}
+
+async function fetchContextAwareSfx(apiKey: string, narrativeText: string, signal: AbortSignal): Promise<Blob | null> {
+  // Step 1: Get AI-generated SFX prompt
+  const promptResponse = await fetch(
+    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/detect-sfx-prompt`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      },
+      body: JSON.stringify({ text: narrativeText }),
+      signal,
+    }
+  );
+
+  if (!promptResponse.ok) {
+    const err = await promptResponse.json().catch(() => ({ error: 'SFX prompt detection failed' }));
+    throw new Error(err.error || `SFX prompt failed: ${promptResponse.status}`);
+  }
+
+  const { sfx_prompt } = await promptResponse.json();
+  if (!sfx_prompt) throw new Error('No SFX prompt returned');
+
+  console.log('[Narrator] Context SFX prompt:', sfx_prompt);
+
+  // Step 2: Check cache
+  const cached = getCachedSfx(sfx_prompt);
+  if (cached) {
+    console.log('[Narrator] SFX cache hit');
+    return cached;
+  }
+
+  // Step 3: Generate SFX audio
+  const blob = await fetchSfxAudio(apiKey, sfx_prompt, signal);
+  setCachedSfx(sfx_prompt, blob);
+  return blob;
+}
+
 // ── ElevenLabs provider ─────────────────────────────────────────────────────
 
 async function playElevenLabs(chunks: string[], audioBlobs: Blob[], signal: AbortSignal) {
   const apiKey = loadApiKey('elevenlabs');
   const voiceId = loadSelectedVoiceId();
 
-  if (!apiKey) {
-    throw new Error('No ElevenLabs API key. Add one in Settings → API Keys.');
-  }
-  if (!voiceId) {
-    throw new Error('No voice selected. Choose a narrator voice in Settings → ElevenLabs.');
-  }
+  if (!apiKey) throw new Error('No ElevenLabs API key. Add one in Settings → API Keys.');
+  if (!voiceId) throw new Error('No voice selected. Choose a narrator voice in Settings → ElevenLabs.');
 
   const voiceSettings = loadVoiceSettings();
 
@@ -167,7 +234,6 @@ async function playElevenLabs(chunks: string[], audioBlobs: Blob[], signal: Abor
       voice_settings: voiceSettings,
     };
 
-    // Request stitching context
     if (i > 0) {
       const prevSentences = chunks[i - 1].split(/[.!?]+/).filter(Boolean).slice(-3).join('. ');
       (body as any).previous_text = prevSentences;
@@ -207,9 +273,7 @@ async function playSpeechify(chunks: string[], audioBlobs: Blob[], signal: Abort
   const apiKey = loadApiKey('speechify');
   const voiceId = loadSpeechifyVoiceId();
 
-  if (!apiKey) {
-    throw new Error('No Speechify API key. Add one in Settings → API Keys.');
-  }
+  if (!apiKey) throw new Error('No Speechify API key. Add one in Settings → API Keys.');
 
   for (const chunk of chunks) {
     const response = await fetch(
