@@ -524,6 +524,7 @@ export function InventoryScreen({
         item={selectedItem}
         slotType={selectedSlot}
         equipment={equipment}
+        customImage={selectedSlot ? equipmentImages[selectedSlot] : null}
         isOpen={showItemDetail}
         onClose={() => setShowItemDetail(false)}
         onUnequip={() => selectedSlot && handleUnequip(selectedSlot)}
