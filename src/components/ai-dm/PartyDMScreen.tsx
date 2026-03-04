@@ -28,6 +28,7 @@ import { DMDiceRoller } from './DMDiceRoller';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
 import { RoundTimer, TimerSettings } from './RoundTimer';
 import { AfkPersonalityGuide } from './AfkPersonalityGuide';
+import { ScheduledEventsSheet } from './ScheduledEventsSheet';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { CampaignSession } from '@/hooks/use-campaign-sessions';
 
@@ -555,6 +556,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
   const [showSplitSummaries, setShowSplitSummaries] = useState(false);
   const [showTimerSettings, setShowTimerSettings] = useState(false);
   const [showAfkGuide, setShowAfkGuide] = useState(false);
+  const [showScheduledEvents, setShowScheduledEvents] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Chat unread badge tracking
@@ -1731,6 +1733,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
                     .then(() => {});
                 }
               }}
+              onShowScheduledEvents={() => setShowScheduledEvents(true)}
             />
           ) : undefined}
           oracleContent={activeNavTab === 'oracle' ? (
@@ -1813,6 +1816,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
             setMyAfkGuide(guide);
             setMyAfkCascade(cascade);
           }}
+        />
+      )}
+
+      {/* Scheduled Events Sheet (host only) */}
+      {isCreator && partyId && (
+        <ScheduledEventsSheet
+          open={showScheduledEvents}
+          onOpenChange={setShowScheduledEvents}
+          partyId={partyId}
         />
       )}
     </div>

@@ -86,6 +86,149 @@ function buildAfkContext(
   return { guidesSection, promptSection };
 }
 
+// ── Handle scheduled narrative events ──
+async function handleScheduledEvent(
+  supabase: ReturnType<typeof createClient>,
+  partyId: string,
+  eventId: string
+): Promise<boolean> {
+  // 1. Fetch the event
+  const { data: event, error: evErr } = await supabase
+    .from("party_scheduled_events")
+    .select("*")
+    .eq("id", eventId)
+    .eq("party_id", partyId)
+    .single();
+
+  if (evErr || !event) {
+    console.error(`[scheduled-event] Event ${eventId} not found:`, evErr);
+    return false;
+  }
+
+  if (event.status !== "pending") {
+    console.log(`[scheduled-event] Event ${eventId} already ${event.status}, skipping`);
+    return false;
+  }
+
+  // 2. Mark as fired
+  await supabase
+    .from("party_scheduled_events")
+    .update({ status: "fired" })
+    .eq("id", eventId);
+
+  // 3. Fetch party members and recent messages
+  const { data: members } = await supabase
+    .from("party_members")
+    .select("user_id, character_name, character_status")
+    .eq("party_id", partyId);
+
+  const { data: recentMessages } = await supabase
+    .from("party_dm_messages")
+    .select("role, content, team")
+    .eq("party_id", partyId)
+    .order("created_at", { ascending: true })
+    .limit(100);
+
+  // 4. Insert a system-level user message describing the scheduled event
+  const eventPromptText = `[SCHEDULED EVENT: ${event.event_name}]\n${event.event_prompt}`;
+  await supabase.from("party_dm_messages").insert({
+    party_id: partyId,
+    role: "user",
+    content: eventPromptText,
+    sender_user_id: null,
+    sender_name: "⏰ Scheduled Event",
+  });
+
+  // 5. Build AI messages
+  const apiMessages = (recentMessages || [])
+    .map((m: Record<string, unknown>) => ({
+      role: m.role as string,
+      content: m.content as string,
+    }));
+  apiMessages.push({ role: "user", content: eventPromptText });
+
+  // 6. Fetch GM guides
+  let customGuides: string | null = null;
+  const { data: party } = await supabase
+    .from("parties")
+    .select("created_by")
+    .eq("id", partyId)
+    .single();
+
+  if (party?.created_by) {
+    const { data: guides } = await supabase
+      .from("gm_guides")
+      .select("name, content")
+      .eq("user_id", party.created_by)
+      .eq("enabled", true);
+
+    if (guides && guides.length > 0) {
+      customGuides = guides.map((g: Record<string, unknown>) => `### ${g.name}\n${g.content}`).join('\n\n');
+    }
+  }
+
+  // Fetch campaign summary from dm_session shared state
+  let campaignSummary: string | null = null;
+  const { data: sessionState } = await supabase
+    .from("party_shared_state")
+    .select("state_data")
+    .eq("party_id", partyId)
+    .eq("state_type", "dm_session")
+    .limit(1)
+    .single();
+
+  if (sessionState?.state_data) {
+    campaignSummary = (sessionState.state_data as Record<string, unknown>).campaignSummary as string | null;
+  }
+
+  const systemPrompt = buildServerSystemPrompt(
+    (members || []) as Array<{ character_name: string; character_status: Record<string, unknown> }>,
+    campaignSummary,
+    customGuides
+  );
+
+  // 7. Call AI
+  const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: DEFAULT_MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...apiMessages.slice(-100),
+      ],
+      stream: false,
+      max_tokens: 8000,
+    }),
+  });
+
+  if (!aiResponse.ok) {
+    const errText = await aiResponse.text();
+    console.error(`[scheduled-event] AI error for event ${eventId}:`, aiResponse.status, errText);
+    await supabase.from("party_scheduled_events").update({ status: "failed" }).eq("id", eventId);
+    return false;
+  }
+
+  const aiResult = await aiResponse.json();
+  const assistantContent = aiResult.choices?.[0]?.message?.content || "";
+
+  if (assistantContent.trim()) {
+    await supabase.from("party_dm_messages").insert({
+      party_id: partyId,
+      role: "assistant",
+      content: assistantContent,
+      sender_user_id: null,
+      sender_name: "DM",
+    });
+  }
+
+  console.log(`[scheduled-event] Event ${eventId} completed for party ${partyId}`);
+  return true;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -117,8 +260,20 @@ serve(async (req) => {
       targetPartyId = body.partyId;
     }
 
+    const eventId = body.eventId as string | undefined;
+
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+    // ── Handle scheduled narrative events ──
+    if (eventId && targetPartyId) {
+      console.log(`[timer-gen] Processing scheduled event ${eventId} for party ${targetPartyId}`);
+      const eventGenerated = await handleScheduledEvent(supabase, targetPartyId, eventId);
+      return new Response(JSON.stringify({ ok: true, generated: eventGenerated ? 1 : 0, type: "scheduled_event" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── Normal timer-based generation ──
     // 1. Find dm_session shared states (scoped to a single party if targeted)
     let query = supabase
       .from("party_shared_state")
