@@ -1030,6 +1030,7 @@ export type Database = {
           created_by: string
           event_name: string
           event_prompt: string
+          event_type: string
           id: string
           party_id: string
           qstash_message_id: string | null
@@ -1041,6 +1042,7 @@ export type Database = {
           created_by: string
           event_name?: string
           event_prompt?: string
+          event_type?: string
           id?: string
           party_id: string
           qstash_message_id?: string | null
@@ -1052,6 +1054,7 @@ export type Database = {
           created_by?: string
           event_name?: string
           event_prompt?: string
+          event_type?: string
           id?: string
           party_id?: string
           qstash_message_id?: string | null

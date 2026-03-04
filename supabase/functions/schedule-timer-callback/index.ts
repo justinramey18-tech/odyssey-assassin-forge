@@ -91,7 +91,7 @@ serve(async (req) => {
       triggerSecret: TRIGGER_SECRET,
     };
 
-    // If this is a scheduled narrative event, pass the eventId so the generator knows
+    // If this is a scheduled narrative event or round, pass the eventId so the generator knows
     if (eventId) {
       qstashBody.eventId = eventId;
     }
