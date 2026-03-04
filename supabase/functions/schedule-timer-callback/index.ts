@@ -12,7 +12,6 @@ serve(async (req) => {
   }
 
   try {
-    // Authenticate via JWT
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -37,10 +36,22 @@ serve(async (req) => {
       });
     }
 
-    const { partyId, delaySeconds } = await req.json();
+    const body = await req.json();
+    const { partyId, delaySeconds, scheduledAt, eventId } = body;
 
-    if (!partyId || typeof delaySeconds !== "number" || delaySeconds < 1) {
-      return new Response(JSON.stringify({ error: "Invalid params: partyId and delaySeconds required" }), {
+    if (!partyId) {
+      return new Response(JSON.stringify({ error: "partyId required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Must have either delaySeconds (timer) or scheduledAt (scheduled event)
+    const hasDelay = typeof delaySeconds === "number" && delaySeconds >= 1;
+    const hasScheduledAt = typeof scheduledAt === "string" && scheduledAt.length > 0;
+
+    if (!hasDelay && !hasScheduledAt) {
+      return new Response(JSON.stringify({ error: "Either delaySeconds or scheduledAt required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -57,21 +68,38 @@ serve(async (req) => {
     const TRIGGER_SECRET = Deno.env.get("TRIGGER_SECRET") || "";
     const targetUrl = `${SUPABASE_URL}/functions/v1/party-timer-generate`;
 
-    // Schedule a one-shot callback via Upstash QStash
+    // Build QStash headers
+    const qstashHeaders: Record<string, string> = {
+      Authorization: `Bearer ${QSTASH_TOKEN}`,
+      "Content-Type": "application/json",
+      "Upstash-Url": targetUrl,
+      "Upstash-Retries": "2",
+    };
+
+    if (hasScheduledAt) {
+      // Absolute scheduling — use Not-Before header (Unix timestamp in seconds)
+      const targetTime = new Date(scheduledAt).getTime();
+      const notBefore = Math.floor(targetTime / 1000);
+      qstashHeaders["Upstash-Not-Before"] = String(notBefore);
+    } else {
+      // Relative delay
+      qstashHeaders["Upstash-Delay"] = `${Math.ceil(delaySeconds)}s`;
+    }
+
+    const qstashBody: Record<string, unknown> = {
+      partyId,
+      triggerSecret: TRIGGER_SECRET,
+    };
+
+    // If this is a scheduled narrative event, pass the eventId so the generator knows
+    if (eventId) {
+      qstashBody.eventId = eventId;
+    }
+
     const qstashResponse = await fetch("https://qstash.upstash.io/v2/publish", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${QSTASH_TOKEN}`,
-        "Content-Type": "application/json",
-        "Upstash-Delay": `${Math.ceil(delaySeconds)}s`,
-        "Upstash-Url": targetUrl,
-        // Retries: try 2 more times if the first attempt fails
-        "Upstash-Retries": "2",
-      },
-      body: JSON.stringify({
-        partyId,
-        triggerSecret: TRIGGER_SECRET,
-      }),
+      headers: qstashHeaders,
+      body: JSON.stringify(qstashBody),
     });
 
     if (!qstashResponse.ok) {
@@ -84,7 +112,10 @@ serve(async (req) => {
     }
 
     const result = await qstashResponse.json();
-    console.log(`[schedule-timer] Scheduled callback for party ${partyId} in ${delaySeconds}s, messageId: ${result.messageId}`);
+    const logMsg = hasScheduledAt
+      ? `Scheduled event for party ${partyId} at ${scheduledAt}, messageId: ${result.messageId}`
+      : `Scheduled callback for party ${partyId} in ${delaySeconds}s, messageId: ${result.messageId}`;
+    console.log(`[schedule-timer] ${logMsg}`);
 
     return new Response(JSON.stringify({ ok: true, messageId: result.messageId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

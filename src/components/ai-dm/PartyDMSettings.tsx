@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/ui/switch';
-import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music } from 'lucide-react';
+import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock } from 'lucide-react';
 import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
 import { TimerSettings } from './RoundTimer';
 import type { PushSubscriptionState } from '@/lib/push-subscription';
@@ -97,6 +97,9 @@ export interface PartyDMSettingsProps {
   timerDurationSeconds: number;
   onTimerEnabledChange: (enabled: boolean) => void;
   onTimerDurationChange: (seconds: number) => void;
+  // Scheduled events
+  onShowScheduledEvents?: () => void;
+  scheduledEventsCount?: number;
 }
 
 export function PartyDMSettings({
@@ -108,6 +111,7 @@ export function PartyDMSettings({
   isSplitActive, memberCount, onShowSplitInitiator, onShowRegroupDialog, onShowSplitSummaries,
   onNewCampaign, onEndSession,
   timerEnabled, timerDurationSeconds, onTimerEnabledChange, onTimerDurationChange,
+  onShowScheduledEvents, scheduledEventsCount = 0,
 }: PartyDMSettingsProps) {
   return (
     <div className="px-3 py-3 space-y-2.5 max-h-[50vh] overflow-y-auto overscroll-contain">
@@ -178,6 +182,15 @@ export function PartyDMSettings({
           badge={myAfkCascadeCount}
           onClick={onShowAfkGuide}
         />
+        {isCreator && onShowScheduledEvents && (
+          <ToolRow
+            icon={<CalendarClock className={cn("w-4 h-4", scheduledEventsCount > 0 ? "text-amber-400" : "")} />}
+            label="Scheduled Events"
+            description="Schedule narrative events for a specific date & time"
+            badge={scheduledEventsCount}
+            onClick={onShowScheduledEvents}
+          />
+        )}
       </SettingsSection>
 
       {/* Spotify Controls */}

@@ -1024,6 +1024,50 @@ export type Database = {
         }
         Relationships: []
       }
+      party_scheduled_events: {
+        Row: {
+          created_at: string
+          created_by: string
+          event_name: string
+          event_prompt: string
+          id: string
+          party_id: string
+          qstash_message_id: string | null
+          scheduled_at: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          event_name?: string
+          event_prompt?: string
+          id?: string
+          party_id: string
+          qstash_message_id?: string | null
+          scheduled_at: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          event_name?: string
+          event_prompt?: string
+          id?: string
+          party_id?: string
+          qstash_message_id?: string | null
+          scheduled_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "party_scheduled_events_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "parties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       party_shared_state: {
         Row: {
           created_at: string
