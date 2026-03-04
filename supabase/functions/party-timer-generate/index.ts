@@ -110,6 +110,13 @@ async function handleScheduledEvent(
     return false;
   }
 
+  // Route by event type
+  if (event.event_type === "scheduled_round") {
+    return handleScheduledRound(supabase, partyId, eventId, event);
+  }
+
+  // ── Default: narrative event with custom prompt ──
+
   // 2. Mark as fired
   await supabase
     .from("party_scheduled_events")
@@ -227,6 +234,228 @@ async function handleScheduledEvent(
 
   console.log(`[scheduled-event] Event ${eventId} completed for party ${partyId}`);
   return true;
+}
+
+// ── Handle scheduled round advance ──
+// Collects all submitted prompts, fills gaps with AFK guides, and runs normal round generation
+async function handleScheduledRound(
+  supabase: ReturnType<typeof createClient>,
+  partyId: string,
+  eventId: string,
+  event: Record<string, unknown>
+): Promise<boolean> {
+  // 1. Mark as fired
+  await supabase
+    .from("party_scheduled_events")
+    .update({ status: "fired" })
+    .eq("id", eventId);
+
+  // 2. Fetch dm_session shared state to get current round
+  const { data: sessionState } = await supabase
+    .from("party_shared_state")
+    .select("id, state_data")
+    .eq("party_id", partyId)
+    .eq("state_type", "dm_session")
+    .limit(1)
+    .single();
+
+  if (!sessionState?.state_data) {
+    console.error(`[scheduled-round] No dm_session found for party ${partyId}`);
+    await supabase.from("party_scheduled_events").update({ status: "failed" }).eq("id", eventId);
+    return false;
+  }
+
+  const config = sessionState.state_data as Record<string, unknown>;
+  const roundId = config.currentRoundId as string;
+
+  // 3. Lock generation
+  const { data: lockData, error: lockErr } = await supabase
+    .from("party_shared_state")
+    .update({ state_data: { ...config, isGenerating: true } })
+    .eq("id", sessionState.id)
+    .eq("state_type", "dm_session")
+    .not("state_data->isGenerating", "eq", true)
+    .select("id");
+
+  if (lockErr || !lockData || lockData.length === 0) {
+    console.log(`[scheduled-round] Party ${partyId}: already generating, skipping`);
+    return false;
+  }
+
+  try {
+    // 4. Fetch party members
+    const { data: members } = await supabase
+      .from("party_members")
+      .select("user_id, character_name, character_status")
+      .eq("party_id", partyId);
+
+    // 5. Fetch submitted prompts for this round
+    const { data: readyPrompts } = await supabase
+      .from("party_dm_prompts")
+      .select("*")
+      .eq("party_id", partyId)
+      .eq("round_id", roundId)
+      .eq("is_ready", true);
+
+    // 6. For players who readied up without a prompt, or didn't submit at all → use AFK guides
+    // Treat ALL members as potentially AFK — the buildAfkContext function handles absent members
+    const submittedPrompts = (readyPrompts || []) as Array<{ user_id: string; character_name: string; prompt: string }>;
+    
+    const { promptSection: afkPrompts, guidesSection: afkGuides } = buildAfkContext(
+      submittedPrompts,
+      (members || []) as Array<{ user_id: string; character_name: string; character_status: Record<string, unknown> }>
+    );
+
+    // Build combined prompt from submitted + AFK
+    const playerLines = submittedPrompts
+      .map(p => `[${p.character_name}]: ${p.prompt?.trim() || '(no action)'}`)
+      .join('\n');
+    
+    const combinedPrompt = (playerLines + afkPrompts).trim() || '[All players are AFK this round]';
+
+    // 7. Insert user message
+    const eventLabel = event.event_name ? ` — ${event.event_name}` : '';
+    await supabase.from("party_dm_messages").insert({
+      party_id: partyId,
+      role: "user",
+      content: `[⏰ Scheduled Round${eventLabel}]\n${combinedPrompt}`,
+      sender_user_id: null,
+      sender_name: "⏰ Scheduled Round",
+    });
+
+    // 8. Fetch recent messages for context
+    const { data: recentMessages } = await supabase
+      .from("party_dm_messages")
+      .select("role, content, team")
+      .eq("party_id", partyId)
+      .order("created_at", { ascending: true })
+      .limit(100);
+
+    const apiMessages = (recentMessages || [])
+      .map((m: Record<string, unknown>) => ({
+        role: m.role as string,
+        content: m.content as string,
+      }));
+
+    // 9. Fetch GM guides
+    let customGuides: string | null = null;
+    const { data: party } = await supabase
+      .from("parties")
+      .select("created_by")
+      .eq("id", partyId)
+      .single();
+
+    if (party?.created_by) {
+      const { data: guides } = await supabase
+        .from("gm_guides")
+        .select("name, content")
+        .eq("user_id", party.created_by)
+        .eq("enabled", true);
+
+      if (guides && guides.length > 0) {
+        customGuides = guides.map((g: Record<string, unknown>) => `### ${g.name}\n${g.content}`).join('\n\n');
+      }
+    }
+
+    const systemPrompt = buildServerSystemPrompt(
+      (members || []) as Array<{ character_name: string; character_status: Record<string, unknown> }>,
+      config.campaignSummary as string | null,
+      [customGuides || '', afkGuides].filter(Boolean).join('\n\n') || null
+    );
+
+    // 10. Call AI
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: DEFAULT_MODEL,
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...apiMessages.slice(-100),
+        ],
+        stream: false,
+        max_tokens: 8000,
+      }),
+    });
+
+    if (!aiResponse.ok) {
+      const errText = await aiResponse.text();
+      console.error(`[scheduled-round] AI error for party ${partyId}:`, aiResponse.status, errText);
+      throw new Error(`AI error: ${aiResponse.status}`);
+    }
+
+    const aiResult = await aiResponse.json();
+    const assistantContent = aiResult.choices?.[0]?.message?.content || "";
+
+    if (assistantContent.trim()) {
+      await supabase.from("party_dm_messages").insert({
+        party_id: partyId,
+        role: "assistant",
+        content: assistantContent,
+        sender_user_id: null,
+        sender_name: "DM",
+      });
+    }
+
+    // 11. Consume cascade prompts for AFK members
+    if (members) {
+      const absentMembers = (members as Array<{ user_id: string; character_status: Record<string, unknown> }>)
+        .filter(m => !submittedPrompts.some(p => p.user_id === m.user_id));
+      for (const m of absentMembers) {
+        const cascade = m.character_status?.afkPromptCascade as string[] | null;
+        if (cascade && cascade.length > 0) {
+          await supabase
+            .from("party_members")
+            .update({
+              character_status: {
+                ...m.character_status,
+                afkPromptCascade: cascade.length > 1 ? cascade.slice(1) : null,
+              },
+            })
+            .eq("party_id", partyId)
+            .eq("user_id", m.user_id);
+        }
+      }
+    }
+
+    // 12. Delete prompts and start new round
+    await supabase
+      .from("party_dm_prompts")
+      .delete()
+      .eq("party_id", partyId)
+      .eq("round_id", roundId);
+
+    const newRoundId = crypto.randomUUID();
+    await supabase
+      .from("party_shared_state")
+      .update({
+        state_data: {
+          ...config,
+          currentRoundId: newRoundId,
+          isGenerating: false,
+          timerStartedAt: config.timerEnabled ? new Date().toISOString() : null,
+          timerPausedRemaining: null,
+          extensionRequests: [],
+        },
+      })
+      .eq("id", sessionState.id)
+      .eq("state_type", "dm_session");
+
+    console.log(`[scheduled-round] Event ${eventId} completed for party ${partyId}, round advanced`);
+    return true;
+  } catch (genError) {
+    console.error(`[scheduled-round] Generation failed for party ${partyId}:`, genError);
+    await supabase
+      .from("party_shared_state")
+      .update({ state_data: { ...config, isGenerating: false } })
+      .eq("id", sessionState.id)
+      .eq("state_type", "dm_session");
+    await supabase.from("party_scheduled_events").update({ status: "failed" }).eq("id", eventId);
+    return false;
+  }
 }
 
 serve(async (req) => {
