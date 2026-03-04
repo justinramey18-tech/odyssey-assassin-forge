@@ -69,4 +69,7 @@ export const SCOPED_KEYS = [
   'odyssey-character-autosave',
   // Alignment drift tracking
   'odyssey-alignment-drift',
+  // DM input drafts
+  'odyssey-solo-dm-draft',
+  'odyssey-party-dm-draft',
 ] as const;

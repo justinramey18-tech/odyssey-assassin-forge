@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useDraftPersist } from '@/hooks/use-draft-persist';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { loadSelectedModel, saveSelectedModel, getModelLabel } from '@/lib/dm-models';
@@ -494,7 +495,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     updateCampaignSummary(summary);
   }, [updateCampaignSummary]);
 
-  const [input, setInput] = useState('');
+  const [input, setInput, clearInput] = useDraftPersist('odyssey-solo-dm-draft');
   const [showContext, setShowContext] = useState(false);
   const [showGuides, setShowGuides] = useState(false);
   const [showSessions, setShowSessions] = useState(false);
@@ -524,7 +525,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const handleSend = useCallback(() => {
     if (!input.trim() || isLoading) return;
     sendMessage(input.trim());
-    setInput('');
+    clearInput();
     if (inputRef.current) {
       inputRef.current.style.height = 'auto';
     }
