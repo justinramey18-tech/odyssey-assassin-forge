@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { CalendarIcon, Clock, Sparkles, Trash2, Loader2, Users, BookOpen, Repeat } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -47,6 +47,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
   const [events, setEvents] = useState<ScheduledEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [scheduling, setScheduling] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   // Form state
   const [eventType, setEventType] = useState<EventType>('scheduled_round');
@@ -56,11 +57,32 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
   const [timeValue, setTimeValue] = useState('17:00');
   const [repeatWeekly, setRepeatWeekly] = useState(false);
 
-  // Fetch events
+  // Stable fetch function
+  const fetchEvents = useCallback(async () => {
+    if (!partyId) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('party_scheduled_events')
+        .select('*')
+        .eq('party_id', partyId)
+        .order('scheduled_at', { ascending: true });
+
+      if (error) {
+        console.error('Failed to fetch scheduled events:', error.message);
+        return;
+      }
+      setEvents((data ?? []) as unknown as ScheduledEvent[]);
+    } finally {
+      setLoading(false);
+    }
+  }, [partyId]);
+
+  // Fetch events when sheet opens
   useEffect(() => {
     if (!open || !partyId) return;
     fetchEvents();
-  }, [open, partyId]);
+  }, [open, partyId, fetchEvents]);
 
   // Realtime subscription
   useEffect(() => {
@@ -77,19 +99,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [partyId]);
-
-  async function fetchEvents() {
-    const { data, error } = await supabase
-      .from('party_scheduled_events')
-      .select('*')
-      .eq('party_id', partyId)
-      .order('scheduled_at', { ascending: true });
-
-    if (!error && data) {
-      setEvents(data as unknown as ScheduledEvent[]);
-    }
-  }
+  }, [partyId, fetchEvents]);
 
   async function handleSchedule() {
     if (!selectedDate || !user) {
@@ -172,7 +182,9 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
       .update({ status: 'cancelled' })
       .eq('id', eventId);
 
-    if (!error) {
+    if (error) {
+      toast.error('Failed to cancel event');
+    } else {
       toast.success('Event cancelled');
       fetchEvents();
     }
@@ -184,7 +196,9 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
       .delete()
       .eq('id', eventId);
 
-    if (!error) {
+    if (error) {
+      toast.error('Failed to delete event');
+    } else {
       fetchEvents();
     }
   }
@@ -260,7 +274,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
             )}
 
             <div className="flex gap-2">
-              <Popover>
+              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -279,6 +293,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
                     selected={selectedDate}
                     onSelect={(date) => {
                       setSelectedDate(date);
+                      setCalendarOpen(false);
                     }}
                     disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                     initialFocus
@@ -400,7 +415,13 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
             </div>
           )}
 
-          {events.length === 0 && (
+          {loading && events.length === 0 && (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          )}
+
+          {!loading && events.length === 0 && (
             <p className="text-xs text-muted-foreground text-center py-4">
               No scheduled events yet. Schedule a round advance or narrative event above.
             </p>
