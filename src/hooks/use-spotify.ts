@@ -162,6 +162,22 @@ export function useSpotify() {
     toast.success('Spotify disconnected');
   }, []);
 
+  const switchAccount = useCallback(async () => {
+    destroyPlayer();
+    clearTokens();
+    setConnected(false);
+    setPlayback(null);
+    setUserName(null);
+    setSdkDeviceId(null);
+    setSdkReady(false);
+    try {
+      await startAuth();
+    } catch (e) {
+      toast.error('Failed to start Spotify auth');
+      console.error('[Spotify] Switch account error:', e);
+    }
+  }, []);
+
   const togglePlay = useCallback(async () => {
     try {
       if (playback?.isPlaying) {
@@ -392,6 +408,7 @@ export function useSpotify() {
     sdkReady,
     connect,
     disconnect,
+    switchAccount,
     togglePlay,
     pausePlayback,
     next,
