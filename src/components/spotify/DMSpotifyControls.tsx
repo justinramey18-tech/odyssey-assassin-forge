@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Play, Pause, SkipForward, SkipBack, Volume2, Music, Wifi, WifiOff, Plus, Trash2, X, Sparkles, Monitor, Link, Unlink } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, Volume2, Music, Wifi, WifiOff, Plus, Trash2, X, Sparkles, Monitor, Link, Unlink, RefreshCw } from 'lucide-react';
 import { useSpotify } from '@/hooks/use-spotify';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
@@ -347,12 +347,20 @@ export function DMSpotifyControls({ partyId, isCreator = false }: DMSpotifyContr
             </span>
           )}
         </div>
-        <button
-          onClick={spotify.disconnect}
-          className="text-[10px] text-destructive/70 hover:text-destructive transition-colors"
-        >
-          Disconnect
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={spotify.switchAccount}
+            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-0.5"
+          >
+            <RefreshCw className="w-3 h-3" /> Switch
+          </button>
+          <button
+            onClick={spotify.disconnect}
+            className="text-[10px] text-destructive/70 hover:text-destructive transition-colors"
+          >
+            Disconnect
+          </button>
+        </div>
       </div>
 
       {/* Browser player status */}
