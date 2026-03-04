@@ -1089,7 +1089,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
           >
             <img src={partyChatIcon} alt="Party Chat" className="w-full h-full object-contain rounded-xl" />
             {chatUnreadCount > 0 && (
-              <span className="absolute -top-2 -right-2 min-w-[24px] h-[24px] rounded-full bg-emerald-500 text-[11px] font-bold text-white flex items-center justify-center px-1 ring-2 ring-emerald-300 animate-bounce shadow-lg">
+              <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 min-w-[24px] h-[24px] rounded-full bg-emerald-500 text-[11px] font-bold text-white flex items-center justify-center px-1 ring-2 ring-emerald-300 animate-badge-pulse shadow-lg">
                 {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
               </span>
             )}
