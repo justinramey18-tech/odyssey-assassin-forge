@@ -86,6 +86,91 @@ function buildAfkContext(
   return { guidesSection, promptSection };
 }
 
+// ── Schedule next recurrence ──
+async function scheduleNextRecurrence(
+  supabase: ReturnType<typeof createClient>,
+  event: Record<string, unknown>,
+  partyId: string
+): Promise<void> {
+  const recurrence = event.recurrence as string | null;
+  if (!recurrence) return; // one-time event, nothing to do
+
+  let nextDate: Date | null = null;
+
+  if (recurrence === "weekly") {
+    nextDate = new Date(event.scheduled_at as string);
+    nextDate.setDate(nextDate.getDate() + 7);
+  }
+
+  if (!nextDate || nextDate.getTime() <= Date.now()) {
+    // If somehow the next date is in the past, skip forward
+    if (nextDate && recurrence === "weekly") {
+      while (nextDate.getTime() <= Date.now()) {
+        nextDate.setDate(nextDate.getDate() + 7);
+      }
+    } else {
+      return;
+    }
+  }
+
+  // 1. Create the next event
+  const { data: nextEvent, error: insertErr } = await supabase
+    .from("party_scheduled_events")
+    .insert({
+      party_id: partyId,
+      created_by: event.created_by as string,
+      event_name: event.event_name as string,
+      event_prompt: event.event_prompt as string,
+      event_type: event.event_type as string,
+      recurrence,
+      scheduled_at: nextDate.toISOString(),
+    })
+    .select("id")
+    .single();
+
+  if (insertErr || !nextEvent) {
+    console.error(`[recurrence] Failed to create next occurrence:`, insertErr);
+    return;
+  }
+
+  // 2. Schedule the QStash callback
+  const QSTASH_TOKEN = Deno.env.get("QSTASH_TOKEN");
+  if (!QSTASH_TOKEN) {
+    console.error("[recurrence] QSTASH_TOKEN not configured");
+    return;
+  }
+
+  const targetUrl = `${SUPABASE_URL}/functions/v1/party-timer-generate`;
+  const notBefore = Math.floor(nextDate.getTime() / 1000);
+
+  const qstashResponse = await fetch("https://qstash.upstash.io/v2/publish", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${QSTASH_TOKEN}`,
+      "Content-Type": "application/json",
+      "Upstash-Url": targetUrl,
+      "Upstash-Retries": "2",
+      "Upstash-Not-Before": String(notBefore),
+    },
+    body: JSON.stringify({
+      partyId,
+      eventId: nextEvent.id,
+      triggerSecret: TRIGGER_SECRET,
+    }),
+  });
+
+  if (qstashResponse.ok) {
+    const result = await qstashResponse.json();
+    await supabase
+      .from("party_scheduled_events")
+      .update({ qstash_message_id: result.messageId })
+      .eq("id", nextEvent.id);
+    console.log(`[recurrence] Scheduled next ${recurrence} occurrence for ${nextDate.toISOString()}, messageId: ${result.messageId}`);
+  } else {
+    console.error(`[recurrence] QStash scheduling failed:`, qstashResponse.status);
+  }
+}
+
 // ── Handle scheduled narrative events ──
 async function handleScheduledEvent(
   supabase: ReturnType<typeof createClient>,
@@ -233,6 +318,10 @@ async function handleScheduledEvent(
   }
 
   console.log(`[scheduled-event] Event ${eventId} completed for party ${partyId}`);
+
+  // Schedule next recurrence if applicable
+  await scheduleNextRecurrence(supabase, event, partyId);
+
   return true;
 }
 
@@ -445,6 +534,10 @@ async function handleScheduledRound(
       .eq("state_type", "dm_session");
 
     console.log(`[scheduled-round] Event ${eventId} completed for party ${partyId}, round advanced`);
+
+    // Schedule next recurrence if applicable
+    await scheduleNextRecurrence(supabase, event, partyId);
+
     return true;
   } catch (genError) {
     console.error(`[scheduled-round] Generation failed for party ${partyId}:`, genError);

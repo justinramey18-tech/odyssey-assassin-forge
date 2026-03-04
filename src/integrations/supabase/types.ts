@@ -1034,6 +1034,7 @@ export type Database = {
           id: string
           party_id: string
           qstash_message_id: string | null
+          recurrence: string | null
           scheduled_at: string
           status: string
         }
@@ -1046,6 +1047,7 @@ export type Database = {
           id?: string
           party_id: string
           qstash_message_id?: string | null
+          recurrence?: string | null
           scheduled_at: string
           status?: string
         }
@@ -1058,6 +1060,7 @@ export type Database = {
           id?: string
           party_id?: string
           qstash_message_id?: string | null
+          recurrence?: string | null
           scheduled_at?: string
           status?: string
         }

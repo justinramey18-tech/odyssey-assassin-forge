@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { CalendarIcon, Clock, Sparkles, Trash2, Loader2, Users, BookOpen } from 'lucide-react';
+import { CalendarIcon, Clock, Sparkles, Trash2, Loader2, Users, BookOpen, Repeat } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -27,6 +27,7 @@ interface ScheduledEvent {
   event_name: string;
   event_prompt: string;
   event_type: string;
+  recurrence: string | null;
   scheduled_at: string;
   status: string;
   qstash_message_id: string | null;
@@ -53,6 +54,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
   const [eventPrompt, setEventPrompt] = useState('');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [timeValue, setTimeValue] = useState('17:00');
+  const [repeatWeekly, setRepeatWeekly] = useState(false);
 
   // Fetch events
   useEffect(() => {
@@ -120,6 +122,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
           event_name: eventName.trim() || (eventType === 'scheduled_round' ? 'Scheduled Round' : 'Scheduled Event'),
           event_prompt: eventType === 'scheduled_round' ? '' : eventPrompt.trim(),
           event_type: eventType,
+          recurrence: repeatWeekly ? 'weekly' : null,
           scheduled_at: scheduledDate.toISOString(),
         })
         .select('id')
@@ -148,11 +151,13 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
           .eq('id', event.id);
       }
 
-      toast.success(`${eventType === 'scheduled_round' ? 'Round' : 'Event'} scheduled for ${format(scheduledDate, 'PPP p')}`);
+      const recLabel = repeatWeekly ? ' (repeats weekly)' : '';
+      toast.success(`${eventType === 'scheduled_round' ? 'Round' : 'Event'} scheduled for ${format(scheduledDate, 'PPP p')}${recLabel}`);
       setEventName('');
       setEventPrompt('');
       setSelectedDate(undefined);
       setTimeValue('17:00');
+      setRepeatWeekly(false);
       fetchEvents();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Scheduling failed');
@@ -291,6 +296,21 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
               </div>
             </div>
 
+            {/* Repeat weekly toggle */}
+            <button
+              onClick={() => setRepeatWeekly(!repeatWeekly)}
+              className={cn(
+                "flex items-center gap-2 rounded-lg border px-3 py-2 text-xs transition-colors w-full",
+                repeatWeekly
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border/50 text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Repeat className="w-3.5 h-3.5" />
+              Repeat every week
+              {repeatWeekly && <span className="ml-auto text-[10px] font-medium uppercase tracking-wider">On</span>}
+            </button>
+
             <Button
               onClick={handleSchedule}
               disabled={scheduling || !selectedDate || (eventType === 'narrative_event' && !eventPrompt.trim())}
@@ -327,6 +347,9 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
                     )}
                     <p className="text-xs text-amber-400 mt-1">
                       ⏰ {format(new Date(event.scheduled_at), 'PPP p')}
+                      {event.recurrence === 'weekly' && (
+                        <span className="ml-1.5 text-primary">· 🔁 Weekly</span>
+                      )}
                     </p>
                   </div>
                   <Button
