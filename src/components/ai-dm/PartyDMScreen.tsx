@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useDraftPersist } from '@/hooks/use-draft-persist';
 import partyChatIcon from '@/assets/party-chat-icon.jpg';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
@@ -506,7 +507,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
 }
 
 export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, characterContext, showBattleMap, battleMapContent, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns }: PartyDMScreenProps) {
-  const [input, setInput] = useState('');
+  const [input, setInput, clearInput] = useDraftPersist('odyssey-party-dm-draft');
   const [, setTick] = useState(0);
   const narrator = useNarrator();
   const spotify = useSpotify();
@@ -705,7 +706,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
   const handleSubmit = useCallback(() => {
     if (!input.trim()) return;
     partyDm.submitPrompt(input.trim());
-    setInput('');
+    clearInput();
     if (inputRef.current) inputRef.current.style.height = 'auto';
   }, [input, partyDm]);
 
