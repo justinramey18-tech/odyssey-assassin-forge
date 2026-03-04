@@ -92,22 +92,44 @@ serve(async (req) => {
   }
 
   try {
-    // Authenticate: accept trigger secret header (from pg_cron via pg_net)
+    // Authenticate: accept trigger secret from header (pg_cron) OR body (QStash callback)
+    let body: Record<string, unknown> = {};
+    let targetPartyId: string | null = null;
+
+    try {
+      body = await req.json();
+    } catch {
+      // empty body is fine for cron
+    }
+
     const triggerHeader = req.headers.get("X-Trigger-Secret");
-    if (triggerHeader !== TRIGGER_SECRET) {
+    const bodySecret = body.triggerSecret as string | undefined;
+
+    if (triggerHeader !== TRIGGER_SECRET && bodySecret !== TRIGGER_SECRET) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    // If QStash sends a specific partyId, only process that party
+    if (body.partyId && typeof body.partyId === "string") {
+      targetPartyId = body.partyId;
+    }
+
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // 1. Find all dm_session shared states
-    const { data: sessions, error: sessErr } = await supabase
+    // 1. Find dm_session shared states (scoped to a single party if targeted)
+    let query = supabase
       .from("party_shared_state")
       .select("id, party_id, state_data")
       .eq("state_type", "dm_session");
+
+    if (targetPartyId) {
+      query = query.eq("party_id", targetPartyId);
+    }
+
+    const { data: sessions, error: sessErr } = await query;
 
     if (sessErr) {
       console.error("Failed to fetch sessions:", sessErr);

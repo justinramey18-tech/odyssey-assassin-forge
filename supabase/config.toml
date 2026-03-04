@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.party-timer-generate]
 verify_jwt = false
+
+[functions.schedule-timer-callback]
+verify_jwt = false
