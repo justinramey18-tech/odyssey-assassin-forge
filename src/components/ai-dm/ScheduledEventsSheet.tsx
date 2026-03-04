@@ -273,7 +273,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
                     {selectedDate ? format(selectedDate, 'PPP') : 'Pick date'}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
                   <Calendar
                     mode="single"
                     selected={selectedDate}
