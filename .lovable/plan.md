@@ -1,31 +1,18 @@
 
 
-## Current State
+## Plan: Fix unread badge visibility + add unread animation on party chat icon
 
-The app already has a "Custom Voice ID" text input where you can manually paste a Speechify voice ID. Your cloned voices will work if you enter the correct ID — the API call already passes whatever `voice_id` is selected.
-
-## Proposed Enhancement: Auto-Fetch Cloned Voices
-
-Instead of manually entering IDs, the app can fetch your voice library from the Speechify API and display your clones in the picker.
+### Problem
+The unread badge on the party chat floating button (line ~1091) is too small (`min-w-[16px] h-[16px] text-[9px]`) relative to the enlarged 72px button, making it invisible or barely noticeable.
 
 ### Changes
 
-1. **New Edge Function `speechify-voices/index.ts`**
-   - Accepts the user's Speechify API key
-   - Calls `GET https://api.sws.speechify.com/v1/voices` with the key
-   - Returns the list of voices (including clones) to the client
+**`src/components/ai-dm/PartyDMScreen.tsx`** (~lines 1090-1094)
+- Increase badge size to `min-w-[24px] h-[24px] text-[11px]` so it's proportional to the 72px button
+- Reposition to `-top-2 -right-2` for better visibility
+- Add a pulsing ring animation behind the button when `chatUnreadCount > 0` — a green ring (`ring-2 ring-emerald-400 animate-pulse`) on the button container
+- Add `animate-bounce` or a subtle scale pulse on the badge itself to draw attention
 
-2. **Update `SpeechifyVoicePicker` in `ElevenLabsSettingsTab.tsx`**
-   - Add a "Fetch My Voices" button that calls the new edge function
-   - Display cloned/custom voices in a separate section above the default presets
-   - Cache fetched voices in localStorage (similar to ElevenLabs voice cache)
-   - Each voice shows its name and type (e.g., "cloned" vs "default")
-
-3. **Update `tts-utils.ts`**
-   - Add Speechify voice cache helpers (similar to existing ElevenLabs ones)
-
-### What stays the same
-- The custom voice ID text input remains as a manual fallback
-- The TTS playback logic is unchanged — it already passes any `voice_id`
-- No database changes needed
+**`src/index.css`** (optional)
+- Add a `@keyframes chat-unread-pulse` animation if the Tailwind defaults aren't sufficient — a breathing glow effect on the chat icon border
 
