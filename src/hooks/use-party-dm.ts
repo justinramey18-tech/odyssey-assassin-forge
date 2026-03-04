@@ -1559,7 +1559,21 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       timerPausedRemaining: null,
       extensionRequests: [],
     });
-  }, [sessionConfig, updateSessionConfig]);
+
+    // Schedule a precise server-side callback via QStash
+    if (partyId) {
+      try {
+        await supabase.functions.invoke('schedule-timer-callback', {
+          body: {
+            partyId,
+            delaySeconds: sessionConfig.timerDurationSeconds,
+          },
+        });
+      } catch (e) {
+        console.warn('[startTimer] Failed to schedule QStash callback (will rely on pg_cron fallback):', e);
+      }
+    }
+  }, [sessionConfig, updateSessionConfig, partyId, supabase]);
 
   const pauseTimer = useCallback(async () => {
     if (!sessionConfig?.timerStartedAt) return;
