@@ -1769,6 +1769,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 }
               }}
               onShowScheduledEvents={() => setShowScheduledEvents(true)}
+              members={members}
+              coHostIds={coHostIds}
+              currentUserId={currentUserId}
+              onPromoteCoHost={onPromoteCoHost}
+              onDemoteCoHost={onDemoteCoHost}
             />
           ) : undefined}
           oracleContent={activeNavTab === 'oracle' ? (
