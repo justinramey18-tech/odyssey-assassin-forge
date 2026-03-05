@@ -290,7 +290,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
                 </div>
               </div>
             ) : (
-              <div className="text-sm prose prose-invert prose-sm max-w-none break-words overflow-wrap-anywhere">
+              <div className="text-xs prose prose-invert prose-xs max-w-none break-words overflow-wrap-anywhere">
                 {videoMatch ? (
                   <div>
                     <div className="flex items-center gap-1 mb-1.5">
@@ -441,7 +441,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
             </div>
           </div>
         ) : (
-        <p className="text-sm whitespace-pre-wrap text-white/90">
+        <p className="text-xs whitespace-pre-wrap text-white/90">
           {videoMatch ? (
             <span>
               <span className="flex items-center gap-1 mb-1.5">
