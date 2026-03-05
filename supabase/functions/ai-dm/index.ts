@@ -506,7 +506,7 @@ async function callAnthropic(
     },
     body: JSON.stringify({
       model: anthropicModelId,
-      max_tokens: 8000,
+      max_tokens: 16000,
       system: systemPrompt,
       messages,
       stream: true,
@@ -663,7 +663,7 @@ serve(async (req) => {
           userApiKey: user_openai_key.trim(),
           systemPrompt,
           messages: trimmedMessages,
-          maxTokens: 8000,
+          maxTokens: 16000,
           model: openaiDirectModelId,
         });
         return new Response(streamResponse.body, {
@@ -699,7 +699,7 @@ serve(async (req) => {
           ...trimmedMessages,
         ],
         stream: true,
-        max_tokens: 8000,
+        max_tokens: 16000,
       }),
     });
 
