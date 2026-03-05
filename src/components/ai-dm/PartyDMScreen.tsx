@@ -699,7 +699,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [partyDm.messages, partyDm.currentPrompts]);
+  }, [partyDm.messages, partyDm.currentPrompts, partyDm.streamingText]);
 
   useEffect(() => {
     if (partyDm.isGenerating) {
@@ -1027,13 +1027,22 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             </AnimatePresence>
           )}
 
-          {/* Loading indicator */}
+          {/* Live streaming / loading indicator */}
           {partyDm.isGenerating && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2 items-center">
-              <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-amber-900/60 border border-amber-500/40">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2 items-start">
+              <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-amber-900/60 border border-amber-500/40 mt-0.5">
                 <div className="w-3.5 h-3.5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
               </div>
-              <span className="text-sm text-amber-400/60 italic">The DM weaves the tale...</span>
+              {partyDm.streamingText ? (
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm text-amber-100/90 whitespace-pre-wrap break-words leading-relaxed">
+                    {partyDm.streamingText}
+                    <span className="inline-block w-1.5 h-4 bg-amber-400 animate-pulse ml-0.5 align-text-bottom" />
+                  </div>
+                </div>
+              ) : (
+                <span className="text-sm text-amber-400/60 italic">The DM weaves the tale...</span>
+              )}
             </motion.div>
           )}
           {/* TTS Select Floating Bar */}

@@ -119,8 +119,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [sessionConfig, setSessionConfig] = useState<DmSessionConfig | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [streamingText, setStreamingText] = useState<string>('');
   const abortRef = useRef<AbortController | null>(null);
   const autoGenTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const streamChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   // Split state
   const [splitState, setSplitState] = useState<DmSplitState | null>(null);
@@ -321,10 +323,26 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       })
       .subscribe();
 
+    // Broadcast channel for live streaming text (ephemeral, no DB writes)
+    const streamChannel = supabase.channel(`party-dm-stream-${partyId}`);
+    streamChannel
+      .on('broadcast', { event: 'stream-chunk' }, (payload: any) => {
+        const { text, done, team } = payload.payload || {};
+        if (done) {
+          setStreamingText('');
+        } else if (typeof text === 'string') {
+          setStreamingText(text);
+        }
+      })
+      .subscribe();
+    streamChannelRef.current = streamChannel;
+
     return () => {
       supabase.removeChannel(msgChannel);
       supabase.removeChannel(promptChannel);
       supabase.removeChannel(stateChannel);
+      supabase.removeChannel(streamChannel);
+      streamChannelRef.current = null;
     };
   }, [partyId]);
 
@@ -715,11 +733,12 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
   }, [partyId, isCreator, sessionConfig]);
 
-  // Helper: stream an AI response and return the content
+  // Helper: stream an AI response, broadcast chunks to party, and return the content
   const streamAIResponse = useCallback(async (
     apiMessages: Array<{ role: string; content: string }>,
     extraGuides: string,
     signal: AbortSignal,
+    team?: string,
   ): Promise<string> => {
     const authToken = await getAuthToken();
     const response = await fetch(AI_DM_URL, {
@@ -768,6 +787,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     const decoder = new TextDecoder();
     let textBuffer = '';
     let assistantContent = '';
+    let lastBroadcast = 0;
+    const BROADCAST_INTERVAL = 100; // ms — throttle broadcasts
 
     while (true) {
       const { done, value } = await reader.read();
@@ -785,10 +806,35 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         try {
           const parsed = JSON.parse(jsonStr);
           const delta = parsed.choices?.[0]?.delta?.content as string | undefined;
-          if (delta) assistantContent += delta;
+          if (delta) {
+            assistantContent += delta;
+            // Update local streaming state
+            setStreamingText(assistantContent);
+            // Broadcast to party members (throttled)
+            const now = Date.now();
+            if (now - lastBroadcast >= BROADCAST_INTERVAL && streamChannelRef.current) {
+              lastBroadcast = now;
+              streamChannelRef.current.send({
+                type: 'broadcast',
+                event: 'stream-chunk',
+                payload: { text: assistantContent, team },
+              });
+            }
+          }
         } catch { /* skip */ }
       }
     }
+
+    // Send final broadcast with complete text
+    if (streamChannelRef.current) {
+      streamChannelRef.current.send({
+        type: 'broadcast',
+        event: 'stream-chunk',
+        payload: { text: assistantContent, done: true, team },
+      });
+    }
+    setStreamingText('');
+
     return assistantContent;
   }, [characterContext, sessionConfig?.campaignSummary]);
 
@@ -1673,6 +1719,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     isActive,
     isGenerating: isGenerating || (sessionConfig?.isGenerating ?? false),
     isSummarizing,
+    streamingText,
     allReady,
     myPrompt,
     activeCampaignId,
