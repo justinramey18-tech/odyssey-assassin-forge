@@ -9,11 +9,13 @@ export interface GMGuide {
 
 export const MAX_GUIDE_CHARS = 30000;
 export const MAX_TOTAL_CHARS = 200000;
-const STORAGE_KEY = 'dnd-ai-dm-guides';
+function getStorageKey(mode?: string): string {
+  return mode ? `dnd-ai-dm-guides-${mode}` : 'dnd-ai-dm-guides';
+}
 
-export function loadGMGuides(): GMGuide[] {
+export function loadGMGuides(mode?: string): GMGuide[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(getStorageKey(mode));
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -23,9 +25,9 @@ export function loadGMGuides(): GMGuide[] {
   }
 }
 
-export function saveGMGuides(guides: GMGuide[]): void {
+export function saveGMGuides(guides: GMGuide[], mode?: string): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(guides));
+    localStorage.setItem(getStorageKey(mode), JSON.stringify(guides));
   } catch (error) {
     console.error('Failed to save GM guides:', error);
   }

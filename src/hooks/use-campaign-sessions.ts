@@ -13,7 +13,7 @@ export interface CampaignSession {
   updated_at: string;
 }
 
-export function useCampaignSessions() {
+export function useCampaignSessions(mode?: 'solo' | 'party') {
   const [sessions, setSessions] = useState<CampaignSession[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -34,11 +34,20 @@ export function useCampaignSessions() {
     if (!userId) return;
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('ai_dm_campaigns')
-        .select('id, name, messages, campaign_summary, gm_guide_ids, created_at, updated_at')
-        .eq('user_id', userId)
-        .order('updated_at', { ascending: false });
+      const baseQuery = mode
+        ? (supabase
+            .from('ai_dm_campaigns')
+            .select('id, name, messages, campaign_summary, gm_guide_ids, created_at, updated_at')
+            .eq('user_id', userId) as any)
+            .eq('mode', mode)
+            .order('updated_at', { ascending: false })
+        : supabase
+            .from('ai_dm_campaigns')
+            .select('id, name, messages, campaign_summary, gm_guide_ids, created_at, updated_at')
+            .eq('user_id', userId)
+            .order('updated_at', { ascending: false });
+
+      const { data, error } = await baseQuery;
 
       if (error) throw error;
 
@@ -59,7 +68,7 @@ export function useCampaignSessions() {
     } finally {
       setIsLoading(false);
     }
-  }, [userId]);
+  }, [userId, mode]);
 
   useEffect(() => {
     if (userId) loadSessions();
@@ -105,7 +114,8 @@ export function useCampaignSessions() {
             name,
             messages: serializedMessages as any,
             campaign_summary: campaignSummary,
-          })
+            mode: mode || 'solo',
+          } as any)
           .select('id')
           .single();
         if (error) throw error;
@@ -192,7 +202,8 @@ export function useCampaignSessions() {
             name,
             messages: serializedMessages as any,
             campaign_summary: campaignSummary,
-          })
+            mode: mode || 'solo',
+          } as any)
           .select('id')
           .single();
         if (error) throw error;

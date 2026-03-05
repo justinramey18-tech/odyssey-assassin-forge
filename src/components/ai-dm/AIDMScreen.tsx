@@ -351,7 +351,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const battleMapGridSizeRef = useRef<number>(25);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
-  const gmGuides = useGMGuides();
+  const gmGuides = useGMGuides(undefined, 'solo');
   const { toast } = useToast();
   const narrator = useNarrator();
   const spotify = useSpotify();
@@ -436,7 +436,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   }, [gmGuides.setActiveGuideIds]);
 
   // Campaign sessions (needed before useAIDM to get activeCampaignId dependency)
-  const campaignSessions = useCampaignSessions();
+  const campaignSessions = useCampaignSessions('solo');
 
   // Temporary activeCampaignId state placeholder — will be replaced below after useAIDM
   // We need activeCampaignId before the hook to initialize game state.
