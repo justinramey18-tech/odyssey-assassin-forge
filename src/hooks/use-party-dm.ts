@@ -121,6 +121,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const [isGenerating, setIsGenerating] = useState(false);
   const [streamingText, setStreamingText] = useState<string>('');
   const abortRef = useRef<AbortController | null>(null);
+  const prevAfkNamesRef = useRef<string>('');
   const autoGenTimerRef = useRef<NodeJS.Timeout | null>(null);
   const streamChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
@@ -952,11 +953,16 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     );
     if (emptyReadyPrompts.length > 0) {
       const afkNames = emptyReadyPrompts.map(p => p.character_name).join(', ');
-      toast(`👻 AFK guide active for: ${afkNames}`, {
-        description: 'Empty prompt — their AFK personality guides will be used.',
-        duration: 5000,
-        icon: '👻',
-      });
+      if (afkNames !== prevAfkNamesRef.current) {
+        toast(`👻 AFK guide active for: ${afkNames}`, {
+          description: 'Empty prompt — their AFK personality guides will be used.',
+          duration: 5000,
+          icon: '👻',
+        });
+        prevAfkNamesRef.current = afkNames;
+      }
+    } else {
+      prevAfkNamesRef.current = '';
     }
 
     if (readyPromptsWithContent.length === 0 && emptyReadyPrompts.length === 0) {
@@ -1261,11 +1267,16 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         console.error('Party DM generation error:', error);
         toast.error(error instanceof Error ? error.message : 'Generation failed');
       }
-
-      await (supabase.from('party_shared_state') as any)
-        .update({ state_data: { ...sessionConfig, isGenerating: false } })
-        .eq('party_id', partyId)
-        .eq('state_type', 'dm_session');
+      try {
+        if (partyId && sessionConfig) {
+          await (supabase.from('party_shared_state') as any)
+            .update({ state_data: { ...sessionConfig, isGenerating: false } })
+            .eq('party_id', partyId)
+            .eq('state_type', 'dm_session');
+        }
+      } catch (lockErr) {
+        console.error('[PartyDM] Failed to clear lock in catch block:', lockErr);
+      }
     } finally {
       setIsGenerating(false);
       abortRef.current = null;
@@ -1276,8 +1287,20 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const stopGeneration = useCallback(async () => {
     if (!abortRef.current) return;
     abortRef.current.abort();
-    // The catch block in generateResponse will reset isGenerating in DB
-    // Also clear streaming text and broadcast done
+
+    // Immediately clear the database lock so other players aren't stuck
+    if (partyId && sessionConfig) {
+      try {
+        await (supabase.from('party_shared_state') as any)
+          .update({ state_data: { ...sessionConfig, isGenerating: false } })
+          .eq('party_id', partyId)
+          .eq('state_type', 'dm_session');
+      } catch (err) {
+        console.error('[PartyDM] Failed to clear generation lock on stop:', err);
+      }
+    }
+
+    // Clear streaming text and broadcast done
     setStreamingText('');
     if (streamChannelRef.current) {
       streamChannelRef.current.send({
@@ -1287,7 +1310,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       });
     }
     toast('Generation stopped', { icon: '⏹️', duration: 3000 });
-  }, []);
+  }, [partyId, sessionConfig]);
 
   // Auto-trigger generation when all ready (host only)
   useEffect(() => {
@@ -1300,6 +1323,19 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       if (autoGenTimerRef.current) clearTimeout(autoGenTimerRef.current);
     };
   }, [allReady, isCreator, isGenerating, generateResponse]);
+
+  // Safety: If component unmounts while generating, clear the database lock
+  useEffect(() => {
+    return () => {
+      if (isGenerating && partyId && sessionConfig) {
+        (supabase.from('party_shared_state') as any)
+          .update({ state_data: { ...sessionConfig, isGenerating: false } })
+          .eq('party_id', partyId)
+          .eq('state_type', 'dm_session')
+          .catch((err: unknown) => console.error('[PartyDM] Cleanup: Failed to clear generation lock on unmount:', err));
+      }
+    };
+  }, [isGenerating, partyId, sessionConfig]);
 
   const editMessage = useCallback(async (messageId: string, newContent: string) => {
     if (!partyId || !isCreator) return;
