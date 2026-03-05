@@ -51,41 +51,25 @@ export function useGMGuides(ownerUserId?: string, mode?: 'solo' | 'party') {
       if (error || cancelled) return;
 
       if (data && data.length > 0) {
-        const cloudGuides: GMGuide[] = data.map(row => ({
-          id: row.id,
-          name: row.name,
-          content: row.content,
-          enabled: row.enabled,
-          createdAt: row.created_at,
-          updatedAt: row.updated_at,
-        }));
+        // Filter out any guides the user deleted this session (race-condition guard)
+        const cloudGuides: GMGuide[] = data
+          .filter(row => !deletedIdsRef.current.has(row.id))
+          .map(row => ({
+            id: row.id,
+            name: row.name,
+            content: row.content,
+            enabled: row.enabled,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+          }));
 
         if (ownerUserId) {
           // Co-host mode: cloud is sole source of truth, no local merge
           setGuides(cloudGuides);
         } else {
-          // Own guides: merge cloud + local
-          const cloudIds = new Set(cloudGuides.map(g => g.id));
-          const localOnly = guides.filter(g => !cloudIds.has(g.id));
-          const merged = [...cloudGuides, ...localOnly];
-          setGuides(merged);
-          saveGMGuides(merged, mode);
-
-          // Push any local-only guides to cloud
-          if (localOnly.length > 0) {
-            for (const g of localOnly) {
-              await supabase.from('gm_guides').upsert({
-                id: g.id,
-                user_id: session.user.id,
-                name: g.name,
-                content: g.content,
-                enabled: g.enabled,
-                mode: mode || 'solo',
-                created_at: g.createdAt,
-                updated_at: g.updatedAt,
-              } as any);
-            }
-          }
+          // Cloud is source of truth once loaded — don't re-push stale local guides
+          setGuides(cloudGuides);
+          saveGMGuides(cloudGuides, mode);
         }
       } else if (!ownerUserId) {
         // No cloud data and own guides — push all local guides to cloud
@@ -129,6 +113,8 @@ export function useGMGuides(ownerUserId?: string, mode?: 'solo' | 'party') {
       updated_at: guide.updatedAt,
     } as any);
   }, [ownerUserId, mode]);
+
+  const deletedIdsRef = useRef<Set<string>>(new Set());
 
   const deleteFromCloud = useCallback(async (id: string) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -189,6 +175,7 @@ export function useGMGuides(ownerUserId?: string, mode?: 'solo' | 'party') {
   }, [guides, persist, persistToCloud]);
 
   const deleteGuide = useCallback((id: string) => {
+    deletedIdsRef.current.add(id);
     persist(guides.filter(g => g.id !== id));
     deleteFromCloud(id);
     toast.success('Guide deleted');
