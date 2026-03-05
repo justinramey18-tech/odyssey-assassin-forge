@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/ui/switch';
-import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock } from 'lucide-react';
+import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown } from 'lucide-react';
 import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
 import { TimerSettings } from './RoundTimer';
 import type { PushSubscriptionState } from '@/lib/push-subscription';
@@ -101,6 +101,12 @@ export interface PartyDMSettingsProps {
   // Scheduled events
   onShowScheduledEvents?: () => void;
   scheduledEventsCount?: number;
+  // Co-host promotion
+  members?: Array<{ user_id: string; character_name: string }>;
+  coHostIds?: string[];
+  currentUserId?: string;
+  onPromoteCoHost?: (userId: string) => void;
+  onDemoteCoHost?: (userId: string) => void;
 }
 
 export function PartyDMSettings({
@@ -113,6 +119,7 @@ export function PartyDMSettings({
   onNewCampaign, onEndSession,
   timerEnabled, timerDurationSeconds, onTimerEnabledChange, onTimerDurationChange,
   onShowScheduledEvents, scheduledEventsCount = 0,
+  members = [], coHostIds = [], currentUserId, onPromoteCoHost, onDemoteCoHost,
 }: PartyDMSettingsProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   return (
@@ -159,6 +166,44 @@ export function PartyDMSettings({
               onEnabledChange={onTimerEnabledChange}
               onDurationChange={onTimerDurationChange}
             />
+          </div>
+        )}
+        {/* Co-Host Promotion Manager (original creator only) */}
+        {originalCreator && members.length > 0 && onPromoteCoHost && onDemoteCoHost && (
+          <div className="px-3 py-2">
+            <div className="flex items-center gap-2 mb-2">
+              <Crown className="w-4 h-4 text-amber-400" />
+              <span className="text-sm font-medium text-foreground">Co-Host Manager</span>
+            </div>
+            <div className="space-y-1">
+              {members
+                .filter(m => m.user_id !== currentUserId)
+                .map(m => {
+                  const isCo = coHostIds.includes(m.user_id);
+                  return (
+                    <div key={m.user_id} className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg bg-muted/10">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-sm text-foreground truncate">{m.character_name}</span>
+                        {isCo && (
+                          <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-semibold">Co-DM</span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => isCo ? onDemoteCoHost(m.user_id) : onPromoteCoHost(m.user_id)}
+                        className={cn(
+                          "shrink-0 text-[11px] px-2.5 py-1 rounded-md font-medium transition-colors min-h-[28px]",
+                          isCo
+                            ? "bg-destructive/20 text-destructive hover:bg-destructive/30"
+                            : "bg-amber-500/20 text-amber-300 hover:bg-amber-500/30"
+                        )}
+                        style={{ touchAction: 'manipulation' }}
+                      >
+                        {isCo ? 'Remove' : 'Promote'}
+                      </button>
+                    </div>
+                  );
+                })}
+            </div>
           </div>
         )}
       </SettingsSection>
