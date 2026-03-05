@@ -1,31 +1,56 @@
 
 
-## Plan: Add MP3 download toast after TTS generation
+## Fix: Blank Screen on Generate Message
 
-### Single file change: `src/hooks/use-narrator.ts`
+### Problem
+When clicking "Generate Message" in the Party DM, the screen goes blank with no way to recover. This is caused by **unhandled promise rejections** in the `generateResponse` function that crash React's rendering.
 
-After `await audio.play()` succeeds (~line 134), show a sonner toast with a "Download" action button. Clicking it triggers a browser download of the `finalBlob` as an MP3 file with a timestamped filename.
+### Root Cause
+The `generateResponse` function has critical code **outside** its try/catch block:
+- Lines 996-1028: The database lock logic (`setIsGenerating(true)` + Supabase lock attempt) runs before the `try` block starts at line 1031
+- If the Supabase lock call throws (network error, timeout, etc.), the error propagates unhandled
+- The button's `onClick={partyDm.generateResponse}` doesn't catch the returned promise
+- An unhandled async error crashes React, producing a blank screen with no error boundary to recover
 
-```typescript
-// After: await audio.play();
-toast('Narration audio ready', {
-  description: 'Would you like to download the MP3?',
-  action: {
-    label: 'Download',
-    onClick: () => {
-      const a = document.createElement('a');
-      const dlUrl = URL.createObjectURL(finalBlob);
-      a.href = dlUrl;
-      a.download = `narration-${new Date().toISOString().slice(0, 10)}.mp3`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(dlUrl);
-    },
-  },
-  duration: 10000,
-});
+### Fix (single file: `src/hooks/use-party-dm.ts`)
+
+**Change 1: Wrap the entire generateResponse body in try/catch**
+
+Move the `try` block to encompass everything after the early returns (line 968), so the lock logic, abort controller setup, and all generation code are protected. The `finally` block already resets `isGenerating`.
+
+```text
+Before:
+  setIsGenerating(true);
+  // lock logic (unprotected)
+  abortRef.current = new AbortController();
+  try {
+    // generation logic
+  } catch { ... } finally { ... }
+
+After:
+  setIsGenerating(true);
+  try {
+    // lock logic (now protected)
+    abortRef.current = new AbortController();
+    // generation logic
+  } catch { ... } finally { ... }
 ```
 
-No new dependencies. Uses existing `sonner` toast import. The blob is already `audio/mpeg` from both providers, so no conversion needed.
+**Change 2: Add defensive `.catch()` on button onClick calls**
+
+In `PartyDMScreen.tsx`, wrap `generateResponse` calls to swallow any escaped rejections:
+- The "Generate Now" button onClick
+- The timer expiry handler
+- The auto-gen effect
+
+This is a belt-and-suspenders approach — the try/catch in Change 1 should handle it, but these guards prevent blank screens if any edge case slips through.
+
+### Files to Edit
+1. `src/hooks/use-party-dm.ts` — Move try block up to wrap lock logic
+2. `src/components/ai-dm/PartyDMScreen.tsx` — Add `.catch()` guards on generateResponse calls
+
+### What This Fixes
+- No more blank screen when generation encounters a network error during the lock phase
+- `isGenerating` always gets reset in the `finally` block even if lock fails
+- React never receives an unhandled promise rejection from the generate button
 
