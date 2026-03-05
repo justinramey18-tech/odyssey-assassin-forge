@@ -9,7 +9,6 @@ import type { CharacterContext } from '@/components/oracle/types';
 import { playDiceRattle, playDiceThud } from '@/lib/diceSounds';
 
 type RollMode = 'normal' | 'advantage' | 'disadvantage';
-type Tab = 'd20' | 'skills' | 'saves';
 
 interface DMDiceRollerProps {
   characterContext: CharacterContext;
@@ -28,7 +27,7 @@ interface RollDisplay {
   mode: RollMode;
   isQuickDie?: boolean;
   dieSides?: number;
-  id: number; // for animation key
+  id: number;
 }
 
 const ABILITY_MAP: Record<string, AbilityScore> = {
@@ -62,6 +61,38 @@ const MODE_COLORS_SELECTED: Record<DiceOddsMode, string> = {
   dramatic: 'text-purple-300 bg-purple-900/40 border-purple-500/40',
   chaotic: 'text-cyan-300 bg-cyan-900/40 border-cyan-500/40',
   cursed: 'text-red-300 bg-red-900/40 border-red-500/40',
+};
+
+// Skill descriptions for new players
+const SKILL_DESCRIPTIONS: Record<string, string> = {
+  acrobatics: 'Flips, balance, tumbling',
+  animal_handling: 'Calm or control a beast',
+  arcana: 'Recall magical lore',
+  athletics: 'Climb, jump, swim',
+  deception: 'Mislead with lies',
+  history: 'Recall past events',
+  insight: "Read someone's motives",
+  intimidation: 'Threaten or coerce',
+  investigation: 'Search for clues',
+  medicine: 'Stabilize or diagnose',
+  nature: 'Recall nature lore',
+  perception: 'Spot hidden things',
+  performance: 'Entertain an audience',
+  persuasion: 'Influence with charm',
+  religion: 'Recall divine lore',
+  sleight_of_hand: 'Pick pockets, conceal',
+  stealth: 'Move unseen or unheard',
+  survival: 'Track, forage, navigate',
+};
+
+// Save descriptions for new players
+const SAVE_DESCRIPTIONS: Record<AbilityScore, string> = {
+  str: 'Resist being pushed or held',
+  dex: 'Dodge blasts and traps',
+  con: 'Endure poison or fatigue',
+  int: 'See through illusions',
+  wis: 'Resist charms and fear',
+  cha: 'Defy banishment effects',
 };
 
 function getModifier(ctx: CharacterContext, ability: AbilityScore): number {
@@ -146,9 +177,7 @@ function RollingNumber({ target, sides, duration = 600, onLand }: { target: numb
 }
 
 export function DMDiceRoller({ characterContext, onRollResult, disabled = false }: DMDiceRollerProps) {
-  const [tab, setTab] = useState<Tab>('d20');
   const [rollMode, setRollMode] = useState<RollMode>('normal');
-  const [showOddsPanel, setShowOddsPanel] = useState(false);
   const [currentOddsMode, setCurrentOddsMode] = useState<DiceOddsMode>(() => loadDiceOddsMode());
   const [lastRoll, setLastRoll] = useState<RollDisplay | null>(null);
   const rollIdRef = useRef(0);
@@ -204,7 +233,6 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
   const handleSelectOddsMode = useCallback((mode: DiceOddsMode) => {
     setCurrentOddsMode(mode);
     saveDiceOddsMode(mode);
-    setShowOddsPanel(false);
   }, []);
 
   const profBonus = useMemo(() => {
@@ -215,12 +243,6 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
     if (level >= 5) return 3;
     return 2;
   }, [characterContext.level]);
-
-  const tabs: { id: Tab; label: string; icon: typeof Dices }[] = [
-    { id: 'd20', label: 'd20', icon: Dices },
-    { id: 'skills', label: 'Skills', icon: Sparkles },
-    { id: 'saves', label: 'Saves', icon: Shield },
-  ];
 
   const currentOddsConfig = DICE_ODDS_CONFIGS[currentOddsMode];
 
@@ -264,7 +286,6 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
 
               {/* Dice values */}
               <div className="flex items-center justify-center gap-2">
-                {/* Individual dice */}
                 <div className="flex items-center gap-1">
                   {lastRoll.rolls.map((r, i) => {
                     const isDropped = lastRoll.rolls.length > 1 && r !== lastRoll.kept;
@@ -293,14 +314,12 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
                   })}
                 </div>
 
-                {/* Modifier */}
                 {lastRoll.modifier !== 0 && (
                   <span className="text-xs text-white/40 font-mono">
                     {lastRoll.modifier >= 0 ? `+${lastRoll.modifier}` : lastRoll.modifier}
                   </span>
                 )}
 
-                {/* Equals + Total */}
                 <span className="text-white/30 text-xs">=</span>
                 <motion.span
                   initial={{ scale: 0.5, opacity: 0 }}
@@ -319,7 +338,6 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
                 </motion.span>
               </div>
 
-              {/* Crit / Fumble banner */}
               {(lastRoll.isCrit || lastRoll.isFumble) && (
                 <motion.div
                   initial={{ opacity: 0, y: 4 }}
@@ -334,14 +352,13 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
                 </motion.div>
               )}
 
-              {/* Tap to dismiss hint */}
               <div className="text-[8px] text-white/20 mt-1">tap to dismiss</div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="px-3 py-2 space-y-2">
+      <div className="px-3 py-2 space-y-3">
         {/* Roll mode toggle */}
         <div className="flex items-center gap-1">
           {(['normal', 'advantage', 'disadvantage'] as RollMode[]).map(mode => (
@@ -363,94 +380,80 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
           ))}
         </div>
 
-        {/* Tab selector */}
-        <div className="flex gap-1">
-          {tabs.map(t => (
+        {/* D20 & Quick Rolls */}
+        <div className="space-y-1.5">
+          <div className="flex gap-1.5">
             <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={cn(
-                "flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-colors",
-                tab === t.id
-                  ? "bg-amber-900/30 text-amber-300 border border-amber-500/20"
-                  : "text-white/40 hover:text-white/60 hover:bg-white/5"
-              )}
+              onClick={() => handleRoll('d20', 0)}
+              className="flex-1 py-2 rounded-lg bg-amber-900/20 border border-amber-500/20 hover:bg-amber-900/40 transition-colors text-sm font-cinzel text-amber-200"
               style={{ touchAction: 'manipulation' }}
             >
-              <t.icon className="w-3 h-3" />
-              {t.label}
+              🎲 Roll d20
             </button>
-          ))}
-        </div>
-
-        {/* Tab content */}
-        {tab === 'd20' && (
-          <div className="space-y-1.5">
-            <div className="flex gap-1.5">
-              <button
-                onClick={() => handleRoll('d20', 0)}
-                className="flex-1 py-2 rounded-lg bg-amber-900/20 border border-amber-500/20 hover:bg-amber-900/40 transition-colors text-sm font-cinzel text-amber-200"
-                style={{ touchAction: 'manipulation' }}
-              >
-                🎲 Roll d20
-              </button>
-              <button
-                onClick={() => {
-                  const dexMod = getModifier(characterContext, 'dex');
-                  handleRoll('Initiative', dexMod);
-                }}
-                className="px-3 py-2 rounded-lg bg-purple-900/20 border border-purple-500/20 hover:bg-purple-900/40 transition-colors text-sm font-cinzel text-purple-200"
-                style={{ touchAction: 'manipulation' }}
-              >
-                ⚡ Initiative
-              </button>
-            </div>
-            
-            <div className="grid grid-cols-6 gap-1">
-              {(Object.entries(ABILITY_SCORES) as [AbilityScore, typeof ABILITY_SCORES[AbilityScore]][]).map(([key, info]) => {
-                const mod = getModifier(characterContext, key);
-                return (
-                  <button
-                    key={key}
-                    onClick={() => handleRoll(`${info.name} Check`, mod)}
-                    className="flex flex-col items-center gap-0.5 py-1.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 transition-colors"
-                    style={{ touchAction: 'manipulation' }}
-                  >
-                    <span className={cn("text-[10px] font-bold", info.color)}>{info.abbr}</span>
-                    <span className="text-[9px] text-white/40">{mod >= 0 ? `+${mod}` : mod}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="flex gap-1">
-              {QUICK_DICE.map(d => (
+            <button
+              onClick={() => {
+                const dexMod = getModifier(characterContext, 'dex');
+                handleRoll('Initiative', dexMod);
+              }}
+              className="px-3 py-2 rounded-lg bg-purple-900/20 border border-purple-500/20 hover:bg-purple-900/40 transition-colors text-sm font-cinzel text-purple-200"
+              style={{ touchAction: 'manipulation' }}
+            >
+              ⚡ Initiative
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-6 gap-1">
+            {(Object.entries(ABILITY_SCORES) as [AbilityScore, typeof ABILITY_SCORES[AbilityScore]][]).map(([key, info]) => {
+              const mod = getModifier(characterContext, key);
+              return (
                 <button
-                  key={d.label}
-                  onClick={() => handleQuickDie(d.sides, d.label)}
-                  className="flex-1 py-1 rounded-md bg-white/5 hover:bg-white/10 text-[10px] text-white/50 hover:text-white/70 transition-colors border border-white/5"
+                  key={key}
+                  onClick={() => handleRoll(`${info.name} Check`, mod)}
+                  className="flex flex-col items-center gap-0.5 py-1.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 transition-colors"
                   style={{ touchAction: 'manipulation' }}
                 >
-                  {d.label}
+                  <span className={cn("text-[10px] font-bold", info.color)}>{info.abbr}</span>
+                  <span className="text-[9px] text-white/40">{mod >= 0 ? `+${mod}` : mod}</span>
                 </button>
-              ))}
-            </div>
+              );
+            })}
           </div>
-        )}
 
-        {tab === 'skills' && (
-          <div className="grid grid-cols-2 gap-1 max-h-[180px] overflow-y-auto overscroll-contain scrollbar-none">
+          <div className="flex gap-1">
+            {QUICK_DICE.map(d => (
+              <button
+                key={d.label}
+                onClick={() => handleQuickDie(d.sides, d.label)}
+                className="flex-1 py-1 rounded-md bg-white/5 hover:bg-white/10 text-[10px] text-white/50 hover:text-white/70 transition-colors border border-white/5"
+                style={{ touchAction: 'manipulation' }}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Section: Skill Checks */}
+        <div>
+          <div className="text-[10px] font-mono uppercase tracking-wider text-white/40 border-b border-white/5 pb-1 mb-2">
+            ⚔ Skill Checks
+          </div>
+          <div className="grid grid-cols-2 gap-1">
             {SKILLS.map(skill => {
               const mod = getModifier(characterContext, skill.ability);
               const abilityInfo = ABILITY_SCORES[skill.ability];
+              const desc = SKILL_DESCRIPTIONS[skill.id];
               return (
                 <button
                   key={skill.id}
                   onClick={() => handleRoll(`${skill.name}`, mod)}
-                  className="flex items-center justify-between px-2 py-1.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/5 transition-colors text-left"
+                  className="flex items-center justify-between px-2 py-2 rounded-md bg-white/5 hover:bg-white/10 border border-white/5 transition-colors text-left"
                   style={{ touchAction: 'manipulation' }}
                 >
-                  <span className="text-[11px] text-white/70 truncate">{skill.name}</span>
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="text-[11px] text-white/70 truncate">{skill.name}</span>
+                    {desc && <span className="text-[8px] text-white/30 truncate">{desc}</span>}
+                  </div>
                   <span className={cn("text-[10px] font-semibold shrink-0 ml-1", abilityInfo.color)}>
                     {mod >= 0 ? `+${mod}` : mod}
                   </span>
@@ -458,12 +461,17 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
               );
             })}
           </div>
-        )}
+        </div>
 
-        {tab === 'saves' && (
+        {/* Section: Saving Throws */}
+        <div>
+          <div className="text-[10px] font-mono uppercase tracking-wider text-white/40 border-b border-white/5 pb-1 mb-2">
+            🛡 Saving Throws
+          </div>
           <div className="grid grid-cols-2 gap-1.5">
             {(Object.entries(ABILITY_SCORES) as [AbilityScore, typeof ABILITY_SCORES[AbilityScore]][]).map(([key, info]) => {
               const mod = getModifier(characterContext, key);
+              const desc = SAVE_DESCRIPTIONS[key];
               return (
                 <button
                   key={key}
@@ -471,41 +479,21 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
                   className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 transition-colors"
                   style={{ touchAction: 'manipulation' }}
                 >
-                  <span className={cn("text-xs font-semibold", info.color)}>{info.name}</span>
-                  <span className="text-xs text-white/50">{mod >= 0 ? `+${mod}` : mod}</span>
+                  <div className="flex flex-col min-w-0">
+                    <span className={cn("text-xs font-semibold", info.color)}>{info.name}</span>
+                    {desc && <span className="text-[8px] text-white/30 truncate">{desc}</span>}
+                  </div>
+                  <span className="text-xs text-white/50 shrink-0 ml-1">{mod >= 0 ? `+${mod}` : mod}</span>
                 </button>
               );
             })}
           </div>
-        )}
+        </div>
 
-        {/* Dice Odds Button */}
-        <button
-          onClick={() => setShowOddsPanel(prev => !prev)}
-          className={cn(
-            "w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md border text-[10px] font-semibold transition-all",
-            MODE_COLORS_SELECTED[currentOddsMode]
-          )}
-          style={{ touchAction: 'manipulation' }}
-        >
-          {MODE_ICONS[currentOddsMode]}
-          <span>Dice Odds: {currentOddsConfig.label}</span>
-        </button>
-      </div>
-
-      {/* Odds Panel (inline) */}
-      <AnimatePresence>
-      {showOddsPanel && (
-        <motion.div
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: 'auto', opacity: 1 }}
-          exit={{ height: 0, opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="overflow-hidden"
-        >
-        <div className="bg-black/95 border-t border-white/10 rounded-lg p-3 space-y-2 mt-2">
-          <div className="text-[10px] uppercase tracking-wider text-white/40 font-mono text-center">
-            Select Dice Odds
+        {/* Section: Dice Odds */}
+        <div>
+          <div className="text-[10px] font-mono uppercase tracking-wider text-white/40 border-b border-white/5 pb-1 mb-2">
+            🎰 Dice Odds
           </div>
           <div className="grid grid-cols-5 gap-1.5">
             {(Object.keys(DICE_ODDS_CONFIGS) as DiceOddsMode[]).map(mode => {
@@ -529,13 +517,11 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
               );
             })}
           </div>
-          <p className="text-[9px] text-white/40 text-center italic">
+          <p className="text-[9px] text-white/40 text-center italic mt-1.5">
             {currentOddsConfig.deadpoolQuote}
           </p>
         </div>
-        </motion.div>
-      )}
-      </AnimatePresence>
+      </div>
     </div>
   );
 }
