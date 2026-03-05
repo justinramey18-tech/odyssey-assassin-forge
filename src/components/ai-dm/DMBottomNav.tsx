@@ -47,12 +47,14 @@ const activeIndicatorColors: Record<DMNavTab, string> = {
 export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, showGeralt, oracleCount }: DMBottomNavProps) {
   const tabs = [...BASE_TABS, AFK_TAB, ORACLE_TAB, ...(showGeralt ? [GERALT_TAB] : []), SETTINGS_TAB];
   const touchStartY = useRef(0);
+  const touchStartX = useRef(0);
   const touchStartTime = useRef(0);
   const contentScrollRef = useRef<HTMLDivElement>(null);
   const touchStartedOnHandle = useRef(false);
 
   const handleHandleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY;
+    touchStartX.current = e.touches[0].clientX;
     touchStartTime.current = Date.now();
     touchStartedOnHandle.current = true;
   }, []);
@@ -72,6 +74,7 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
 
   const handleContentTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY;
+    touchStartX.current = e.touches[0].clientX;
     touchStartTime.current = Date.now();
     touchStartedOnHandle.current = false;
   }, []);
@@ -83,10 +86,15 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
     if (!isAtTop) return;
 
     const dy = touchStartY.current - e.changedTouches[0].clientY;
+    const dx = touchStartX.current - e.changedTouches[0].clientX;
     const dt = Date.now() - touchStartTime.current;
     const velocity = Math.abs(dy) / Math.max(dt, 1);
-    // Higher threshold for content area: 80px or strong flick
-    if (dy < -80 || (dy < -40 && velocity > 0.5)) {
+
+    // Content area: very intentional vertical pull-down only
+    const isMostlyVertical = Math.abs(dy) > Math.abs(dx) * 1.2;
+    if (!isMostlyVertical) return;
+
+    if (dy < -120 || (dy < -90 && velocity > 0.9)) {
       onExpandedChange(false);
     }
   }, [onExpandedChange]);
