@@ -57,9 +57,8 @@ export function AIGuideCreator({ guides, campaignSummary, chatMessages, onAdd }:
       if (openaiKey) body.user_openai_key = openaiKey;
 
       const token = await getAuthToken();
-      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/guide-creator`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/guide-creator`,
         {
           method: 'POST',
           headers: {
