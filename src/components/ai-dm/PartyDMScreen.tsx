@@ -1483,9 +1483,18 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       {!isFullscreen && (
       <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm mb-[48px]">
         {partyDm.isGenerating ? (
-          <div className="flex items-center justify-center gap-2 py-2">
+          <div className="flex items-center justify-center gap-3 py-2">
             <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
             <span className="text-sm text-amber-400/70">Generating response...</span>
+            {isCreator && (
+              <button
+                onClick={() => partyDm.stopGeneration?.()}
+                className="px-2.5 py-1 rounded-md text-xs font-medium bg-red-900/40 border border-red-500/30 text-red-300 hover:bg-red-900/60 active:bg-red-900/80 transition-colors"
+                style={{ touchAction: 'manipulation' }}
+              >
+                ⏹ Stop
+              </button>
+            )}
           </div>
         ) : !hasSubmitted ? (
           <div className="space-y-2 max-w-2xl mx-auto">
