@@ -1272,6 +1272,23 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
   }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, customGuidesContent, triggerSummaryIfNeeded, silentAutoSave, isSplitActive, splitState, streamAIResponse, buildPartyMembersGuide, generateSplitSummary, buildAfkGuidesContext, consumeCascadePrompts]);
 
+  // Stop generation — aborts the stream, saves partial content, resets lock
+  const stopGeneration = useCallback(async () => {
+    if (!abortRef.current) return;
+    abortRef.current.abort();
+    // The catch block in generateResponse will reset isGenerating in DB
+    // Also clear streaming text and broadcast done
+    setStreamingText('');
+    if (streamChannelRef.current) {
+      streamChannelRef.current.send({
+        type: 'broadcast',
+        event: 'stream-chunk',
+        payload: { text: '', done: true },
+      });
+    }
+    toast('Generation stopped', { icon: '⏹️', duration: 3000 });
+  }, []);
+
   // Auto-trigger generation when all ready (host only)
   useEffect(() => {
     if (!isCreator || !allReady || isGenerating) return;
@@ -1738,6 +1755,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     setReady,
     unready,
     generateResponse,
+    stopGeneration,
     editMessage,
     deleteMessage,
     regenerateMessage,
