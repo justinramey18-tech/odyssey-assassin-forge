@@ -140,6 +140,24 @@ export function useNarrator(): UseNarratorReturn {
       setIsLoading(false);
       setIsPlaying(true);
       await audio.play();
+      const downloadBlob = finalBlob;
+      toast('Narration audio ready', {
+        description: 'Download the MP3?',
+        action: {
+          label: 'Download',
+          onClick: () => {
+            const a = document.createElement('a');
+            const dlUrl = URL.createObjectURL(downloadBlob);
+            a.href = dlUrl;
+            a.download = `narration-${new Date().toISOString().slice(0, 10)}.mp3`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(dlUrl);
+          },
+        },
+        duration: 10000,
+      });
       if (sfxAudioRef.current) {
         sfxAudioRef.current.play().catch(() => {});
       }
