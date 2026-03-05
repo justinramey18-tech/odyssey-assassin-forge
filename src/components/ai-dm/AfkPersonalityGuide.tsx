@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { loadApiKey } from '@/lib/api-keys';
 import ReactMarkdown from 'react-markdown';
 
-const MAX_GUIDE_LENGTH = 2000;
+const MAX_GUIDE_LENGTH = 5000;
 const GUIDE_REGEX = /\[GUIDE_START\]([\s\S]*?)\[GUIDE_END\]/;
 
 interface ChatMessage {
