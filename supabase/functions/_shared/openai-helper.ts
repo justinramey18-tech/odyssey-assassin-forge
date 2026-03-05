@@ -34,7 +34,7 @@ export async function callOpenAINonStreaming(opts: {
   toolChoice?: string;
 }): Promise<{ text?: string; toolArguments?: any; error?: string; status?: number }> {
   const {
-    userApiKey, systemPrompt, messages, maxTokens = 4096,
+    userApiKey, systemPrompt, messages, maxTokens = 16000,
     temperature = 0.7, model = DEFAULT_MODEL, tools, toolChoice,
   } = opts;
 
@@ -97,7 +97,7 @@ export async function callOpenAIStreaming(opts: {
   model?: string;
 }): Promise<Response> {
   const {
-    userApiKey, systemPrompt, messages, maxTokens = 4096,
+    userApiKey, systemPrompt, messages, maxTokens = 16000,
     temperature = 0.7, model = DEFAULT_MODEL,
   } = opts;
 

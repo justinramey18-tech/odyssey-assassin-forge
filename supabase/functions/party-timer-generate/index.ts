@@ -294,7 +294,7 @@ async function handleScheduledEvent(
         ...apiMessages.slice(-100),
       ],
       stream: false,
-      max_tokens: 8000,
+       max_tokens: 16000,
     }),
   });
 
@@ -467,7 +467,7 @@ async function handleScheduledRound(
           ...apiMessages.slice(-100),
         ],
         stream: false,
-        max_tokens: 8000,
+         max_tokens: 16000,
       }),
     });
 
@@ -747,7 +747,7 @@ serve(async (req) => {
               ...apiMessages.slice(-100),
             ],
             stream: false,
-            max_tokens: 8000,
+            max_tokens: 16000,
           }),
         });
 
