@@ -15,22 +15,27 @@ import {
 /**
  * @param ownerUserId - If provided, fetches/persists guides for this user instead of the current user.
  *   Used by co-hosts to manage the host's GM guides.
- * @param mode - 'solo' or 'party'. Filters guides by mode in both cloud and localStorage.
+ * @param mode - 'solo' or 'party'.
+ *   'solo' = purely localStorage, no cloud sync.
+ *   'party' = cloud-backed via gm_guides table.
  */
 export function useGMGuides(ownerUserId?: string, mode?: 'solo' | 'party') {
+  const isCloudMode = mode === 'party' || !!ownerUserId;
+
   const [guides, setGuides] = useState<GMGuide[]>(() => ownerUserId ? [] : loadGMGuides(mode));
   const [cloudLoaded, setCloudLoaded] = useState(false);
-  const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const deletedIdsRef = useRef<Set<string>>(new Set());
 
-  // Load from cloud on mount (if signed in)
+  // Cloud load — only for party mode or co-host
   useEffect(() => {
+    if (!isCloudMode) return;
+
     let cancelled = false;
 
     const loadFromCloud = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session || cancelled) return;
 
-      // When ownerUserId is set, fetch that user's guides (co-host scenario)
       const targetUserId = ownerUserId || session.user.id;
 
       const baseQuery = mode
@@ -51,7 +56,6 @@ export function useGMGuides(ownerUserId?: string, mode?: 'solo' | 'party') {
       if (error || cancelled) return;
 
       if (data && data.length > 0) {
-        // Filter out any guides the user deleted this session (race-condition guard)
         const cloudGuides: GMGuide[] = data
           .filter(row => !deletedIdsRef.current.has(row.id))
           .map(row => ({
@@ -63,31 +67,7 @@ export function useGMGuides(ownerUserId?: string, mode?: 'solo' | 'party') {
             updatedAt: row.updated_at,
           }));
 
-        if (ownerUserId) {
-          // Co-host mode: cloud is sole source of truth, no local merge
-          setGuides(cloudGuides);
-        } else {
-          // Cloud is source of truth once loaded — don't re-push stale local guides
-          setGuides(cloudGuides);
-          saveGMGuides(cloudGuides, mode);
-        }
-      } else if (!ownerUserId) {
-        // No cloud data and own guides — push all local guides to cloud
-        const local = loadGMGuides(mode);
-        if (local.length > 0) {
-          for (const g of local) {
-            await supabase.from('gm_guides').upsert({
-              id: g.id,
-              user_id: session.user.id,
-              name: g.name,
-              content: g.content,
-              enabled: g.enabled,
-              mode: mode || 'solo',
-              created_at: g.createdAt,
-              updated_at: g.updatedAt,
-            } as any);
-          }
-        }
+        setGuides(cloudGuides);
       }
       if (!cancelled) setCloudLoaded(true);
     };
@@ -95,12 +75,12 @@ export function useGMGuides(ownerUserId?: string, mode?: 'solo' | 'party') {
     loadFromCloud();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ownerUserId, mode]);
+  }, [ownerUserId, mode, isCloudMode]);
 
   const persistToCloud = useCallback(async (guide: GMGuide) => {
+    if (!isCloudMode) return;
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
-    // Use ownerUserId for co-host scenario, otherwise current user
     const targetUserId = ownerUserId || session.user.id;
     await supabase.from('gm_guides').upsert({
       id: guide.id,
@@ -108,27 +88,26 @@ export function useGMGuides(ownerUserId?: string, mode?: 'solo' | 'party') {
       name: guide.name,
       content: guide.content,
       enabled: guide.enabled,
-      mode: mode || 'solo',
+      mode: mode || 'party',
       created_at: guide.createdAt,
       updated_at: guide.updatedAt,
     } as any);
-  }, [ownerUserId, mode]);
-
-  const deletedIdsRef = useRef<Set<string>>(new Set());
+  }, [ownerUserId, mode, isCloudMode]);
 
   const deleteFromCloud = useCallback(async (id: string) => {
+    if (!isCloudMode) return;
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
     await supabase.from('gm_guides').delete().eq('id', id);
-  }, []);
+  }, [isCloudMode]);
 
   const persist = useCallback((next: GMGuide[]) => {
     setGuides(next);
-    // Only save to localStorage for own guides
-    if (!ownerUserId) {
+    // Solo mode: save to localStorage. Party/co-host: don't use localStorage.
+    if (!isCloudMode) {
       saveGMGuides(next, mode);
     }
-  }, [ownerUserId, mode]);
+  }, [isCloudMode, mode]);
 
   const addGuide = useCallback((name: string, content: string, customId?: string): boolean => {
     if (content.length > MAX_GUIDE_CHARS) {
@@ -196,10 +175,9 @@ export function useGMGuides(ownerUserId?: string, mode?: 'solo' | 'party') {
   /** Get IDs of currently enabled guides */
   const activeGuideIds = useMemo(() => guides.filter(g => g.enabled).map(g => g.id), [guides]);
 
-  /** Enable only the guides with the given IDs, disable all others. Persists to local + cloud. */
+  /** Enable only the guides with the given IDs, disable all others. */
   const setActiveGuideIds = useCallback((ids: string[] | null) => {
     if (!ids) {
-      // null means disable all (fresh campaign)
       const next = guides.map(g => ({ ...g, enabled: false, updatedAt: new Date().toISOString() }));
       persist(next);
       next.forEach(g => persistToCloud(g));
