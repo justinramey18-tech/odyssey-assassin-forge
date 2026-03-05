@@ -1237,6 +1237,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      is_co_host_of: { Args: { _owner_id: string }; Returns: boolean }
       is_party_member: {
         Args: { _party_id: string; _user_id: string }
         Returns: boolean

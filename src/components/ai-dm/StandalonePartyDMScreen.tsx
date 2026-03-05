@@ -1,8 +1,9 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useGMGuides } from '@/hooks/use-gm-guides';
 import { usePartyDm } from '@/hooks/use-party-dm';
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
 import { useCampaignSessions } from '@/hooks/use-campaign-sessions';
+import { supabase } from '@/integrations/supabase/client';
 import { PartyDMScreen } from './PartyDMScreen';
 import { GMGuidesManager } from './GMGuidesManager';
 import { InlineBattleMap } from './InlineBattleMap';
@@ -52,14 +53,30 @@ export function StandalonePartyDMScreen({
   const [showBattleMap, setShowBattleMap] = useState(false);
   const [pendingMapAdds, setPendingMapAdds] = useState<MapMarker[]>([]);
   const [pendingMapRemovals, setPendingMapRemovals] = useState<string[]>([]);
+  const [partyCreatorId, setPartyCreatorId] = useState<string | null>(null);
   const battleMapMarkersRef = useRef<MapMarker[]>([]);
   const battleMapGridSizeRef = useRef<number>(25);
+
+  // Fetch party creator ID so co-hosts can target host's guides
+  useEffect(() => {
+    if (!partyId || isPartyCreator) return;
+    supabase
+      .from('parties')
+      .select('created_by')
+      .eq('id', partyId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.created_by) setPartyCreatorId(data.created_by);
+      });
+  }, [partyId, isPartyCreator]);
 
   // Campaign sessions (for dropdown)
   const campaignSessions = useCampaignSessions();
 
-  // GM Guides
-  const gmGuides = useGMGuides();
+  // GM Guides — co-hosts load the host's guides via ownerUserId
+  // (Once the co-host plan is wired, isPartyCreator will be replaced by !isHost check)
+  const gmGuidesOwner = !isPartyCreator && partyCreatorId ? partyCreatorId : undefined;
+  const gmGuides = useGMGuides(gmGuidesOwner);
 
   // Stabilize partyMembers for usePartyDm
   const stablePartyMembers = useMemo(() =>
