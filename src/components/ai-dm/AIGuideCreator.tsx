@@ -1,12 +1,13 @@
 import { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ChevronDown, ChevronUp, Loader2, Wand2, ScrollText, MessageSquare, BookOpen } from 'lucide-react';
+import { Sparkles, ChevronDown, ChevronUp, Wand2, ScrollText, MessageSquare, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { DM_MODELS, DMAIModel } from '@/lib/dm-models';
+import { DM_MODELS } from '@/lib/dm-models';
 import { loadApiKey, isClaudeEverywhereEnabled } from '@/lib/api-keys';
 import { getAuthToken } from '@/lib/auth-token';
 import { useToast } from '@/hooks/use-toast';
 import { GMGuide } from '@/lib/gm-guides-storage';
+import { GuideGenerationDialog } from './GuideGenerationDialog';
 
 interface AIGuideCreatorProps {
   guides: GMGuide[];
@@ -22,6 +23,9 @@ export function AIGuideCreator({ guides, campaignSummary, chatMessages, onAdd }:
   );
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showDialog, setShowDialog] = useState(false);
+  const [streamedContent, setStreamedContent] = useState('');
+  const [suggestedName, setSuggestedName] = useState('');
   const { toast } = useToast();
 
   const enabledGuides = useMemo(() => guides.filter(g => g.enabled), [guides]);
@@ -30,6 +34,9 @@ export function AIGuideCreator({ guides, campaignSummary, chatMessages, onAdd }:
   const handleGenerate = useCallback(async () => {
     if (!prompt.trim() || isGenerating) return;
     setIsGenerating(true);
+    setStreamedContent('');
+    setSuggestedName('');
+    setShowDialog(true);
 
     try {
       const model = DM_MODELS.find(m => m.id === selectedModel);
@@ -38,6 +45,7 @@ export function AIGuideCreator({ guides, campaignSummary, chatMessages, onAdd }:
       const body: Record<string, unknown> = {
         prompt: prompt.trim(),
         model: selectedModel,
+        stream: true,
       };
 
       if (campaignSummary) body.campaignSummary = campaignSummary;
@@ -52,7 +60,6 @@ export function AIGuideCreator({ guides, campaignSummary, chatMessages, onAdd }:
         const key = loadApiKey('anthropic');
         if (key) body.user_api_key = key;
       }
-      // Also pass OpenAI key if available for openai-direct models
       const openaiKey = loadApiKey('openai');
       if (openaiKey) body.user_openai_key = openaiKey;
 
@@ -74,18 +81,42 @@ export function AIGuideCreator({ guides, campaignSummary, chatMessages, onAdd }:
         throw new Error(err.error || `Error ${response.status}`);
       }
 
-      const data = await response.json();
-      const { guide, suggestedName } = data as { guide: string; suggestedName: string };
+      // Read SSE stream
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No response stream');
 
-      if (!guide?.trim()) {
-        throw new Error('AI returned an empty guide');
+      const decoder = new TextDecoder();
+      let fullContent = '';
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') continue;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.content) {
+              fullContent += parsed.content;
+              setStreamedContent(fullContent);
+            }
+          } catch { /* skip */ }
+        }
       }
 
-      const saved = onAdd(suggestedName || 'AI Generated Guide', guide);
-      if (saved) {
-        toast({ title: '✨ Guide Created', description: `"${suggestedName}" saved to your library.` });
-        setPrompt('');
-        setExpanded(false);
+      // Extract suggested name from first heading
+      const headingMatch = fullContent.match(/^#\s+(.+)/m);
+      setSuggestedName(headingMatch?.[1]?.trim().slice(0, 100) || prompt.slice(0, 60).trim());
+
+      if (!fullContent.trim()) {
+        throw new Error('AI returned an empty guide');
       }
     } catch (err) {
       console.error('Guide generation failed:', err);
@@ -94,10 +125,30 @@ export function AIGuideCreator({ guides, campaignSummary, chatMessages, onAdd }:
         description: err instanceof Error ? err.message : 'Unknown error',
         variant: 'destructive',
       });
+      setShowDialog(false);
     } finally {
       setIsGenerating(false);
     }
-  }, [prompt, isGenerating, selectedModel, campaignSummary, chatMessages, enabledGuides, onAdd, toast]);
+  }, [prompt, isGenerating, selectedModel, campaignSummary, chatMessages, enabledGuides, toast]);
+
+  const handleAccept = useCallback(() => {
+    const name = suggestedName || 'AI Generated Guide';
+    const saved = onAdd(name, streamedContent);
+    if (saved) {
+      toast({ title: '✨ Guide Created', description: `"${name}" saved to your library.` });
+      setPrompt('');
+      setExpanded(false);
+    }
+    setShowDialog(false);
+    setStreamedContent('');
+    setSuggestedName('');
+  }, [suggestedName, streamedContent, onAdd, toast]);
+
+  const handleReject = useCallback(() => {
+    setShowDialog(false);
+    setStreamedContent('');
+    setSuggestedName('');
+  }, []);
 
   return (
     <div className="mx-0 mb-2">
@@ -195,22 +246,23 @@ export function AIGuideCreator({ guides, campaignSummary, chatMessages, onAdd }:
                 )}
                 style={{ touchAction: 'manipulation' }}
               >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Generating Guide...
-                  </>
-                ) : (
-                  <>
-                    <Wand2 className="w-4 h-4" />
-                    Generate Guide
-                  </>
-                )}
+                <Wand2 className="w-4 h-4" />
+                Generate Guide
               </button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Streaming generation dialog */}
+      <GuideGenerationDialog
+        open={showDialog}
+        streamedContent={streamedContent}
+        isStreaming={isGenerating}
+        suggestedName={suggestedName}
+        onAccept={handleAccept}
+        onReject={handleReject}
+      />
     </div>
   );
 }
