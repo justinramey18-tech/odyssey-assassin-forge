@@ -68,6 +68,7 @@ export interface PartyDMSettingsProps {
   mode: 'shared' | 'private';
   onToggleMode: () => void;
   isCreator: boolean;
+  isOriginalCreator?: boolean;
   partyId?: string | null;
   autoSyncEnabled?: boolean;
   onToggleAutoSync?: (enabled: boolean) => void;
@@ -103,7 +104,7 @@ export interface PartyDMSettingsProps {
 }
 
 export function PartyDMSettings({
-  mode, onToggleMode, isCreator, partyId,
+  mode, onToggleMode, isCreator, isOriginalCreator: isOriginalCreatorProp, partyId,
   autoSyncEnabled, onToggleAutoSync, isExtracting,
   pushState, onTogglePush,
   onShowMap, onShowSaves, onShowGuides, onShowChat, onShowAfkGuide,
@@ -113,6 +114,7 @@ export function PartyDMSettings({
   timerEnabled, timerDurationSeconds, onTimerEnabledChange, onTimerDurationChange,
   onShowScheduledEvents, scheduledEventsCount = 0,
 }: PartyDMSettingsProps) {
+  const originalCreator = isOriginalCreatorProp ?? isCreator;
   return (
     <div className="px-3 py-3 space-y-2.5 max-h-[50vh] overflow-y-auto overscroll-contain">
       {/* Session Controls */}
@@ -199,7 +201,7 @@ export function PartyDMSettings({
       </SettingsSection>
 
       {/* Party Management (creator only) */}
-      {isCreator && (
+      {originalCreator && (
         <SettingsSection title="Party Management" icon={<Users className="w-4 h-4 text-blue-400" />}>
           {isSplitActive ? (
             <>
@@ -216,7 +218,7 @@ export function PartyDMSettings({
       )}
 
       {/* Danger Zone (creator only) */}
-      {isCreator && (
+      {originalCreator && (
         <SettingsSection title="Danger Zone" variant="danger" icon={<X className="w-4 h-4 text-destructive" />}>
           <ToolRow
             icon={<X className="w-4 h-4 text-destructive" />}

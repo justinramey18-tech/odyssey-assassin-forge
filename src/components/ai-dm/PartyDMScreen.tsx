@@ -40,6 +40,10 @@ interface PartyDMScreenProps {
   partyId?: string | null;
   partyDm: PartyDmReturn;
   isCreator: boolean;
+  isOriginalCreator?: boolean;
+  coHostIds?: string[];
+  onPromoteCoHost?: (userId: string) => void;
+  onDemoteCoHost?: (userId: string) => void;
   currentUserId?: string;
   memberCount: number;
   members: Array<{ user_id: string; character_name: string; character_status?: Record<string, unknown> }>;
@@ -506,7 +510,8 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
   );
 }
 
-export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, characterContext, showBattleMap, battleMapContent, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns }: PartyDMScreenProps) {
+export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, characterContext, showBattleMap, battleMapContent, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns }: PartyDMScreenProps) {
+  const originalCreator = isOriginalCreatorProp ?? isCreator;
   const [input, setInput, clearInput] = useDraftPersist('odyssey-party-dm-draft');
   const [, setTick] = useState(0);
   const narrator = useNarrator();
@@ -1245,6 +1250,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
                             )} />
                           )}
                           <span className="truncate flex-1">{m.character_name}</span>
+                          {coHostIds?.includes(m.user_id) && (
+                            <span className="text-[8px] text-amber-400/70 font-bold uppercase tracking-wider shrink-0">Co-DM</span>
+                          )}
                           {(m as any).character_status?.afkPersonalityGuide && (
                             <span title="AFK guide configured" className="flex items-center gap-0.5">
                               <Ghost className="w-2.5 h-2.5 text-purple-400/60 shrink-0" />
@@ -1336,6 +1344,31 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
                                     </div>
                                   ) : (
                                     <p className="text-xs text-white/70 whitespace-pre-wrap break-words">{prompt.prompt}</p>
+                                   )}
+                                  {/* Promote/demote co-host — original creator only, non-self */}
+                                  {originalCreator && m.user_id !== currentUserId && (
+                                    <div className="mt-2 pt-2 border-t border-white/10">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (coHostIds?.includes(m.user_id)) {
+                                            onDemoteCoHost?.(m.user_id);
+                                            toast.success(`${m.character_name} removed as co-host`);
+                                          } else {
+                                            onPromoteCoHost?.(m.user_id);
+                                            toast.success(`${m.character_name} promoted to co-host!`);
+                                          }
+                                        }}
+                                        className={cn(
+                                          "px-2 py-1 text-[10px] rounded border transition-colors",
+                                          coHostIds?.includes(m.user_id)
+                                            ? "border-red-500/30 bg-red-900/20 text-red-300 hover:bg-red-900/40"
+                                            : "border-amber-500/30 bg-amber-900/20 text-amber-300 hover:bg-amber-900/40"
+                                        )}
+                                      >
+                                        {coHostIds?.includes(m.user_id) ? 'Remove Co-Host' : 'Make Co-Host'}
+                                      </button>
+                                    </div>
                                   )}
                                 </div>
                               </motion.div>
@@ -1686,6 +1719,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, currentUser
                 }
               }}
               isCreator={isCreator}
+              isOriginalCreator={originalCreator}
               partyId={partyId}
               autoSyncEnabled={autoSyncEnabled}
               onToggleAutoSync={onToggleAutoSync}

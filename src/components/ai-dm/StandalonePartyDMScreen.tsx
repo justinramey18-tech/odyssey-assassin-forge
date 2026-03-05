@@ -54,10 +54,11 @@ export function StandalonePartyDMScreen({
   const [pendingMapAdds, setPendingMapAdds] = useState<MapMarker[]>([]);
   const [pendingMapRemovals, setPendingMapRemovals] = useState<string[]>([]);
   const [partyCreatorId, setPartyCreatorId] = useState<string | null>(null);
+  const [coHostIds, setCoHostIds] = useState<string[]>([]);
   const battleMapMarkersRef = useRef<MapMarker[]>([]);
   const battleMapGridSizeRef = useRef<number>(25);
 
-  // Fetch party creator ID so co-hosts can target host's guides
+  // Fetch party creator ID (for non-creators)
   useEffect(() => {
     if (!partyId || isPartyCreator) return;
     supabase
@@ -70,12 +71,77 @@ export function StandalonePartyDMScreen({
       });
   }, [partyId, isPartyCreator]);
 
+  // Fetch co-host state on mount
+  useEffect(() => {
+    if (!partyId) return;
+    (supabase.from('party_shared_state') as any)
+      .select('state_data')
+      .eq('party_id', partyId)
+      .eq('state_type', 'co_hosts')
+      .maybeSingle()
+      .then(({ data }: any) => {
+        if (data?.state_data?.userIds) {
+          setCoHostIds(data.state_data.userIds);
+        }
+      });
+  }, [partyId]);
+
+  // Realtime subscription for co-host changes
+  useEffect(() => {
+    if (!partyId) return;
+    const channel = supabase
+      .channel(`co-hosts-${partyId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'party_shared_state',
+        filter: `party_id=eq.${partyId}`,
+      }, (payload: any) => {
+        const row = payload.new as any;
+        if (row?.state_type === 'co_hosts') {
+          setCoHostIds(row.state_data?.userIds ?? []);
+        }
+        if (payload.eventType === 'DELETE') {
+          const old = payload.old as any;
+          if (old?.state_type === 'co_hosts') setCoHostIds([]);
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [partyId]);
+
+  // Compute host status
+  const isCoHost = coHostIds.includes(userId);
+  const isHost = isPartyCreator || isCoHost;
+
+  // Promote/demote callbacks
+  const promoteCoHost = useCallback(async (targetUserId: string) => {
+    if (!partyId || !userId || !isPartyCreator) return;
+    const next = [...new Set([...coHostIds, targetUserId])];
+    await (supabase.from('party_shared_state') as any).upsert({
+      party_id: partyId,
+      user_id: userId,
+      state_type: 'co_hosts',
+      state_data: { userIds: next },
+    }, { onConflict: 'party_id,user_id,state_type' });
+  }, [partyId, userId, isPartyCreator, coHostIds]);
+
+  const demoteCoHost = useCallback(async (targetUserId: string) => {
+    if (!partyId || !userId || !isPartyCreator) return;
+    const next = coHostIds.filter(id => id !== targetUserId);
+    await (supabase.from('party_shared_state') as any).upsert({
+      party_id: partyId,
+      user_id: userId,
+      state_type: 'co_hosts',
+      state_data: { userIds: next },
+    }, { onConflict: 'party_id,user_id,state_type' });
+  }, [partyId, userId, isPartyCreator, coHostIds]);
+
   // Campaign sessions (for dropdown)
   const campaignSessions = useCampaignSessions();
 
   // GM Guides — co-hosts load the host's guides via ownerUserId
-  // (Once the co-host plan is wired, isPartyCreator will be replaced by !isHost check)
-  const gmGuidesOwner = !isPartyCreator && partyCreatorId ? partyCreatorId : undefined;
+  const gmGuidesOwner = isCoHost && partyCreatorId ? partyCreatorId : undefined;
   const gmGuides = useGMGuides(gmGuidesOwner);
 
   // Stabilize partyMembers for usePartyDm
@@ -88,10 +154,10 @@ export function StandalonePartyDMScreen({
     [partyMembers]
   );
 
-  // Party DM hook — standalone initialization
+  // Party DM hook — pass isHost as isCreator so co-hosts get host abilities
   const partyDm = usePartyDm({
     partyId: partyId || null,
-    isCreator: isPartyCreator,
+    isCreator: isHost,
     memberCount: partyMembers.length,
     characterName,
     characterContext,
@@ -130,11 +196,8 @@ export function StandalonePartyDMScreen({
     partyDm.loadCampaign(session.id, session.messages, session.campaign_summary);
   }, [partyDm.messages.length, partyDm.saveCampaign, partyDm.activeCampaignId, partyDm.loadCampaign]);
 
-  // Auto-start session for creator if not already active
-  // (The host needs to start the session; non-creators see "Waiting for Host")
-
-  if (!partyDm.isActive && !isPartyCreator) {
-    // Show a waiting state
+  // Non-hosts (and non-co-hosts) wait for session to start
+  if (!partyDm.isActive && !isHost) {
     return (
       <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]">
         <button
@@ -175,7 +238,11 @@ export function StandalonePartyDMScreen({
         onBack={onBack}
         partyId={partyId}
         partyDm={partyDm}
-        isCreator={isPartyCreator}
+        isCreator={isHost}
+        isOriginalCreator={isPartyCreator}
+        coHostIds={coHostIds}
+        onPromoteCoHost={promoteCoHost}
+        onDemoteCoHost={demoteCoHost}
         currentUserId={userId}
         memberCount={partyMembers.length}
         members={partyMembers.map(m => ({ user_id: m.user_id, character_name: m.character_name, character_status: m.character_status as Record<string, unknown> }))}
@@ -222,7 +289,7 @@ export function StandalonePartyDMScreen({
           hasMessages={partyDm.messages.length > 0}
           onSave={partyDm.saveCampaign}
           onLoad={partyDm.loadCampaign}
-          isCreator={isPartyCreator}
+          isCreator={isHost}
         />
       )}
     </div>
