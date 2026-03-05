@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Send, X, MessageSquare, Pencil, Trash2, CheckSquare, Square, XCircle, Pin, PinOff, ImagePlus, Reply, ChevronDown, ChevronUp, SmilePlus } from 'lucide-react';
+import { Send, X, MessageSquare, Pencil, Trash2, CheckSquare, Square, XCircle, Pin, PinOff, ImagePlus, Reply, ChevronDown, ChevronUp, SmilePlus, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -81,6 +81,7 @@ export function FullscreenPartyChat({
 
   // Emoji picker
   const [emojiPickerMsgId, setEmojiPickerMsgId] = useState<string | null>(null);
+  const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
 
   // Build reactions map: messageId -> { emoji -> { count, userReacted, names[] } }
   const reactionsMap = useMemo(() => {
@@ -184,15 +185,13 @@ export function FullscreenPartyChat({
   // Long-press handlers
   const startLongPress = useCallback((msg: PartyChatMessage, e: React.PointerEvent) => {
     if (bulkMode) return;
-    const canAct = msg.user_id === currentUserId || isPartyCreator;
-    if (!canAct) return;
     const x = e.clientX;
     const y = e.clientY;
     longPressTimer.current = setTimeout(() => {
       setContextMsg(msg);
       setContextPos({ x, y });
     }, 500);
-  }, [bulkMode, currentUserId, isPartyCreator]);
+  }, [bulkMode]);
 
   const cancelLongPress = useCallback(() => {
     if (longPressTimer.current) {
@@ -208,6 +207,18 @@ export function FullscreenPartyChat({
       return next;
     });
   }, []);
+
+  const handleCopyMessage = useCallback(async (msgId: string) => {
+    const msg = messages.find(m => m.id === msgId);
+    if (!msg) return;
+    try {
+      await navigator.clipboard.writeText(msg.message);
+      setCopiedMsgId(msgId);
+      setTimeout(() => setCopiedMsgId(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  }, [messages]);
 
   const uniqueUserIds = [...new Set(messages.map(m => m.user_id))];
 
@@ -395,20 +406,18 @@ export function FullscreenPartyChat({
                                   <span className="truncate">{repliedMsg.message}</span>
                                 </div>
                               )}
-                              {/* Image */}
-                              {msg.image_url && (
-                                <a href={msg.image_url} target="_blank" rel="noopener noreferrer" className="block mb-1">
-                                  <img src={msg.image_url} alt="Chat image"
-                                    className="max-w-[200px] max-h-[150px] rounded-md border border-border/30 object-cover" />
-                                </a>
-                              )}
-                              <p className="text-sm text-foreground/90 leading-relaxed break-words">
-                                {msg.message}
-                                {msg.updated_at && (
-                                  <span className="text-[10px] text-muted-foreground/60 ml-1.5 italic">(edited)</span>
+                              <div className="space-y-1">
+                                <p className="text-sm text-foreground/90 break-words">{msg.message}</p>
+                                {msg.image_url && (
+                                  <a href={msg.image_url} target="_blank" rel="noopener noreferrer" className="block mb-1">
+                                    <img src={msg.image_url} alt="Message image" className="max-w-full max-h-32 rounded" />
+                                  </a>
                                 )}
-                              </p>
-                              {/* Reactions display */}
+                                {msg.updated_at && (
+                                  <p className="text-[9px] text-muted-foreground/50 italic">(edited)</p>
+                                )}
+                              </div>
+                              {/* Reactions */}
                               {reactionsMap[msg.id] && Object.keys(reactionsMap[msg.id]).length > 0 && (
                                 <div className="flex flex-wrap gap-1 mt-1">
                                   {Object.entries(reactionsMap[msg.id]).map(([emoji, data]) => (
@@ -424,9 +433,8 @@ export function FullscreenPartyChat({
                                       }}
                                       className={cn(
                                         "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs border transition-colors",
-                                        data.userReacted
-                                          ? "border-primary/40 bg-primary/15"
-                                          : "border-border/30 bg-muted/10 hover:bg-muted/20"
+                                        data.userReacted ? "border-primary/50 bg-primary/10" : "border-border/20 bg-muted/5 hover:bg-muted/20",
+                                        "text-muted-foreground"
                                       )}
                                       title={data.names.join(', ')}
                                     >
@@ -434,7 +442,6 @@ export function FullscreenPartyChat({
                                       <span className="text-[10px] text-muted-foreground">{data.count}</span>
                                     </button>
                                   ))}
-                                  {/* Quick add reaction button */}
                                   {onAddReaction && (
                                     <button
                                       onClick={(e) => {
@@ -496,18 +503,20 @@ export function FullscreenPartyChat({
                 }}
                 onPointerDown={(e) => e.stopPropagation()}
               >
-                {/* React */}
+                {/* React button */}
                 {onAddReaction && (
                   <button className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted/30 transition-colors"
                     onClick={() => { setEmojiPickerMsgId(contextMsg.id); setContextMsg(null); setContextPos(null); }}>
                     <SmilePlus className="w-3.5 h-3.5 text-amber-300" /> React
                   </button>
                 )}
+
                 {/* Reply */}
                 <button className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted/30 transition-colors"
                   onClick={() => { setReplyTo(contextMsg); setContextMsg(null); setContextPos(null); }}>
                   <Reply className="w-3.5 h-3.5 text-sky-400" /> Reply
                 </button>
+
                 {/* Pin/Unpin — party creator only */}
                 {isPartyCreator && onPin && onUnpin && (
                   contextMsg.is_pinned ? (
@@ -522,13 +531,34 @@ export function FullscreenPartyChat({
                     </button>
                   )
                 )}
-                {/* Edit — own messages */}
+
+                {/* Copy button - available to all players */}
+                <button className={cn(
+                  "w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted/30 transition-colors",
+                  copiedMsgId === contextMsg.id && "bg-green-500/20 text-green-400"
+                )}
+                  onClick={() => { handleCopyMessage(contextMsg.id); setContextMsg(null); setContextPos(null); }}>
+                  {copiedMsgId === contextMsg.id ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-green-400" />
+                      <span>Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copy</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Edit button - owner only */}
                 {contextMsg.user_id === currentUserId && onEdit && (
                   <button className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted/30 transition-colors"
                     onClick={() => { setEditingId(contextMsg.id); setEditText(contextMsg.message); setContextMsg(null); setContextPos(null); }}>
                     <Pencil className="w-3.5 h-3.5 text-primary" /> Edit
                   </button>
                 )}
+
                 {/* Delete */}
                 {canDeleteMsg(contextMsg) && onDelete && (
                   <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
@@ -540,76 +570,51 @@ export function FullscreenPartyChat({
             )}
           </AnimatePresence>
 
-          {/* Reply preview bar */}
-          {replyTo && (
-            <div className="flex items-center gap-2 px-4 py-2 bg-primary/5 border-t border-primary/20">
-              <Reply className="w-4 h-4 text-primary shrink-0 rotate-180" />
-              <div className="flex-1 min-w-0 text-xs">
-                <span className="font-medium text-primary">{replyTo.sender_name}</span>
-                <p className="text-muted-foreground truncate">{replyTo.message}</p>
+          {/* Input area */}
+          <div className="border-t border-border/40 bg-background/95 backdrop-blur-sm px-4 py-3 space-y-2">
+            {replyTo && (
+              <div className="flex items-start gap-2 px-3 py-2 bg-primary/10 rounded-lg border border-primary/20 text-xs">
+                <Reply className="w-4 h-4 text-primary shrink-0 rotate-180" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-primary">{replyTo.sender_name}</p>
+                  <p className="text-foreground/70 truncate">{replyTo.message}</p>
+                </div>
+                <button onClick={() => setReplyTo(null)} className="shrink-0 text-muted-foreground hover:text-foreground">
+                  <X className="w-3 h-3" />
+                </button>
               </div>
-              <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0"
-                onClick={() => setReplyTo(null)}>
-                <X className="w-3.5 h-3.5" />
-              </Button>
-            </div>
-          )}
-
-          {/* Pending image preview */}
-          {pendingImageUrl && (
-            <div className="flex items-center gap-2 px-4 py-2 bg-muted/10 border-t border-border/30">
-              <img src={pendingImageUrl} alt="Pending" className="w-12 h-12 rounded-md object-cover border border-border/30" />
-              <span className="text-xs text-muted-foreground flex-1">Image attached</span>
-              <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0"
-                onClick={() => setPendingImageUrl(null)}>
-                <X className="w-3.5 h-3.5" />
-              </Button>
-            </div>
-          )}
-
-          {/* Typing indicator */}
-          {typingUsers && typingUsers.length > 0 && (
-            <div className="px-4 py-1.5 text-xs text-muted-foreground flex items-center gap-1.5">
-              <span className="flex gap-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: '300ms' }} />
-              </span>
-              <span className="italic">
-                {typingUsers.length === 1
-                  ? `${typingUsers[0].name} is typing...`
-                  : `${typingUsers.map(t => t.name).join(', ')} are typing...`
-                }
-              </span>
-            </div>
-          )}
-
-          {/* Input Area */}
-          <div className="border-t border-border/40 px-4 py-3 bg-background/95 backdrop-blur-sm safe-area-bottom">
-            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
+            )}
+            {pendingImageUrl && (
+              <div className="flex items-start gap-2 px-3 py-2 bg-primary/10 rounded-lg border border-primary/20 text-xs">
+                <ImagePlus className="w-4 h-4 text-primary shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-primary">Image attached</p>
+                  <img src={pendingImageUrl} alt="Preview" className="max-w-full max-h-20 rounded mt-1" />
+                </div>
+                <button onClick={() => setPendingImageUrl(null)} className="shrink-0 text-muted-foreground hover:text-foreground">
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
             <div className="flex gap-2">
-              {onUploadImage && (
-                <Button variant="ghost" size="icon" className="h-11 w-11 shrink-0 text-muted-foreground"
-                  onClick={() => fileInputRef.current?.click()} disabled={uploadingImage || bulkMode}>
-                  <ImagePlus className="w-4 h-4" />
-                </Button>
-              )}
-               <Input ref={inputRef} value={text}
-                onChange={(e) => {
-                  setText(e.target.value.slice(0, 500));
-                  if (e.target.value.length > 0 && onTyping) onTyping();
-                }}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
-                placeholder="Type a message..."
-                className="h-11 text-sm"
-                disabled={sending || bulkMode}
+              <Input
+                ref={inputRef}
+                value={text}
+                onChange={(e) => { setText(e.target.value.slice(0, 500)); onTyping?.(); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                placeholder="Say something in party chat..."
+                className="text-sm"
+                disabled={sending || uploadingImage}
               />
-              <Button onClick={handleSend}
-                disabled={(!text.trim() && !pendingImageUrl) || sending || bulkMode}
-                className="h-11 w-11 p-0 shrink-0">
+              <Button size="icon" variant="ghost" onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingImage} className="text-muted-foreground hover:text-foreground">
+                <ImagePlus className="w-4 h-4" />
+              </Button>
+              <Button size="icon" onClick={handleSend} disabled={(!text.trim() && !pendingImageUrl) || sending || uploadingImage}>
                 <Send className="w-4 h-4" />
               </Button>
             </div>
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageSelect} className="hidden" />
           </div>
         </motion.div>
       )}
