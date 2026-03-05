@@ -7,8 +7,9 @@ import { rollWeightedDie, loadDiceOddsMode, saveDiceOddsMode, DICE_ODDS_CONFIGS,
 import { SKILLS, ABILITY_SCORES, type AbilityScore } from '@/lib/diceRollerConfig';
 import type { CharacterContext } from '@/components/oracle/types';
 import { playDiceRattle, playDiceThud } from '@/lib/diceSounds';
-import { getScopedItem } from '@/lib/scoped-storage';
+import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { getProficiencyBonus } from '@/lib/magic/calculations';
+import { toast } from 'sonner';
 
 type RollMode = 'normal' | 'advantage' | 'disadvantage';
 
@@ -178,36 +179,101 @@ function RollingNumber({ target, sides, duration = 600, onLand }: { target: numb
   );
 }
 
+// Long-press hook for toggling proficiency
+function useLongPress(callback: () => void, ms = 500) {
+  const timerRef = useRef<number>(0);
+  const onStart = useCallback(() => {
+    timerRef.current = window.setTimeout(callback, ms);
+  }, [callback, ms]);
+  const onEnd = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, []);
+  return { onTouchStart: onStart, onMouseDown: onStart, onTouchEnd: onEnd, onMouseUp: onEnd, onMouseLeave: onEnd };
+}
+
 export function DMDiceRoller({ characterContext, onRollResult, disabled = false }: DMDiceRollerProps) {
   const [rollMode, setRollMode] = useState<RollMode>('normal');
   const [currentOddsMode, setCurrentOddsMode] = useState<DiceOddsMode>(() => loadDiceOddsMode());
   const [lastRoll, setLastRoll] = useState<RollDisplay | null>(null);
+  const [editMode, setEditMode] = useState(false);
   const rollIdRef = useRef(0);
   const dismissTimerRef = useRef<number>(0);
 
-  // Load proficiency data from storage
-  const proficientSkills = useMemo<Set<string>>(() => {
+  // Load proficiency data from storage as state (so we can toggle)
+  const [proficientSkills, setProficientSkills] = useState<Set<string>>(() => {
     try {
       const raw = getScopedItem('odyssey-proficient-skills');
       return new Set(raw ? JSON.parse(raw) : []);
     } catch { return new Set(); }
-  }, []);
+  });
 
-  const proficientSaves = useMemo<Set<string>>(() => {
+  const [proficientSaves, setProficientSaves] = useState<Set<string>>(() => {
     try {
       const raw = getScopedItem('odyssey-proficient-saves');
       return new Set(raw ? JSON.parse(raw) : []);
     } catch { return new Set(); }
-  }, []);
+  });
 
-  const expertiseSkills = useMemo<Set<string>>(() => {
+  const [expertiseSkills, setExpertiseSkills] = useState<Set<string>>(() => {
     try {
       const raw = getScopedItem('odyssey-expertise-skills');
       return new Set(raw ? JSON.parse(raw) : []);
     } catch { return new Set(); }
-  }, []);
+  });
 
   const profBonus = useMemo(() => getProficiencyBonus(characterContext.level || 1), [characterContext.level]);
+
+  // Persist helpers
+  const persistSkillProf = useCallback((next: Set<string>) => {
+    setProficientSkills(next);
+    setScopedItem('odyssey-proficient-skills', JSON.stringify([...next]));
+  }, []);
+  const persistExpertise = useCallback((next: Set<string>) => {
+    setExpertiseSkills(next);
+    setScopedItem('odyssey-expertise-skills', JSON.stringify([...next]));
+  }, []);
+  const persistSaveProf = useCallback((next: Set<string>) => {
+    setProficientSaves(next);
+    setScopedItem('odyssey-proficient-saves', JSON.stringify([...next]));
+  }, []);
+
+  // Cycle skill: none → proficient → expertise → none
+  const cycleSkillProficiency = useCallback((skillId: string) => {
+    const isProf = proficientSkills.has(skillId);
+    const isExpert = expertiseSkills.has(skillId);
+
+    if (!isProf && !isExpert) {
+      // → proficient
+      const next = new Set(proficientSkills); next.add(skillId);
+      persistSkillProf(next);
+      toast.success(`${skillId.replace('_', ' ')}: Proficient`, { duration: 1500 });
+    } else if (isProf && !isExpert) {
+      // → expertise
+      const next = new Set(expertiseSkills); next.add(skillId);
+      persistExpertise(next);
+      toast.success(`${skillId.replace('_', ' ')}: Expertise`, { duration: 1500 });
+    } else {
+      // → none
+      const nextProf = new Set(proficientSkills); nextProf.delete(skillId);
+      const nextExp = new Set(expertiseSkills); nextExp.delete(skillId);
+      persistSkillProf(nextProf);
+      persistExpertise(nextExp);
+      toast(`${skillId.replace('_', ' ')}: Removed`, { duration: 1500 });
+    }
+  }, [proficientSkills, expertiseSkills, persistSkillProf, persistExpertise]);
+
+  // Toggle save proficiency
+  const toggleSaveProficiency = useCallback((saveKey: string) => {
+    const next = new Set(proficientSaves);
+    if (next.has(saveKey)) {
+      next.delete(saveKey);
+      toast(`${saveKey.toUpperCase()} Save: Removed`, { duration: 1500 });
+    } else {
+      next.add(saveKey);
+      toast.success(`${saveKey.toUpperCase()} Save: Proficient`, { duration: 1500 });
+    }
+    persistSaveProf(next);
+  }, [proficientSaves, persistSaveProf]);
 
   // Auto-dismiss after 5 seconds
   useEffect(() => {
@@ -454,8 +520,22 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
 
         {/* Section: Skill Checks */}
         <div>
-          <div className="text-[10px] font-mono uppercase tracking-wider text-white/40 border-b border-white/5 pb-1 mb-2">
-            ⚔ Skill Checks
+          <div className="flex items-center justify-between border-b border-white/5 pb-1 mb-2">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-white/40">
+              ⚔ Skill Checks
+            </span>
+            <button
+              onClick={() => setEditMode(prev => !prev)}
+              className={cn(
+                "text-[9px] px-2 py-0.5 rounded-full border transition-colors",
+                editMode
+                  ? "bg-amber-900/40 border-amber-500/30 text-amber-300"
+                  : "bg-white/5 border-white/10 text-white/40 hover:text-white/60"
+              )}
+              style={{ touchAction: 'manipulation' }}
+            >
+              {editMode ? '✓ Done' : '✏ Edit'}
+            </button>
           </div>
           <div className="grid grid-cols-2 gap-1">
             {SKILLS.map(skill => {
@@ -468,9 +548,10 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
               return (
                 <button
                   key={skill.id}
-                  onClick={() => handleRoll(`${skill.name}`, totalMod)}
+                  onClick={() => editMode ? cycleSkillProficiency(skill.id) : handleRoll(`${skill.name}`, totalMod)}
                   className={cn(
                     "flex items-center justify-between px-2 py-2 rounded-md border transition-colors text-left",
+                    editMode && "ring-1 ring-white/10",
                     isExpert
                       ? "bg-amber-900/15 border-amber-500/20 hover:bg-amber-900/25"
                       : isProf
@@ -480,12 +561,17 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
                   style={{ touchAction: 'manipulation' }}
                 >
                   <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                    {(isProf || isExpert) && (
+                    {editMode ? (
+                      <span className={cn(
+                        "w-2.5 h-2.5 rounded-full shrink-0 border-2 transition-colors",
+                        isExpert ? "bg-amber-400 border-amber-400" : isProf ? "bg-emerald-400 border-emerald-400" : "border-white/30 bg-transparent"
+                      )} />
+                    ) : (isProf || isExpert) ? (
                       <span className={cn(
                         "w-1.5 h-1.5 rounded-full shrink-0",
                         isExpert ? "bg-amber-400" : "bg-emerald-400"
                       )} />
-                    )}
+                    ) : null}
                     <div className="flex flex-col min-w-0 flex-1">
                       <span className={cn(
                         "text-[11px] truncate",
@@ -511,6 +597,9 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
               <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
               <span className="text-[8px] text-white/30">Expertise</span>
             </div>
+            {editMode && (
+              <span className="text-[8px] text-amber-300/50 ml-auto">Tap to cycle</span>
+            )}
           </div>
         </div>
 
@@ -528,9 +617,10 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
               return (
                 <button
                   key={key}
-                  onClick={() => handleRoll(`${info.name} Save`, totalMod)}
+                  onClick={() => editMode ? toggleSaveProficiency(key) : handleRoll(`${info.name} Save`, totalMod)}
                   className={cn(
                     "flex items-center justify-between px-3 py-2 rounded-lg border transition-colors",
+                    editMode && "ring-1 ring-white/10",
                     isProf
                       ? "bg-emerald-900/15 border-emerald-500/20 hover:bg-emerald-900/25"
                       : "bg-white/5 hover:bg-white/10 border-white/5 hover:border-white/10"
@@ -538,7 +628,14 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
                   style={{ touchAction: 'manipulation' }}
                 >
                   <div className="flex items-center gap-1.5 min-w-0">
-                    {isProf && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />}
+                    {editMode ? (
+                      <span className={cn(
+                        "w-2.5 h-2.5 rounded-full shrink-0 border-2 transition-colors",
+                        isProf ? "bg-emerald-400 border-emerald-400" : "border-white/30 bg-transparent"
+                      )} />
+                    ) : isProf ? (
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                    ) : null}
                     <div className="flex flex-col min-w-0">
                       <span className={cn("text-xs font-semibold", info.color)}>{info.name}</span>
                       {desc && <span className="text-[8px] text-white/30 truncate">{desc}</span>}
