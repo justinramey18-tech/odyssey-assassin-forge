@@ -119,11 +119,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [sessionConfig, setSessionConfig] = useState<DmSessionConfig | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [streamingText, setStreamingText] = useState<string>('');
   const abortRef = useRef<AbortController | null>(null);
-  const prevAfkNamesRef = useRef<string>('');
   const autoGenTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const streamChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   // Split state
   const [splitState, setSplitState] = useState<DmSplitState | null>(null);
@@ -324,26 +321,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       })
       .subscribe();
 
-    // Broadcast channel for live streaming text (ephemeral, no DB writes)
-    const streamChannel = supabase.channel(`party-dm-stream-${partyId}`);
-    streamChannel
-      .on('broadcast', { event: 'stream-chunk' }, (payload: any) => {
-        const { text, done, team } = payload.payload || {};
-        if (done) {
-          setStreamingText('');
-        } else if (typeof text === 'string') {
-          setStreamingText(text);
-        }
-      })
-      .subscribe();
-    streamChannelRef.current = streamChannel;
-
     return () => {
       supabase.removeChannel(msgChannel);
       supabase.removeChannel(promptChannel);
       supabase.removeChannel(stateChannel);
-      supabase.removeChannel(streamChannel);
-      streamChannelRef.current = null;
     };
   }, [partyId]);
 
@@ -734,12 +715,11 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
   }, [partyId, isCreator, sessionConfig]);
 
-  // Helper: stream an AI response, broadcast chunks to party, and return the content
+  // Helper: stream an AI response and return the content
   const streamAIResponse = useCallback(async (
     apiMessages: Array<{ role: string; content: string }>,
     extraGuides: string,
     signal: AbortSignal,
-    team?: string,
   ): Promise<string> => {
     const authToken = await getAuthToken();
     const response = await fetch(AI_DM_URL, {
@@ -788,8 +768,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     const decoder = new TextDecoder();
     let textBuffer = '';
     let assistantContent = '';
-    let lastBroadcast = 0;
-    const BROADCAST_INTERVAL = 100; // ms — throttle broadcasts
 
     while (true) {
       const { done, value } = await reader.read();
@@ -807,35 +785,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         try {
           const parsed = JSON.parse(jsonStr);
           const delta = parsed.choices?.[0]?.delta?.content as string | undefined;
-          if (delta) {
-            assistantContent += delta;
-            // Update local streaming state
-            setStreamingText(assistantContent);
-            // Broadcast to party members (throttled)
-            const now = Date.now();
-            if (now - lastBroadcast >= BROADCAST_INTERVAL && streamChannelRef.current) {
-              lastBroadcast = now;
-              streamChannelRef.current.send({
-                type: 'broadcast',
-                event: 'stream-chunk',
-                payload: { text: assistantContent, team },
-              });
-            }
-          }
+          if (delta) assistantContent += delta;
         } catch { /* skip */ }
       }
     }
-
-    // Send final broadcast with complete text
-    if (streamChannelRef.current) {
-      streamChannelRef.current.send({
-        type: 'broadcast',
-        event: 'stream-chunk',
-        payload: { text: assistantContent, done: true, team },
-      });
-    }
-    setStreamingText('');
-
     return assistantContent;
   }, [characterContext, sessionConfig?.campaignSummary]);
 
@@ -943,29 +896,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const generateResponse = useCallback(async () => {
     if (!partyId || !user || !sessionConfig || isGenerating) return;
 
-    const readyPromptsWithContent = currentPrompts.filter(
-      p => p.is_ready && p.prompt.trim().length > 0
-    );
-
-    // Identify players who readied with empty prompts → AFK mode
-    const emptyReadyPrompts = currentPrompts.filter(
-      p => p.is_ready && p.prompt.trim().length === 0
-    );
-    if (emptyReadyPrompts.length > 0) {
-      const afkNames = emptyReadyPrompts.map(p => p.character_name).join(', ');
-      if (afkNames !== prevAfkNamesRef.current) {
-        toast(`👻 AFK guide active for: ${afkNames}`, {
-          description: 'Empty prompt — their AFK personality guides will be used.',
-          duration: 5000,
-          icon: '👻',
-        });
-        prevAfkNamesRef.current = afkNames;
-      }
-    } else {
-      prevAfkNamesRef.current = '';
-    }
-
-    if (readyPromptsWithContent.length === 0 && emptyReadyPrompts.length === 0) {
+    const readyPrompts = currentPrompts.filter(p => p.is_ready);
+    if (readyPrompts.length === 0) {
       toast.error('No ready prompts to generate from');
       return;
     }
@@ -994,47 +926,33 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     };
 
     setIsGenerating(true);
-    try {
+
     // Atomic database lock: only proceed if isGenerating was false
     // This prevents multiple clients from triggering generation simultaneously
-    // Also includes a staleness timeout (3 min) to recover from crashed clients
-    const STALE_LOCK_MS = 3 * 60 * 1000;
-    const now = Date.now();
-    const lockPayload = { ...sessionConfig, isGenerating: true, generationStartedAt: now };
-
     const { data: lockData, error: stateErr } = await (supabase.from('party_shared_state') as any)
-      .update({ state_data: lockPayload })
+      .update({ state_data: { ...sessionConfig, isGenerating: true } })
       .eq('party_id', partyId)
       .eq('state_type', 'dm_session')
       .not('state_data->isGenerating', 'eq', true)
       .select('id');
     if (stateErr) console.error('[PartyDM] Failed to set isGenerating state:', stateErr);
     
-    // If no rows updated, check for stale lock
+    // If no rows updated, another client already claimed generation
     if (!lockData || lockData.length === 0) {
-      const startedAt = (sessionConfig as any)?.generationStartedAt;
-      if (startedAt && (now - startedAt) > STALE_LOCK_MS) {
-        console.warn('[PartyDM] Stale generation lock detected, force-overriding');
-        // Force override the stale lock
-        await (supabase.from('party_shared_state') as any)
-          .update({ state_data: lockPayload })
-          .eq('party_id', partyId)
-          .eq('state_type', 'dm_session');
-      } else {
-        console.log('[PartyDM] Generation already in progress on another client, skipping');
-        setIsGenerating(false);
-        return;
-      }
+      console.log('[PartyDM] Generation already in progress on another client, skipping');
+      setIsGenerating(false);
+      return;
     }
 
     abortRef.current = new AbortController();
+    try {
       if (isSplitActive && splitState) {
         let allConsumedCascades: { userId: string; remainingCascade: string[] }[] = [];
         // === SPLIT MODE: Generate two sequential responses from READY prompts ===
-        const alphaPrompts = readyPromptsWithContent.filter(p =>
+        const alphaPrompts = readyPrompts.filter(p =>
           splitState.alphaMembers.includes(p.user_id)
         );
-        const betaPrompts = readyPromptsWithContent.filter(p =>
+        const betaPrompts = readyPrompts.filter(p =>
           splitState.betaMembers.includes(p.user_id)
         );
 
@@ -1190,8 +1108,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
       } else {
         // === NORMAL MODE ===
-        const { guidesSection: afkGuidesSection, promptSection: afkPromptSection, consumedCascades: normalConsumed } = buildAfkGuidesContext(readyPromptsWithContent);
-        const combined = readyPromptsWithContent
+        const { guidesSection: afkGuidesSection, promptSection: afkPromptSection, consumedCascades: normalConsumed } = buildAfkGuidesContext(readyPrompts);
+        const combined = readyPrompts
           .map(formatPromptLine)
           .join('\n') + afkPromptSection;
 
@@ -1266,75 +1184,28 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         console.error('Party DM generation error:', error);
         toast.error(error instanceof Error ? error.message : 'Generation failed');
       }
-      try {
-        if (partyId && sessionConfig) {
-          await (supabase.from('party_shared_state') as any)
-            .update({ state_data: { ...sessionConfig, isGenerating: false } })
-            .eq('party_id', partyId)
-            .eq('state_type', 'dm_session');
-        }
-      } catch (lockErr) {
-        console.error('[PartyDM] Failed to clear lock in catch block:', lockErr);
-      }
+
+      await (supabase.from('party_shared_state') as any)
+        .update({ state_data: { ...sessionConfig, isGenerating: false } })
+        .eq('party_id', partyId)
+        .eq('state_type', 'dm_session');
     } finally {
       setIsGenerating(false);
       abortRef.current = null;
     }
   }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, customGuidesContent, triggerSummaryIfNeeded, silentAutoSave, isSplitActive, splitState, streamAIResponse, buildPartyMembersGuide, generateSplitSummary, buildAfkGuidesContext, consumeCascadePrompts]);
 
-  // Stop generation — aborts the stream, saves partial content, resets lock
-  const stopGeneration = useCallback(async () => {
-    if (!abortRef.current) return;
-    abortRef.current.abort();
-
-    // Immediately clear the database lock so other players aren't stuck
-    if (partyId && sessionConfig) {
-      try {
-        await (supabase.from('party_shared_state') as any)
-          .update({ state_data: { ...sessionConfig, isGenerating: false } })
-          .eq('party_id', partyId)
-          .eq('state_type', 'dm_session');
-      } catch (err) {
-        console.error('[PartyDM] Failed to clear generation lock on stop:', err);
-      }
-    }
-
-    // Clear streaming text and broadcast done
-    setStreamingText('');
-    if (streamChannelRef.current) {
-      streamChannelRef.current.send({
-        type: 'broadcast',
-        event: 'stream-chunk',
-        payload: { text: '', done: true },
-      });
-    }
-    toast('Generation stopped', { icon: '⏹️', duration: 3000 });
-  }, [partyId, sessionConfig]);
-
   // Auto-trigger generation when all ready (host only)
   useEffect(() => {
     if (!isCreator || !allReady || isGenerating) return;
     if (autoGenTimerRef.current) clearTimeout(autoGenTimerRef.current);
     autoGenTimerRef.current = setTimeout(() => {
-      generateResponse().catch(console.error);
+      generateResponse();
     }, 2000);
     return () => {
       if (autoGenTimerRef.current) clearTimeout(autoGenTimerRef.current);
     };
   }, [allReady, isCreator, isGenerating, generateResponse]);
-
-  // Safety: If component unmounts while generating, clear the database lock
-  useEffect(() => {
-    return () => {
-      if (isGenerating && partyId && sessionConfig) {
-        (supabase.from('party_shared_state') as any)
-          .update({ state_data: { ...sessionConfig, isGenerating: false } })
-          .eq('party_id', partyId)
-          .eq('state_type', 'dm_session')
-          .catch((err: unknown) => console.error('[PartyDM] Cleanup: Failed to clear generation lock on unmount:', err));
-      }
-    };
-  }, [isGenerating, partyId, sessionConfig]);
 
   const editMessage = useCallback(async (messageId: string, newContent: string) => {
     if (!partyId || !isCreator) return;
@@ -1771,7 +1642,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     isActive,
     isGenerating: isGenerating || (sessionConfig?.isGenerating ?? false),
     isSummarizing,
-    streamingText,
     allReady,
     myPrompt,
     activeCampaignId,
@@ -1790,7 +1660,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     setReady,
     unready,
     generateResponse,
-    stopGeneration,
     editMessage,
     deleteMessage,
     regenerateMessage,

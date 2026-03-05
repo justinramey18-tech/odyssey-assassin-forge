@@ -605,7 +605,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   // Database-level lock in generateResponse prevents double-generation
   const handleTimerExpire = useCallback(() => {
     if (!partyDm.isGenerating) {
-      partyDm.generateResponse().catch(console.error);
+      partyDm.generateResponse();
     }
   }, [partyDm.isGenerating, partyDm.generateResponse]);
 
@@ -699,7 +699,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [partyDm.messages, partyDm.currentPrompts, partyDm.streamingText]);
+  }, [partyDm.messages, partyDm.currentPrompts]);
 
   useEffect(() => {
     if (partyDm.isGenerating) {
@@ -1027,22 +1027,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             </AnimatePresence>
           )}
 
-          {/* Live streaming / loading indicator */}
+          {/* Loading indicator */}
           {partyDm.isGenerating && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2 items-start">
-              <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-amber-900/60 border border-amber-500/40 mt-0.5">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2 items-center">
+              <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-amber-900/60 border border-amber-500/40">
                 <div className="w-3.5 h-3.5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
               </div>
-              {partyDm.streamingText ? (
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm text-amber-100/90 whitespace-pre-wrap break-words leading-relaxed">
-                    {partyDm.streamingText}
-                    <span className="inline-block w-1.5 h-4 bg-amber-400 animate-pulse ml-0.5 align-text-bottom" />
-                  </div>
-                </div>
-              ) : (
-                <span className="text-sm text-amber-400/60 italic">The DM weaves the tale...</span>
-              )}
+              <span className="text-sm text-amber-400/60 italic">The DM weaves the tale...</span>
             </motion.div>
           )}
           {/* TTS Select Floating Bar */}
@@ -1483,18 +1474,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       {!isFullscreen && (
       <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm mb-[48px]">
         {partyDm.isGenerating ? (
-          <div className="flex items-center justify-center gap-3 py-2">
+          <div className="flex items-center justify-center gap-2 py-2">
             <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
             <span className="text-sm text-amber-400/70">Generating response...</span>
-            {isCreator && (
-              <button
-                onClick={() => partyDm.stopGeneration?.()}
-                className="px-2.5 py-1 rounded-md text-xs font-medium bg-red-900/40 border border-red-500/30 text-red-300 hover:bg-red-900/60 active:bg-red-900/80 transition-colors"
-                style={{ touchAction: 'manipulation' }}
-              >
-                ⏹ Stop
-              </button>
-            )}
           </div>
         ) : !hasSubmitted ? (
           <div className="space-y-2 max-w-2xl mx-auto">
@@ -1676,7 +1658,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               )}
               {isCreator && (
                 <Button
-                  onClick={() => partyDm.generateResponse().catch(console.error)}
+                  onClick={partyDm.generateResponse}
                   disabled={partyDm.isGenerating || partyDm.currentPrompts.length === 0}
                   className="gap-1.5 bg-amber-900/40 border border-amber-500/30 hover:bg-amber-900/60 text-amber-300"
                   size="sm"
@@ -1693,7 +1675,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         {isCreator && !partyDm.isGenerating && hasSubmitted && !isReady && partyDm.currentPrompts.length > 0 && (
           <div className="mt-2 flex justify-end max-w-2xl mx-auto">
             <Button
-              onClick={() => partyDm.generateResponse().catch(console.error)}
+              onClick={partyDm.generateResponse}
               variant="outline"
               size="sm"
               className="gap-1.5 text-amber-300 border-amber-500/30"
