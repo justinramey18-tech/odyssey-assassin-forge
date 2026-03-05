@@ -5,7 +5,7 @@ import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { loadSelectedModel, saveSelectedModel, getModelLabel } from '@/lib/dm-models';
 import { formatUsage, formatCostShort } from '@/lib/token-usage';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Cloud, CloudOff, Loader2, Zap, Map, Film, Image as ImageIcon, Copy, Check, Pencil, RefreshCw, X, MoreVertical, Globe, Settings, Volume2, VolumeX, Bird, Maximize2, Minimize2 } from 'lucide-react';
+import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Loader2, Zap, Map, Film, Image as ImageIcon, Copy, Check, Pencil, RefreshCw, X, MoreVertical, Globe, Settings, Volume2, VolumeX, Bird, Maximize2, Minimize2 } from 'lucide-react';
 import { loadState as loadGeraltState, saveState as saveGeraltState } from '@/components/companion/geralt-data';
 import { NarrationSpeedPopover } from './NarrationSpeedPopover';
 import { DMToolsDrawer } from './DMToolsDrawer';
@@ -465,7 +465,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   // Build world state prompt to inject into AI system prompt
   const worldStatePrompt = useMemo(() => buildMemoryAnchorsPrompt(gameState), [gameState]);
 
-  const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, loadCampaign, sendMessage, addMediaMessage, cancelRequest, clearMessages, newGame, activeCampaignId, setActiveCampaignId, lastCloudSyncTime, isCloudSyncing, saveToCloudNow, editMessage, deleteMessage, regenerateMessage, lastUsage, sessionUsage } = useAIDM({
+  const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, loadCampaign, sendMessage, addMediaMessage, cancelRequest, clearMessages, newGame, activeCampaignId, setActiveCampaignId, editMessage, deleteMessage, regenerateMessage, lastUsage, sessionUsage } = useAIDM({
     characterContext,
     customGuidesContent: gmGuides.enabledContent,
     worldStatePrompt,
@@ -503,12 +503,9 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const handleLoadCampaign = useCallback((session: CampaignSession) => {
-    if (messages.length > 0) {
-      saveToCloudNow();
-    }
     loadCampaign(session.messages, session.campaign_summary, session.id, session.gm_guide_ids);
     setShowSessions(false);
-  }, [loadCampaign, messages.length, saveToCloudNow]);
+  }, [loadCampaign]);
 
   const handleSaveCampaign = useCallback(async (name: string, msgs: Message[], summary: string | null, existingId?: string) => {
     const id = await campaignSessions.saveSession(name, msgs, summary, existingId);
@@ -725,23 +722,6 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
             <span className="text-[11px] text-white/40">•</span>
             <ScrollText className="w-3 h-3 text-purple-400 shrink-0" />
             <span className="text-[11px] text-purple-300/70 whitespace-nowrap">{(campaignSummary.length / 1000).toFixed(1)}k</span>
-          </>
-        )}
-        {campaignSessions.isSignedIn && (
-          <>
-            <span className="text-[11px] text-white/40">•</span>
-            {isCloudSyncing ? (
-              <Loader2 className="w-3 h-3 text-sky-400 animate-spin shrink-0" />
-            ) : lastCloudSyncTime ? (
-              <>
-                <Cloud className="w-3 h-3 text-sky-400 shrink-0" />
-                <span className="text-[11px] text-sky-300/70 whitespace-nowrap">
-                  {Math.round((Date.now() - lastCloudSyncTime.getTime()) / 60000)}m
-                </span>
-              </>
-            ) : (
-              <CloudOff className="w-3 h-3 text-white/30 shrink-0" />
-            )}
           </>
         )}
         {isSummarizing && (

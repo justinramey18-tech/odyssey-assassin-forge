@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Message, CharacterContext } from '@/components/oracle/types';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
+
 import { parseWhispers } from '@/lib/whisper-parser';
 import { getAuthToken } from '@/lib/auth-token';
 import {
@@ -46,7 +46,7 @@ const STORAGE_KEY = 'dnd-ai-dm-session';
 const MAX_MESSAGES = 100;
 const SUMMARY_INTERVAL = 5;
 const SAVE_DEBOUNCE_MS = 1000;
-const CLOUD_SAVE_DEBOUNCE_MS = 30000;
+
 const SESSION_VERSION = 1;
 
 interface UseAIDMOptions {
@@ -149,8 +149,6 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
   const [campaignSummary, setCampaignSummary] = useState<string | null>(() => loadCampaignSummary());
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
-  const [lastCloudSyncTime, setLastCloudSyncTime] = useState<Date | null>(null);
-  const [isCloudSyncing, setIsCloudSyncing] = useState(false);
   const [lastUsage, setLastUsage] = useState<{ input_tokens: number; output_tokens: number } | null>(null);
   const [sessionUsage, setSessionUsage] = useState<{ input_tokens: number; output_tokens: number; requests: number }>({ input_tokens: 0, output_tokens: 0, requests: 0 });
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -158,61 +156,8 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
   // Local save debounce
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Cloud save refs
-  const cloudSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const lastCloudSaveJsonRef = useRef<string>('');
-  const messagesRef = useRef<Message[]>(messages);
-  const campaignSummaryRef = useRef<string | null>(campaignSummary);
-  const activeCampaignIdRef = useRef<string | null>(activeCampaignId);
-  const activeGuideIdsRef = useRef<string[]>(activeGuideIds ?? []);
   const onCampaignSwitchRef = useRef(onCampaignSwitch);
-
-  // Keep refs in sync
-  useEffect(() => { messagesRef.current = messages; }, [messages]);
-  useEffect(() => { campaignSummaryRef.current = campaignSummary; }, [campaignSummary]);
-  useEffect(() => { activeCampaignIdRef.current = activeCampaignId; }, [activeCampaignId]);
-  useEffect(() => { activeGuideIdsRef.current = activeGuideIds ?? []; }, [activeGuideIds]);
   useEffect(() => { onCampaignSwitchRef.current = onCampaignSwitch; }, [onCampaignSwitch]);
-
-  // Auto-load most recent cloud campaign if localStorage was empty
-  const hasAttemptedCloudLoad = useRef(false);
-  useEffect(() => {
-    if (hasAttemptedCloudLoad.current) return;
-    hasAttemptedCloudLoad.current = true;
-
-    // Only auto-load if local session is empty
-    if (messages.length > 0) return;
-
-    (async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const { data, error } = await supabase
-          .from('ai_dm_campaigns')
-          .select('id, name, messages, campaign_summary, gm_guide_ids')
-          .eq('user_id', user.id)
-          .order('updated_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (error || !data) return;
-
-        const loadedMessages: Message[] = Array.isArray(data.messages)
-          ? (data.messages as any[])
-              .filter(isValidMessage)
-              .map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) }))
-          : [];
-
-        if (loadedMessages.length === 0) return;
-
-        // Use loadCampaign to set everything consistently
-        loadCampaign(loadedMessages, data.campaign_summary, data.id, data.gm_guide_ids);
-      } catch (err) {
-        console.warn('[AI DM] Failed to auto-load cloud campaign:', err);
-      }
-    })();
-  }, []); // Run once on mount
 
   const saveNow = useCallback(() => {
     if (debounceTimerRef.current) {
@@ -234,101 +179,14 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
     };
   }, [messages]);
 
-  // Cloud auto-save function
-  const saveToCloudNow = useCallback(async () => {
-    const currentMessages = messagesRef.current;
-    const currentSummary = campaignSummaryRef.current;
-    const currentCampaignId = activeCampaignIdRef.current;
-    const currentGuideIds = activeGuideIdsRef.current;
-
-    // Need messages and auth to save
-    if (currentMessages.length === 0) return;
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const serializedMessages = currentMessages.map(m => ({
-      id: m.id,
-      role: m.role,
-      content: m.content,
-      timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp,
-    }));
-
-    const cloudPayload = JSON.stringify({ messages: serializedMessages, summary: currentSummary, guideIds: currentGuideIds });
-
-    // Dirty-check
-    if (cloudPayload === lastCloudSaveJsonRef.current) return;
-
-    setIsCloudSyncing(true);
-    try {
-      // Derive a name from first user message
-      const firstUserMsg = currentMessages.find(m => m.role === 'user');
-      const campaignName = firstUserMsg
-        ? firstUserMsg.content.slice(0, 50) + (firstUserMsg.content.length > 50 ? '...' : '')
-        : 'Auto-Save';
-
-      if (currentCampaignId) {
-        const { error } = await supabase
-          .from('ai_dm_campaigns')
-          .update({
-            name: campaignName,
-            messages: serializedMessages as any,
-            campaign_summary: currentSummary,
-            gm_guide_ids: currentGuideIds,
-          })
-          .eq('id', currentCampaignId)
-          .eq('user_id', user.id);
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase
-          .from('ai_dm_campaigns')
-          .insert({
-            user_id: user.id,
-            name: campaignName,
-            messages: serializedMessages as any,
-            campaign_summary: currentSummary,
-            gm_guide_ids: currentGuideIds,
-          })
-          .select('id')
-          .single();
-        if (error) throw error;
-        setActiveCampaignId(data.id);
-      }
-
-      lastCloudSaveJsonRef.current = cloudPayload;
-      setLastCloudSyncTime(new Date());
-    } catch (error) {
-      console.warn('[Cloud Auto-Save] Failed:', error);
-    } finally {
-      setIsCloudSyncing(false);
-    }
-  }, []);
-
-  // 30-second debounced cloud save
-  useEffect(() => {
-    if (messages.length === 0) return;
-
-    cloudSaveTimerRef.current = setTimeout(() => {
-      saveToCloudNow();
-    }, CLOUD_SAVE_DEBOUNCE_MS);
-
-    return () => {
-      if (cloudSaveTimerRef.current) {
-        clearTimeout(cloudSaveTimerRef.current);
-      }
-    };
-  }, [messages, campaignSummary, saveToCloudNow]);
-
-  // Save immediately on tab close (bypass debounce) — local + best-effort cloud
+  // Save immediately on tab close (bypass debounce) — local only
   useEffect(() => {
     const handleBeforeUnload = () => {
       saveNow();
-      // Best-effort cloud save (may not complete)
-      saveToCloudNow();
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [saveNow, saveToCloudNow]);
+  }, [saveNow]);
 
   // Trigger summary generation after every Nth assistant message
   const triggerSummaryIfNeeded = useCallback(async (allMessages: Message[]) => {
@@ -590,13 +448,12 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
     clearCampaignSummary();
     setCampaignSummary(null);
     setActiveCampaignId(null);
-    lastCloudSaveJsonRef.current = '';
   }, []);
 
-  const newGame = useCallback(async () => {
-    // Auto-save current campaign to cloud before clearing
-    if (messagesRef.current.length > 0) {
-      await saveToCloudNow();
+  const newGame = useCallback(() => {
+    // Save current session locally before clearing
+    if (messages.length > 0) {
+      saveSession(messages);
     }
     // Clear local state
     setMessages([]);
@@ -604,11 +461,10 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
     clearCampaignSummary();
     setCampaignSummary(null);
     setActiveCampaignId(null);
-    lastCloudSaveJsonRef.current = '';
     // Disable all guides for fresh campaign
     onCampaignSwitchRef.current?.(null);
     toast.success('New game started! The DM awaits your adventure.');
-  }, [saveToCloudNow]);
+  }, [messages]);
 
   const updateCampaignSummary = useCallback((summary: string) => {
     saveCampaignSummary(summary);
@@ -630,14 +486,6 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
     if (guideIds !== undefined) {
       onCampaignSwitchRef.current?.(guideIds);
     }
-    // Reset cloud dirty-check to loaded state
-    const serializedMessages = loadedMessages.map(m => ({
-      id: m.id,
-      role: m.role,
-      content: m.content,
-      timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp,
-    }));
-    lastCloudSaveJsonRef.current = JSON.stringify({ messages: serializedMessages, summary, guideIds: guideIds ?? [] });
   }, []);
 
   // Add a media-only message (video/photo) without triggering AI response
@@ -707,9 +555,6 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
     newGame,
     activeCampaignId,
     setActiveCampaignId,
-    lastCloudSyncTime,
-    isCloudSyncing,
-    saveToCloudNow,
     editMessage,
     deleteMessage,
     regenerateMessage,
