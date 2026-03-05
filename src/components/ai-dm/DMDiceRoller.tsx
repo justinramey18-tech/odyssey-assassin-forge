@@ -7,6 +7,8 @@ import { rollWeightedDie, loadDiceOddsMode, saveDiceOddsMode, DICE_ODDS_CONFIGS,
 import { SKILLS, ABILITY_SCORES, type AbilityScore } from '@/lib/diceRollerConfig';
 import type { CharacterContext } from '@/components/oracle/types';
 import { playDiceRattle, playDiceThud } from '@/lib/diceSounds';
+import { getScopedItem } from '@/lib/scoped-storage';
+import { getProficiencyBonus } from '@/lib/magic/calculations';
 
 type RollMode = 'normal' | 'advantage' | 'disadvantage';
 
@@ -183,6 +185,30 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
   const rollIdRef = useRef(0);
   const dismissTimerRef = useRef<number>(0);
 
+  // Load proficiency data from storage
+  const proficientSkills = useMemo<Set<string>>(() => {
+    try {
+      const raw = getScopedItem('odyssey-proficient-skills');
+      return new Set(raw ? JSON.parse(raw) : []);
+    } catch { return new Set(); }
+  }, []);
+
+  const proficientSaves = useMemo<Set<string>>(() => {
+    try {
+      const raw = getScopedItem('odyssey-proficient-saves');
+      return new Set(raw ? JSON.parse(raw) : []);
+    } catch { return new Set(); }
+  }, []);
+
+  const expertiseSkills = useMemo<Set<string>>(() => {
+    try {
+      const raw = getScopedItem('odyssey-expertise-skills');
+      return new Set(raw ? JSON.parse(raw) : []);
+    } catch { return new Set(); }
+  }, []);
+
+  const profBonus = useMemo(() => getProficiencyBonus(characterContext.level || 1), [characterContext.level]);
+
   // Auto-dismiss after 5 seconds
   useEffect(() => {
     if (lastRoll) {
@@ -235,14 +261,7 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
     saveDiceOddsMode(mode);
   }, []);
 
-  const profBonus = useMemo(() => {
-    const level = characterContext.level;
-    if (level >= 17) return 6;
-    if (level >= 13) return 5;
-    if (level >= 9) return 4;
-    if (level >= 5) return 3;
-    return 2;
-  }, [characterContext.level]);
+  // profBonus already defined above via getProficiencyBonus
 
   const currentOddsConfig = DICE_ODDS_CONFIGS[currentOddsMode];
 
@@ -440,26 +459,58 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
           </div>
           <div className="grid grid-cols-2 gap-1">
             {SKILLS.map(skill => {
-              const mod = getModifier(characterContext, skill.ability);
+              const baseMod = getModifier(characterContext, skill.ability);
+              const isProf = proficientSkills.has(skill.id);
+              const isExpert = expertiseSkills.has(skill.id);
+              const totalMod = baseMod + (isExpert ? profBonus * 2 : isProf ? profBonus : 0);
               const abilityInfo = ABILITY_SCORES[skill.ability];
               const desc = SKILL_DESCRIPTIONS[skill.id];
               return (
                 <button
                   key={skill.id}
-                  onClick={() => handleRoll(`${skill.name}`, mod)}
-                  className="flex items-center justify-between px-2 py-2 rounded-md bg-white/5 hover:bg-white/10 border border-white/5 transition-colors text-left"
+                  onClick={() => handleRoll(`${skill.name}`, totalMod)}
+                  className={cn(
+                    "flex items-center justify-between px-2 py-2 rounded-md border transition-colors text-left",
+                    isExpert
+                      ? "bg-amber-900/15 border-amber-500/20 hover:bg-amber-900/25"
+                      : isProf
+                        ? "bg-emerald-900/15 border-emerald-500/20 hover:bg-emerald-900/25"
+                        : "bg-white/5 hover:bg-white/10 border-white/5"
+                  )}
                   style={{ touchAction: 'manipulation' }}
                 >
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <span className="text-[11px] text-white/70 truncate">{skill.name}</span>
-                    {desc && <span className="text-[8px] text-white/30 truncate">{desc}</span>}
+                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                    {(isProf || isExpert) && (
+                      <span className={cn(
+                        "w-1.5 h-1.5 rounded-full shrink-0",
+                        isExpert ? "bg-amber-400" : "bg-emerald-400"
+                      )} />
+                    )}
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className={cn(
+                        "text-[11px] truncate",
+                        isExpert ? "text-amber-200/80" : isProf ? "text-emerald-200/80" : "text-white/70"
+                      )}>{skill.name}</span>
+                      {desc && <span className="text-[8px] text-white/30 truncate">{desc}</span>}
+                    </div>
                   </div>
                   <span className={cn("text-[10px] font-semibold shrink-0 ml-1", abilityInfo.color)}>
-                    {mod >= 0 ? `+${mod}` : mod}
+                    {totalMod >= 0 ? `+${totalMod}` : totalMod}
                   </span>
                 </button>
               );
             })}
+          </div>
+          {/* Legend */}
+          <div className="flex items-center gap-3 mt-1.5 px-1">
+            <div className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span className="text-[8px] text-white/30">Proficient</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              <span className="text-[8px] text-white/30">Expertise</span>
+            </div>
           </div>
         </div>
 
@@ -470,20 +521,30 @@ export function DMDiceRoller({ characterContext, onRollResult, disabled = false 
           </div>
           <div className="grid grid-cols-2 gap-1.5">
             {(Object.entries(ABILITY_SCORES) as [AbilityScore, typeof ABILITY_SCORES[AbilityScore]][]).map(([key, info]) => {
-              const mod = getModifier(characterContext, key);
+              const baseMod = getModifier(characterContext, key);
+              const isProf = proficientSaves.has(key);
+              const totalMod = baseMod + (isProf ? profBonus : 0);
               const desc = SAVE_DESCRIPTIONS[key];
               return (
                 <button
                   key={key}
-                  onClick={() => handleRoll(`${info.name} Save`, mod)}
-                  className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 transition-colors"
+                  onClick={() => handleRoll(`${info.name} Save`, totalMod)}
+                  className={cn(
+                    "flex items-center justify-between px-3 py-2 rounded-lg border transition-colors",
+                    isProf
+                      ? "bg-emerald-900/15 border-emerald-500/20 hover:bg-emerald-900/25"
+                      : "bg-white/5 hover:bg-white/10 border-white/5 hover:border-white/10"
+                  )}
                   style={{ touchAction: 'manipulation' }}
                 >
-                  <div className="flex flex-col min-w-0">
-                    <span className={cn("text-xs font-semibold", info.color)}>{info.name}</span>
-                    {desc && <span className="text-[8px] text-white/30 truncate">{desc}</span>}
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {isProf && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />}
+                    <div className="flex flex-col min-w-0">
+                      <span className={cn("text-xs font-semibold", info.color)}>{info.name}</span>
+                      {desc && <span className="text-[8px] text-white/30 truncate">{desc}</span>}
+                    </div>
                   </div>
-                  <span className="text-xs text-white/50 shrink-0 ml-1">{mod >= 0 ? `+${mod}` : mod}</span>
+                  <span className="text-xs text-white/50 shrink-0 ml-1">{totalMod >= 0 ? `+${totalMod}` : totalMod}</span>
                 </button>
               );
             })}
