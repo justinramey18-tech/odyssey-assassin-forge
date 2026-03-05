@@ -32,6 +32,7 @@ const ANTHROPIC_MODELS: Record<string, string> = {
   'anthropic/claude-sonnet-4': 'claude-sonnet-4-20250514',
   'anthropic/claude-sonnet-4-5': 'claude-sonnet-4-5-20250929',
   'anthropic/claude-sonnet-4-6': 'claude-sonnet-4-6-20260219',
+  'anthropic/claude-haiku-4-5': 'claude-haiku-4-5-20250901',
 };
 
 const DEFAULT_MODEL = 'google/gemini-3-flash-preview';
