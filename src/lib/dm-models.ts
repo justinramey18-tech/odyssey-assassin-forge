@@ -28,7 +28,7 @@ export const DM_MODELS: DMAIModel[] = [
   { id: 'anthropic/claude-sonnet-4', label: 'Claude 4 Sonnet', provider: 'anthropic', description: 'Excellent narrative & reasoning (own key)' },
   { id: 'anthropic/claude-sonnet-4-5', label: 'Claude 4.5 Sonnet', provider: 'anthropic', description: 'Strong creative writing (own key)' },
   { id: 'anthropic/claude-sonnet-4-6', label: 'Claude 4.6 Sonnet', provider: 'anthropic', description: 'Best creative writing (own key)' },
-  { id: 'anthropic/claude-haiku-4-5', label: 'Claude 4.5 Haiku', provider: 'anthropic', description: 'Fast & cheap creative AI (own key)' },
+  { id: 'anthropic/claude-3-5-haiku', label: 'Claude 3.5 Haiku', provider: 'anthropic', description: 'Fast & cheap creative AI (own key)' },
   { id: 'openai-direct/gpt-5', label: 'GPT-5 (own key)', provider: 'openai-direct', description: 'Full GPT-5 via your OpenAI key' },
   { id: 'openai-direct/gpt-4o', label: 'GPT-4o (own key)', provider: 'openai-direct', description: 'Fast multimodal (own key)' },
   { id: 'openai-direct/gpt-4o-mini', label: 'GPT-4o Mini (own key)', provider: 'openai-direct', description: 'Cheapest & fastest (own key)' },
