@@ -47,54 +47,22 @@ const activeIndicatorColors: Record<DMNavTab, string> = {
 export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, showGeralt, oracleCount }: DMBottomNavProps) {
   const tabs = [...BASE_TABS, AFK_TAB, ORACLE_TAB, ...(showGeralt ? [GERALT_TAB] : []), SETTINGS_TAB];
   const touchStartY = useRef(0);
-  const touchStartX = useRef(0);
   const touchStartTime = useRef(0);
-  const contentScrollRef = useRef<HTMLDivElement>(null);
-  const touchStartedOnHandle = useRef(false);
 
-  const handleHandleTouchStart = useCallback((e: React.TouchEvent) => {
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY;
-    touchStartX.current = e.touches[0].clientX;
     touchStartTime.current = Date.now();
-    touchStartedOnHandle.current = true;
   }, []);
 
-  const handleHandleTouchEnd = useCallback((e: React.TouchEvent) => {
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     const dy = touchStartY.current - e.changedTouches[0].clientY;
     const dt = Date.now() - touchStartTime.current;
+    // Swipe up: expand, swipe down: collapse
+    // Require at least 30px movement or fast flick (>0.3 px/ms)
     const velocity = Math.abs(dy) / Math.max(dt, 1);
-    // Handle area: keep original thresholds
     if (dy > 30 || (dy > 10 && velocity > 0.3)) {
       onExpandedChange(true);
     } else if (dy < -30 || (dy < -10 && velocity > 0.3)) {
-      onExpandedChange(false);
-    }
-    touchStartedOnHandle.current = false;
-  }, [onExpandedChange]);
-
-  const handleContentTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0].clientY;
-    touchStartX.current = e.touches[0].clientX;
-    touchStartTime.current = Date.now();
-    touchStartedOnHandle.current = false;
-  }, []);
-
-  const handleContentTouchEnd = useCallback((e: React.TouchEvent) => {
-    // Only allow swipe-to-close from content when scrolled to top
-    const scrollEl = contentScrollRef.current;
-    const isAtTop = !scrollEl || scrollEl.scrollTop <= 1;
-    if (!isAtTop) return;
-
-    const dy = touchStartY.current - e.changedTouches[0].clientY;
-    const dx = touchStartX.current - e.changedTouches[0].clientX;
-    const dt = Date.now() - touchStartTime.current;
-    const velocity = Math.abs(dy) / Math.max(dt, 1);
-
-    // Content area: very intentional vertical pull-down only
-    const isMostlyVertical = Math.abs(dy) > Math.abs(dx) * 1.2;
-    if (!isMostlyVertical) return;
-
-    if (dy < -120 || (dy < -90 && velocity > 0.9)) {
       onExpandedChange(false);
     }
   }, [onExpandedChange]);
@@ -113,8 +81,8 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
         {/* Notch handle + label — always visible */}
         <div
           className="flex flex-col items-center py-2.5 cursor-grab active:cursor-grabbing touch-none"
-          onTouchStart={handleHandleTouchStart}
-          onTouchEnd={handleHandleTouchEnd}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
           onClick={handleToggle}
           role="button"
           aria-label={isExpanded ? 'Collapse toolbar' : 'Expand toolbar'}
@@ -141,13 +109,11 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
               exit={{ height: 0, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
               className="overflow-hidden"
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
             >
-              {/* Tab bar — swipe on tab bar uses handle-style thresholds */}
-              <div
-                className="flex h-14 border-t border-amber-900/20"
-                onTouchStart={handleHandleTouchStart}
-                onTouchEnd={handleHandleTouchEnd}
-              >
+              {/* Tab bar */}
+              <div className="flex h-14 border-t border-amber-900/20">
                 {tabs.map((tab) => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
@@ -196,13 +162,10 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
               <AnimatePresence>
                 {showDiceContent && (
                   <motion.div
-                    ref={contentScrollRef}
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     className="max-h-[50vh] overflow-y-auto overscroll-contain touch-auto"
-                    onTouchStart={handleContentTouchStart}
-                    onTouchEnd={handleContentTouchEnd}
                   >
                     {diceContent}
                   </motion.div>
@@ -213,13 +176,10 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
               <AnimatePresence>
                 {showSettingsContent && (
                   <motion.div
-                    ref={contentScrollRef}
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     className="max-h-[50vh] overflow-y-auto overscroll-contain touch-auto"
-                    onTouchStart={handleContentTouchStart}
-                    onTouchEnd={handleContentTouchEnd}
                   >
                     {settingsContent}
                   </motion.div>
@@ -230,13 +190,10 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
               <AnimatePresence>
                 {showOracleContent && (
                   <motion.div
-                    ref={contentScrollRef}
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     className="max-h-[50vh] overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch]"
-                    onTouchStart={handleContentTouchStart}
-                    onTouchEnd={handleContentTouchEnd}
                   >
                     {oracleContent}
                   </motion.div>
