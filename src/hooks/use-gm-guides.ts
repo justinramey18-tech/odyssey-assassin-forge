@@ -12,8 +12,12 @@ import {
   canAddContent,
 } from '@/lib/gm-guides-storage';
 
-export function useGMGuides() {
-  const [guides, setGuides] = useState<GMGuide[]>(() => loadGMGuides());
+/**
+ * @param ownerUserId - If provided, fetches/persists guides for this user instead of the current user.
+ *   Used by co-hosts to manage the host's GM guides.
+ */
+export function useGMGuides(ownerUserId?: string) {
+  const [guides, setGuides] = useState<GMGuide[]>(() => ownerUserId ? [] : loadGMGuides());
   const [cloudLoaded, setCloudLoaded] = useState(false);
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -25,10 +29,16 @@ export function useGMGuides() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session || cancelled) return;
 
-      const { data, error } = await supabase
+      // When ownerUserId is set, fetch that user's guides (co-host scenario)
+      const targetUserId = ownerUserId || session.user.id;
+
+      const query = supabase
         .from('gm_guides')
         .select('*')
+        .eq('user_id', targetUserId)
         .order('created_at', { ascending: true });
+
+      const { data, error } = await query;
 
       if (error || cancelled) return;
 
@@ -41,29 +51,35 @@ export function useGMGuides() {
           createdAt: row.created_at,
           updatedAt: row.updated_at,
         }));
-        // Merge: cloud is source of truth, but keep local-only guides
-        const cloudIds = new Set(cloudGuides.map(g => g.id));
-        const localOnly = guides.filter(g => !cloudIds.has(g.id));
-        const merged = [...cloudGuides, ...localOnly];
-        setGuides(merged);
-        saveGMGuides(merged);
 
-        // Push any local-only guides to cloud
-        if (localOnly.length > 0) {
-          for (const g of localOnly) {
-            await supabase.from('gm_guides').upsert({
-              id: g.id,
-              user_id: session.user.id,
-              name: g.name,
-              content: g.content,
-              enabled: g.enabled,
-              created_at: g.createdAt,
-              updated_at: g.updatedAt,
-            });
+        if (ownerUserId) {
+          // Co-host mode: cloud is sole source of truth, no local merge
+          setGuides(cloudGuides);
+        } else {
+          // Own guides: merge cloud + local
+          const cloudIds = new Set(cloudGuides.map(g => g.id));
+          const localOnly = guides.filter(g => !cloudIds.has(g.id));
+          const merged = [...cloudGuides, ...localOnly];
+          setGuides(merged);
+          saveGMGuides(merged);
+
+          // Push any local-only guides to cloud
+          if (localOnly.length > 0) {
+            for (const g of localOnly) {
+              await supabase.from('gm_guides').upsert({
+                id: g.id,
+                user_id: session.user.id,
+                name: g.name,
+                content: g.content,
+                enabled: g.enabled,
+                created_at: g.createdAt,
+                updated_at: g.updatedAt,
+              });
+            }
           }
         }
-      } else {
-        // No cloud data — push all local guides to cloud
+      } else if (!ownerUserId) {
+        // No cloud data and own guides — push all local guides to cloud
         const local = loadGMGuides();
         if (local.length > 0) {
           for (const g of local) {
@@ -85,21 +101,23 @@ export function useGMGuides() {
     loadFromCloud();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [ownerUserId]);
 
   const persistToCloud = useCallback(async (guide: GMGuide) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
+    // Use ownerUserId for co-host scenario, otherwise current user
+    const targetUserId = ownerUserId || session.user.id;
     await supabase.from('gm_guides').upsert({
       id: guide.id,
-      user_id: session.user.id,
+      user_id: targetUserId,
       name: guide.name,
       content: guide.content,
       enabled: guide.enabled,
       created_at: guide.createdAt,
       updated_at: guide.updatedAt,
     });
-  }, []);
+  }, [ownerUserId]);
 
   const deleteFromCloud = useCallback(async (id: string) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -109,8 +127,11 @@ export function useGMGuides() {
 
   const persist = useCallback((next: GMGuide[]) => {
     setGuides(next);
-    saveGMGuides(next);
-  }, []);
+    // Only save to localStorage for own guides
+    if (!ownerUserId) {
+      saveGMGuides(next);
+    }
+  }, [ownerUserId]);
 
   const addGuide = useCallback((name: string, content: string, customId?: string): boolean => {
     if (content.length > MAX_GUIDE_CHARS) {
