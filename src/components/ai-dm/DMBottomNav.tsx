@@ -58,11 +58,11 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
     const dy = touchStartY.current - e.changedTouches[0].clientY;
     const dt = Date.now() - touchStartTime.current;
     // Swipe up: expand, swipe down: collapse
-    // Require at least 30px movement or fast flick (>0.3 px/ms)
+    // Require longer swipe down (150px) to prevent accidental closure while scrolling
     const velocity = Math.abs(dy) / Math.max(dt, 1);
     if (dy > 30 || (dy > 10 && velocity > 0.3)) {
       onExpandedChange(true);
-    } else if (dy < -30 || (dy < -10 && velocity > 0.3)) {
+    } else if (dy < -150 || (dy < -100 && velocity > 0.5)) {
       onExpandedChange(false);
     }
   }, [onExpandedChange]);
