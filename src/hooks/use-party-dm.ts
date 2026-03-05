@@ -896,8 +896,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const generateResponse = useCallback(async () => {
     if (!partyId || !user || !sessionConfig || isGenerating) return;
 
-    const readyPrompts = currentPrompts.filter(p => p.is_ready);
-    if (readyPrompts.length === 0) {
+    const readyPromptsWithContent = currentPrompts.filter(
+      p => p.is_ready && p.prompt.trim().length > 0
+    );
+    if (readyPromptsWithContent.length === 0) {
       toast.error('No ready prompts to generate from');
       return;
     }
@@ -949,10 +951,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       if (isSplitActive && splitState) {
         let allConsumedCascades: { userId: string; remainingCascade: string[] }[] = [];
         // === SPLIT MODE: Generate two sequential responses from READY prompts ===
-        const alphaPrompts = readyPrompts.filter(p =>
+        const alphaPrompts = readyPromptsWithContent.filter(p =>
           splitState.alphaMembers.includes(p.user_id)
         );
-        const betaPrompts = readyPrompts.filter(p =>
+        const betaPrompts = readyPromptsWithContent.filter(p =>
           splitState.betaMembers.includes(p.user_id)
         );
 
@@ -1108,8 +1110,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
       } else {
         // === NORMAL MODE ===
-        const { guidesSection: afkGuidesSection, promptSection: afkPromptSection, consumedCascades: normalConsumed } = buildAfkGuidesContext(readyPrompts);
-        const combined = readyPrompts
+        const { guidesSection: afkGuidesSection, promptSection: afkPromptSection, consumedCascades: normalConsumed } = buildAfkGuidesContext(readyPromptsWithContent);
+        const combined = readyPromptsWithContent
           .map(formatPromptLine)
           .join('\n') + afkPromptSection;
 
