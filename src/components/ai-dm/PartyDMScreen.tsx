@@ -605,7 +605,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   // Database-level lock in generateResponse prevents double-generation
   const handleTimerExpire = useCallback(() => {
     if (!partyDm.isGenerating) {
-      partyDm.generateResponse();
+      partyDm.generateResponse().catch(console.error);
     }
   }, [partyDm.isGenerating, partyDm.generateResponse]);
 
@@ -1676,7 +1676,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               )}
               {isCreator && (
                 <Button
-                  onClick={partyDm.generateResponse}
+                  onClick={() => partyDm.generateResponse().catch(console.error)}
                   disabled={partyDm.isGenerating || partyDm.currentPrompts.length === 0}
                   className="gap-1.5 bg-amber-900/40 border border-amber-500/30 hover:bg-amber-900/60 text-amber-300"
                   size="sm"
@@ -1693,7 +1693,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         {isCreator && !partyDm.isGenerating && hasSubmitted && !isReady && partyDm.currentPrompts.length > 0 && (
           <div className="mt-2 flex justify-end max-w-2xl mx-auto">
             <Button
-              onClick={partyDm.generateResponse}
+              onClick={() => partyDm.generateResponse().catch(console.error)}
               variant="outline"
               size="sm"
               className="gap-1.5 text-amber-300 border-amber-500/30"

@@ -994,7 +994,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     };
 
     setIsGenerating(true);
-
+    try {
     // Atomic database lock: only proceed if isGenerating was false
     // This prevents multiple clients from triggering generation simultaneously
     // Also includes a staleness timeout (3 min) to recover from crashed clients
@@ -1028,7 +1028,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
 
     abortRef.current = new AbortController();
-    try {
       if (isSplitActive && splitState) {
         let allConsumedCascades: { userId: string; remainingCascade: string[] }[] = [];
         // === SPLIT MODE: Generate two sequential responses from READY prompts ===
@@ -1317,7 +1316,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     if (!isCreator || !allReady || isGenerating) return;
     if (autoGenTimerRef.current) clearTimeout(autoGenTimerRef.current);
     autoGenTimerRef.current = setTimeout(() => {
-      generateResponse();
+      generateResponse().catch(console.error);
     }, 2000);
     return () => {
       if (autoGenTimerRef.current) clearTimeout(autoGenTimerRef.current);
