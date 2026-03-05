@@ -123,7 +123,7 @@ export function PartyDMSettings({
 }: PartyDMSettingsProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   return (
-    <div className="px-3 py-3 space-y-2.5 max-h-[50vh] overflow-y-auto overscroll-contain">
+    <div className="px-3 py-3 space-y-2.5 w-full">
       {/* Session Controls */}
       <SettingsSection title="Session Controls" icon={<ClipboardList className="w-4 h-4 text-amber-400" />}>
         {isCreator && (
