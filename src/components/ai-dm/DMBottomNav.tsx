@@ -1,7 +1,7 @@
 import { useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Dices, Gem, ListChecks, Bird, Ghost, Settings, Eye } from 'lucide-react';
+import { Dices, Gem, ListChecks, Bird, Ghost, Settings, Eye, X } from 'lucide-react';
 
 export type DMNavTab = 'dice' | 'prompts' | 'actions' | 'geralt' | 'afk' | 'oracle' | 'settings';
 
@@ -74,135 +74,133 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
   const showDiceContent = isExpanded && activeTab === 'dice' && diceContent;
   const showSettingsContent = isExpanded && activeTab === 'settings' && settingsContent;
   const showOracleContent = isExpanded && activeTab === 'oracle' && oracleContent;
+  const hasActiveContent = showDiceContent || showSettingsContent || showOracleContent;
+
+  const activeContent = showDiceContent ? diceContent : showSettingsContent ? settingsContent : showOracleContent ? oracleContent : null;
+  const activeContentTab = showDiceContent ? tabs.find(t => t.id === 'dice') : showSettingsContent ? tabs.find(t => t.id === 'settings') : showOracleContent ? tabs.find(t => t.id === 'oracle') : null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 safe-area-bottom">
-      <div className="bg-background/95 backdrop-blur-sm border-t border-amber-900/30">
-        {/* Notch handle + label — always visible */}
-        <div
-          className="flex flex-col items-center py-2.5 cursor-grab active:cursor-grabbing touch-none"
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-          onClick={handleToggle}
-          role="button"
-          aria-label={isExpanded ? 'Collapse toolbar' : 'Expand toolbar'}
-        >
-          <div className={cn(
-            "w-14 h-1.5 rounded-full transition-all",
-            isExpanded
-              ? "bg-amber-500/50"
-              : "bg-amber-500/30 shadow-[0_0_10px_3px_rgba(245,158,11,0.3)] animate-pulse"
-          )} />
-          {!isExpanded && (
-            <span className="text-[11px] font-mono text-amber-400/60 mt-1 tracking-widest select-none font-semibold">
-              ⚔ TOOLS
-            </span>
-          )}
-        </div>
-
-        {/* Expanded content */}
-        <AnimatePresence>
-          {isExpanded && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="overflow-hidden"
-              onTouchStart={handleTouchStart}
-              onTouchEnd={handleTouchEnd}
-            >
-              {/* Tab bar */}
-              <div className="flex h-14 border-t border-amber-900/20">
-                {tabs.map((tab) => {
-                  const Icon = tab.icon;
-                  const isActive = activeTab === tab.id;
-
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => onTabChange(tab.id)}
-                      disabled={disabled}
-                      className={cn(
-                        "flex-1 flex flex-col items-center justify-center gap-1 transition-all active:scale-95 relative",
-                        "disabled:opacity-40 disabled:cursor-not-allowed",
-                        isActive ? tab.activeBg : "hover:bg-muted/10"
-                      )}
-                      style={{ touchAction: 'manipulation' }}
-                    >
-                      <div className="relative">
-                        <Icon className={cn(
-                          "w-5 h-5 transition-colors",
-                          isActive ? tab.color : "text-muted-foreground"
-                        )} />
-                        {tab.id === 'oracle' && oracleCount && oracleCount > 0 && !isActive && (
-                          <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-cyan-500 text-[9px] font-bold text-black flex items-center justify-center px-0.5">
-                            {oracleCount > 9 ? '9+' : oracleCount}
-                          </span>
-                        )}
-                      </div>
-                      <span className={cn(
-                        "text-[10px] font-mono tracking-tight transition-colors",
-                        isActive ? "text-foreground" : "text-muted-foreground"
-                      )}>
-                        {tab.label}
-                      </span>
-                      {isActive && (
-                        <div className={cn(
-                          "absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full",
-                          activeIndicatorColors[tab.id]
-                        )} />
-                      )}
-                    </button>
-                  );
-                })}
+    <>
+      {/* Full-screen content overlay */}
+      <AnimatePresence>
+        {hasActiveContent && activeContentTab && (
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
+            transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+            className="fixed inset-0 z-[55] flex flex-col bg-gradient-to-b from-[#1a0e05] via-[#0d0d12] to-[#0a0a0f]"
+          >
+            {/* Full-screen header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-amber-900/30 bg-black/40 backdrop-blur-sm">
+              <div className="flex items-center gap-2.5">
+                <activeContentTab.icon className={cn("w-5 h-5", activeContentTab.color)} />
+                <span className="text-sm font-cinzel text-white/90 tracking-wide">
+                  {activeContentTab.label}
+                </span>
               </div>
+              <button
+                onClick={() => onTabChange(activeTab!)}
+                className="p-2 rounded-lg hover:bg-white/10 transition-colors active:scale-95"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <X className="w-5 h-5 text-white/70" />
+              </button>
+            </div>
+            {/* Full-screen scrollable content */}
+            <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch]">
+              {activeContent}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-              {/* Dice roller content (inline in drawer) */}
-              <AnimatePresence>
-                {showDiceContent && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="max-h-[50vh] overflow-y-auto overscroll-contain touch-auto"
-                  >
-                    {diceContent}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+      <div className="fixed bottom-0 left-0 right-0 z-50 safe-area-bottom">
+        <div className="bg-background/95 backdrop-blur-sm border-t border-amber-900/30">
+          {/* Notch handle + label — always visible */}
+          <div
+            className="flex flex-col items-center py-2.5 cursor-grab active:cursor-grabbing touch-none"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            onClick={handleToggle}
+            role="button"
+            aria-label={isExpanded ? 'Collapse toolbar' : 'Expand toolbar'}
+          >
+            <div className={cn(
+              "w-14 h-1.5 rounded-full transition-all",
+              isExpanded
+                ? "bg-amber-500/50"
+                : "bg-amber-500/30 shadow-[0_0_10px_3px_rgba(245,158,11,0.3)] animate-pulse"
+            )} />
+            {!isExpanded && (
+              <span className="text-[11px] font-mono text-amber-400/60 mt-1 tracking-widest select-none font-semibold">
+                ⚔ TOOLS
+              </span>
+            )}
+          </div>
 
-              {/* Settings content (inline in drawer) */}
-              <AnimatePresence>
-                {showSettingsContent && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="max-h-[50vh] overflow-y-auto overscroll-contain touch-auto"
-                  >
-                    {settingsContent}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+          {/* Expanded content */}
+          <AnimatePresence>
+            {isExpanded && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                className="overflow-hidden"
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
+              >
+                {/* Tab bar */}
+                <div className="flex h-14 border-t border-amber-900/20">
+                  {tabs.map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
 
-              {/* Oracle content (inline in drawer) */}
-              <AnimatePresence>
-                {showOracleContent && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="max-h-[50vh] overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch]"
-                  >
-                    {oracleContent}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => onTabChange(tab.id)}
+                        disabled={disabled}
+                        className={cn(
+                          "flex-1 flex flex-col items-center justify-center gap-1 transition-all active:scale-95 relative",
+                          "disabled:opacity-40 disabled:cursor-not-allowed",
+                          isActive ? tab.activeBg : "hover:bg-muted/10"
+                        )}
+                        style={{ touchAction: 'manipulation' }}
+                      >
+                        <div className="relative">
+                          <Icon className={cn(
+                            "w-5 h-5 transition-colors",
+                            isActive ? tab.color : "text-muted-foreground"
+                          )} />
+                          {tab.id === 'oracle' && oracleCount && oracleCount > 0 && !isActive && (
+                            <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-cyan-500 text-[9px] font-bold text-black flex items-center justify-center px-0.5">
+                              {oracleCount > 9 ? '9+' : oracleCount}
+                            </span>
+                          )}
+                        </div>
+                        <span className={cn(
+                          "text-[10px] font-mono tracking-tight transition-colors",
+                          isActive ? "text-foreground" : "text-muted-foreground"
+                        )}>
+                          {tab.label}
+                        </span>
+                        {isActive && (
+                          <div className={cn(
+                            "absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full",
+                            activeIndicatorColors[tab.id]
+                          )} />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
