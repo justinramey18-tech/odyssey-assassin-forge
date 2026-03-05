@@ -899,7 +899,21 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     const readyPromptsWithContent = currentPrompts.filter(
       p => p.is_ready && p.prompt.trim().length > 0
     );
-    if (readyPromptsWithContent.length === 0) {
+
+    // Identify players who readied with empty prompts → AFK mode
+    const emptyReadyPrompts = currentPrompts.filter(
+      p => p.is_ready && p.prompt.trim().length === 0
+    );
+    if (emptyReadyPrompts.length > 0) {
+      const afkNames = emptyReadyPrompts.map(p => p.character_name).join(', ');
+      toast(`👻 AFK guide active for: ${afkNames}`, {
+        description: 'Empty prompt — their AFK personality guides will be used.',
+        duration: 5000,
+        icon: '👻',
+      });
+    }
+
+    if (readyPromptsWithContent.length === 0 && emptyReadyPrompts.length === 0) {
       toast.error('No ready prompts to generate from');
       return;
     }
@@ -931,19 +945,34 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
     // Atomic database lock: only proceed if isGenerating was false
     // This prevents multiple clients from triggering generation simultaneously
+    // Also includes a staleness timeout (3 min) to recover from crashed clients
+    const STALE_LOCK_MS = 3 * 60 * 1000;
+    const now = Date.now();
+    const lockPayload = { ...sessionConfig, isGenerating: true, generationStartedAt: now };
+
     const { data: lockData, error: stateErr } = await (supabase.from('party_shared_state') as any)
-      .update({ state_data: { ...sessionConfig, isGenerating: true } })
+      .update({ state_data: lockPayload })
       .eq('party_id', partyId)
       .eq('state_type', 'dm_session')
       .not('state_data->isGenerating', 'eq', true)
       .select('id');
     if (stateErr) console.error('[PartyDM] Failed to set isGenerating state:', stateErr);
     
-    // If no rows updated, another client already claimed generation
+    // If no rows updated, check for stale lock
     if (!lockData || lockData.length === 0) {
-      console.log('[PartyDM] Generation already in progress on another client, skipping');
-      setIsGenerating(false);
-      return;
+      const startedAt = (sessionConfig as any)?.generationStartedAt;
+      if (startedAt && (now - startedAt) > STALE_LOCK_MS) {
+        console.warn('[PartyDM] Stale generation lock detected, force-overriding');
+        // Force override the stale lock
+        await (supabase.from('party_shared_state') as any)
+          .update({ state_data: lockPayload })
+          .eq('party_id', partyId)
+          .eq('state_type', 'dm_session');
+      } else {
+        console.log('[PartyDM] Generation already in progress on another client, skipping');
+        setIsGenerating(false);
+        return;
+      }
     }
 
     abortRef.current = new AbortController();
