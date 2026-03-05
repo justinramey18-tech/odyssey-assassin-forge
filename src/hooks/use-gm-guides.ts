@@ -15,9 +15,10 @@ import {
 /**
  * @param ownerUserId - If provided, fetches/persists guides for this user instead of the current user.
  *   Used by co-hosts to manage the host's GM guides.
+ * @param mode - 'solo' or 'party'. Filters guides by mode in both cloud and localStorage.
  */
-export function useGMGuides(ownerUserId?: string) {
-  const [guides, setGuides] = useState<GMGuide[]>(() => ownerUserId ? [] : loadGMGuides());
+export function useGMGuides(ownerUserId?: string, mode?: 'solo' | 'party') {
+  const [guides, setGuides] = useState<GMGuide[]>(() => ownerUserId ? [] : loadGMGuides(mode));
   const [cloudLoaded, setCloudLoaded] = useState(false);
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -32,13 +33,20 @@ export function useGMGuides(ownerUserId?: string) {
       // When ownerUserId is set, fetch that user's guides (co-host scenario)
       const targetUserId = ownerUserId || session.user.id;
 
-      const query = supabase
-        .from('gm_guides')
-        .select('*')
-        .eq('user_id', targetUserId)
-        .order('created_at', { ascending: true });
+      const baseQuery = mode
+        ? (supabase
+            .from('gm_guides')
+            .select('*')
+            .eq('user_id', targetUserId) as any)
+            .eq('mode', mode)
+            .order('created_at', { ascending: true })
+        : supabase
+            .from('gm_guides')
+            .select('*')
+            .eq('user_id', targetUserId)
+            .order('created_at', { ascending: true });
 
-      const { data, error } = await query;
+      const { data, error } = await baseQuery;
 
       if (error || cancelled) return;
 
@@ -61,7 +69,7 @@ export function useGMGuides(ownerUserId?: string) {
           const localOnly = guides.filter(g => !cloudIds.has(g.id));
           const merged = [...cloudGuides, ...localOnly];
           setGuides(merged);
-          saveGMGuides(merged);
+          saveGMGuides(merged, mode);
 
           // Push any local-only guides to cloud
           if (localOnly.length > 0) {
@@ -72,15 +80,16 @@ export function useGMGuides(ownerUserId?: string) {
                 name: g.name,
                 content: g.content,
                 enabled: g.enabled,
+                mode: mode || 'solo',
                 created_at: g.createdAt,
                 updated_at: g.updatedAt,
-              });
+              } as any);
             }
           }
         }
       } else if (!ownerUserId) {
         // No cloud data and own guides — push all local guides to cloud
-        const local = loadGMGuides();
+        const local = loadGMGuides(mode);
         if (local.length > 0) {
           for (const g of local) {
             await supabase.from('gm_guides').upsert({
@@ -89,9 +98,10 @@ export function useGMGuides(ownerUserId?: string) {
               name: g.name,
               content: g.content,
               enabled: g.enabled,
+              mode: mode || 'solo',
               created_at: g.createdAt,
               updated_at: g.updatedAt,
-            });
+            } as any);
           }
         }
       }
@@ -101,7 +111,7 @@ export function useGMGuides(ownerUserId?: string) {
     loadFromCloud();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ownerUserId]);
+  }, [ownerUserId, mode]);
 
   const persistToCloud = useCallback(async (guide: GMGuide) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -114,10 +124,11 @@ export function useGMGuides(ownerUserId?: string) {
       name: guide.name,
       content: guide.content,
       enabled: guide.enabled,
+      mode: mode || 'solo',
       created_at: guide.createdAt,
       updated_at: guide.updatedAt,
-    });
-  }, [ownerUserId]);
+    } as any);
+  }, [ownerUserId, mode]);
 
   const deleteFromCloud = useCallback(async (id: string) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -129,9 +140,9 @@ export function useGMGuides(ownerUserId?: string) {
     setGuides(next);
     // Only save to localStorage for own guides
     if (!ownerUserId) {
-      saveGMGuides(next);
+      saveGMGuides(next, mode);
     }
-  }, [ownerUserId]);
+  }, [ownerUserId, mode]);
 
   const addGuide = useCallback((name: string, content: string, customId?: string): boolean => {
     if (content.length > MAX_GUIDE_CHARS) {

@@ -138,11 +138,11 @@ export function StandalonePartyDMScreen({
   }, [partyId, userId, isPartyCreator, coHostIds]);
 
   // Campaign sessions (for dropdown)
-  const campaignSessions = useCampaignSessions();
+  const campaignSessions = useCampaignSessions('party');
 
   // GM Guides — co-hosts load the host's guides via ownerUserId
   const gmGuidesOwner = isCoHost && partyCreatorId ? partyCreatorId : undefined;
-  const gmGuides = useGMGuides(gmGuidesOwner);
+  const gmGuides = useGMGuides(gmGuidesOwner, 'party');
 
   // Stabilize partyMembers for usePartyDm
   const stablePartyMembers = useMemo(() =>

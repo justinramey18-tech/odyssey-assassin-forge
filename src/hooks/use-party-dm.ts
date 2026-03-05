@@ -408,7 +408,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             name: `Party Campaign ${new Date().toLocaleDateString()}`,
             messages: serializedMessages as any,
             campaign_summary: summary,
-          })
+            mode: 'party',
+          } as any)
           .select('id')
           .single();
         if (data) {
@@ -497,7 +498,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             name,
             messages: serializedMessages as any,
             campaign_summary: sessionConfig?.campaignSummary || null,
-          })
+            mode: 'party',
+          } as any)
           .select('id')
           .single();
         if (error) throw error;

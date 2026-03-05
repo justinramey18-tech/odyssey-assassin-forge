@@ -21,6 +21,7 @@ export type Database = {
           gm_guide_ids: string[] | null
           id: string
           messages: Json
+          mode: string
           name: string
           updated_at: string
           user_id: string
@@ -31,6 +32,7 @@ export type Database = {
           gm_guide_ids?: string[] | null
           id?: string
           messages?: Json
+          mode?: string
           name?: string
           updated_at?: string
           user_id: string
@@ -41,6 +43,7 @@ export type Database = {
           gm_guide_ids?: string[] | null
           id?: string
           messages?: Json
+          mode?: string
           name?: string
           updated_at?: string
           user_id?: string
@@ -459,6 +462,7 @@ export type Database = {
           created_at: string
           enabled: boolean
           id: string
+          mode: string
           name: string
           updated_at: string
           user_id: string
@@ -468,6 +472,7 @@ export type Database = {
           created_at?: string
           enabled?: boolean
           id?: string
+          mode?: string
           name?: string
           updated_at?: string
           user_id: string
@@ -477,6 +482,7 @@ export type Database = {
           created_at?: string
           enabled?: boolean
           id?: string
+          mode?: string
           name?: string
           updated_at?: string
           user_id?: string
