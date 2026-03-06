@@ -3,11 +3,13 @@ import { cn } from '@/lib/utils';
 import { getThistleBadges, getBadgeColorClasses } from '@/lib/easter-eggs';
 import { type AlignmentScore, getAlignmentZone } from '@/lib/alignmentSpectrum';
 import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
+import { useCharacterIdentity } from '@/hooks/use-character-identity';
 
 interface CharacterNamePlaqueProps {
   name: string;
   level: number;
   primaryClass?: string;
+  onOpenSettings?: () => void;
 }
 
 const CLASS_LABELS: Record<string, string> = {
