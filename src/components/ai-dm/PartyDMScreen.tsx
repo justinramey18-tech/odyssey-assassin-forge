@@ -9,7 +9,7 @@ import { loadState as loadGeraltState } from '@/components/companion/geralt-data
 import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { WhisperTray } from './WhisperTray';
-import { OracleWhisperFeed } from './OracleWhisperFeed';
+import { OraclePanel } from '@/components/oracle/OraclePanel';
 import { PartyDMSettings } from './PartyDMSettings';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { CampaignDropdown } from './CampaignDropdown';

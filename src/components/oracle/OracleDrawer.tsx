@@ -1,29 +1,21 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Send, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useOracle } from '@/hooks/use-oracle';
 import { Character } from '@/lib/types';
-import { CharacterEquipment, EquipmentSlot } from '@/lib/inventory/types';
+import { CharacterEquipment } from '@/lib/inventory/types';
 import { InventoryItem as ConsumableItem } from '@/lib/consumables/types';
 import { AbilityCooldownState } from '@/lib/cooldowns/types';
 import { PartyMember } from '@/hooks/use-party-sync';
 import { LootItem } from '@/lib/loot/types';
 import { allAbilities } from '@/lib/abilities';
 import { getPersonalityConfig } from './personalities';
-import { PersonalitySelector } from './PersonalitySelector';
-import { ModeSelector } from './ModeSelector';
-import { ContextChipBar } from './ContextChipBar';
-import { MessageList } from './MessageList';
-import { QuickPromptBar } from './QuickPromptBar';
 import { CharacterContext } from './types';
 import { UseSpellcastingReturn } from '@/hooks/use-spellcasting';
 import { getSpellById } from '@/lib/magic/spells';
 import { CombatLogEntry } from '@/hooks/use-combat-log';
 import { Enemy } from '@/lib/combat/targetTypes';
 import { ActionEconomy } from '@/lib/combat/combatTypes';
+import { OraclePanel } from './OraclePanel';
 
 interface CombatContextInput {
   isInCombat: boolean;
@@ -47,7 +39,6 @@ interface OracleDrawerProps {
   prestigeLevel?: number;
   prestigeAbilities?: string[];
   getRemainingTime?: (abilityId: string) => number;
-  // Condition context
   activeConditions?: Array<{
     name: string;
     remainingRounds: number;
@@ -60,14 +51,10 @@ interface OracleDrawerProps {
     remainingMinutes: number;
     concentration: boolean;
   }>;
-  // Spellcasting context
   spellcasting?: UseSpellcastingReturn;
-  // Loot inventory context
   lootItems?: LootItem[];
   totalLootValue?: number;
-  // Combat context
   combatContext?: CombatContextInput;
-  // Party members
   partyMembers?: PartyMember[];
 }
 
@@ -91,8 +78,6 @@ export function OracleDrawer({
   combatContext,
   partyMembers = [],
 }: OracleDrawerProps) {
-  const [inputValue, setInputValue] = useState('');
-
   // Build character context for the AI
   const characterContext = useMemo<CharacterContext>(() => {
     // Map abilities with names
@@ -256,7 +241,7 @@ export function OracleDrawer({
           damage: entry.damage,
           wasHit: entry.roll ? entry.roll.total > 0 : undefined,
           wasCrit: entry.roll?.isCrit,
-        })),
+        })),\\
       };
     }
 
@@ -306,37 +291,7 @@ export function OracleDrawer({
     };
   }, [character, currentHP, maxHP, equipment, consumables, cooldowns, prestigeLevel, prestigeAbilities, getRemainingTime, activeConditions, activeBuffs, spellcasting, lootItems, totalLootValue, combatContext, partyMembers]);
 
-  const {
-    messages,
-    isLoading,
-    personality,
-    mode,
-    sendMessage,
-    cancelRequest,
-    clearMessages,
-    switchPersonality,
-    switchMode,
-  } = useOracle({ characterContext });
-
-  const config = getPersonalityConfig(personality);
-
-  const handleSend = useCallback(() => {
-    if (inputValue.trim()) {
-      sendMessage(inputValue);
-      setInputValue('');
-    }
-  }, [inputValue, sendMessage]);
-
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  }, [handleSend]);
-
-  const handlePromptClick = useCallback((prompt: string) => {
-    sendMessage(prompt);
-  }, [sendMessage]);
+  const config = getPersonalityConfig('deadpool');
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -353,107 +308,10 @@ export function OracleDrawer({
           boxShadow: `-4px 0 30px ${config.color}20`,
         }}
       >
-        {/* Header */}
-        <SheetHeader className="p-4 border-b border-white/10 shrink-0">
-          <div className="flex items-center justify-between">
-            <SheetTitle className="flex items-center gap-2 text-lg font-cinzel">
-              <span className="text-2xl">{config.icon}</span>
-              <span style={{ color: config.color }}>The Oracle</span>
-            </SheetTitle>
-            <div className="flex gap-2">
-              {messages.length > 0 && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={clearMessages}
-                  className="h-8 w-8 text-white/50 hover:text-white"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              )}
-            </div>
-          </div>
+        <SheetHeader className="sr-only">
+          <SheetTitle>The Oracle</SheetTitle>
         </SheetHeader>
-
-        {/* Personality Selector */}
-        <PersonalitySelector
-          selected={personality}
-          onSelect={switchPersonality}
-          disabled={isLoading}
-        />
-
-        {/* Mode Selector */}
-        <ModeSelector
-          selected={mode}
-          onSelect={switchMode}
-          disabled={isLoading}
-        />
-
-        {/* Context Chips */}
-        <ContextChipBar
-          context={characterContext}
-          onChipClick={handlePromptClick}
-          disabled={isLoading}
-        />
-
-        {/* Messages */}
-        <MessageList
-          messages={messages}
-          isLoading={isLoading}
-          currentPersonality={personality}
-        />
-
-        {/* Quick Prompts */}
-        {messages.length === 0 && (
-          <QuickPromptBar
-            personality={personality}
-            mode={mode}
-            onPromptClick={handlePromptClick}
-            disabled={isLoading}
-          />
-        )}
-
-        {/* Input Area */}
-        <div className="p-3 border-t border-white/10 shrink-0">
-          <div className="flex gap-2">
-            <Input
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={
-                personality === 'deadpool'
-                  ? "Ask me anything. I triple-dog dare you."
-                  : personality === 'jarvis'
-                  ? "How may I assist you, Sir?"
-                  : "Pose your query..."
-              }
-              className="flex-1 bg-black/30 border-white/20 focus:border-primary"
-              disabled={isLoading}
-            />
-            {isLoading ? (
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={cancelRequest}
-                className="shrink-0"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            ) : (
-              <Button
-                size="icon"
-                onClick={handleSend}
-                disabled={!inputValue.trim()}
-                className="shrink-0"
-                style={{
-                  backgroundColor: inputValue.trim() ? config.color : undefined,
-                }}
-              >
-                <Send className="w-4 h-4" />
-              </Button>
-            )}
-          </div>
-        </div>
+        <OraclePanel characterContext={characterContext} />
       </SheetContent>
     </Sheet>
   );
