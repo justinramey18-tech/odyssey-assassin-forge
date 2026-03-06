@@ -101,6 +101,8 @@ interface CharacterContext {
   }>;
   // Campaign narrative summary
   campaignSummary?: string;
+  // Recent DM narrative messages
+  recentNarrative?: Array<{ role: string; name?: string; content: string }>;
 }
 
 interface OracleRequest {

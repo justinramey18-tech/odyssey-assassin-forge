@@ -161,6 +161,8 @@ export interface CharacterContext {
   };
   // Campaign narrative summary for contextual awareness
   campaignSummary?: string;
+  // Recent DM narrative messages for immediate context
+  recentNarrative?: Array<{ role: string; name?: string; content: string }>;
 }
 
 export interface PersonalityConfig {
