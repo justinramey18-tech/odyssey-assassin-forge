@@ -1789,18 +1789,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               onDemoteCoHost={onDemoteCoHost}
             />
           ) : undefined}
-          oracleContent={activeNavTab === 'oracle' ? (
-            <OracleWhisperFeed messages={partyDm.messages} characterName={members.find(m => m.user_id === currentUserId)?.character_name} />
+          oracleContent={activeNavTab === 'oracle' && characterContext ? (
+            <OraclePanel characterContext={characterContext} />
           ) : undefined}
-          oracleCount={partyDm.messages.reduce((count: number, m: any) => {
-            if (!m.whispers) return count;
-            const myName = members.find((mem: any) => mem.user_id === currentUserId)?.character_name;
-            return count + m.whispers.filter((w: any) => {
-              if (w.type !== 'whisper') return true;
-              if (!w.target || !myName) return false;
-              return w.target.toLowerCase() === myName.toLowerCase();
-            }).length;
-          }, 0)}
         />
       )}
 

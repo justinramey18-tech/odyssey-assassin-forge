@@ -241,7 +241,7 @@ export function OracleDrawer({
           damage: entry.damage,
           wasHit: entry.roll ? entry.roll.total > 0 : undefined,
           wasCrit: entry.roll?.isCrit,
-        })),\\
+        })),
       };
     }
 
