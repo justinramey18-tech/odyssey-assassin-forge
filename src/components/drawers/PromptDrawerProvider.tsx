@@ -226,6 +226,7 @@ export function PromptDrawerProvider({
 
   // Personality gate for Solo DM
   const personalityGate = usePersonalityGate({ userId });
+  const { gender: identityGender, race: identityRace, backstory: identityBackstory, relationships: identityRelationships } = useCharacterIdentity();
   
   const [oraclePersonality, setOraclePersonality] = useState<Personality>('deadpool');
   
