@@ -2,16 +2,29 @@ import { OracleModeConfig } from './types';
 
 export const oracleModes: OracleModeConfig[] = [
   {
-    id: 'chat',
-    name: 'Chat',
-    icon: '💬',
-    description: 'Natural conversation',
-    color: '#8B5CF6', // violet
+    id: 'quick',
+    name: 'Quick',
+    icon: '⚡',
+    description: 'Brief 1-2 sentence answers',
+    color: '#EF4444', // red
     quickPrompts: [
-      'What should I know about my situation?',
-      'Help me understand my options',
-      'Any advice for me right now?',
-      'Tell me about my abilities',
+      'Best action this turn?',
+      'Should I retreat?',
+      'Use a potion now?',
+      'Attack or defend?',
+    ],
+  },
+  {
+    id: 'choice',
+    name: 'Choice',
+    icon: '🎲',
+    description: 'Generate 4 options',
+    color: '#F59E0B', // amber
+    quickPrompts: [
+      'What are my combat options?',
+      'Give me roleplay choices',
+      'Ways to approach this encounter?',
+      'Creative solutions I could try?',
     ],
   },
   {
@@ -28,16 +41,16 @@ export const oracleModes: OracleModeConfig[] = [
     ],
   },
   {
-    id: 'choice',
-    name: 'Choice',
-    icon: '🎲',
-    description: 'Generate 4-6 options',
-    color: '#F59E0B', // amber
+    id: 'chat',
+    name: 'Chat',
+    icon: '💬',
+    description: 'Natural conversation',
+    color: '#8B5CF6', // violet
     quickPrompts: [
-      'What are my combat options?',
-      'Give me roleplay choices',
-      'Ways to approach this encounter?',
-      'Creative solutions I could try?',
+      'What should I know about my situation?',
+      'Help me understand my options',
+      'Any advice for me right now?',
+      'Tell me about my abilities',
     ],
   },
   {
@@ -53,19 +66,6 @@ export const oracleModes: OracleModeConfig[] = [
       'Optimal ability rotation?',
     ],
   },
-  {
-    id: 'quick',
-    name: 'Quick',
-    icon: '⚡',
-    description: 'Brief 1-2 sentence answers',
-    color: '#EF4444', // red
-    quickPrompts: [
-      'Best action this turn?',
-      'Should I retreat?',
-      'Use a potion now?',
-      'Attack or defend?',
-    ],
-  },
 ];
 
 export function getModeConfig(id: string): OracleModeConfig {
@@ -74,51 +74,34 @@ export function getModeConfig(id: string): OracleModeConfig {
 
 export function getModePromptModifier(mode: string): string {
   switch (mode) {
-    case 'plan':
+    case 'quick':
       return `
-RESPONSE MODE: COLLABORATIVE PLANNING
-- Respond in ONLY 1-4 concise sentences
-- Ask clarifying questions to collaborate on the plan
-- Don't write out entire strategies - work together step by step
-- Focus on the immediate next step or decision
-- Invite the user's input and preferences
-- Be a planning partner, not a lecturer`;
+RESPONSE MODE: QUICK RESPONSE
+HARD LIMIT: 1-2 sentences. No exceptions.`;
 
     case 'choice':
       return `
 RESPONSE MODE: CHOICE GENERATION
-- Present exactly 4-6 distinct options for the player
-- Number each option clearly (1, 2, 3, etc.)
-- Each option should be 1-2 sentences max
-- Include a mix of safe, risky, and creative approaches
-- Don't recommend one over another - let the player decide
-- Format: Brief title + short description for each option`;
+HARD LIMIT: 4 numbered options maximum. Each option is ONE sentence.`;
+
+    case 'plan':
+      return `
+RESPONSE MODE: COLLABORATIVE PLANNING
+HARD LIMIT: 1-4 sentences maximum.`;
+
+    case 'chat':
+      return `
+RESPONSE MODE: NATURAL CONVERSATION
+HARD LIMIT: 3-5 sentences maximum.`;
 
     case 'analyze':
       return `
 RESPONSE MODE: DEEP ANALYSIS
-- Provide thorough tactical analysis
-- Consider multiple angles: offense, defense, resource management, positioning
-- Reference specific abilities, stats, and items by name
-- Calculate rough odds or outcomes when relevant
-- Structure with clear sections if needed
-- Be comprehensive but organized`;
+HARD LIMIT: 8-12 sentences maximum. Use bullet points.`;
 
-    case 'quick':
-      return `
-RESPONSE MODE: QUICK RESPONSE
-- Answer in ONLY 1-2 sentences maximum
-- Be direct and actionable
-- Skip explanations - just give the answer
-- No preamble or follow-up questions
-- Punchy and immediate`;
-
-    case 'chat':
     default:
       return `
-RESPONSE MODE: NATURAL CONVERSATION
-- Respond naturally without length constraints
-- Balance helpfulness with personality
-- Engage conversationally`;
+RESPONSE MODE: QUICK RESPONSE
+HARD LIMIT: 1-2 sentences. No exceptions.`;
   }
 }
