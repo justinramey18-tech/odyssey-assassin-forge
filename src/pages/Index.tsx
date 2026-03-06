@@ -1001,8 +1001,23 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       quickActions: quickActionsSummary,
       profileImage: profileImageThumb,
       timezone: userTimezone,
+      // Build overview
+      race: characterIdentity.race || undefined,
+      gender: characterIdentity.gender || undefined,
+      abilityScores: {
+        str: abilityScores.finalScores.strength,
+        dex: abilityScores.finalScores.dexterity,
+        con: abilityScores.finalScores.constitution,
+        int: abilityScores.finalScores.intelligence,
+        wis: abilityScores.finalScores.wisdom,
+        cha: abilityScores.finalScores.charisma,
+      },
+      equippedGear: Object.entries(equipment.slots)
+        .filter(([, item]) => item !== null)
+        .map(([slot, item]) => ({ slot, name: item!.name })),
+      multiclassLevels: character.multiclassLevels ?? undefined,
     });
-  }, [partySync, effectiveCurrentHP, effectiveMaxHP, effectiveTempHP, effectiveAC, conditions.conditions, character.level, character.primaryClass, quickActionsSummary, profileImageThumb, userTimezone]);
+  }, [partySync, effectiveCurrentHP, effectiveMaxHP, effectiveTempHP, effectiveAC, conditions.conditions, character.level, character.primaryClass, quickActionsSummary, profileImageThumb, userTimezone, characterIdentity.race, characterIdentity.gender, abilityScores.finalScores, equipment.slots, character.multiclassLevels]);
 
   // Legacy spentPoints for compatibility
   const spentPoints = getTotalPointsSpent(character.abilities);
