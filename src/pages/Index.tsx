@@ -102,6 +102,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useCloudSave } from '@/hooks/use-cloud-save';
 import { usePlayMode } from '@/hooks/use-play-mode';
 import { useAppMode } from '@/hooks/use-app-mode';
+import { useCharacterIdentity } from '@/hooks/use-character-identity';
 
 // Stable empty object to prevent re-renders from `character.multiclassLevels ?? {}`
 const EMPTY_MULTICLASS_LEVELS: Record<string, never> = {};
