@@ -159,6 +159,8 @@ export interface CharacterContext {
     abilities: { str: number; dex: number; con: number; wis: number; int: number; cha: number };
     attacks: Array<{ name: string; bonus: string; damage: string; desc: string }>;
   };
+  // Campaign narrative summary for contextual awareness
+  campaignSummary?: string;
 }
 
 export interface PersonalityConfig {

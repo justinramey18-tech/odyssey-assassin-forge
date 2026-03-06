@@ -1792,6 +1792,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           oracleContent={activeNavTab === 'oracle' && characterContext ? (
             <OraclePanel characterContext={{
               ...characterContext,
+              campaignSummary: partyDm.sessionConfig?.campaignSummary || undefined,
               partyMembers: members
                 .filter(m => m.user_id !== currentUserId && m.character_name)
                 .map(m => ({
