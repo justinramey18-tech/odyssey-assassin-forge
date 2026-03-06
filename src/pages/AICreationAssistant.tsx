@@ -62,6 +62,17 @@ export default function AICreationAssistant() {
   const handleApply = useCallback(() => {
     if (!buildData) return;
     
+    // Save identity fields to scoped storage
+    if (buildData.gender) {
+      setScopedItem('dnd-character-gender', buildData.gender);
+    }
+    if (buildData.race) {
+      setScopedItem('dnd-character-race', buildData.race);
+    }
+    if (buildData.backstory) {
+      setScopedItem('dnd-character-backstory', buildData.backstory.slice(0, 2000));
+    }
+
     const homebrewSummary = saveHomebrewContentFromBuildData(buildData);
     if (homebrewSummary.totalItems > 0) {
       console.log('[AICreation] Saved homebrew content:', homebrewSummary);
