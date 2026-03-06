@@ -653,9 +653,6 @@ export function HomeScreen({
         <AlignmentDriftIndicator className="px-4 py-1" />
 
         {/* Scrollable Content */}
-        <AlignmentDriftIndicator className="px-4 py-1" />
-
-        {/* Scrollable Content */}
         <div className="flex-1 overflow-auto flex flex-col">
           <div className="flex flex-col gap-4 pb-[2px] mt-auto">
 
