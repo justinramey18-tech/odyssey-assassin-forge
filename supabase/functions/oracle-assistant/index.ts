@@ -756,57 +756,63 @@ Balance analytical depth with emotional intelligence. Offer thorough analysis wh
 
 function getModePromptModifier(mode: OracleMode): string {
   switch (mode) {
-    case 'plan':
+    case 'quick':
       return `
 
-RESPONSE MODE: COLLABORATIVE PLANNING
-- Respond in ONLY 1-4 concise sentences
-- Ask clarifying questions to collaborate on the plan
-- Don't write out entire strategies - work together step by step
-- Focus on the immediate next step or decision
-- Invite the user's input and preferences
-- Be a planning partner, not a lecturer`;
+RESPONSE MODE: QUICK RESPONSE
+HARD LIMIT: 1-2 sentences. No exceptions.
+- Be direct and actionable — just the answer
+- No preamble, no follow-up questions, no elaboration
+- Strip all flavor text. Pure signal.
+- If the answer requires more than 2 sentences, give the single most important sentence`;
 
     case 'choice':
       return `
 
 RESPONSE MODE: CHOICE GENERATION
-- Present exactly 4-6 distinct options for the player
-- Number each option clearly (1, 2, 3, etc.)
-- Each option should be 1-2 sentences max
+HARD LIMIT: 4 numbered options maximum. Each option is ONE sentence.
+- Number each option (1-4)
+- Format: "1. **Title** — one sentence description"
 - Include a mix of safe, risky, and creative approaches
-- Don't recommend one over another - let the player decide
-- Format: Brief title + short description for each option`;
+- No preamble before the list. No commentary after.
+- Do NOT recommend one over another`;
+
+    case 'plan':
+      return `
+
+RESPONSE MODE: COLLABORATIVE PLANNING
+HARD LIMIT: 1-4 sentences maximum.
+- Focus on the immediate next step or decision only
+- Ask ONE clarifying question if needed
+- Do not write out entire strategies or multi-step plans
+- Be a planning partner: brief, focused, collaborative`;
+
+    case 'chat':
+      return `
+
+RESPONSE MODE: NATURAL CONVERSATION
+HARD LIMIT: 3-5 sentences maximum.
+- Respond naturally but concisely
+- Balance helpfulness with personality
+- Engage conversationally but do not ramble
+- One key insight or response per message`;
 
     case 'analyze':
       return `
 
 RESPONSE MODE: DEEP ANALYSIS
-- Provide thorough tactical analysis
-- Consider multiple angles: offense, defense, resource management, positioning
-- Reference specific abilities, stats, and items by name
-- Calculate rough odds or outcomes when relevant
-- Structure with clear sections if needed
-- Be comprehensive but organized`;
+HARD LIMIT: 8-12 sentences maximum. Use bullet points.
+- Provide tactical analysis with specific references to abilities, stats, items
+- Structure: Situation → Key factors → Recommendation
+- Use bullet points for clarity, not prose paragraphs
+- Calculate rough odds when relevant
+- Be comprehensive but never repeat yourself`;
 
-    case 'quick':
-      return `
-
-RESPONSE MODE: QUICK RESPONSE
-- Answer in ONLY 1-2 sentences maximum
-- Be direct and actionable
-- Skip explanations - just give the answer
-- No preamble or follow-up questions
-- Punchy and immediate`;
-
-    case 'chat':
     default:
       return `
 
-RESPONSE MODE: NATURAL CONVERSATION
-- Respond naturally without length constraints
-- Balance helpfulness with personality
-- Engage conversationally`;
+RESPONSE MODE: QUICK RESPONSE
+HARD LIMIT: 1-2 sentences. No exceptions.`;
   }
 }
 
@@ -836,7 +842,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, personality, characterContext, mode = 'chat', user_api_key, user_openai_key }: OracleRequest & { user_api_key?: string; user_openai_key?: string } = await req.json();
+    const { messages, personality, characterContext, mode = 'quick', user_api_key, user_openai_key }: OracleRequest & { user_api_key?: string; user_openai_key?: string } = await req.json();
     
     if (!messages || !personality || !characterContext) {
       return new Response(
@@ -883,12 +889,13 @@ serve(async (req) => {
 
     console.log(`Oracle request: personality=${personality}, mode=${mode}, character=${characterContext.name}, messages=${messages.length}`);
 
-    // Adjust max_tokens based on mode
-    let maxTokens = 1024;
-    if (mode === 'quick') maxTokens = 150;
-    else if (mode === 'plan') maxTokens = 300;
-    else if (mode === 'choice') maxTokens = 600;
-    else if (mode === 'analyze') maxTokens = 1500;
+    // Adjust max_tokens based on mode — tight limits prevent truncation
+    let maxTokens = 300;
+    if (mode === 'quick') maxTokens = 100;
+    else if (mode === 'choice') maxTokens = 350;
+    else if (mode === 'plan') maxTokens = 250;
+    else if (mode === 'chat') maxTokens = 400;
+    else if (mode === 'analyze') maxTokens = 800;
 
     // Anthropic streaming path
     if (user_api_key && typeof user_api_key === 'string' && user_api_key.trim()) {

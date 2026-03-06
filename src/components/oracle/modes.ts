@@ -2,16 +2,29 @@ import { OracleModeConfig } from './types';
 
 export const oracleModes: OracleModeConfig[] = [
   {
-    id: 'chat',
-    name: 'Chat',
-    icon: '💬',
-    description: 'Natural conversation',
-    color: '#8B5CF6', // violet
+    id: 'quick',
+    name: 'Quick',
+    icon: '⚡',
+    description: 'Brief 1-2 sentence answers',
+    color: '#EF4444', // red
     quickPrompts: [
-      'What should I know about my situation?',
-      'Help me understand my options',
-      'Any advice for me right now?',
-      'Tell me about my abilities',
+      'Best action this turn?',
+      'Should I retreat?',
+      'Use a potion now?',
+      'Attack or defend?',
+    ],
+  },
+  {
+    id: 'choice',
+    name: 'Choice',
+    icon: '🎲',
+    description: 'Generate 4 options',
+    color: '#F59E0B', // amber
+    quickPrompts: [
+      'What are my combat options?',
+      'Give me roleplay choices',
+      'Ways to approach this encounter?',
+      'Creative solutions I could try?',
     ],
   },
   {
@@ -28,16 +41,16 @@ export const oracleModes: OracleModeConfig[] = [
     ],
   },
   {
-    id: 'choice',
-    name: 'Choice',
-    icon: '🎲',
-    description: 'Generate 4-6 options',
-    color: '#F59E0B', // amber
+    id: 'chat',
+    name: 'Chat',
+    icon: '💬',
+    description: 'Natural conversation',
+    color: '#8B5CF6', // violet
     quickPrompts: [
-      'What are my combat options?',
-      'Give me roleplay choices',
-      'Ways to approach this encounter?',
-      'Creative solutions I could try?',
+      'What should I know about my situation?',
+      'Help me understand my options',
+      'Any advice for me right now?',
+      'Tell me about my abilities',
     ],
   },
   {
@@ -51,19 +64,6 @@ export const oracleModes: OracleModeConfig[] = [
       'Break down this combat scenario',
       'What are my strengths and weaknesses?',
       'Optimal ability rotation?',
-    ],
-  },
-  {
-    id: 'quick',
-    name: 'Quick',
-    icon: '⚡',
-    description: 'Brief 1-2 sentence answers',
-    color: '#EF4444', // red
-    quickPrompts: [
-      'Best action this turn?',
-      'Should I retreat?',
-      'Use a potion now?',
-      'Attack or defend?',
     ],
   },
 ];
