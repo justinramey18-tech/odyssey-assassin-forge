@@ -77,6 +77,24 @@ export function CharacterNamePlaque({ name, level, primaryClass, onOpenSettings 
         </div>
       )}
 
+      {/* Identity subtitle (race/gender) */}
+      {gender || race ? (
+        <div className="flex items-center justify-center gap-1.5 mt-0.5">
+          <span className="text-[11px] font-cinzel text-muted-foreground uppercase tracking-wider">
+            {[gender, race].filter(Boolean).join(' ')}
+          </span>
+        </div>
+      ) : (
+        <div className="flex items-center justify-center mt-0.5">
+          <button
+            onClick={onOpenSettings}
+            className="text-[11px] font-cinzel uppercase tracking-wider text-primary/60 underline hover:text-primary/80 transition-colors"
+          >
+            Set Identity
+          </button>
+        </div>
+      )}
+
       {badges.length > 0 && (
         <div className="flex items-center justify-center gap-1.5 mt-1">
           {badges.map(b => (
