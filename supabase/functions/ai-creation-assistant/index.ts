@@ -227,6 +227,8 @@ When you have enough info, present a **complete summary** formatted like this:
 📊 Level: [level]
 🎭 Class: [class]
 🖼️ Portrait: [icon]
+👤 Gender: [gender or "Not set"]
+🧬 Race: [race or "Not set"]
 
 📈 Ability Scores:
   STR [val] | DEX [val] | CON [val]
@@ -243,6 +245,8 @@ When you have enough info, present a **complete summary** formatted like this:
 
 🏹 Starter Abilities: [list or None]
 
+📖 Backstory: [2-3 sentence summary of backstory, or "None"]
+
 🗡️ Custom Gear: [list or None]
 📜 Custom Spells: [list or None]
 ⚡ Custom Abilities: [list or None]
@@ -255,7 +259,7 @@ Then ask: **"Ready to forge this character? Say 'confirm' and I'll apply everyth
 When the user confirms, respond with EXACTLY this format on its own line (no other text after it):
 
 \`\`\`json
-{"action":"apply_character","data":{"name":"...","level":1,"portraitIcon":"Skull","primaryClass":"rogue","abilityScores":{"strength":8,"dexterity":15,"constitution":14,"intelligence":12,"wisdom":13,"charisma":10},"alignment":{"law":0,"good":0},"gameMode":"infinityPool","honestModeRules":{"requireGearUnlocks":true,"organicLevelUp":true,"maxLevelInfinityStones":true,"noRerolls":true,"scribeItemVerification":true,"prestigePointsRequireXP":true,"prestigeRespecDisabled":true,"enforceCooldowns":true,"enforceWildShapeDuration":true},"xpPreset":"standard","diceOddsMode":"fair","selectedPath":null,"starterAbilities":[],"selectedPresetId":"street-runner","consumables":[],"homebrewGear":[],"homebrewSpells":[],"homebrewAbilities":[],"homebrewConsumables":[]}}
+{"action":"apply_character","data":{"name":"...","level":1,"portraitIcon":"Skull","primaryClass":"rogue","gender":"","race":"","backstory":"","abilityScores":{"strength":8,"dexterity":15,"constitution":14,"intelligence":12,"wisdom":13,"charisma":10},"alignment":{"law":0,"good":0},"gameMode":"infinityPool","honestModeRules":{"requireGearUnlocks":true,"organicLevelUp":true,"maxLevelInfinityStones":true,"noRerolls":true,"scribeItemVerification":true,"prestigePointsRequireXP":true,"prestigeRespecDisabled":true,"enforceCooldowns":true,"enforceWildShapeDuration":true},"xpPreset":"standard","diceOddsMode":"fair","selectedPath":null,"starterAbilities":[],"selectedPresetId":"street-runner","consumables":[],"homebrewGear":[],"homebrewSpells":[],"homebrewAbilities":[],"homebrewConsumables":[]}}
 \`\`\`
 
 The JSON must be valid and on a single line inside a json code block. Include ALL fields. Use the exact field names shown above. Only include homebrew arrays if the user actually created custom content (otherwise use empty arrays).
