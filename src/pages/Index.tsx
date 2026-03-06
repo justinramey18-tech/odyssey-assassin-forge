@@ -422,6 +422,9 @@ const Index = () => {
   // Aggregated equipment stats for GM guide
   const aggregatedStats = useEquipmentStats(equipment);
   
+  // Character identity (race, gender, backstory)
+  const characterIdentity = useCharacterIdentity();
+  
   // Ability Scores system (centralized stat management with gear sync)
   const abilityScores = useAbilityScores({
     equipmentStats: aggregatedStats,
