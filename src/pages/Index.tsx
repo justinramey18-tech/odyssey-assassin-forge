@@ -2440,7 +2440,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           onManualLevelUp={handleManualLevelUp}
           onReturnToBuilder={() => setShowHomeScreen(false)}
           onOpenSettings={() => {
-            setSettingsInitialTab(undefined);
+            setSettingsInitialTab('character');
             setShowSettingsModal(true);
           }}
           currentHP={effectiveCurrentHP}
