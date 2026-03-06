@@ -6,6 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { useAICreationChat, buildDataToWizardState, CharacterBuildData } from '@/hooks/use-ai-creation-chat';
 import { presetToEquipment, getPresetById } from '@/components/wizard/presets/equipment-presets';
 import ReactMarkdown from 'react-markdown';
+import { setScopedItem } from '@/lib/scoped-storage';
 import aiCreationBg from '@/assets/ai-creation-bg.jpeg';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 import { saveHomebrewContentFromBuildData } from '@/lib/ai-creation/saveHomebrew';
@@ -61,6 +62,17 @@ export default function AICreationAssistant() {
   const handleApply = useCallback(() => {
     if (!buildData) return;
     
+    // Save identity fields to scoped storage
+    if (buildData.gender) {
+      setScopedItem('dnd-character-gender', buildData.gender);
+    }
+    if (buildData.race) {
+      setScopedItem('dnd-character-race', buildData.race);
+    }
+    if (buildData.backstory) {
+      setScopedItem('dnd-character-backstory', buildData.backstory.slice(0, 2000));
+    }
+
     const homebrewSummary = saveHomebrewContentFromBuildData(buildData);
     if (homebrewSummary.totalItems > 0) {
       console.log('[AICreation] Saved homebrew content:', homebrewSummary);

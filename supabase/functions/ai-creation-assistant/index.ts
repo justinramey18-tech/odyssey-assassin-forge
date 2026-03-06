@@ -50,12 +50,15 @@ Once ready for creation, ask how in-depth they want it:
 3. **Deep Dive** — Detailed customization of every aspect.
 
 ## Character Creation Categories
-Ask about these progressively (skip or auto-fill based on depth preference):
+Ask about these progressively (skip or auto-fill based on depth preference). For Quick & Dirty, auto-generate gender, race, and a short backstory based on the character concept. For Guided Tour and Deep Dive, ask about gender, race, and backstory as part of the Identity section:
 
 ### 1. Identity
 - **Name** (required, 2-30 chars)
 - **Level** (1-20, default 1)
 - **Portrait Icon** (Skull, User, Shield, Sword, Crosshair, Ghost, Flame, Zap, Moon, Sun, Star, Crown)
+- **Gender** (optional, freeform string — e.g. "Male", "Female", "Non-binary", or anything the player prefers)
+- **Race** (optional, freeform string — any fantasy race, e.g. "Half-Elf", "Tiefling", "Dragonborn", "Human", "Gnome", or something custom)
+- **Backstory** (optional, 1-3 paragraph character backstory — keep it under 1500 characters in the JSON. Write it in third person. Include motivations, key events, and personality traits)
 
 ### 2. Class
 Available classes:
@@ -224,6 +227,8 @@ When you have enough info, present a **complete summary** formatted like this:
 📊 Level: [level]
 🎭 Class: [class]
 🖼️ Portrait: [icon]
+👤 Gender: [gender or "Not set"]
+🧬 Race: [race or "Not set"]
 
 📈 Ability Scores:
   STR [val] | DEX [val] | CON [val]
@@ -240,6 +245,8 @@ When you have enough info, present a **complete summary** formatted like this:
 
 🏹 Starter Abilities: [list or None]
 
+📖 Backstory: [2-3 sentence summary of backstory, or "None"]
+
 🗡️ Custom Gear: [list or None]
 📜 Custom Spells: [list or None]
 ⚡ Custom Abilities: [list or None]
@@ -252,7 +259,7 @@ Then ask: **"Ready to forge this character? Say 'confirm' and I'll apply everyth
 When the user confirms, respond with EXACTLY this format on its own line (no other text after it):
 
 \`\`\`json
-{"action":"apply_character","data":{"name":"...","level":1,"portraitIcon":"Skull","primaryClass":"rogue","abilityScores":{"strength":8,"dexterity":15,"constitution":14,"intelligence":12,"wisdom":13,"charisma":10},"alignment":{"law":0,"good":0},"gameMode":"infinityPool","honestModeRules":{"requireGearUnlocks":true,"organicLevelUp":true,"maxLevelInfinityStones":true,"noRerolls":true,"scribeItemVerification":true,"prestigePointsRequireXP":true,"prestigeRespecDisabled":true,"enforceCooldowns":true,"enforceWildShapeDuration":true},"xpPreset":"standard","diceOddsMode":"fair","selectedPath":null,"starterAbilities":[],"selectedPresetId":"street-runner","consumables":[],"homebrewGear":[],"homebrewSpells":[],"homebrewAbilities":[],"homebrewConsumables":[]}}
+{"action":"apply_character","data":{"name":"...","level":1,"portraitIcon":"Skull","primaryClass":"rogue","gender":"","race":"","backstory":"","abilityScores":{"strength":8,"dexterity":15,"constitution":14,"intelligence":12,"wisdom":13,"charisma":10},"alignment":{"law":0,"good":0},"gameMode":"infinityPool","honestModeRules":{"requireGearUnlocks":true,"organicLevelUp":true,"maxLevelInfinityStones":true,"noRerolls":true,"scribeItemVerification":true,"prestigePointsRequireXP":true,"prestigeRespecDisabled":true,"enforceCooldowns":true,"enforceWildShapeDuration":true},"xpPreset":"standard","diceOddsMode":"fair","selectedPath":null,"starterAbilities":[],"selectedPresetId":"street-runner","consumables":[],"homebrewGear":[],"homebrewSpells":[],"homebrewAbilities":[],"homebrewConsumables":[]}}
 \`\`\`
 
 The JSON must be valid and on a single line inside a json code block. Include ALL fields. Use the exact field names shown above. Only include homebrew arrays if the user actually created custom content (otherwise use empty arrays).
