@@ -12,6 +12,9 @@ export interface CharacterBuildData {
   level: number;
   portraitIcon: string;
   primaryClass: string;
+  gender?: string;
+  race?: string;
+  backstory?: string;
   abilityScores: {
     strength: number;
     dexterity: number;

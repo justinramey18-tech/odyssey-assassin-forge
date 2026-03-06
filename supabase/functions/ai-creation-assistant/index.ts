@@ -56,6 +56,9 @@ Ask about these progressively (skip or auto-fill based on depth preference):
 - **Name** (required, 2-30 chars)
 - **Level** (1-20, default 1)
 - **Portrait Icon** (Skull, User, Shield, Sword, Crosshair, Ghost, Flame, Zap, Moon, Sun, Star, Crown)
+- **Gender** (optional, freeform string — e.g. "Male", "Female", "Non-binary", or anything the player prefers)
+- **Race** (optional, freeform string — any fantasy race, e.g. "Half-Elf", "Tiefling", "Dragonborn", "Human", "Gnome", or something custom)
+- **Backstory** (optional, 1-3 paragraph character backstory — keep it under 1500 characters in the JSON. Write it in third person. Include motivations, key events, and personality traits)
 
 ### 2. Class
 Available classes:
