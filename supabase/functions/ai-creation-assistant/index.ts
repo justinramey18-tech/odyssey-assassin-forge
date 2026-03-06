@@ -50,7 +50,7 @@ Once ready for creation, ask how in-depth they want it:
 3. **Deep Dive** — Detailed customization of every aspect.
 
 ## Character Creation Categories
-Ask about these progressively (skip or auto-fill based on depth preference):
+Ask about these progressively (skip or auto-fill based on depth preference). For Quick & Dirty, auto-generate gender, race, and a short backstory based on the character concept. For Guided Tour and Deep Dive, ask about gender, race, and backstory as part of the Identity section:
 
 ### 1. Identity
 - **Name** (required, 2-30 chars)
