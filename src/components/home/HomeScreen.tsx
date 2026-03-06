@@ -651,10 +651,8 @@ export function HomeScreen({
           onOpenSettings={onOpenSettings}
         />
         <AlignmentDriftIndicator className="px-4 py-1" />
-        />
-        />
 
-        {/* Alignment Drift Indicator */}
+        {/* Scrollable Content */}
         <AlignmentDriftIndicator className="px-4 py-1" />
 
         {/* Scrollable Content */}
