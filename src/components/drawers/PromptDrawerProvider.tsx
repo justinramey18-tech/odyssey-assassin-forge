@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, createContext, useContext, ReactNode, useMemo, useRef } from 'react';
+import { getScopedItem } from '@/lib/scoped-storage';
+import { useCharacterIdentity } from '@/hooks/use-character-identity';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { loadState as loadGeraltState, ATTACKS as GERALT_ATTACKS } from '@/components/companion/geralt-data';
 import { Gem, Lock } from 'lucide-react';
@@ -224,6 +226,7 @@ export function PromptDrawerProvider({
 
   // Personality gate for Solo DM
   const personalityGate = usePersonalityGate({ userId });
+  const { gender: identityGender, race: identityRace, backstory: identityBackstory, relationships: identityRelationships } = useCharacterIdentity();
   
   const [oraclePersonality, setOraclePersonality] = useState<Personality>('deadpool');
   
@@ -451,12 +454,12 @@ export function PromptDrawerProvider({
       charisma: (() => { const b = getScoreBreakdown('charisma'); return { base: b.base, modifier: b.modifier, final: b.total }; })(),
     } : undefined;
 
-    // Read deity/domain from localStorage
+    // Read deity/domain from scoped storage
     let deity: string | undefined;
     let domain: string | undefined;
     try {
-      deity = localStorage.getItem('dnd-cleric-deity') || undefined;
-      const savedDomain = localStorage.getItem('dnd-cleric-domain');
+      deity = getScopedItem('dnd-cleric-deity') || undefined;
+      const savedDomain = getScopedItem('dnd-cleric-domain');
       if (savedDomain) {
         domain = DOMAIN_NAME_MAP[savedDomain] || savedDomain.charAt(0).toUpperCase() + savedDomain.slice(1);
       }
@@ -486,6 +489,10 @@ export function PromptDrawerProvider({
 
     return {
       name: character.name, level: character.level, currentHP: hp, maxHP: hpMax,
+      gender: identityGender || undefined,
+      race: identityRace || undefined,
+      backstory: identityBackstory || undefined,
+      relationships: identityRelationships.length > 0 ? identityRelationships.map(r => ({ name: r.name, disposition: r.disposition, notes: r.notes })) : undefined,
       characterClass,
       multiclassBreakdown,
       deity, domain,
@@ -499,7 +506,7 @@ export function PromptDrawerProvider({
     };
   }, [character, currentHP, maxHP, equipment, consumables, cooldownSystem.cooldowns, cooldownSystem.getRemainingTime,
       prestigeLevel, prestigeAbilities, spellcasting, lootItems, totalLootValue, combatContext, conditionsSystem.debuffs, conditionsSystem.buffs,
-      getScoreBreakdown]);
+      getScoreBreakdown, identityGender, identityRace, identityBackstory, identityRelationships]);
 
   const contextValue: PromptDrawerContextValue = {
     openInfinityDrawer: handleOpenInfinityDrawer,
