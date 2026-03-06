@@ -1418,7 +1418,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           .update({ content: newContent })
           .eq('id', messageId)
           .eq('party_id', partyId);
-        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, content: newContent } : m));
+        setMessages(prev => prev.map(m => m.id === messageId ? enrichMessageWithWhispers({ ...m, content: newContent }, characterName) : m));
         toast.success('Whisper tray regenerated');
       } else {
         toast.error('No content returned from AI');
