@@ -1790,7 +1790,20 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             />
           ) : undefined}
           oracleContent={activeNavTab === 'oracle' && characterContext ? (
-            <OraclePanel characterContext={characterContext} />
+            <OraclePanel characterContext={{
+              ...characterContext,
+              partyMembers: members
+                .filter(m => m.user_id !== currentUserId && m.character_name)
+                .map(m => ({
+                  name: m.character_name,
+                  level: (m.character_status as any)?.level,
+                  className: (m.character_status as any)?.className,
+                  currentHP: (m.character_status as any)?.currentHP,
+                  maxHP: (m.character_status as any)?.maxHP,
+                  ac: (m.character_status as any)?.ac,
+                  conditions: (m.character_status as any)?.conditions,
+                })),
+            }} />
           ) : undefined}
         />
       )}
