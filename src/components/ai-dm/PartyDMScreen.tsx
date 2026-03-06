@@ -1793,6 +1793,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             <OraclePanel characterContext={{
               ...characterContext,
               campaignSummary: partyDm.sessionConfig?.campaignSummary || undefined,
+              recentNarrative: partyDm.messages
+                .filter(m => m.role === 'user' || m.role === 'assistant')
+                .slice(-10)
+                .map(m => ({
+                  role: m.role,
+                  name: m.sender_name,
+                  content: m.content,
+                })),
               partyMembers: members
                 .filter(m => m.user_id !== currentUserId && m.character_name)
                 .map(m => ({
