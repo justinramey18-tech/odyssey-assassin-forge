@@ -154,7 +154,7 @@ function AfkAnnotatedContent({ content, afkNames }: { content: string; afkNames?
   );
 }
 
-function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, showTeamTag, allMessages, ttsSelectMode, ttsSelected, onTtsToggle }: {
+function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, allMessages, ttsSelectMode, ttsSelected, onTtsToggle }: {
   message: PartyDmMessage;
   currentUserId?: string;
   members: Array<{ user_id: string; character_name: string }>;
@@ -164,6 +164,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
   onEdit?: (messageId: string, content: string) => void;
   onDelete?: (messageId: string) => void;
   onRegenerate?: (messageId: string) => void;
+  onRegenerateWhispers?: (messageId: string) => void;
   showTeamTag?: boolean;
   allMessages?: PartyDmMessage[];
   ttsSelectMode?: boolean;
@@ -366,6 +367,13 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
                       title="Regenerate"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => { onRegenerateWhispers?.(message.id); setShowActions(false); }}
+                      className="p-1.5 rounded hover:bg-emerald-900/30 text-emerald-400/60 hover:text-emerald-300 transition-colors"
+                      title="Regenerate Whisper Tray"
+                    >
+                      <Zap className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => { onDelete?.(message.id); setShowActions(false); }}
@@ -780,6 +788,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     partyDm.regenerateMessage?.(messageId);
   }, [partyDm]);
 
+  const handleRegenerateWhispers = useCallback((messageId: string) => {
+    partyDm.regenerateWhispers?.(messageId);
+  }, [partyDm]);
+
   const handleDiceRoll = useCallback((message: string) => {
     setInput(prev => prev ? `${prev}\n${message}` : message);
   }, []);
@@ -1013,6 +1025,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                   onEdit={handleEditMessage}
                   onDelete={handleDeleteMessage}
                   onRegenerate={handleRegenerateMessage}
+                  onRegenerateWhispers={handleRegenerateWhispers}
                   showTeamTag={isCreator && partyDm.isSplitActive}
                   allMessages={partyDm.messages}
                   ttsSelectMode={ttsSelectMode}
