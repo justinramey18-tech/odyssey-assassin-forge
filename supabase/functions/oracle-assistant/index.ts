@@ -99,6 +99,8 @@ interface CharacterContext {
     ac?: number;
     conditions?: string[];
   }>;
+  // Campaign narrative summary
+  campaignSummary?: string;
 }
 
 interface OracleRequest {
@@ -311,6 +313,14 @@ function buildContextSummary(ctx: CharacterContext): string {
         : '';
       lines.push(`   - ${m.name} (Level ${m.level ?? '?'} ${m.className ?? 'Adventurer'},${hpStr}${acStr})${condStr}`);
     });
+  }
+
+  // Add campaign narrative summary
+  if (ctx.campaignSummary) {
+    lines.push(`\n📜 CAMPAIGN SUMMARY:`);
+    lines.push(`[CAMPAIGN NARRATIVE START]`);
+    lines.push(ctx.campaignSummary.slice(0, 3000));
+    lines.push(`[CAMPAIGN NARRATIVE END]`);
   }
   
   return lines.join('\n');
