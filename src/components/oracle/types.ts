@@ -30,6 +30,10 @@ export interface OracleModeConfig {
 export interface CharacterContext {
   name: string;
   level: number;
+  gender?: string;
+  race?: string;
+  backstory?: string;
+  relationships?: Array<{ name: string; disposition: string; notes?: string }>;
   currentHP: number;
   maxHP: number;
   /** Primary class identity (e.g. 'rogue', 'wizard') */

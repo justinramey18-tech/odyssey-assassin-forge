@@ -72,6 +72,12 @@ const ALL_STORAGE_KEYS = [
   'odyssey-combat-synthesis-mode',
   'odyssey-combat-chaos-level',
   
+  // Character Identity
+  'dnd-character-gender',
+  'dnd-character-race',
+  'dnd-character-backstory',
+  'dnd-character-relationships',
+
   // PWA
   'pwa-banner-dismissed',
 ] as const;
