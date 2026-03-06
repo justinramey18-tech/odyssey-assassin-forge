@@ -3,11 +3,13 @@ import { cn } from '@/lib/utils';
 import { getThistleBadges, getBadgeColorClasses } from '@/lib/easter-eggs';
 import { type AlignmentScore, getAlignmentZone } from '@/lib/alignmentSpectrum';
 import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
+import { useCharacterIdentity } from '@/hooks/use-character-identity';
 
 interface CharacterNamePlaqueProps {
   name: string;
   level: number;
   primaryClass?: string;
+  onOpenSettings?: () => void;
 }
 
 const CLASS_LABELS: Record<string, string> = {
@@ -20,9 +22,10 @@ const CLASS_LABELS: Record<string, string> = {
   bard: 'Bard',
 };
 
-export function CharacterNamePlaque({ name, level, primaryClass }: CharacterNamePlaqueProps) {
+export function CharacterNamePlaque({ name, level, primaryClass, onOpenSettings }: CharacterNamePlaqueProps) {
   const badges = getThistleBadges(name || '');
   const { driftPosition, historyCount } = useAlignmentDrift();
+  const { gender, race } = useCharacterIdentity();
 
   const classLabel = primaryClass ? (CLASS_LABELS[primaryClass] || primaryClass) : null;
   const alignmentZone = historyCount > 0 ? getAlignmentZone(driftPosition) : null;
@@ -71,6 +74,24 @@ export function CharacterNamePlaque({ name, level, primaryClass }: CharacterName
               {alignmentZone.emoji} {alignmentZone.label}
             </span>
           )}
+        </div>
+      )}
+
+      {/* Identity subtitle (race/gender) */}
+      {gender || race ? (
+        <div className="flex items-center justify-center gap-1.5 mt-0.5">
+          <span className="text-[11px] font-cinzel text-muted-foreground uppercase tracking-wider">
+            {[gender, race].filter(Boolean).join(' ')}
+          </span>
+        </div>
+      ) : (
+        <div className="flex items-center justify-center mt-0.5">
+          <button
+            onClick={onOpenSettings}
+            className="text-[11px] font-cinzel uppercase tracking-wider text-primary/60 underline hover:text-primary/80 transition-colors"
+          >
+            Set Identity
+          </button>
         </div>
       )}
 

@@ -648,9 +648,11 @@ export function HomeScreen({
           name={character.name} 
           level={character.level}
           primaryClass={character.primaryClass}
+          onOpenSettings={onOpenSettings}
         />
+        <AlignmentDriftIndicator className="px-4 py-1" />
 
-        {/* Alignment Drift Indicator */}
+        {/* Scrollable Content */}
         <AlignmentDriftIndicator className="px-4 py-1" />
 
         {/* Scrollable Content */}
