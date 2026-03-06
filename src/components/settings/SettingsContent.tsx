@@ -41,6 +41,7 @@ import { CloudSaveDebugPanel } from './CloudSaveDebugPanel';
 import { CharacterRenameWidget } from './CharacterRenameWidget';
 import { DevToolsPanel } from './DevToolsPanel';
 import { SpotifySettingsTab } from './SpotifySettingsTab';
+import { CharacterIdentityEditor } from './CharacterIdentityEditor';
 
 interface SettingsContentProps {
   activeTab: SettingsTab;
