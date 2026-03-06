@@ -278,6 +278,10 @@ export function SettingsContent({
             )}
           </SettingsSection>
 
+          <SettingsSection title="Character Identity">
+            <CharacterIdentityEditor />
+          </SettingsSection>
+
           <SettingsSection title="Party Settings">
             {/* Solo/Party Mode Toggle */}
             {partySync?.party?.partyId && onPlayModeChange && (
