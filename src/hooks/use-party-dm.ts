@@ -1338,6 +1338,97 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
   }, [partyId, user, sessionConfig, isGenerating, messages, characterContext, partyMembers, customGuidesContent, silentAutoSave, streamAIResponse, buildPartyMembersGuide, isSplitActive, splitState]);
 
+  // Regenerate whisper tray: send the (possibly edited) AI message content back to the AI
+  // asking it to re-apply whisper delimiters, then update the message in-place.
+  const regenerateWhispers = useCallback(async (messageId: string) => {
+    if (!partyId || !isCreator || isGenerating) return;
+    const msg = messages.find(m => m.id === messageId);
+    if (!msg || msg.role !== 'assistant') {
+      toast.error('Can only regenerate whispers on AI messages');
+      return;
+    }
+
+    toast.info('Regenerating whisper tray…');
+
+    try {
+      const authToken = await getAuthToken();
+      const whisperPrompt = `You are a formatting assistant for a D&D AI Dungeon Master. Your ONLY task is to re-read the following AI DM response and re-format it by wrapping mechanical content in the correct delimiter tags. Do NOT change the narrative text. Do NOT add new content. Do NOT remove content. Only add the delimiter tags where appropriate.
+
+## DELIMITER FORMAT
+- Dice rolls & checks: <!--ACTION-->Roll a Perception check (DC 14)<!--/ACTION-->
+- Strategic advice & tactical tips: <!--TACTICS-->Consider saving Shield for the next attack.<!--/TACTICS-->
+- Per-player whispers: <!--WHISPER:CharacterName-->Secret info here.<!--/WHISPER:CharacterName-->
+
+## RULES
+- Everything outside these tags must remain pure narrative prose
+- Never put dice notation, DC values, or mechanical instructions outside tags
+- You may include multiple tagged blocks per response
+- Keep tagged content concise
+- Preserve ALL existing narrative text exactly as-is
+- If the message already has proper tags, keep them as-is
+- Return the FULL message with tags applied — do not summarize or shorten`;
+
+      const response = await fetch(AI_DM_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: `Re-format this AI DM response with proper whisper/action/tactics delimiter tags:\n\n${msg.content}` }],
+          characterContext,
+          customGuides: whisperPrompt,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('AI request failed');
+      }
+
+      if (!response.body) throw new Error('No response body');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let textBuffer = '';
+      let newContent = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        textBuffer += decoder.decode(value, { stream: true });
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (line.startsWith(':') || line.trim() === '') continue;
+          if (!line.startsWith('data: ')) continue;
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const delta = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (delta) newContent += delta;
+          } catch { /* skip */ }
+        }
+      }
+
+      if (newContent.trim()) {
+        await (supabase.from('party_dm_messages') as any)
+          .update({ content: newContent })
+          .eq('id', messageId)
+          .eq('party_id', partyId);
+        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, content: newContent } : m));
+        toast.success('Whisper tray regenerated');
+      } else {
+        toast.error('No content returned from AI');
+      }
+    } catch (error) {
+      console.error('Whisper regeneration error:', error);
+      toast.error('Failed to regenerate whisper tray');
+    }
+  }, [partyId, isCreator, isGenerating, messages, characterContext]);
+
   const addMediaMessage = useCallback(async (content: string, senderName: string) => {
     if (!partyId || !user) return;
     const insertData: Record<string, unknown> = {
@@ -1663,6 +1754,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     editMessage,
     deleteMessage,
     regenerateMessage,
+    regenerateWhispers,
     addMediaMessage,
     initiateSplit,
     regroupParty,
