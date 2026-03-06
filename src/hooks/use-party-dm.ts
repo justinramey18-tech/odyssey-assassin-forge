@@ -1377,7 +1377,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         body: JSON.stringify({
           messages: [{ role: 'user', content: `Re-format this AI DM response with proper whisper/action/tactics delimiter tags:\n\n${msg.content}` }],
           characterContext,
-          customGuides: whisperPrompt,
+          systemPromptOverride: whisperPrompt,
         }),
       });
 

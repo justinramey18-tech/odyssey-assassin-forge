@@ -129,6 +129,7 @@ interface DMRequest {
   encounterGuidance?: string;
   combatFeats?: string[];
   alignmentContext?: { law: number; good: number; zone: string };
+  systemPromptOverride?: string;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -640,14 +641,15 @@ serve(async (req) => {
       });
     }
 
-    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, encounterGuidance, combatFeats, alignmentContext } = (await req.json()) as DMRequest;
+    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride } = (await req.json()) as DMRequest;
     
     // Trim to last 100 messages
     const trimmedMessages = messages.length > MAX_MESSAGES
       ? [...messages.slice(0, 2), ...messages.slice(-(MAX_MESSAGES - 2))]
       : messages;
 
-    const systemPrompt = buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext);
+    // Use override if provided (e.g. whisper regeneration), otherwise build full DM prompt
+    const systemPrompt = systemPromptOverride?.trim() || buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext);
 
     // Determine which provider to use
     const requestedModel = model || DEFAULT_MODEL;
