@@ -1,31 +1,20 @@
 
 
-## Plan: Add MP3 download toast after TTS generation
+## Fix: Run whisper enrichment after regeneration
 
-### Single file change: `src/hooks/use-narrator.ts`
+**Single line change** in `src/hooks/use-party-dm.ts`, line 1421.
 
-After `await audio.play()` succeeds (~line 134), show a sonner toast with a "Download" action button. Clicking it triggers a browser download of the `finalBlob` as an MP3 file with a timestamped filename.
+Replace the raw state update with one that calls `enrichMessageWithWhispers` on the updated message, so the `whispers` array and clean `narrative` are populated — exactly as they are during initial message loading.
 
+**Before (line 1421):**
 ```typescript
-// After: await audio.play();
-toast('Narration audio ready', {
-  description: 'Would you like to download the MP3?',
-  action: {
-    label: 'Download',
-    onClick: () => {
-      const a = document.createElement('a');
-      const dlUrl = URL.createObjectURL(finalBlob);
-      a.href = dlUrl;
-      a.download = `narration-${new Date().toISOString().slice(0, 10)}.mp3`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(dlUrl);
-    },
-  },
-  duration: 10000,
-});
+setMessages(prev => prev.map(m => m.id === messageId ? { ...m, content: newContent } : m));
 ```
 
-No new dependencies. Uses existing `sonner` toast import. The blob is already `audio/mpeg` from both providers, so no conversion needed.
+**After:**
+```typescript
+setMessages(prev => prev.map(m => m.id === messageId ? enrichMessageWithWhispers({ ...m, content: newContent }, characterName) : m));
+```
+
+The `characterName` variable is already available in the hook's scope. This ensures the parsed whispers array is set on the message object, which the UI already knows how to render.
 
