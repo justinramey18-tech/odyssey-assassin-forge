@@ -60,6 +60,12 @@ export interface SaveData {
   combatSettings?: CombatSettings;
   conditions?: ConditionsState;
   cooldownState?: CooldownSaveState;
+  characterIdentity?: {
+    gender?: string;
+    race?: string;
+    backstory?: string;
+    relationships?: Array<{ id: string; name: string; disposition: string; notes?: string }>;
+  };
   partyId?: string | null;
   backgroundUrl?: string | null;
   savedAt: string;
