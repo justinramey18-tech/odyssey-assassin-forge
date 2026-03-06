@@ -650,7 +650,6 @@ export function HomeScreen({
           primaryClass={character.class}
           onOpenSettings={onOpenSettings}
         />
-          primaryClass={character.primaryClass}
         />
 
         {/* Alignment Drift Indicator */}
