@@ -647,6 +647,9 @@ export function HomeScreen({
         <CharacterNamePlaque 
           name={character.name} 
           level={character.level}
+          primaryClass={character.class}
+          onOpenSettings={onOpenSettings}
+        />
           primaryClass={character.primaryClass}
         />
 
