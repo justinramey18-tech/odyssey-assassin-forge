@@ -101,6 +101,8 @@ interface CharacterContext {
   }>;
   // Campaign narrative summary
   campaignSummary?: string;
+  // Recent DM narrative messages
+  recentNarrative?: Array<{ role: string; name?: string; content: string }>;
 }
 
 interface OracleRequest {
@@ -321,6 +323,19 @@ function buildContextSummary(ctx: CharacterContext): string {
     lines.push(`[CAMPAIGN NARRATIVE START]`);
     lines.push(ctx.campaignSummary.slice(0, 3000));
     lines.push(`[CAMPAIGN NARRATIVE END]`);
+  }
+
+  // Add recent DM narrative for immediate context
+  if (ctx.recentNarrative && ctx.recentNarrative.length > 0) {
+    lines.push(`\n📖 RECENT NARRATIVE (last ${ctx.recentNarrative.length} messages):`);
+    lines.push(`[RECENT NARRATIVE START]`);
+    ctx.recentNarrative.forEach(msg => {
+      const speaker = msg.role === 'assistant' ? 'DM' : (msg.name || 'Player');
+      // Cap each message to prevent prompt bloat
+      const content = msg.content.length > 500 ? msg.content.slice(0, 500) + '...' : msg.content;
+      lines.push(`${speaker}: ${content}`);
+    });
+    lines.push(`[RECENT NARRATIVE END]`);
   }
   
   return lines.join('\n');
