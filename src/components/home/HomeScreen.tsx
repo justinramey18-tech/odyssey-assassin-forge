@@ -647,7 +647,7 @@ export function HomeScreen({
         <CharacterNamePlaque 
           name={character.name} 
           level={character.level}
-          primaryClass={character.class}
+          primaryClass={character.primaryClass}
           onOpenSettings={onOpenSettings}
         />
         <AlignmentDriftIndicator className="px-4 py-1" />
