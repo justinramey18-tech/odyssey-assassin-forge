@@ -17,6 +17,10 @@ interface CharacterContext {
   multiclassBreakdown?: Record<string, number>;
   deity?: string;
   domain?: string;
+  gender?: string;
+  race?: string;
+  backstory?: string;
+  relationships?: Array<{ name: string; disposition: string; notes?: string }>;
   abilities: Array<{ name: string; tier: number; tree: string }>;
   equippedAbilities: string[];
   equipment: Array<{ slot: string; name: string; rarity: string }>;
@@ -191,6 +195,20 @@ function buildContextSummary(ctx: CharacterContext): string {
     if (ctx.deity) parts.push(`Deity: ${ctx.deity}`);
     if (ctx.domain) parts.push(`Domain: ${ctx.domain}`);
     lines.push(`DIVINE: ${parts.join(' | ')}`);
+  }
+  if (ctx.gender || ctx.race) {
+    lines.push(`IDENTITY: ${[ctx.gender, ctx.race].filter(Boolean).join(' ')}`);
+  }
+  if (ctx.backstory) {
+    lines.push(`[CHARACTER BACKSTORY START]\n${ctx.backstory.slice(0, 2000)}\n[CHARACTER BACKSTORY END]`);
+  }
+  if (ctx.relationships && ctx.relationships.length > 0) {
+    const display = ctx.relationships.slice(0, 8);
+    lines.push('RELATIONSHIPS:');
+    display.forEach(r => {
+      lines.push(`  - ${r.name} (${r.disposition})${r.notes ? ': ' + r.notes : ''}`);
+    });
+    if (ctx.relationships.length > 8) lines.push(`  (+${ctx.relationships.length - 8} more)`);
   }
   lines.push(`HP: ${ctx.currentHP}/${ctx.maxHP} (${Math.round((ctx.currentHP / ctx.maxHP) * 100)}%)`);
   
