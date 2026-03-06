@@ -66,6 +66,12 @@ export interface PartyMember {
     quickActions?: QuickActions;
     profileImage?: string | null;
     timezone?: string;
+    // Build overview fields
+    race?: string;
+    gender?: string;
+    abilityScores?: { str: number; dex: number; con: number; int: number; wis: number; cha: number };
+    equippedGear?: Array<{ slot: string; name: string }>;
+    multiclassLevels?: Record<string, number>;
   };
   joined_at: string;
   updated_at: string;
