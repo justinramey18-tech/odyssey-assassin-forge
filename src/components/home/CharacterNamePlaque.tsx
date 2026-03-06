@@ -22,9 +22,10 @@ const CLASS_LABELS: Record<string, string> = {
   bard: 'Bard',
 };
 
-export function CharacterNamePlaque({ name, level, primaryClass }: CharacterNamePlaqueProps) {
+export function CharacterNamePlaque({ name, level, primaryClass, onOpenSettings }: CharacterNamePlaqueProps) {
   const badges = getThistleBadges(name || '');
   const { driftPosition, historyCount } = useAlignmentDrift();
+  const { gender, race } = useCharacterIdentity();
 
   const classLabel = primaryClass ? (CLASS_LABELS[primaryClass] || primaryClass) : null;
   const alignmentZone = historyCount > 0 ? getAlignmentZone(driftPosition) : null;
