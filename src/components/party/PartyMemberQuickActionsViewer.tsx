@@ -211,7 +211,7 @@ export function PartyMemberQuickActionsViewer({ member, open, onOpenChange }: Pa
           </SheetTitle>
         </SheetHeader>
 
-        <div className="overflow-y-auto max-h-[55vh] py-3 space-y-1">
+        <div className="overflow-y-auto py-3 space-y-1" style={{ maxHeight: containerHeight }}>
           {/* Build Overview */}
           {hasBuildOverview && <BuildOverview status={status} />}
 
