@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
-import { Check, Copy, RefreshCw, Camera, Star, Lock, RotateCcw, AlertTriangle, Download, ImageOff, Users, User, BookOpen, Database } from 'lucide-react';
+import { Check, Copy, RefreshCw, Camera, Star, Lock, RotateCcw, AlertTriangle, Download, ImageOff, Users, User, BookOpen, Database, LogOut } from 'lucide-react';
 import { AppModeSettings } from './AppModeSettings';
+import { useAuth } from '@/hooks/use-auth';
 import type { AppMode, CustomOverrides } from '@/lib/app-modes';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
