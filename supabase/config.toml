@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.schedule-timer-callback]
 verify_jwt = false
+
+[functions.homebrew-assistant]
+verify_jwt = false
