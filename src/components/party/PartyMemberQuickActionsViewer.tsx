@@ -146,6 +146,16 @@ export function PartyMemberQuickActionsViewer({ member, open, onOpenChange }: Pa
   const status = member?.character_status;
   const qa: QuickActions = status?.quickActions ?? { weapons: [], abilities: [], spells: [], cantrips: [], consumables: [] };
 
+  // Full viewport height on mobile
+  const [containerHeight, setContainerHeight] = React.useState('auto');
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && open) {
+      const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+      setContainerHeight(`${Math.max(vh - 120, 400)}px`);
+    }
+  }, [open]);
+
   // Compute homebrew aggregation
   const homebrewData = useMemo(() => {
     const hbAbilities = qa.abilities.filter(a => a.isHomebrew);
