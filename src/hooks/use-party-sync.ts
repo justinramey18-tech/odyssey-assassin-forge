@@ -1137,10 +1137,22 @@ export function usePartySync(): UsePartySyncReturn {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      await supabase.functions.invoke('party-link', {
+      const { data, error: fnError } = await supabase.functions.invoke('party-link', {
         body: { action: 'disband', partyId: party.partyId },
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
+      if (fnError) {
+        console.error('[disbandParty] Edge function error:', fnError);
+        toast.error('Failed to disband party');
+        return;
+      }
+      // Edge function returns JSON — check for application-level errors
+      const result = typeof data === 'string' ? JSON.parse(data) : data;
+      if (result?.error) {
+        console.error('[disbandParty] Server error:', result.error);
+        toast.error(result.error);
+        return;
+      }
 
       setParty({ partyId: null, linkCode: null, isCreator: false, members: [], isLoading: false });
       setPartyRolls([]);
