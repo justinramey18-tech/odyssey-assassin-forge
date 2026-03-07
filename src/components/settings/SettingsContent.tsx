@@ -600,6 +600,46 @@ export function SettingsContent({
             </div>
           </SettingsSection>
 
+          <SettingsSection title="Account" icon={<LogOut className="w-4 h-4 text-muted-foreground" />}>
+            <div className="space-y-3">
+              {auth.user?.email && (
+                <div className="bg-muted/30 rounded-md px-3 py-2">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Signed in as</p>
+                  <p className="text-sm text-foreground font-medium truncate">{auth.user.email}</p>
+                </div>
+              )}
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  // Clear user-specific localStorage keys so the next account starts clean
+                  const keysToRemove = [
+                    'odyssey-active-cloud-save-id',
+                    'odyssey-dm-game-state',
+                    'dnd-ai-dm-guides',
+                    'dnd-battlemap-state',
+                  ];
+                  keysToRemove.forEach(k => localStorage.removeItem(k));
+                  
+                  // Also remove any scoped storage keys (prefixed with character name)
+                  const allKeys = Object.keys(localStorage);
+                  allKeys.forEach(k => {
+                    if (k.startsWith('odyssey-scoped:')) localStorage.removeItem(k);
+                  });
+                  
+                  await auth.signOut();
+                  toast.success('Signed out — redirecting to login...');
+                }}
+                className="w-full gap-2 h-12 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign Out & Switch Account
+              </Button>
+              <p className="text-[10px] text-muted-foreground text-center">
+                Signs you out and returns to the login screen. You can then sign in with a different email.
+              </p>
+            </div>
+          </SettingsSection>
+
           <SettingsSection title="Danger Zone" variant="danger">
             <div className="space-y-4">
               <div className="bg-background/50 rounded-md p-3 space-y-1.5">
