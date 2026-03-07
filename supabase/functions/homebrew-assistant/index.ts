@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -291,13 +291,6 @@ serve(async (req) => {
   }
 
   try {
-    // Authenticate the request
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
     // Auth validated by verify_jwt in config.toml
 
     const { prompt, context, mode, count, user_api_key, user_openai_key } = await req.json() as HomebrewRequest & { user_api_key?: string; user_openai_key?: string };
