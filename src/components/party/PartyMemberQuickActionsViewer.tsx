@@ -3,7 +3,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Sword, Sparkles, BookOpen, Flame, FlaskConical, ChevronDown, Wand2, Zap, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { scoreToModifier, modifierToString } from '@/lib/abilityScores/types';
 import type { PartyMember, QuickActions } from '@/hooks/use-party-sync';
 
