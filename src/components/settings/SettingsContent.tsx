@@ -139,6 +139,7 @@ export function SettingsContent({
   const [showEmpyreanPack, setShowEmpyreanPack] = useState(false);
   const [showEmpyreanPrompts, setShowEmpyreanPrompts] = useState(false);
   
+  const auth = useAuth();
   const gmGuides = useGMGuides();
   const { prestigeRespecDisabled } = useGameMode();
 
