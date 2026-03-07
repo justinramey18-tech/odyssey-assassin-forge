@@ -3,7 +3,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Sword, Sparkles, BookOpen, Flame, FlaskConical, ChevronDown, Wand2, Zap, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { scoreToModifier, modifierToString } from '@/lib/abilityScores/types';
 import type { PartyMember, QuickActions } from '@/hooks/use-party-sync';
 
@@ -146,6 +146,16 @@ export function PartyMemberQuickActionsViewer({ member, open, onOpenChange }: Pa
   const status = member?.character_status;
   const qa: QuickActions = status?.quickActions ?? { weapons: [], abilities: [], spells: [], cantrips: [], consumables: [] };
 
+  // Full viewport height on mobile
+  const [containerHeight, setContainerHeight] = useState('auto');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && open) {
+      const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+      setContainerHeight(`${Math.max(vh - 120, 400)}px`);
+    }
+  }, [open]);
+
   // Compute homebrew aggregation
   const homebrewData = useMemo(() => {
     const hbAbilities = qa.abilities.filter(a => a.isHomebrew);
@@ -201,7 +211,7 @@ export function PartyMemberQuickActionsViewer({ member, open, onOpenChange }: Pa
           </SheetTitle>
         </SheetHeader>
 
-        <div className="overflow-y-auto max-h-[55vh] py-3 space-y-1">
+        <div className="overflow-y-auto py-3 space-y-1" style={{ maxHeight: containerHeight }}>
           {/* Build Overview */}
           {hasBuildOverview && <BuildOverview status={status} />}
 
