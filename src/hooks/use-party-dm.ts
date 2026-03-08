@@ -1761,6 +1761,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     addMediaMessage,
     initiateSplit,
     regroupParty,
+    updateSessionConfig,
     // Timer
     setTimerConfig,
     startTimer,
