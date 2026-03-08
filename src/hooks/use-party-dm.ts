@@ -1813,8 +1813,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     setCurrentPrompts([]);
 
     // Auto-save
-    silentAutoSave?.();
-  }, [partyId, user, sessionConfig, isSplitActive, splitState, characterName, currentPrompts, updateSessionConfig, silentAutoSave]);
+    const allMsgs = [...messages, ...(data ? [enrichMessageWithWhispers(data as PartyDmMessage, characterName)] : [])];
+    silentAutoSave(allMsgs, sessionConfig.campaignSummary || null);
+  }, [partyId, user, sessionConfig, isSplitActive, splitState, characterName, currentPrompts, updateSessionConfig, silentAutoSave, messages]);
 
   return {
     messages: filteredMessages,
