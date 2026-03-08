@@ -1117,13 +1117,18 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           .map(formatPromptLine)
           .join('\n') + afkPromptSection;
 
-        await insertPartyMessage({
-          party_id: partyId,
-          role: 'user',
-          content: combined,
-          sender_user_id: user.id,
-          sender_name: 'Party',
-        });
+        const isApprovalMode = (sessionConfig.dmMode || 'ai') === 'ai-approval';
+
+        // In approval mode, don't insert user message yet — defer to approveDraft
+        if (!isApprovalMode) {
+          await insertPartyMessage({
+            party_id: partyId,
+            role: 'user',
+            content: combined,
+            sender_user_id: user.id,
+            sender_name: 'Party',
+          });
+        }
 
         const partyMembersSummary = buildPartyMembersGuide();
         const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
@@ -1138,8 +1143,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         const assistantContent = await streamAIResponse(apiMessages, guides, abortRef.current!.signal);
 
         if (assistantContent?.trim()) {
-          const isApprovalMode = (sessionConfig.dmMode || 'ai') === 'ai-approval';
-
           if (isApprovalMode) {
             // Store draft for host review instead of inserting
             setPendingDraft({
@@ -1172,26 +1175,34 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         }
       }
 
-      // Clear prompts and start new round
-      await (supabase.from('party_dm_prompts') as any)
-        .delete()
-        .eq('party_id', partyId)
-        .eq('round_id', sessionConfig.currentRoundId);
+      // Clear prompts and start new round — skip in approval mode (deferred to approveDraft)
+      if ((sessionConfig.dmMode || 'ai') !== 'ai-approval') {
+        await (supabase.from('party_dm_prompts') as any)
+          .delete()
+          .eq('party_id', partyId)
+          .eq('round_id', sessionConfig.currentRoundId);
 
-      const newRoundId = crypto.randomUUID();
-      const newConfig: DmSessionConfig = {
-        ...sessionConfig,
-        currentRoundId: newRoundId,
-        isGenerating: false,
-        // Auto-start timer for new round if enabled
-        timerStartedAt: sessionConfig.timerEnabled ? new Date().toISOString() : null,
-        timerPausedRemaining: null,
-        extensionRequests: [],
-      };
-      await (supabase.from('party_shared_state') as any)
-        .update({ state_data: newConfig })
-        .eq('party_id', partyId)
-        .eq('state_type', 'dm_session');
+        const newRoundId = crypto.randomUUID();
+        const newConfig: DmSessionConfig = {
+          ...sessionConfig,
+          currentRoundId: newRoundId,
+          isGenerating: false,
+          // Auto-start timer for new round if enabled
+          timerStartedAt: sessionConfig.timerEnabled ? new Date().toISOString() : null,
+          timerPausedRemaining: null,
+          extensionRequests: [],
+        };
+        await (supabase.from('party_shared_state') as any)
+          .update({ state_data: newConfig })
+          .eq('party_id', partyId)
+          .eq('state_type', 'dm_session');
+      } else {
+        // Just release the generation lock
+        await (supabase.from('party_shared_state') as any)
+          .update({ state_data: { ...sessionConfig, isGenerating: false } })
+          .eq('party_id', partyId)
+          .eq('state_type', 'dm_session');
+      }
 
     } catch (error) {
       const isAbort = error instanceof Error && error.name === 'AbortError';
