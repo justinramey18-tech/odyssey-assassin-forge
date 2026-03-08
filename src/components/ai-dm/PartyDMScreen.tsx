@@ -12,6 +12,7 @@ import { WhisperTray } from './WhisperTray';
 import { OraclePanel } from '@/components/oracle/OraclePanel';
 import { PartyDMSettings } from './PartyDMSettings';
 import { DMComposePanel } from './DMComposePanel';
+import { DraftReviewPanel } from './DraftReviewPanel';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { CampaignDropdown } from './CampaignDropdown';
 import { cn } from '@/lib/utils';
@@ -1487,8 +1488,17 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       {/* Input Area */}
       {!isFullscreen && (
       <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm mb-[48px]">
-        {/* Human DM mode: show compose panel for host */}
-        {isCreator && (partyDm.sessionConfig?.dmMode === 'human') ? (
+        {/* AI Approval mode: show draft review panel for host when draft exists */}
+        {isCreator && partyDm.pendingDraft ? (
+          <DraftReviewPanel
+            draftContent={partyDm.pendingDraft.content}
+            onApprove={partyDm.approveDraft}
+            onDiscard={partyDm.discardDraft}
+            onRegenerate={partyDm.generateResponse}
+            partyMemberNames={members.map(m => m.character_name)}
+            isRegenerating={partyDm.isGenerating}
+          />
+        ) : isCreator && (partyDm.sessionConfig?.dmMode === 'human') ? (
           <DMComposePanel
             onSend={partyDm.sendManualDmMessage}
             partyMemberNames={members.map(m => m.character_name)}
