@@ -87,6 +87,8 @@ export interface PartyDmPrompt {
   team?: string | null;
 }
 
+export type DmMode = 'ai' | 'human' | 'ai-approval';
+
 export interface DmSessionConfig {
   active: boolean;
   mode: 'shared' | 'private';
@@ -94,6 +96,7 @@ export interface DmSessionConfig {
   campaignSummary: string | null;
   isGenerating: boolean;
   splitActive?: boolean;
+  dmMode?: DmMode; // 'ai' (default) | 'human' | 'ai-approval'
   // Round timer
   timerEnabled?: boolean;
   timerDurationSeconds?: number; // default duration for new rounds
