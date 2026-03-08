@@ -346,6 +346,8 @@ export function InfinityStoneDMDrawer({ open, onOpenChange, characterName, onUse
                 );
               })}
             </Accordion>
+            </>
+            )}
           </div>
         </DrawerContent>
       </Drawer>
