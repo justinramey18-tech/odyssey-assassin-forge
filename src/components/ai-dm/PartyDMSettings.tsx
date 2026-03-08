@@ -117,6 +117,7 @@ export function PartyDMSettings({
   mode, onToggleMode, isCreator, isOriginalCreator: isOriginalCreatorProp, partyId,
   autoSyncEnabled, onToggleAutoSync, isExtracting,
   pushState, onTogglePush,
+  dmMode = 'ai', onDmModeChange,
   onShowMap, onShowSaves, onShowGuides, onShowChat, onShowAfkGuide,
   guidesCount = 0, myAfkGuide, myAfkCascadeCount = 0,
   isSplitActive, memberCount, onShowSplitInitiator, onShowRegroupDialog, onShowSplitSummaries,
