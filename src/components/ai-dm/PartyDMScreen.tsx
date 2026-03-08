@@ -1782,6 +1782,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 }
               }}
               onShowScheduledEvents={() => setShowScheduledEvents(true)}
+              dmMode={partyDm.sessionConfig?.dmMode || 'ai'}
+              onDmModeChange={(newMode) => {
+                partyDm.updateSessionConfig({ dmMode: newMode });
+              }}
               members={members}
               coHostIds={coHostIds}
               currentUserId={currentUserId}
