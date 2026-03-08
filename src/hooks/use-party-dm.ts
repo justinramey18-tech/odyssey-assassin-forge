@@ -1829,6 +1829,77 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     silentAutoSave(allMsgs, sessionConfig.campaignSummary || null);
   }, [partyId, user, sessionConfig, isSplitActive, splitState, characterName, currentPrompts, updateSessionConfig, silentAutoSave, messages]);
 
+  // Approve AI draft (AI Approval mode): insert edited content as assistant message
+  const approveDraft = useCallback(async (editedContent: string) => {
+    if (!partyId || !user || !sessionConfig || !pendingDraft) return;
+    const trimmed = editedContent.trim();
+    if (!trimmed) return;
+
+    // Insert user message first
+    const { data: userData } = await (supabase.from('party_dm_messages') as any)
+      .insert({
+        party_id: partyId,
+        role: 'user',
+        content: pendingDraft.userContent,
+        sender_user_id: user.id,
+        sender_name: pendingDraft.userSenderName,
+      })
+      .select('*')
+      .single();
+
+    if (userData) {
+      setMessages(prev => {
+        if (prev.some(m => m.id === userData.id)) return prev;
+        return [...prev, userData as PartyDmMessage];
+      });
+    }
+
+    // Insert approved assistant message
+    const { data: assistantData } = await (supabase.from('party_dm_messages') as any)
+      .insert({
+        party_id: partyId,
+        role: 'assistant',
+        content: trimmed,
+        sender_user_id: null,
+        sender_name: 'DM',
+      })
+      .select('*')
+      .single();
+
+    if (assistantData) {
+      const enriched = enrichMessageWithWhispers(assistantData as PartyDmMessage, characterName);
+      setMessages(prev => {
+        if (prev.some(m => m.id === enriched.id)) return prev;
+        return [...prev, enriched];
+      });
+    }
+
+    // Trigger summary and auto-save
+    const updatedMessages = [...messages,
+      { id: '', party_id: partyId, role: 'user' as const, content: pendingDraft.userContent, sender_user_id: user.id, sender_name: pendingDraft.userSenderName, created_at: '' },
+      { id: '', party_id: partyId, role: 'assistant' as const, content: trimmed, sender_user_id: null, sender_name: 'DM', created_at: '' },
+    ];
+    triggerSummaryIfNeeded(updatedMessages);
+    silentAutoSave(updatedMessages, sessionConfig.campaignSummary || null);
+
+    // Clear draft
+    setPendingDraft(null);
+
+    // Clear prompts and advance round
+    await (supabase.from('party_dm_prompts') as any)
+      .delete()
+      .eq('party_id', partyId)
+      .eq('round_id', sessionConfig.currentRoundId);
+
+    const newRoundId = crypto.randomUUID();
+    await updateSessionConfig({ currentRoundId: newRoundId });
+    setCurrentPrompts([]);
+  }, [partyId, user, sessionConfig, pendingDraft, characterName, messages, triggerSummaryIfNeeded, silentAutoSave, updateSessionConfig]);
+
+  const discardDraft = useCallback(() => {
+    setPendingDraft(null);
+  }, []);
+
   return {
     messages: filteredMessages,
     allMessages: messages,
@@ -1844,6 +1915,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     splitState,
     isSplitActive,
     myTeam,
+    pendingDraft,
     startSession,
     endSession,
     startNewCampaign,
@@ -1856,6 +1928,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     unready,
     generateResponse,
     sendManualDmMessage,
+    approveDraft,
+    discardDraft,
     editMessage,
     deleteMessage,
     regenerateMessage,
