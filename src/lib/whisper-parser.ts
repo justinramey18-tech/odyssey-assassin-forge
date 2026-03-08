@@ -78,3 +78,35 @@ export function parseWhispers(raw: string): ParsedMessage {
 
   return { narrative, whispers };
 }
+
+/**
+ * Serialize clean narrative + whisper array back into a single content string
+ * with HTML-comment delimiters. This is the inverse of `parseWhispers`.
+ *
+ * Output format:
+ *   [narrative]
+ *   <!--ACTION-->content<!--/ACTION-->
+ *   <!--TACTICS-->content<!--/TACTICS-->
+ *   <!--WHISPER:Name-->content<!--/WHISPER:Name-->
+ */
+export function serializeWhispers(narrative: string, whispers: Whisper[]): string {
+  if (!whispers.length) return narrative.trim();
+
+  const blocks = whispers
+    .filter(w => w.content.trim())
+    .map(w => {
+      if (w.type === 'action') {
+        return `<!--ACTION-->${w.content.trim()}<!--/ACTION-->`;
+      }
+      if (w.type === 'tactics') {
+        return `<!--TACTICS-->${w.content.trim()}<!--/TACTICS-->`;
+      }
+      // whisper with target
+      const target = w.target?.trim() || 'Unknown';
+      return `<!--WHISPER:${target}-->${w.content.trim()}<!--/WHISPER:${target}-->`;
+    });
+
+  if (!blocks.length) return narrative.trim();
+
+  return `${narrative.trim()}\n\n${blocks.join('\n')}`;
+}
