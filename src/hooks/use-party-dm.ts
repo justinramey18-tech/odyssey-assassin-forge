@@ -122,6 +122,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [sessionConfig, setSessionConfig] = useState<DmSessionConfig | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [pendingDraft, setPendingDraft] = useState<{ content: string; userContent: string; userSenderName: string } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const autoGenTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -1137,21 +1138,32 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         const assistantContent = await streamAIResponse(apiMessages, guides, abortRef.current!.signal);
 
         if (assistantContent?.trim()) {
-          await insertPartyMessage({
-            party_id: partyId,
-            role: 'assistant',
-            content: assistantContent,
-            sender_user_id: null,
-            sender_name: 'DM',
-          });
+          const isApprovalMode = (sessionConfig.dmMode || 'ai') === 'ai-approval';
 
-          // Trigger summary and auto-save
-          const updatedMessages = [...messages,
-            { id: '', party_id: partyId, role: 'user' as const, content: combined, sender_user_id: user.id, sender_name: 'Party', created_at: '' },
-            { id: '', party_id: partyId, role: 'assistant' as const, content: assistantContent, sender_user_id: null, sender_name: 'DM', created_at: '' },
-          ];
-          triggerSummaryIfNeeded(updatedMessages);
-          silentAutoSave(updatedMessages, sessionConfig.campaignSummary || null);
+          if (isApprovalMode) {
+            // Store draft for host review instead of inserting
+            setPendingDraft({
+              content: assistantContent,
+              userContent: combined,
+              userSenderName: 'Party',
+            });
+          } else {
+            await insertPartyMessage({
+              party_id: partyId,
+              role: 'assistant',
+              content: assistantContent,
+              sender_user_id: null,
+              sender_name: 'DM',
+            });
+
+            // Trigger summary and auto-save
+            const updatedMessages = [...messages,
+              { id: '', party_id: partyId, role: 'user' as const, content: combined, sender_user_id: user.id, sender_name: 'Party', created_at: '' },
+              { id: '', party_id: partyId, role: 'assistant' as const, content: assistantContent, sender_user_id: null, sender_name: 'DM', created_at: '' },
+            ];
+            triggerSummaryIfNeeded(updatedMessages);
+            silentAutoSave(updatedMessages, sessionConfig.campaignSummary || null);
+          }
         }
 
         // Consume used cascade prompts for normal mode
