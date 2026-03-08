@@ -1198,9 +1198,12 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
   }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, customGuidesContent, triggerSummaryIfNeeded, silentAutoSave, isSplitActive, splitState, streamAIResponse, buildPartyMembersGuide, generateSplitSummary, buildAfkGuidesContext, consumeCascadePrompts]);
 
-  // Auto-trigger generation when all ready (host only)
+  // Auto-trigger generation when all ready (host only) — only in AI mode
+  const currentDmMode = sessionConfig?.dmMode || 'ai';
   useEffect(() => {
     if (!isCreator || !allReady || isGenerating) return;
+    // Don't auto-generate in human or ai-approval modes
+    if (currentDmMode !== 'ai') return;
     if (autoGenTimerRef.current) clearTimeout(autoGenTimerRef.current);
     autoGenTimerRef.current = setTimeout(() => {
       generateResponse();
@@ -1208,7 +1211,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     return () => {
       if (autoGenTimerRef.current) clearTimeout(autoGenTimerRef.current);
     };
-  }, [allReady, isCreator, isGenerating, generateResponse]);
+  }, [allReady, isCreator, isGenerating, generateResponse, currentDmMode]);
 
   const editMessage = useCallback(async (messageId: string, newContent: string) => {
     if (!partyId || !isCreator) return;
@@ -1728,6 +1731,92 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     await updateSessionConfig({ extensionRequests: [] });
   }, [updateSessionConfig]);
 
+  // Manual DM message (Human DM mode): insert content as assistant role
+  const sendManualDmMessage = useCallback(async (content: string) => {
+    if (!partyId || !user || !sessionConfig) return;
+    const trimmed = content.trim();
+    if (!trimmed) return;
+
+    // Insert as assistant message
+    const insertData: Record<string, unknown> = {
+      party_id: partyId,
+      role: 'assistant',
+      content: trimmed,
+      sender_user_id: user.id,
+      sender_name: 'DM',
+      team: isSplitActive && splitState ? null : null,
+    };
+
+    const { data, error } = await (supabase.from('party_dm_messages') as any)
+      .insert(insertData)
+      .select('*')
+      .single();
+
+    if (error) {
+      toast.error('Failed to send DM message');
+      console.error('[PartyDM] sendManualDmMessage error:', error);
+      return;
+    }
+
+    if (data) {
+      const enriched = enrichMessageWithWhispers(data as PartyDmMessage, characterName);
+      setMessages(prev => {
+        if (prev.some(m => m.id === enriched.id)) return prev;
+        return [...prev, enriched];
+      });
+    }
+
+    // Clear ready prompts for the round (advance round)
+    const readyPrompts = currentPrompts.filter(p => p.is_ready);
+    if (readyPrompts.length > 0) {
+      // Also insert consolidated user message from prompts
+      const userContent = readyPrompts
+        .map(p => `[${p.character_name}]: ${p.prompt.trim() || '(no action)'}`)
+        .join('\n');
+
+      const { data: userData } = await (supabase.from('party_dm_messages') as any)
+        .insert({
+          party_id: partyId,
+          role: 'user',
+          content: userContent,
+          sender_user_id: user.id,
+          sender_name: readyPrompts.map(p => p.character_name).join(', '),
+        })
+        .select('*')
+        .single();
+
+      if (userData) {
+        setMessages(prev => {
+          if (prev.some(m => m.id === userData.id)) return prev;
+          // Insert user message before the DM message
+          const dmMsgId = data?.id;
+          const idx = prev.findIndex(m => m.id === dmMsgId);
+          if (idx >= 0) {
+            const updated = [...prev];
+            updated.splice(idx, 0, userData as PartyDmMessage);
+            return updated;
+          }
+          return [...prev, userData as PartyDmMessage];
+        });
+      }
+
+      // Delete prompts
+      await (supabase.from('party_dm_prompts') as any)
+        .delete()
+        .eq('party_id', partyId)
+        .eq('round_id', sessionConfig.currentRoundId);
+    }
+
+    // Advance round
+    const newRoundId = crypto.randomUUID();
+    await updateSessionConfig({ currentRoundId: newRoundId });
+    setCurrentPrompts([]);
+
+    // Auto-save
+    const allMsgs = [...messages, ...(data ? [enrichMessageWithWhispers(data as PartyDmMessage, characterName)] : [])];
+    silentAutoSave(allMsgs, sessionConfig.campaignSummary || null);
+  }, [partyId, user, sessionConfig, isSplitActive, splitState, characterName, currentPrompts, updateSessionConfig, silentAutoSave, messages]);
+
   return {
     messages: filteredMessages,
     allMessages: messages,
@@ -1754,6 +1843,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     setReady,
     unready,
     generateResponse,
+    sendManualDmMessage,
     editMessage,
     deleteMessage,
     regenerateMessage,
