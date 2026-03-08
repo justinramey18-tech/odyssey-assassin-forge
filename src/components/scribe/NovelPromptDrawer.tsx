@@ -3,6 +3,7 @@ import { Gem, Star, Shuffle, Sparkles, Play, X, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { characterPrompts, type CharacterPrompt } from '@/lib/characterPrompts';
+import { groupBySubcategory, isMasterworkStone } from '@/lib/masterworkGrouping';
 import { empyreanPrompts, type EmpyreanPromptCategory } from '@/lib/empyreanPrompts';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
 import { useFavoritePrompts } from '@/hooks/use-favorite-prompts';
@@ -461,7 +462,22 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
                         <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: `${stone.color}30`, color: stone.color }}>{prompts.length}</span>
                       </AccordionTrigger>
                       <AccordionContent className="rounded-b-lg border border-t-0 p-2 space-y-1" style={{ borderColor: `${stone.color}40` }}>
-                        {prompts.map(prompt => renderPromptRow(prompt, isFavorite(prompt.id), () => toggleFavorite(prompt.id)))}
+                        {isMasterworkStone(stone.id) ? (
+                          groupBySubcategory(prompts).map((group) => (
+                            <div key={group.subcategory}>
+                              <div className="flex items-center gap-2 px-2 pt-3 pb-1">
+                                <div className="flex-1 h-px" style={{ backgroundColor: `${stone.color}20` }} />
+                                <span className="text-[10px] font-cinzel text-white/30 tracking-widest uppercase whitespace-nowrap">
+                                  {group.subcategory}
+                                </span>
+                                <div className="flex-1 h-px" style={{ backgroundColor: `${stone.color}20` }} />
+                              </div>
+                              {group.prompts.map(prompt => renderPromptRow(prompt, isFavorite(prompt.id), () => toggleFavorite(prompt.id)))}
+                            </div>
+                          ))
+                        ) : (
+                          prompts.map(prompt => renderPromptRow(prompt, isFavorite(prompt.id), () => toggleFavorite(prompt.id)))
+                        )}
                       </AccordionContent>
                     </AccordionItem>
                   );

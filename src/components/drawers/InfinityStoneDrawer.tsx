@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { EdgeDrawer } from './EdgeDrawer';
 import { characterPrompts, CharacterPrompt } from '@/lib/characterPrompts';
+import { groupBySubcategory, isMasterworkStone } from '@/lib/masterworkGrouping';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
 import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
 import { AlignmentBadge } from '@/components/alignment/AlignmentBadge';
@@ -395,7 +396,90 @@ export function InfinityStoneDrawer({
                     className="rounded-b-lg border border-t-0 p-2 space-y-1"
                     style={{ borderColor: `${stone.color}40` }}
                   >
-                    {prompts.map((prompt) => {
+                    {isMasterworkStone(stone.id) ? (
+                      groupBySubcategory(prompts).map((group) => (
+                        <div key={group.subcategory}>
+                          <div className="flex items-center gap-2 px-2 pt-3 pb-1">
+                            <div className="flex-1 h-px" style={{ backgroundColor: `${stone.color}20` }} />
+                            <span className="text-[10px] font-cinzel text-muted-foreground tracking-widest uppercase whitespace-nowrap">
+                              {group.subcategory}
+                            </span>
+                            <div className="flex-1 h-px" style={{ backgroundColor: `${stone.color}20` }} />
+                          </div>
+                          {group.prompts.map((prompt) => {
+                            const isCopied = copiedId === prompt.id;
+                            const intensity = getPromptIntensity(prompt.id);
+                            const intensityConfig = intensity ? intensityLevels.find(l => l.id === intensity) : null;
+                            const isStarred = isFavorite(prompt.id);
+                            
+                            return (
+                              <div
+                                key={prompt.id}
+                                className={cn(
+                                  'w-full flex flex-col gap-1 p-2.5 rounded-lg',
+                                  'bg-card/50 hover:bg-card border border-transparent',
+                                  'transition-all duration-200 text-left group',
+                                  isCopied && 'bg-green-500/20 border-green-500/50'
+                                )}
+                              >
+                                <div className="flex items-center gap-2 w-full">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleFavorite(prompt.id);
+                                      toast.success(isStarred ? 'Removed from favorites' : 'Added to favorites');
+                                    }}
+                                    className="shrink-0 p-0.5 -ml-0.5 rounded hover:bg-yellow-500/20 transition-colors"
+                                    aria-label={isStarred ? 'Remove from favorites' : 'Add to favorites'}
+                                  >
+                                    <Star 
+                                      className={cn(
+                                        'w-4 h-4 transition-colors',
+                                        isStarred 
+                                          ? 'fill-yellow-400 text-yellow-400' 
+                                          : 'text-muted-foreground/50 hover:text-yellow-400'
+                                      )} 
+                                    />
+                                  </button>
+                                  <button
+                                    onClick={() => copyToClipboard(prompt)}
+                                    className="flex-1 flex items-center gap-2 text-left"
+                                  >
+                                    <span className="text-base shrink-0">{prompt.icon}</span>
+                                    <span className={cn(
+                                      'flex-1 text-sm text-foreground/90 group-hover:text-foreground',
+                                      isCopied && 'text-green-400'
+                                    )}>
+                                      {prompt.title}
+                                    </span>
+                                    <AlignmentBadge promptId={prompt.id} />
+                                  </button>
+                                  {intensityConfig && (
+                                    <span 
+                                      className="text-[10px] px-1.5 py-0.5 rounded shrink-0"
+                                      style={{ backgroundColor: `${intensityConfig.color}20`, color: intensityConfig.color }}
+                                    >
+                                      {intensityConfig.icon}
+                                    </span>
+                                  )}
+                                  {isCopied ? (
+                                    <Check className="w-4 h-4 text-green-400 shrink-0" />
+                                  ) : (
+                                    <Copy className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0 cursor-pointer" onClick={() => copyToClipboard(prompt)} />
+                                  )}
+                                </div>
+                                {prompt.description && (
+                                  <p className="text-xs text-muted-foreground pl-7 leading-relaxed cursor-pointer" onClick={() => copyToClipboard(prompt)}>
+                                    {prompt.description}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ))
+                    ) : (
+                    prompts.map((prompt) => {
                       const isCopied = copiedId === prompt.id;
                       const intensity = getPromptIntensity(prompt.id);
                       const intensityConfig = intensity ? intensityLevels.find(l => l.id === intensity) : null;
@@ -473,7 +557,8 @@ export function InfinityStoneDrawer({
                           )}
                         </div>
                       );
-                    })}
+                    })
+                    )}
                   </AccordionContent>
                 </AccordionItem>
               );
