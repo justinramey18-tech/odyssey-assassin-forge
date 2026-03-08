@@ -53,6 +53,16 @@ export function DraftReviewPanel({
     }
   }, [narrative, whispers, onApprove]);
 
+  const handleDiscard = useCallback(() => {
+    if (confirmDiscard) {
+      onDiscard();
+      return;
+    }
+    setConfirmDiscard(true);
+    const timer = setTimeout(() => setConfirmDiscard(false), 3000);
+    return () => clearTimeout(timer);
+  }, [confirmDiscard, onDiscard]);
+
   return (
     <div className="space-y-3 max-w-2xl mx-auto">
       {/* Header */}
