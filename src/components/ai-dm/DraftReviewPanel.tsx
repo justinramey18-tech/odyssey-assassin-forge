@@ -31,6 +31,7 @@ export function DraftReviewPanel({
   const [narrative, setNarrative] = useState(parsed.narrative);
   const [whispers, setWhispers] = useState<Whisper[]>(parsed.whispers);
   const [isApproving, setIsApproving] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
 
   // Reset state when draft content changes (e.g. after regeneration)
   const [lastDraft, setLastDraft] = useState(draftContent);
@@ -52,8 +53,18 @@ export function DraftReviewPanel({
     }
   }, [narrative, whispers, onApprove]);
 
+  const handleDiscard = useCallback(() => {
+    if (confirmDiscard) {
+      onDiscard();
+      return;
+    }
+    setConfirmDiscard(true);
+    const timer = setTimeout(() => setConfirmDiscard(false), 3000);
+    return () => clearTimeout(timer);
+  }, [confirmDiscard, onDiscard]);
+
   return (
-    <div className="space-y-3 max-w-2xl mx-auto">
+    <div className="space-y-3 max-w-2xl mx-auto relative">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -115,37 +126,44 @@ export function DraftReviewPanel({
         )}
       </div>
 
-      {/* Action buttons */}
-      <div className="flex gap-2">
-        <Button
-          onClick={handleApprove}
-          disabled={isApproving || !narrative.trim()}
-          className="flex-1 gap-1.5 bg-emerald-900/40 border border-emerald-500/30 hover:bg-emerald-900/60 text-emerald-300"
-          size="sm"
-        >
-          {isApproving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-          Approve
-        </Button>
-        <Button
-          onClick={onRegenerate}
-          disabled={isRegenerating || isApproving}
-          variant="outline"
-          size="sm"
-          className="gap-1.5 text-amber-300 border-amber-500/30"
-        >
-          {isRegenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-          Regen
-        </Button>
-        <Button
-          onClick={onDiscard}
-          disabled={isApproving}
-          variant="outline"
-          size="sm"
-          className="gap-1.5 text-red-300 border-red-500/30 hover:bg-red-900/20"
-        >
-          <X className="w-4 h-4" />
-          Discard
-        </Button>
+      {/* Sticky action buttons */}
+      <div className="sticky bottom-0 bg-background/95 backdrop-blur-sm pt-2 pb-1 border-t border-border/30 -mx-3 px-3">
+        <div className="flex gap-2">
+          <Button
+            onClick={handleApprove}
+            disabled={isApproving || !narrative.trim()}
+            className="flex-1 gap-1.5 bg-emerald-900/40 border border-emerald-500/30 hover:bg-emerald-900/60 text-emerald-300"
+            size="default"
+          >
+            {isApproving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+            Approve
+          </Button>
+          <Button
+            onClick={onRegenerate}
+            disabled={isRegenerating || isApproving}
+            variant="outline"
+            size="default"
+            className="gap-1.5 text-amber-300 border-amber-500/30"
+          >
+            {isRegenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Regen
+          </Button>
+          <Button
+            onClick={handleDiscard}
+            disabled={isApproving}
+            variant="outline"
+            size="default"
+            className={cn(
+              "gap-1.5",
+              confirmDiscard
+                ? "bg-red-900/60 text-red-200 border-red-500/50 hover:bg-red-900/80"
+                : "text-red-300 border-red-500/30 hover:bg-red-900/20"
+            )}
+          >
+            <X className="w-4 h-4" />
+            {confirmDiscard ? 'Tap again' : 'Discard'}
+          </Button>
+        </div>
       </div>
     </div>
   );
