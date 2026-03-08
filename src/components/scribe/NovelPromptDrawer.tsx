@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Gem, Star, Shuffle, Sparkles, Play, X, BookOpen } from 'lucide-react';
+import { Gem, Star, Shuffle, Sparkles, Play, X, BookOpen, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { characterPrompts, type CharacterPrompt, DEADPOOL_PROMPT_IDS, PROMPT_HINTS } from '@/lib/characterPrompts';
@@ -13,6 +13,7 @@ import { AlignmentBadge } from '@/components/alignment/AlignmentBadge';
 import { AlignmentRecommender } from '@/components/alignment/AlignmentRecommender';
 import { type AlignmentScore, getPromptAlignment, isAlignmentMatch, sortByAlignmentProximity } from '@/lib/alignmentSpectrum';
 import { Badge } from '@/components/ui/badge';
+import { MoodGateway } from '@/components/prompts/MoodGateway';
 import {
   Drawer,
   DrawerContent,
@@ -155,6 +156,7 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
   const [fictionMode, setFictionMode] = useState(() => {
     try { return localStorage.getItem('novel-prompt-fiction-mode') !== 'false'; } catch { return true; }
   });
+  const [view, setView] = useState<'moods' | 'browse'>('moods');
   const { favoriteCount, toggleFavorite, isFavorite } = useFavoritePrompts();
   const [empyreanFavorites, setEmpyreanFavorites] = useState<Set<string>>(() => {
     try {
