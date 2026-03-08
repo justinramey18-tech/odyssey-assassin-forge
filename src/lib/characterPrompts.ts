@@ -8,6 +8,8 @@ export interface CharacterPrompt {
   description: string; // Brief explanation of what this prompt does
   prompt: string;
   icon: string;
+  tone?: 'deadpool' | 'classic';
+  hint?: string;
 }
 
 export const masterworkSubcategories = [
@@ -2389,3 +2391,121 @@ export const promptCategories = [
   'Meta Requests',
   'Masterwork',
 ];
+
+// ============================================
+// DEADPOOL TONE LOOKUP
+// Prompts tagged as Deadpool-inspired (fourth-wall breaks, meta-humor, anti-hero comedy)
+// ============================================
+export const DEADPOOL_PROMPT_IDS = new Set<string>([
+  // Voice & Tone originals
+  'fourth-wall', 'inappropriate-humor', 'internal-monologue',
+  // Combat originals
+  'creative-kills', 'tactical-incompetence', 'banter-mid-combat',
+  // Social originals
+  'negotiation-absurdity', 'alias-addiction',
+  // Investigation originals
+  'chaotic-investigation', 'lateral-thinking', 'attention-roulette',
+  // Emotional originals
+  'mask-slips', 'trauma-shield',
+  // World originals
+  'property-damage', 'reputation-dissonance', 'loot-chaos',
+  // Narrative originals
+  'unreliable-narrator', 'genre-savvy',
+  // ALL Meta Requests
+  'meta-make-funnier', 'meta-talk-to-writer', 'meta-rewind',
+  'meta-acknowledge-audience', 'meta-skip-boring', 'meta-chaotic-options',
+  'meta-nerf-me', 'meta-dramatic-irony', 'meta-musical-number',
+  'meta-morally-ambiguous', 'meta-terrible-idea', 'meta-comic-relief',
+  'meta-fail-forward', 'meta-plot-hole', 'meta-nemesis',
+  'meta-injuries-hilarious', 'meta-morality-pet', 'meta-unreliable-protagonist',
+  'meta-sad-backstory', 'meta-voice-of-reason', 'meta-dm-for-5-minutes',
+  'meta-trolley-problem', 'meta-npc-hates-me', 'meta-serious-moment',
+  'meta-what-if-not', 'meta-nature-documentary', 'meta-dramatic-backfire',
+  'meta-montage', 'meta-weapons-argue', 'meta-worst-case',
+  'meta-negotiate-dice', 'meta-unkillable-inconvenienced', 'meta-worthy-opponent',
+  'meta-crowdsource', 'meta-break-game', 'meta-villain-therapist',
+  'meta-crossover', 'meta-crisis-faith-dm', 'meta-special-episode',
+  'meta-see-behind-curtain', 'meta-fail-successfully', 'meta-bottle-episode',
+  'meta-straight-man', 'meta-choose-adventure',
+  // ALL Time Stone (Meta Requests category)
+  'time-mild-1', 'time-mild-2', 'time-mild-3',
+  'time-moderate-1', 'time-moderate-2', 'time-moderate-3', 'time-moderate-4',
+  'time-extreme-1', 'time-extreme-2', 'time-extreme-3',
+  'time-agnostic-1', 'time-agnostic-2', 'time-agnostic-3', 'time-agnostic-4',
+  'time-agnostic-5', 'time-agnostic-6', 'time-agnostic-7', 'time-agnostic-8',
+  'time-agnostic-9', 'time-agnostic-10', 'time-agnostic-11', 'time-agnostic-12',
+  'time-agnostic-13', 'time-agnostic-14', 'time-agnostic-15',
+]);
+
+// ============================================
+// CONTEXTUAL HINTS LOOKUP
+// "Try when..." guidance for new players
+// ============================================
+export const PROMPT_HINTS = new Map<string, string>([
+  // Voice & Tone
+  ['fourth-wall', 'A scene feels too serious or you want to lighten the mood'],
+  ['inappropriate-humor', 'Tension is high and you want to deflate the drama'],
+  ['internal-monologue', 'Before making a big decision — adds comedic inner debate'],
+  // Combat
+  ['creative-kills', 'You just landed a killing blow and want flair'],
+  ['tactical-incompetence', 'Combat feels routine — inject some chaos'],
+  ['banter-mid-combat', 'A fight is underway and you want personality in the action'],
+  ['power-mild-1', 'You want to show skill without showboating'],
+  ['power-mild-2', 'You want to intimidate by showing restraint'],
+  ['power-moderate-1', 'A fight feels even and you want a dramatic shift'],
+  ['power-moderate-2', 'An enemy underestimates you — time to correct that'],
+  ['power-extreme-1', 'You want to end a fight in the most dramatic way possible'],
+  // Social
+  ['negotiation-absurdity', 'Dealing with authority figures or tense negotiations'],
+  ['selective-morals', 'Facing a moral choice — show unexpected compassion'],
+  ['alias-addiction', 'Meeting new NPCs and want running gag potential'],
+  ['soul-mild-2', 'A quiet moment where you want to show a softer side'],
+  ['soul-moderate-1', 'Casual conversation — slip in something revealing'],
+  ['soul-extreme-1', 'A climactic emotional confrontation'],
+  // Investigation
+  ['chaotic-investigation', 'You need information but want unconventional methods'],
+  ['lateral-thinking', 'Facing a puzzle and want to skip the intended solution'],
+  ['attention-roulette', 'Mid-mission and want a comedic distraction'],
+  ['mind-mild-1', 'Entering a new room or meeting — read the situation'],
+  ['mind-mild-2', 'You notice recurring details — connect the dots'],
+  ['mind-moderate-1', 'You want a Sherlock moment of deduction'],
+  ['mind-extreme-1', 'A mystery climax — perceive everything at once'],
+  // Emotional
+  ['mask-slips', 'A quiet moment alone or after a hard fight'],
+  ['unexpected-loyalty', 'An ally is in danger — reveal your true self'],
+  ['trauma-shield', 'Someone asks about your past'],
+  ['soul-mild-1', 'A peaceful moment — let yourself feel something'],
+  ['soul-moderate-2', 'Someone mentions a significant name from your past'],
+  ['soul-extreme-3', 'A crisis moment — all defenses fail'],
+  // World
+  ['property-damage', 'After a fight with lots of collateral'],
+  ['reputation-dissonance', 'Arriving somewhere your reputation precedes you'],
+  ['loot-chaos', 'After any encounter with loot to claim'],
+  ['reality-mild-1', 'Returning to a place you visited before'],
+  ['reality-moderate-1', 'Your name is recognized — but which version?'],
+  ['reality-extreme-1', 'A past choice comes back with world-altering consequences'],
+  // Narrative
+  ['unreliable-narrator', 'Recounting events to someone who wasn\'t there'],
+  ['genre-savvy', 'You suspect a plot twist or cliché is coming'],
+  ['space-mild-1', 'You want a quotable one-liner moment'],
+  ['space-mild-2', 'Entering a new location — make it cinematic'],
+  // Meta
+  ['meta-make-funnier', 'The scene is too serious and needs levity'],
+  ['meta-talk-to-writer', 'The plot doesn\'t make sense and you want to comment on it'],
+  ['meta-rewind', 'A moment just went badly and you want a do-over'],
+  ['meta-chaotic-options', 'You want the DM to give you wild choices'],
+  ['meta-skip-boring', 'Travel or downtime is dragging'],
+  ['meta-terrible-idea', 'You want to do something spectacularly stupid'],
+  ['meta-fail-forward', 'You\'re about to fail a check — make it interesting'],
+  ['meta-nature-documentary', 'Combat is starting and you want narration flair'],
+  ['meta-musical-number', 'A social scene that needs absurdity'],
+  ['meta-villain-therapist', 'Facing a villain — try therapy instead of combat'],
+  ['meta-choose-adventure', 'At a crossroads with no clear best path'],
+  // Masterwork
+  ['masterwork-phantom-blade', 'You want to describe a precise, artful attack'],
+  ['masterwork-truth-reconstructor', 'Investigating a mystery — show analytical mastery'],
+  ['masterwork-web-spinner', 'Building political influence behind the scenes'],
+  ['masterwork-catalyst-excellence', 'Leading others and unlocking their potential'],
+  ['masterwork-wound-alchemist', 'A moment of healing — physical or emotional'],
+  ['masterwork-famine-artist', 'Stripped of resources — thrive on scarcity'],
+]);
