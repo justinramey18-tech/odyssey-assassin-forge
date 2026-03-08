@@ -613,11 +613,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
   // Handle timer expiry — any connected member triggers generation
   // Database-level lock in generateResponse prevents double-generation
+  // In human mode, timer expiry doesn't auto-generate — host writes manually
   const handleTimerExpire = useCallback(() => {
-    if (!partyDm.isGenerating) {
+    const mode = partyDm.sessionConfig?.dmMode || 'ai';
+    if (!partyDm.isGenerating && mode !== 'human') {
       partyDm.generateResponse();
     }
-  }, [partyDm.isGenerating, partyDm.generateResponse]);
+  }, [partyDm.isGenerating, partyDm.generateResponse, partyDm.sessionConfig?.dmMode]);
 
   const mode = partyDm.sessionConfig?.mode || 'shared';
 
@@ -1042,13 +1044,35 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             </AnimatePresence>
           )}
 
-          {/* Loading indicator */}
+          {/* Loading / status indicator */}
           {partyDm.isGenerating && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2 items-center">
               <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-amber-900/60 border border-amber-500/40">
                 <div className="w-3.5 h-3.5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
               </div>
-              <span className="text-sm text-amber-400/60 italic">The DM weaves the tale...</span>
+              <span className="text-sm text-amber-400/60 italic">
+                {(partyDm.sessionConfig?.dmMode === 'ai-approval' && !isCreator)
+                  ? 'The DM is reviewing the AI draft...'
+                  : 'The DM weaves the tale...'}
+              </span>
+            </motion.div>
+          )}
+          {/* Pending draft indicator for non-hosts in approval mode */}
+          {!isCreator && !partyDm.isGenerating && partyDm.pendingDraft && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2 items-center">
+              <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-blue-900/40 border border-blue-500/30">
+                <Pencil className="w-3.5 h-3.5 text-blue-400" />
+              </div>
+              <span className="text-sm text-blue-400/60 italic">DM is crafting a response...</span>
+            </motion.div>
+          )}
+          {/* Human DM mode: waiting indicator for non-hosts when all ready */}
+          {!isCreator && !partyDm.isGenerating && !partyDm.pendingDraft && partyDm.allReady && (partyDm.sessionConfig?.dmMode === 'human') && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2 items-center">
+              <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-amber-900/40 border border-amber-500/30">
+                <Pencil className="w-3.5 h-3.5 text-amber-400" />
+              </div>
+              <span className="text-sm text-amber-400/60 italic">Waiting for the DM to respond...</span>
             </motion.div>
           )}
           {/* TTS Select Floating Bar */}
@@ -1644,7 +1668,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           <div className="flex items-center justify-between max-w-2xl mx-auto">
             <div className="flex items-center gap-2">
               <CheckCheck className="w-4 h-4 text-emerald-400" />
-              <span className="text-sm text-emerald-300/70">Ready! Waiting for others...</span>
+              <span className="text-sm text-emerald-300/70">
+                {(partyDm.sessionConfig?.dmMode === 'human')
+                  ? 'Ready! Waiting for the DM...'
+                  : (partyDm.sessionConfig?.dmMode === 'ai-approval')
+                    ? 'Ready! AI will draft a response for DM review...'
+                    : 'Ready! Waiting for others...'}
+              </span>
               <button
                 onClick={partyDm.unready}
                 disabled={partyDm.isGenerating}
@@ -1687,7 +1717,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               {narrator.hasTTSKey && (
                 <NarrationSpeedPopover iconSize="w-4 h-4" />
               )}
-              {isCreator && (
+              {isCreator && (partyDm.sessionConfig?.dmMode || 'ai') !== 'human' && (
                 <Button
                   onClick={partyDm.generateResponse}
                   disabled={partyDm.isGenerating || partyDm.currentPrompts.length === 0}
@@ -1695,15 +1725,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                   size="sm"
                 >
                   <Zap className="w-3.5 h-3.5" />
-                  Generate Now
+                  {(partyDm.sessionConfig?.dmMode === 'ai-approval') ? 'Generate Draft' : 'Generate Now'}
                 </Button>
               )}
             </div>
           </div>
         )}
 
-        {/* Host generate button (always visible for host when prompts exist) */}
-        {isCreator && !partyDm.isGenerating && hasSubmitted && !isReady && partyDm.currentPrompts.length > 0 && (
+        {/* Host generate button (always visible for host when prompts exist) — hidden in human mode */}
+        {isCreator && !partyDm.isGenerating && hasSubmitted && !isReady && partyDm.currentPrompts.length > 0 && (partyDm.sessionConfig?.dmMode || 'ai') !== 'human' && (
           <div className="mt-2 flex justify-end max-w-2xl mx-auto">
             <Button
               onClick={partyDm.generateResponse}
@@ -1712,7 +1742,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               className="gap-1.5 text-amber-300 border-amber-500/30"
             >
               <Zap className="w-3.5 h-3.5" />
-              Generate Now
+              {(partyDm.sessionConfig?.dmMode === 'ai-approval') ? 'Generate Draft' : 'Generate Now'}
             </Button>
           </div>
         )}
