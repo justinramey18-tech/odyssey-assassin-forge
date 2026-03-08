@@ -377,6 +377,50 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
               </button>
             </div>
 
+            {/* Empyrean filter */}
+            {activeLibrary === 'empyrean' && (
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => { setSelectedIntensity('all'); try { localStorage.setItem('novel-prompt-intensity', 'all'); } catch {} }}
+                  className={cn(
+                    'flex-1 px-3 py-2 rounded-lg text-xs font-medium border transition-all min-h-[44px]',
+                    selectedIntensity !== 'favorites' ? 'bg-amber-500/20 border-amber-500/50 text-amber-400' : 'border-white/10 text-white/40',
+                  )}
+                >
+                  All ({empyreanPrompts.length})
+                </button>
+                <button
+                  onClick={() => { setSelectedIntensity('favorites'); try { localStorage.setItem('novel-prompt-intensity', 'favorites'); } catch {} }}
+                  className={cn(
+                    'flex-1 px-3 py-2 rounded-lg text-xs font-medium border transition-all min-h-[44px]',
+                    selectedIntensity === 'favorites' ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400' : 'border-white/10 text-white/40',
+                  )}
+                >
+                  ★ Favorites ({empyreanFavorites.size})
+                </button>
+              </div>
+            )}
+
+            {/* Random / Surprise Me — show in browse mode or empyrean */}
+            {(view === 'browse' || activeLibrary === 'empyrean') && (
+              <div className="flex gap-2">
+                <button
+                  onClick={pickRandom}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] rounded-xl text-sm font-medium bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white transition-all"
+                >
+                  <Shuffle className="w-4 h-4" />
+                  Random
+                </button>
+                <button
+                  onClick={surpriseMe}
+                  className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl text-sm font-medium bg-gradient-to-r from-amber-500 via-red-500 to-purple-600 hover:from-amber-400 hover:via-red-400 hover:to-purple-500 text-white animate-pulse hover:animate-none transition-all"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  🎰
+                </button>
+              </div>
+            )}
+
             {/* Mood gateway vs browse for infinity stones */}
             {activeLibrary === 'infinity' && view === 'moods' && (
               <MoodGateway
