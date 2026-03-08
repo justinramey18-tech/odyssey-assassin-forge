@@ -3,6 +3,7 @@ import { Gem, Star, Shuffle, Sparkles, Play, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { characterPrompts, CharacterPrompt } from '@/lib/characterPrompts';
+import { groupBySubcategory, isMasterworkStone } from '@/lib/masterworkGrouping';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
 import { useFavoritePrompts } from '@/hooks/use-favorite-prompts';
 import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
@@ -214,7 +215,48 @@ export function InfinityStoneDMDrawer({ open, onOpenChange, characterName, onUse
                       className="rounded-b-lg border border-t-0 p-2 space-y-1"
                       style={{ borderColor: `${stone.color}40` }}
                     >
-                      {prompts.map((prompt) => {
+                      {isMasterworkStone(stone.id) ? (
+                        groupBySubcategory(prompts).map((group) => (
+                          <div key={group.subcategory}>
+                            <div className="flex items-center gap-2 px-2 pt-3 pb-1">
+                              <div className="flex-1 h-px" style={{ backgroundColor: `${stone.color}20` }} />
+                              <span className="text-[10px] font-cinzel text-white/30 tracking-widest uppercase whitespace-nowrap">
+                                {group.subcategory}
+                              </span>
+                              <div className="flex-1 h-px" style={{ backgroundColor: `${stone.color}20` }} />
+                            </div>
+                            {group.prompts.map((prompt) => {
+                              const intensity = getPromptIntensity(prompt.id);
+                              const intensityConfig = intensity ? intensityLevels.find(l => l.id === intensity) : null;
+                              const isStarred = isFavorite(prompt.id);
+
+                              return (
+                                <div key={prompt.id} className="flex items-start gap-2 p-2.5 rounded-lg bg-white/5 hover:bg-white/10 transition-all group">
+                                  <button onClick={() => { toggleFavorite(prompt.id); toast.success(isStarred ? 'Removed from favorites' : 'Added to favorites'); }} className="shrink-0 p-1 min-w-[44px] min-h-[44px] flex items-center justify-center rounded hover:bg-yellow-500/20 transition-colors">
+                                    <Star className={cn('w-4 h-4', isStarred ? 'fill-yellow-400 text-yellow-400' : 'text-white/30 hover:text-yellow-400')} />
+                                  </button>
+                                  <div className="flex-1 min-w-0 py-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-base shrink-0">{prompt.icon}</span>
+                                      <span className="text-sm text-white/90 font-medium">{prompt.title}</span>
+                                      <AlignmentBadge promptId={prompt.id} />
+                                      {intensityConfig && (
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded shrink-0" style={{ backgroundColor: `${intensityConfig.color}20`, color: intensityConfig.color }}>{intensityConfig.icon}</span>
+                                      )}
+                                    </div>
+                                    {prompt.description && <p className="text-xs text-white/40 mt-0.5 leading-relaxed">{prompt.description}</p>}
+                                  </div>
+                                  <button onClick={() => processAndUse(prompt)} className="shrink-0 flex items-center gap-1 px-3 min-h-[44px] rounded-lg bg-emerald-900/40 border border-emerald-500/30 hover:bg-emerald-900/60 text-emerald-300 text-xs font-medium transition-colors">
+                                    <Play className="w-3.5 h-3.5" />
+                                    Use
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ))
+                      ) : (
+                      prompts.map((prompt) => {
                         const intensity = getPromptIntensity(prompt.id);
                         const intensityConfig = intensity ? intensityLevels.find(l => l.id === intensity) : null;
                         const isStarred = isFavorite(prompt.id);
@@ -265,7 +307,8 @@ export function InfinityStoneDMDrawer({ open, onOpenChange, characterName, onUse
                             </button>
                           </div>
                         );
-                      })}
+                      })
+                      )}
                     </AccordionContent>
                   </AccordionItem>
                 );
