@@ -613,11 +613,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
   // Handle timer expiry — any connected member triggers generation
   // Database-level lock in generateResponse prevents double-generation
+  // In human mode, timer expiry doesn't auto-generate — host writes manually
   const handleTimerExpire = useCallback(() => {
-    if (!partyDm.isGenerating) {
+    const mode = partyDm.sessionConfig?.dmMode || 'ai';
+    if (!partyDm.isGenerating && mode !== 'human') {
       partyDm.generateResponse();
     }
-  }, [partyDm.isGenerating, partyDm.generateResponse]);
+  }, [partyDm.isGenerating, partyDm.generateResponse, partyDm.sessionConfig?.dmMode]);
 
   const mode = partyDm.sessionConfig?.mode || 'shared';
 
