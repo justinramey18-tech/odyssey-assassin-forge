@@ -11,6 +11,7 @@ import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { WhisperTray } from './WhisperTray';
 import { OraclePanel } from '@/components/oracle/OraclePanel';
 import { PartyDMSettings } from './PartyDMSettings';
+import { DMComposePanel } from './DMComposePanel';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { CampaignDropdown } from './CampaignDropdown';
 import { cn } from '@/lib/utils';
@@ -1486,7 +1487,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       {/* Input Area */}
       {!isFullscreen && (
       <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm mb-[48px]">
-        {partyDm.isGenerating ? (
+        {/* Human DM mode: show compose panel for host */}
+        {isCreator && (partyDm.sessionConfig?.dmMode === 'human') ? (
+          <DMComposePanel
+            onSend={partyDm.sendManualDmMessage}
+            partyMemberNames={members.map(m => m.character_name)}
+            disabled={partyDm.isGenerating}
+          />
+        ) : partyDm.isGenerating ? (
           <div className="flex items-center justify-center gap-2 py-2">
             <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
             <span className="text-sm text-amber-400/70">Generating response...</span>
