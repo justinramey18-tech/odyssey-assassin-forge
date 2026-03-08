@@ -31,6 +31,7 @@ export function DraftReviewPanel({
   const [narrative, setNarrative] = useState(parsed.narrative);
   const [whispers, setWhispers] = useState<Whisper[]>(parsed.whispers);
   const [isApproving, setIsApproving] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
 
   // Reset state when draft content changes (e.g. after regeneration)
   const [lastDraft, setLastDraft] = useState(draftContent);
