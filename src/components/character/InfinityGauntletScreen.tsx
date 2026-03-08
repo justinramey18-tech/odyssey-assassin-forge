@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { characterPrompts, CharacterPrompt } from '@/lib/characterPrompts';
+import { characterPrompts, CharacterPrompt, DEADPOOL_PROMPT_IDS, PROMPT_HINTS } from '@/lib/characterPrompts';
 import { groupBySubcategory, isMasterworkStone } from '@/lib/masterworkGrouping';
 import { PromptEditModal } from '@/components/shared/PromptEditModal';
 import gauntletBackground from '@/assets/infinity-gauntlet-screen.jpg';
@@ -97,6 +97,44 @@ export function InfinityGauntletScreen({ characterName, open, onClose }: Infinit
     const stone = infinityStones.find(s => s.id === stoneId);
     if (!stone) return [];
     return characterPrompts.filter(p => stone.categories.includes(p.category));
+  };
+
+  const renderPromptButton = (prompt: CharacterPrompt, stoneData: typeof infinityStones[0]) => {
+    const isDeadpool = DEADPOOL_PROMPT_IDS.has(prompt.id);
+    const hint = PROMPT_HINTS.get(prompt.id);
+    return (
+      <button
+        key={prompt.id}
+        onClick={() => handlePromptClick(prompt)}
+        className={cn(
+          'w-full text-left px-3 py-2.5 rounded-lg',
+          'bg-background/50 hover:bg-accent/30 border border-transparent',
+          'transition-all duration-200 group'
+        )}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = `${stoneData.color}50`; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'transparent'; }}
+      >
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-lg">{prompt.icon}</span>
+            <span className="font-body text-sm text-foreground group-hover:text-white transition-colors">
+              {prompt.title}
+            </span>
+            {isDeadpool && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded shrink-0 bg-red-500/20 text-red-400">🃏</span>
+            )}
+          </div>
+          {prompt.description && (
+            <p className="text-xs text-muted-foreground pl-7 leading-relaxed">
+              {prompt.description}
+            </p>
+          )}
+          {hint && (
+            <p className="text-[11px] text-amber-400/50 italic pl-7 mt-0.5">💡 Try when: {hint}</p>
+          )}
+        </div>
+      </button>
+    );
   };
 
   const activeStoneData = infinityStones.find(s => s.id === activeStone);
@@ -210,62 +248,14 @@ export function InfinityGauntletScreen({ characterName, open, onClose }: Infinit
                     </span>
                     <div className="flex-1 h-px bg-white/10" />
                   </div>
-                  {group.prompts.map((prompt) => (
-                    <button
-                      key={prompt.id}
-                      onClick={() => handlePromptClick(prompt)}
-                      className={cn(
-                        'w-full text-left px-3 py-2.5 rounded-lg',
-                        'bg-background/50 hover:bg-accent/30 border border-transparent',
-                        'transition-all duration-200 group'
-                      )}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = `${activeStoneData.color}50`; }}
-                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'transparent'; }}
-                    >
-                      <div className="flex flex-col gap-0.5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg">{prompt.icon}</span>
-                          <span className="font-body text-sm text-foreground group-hover:text-white transition-colors">
-                            {prompt.title}
-                          </span>
-                        </div>
-                        {prompt.description && (
-                          <p className="text-xs text-muted-foreground pl-7 leading-relaxed">
-                            {prompt.description}
-                          </p>
-                        )}
-                      </div>
-                    </button>
-                  ))}
+                  {group.prompts.map((prompt) => 
+                    renderPromptButton(prompt, activeStoneData)
+                  )}
                 </div>
               ))
             ) : (
               getPromptsForStone(activeStone).map((prompt) => (
-                <button
-                  key={prompt.id}
-                  onClick={() => handlePromptClick(prompt)}
-                  className={cn(
-                    'w-full text-left px-3 py-2.5 rounded-lg',
-                    'bg-background/50 hover:bg-accent/30 border border-transparent',
-                    'transition-all duration-200 group'
-                  )}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = `${activeStoneData.color}50`; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'transparent'; }}
-                >
-                  <div className="flex flex-col gap-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{prompt.icon}</span>
-                      <span className="font-body text-sm text-foreground group-hover:text-white transition-colors">
-                        {prompt.title}
-                      </span>
-                    </div>
-                    {prompt.description && (
-                      <p className="text-xs text-muted-foreground pl-7 leading-relaxed">
-                        {prompt.description}
-                      </p>
-                    )}
-                  </div>
-                </button>
+                renderPromptButton(prompt, activeStoneData)
               ))
             )}
           </div>
