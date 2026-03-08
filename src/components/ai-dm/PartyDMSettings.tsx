@@ -155,7 +155,12 @@ export function PartyDMSettings({
                   )}
                   style={{ touchAction: 'manipulation' }}
                 >
-                  {opt.icon}
+                  <div className="relative">
+                    {opt.icon}
+                    {dmMode === opt.value && (
+                      <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400" />
+                    )}
+                  </div>
                   <span className="text-[11px] font-semibold leading-tight">{opt.label}</span>
                 </button>
               ))}
