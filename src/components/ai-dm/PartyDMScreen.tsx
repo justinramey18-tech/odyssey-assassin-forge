@@ -1042,13 +1042,35 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             </AnimatePresence>
           )}
 
-          {/* Loading indicator */}
+          {/* Loading / status indicator */}
           {partyDm.isGenerating && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2 items-center">
               <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-amber-900/60 border border-amber-500/40">
                 <div className="w-3.5 h-3.5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
               </div>
-              <span className="text-sm text-amber-400/60 italic">The DM weaves the tale...</span>
+              <span className="text-sm text-amber-400/60 italic">
+                {(partyDm.sessionConfig?.dmMode === 'ai-approval' && !isCreator)
+                  ? 'The DM is reviewing the AI draft...'
+                  : 'The DM weaves the tale...'}
+              </span>
+            </motion.div>
+          )}
+          {/* Pending draft indicator for non-hosts in approval mode */}
+          {!isCreator && !partyDm.isGenerating && partyDm.pendingDraft && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2 items-center">
+              <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-blue-900/40 border border-blue-500/30">
+                <Pencil className="w-3.5 h-3.5 text-blue-400" />
+              </div>
+              <span className="text-sm text-blue-400/60 italic">DM is crafting a response...</span>
+            </motion.div>
+          )}
+          {/* Human DM mode: waiting indicator for non-hosts when all ready */}
+          {!isCreator && !partyDm.isGenerating && !partyDm.pendingDraft && partyDm.allReady && (partyDm.sessionConfig?.dmMode === 'human') && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2 items-center">
+              <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-amber-900/40 border border-amber-500/30">
+                <Pencil className="w-3.5 h-3.5 text-amber-400" />
+              </div>
+              <span className="text-sm text-amber-400/60 italic">Waiting for the DM to respond...</span>
             </motion.div>
           )}
           {/* TTS Select Floating Bar */}
