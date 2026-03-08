@@ -76,6 +76,9 @@ export interface PartyDMSettingsProps {
   isExtracting?: boolean;
   pushState: PushSubscriptionState;
   onTogglePush: () => void;
+  // DM Mode
+  dmMode?: DmMode;
+  onDmModeChange?: (mode: DmMode) => void;
   // Tools
   onShowMap?: () => void;
   onShowSaves?: () => void;
