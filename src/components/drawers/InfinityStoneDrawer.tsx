@@ -596,6 +596,8 @@ export function InfinityStoneDrawer({
               );
             })}
           </Accordion>
+          </>
+          )}
         </div>
       </ScrollArea>
     </EdgeDrawer>
