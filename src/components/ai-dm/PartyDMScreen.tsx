@@ -1666,7 +1666,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           <div className="flex items-center justify-between max-w-2xl mx-auto">
             <div className="flex items-center gap-2">
               <CheckCheck className="w-4 h-4 text-emerald-400" />
-              <span className="text-sm text-emerald-300/70">Ready! Waiting for others...</span>
+              <span className="text-sm text-emerald-300/70">
+                {(partyDm.sessionConfig?.dmMode === 'human')
+                  ? 'Ready! Waiting for the DM...'
+                  : (partyDm.sessionConfig?.dmMode === 'ai-approval')
+                    ? 'Ready! AI will draft a response for DM review...'
+                    : 'Ready! Waiting for others...'}
+              </span>
               <button
                 onClick={partyDm.unready}
                 disabled={partyDm.isGenerating}
@@ -1709,7 +1715,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               {narrator.hasTTSKey && (
                 <NarrationSpeedPopover iconSize="w-4 h-4" />
               )}
-              {isCreator && (
+              {isCreator && (partyDm.sessionConfig?.dmMode || 'ai') !== 'human' && (
                 <Button
                   onClick={partyDm.generateResponse}
                   disabled={partyDm.isGenerating || partyDm.currentPrompts.length === 0}
@@ -1717,7 +1723,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                   size="sm"
                 >
                   <Zap className="w-3.5 h-3.5" />
-                  Generate Now
+                  {(partyDm.sessionConfig?.dmMode === 'ai-approval') ? 'Generate Draft' : 'Generate Now'}
                 </Button>
               )}
             </div>
