@@ -122,6 +122,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [sessionConfig, setSessionConfig] = useState<DmSessionConfig | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [pendingDraft, setPendingDraft] = useState<{ content: string; userContent: string; userSenderName: string } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const autoGenTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -1116,13 +1117,18 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           .map(formatPromptLine)
           .join('\n') + afkPromptSection;
 
-        await insertPartyMessage({
-          party_id: partyId,
-          role: 'user',
-          content: combined,
-          sender_user_id: user.id,
-          sender_name: 'Party',
-        });
+        const isApprovalMode = (sessionConfig.dmMode || 'ai') === 'ai-approval';
+
+        // In approval mode, don't insert user message yet — defer to approveDraft
+        if (!isApprovalMode) {
+          await insertPartyMessage({
+            party_id: partyId,
+            role: 'user',
+            content: combined,
+            sender_user_id: user.id,
+            sender_name: 'Party',
+          });
+        }
 
         const partyMembersSummary = buildPartyMembersGuide();
         const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
@@ -1137,21 +1143,30 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         const assistantContent = await streamAIResponse(apiMessages, guides, abortRef.current!.signal);
 
         if (assistantContent?.trim()) {
-          await insertPartyMessage({
-            party_id: partyId,
-            role: 'assistant',
-            content: assistantContent,
-            sender_user_id: null,
-            sender_name: 'DM',
-          });
+          if (isApprovalMode) {
+            // Store draft for host review instead of inserting
+            setPendingDraft({
+              content: assistantContent,
+              userContent: combined,
+              userSenderName: 'Party',
+            });
+          } else {
+            await insertPartyMessage({
+              party_id: partyId,
+              role: 'assistant',
+              content: assistantContent,
+              sender_user_id: null,
+              sender_name: 'DM',
+            });
 
-          // Trigger summary and auto-save
-          const updatedMessages = [...messages,
-            { id: '', party_id: partyId, role: 'user' as const, content: combined, sender_user_id: user.id, sender_name: 'Party', created_at: '' },
-            { id: '', party_id: partyId, role: 'assistant' as const, content: assistantContent, sender_user_id: null, sender_name: 'DM', created_at: '' },
-          ];
-          triggerSummaryIfNeeded(updatedMessages);
-          silentAutoSave(updatedMessages, sessionConfig.campaignSummary || null);
+            // Trigger summary and auto-save
+            const updatedMessages = [...messages,
+              { id: '', party_id: partyId, role: 'user' as const, content: combined, sender_user_id: user.id, sender_name: 'Party', created_at: '' },
+              { id: '', party_id: partyId, role: 'assistant' as const, content: assistantContent, sender_user_id: null, sender_name: 'DM', created_at: '' },
+            ];
+            triggerSummaryIfNeeded(updatedMessages);
+            silentAutoSave(updatedMessages, sessionConfig.campaignSummary || null);
+          }
         }
 
         // Consume used cascade prompts for normal mode
@@ -1160,26 +1175,34 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         }
       }
 
-      // Clear prompts and start new round
-      await (supabase.from('party_dm_prompts') as any)
-        .delete()
-        .eq('party_id', partyId)
-        .eq('round_id', sessionConfig.currentRoundId);
+      // Clear prompts and start new round — skip in approval mode (deferred to approveDraft)
+      if ((sessionConfig.dmMode || 'ai') !== 'ai-approval') {
+        await (supabase.from('party_dm_prompts') as any)
+          .delete()
+          .eq('party_id', partyId)
+          .eq('round_id', sessionConfig.currentRoundId);
 
-      const newRoundId = crypto.randomUUID();
-      const newConfig: DmSessionConfig = {
-        ...sessionConfig,
-        currentRoundId: newRoundId,
-        isGenerating: false,
-        // Auto-start timer for new round if enabled
-        timerStartedAt: sessionConfig.timerEnabled ? new Date().toISOString() : null,
-        timerPausedRemaining: null,
-        extensionRequests: [],
-      };
-      await (supabase.from('party_shared_state') as any)
-        .update({ state_data: newConfig })
-        .eq('party_id', partyId)
-        .eq('state_type', 'dm_session');
+        const newRoundId = crypto.randomUUID();
+        const newConfig: DmSessionConfig = {
+          ...sessionConfig,
+          currentRoundId: newRoundId,
+          isGenerating: false,
+          // Auto-start timer for new round if enabled
+          timerStartedAt: sessionConfig.timerEnabled ? new Date().toISOString() : null,
+          timerPausedRemaining: null,
+          extensionRequests: [],
+        };
+        await (supabase.from('party_shared_state') as any)
+          .update({ state_data: newConfig })
+          .eq('party_id', partyId)
+          .eq('state_type', 'dm_session');
+      } else {
+        // Just release the generation lock
+        await (supabase.from('party_shared_state') as any)
+          .update({ state_data: { ...sessionConfig, isGenerating: false } })
+          .eq('party_id', partyId)
+          .eq('state_type', 'dm_session');
+      }
 
     } catch (error) {
       const isAbort = error instanceof Error && error.name === 'AbortError';
@@ -1817,6 +1840,77 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     silentAutoSave(allMsgs, sessionConfig.campaignSummary || null);
   }, [partyId, user, sessionConfig, isSplitActive, splitState, characterName, currentPrompts, updateSessionConfig, silentAutoSave, messages]);
 
+  // Approve AI draft (AI Approval mode): insert edited content as assistant message
+  const approveDraft = useCallback(async (editedContent: string) => {
+    if (!partyId || !user || !sessionConfig || !pendingDraft) return;
+    const trimmed = editedContent.trim();
+    if (!trimmed) return;
+
+    // Insert user message first
+    const { data: userData } = await (supabase.from('party_dm_messages') as any)
+      .insert({
+        party_id: partyId,
+        role: 'user',
+        content: pendingDraft.userContent,
+        sender_user_id: user.id,
+        sender_name: pendingDraft.userSenderName,
+      })
+      .select('*')
+      .single();
+
+    if (userData) {
+      setMessages(prev => {
+        if (prev.some(m => m.id === userData.id)) return prev;
+        return [...prev, userData as PartyDmMessage];
+      });
+    }
+
+    // Insert approved assistant message
+    const { data: assistantData } = await (supabase.from('party_dm_messages') as any)
+      .insert({
+        party_id: partyId,
+        role: 'assistant',
+        content: trimmed,
+        sender_user_id: null,
+        sender_name: 'DM',
+      })
+      .select('*')
+      .single();
+
+    if (assistantData) {
+      const enriched = enrichMessageWithWhispers(assistantData as PartyDmMessage, characterName);
+      setMessages(prev => {
+        if (prev.some(m => m.id === enriched.id)) return prev;
+        return [...prev, enriched];
+      });
+    }
+
+    // Trigger summary and auto-save
+    const updatedMessages = [...messages,
+      { id: '', party_id: partyId, role: 'user' as const, content: pendingDraft.userContent, sender_user_id: user.id, sender_name: pendingDraft.userSenderName, created_at: '' },
+      { id: '', party_id: partyId, role: 'assistant' as const, content: trimmed, sender_user_id: null, sender_name: 'DM', created_at: '' },
+    ];
+    triggerSummaryIfNeeded(updatedMessages);
+    silentAutoSave(updatedMessages, sessionConfig.campaignSummary || null);
+
+    // Clear draft
+    setPendingDraft(null);
+
+    // Clear prompts and advance round
+    await (supabase.from('party_dm_prompts') as any)
+      .delete()
+      .eq('party_id', partyId)
+      .eq('round_id', sessionConfig.currentRoundId);
+
+    const newRoundId = crypto.randomUUID();
+    await updateSessionConfig({ currentRoundId: newRoundId });
+    setCurrentPrompts([]);
+  }, [partyId, user, sessionConfig, pendingDraft, characterName, messages, triggerSummaryIfNeeded, silentAutoSave, updateSessionConfig]);
+
+  const discardDraft = useCallback(() => {
+    setPendingDraft(null);
+  }, []);
+
   return {
     messages: filteredMessages,
     allMessages: messages,
@@ -1832,6 +1926,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     splitState,
     isSplitActive,
     myTeam,
+    pendingDraft,
     startSession,
     endSession,
     startNewCampaign,
@@ -1844,6 +1939,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     unready,
     generateResponse,
     sendManualDmMessage,
+    approveDraft,
+    discardDraft,
     editMessage,
     deleteMessage,
     regenerateMessage,
