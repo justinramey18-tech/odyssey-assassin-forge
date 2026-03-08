@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from 'react';
-import { Gem, Copy, Check, Shuffle, Sparkles, Star, Download, Upload } from 'lucide-react';
+import { Gem, Copy, Check, Shuffle, Sparkles, Star, Download, Upload, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { EdgeDrawer } from './EdgeDrawer';
@@ -17,6 +17,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { useFavoritePrompts } from '@/hooks/use-favorite-prompts';
+import { MoodGateway } from '@/components/prompts/MoodGateway';
 
 type IntensityLevel = 'all' | 'mild' | 'moderate' | 'extreme' | 'favorites';
 
@@ -103,6 +104,7 @@ export function InfinityStoneDrawer({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expandedStone, setExpandedStone] = useState<string | undefined>(undefined);
   const [selectedIntensity, setSelectedIntensity] = useState<IntensityLevel>('all');
+  const [view, setView] = useState<'moods' | 'browse'>('moods');
   const { favorites, favoriteCount, toggleFavorite, isFavorite, exportFavorites, importFavorites } = useFavoritePrompts();
   const { logPromptUsage } = useAlignmentDrift();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -247,6 +249,24 @@ export function InfinityStoneDrawer({
     >
       <ScrollArea className="h-[calc(100vh-120px)]">
         <div className="space-y-3 pr-2">
+          {view === 'moods' ? (
+            <MoodGateway
+              allPrompts={characterPrompts}
+              onUsePrompt={copyToClipboard}
+              onBrowseAll={() => setView('browse')}
+              accentColor="#eab308"
+            />
+          ) : (
+          <>
+          {/* Back to moods */}
+          <button
+            onClick={() => setView('moods')}
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors pt-2 min-h-[44px]"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to moods
+          </button>
+
           {/* Intensity Level Selector */}
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">Filter by intensity:</p>
