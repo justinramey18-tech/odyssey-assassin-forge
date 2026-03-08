@@ -136,7 +136,7 @@ const Index = () => {
   const [showWizard, setShowWizard] = useState(true);
   const [showIntroSplash, setShowIntroSplash] = useState(() => {
     // Show mode selection if user hasn't chosen a mode yet
-    return !localStorage.getItem('odyssey-app-mode');
+    return !getScopedItem('odyssey-app-mode');
   });
   const [showHomeScreen, setShowHomeScreen] = useState(true); // Home is default after wizard
   const [showSettingsModal, setShowSettingsModal] = useState(false);
