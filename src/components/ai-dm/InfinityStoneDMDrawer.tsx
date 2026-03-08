@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Gem, Star, Shuffle, Sparkles, Play, X } from 'lucide-react';
+import { Gem, Star, Shuffle, Sparkles, Play, X, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { characterPrompts, CharacterPrompt, DEADPOOL_PROMPT_IDS, PROMPT_HINTS } from '@/lib/characterPrompts';
@@ -8,6 +8,7 @@ import { applyTimePrefix } from '@/lib/fourthWallTime';
 import { useFavoritePrompts } from '@/hooks/use-favorite-prompts';
 import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
 import { AlignmentBadge } from '@/components/alignment/AlignmentBadge';
+import { MoodGateway } from '@/components/prompts/MoodGateway';
 import {
   Drawer,
   DrawerContent,
@@ -58,6 +59,7 @@ interface InfinityStoneDMDrawerProps {
 export function InfinityStoneDMDrawer({ open, onOpenChange, characterName, onUsePrompt }: InfinityStoneDMDrawerProps) {
   const [expandedStone, setExpandedStone] = useState<string | undefined>(undefined);
   const [selectedIntensity, setSelectedIntensity] = useState<IntensityLevel>('all');
+  const [view, setView] = useState<'moods' | 'browse'>('moods');
   const { favoriteCount, toggleFavorite, isFavorite } = useFavoritePrompts();
   const { logPromptUsage } = useAlignmentDrift();
 
@@ -128,6 +130,24 @@ export function InfinityStoneDMDrawer({ open, onOpenChange, characterName, onUse
 
           {/* Scrollable content */}
           <div className="flex-1 overflow-y-auto px-4 pb-8 space-y-3">
+            {view === 'moods' ? (
+              <MoodGateway
+                allPrompts={characterPrompts}
+                onUsePrompt={processAndUse}
+                onBrowseAll={() => setView('browse')}
+                accentColor="#22c55e"
+              />
+            ) : (
+            <>
+            {/* Back to moods */}
+            <button
+              onClick={() => setView('moods')}
+              className="flex items-center gap-2 text-sm text-white/50 hover:text-white/80 transition-colors pt-2 min-h-[44px]"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to moods
+            </button>
+
             {/* Intensity Filters */}
             <div className="flex gap-1.5 flex-wrap pt-2">
               {intensityLevels.map((level) => (
@@ -326,6 +346,8 @@ export function InfinityStoneDMDrawer({ open, onOpenChange, characterName, onUse
                 );
               })}
             </Accordion>
+            </>
+            )}
           </div>
         </DrawerContent>
       </Drawer>

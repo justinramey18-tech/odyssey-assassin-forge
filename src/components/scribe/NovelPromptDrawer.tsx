@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Gem, Star, Shuffle, Sparkles, Play, X, BookOpen } from 'lucide-react';
+import { Gem, Star, Shuffle, Sparkles, Play, X, BookOpen, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { characterPrompts, type CharacterPrompt, DEADPOOL_PROMPT_IDS, PROMPT_HINTS } from '@/lib/characterPrompts';
@@ -13,6 +13,7 @@ import { AlignmentBadge } from '@/components/alignment/AlignmentBadge';
 import { AlignmentRecommender } from '@/components/alignment/AlignmentRecommender';
 import { type AlignmentScore, getPromptAlignment, isAlignmentMatch, sortByAlignmentProximity } from '@/lib/alignmentSpectrum';
 import { Badge } from '@/components/ui/badge';
+import { MoodGateway } from '@/components/prompts/MoodGateway';
 import {
   Drawer,
   DrawerContent,
@@ -155,6 +156,7 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
   const [fictionMode, setFictionMode] = useState(() => {
     try { return localStorage.getItem('novel-prompt-fiction-mode') !== 'false'; } catch { return true; }
   });
+  const [view, setView] = useState<'moods' | 'browse'>('moods');
   const { favoriteCount, toggleFavorite, isFavorite } = useFavoritePrompts();
   const [empyreanFavorites, setEmpyreanFavorites] = useState<Set<string>>(() => {
     try {
@@ -375,34 +377,6 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
               </button>
             </div>
 
-            {/* Intensity filters (only for infinity stones) */}
-            {activeLibrary === 'infinity' && (
-              <div className="flex gap-1.5 flex-wrap">
-                {intensityLevels.map((level) => (
-                  <button
-                    key={level.id}
-                    onClick={() => { setSelectedIntensity(level.id); try { localStorage.setItem('novel-prompt-intensity', level.id); } catch {} }}
-                    className={cn(
-                      'flex items-center gap-1 px-2.5 py-2 rounded-full text-xs font-medium min-h-[44px]',
-                      'transition-all duration-200 border',
-                      selectedIntensity === level.id ? 'scale-105' : 'opacity-60 hover:opacity-100'
-                    )}
-                    style={{
-                      backgroundColor: selectedIntensity === level.id ? `${level.color}20` : 'transparent',
-                      borderColor: selectedIntensity === level.id ? level.color : 'rgba(255,255,255,0.1)',
-                      color: selectedIntensity === level.id ? level.color : 'rgba(255,255,255,0.5)',
-                    }}
-                  >
-                    <span>{level.icon}</span>
-                    <span>{level.label}</span>
-                    {level.id === 'favorites' && favoriteCount > 0 && (
-                      <span className="ml-0.5 text-[10px] bg-yellow-500/30 text-yellow-400 px-1.5 rounded-full">{favoriteCount}</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-
             {/* Empyrean filter */}
             {activeLibrary === 'empyrean' && (
               <div className="flex gap-1.5">
@@ -427,26 +401,74 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
               </div>
             )}
 
-            {/* Random / Surprise Me */}
-            <div className="flex gap-2">
-              <button
-                onClick={pickRandom}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] rounded-xl text-sm font-medium bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white transition-all"
-              >
-                <Shuffle className="w-4 h-4" />
-                Random
-              </button>
-              <button
-                onClick={surpriseMe}
-                className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl text-sm font-medium bg-gradient-to-r from-amber-500 via-red-500 to-purple-600 hover:from-amber-400 hover:via-red-400 hover:to-purple-500 text-white animate-pulse hover:animate-none transition-all"
-              >
-                <Sparkles className="w-4 h-4" />
-                🎰
-              </button>
-            </div>
+            {/* Random / Surprise Me — show in browse mode or empyrean */}
+            {(view === 'browse' || activeLibrary === 'empyrean') && (
+              <div className="flex gap-2">
+                <button
+                  onClick={pickRandom}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] rounded-xl text-sm font-medium bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white transition-all"
+                >
+                  <Shuffle className="w-4 h-4" />
+                  Random
+                </button>
+                <button
+                  onClick={surpriseMe}
+                  className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl text-sm font-medium bg-gradient-to-r from-amber-500 via-red-500 to-purple-600 hover:from-amber-400 hover:via-red-400 hover:to-purple-500 text-white animate-pulse hover:animate-none transition-all"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  🎰
+                </button>
+              </div>
+            )}
 
-            {/* Infinity Stones Accordion */}
-            {activeLibrary === 'infinity' && (
+            {/* Mood gateway vs browse for infinity stones */}
+            {activeLibrary === 'infinity' && view === 'moods' && (
+              <MoodGateway
+                allPrompts={characterPrompts}
+                onUsePrompt={processAndUse}
+                onBrowseAll={() => setView('browse')}
+                accentColor="#f43f5e"
+              />
+            )}
+
+            {activeLibrary === 'infinity' && view === 'browse' && (
+              <>
+              {/* Back to moods */}
+              <button
+                onClick={() => setView('moods')}
+                className="flex items-center gap-2 text-sm text-white/50 hover:text-white/80 transition-colors pt-2 min-h-[44px]"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to moods
+              </button>
+
+              {/* Intensity filters */}
+              <div className="flex gap-1.5 flex-wrap">
+                {intensityLevels.map((level) => (
+                  <button
+                    key={level.id}
+                    onClick={() => { setSelectedIntensity(level.id); try { localStorage.setItem('novel-prompt-intensity', level.id); } catch {} }}
+                    className={cn(
+                      'flex items-center gap-1 px-2.5 py-2 rounded-full text-xs font-medium min-h-[44px]',
+                      'transition-all duration-200 border',
+                      selectedIntensity === level.id ? 'scale-105' : 'opacity-60 hover:opacity-100'
+                    )}
+                    style={{
+                      backgroundColor: selectedIntensity === level.id ? `${level.color}20` : 'transparent',
+                      borderColor: selectedIntensity === level.id ? level.color : 'rgba(255,255,255,0.1)',
+                      color: selectedIntensity === level.id ? level.color : 'rgba(255,255,255,0.5)',
+                    }}
+                  >
+                    <span>{level.icon}</span>
+                    <span>{level.label}</span>
+                    {level.id === 'favorites' && favoriteCount > 0 && (
+                      <span className="ml-0.5 text-[10px] bg-yellow-500/30 text-yellow-400 px-1.5 rounded-full">{favoriteCount}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              {/* Infinity Stones Accordion */}
               <Accordion type="single" collapsible value={expandedStone} onValueChange={setExpandedStone} className="w-full space-y-2">
                 {infinityStones.map((stone) => {
                   const rawPrompts = filterByIntensity(getPromptsForStone(stone.id));
@@ -489,6 +511,7 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
                   );
                 })}
               </Accordion>
+              </>
             )}
 
             {/* Empyrean Stones Accordion */}
