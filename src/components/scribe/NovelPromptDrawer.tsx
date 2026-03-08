@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { Gem, Star, Shuffle, Sparkles, Play, X, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { characterPrompts, type CharacterPrompt } from '@/lib/characterPrompts';
+import { characterPrompts, type CharacterPrompt, DEADPOOL_PROMPT_IDS, PROMPT_HINTS } from '@/lib/characterPrompts';
 import { groupBySubcategory, isMasterworkStone } from '@/lib/masterworkGrouping';
 import { empyreanPrompts, type EmpyreanPromptCategory } from '@/lib/empyreanPrompts';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
@@ -266,6 +266,9 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
             <span className="text-base shrink-0">{prompt.icon}</span>
             <span className="text-sm text-white/90 font-medium">{prompt.title}</span>
             <AlignmentBadge promptId={prompt.id} />
+            {DEADPOOL_PROMPT_IDS.has(prompt.id) && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded shrink-0 bg-red-500/20 text-red-400">🃏</span>
+            )}
             {intensityConfig && (
               <span className="text-[10px] px-1.5 py-0.5 rounded shrink-0" style={{ backgroundColor: `${intensityConfig.color}20`, color: intensityConfig.color }}>
                 {intensityConfig.icon}
@@ -276,6 +279,9 @@ export function NovelPromptDrawer({ open, onOpenChange, characterName, onUseProm
             )}
           </div>
           {prompt.description && <p className="text-xs text-white/40 mt-0.5 leading-relaxed">{prompt.description}</p>}
+          {PROMPT_HINTS.has(prompt.id) && (
+            <p className="text-[11px] text-amber-400/50 italic mt-0.5">💡 Try when: {PROMPT_HINTS.get(prompt.id)}</p>
+          )}
         </div>
         <button
           onClick={() => processAndUse(prompt)}

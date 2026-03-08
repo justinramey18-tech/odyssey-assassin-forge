@@ -3,7 +3,7 @@ import { Gem, Copy, Check, Shuffle, Sparkles, Star, Download, Upload } from 'luc
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { EdgeDrawer } from './EdgeDrawer';
-import { characterPrompts, CharacterPrompt } from '@/lib/characterPrompts';
+import { characterPrompts, CharacterPrompt, DEADPOOL_PROMPT_IDS, PROMPT_HINTS } from '@/lib/characterPrompts';
 import { groupBySubcategory, isMasterworkStone } from '@/lib/masterworkGrouping';
 import { applyTimePrefix } from '@/lib/fourthWallTime';
 import { useAlignmentDrift } from '@/hooks/useAlignmentDrift';
@@ -454,6 +454,9 @@ export function InfinityStoneDrawer({
                                     </span>
                                     <AlignmentBadge promptId={prompt.id} />
                                   </button>
+                                  {DEADPOOL_PROMPT_IDS.has(prompt.id) && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded shrink-0 bg-red-500/20 text-red-400">🃏</span>
+                                  )}
                                   {intensityConfig && (
                                     <span 
                                       className="text-[10px] px-1.5 py-0.5 rounded shrink-0"
@@ -472,6 +475,9 @@ export function InfinityStoneDrawer({
                                   <p className="text-xs text-muted-foreground pl-7 leading-relaxed cursor-pointer" onClick={() => copyToClipboard(prompt)}>
                                     {prompt.description}
                                   </p>
+                                )}
+                                {PROMPT_HINTS.has(prompt.id) && (
+                                  <p className="text-[11px] text-amber-400/50 italic pl-7 mt-0.5">💡 Try when: {PROMPT_HINTS.get(prompt.id)}</p>
                                 )}
                               </div>
                             );
@@ -527,6 +533,9 @@ export function InfinityStoneDrawer({
                               </span>
                               <AlignmentBadge promptId={prompt.id} />
                             </button>
+                            {DEADPOOL_PROMPT_IDS.has(prompt.id) && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded shrink-0 bg-red-500/20 text-red-400">🃏</span>
+                            )}
                             {intensityConfig && (
                               <span 
                                 className="text-[10px] px-1.5 py-0.5 rounded shrink-0"
@@ -554,6 +563,9 @@ export function InfinityStoneDrawer({
                             >
                               {prompt.description}
                             </p>
+                          )}
+                          {PROMPT_HINTS.has(prompt.id) && (
+                            <p className="text-[11px] text-amber-400/50 italic pl-7 mt-0.5">💡 Try when: {PROMPT_HINTS.get(prompt.id)}</p>
                           )}
                         </div>
                       );
