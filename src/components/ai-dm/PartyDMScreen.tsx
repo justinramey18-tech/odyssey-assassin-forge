@@ -1730,8 +1730,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           </div>
         )}
 
-        {/* Host generate button (always visible for host when prompts exist) */}
-        {isCreator && !partyDm.isGenerating && hasSubmitted && !isReady && partyDm.currentPrompts.length > 0 && (
+        {/* Host generate button (always visible for host when prompts exist) — hidden in human mode */}
+        {isCreator && !partyDm.isGenerating && hasSubmitted && !isReady && partyDm.currentPrompts.length > 0 && (partyDm.sessionConfig?.dmMode || 'ai') !== 'human' && (
           <div className="mt-2 flex justify-end max-w-2xl mx-auto">
             <Button
               onClick={partyDm.generateResponse}
@@ -1740,7 +1740,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               className="gap-1.5 text-amber-300 border-amber-500/30"
             >
               <Zap className="w-3.5 h-3.5" />
-              Generate Now
+              {(partyDm.sessionConfig?.dmMode === 'ai-approval') ? 'Generate Draft' : 'Generate Now'}
             </Button>
           </div>
         )}
