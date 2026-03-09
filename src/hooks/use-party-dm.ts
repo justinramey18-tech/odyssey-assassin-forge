@@ -10,6 +10,8 @@ import { parseWhispers } from '@/lib/whisper-parser';
 import { loadCombatSettings } from '@/lib/combat/combatSettings';
 import { formatPartyPowerForPrompt } from '@/lib/combat/encounterDifficulty';
 import { getAlignmentZone, type AlignmentScore } from '@/lib/alignmentSpectrum';
+import { SYNTHESIS_SYSTEM_PROMPT, SINGLE_PROMPT_SYNTHESIS_PROMPT, type SynthesisResult } from '@/lib/narrative-synthesis-prompt';
+import { useSynthesisMemory } from '@/hooks/use-synthesis-memory';
 
 function loadAlignmentDrift(): { position: AlignmentScore; zone: string } | null {
   try {
