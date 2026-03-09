@@ -2012,6 +2012,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     currentPrompts,
     sessionConfig,
     isActive,
+    synthesisMode,
     isGenerating: isGenerating || (sessionConfig?.isGenerating ?? false),
     isSummarizing,
     allReady,
