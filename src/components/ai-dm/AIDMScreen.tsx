@@ -359,6 +359,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const gmGuides = useGMGuides(undefined, 'solo');
   const { toast } = useToast();
   const narrator = useNarrator();
+  const { themeId: chatThemeId, theme: chatTheme, setTheme: setChatTheme } = useDMChatTheme();
   const spotify = useSpotify();
   const [ttsSelectMode, setTtsSelectMode] = useState(false);
   const [ttsSelectedIds, setTtsSelectedIds] = useState<Set<string>>(new Set());
