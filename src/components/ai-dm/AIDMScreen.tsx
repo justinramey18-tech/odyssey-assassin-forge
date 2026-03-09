@@ -823,6 +823,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
                     </div>
                     <span className={cn("text-sm italic", chatTheme.loadingColor)}>
                       {chatTheme.loadingText}
+                    </span>
                   </motion.div>
                 )}
               </>
