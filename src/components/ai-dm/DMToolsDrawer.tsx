@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { RotateCcw, Map, FolderOpen, BookOpen, Globe, Zap, Trash2, Brain, Cpu } from 'lucide-react';
+import { RotateCcw, Map, FolderOpen, BookOpen, Globe, Zap, Trash2, Brain, Cpu, Palette } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import {
@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
+import { DM_CHAT_THEMES, DMChatThemeId } from '@/lib/dm-chat-themes';
 
 interface DMToolsDrawerProps {
   open: boolean;
@@ -36,6 +37,8 @@ interface DMToolsDrawerProps {
   onEmpyreanPrompts?: () => void;
   selectedModel?: string;
   onModelChange?: (modelId: string) => void;
+  chatThemeId?: DMChatThemeId;
+  onChatThemeChange?: (id: DMChatThemeId) => void;
 }
 
 export function DMToolsDrawer({
@@ -58,6 +61,8 @@ export function DMToolsDrawer({
   onEmpyreanPrompts,
   selectedModel,
   onModelChange,
+  chatThemeId,
+  onChatThemeChange,
 }: DMToolsDrawerProps) {
   const [showRetakeConfirm, setShowRetakeConfirm] = useState(false);
 
@@ -83,7 +88,7 @@ export function DMToolsDrawer({
           </SheetTitle>
         </SheetHeader>
 
-        <div className="flex flex-col py-2">
+        <div className="flex flex-col py-2 overflow-y-auto max-h-[calc(100vh-80px)]">
           {/* New Campaign */}
           <ToolRow
             icon={<RotateCcw className="w-4 h-4" />}
@@ -156,6 +161,47 @@ export function DMToolsDrawer({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          )}
+
+          {/* Chat Theme Selector */}
+          {onChatThemeChange && (
+            <div className="px-4 py-3 hover:bg-white/5 transition-colors">
+              <div className="flex items-center gap-3 mb-2.5">
+                <span className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-900/30 text-amber-400">
+                  <Palette className="w-4 h-4" />
+                </span>
+                <span className="text-sm font-cinzel text-white/80">Chat Theme</span>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {DM_CHAT_THEMES.map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => onChatThemeChange(t.id)}
+                    className={cn(
+                      "flex flex-col items-center gap-1 p-2 rounded-lg transition-all border",
+                      chatThemeId === t.id
+                        ? "border-amber-400/60 bg-white/10"
+                        : "border-transparent hover:bg-white/5"
+                    )}
+                    style={{ touchAction: 'manipulation' }}
+                    title={t.description}
+                  >
+                    <div className="flex gap-0.5">
+                      {t.swatch.map((color, i) => (
+                        <div
+                          key={i}
+                          className="w-3 h-3 rounded-full border border-white/10"
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-[9px] text-white/60 leading-tight text-center truncate w-full">
+                      {t.icon} {t.name}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
