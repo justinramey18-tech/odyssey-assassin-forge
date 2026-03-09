@@ -820,7 +820,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         body: JSON.stringify({
           messages: [{ role: 'user', content: userMessage }],
           systemPromptOverride: systemPrompt,
-          modelOverride: 'google/gemini-2.5-flash-lite',
+          model: 'google/gemini-2.5-flash-lite',
         }),
       });
 
