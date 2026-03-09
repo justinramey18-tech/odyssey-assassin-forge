@@ -81,6 +81,9 @@ const ALL_STORAGE_KEYS = [
   'dnd-character-backstory',
   'dnd-character-relationships',
 
+  // Narrative synthesis
+  'odyssey-synthesis-recent-modes',
+
   // PWA
   'pwa-banner-dismissed',
 ] as const;

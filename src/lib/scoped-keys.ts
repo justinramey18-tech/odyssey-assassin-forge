@@ -79,4 +79,6 @@ export const SCOPED_KEYS = [
   'dnd-character-race',
   'dnd-character-backstory',
   'dnd-character-relationships',
+  // Narrative synthesis
+  'odyssey-synthesis-recent-modes',
 ] as const;
