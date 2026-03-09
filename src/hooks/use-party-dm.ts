@@ -1177,9 +1177,21 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       } else {
         // === NORMAL MODE ===
         const { guidesSection: afkGuidesSection, promptSection: afkPromptSection, consumedCascades: normalConsumed } = buildAfkGuidesContext(readyPrompts);
-        const combined = readyPrompts
+        const rawCombined = readyPrompts
           .map(formatPromptLine)
           .join('\n') + afkPromptSection;
+
+        // --- Prompt Synthesis ---
+        const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant');
+        const synthesis = await synthesizePrompts(readyPrompts, lastAssistant?.content || null);
+        let combined = rawCombined;
+        let narrativeDirectionGuide = '';
+        if (synthesis) {
+          combined = `<!-- SYNTHESIS: mode=${synthesis.mode} spine=${synthesis.spine} focus=${synthesis.focusCharacter} -->\n${synthesis.fusedPrompt}`;
+          narrativeDirectionGuide = `\n\n## NARRATIVE DIRECTION\nPresentation mode: ${synthesis.mode}. Focus character: ${synthesis.focusCharacter}. Narrative spine: ${synthesis.spine}`;
+          addMode(synthesis.mode);
+          setSynthesisMode(synthesis.mode);
+        }
 
         const isApprovalMode = (sessionConfig.dmMode || 'ai') === 'ai-approval';
 
@@ -1188,7 +1200,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           await insertPartyMessage({
             party_id: partyId,
             role: 'user',
-            content: combined,
+            content: rawCombined, // Store raw prompts for readability
             sender_user_id: user.id,
             sender_name: 'Party',
           });
@@ -1202,6 +1214,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           customGuidesContent || '',
           `\n\n## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
           afkGuidesSection,
+          narrativeDirectionGuide,
         ].filter(Boolean).join('\n\n');
 
         const assistantContent = await streamAIResponse(apiMessages, guides, abortRef.current!.signal);
