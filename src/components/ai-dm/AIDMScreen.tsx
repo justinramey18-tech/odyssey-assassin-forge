@@ -812,15 +812,17 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
                         if (next.has(id)) next.delete(id); else next.add(id);
                         return next;
                       })}
+                      theme={chatTheme}
                     />
                   ))}
                 </AnimatePresence>
                 {isLoading && messages[messages.length - 1]?.role === 'user' && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2 items-center">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-amber-900/60 border border-amber-500/40">
-                      <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                    <div className={cn("w-8 h-8 rounded-full flex items-center justify-center shrink-0", chatTheme.dmAvatar)}>
+                      <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'currentColor', borderTopColor: 'transparent' }} />
                     </div>
-                    <span className="text-sm text-amber-400/60 italic">The DM weaves the tale...</span>
+                    <span className={cn("text-sm italic", chatTheme.loadingColor)}>
+                      {chatTheme.loadingText}
                   </motion.div>
                 )}
               </>
