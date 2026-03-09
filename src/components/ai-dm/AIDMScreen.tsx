@@ -298,7 +298,9 @@ function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, t
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className={cn(
-                "absolute top-0 z-20 bg-[#1a1520] border border-amber-500/30 rounded-xl shadow-xl p-1 flex flex-col gap-0.5 sm:hidden",
+                "absolute top-0 z-20 border rounded-xl shadow-xl p-1 flex flex-col gap-0.5 sm:hidden",
+                theme?.actionMenuBg || "bg-[#1a1520]",
+                theme?.actionMenuBorder || "border-amber-500/30",
                 isUser ? "left-0" : "right-0"
               )}
             >
@@ -325,7 +327,7 @@ function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, t
 
       {/* User Avatar */}
       {isUser && (
-        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+        <div className={cn("w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0", theme?.userAvatar || "bg-white/10")}>
           <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/70" />
         </div>
       )}
