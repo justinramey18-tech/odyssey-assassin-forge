@@ -1017,8 +1017,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
                 className={cn(
                   "p-2.5 rounded-xl border shrink-0 transition-colors",
                   input.trim()
-                    ? (chatTheme.sendBtnActive)
-                    : "bg-white/5 border-white/10 opacity-40"
+                    ? chatTheme.sendBtnActive
                     : "bg-white/5 border-white/10 opacity-40"
                 )}
                 style={{ touchAction: 'manipulation' }}
