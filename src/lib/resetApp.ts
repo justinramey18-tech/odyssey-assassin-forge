@@ -72,6 +72,9 @@ const ALL_STORAGE_KEYS = [
   'odyssey-combat-synthesis-mode',
   'odyssey-combat-chaos-level',
   
+  // DM chat theme
+  'odyssey-dm-chat-theme',
+  
   // Character Identity
   'dnd-character-gender',
   'dnd-character-race',

@@ -37,6 +37,8 @@ import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
 import { InlineBattleMap } from './InlineBattleMap';
 import ReactMarkdown from 'react-markdown';
 import { useNarrator } from '@/hooks/use-narrator';
+import { useDMChatTheme } from '@/hooks/use-dm-chat-theme';
+import type { DMChatTheme } from '@/lib/dm-chat-themes';
 
 import type { MapMarker } from '@/components/party/battlemap/types';
 
@@ -72,9 +74,10 @@ interface DMMessageBubbleProps {
   ttsSelectMode?: boolean;
   ttsSelected?: boolean;
   onTtsToggle?: (id: string) => void;
+  theme?: DMChatTheme;
 }
 
-function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, ttsSelectMode, ttsSelected, onTtsToggle }: DMMessageBubbleProps) {
+function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, ttsSelectMode, ttsSelected, onTtsToggle, theme }: DMMessageBubbleProps) {
   const isUser = message.role === 'user';
   const videoMatch = message.content.match(VIDEO_REGEX);
   const imageMatch = !videoMatch ? message.content.match(IMAGE_REGEX) : null;
@@ -143,8 +146,8 @@ function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, t
       )}
       {/* DM Avatar */}
       {!isUser && (
-        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 bg-amber-900/60 border border-amber-500/40">
-          <Crown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
+        <div className={cn("w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0", theme?.dmAvatar || "bg-amber-900/60 border border-amber-500/40")}>
+          <Crown className={cn("w-3.5 h-3.5 sm:w-4 sm:h-4", theme?.dmAvatarIconColor || "text-amber-400")} />
         </div>
       )}
 
@@ -154,8 +157,8 @@ function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, t
           className={cn(
             'rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-2.5 overflow-hidden',
             isUser
-              ? 'bg-white/10 text-white rounded-br-sm border border-white/10'
-              : 'bg-amber-950/50 border border-amber-500/20 rounded-bl-sm'
+              ? (theme?.userBubble || 'bg-white/10 text-white rounded-br-sm border border-white/10')
+              : (theme?.dmBubble || 'bg-amber-950/50 border border-amber-500/20 rounded-bl-sm')
           )}
         >
           {isEditing ? (
@@ -219,19 +222,19 @@ function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, t
               <ReactMarkdown
                 components={{
                   p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                  strong: ({ children }) => <strong className="text-amber-300">{children}</strong>,
-                  em: ({ children }) => <em className="text-white/70">{children}</em>,
+                  strong: ({ children }) => <strong className={theme?.accentColor || 'text-amber-300'}>{children}</strong>,
+                  em: ({ children }) => <em className={theme?.emColor || 'text-white/70'}>{children}</em>,
                   ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
                   ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
                   li: ({ children }) => <li className="mb-1">{children}</li>,
-                  code: ({ children }) => <code className="bg-black/30 px-1 rounded text-xs">{children}</code>,
-                  h1: ({ children }) => <h1 className="text-lg font-cinzel text-amber-300 mb-2">{children}</h1>,
-                  h2: ({ children }) => <h2 className="text-base font-cinzel text-amber-300 mb-2">{children}</h2>,
-                  h3: ({ children }) => <h3 className="text-sm font-cinzel text-amber-300 mb-1">{children}</h3>,
+                  code: ({ children }) => <code className={cn("px-1 rounded text-xs", theme?.codeBg || "bg-black/30")}>{children}</code>,
+                  h1: ({ children }) => <h1 className={cn("text-lg font-cinzel mb-2", theme?.headingColor || "text-amber-300")}>{children}</h1>,
+                  h2: ({ children }) => <h2 className={cn("text-base font-cinzel mb-2", theme?.headingColor || "text-amber-300")}>{children}</h2>,
+                  h3: ({ children }) => <h3 className={cn("text-sm font-cinzel mb-1", theme?.headingColor || "text-amber-300")}>{children}</h3>,
                   blockquote: ({ children }) => (
-                    <blockquote className="border-l-2 border-amber-500/40 pl-3 italic text-white/60 my-2">{children}</blockquote>
+                    <blockquote className={cn("border-l-2 pl-3 italic text-white/60 my-2", theme?.blockquoteBorder || "border-amber-500/40")}>{children}</blockquote>
                   ),
-                  hr: () => <hr className="border-amber-500/20 my-3" />,
+                  hr: () => <hr className={cn("my-3", theme?.hrColor || "border-amber-500/20")} />,
                 }}
               >
                 {message.content || '...'}
@@ -295,7 +298,9 @@ function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, t
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className={cn(
-                "absolute top-0 z-20 bg-[#1a1520] border border-amber-500/30 rounded-xl shadow-xl p-1 flex flex-col gap-0.5 sm:hidden",
+                "absolute top-0 z-20 border rounded-xl shadow-xl p-1 flex flex-col gap-0.5 sm:hidden",
+                theme?.actionMenuBg || "bg-[#1a1520]",
+                theme?.actionMenuBorder || "border-amber-500/30",
                 isUser ? "left-0" : "right-0"
               )}
             >
@@ -322,7 +327,7 @@ function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, t
 
       {/* User Avatar */}
       {isUser && (
-        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+        <div className={cn("w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0", theme?.userAvatar || "bg-white/10")}>
           <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/70" />
         </div>
       )}
@@ -354,6 +359,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const gmGuides = useGMGuides(undefined, 'solo');
   const { toast } = useToast();
   const narrator = useNarrator();
+  const { themeId: chatThemeId, theme: chatTheme, setTheme: setChatTheme } = useDMChatTheme();
   const spotify = useSpotify();
   const [ttsSelectMode, setTtsSelectMode] = useState(false);
   const [ttsSelectedIds, setTtsSelectedIds] = useState<Set<string>>(new Set());
@@ -776,7 +782,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         <>
           <div
             ref={scrollRef}
-            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain pb-[100px]"
+            className={cn("flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain pb-[100px]", chatTheme.chatBg)}
           >
 
             {messages.length === 0 ? (
@@ -806,15 +812,18 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
                         if (next.has(id)) next.delete(id); else next.add(id);
                         return next;
                       })}
+                      theme={chatTheme}
                     />
                   ))}
                 </AnimatePresence>
                 {isLoading && messages[messages.length - 1]?.role === 'user' && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2 items-center">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-amber-900/60 border border-amber-500/40">
-                      <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                    <div className={cn("w-8 h-8 rounded-full flex items-center justify-center shrink-0", chatTheme.dmAvatar)}>
+                      <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'currentColor', borderTopColor: 'transparent' }} />
                     </div>
-                    <span className="text-sm text-amber-400/60 italic">The DM weaves the tale...</span>
+                    <span className={cn("text-sm italic", chatTheme.loadingColor)}>
+                      {chatTheme.loadingText}
+                    </span>
                   </motion.div>
                 )}
               </>
@@ -990,7 +999,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
               onPaste={handlePaste}
               placeholder="What do you do?"
               rows={1}
-              className="flex-1 bg-white/5 border border-amber-900/30 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-amber-500/40 resize-none min-h-[42px] max-h-[200px]"
+              className={cn("flex-1 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none resize-none min-h-[42px] max-h-[200px]", chatTheme.inputBg, chatTheme.inputBorder, "border focus:border-amber-500/40")}
               disabled={isLoading}
             />
             {isLoading ? (
@@ -1008,7 +1017,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
                 className={cn(
                   "p-2.5 rounded-xl border shrink-0 transition-colors",
                   input.trim()
-                    ? "bg-amber-900/40 border-amber-500/30 hover:bg-amber-900/60"
+                    ? chatTheme.sendBtnActive
                     : "bg-white/5 border-white/10 opacity-40"
                 )}
                 style={{ touchAction: 'manipulation' }}
@@ -1148,6 +1157,8 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         dmPersonaName={dmPersonaName}
         selectedModel={selectedModel}
         onModelChange={(id) => { setSelectedModel(id); saveSelectedModel(id); }}
+        chatThemeId={chatThemeId}
+        onChatThemeChange={setChatTheme}
       />
 
       {/* GM Guides Overlay */}

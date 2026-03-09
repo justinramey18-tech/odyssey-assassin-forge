@@ -72,6 +72,8 @@ export const SCOPED_KEYS = [
   // DM input drafts
   'odyssey-solo-dm-draft',
   'odyssey-party-dm-draft',
+  // DM chat theme
+  'odyssey-dm-chat-theme',
   // Character Identity
   'dnd-character-gender',
   'dnd-character-race',
