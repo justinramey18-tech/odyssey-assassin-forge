@@ -68,6 +68,7 @@ export interface SaveData {
   };
   partyId?: string | null;
   backgroundUrl?: string | null;
+  dmChatTheme?: string | null;
   savedAt: string;
   version: number;
 }
