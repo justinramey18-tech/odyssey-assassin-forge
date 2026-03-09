@@ -13,6 +13,7 @@ import { OraclePanel } from '@/components/oracle/OraclePanel';
 import { PartyDMSettings } from './PartyDMSettings';
 import { DMComposePanel } from './DMComposePanel';
 import { DraftReviewPanel } from './DraftReviewPanel';
+import { SynthesisReviewPanel } from './SynthesisReviewPanel';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { CampaignDropdown } from './CampaignDropdown';
 import { cn } from '@/lib/utils';
@@ -1064,8 +1065,17 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               </div>
             </motion.div>
           )}
+          {/* Pending synthesis indicator for non-hosts */}
+          {!isCreator && !partyDm.isGenerating && partyDm.pendingSynthesis && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2 items-center">
+              <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-amber-900/40 border border-amber-500/30">
+                <Zap className="w-3.5 h-3.5 text-amber-400" />
+              </div>
+              <span className="text-sm text-amber-400/60 italic">Host is reviewing synthesized prompts...</span>
+            </motion.div>
+          )}
           {/* Pending draft indicator for non-hosts in approval mode */}
-          {!isCreator && !partyDm.isGenerating && partyDm.pendingDraft && (
+          {!isCreator && !partyDm.isGenerating && !partyDm.pendingSynthesis && partyDm.pendingDraft && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2 items-center">
               <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-blue-900/40 border border-blue-500/30">
                 <Pencil className="w-3.5 h-3.5 text-blue-400" />
@@ -1519,8 +1529,16 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       {/* Input Area */}
       {!isFullscreen && (
       <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm mb-[48px]">
-        {/* AI Approval mode: show draft review panel for host when draft exists */}
-        {isCreator && partyDm.pendingDraft ? (
+        {/* Synthesis approval: show to host when synthesis is pending */}
+        {isCreator && partyDm.pendingSynthesis ? (
+          <SynthesisReviewPanel
+            synthesis={partyDm.pendingSynthesis.synthesis}
+            rawPrompts={partyDm.pendingSynthesis.rawPrompts}
+            onApprove={partyDm.approveSynthesis}
+            onDiscard={partyDm.discardSynthesis}
+            onRegenerate={partyDm.regenerateSynthesis}
+          />
+        ) : isCreator && partyDm.pendingDraft ? (
           <DraftReviewPanel
             draftContent={partyDm.pendingDraft.content}
             onApprove={partyDm.approveDraft}
