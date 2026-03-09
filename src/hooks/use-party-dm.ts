@@ -1217,14 +1217,30 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         // --- Prompt Synthesis ---
         const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant');
         const synthesis = await synthesizePrompts(readyPrompts, lastAssistant?.content || null);
+        
+        // If synthesis succeeded, pause for host approval before sending to DM
+        if (synthesis) {
+          setSynthesisMode(synthesis.mode);
+          setPendingSynthesis({
+            synthesis,
+            rawPrompts: readyPrompts.map(p => ({ character_name: p.character_name, prompt: p.prompt })),
+            rawCombined,
+            afkGuidesSection,
+            normalConsumed,
+          });
+          // Release generation lock but keep prompts — host will approve/discard
+          await (supabase.from('party_shared_state') as any)
+            .update({ state_data: { ...sessionConfig, isGenerating: false } })
+            .eq('party_id', partyId)
+            .eq('state_type', 'dm_session');
+          setIsGenerating(false);
+          setSynthesisMode(null);
+          return; // Exit — resumption happens via approveSynthesis
+        }
+
+        // Synthesis failed — fall back to raw concatenation (no approval step)
         let combined = rawCombined;
         let narrativeDirectionGuide = '';
-        if (synthesis) {
-          combined = `<!-- SYNTHESIS: mode=${synthesis.mode} spine=${synthesis.spine} focus=${synthesis.focusCharacter} -->\n${synthesis.fusedPrompt}`;
-          narrativeDirectionGuide = `\n\n## NARRATIVE DIRECTION\nPresentation mode: ${synthesis.mode}. Focus character: ${synthesis.focusCharacter}. Narrative spine: ${synthesis.spine}`;
-          addMode(synthesis.mode);
-          setSynthesisMode(synthesis.mode);
-        }
 
         const isApprovalMode = (sessionConfig.dmMode || 'ai') === 'ai-approval';
 
