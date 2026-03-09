@@ -782,7 +782,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         <>
           <div
             ref={scrollRef}
-            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain pb-[100px]"
+            className={cn("flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain pb-[100px]", chatTheme.chatBg)}
           >
 
             {messages.length === 0 ? (
