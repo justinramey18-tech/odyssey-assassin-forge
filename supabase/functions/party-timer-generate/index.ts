@@ -466,12 +466,25 @@ async function handleScheduledRound(
             narrativeDirectionGuide = `\n\n## NARRATIVE DIRECTION\nPresentation mode: ${result.mode}. Focus character: ${result.focusCharacter}. Narrative spine: ${result.spine}`;
             // Update synthesis memory
             const updatedModes = [...recentModes, result.mode].slice(-3);
-            await supabase.from("party_shared_state").upsert({
-              party_id: partyId,
-              state_type: "synthesis_memory",
-              state_data: { modes: updatedModes },
-              user_id: party?.created_by || event.created_by,
-            }, { onConflict: "party_id,state_type" });
+            // Update or insert synthesis memory
+            const { data: existingMem } = await supabase
+              .from("party_shared_state")
+              .select("id")
+              .eq("party_id", partyId)
+              .eq("state_type", "synthesis_memory")
+              .single();
+            if (existingMem) {
+              await supabase.from("party_shared_state")
+                .update({ state_data: { modes: updatedModes } })
+                .eq("id", existingMem.id);
+            } else {
+              await supabase.from("party_shared_state").insert({
+                party_id: partyId,
+                state_type: "synthesis_memory",
+                state_data: { modes: updatedModes },
+                user_id: party?.created_by || event.created_by,
+              });
+            }
             console.log(`[Synthesizer] Mode: ${result.mode} | Spine: ${result.spine}`);
           }
         }
