@@ -504,6 +504,14 @@ async function handleScheduledRound(
         content: m.content as string,
       }));
 
+    // Replace last user message with synthesized prompt if synthesis succeeded
+    if (narrativeDirectionGuide && apiMessages.length > 0) {
+      const lastIdx = apiMessages.length - 1;
+      if (apiMessages[lastIdx].role === 'user') {
+        apiMessages[lastIdx] = { ...apiMessages[lastIdx], content: combinedPrompt };
+      }
+    }
+
     // 9. Fetch GM guides
     let customGuides: string | null = null;
     const { data: party } = await supabase
