@@ -968,6 +968,27 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
   }, [partyId]);
 
+  // Shared helper: insert a party DM message and update local state
+  const insertPartyMessageHelper = useCallback(async (pId: string, insertData: Record<string, unknown>) => {
+    const { data, error } = await (supabase.from('party_dm_messages') as any)
+      .insert(insertData)
+      .select('*')
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to save message: ${error.message}`);
+    }
+
+    if (data) {
+      setMessages(prev => {
+        if (prev.some(m => m.id === data.id)) return prev;
+        return [...prev, data as PartyDmMessage];
+      });
+    }
+
+    return data as PartyDmMessage | null;
+  }, []);
+
   const generateResponse = useCallback(async () => {
     if (!partyId || !user || !sessionConfig || isGenerating) return;
 
@@ -980,25 +1001,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     const formatPromptLine = (p: PartyDmPrompt) =>
       `[${p.character_name}]: ${p.prompt.trim() || '(no action)'}`;
 
-    const insertPartyMessage = async (insertData: Record<string, unknown>) => {
-      const { data, error } = await (supabase.from('party_dm_messages') as any)
-        .insert(insertData)
-        .select('*')
-        .single();
-
-      if (error) {
-        throw new Error(`Failed to save message: ${error.message}`);
-      }
-
-      if (data) {
-        setMessages(prev => {
-          if (prev.some(m => m.id === data.id)) return prev;
-          return [...prev, data as PartyDmMessage];
-        });
-      }
-
-      return data as PartyDmMessage | null;
-    };
+    const insertPartyMessage = insertPartyMessageHelper;
 
     setIsGenerating(true);
 
