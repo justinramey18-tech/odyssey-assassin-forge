@@ -126,6 +126,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const [isGenerating, setIsGenerating] = useState(false);
   const [pendingDraft, setPendingDraft] = useState<{ content: string; userContent: string; userSenderName: string } | null>(null);
   const [synthesisMode, setSynthesisMode] = useState<string | null>(null);
+  const [pendingSynthesis, setPendingSynthesis] = useState<{
+    synthesis: SynthesisResult;
+    rawPrompts: Array<{ character_name: string; prompt: string }>;
+    rawCombined: string;
+    afkGuidesSection: string;
+    normalConsumed: { userId: string; remainingCascade: string[] }[];
+  } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const autoGenTimerRef = useRef<NodeJS.Timeout | null>(null);
   const { recentModes, addMode } = useSynthesisMemory();
