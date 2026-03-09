@@ -146,8 +146,8 @@ function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, t
       )}
       {/* DM Avatar */}
       {!isUser && (
-        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 bg-amber-900/60 border border-amber-500/40">
-          <Crown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
+        <div className={cn("w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0", theme?.dmAvatar || "bg-amber-900/60 border border-amber-500/40")}>
+          <Crown className={cn("w-3.5 h-3.5 sm:w-4 sm:h-4", theme?.dmAvatarIconColor || "text-amber-400")} />
         </div>
       )}
 
@@ -157,8 +157,8 @@ function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, t
           className={cn(
             'rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-2.5 overflow-hidden',
             isUser
-              ? 'bg-white/10 text-white rounded-br-sm border border-white/10'
-              : 'bg-amber-950/50 border border-amber-500/20 rounded-bl-sm'
+              ? (theme?.userBubble || 'bg-white/10 text-white rounded-br-sm border border-white/10')
+              : (theme?.dmBubble || 'bg-amber-950/50 border border-amber-500/20 rounded-bl-sm')
           )}
         >
           {isEditing ? (
