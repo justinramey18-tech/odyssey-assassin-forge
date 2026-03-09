@@ -1157,6 +1157,8 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         dmPersonaName={dmPersonaName}
         selectedModel={selectedModel}
         onModelChange={(id) => { setSelectedModel(id); saveSelectedModel(id); }}
+        chatThemeId={chatThemeId}
+        onChatThemeChange={setChatTheme}
       />
 
       {/* GM Guides Overlay */}
