@@ -1001,7 +1001,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     const formatPromptLine = (p: PartyDmPrompt) =>
       `[${p.character_name}]: ${p.prompt.trim() || '(no action)'}`;
 
-    const insertPartyMessage = insertPartyMessageHelper;
+    const insertPartyMessage = (insertData: Record<string, unknown>) => insertPartyMessageHelper(partyId, insertData);
 
     setIsGenerating(true);
 
