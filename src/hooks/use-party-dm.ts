@@ -1087,14 +1087,26 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         if (betaPrompts.length > 0) {
           const { guidesSection: betaAfkGuides, promptSection: betaAfkPrompts, consumedCascades: betaConsumed } = buildAfkGuidesContext(betaPrompts, splitState.betaMembers);
           allConsumedCascades = [...allConsumedCascades, ...betaConsumed];
-          const betaCombined = betaPrompts
+          const betaRawCombined = betaPrompts
             .map(formatPromptLine)
             .join('\n') + betaAfkPrompts;
+
+          // Synthesize beta prompts
+          const betaLastAssistant = [...betaMessages].reverse().find(m => m.role === 'assistant');
+          const betaSynthesis = await synthesizePrompts(betaPrompts, betaLastAssistant?.content || null);
+          let betaForAI = betaRawCombined;
+          let betaDirectionGuide = '';
+          if (betaSynthesis) {
+            betaForAI = `<!-- SYNTHESIS: mode=${betaSynthesis.mode} -->\n${betaSynthesis.fusedPrompt}`;
+            betaDirectionGuide = `\n\n## NARRATIVE DIRECTION\nPresentation mode: ${betaSynthesis.mode}. Focus: ${betaSynthesis.focusCharacter}. Spine: ${betaSynthesis.spine}`;
+            addMode(betaSynthesis.mode);
+            setSynthesisMode(betaSynthesis.mode);
+          }
 
           await insertPartyMessage({
             party_id: partyId,
             role: 'user',
-            content: betaCombined,
+            content: betaRawCombined,
             sender_user_id: user.id,
             sender_name: splitState.betaName || 'Team Beta',
             team: 'beta',
@@ -1102,7 +1114,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
           const betaMembersSummary = buildPartyMembersGuide(splitState.betaMembers);
           const betaApiMsgs = betaMessages.map(m => ({ role: m.role, content: m.content }));
-          betaApiMsgs.push({ role: 'user', content: betaCombined });
+          betaApiMsgs.push({ role: 'user', content: betaForAI });
 
           const betaGuides = [
             customGuidesContent || '',
@@ -1110,6 +1122,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             splitState.alphaSummary ? `\n\n## OTHER TEAM CONTEXT (hidden from players)\n"${splitState.alphaName || 'Team Alpha'}"'s adventure summary (for narrative coherence only — do NOT reveal to "${splitState.betaName || 'Team Beta'}"):\n${splitState.alphaSummary}` : '',
             splitState.betaSummary ? `\n\n## PREVIOUS "${splitState.betaName || 'Team Beta'}" SUMMARY\n${splitState.betaSummary}` : '',
             betaAfkGuides,
+            betaDirectionGuide,
           ].filter(Boolean).join('\n\n');
 
           const betaContent = await streamAIResponse(betaApiMsgs, betaGuides, abortRef.current!.signal);
