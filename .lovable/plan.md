@@ -1,20 +1,21 @@
 
 
-## Fix: Run whisper enrichment after regeneration
+## Prompt Synthesizer — Host Approval Step
 
-**Single line change** in `src/hooks/use-party-dm.ts`, line 1421.
+After prompts are synthesized into a fused "director's note", the host sees a `SynthesisReviewPanel` with:
+- The selected presentation mode and focus character badges
+- The narrative spine (italic quote)
+- Raw player actions summary
+- The fused prompt text (editable)
+- Approve ("Send to DM"), Regenerate, and Skip buttons
 
-Replace the raw state update with one that calls `enrichMessageWithWhispers` on the updated message, so the `whispers` array and clean `narrative` are populated — exactly as they are during initial message loading.
+**Flow:**
+1. Prompts collected → synthesized → `pendingSynthesis` state set → generation lock released
+2. Host reviews/edits the fused prompt in `SynthesisReviewPanel`
+3. On approve: re-acquires generation lock, sends fused prompt to main DM
+4. On skip: clears `pendingSynthesis`, raw prompts remain for next round
+5. On regenerate: re-runs synthesis with same prompts
 
-**Before (line 1421):**
-```typescript
-setMessages(prev => prev.map(m => m.id === messageId ? { ...m, content: newContent } : m));
-```
+Non-host players see "Host is reviewing synthesized prompts..." indicator.
 
-**After:**
-```typescript
-setMessages(prev => prev.map(m => m.id === messageId ? enrichMessageWithWhispers({ ...m, content: newContent }, characterName) : m));
-```
-
-The `characterName` variable is already available in the hook's scope. This ensures the parsed whispers array is set on the message object, which the UI already knows how to render.
-
+Split mode bypasses this approval step (synthesis is applied directly).
