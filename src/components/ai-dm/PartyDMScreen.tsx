@@ -13,6 +13,7 @@ import { OraclePanel } from '@/components/oracle/OraclePanel';
 import { PartyDMSettings } from './PartyDMSettings';
 import { DMComposePanel } from './DMComposePanel';
 import { DraftReviewPanel } from './DraftReviewPanel';
+import { SynthesisReviewPanel } from './SynthesisReviewPanel';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { CampaignDropdown } from './CampaignDropdown';
 import { cn } from '@/lib/utils';
