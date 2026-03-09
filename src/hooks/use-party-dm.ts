@@ -10,6 +10,8 @@ import { parseWhispers } from '@/lib/whisper-parser';
 import { loadCombatSettings } from '@/lib/combat/combatSettings';
 import { formatPartyPowerForPrompt } from '@/lib/combat/encounterDifficulty';
 import { getAlignmentZone, type AlignmentScore } from '@/lib/alignmentSpectrum';
+import { SYNTHESIS_SYSTEM_PROMPT, SINGLE_PROMPT_SYNTHESIS_PROMPT, type SynthesisResult } from '@/lib/narrative-synthesis-prompt';
+import { useSynthesisMemory } from '@/hooks/use-synthesis-memory';
 
 function loadAlignmentDrift(): { position: AlignmentScore; zone: string } | null {
   try {
@@ -123,8 +125,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const [sessionConfig, setSessionConfig] = useState<DmSessionConfig | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [pendingDraft, setPendingDraft] = useState<{ content: string; userContent: string; userSenderName: string } | null>(null);
+  const [synthesisMode, setSynthesisMode] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const autoGenTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const { recentModes, addMode } = useSynthesisMemory();
 
   // Split state
   const [splitState, setSplitState] = useState<DmSplitState | null>(null);
@@ -331,7 +335,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       supabase.removeChannel(stateChannel);
     };
   }, [partyId]);
-
 
   const startSession = useCallback(async (mode: 'shared' | 'private', initialCampaignSummary?: string | null) => {
     if (!partyId || !user) return;
@@ -796,6 +799,67 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     return assistantContent;
   }, [characterContext, sessionConfig?.campaignSummary]);
 
+  // Helper: synthesize multiple player prompts into a single director's note
+  const synthesizePrompts = useCallback(async (
+    rawPrompts: Array<{ character_name: string; prompt: string }>,
+    lastDmMessage: string | null,
+  ): Promise<SynthesisResult | null> => {
+    try {
+      const isMulti = rawPrompts.length > 1;
+      const systemPrompt = isMulti ? SYNTHESIS_SYSTEM_PROMPT : SINGLE_PROMPT_SYNTHESIS_PROMPT;
+      const playerPromptsText = rawPrompts
+        .map(p => `[${p.character_name}]: ${p.prompt?.trim() || '(no action)'}`)
+        .join('\n');
+      const contextSnippet = lastDmMessage ? lastDmMessage.slice(-500) : 'None';
+      const userMessage = `PREVIOUS DM MESSAGE (context):\n${contextSnippet}\n\nRECENT MODES USED (avoid repeating):\n[${recentModes.join(', ') || 'none yet'}]\n\nPLAYER PROMPTS:\n${playerPromptsText}`;
+
+      const authToken = await getAuthToken();
+      const response = await fetch(AI_DM_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: userMessage }],
+          systemPromptOverride: systemPrompt,
+          model: 'google/gemini-2.5-flash-lite',
+        }),
+      });
+
+      if (!response.ok) { console.warn('[Synthesizer] AI request failed, falling back'); return null; }
+      if (!response.body) return null;
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let textBuffer = '', fullContent = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        textBuffer += decoder.decode(value, { stream: true });
+        let ni: number;
+        while ((ni = textBuffer.indexOf('\n')) !== -1) {
+          let line = textBuffer.slice(0, ni);
+          textBuffer = textBuffer.slice(ni + 1);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (line.startsWith(':') || line.trim() === '' || !line.startsWith('data: ')) continue;
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === '[DONE]') break;
+          try { const p = JSON.parse(jsonStr); const d = p.choices?.[0]?.delta?.content; if (d) fullContent += d; } catch {}
+        }
+      }
+
+      let cleaned = fullContent.trim();
+      if (cleaned.startsWith('```')) cleaned = cleaned.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
+      const result = JSON.parse(cleaned) as SynthesisResult;
+      if (result.mode && result.fusedPrompt) {
+        console.log('[Synthesizer] Mode:', result.mode, '| Spine:', result.spine);
+        return result;
+      }
+      return null;
+    } catch (e) {
+      console.warn('[Synthesizer] Failed, falling back to raw concatenation:', e);
+      return null;
+    }
+  }, [recentModes]);
+
   // Build party members system prompt section
   const buildPartyMembersGuide = useCallback((memberIds?: string[]) => {
     const relevantMembers = memberIds
@@ -967,14 +1031,26 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         if (alphaPrompts.length > 0) {
           const { guidesSection: alphaAfkGuides, promptSection: alphaAfkPrompts, consumedCascades: alphaConsumed } = buildAfkGuidesContext(alphaPrompts, splitState.alphaMembers);
           allConsumedCascades = [...allConsumedCascades, ...alphaConsumed];
-          const alphaCombined = alphaPrompts
+          const alphaRawCombined = alphaPrompts
             .map(formatPromptLine)
             .join('\n') + alphaAfkPrompts;
+
+          // Synthesize alpha prompts
+          const alphaLastAssistant = [...alphaMessages].reverse().find(m => m.role === 'assistant');
+          const alphaSynthesis = await synthesizePrompts(alphaPrompts, alphaLastAssistant?.content || null);
+          let alphaForAI = alphaRawCombined;
+          let alphaDirectionGuide = '';
+          if (alphaSynthesis) {
+            alphaForAI = `<!-- SYNTHESIS: mode=${alphaSynthesis.mode} -->\n${alphaSynthesis.fusedPrompt}`;
+            alphaDirectionGuide = `\n\n## NARRATIVE DIRECTION\nPresentation mode: ${alphaSynthesis.mode}. Focus: ${alphaSynthesis.focusCharacter}. Spine: ${alphaSynthesis.spine}`;
+            addMode(alphaSynthesis.mode);
+            setSynthesisMode(alphaSynthesis.mode);
+          }
 
           await insertPartyMessage({
             party_id: partyId,
             role: 'user',
-            content: alphaCombined,
+            content: alphaRawCombined,
             sender_user_id: user.id,
             sender_name: splitState.alphaName || 'Team Alpha',
             team: 'alpha',
@@ -982,7 +1058,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
           const alphaMembersSummary = buildPartyMembersGuide(splitState.alphaMembers);
           const alphaApiMsgs = alphaMessages.map(m => ({ role: m.role, content: m.content }));
-          alphaApiMsgs.push({ role: 'user', content: alphaCombined });
+          alphaApiMsgs.push({ role: 'user', content: alphaForAI });
 
           const alphaGuides = [
             customGuidesContent || '',
@@ -990,6 +1066,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             splitState.betaSummary ? `\n\n## OTHER TEAM CONTEXT (hidden from players)\n"${splitState.betaName || 'Team Beta'}"'s adventure summary (for narrative coherence only — do NOT reveal to "${splitState.alphaName || 'Team Alpha'}"):\n${splitState.betaSummary}` : '',
             splitState.alphaSummary ? `\n\n## PREVIOUS "${splitState.alphaName || 'Team Alpha'}" SUMMARY\n${splitState.alphaSummary}` : '',
             alphaAfkGuides,
+            alphaDirectionGuide,
           ].filter(Boolean).join('\n\n');
 
           const alphaContent = await streamAIResponse(alphaApiMsgs, alphaGuides, abortRef.current!.signal);
@@ -1010,14 +1087,26 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         if (betaPrompts.length > 0) {
           const { guidesSection: betaAfkGuides, promptSection: betaAfkPrompts, consumedCascades: betaConsumed } = buildAfkGuidesContext(betaPrompts, splitState.betaMembers);
           allConsumedCascades = [...allConsumedCascades, ...betaConsumed];
-          const betaCombined = betaPrompts
+          const betaRawCombined = betaPrompts
             .map(formatPromptLine)
             .join('\n') + betaAfkPrompts;
+
+          // Synthesize beta prompts
+          const betaLastAssistant = [...betaMessages].reverse().find(m => m.role === 'assistant');
+          const betaSynthesis = await synthesizePrompts(betaPrompts, betaLastAssistant?.content || null);
+          let betaForAI = betaRawCombined;
+          let betaDirectionGuide = '';
+          if (betaSynthesis) {
+            betaForAI = `<!-- SYNTHESIS: mode=${betaSynthesis.mode} -->\n${betaSynthesis.fusedPrompt}`;
+            betaDirectionGuide = `\n\n## NARRATIVE DIRECTION\nPresentation mode: ${betaSynthesis.mode}. Focus: ${betaSynthesis.focusCharacter}. Spine: ${betaSynthesis.spine}`;
+            addMode(betaSynthesis.mode);
+            setSynthesisMode(betaSynthesis.mode);
+          }
 
           await insertPartyMessage({
             party_id: partyId,
             role: 'user',
-            content: betaCombined,
+            content: betaRawCombined,
             sender_user_id: user.id,
             sender_name: splitState.betaName || 'Team Beta',
             team: 'beta',
@@ -1025,7 +1114,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
           const betaMembersSummary = buildPartyMembersGuide(splitState.betaMembers);
           const betaApiMsgs = betaMessages.map(m => ({ role: m.role, content: m.content }));
-          betaApiMsgs.push({ role: 'user', content: betaCombined });
+          betaApiMsgs.push({ role: 'user', content: betaForAI });
 
           const betaGuides = [
             customGuidesContent || '',
@@ -1033,6 +1122,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             splitState.alphaSummary ? `\n\n## OTHER TEAM CONTEXT (hidden from players)\n"${splitState.alphaName || 'Team Alpha'}"'s adventure summary (for narrative coherence only — do NOT reveal to "${splitState.betaName || 'Team Beta'}"):\n${splitState.alphaSummary}` : '',
             splitState.betaSummary ? `\n\n## PREVIOUS "${splitState.betaName || 'Team Beta'}" SUMMARY\n${splitState.betaSummary}` : '',
             betaAfkGuides,
+            betaDirectionGuide,
           ].filter(Boolean).join('\n\n');
 
           const betaContent = await streamAIResponse(betaApiMsgs, betaGuides, abortRef.current!.signal);
@@ -1113,9 +1203,21 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       } else {
         // === NORMAL MODE ===
         const { guidesSection: afkGuidesSection, promptSection: afkPromptSection, consumedCascades: normalConsumed } = buildAfkGuidesContext(readyPrompts);
-        const combined = readyPrompts
+        const rawCombined = readyPrompts
           .map(formatPromptLine)
           .join('\n') + afkPromptSection;
+
+        // --- Prompt Synthesis ---
+        const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant');
+        const synthesis = await synthesizePrompts(readyPrompts, lastAssistant?.content || null);
+        let combined = rawCombined;
+        let narrativeDirectionGuide = '';
+        if (synthesis) {
+          combined = `<!-- SYNTHESIS: mode=${synthesis.mode} spine=${synthesis.spine} focus=${synthesis.focusCharacter} -->\n${synthesis.fusedPrompt}`;
+          narrativeDirectionGuide = `\n\n## NARRATIVE DIRECTION\nPresentation mode: ${synthesis.mode}. Focus character: ${synthesis.focusCharacter}. Narrative spine: ${synthesis.spine}`;
+          addMode(synthesis.mode);
+          setSynthesisMode(synthesis.mode);
+        }
 
         const isApprovalMode = (sessionConfig.dmMode || 'ai') === 'ai-approval';
 
@@ -1124,7 +1226,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           await insertPartyMessage({
             party_id: partyId,
             role: 'user',
-            content: combined,
+            content: rawCombined, // Store raw prompts for readability
             sender_user_id: user.id,
             sender_name: 'Party',
           });
@@ -1138,6 +1240,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           customGuidesContent || '',
           `\n\n## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
           afkGuidesSection,
+          narrativeDirectionGuide,
         ].filter(Boolean).join('\n\n');
 
         const assistantContent = await streamAIResponse(apiMessages, guides, abortRef.current!.signal);
@@ -1217,9 +1320,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         .eq('state_type', 'dm_session');
     } finally {
       setIsGenerating(false);
+      setSynthesisMode(null);
       abortRef.current = null;
     }
-  }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, customGuidesContent, triggerSummaryIfNeeded, silentAutoSave, isSplitActive, splitState, streamAIResponse, buildPartyMembersGuide, generateSplitSummary, buildAfkGuidesContext, consumeCascadePrompts]);
+  }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, customGuidesContent, triggerSummaryIfNeeded, silentAutoSave, isSplitActive, splitState, streamAIResponse, buildPartyMembersGuide, generateSplitSummary, buildAfkGuidesContext, consumeCascadePrompts, synthesizePrompts, addMode]);
 
   // Auto-trigger generation when all ready (host only) — only in AI mode
   const currentDmMode = sessionConfig?.dmMode || 'ai';
@@ -1908,6 +2012,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     currentPrompts,
     sessionConfig,
     isActive,
+    synthesisMode,
     isGenerating: isGenerating || (sessionConfig?.isGenerating ?? false),
     isSummarizing,
     allReady,

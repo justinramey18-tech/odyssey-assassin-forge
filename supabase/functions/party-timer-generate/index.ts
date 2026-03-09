@@ -12,6 +12,17 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const DEFAULT_MODEL = "google/gemini-3-flash-preview";
 
+// Inline synthesis prompts (can't import from src/)
+const SYNTHESIS_SYSTEM_PROMPT_SERVER = `You are a Narrative Synthesis Engine. Fuse multiple D&D player prompts into a single "director's note."
+Analyze across SPATIAL, TEMPORAL, CAUSAL, THEMATIC dimensions.
+Pick ONE mode: Impressionist, Staccato, Deep Focus, Ensemble, Dialogue-Driven, Sensory Immersion, Fractal, Stream of Consciousness, Reportage, Mythic.
+NEVER: sequential chains, equal-time fallacy, transition crutches, mechanical repetition.
+Return ONLY JSON: {"mode":"...","spine":"...","focusCharacter":"...","fusedPrompt":"..."}`;
+
+const SINGLE_SYNTHESIS_PROMPT_SERVER = `You are a Narrative Style Director. Pick a presentation mode for a solo player action.
+Modes: Impressionist, Staccato, Deep Focus, Dialogue-Driven, Sensory Immersion, Fractal, Stream of Consciousness, Reportage, Mythic.
+Return ONLY JSON: {"mode":"...","spine":"...","focusCharacter":"...","fusedPrompt":"..."}`;
+
 // ── Lightweight system prompt for server-side generation ──
 function buildServerSystemPrompt(partyMembers: Array<{ character_name: string; character_status: Record<string, unknown> }>, campaignSummary: string | null, customGuides: string | null): string {
   const membersSummary = partyMembers.map(m => {
@@ -401,14 +412,93 @@ async function handleScheduledRound(
       .map(p => `[${p.character_name}]: ${p.prompt?.trim() || '(no action)'}`)
       .join('\n');
     
-    const combinedPrompt = (playerLines + afkPrompts).trim() || '[All players are AFK this round]';
+    let combinedPrompt = (playerLines + afkPrompts).trim() || '[All players are AFK this round]';
 
-    // 7. Insert user message
+    // --- Prompt Synthesis (server-side) ---
+    let narrativeDirectionGuide = '';
+    if (submittedPrompts.length >= 1 && LOVABLE_API_KEY) {
+      try {
+        // Fetch last assistant message for context
+        const { data: lastMsgs } = await supabase
+          .from("party_dm_messages")
+          .select("content")
+          .eq("party_id", partyId)
+          .eq("role", "assistant")
+          .order("created_at", { ascending: false })
+          .limit(1);
+        const lastDmContent = lastMsgs?.[0]?.content || null;
+
+        // Fetch synthesis memory
+        const { data: memState } = await supabase
+          .from("party_shared_state")
+          .select("state_data")
+          .eq("party_id", partyId)
+          .eq("state_type", "synthesis_memory")
+          .single();
+        const recentModes: string[] = (memState?.state_data as any)?.modes || [];
+
+        const isMulti = submittedPrompts.length > 1;
+        const synthSystemPrompt = isMulti ? SYNTHESIS_SYSTEM_PROMPT_SERVER : SINGLE_SYNTHESIS_PROMPT_SERVER;
+        const contextSnippet = lastDmContent ? lastDmContent.slice(-500) : 'None';
+        const synthUserMsg = `PREVIOUS DM MESSAGE (context):\n${contextSnippet}\n\nRECENT MODES USED (avoid repeating):\n[${recentModes.join(', ') || 'none yet'}]\n\nPLAYER PROMPTS:\n${playerLines}`;
+
+        const synthResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash-lite",
+            messages: [
+              { role: "system", content: synthSystemPrompt },
+              { role: "user", content: synthUserMsg },
+            ],
+            stream: false,
+            max_tokens: 500,
+          }),
+        });
+
+        if (synthResponse.ok) {
+          const synthData = await synthResponse.json();
+          let raw = synthData.choices?.[0]?.message?.content?.trim() || '';
+          if (raw.startsWith('```')) raw = raw.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
+          const result = JSON.parse(raw);
+          if (result.mode && result.fusedPrompt) {
+            combinedPrompt = result.fusedPrompt;
+            narrativeDirectionGuide = `\n\n## NARRATIVE DIRECTION\nPresentation mode: ${result.mode}. Focus character: ${result.focusCharacter}. Narrative spine: ${result.spine}`;
+            // Update synthesis memory
+            const updatedModes = [...recentModes, result.mode].slice(-3);
+            // Update or insert synthesis memory
+            const { data: existingMem } = await supabase
+              .from("party_shared_state")
+              .select("id")
+              .eq("party_id", partyId)
+              .eq("state_type", "synthesis_memory")
+              .single();
+            if (existingMem) {
+              await supabase.from("party_shared_state")
+                .update({ state_data: { modes: updatedModes } })
+                .eq("id", existingMem.id);
+            } else {
+              await supabase.from("party_shared_state").insert({
+                party_id: partyId,
+                state_type: "synthesis_memory",
+                state_data: { modes: updatedModes },
+                user_id: party?.created_by || event.created_by,
+              });
+            }
+            console.log(`[Synthesizer] Mode: ${result.mode} | Spine: ${result.spine}`);
+          }
+        }
+      } catch (synthErr) {
+        console.warn('[Synthesizer] Server-side synthesis failed, using raw prompts:', synthErr);
+      }
+    }
+
+    // 7. Insert user message (always store raw player prompts for readability)
     const eventLabel = event.event_name ? ` — ${event.event_name}` : '';
     await supabase.from("party_dm_messages").insert({
       party_id: partyId,
       role: "user",
-      content: `[⏰ Scheduled Round${eventLabel}]\n${combinedPrompt}`,
+      content: `[⏰ Scheduled Round${eventLabel}]\n${playerLines}${afkPrompts}`,
       sender_user_id: null,
       sender_name: "⏰ Scheduled Round",
     });
@@ -426,6 +516,14 @@ async function handleScheduledRound(
         role: m.role as string,
         content: m.content as string,
       }));
+
+    // Replace last user message with synthesized prompt if synthesis succeeded
+    if (narrativeDirectionGuide && apiMessages.length > 0) {
+      const lastIdx = apiMessages.length - 1;
+      if (apiMessages[lastIdx].role === 'user') {
+        apiMessages[lastIdx] = { ...apiMessages[lastIdx], content: combinedPrompt };
+      }
+    }
 
     // 9. Fetch GM guides
     let customGuides: string | null = null;
@@ -450,7 +548,7 @@ async function handleScheduledRound(
     const systemPrompt = buildServerSystemPrompt(
       (members || []) as Array<{ character_name: string; character_status: Record<string, unknown> }>,
       config.campaignSummary as string | null,
-      [customGuides || '', afkGuides].filter(Boolean).join('\n\n') || null
+      [customGuides || '', afkGuides, narrativeDirectionGuide].filter(Boolean).join('\n\n') || null
     );
 
     // 10. Call AI
