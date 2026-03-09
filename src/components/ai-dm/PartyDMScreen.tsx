@@ -1520,8 +1520,16 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       {/* Input Area */}
       {!isFullscreen && (
       <div className="px-2 py-2 sm:px-3 sm:py-3 border-t border-amber-900/30 bg-black/40 backdrop-blur-sm mb-[48px]">
-        {/* AI Approval mode: show draft review panel for host when draft exists */}
-        {isCreator && partyDm.pendingDraft ? (
+        {/* Synthesis approval: show to host when synthesis is pending */}
+        {isCreator && partyDm.pendingSynthesis ? (
+          <SynthesisReviewPanel
+            synthesis={partyDm.pendingSynthesis.synthesis}
+            rawPrompts={partyDm.pendingSynthesis.rawPrompts}
+            onApprove={partyDm.approveSynthesis}
+            onDiscard={partyDm.discardSynthesis}
+            onRegenerate={partyDm.regenerateSynthesis}
+          />
+        ) : isCreator && partyDm.pendingDraft ? (
           <DraftReviewPanel
             draftContent={partyDm.pendingDraft.content}
             onApprove={partyDm.approveDraft}
