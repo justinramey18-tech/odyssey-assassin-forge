@@ -74,9 +74,10 @@ interface DMMessageBubbleProps {
   ttsSelectMode?: boolean;
   ttsSelected?: boolean;
   onTtsToggle?: (id: string) => void;
+  theme?: DMChatTheme;
 }
 
-function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, ttsSelectMode, ttsSelected, onTtsToggle }: DMMessageBubbleProps) {
+function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, ttsSelectMode, ttsSelected, onTtsToggle, theme }: DMMessageBubbleProps) {
   const isUser = message.role === 'user';
   const videoMatch = message.content.match(VIDEO_REGEX);
   const imageMatch = !videoMatch ? message.content.match(IMAGE_REGEX) : null;
