@@ -222,19 +222,19 @@ function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, t
               <ReactMarkdown
                 components={{
                   p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                  strong: ({ children }) => <strong className="text-amber-300">{children}</strong>,
-                  em: ({ children }) => <em className="text-white/70">{children}</em>,
+                  strong: ({ children }) => <strong className={theme?.accentColor || 'text-amber-300'}>{children}</strong>,
+                  em: ({ children }) => <em className={theme?.emColor || 'text-white/70'}>{children}</em>,
                   ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
                   ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
                   li: ({ children }) => <li className="mb-1">{children}</li>,
-                  code: ({ children }) => <code className="bg-black/30 px-1 rounded text-xs">{children}</code>,
-                  h1: ({ children }) => <h1 className="text-lg font-cinzel text-amber-300 mb-2">{children}</h1>,
-                  h2: ({ children }) => <h2 className="text-base font-cinzel text-amber-300 mb-2">{children}</h2>,
-                  h3: ({ children }) => <h3 className="text-sm font-cinzel text-amber-300 mb-1">{children}</h3>,
+                  code: ({ children }) => <code className={cn("px-1 rounded text-xs", theme?.codeBg || "bg-black/30")}>{children}</code>,
+                  h1: ({ children }) => <h1 className={cn("text-lg font-cinzel mb-2", theme?.headingColor || "text-amber-300")}>{children}</h1>,
+                  h2: ({ children }) => <h2 className={cn("text-base font-cinzel mb-2", theme?.headingColor || "text-amber-300")}>{children}</h2>,
+                  h3: ({ children }) => <h3 className={cn("text-sm font-cinzel mb-1", theme?.headingColor || "text-amber-300")}>{children}</h3>,
                   blockquote: ({ children }) => (
-                    <blockquote className="border-l-2 border-amber-500/40 pl-3 italic text-white/60 my-2">{children}</blockquote>
+                    <blockquote className={cn("border-l-2 pl-3 italic text-white/60 my-2", theme?.blockquoteBorder || "border-amber-500/40")}>{children}</blockquote>
                   ),
-                  hr: () => <hr className="border-amber-500/20 my-3" />,
+                  hr: () => <hr className={cn("my-3", theme?.hrColor || "border-amber-500/20")} />,
                 }}
               >
                 {message.content || '...'}
