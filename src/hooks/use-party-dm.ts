@@ -1031,14 +1031,26 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         if (alphaPrompts.length > 0) {
           const { guidesSection: alphaAfkGuides, promptSection: alphaAfkPrompts, consumedCascades: alphaConsumed } = buildAfkGuidesContext(alphaPrompts, splitState.alphaMembers);
           allConsumedCascades = [...allConsumedCascades, ...alphaConsumed];
-          const alphaCombined = alphaPrompts
+          const alphaRawCombined = alphaPrompts
             .map(formatPromptLine)
             .join('\n') + alphaAfkPrompts;
+
+          // Synthesize alpha prompts
+          const alphaLastAssistant = [...alphaMessages].reverse().find(m => m.role === 'assistant');
+          const alphaSynthesis = await synthesizePrompts(alphaPrompts, alphaLastAssistant?.content || null);
+          let alphaForAI = alphaRawCombined;
+          let alphaDirectionGuide = '';
+          if (alphaSynthesis) {
+            alphaForAI = `<!-- SYNTHESIS: mode=${alphaSynthesis.mode} -->\n${alphaSynthesis.fusedPrompt}`;
+            alphaDirectionGuide = `\n\n## NARRATIVE DIRECTION\nPresentation mode: ${alphaSynthesis.mode}. Focus: ${alphaSynthesis.focusCharacter}. Spine: ${alphaSynthesis.spine}`;
+            addMode(alphaSynthesis.mode);
+            setSynthesisMode(alphaSynthesis.mode);
+          }
 
           await insertPartyMessage({
             party_id: partyId,
             role: 'user',
-            content: alphaCombined,
+            content: alphaRawCombined,
             sender_user_id: user.id,
             sender_name: splitState.alphaName || 'Team Alpha',
             team: 'alpha',
@@ -1046,7 +1058,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
           const alphaMembersSummary = buildPartyMembersGuide(splitState.alphaMembers);
           const alphaApiMsgs = alphaMessages.map(m => ({ role: m.role, content: m.content }));
-          alphaApiMsgs.push({ role: 'user', content: alphaCombined });
+          alphaApiMsgs.push({ role: 'user', content: alphaForAI });
 
           const alphaGuides = [
             customGuidesContent || '',
@@ -1054,6 +1066,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             splitState.betaSummary ? `\n\n## OTHER TEAM CONTEXT (hidden from players)\n"${splitState.betaName || 'Team Beta'}"'s adventure summary (for narrative coherence only — do NOT reveal to "${splitState.alphaName || 'Team Alpha'}"):\n${splitState.betaSummary}` : '',
             splitState.alphaSummary ? `\n\n## PREVIOUS "${splitState.alphaName || 'Team Alpha'}" SUMMARY\n${splitState.alphaSummary}` : '',
             alphaAfkGuides,
+            alphaDirectionGuide,
           ].filter(Boolean).join('\n\n');
 
           const alphaContent = await streamAIResponse(alphaApiMsgs, alphaGuides, abortRef.current!.signal);
