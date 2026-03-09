@@ -12,6 +12,17 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const DEFAULT_MODEL = "google/gemini-3-flash-preview";
 
+// Inline synthesis prompts (can't import from src/)
+const SYNTHESIS_SYSTEM_PROMPT_SERVER = `You are a Narrative Synthesis Engine. Fuse multiple D&D player prompts into a single "director's note."
+Analyze across SPATIAL, TEMPORAL, CAUSAL, THEMATIC dimensions.
+Pick ONE mode: Impressionist, Staccato, Deep Focus, Ensemble, Dialogue-Driven, Sensory Immersion, Fractal, Stream of Consciousness, Reportage, Mythic.
+NEVER: sequential chains, equal-time fallacy, transition crutches, mechanical repetition.
+Return ONLY JSON: {"mode":"...","spine":"...","focusCharacter":"...","fusedPrompt":"..."}`;
+
+const SINGLE_SYNTHESIS_PROMPT_SERVER = `You are a Narrative Style Director. Pick a presentation mode for a solo player action.
+Modes: Impressionist, Staccato, Deep Focus, Dialogue-Driven, Sensory Immersion, Fractal, Stream of Consciousness, Reportage, Mythic.
+Return ONLY JSON: {"mode":"...","spine":"...","focusCharacter":"...","fusedPrompt":"..."}`;
+
 // ── Lightweight system prompt for server-side generation ──
 function buildServerSystemPrompt(partyMembers: Array<{ character_name: string; character_status: Record<string, unknown> }>, campaignSummary: string | null, customGuides: string | null): string {
   const membersSummary = partyMembers.map(m => {
