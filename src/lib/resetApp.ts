@@ -83,6 +83,10 @@ const ALL_STORAGE_KEYS = [
 
   // Narrative synthesis
   'odyssey-synthesis-recent-modes',
+  'odyssey-pending-draft',
+  'odyssey-pending-synthesis',
+  'odyssey-draft-review-edits',
+  'odyssey-synthesis-review-edits',
 
   // PWA
   'pwa-banner-dismissed',
