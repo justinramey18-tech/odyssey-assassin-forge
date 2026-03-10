@@ -1537,6 +1537,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             onApprove={partyDm.approveSynthesis}
             onDiscard={partyDm.discardSynthesis}
             onRegenerate={partyDm.regenerateSynthesis}
+            isRegenerating={partyDm.isGenerating}
           />
         ) : isCreator && partyDm.pendingDraft ? (
           <DraftReviewPanel
