@@ -145,7 +145,7 @@ export function SynthesisReviewPanel({
           </div>
         ) : (
           <div className="p-3 text-sm text-foreground/90 whitespace-pre-wrap">
-            {synthesis.fusedPrompt}
+            {editedPrompt}
           </div>
         )}
       </div>
