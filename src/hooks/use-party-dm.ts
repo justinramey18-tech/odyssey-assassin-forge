@@ -1645,6 +1645,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       toast.error('A split is already active');
       return;
     }
+    if (isGenerating) {
+      toast.error('Cannot split while generating a response');
+      return;
+    }
 
     const allMemberIds = partyMembers.map(m => m.user_id);
     const betaMembers = allMemberIds.filter(id => !alphaMembers.includes(id));
