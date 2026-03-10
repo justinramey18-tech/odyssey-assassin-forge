@@ -1970,7 +1970,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       content: trimmed,
       sender_user_id: user.id,
       sender_name: 'DM',
-      team: isSplitActive && splitState ? null : null,
+      team: promptTeam,
     };
 
     const { data, error } = await (supabase.from('party_dm_messages') as any)
