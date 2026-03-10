@@ -2162,9 +2162,129 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
   }, [partyId, user, sessionConfig, pendingSynthesis, messages, customGuidesContent, buildPartyMembersGuide, streamAIResponse, triggerSummaryIfNeeded, silentAutoSave, consumeCascadePrompts, addMode]);
 
-  const discardSynthesis = useCallback(() => {
+  const discardSynthesis = useCallback(async () => {
+    if (!pendingSynthesis || !partyId || !user || !sessionConfig) {
+      setPendingSynthesis(null);
+      return;
+    }
+
+    const { rawCombined, afkGuidesSection, normalConsumed } = pendingSynthesis;
+
+    // Clear the synthesis panel
     setPendingSynthesis(null);
-  }, []);
+
+    // Resume generation with raw prompts (no synthesis wrapping)
+    setIsGenerating(true);
+
+    const { data: lockData } = await (supabase.from('party_shared_state') as any)
+      .update({ state_data: { ...sessionConfig, isGenerating: true } })
+      .eq('party_id', partyId)
+      .eq('state_type', 'dm_session')
+      .not('state_data->isGenerating', 'eq', true)
+      .select('id');
+
+    if (!lockData || lockData.length === 0) {
+      setIsGenerating(false);
+      toast.error('Generation already in progress');
+      return;
+    }
+
+    abortRef.current = new AbortController();
+
+    try {
+      const isApprovalMode = (sessionConfig.dmMode || 'ai') === 'ai-approval';
+
+      if (!isApprovalMode) {
+        await insertPartyMessageHelper(partyId, {
+          party_id: partyId,
+          role: 'user',
+          content: rawCombined,
+          sender_user_id: user.id,
+          sender_name: 'Party',
+        });
+      }
+
+      const partyMembersSummary = buildPartyMembersGuide();
+      const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
+      apiMessages.push({ role: 'user', content: rawCombined });
+
+      const guides = [
+        customGuidesContent || '',
+        `\n\n## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
+        afkGuidesSection,
+      ].filter(Boolean).join('\n\n');
+
+      const assistantContent = await streamAIResponse(apiMessages, guides, abortRef.current!.signal);
+
+      if (assistantContent?.trim()) {
+        if (isApprovalMode) {
+          setPendingDraft({
+            content: assistantContent,
+            userContent: rawCombined,
+            userSenderName: 'Party',
+          });
+        } else {
+          await insertPartyMessageHelper(partyId, {
+            party_id: partyId,
+            role: 'assistant',
+            content: assistantContent,
+            sender_user_id: null,
+            sender_name: 'DM',
+          });
+
+          const updatedMessages = [...messages,
+            { id: '', party_id: partyId, role: 'user' as const, content: rawCombined, sender_user_id: user.id, sender_name: 'Party', created_at: '' },
+            { id: '', party_id: partyId, role: 'assistant' as const, content: assistantContent, sender_user_id: null, sender_name: 'DM', created_at: '' },
+          ];
+          triggerSummaryIfNeeded(updatedMessages);
+          silentAutoSave(updatedMessages, sessionConfig.campaignSummary || null);
+        }
+      }
+
+      if (normalConsumed.length > 0) {
+        await consumeCascadePrompts(normalConsumed);
+      }
+
+      if ((sessionConfig.dmMode || 'ai') !== 'ai-approval') {
+        await (supabase.from('party_dm_prompts') as any)
+          .delete()
+          .eq('party_id', partyId)
+          .eq('round_id', sessionConfig.currentRoundId);
+
+        const newRoundId = crypto.randomUUID();
+        const newConfig = {
+          ...sessionConfig,
+          currentRoundId: newRoundId,
+          isGenerating: false,
+          timerStartedAt: sessionConfig.timerEnabled ? new Date().toISOString() : null,
+          timerPausedRemaining: null,
+          extensionRequests: [],
+        };
+        await (supabase.from('party_shared_state') as any)
+          .update({ state_data: newConfig })
+          .eq('party_id', partyId)
+          .eq('state_type', 'dm_session');
+      } else {
+        await (supabase.from('party_shared_state') as any)
+          .update({ state_data: { ...sessionConfig, isGenerating: false } })
+          .eq('party_id', partyId)
+          .eq('state_type', 'dm_session');
+      }
+    } catch (error) {
+      const isAbort = error instanceof Error && error.name === 'AbortError';
+      if (!isAbort) {
+        console.error('Party DM generation error (post-discard):', error);
+        toast.error(error instanceof Error ? error.message : 'Generation failed');
+      }
+      await (supabase.from('party_shared_state') as any)
+        .update({ state_data: { ...sessionConfig, isGenerating: false } })
+        .eq('party_id', partyId)
+        .eq('state_type', 'dm_session');
+    } finally {
+      setIsGenerating(false);
+      abortRef.current = null;
+    }
+  }, [pendingSynthesis, partyId, user, sessionConfig, messages, customGuidesContent, buildPartyMembersGuide, streamAIResponse, triggerSummaryIfNeeded, silentAutoSave, consumeCascadePrompts, insertPartyMessageHelper]);
 
   const regenerateSynthesis = useCallback(async () => {
     if (!pendingSynthesis) return;
