@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Check, X, RefreshCw, Pencil, Eye, Loader2 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { parseWhispers, serializeWhispers } from '@/lib/whisper-parser';
 import { cn } from '@/lib/utils';
 import type { Whisper } from '@/lib/whisper-parser';
 import ReactMarkdown from 'react-markdown';
+import { getScopedItem, setScopedItem, removeScopedItem } from '@/lib/scoped-storage';
 
 interface DraftReviewPanelProps {
   draftContent: string;
@@ -25,13 +26,44 @@ export function DraftReviewPanel({
   partyMemberNames,
   isRegenerating,
 }: DraftReviewPanelProps) {
+  const DRAFT_EDITS_KEY = 'odyssey-draft-review-edits';
+
   const parsed = useMemo(() => parseWhispers(draftContent), [draftContent]);
 
   const [isEditing, setIsEditing] = useState(false);
-  const [narrative, setNarrative] = useState(parsed.narrative);
-  const [whispers, setWhispers] = useState<Whisper[]>(parsed.whispers);
+  const [narrative, setNarrative] = useState(() => {
+    try {
+      const saved = getScopedItem(DRAFT_EDITS_KEY);
+      if (saved) {
+        const parsed2 = JSON.parse(saved);
+        if (parsed2.narrative != null) return parsed2.narrative;
+      }
+    } catch {}
+    return parsed.narrative;
+  });
+  const [whispers, setWhispers] = useState<Whisper[]>(() => {
+    try {
+      const saved = getScopedItem(DRAFT_EDITS_KEY);
+      if (saved) {
+        const parsed2 = JSON.parse(saved);
+        if (parsed2.whispers != null) return parsed2.whispers;
+      }
+    } catch {}
+    return parsed.whispers;
+  });
   const [isApproving, setIsApproving] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+
+  const draftEditsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (draftEditsTimerRef.current) clearTimeout(draftEditsTimerRef.current);
+    draftEditsTimerRef.current = setTimeout(() => {
+      try {
+        setScopedItem(DRAFT_EDITS_KEY, JSON.stringify({ narrative, whispers }));
+      } catch {}
+    }, 300);
+    return () => { if (draftEditsTimerRef.current) clearTimeout(draftEditsTimerRef.current); };
+  }, [narrative, whispers]);
 
   // Reset state when draft content changes (e.g. after regeneration)
   const [lastDraft, setLastDraft] = useState(draftContent);
@@ -41,11 +73,13 @@ export function DraftReviewPanel({
     setNarrative(reParsed.narrative);
     setWhispers(reParsed.whispers);
     setIsEditing(false);
+    try { removeScopedItem(DRAFT_EDITS_KEY); } catch {}
   }
 
   const handleApprove = useCallback(async () => {
     setIsApproving(true);
     try {
+      try { removeScopedItem(DRAFT_EDITS_KEY); } catch {}
       const content = serializeWhispers(narrative.trim(), whispers);
       await onApprove(content);
     } finally {
@@ -55,6 +89,7 @@ export function DraftReviewPanel({
 
   const handleDiscard = useCallback(() => {
     if (confirmDiscard) {
+      try { removeScopedItem(DRAFT_EDITS_KEY); } catch {}
       onDiscard();
       return;
     }
