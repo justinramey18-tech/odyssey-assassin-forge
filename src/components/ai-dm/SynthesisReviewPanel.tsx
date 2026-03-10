@@ -1,9 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Check, X, RefreshCw, Pencil, Eye, Loader2, Sparkles } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { SynthesisResult } from '@/lib/narrative-synthesis-prompt';
+import { getScopedItem, setScopedItem, removeScopedItem } from '@/lib/scoped-storage';
 
 interface SynthesisReviewPanelProps {
   synthesis: SynthesisResult;
@@ -22,9 +23,37 @@ export function SynthesisReviewPanel({
   onRegenerate,
   isRegenerating,
 }: SynthesisReviewPanelProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedPrompt, setEditedPrompt] = useState(synthesis.fusedPrompt);
+  const SYNTH_EDITS_KEY = 'odyssey-synthesis-review-edits';
+
+  const [isEditing, setIsEditing] = useState(() => {
+    try {
+      const saved = getScopedItem(SYNTH_EDITS_KEY);
+      if (saved) return JSON.parse(saved).isEditing ?? false;
+    } catch {}
+    return false;
+  });
+  const [editedPrompt, setEditedPrompt] = useState(() => {
+    try {
+      const saved = getScopedItem(SYNTH_EDITS_KEY);
+      if (saved) {
+        const p = JSON.parse(saved);
+        if (p.editedPrompt != null) return p.editedPrompt;
+      }
+    } catch {}
+    return synthesis.fusedPrompt;
+  });
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+
+  const synthEditsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (synthEditsTimerRef.current) clearTimeout(synthEditsTimerRef.current);
+    synthEditsTimerRef.current = setTimeout(() => {
+      try {
+        setScopedItem(SYNTH_EDITS_KEY, JSON.stringify({ isEditing, editedPrompt }));
+      } catch {}
+    }, 300);
+    return () => { if (synthEditsTimerRef.current) clearTimeout(synthEditsTimerRef.current); };
+  }, [isEditing, editedPrompt]);
 
   // Reset when synthesis changes (e.g. after regen)
   const [lastSynthesis, setLastSynthesis] = useState(synthesis);
@@ -32,15 +61,18 @@ export function SynthesisReviewPanel({
     setLastSynthesis(synthesis);
     setEditedPrompt(synthesis.fusedPrompt);
     setIsEditing(false);
+    try { removeScopedItem(SYNTH_EDITS_KEY); } catch {}
   }
 
   const handleApprove = useCallback(() => {
+    try { removeScopedItem(SYNTH_EDITS_KEY); } catch {}
     const content = isEditing ? editedPrompt.trim() : synthesis.fusedPrompt;
     if (content) onApprove(content);
   }, [isEditing, editedPrompt, synthesis.fusedPrompt, onApprove]);
 
   const handleDiscard = useCallback(() => {
     if (confirmDiscard) {
+      try { removeScopedItem(SYNTH_EDITS_KEY); } catch {}
       onDiscard();
       return;
     }
