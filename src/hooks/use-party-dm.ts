@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
 import { getAuthToken } from '@/lib/auth-token';
+import { getScopedItem, setScopedItem, removeScopedItem } from '@/lib/scoped-storage';
 import type { CharacterContext, Whisper } from '@/components/oracle/types';
 import type { DmSplitState, SplitTeam } from '@/lib/party-split-types';
 import { sendReadyUpNotification } from '@/lib/party-notifications';
