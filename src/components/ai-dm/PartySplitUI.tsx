@@ -18,6 +18,14 @@ export function SplitInitiator({ open, onClose, members, currentUserId, onInitia
   const [alphaName, setAlphaName] = useState('Team Alpha');
   const [betaName, setBetaName] = useState('Team Beta');
 
+  useEffect(() => {
+    if (open) {
+      setSelected(new Set(currentUserId ? [currentUserId] : []));
+      setAlphaName('Team Alpha');
+      setBetaName('Team Beta');
+    }
+  }, [open, currentUserId]);
+
   const toggleMember = useCallback((userId: string) => {
     setSelected(prev => {
       const next = new Set(prev);
