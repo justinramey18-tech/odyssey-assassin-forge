@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, GitBranch, X, Check, Eye, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,14 @@ export function SplitInitiator({ open, onClose, members, currentUserId, onInitia
   const [selected, setSelected] = useState<Set<string>>(new Set(currentUserId ? [currentUserId] : []));
   const [alphaName, setAlphaName] = useState('Team Alpha');
   const [betaName, setBetaName] = useState('Team Beta');
+
+  useEffect(() => {
+    if (open) {
+      setSelected(new Set(currentUserId ? [currentUserId] : []));
+      setAlphaName('Team Alpha');
+      setBetaName('Team Beta');
+    }
+  }, [open, currentUserId]);
 
   const toggleMember = useCallback((userId: string) => {
     setSelected(prev => {
