@@ -201,12 +201,11 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         currentPrompts.length >= memberCount &&
         currentPrompts.every(p => p.is_ready);
     }
-    // Split mode: check each team independently — all must be ready
     const alphaPrompts = currentPrompts.filter(p => splitState.alphaMembers.includes(p.user_id));
     const betaPrompts = currentPrompts.filter(p => splitState.betaMembers.includes(p.user_id));
     const alphaReady = alphaPrompts.length >= splitState.alphaMembers.length && alphaPrompts.every(p => p.is_ready);
     const betaReady = betaPrompts.length >= splitState.betaMembers.length && betaPrompts.every(p => p.is_ready);
-    return alphaReady && betaReady;
+    return alphaReady || betaReady;
   })();
 
   // Filter messages based on team membership + enrich with parsed whispers
