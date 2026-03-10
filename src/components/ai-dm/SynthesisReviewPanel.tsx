@@ -66,7 +66,7 @@ export function SynthesisReviewPanel({
 
   const handleApprove = useCallback(() => {
     try { removeScopedItem(SYNTH_EDITS_KEY); } catch {}
-    const content = isEditing ? editedPrompt.trim() : synthesis.fusedPrompt;
+    const content = editedPrompt.trim();
     if (content) onApprove(content);
   }, [isEditing, editedPrompt, synthesis.fusedPrompt, onApprove]);
 
@@ -145,7 +145,7 @@ export function SynthesisReviewPanel({
           </div>
         ) : (
           <div className="p-3 text-sm text-foreground/90 whitespace-pre-wrap">
-            {synthesis.fusedPrompt}
+            {editedPrompt}
           </div>
         )}
       </div>
