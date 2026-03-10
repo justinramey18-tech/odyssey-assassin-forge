@@ -1924,10 +1924,15 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     if (!partyId || !user || !sessionConfig) return;
     const trimmed = content.trim();
     if (!trimmed) return;
+    let promptTeam: string | null = null;
 
     // 1. Check for ready prompts and insert consolidated user message FIRST
     const readyPrompts = currentPrompts.filter(p => p.is_ready);
     if (readyPrompts.length > 0) {
+      promptTeam = isSplitActive && splitState && readyPrompts.length > 0
+        ? readyPrompts[0].team || null
+        : null;
+
       const userContent = readyPrompts
         .map(p => `[${p.character_name}]: ${p.prompt.trim() || '(no action)'}`)
         .join('\n');
@@ -1939,6 +1944,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           content: userContent,
           sender_user_id: user.id,
           sender_name: readyPrompts.map(p => p.character_name).join(', '),
+          team: promptTeam,
         })
         .select('*')
         .single();
