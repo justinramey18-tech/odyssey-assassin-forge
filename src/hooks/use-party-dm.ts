@@ -1741,6 +1741,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           content: msg.content,
           sender_user_id: msg.sender_user_id || null,
           sender_name: msg.sender_name,
+          created_at: msg.created_at,
         });
       }
 
