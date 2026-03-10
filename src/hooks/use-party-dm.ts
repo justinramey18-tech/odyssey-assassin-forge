@@ -125,7 +125,15 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [sessionConfig, setSessionConfig] = useState<DmSessionConfig | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [pendingDraft, setPendingDraft] = useState<{ content: string; userContent: string; userSenderName: string } | null>(null);
+  const PENDING_DRAFT_KEY = 'odyssey-pending-draft';
+  const PENDING_SYNTHESIS_KEY = 'odyssey-pending-synthesis';
+
+  const [pendingDraft, setPendingDraft] = useState<{ content: string; userContent: string; userSenderName: string } | null>(() => {
+    try {
+      const saved = getScopedItem(PENDING_DRAFT_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
   const [synthesisMode, setSynthesisMode] = useState<string | null>(null);
   const [pendingSynthesis, setPendingSynthesis] = useState<{
     synthesis: SynthesisResult;
@@ -133,7 +141,33 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     rawCombined: string;
     afkGuidesSection: string;
     normalConsumed: { userId: string; remainingCascade: string[] }[];
-  } | null>(null);
+  } | null>(() => {
+    try {
+      const saved = getScopedItem(PENDING_SYNTHESIS_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
+
+  useEffect(() => {
+    try {
+      if (pendingDraft) {
+        setScopedItem(PENDING_DRAFT_KEY, JSON.stringify(pendingDraft));
+      } else {
+        removeScopedItem(PENDING_DRAFT_KEY);
+      }
+    } catch {}
+  }, [pendingDraft]);
+
+  useEffect(() => {
+    try {
+      if (pendingSynthesis) {
+        setScopedItem(PENDING_SYNTHESIS_KEY, JSON.stringify(pendingSynthesis));
+      } else {
+        removeScopedItem(PENDING_SYNTHESIS_KEY);
+      }
+    } catch {}
+  }, [pendingSynthesis]);
+
   const abortRef = useRef<AbortController | null>(null);
   const autoGenTimerRef = useRef<NodeJS.Timeout | null>(null);
   const { recentModes, addMode } = useSynthesisMemory();
