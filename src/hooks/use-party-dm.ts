@@ -1393,6 +1393,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           .delete()
           .eq('party_id', partyId)
           .eq('round_id', sessionConfig.currentRoundId);
+        setCurrentPrompts([]);
 
         const newRoundId = crypto.randomUUID();
         const newConfig: DmSessionConfig = {
