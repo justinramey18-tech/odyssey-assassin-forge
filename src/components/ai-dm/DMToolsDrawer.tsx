@@ -39,6 +39,8 @@ interface DMToolsDrawerProps {
   onModelChange?: (modelId: string) => void;
   chatThemeId?: DMChatThemeId;
   onChatThemeChange?: (id: DMChatThemeId) => void;
+  whisperTrayEnabled?: boolean;
+  onWhisperTrayEnabledChange?: (enabled: boolean) => void;
 }
 
 export function DMToolsDrawer({
