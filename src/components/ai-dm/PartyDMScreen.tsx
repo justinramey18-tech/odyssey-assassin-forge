@@ -1067,6 +1067,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                     if (next.has(id)) next.delete(id); else next.add(id);
                     return next;
                   })}
+                  whisperTrayEnabled={whisperTrayEnabled}
                 />
               ))}
             </AnimatePresence>
