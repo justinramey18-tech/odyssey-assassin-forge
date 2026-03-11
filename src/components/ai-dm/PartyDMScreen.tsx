@@ -1828,6 +1828,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               onShowSplitInitiator={() => setShowSplitInitiator(true)}
               onShowRegroupDialog={() => setShowRegroupDialog(true)}
               onShowSplitSummaries={() => setShowSplitSummaries(true)}
+              onShowPreSplitChat={() => setShowPreSplitChat(true)}
               onNewCampaign={() => {
                 setShowNewCampaignInput(true);
                 setNewCampaignName('');
