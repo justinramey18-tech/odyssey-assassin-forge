@@ -2441,6 +2441,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     regenerateMessage,
     regenerateWhispers,
     addMediaMessage,
+    stopGeneration,
     initiateSplit,
     regroupParty,
     updateSessionConfig,
