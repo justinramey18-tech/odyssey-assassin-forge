@@ -560,6 +560,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const photoCameraRef = useRef<HTMLInputElement>(null);
+  const videoCameraRef = useRef<HTMLInputElement>(null);
 
   // Bottom nav state
   const [activeNavTab, setActiveNavTab] = useState<DMNavTab | null>(null);
