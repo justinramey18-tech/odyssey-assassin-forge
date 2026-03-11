@@ -169,6 +169,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   }, [pendingSynthesis]);
 
   const abortRef = useRef<AbortController | null>(null);
+  const lastGeneratedRoundRef = useRef<string | null>(null);
   const autoGenTimerRef = useRef<NodeJS.Timeout | null>(null);
   const { recentModes, addMode } = useSynthesisMemory();
 
