@@ -555,8 +555,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
   useEffect(() => {
     if (!showAttachMenu) return;
-    const dismiss = () => setShowAttachMenu(false);
-    const timer = setTimeout(() => document.addEventListener('pointerdown', dismiss, { once: true }), 0);
+    const dismiss = (e: PointerEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('[data-attach-menu]')) return;
+      setShowAttachMenu(false);
+    };
+    const timer = setTimeout(() => document.addEventListener('pointerdown', dismiss), 0);
     return () => { clearTimeout(timer); document.removeEventListener('pointerdown', dismiss); };
   }, [showAttachMenu]);
   const [expandedPillUserId, setExpandedPillUserId] = useState<string | null>(null);
@@ -1661,7 +1665,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               </Button>
               {currentUserId && (
                 <div className="flex gap-1 shrink-0">
-                  <div className="relative">
+                  <div className="relative" data-attach-menu>
                     <button
                       onClick={() => setShowAttachMenu(prev => !prev)}
                       disabled={isUploadingPhoto || isUploadingVideo}
