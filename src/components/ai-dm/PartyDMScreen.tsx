@@ -1537,6 +1537,52 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           finally { setIsUploadingPhoto(false); if (photoInputRef.current) photoInputRef.current.value = ''; }
         }}
       />
+      <input
+        ref={photoCameraRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          if (file.size > 10 * 1024 * 1024) { toast.error('Image too large (max 10MB)'); return; }
+          setIsUploadingPhoto(true);
+          try {
+            const ext = file.name.split('.').pop() || 'jpg';
+            const path = `party-dm/${partyDm.sessionConfig?.currentRoundId || 'general'}/${crypto.randomUUID()}.${ext}`;
+            const { error } = await supabase.storage.from('party-chat-images').upload(path, file);
+            if (error) throw error;
+            const { data: urlData } = supabase.storage.from('party-chat-images').getPublicUrl(path);
+            const senderName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
+            await partyDm.addMediaMessage(`[image:${urlData.publicUrl}]`, senderName);
+          } catch (err) { toast.error(err instanceof Error ? err.message : 'Upload failed'); }
+          finally { setIsUploadingPhoto(false); if (photoCameraRef.current) photoCameraRef.current.value = ''; }
+        }}
+      />
+      <input
+        ref={videoCameraRef}
+        type="file"
+        accept="video/*"
+        capture="environment"
+        className="hidden"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          if (file.size > 50 * 1024 * 1024) { toast.error('Video too large (max 50MB)'); return; }
+          setIsUploadingVideo(true);
+          try {
+            const ext = file.name.split('.').pop() || 'mp4';
+            const path = `party-dm/${partyDm.sessionConfig?.currentRoundId || 'general'}/${crypto.randomUUID()}.${ext}`;
+            const { error } = await supabase.storage.from('videos').upload(path, file);
+            if (error) throw error;
+            const { data: urlData } = supabase.storage.from('videos').getPublicUrl(path);
+            const senderName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
+            await partyDm.addMediaMessage(`[video:${urlData.publicUrl}]`, senderName);
+          } catch (err) { toast.error(err instanceof Error ? err.message : 'Upload failed'); }
+          finally { setIsUploadingVideo(false); if (videoCameraRef.current) videoCameraRef.current.value = ''; }
+        }}
+      />
 
       {/* Input Area */}
       {!isFullscreen && (
