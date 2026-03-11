@@ -36,6 +36,7 @@ import { AutoSyncBanner } from './AutoSyncBanner';
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
 import { InlineBattleMap } from './InlineBattleMap';
 import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 import { useNarrator } from '@/hooks/use-narrator';
 import { useDMChatTheme } from '@/hooks/use-dm-chat-theme';
 import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
