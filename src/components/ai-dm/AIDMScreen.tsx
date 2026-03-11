@@ -1163,6 +1163,8 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         onModelChange={(id) => { setSelectedModel(id); saveSelectedModel(id); }}
         chatThemeId={chatThemeId}
         onChatThemeChange={setChatTheme}
+        whisperTrayEnabled={whisperTrayEnabled}
+        onWhisperTrayEnabledChange={setWhisperTrayEnabled}
       />
 
       {/* GM Guides Overlay */}
