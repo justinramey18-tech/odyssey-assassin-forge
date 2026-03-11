@@ -1638,6 +1638,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           <div className="flex items-center justify-center gap-2 py-2">
             <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
             <span className="text-sm text-amber-400/70">Generating response...</span>
+            {isCreator && (
+              <button
+                onClick={partyDm.stopGeneration}
+                className="ml-2 px-2.5 py-1 rounded-lg border border-red-500/30 bg-red-900/20 hover:bg-red-900/40 text-red-300 text-xs transition-colors"
+                style={{ touchAction: 'manipulation' }}
+              >
+                Stop
+              </button>
+            )}
           </div>
         ) : !hasSubmitted ? (
           <div className="space-y-2 max-w-2xl mx-auto">
