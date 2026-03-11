@@ -1672,6 +1672,23 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     await (supabase.from('party_dm_messages') as any).insert(insertData);
   }, [partyId, user, isSplitActive, myTeam]);
 
+  const stopGeneration = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+    setIsGenerating(false);
+    setSynthesisMode(null);
+    // Release the generation lock
+    if (partyId && sessionConfig) {
+      (supabase.from('party_shared_state') as any)
+        .update({ state_data: { ...sessionConfig, isGenerating: false } })
+        .eq('party_id', partyId)
+        .eq('state_type', 'dm_session')
+        .then(() => {});
+    }
+  }, [partyId, sessionConfig]);
+
   // === SPLIT PARTY FUNCTIONS ===
 
   const initiateSplit = useCallback(async (alphaMembers: string[], alphaName?: string, betaName?: string) => {
