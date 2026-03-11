@@ -143,9 +143,10 @@ interface SplitBannerProps {
   myTeam: SplitTeam;
   isCreator: boolean;
   members: Array<{ user_id: string; character_name: string }>;
+  onShowPreSplitChat: () => void;
 }
 
-export function SplitBanner({ splitState, myTeam, isCreator, members }: SplitBannerProps) {
+export function SplitBanner({ splitState, myTeam, isCreator, members, onShowPreSplitChat }: SplitBannerProps) {
   const alphaLabel = splitState.alphaName || 'Team Alpha';
   const betaLabel = splitState.betaName || 'Team Beta';
   const teamLabel = myTeam === 'alpha' ? alphaLabel : myTeam === 'beta' ? betaLabel : 'Observer';
