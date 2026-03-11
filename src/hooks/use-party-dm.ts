@@ -169,6 +169,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   }, [pendingSynthesis]);
 
   const abortRef = useRef<AbortController | null>(null);
+  const lastGeneratedRoundRef = useRef<string | null>(null);
   const autoGenTimerRef = useRef<NodeJS.Timeout | null>(null);
   const { recentModes, addMode } = useSynthesisMemory();
 
@@ -1394,6 +1395,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           .eq('party_id', partyId)
           .eq('round_id', sessionConfig.currentRoundId);
         setCurrentPrompts([]);
+        lastGeneratedRoundRef.current = sessionConfig.currentRoundId;
 
         const newRoundId = crypto.randomUUID();
         const newConfig: DmSessionConfig = {
@@ -1441,6 +1443,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     if (!isCreator || !allReady || isGenerating) return;
     // Don't auto-generate in human mode — AI and AI-approval both auto-trigger
     if (currentDmMode === 'human') return;
+    if (lastGeneratedRoundRef.current === sessionConfig?.currentRoundId) return;
     if (autoGenTimerRef.current) clearTimeout(autoGenTimerRef.current);
     autoGenTimerRef.current = setTimeout(() => {
       generateResponse();
