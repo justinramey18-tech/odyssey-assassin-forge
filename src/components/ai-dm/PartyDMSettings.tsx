@@ -299,6 +299,7 @@ export function PartyDMSettings({
           {isSplitActive ? (
             <>
               <ToolRow icon={<Eye className="w-4 h-4" />} label="View Split Summaries" onClick={onShowSplitSummaries} />
+              <ToolRow icon={<MessageSquare className="w-4 h-4" />} label="View Pre-Split Chat" description="Read-only view of the original conversation" onClick={onShowPreSplitChat} />
               <ToolRow icon={<Users className="w-4 h-4 text-emerald-400" />} label="Regroup Party" description="Merge split teams back together" onClick={onShowRegroupDialog} />
             </>
           ) : memberCount >= 4 ? (

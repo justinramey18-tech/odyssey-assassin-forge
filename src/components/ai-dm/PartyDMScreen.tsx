@@ -1948,6 +1948,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           splitState={partyDm.splitState}
         />
       )}
+      {partyDm.splitState && (
+        <PreSplitChatViewer
+          open={showPreSplitChat}
+          onClose={() => setShowPreSplitChat(false)}
+          splitState={partyDm.splitState}
+        />
+      )}
 
       {/* AFK Personality Guide Dialog */}
       {partyDm.sessionConfig && currentUserId && (
