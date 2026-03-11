@@ -1494,7 +1494,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       <input
         ref={videoInputRef}
         type="file"
-        accept="video/mp4,video/webm"
+        accept="video/*"
         className="hidden"
         onChange={async (e) => {
           const file = e.target.files?.[0];
