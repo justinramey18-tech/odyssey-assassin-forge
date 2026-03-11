@@ -65,6 +65,8 @@ export function DMToolsDrawer({
   onModelChange,
   chatThemeId,
   onChatThemeChange,
+  whisperTrayEnabled,
+  onWhisperTrayEnabledChange,
 }: DMToolsDrawerProps) {
   const [showRetakeConfirm, setShowRetakeConfirm] = useState(false);
 
