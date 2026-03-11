@@ -95,6 +95,7 @@ export interface PartyDMSettingsProps {
   onShowSplitInitiator: () => void;
   onShowRegroupDialog: () => void;
   onShowSplitSummaries: () => void;
+  onShowPreSplitChat: () => void;
   onNewCampaign: () => void;
   // Danger zone
   onEndSession: () => void;
