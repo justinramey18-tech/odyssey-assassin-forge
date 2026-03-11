@@ -1697,6 +1697,27 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       .delete()
       .eq('party_id', partyId);
 
+    // Seed each team's chat with the last DM message for narrative context
+    const lastAssistantMsg = [...messages].reverse().find(m => m.role === 'assistant');
+    if (lastAssistantMsg) {
+      await (supabase.from('party_dm_messages') as any).insert({
+        party_id: partyId,
+        role: 'assistant',
+        content: lastAssistantMsg.content,
+        sender_user_id: null,
+        sender_name: 'DM',
+        team: 'alpha',
+      });
+      await (supabase.from('party_dm_messages') as any).insert({
+        party_id: partyId,
+        role: 'assistant',
+        content: lastAssistantMsg.content,
+        sender_user_id: null,
+        sender_name: 'DM',
+        team: 'beta',
+      });
+    }
+
     // Update session config
     const newRoundId = crypto.randomUUID();
     const updatedConfig: DmSessionConfig = {
