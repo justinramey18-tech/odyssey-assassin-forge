@@ -1274,7 +1274,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 style={{ touchAction: 'pan-x' }}
               >
                 <div className="flex flex-col gap-1.5 mx-1 pb-2">
-                  {members.map(m => {
+                  {visibleMembers.map(m => {
                     const prompt = partyDm.currentPrompts.find(p => p.user_id === m.user_id);
                     const isSelf = m.user_id === currentUserId;
                     const hasAction = prompt && prompt.prompt.trim().length > 0;
