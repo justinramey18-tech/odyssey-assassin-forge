@@ -1704,11 +1704,17 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                     : 'Ready! Waiting for others...'}
               </span>
               <button
-                onClick={partyDm.unready}
+                onClick={() => {
+                  const promptText = partyDm.myPrompt?.prompt || '';
+                  if (promptText) {
+                    setInput(promptText);
+                  }
+                  partyDm.retractPrompt();
+                }}
                 disabled={partyDm.isGenerating}
                 className="ml-2 px-2 py-0.5 text-[11px] rounded border border-amber-500/30 bg-amber-900/20 text-amber-300 hover:bg-amber-900/40 transition-colors disabled:opacity-40"
               >
-                Undo
+                Retract
               </button>
             </div>
             <div className="flex items-center gap-2">

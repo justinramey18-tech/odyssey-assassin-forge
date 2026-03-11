@@ -744,7 +744,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const retractPrompt = useCallback(async () => {
     if (!user) return;
     const myPrompt = currentPrompts.find(p => p.user_id === user.id);
-    if (!myPrompt || myPrompt.is_ready) return;
+    if (!myPrompt) return;
     // Optimistic update
     setCurrentPrompts(prev => prev.filter(p => p.id !== myPrompt.id));
     await (supabase.from('party_dm_prompts') as any)
