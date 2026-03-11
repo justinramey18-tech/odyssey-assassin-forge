@@ -1424,8 +1424,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const currentDmMode = sessionConfig?.dmMode || 'ai';
   useEffect(() => {
     if (!isCreator || !allReady || isGenerating) return;
-    // Don't auto-generate in human or ai-approval modes
-    if (currentDmMode !== 'ai') return;
+    // Don't auto-generate in human mode — AI and AI-approval both auto-trigger
+    if (currentDmMode === 'human') return;
     if (autoGenTimerRef.current) clearTimeout(autoGenTimerRef.current);
     autoGenTimerRef.current = setTimeout(() => {
       generateResponse();
