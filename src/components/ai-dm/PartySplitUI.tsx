@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, GitBranch, X, Check, Eye, Loader2 } from 'lucide-react';
+import { Users, GitBranch, X, Check, Eye, Loader2, MessageSquare, Crown } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { DmSplitState, SplitTeam } from '@/lib/party-split-types';
