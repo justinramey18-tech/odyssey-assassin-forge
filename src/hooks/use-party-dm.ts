@@ -273,6 +273,16 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           }
         }
       }
+
+      // Stale lock recovery: if DB says isGenerating but we just loaded fresh, release it
+      if (sessionConfig?.isGenerating && isCreator) {
+        console.warn('[PartyDM] Detected stale isGenerating lock on load, releasing...');
+        const freshConfig = { ...sessionConfig, isGenerating: false };
+        await (supabase.from('party_shared_state') as any)
+          .update({ state_data: freshConfig })
+          .eq('party_id', partyId)
+          .eq('state_type', 'dm_session');
+      }
     })();
   }, [partyId, isActive, sessionConfig?.currentRoundId]);
 
@@ -890,6 +900,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       const userMessage = `PREVIOUS DM MESSAGE (context):\n${contextSnippet}\n\nRECENT MODES USED (avoid repeating):\n[${recentModes.join(', ') || 'none yet'}]\n\nPLAYER PROMPTS:\n${playerPromptsText}`;
 
       const authToken = await getAuthToken();
+      const synthAbort = new AbortController();
+      const synthTimeout = setTimeout(() => synthAbort.abort(), 15000);
       const response = await fetch(AI_DM_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
@@ -898,7 +910,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           systemPromptOverride: systemPrompt,
           model: 'google/gemini-2.5-flash-lite',
         }),
+        signal: synthAbort.signal,
       });
+      clearTimeout(synthTimeout);
 
       if (!response.ok) { console.warn('[Synthesizer] AI request failed, falling back'); return null; }
       if (!response.body) return null;
