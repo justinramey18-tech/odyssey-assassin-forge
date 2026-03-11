@@ -816,6 +816,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
                         return next;
                       })}
                       theme={chatTheme}
+                      whisperTrayEnabled={whisperTrayEnabled}
                     />
                   ))}
                 </AnimatePresence>
