@@ -528,6 +528,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [, setTick] = useState(0);
   const narrator = useNarrator();
   const spotify = useSpotify();
+  const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
   const [ttsSelectMode, setTtsSelectMode] = useState(false);
   const [ttsSelectedIds, setTtsSelectedIds] = useState<Set<string>>(new Set());
   const lastProcessedMsgIdRef = useRef<string | null>(null);
