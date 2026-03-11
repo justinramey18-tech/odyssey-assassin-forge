@@ -6,7 +6,7 @@ import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare } from 'lucide-react';
 import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
-import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer } from './PartySplitUI';
+import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer, PreSplitChatViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { WhisperTray } from './WhisperTray';
 import { OraclePanel } from '@/components/oracle/OraclePanel';
