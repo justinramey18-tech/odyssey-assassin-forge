@@ -205,6 +205,15 @@ export function PartyDMSettings({
             disabled={pushState === 'denied'}
           />
         )}
+        {onWhisperTrayEnabledChange != null && (
+          <ToggleRow
+            icon={<MessageCircle className={cn("w-4 h-4", whisperTrayEnabled ? "text-purple-400" : "text-muted-foreground")} />}
+            label="Whisper Trays"
+            description="Show mechanical hints below AI responses"
+            checked={whisperTrayEnabled ?? true}
+            onCheckedChange={onWhisperTrayEnabledChange}
+          />
+        )}
         {isCreator && (
           <div className="px-3 py-2">
             <div className="flex items-center gap-2 mb-2">
