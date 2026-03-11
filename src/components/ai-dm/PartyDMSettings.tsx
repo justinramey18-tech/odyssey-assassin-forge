@@ -112,6 +112,9 @@ export interface PartyDMSettingsProps {
   currentUserId?: string;
   onPromoteCoHost?: (userId: string) => void;
   onDemoteCoHost?: (userId: string) => void;
+  // Whisper tray
+  whisperTrayEnabled?: boolean;
+  onWhisperTrayEnabledChange?: (enabled: boolean) => void;
 }
 
 export function PartyDMSettings({
