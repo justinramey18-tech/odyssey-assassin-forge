@@ -35,6 +35,7 @@ import { AfkPersonalityGuide } from './AfkPersonalityGuide';
 import { ScheduledEventsSheet } from './ScheduledEventsSheet';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { CampaignSession } from '@/hooks/use-campaign-sessions';
+import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
 
 type PartyDmReturn = ReturnType<typeof usePartyDm>;
 
