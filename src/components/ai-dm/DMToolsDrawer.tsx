@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { RotateCcw, Map, FolderOpen, BookOpen, Globe, Zap, Trash2, Brain, Cpu, Palette } from 'lucide-react';
+import { RotateCcw, Map, FolderOpen, BookOpen, Globe, Zap, Trash2, Brain, Cpu, Palette, Eye } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import {
