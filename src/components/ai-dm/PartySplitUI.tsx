@@ -171,8 +171,16 @@ export function SplitBanner({ splitState, myTeam, isCreator, members, onShowPreS
       <span className="text-white/50 truncate">
         {teamMembers.map(m => m.character_name).join(', ')}
       </span>
+      <button
+        onClick={onShowPreSplitChat}
+        className="ml-auto p-1 rounded hover:bg-white/10 text-white/30 hover:text-white/60 transition-colors"
+        style={{ touchAction: 'manipulation' }}
+        title="View pre-split chat"
+      >
+        <MessageSquare className="w-3.5 h-3.5" />
+      </button>
       {isCreator && (
-        <span className="ml-auto text-amber-400/60 text-[10px] whitespace-nowrap">Host view: all teams</span>
+        <span className="text-amber-400/60 text-[10px] whitespace-nowrap">Host view: all teams</span>
       )}
     </div>
   );
