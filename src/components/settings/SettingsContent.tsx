@@ -595,6 +595,14 @@ export function SettingsContent({
                   <><Download className="w-4 h-4" />Check for Updates</>
                 )}
               </Button>
+              <Button
+                variant="outline"
+                onClick={() => window.location.reload()}
+                className="w-full gap-2 h-12 border-white/10 hover:bg-white/10 text-white/60"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Refresh App
+              </Button>
               <Separator className="bg-border/30" />
               <ApiCredentials />
             </div>
