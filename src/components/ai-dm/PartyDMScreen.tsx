@@ -1223,7 +1223,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           >
             <span className="text-[10px] text-white/50 uppercase tracking-wider font-semibold">Round Queue</span>
             <span className="text-[10px] text-white/30">
-              {partyDm.currentPrompts.filter(p => p.is_ready).length}/{memberCount} ready
+              {partyDm.currentPrompts.filter(p => p.is_ready && visibleMembers.some(m => m.user_id === p.user_id)).length}/{visibleMembers.length} ready
             </span>
             {/* Mini status dots when collapsed */}
             {!queueDrawerOpen && (
