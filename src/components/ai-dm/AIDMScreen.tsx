@@ -76,9 +76,10 @@ interface DMMessageBubbleProps {
   ttsSelected?: boolean;
   onTtsToggle?: (id: string) => void;
   theme?: DMChatTheme;
+  whisperTrayEnabled?: boolean;
 }
 
-function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, ttsSelectMode, ttsSelected, onTtsToggle, theme }: DMMessageBubbleProps) {
+function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, ttsSelectMode, ttsSelected, onTtsToggle, theme, whisperTrayEnabled = true }: DMMessageBubbleProps) {
   const isUser = message.role === 'user';
   const videoMatch = message.content.match(VIDEO_REGEX);
   const imageMatch = !videoMatch ? message.content.match(IMAGE_REGEX) : null;
