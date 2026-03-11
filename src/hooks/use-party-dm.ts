@@ -238,6 +238,41 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           .eq('round_id', sessionConfig.currentRoundId);
         if (prompts) setCurrentPrompts(prompts);
       }
+
+      // Backfill: if split is active but team chats are empty, seed from snapshot
+      if (msgs && msgs.length === 0 && sessionConfig?.splitActive) {
+        const { data: splitData } = await (supabase.from('party_shared_state') as any)
+          .select('state_data')
+          .eq('party_id', partyId)
+          .eq('state_type', 'dm_split')
+          .maybeSingle();
+
+        if (splitData?.state_data) {
+          const split = splitData.state_data as any;
+          const snapshotMsgs = split.snapshotMessages as Array<{ role: string; content: string }> | undefined;
+          if (snapshotMsgs && snapshotMsgs.length > 0) {
+            const lastDM = [...snapshotMsgs].reverse().find(m => m.role === 'assistant');
+            if (lastDM) {
+              const { count: existingCount } = await (supabase.from('party_dm_messages') as any)
+                .select('id', { count: 'exact', head: true })
+                .eq('party_id', partyId);
+
+              if (existingCount === 0) {
+                const seedMsg = {
+                  party_id: partyId,
+                  role: 'assistant',
+                  content: lastDM.content,
+                  sender_user_id: null,
+                  sender_name: 'DM',
+                };
+                await (supabase.from('party_dm_messages') as any).insert({ ...seedMsg, team: 'alpha' });
+                await (supabase.from('party_dm_messages') as any).insert({ ...seedMsg, team: 'beta' });
+                console.log('[PartyDM] Backfilled split team chats with last pre-split DM message');
+              }
+            }
+          }
+        }
+      }
     })();
   }, [partyId, isActive, sessionConfig?.currentRoundId]);
 
