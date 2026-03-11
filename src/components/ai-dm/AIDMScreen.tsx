@@ -223,6 +223,7 @@ function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, t
           ) : (
             <div className="text-sm prose prose-invert prose-sm max-w-none break-words overflow-wrap-anywhere">
               <ReactMarkdown
+                rehypePlugins={[rehypeRaw]}
                 components={{
                   p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
                   strong: ({ children }) => <strong className={theme?.accentColor || 'text-amber-300'}>{children}</strong>,

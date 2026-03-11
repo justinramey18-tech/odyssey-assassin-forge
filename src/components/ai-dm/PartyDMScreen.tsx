@@ -320,6 +320,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
                   </div>
                 ) : (
                   <ReactMarkdown
+                    rehypePlugins={[rehypeRaw]}
                     components={{
                       p: ({ children }) => {
                         if (afkCharNames.length === 0) return <p className="mb-2 last:mb-0">{children}</p>;
