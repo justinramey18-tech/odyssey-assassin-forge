@@ -230,6 +230,25 @@ export function DMToolsDrawer({
             </div>
           )}
 
+          {/* Whisper Tray toggle */}
+          {onWhisperTrayEnabledChange != null && (
+            <div className="flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors">
+              <div className="flex items-center gap-3">
+                <span className={cn(
+                  "w-8 h-8 rounded-lg flex items-center justify-center",
+                  whisperTrayEnabled ? "bg-purple-900/40 text-purple-400" : "bg-white/5 text-white/40"
+                )}>
+                  <Eye className="w-4 h-4" />
+                </span>
+                <span className="text-sm font-cinzel text-white/80">Whisper Trays</span>
+              </div>
+              <Switch
+                checked={whisperTrayEnabled ?? true}
+                onCheckedChange={onWhisperTrayEnabledChange}
+              />
+            </div>
+          )}
+
           {/* Divider */}
           <div className="mx-4 my-2 border-t border-amber-900/20" />
 
