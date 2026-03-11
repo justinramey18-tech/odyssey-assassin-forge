@@ -571,6 +571,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [showSplitInitiator, setShowSplitInitiator] = useState(false);
   const [showRegroupDialog, setShowRegroupDialog] = useState(false);
   const [showSplitSummaries, setShowSplitSummaries] = useState(false);
+  const [showPreSplitChat, setShowPreSplitChat] = useState(false);
   const [showTimerSettings, setShowTimerSettings] = useState(false);
   const [showAfkGuide, setShowAfkGuide] = useState(false);
   const [showScheduledEvents, setShowScheduledEvents] = useState(false);
