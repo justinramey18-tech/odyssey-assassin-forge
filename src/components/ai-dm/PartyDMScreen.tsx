@@ -1989,6 +1989,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               currentUserId={currentUserId}
               onPromoteCoHost={onPromoteCoHost}
               onDemoteCoHost={onDemoteCoHost}
+              whisperTrayEnabled={whisperTrayEnabled}
+              onWhisperTrayEnabledChange={setWhisperTrayEnabled}
             />
           ) : undefined}
           oracleContent={activeNavTab === 'oracle' && characterContext ? (
