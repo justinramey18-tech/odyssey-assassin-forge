@@ -1000,6 +1000,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           myTeam={partyDm.myTeam}
           isCreator={isCreator}
           members={members}
+          onShowPreSplitChat={() => setShowPreSplitChat(true)}
         />
       )}
 
