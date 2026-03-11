@@ -38,6 +38,7 @@ import { InlineBattleMap } from './InlineBattleMap';
 import ReactMarkdown from 'react-markdown';
 import { useNarrator } from '@/hooks/use-narrator';
 import { useDMChatTheme } from '@/hooks/use-dm-chat-theme';
+import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
 import type { DMChatTheme } from '@/lib/dm-chat-themes';
 
 import type { MapMarker } from '@/components/party/battlemap/types';
