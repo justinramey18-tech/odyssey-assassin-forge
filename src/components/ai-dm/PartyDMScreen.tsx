@@ -21,6 +21,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 import { toast } from 'sonner';
 import { useNarrator } from '@/hooks/use-narrator';
 import { useSpotify } from '@/hooks/use-spotify';
@@ -319,6 +320,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
                   </div>
                 ) : (
                   <ReactMarkdown
+                    rehypePlugins={[rehypeRaw]}
                     components={{
                       p: ({ children }) => {
                         if (afkCharNames.length === 0) return <p className="mb-2 last:mb-0">{children}</p>;

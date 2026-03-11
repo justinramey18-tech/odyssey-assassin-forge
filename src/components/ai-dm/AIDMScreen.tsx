@@ -36,6 +36,7 @@ import { AutoSyncBanner } from './AutoSyncBanner';
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
 import { InlineBattleMap } from './InlineBattleMap';
 import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 import { useNarrator } from '@/hooks/use-narrator';
 import { useDMChatTheme } from '@/hooks/use-dm-chat-theme';
 import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
@@ -222,6 +223,7 @@ function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, t
           ) : (
             <div className="text-sm prose prose-invert prose-sm max-w-none break-words overflow-wrap-anywhere">
               <ReactMarkdown
+                rehypePlugins={[rehypeRaw]}
                 components={{
                   p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
                   strong: ({ children }) => <strong className={theme?.accentColor || 'text-amber-300'}>{children}</strong>,
