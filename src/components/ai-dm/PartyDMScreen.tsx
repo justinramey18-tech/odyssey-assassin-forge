@@ -4,7 +4,7 @@ import partyChatIcon from '@/assets/party-chat-icon.jpg';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare } from 'lucide-react';
+import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare, Paperclip, Camera } from 'lucide-react';
 import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
 import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer, PreSplitChatViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
@@ -551,6 +551,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+
+  useEffect(() => {
+    if (!showAttachMenu) return;
+    const dismiss = () => setShowAttachMenu(false);
+    const timer = setTimeout(() => document.addEventListener('pointerdown', dismiss, { once: true }), 0);
+    return () => { clearTimeout(timer); document.removeEventListener('pointerdown', dismiss); };
+  }, [showAttachMenu]);
   const [expandedPillUserId, setExpandedPillUserId] = useState<string | null>(null);
   const [pillEditText, setPillEditText] = useState('');
   const [queueDrawerOpen, setQueueDrawerOpen] = useState(false);
@@ -1653,24 +1661,58 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               </Button>
               {currentUserId && (
                 <div className="flex gap-1 shrink-0">
-                  <button
-                    onClick={() => photoInputRef.current?.click()}
-                    disabled={isUploadingPhoto}
-                    className="p-2 rounded-xl border border-white/10 hover:border-amber-500/30 bg-white/5 hover:bg-amber-900/20 transition-colors"
-                    style={{ touchAction: 'manipulation' }}
-                    title="Attach photo"
-                  >
-                    {isUploadingPhoto ? <Loader2 className="w-4 h-4 text-amber-400 animate-spin" /> : <ImageIcon className="w-4 h-4 text-white/50" />}
-                  </button>
-                  <button
-                    onClick={() => videoInputRef.current?.click()}
-                    disabled={isUploadingVideo}
-                    className="p-2 rounded-xl border border-white/10 hover:border-amber-500/30 bg-white/5 hover:bg-amber-900/20 transition-colors"
-                    style={{ touchAction: 'manipulation' }}
-                    title="Attach video"
-                  >
-                    {isUploadingVideo ? <Loader2 className="w-4 h-4 text-amber-400 animate-spin" /> : <Film className="w-4 h-4 text-white/50" />}
-                  </button>
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowAttachMenu(prev => !prev)}
+                      disabled={isUploadingPhoto || isUploadingVideo}
+                      className="p-2 rounded-xl border border-white/10 hover:border-amber-500/30 bg-white/5 hover:bg-amber-900/20 transition-colors"
+                      style={{ touchAction: 'manipulation' }}
+                      title="Attach media"
+                    >
+                      {(isUploadingPhoto || isUploadingVideo) ? (
+                        <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
+                      ) : (
+                        <Paperclip className="w-4 h-4 text-white/50" />
+                      )}
+                    </button>
+                    {showAttachMenu && (
+                      <div className="absolute bottom-full right-0 mb-2 w-48 bg-black/95 border border-amber-900/30 rounded-xl p-1.5 z-20 shadow-xl space-y-0.5">
+                        <button
+                          onClick={() => { photoCameraRef.current?.click(); setShowAttachMenu(false); }}
+                          className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs"
+                          style={{ touchAction: 'manipulation' }}
+                        >
+                          <Camera className="w-4 h-4" />
+                          Take Photo
+                        </button>
+                        <button
+                          onClick={() => { videoCameraRef.current?.click(); setShowAttachMenu(false); }}
+                          className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs"
+                          style={{ touchAction: 'manipulation' }}
+                        >
+                          <Film className="w-4 h-4" />
+                          Record Video
+                        </button>
+                        <div className="border-t border-white/5 my-0.5" />
+                        <button
+                          onClick={() => { photoInputRef.current?.click(); setShowAttachMenu(false); }}
+                          className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs"
+                          style={{ touchAction: 'manipulation' }}
+                        >
+                          <ImageIcon className="w-4 h-4" />
+                          Photo from Gallery
+                        </button>
+                        <button
+                          onClick={() => { videoInputRef.current?.click(); setShowAttachMenu(false); }}
+                          className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs"
+                          style={{ touchAction: 'manipulation' }}
+                        >
+                          <Film className="w-4 h-4" />
+                          Video from Gallery
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   {/* Narrator speaker button */}
                    {narrator.hasTTSKey && (
                     <button
