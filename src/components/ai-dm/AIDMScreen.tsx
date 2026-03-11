@@ -38,6 +38,7 @@ import { InlineBattleMap } from './InlineBattleMap';
 import ReactMarkdown from 'react-markdown';
 import { useNarrator } from '@/hooks/use-narrator';
 import { useDMChatTheme } from '@/hooks/use-dm-chat-theme';
+import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
 import type { DMChatTheme } from '@/lib/dm-chat-themes';
 
 import type { MapMarker } from '@/components/party/battlemap/types';
@@ -75,9 +76,10 @@ interface DMMessageBubbleProps {
   ttsSelected?: boolean;
   onTtsToggle?: (id: string) => void;
   theme?: DMChatTheme;
+  whisperTrayEnabled?: boolean;
 }
 
-function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, ttsSelectMode, ttsSelected, onTtsToggle, theme }: DMMessageBubbleProps) {
+function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, ttsSelectMode, ttsSelected, onTtsToggle, theme, whisperTrayEnabled = true }: DMMessageBubbleProps) {
   const isUser = message.role === 'user';
   const videoMatch = message.content.match(VIDEO_REGEX);
   const imageMatch = !videoMatch ? message.content.match(IMAGE_REGEX) : null;
@@ -244,7 +246,7 @@ function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, t
         </div>
 
         {/* Whisper tray for AI messages with whispers */}
-        {!isUser && message.whispers && message.whispers.length > 0 && (
+        {whisperTrayEnabled && !isUser && message.whispers && message.whispers.length > 0 && (
           <WhisperTray whispers={message.whispers} />
         )}
         {/* Action buttons for assistant messages (desktop) */}
@@ -360,6 +362,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const { toast } = useToast();
   const narrator = useNarrator();
   const { themeId: chatThemeId, theme: chatTheme, setTheme: setChatTheme } = useDMChatTheme();
+  const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
   const spotify = useSpotify();
   const [ttsSelectMode, setTtsSelectMode] = useState(false);
   const [ttsSelectedIds, setTtsSelectedIds] = useState<Set<string>>(new Set());
@@ -813,6 +816,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
                         return next;
                       })}
                       theme={chatTheme}
+                      whisperTrayEnabled={whisperTrayEnabled}
                     />
                   ))}
                 </AnimatePresence>
@@ -1159,6 +1163,8 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         onModelChange={(id) => { setSelectedModel(id); saveSelectedModel(id); }}
         chatThemeId={chatThemeId}
         onChatThemeChange={setChatTheme}
+        whisperTrayEnabled={whisperTrayEnabled}
+        onWhisperTrayEnabledChange={setWhisperTrayEnabled}
       />
 
       {/* GM Guides Overlay */}

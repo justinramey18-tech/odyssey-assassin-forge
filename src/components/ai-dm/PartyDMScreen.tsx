@@ -35,6 +35,7 @@ import { AfkPersonalityGuide } from './AfkPersonalityGuide';
 import { ScheduledEventsSheet } from './ScheduledEventsSheet';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { CampaignSession } from '@/hooks/use-campaign-sessions';
+import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
 
 type PartyDmReturn = ReturnType<typeof usePartyDm>;
 
@@ -157,7 +158,7 @@ function AfkAnnotatedContent({ content, afkNames }: { content: string; afkNames?
   );
 }
 
-function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, allMessages, ttsSelectMode, ttsSelected, onTtsToggle }: {
+function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, allMessages, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true }: {
   message: PartyDmMessage;
   currentUserId?: string;
   members: Array<{ user_id: string; character_name: string }>;
@@ -173,6 +174,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
   ttsSelectMode?: boolean;
   ttsSelected?: boolean;
   onTtsToggle?: (id: string) => void;
+  whisperTrayEnabled?: boolean;
 }) {
   const [showActions, setShowActions] = useState(false);
   const [isEditingMsg, setIsEditingMsg] = useState(false);
@@ -392,7 +394,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
           </div>
         </motion.div>
         {/* Whisper tray below the AI message bubble, filtered to current player */}
-        {filteredWhispers.length > 0 && (
+        {whisperTrayEnabled && filteredWhispers.length > 0 && (
           <div className="ml-[calc(1.75rem+0.375rem)]">
             <WhisperTray whispers={filteredWhispers} />
           </div>
@@ -527,6 +529,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [, setTick] = useState(0);
   const narrator = useNarrator();
   const spotify = useSpotify();
+  const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
   const [ttsSelectMode, setTtsSelectMode] = useState(false);
   const [ttsSelectedIds, setTtsSelectedIds] = useState<Set<string>>(new Set());
   const lastProcessedMsgIdRef = useRef<string | null>(null);
@@ -1064,6 +1067,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                     if (next.has(id)) next.delete(id); else next.add(id);
                     return next;
                   })}
+                  whisperTrayEnabled={whisperTrayEnabled}
                 />
               ))}
             </AnimatePresence>
@@ -1987,6 +1991,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               currentUserId={currentUserId}
               onPromoteCoHost={onPromoteCoHost}
               onDemoteCoHost={onDemoteCoHost}
+              whisperTrayEnabled={whisperTrayEnabled}
+              onWhisperTrayEnabledChange={setWhisperTrayEnabled}
             />
           ) : undefined}
           oracleContent={activeNavTab === 'oracle' && characterContext ? (

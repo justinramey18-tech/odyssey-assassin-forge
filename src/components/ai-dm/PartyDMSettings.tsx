@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/ui/switch';
-import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle } from 'lucide-react';
 import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
 import { TimerSettings } from './RoundTimer';
 import type { PushSubscriptionState } from '@/lib/push-subscription';
@@ -112,6 +112,9 @@ export interface PartyDMSettingsProps {
   currentUserId?: string;
   onPromoteCoHost?: (userId: string) => void;
   onDemoteCoHost?: (userId: string) => void;
+  // Whisper tray
+  whisperTrayEnabled?: boolean;
+  onWhisperTrayEnabledChange?: (enabled: boolean) => void;
 }
 
 export function PartyDMSettings({
@@ -126,6 +129,7 @@ export function PartyDMSettings({
   timerEnabled, timerDurationSeconds, onTimerEnabledChange, onTimerDurationChange,
   onShowScheduledEvents, scheduledEventsCount = 0,
   members = [], coHostIds = [], currentUserId, onPromoteCoHost, onDemoteCoHost,
+  whisperTrayEnabled, onWhisperTrayEnabledChange,
 }: PartyDMSettingsProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   return (
@@ -199,6 +203,15 @@ export function PartyDMSettings({
             checked={pushState === 'subscribed'}
             onCheckedChange={onTogglePush}
             disabled={pushState === 'denied'}
+          />
+        )}
+        {onWhisperTrayEnabledChange != null && (
+          <ToggleRow
+            icon={<MessageCircle className={cn("w-4 h-4", whisperTrayEnabled ? "text-purple-400" : "text-muted-foreground")} />}
+            label="Whisper Trays"
+            description="Show mechanical hints below AI responses"
+            checked={whisperTrayEnabled ?? true}
+            onCheckedChange={onWhisperTrayEnabledChange}
           />
         )}
         {isCreator && (
