@@ -273,6 +273,16 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           }
         }
       }
+
+      // Stale lock recovery: if DB says isGenerating but we just loaded fresh, release it
+      if (sessionConfig?.isGenerating && isCreator) {
+        console.warn('[PartyDM] Detected stale isGenerating lock on load, releasing...');
+        const freshConfig = { ...sessionConfig, isGenerating: false };
+        await (supabase.from('party_shared_state') as any)
+          .update({ state_data: freshConfig })
+          .eq('party_id', partyId)
+          .eq('state_type', 'dm_session');
+      }
     })();
   }, [partyId, isActive, sessionConfig?.currentRoundId]);
 
