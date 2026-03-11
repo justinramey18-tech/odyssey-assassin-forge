@@ -625,6 +625,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
   const mode = partyDm.sessionConfig?.mode || 'shared';
 
+  const visibleMembers = partyDm.isSplitActive && partyDm.splitState && !isCreator
+    ? members.filter(m =>
+        partyDm.myTeam === 'alpha'
+          ? partyDm.splitState!.alphaMembers.includes(m.user_id)
+          : partyDm.splitState!.betaMembers.includes(m.user_id)
+      )
+    : members;
+
   // Host broadcast playlist indicator
   const [broadcastPlaylist, setBroadcastPlaylist] = useState<string | null>(null);
   useEffect(() => {
@@ -1215,12 +1223,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           >
             <span className="text-[10px] text-white/50 uppercase tracking-wider font-semibold">Round Queue</span>
             <span className="text-[10px] text-white/30">
-              {partyDm.currentPrompts.filter(p => p.is_ready).length}/{memberCount} ready
+              {partyDm.currentPrompts.filter(p => p.is_ready && visibleMembers.some(m => m.user_id === p.user_id)).length}/{visibleMembers.length} ready
             </span>
             {/* Mini status dots when collapsed */}
             {!queueDrawerOpen && (
               <div className="flex items-center gap-1 ml-auto mr-1">
-                {members.map(m => {
+                {visibleMembers.map(m => {
                   const prompt = partyDm.currentPrompts.find(p => p.user_id === m.user_id);
                   return (
                     <span
@@ -1266,7 +1274,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 style={{ touchAction: 'pan-x' }}
               >
                 <div className="flex flex-col gap-1.5 mx-1 pb-2">
-                  {members.map(m => {
+                  {visibleMembers.map(m => {
                     const prompt = partyDm.currentPrompts.find(p => p.user_id === m.user_id);
                     const isSelf = m.user_id === currentUserId;
                     const hasAction = prompt && prompt.prompt.trim().length > 0;
