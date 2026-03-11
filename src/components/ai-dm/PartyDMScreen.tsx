@@ -1665,7 +1665,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               </Button>
               {currentUserId && (
                 <div className="flex gap-1 shrink-0">
-                  <div className="relative">
+                  <div className="relative" data-attach-menu>
                     <button
                       onClick={() => setShowAttachMenu(prev => !prev)}
                       disabled={isUploadingPhoto || isUploadingVideo}
