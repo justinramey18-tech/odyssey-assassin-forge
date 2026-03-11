@@ -1228,7 +1228,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             {/* Mini status dots when collapsed */}
             {!queueDrawerOpen && (
               <div className="flex items-center gap-1 ml-auto mr-1">
-                {members.map(m => {
+                {visibleMembers.map(m => {
                   const prompt = partyDm.currentPrompts.find(p => p.user_id === m.user_id);
                   return (
                     <span
