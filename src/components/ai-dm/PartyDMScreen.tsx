@@ -1670,24 +1670,16 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 </div>
                 <button
                   onClick={() => {
-                    const myUserId = currentUserId;
-                    if (!myUserId) return;
-                    setExpandedPillUserId(prev => prev === myUserId ? null : myUserId);
-                    setPillEditText(partyDm.myPrompt?.prompt || '');
+                    const promptText = partyDm.myPrompt?.prompt || '';
+                    if (promptText) {
+                      setInput(promptText);
+                    }
+                    partyDm.retractPrompt();
                   }}
-                  className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/40 hover:text-white/70"
-                  title="Edit prompt via pill"
+                  className="px-3 py-2 rounded-lg hover:bg-amber-900/20 transition-colors text-amber-300/70 hover:text-amber-300 text-xs border border-amber-500/20"
                   style={{ touchAction: 'manipulation' }}
                 >
-                  <Pencil className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => partyDm.retractPrompt()}
-                  className="p-2 rounded-lg hover:bg-red-900/20 transition-colors text-white/40 hover:text-red-400"
-                  title="Retract prompt"
-                  style={{ touchAction: 'manipulation' }}
-                >
-                  <Trash2 className="w-4 h-4" />
+                  Retract
                 </button>
               </div>
               <Button
