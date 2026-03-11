@@ -1086,6 +1086,16 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                     ? 'The DM is reviewing the AI draft...'
                     : 'The DM weaves the tale...'}
                 </span>
+                {isCreator && (
+                  <button
+                    onClick={partyDm.stopGeneration}
+                    className="ml-auto p-1.5 rounded-lg border border-red-500/30 bg-red-900/20 hover:bg-red-900/40 transition-colors"
+                    style={{ touchAction: 'manipulation' }}
+                    title="Stop generation"
+                  >
+                    <X className="w-3.5 h-3.5 text-red-400" />
+                  </button>
+                )}
               </div>
             </motion.div>
           )}
