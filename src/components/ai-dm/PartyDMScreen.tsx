@@ -552,6 +552,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+
+  useEffect(() => {
+    if (!showAttachMenu) return;
+    const dismiss = () => setShowAttachMenu(false);
+    const timer = setTimeout(() => document.addEventListener('pointerdown', dismiss, { once: true }), 0);
+    return () => { clearTimeout(timer); document.removeEventListener('pointerdown', dismiss); };
+  }, [showAttachMenu]);
   const [expandedPillUserId, setExpandedPillUserId] = useState<string | null>(null);
   const [pillEditText, setPillEditText] = useState('');
   const [queueDrawerOpen, setQueueDrawerOpen] = useState(false);
