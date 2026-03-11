@@ -245,7 +245,7 @@ function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, t
         </div>
 
         {/* Whisper tray for AI messages with whispers */}
-        {!isUser && message.whispers && message.whispers.length > 0 && (
+        {whisperTrayEnabled && !isUser && message.whispers && message.whispers.length > 0 && (
           <WhisperTray whispers={message.whispers} />
         )}
         {/* Action buttons for assistant messages (desktop) */}
