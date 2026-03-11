@@ -94,6 +94,7 @@ export interface PartyDMSettingsProps {
   onShowSplitInitiator: () => void;
   onShowRegroupDialog: () => void;
   onShowSplitSummaries: () => void;
+  onShowPreSplitChat: () => void;
   onNewCampaign: () => void;
   // Danger zone
   onEndSession: () => void;
@@ -120,7 +121,7 @@ export function PartyDMSettings({
   dmMode = 'ai', onDmModeChange,
   onShowMap, onShowSaves, onShowGuides, onShowChat, onShowAfkGuide,
   guidesCount = 0, myAfkGuide, myAfkCascadeCount = 0,
-  isSplitActive, memberCount, onShowSplitInitiator, onShowRegroupDialog, onShowSplitSummaries,
+  isSplitActive, memberCount, onShowSplitInitiator, onShowRegroupDialog, onShowSplitSummaries, onShowPreSplitChat,
   onNewCampaign, onEndSession,
   timerEnabled, timerDurationSeconds, onTimerEnabledChange, onTimerDurationChange,
   onShowScheduledEvents, scheduledEventsCount = 0,
@@ -297,6 +298,7 @@ export function PartyDMSettings({
           {isSplitActive ? (
             <>
               <ToolRow icon={<Eye className="w-4 h-4" />} label="View Split Summaries" onClick={onShowSplitSummaries} />
+              <ToolRow icon={<MessageSquare className="w-4 h-4" />} label="View Pre-Split Chat" description="Read-only view of the original conversation" onClick={onShowPreSplitChat} />
               <ToolRow icon={<Users className="w-4 h-4 text-emerald-400" />} label="Regroup Party" description="Merge split teams back together" onClick={onShowRegroupDialog} />
             </>
           ) : memberCount >= 4 ? (

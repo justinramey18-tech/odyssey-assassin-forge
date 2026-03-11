@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, GitBranch, X, Check, Eye, Loader2 } from 'lucide-react';
+import { Users, GitBranch, X, Check, Eye, Loader2, MessageSquare, Crown } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { DmSplitState, SplitTeam } from '@/lib/party-split-types';
@@ -142,9 +143,10 @@ interface SplitBannerProps {
   myTeam: SplitTeam;
   isCreator: boolean;
   members: Array<{ user_id: string; character_name: string }>;
+  onShowPreSplitChat: () => void;
 }
 
-export function SplitBanner({ splitState, myTeam, isCreator, members }: SplitBannerProps) {
+export function SplitBanner({ splitState, myTeam, isCreator, members, onShowPreSplitChat }: SplitBannerProps) {
   const alphaLabel = splitState.alphaName || 'Team Alpha';
   const betaLabel = splitState.betaName || 'Team Beta';
   const teamLabel = myTeam === 'alpha' ? alphaLabel : myTeam === 'beta' ? betaLabel : 'Observer';
@@ -169,8 +171,16 @@ export function SplitBanner({ splitState, myTeam, isCreator, members }: SplitBan
       <span className="text-white/50 truncate">
         {teamMembers.map(m => m.character_name).join(', ')}
       </span>
+      <button
+        onClick={onShowPreSplitChat}
+        className="ml-auto p-1 rounded hover:bg-white/10 text-white/30 hover:text-white/60 transition-colors"
+        style={{ touchAction: 'manipulation' }}
+        title="View pre-split chat"
+      >
+        <MessageSquare className="w-3.5 h-3.5" />
+      </button>
       {isCreator && (
-        <span className="ml-auto text-amber-400/60 text-[10px] whitespace-nowrap">Host view: all teams</span>
+        <span className="text-amber-400/60 text-[10px] whitespace-nowrap">Host view: all teams</span>
       )}
     </div>
   );
@@ -301,6 +311,88 @@ export function SplitSummariesViewer({ open, onClose, splitState }: SplitSummari
                 </p>
               </div>
             </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+interface PreSplitChatViewerProps {
+  open: boolean;
+  onClose: () => void;
+  splitState: DmSplitState;
+}
+
+export function PreSplitChatViewer({ open, onClose, splitState }: PreSplitChatViewerProps) {
+  if (!open) return null;
+
+  const messages = splitState.snapshotMessages ?? [];
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.95, opacity: 0 }}
+          onClick={e => e.stopPropagation()}
+          className="w-full max-w-lg bg-gradient-to-b from-[#1a0e05] to-[#0d0d12] border border-amber-900/30 rounded-2xl p-5"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="w-5 h-5 text-amber-400" />
+              <h3 className="text-base font-cinzel text-amber-200">Pre-Split Chat</h3>
+            </div>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-white/40">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <p className="text-[10px] text-white/30 mb-4">Read-only view of the conversation before the party split.</p>
+
+          <div className="max-h-[70vh] overflow-y-auto space-y-2.5 pr-1">
+            {messages.length === 0 ? (
+              <p className="text-xs text-white/40 text-center py-6">No messages were recorded before the split.</p>
+            ) : (
+              messages.map(msg => (
+                <div
+                  key={msg.id}
+                  className={cn(
+                    "px-3 py-2.5 rounded-xl border overflow-hidden",
+                    msg.role === 'assistant'
+                      ? "bg-amber-950/50 border-amber-500/20"
+                      : "bg-white/5 border-white/10"
+                  )}
+                >
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    {msg.role === 'assistant' ? (
+                      <>
+                        <Crown className="w-3 h-3 text-amber-400" />
+                        <span className="text-[11px] font-semibold text-amber-400">DM</span>
+                      </>
+                    ) : (
+                      <>
+                        <Users className="w-3 h-3 text-blue-400" />
+                        <span className="text-[11px] font-semibold text-blue-400">{msg.sender_name}</span>
+                      </>
+                    )}
+                  </div>
+                  {msg.role === 'assistant' ? (
+                    <div className="text-xs text-white/70 prose prose-invert prose-xs max-w-none break-words overflow-hidden">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <pre className="text-xs text-white/70 whitespace-pre-wrap break-words font-sans">{msg.content}</pre>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </motion.div>
       </motion.div>
