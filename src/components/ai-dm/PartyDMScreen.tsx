@@ -393,7 +393,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
           </div>
         </motion.div>
         {/* Whisper tray below the AI message bubble, filtered to current player */}
-        {filteredWhispers.length > 0 && (
+        {whisperTrayEnabled && filteredWhispers.length > 0 && (
           <div className="ml-[calc(1.75rem+0.375rem)]">
             <WhisperTray whispers={filteredWhispers} />
           </div>
