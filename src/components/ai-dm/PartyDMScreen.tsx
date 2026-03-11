@@ -551,6 +551,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [expandedPillUserId, setExpandedPillUserId] = useState<string | null>(null);
   const [pillEditText, setPillEditText] = useState('');
   const [queueDrawerOpen, setQueueDrawerOpen] = useState(false);
