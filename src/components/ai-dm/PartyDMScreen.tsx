@@ -625,6 +625,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
   const mode = partyDm.sessionConfig?.mode || 'shared';
 
+  const visibleMembers = partyDm.isSplitActive && partyDm.splitState && !isCreator
+    ? members.filter(m =>
+        partyDm.myTeam === 'alpha'
+          ? partyDm.splitState!.alphaMembers.includes(m.user_id)
+          : partyDm.splitState!.betaMembers.includes(m.user_id)
+      )
+    : members;
+
   // Host broadcast playlist indicator
   const [broadcastPlaylist, setBroadcastPlaylist] = useState<string | null>(null);
   useEffect(() => {
