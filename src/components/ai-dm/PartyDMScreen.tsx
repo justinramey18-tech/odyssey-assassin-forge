@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useDmPolls } from '@/hooks/use-dm-polls';
 import { useDraftPersist } from '@/hooks/use-draft-persist';
 import partyChatIcon from '@/assets/party-chat-icon.jpg';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
@@ -532,6 +533,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const narrator = useNarrator();
   const spotify = useSpotify();
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
+  const dmPolls = useDmPolls(partyId || null);
   const [ttsSelectMode, setTtsSelectMode] = useState(false);
   const [ttsSelectedIds, setTtsSelectedIds] = useState<Set<string>>(new Set());
   const lastProcessedMsgIdRef = useRef<string | null>(null);
@@ -1077,6 +1079,74 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               ))}
             </AnimatePresence>
           )}
+
+              {dmPolls.polls.filter(p => !p.closed).map(poll => {
+                const totalVotes = poll.options.reduce((sum, o) => sum + o.voters.length, 0);
+                const myVote = poll.options.find(o => o.voters.some(v => v.userId === currentUserId));
+                const hasVoted = !!myVote;
+                const isPollCreator = poll.creatorUserId === currentUserId;
+                const charName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
+                return (
+                  <div key={poll.pollId} className="mx-1 rounded-xl border border-amber-500/20 bg-amber-950/30 p-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="w-3.5 h-3.5 text-amber-400" />
+                      <span className="text-[10px] text-amber-300/70 font-cinzel uppercase tracking-wider">Poll</span>
+                      <span className="text-[10px] text-white/30 ml-auto">{totalVotes} vote{totalVotes !== 1 ? 's' : ''}</span>
+                    </div>
+                    <p className="text-sm text-white/90 font-medium">{poll.question}</p>
+                    <p className="text-[10px] text-white/40">by {poll.creatorName}</p>
+                    <div className="space-y-1">
+                      {poll.options.map(opt => {
+                        const isMyVote = myVote?.label === opt.label;
+                        const pct = totalVotes > 0 ? Math.round((opt.voters.length / totalVotes) * 100) : 0;
+                        return (
+                          <button
+                            key={opt.label}
+                            onClick={() => !hasVoted && dmPolls.castVote(poll.pollId, opt.label, charName)}
+                            disabled={hasVoted}
+                            className={cn(
+                              "w-full relative px-3 py-2 rounded-lg border text-xs text-left transition-all overflow-hidden",
+                              isMyVote ? "border-amber-500/40 bg-amber-900/20" : "border-white/10 bg-white/5",
+                              !hasVoted && "hover:bg-white/10 cursor-pointer"
+                            )}
+                          >
+                            {hasVoted && (
+                              <div className="absolute inset-y-0 left-0 bg-amber-500/10 transition-all" style={{ width: `${pct}%` }} />
+                            )}
+                            <div className="relative flex items-center justify-between">
+                              <span className="flex items-center gap-1.5">
+                                {isMyVote && <Check className="w-3 h-3 text-amber-400" />}
+                                {opt.label}
+                              </span>
+                              {hasVoted && <span className="text-[10px] text-white/40">{opt.voters.length} ({pct}%)</span>}
+                            </div>
+                            {hasVoted && opt.voters.length > 0 && (
+                              <p className="text-[9px] text-white/30 mt-0.5 relative">{opt.voters.map(v => v.name).join(', ')}</p>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {isPollCreator && (
+                      <button onClick={() => dmPolls.closePoll(poll.pollId)} className="w-full text-[10px] text-white/30 hover:text-white/50 py-1 transition-colors">
+                        Close Poll
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+
+              {dmPolls.polls.filter(p => p.closed).slice(-3).map(poll => {
+                const totalVotes = poll.options.reduce((sum, o) => sum + o.voters.length, 0);
+                const winner = [...poll.options].sort((a, b) => b.voters.length - a.voters.length)[0];
+                return (
+                  <div key={poll.pollId} className="mx-1 rounded-lg border border-white/5 bg-white/5 px-3 py-2 flex items-center gap-2">
+                    <BarChart3 className="w-3 h-3 text-white/20" />
+                    <span className="text-[10px] text-white/30 truncate flex-1">{poll.question}</span>
+                    <span className="text-[10px] text-amber-300/50 shrink-0">{winner?.label} ({totalVotes})</span>
+                  </div>
+                );
+              })}
 
           {/* Loading / status indicator */}
           {partyDm.isGenerating && (
