@@ -557,6 +557,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     return () => clearInterval(id);
   }, [partyDm.lastAutoSaveTime]);
   
+  const [selectedDmModel, setSelectedDmModel] = useState(() => loadSelectedModel());
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
