@@ -1,7 +1,9 @@
 import { cn } from '@/lib/utils';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/ui/switch';
-import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
+import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Cpu } from 'lucide-react';
 import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
 import { TimerSettings } from './RoundTimer';
 import type { PushSubscriptionState } from '@/lib/push-subscription';
@@ -73,6 +75,8 @@ export interface PartyDMSettingsProps {
   partyId?: string | null;
   autoSyncEnabled?: boolean;
   onToggleAutoSync?: (enabled: boolean) => void;
+  selectedModel?: string;
+  onModelChange?: (modelId: string) => void;
   isExtracting?: boolean;
   pushState: PushSubscriptionState;
   onTogglePush: () => void;
@@ -119,7 +123,7 @@ export interface PartyDMSettingsProps {
 
 export function PartyDMSettings({
   mode, onToggleMode, isCreator, isOriginalCreator: isOriginalCreatorProp, partyId,
-  autoSyncEnabled, onToggleAutoSync, isExtracting,
+  autoSyncEnabled, onToggleAutoSync, isExtracting, selectedModel, onModelChange,
   pushState, onTogglePush,
   dmMode = 'ai', onDmModeChange,
   onShowMap, onShowSaves, onShowGuides, onShowChat, onShowAfkGuide,
@@ -175,6 +179,29 @@ export function PartyDMSettings({
               {dmMode === 'human' && 'You write narrative responses manually. No AI involved.'}
               {dmMode === 'ai-approval' && 'AI drafts a response for you to review, edit, and approve before players see it.'}
             </p>
+          </div>
+        )}
+        {isCreator && selectedModel !== undefined && onModelChange && (
+          <div className="px-3 py-2.5">
+            <div className="flex items-center gap-2 mb-1.5">
+              <Cpu className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-foreground">AI Model</span>
+            </div>
+            <Select value={selectedModel} onValueChange={onModelChange}>
+              <SelectTrigger className="w-full h-9 text-xs">
+                <SelectValue>{getModelLabel(selectedModel)}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {DM_MODELS.map(m => (
+                  <SelectItem key={m.id} value={m.id} className="text-xs">
+                    <span>
+                      <span className="font-medium">{m.label}</span>
+                      <span className="text-muted-foreground"> — {m.description}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         )}
         {isCreator && (
