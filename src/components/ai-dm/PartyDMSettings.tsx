@@ -1,7 +1,9 @@
 import { cn } from '@/lib/utils';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/ui/switch';
-import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
+import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Cpu } from 'lucide-react';
 import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
 import { TimerSettings } from './RoundTimer';
 import type { PushSubscriptionState } from '@/lib/push-subscription';
