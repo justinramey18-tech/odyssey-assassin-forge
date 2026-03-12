@@ -28,6 +28,7 @@ import { useNarrator } from '@/hooks/use-narrator';
 import { useSpotify } from '@/hooks/use-spotify';
 import { subscribeToPush, unsubscribeFromPush, getPushSubscriptionState, type PushSubscriptionState } from '@/lib/push-subscription';
 import { useAuth } from '@/hooks/use-auth';
+import { loadSelectedModel, saveSelectedModel } from '@/lib/dm-models';
 import { NarrationSpeedPopover } from './NarrationSpeedPopover';
 import type { usePartyDm, PartyDmMessage, PartyDmPrompt } from '@/hooks/use-party-dm';
 import { DMDiceRoller } from './DMDiceRoller';
