@@ -1183,9 +1183,20 @@ export function usePartySync(): UsePartySyncReturn {
 
     if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
     statusTimerRef.current = setTimeout(async () => {
+      // Read current status first to preserve fields managed by other features (e.g. AFK guides)
+      const { data: member } = await supabase
+        .from('party_members')
+        .select('character_status')
+        .eq('party_id', party.partyId!)
+        .eq('user_id', user.id)
+        .single();
+
+      const existing = (member?.character_status as Record<string, unknown>) || {};
+      const merged = { ...existing, ...status };
+
       await supabase
         .from('party_members')
-        .update({ character_status: status as unknown as Record<string, never> })
+        .update({ character_status: merged as unknown as Record<string, never> })
         .eq('party_id', party.partyId!)
         .eq('user_id', user.id);
     }, 2000);
