@@ -1742,6 +1742,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                           <Film className="w-4 h-4" />
                           Video from Gallery
                         </button>
+                        <div className="border-t border-white/5 my-0.5" />
+                        <button
+                          onClick={() => { setShowPollCreator(true); setShowAttachMenu(false); }}
+                          className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs"
+                          style={{ touchAction: 'manipulation' }}
+                        >
+                          <BarChart3 className="w-4 h-4" />
+                          Create Poll
+                        </button>
                       </div>
                     )}
                   </div>
