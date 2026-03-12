@@ -75,6 +75,8 @@ export interface PartyDMSettingsProps {
   partyId?: string | null;
   autoSyncEnabled?: boolean;
   onToggleAutoSync?: (enabled: boolean) => void;
+  selectedModel?: string;
+  onModelChange?: (modelId: string) => void;
   isExtracting?: boolean;
   pushState: PushSubscriptionState;
   onTogglePush: () => void;
