@@ -2077,6 +2077,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               partyId={partyId}
               autoSyncEnabled={autoSyncEnabled}
               onToggleAutoSync={onToggleAutoSync}
+              selectedModel={selectedDmModel}
+              onModelChange={(id) => { setSelectedDmModel(id); saveSelectedModel(id); }}
               isExtracting={isExtracting}
               pushState={pushState}
               onTogglePush={handleTogglePush}

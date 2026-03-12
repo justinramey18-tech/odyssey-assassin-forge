@@ -181,6 +181,29 @@ export function PartyDMSettings({
             </p>
           </div>
         )}
+        {isCreator && selectedModel !== undefined && onModelChange && (
+          <div className="px-3 py-2.5">
+            <div className="flex items-center gap-2 mb-1.5">
+              <Cpu className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-foreground">AI Model</span>
+            </div>
+            <Select value={selectedModel} onValueChange={onModelChange}>
+              <SelectTrigger className="w-full h-9 text-xs">
+                <SelectValue>{getModelLabel(selectedModel)}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {DM_MODELS.map(m => (
+                  <SelectItem key={m.id} value={m.id} className="text-xs">
+                    <span>
+                      <span className="font-medium">{m.label}</span>
+                      <span className="text-muted-foreground"> — {m.description}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         {isCreator && (
           <ToggleRow
             icon={mode === 'shared' ? <Eye className="w-4 h-4 text-emerald-400" /> : <EyeOff className="w-4 h-4 text-purple-400" />}
