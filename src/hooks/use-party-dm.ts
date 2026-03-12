@@ -828,6 +828,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         characterContext,
         campaignSummary: sessionConfig?.campaignSummary || undefined,
         customGuides: extraGuides,
+        model: loadSelectedModel(),
         ...(() => {
           const cs = loadCombatSettings();
           const feats: string[] = [];
