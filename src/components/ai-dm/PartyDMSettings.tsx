@@ -123,7 +123,7 @@ export interface PartyDMSettingsProps {
 
 export function PartyDMSettings({
   mode, onToggleMode, isCreator, isOriginalCreator: isOriginalCreatorProp, partyId,
-  autoSyncEnabled, onToggleAutoSync, isExtracting,
+  autoSyncEnabled, onToggleAutoSync, isExtracting, selectedModel, onModelChange,
   pushState, onTogglePush,
   dmMode = 'ai', onDmModeChange,
   onShowMap, onShowSaves, onShowGuides, onShowChat, onShowAfkGuide,
