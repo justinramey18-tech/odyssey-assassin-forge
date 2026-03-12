@@ -1082,8 +1082,15 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       return;
     }
 
-    const formatPromptLine = (p: PartyDmPrompt) =>
-      `[${p.character_name}]: ${p.prompt.trim() || '(no action)'}`;
+    const formatPromptLine = (p: PartyDmPrompt) => {
+      if (p.prompt.trim()) return `[${p.character_name}]: ${p.prompt.trim()}`;
+      // No prompt — check for AFK personality guide
+      const member = partyMembers.find(m => m.user_id === p.user_id);
+      const status = member?.character_status as Record<string, unknown> | undefined;
+      const guide = status?.afkPersonalityGuide as string | null;
+      if (guide) return `[${p.character_name}] (Autopilot): ${guide}`;
+      return `[${p.character_name}]: (no action)`;
+    };
 
     const insertPartyMessage = (insertData: Record<string, unknown>) => insertPartyMessageHelper(partyId, insertData);
 
