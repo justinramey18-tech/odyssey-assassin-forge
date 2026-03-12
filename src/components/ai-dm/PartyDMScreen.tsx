@@ -4,7 +4,7 @@ import partyChatIcon from '@/assets/party-chat-icon.jpg';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare, Paperclip, Camera } from 'lucide-react';
+import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3 } from 'lucide-react';
 import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
 import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer, PreSplitChatViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
@@ -557,6 +557,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [showPollCreator, setShowPollCreator] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptions, setPollOptions] = useState(['', '']);
 
   useEffect(() => {
     if (!showAttachMenu) return;
@@ -1520,6 +1523,62 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         </div>
       )}
 
+      {showPollCreator && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setShowPollCreator(false)}>
+          <div className="w-full max-w-sm bg-gradient-to-b from-[#1a0e05] to-[#0d0d12] border border-amber-900/30 rounded-2xl p-5" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-3">
+              <BarChart3 className="w-5 h-5 text-amber-400" />
+              <h3 className="text-sm font-cinzel text-amber-200">Create Poll</h3>
+            </div>
+            <input
+              value={pollQuestion}
+              onChange={e => setPollQuestion(e.target.value.slice(0, 120))}
+              placeholder="Ask the party something..."
+              className="w-full bg-white/5 border border-amber-900/30 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-amber-500/40 mb-3"
+              autoFocus
+            />
+            {pollOptions.map((opt, i) => (
+              <div key={i} className="flex gap-1.5 mb-1.5">
+                <input
+                  value={opt}
+                  onChange={e => { const next = [...pollOptions]; next[i] = e.target.value.slice(0, 60); setPollOptions(next); }}
+                  placeholder={`Option ${i + 1}`}
+                  className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-amber-500/40"
+                />
+                {pollOptions.length > 2 && (
+                  <button onClick={() => setPollOptions(pollOptions.filter((_, j) => j !== i))} className="p-1.5 rounded hover:bg-red-900/20 text-white/30 hover:text-red-400">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            ))}
+            <div className="flex items-center gap-2 mt-3">
+              {pollOptions.length < 5 && (
+                <button onClick={() => setPollOptions([...pollOptions, ''])} className="text-xs text-amber-300/60 hover:text-amber-300 transition-colors">+ Add Option</button>
+              )}
+              <div className="flex gap-2 ml-auto">
+                <button onClick={() => { setShowPollCreator(false); setPollQuestion(''); setPollOptions(['', '']); }} className="px-3 py-1.5 text-xs text-white/40 hover:text-white/60 rounded-lg hover:bg-white/5">Cancel</button>
+                <button
+                  onClick={async () => {
+                    const valid = pollOptions.map(o => o.trim()).filter(Boolean);
+                    if (!pollQuestion.trim() || valid.length < 2) return;
+                    const name = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
+                    await dmPolls.createPoll(pollQuestion.trim(), valid, name);
+                    setShowPollCreator(false);
+                    setPollQuestion('');
+                    setPollOptions(['', '']);
+                  }}
+                  disabled={!pollQuestion.trim() || pollOptions.filter(o => o.trim()).length < 2}
+                  className="px-3 py-1.5 text-xs rounded-lg bg-amber-900/40 border border-amber-500/30 text-amber-300 hover:bg-amber-900/60 transition-colors disabled:opacity-40"
+                >
+                  Post Poll
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Hidden file inputs */}
       <input
         ref={videoInputRef}
@@ -1738,6 +1797,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                         >
                           <Film className="w-4 h-4" />
                           Video from Gallery
+                        </button>
+                        <div className="border-t border-white/5 my-0.5" />
+                        <button
+                          onClick={() => { setShowPollCreator(true); setShowAttachMenu(false); }}
+                          className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs"
+                          style={{ touchAction: 'manipulation' }}
+                        >
+                          <BarChart3 className="w-4 h-4" />
+                          Create Poll
                         </button>
                       </div>
                     )}
