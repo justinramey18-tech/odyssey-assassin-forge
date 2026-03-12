@@ -557,6 +557,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [showPollCreator, setShowPollCreator] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptions, setPollOptions] = useState(['', '']);
 
   useEffect(() => {
     if (!showAttachMenu) return;
