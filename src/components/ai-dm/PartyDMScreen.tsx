@@ -94,7 +94,7 @@ function getMemberColor(userId: string, members: Array<{ user_id: string }>): st
 
 const PARTY_VIDEO_REGEX = /^\s*\[video:(https?:\/\/.+)\]\s*$/;
 const PARTY_IMAGE_REGEX = /^\s*\[image:(https?:\/\/.+)\]\s*$/;
-const AFK_LINE_REGEX = /^(\[.+?\]) \(AFK\): (.+)$/;
+const AFK_LINE_REGEX = /^(\[.+?\]) (?:\(AFK(?:\s*—\s*Cascade Prompt)?\): .+|: Holds their action)$/;
 
 function highlightAfkNames(children: React.ReactNode, afkNames: string[]): React.ReactNode {
   if (!afkNames.length) return children;
@@ -122,10 +122,9 @@ function highlightAfkNames(children: React.ReactNode, afkNames: string[]): React
 function extractAfkNames(rawContent: string): string[] {
   const names: string[] = [];
   for (const line of rawContent.split('\n')) {
-    const match = line.match(AFK_LINE_REGEX);
-    if (match) {
-      const name = match[1].replace(/^\[|\]$/g, '');
-      if (name) names.push(name);
+    if (AFK_LINE_REGEX.test(line)) {
+      const nameMatch = line.match(/^\[(.+?)\]/);
+      if (nameMatch) names.push(nameMatch[1]);
     }
   }
   return names;
@@ -133,10 +132,23 @@ function extractAfkNames(rawContent: string): string[] {
 
 /** Strip AFK guide text lines, keeping only non-AFK content */
 function stripHidden(content: string): string {
-  return content
-    .split('\n')
-    .filter(line => !AFK_LINE_REGEX.test(line))
-    .join('\n');
+  const lines = content.split('\n');
+  const result: string[] = [];
+  let skipping = false;
+  for (const line of lines) {
+    if (AFK_LINE_REGEX.test(line)) {
+      skipping = true;
+      continue;
+    }
+    // A new player prompt line starts with [Name]: or [Name] (
+    if (skipping && /^\[.+?\][\s:]/.test(line)) {
+      skipping = false;
+    }
+    if (!skipping) {
+      result.push(line);
+    }
+  }
+  return result.join('\n');
 }
 
 function AfkAnnotatedContent({ content, afkNames }: { content: string; afkNames?: string[] }) {
