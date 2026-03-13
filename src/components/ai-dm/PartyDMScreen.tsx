@@ -94,7 +94,7 @@ function getMemberColor(userId: string, members: Array<{ user_id: string }>): st
 
 const PARTY_VIDEO_REGEX = /^\s*\[video:(https?:\/\/.+)\]\s*$/;
 const PARTY_IMAGE_REGEX = /^\s*\[image:(https?:\/\/.+)\]\s*$/;
-const AFK_LINE_REGEX = /^(\[.+?\]) \(AFK\): (.+)$/;
+const AFK_LINE_REGEX = /^(\[.+?\]) (?:\(AFK(?:\s*—\s*Cascade Prompt)?\): .+|: Holds their action)$/;
 
 function highlightAfkNames(children: React.ReactNode, afkNames: string[]): React.ReactNode {
   if (!afkNames.length) return children;
