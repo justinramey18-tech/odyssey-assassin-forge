@@ -122,10 +122,9 @@ function highlightAfkNames(children: React.ReactNode, afkNames: string[]): React
 function extractAfkNames(rawContent: string): string[] {
   const names: string[] = [];
   for (const line of rawContent.split('\n')) {
-    const match = line.match(AFK_LINE_REGEX);
-    if (match) {
-      const name = match[1].replace(/^\[|\]$/g, '');
-      if (name) names.push(name);
+    if (AFK_LINE_REGEX.test(line)) {
+      const nameMatch = line.match(/^\[(.+?)\]/);
+      if (nameMatch) names.push(nameMatch[1]);
     }
   }
   return names;
