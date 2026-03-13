@@ -132,10 +132,23 @@ function extractAfkNames(rawContent: string): string[] {
 
 /** Strip AFK guide text lines, keeping only non-AFK content */
 function stripHidden(content: string): string {
-  return content
-    .split('\n')
-    .filter(line => !AFK_LINE_REGEX.test(line))
-    .join('\n');
+  const lines = content.split('\n');
+  const result: string[] = [];
+  let skipping = false;
+  for (const line of lines) {
+    if (AFK_LINE_REGEX.test(line)) {
+      skipping = true;
+      continue;
+    }
+    // A new player prompt line starts with [Name]: or [Name] (
+    if (skipping && /^\[.+?\][\s:]/.test(line)) {
+      skipping = false;
+    }
+    if (!skipping) {
+      result.push(line);
+    }
+  }
+  return result.join('\n');
 }
 
 function AfkAnnotatedContent({ content, afkNames }: { content: string; afkNames?: string[] }) {
