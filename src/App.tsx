@@ -50,10 +50,11 @@ const App = () => {
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </BuildProvider>
-  </QueryClientProvider>
-);
+      </BrowserRouter>
+    </TooltipProvider>
+  </BuildProvider>
+</QueryClientProvider>
+  );
+};
 
 export default App;

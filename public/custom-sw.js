@@ -1,5 +1,9 @@
 // Foreground postMessage handler (legacy fallback)
 self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+    return;
+  }
   if (event.data?.type === 'SHOW_NOTIFICATION') {
     const { title, body, icon, badge, tag } = event.data.payload;
     self.registration.showNotification(title, { body, icon, badge, tag });
