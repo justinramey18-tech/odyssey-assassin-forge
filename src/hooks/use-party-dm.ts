@@ -2479,6 +2479,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     splitState,
     isSplitActive,
     myTeam,
+    hostViewAllTeams,
+    setHostViewAllTeams,
     pendingDraft,
     pendingSynthesis,
     startSession,

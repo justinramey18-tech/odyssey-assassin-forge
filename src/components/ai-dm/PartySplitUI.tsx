@@ -144,12 +144,17 @@ interface SplitBannerProps {
   isCreator: boolean;
   members: Array<{ user_id: string; character_name: string }>;
   onShowPreSplitChat: () => void;
+  hostViewAllTeams?: boolean;
+  onToggleHostView?: () => void;
 }
 
-export function SplitBanner({ splitState, myTeam, isCreator, members, onShowPreSplitChat }: SplitBannerProps) {
+export function SplitBanner({ splitState, myTeam, isCreator, members, onShowPreSplitChat, hostViewAllTeams, onToggleHostView }: SplitBannerProps) {
   const alphaLabel = splitState.alphaName || 'Team Alpha';
   const betaLabel = splitState.betaName || 'Team Beta';
-  const teamLabel = myTeam === 'alpha' ? alphaLabel : myTeam === 'beta' ? betaLabel : 'Observer';
+  const effectiveTeamLabel = isCreator && !hostViewAllTeams && myTeam
+    ? (myTeam === 'alpha' ? alphaLabel : betaLabel)
+    : null;
+  const teamLabel = effectiveTeamLabel || (myTeam === 'alpha' ? alphaLabel : myTeam === 'beta' ? betaLabel : 'Observer');
   const teamColor = myTeam === 'alpha' ? 'blue' : 'purple';
 
   const teamMembers = myTeam === 'alpha'
@@ -179,8 +184,19 @@ export function SplitBanner({ splitState, myTeam, isCreator, members, onShowPreS
       >
         <MessageSquare className="w-3.5 h-3.5" />
       </button>
-      {isCreator && (
-        <span className="text-amber-400/60 text-[10px] whitespace-nowrap">Host view: all teams</span>
+      {isCreator && onToggleHostView && (
+        <button
+          onClick={onToggleHostView}
+          className={cn(
+            "text-[10px] whitespace-nowrap px-2 py-0.5 rounded-full font-medium transition-colors min-h-[24px]",
+            hostViewAllTeams
+              ? "bg-amber-500/20 text-amber-300 hover:bg-amber-500/30"
+              : "bg-white/10 text-white/60 hover:bg-white/20"
+          )}
+          style={{ touchAction: 'manipulation' }}
+        >
+          {hostViewAllTeams ? 'All Teams' : 'My Team'}
+        </button>
       )}
     </div>
   );
