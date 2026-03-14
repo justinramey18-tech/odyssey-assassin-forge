@@ -173,7 +173,7 @@ function AfkAnnotatedContent({ content, afkNames }: { content: string; afkNames?
   );
 }
 
-function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, allMessages, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true }: {
+function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, teamNames, allMessages, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true }: {
   message: PartyDmMessage;
   currentUserId?: string;
   members: Array<{ user_id: string; character_name: string }>;
@@ -185,6 +185,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
   onRegenerate?: (messageId: string) => void;
   onRegenerateWhispers?: (messageId: string) => void;
   showTeamTag?: boolean;
+  teamNames?: { alpha: string; beta: string };
   allMessages?: PartyDmMessage[];
   ttsSelectMode?: boolean;
   ttsSelected?: boolean;
@@ -274,7 +275,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
                 message.team === 'alpha' ? "bg-blue-900/30 text-blue-300 border border-blue-500/20" : "bg-purple-900/30 text-purple-300 border border-purple-500/20"
               )}>
                 <GitBranch className="w-2.5 h-2.5" />
-                {message.team === 'alpha' ? 'Alpha' : 'Beta'}
+                {message.team === 'alpha' ? (teamNames?.alpha || 'Team Alpha') : (teamNames?.beta || 'Team Beta')}
               </span>
             )}
             {isEditingMsg ? (
@@ -432,7 +433,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
             message.team === 'alpha' ? "bg-blue-900/30 text-blue-300 border border-blue-500/20" : "bg-purple-900/30 text-purple-300 border border-purple-500/20"
           )}>
             <GitBranch className="w-2.5 h-2.5" />
-            {message.team === 'alpha' ? 'Alpha' : 'Beta'}
+            {message.team === 'alpha' ? (teamNames?.alpha || 'Team Alpha') : (teamNames?.beta || 'Team Beta')}
           </span>
         )}
         <p className="text-[11px] font-semibold text-primary mb-1">Party Actions</p>
@@ -1081,7 +1082,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                   onDelete={handleDeleteMessage}
                   onRegenerate={handleRegenerateMessage}
                   onRegenerateWhispers={handleRegenerateWhispers}
-                  showTeamTag={isCreator && partyDm.isSplitActive}
+                  showTeamTag={isCreator && partyDm.isSplitActive && partyDm.hostViewAllTeams}
+                  teamNames={partyDm.splitState ? { alpha: partyDm.splitState.alphaName || 'Team Alpha', beta: partyDm.splitState.betaName || 'Team Beta' } : undefined}
                   allMessages={partyDm.messages}
                   ttsSelectMode={ttsSelectMode}
                   ttsSelected={ttsSelectedIds.has(msg.id)}
