@@ -1047,6 +1047,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           isCreator={isCreator}
           members={members}
           onShowPreSplitChat={() => setShowPreSplitChat(true)}
+          hostViewAllTeams={partyDm.hostViewAllTeams}
+          onToggleHostView={() => partyDm.setHostViewAllTeams(!partyDm.hostViewAllTeams)}
         />
       )}
 
