@@ -1397,13 +1397,30 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         }
       }
 
-      // Clear prompts and start new round — skip in approval mode (deferred to approveDraft)
-      if ((sessionConfig.dmMode || 'ai') !== 'ai-approval') {
-        await (supabase.from('party_dm_prompts') as any)
-          .delete()
-          .eq('party_id', partyId)
-          .eq('round_id', sessionConfig.currentRoundId);
-        setCurrentPrompts([]);
+      // Clear prompts and start new round
+      // In split mode: always clear (no draft review step) and only clear the team that generated
+      // In normal mode: skip clearing in ai-approval (deferred to approveDraft)
+      const shouldClear = isSplitActive || (sessionConfig.dmMode || 'ai') !== 'ai-approval';
+      if (shouldClear) {
+        if (isSplitActive) {
+          // Only delete prompts from the team(s) that actually generated
+          const generatedUserIds = readyPrompts.map(p => p.user_id);
+          for (const uid of generatedUserIds) {
+            await (supabase.from('party_dm_prompts') as any)
+              .delete()
+              .eq('party_id', partyId)
+              .eq('round_id', sessionConfig.currentRoundId)
+              .eq('user_id', uid);
+          }
+          // Only remove the generated team's prompts from local state
+          setCurrentPrompts(prev => prev.filter(p => !generatedUserIds.includes(p.user_id)));
+        } else {
+          await (supabase.from('party_dm_prompts') as any)
+            .delete()
+            .eq('party_id', partyId)
+            .eq('round_id', sessionConfig.currentRoundId);
+          setCurrentPrompts([]);
+        }
         lastGeneratedRoundRef.current = sessionConfig.currentRoundId;
 
         const newRoundId = crypto.randomUUID();
@@ -1421,7 +1438,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           .eq('party_id', partyId)
           .eq('state_type', 'dm_session');
       } else {
-        // Just release the generation lock
+        // Just release the generation lock (ai-approval normal mode)
         await (supabase.from('party_shared_state') as any)
           .update({ state_data: { ...sessionConfig, isGenerating: false } })
           .eq('party_id', partyId)
