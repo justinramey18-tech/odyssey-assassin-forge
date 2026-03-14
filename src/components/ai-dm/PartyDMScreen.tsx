@@ -1082,7 +1082,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                   onDelete={handleDeleteMessage}
                   onRegenerate={handleRegenerateMessage}
                   onRegenerateWhispers={handleRegenerateWhispers}
-                  showTeamTag={isCreator && partyDm.isSplitActive}
+                  showTeamTag={isCreator && partyDm.isSplitActive && partyDm.hostViewAllTeams}
+                  teamNames={partyDm.splitState ? { alpha: partyDm.splitState.alphaName || 'Team Alpha', beta: partyDm.splitState.betaName || 'Team Beta' } : undefined}
                   allMessages={partyDm.messages}
                   ttsSelectMode={ttsSelectMode}
                   ttsSelected={ttsSelectedIds.has(msg.id)}
