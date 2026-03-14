@@ -663,7 +663,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
   const mode = partyDm.sessionConfig?.mode || 'shared';
 
-  const visibleMembers = partyDm.isSplitActive && partyDm.splitState && !isCreator
+  const visibleMembers = partyDm.isSplitActive && partyDm.splitState && !(isCreator && partyDm.hostViewAllTeams)
     ? members.filter(m =>
         partyDm.myTeam === 'alpha'
           ? partyDm.splitState!.alphaMembers.includes(m.user_id)
@@ -1047,6 +1047,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           isCreator={isCreator}
           members={members}
           onShowPreSplitChat={() => setShowPreSplitChat(true)}
+          hostViewAllTeams={partyDm.hostViewAllTeams}
+          onToggleHostView={() => partyDm.setHostViewAllTeams(!partyDm.hostViewAllTeams)}
         />
       )}
 
