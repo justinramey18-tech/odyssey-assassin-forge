@@ -433,7 +433,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
             message.team === 'alpha' ? "bg-blue-900/30 text-blue-300 border border-blue-500/20" : "bg-purple-900/30 text-purple-300 border border-purple-500/20"
           )}>
             <GitBranch className="w-2.5 h-2.5" />
-            {message.team === 'alpha' ? 'Alpha' : 'Beta'}
+            {message.team === 'alpha' ? (teamNames?.alpha || 'Team Alpha') : (teamNames?.beta || 'Team Beta')}
           </span>
         )}
         <p className="text-[11px] font-semibold text-primary mb-1">Party Actions</p>
