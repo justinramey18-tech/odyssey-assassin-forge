@@ -176,6 +176,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   // Split state
   const [splitState, setSplitState] = useState<DmSplitState | null>(null);
+  const [hostViewAllTeams, setHostViewAllTeams] = useState(true);
 
   const isActive = sessionConfig?.active === true;
   const isSplitActive = splitState?.active === true;
