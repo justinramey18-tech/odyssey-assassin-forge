@@ -173,7 +173,7 @@ function AfkAnnotatedContent({ content, afkNames }: { content: string; afkNames?
   );
 }
 
-function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, allMessages, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true }: {
+function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, teamNames, allMessages, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true }: {
   message: PartyDmMessage;
   currentUserId?: string;
   members: Array<{ user_id: string; character_name: string }>;
@@ -185,6 +185,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
   onRegenerate?: (messageId: string) => void;
   onRegenerateWhispers?: (messageId: string) => void;
   showTeamTag?: boolean;
+  teamNames?: { alpha: string; beta: string };
   allMessages?: PartyDmMessage[];
   ttsSelectMode?: boolean;
   ttsSelected?: boolean;
