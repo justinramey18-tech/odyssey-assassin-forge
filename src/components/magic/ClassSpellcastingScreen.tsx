@@ -188,15 +188,21 @@ export function ClassSpellcastingScreen({
   }, [spellcasting.state.abilityModifier]);
 
   // Druid Circle state (persisted)
+  // Migrate old unscoped keys on first load
+  useState(() => {
+    migrateToScoped(DRUID_CIRCLE_KEY);
+    migrateToScoped(DRUID_LAND_KEY);
+  });
+
   const [druidCircle, setDruidCircle] = useState<DruidCircle | null>(() => {
     try {
-      const saved = localStorage.getItem(DRUID_CIRCLE_KEY);
+      const saved = getScopedItem(DRUID_CIRCLE_KEY);
       return saved as DruidCircle | null;
     } catch { return null; }
   });
   const [druidLand, setDruidLand] = useState<LandType | null>(() => {
     try {
-      const saved = localStorage.getItem(DRUID_LAND_KEY);
+      const saved = getScopedItem(DRUID_LAND_KEY);
       return saved as LandType | null;
     } catch { return null; }
   });
