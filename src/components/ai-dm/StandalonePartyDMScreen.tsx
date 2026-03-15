@@ -150,6 +150,9 @@ export function StandalonePartyDMScreen({
   const gmGuidesOwner = isCoHost && partyCreatorId ? partyCreatorId : undefined;
   const gmGuides = useGMGuides(gmGuidesOwner, 'party');
 
+  // Memory Anchors — long-term campaign facts shared across party
+  const memoryAnchors = usePartyMemoryAnchors({ partyId: partyId || null });
+
   // Stabilize partyMembers for usePartyDm
   const stablePartyMembers = useMemo(() =>
     partyMembers.map(m => ({
