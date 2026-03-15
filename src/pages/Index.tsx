@@ -486,7 +486,8 @@ const Index = () => {
   const wildShape = useWildShape(
     isDruidClass ? character.level : 0,
     isDruidClass ? druidCircle : null,
-    enforceWildShapeDuration
+    enforceWildShapeDuration,
+    character.name
   );
 
   // Effective HP/AC values that auto-switch between beast and character stats

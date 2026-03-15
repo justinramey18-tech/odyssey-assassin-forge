@@ -23,6 +23,7 @@ import {
   DragonForm,
 } from '@/lib/classes/druidCircles';
 import { getScopedItem, setScopedItem, migrateToScoped } from '@/lib/scoped-storage';
+import { isMomoEasterEgg } from '@/lib/easter-eggs';
 
 const WILD_SHAPE_STORAGE_KEY = 'dnd-wild-shape-state';
 
