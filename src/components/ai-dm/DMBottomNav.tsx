@@ -1,9 +1,9 @@
 import { useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Dices, Gem, ListChecks, Bird, Ghost, Settings, Eye, X } from 'lucide-react';
+import { Dices, Gem, ListChecks, Bird, Ghost, Settings, Eye, X, PawPrint } from 'lucide-react';
 
-export type DMNavTab = 'dice' | 'prompts' | 'actions' | 'geralt' | 'afk' | 'oracle' | 'settings';
+export type DMNavTab = 'dice' | 'prompts' | 'actions' | 'geralt' | 'afk' | 'oracle' | 'settings' | 'wildshape';
 
 interface DMBottomNavProps {
   activeTab: DMNavTab | null;
@@ -17,8 +17,12 @@ interface DMBottomNavProps {
   settingsContent?: React.ReactNode;
   /** Rendered below tabs when oracle tab is active */
   oracleContent?: React.ReactNode;
+  /** Rendered below tabs when wildshape tab is active */
+  wildshapeContent?: React.ReactNode;
   /** Show the Geralt tab (momo easter egg) */
   showGeralt?: boolean;
+  /** Replace AFK tab with Wild Shape tab (momo moon druid) */
+  showWildShape?: boolean;
   /** Badge count for oracle whispers */
   oracleCount?: number;
 }
@@ -31,6 +35,7 @@ const BASE_TABS = [
 
 const GERALT_TAB = { id: 'geralt' as DMNavTab, label: 'GERALT', icon: Bird, color: 'text-pink-400', activeBg: 'bg-pink-500/10' };
 const AFK_TAB = { id: 'afk' as DMNavTab, label: 'AFK', icon: Ghost, color: 'text-purple-400', activeBg: 'bg-purple-500/10' };
+const WILDSHAPE_TAB = { id: 'wildshape' as DMNavTab, label: 'SHAPES', icon: PawPrint, color: 'text-green-400', activeBg: 'bg-green-500/10' };
 const ORACLE_TAB = { id: 'oracle' as DMNavTab, label: 'ORACLE', icon: Eye, color: 'text-cyan-400', activeBg: 'bg-cyan-500/10' };
 const SETTINGS_TAB = { id: 'settings' as DMNavTab, label: 'SETTINGS', icon: Settings, color: 'text-white/70', activeBg: 'bg-white/5' };
 
@@ -40,12 +45,14 @@ const activeIndicatorColors: Record<DMNavTab, string> = {
   actions: 'bg-emerald-500',
   geralt: 'bg-pink-500',
   afk: 'bg-purple-500',
+  wildshape: 'bg-green-500',
   oracle: 'bg-cyan-500',
   settings: 'bg-white/50',
 };
 
-export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, showGeralt, oracleCount }: DMBottomNavProps) {
-  const tabs = [...BASE_TABS, AFK_TAB, ORACLE_TAB, ...(showGeralt ? [GERALT_TAB] : []), SETTINGS_TAB];
+export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, wildshapeContent, showGeralt, showWildShape, oracleCount }: DMBottomNavProps) {
+  const afkOrWildShape = showWildShape ? WILDSHAPE_TAB : AFK_TAB;
+  const tabs = [...BASE_TABS, afkOrWildShape, ORACLE_TAB, ...(showGeralt ? [GERALT_TAB] : []), SETTINGS_TAB];
   const touchStartY = useRef(0);
   const touchStartTime = useRef(0);
 
@@ -74,10 +81,11 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
   const showDiceContent = isExpanded && activeTab === 'dice' && diceContent;
   const showSettingsContent = isExpanded && activeTab === 'settings' && settingsContent;
   const showOracleContent = isExpanded && activeTab === 'oracle' && oracleContent;
-  const hasActiveContent = showDiceContent || showSettingsContent || showOracleContent;
+  const showWildShapeContent = isExpanded && activeTab === 'wildshape' && wildshapeContent;
+  const hasActiveContent = showDiceContent || showSettingsContent || showOracleContent || showWildShapeContent;
 
-  const activeContent = showDiceContent ? diceContent : showSettingsContent ? settingsContent : showOracleContent ? oracleContent : null;
-  const activeContentTab = showDiceContent ? tabs.find(t => t.id === 'dice') : showSettingsContent ? tabs.find(t => t.id === 'settings') : showOracleContent ? tabs.find(t => t.id === 'oracle') : null;
+  const activeContent = showDiceContent ? diceContent : showSettingsContent ? settingsContent : showOracleContent ? oracleContent : showWildShapeContent ? wildshapeContent : null;
+  const activeContentTab = showDiceContent ? tabs.find(t => t.id === 'dice') : showSettingsContent ? tabs.find(t => t.id === 'settings') : showOracleContent ? tabs.find(t => t.id === 'oracle') : showWildShapeContent ? tabs.find(t => t.id === 'wildshape') : null;
 
   return (
     <>

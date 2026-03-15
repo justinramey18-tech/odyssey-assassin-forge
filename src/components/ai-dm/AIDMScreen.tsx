@@ -43,7 +43,8 @@ import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
 import type { DMChatTheme } from '@/lib/dm-chat-themes';
 
 import type { MapMarker } from '@/components/party/battlemap/types';
-
+import type { UseWildShapeReturn } from '@/hooks/use-wild-shape';
+import { WildShapeSection } from '@/components/drawers/QuickActionsDrawer';
 
 interface AIDMScreenProps {
   onBack: () => void;
@@ -62,6 +63,10 @@ interface AIDMScreenProps {
     getCurrentHP: () => number;
     getCurrentGold: () => number;
   };
+  /** Wild Shape hook instance (for Momo Moon Druid) */
+  wildShape?: UseWildShapeReturn;
+  /** Whether this character is a Momo Moon Druid (shows wild shape tab) */
+  isMomoMoonDruid?: boolean;
 }
 
 const VIDEO_REGEX = /^\s*\[video:(https?:\/\/.+)\]\s*$/;
@@ -344,7 +349,7 @@ const NOOP = () => {};
 const NOOP_TWO_ARG = () => {};
 const NOOP_RETURN_ZERO = () => 0;
 
-export function AIDMScreen({ onBack, characterContext, userId, characterName = 'Adventurer', autoSyncCallbacks, dmPersonaPrompt, dmPersonaName, onRetakePersonalityTest }: AIDMScreenProps) {
+export function AIDMScreen({ onBack, characterContext, userId, characterName = 'Adventurer', autoSyncCallbacks, dmPersonaPrompt, dmPersonaName, onRetakePersonalityTest, wildShape, isMomoMoonDruid }: AIDMScreenProps) {
   const isMomo = useMemo(() => isMomoEasterEgg(characterName), [characterName]);
   const geraltCharacterId = useMemo(() => characterName?.toLowerCase().trim() || 'unknown', [characterName]);
   const [showToolsDrawer, setShowToolsDrawer] = useState(false);
@@ -615,7 +620,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
       setShowGeraltWidget(true);
       return;
     }
-    // Dice tab toggles
+    // Dice, wildshape, oracle, settings tabs toggle full-screen content
     setActiveNavTab(prev => prev === tab ? null : tab);
   }, []);
 
@@ -1111,6 +1116,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           onExpandedChange={setNavExpanded}
           disabled={isLoading}
           showGeralt={isMomo}
+          showWildShape={isMomoMoonDruid}
           diceContent={showDiceContent ? (
             <DMDiceRoller
               characterContext={characterContext}
@@ -1125,6 +1131,11 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           ) : undefined}
           oracleContent={activeNavTab === 'oracle' ? (
             <OracleWhisperFeed messages={messages} />
+          ) : undefined}
+          wildshapeContent={activeNavTab === 'wildshape' && wildShape && wildShape.config ? (
+            <div className="px-3 py-3">
+              <WildShapeSection wildShape={wildShape} characterName={characterName} />
+            </div>
           ) : undefined}
           oracleCount={messages.reduce((count, m) => count + (m.whispers?.length ?? 0), 0)}
         />

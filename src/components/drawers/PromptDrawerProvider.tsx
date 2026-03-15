@@ -729,6 +729,8 @@ export function PromptDrawerProvider({
               dmPersonaPrompt={personalityGate.profile?.dmSystemPrompt}
               dmPersonaName={personalityGate.profile?.dmPersonaName}
               onRetakePersonalityTest={personalityGate.retakeTest}
+              wildShape={wildShape}
+              isMomoMoonDruid={isMomoEasterEgg(character.name) && character.primaryClass === 'druid' && subclass?.toLowerCase().includes('moon')}
             />
           )}
 
@@ -766,6 +768,8 @@ export function PromptDrawerProvider({
               characterName={character.name}
               onShowChat={onOpenPartyChat ? () => { setPartyDMOpen(false); onOpenPartyChat(); } : undefined}
               autoSyncCallbacks={autoSyncCallbacks}
+              wildShape={wildShape}
+              isMomoMoonDruid={isMomoEasterEgg(character.name) && character.primaryClass === 'druid' && subclass?.toLowerCase().includes('moon')}
             />
           )}
         </>

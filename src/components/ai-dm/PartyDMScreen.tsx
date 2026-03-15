@@ -39,6 +39,8 @@ import { ScheduledEventsSheet } from './ScheduledEventsSheet';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { CampaignSession } from '@/hooks/use-campaign-sessions';
 import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
+import type { UseWildShapeReturn } from '@/hooks/use-wild-shape';
+import { WildShapeSection } from '@/components/drawers/QuickActionsDrawer';
 
 type PartyDmReturn = ReturnType<typeof usePartyDm>;
 
@@ -72,6 +74,10 @@ interface PartyDMScreenProps {
   onNewGame?: () => void;
   onLoadCampaign?: (session: CampaignSession) => void;
   onRefreshCampaigns?: () => void;
+  /** Wild Shape hook instance (for Momo Moon Druid) */
+  wildShape?: UseWildShapeReturn;
+  /** Whether this character is a Momo Moon Druid */
+  isMomoMoonDruid?: boolean;
 }
 
 const MEMBER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7', '#ef4444', '#06b6d4'];
@@ -539,7 +545,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
   );
 }
 
-export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, characterContext, showBattleMap, battleMapContent, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns }: PartyDMScreenProps) {
+export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, characterContext, showBattleMap, battleMapContent, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid }: PartyDMScreenProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   const [input, setInput, clearInput] = useDraftPersist('odyssey-party-dm-draft');
   const [, setTick] = useState(0);
@@ -888,7 +894,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       setShowAfkGuide(true);
       return;
     }
-    // Dice and settings tabs toggle
+    // Dice, wildshape, oracle, settings tabs toggle full-screen content
     setActiveNavTab(prev => prev === tab ? null : tab);
   }, []);
 
@@ -2063,6 +2069,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onExpandedChange={setNavExpanded}
           disabled={partyDm.isGenerating}
           showGeralt={isMomo}
+          showWildShape={isMomoMoonDruid}
           diceContent={showDiceContent ? (
             <DMDiceRoller
               characterContext={characterContext!}
@@ -2175,6 +2182,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                   conditions: (m.character_status as any)?.conditions,
                 })),
             }} />
+          ) : undefined}
+          wildshapeContent={activeNavTab === 'wildshape' && wildShape && wildShape.config ? (
+            <div className="px-3 py-3">
+              <WildShapeSection wildShape={wildShape} characterName={characterContext?.name || 'Adventurer'} />
+            </div>
           ) : undefined}
         />
       )}

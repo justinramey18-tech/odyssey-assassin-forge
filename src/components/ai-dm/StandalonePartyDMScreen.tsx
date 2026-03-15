@@ -11,6 +11,7 @@ import { PartyCampaignSaves } from './PartyCampaignSaves';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { PartyMember } from '@/hooks/use-party-sync';
 import type { MapMarker } from '@/components/party/battlemap/types';
+import type { UseWildShapeReturn } from '@/hooks/use-wild-shape';
 
 // Stable no-op fallbacks (module-level for referential stability)
 const NOOP = () => {};
@@ -35,6 +36,8 @@ interface StandalonePartyDMScreenProps {
     getCurrentHP: () => number;
     getCurrentGold: () => number;
   };
+  wildShape?: UseWildShapeReturn;
+  isMomoMoonDruid?: boolean;
 }
 
 export function StandalonePartyDMScreen({
@@ -47,6 +50,8 @@ export function StandalonePartyDMScreen({
   characterName,
   onShowChat,
   autoSyncCallbacks,
+  wildShape,
+  isMomoMoonDruid,
 }: StandalonePartyDMScreenProps) {
   const [showGuides, setShowGuides] = useState(false);
   const [showSaves, setShowSaves] = useState(false);
@@ -262,8 +267,10 @@ export function StandalonePartyDMScreen({
         campaignSessionsSignedIn={campaignSessions.isSignedIn}
         onNewGame={partyDm.startNewCampaign}
         onLoadCampaign={handleLoadCampaign}
-        onRefreshCampaigns={campaignSessions.refreshSessions}
-      />
+          onRefreshCampaigns={campaignSessions.refreshSessions}
+          wildShape={wildShape}
+          isMomoMoonDruid={isMomoMoonDruid}
+        />
 
       {/* GM Guides Overlay */}
       {showGuides && (
