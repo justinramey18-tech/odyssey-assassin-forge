@@ -12,8 +12,6 @@ import { loadSelectedModel } from '@/lib/dm-models';
 import { loadCombatSettings } from '@/lib/combat/combatSettings';
 import { formatPartyPowerForPrompt } from '@/lib/combat/encounterDifficulty';
 import { getAlignmentZone, type AlignmentScore } from '@/lib/alignmentSpectrum';
-import { SYNTHESIS_SYSTEM_PROMPT, SINGLE_PROMPT_SYNTHESIS_PROMPT, type SynthesisResult } from '@/lib/narrative-synthesis-prompt';
-import { useSynthesisMemory } from '@/hooks/use-synthesis-memory';
 
 function loadAlignmentDrift(): { position: AlignmentScore; zone: string } | null {
   try {
@@ -127,24 +125,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const [sessionConfig, setSessionConfig] = useState<DmSessionConfig | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const PENDING_DRAFT_KEY = 'odyssey-pending-draft';
-  const PENDING_SYNTHESIS_KEY = 'odyssey-pending-synthesis';
 
   const [pendingDraft, setPendingDraft] = useState<{ content: string; userContent: string; userSenderName: string } | null>(() => {
     try {
       const saved = getScopedItem(PENDING_DRAFT_KEY);
-      return saved ? JSON.parse(saved) : null;
-    } catch { return null; }
-  });
-  const [synthesisMode, setSynthesisMode] = useState<string | null>(null);
-  const [pendingSynthesis, setPendingSynthesis] = useState<{
-    synthesis: SynthesisResult;
-    rawPrompts: Array<{ character_name: string; prompt: string }>;
-    rawCombined: string;
-    afkGuidesSection: string;
-    normalConsumed: { userId: string; remainingCascade: string[] }[];
-  } | null>(() => {
-    try {
-      const saved = getScopedItem(PENDING_SYNTHESIS_KEY);
       return saved ? JSON.parse(saved) : null;
     } catch { return null; }
   });
@@ -159,20 +143,11 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     } catch {}
   }, [pendingDraft]);
 
-  useEffect(() => {
-    try {
-      if (pendingSynthesis) {
-        setScopedItem(PENDING_SYNTHESIS_KEY, JSON.stringify(pendingSynthesis));
-      } else {
-        removeScopedItem(PENDING_SYNTHESIS_KEY);
-      }
-    } catch {}
-  }, [pendingSynthesis]);
 
   const abortRef = useRef<AbortController | null>(null);
   const lastGeneratedRoundRef = useRef<string | null>(null);
   const autoGenTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const { recentModes, addMode } = useSynthesisMemory();
+  
 
   // Split state
   const [splitState, setSplitState] = useState<DmSplitState | null>(null);
@@ -888,70 +863,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     return assistantContent;
   }, [characterContext, sessionConfig?.campaignSummary]);
 
-  // Helper: synthesize multiple player prompts into a single director's note
-  const synthesizePrompts = useCallback(async (
-    rawPrompts: Array<{ character_name: string; prompt: string }>,
-    lastDmMessage: string | null,
-  ): Promise<SynthesisResult | null> => {
-    try {
-      const isMulti = rawPrompts.length > 1;
-      const systemPrompt = isMulti ? SYNTHESIS_SYSTEM_PROMPT : SINGLE_PROMPT_SYNTHESIS_PROMPT;
-      const playerPromptsText = rawPrompts
-        .map(p => `[${p.character_name}]: ${p.prompt?.trim() || '(no action)'}`)
-        .join('\n');
-      const contextSnippet = lastDmMessage ? lastDmMessage.slice(-500) : 'None';
-      const userMessage = `PREVIOUS DM MESSAGE (context):\n${contextSnippet}\n\nRECENT MODES USED (avoid repeating):\n[${recentModes.join(', ') || 'none yet'}]\n\nPLAYER PROMPTS:\n${playerPromptsText}`;
-
-      const authToken = await getAuthToken();
-      const synthAbort = new AbortController();
-      const synthTimeout = setTimeout(() => synthAbort.abort(), 15000);
-      const response = await fetch(AI_DM_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({
-          messages: [{ role: 'user', content: userMessage }],
-          systemPromptOverride: systemPrompt,
-          model: 'google/gemini-2.5-flash-lite',
-        }),
-        signal: synthAbort.signal,
-      });
-      clearTimeout(synthTimeout);
-
-      if (!response.ok) { console.warn('[Synthesizer] AI request failed, falling back'); return null; }
-      if (!response.body) return null;
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let textBuffer = '', fullContent = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        textBuffer += decoder.decode(value, { stream: true });
-        let ni: number;
-        while ((ni = textBuffer.indexOf('\n')) !== -1) {
-          let line = textBuffer.slice(0, ni);
-          textBuffer = textBuffer.slice(ni + 1);
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (line.startsWith(':') || line.trim() === '' || !line.startsWith('data: ')) continue;
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === '[DONE]') break;
-          try { const p = JSON.parse(jsonStr); const d = p.choices?.[0]?.delta?.content; if (d) fullContent += d; } catch {}
-        }
-      }
-
-      let cleaned = fullContent.trim();
-      if (cleaned.startsWith('```')) cleaned = cleaned.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
-      const result = JSON.parse(cleaned) as SynthesisResult;
-      if (result.mode && result.fusedPrompt) {
-        console.log('[Synthesizer] Mode:', result.mode, '| Spine:', result.spine);
-        return result;
-      }
-      return null;
-    } catch (e) {
-      console.warn('[Synthesizer] Failed, falling back to raw concatenation:', e);
-      return null;
-    }
-  }, [recentModes]);
 
   // Build party members system prompt section
   const buildPartyMembersGuide = useCallback((memberIds?: string[]) => {
@@ -1138,17 +1049,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             .map(formatPromptLine)
             .join('\n') + alphaAfkPrompts;
 
-          // Synthesize alpha prompts
-          const alphaLastAssistant = [...alphaMessages].reverse().find(m => m.role === 'assistant');
-          const alphaSynthesis = await synthesizePrompts(alphaPrompts, alphaLastAssistant?.content || null);
-          let alphaForAI = alphaRawCombined;
-          let alphaDirectionGuide = '';
-          if (alphaSynthesis) {
-            alphaForAI = `<!-- SYNTHESIS: mode=${alphaSynthesis.mode} -->\n${alphaSynthesis.fusedPrompt}`;
-            alphaDirectionGuide = `\n\n## NARRATIVE DIRECTION\nPresentation mode: ${alphaSynthesis.mode}. Focus: ${alphaSynthesis.focusCharacter}. Spine: ${alphaSynthesis.spine}`;
-            addMode(alphaSynthesis.mode);
-            setSynthesisMode(alphaSynthesis.mode);
-          }
+          const alphaForAI = alphaRawCombined;
 
           await insertPartyMessage({
             party_id: partyId,
@@ -1169,7 +1070,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             splitState.betaSummary ? `\n\n## OTHER TEAM CONTEXT (hidden from players)\n"${splitState.betaName || 'Team Beta'}"'s adventure summary (for narrative coherence only — do NOT reveal to "${splitState.alphaName || 'Team Alpha'}"):\n${splitState.betaSummary}` : '',
             splitState.alphaSummary ? `\n\n## PREVIOUS "${splitState.alphaName || 'Team Alpha'}" SUMMARY\n${splitState.alphaSummary}` : '',
             alphaAfkGuides,
-            alphaDirectionGuide,
           ].filter(Boolean).join('\n\n');
 
           const alphaContent = await streamAIResponse(alphaApiMsgs, alphaGuides, abortRef.current!.signal);
@@ -1194,17 +1094,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             .map(formatPromptLine)
             .join('\n') + betaAfkPrompts;
 
-          // Synthesize beta prompts
-          const betaLastAssistant = [...betaMessages].reverse().find(m => m.role === 'assistant');
-          const betaSynthesis = await synthesizePrompts(betaPrompts, betaLastAssistant?.content || null);
-          let betaForAI = betaRawCombined;
-          let betaDirectionGuide = '';
-          if (betaSynthesis) {
-            betaForAI = `<!-- SYNTHESIS: mode=${betaSynthesis.mode} -->\n${betaSynthesis.fusedPrompt}`;
-            betaDirectionGuide = `\n\n## NARRATIVE DIRECTION\nPresentation mode: ${betaSynthesis.mode}. Focus: ${betaSynthesis.focusCharacter}. Spine: ${betaSynthesis.spine}`;
-            addMode(betaSynthesis.mode);
-            setSynthesisMode(betaSynthesis.mode);
-          }
+          const betaForAI = betaRawCombined;
 
           await insertPartyMessage({
             party_id: partyId,
@@ -1225,7 +1115,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             splitState.alphaSummary ? `\n\n## OTHER TEAM CONTEXT (hidden from players)\n"${splitState.alphaName || 'Team Alpha'}"'s adventure summary (for narrative coherence only — do NOT reveal to "${splitState.betaName || 'Team Beta'}"):\n${splitState.alphaSummary}` : '',
             splitState.betaSummary ? `\n\n## PREVIOUS "${splitState.betaName || 'Team Beta'}" SUMMARY\n${splitState.betaSummary}` : '',
             betaAfkGuides,
-            betaDirectionGuide,
           ].filter(Boolean).join('\n\n');
 
           const betaContent = await streamAIResponse(betaApiMsgs, betaGuides, abortRef.current!.signal);
@@ -1310,33 +1199,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           .map(formatPromptLine)
           .join('\n') + afkPromptSection;
 
-        // --- Prompt Synthesis ---
-        const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant');
-        const synthesis = await synthesizePrompts(readyPrompts, lastAssistant?.content || null);
-        
-        // If synthesis succeeded, pause for host approval before sending to DM
-        if (synthesis) {
-          setSynthesisMode(synthesis.mode);
-          setPendingSynthesis({
-            synthesis,
-            rawPrompts: readyPrompts.map(p => ({ character_name: p.character_name, prompt: p.prompt })),
-            rawCombined,
-            afkGuidesSection,
-            normalConsumed,
-          });
-          // Release generation lock but keep prompts — host will approve/discard
-          await (supabase.from('party_shared_state') as any)
-            .update({ state_data: { ...sessionConfig, isGenerating: false } })
-            .eq('party_id', partyId)
-            .eq('state_type', 'dm_session');
-          setIsGenerating(false);
-          setSynthesisMode(null);
-          return; // Exit — resumption happens via approveSynthesis
-        }
-
-        // Synthesis failed — fall back to raw concatenation (no approval step)
-        let combined = rawCombined;
-        let narrativeDirectionGuide = '';
+        const combined = rawCombined;
 
         const isApprovalMode = (sessionConfig.dmMode || 'ai') === 'ai-approval';
 
@@ -1359,7 +1222,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           customGuidesContent || '',
           `\n\n## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
           afkGuidesSection,
-          narrativeDirectionGuide,
         ].filter(Boolean).join('\n\n');
 
         const assistantContent = await streamAIResponse(apiMessages, guides, abortRef.current!.signal);
@@ -1458,10 +1320,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         .eq('state_type', 'dm_session');
     } finally {
       setIsGenerating(false);
-      setSynthesisMode(null);
       abortRef.current = null;
     }
-  }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, customGuidesContent, triggerSummaryIfNeeded, silentAutoSave, isSplitActive, splitState, streamAIResponse, buildPartyMembersGuide, generateSplitSummary, buildAfkGuidesContext, consumeCascadePrompts, synthesizePrompts, addMode, insertPartyMessageHelper]);
+  }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, customGuidesContent, triggerSummaryIfNeeded, silentAutoSave, isSplitActive, splitState, streamAIResponse, buildPartyMembersGuide, generateSplitSummary, buildAfkGuidesContext, consumeCascadePrompts, insertPartyMessageHelper]);
 
   // Auto-trigger generation when all ready (host only) — only in AI mode
   const currentDmMode = sessionConfig?.dmMode || 'ai';
@@ -1722,7 +1583,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       abortRef.current = null;
     }
     setIsGenerating(false);
-    setSynthesisMode(null);
     // Release the generation lock
     if (partyId && sessionConfig) {
       (supabase.from('party_shared_state') as any)
@@ -2194,273 +2054,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     setPendingDraft(null);
   }, []);
 
-  // --- Synthesis Approval Callbacks ---
-  const approveSynthesis = useCallback(async (editedFusedPrompt: string) => {
-    if (!partyId || !user || !sessionConfig || !pendingSynthesis) return;
-    const { synthesis, rawCombined, afkGuidesSection, normalConsumed } = pendingSynthesis;
-    const fusedPrompt = editedFusedPrompt.trim();
-    if (!fusedPrompt) return;
-
-    // Record mode in memory
-    addMode(synthesis.mode);
-
-    const combined = `<!-- SYNTHESIS: mode=${synthesis.mode} spine=${synthesis.spine} focus=${synthesis.focusCharacter} -->\n${fusedPrompt}`;
-    const narrativeDirectionGuide = `\n\n## NARRATIVE DIRECTION\nPresentation mode: ${synthesis.mode}. Focus character: ${synthesis.focusCharacter}. Narrative spine: ${synthesis.spine}`;
-
-    // Clear pending synthesis
-    setPendingSynthesis(null);
-
-    // Now resume DM generation flow
-    setIsGenerating(true);
-    // Re-acquire lock
-    const { data: lockData } = await (supabase.from('party_shared_state') as any)
-      .update({ state_data: { ...sessionConfig, isGenerating: true } })
-      .eq('party_id', partyId)
-      .eq('state_type', 'dm_session')
-      .not('state_data->isGenerating', 'eq', true)
-      .select('id');
-    if (!lockData || lockData.length === 0) {
-      setIsGenerating(false);
-      toast.error('Generation already in progress');
-      return;
-    }
-
-    abortRef.current = new AbortController();
-    try {
-      const isApprovalMode = (sessionConfig.dmMode || 'ai') === 'ai-approval';
-
-      if (!isApprovalMode) {
-        await insertPartyMessageHelper(partyId, {
-          party_id: partyId,
-          role: 'user',
-          content: rawCombined,
-          sender_user_id: user.id,
-          sender_name: 'Party',
-        });
-      }
-
-      const partyMembersSummary = buildPartyMembersGuide();
-      const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
-      apiMessages.push({ role: 'user', content: combined });
-
-      const guides = [
-        customGuidesContent || '',
-        `\n\n## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
-        afkGuidesSection,
-        narrativeDirectionGuide,
-      ].filter(Boolean).join('\n\n');
-
-      const assistantContent = await streamAIResponse(apiMessages, guides, abortRef.current!.signal);
-
-      if (assistantContent?.trim()) {
-        if (isApprovalMode) {
-          setPendingDraft({
-            content: assistantContent,
-            userContent: combined,
-            userSenderName: 'Party',
-          });
-        } else {
-          await insertPartyMessageHelper(partyId, {
-            party_id: partyId,
-            role: 'assistant',
-            content: assistantContent,
-            sender_user_id: null,
-            sender_name: 'DM',
-          });
-
-          const updatedMessages = [...messages,
-            { id: '', party_id: partyId, role: 'user' as const, content: combined, sender_user_id: user.id, sender_name: 'Party', created_at: '' },
-            { id: '', party_id: partyId, role: 'assistant' as const, content: assistantContent, sender_user_id: null, sender_name: 'DM', created_at: '' },
-          ];
-          triggerSummaryIfNeeded(updatedMessages);
-          silentAutoSave(updatedMessages, sessionConfig.campaignSummary || null);
-        }
-      }
-
-      // Consume cascade prompts
-      if (normalConsumed.length > 0) {
-        await consumeCascadePrompts(normalConsumed);
-      }
-
-      // Clear prompts and advance round (skip in approval mode)
-      if ((sessionConfig.dmMode || 'ai') !== 'ai-approval') {
-        await (supabase.from('party_dm_prompts') as any)
-          .delete()
-          .eq('party_id', partyId)
-          .eq('round_id', sessionConfig.currentRoundId);
-
-        const newRoundId = crypto.randomUUID();
-        const newConfig: DmSessionConfig = {
-          ...sessionConfig,
-          currentRoundId: newRoundId,
-          isGenerating: false,
-          timerStartedAt: sessionConfig.timerEnabled ? new Date().toISOString() : null,
-          timerPausedRemaining: null,
-          extensionRequests: [],
-        };
-        await (supabase.from('party_shared_state') as any)
-          .update({ state_data: newConfig })
-          .eq('party_id', partyId)
-          .eq('state_type', 'dm_session');
-      } else {
-        await (supabase.from('party_shared_state') as any)
-          .update({ state_data: { ...sessionConfig, isGenerating: false } })
-          .eq('party_id', partyId)
-          .eq('state_type', 'dm_session');
-      }
-    } catch (error) {
-      const isAbort = error instanceof Error && error.name === 'AbortError';
-      if (!isAbort) {
-        console.error('Party DM generation error (post-synthesis):', error);
-        toast.error(error instanceof Error ? error.message : 'Generation failed');
-      }
-      await (supabase.from('party_shared_state') as any)
-        .update({ state_data: { ...sessionConfig, isGenerating: false } })
-        .eq('party_id', partyId)
-        .eq('state_type', 'dm_session');
-    } finally {
-      setIsGenerating(false);
-      abortRef.current = null;
-    }
-  }, [partyId, user, sessionConfig, pendingSynthesis, messages, customGuidesContent, buildPartyMembersGuide, streamAIResponse, triggerSummaryIfNeeded, silentAutoSave, consumeCascadePrompts, addMode]);
-
-  const discardSynthesis = useCallback(async () => {
-    if (!pendingSynthesis || !partyId || !user || !sessionConfig) {
-      setPendingSynthesis(null);
-      return;
-    }
-
-    const { rawCombined, afkGuidesSection, normalConsumed } = pendingSynthesis;
-
-    // Clear the synthesis panel
-    setPendingSynthesis(null);
-
-    // Resume generation with raw prompts (no synthesis wrapping)
-    setIsGenerating(true);
-
-    const { data: lockData } = await (supabase.from('party_shared_state') as any)
-      .update({ state_data: { ...sessionConfig, isGenerating: true } })
-      .eq('party_id', partyId)
-      .eq('state_type', 'dm_session')
-      .not('state_data->isGenerating', 'eq', true)
-      .select('id');
-
-    if (!lockData || lockData.length === 0) {
-      setIsGenerating(false);
-      toast.error('Generation already in progress');
-      return;
-    }
-
-    abortRef.current = new AbortController();
-
-    try {
-      const isApprovalMode = (sessionConfig.dmMode || 'ai') === 'ai-approval';
-
-      if (!isApprovalMode) {
-        await insertPartyMessageHelper(partyId, {
-          party_id: partyId,
-          role: 'user',
-          content: rawCombined,
-          sender_user_id: user.id,
-          sender_name: 'Party',
-        });
-      }
-
-      const partyMembersSummary = buildPartyMembersGuide();
-      const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
-      apiMessages.push({ role: 'user', content: rawCombined });
-
-      const guides = [
-        customGuidesContent || '',
-        `\n\n## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
-        afkGuidesSection,
-      ].filter(Boolean).join('\n\n');
-
-      const assistantContent = await streamAIResponse(apiMessages, guides, abortRef.current!.signal);
-
-      if (assistantContent?.trim()) {
-        if (isApprovalMode) {
-          setPendingDraft({
-            content: assistantContent,
-            userContent: rawCombined,
-            userSenderName: 'Party',
-          });
-        } else {
-          await insertPartyMessageHelper(partyId, {
-            party_id: partyId,
-            role: 'assistant',
-            content: assistantContent,
-            sender_user_id: null,
-            sender_name: 'DM',
-          });
-
-          const updatedMessages = [...messages,
-            { id: '', party_id: partyId, role: 'user' as const, content: rawCombined, sender_user_id: user.id, sender_name: 'Party', created_at: '' },
-            { id: '', party_id: partyId, role: 'assistant' as const, content: assistantContent, sender_user_id: null, sender_name: 'DM', created_at: '' },
-          ];
-          triggerSummaryIfNeeded(updatedMessages);
-          silentAutoSave(updatedMessages, sessionConfig.campaignSummary || null);
-        }
-      }
-
-      if (normalConsumed.length > 0) {
-        await consumeCascadePrompts(normalConsumed);
-      }
-
-      if ((sessionConfig.dmMode || 'ai') !== 'ai-approval') {
-        await (supabase.from('party_dm_prompts') as any)
-          .delete()
-          .eq('party_id', partyId)
-          .eq('round_id', sessionConfig.currentRoundId);
-
-        const newRoundId = crypto.randomUUID();
-        const newConfig = {
-          ...sessionConfig,
-          currentRoundId: newRoundId,
-          isGenerating: false,
-          timerStartedAt: sessionConfig.timerEnabled ? new Date().toISOString() : null,
-          timerPausedRemaining: null,
-          extensionRequests: [],
-        };
-        await (supabase.from('party_shared_state') as any)
-          .update({ state_data: newConfig })
-          .eq('party_id', partyId)
-          .eq('state_type', 'dm_session');
-      } else {
-        await (supabase.from('party_shared_state') as any)
-          .update({ state_data: { ...sessionConfig, isGenerating: false } })
-          .eq('party_id', partyId)
-          .eq('state_type', 'dm_session');
-      }
-    } catch (error) {
-      const isAbort = error instanceof Error && error.name === 'AbortError';
-      if (!isAbort) {
-        console.error('Party DM generation error (post-discard):', error);
-        toast.error(error instanceof Error ? error.message : 'Generation failed');
-      }
-      await (supabase.from('party_shared_state') as any)
-        .update({ state_data: { ...sessionConfig, isGenerating: false } })
-        .eq('party_id', partyId)
-        .eq('state_type', 'dm_session');
-    } finally {
-      setIsGenerating(false);
-      abortRef.current = null;
-    }
-  }, [pendingSynthesis, partyId, user, sessionConfig, messages, customGuidesContent, buildPartyMembersGuide, streamAIResponse, triggerSummaryIfNeeded, silentAutoSave, consumeCascadePrompts, insertPartyMessageHelper]);
-
-  const regenerateSynthesis = useCallback(async () => {
-    if (!pendingSynthesis) return;
-    const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant');
-    const newSynthesis = await synthesizePrompts(
-      pendingSynthesis.rawPrompts,
-      lastAssistant?.content || null,
-    );
-    if (newSynthesis) {
-      setPendingSynthesis(prev => prev ? { ...prev, synthesis: newSynthesis } : null);
-    } else {
-      toast.error('Re-synthesis failed — try again or skip');
-    }
-  }, [pendingSynthesis, messages, synthesizePrompts]);
 
   return {
     messages: filteredMessages,
@@ -2468,7 +2061,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     currentPrompts,
     sessionConfig,
     isActive,
-    synthesisMode,
     isGenerating: isGenerating || (sessionConfig?.isGenerating ?? false),
     isSummarizing,
     allReady,
@@ -2479,7 +2071,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     isSplitActive,
     myTeam,
     pendingDraft,
-    pendingSynthesis,
     startSession,
     endSession,
     startNewCampaign,
@@ -2494,9 +2085,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     sendManualDmMessage,
     approveDraft,
     discardDraft,
-    approveSynthesis,
-    discardSynthesis,
-    regenerateSynthesis,
     editMessage,
     deleteMessage,
     regenerateMessage,
