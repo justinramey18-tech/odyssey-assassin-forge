@@ -106,6 +106,8 @@ interface CharacterContext {
   campaignSummary?: string;
   // Recent DM narrative messages
   recentNarrative?: Array<{ role: string; name?: string; content: string }>;
+  // GM Guides content (host-enabled lore/rules)
+  gmGuidesContent?: string;
   // Wild Shape state
   wildShape?: {
     isTransformed: boolean;
