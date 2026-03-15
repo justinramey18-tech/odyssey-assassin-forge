@@ -637,7 +637,7 @@ function WildShapeStatusBar({ wildShape }: { wildShape: UseWildShapeReturn }) {
 
 // ── Wild Shape Beast Form Section ──
 
-function WildShapeSection({ wildShape, characterName, onAssignBackground, onRemoveBackground, hasBackground }: { wildShape: UseWildShapeReturn; characterName: string; onAssignBackground?: (formId: string, file: File) => Promise<void>; onRemoveBackground?: (formId: string) => void; hasBackground?: (formId: string) => boolean }) {
+export function WildShapeSection({ wildShape, characterName, onAssignBackground, onRemoveBackground, hasBackground }: { wildShape: UseWildShapeReturn; characterName: string; onAssignBackground?: (formId: string, file: File) => Promise<void>; onRemoveBackground?: (formId: string) => void; hasBackground?: (formId: string) => boolean }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadTargetFormId, setUploadTargetFormId] = useState<string | null>(null);
 
