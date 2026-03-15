@@ -154,8 +154,8 @@ export function useWildShape(druidLevel: number, circle: DruidCircle | null = nu
       return false;
     }
 
-    // Validate form is available
-    if (!availableForms.find(f => f.id === form.id)) {
+    // Validate form is available (skip for momo easter egg)
+    if (!isMomoMoon && !availableForms.find(f => f.id === form.id)) {
       toast({
         title: 'Form Unavailable',
         description: `You cannot assume the form of a ${form.name} at your level.`,
