@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useGMGuides } from '@/hooks/use-gm-guides';
+import { usePartyMemoryAnchors } from '@/hooks/use-party-memory-anchors';
 import { usePartyDm } from '@/hooks/use-party-dm';
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
 import { useCampaignSessions } from '@/hooks/use-campaign-sessions';
