@@ -979,6 +979,18 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             </span>
           </>
         )}
+        {wildShape?.state.isTransformed && wildShape.state.currentForm && (
+          <>
+            <span className="text-[11px] text-white/20">•</span>
+            <PawPrint className="w-3 h-3 text-green-400 shrink-0" />
+            <span className={cn(
+              "text-[11px] font-mono whitespace-nowrap",
+              (wildShape.state.formHP / wildShape.state.formMaxHP) > 0.5 ? "text-green-400" : (wildShape.state.formHP / wildShape.state.formMaxHP) > 0.25 ? "text-amber-400" : "text-red-400"
+            )}>
+              {wildShape.state.currentForm.name} {wildShape.state.formHP}/{wildShape.state.formMaxHP}
+            </span>
+          </>
+        )}
         {broadcastPlaylist && (
           <>
             <span className="text-[11px] text-white/20">•</span>
