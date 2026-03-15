@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/use-auth';
 import type { AppMode, CustomOverrides } from '@/lib/app-modes';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
