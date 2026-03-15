@@ -65,6 +65,7 @@ interface PartyDMScreenProps {
   isExtracting?: boolean;
   guidesCount?: number;
   gmGuidesContent?: string;
+  memoryAnchorsContent?: string;
   characterContext?: CharacterContext;
   showBattleMap?: boolean;
   battleMapContent?: React.ReactNode;
@@ -546,7 +547,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
   );
 }
 
-export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, gmGuidesContent, characterContext, showBattleMap, battleMapContent, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid }: PartyDMScreenProps) {
+export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, gmGuidesContent, memoryAnchorsContent, characterContext, showBattleMap, battleMapContent, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid }: PartyDMScreenProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   const playerInputRef = useRef<PartyDMInputHandle>(null);
   const [, setTick] = useState(0);
@@ -2009,6 +2010,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               ...characterContext,
               campaignSummary: partyDm.sessionConfig?.campaignSummary || undefined,
               gmGuidesContent: gmGuidesContent || undefined,
+              memoryAnchors: memoryAnchorsContent || undefined,
               recentNarrative: partyDm.messages
                 .filter(m => m.role === 'user' || m.role === 'assistant')
                 .slice(-10)

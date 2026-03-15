@@ -108,6 +108,8 @@ interface CharacterContext {
   recentNarrative?: Array<{ role: string; name?: string; content: string }>;
   // GM Guides content (host-enabled lore/rules)
   gmGuidesContent?: string;
+  // Memory Anchors — long-term campaign facts
+  memoryAnchors?: string;
   // Wild Shape state
   wildShape?: {
     isTransformed: boolean;
@@ -387,6 +389,14 @@ function buildContextSummary(ctx: CharacterContext): string {
     lines.push(`[GM GUIDES START]`);
     lines.push(ctx.gmGuidesContent.slice(0, 8000));
     lines.push(`[GM GUIDES END]`);
+  }
+
+  // Memory Anchors — long-term persistent campaign facts
+  if (ctx.memoryAnchors) {
+    lines.push(`\n🧠 MEMORY ANCHORS (long-term campaign facts — NPCs, locations, quests, secrets):`);
+    lines.push(`[MEMORY ANCHORS START]`);
+    lines.push(ctx.memoryAnchors.slice(0, 4000));
+    lines.push(`[MEMORY ANCHORS END]`);
   }
   
   return lines.join('\n');

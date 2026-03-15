@@ -178,6 +178,8 @@ export interface CharacterContext {
   recentNarrative?: Array<{ role: string; name?: string; content: string }>;
   // GM Guides content (host-enabled lore/rules)
   gmGuidesContent?: string;
+  // Memory Anchors — long-term campaign facts (NPCs, locations, quests, secrets)
+  memoryAnchors?: string;
 }
 
 export interface PersonalityConfig {

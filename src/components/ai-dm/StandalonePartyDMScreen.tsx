@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useGMGuides } from '@/hooks/use-gm-guides';
+import { usePartyMemoryAnchors } from '@/hooks/use-party-memory-anchors';
 import { usePartyDm } from '@/hooks/use-party-dm';
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
 import { useCampaignSessions } from '@/hooks/use-campaign-sessions';
@@ -149,6 +150,9 @@ export function StandalonePartyDMScreen({
   const gmGuidesOwner = isCoHost && partyCreatorId ? partyCreatorId : undefined;
   const gmGuides = useGMGuides(gmGuidesOwner, 'party');
 
+  // Memory Anchors — long-term campaign facts shared across party
+  const memoryAnchors = usePartyMemoryAnchors({ partyId: partyId || null });
+
   // Stabilize partyMembers for usePartyDm
   const stablePartyMembers = useMemo(() =>
     partyMembers.map(m => ({
@@ -260,6 +264,7 @@ export function StandalonePartyDMScreen({
         isExtracting={autoSync.isExtracting}
         guidesCount={gmGuides.guides.filter(g => g.enabled).length}
         gmGuidesContent={gmGuides.enabledContent}
+        memoryAnchorsContent={memoryAnchors.formattedForOracle}
         characterContext={characterContext}
         showBattleMap={showBattleMap}
         battleMapContent={battleMapContent}
