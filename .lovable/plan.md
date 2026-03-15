@@ -1,34 +1,21 @@
 
 
-## Add Manual Level Adjustment to Settings
+## Prompt Synthesizer — Host Approval Step
 
-### Problem
-Once a character is created, there's no way to adjust their level downward. Level only goes up via XP.
+After prompts are synthesized into a fused "director's note", the host sees a `SynthesisReviewPanel` with:
+- The selected presentation mode and focus character badges
+- The narrative spine (italic quote)
+- Raw player actions summary
+- The fused prompt text (editable)
+- Approve ("Send to DM"), Regenerate, and Skip buttons
 
-### Solution
-Add a "Character Level" slider to the Settings panel (Character tab) that allows freely setting level 1–20, with automatic recalculation of:
-- Available ability points (excess points auto-unspent if lowering)
-- XP (set to minimum XP for chosen level)
-- Max HP (recalculated for new level + CON)
+**Flow:**
+1. Prompts collected → synthesized → `pendingSynthesis` state set → generation lock released
+2. Host reviews/edits the fused prompt in `SynthesisReviewPanel`
+3. On approve: re-acquires generation lock, sends fused prompt to main DM
+4. On skip: clears `pendingSynthesis`, raw prompts remain for next round
+5. On regenerate: re-runs synthesis with same prompts
 
-### Changes
+Non-host players see "Host is reviewing synthesized prompts..." indicator.
 
-**1. `src/components/settings/SettingsContent.tsx`**
-- Add a new "Character Level" section with a Slider (1–20) in the Character settings area
-- Wire it to a new `onLevelChange` callback prop
-
-**2. `src/components/settings/SettingsModal.tsx`**
-- Pass through the `onLevelChange` prop
-
-**3. `src/pages/Index.tsx`**
-- Add `handleLevelChange(newLevel)` that:
-  - Updates `character.level`
-  - Sets XP to the minimum for that level (using existing XP table)
-  - Recalculates max HP
-  - If ability points decrease, warns user that excess invested points may need to be unspent
-  - Persists to scoped storage
-- Pass it down through Settings
-
-**4. Safeguard: ability point overflow**
-- When level decreases, if spent points exceed new max, show a toast warning the user to unallocate abilities (don't auto-remove — let user choose which to drop)
-
+Split mode bypasses this approval step (synthesis is applied directly).

@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/use-auth';
 import type { AppMode, CustomOverrides } from '@/lib/app-modes';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
@@ -86,6 +87,7 @@ interface SettingsContentProps {
   onResetCustomizations?: () => void;
   isFeatureVisible?: (id: string) => boolean;
   onRenameCharacter?: (name: string) => void;
+  onLevelChange?: (level: number) => void;
 }
 
 export function SettingsContent({
@@ -127,6 +129,7 @@ export function SettingsContent({
   onResetCustomizations,
   isFeatureVisible: isFeatureVisibleProp,
   onRenameCharacter,
+  onLevelChange,
 }: SettingsContentProps) {
   const [copiedStatic, setCopiedStatic] = useState(false);
   const [copiedDynamic, setCopiedDynamic] = useState(false);
@@ -279,6 +282,30 @@ export function SettingsContent({
               </div>
             )}
           </SettingsSection>
+
+          {/* Character Level Adjustment */}
+          {onLevelChange && characterLevel && (
+            <SettingsSection title="Character Level">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Level</span>
+                  <span className="font-cinzel font-bold text-lg">{characterLevel}</span>
+                </div>
+                <Slider
+                  min={1}
+                  max={20}
+                  step={1}
+                  value={[characterLevel]}
+                  onValueChange={([v]) => onLevelChange(v)}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>1</span>
+                  <span>20</span>
+                </div>
+              </div>
+            </SettingsSection>
+          )}
 
           <SettingsSection title="Character Identity">
             <CharacterIdentityEditor />

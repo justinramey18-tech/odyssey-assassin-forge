@@ -59,6 +59,7 @@ interface SettingsModalProps {
   onResetCustomizations?: () => void;
   isFeatureVisible?: (id: string) => boolean;
   onRenameCharacter?: (name: string) => void;
+  onLevelChange?: (level: number) => void;
 }
 
 export function SettingsModal({ 
@@ -94,6 +95,7 @@ export function SettingsModal({
   onResetCustomizations,
   isFeatureVisible,
   onRenameCharacter,
+  onLevelChange,
 }: SettingsModalProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<SettingsTab>('character');
@@ -283,6 +285,7 @@ export function SettingsModal({
                    onResetCustomizations={onResetCustomizations}
                    isFeatureVisible={isFeatureVisible}
                    onRenameCharacter={onRenameCharacter}
+                   onLevelChange={onLevelChange}
               />
               ) : (
                 <MobileSettingsTabs
@@ -359,6 +362,7 @@ export function SettingsModal({
                 onResetCustomizations={onResetCustomizations}
                 isFeatureVisible={isFeatureVisible}
                 onRenameCharacter={onRenameCharacter}
+                onLevelChange={onLevelChange}
               />
             </div>
           </ScrollArea>
