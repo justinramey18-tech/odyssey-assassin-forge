@@ -17,8 +17,12 @@ interface DMBottomNavProps {
   settingsContent?: React.ReactNode;
   /** Rendered below tabs when oracle tab is active */
   oracleContent?: React.ReactNode;
+  /** Rendered below tabs when wildshape tab is active */
+  wildshapeContent?: React.ReactNode;
   /** Show the Geralt tab (momo easter egg) */
   showGeralt?: boolean;
+  /** Replace AFK tab with Wild Shape tab (momo moon druid) */
+  showWildShape?: boolean;
   /** Badge count for oracle whispers */
   oracleCount?: number;
 }
