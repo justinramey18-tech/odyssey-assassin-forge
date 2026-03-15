@@ -2,7 +2,7 @@
 // UI for full caster classes (Wizard, Sorcerer, Cleric, Druid, Bard)
 // Separate from MagicScreen which handles Rogue Magic Paths
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Wand2, BookOpen, Zap, Settings, Package, RefreshCw, Flame, Sparkles, Plus } from 'lucide-react';
@@ -40,6 +40,7 @@ import { HomebrewSpell } from '@/lib/spellCustomization/types';
 import { HealTargetPicker } from '@/components/party/HealTargetPicker';
 import type { PartyMember } from '@/hooks/use-party-sync';
 import type { PartyAction } from '@/hooks/use-party-sync';
+import { getScopedItem, setScopedItem, migrateToScoped } from '@/lib/scoped-storage';
 
 // Background image
 import arcanaBackground from '@/assets/trees/arcana-wizards-mobile.jpg';
@@ -187,15 +188,21 @@ export function ClassSpellcastingScreen({
   }, [spellcasting.state.abilityModifier]);
 
   // Druid Circle state (persisted)
+  // Migrate old unscoped keys on first load
+  useState(() => {
+    migrateToScoped(DRUID_CIRCLE_KEY);
+    migrateToScoped(DRUID_LAND_KEY);
+  });
+
   const [druidCircle, setDruidCircle] = useState<DruidCircle | null>(() => {
     try {
-      const saved = localStorage.getItem(DRUID_CIRCLE_KEY);
+      const saved = getScopedItem(DRUID_CIRCLE_KEY);
       return saved as DruidCircle | null;
     } catch { return null; }
   });
   const [druidLand, setDruidLand] = useState<LandType | null>(() => {
     try {
-      const saved = localStorage.getItem(DRUID_LAND_KEY);
+      const saved = getScopedItem(DRUID_LAND_KEY);
       return saved as LandType | null;
     } catch { return null; }
   });
@@ -229,16 +236,30 @@ export function ClassSpellcastingScreen({
   const isCleric = primaryClass === 'cleric';
   const domainChannelDivinity = clericDomain ? getDomainChannelDivinity(clericDomain, characterLevel) : [];
 
-  // Persist circle selection
+  // Persist circle selection (scoped + dispatch event for Index.tsx reactivity)
   const handleSelectCircle = (circle: DruidCircle) => {
     setDruidCircle(circle);
-    localStorage.setItem(DRUID_CIRCLE_KEY, circle);
+    setScopedItem(DRUID_CIRCLE_KEY, circle);
+    window.dispatchEvent(new CustomEvent('odyssey-druid-circle-changed'));
   };
 
   const handleSelectLand = (land: LandType) => {
     setDruidLand(land);
-    localStorage.setItem(DRUID_LAND_KEY, land);
+    setScopedItem(DRUID_LAND_KEY, land);
+    window.dispatchEvent(new CustomEvent('odyssey-druid-circle-changed'));
   };
+
+  // Re-init on character switch
+  useEffect(() => {
+    const reload = () => {
+      try {
+        setDruidCircle((getScopedItem(DRUID_CIRCLE_KEY) as DruidCircle | null) ?? null);
+        setDruidLand((getScopedItem(DRUID_LAND_KEY) as LandType | null) ?? null);
+      } catch { /* ignore */ }
+    };
+    window.addEventListener('odyssey-character-loaded', reload);
+    return () => window.removeEventListener('odyssey-character-loaded', reload);
+  }, []);
 
   // Persist domain selection
   const handleSelectDomain = (domain: ClericDomain) => {

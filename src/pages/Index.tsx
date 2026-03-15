@@ -448,13 +448,25 @@ const Index = () => {
 
   const { requiresOrganicLevelUp, requiresGearUnlocks, rerollsDisabled, infinityStonesLocked, enforceWildShapeDuration } = useGameMode();
 
-  // Wild Shape - lifted to app level for cross-tab sync
-  const druidCircle = useMemo<DruidCircle | null>(() => {
+  // Wild Shape - lifted to app level for cross-tab sync (reactive)
+  const readDruidCircle = useCallback((): DruidCircle | null => {
     try {
-      const saved = getScopedItem('dnd-druid-circle');
-      return saved as DruidCircle | null;
+      return (getScopedItem('dnd-druid-circle') as DruidCircle | null) ?? null;
     } catch { return null; }
   }, []);
+  const [druidCircle, setDruidCircle] = useState<DruidCircle | null>(readDruidCircle);
+
+  useEffect(() => {
+    const reload = () => setDruidCircle(readDruidCircle());
+    window.addEventListener('odyssey-druid-circle-changed', reload);
+    window.addEventListener('odyssey-character-loaded', reload);
+    window.addEventListener('storage', reload);
+    return () => {
+      window.removeEventListener('odyssey-druid-circle-changed', reload);
+      window.removeEventListener('odyssey-character-loaded', reload);
+      window.removeEventListener('storage', reload);
+    };
+  }, [readDruidCircle]);
   const isDruidClass = (character.primaryClass ?? 'rogue') === 'druid';
   const wildShape = useWildShape(
     isDruidClass ? character.level : 0,
