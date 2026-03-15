@@ -117,7 +117,17 @@ interface OracleRequest {
 function buildContextSummary(ctx: CharacterContext): string {
   const lines: string[] = [];
   
-  lines.push(`CHARACTER: ${ctx.name}, Level ${ctx.level} Assassin`);
+  lines.push(`CHARACTER: ${ctx.name}, Level ${ctx.level}`);
+  if (ctx.characterClass) {
+    if (ctx.multiclassBreakdown && Object.keys(ctx.multiclassBreakdown).length > 1) {
+      const breakdown = Object.entries(ctx.multiclassBreakdown)
+        .map(([cls, lvl]) => `${cls.charAt(0).toUpperCase() + cls.slice(1)} ${lvl}`)
+        .join(' / ');
+      lines.push(`CLASS: ${breakdown} (multiclass)`);
+    } else {
+      lines.push(`CLASS: ${ctx.characterClass.charAt(0).toUpperCase() + ctx.characterClass.slice(1)} ${ctx.level}`);
+    }
+  }
   if (ctx.gender || ctx.race) {
     lines.push(`IDENTITY: ${[ctx.gender, ctx.race].filter(Boolean).join(' ')}`);
   }
