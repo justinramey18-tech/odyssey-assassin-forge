@@ -136,6 +136,8 @@ interface PromptDrawerProviderProps {
   // Loot for Oracle
   lootItems?: LootItem[];
   totalLootValue?: number;
+  // Subclass for Oracle (e.g. Circle of the Moon, Life Domain)
+  subclass?: string;
   // Combat context for Oracle tactical advice
   combatContext?: {
     isInCombat: boolean;
@@ -202,6 +204,7 @@ export function PromptDrawerProvider({
   constitutionModifier = 0,
   lootItems = [],
   totalLootValue = 0,
+  subclass,
   combatContext,
   partyMembers = [],
   userId,
@@ -640,6 +643,7 @@ export function PromptDrawerProvider({
             totalLootValue={totalLootValue}
             combatContext={combatContext}
             partyMembers={partyMembers}
+            subclass={subclass}
           />
 
           <ConditionDrawer

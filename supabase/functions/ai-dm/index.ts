@@ -15,6 +15,7 @@ interface CharacterContext {
   maxHP: number;
   characterClass?: string;
   multiclassBreakdown?: Record<string, number>;
+  subclass?: string;
   deity?: string;
   domain?: string;
   gender?: string;
@@ -187,8 +188,13 @@ function buildContextSummary(ctx: CharacterContext): string {
         .join(' / ');
       lines.push(`CLASS: ${breakdown} (multiclass)`);
     } else {
-      lines.push(`CLASS: ${ctx.characterClass.charAt(0).toUpperCase() + ctx.characterClass.slice(1)} ${ctx.level}`);
+      const className = ctx.characterClass.charAt(0).toUpperCase() + ctx.characterClass.slice(1);
+      const subclassLabel = ctx.subclass ? ` (${ctx.subclass})` : '';
+      lines.push(`CLASS: ${className} ${ctx.level}${subclassLabel}`);
     }
+  }
+  if (ctx.subclass && ctx.multiclassBreakdown && Object.keys(ctx.multiclassBreakdown).length > 1) {
+    lines.push(`SUBCLASS: ${ctx.subclass}`);
   }
   if (ctx.deity || ctx.domain) {
     const parts: string[] = [];

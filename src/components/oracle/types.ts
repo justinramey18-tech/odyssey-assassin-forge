@@ -40,6 +40,8 @@ export interface CharacterContext {
   characterClass?: string;
   /** Multiclass breakdown: e.g. { rogue: 7, warlock: 3 } — only present if multiclassed */
   multiclassBreakdown?: Record<string, number>;
+  /** Subclass identity: e.g. 'Circle of the Moon', 'Life Domain', 'The Fiend' */
+  subclass?: string;
   deity?: string;
   domain?: string;
   abilities: Array<{ name: string; tier: number; tree: string }>;

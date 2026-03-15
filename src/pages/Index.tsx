@@ -92,7 +92,7 @@ import { useCombatLog } from '@/hooks/use-combat-log';
 import { useInitiative } from '@/hooks/use-initiative';
 import { useCombatStats } from '@/hooks/use-combat-stats';
 import { useWildShape } from '@/hooks/use-wild-shape';
-import { DruidCircle } from '@/lib/classes/druidCircles';
+import { DruidCircle, getCircleById } from '@/lib/classes/druidCircles';
 import { useSpellCustomization } from '@/hooks/use-spell-customization';
 import { usePartySync } from '@/hooks/use-party-sync';
 import { useAbilityCustomization } from '@/hooks/use-ability-customization';
@@ -468,6 +468,21 @@ const Index = () => {
     };
   }, [readDruidCircle]);
   const isDruidClass = (character.primaryClass ?? 'rogue') === 'druid';
+  const isClericClass = (character.primaryClass ?? 'rogue') === 'cleric';
+
+  // Compute subclass label for Oracle/AI DM context
+  const characterSubclass = useMemo(() => {
+    if (isDruidClass && druidCircle) {
+      return getCircleById(druidCircle)?.name ?? null;
+    }
+    if (isClericClass) {
+      try {
+        const savedDomain = getScopedItem('dnd-cleric-domain') as ClericDomain | null;
+        if (savedDomain) return getDomainById(savedDomain)?.name ?? null;
+      } catch {}
+    }
+    return null;
+  }, [isDruidClass, isClericClass, druidCircle]);
   const wildShape = useWildShape(
     isDruidClass ? character.level : 0,
     isDruidClass ? druidCircle : null,
@@ -2447,6 +2462,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         constitutionModifier={abilityScores.finalModifiers.constitution}
         lootItems={loot.lootItems}
         totalLootValue={loot.totalLootValue}
+        subclass={characterSubclass ?? undefined}
         combatContext={combatContext}
         partyMembers={isPartyMode ? partySync.party.members : []}
         userId={user?.id}
@@ -2646,6 +2662,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         constitutionModifier={abilityScores.finalModifiers.constitution}
         lootItems={loot.lootItems}
         totalLootValue={loot.totalLootValue}
+        subclass={characterSubclass ?? undefined}
         combatContext={combatContext}
         partyMembers={isPartyMode ? partySync.party.members : []}
         userId={user?.id}

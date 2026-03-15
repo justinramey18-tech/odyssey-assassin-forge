@@ -56,6 +56,7 @@ interface OracleDrawerProps {
   totalLootValue?: number;
   combatContext?: CombatContextInput;
   partyMembers?: PartyMember[];
+  subclass?: string;
 }
 
 export function OracleDrawer({
@@ -77,6 +78,7 @@ export function OracleDrawer({
   totalLootValue = 0,
   combatContext,
   partyMembers = [],
+  subclass,
 }: OracleDrawerProps) {
   // Build character context for the AI
   const characterContext = useMemo<CharacterContext>(() => {
@@ -271,6 +273,7 @@ export function OracleDrawer({
       maxHP,
       characterClass,
       multiclassBreakdown,
+      subclass,
       abilities: abilitiesList,
       equippedAbilities: equippedAbilitiesList as string[],
       equipment: equipmentList,
@@ -289,7 +292,7 @@ export function OracleDrawer({
       combat: combatContextData,
       partyMembers: partyMembersContext.length > 0 ? partyMembersContext : undefined,
     };
-  }, [character, currentHP, maxHP, equipment, consumables, cooldowns, prestigeLevel, prestigeAbilities, getRemainingTime, activeConditions, activeBuffs, spellcasting, lootItems, totalLootValue, combatContext, partyMembers]);
+  }, [character, currentHP, maxHP, equipment, consumables, cooldowns, prestigeLevel, prestigeAbilities, getRemainingTime, activeConditions, activeBuffs, spellcasting, lootItems, totalLootValue, combatContext, partyMembers, subclass]);
 
   const config = getPersonalityConfig('deadpool');
 
