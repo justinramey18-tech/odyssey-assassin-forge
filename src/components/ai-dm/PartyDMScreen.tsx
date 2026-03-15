@@ -578,21 +578,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [selectedDmModel, setSelectedDmModel] = useState(() => loadSelectedModel());
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
-  const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [showPollCreator, setShowPollCreator] = useState(false);
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState(['', '']);
-
-  useEffect(() => {
-    if (!showAttachMenu) return;
-    const dismiss = (e: PointerEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.closest('[data-attach-menu]')) return;
-      setShowAttachMenu(false);
-    };
-    const timer = setTimeout(() => document.addEventListener('pointerdown', dismiss), 0);
-    return () => { clearTimeout(timer); document.removeEventListener('pointerdown', dismiss); };
-  }, [showAttachMenu]);
   const [expandedPillUserId, setExpandedPillUserId] = useState<string | null>(null);
   const [pillEditText, setPillEditText] = useState('');
   const [queueDrawerOpen, setQueueDrawerOpen] = useState(false);
