@@ -106,6 +106,17 @@ interface CharacterContext {
   campaignSummary?: string;
   // Recent DM narrative messages
   recentNarrative?: Array<{ role: string; name?: string; content: string }>;
+  // Wild Shape state
+  wildShape?: {
+    isTransformed: boolean;
+    formName: string | null;
+    formHP: number;
+    formMaxHP: number;
+    formAC: number | null;
+    formCR: number | null;
+    usesRemaining: number;
+    maxUses: number;
+  };
 }
 
 interface OracleRequest {
@@ -354,6 +365,18 @@ function buildContextSummary(ctx: CharacterContext): string {
       lines.push(`${speaker}: ${content}`);
     });
     lines.push(`[RECENT NARRATIVE END]`);
+  }
+
+  // Wild Shape context
+  if (ctx.wildShape) {
+    const ws = ctx.wildShape;
+    if (ws.isTransformed && ws.formName) {
+      lines.push(`\n🐻 WILD SHAPE: ${ws.formName}${ws.formCR != null ? ` (CR ${ws.formCR})` : ''}`);
+      lines.push(`   Form HP: ${ws.formHP}/${ws.formMaxHP}${ws.formAC != null ? ` | Form AC: ${ws.formAC}` : ''}`);
+      lines.push(`   Uses: ${ws.usesRemaining}/${ws.maxUses}`);
+    } else if (ws.maxUses > 0) {
+      lines.push(`WILD SHAPE: Not transformed | Uses: ${ws.usesRemaining}/${ws.maxUses}`);
+    }
   }
   
   return lines.join('\n');

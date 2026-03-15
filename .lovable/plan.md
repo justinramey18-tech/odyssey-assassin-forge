@@ -1,34 +1,21 @@
 
 
-## Make Party DM Aware of Wild Shape State
+## Prompt Synthesizer — Host Approval Step
 
-### What
-Add wild shape transformation status to the character context sent to the AI DM, so the AI knows when the player is in beast/elemental/dragon form, what form they're in, and their form HP.
+After prompts are synthesized into a fused "director's note", the host sees a `SynthesisReviewPanel` with:
+- The selected presentation mode and focus character badges
+- The narrative spine (italic quote)
+- Raw player actions summary
+- The fused prompt text (editable)
+- Approve ("Send to DM"), Regenerate, and Skip buttons
 
-### Changes
+**Flow:**
+1. Prompts collected → synthesized → `pendingSynthesis` state set → generation lock released
+2. Host reviews/edits the fused prompt in `SynthesisReviewPanel`
+3. On approve: re-acquires generation lock, sends fused prompt to main DM
+4. On skip: clears `pendingSynthesis`, raw prompts remain for next round
+5. On regenerate: re-runs synthesis with same prompts
 
-**1. `src/components/oracle/types.ts`** — Add `wildShape` field to `CharacterContext`
-```typescript
-wildShape?: {
-  isTransformed: boolean;
-  formName: string | null;
-  formHP: number;
-  formMaxHP: number;
-  formAC: number | null;
-  formCR: number | null;
-  usesRemaining: number;
-  maxUses: number;
-};
-```
+Non-host players see "Host is reviewing synthesized prompts..." indicator.
 
-**2. `supabase/functions/ai-dm/index.ts`** — Two changes:
-- Add matching `wildShape` field to the edge function's `CharacterContext` interface
-- In `buildContextSummary`, add a section that renders wild shape status:
-  - When transformed: `🐻 WILD SHAPE: [FormName] (CR X) | Form HP: Y/Z | Form AC: N | Uses: A/B`
-  - When not transformed but has uses: `WILD SHAPE: Not transformed | Uses: A/B`
-
-**3. `src/components/drawers/PromptDrawerProvider.tsx`** — Build `wildShape` context from the `wildShape` hook instance
-- Read `wildShape.state` to get `isTransformed`, `currentForm`, `formHP`, `formMaxHP`, `usesRemaining`, `maxUses`
-- Add to the returned `CharacterContext` object
-- Add `wildShape` to the `useMemo` dependency array
-
+Split mode bypasses this approval step (synthesis is applied directly).

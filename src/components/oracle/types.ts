@@ -161,6 +161,17 @@ export interface CharacterContext {
     abilities: { str: number; dex: number; con: number; wis: number; int: number; cha: number };
     attacks: Array<{ name: string; bonus: string; damage: string; desc: string }>;
   };
+  // Wild Shape state
+  wildShape?: {
+    isTransformed: boolean;
+    formName: string | null;
+    formHP: number;
+    formMaxHP: number;
+    formAC: number | null;
+    formCR: number | null;
+    usesRemaining: number;
+    maxUses: number;
+  };
   // Campaign narrative summary for contextual awareness
   campaignSummary?: string;
   // Recent DM narrative messages for immediate context

@@ -119,6 +119,16 @@ interface CharacterContext {
     abilities: { str: number; dex: number; con: number; wis: number; int: number; cha: number };
     attacks: Array<{ name: string; bonus: string; damage: string; desc: string }>;
   };
+  wildShape?: {
+    isTransformed: boolean;
+    formName: string | null;
+    formHP: number;
+    formMaxHP: number;
+    formAC: number | null;
+    formCR: number | null;
+    usesRemaining: number;
+    maxUses: number;
+  };
 }
 
 interface DMRequest {
@@ -326,6 +336,18 @@ function buildContextSummary(ctx: CharacterContext): string {
         return `${e.name} ${status}`;
       }).join(', ');
       lines.push(`   Enemies: ${enemyList}`);
+    }
+  }
+
+  // Wild Shape context
+  if (ctx.wildShape) {
+    const ws = ctx.wildShape;
+    if (ws.isTransformed && ws.formName) {
+      lines.push(`\n🐻 WILD SHAPE: ${ws.formName}${ws.formCR != null ? ` (CR ${ws.formCR})` : ''}`);
+      lines.push(`   Form HP: ${ws.formHP}/${ws.formMaxHP}${ws.formAC != null ? ` | Form AC: ${ws.formAC}` : ''}`);
+      lines.push(`   Uses: ${ws.usesRemaining}/${ws.maxUses}`);
+    } else if (ws.maxUses > 0) {
+      lines.push(`WILD SHAPE: Not transformed | Uses: ${ws.usesRemaining}/${ws.maxUses}`);
     }
   }
 
