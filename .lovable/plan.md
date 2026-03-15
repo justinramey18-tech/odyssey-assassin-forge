@@ -1,21 +1,26 @@
 
 
-## Prompt Synthesizer — Host Approval Step
+## Fix: Pass Druid Circle (Subclass) to Oracle
 
-After prompts are synthesized into a fused "director's note", the host sees a `SynthesisReviewPanel` with:
-- The selected presentation mode and focus character badges
-- The narrative spine (italic quote)
-- Raw player actions summary
-- The fused prompt text (editable)
-- Approve ("Send to DM"), Regenerate, and Skip buttons
+### Problem
+The Oracle's `CharacterContext` has no field for subclass/druid circle. When the Oracle builds its system prompt, it only knows the character is a "druid" but not which circle they belong to. So it can't give Circle of the Moon-specific advice.
 
-**Flow:**
-1. Prompts collected → synthesized → `pendingSynthesis` state set → generation lock released
-2. Host reviews/edits the fused prompt in `SynthesisReviewPanel`
-3. On approve: re-acquires generation lock, sends fused prompt to main DM
-4. On skip: clears `pendingSynthesis`, raw prompts remain for next round
-5. On regenerate: re-runs synthesis with same prompts
+### Changes
 
-Non-host players see "Host is reviewing synthesized prompts..." indicator.
+**1. `src/components/oracle/types.ts`**
+- Add `subclass?: string` field to `CharacterContext` (generic enough for all classes — druid circles, cleric domains, warlock patrons, etc.)
 
-Split mode bypasses this approval step (synthesis is applied directly).
+**2. `src/components/oracle/OracleDrawer.tsx`**
+- Accept a new `subclass?: string` prop
+- Pass it into the built `CharacterContext` as `subclass`
+
+**3. `src/pages/Index.tsx`**
+- Read the druid circle (already in reactive `druidCircle` state) and cleric domain from scoped storage
+- Map to a human-readable subclass string (e.g. `'moon'` → `'Circle of the Moon'`)
+- Pass as `subclass` prop to `OracleDrawer`
+
+**4. `supabase/functions/oracle-assistant/index.ts`**
+- In the system prompt builder, include the subclass when present (e.g. "Level 8 Circle of the Moon Druid")
+
+This is a small data-plumbing fix — the Oracle already handles class context dynamically, it just needs the subclass field threaded through.
+
