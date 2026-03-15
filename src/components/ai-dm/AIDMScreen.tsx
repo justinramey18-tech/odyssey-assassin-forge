@@ -620,7 +620,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
       setShowGeraltWidget(true);
       return;
     }
-    // Dice tab toggles
+    // Dice, wildshape, oracle, settings tabs toggle full-screen content
     setActiveNavTab(prev => prev === tab ? null : tab);
   }, []);
 
