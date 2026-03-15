@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 type Personality = 'thunderhead' | 'jarvis' | 'deadpool' | 'gandalf' | 'jarlaxle' | 'investigator';
-type OracleMode = 'chat' | 'plan' | 'choice' | 'analyze' | 'quick';
+type OracleMode = 'chat' | 'plan' | 'choice' | 'analyze' | 'quick' | 'recap';
 
 interface CharacterContext {
   name: string;
