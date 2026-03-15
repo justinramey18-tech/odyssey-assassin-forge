@@ -259,6 +259,7 @@ export function StandalonePartyDMScreen({
         onToggleAutoSync={autoSync.toggleAutoSync}
         isExtracting={autoSync.isExtracting}
         guidesCount={gmGuides.guides.filter(g => g.enabled).length}
+        gmGuidesContent={gmGuides.enabledContent}
         characterContext={characterContext}
         showBattleMap={showBattleMap}
         battleMapContent={battleMapContent}
