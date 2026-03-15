@@ -506,6 +506,16 @@ export function PromptDrawerProvider({
       spellcasting: spellcastingContext, loot: lootContext, combat: combatContextData,
       abilityScores: abilityScoresContext,
       companion: companionContext,
+      wildShape: wildShape ? {
+        isTransformed: wildShape.state.isTransformed,
+        formName: wildShape.state.currentForm?.name ?? null,
+        formHP: wildShape.state.formHP,
+        formMaxHP: wildShape.state.formMaxHP,
+        formAC: wildShape.state.currentForm?.ac ?? null,
+        formCR: wildShape.state.currentForm?.cr ?? null,
+        usesRemaining: wildShape.state.usesRemaining,
+        maxUses: wildShape.state.maxUses,
+      } : undefined,
     };
   }, [character, currentHP, maxHP, equipment, consumables, cooldownSystem.cooldowns, cooldownSystem.getRemainingTime,
       prestigeLevel, prestigeAbilities, spellcasting, lootItems, totalLootValue, combatContext, conditionsSystem.debuffs, conditionsSystem.buffs,
