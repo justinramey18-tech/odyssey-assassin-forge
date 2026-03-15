@@ -63,6 +63,10 @@ interface AIDMScreenProps {
     getCurrentHP: () => number;
     getCurrentGold: () => number;
   };
+  /** Wild Shape hook instance (for Momo Moon Druid) */
+  wildShape?: UseWildShapeReturn;
+  /** Whether this character is a Momo Moon Druid (shows wild shape tab) */
+  isMomoMoonDruid?: boolean;
 }
 
 const VIDEO_REGEX = /^\s*\[video:(https?:\/\/.+)\]\s*$/;
