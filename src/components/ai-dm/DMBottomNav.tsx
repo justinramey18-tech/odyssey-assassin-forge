@@ -81,10 +81,11 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
   const showDiceContent = isExpanded && activeTab === 'dice' && diceContent;
   const showSettingsContent = isExpanded && activeTab === 'settings' && settingsContent;
   const showOracleContent = isExpanded && activeTab === 'oracle' && oracleContent;
-  const hasActiveContent = showDiceContent || showSettingsContent || showOracleContent;
+  const showWildShapeContent = isExpanded && activeTab === 'wildshape' && wildshapeContent;
+  const hasActiveContent = showDiceContent || showSettingsContent || showOracleContent || showWildShapeContent;
 
-  const activeContent = showDiceContent ? diceContent : showSettingsContent ? settingsContent : showOracleContent ? oracleContent : null;
-  const activeContentTab = showDiceContent ? tabs.find(t => t.id === 'dice') : showSettingsContent ? tabs.find(t => t.id === 'settings') : showOracleContent ? tabs.find(t => t.id === 'oracle') : null;
+  const activeContent = showDiceContent ? diceContent : showSettingsContent ? settingsContent : showOracleContent ? oracleContent : showWildShapeContent ? wildshapeContent : null;
+  const activeContentTab = showDiceContent ? tabs.find(t => t.id === 'dice') : showSettingsContent ? tabs.find(t => t.id === 'settings') : showOracleContent ? tabs.find(t => t.id === 'oracle') : showWildShapeContent ? tabs.find(t => t.id === 'wildshape') : null;
 
   return (
     <>
