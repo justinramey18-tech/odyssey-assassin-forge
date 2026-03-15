@@ -65,6 +65,7 @@ interface PartyDMScreenProps {
   isExtracting?: boolean;
   guidesCount?: number;
   gmGuidesContent?: string;
+  memoryAnchorsContent?: string;
   characterContext?: CharacterContext;
   showBattleMap?: boolean;
   battleMapContent?: React.ReactNode;
