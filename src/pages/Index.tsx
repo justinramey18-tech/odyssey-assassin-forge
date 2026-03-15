@@ -468,6 +468,21 @@ const Index = () => {
     };
   }, [readDruidCircle]);
   const isDruidClass = (character.primaryClass ?? 'rogue') === 'druid';
+  const isClericClass = (character.primaryClass ?? 'rogue') === 'cleric';
+
+  // Compute subclass label for Oracle/AI DM context
+  const characterSubclass = useMemo(() => {
+    if (isDruidClass && druidCircle) {
+      return getCircleById(druidCircle)?.name ?? null;
+    }
+    if (isClericClass) {
+      try {
+        const savedDomain = getScopedItem('dnd-cleric-domain') as ClericDomain | null;
+        if (savedDomain) return getDomainById(savedDomain)?.name ?? null;
+      } catch {}
+    }
+    return null;
+  }, [isDruidClass, isClericClass, druidCircle]);
   const wildShape = useWildShape(
     isDruidClass ? character.level : 0,
     isDruidClass ? druidCircle : null,
