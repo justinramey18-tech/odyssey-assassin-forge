@@ -349,7 +349,7 @@ const NOOP = () => {};
 const NOOP_TWO_ARG = () => {};
 const NOOP_RETURN_ZERO = () => 0;
 
-export function AIDMScreen({ onBack, characterContext, userId, characterName = 'Adventurer', autoSyncCallbacks, dmPersonaPrompt, dmPersonaName, onRetakePersonalityTest }: AIDMScreenProps) {
+export function AIDMScreen({ onBack, characterContext, userId, characterName = 'Adventurer', autoSyncCallbacks, dmPersonaPrompt, dmPersonaName, onRetakePersonalityTest, wildShape, isMomoMoonDruid }: AIDMScreenProps) {
   const isMomo = useMemo(() => isMomoEasterEgg(characterName), [characterName]);
   const geraltCharacterId = useMemo(() => characterName?.toLowerCase().trim() || 'unknown', [characterName]);
   const [showToolsDrawer, setShowToolsDrawer] = useState(false);
