@@ -143,15 +143,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     } catch {}
   }, [pendingDraft]);
 
-  useEffect(() => {
-    try {
-      if (pendingSynthesis) {
-        setScopedItem(PENDING_SYNTHESIS_KEY, JSON.stringify(pendingSynthesis));
-      } else {
-        removeScopedItem(PENDING_SYNTHESIS_KEY);
-      }
-    } catch {}
-  }, [pendingSynthesis]);
 
   const abortRef = useRef<AbortController | null>(null);
   const lastGeneratedRoundRef = useRef<string | null>(null);
