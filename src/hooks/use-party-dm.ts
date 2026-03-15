@@ -1049,17 +1049,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             .map(formatPromptLine)
             .join('\n') + alphaAfkPrompts;
 
-          // Synthesize alpha prompts
-          const alphaLastAssistant = [...alphaMessages].reverse().find(m => m.role === 'assistant');
-          const alphaSynthesis = await synthesizePrompts(alphaPrompts, alphaLastAssistant?.content || null);
-          let alphaForAI = alphaRawCombined;
-          let alphaDirectionGuide = '';
-          if (alphaSynthesis) {
-            alphaForAI = `<!-- SYNTHESIS: mode=${alphaSynthesis.mode} -->\n${alphaSynthesis.fusedPrompt}`;
-            alphaDirectionGuide = `\n\n## NARRATIVE DIRECTION\nPresentation mode: ${alphaSynthesis.mode}. Focus: ${alphaSynthesis.focusCharacter}. Spine: ${alphaSynthesis.spine}`;
-            addMode(alphaSynthesis.mode);
-            setSynthesisMode(alphaSynthesis.mode);
-          }
+          const alphaForAI = alphaRawCombined;
 
           await insertPartyMessage({
             party_id: partyId,
