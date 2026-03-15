@@ -762,23 +762,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     }
   }, [partyDm.isGenerating]);
 
-  const handleSubmit = useCallback(() => {
-    if (!input.trim()) return;
-    partyDm.submitPrompt(input.trim());
-    clearInput();
-    if (inputRef.current) inputRef.current.style.height = 'auto';
-  }, [input, partyDm]);
-
-  const handleKeyDown = useCallback((_e: React.KeyboardEvent) => {
-    // Enter inserts newline naturally (textarea default); send via button only
-  }, []);
-
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInput(e.target.value);
-    const ta = e.target;
-    ta.style.height = 'auto';
-    ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
-  }, []);
+  const handleSubmit = useCallback((text: string) => {
+    partyDm.submitPrompt(text);
+  }, [partyDm]);
 
   const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
