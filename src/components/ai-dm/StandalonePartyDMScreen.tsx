@@ -267,8 +267,10 @@ export function StandalonePartyDMScreen({
         campaignSessionsSignedIn={campaignSessions.isSignedIn}
         onNewGame={partyDm.startNewCampaign}
         onLoadCampaign={handleLoadCampaign}
-        onRefreshCampaigns={campaignSessions.refreshSessions}
-      />
+          onRefreshCampaigns={campaignSessions.refreshSessions}
+          wildShape={wildShape}
+          isMomoMoonDruid={isMomoMoonDruid}
+        />
 
       {/* GM Guides Overlay */}
       {showGuides && (
