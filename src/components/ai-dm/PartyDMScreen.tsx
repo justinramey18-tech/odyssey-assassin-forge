@@ -1793,7 +1793,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                   onClick={() => {
                     const promptText = partyDm.myPrompt?.prompt || '';
                     if (promptText) {
-                      setInput(promptText);
+                      playerInputRef.current?.setText(promptText);
                     }
                     partyDm.retractPrompt();
                   }}
