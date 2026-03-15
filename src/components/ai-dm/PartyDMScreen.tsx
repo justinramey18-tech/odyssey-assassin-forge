@@ -2008,6 +2008,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               onDemoteCoHost={onDemoteCoHost}
               whisperTrayEnabled={whisperTrayEnabled}
               onWhisperTrayEnabledChange={setWhisperTrayEnabled}
+              onShowMemoryAnchors={onAddMemoryAnchor ? () => setShowMemoryAnchors(true) : undefined}
+              memoryAnchorsCount={memoryAnchors?.length ?? 0}
             />
           ) : undefined}
           oracleContent={activeNavTab === 'oracle' && characterContext ? (
