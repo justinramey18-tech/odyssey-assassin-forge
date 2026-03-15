@@ -264,6 +264,7 @@ export function StandalonePartyDMScreen({
         isExtracting={autoSync.isExtracting}
         guidesCount={gmGuides.guides.filter(g => g.enabled).length}
         gmGuidesContent={gmGuides.enabledContent}
+        memoryAnchorsContent={memoryAnchors.formattedForOracle}
         characterContext={characterContext}
         showBattleMap={showBattleMap}
         battleMapContent={battleMapContent}
