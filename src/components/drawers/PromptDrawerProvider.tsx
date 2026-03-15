@@ -643,6 +643,7 @@ export function PromptDrawerProvider({
             totalLootValue={totalLootValue}
             combatContext={combatContext}
             partyMembers={partyMembers}
+            subclass={subclass}
           />
 
           <ConditionDrawer
