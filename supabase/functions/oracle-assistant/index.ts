@@ -106,6 +106,17 @@ interface CharacterContext {
   campaignSummary?: string;
   // Recent DM narrative messages
   recentNarrative?: Array<{ role: string; name?: string; content: string }>;
+  // Wild Shape state
+  wildShape?: {
+    isTransformed: boolean;
+    formName: string | null;
+    formHP: number;
+    formMaxHP: number;
+    formAC: number | null;
+    formCR: number | null;
+    usesRemaining: number;
+    maxUses: number;
+  };
 }
 
 interface OracleRequest {
