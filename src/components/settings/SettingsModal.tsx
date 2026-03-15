@@ -59,6 +59,7 @@ interface SettingsModalProps {
   onResetCustomizations?: () => void;
   isFeatureVisible?: (id: string) => boolean;
   onRenameCharacter?: (name: string) => void;
+  onLevelChange?: (level: number) => void;
 }
 
 export function SettingsModal({ 
