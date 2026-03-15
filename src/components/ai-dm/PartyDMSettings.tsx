@@ -137,6 +137,7 @@ export function PartyDMSettings({
   onShowScheduledEvents, scheduledEventsCount = 0,
   members = [], coHostIds = [], currentUserId, onPromoteCoHost, onDemoteCoHost,
   whisperTrayEnabled, onWhisperTrayEnabledChange,
+  onShowMemoryAnchors, memoryAnchorsCount = 0,
 }: PartyDMSettingsProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   return (
