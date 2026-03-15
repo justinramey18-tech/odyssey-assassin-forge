@@ -2069,6 +2069,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onExpandedChange={setNavExpanded}
           disabled={partyDm.isGenerating}
           showGeralt={isMomo}
+          showWildShape={isMomoMoonDruid}
           diceContent={showDiceContent ? (
             <DMDiceRoller
               characterContext={characterContext!}
