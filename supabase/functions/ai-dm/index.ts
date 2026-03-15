@@ -119,6 +119,16 @@ interface CharacterContext {
     abilities: { str: number; dex: number; con: number; wis: number; int: number; cha: number };
     attacks: Array<{ name: string; bonus: string; damage: string; desc: string }>;
   };
+  wildShape?: {
+    isTransformed: boolean;
+    formName: string | null;
+    formHP: number;
+    formMaxHP: number;
+    formAC: number | null;
+    formCR: number | null;
+    usesRemaining: number;
+    maxUses: number;
+  };
 }
 
 interface DMRequest {
