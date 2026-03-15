@@ -108,6 +108,8 @@ interface CharacterContext {
   recentNarrative?: Array<{ role: string; name?: string; content: string }>;
   // GM Guides content (host-enabled lore/rules)
   gmGuidesContent?: string;
+  // Memory Anchors — long-term campaign facts
+  memoryAnchors?: string;
   // Wild Shape state
   wildShape?: {
     isTransformed: boolean;
