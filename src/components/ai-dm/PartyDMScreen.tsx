@@ -1183,11 +1183,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           {/* Loading / status indicator */}
           {partyDm.isGenerating && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-1">
-              {isCreator && partyDm.synthesisMode && (
-                <span className="text-[11px] text-amber-400/70 animate-fade-in pl-9">
-                  ✨ Weaving prompts... ({partyDm.synthesisMode})
-                </span>
-              )}
               <div className="flex gap-2 items-center">
                 <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-amber-900/60 border border-amber-500/40">
                   <div className="w-3.5 h-3.5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
