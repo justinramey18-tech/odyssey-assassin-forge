@@ -2010,6 +2010,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               ...characterContext,
               campaignSummary: partyDm.sessionConfig?.campaignSummary || undefined,
               gmGuidesContent: gmGuidesContent || undefined,
+              memoryAnchors: memoryAnchorsContent || undefined,
               recentNarrative: partyDm.messages
                 .filter(m => m.role === 'user' || m.role === 'assistant')
                 .slice(-10)
