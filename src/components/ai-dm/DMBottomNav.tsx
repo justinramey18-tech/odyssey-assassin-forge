@@ -1,9 +1,9 @@
 import { useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Dices, Gem, ListChecks, Bird, Ghost, Settings, Eye, X } from 'lucide-react';
+import { Dices, Gem, ListChecks, Bird, Ghost, Settings, Eye, X, PawPrint } from 'lucide-react';
 
-export type DMNavTab = 'dice' | 'prompts' | 'actions' | 'geralt' | 'afk' | 'oracle' | 'settings';
+export type DMNavTab = 'dice' | 'prompts' | 'actions' | 'geralt' | 'afk' | 'oracle' | 'settings' | 'wildshape';
 
 interface DMBottomNavProps {
   activeTab: DMNavTab | null;
