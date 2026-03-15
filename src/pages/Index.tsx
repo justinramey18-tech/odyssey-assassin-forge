@@ -3209,6 +3209,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           onResetCustomizations={appMode.resetCustomizations}
           isFeatureVisible={appMode.isFeatureVisible}
           onRenameCharacter={handleRenameCharacter}
+          onLevelChange={handleLevelChange}
         />
       </div>
 
