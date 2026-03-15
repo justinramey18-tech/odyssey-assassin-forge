@@ -1205,17 +1205,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               </div>
             </motion.div>
           )}
-          {/* Pending synthesis indicator for non-hosts */}
-          {!isCreator && !partyDm.isGenerating && partyDm.pendingSynthesis && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2 items-center">
-              <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-amber-900/40 border border-amber-500/30">
-                <Zap className="w-3.5 h-3.5 text-amber-400" />
-              </div>
-              <span className="text-sm text-amber-400/60 italic">Host is reviewing synthesized prompts...</span>
-            </motion.div>
-          )}
           {/* Pending draft indicator for non-hosts in approval mode */}
-          {!isCreator && !partyDm.isGenerating && !partyDm.pendingSynthesis && partyDm.pendingDraft && (
+          {!isCreator && !partyDm.isGenerating && partyDm.pendingDraft && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2 items-center">
               <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-blue-900/40 border border-blue-500/30">
                 <Pencil className="w-3.5 h-3.5 text-blue-400" />
