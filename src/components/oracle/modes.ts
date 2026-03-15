@@ -112,6 +112,19 @@ HARD LIMIT: 3-5 sentences maximum.`;
 RESPONSE MODE: DEEP ANALYSIS
 HARD LIMIT: 8-12 sentences maximum. Use bullet points.`;
 
+    case 'recap':
+      return `
+RESPONSE MODE: STRUCTURED RECAP
+Format your response in exactly 3 sections:
+
+**📖 Story** — What just happened narratively (2-3 sentences). Key events, NPC actions, revelations. Draw from the campaign summary and recent narrative messages.
+
+**⚔️ Situation** — Current tactical state as bullet points. Reference REAL data: party HP/conditions, enemies on the field, active effects, resources spent, spell slots remaining. Narrate these facts in your voice, do not just list raw numbers.
+
+**➡️ Next Move** — One sentence. If in combat, give a tactical suggestion. If in roleplay/exploration, give a narrative hook or question to consider.
+
+Do not deviate from this 3-section format. Every section must be present.`;
+
     default:
       return `
 RESPONSE MODE: QUICK RESPONSE
