@@ -175,7 +175,16 @@ export function StandalonePartyDMScreen({
     customGuidesContent: gmGuides.enabledContent,
   });
 
-  // Auto-sync hook
+  // Auto-extract memory anchors from new DM responses (host-only to avoid duplicates)
+  usePartyMemoryExtraction({
+    messages: partyDm.messages,
+    anchors: memoryAnchors.anchors,
+    addMemoryAnchor: memoryAnchors.addMemoryAnchor,
+    characterContext,
+    enabled: isHost,
+  });
+
+
   const autoSync = useDmAutoSync({
     onHPChange: autoSyncCallbacks?.onHPChange ?? NOOP_TWO_ARG,
     onAddXP: autoSyncCallbacks?.onAddXP ?? NOOP_TWO_ARG,
