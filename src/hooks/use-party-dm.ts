@@ -125,24 +125,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const [sessionConfig, setSessionConfig] = useState<DmSessionConfig | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const PENDING_DRAFT_KEY = 'odyssey-pending-draft';
-  const PENDING_SYNTHESIS_KEY = 'odyssey-pending-synthesis';
 
   const [pendingDraft, setPendingDraft] = useState<{ content: string; userContent: string; userSenderName: string } | null>(() => {
     try {
       const saved = getScopedItem(PENDING_DRAFT_KEY);
-      return saved ? JSON.parse(saved) : null;
-    } catch { return null; }
-  });
-  const [synthesisMode, setSynthesisMode] = useState<string | null>(null);
-  const [pendingSynthesis, setPendingSynthesis] = useState<{
-    synthesis: SynthesisResult;
-    rawPrompts: Array<{ character_name: string; prompt: string }>;
-    rawCombined: string;
-    afkGuidesSection: string;
-    normalConsumed: { userId: string; remainingCascade: string[] }[];
-  } | null>(() => {
-    try {
-      const saved = getScopedItem(PENDING_SYNTHESIS_KEY);
       return saved ? JSON.parse(saved) : null;
     } catch { return null; }
   });
