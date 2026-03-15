@@ -2007,6 +2007,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             <OraclePanel characterContext={{
               ...characterContext,
               campaignSummary: partyDm.sessionConfig?.campaignSummary || undefined,
+              gmGuidesContent: gmGuides.enabledContent || undefined,
               recentNarrative: partyDm.messages
                 .filter(m => m.role === 'user' || m.role === 'assistant')
                 .slice(-10)

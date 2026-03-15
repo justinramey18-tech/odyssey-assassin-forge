@@ -380,6 +380,14 @@ function buildContextSummary(ctx: CharacterContext): string {
       lines.push(`WILD SHAPE: Not transformed | Uses: ${ws.usesRemaining}/${ws.maxUses}`);
     }
   }
+
+  // GM Guides — authoritative lore and rules from the host
+  if (ctx.gmGuidesContent) {
+    lines.push(`\n📚 GM GUIDES (use these rules and lore as authoritative context):`);
+    lines.push(`[GM GUIDES START]`);
+    lines.push(ctx.gmGuidesContent.slice(0, 8000));
+    lines.push(`[GM GUIDES END]`);
+  }
   
   return lines.join('\n');
 }
