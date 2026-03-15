@@ -273,6 +273,7 @@ export function OracleDrawer({
       maxHP,
       characterClass,
       multiclassBreakdown,
+      subclass,
       abilities: abilitiesList,
       equippedAbilities: equippedAbilitiesList as string[],
       equipment: equipmentList,
