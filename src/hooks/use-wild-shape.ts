@@ -140,10 +140,10 @@ export function useWildShape(druidLevel: number, circle: DruidCircle | null = nu
     }
   }, [config, state.maxUses]);
 
-  const canTransform = state.usesRemaining > 0 && !state.isTransformed && druidLevel >= 2;
+  const canTransform = (isMomoMoon || state.usesRemaining > 0) && !state.isTransformed && druidLevel >= 2;
 
   const transform = useCallback((form: BeastForm): boolean => {
-    if (!canTransform) {
+    if (!canTransform && !isMomoMoon) {
       toast({
         title: 'Cannot Transform',
         description: state.isTransformed 
