@@ -67,6 +67,9 @@ interface PartyDMScreenProps {
   guidesCount?: number;
   gmGuidesContent?: string;
   memoryAnchorsContent?: string;
+  memoryAnchors?: import('@/hooks/use-dm-game-state').MemoryAnchor[];
+  onAddMemoryAnchor?: (anchor: Omit<import('@/hooks/use-dm-game-state').MemoryAnchor, 'id' | 'turn' | 'created_at'>) => void;
+  onRemoveMemoryAnchor?: (id: string) => void;
   characterContext?: CharacterContext;
   showBattleMap?: boolean;
   battleMapContent?: React.ReactNode;
