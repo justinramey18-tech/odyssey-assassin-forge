@@ -154,7 +154,15 @@ export function StandalonePartyDMScreen({
   // Memory Anchors — long-term campaign facts shared across party
   const memoryAnchors = usePartyMemoryAnchors({ partyId: partyId || null });
 
-  // Stabilize partyMembers for usePartyDm
+  // Auto-extract memory anchors from new DM responses (host-only to avoid duplicates)
+  usePartyMemoryExtraction({
+    messages: partyDm.messages,
+    anchors: memoryAnchors.anchors,
+    addMemoryAnchor: memoryAnchors.addMemoryAnchor,
+    characterContext,
+    enabled: isHost,
+  });
+
   const stablePartyMembers = useMemo(() =>
     partyMembers.map(m => ({
       character_name: m.character_name,
