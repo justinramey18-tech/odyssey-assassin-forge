@@ -78,6 +78,7 @@ export function OracleDrawer({
   totalLootValue = 0,
   combatContext,
   partyMembers = [],
+  subclass,
 }: OracleDrawerProps) {
   // Build character context for the AI
   const characterContext = useMemo<CharacterContext>(() => {
