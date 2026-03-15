@@ -236,16 +236,30 @@ export function ClassSpellcastingScreen({
   const isCleric = primaryClass === 'cleric';
   const domainChannelDivinity = clericDomain ? getDomainChannelDivinity(clericDomain, characterLevel) : [];
 
-  // Persist circle selection
+  // Persist circle selection (scoped + dispatch event for Index.tsx reactivity)
   const handleSelectCircle = (circle: DruidCircle) => {
     setDruidCircle(circle);
-    localStorage.setItem(DRUID_CIRCLE_KEY, circle);
+    setScopedItem(DRUID_CIRCLE_KEY, circle);
+    window.dispatchEvent(new CustomEvent('odyssey-druid-circle-changed'));
   };
 
   const handleSelectLand = (land: LandType) => {
     setDruidLand(land);
-    localStorage.setItem(DRUID_LAND_KEY, land);
+    setScopedItem(DRUID_LAND_KEY, land);
+    window.dispatchEvent(new CustomEvent('odyssey-druid-circle-changed'));
   };
+
+  // Re-init on character switch
+  useEffect(() => {
+    const reload = () => {
+      try {
+        setDruidCircle((getScopedItem(DRUID_CIRCLE_KEY) as DruidCircle | null) ?? null);
+        setDruidLand((getScopedItem(DRUID_LAND_KEY) as LandType | null) ?? null);
+      } catch { /* ignore */ }
+    };
+    window.addEventListener('odyssey-character-loaded', reload);
+    return () => window.removeEventListener('odyssey-character-loaded', reload);
+  }, []);
 
   // Persist domain selection
   const handleSelectDomain = (domain: ClericDomain) => {
