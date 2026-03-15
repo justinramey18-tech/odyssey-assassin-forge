@@ -53,45 +53,55 @@ export interface UseWildShapeReturn {
   healWithSpellSlot: (slotLevel: number) => void;
 }
 
-export function useWildShape(druidLevel: number, circle: DruidCircle | null = null, enforceDuration: boolean = true): UseWildShapeReturn {
+export function useWildShape(druidLevel: number, circle: DruidCircle | null = null, enforceDuration: boolean = true, characterName: string = ''): UseWildShapeReturn {
   const { toast } = useToast();
+  const isMomoMoon = isMomoEasterEgg(characterName) && circle === 'moon';
   const baseConfig = getWildShapeForLevel(druidLevel);
   const moonConfig = circle === 'moon' ? getMoonCircleWildShape(druidLevel) : null;
   
   // Use Moon Circle config if available, otherwise base
   // Moon Circle at level 18+ gets 3 uses to support dragon transformation (costs 3)
-  const moonMaxUses = (circle === 'moon' && druidLevel >= 18) ? 3 : (baseConfig?.maxUses ?? 0);
+  // Momo + Moon override: always 3 uses minimum
+  const moonMaxUses = isMomoMoon ? 3 : (circle === 'moon' && druidLevel >= 18) ? 3 : (baseConfig?.maxUses ?? 0);
   const config = moonConfig ? {
     maxUses: moonMaxUses,
-    maxCR: moonConfig.maxCR,
-    canSwim: moonConfig.canSwim,
-    canFly: moonConfig.canFly,
+    maxCR: isMomoMoon ? 99 : moonConfig.maxCR,
+    canSwim: isMomoMoon ? true : moonConfig.canSwim,
+    canFly: isMomoMoon ? true : moonConfig.canFly,
     maxHours: baseConfig?.maxHours ?? 0,
+  } : isMomoMoon ? {
+    maxUses: 3,
+    maxCR: 99,
+    canSwim: true,
+    canFly: true,
+    maxHours: baseConfig?.maxHours ?? 1,
   } : baseConfig;
 
   // Get available beast forms based on circle
   const availableForms = useMemo(() => {
-    if (!config) return [];
+    if (!config && !isMomoMoon) return [];
     
-    // Combine base forms with Moon Circle forms if applicable
-    const allForms = circle === 'moon' 
+    // Momo + Moon: unlock ALL forms, no filtering
+    const allForms = (circle === 'moon' || isMomoMoon)
       ? [...BEAST_FORMS, ...MOON_CIRCLE_BEAST_FORMS]
       : BEAST_FORMS;
     
+    if (isMomoMoon) return allForms;
+    
     return allForms.filter(beast => {
-      if (beast.cr > config.maxCR) return false;
-      if (beast.swimSpeed && !config.canSwim) return false;
-      if (beast.flySpeed && !config.canFly) return false;
+      if (beast.cr > (config?.maxCR ?? 0)) return false;
+      if (beast.swimSpeed && !config?.canSwim) return false;
+      if (beast.flySpeed && !config?.canFly) return false;
       return true;
     });
-  }, [config, circle]);
+  }, [config, circle, isMomoMoon]);
 
-  // Elemental forms (Moon Circle level 10+)
-  const canUseElemental = circle === 'moon' && moonConfig?.canElemental === true;
+  // Elemental forms (Moon Circle level 10+ OR Momo easter egg)
+  const canUseElemental = isMomoMoon || (circle === 'moon' && moonConfig?.canElemental === true);
   const elementalForms = canUseElemental ? ELEMENTAL_FORMS : [];
 
-  // Dragon forms (Moon Circle level 18+)
-  const canUseDragon = circle === 'moon' && moonConfig?.canDragon === true;
+  // Dragon forms (Moon Circle level 18+ OR Momo easter egg)
+  const canUseDragon = isMomoMoon || (circle === 'moon' && moonConfig?.canDragon === true);
   const dragonForms = canUseDragon ? DRAGON_FORMS : [];
 
   // Load initial state from localStorage
