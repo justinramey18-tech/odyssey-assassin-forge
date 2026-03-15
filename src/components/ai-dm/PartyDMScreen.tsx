@@ -74,6 +74,10 @@ interface PartyDMScreenProps {
   onNewGame?: () => void;
   onLoadCampaign?: (session: CampaignSession) => void;
   onRefreshCampaigns?: () => void;
+  /** Wild Shape hook instance (for Momo Moon Druid) */
+  wildShape?: UseWildShapeReturn;
+  /** Whether this character is a Momo Moon Druid */
+  isMomoMoonDruid?: boolean;
 }
 
 const MEMBER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7', '#ef4444', '#06b6d4'];
