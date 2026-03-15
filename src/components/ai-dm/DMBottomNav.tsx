@@ -25,6 +25,8 @@ interface DMBottomNavProps {
   showWildShape?: boolean;
   /** Badge count for oracle whispers */
   oracleCount?: number;
+  /** Whether the character is currently in wild shape form */
+  isWildShapeActive?: boolean;
 }
 
 const BASE_TABS = [
@@ -50,7 +52,7 @@ const activeIndicatorColors: Record<DMNavTab, string> = {
   settings: 'bg-white/50',
 };
 
-export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, wildshapeContent, showGeralt, showWildShape, oracleCount }: DMBottomNavProps) {
+export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, wildshapeContent, showGeralt, showWildShape, oracleCount, isWildShapeActive }: DMBottomNavProps) {
   const afkOrWildShape = showWildShape ? WILDSHAPE_TAB : AFK_TAB;
   const tabs = [...BASE_TABS, afkOrWildShape, ORACLE_TAB, ...(showGeralt ? [GERALT_TAB] : []), SETTINGS_TAB];
   const touchStartY = useRef(0);
@@ -180,8 +182,13 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
                         <div className="relative">
                           <Icon className={cn(
                             "w-5 h-5 transition-colors",
-                            isActive ? tab.color : "text-muted-foreground"
+                            isActive ? tab.color : "text-muted-foreground",
+                            tab.id === 'wildshape' && isWildShapeActive && !isActive && "text-green-400"
                           )} />
+                          {/* Wild shape active glow */}
+                          {tab.id === 'wildshape' && isWildShapeActive && (
+                            <span className="absolute inset-0 -m-1 rounded-full bg-green-500/20 animate-pulse" />
+                          )}
                           {tab.id === 'oracle' && oracleCount && oracleCount > 0 && !isActive && (
                             <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-cyan-500 text-[9px] font-bold text-black flex items-center justify-center px-0.5">
                               {oracleCount > 9 ? '9+' : oracleCount}
