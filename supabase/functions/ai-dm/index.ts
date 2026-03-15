@@ -339,6 +339,18 @@ function buildContextSummary(ctx: CharacterContext): string {
     }
   }
 
+  // Wild Shape context
+  if (ctx.wildShape) {
+    const ws = ctx.wildShape;
+    if (ws.isTransformed && ws.formName) {
+      lines.push(`\n🐻 WILD SHAPE: ${ws.formName}${ws.formCR != null ? ` (CR ${ws.formCR})` : ''}`);
+      lines.push(`   Form HP: ${ws.formHP}/${ws.formMaxHP}${ws.formAC != null ? ` | Form AC: ${ws.formAC}` : ''}`);
+      lines.push(`   Uses: ${ws.usesRemaining}/${ws.maxUses}`);
+    } else if (ws.maxUses > 0) {
+      lines.push(`WILD SHAPE: Not transformed | Uses: ${ws.usesRemaining}/${ws.maxUses}`);
+    }
+  }
+
   // Companion (Geralt) context
   if (ctx.companion) {
     const c = ctx.companion;
