@@ -64,6 +64,7 @@ interface PartyDMScreenProps {
   onToggleAutoSync?: (enabled: boolean) => void;
   isExtracting?: boolean;
   guidesCount?: number;
+  gmGuidesContent?: string;
   characterContext?: CharacterContext;
   showBattleMap?: boolean;
   battleMapContent?: React.ReactNode;
