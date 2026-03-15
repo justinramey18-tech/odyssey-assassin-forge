@@ -894,7 +894,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       setShowAfkGuide(true);
       return;
     }
-    // Dice and settings tabs toggle
+    // Dice, wildshape, oracle, settings tabs toggle full-screen content
     setActiveNavTab(prev => prev === tab ? null : tab);
   }, []);
 
