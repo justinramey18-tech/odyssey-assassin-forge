@@ -3,7 +3,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
-import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Cpu } from 'lucide-react';
+import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Cpu, Brain } from 'lucide-react';
 import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
 import { TimerSettings } from './RoundTimer';
 import type { PushSubscriptionState } from '@/lib/push-subscription';
@@ -119,6 +119,9 @@ export interface PartyDMSettingsProps {
   // Whisper tray
   whisperTrayEnabled?: boolean;
   onWhisperTrayEnabledChange?: (enabled: boolean) => void;
+  // Memory anchors
+  onShowMemoryAnchors?: () => void;
+  memoryAnchorsCount?: number;
 }
 
 export function PartyDMSettings({
@@ -134,6 +137,7 @@ export function PartyDMSettings({
   onShowScheduledEvents, scheduledEventsCount = 0,
   members = [], coHostIds = [], currentUserId, onPromoteCoHost, onDemoteCoHost,
   whisperTrayEnabled, onWhisperTrayEnabledChange,
+  onShowMemoryAnchors, memoryAnchorsCount = 0,
 }: PartyDMSettingsProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   return (
@@ -305,6 +309,9 @@ export function PartyDMSettings({
         )}
         {onShowGuides && (
           <ToolRow icon={<BookOpen className="w-4 h-4" />} label="GM Guides" description="Custom rules and lore" badge={guidesCount} onClick={onShowGuides} />
+        )}
+        {onShowMemoryAnchors && (
+          <ToolRow icon={<Brain className={cn("w-4 h-4", memoryAnchorsCount > 0 ? "text-purple-400" : "")} />} label="Memory Anchors" description="Long-term campaign facts for the Oracle" badge={memoryAnchorsCount} onClick={onShowMemoryAnchors} />
         )}
         {onShowChat && (
           <ToolRow icon={<MessageSquare className="w-4 h-4" />} label="Party Chat" description="Out-of-character messaging" onClick={onShowChat} />

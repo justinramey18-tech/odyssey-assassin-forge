@@ -12,6 +12,7 @@ import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { WhisperTray } from './WhisperTray';
 import { OraclePanel } from '@/components/oracle/OraclePanel';
 import { PartyDMSettings } from './PartyDMSettings';
+import { PartyMemoryAnchorsPanel } from './PartyMemoryAnchorsPanel';
 import { DMComposePanel } from './DMComposePanel';
 import { DraftReviewPanel } from './DraftReviewPanel';
 
@@ -66,6 +67,9 @@ interface PartyDMScreenProps {
   guidesCount?: number;
   gmGuidesContent?: string;
   memoryAnchorsContent?: string;
+  memoryAnchors?: import('@/hooks/use-dm-game-state').MemoryAnchor[];
+  onAddMemoryAnchor?: (anchor: Omit<import('@/hooks/use-dm-game-state').MemoryAnchor, 'id' | 'turn' | 'created_at'>) => void;
+  onRemoveMemoryAnchor?: (id: string) => void;
   characterContext?: CharacterContext;
   showBattleMap?: boolean;
   battleMapContent?: React.ReactNode;
@@ -547,7 +551,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
   );
 }
 
-export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, gmGuidesContent, memoryAnchorsContent, characterContext, showBattleMap, battleMapContent, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid }: PartyDMScreenProps) {
+export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, showBattleMap, battleMapContent, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid }: PartyDMScreenProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   const playerInputRef = useRef<PartyDMInputHandle>(null);
   const [, setTick] = useState(0);
@@ -609,6 +613,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [showTimerSettings, setShowTimerSettings] = useState(false);
   const [showAfkGuide, setShowAfkGuide] = useState(false);
   const [showScheduledEvents, setShowScheduledEvents] = useState(false);
+  const [showMemoryAnchors, setShowMemoryAnchors] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Chat unread badge tracking
@@ -2003,6 +2008,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               onDemoteCoHost={onDemoteCoHost}
               whisperTrayEnabled={whisperTrayEnabled}
               onWhisperTrayEnabledChange={setWhisperTrayEnabled}
+              onShowMemoryAnchors={onAddMemoryAnchor ? () => setShowMemoryAnchors(true) : undefined}
+              memoryAnchorsCount={memoryAnchors?.length ?? 0}
             />
           ) : undefined}
           oracleContent={activeNavTab === 'oracle' && characterContext ? (
@@ -2136,6 +2143,17 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           open={showScheduledEvents}
           onOpenChange={setShowScheduledEvents}
           partyId={partyId}
+        />
+      )}
+
+      {/* Memory Anchors Panel */}
+      {showMemoryAnchors && memoryAnchors && onAddMemoryAnchor && onRemoveMemoryAnchor && (
+        <PartyMemoryAnchorsPanel
+          anchors={memoryAnchors}
+          onAdd={onAddMemoryAnchor}
+          onRemove={onRemoveMemoryAnchor}
+          onBack={() => setShowMemoryAnchors(false)}
+          isCreator={isCreator}
         />
       )}
     </div>
