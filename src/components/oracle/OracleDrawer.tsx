@@ -56,6 +56,7 @@ interface OracleDrawerProps {
   totalLootValue?: number;
   combatContext?: CombatContextInput;
   partyMembers?: PartyMember[];
+  subclass?: string;
 }
 
 export function OracleDrawer({
