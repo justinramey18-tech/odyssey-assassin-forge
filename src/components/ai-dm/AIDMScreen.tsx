@@ -1117,6 +1117,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           disabled={isLoading}
           showGeralt={isMomo}
           showWildShape={isMomoMoonDruid}
+          isWildShapeActive={wildShape?.state.isTransformed}
           diceContent={showDiceContent ? (
             <DMDiceRoller
               characterContext={characterContext}
