@@ -25,6 +25,8 @@ interface DMBottomNavProps {
   showWildShape?: boolean;
   /** Badge count for oracle whispers */
   oracleCount?: number;
+  /** Whether the character is currently in wild shape form */
+  isWildShapeActive?: boolean;
 }
 
 const BASE_TABS = [
