@@ -327,7 +327,7 @@ export function useWildShape(druidLevel: number, circle: DruidCircle | null = nu
       return false;
     }
 
-    if (state.usesRemaining < 2) {
+    if (!isMomoMoon && state.usesRemaining < 2) {
       toast({
         title: 'Insufficient Uses',
         description: 'Elemental Wild Shape requires 2 Wild Shape uses.',
