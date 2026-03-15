@@ -1583,7 +1583,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       abortRef.current = null;
     }
     setIsGenerating(false);
-    setSynthesisMode(null);
     // Release the generation lock
     if (partyId && sessionConfig) {
       (supabase.from('party_shared_state') as any)
