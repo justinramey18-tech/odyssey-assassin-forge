@@ -64,6 +64,7 @@ interface PartyDMScreenProps {
   onToggleAutoSync?: (enabled: boolean) => void;
   isExtracting?: boolean;
   guidesCount?: number;
+  gmGuidesContent?: string;
   characterContext?: CharacterContext;
   showBattleMap?: boolean;
   battleMapContent?: React.ReactNode;
@@ -545,7 +546,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
   );
 }
 
-export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, characterContext, showBattleMap, battleMapContent, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid }: PartyDMScreenProps) {
+export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, gmGuidesContent, characterContext, showBattleMap, battleMapContent, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid }: PartyDMScreenProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   const playerInputRef = useRef<PartyDMInputHandle>(null);
   const [, setTick] = useState(0);
@@ -2007,6 +2008,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             <OraclePanel characterContext={{
               ...characterContext,
               campaignSummary: partyDm.sessionConfig?.campaignSummary || undefined,
+              gmGuidesContent: gmGuidesContent || undefined,
               recentNarrative: partyDm.messages
                 .filter(m => m.role === 'user' || m.role === 'assistant')
                 .slice(-10)

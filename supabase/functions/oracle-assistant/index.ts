@@ -106,6 +106,8 @@ interface CharacterContext {
   campaignSummary?: string;
   // Recent DM narrative messages
   recentNarrative?: Array<{ role: string; name?: string; content: string }>;
+  // GM Guides content (host-enabled lore/rules)
+  gmGuidesContent?: string;
   // Wild Shape state
   wildShape?: {
     isTransformed: boolean;
@@ -377,6 +379,14 @@ function buildContextSummary(ctx: CharacterContext): string {
     } else if (ws.maxUses > 0) {
       lines.push(`WILD SHAPE: Not transformed | Uses: ${ws.usesRemaining}/${ws.maxUses}`);
     }
+  }
+
+  // GM Guides — authoritative lore and rules from the host
+  if (ctx.gmGuidesContent) {
+    lines.push(`\n📚 GM GUIDES (use these rules and lore as authoritative context):`);
+    lines.push(`[GM GUIDES START]`);
+    lines.push(ctx.gmGuidesContent.slice(0, 8000));
+    lines.push(`[GM GUIDES END]`);
   }
   
   return lines.join('\n');

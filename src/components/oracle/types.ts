@@ -176,6 +176,8 @@ export interface CharacterContext {
   campaignSummary?: string;
   // Recent DM narrative messages for immediate context
   recentNarrative?: Array<{ role: string; name?: string; content: string }>;
+  // GM Guides content (host-enabled lore/rules)
+  gmGuidesContent?: string;
 }
 
 export interface PersonalityConfig {
