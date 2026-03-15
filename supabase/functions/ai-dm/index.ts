@@ -15,6 +15,7 @@ interface CharacterContext {
   maxHP: number;
   characterClass?: string;
   multiclassBreakdown?: Record<string, number>;
+  subclass?: string;
   deity?: string;
   domain?: string;
   gender?: string;
