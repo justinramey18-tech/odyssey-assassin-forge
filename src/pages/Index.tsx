@@ -2662,6 +2662,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         constitutionModifier={abilityScores.finalModifiers.constitution}
         lootItems={loot.lootItems}
         totalLootValue={loot.totalLootValue}
+        subclass={characterSubclass ?? undefined}
         combatContext={combatContext}
         partyMembers={isPartyMode ? partySync.party.members : []}
         userId={user?.id}
