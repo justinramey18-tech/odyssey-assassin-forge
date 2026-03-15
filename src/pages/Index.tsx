@@ -2234,6 +2234,37 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     });
   };
 
+  // Manual level change (up or down) from Settings
+  const handleLevelChange = useCallback((newLevel: number) => {
+    if (newLevel < 1 || newLevel > 20 || newLevel === character.level) return;
+
+    const newMaxPoints = getAbilityPointsForLevel(newLevel);
+    const spentPoints = getTotalPointsSpent(character.abilities);
+
+    setCharacter(prev => ({ ...prev, level: newLevel }));
+
+    // Sync XP to minimum for new level
+    const multiplier = XP_PRESETS[xpPreset].multiplier;
+    if (multiplier > 0 && newLevel > 1) {
+      setCurrentXP(getXPForLevel(newLevel - 1, multiplier));
+    } else if (newLevel === 1) {
+      setCurrentXP(0);
+    }
+
+    if (spentPoints > newMaxPoints) {
+      toast({
+        title: "⚠️ Ability Point Overflow",
+        description: `You have ${spentPoints} points spent but only ${newMaxPoints} available at Level ${newLevel}. Unallocate some abilities.`,
+        className: "border-destructive bg-destructive/10",
+      });
+    }
+
+    toast({
+      title: `Level set to ${newLevel}`,
+      description: `${character.name} is now Level ${newLevel}`,
+    });
+  }, [character.level, character.abilities, character.name, xpPreset, toast]);
+
 
   // App Reset Handler - clears all state and localStorage
   const handleResetApp = async () => {
