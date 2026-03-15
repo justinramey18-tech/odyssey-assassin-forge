@@ -36,6 +36,8 @@ interface StandalonePartyDMScreenProps {
     getCurrentHP: () => number;
     getCurrentGold: () => number;
   };
+  wildShape?: UseWildShapeReturn;
+  isMomoMoonDruid?: boolean;
 }
 
 export function StandalonePartyDMScreen({
