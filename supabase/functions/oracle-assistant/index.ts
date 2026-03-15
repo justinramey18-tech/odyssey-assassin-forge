@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 type Personality = 'thunderhead' | 'jarvis' | 'deadpool' | 'gandalf' | 'jarlaxle' | 'investigator';
-type OracleMode = 'chat' | 'plan' | 'choice' | 'analyze' | 'quick';
+type OracleMode = 'chat' | 'plan' | 'choice' | 'analyze' | 'quick' | 'recap';
 
 interface CharacterContext {
   name: string;
@@ -849,6 +849,20 @@ HARD LIMIT: 8-12 sentences maximum. Use bullet points.
 - Calculate rough odds when relevant
 - Be comprehensive but never repeat yourself`;
 
+    case 'recap':
+      return `
+
+RESPONSE MODE: STRUCTURED RECAP
+Format your response in exactly 3 sections:
+
+**📖 Story** — What just happened narratively (2-3 sentences). Key events, NPC actions, revelations. Draw from the campaign summary and recent narrative messages provided in the context.
+
+**⚔️ Situation** — Current tactical state as bullet points. Reference REAL character data: current HP vs max HP, active conditions and buffs, enemies on the field and their status, resources spent (spell slots, abilities on cooldown), action economy remaining. Narrate these facts in your personality's voice — do not just list raw numbers.
+
+**➡️ Next Move** — One sentence. If the character is in combat (check combat context), give a specific tactical suggestion referencing available actions. If in roleplay or exploration, give a narrative hook or question to consider.
+
+Do not deviate from this 3-section format. Every section must be present even if information is limited.`;
+
     default:
       return `
 
@@ -916,7 +930,7 @@ serve(async (req) => {
       );
     }
 
-    if (!['chat', 'plan', 'choice', 'analyze', 'quick'].includes(mode)) {
+    if (!['chat', 'plan', 'choice', 'analyze', 'quick', 'recap'].includes(mode)) {
       return new Response(
         JSON.stringify({ error: "Invalid mode" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -937,6 +951,14 @@ serve(async (req) => {
     else if (mode === 'plan') maxTokens = 250;
     else if (mode === 'chat') maxTokens = 400;
     else if (mode === 'analyze') maxTokens = 800;
+    else if (mode === 'recap') {
+      // Variable token budget based on quick-prompt keywords
+      const lastUserMsg = messages[messages.length - 1]?.content?.toLowerCase() || '';
+      if (lastUserMsg.includes('quick catch-up')) maxTokens = 400;
+      else if (lastUserMsg.includes('full session recap')) maxTokens = 1200;
+      else if (lastUserMsg.includes('tactical briefing')) maxTokens = 500;
+      else maxTokens = 600; // default recap budget ("what happened this scene?" and freeform)
+    }
 
     // Anthropic streaming path
     if (user_api_key && typeof user_api_key === 'string' && user_api_key.trim()) {
