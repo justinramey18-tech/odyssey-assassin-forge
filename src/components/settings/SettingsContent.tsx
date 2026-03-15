@@ -128,6 +128,7 @@ export function SettingsContent({
   onResetCustomizations,
   isFeatureVisible: isFeatureVisibleProp,
   onRenameCharacter,
+  onLevelChange,
 }: SettingsContentProps) {
   const [copiedStatic, setCopiedStatic] = useState(false);
   const [copiedDynamic, setCopiedDynamic] = useState(false);

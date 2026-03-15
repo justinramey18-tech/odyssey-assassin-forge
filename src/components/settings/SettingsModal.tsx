@@ -95,6 +95,7 @@ export function SettingsModal({
   onResetCustomizations,
   isFeatureVisible,
   onRenameCharacter,
+  onLevelChange,
 }: SettingsModalProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<SettingsTab>('character');
