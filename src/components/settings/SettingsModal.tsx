@@ -362,6 +362,7 @@ export function SettingsModal({
                 onResetCustomizations={onResetCustomizations}
                 isFeatureVisible={isFeatureVisible}
                 onRenameCharacter={onRenameCharacter}
+                onLevelChange={onLevelChange}
               />
             </div>
           </ScrollArea>
