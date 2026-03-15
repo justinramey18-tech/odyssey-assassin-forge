@@ -2274,11 +2274,22 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
       });
     }
 
+    // Reset prestige if it was active
+    const hadPrestige = prestigeData.prestigeLevel > 0;
+    if (hadPrestige) {
+      setPrestigeData({ prestigeLevel: 0, prestigeXP: 0, totalPrestigePoints: 0 });
+      setScopedItem('odyssey-prestige-data', JSON.stringify({ prestigeLevel: 0, prestigeXP: 0, totalPrestigePoints: 0 }));
+      setPrestigeTreeSpentState(0);
+      prestigeTree.resetTree();
+    }
+
     toast({
       title: `Level set to ${newLevel}`,
-      description: `${character.name} is now Level ${newLevel}`,
+      description: hadPrestige
+        ? `${character.name} is now Level ${newLevel}. Prestige progress has been reset.`
+        : `${character.name} is now Level ${newLevel}`,
     });
-  }, [character.level, character.abilities, character.name, xpPreset, toast]);
+  }, [character.level, character.abilities, character.name, xpPreset, toast, prestigeData.prestigeLevel, setPrestigeData, setPrestigeTreeSpentState, prestigeTree]);
 
 
   // App Reset Handler - clears all state and localStorage
