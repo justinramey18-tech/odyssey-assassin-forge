@@ -39,6 +39,8 @@ import { ScheduledEventsSheet } from './ScheduledEventsSheet';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { CampaignSession } from '@/hooks/use-campaign-sessions';
 import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
+import type { UseWildShapeReturn } from '@/hooks/use-wild-shape';
+import { WildShapeSection } from '@/components/drawers/QuickActionsDrawer';
 
 type PartyDmReturn = ReturnType<typeof usePartyDm>;
 
