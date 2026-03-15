@@ -5,7 +5,7 @@ import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { loadSelectedModel, saveSelectedModel, getModelLabel } from '@/lib/dm-models';
 import { formatUsage, formatCostShort } from '@/lib/token-usage';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Loader2, Zap, Map, Film, Image as ImageIcon, Copy, Check, Pencil, RefreshCw, X, MoreVertical, Globe, Settings, Volume2, VolumeX, Bird, Maximize2, Minimize2 } from 'lucide-react';
+import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Loader2, Zap, Map, Film, Image as ImageIcon, Copy, Check, Pencil, RefreshCw, X, MoreVertical, Globe, Settings, Volume2, VolumeX, Bird, Maximize2, Minimize2, PawPrint } from 'lucide-react';
 import { loadState as loadGeraltState, saveState as saveGeraltState } from '@/components/companion/geralt-data';
 import { NarrationSpeedPopover } from './NarrationSpeedPopover';
 import { DMToolsDrawer } from './DMToolsDrawer';
