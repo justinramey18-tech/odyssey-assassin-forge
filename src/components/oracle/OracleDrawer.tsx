@@ -292,7 +292,7 @@ export function OracleDrawer({
       combat: combatContextData,
       partyMembers: partyMembersContext.length > 0 ? partyMembersContext : undefined,
     };
-  }, [character, currentHP, maxHP, equipment, consumables, cooldowns, prestigeLevel, prestigeAbilities, getRemainingTime, activeConditions, activeBuffs, spellcasting, lootItems, totalLootValue, combatContext, partyMembers]);
+  }, [character, currentHP, maxHP, equipment, consumables, cooldowns, prestigeLevel, prestigeAbilities, getRemainingTime, activeConditions, activeBuffs, spellcasting, lootItems, totalLootValue, combatContext, partyMembers, subclass]);
 
   const config = getPersonalityConfig('deadpool');
 
