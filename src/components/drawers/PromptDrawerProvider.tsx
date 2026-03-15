@@ -204,6 +204,7 @@ export function PromptDrawerProvider({
   constitutionModifier = 0,
   lootItems = [],
   totalLootValue = 0,
+  subclass,
   combatContext,
   partyMembers = [],
   userId,
