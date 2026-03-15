@@ -119,6 +119,9 @@ export interface PartyDMSettingsProps {
   // Whisper tray
   whisperTrayEnabled?: boolean;
   onWhisperTrayEnabledChange?: (enabled: boolean) => void;
+  // Memory anchors
+  onShowMemoryAnchors?: () => void;
+  memoryAnchorsCount?: number;
 }
 
 export function PartyDMSettings({
