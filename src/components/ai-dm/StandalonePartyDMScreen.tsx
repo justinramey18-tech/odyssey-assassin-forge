@@ -50,6 +50,8 @@ export function StandalonePartyDMScreen({
   characterName,
   onShowChat,
   autoSyncCallbacks,
+  wildShape,
+  isMomoMoonDruid,
 }: StandalonePartyDMScreenProps) {
   const [showGuides, setShowGuides] = useState(false);
   const [showSaves, setShowSaves] = useState(false);
