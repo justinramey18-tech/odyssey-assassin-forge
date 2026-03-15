@@ -1094,17 +1094,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             .map(formatPromptLine)
             .join('\n') + betaAfkPrompts;
 
-          // Synthesize beta prompts
-          const betaLastAssistant = [...betaMessages].reverse().find(m => m.role === 'assistant');
-          const betaSynthesis = await synthesizePrompts(betaPrompts, betaLastAssistant?.content || null);
-          let betaForAI = betaRawCombined;
-          let betaDirectionGuide = '';
-          if (betaSynthesis) {
-            betaForAI = `<!-- SYNTHESIS: mode=${betaSynthesis.mode} -->\n${betaSynthesis.fusedPrompt}`;
-            betaDirectionGuide = `\n\n## NARRATIVE DIRECTION\nPresentation mode: ${betaSynthesis.mode}. Focus: ${betaSynthesis.focusCharacter}. Spine: ${betaSynthesis.spine}`;
-            addMode(betaSynthesis.mode);
-            setSynthesisMode(betaSynthesis.mode);
-          }
+          const betaForAI = betaRawCombined;
 
           await insertPartyMessage({
             party_id: partyId,
