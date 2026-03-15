@@ -849,6 +849,20 @@ HARD LIMIT: 8-12 sentences maximum. Use bullet points.
 - Calculate rough odds when relevant
 - Be comprehensive but never repeat yourself`;
 
+    case 'recap':
+      return `
+
+RESPONSE MODE: STRUCTURED RECAP
+Format your response in exactly 3 sections:
+
+**📖 Story** — What just happened narratively (2-3 sentences). Key events, NPC actions, revelations. Draw from the campaign summary and recent narrative messages provided in the context.
+
+**⚔️ Situation** — Current tactical state as bullet points. Reference REAL character data: current HP vs max HP, active conditions and buffs, enemies on the field and their status, resources spent (spell slots, abilities on cooldown), action economy remaining. Narrate these facts in your personality's voice — do not just list raw numbers.
+
+**➡️ Next Move** — One sentence. If the character is in combat (check combat context), give a specific tactical suggestion referencing available actions. If in roleplay or exploration, give a narrative hook or question to consider.
+
+Do not deviate from this 3-section format. Every section must be present even if information is limited.`;
+
     default:
       return `
 
