@@ -1044,8 +1044,13 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         .filter(([, item]) => item !== null)
         .map(([slot, item]) => ({ slot, name: item!.name })),
       multiclassLevels: character.multiclassLevels ?? undefined,
+      // Spell slots for party synergy awareness
+      spellSlots: !isRogueClass ? Object.entries(classSpellcasting.state.spellSlots)
+        .filter(([, s]) => typeof s === 'object' && 'max' in s && s.max > 0)
+        .map(([lvl, s]) => ({ level: Number(lvl), current: (s as any).current, max: (s as any).max }))
+        : undefined,
     });
-  }, [partySync, effectiveCurrentHP, effectiveMaxHP, effectiveTempHP, effectiveAC, conditions.conditions, character.level, character.primaryClass, quickActionsSummary, profileImageThumb, userTimezone, characterIdentity.race, characterIdentity.gender, abilityScores.finalScores, equipment.slots, character.multiclassLevels]);
+  }, [partySync, effectiveCurrentHP, effectiveMaxHP, effectiveTempHP, effectiveAC, conditions.conditions, character.level, character.primaryClass, quickActionsSummary, profileImageThumb, userTimezone, characterIdentity.race, characterIdentity.gender, abilityScores.finalScores, equipment.slots, character.multiclassLevels, isRogueClass, classSpellcasting.state.spellSlots]);
 
   // Legacy spentPoints for compatibility
   const spentPoints = getTotalPointsSpent(character.abilities);
