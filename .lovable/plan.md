@@ -1,21 +1,32 @@
 
 
-## Prompt Synthesizer — Host Approval Step
+## Fix Typing Lag in Party DM Input
 
-After prompts are synthesized into a fused "director's note", the host sees a `SynthesisReviewPanel` with:
-- The selected presentation mode and focus character badges
-- The narrative spine (italic quote)
-- Raw player actions summary
-- The fused prompt text (editable)
-- Approve ("Send to DM"), Regenerate, and Skip buttons
+### Root cause
+`PartyDMScreen.tsx` is 2268 lines with ~30 `useState` hooks. The text input's `setInput` triggers a full re-render of the entire component on every keystroke — including all message markdown rendering, prompt pills, realtime subscription callbacks, and child components. This causes noticeable lag, especially on mobile.
 
-**Flow:**
-1. Prompts collected → synthesized → `pendingSynthesis` state set → generation lock released
-2. Host reviews/edits the fused prompt in `SynthesisReviewPanel`
-3. On approve: re-acquires generation lock, sends fused prompt to main DM
-4. On skip: clears `pendingSynthesis`, raw prompts remain for next round
-5. On regenerate: re-runs synthesis with same prompts
+### Fix: Extract the input area into a standalone `React.memo`'d component
 
-Non-host players see "Host is reviewing synthesized prompts..." indicator.
+Extract the textarea + send button + ready button into a new `PartyDMInput` component that owns its own `input` state internally. The parent only receives the final value on submit — it never re-renders during typing.
 
-Split mode bypasses this approval step (synthesis is applied directly).
+### What changes
+
+**1. New file: `src/components/ai-dm/PartyDMInput.tsx`**
+- Moves the textarea, send button, ready button, and attach menu into a self-contained `React.memo`'d component
+- Owns `input` state via `useDraftPersist` internally
+- Props: `onSubmit(text)`, `onReady()`, `onPaste(file)`, `disabled`, `hasPrompt`, attach-related callbacks
+- `handleInputChange` with auto-resize lives here
+- The `useDraftPersist` debounce + localStorage writes stay isolated to this component
+
+**2. `src/components/ai-dm/PartyDMScreen.tsx`**
+- Remove `input`/`setInput`/`clearInput` state, `handleInputChange`, `handleKeyDown`, `handleSubmit`, `inputRef`, and the inline textarea JSX (~50 lines)
+- Replace with `<PartyDMInput onSubmit={...} onReady={partyDm.setReady} ... />`
+- The parent no longer re-renders on every keystroke
+
+### Why this works
+The parent component only re-renders when the user actually submits (calls `onSubmit`), not on every character typed. All the expensive markdown rendering, prompt pills, realtime state, and child components stay untouched during typing.
+
+### Files
+1. **Create** `src/components/ai-dm/PartyDMInput.tsx` — extracted input component with memo
+2. **Edit** `src/components/ai-dm/PartyDMScreen.tsx` — swap inline input for `<PartyDMInput>`
+
