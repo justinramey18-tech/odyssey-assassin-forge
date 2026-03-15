@@ -92,7 +92,7 @@ import { useCombatLog } from '@/hooks/use-combat-log';
 import { useInitiative } from '@/hooks/use-initiative';
 import { useCombatStats } from '@/hooks/use-combat-stats';
 import { useWildShape } from '@/hooks/use-wild-shape';
-import { DruidCircle } from '@/lib/classes/druidCircles';
+import { DruidCircle, getCircleById } from '@/lib/classes/druidCircles';
 import { useSpellCustomization } from '@/hooks/use-spell-customization';
 import { usePartySync } from '@/hooks/use-party-sync';
 import { useAbilityCustomization } from '@/hooks/use-ability-customization';
