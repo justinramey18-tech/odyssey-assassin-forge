@@ -2,7 +2,7 @@
 // UI for full caster classes (Wizard, Sorcerer, Cleric, Druid, Bard)
 // Separate from MagicScreen which handles Rogue Magic Paths
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Wand2, BookOpen, Zap, Settings, Package, RefreshCw, Flame, Sparkles, Plus } from 'lucide-react';
