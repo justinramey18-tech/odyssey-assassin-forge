@@ -2183,6 +2183,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 })),
             }} />
           ) : undefined}
+          wildshapeContent={activeNavTab === 'wildshape' && wildShape && wildShape.config ? (
+            <div className="px-3 py-3">
+              <WildShapeSection wildShape={wildShape} characterName={characterContext?.name || 'Adventurer'} />
+            </div>
+          ) : undefined}
         />
       )}
 
