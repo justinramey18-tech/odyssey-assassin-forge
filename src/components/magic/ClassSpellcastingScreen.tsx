@@ -40,6 +40,7 @@ import { HomebrewSpell } from '@/lib/spellCustomization/types';
 import { HealTargetPicker } from '@/components/party/HealTargetPicker';
 import type { PartyMember } from '@/hooks/use-party-sync';
 import type { PartyAction } from '@/hooks/use-party-sync';
+import { getScopedItem, setScopedItem, migrateToScoped } from '@/lib/scoped-storage';
 
 // Background image
 import arcanaBackground from '@/assets/trees/arcana-wizards-mobile.jpg';
