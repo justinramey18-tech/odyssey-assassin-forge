@@ -353,7 +353,44 @@ function buildContextSummary(ctx: CharacterContext): string {
       const condStr = m.conditions && m.conditions.length > 0
         ? ` [${m.conditions.join(', ')}]`
         : '';
-      lines.push(`   - ${m.name} (Level ${m.level ?? '?'} ${m.className ?? 'Adventurer'},${hpStr}${acStr})${condStr}`);
+
+      // Class label with multiclass support
+      let classLabel = m.className ?? 'Adventurer';
+      if (m.multiclassLevels && Object.keys(m.multiclassLevels).length > 1) {
+        classLabel = Object.entries(m.multiclassLevels)
+          .map(([cls, lvl]) => `${cls.charAt(0).toUpperCase() + cls.slice(1)} ${lvl}`)
+          .join('/');
+      }
+
+      const identityStr = (m.race || m.gender)
+        ? ` (${[m.gender, m.race].filter(Boolean).join(' ')})`
+        : '';
+
+      lines.push(`   - ${m.name} (Level ${m.level ?? '?'} ${classLabel}${identityStr},${hpStr}${acStr})${condStr}`);
+
+      // Ability scores
+      if (m.abilityScores) {
+        const s = m.abilityScores;
+        lines.push(`      Stats: STR ${s.str} DEX ${s.dex} CON ${s.con} INT ${s.int} WIS ${s.wis} CHA ${s.cha}`);
+      }
+
+      // Equipped abilities
+      if (m.equippedAbilities && m.equippedAbilities.length > 0) {
+        lines.push(`      Abilities: ${m.equippedAbilities.join(', ')}`);
+      }
+
+      // Prepared spells
+      if (m.preparedSpells && m.preparedSpells.length > 0) {
+        lines.push(`      Spells: ${m.preparedSpells.join(', ')}`);
+      }
+
+      // Spell slots
+      if (m.spellSlots && m.spellSlots.length > 0) {
+        const slotStr = m.spellSlots
+          .map(s => `${s.level === 1 ? '1st' : s.level === 2 ? '2nd' : s.level === 3 ? '3rd' : s.level + 'th'}: ${s.current}/${s.max}`)
+          .join(', ');
+        lines.push(`      Slots: ${slotStr}`);
+      }
     });
   }
 
