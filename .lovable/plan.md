@@ -1,24 +1,21 @@
 
 
-## Momo + Moon Druid Easter Egg: Unlock All Wild Shapes
+## Prompt Synthesizer — Host Approval Step
 
-### What
-When the character name contains "momo" AND the class is Druid with Circle of the Moon selected, bypass all CR, swim/fly restrictions and unlock all beast forms, elemental forms, and dragon forms regardless of level or prerequisites.
+After prompts are synthesized into a fused "director's note", the host sees a `SynthesisReviewPanel` with:
+- The selected presentation mode and focus character badges
+- The narrative spine (italic quote)
+- Raw player actions summary
+- The fused prompt text (editable)
+- Approve ("Send to DM"), Regenerate, and Skip buttons
 
-### Changes
+**Flow:**
+1. Prompts collected → synthesized → `pendingSynthesis` state set → generation lock released
+2. Host reviews/edits the fused prompt in `SynthesisReviewPanel`
+3. On approve: re-acquires generation lock, sends fused prompt to main DM
+4. On skip: clears `pendingSynthesis`, raw prompts remain for next round
+5. On regenerate: re-runs synthesis with same prompts
 
-**1. `src/hooks/use-wild-shape.ts`**
-- Add `characterName?: string` parameter to `useWildShape`
-- Add a `isMomoMoon` flag: `isMomoEasterEgg(characterName) && circle === 'moon'`
-- When `isMomoMoon`:
-  - `availableForms` returns ALL `BEAST_FORMS` + `MOON_CIRCLE_BEAST_FORMS` (no CR/swim/fly filtering)
-  - `canUseElemental` = true, `elementalForms` = `ELEMENTAL_FORMS`
-  - `canUseDragon` = true, `dragonForms` = `DRAGON_FORMS`
-  - Override `maxUses` to 3 (or higher) so dragon transform cost is always affordable
-  - Skip prerequisite checks in `transform`, `transformElemental`, `transformDragon`
+Non-host players see "Host is reviewing synthesized prompts..." indicator.
 
-**2. `src/pages/Index.tsx`**
-- Pass `character.name` to the `useWildShape` call (~line 486)
-
-This keeps the easter egg self-contained in the hook — no UI changes needed. All wild shape forms just appear unlocked when momo + moon druid conditions are met.
-
+Split mode bypasses this approval step (synthesis is applied directly).
