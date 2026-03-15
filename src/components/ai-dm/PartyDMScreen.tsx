@@ -5,7 +5,7 @@ import partyChatIcon from '@/assets/party-chat-icon.jpg';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3 } from 'lucide-react';
+import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3, PawPrint } from 'lucide-react';
 import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
 import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer, PreSplitChatViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
@@ -976,6 +976,18 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               geraltHpPct > 50 ? "text-emerald-400" : geraltHpPct > 25 ? "text-amber-400" : "text-red-400"
             )}>
               {geraltHp.current}/{geraltHp.max}
+            </span>
+          </>
+        )}
+        {wildShape?.state.isTransformed && wildShape.state.currentForm && (
+          <>
+            <span className="text-[11px] text-white/20">•</span>
+            <PawPrint className="w-3 h-3 text-green-400 shrink-0" />
+            <span className={cn(
+              "text-[11px] font-mono whitespace-nowrap",
+              (wildShape.state.formHP / wildShape.state.formMaxHP) > 0.5 ? "text-green-400" : (wildShape.state.formHP / wildShape.state.formMaxHP) > 0.25 ? "text-amber-400" : "text-red-400"
+            )}>
+              {wildShape.state.currentForm.name} {wildShape.state.formHP}/{wildShape.state.formMaxHP}
             </span>
           </>
         )}

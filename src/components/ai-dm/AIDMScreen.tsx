@@ -5,7 +5,7 @@ import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { loadSelectedModel, saveSelectedModel, getModelLabel } from '@/lib/dm-models';
 import { formatUsage, formatCostShort } from '@/lib/token-usage';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Loader2, Zap, Map, Film, Image as ImageIcon, Copy, Check, Pencil, RefreshCw, X, MoreVertical, Globe, Settings, Volume2, VolumeX, Bird, Maximize2, Minimize2 } from 'lucide-react';
+import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Loader2, Zap, Map, Film, Image as ImageIcon, Copy, Check, Pencil, RefreshCw, X, MoreVertical, Globe, Settings, Volume2, VolumeX, Bird, Maximize2, Minimize2, PawPrint } from 'lucide-react';
 import { loadState as loadGeraltState, saveState as saveGeraltState } from '@/components/companion/geralt-data';
 import { NarrationSpeedPopover } from './NarrationSpeedPopover';
 import { DMToolsDrawer } from './DMToolsDrawer';
@@ -720,6 +720,18 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
               geraltHpPct > 50 ? "text-emerald-400" : geraltHpPct > 25 ? "text-amber-400" : "text-red-400"
             )}>
               {geraltHp.current}/{geraltHp.max}
+            </span>
+          </>
+        )}
+        {wildShape?.state.isTransformed && wildShape.state.currentForm && (
+          <>
+            <span className="text-[11px] text-white/40">•</span>
+            <PawPrint className="w-3 h-3 text-green-400 shrink-0" />
+            <span className={cn(
+              "text-[11px] font-mono whitespace-nowrap",
+              (wildShape.state.formHP / wildShape.state.formMaxHP) > 0.5 ? "text-green-400" : (wildShape.state.formHP / wildShape.state.formMaxHP) > 0.25 ? "text-amber-400" : "text-red-400"
+            )}>
+              {wildShape.state.currentForm.name} {wildShape.state.formHP}/{wildShape.state.formMaxHP}
             </span>
           </>
         )}
