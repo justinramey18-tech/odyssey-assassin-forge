@@ -1,21 +1,39 @@
 
 
-## Prompt Synthesizer — Host Approval Step
+## Problem
 
-After prompts are synthesized into a fused "director's note", the host sees a `SynthesisReviewPanel` with:
-- The selected presentation mode and focus character badges
-- The narrative spine (italic quote)
-- Raw player actions summary
-- The fused prompt text (editable)
-- Approve ("Send to DM"), Regenerate, and Skip buttons
+Your party member's druid is being called an "Assassin" because the **oracle-assistant backend function** has a hardcoded `"Assassin"` string on line 118, regardless of the character's actual class. The client already sends the correct `characterClass` field — the backend just ignores it.
 
-**Flow:**
-1. Prompts collected → synthesized → `pendingSynthesis` state set → generation lock released
-2. Host reviews/edits the fused prompt in `SynthesisReviewPanel`
-3. On approve: re-acquires generation lock, sends fused prompt to main DM
-4. On skip: clears `pendingSynthesis`, raw prompts remain for next round
-5. On regenerate: re-runs synthesis with same prompts
+The **ai-dm** backend function handles this correctly with proper class detection and multiclass support. The oracle-assistant was never updated to match.
 
-Non-host players see "Host is reviewing synthesized prompts..." indicator.
+## Changes
 
-Split mode bypasses this approval step (synthesis is applied directly).
+### 1. `supabase/functions/oracle-assistant/index.ts` — Three fixes
+
+**A. Add missing fields to the `CharacterContext` interface** (around line 12-15):
+Add `characterClass?: string` and `multiclassBreakdown?: Record<string, number>` alongside the existing fields like `gender`, `race`, etc.
+
+**B. Fix the hardcoded "Assassin" on line 118**:
+Replace:
+```
+lines.push(`CHARACTER: ${ctx.name}, Level ${ctx.level} Assassin`);
+```
+With class-aware logic matching the ai-dm pattern:
+```
+lines.push(`CHARACTER: ${ctx.name}, Level ${ctx.level}`);
+if (ctx.characterClass) {
+  if (ctx.multiclassBreakdown && Object.keys(ctx.multiclassBreakdown).length > 1) {
+    const breakdown = Object.entries(ctx.multiclassBreakdown)
+      .map(([cls, lvl]) => `${cls.charAt(0).toUpperCase() + cls.slice(1)} ${lvl}`)
+      .join(' / ');
+    lines.push(`CLASS: ${breakdown} (multiclass)`);
+  } else {
+    lines.push(`CLASS: ${ctx.characterClass.charAt(0).toUpperCase() + ctx.characterClass.slice(1)} ${ctx.level}`);
+  }
+}
+```
+
+**C. No changes needed for party member display** — line 316 already uses `m.className ?? 'Adventurer'` correctly.
+
+One file, two edits (interface + context builder). The client already sends the right data.
+
