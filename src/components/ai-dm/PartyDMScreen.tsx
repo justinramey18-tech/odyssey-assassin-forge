@@ -2145,6 +2145,17 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           partyId={partyId}
         />
       )}
+
+      {/* Memory Anchors Panel */}
+      {showMemoryAnchors && memoryAnchors && onAddMemoryAnchor && onRemoveMemoryAnchor && (
+        <PartyMemoryAnchorsPanel
+          anchors={memoryAnchors}
+          onAdd={onAddMemoryAnchor}
+          onRemove={onRemoveMemoryAnchor}
+          onBack={() => setShowMemoryAnchors(false)}
+          isCreator={isCreator}
+        />
+      )}
     </div>
   );
 }
