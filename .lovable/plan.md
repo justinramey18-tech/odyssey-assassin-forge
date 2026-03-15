@@ -1,21 +1,16 @@
 
 
-## Prompt Synthesizer — Host Approval Step
+## Reset Prestige on Level Change
 
-After prompts are synthesized into a fused "director's note", the host sees a `SynthesisReviewPanel` with:
-- The selected presentation mode and focus character badges
-- The narrative spine (italic quote)
-- Raw player actions summary
-- The fused prompt text (editable)
-- Approve ("Send to DM"), Regenerate, and Skip buttons
+### What
+When the level slider in Settings changes the character's level, also reset prestige data (level, XP, and points) back to zero — since prestige is a post-max-level system and manually adjusting level invalidates that progression.
 
-**Flow:**
-1. Prompts collected → synthesized → `pendingSynthesis` state set → generation lock released
-2. Host reviews/edits the fused prompt in `SynthesisReviewPanel`
-3. On approve: re-acquires generation lock, sends fused prompt to main DM
-4. On skip: clears `pendingSynthesis`, raw prompts remain for next round
-5. On regenerate: re-runs synthesis with same prompts
+### Change
 
-Non-host players see "Host is reviewing synthesized prompts..." indicator.
+**`src/pages/Index.tsx`** — In `handleLevelChange` callback (~line 2253):
+- After setting the new level and XP, reset prestige data via `setPrestigeData({ prestigeLevel: 0, prestigeXP: 0, totalPrestigePoints: 0 })` and persist to scoped storage.
+- Also reset prestige tree spent state (`setPrestigeTreeSpentState(0)` and `prestigeTree.resetTree()`), matching the existing app-reset logic.
+- Add a note in the toast if prestige was reset (only when `prestigeData.prestigeLevel > 0`).
 
-Split mode bypasses this approval step (synthesis is applied directly).
+This mirrors the existing reset logic at lines 2314-2322 but scoped to level changes only when prestige was active.
+
