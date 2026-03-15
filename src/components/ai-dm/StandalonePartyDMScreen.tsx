@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useGMGuides } from '@/hooks/use-gm-guides';
 import { usePartyMemoryAnchors } from '@/hooks/use-party-memory-anchors';
+import { usePartyMemoryExtraction } from '@/hooks/use-party-memory-extraction';
 import { usePartyDm } from '@/hooks/use-party-dm';
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
 import { useCampaignSessions } from '@/hooks/use-campaign-sessions';
@@ -153,7 +154,7 @@ export function StandalonePartyDMScreen({
   // Memory Anchors — long-term campaign facts shared across party
   const memoryAnchors = usePartyMemoryAnchors({ partyId: partyId || null });
 
-  // Stabilize partyMembers for usePartyDm
+
   const stablePartyMembers = useMemo(() =>
     partyMembers.map(m => ({
       character_name: m.character_name,
@@ -174,7 +175,16 @@ export function StandalonePartyDMScreen({
     customGuidesContent: gmGuides.enabledContent,
   });
 
-  // Auto-sync hook
+  // Auto-extract memory anchors from new DM responses (host-only to avoid duplicates)
+  usePartyMemoryExtraction({
+    messages: partyDm.messages,
+    anchors: memoryAnchors.anchors,
+    addMemoryAnchor: memoryAnchors.addMemoryAnchor,
+    characterContext,
+    enabled: isHost,
+  });
+
+
   const autoSync = useDmAutoSync({
     onHPChange: autoSyncCallbacks?.onHPChange ?? NOOP_TWO_ARG,
     onAddXP: autoSyncCallbacks?.onAddXP ?? NOOP_TWO_ARG,
