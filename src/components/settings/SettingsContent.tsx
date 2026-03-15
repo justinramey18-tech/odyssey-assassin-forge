@@ -283,6 +283,30 @@ export function SettingsContent({
             )}
           </SettingsSection>
 
+          {/* Character Level Adjustment */}
+          {onLevelChange && characterLevel && (
+            <SettingsSection title="Character Level">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Level</span>
+                  <span className="font-cinzel font-bold text-lg">{characterLevel}</span>
+                </div>
+                <Slider
+                  min={1}
+                  max={20}
+                  step={1}
+                  value={[characterLevel]}
+                  onValueChange={([v]) => onLevelChange(v)}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>1</span>
+                  <span>20</span>
+                </div>
+              </div>
+            </SettingsSection>
+          )}
+
           <SettingsSection title="Character Identity">
             <CharacterIdentityEditor />
           </SettingsSection>
