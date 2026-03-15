@@ -66,6 +66,19 @@ export const oracleModes: OracleModeConfig[] = [
       'Optimal ability rotation?',
     ],
   },
+  {
+    id: 'recap',
+    name: 'Recap',
+    icon: '📜',
+    description: 'Structured scene recap',
+    color: '#EC4899', // pink
+    quickPrompts: [
+      'Quick catch-up',
+      'What happened this scene?',
+      'Full session recap',
+      'Tactical briefing',
+    ],
+  },
 ];
 
 export function getModeConfig(id: string): OracleModeConfig {
