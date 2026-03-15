@@ -1116,6 +1116,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           onExpandedChange={setNavExpanded}
           disabled={isLoading}
           showGeralt={isMomo}
+          showWildShape={isMomoMoonDruid}
           diceContent={showDiceContent ? (
             <DMDiceRoller
               characterContext={characterContext}
@@ -1130,6 +1131,11 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           ) : undefined}
           oracleContent={activeNavTab === 'oracle' ? (
             <OracleWhisperFeed messages={messages} />
+          ) : undefined}
+          wildshapeContent={activeNavTab === 'wildshape' && wildShape && wildShape.config ? (
+            <div className="px-3 py-3">
+              <WildShapeSection wildShape={wildShape} characterName={characterName} />
+            </div>
           ) : undefined}
           oracleCount={messages.reduce((count, m) => count + (m.whispers?.length ?? 0), 0)}
         />
