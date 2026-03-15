@@ -150,6 +150,13 @@ export interface CharacterContext {
     maxHP?: number;
     ac?: number;
     conditions?: string[];
+    race?: string;
+    gender?: string;
+    multiclassLevels?: Record<string, number>;
+    abilityScores?: { str: number; dex: number; con: number; int: number; wis: number; cha: number };
+    equippedAbilities?: string[];
+    preparedSpells?: string[];
+    spellSlots?: Array<{ level: number; current: number; max: number }>;
   }>;
   // Companion (Geralt the owlbear) context — momo only
   companion?: {

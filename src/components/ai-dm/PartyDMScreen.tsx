@@ -2021,15 +2021,30 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 })),
               partyMembers: members
                 .filter(m => m.user_id !== currentUserId && m.character_name)
-                .map(m => ({
-                  name: m.character_name,
-                  level: (m.character_status as any)?.level,
-                  className: (m.character_status as any)?.className,
-                  currentHP: (m.character_status as any)?.currentHP,
-                  maxHP: (m.character_status as any)?.maxHP,
-                  ac: (m.character_status as any)?.ac,
-                  conditions: (m.character_status as any)?.conditions,
-                })),
+                .map(m => {
+                  const cs = m.character_status as any;
+                  const qa = cs?.quickActions;
+                  return {
+                    name: m.character_name,
+                    level: cs?.level,
+                    className: cs?.className,
+                    currentHP: cs?.currentHP,
+                    maxHP: cs?.maxHP,
+                    ac: cs?.ac,
+                    conditions: cs?.conditions,
+                    race: cs?.race,
+                    gender: cs?.gender,
+                    multiclassLevels: cs?.multiclassLevels,
+                    abilityScores: cs?.abilityScores,
+                    equippedAbilities: qa?.abilities?.map((a: any) => a.name)?.slice(0, 10),
+                    preparedSpells: qa?.spells?.map((s: any) => s.name)?.slice(0, 15),
+                    spellSlots: cs?.spellSlots
+                      ? Object.entries(cs.spellSlots)
+                          .filter(([, s]: any) => s?.max > 0)
+                          .map(([lvl, s]: any) => ({ level: Number(lvl), current: s.current, max: s.max }))
+                      : undefined,
+                  };
+                }),
             }} />
           ) : undefined}
           wildshapeContent={activeNavTab === 'wildshape' && wildShape && wildShape.config ? (
