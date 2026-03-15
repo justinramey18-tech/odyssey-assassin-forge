@@ -825,11 +825,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   }, [partyDm]);
 
   const handleDiceRoll = useCallback((message: string) => {
-    setInput(prev => prev ? `${prev}\n${message}` : message);
+    playerInputRef.current?.appendText(message);
   }, []);
 
   const handleUsePrompt = useCallback((prompt: string) => {
-    setInput(prev => prev ? `${prev}\n${prompt}` : prompt);
+    playerInputRef.current?.appendText(prompt);
   }, []);
 
   // Geralt widget state (momo easter egg)
