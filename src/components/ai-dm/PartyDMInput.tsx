@@ -15,6 +15,8 @@ export interface PartyDMInputHandle {
 interface PartyDMInputProps {
   onSubmit: (text: string) => void;
   onReady: () => void;
+  onReadyAutopilot?: () => void;
+  hasAfkGuide?: boolean;
   onPaste: (e: React.ClipboardEvent) => void;
   disabled?: boolean;
   hasPrompt?: boolean;
