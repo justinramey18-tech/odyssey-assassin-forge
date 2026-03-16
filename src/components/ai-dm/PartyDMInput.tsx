@@ -116,12 +116,22 @@ export const PartyDMInput = memo(forwardRef<PartyDMInputHandle, PartyDMInputProp
       <div className="flex items-center gap-2">
         <Button
           onClick={onReady}
-          className="flex-1 gap-1.5 bg-emerald-900/40 border border-emerald-500/30 hover:bg-emerald-900/60 text-emerald-300"
+          className={cn("gap-1.5 bg-emerald-900/40 border border-emerald-500/30 hover:bg-emerald-900/60 text-emerald-300", hasAfkGuide ? "flex-1" : "flex-1")}
           size="sm"
         >
           <Check className="w-4 h-4" />
-          Ready (No Action)
+          {hasAfkGuide ? 'No Action' : 'Ready (No Action)'}
         </Button>
+        {hasAfkGuide && (
+          <Button
+            onClick={onReadyAutopilot}
+            className="flex-1 gap-1.5 bg-purple-900/40 border border-purple-500/30 hover:bg-purple-900/60 text-purple-300"
+            size="sm"
+          >
+            <Ghost className="w-4 h-4" />
+            Autopilot
+          </Button>
+        )}
         {currentUserId && (
           <div className="flex gap-1 shrink-0">
             <div className="relative" data-attach-menu>
