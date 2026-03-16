@@ -105,6 +105,8 @@ export interface DmSessionConfig {
   timerStartedAt?: string | null; // ISO timestamp when timer was started
   timerPausedRemaining?: number | null; // seconds remaining when paused
   extensionRequests?: Array<{ userId: string; name: string }>;
+  // Response mode
+  responseMode?: string; // preset id or "custom:length:content"
 }
 
 interface UsePartyDmOptions {

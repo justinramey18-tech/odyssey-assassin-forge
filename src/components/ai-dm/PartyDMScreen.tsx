@@ -2061,6 +2061,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               onWhisperTrayEnabledChange={setWhisperTrayEnabled}
               onShowMemoryAnchors={onAddMemoryAnchor ? () => setShowMemoryAnchors(true) : undefined}
               memoryAnchorsCount={memoryAnchors?.length ?? 0}
+              responseMode={partyDm.sessionConfig?.responseMode}
+              onResponseModeChange={(modeId) => {
+                partyDm.updateSessionConfig({ responseMode: modeId ?? undefined });
+              }}
             />
           ) : undefined}
           oracleContent={activeNavTab === 'oracle' && characterContext ? (
