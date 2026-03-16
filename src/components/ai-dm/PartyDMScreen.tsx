@@ -773,6 +773,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     partyDm.submitPrompt(text);
   }, [partyDm]);
 
+  const handleReadyAutopilot = useCallback(() => {
+    if (!myAfkGuide) return;
+    // Submit the AFK guide wrapped in <<...>> delimiters (renders as Autopilot in chat)
+    const autopilotPrompt = `<<${myAfkGuide}>>`;
+    partyDm.submitPrompt(autopilotPrompt);
+    // Small delay to let the prompt insert, then mark as ready
+    setTimeout(() => partyDm.setReady(), 100);
+  }, [myAfkGuide, partyDm]);
+
   const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
     if (!items) return;
