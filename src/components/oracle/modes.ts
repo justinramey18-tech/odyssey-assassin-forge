@@ -76,6 +76,7 @@ export const oracleModes: OracleModeConfig[] = [
       'Quick catch-up',
       'What happened this scene?',
       'Full session recap',
+      'Detailed Recap',
       'Tactical briefing',
     ],
   },
