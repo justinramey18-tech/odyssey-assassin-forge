@@ -107,6 +107,8 @@ function getMemberColor(userId: string, members: Array<{ user_id: string }>): st
 const PARTY_VIDEO_REGEX = /^\s*\[video:(https?:\/\/.+)\]\s*$/;
 const PARTY_IMAGE_REGEX = /^\s*\[image:(https?:\/\/.+)\]\s*$/;
 const AFK_LINE_REGEX = /^(\[.+?\]) (?:\(AFK(?:\s*—\s*Cascade Prompt)?\): .+|: Holds their action)$/;
+// Detect autopilot lines: [Name]: <<...  (may be single-line or start of multi-line)
+const AUTOPILOT_START_REGEX = /^\[(.+?)\]:\s*<</;
 
 function highlightAfkNames(children: React.ReactNode, afkNames: string[]): React.ReactNode {
   if (!afkNames.length) return children;
@@ -134,20 +136,43 @@ function highlightAfkNames(children: React.ReactNode, afkNames: string[]): React
 function extractAfkNames(rawContent: string): string[] {
   const names: string[] = [];
   for (const line of rawContent.split('\n')) {
+    // Standard AFK line
     if (AFK_LINE_REGEX.test(line)) {
       const nameMatch = line.match(/^\[(.+?)\]/);
       if (nameMatch) names.push(nameMatch[1]);
     }
+    // Autopilot line (<<...>>)
+    const autopilotMatch = line.match(AUTOPILOT_START_REGEX);
+    if (autopilotMatch) {
+      names.push(autopilotMatch[1]);
+    }
   }
-  return names;
+  return [...new Set(names)];
 }
 
-/** Strip AFK guide text lines, keeping only non-AFK content */
+/** Strip AFK guide text lines and autopilot <<...>> blocks, keeping only non-AFK content */
 function stripHidden(content: string): string {
   const lines = content.split('\n');
   const result: string[] = [];
   let skipping = false;
+  let skippingAutopilot = false;
   for (const line of lines) {
+    // Start of autopilot block: [Name]: <<...
+    if (!skippingAutopilot && AUTOPILOT_START_REGEX.test(line)) {
+      skippingAutopilot = true;
+      // Check if the closing >> is on the same line
+      if (line.includes('>>')) {
+        skippingAutopilot = false;
+      }
+      continue;
+    }
+    // Inside autopilot block, skip until we find >>
+    if (skippingAutopilot) {
+      if (line.includes('>>')) {
+        skippingAutopilot = false;
+      }
+      continue;
+    }
     if (AFK_LINE_REGEX.test(line)) {
       skipping = true;
       continue;
