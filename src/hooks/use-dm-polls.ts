@@ -115,7 +115,7 @@ export function useDmPolls(partyId: string | null) {
   const closePoll = useCallback(async (pollId: string) => {
     if (!partyId || !user) return;
     const { data: rows } = await (supabase.from('party_shared_state') as any)
-      .select('state_data, user_id')
+      .select('state_data, user_id, id')
       .eq('party_id', partyId)
       .eq('state_type', 'dm_poll');
     const row = rows?.find((r: any) => (r.state_data as DmPoll).pollId === pollId);
@@ -128,5 +128,19 @@ export function useDmPolls(partyId: string | null) {
       .eq('state_type', 'dm_poll');
   }, [partyId, user]);
 
-  return { polls, createPoll, castVote, closePoll };
+  const deletePoll = useCallback(async (pollId: string) => {
+    if (!partyId || !user) return;
+    const { data: rows } = await (supabase.from('party_shared_state') as any)
+      .select('state_data, id')
+      .eq('party_id', partyId)
+      .eq('state_type', 'dm_poll');
+    const row = rows?.find((r: any) => (r.state_data as DmPoll).pollId === pollId);
+    if (!row) return;
+    await (supabase.from('party_shared_state') as any)
+      .delete()
+      .eq('id', row.id);
+    setPolls(prev => prev.filter(p => p.pollId !== pollId));
+  }, [partyId, user]);
+
+  return { polls, createPoll, castVote, closePoll, deletePoll };
 }
