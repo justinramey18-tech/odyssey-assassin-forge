@@ -190,10 +190,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   // Filter messages based on team membership + enrich with parsed whispers
   const filteredMessages = useMemo(() => {
-    const teamFiltered = isSplitActive && user
-      ? isCreator
-        ? messages // Host sees all
-        : messages.filter(m => !m.team || m.team === myTeam)
+    const teamFiltered = isSplitActive && user && myTeam
+      ? messages.filter(m => !m.team || m.team === myTeam)
       : messages;
     // Parse whispers from assistant messages and filter by character name
     return teamFiltered.map(m => enrichMessageWithWhispers(m, characterName));
