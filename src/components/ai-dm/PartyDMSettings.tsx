@@ -3,9 +3,10 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
-import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Cpu, Brain } from 'lucide-react';
+import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Cpu, Brain, Palette } from 'lucide-react';
 import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
 import { TimerSettings } from './RoundTimer';
+import { ResponseModeSelector } from './ResponseModeSelector';
 import type { PushSubscriptionState } from '@/lib/push-subscription';
 import type { DmMode } from '@/hooks/use-party-dm';
 
@@ -122,6 +123,9 @@ export interface PartyDMSettingsProps {
   // Memory anchors
   onShowMemoryAnchors?: () => void;
   memoryAnchorsCount?: number;
+  // Response mode
+  responseMode?: string;
+  onResponseModeChange?: (modeId: string | null) => void;
 }
 
 export function PartyDMSettings({
@@ -138,6 +142,7 @@ export function PartyDMSettings({
   members = [], coHostIds = [], currentUserId, onPromoteCoHost, onDemoteCoHost,
   whisperTrayEnabled, onWhisperTrayEnabledChange,
   onShowMemoryAnchors, memoryAnchorsCount = 0,
+  responseMode, onResponseModeChange,
 }: PartyDMSettingsProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   return (
@@ -298,6 +303,16 @@ export function PartyDMSettings({
           </div>
         )}
       </SettingsSection>
+
+      {/* Response Style (creator-only) */}
+      {isCreator && onResponseModeChange && (
+        <SettingsSection title="Response Style" icon={<Palette className="w-4 h-4 text-amber-400" />}>
+          <ResponseModeSelector
+            selectedMode={responseMode}
+            onModeChange={onResponseModeChange}
+          />
+        </SettingsSection>
+      )}
 
       {/* Tools */}
       <SettingsSection title="Tools" icon={<Map className="w-4 h-4 text-emerald-400" />}>

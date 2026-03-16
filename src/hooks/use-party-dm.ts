@@ -9,6 +9,7 @@ import type { DmSplitState, SplitTeam } from '@/lib/party-split-types';
 import { sendReadyUpNotification } from '@/lib/party-notifications';
 import { parseWhispers } from '@/lib/whisper-parser';
 import { loadSelectedModel } from '@/lib/dm-models';
+import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
 import { loadCombatSettings } from '@/lib/combat/combatSettings';
 import { formatPartyPowerForPrompt } from '@/lib/combat/encounterDifficulty';
 import { getAlignmentZone, type AlignmentScore } from '@/lib/alignmentSpectrum';
@@ -105,6 +106,8 @@ export interface DmSessionConfig {
   timerStartedAt?: string | null; // ISO timestamp when timer was started
   timerPausedRemaining?: number | null; // seconds remaining when paused
   extensionRequests?: Array<{ userId: string; name: string }>;
+  // Response mode
+  responseMode?: string; // preset id or "custom:length:content"
 }
 
 interface UsePartyDmOptions {
@@ -1041,6 +1044,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         const alphaMessages = messages.filter(m => m.team === 'alpha');
         const betaMessages = messages.filter(m => m.team === 'beta');
 
+        const splitResponseModePrompt = resolveResponseModePrompt(sessionConfig.responseMode);
+
         // --- Team Alpha ---
         if (alphaPrompts.length > 0) {
           const { guidesSection: alphaAfkGuides, promptSection: alphaAfkPrompts, consumedCascades: alphaConsumed } = buildAfkGuidesContext(alphaPrompts, splitState.alphaMembers);
@@ -1063,13 +1068,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           const alphaMembersSummary = buildPartyMembersGuide(splitState.alphaMembers);
           const alphaApiMsgs = alphaMessages.map(m => ({ role: m.role, content: m.content }));
           alphaApiMsgs.push({ role: 'user', content: alphaForAI });
-
           const alphaGuides = [
             customGuidesContent || '',
             `\n\n## PARTY SPLIT — ${splitState.alphaName || 'Team Alpha'}\nThe party has split up. You are narrating ONLY for "${splitState.alphaName || 'Team Alpha'}".\n${alphaMembersSummary}\nDo NOT narrate what the other team ("${splitState.betaName || 'Team Beta'}") is doing. Focus solely on this group's adventure. Refer to this group as "${splitState.alphaName || 'Team Alpha'}" in your narration.`,
             splitState.betaSummary ? `\n\n## OTHER TEAM CONTEXT (hidden from players)\n"${splitState.betaName || 'Team Beta'}"'s adventure summary (for narrative coherence only — do NOT reveal to "${splitState.alphaName || 'Team Alpha'}"):\n${splitState.betaSummary}` : '',
             splitState.alphaSummary ? `\n\n## PREVIOUS "${splitState.alphaName || 'Team Alpha'}" SUMMARY\n${splitState.alphaSummary}` : '',
             alphaAfkGuides,
+            splitResponseModePrompt,
           ].filter(Boolean).join('\n\n');
 
           const alphaContent = await streamAIResponse(alphaApiMsgs, alphaGuides, abortRef.current!.signal);
@@ -1115,6 +1120,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             splitState.alphaSummary ? `\n\n## OTHER TEAM CONTEXT (hidden from players)\n"${splitState.alphaName || 'Team Alpha'}"'s adventure summary (for narrative coherence only — do NOT reveal to "${splitState.betaName || 'Team Beta'}"):\n${splitState.alphaSummary}` : '',
             splitState.betaSummary ? `\n\n## PREVIOUS "${splitState.betaName || 'Team Beta'}" SUMMARY\n${splitState.betaSummary}` : '',
             betaAfkGuides,
+            splitResponseModePrompt,
           ].filter(Boolean).join('\n\n');
 
           const betaContent = await streamAIResponse(betaApiMsgs, betaGuides, abortRef.current!.signal);
@@ -1218,10 +1224,12 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         const apiMessages = messages.map(m => ({ role: m.role, content: m.content }));
         apiMessages.push({ role: 'user', content: combined });
 
+        const responseModePrompt = resolveResponseModePrompt(sessionConfig.responseMode);
         const guides = [
           customGuidesContent || '',
           `\n\n## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
           afkGuidesSection,
+          responseModePrompt,
         ].filter(Boolean).join('\n\n');
 
         const assistantContent = await streamAIResponse(apiMessages, guides, abortRef.current!.signal);
