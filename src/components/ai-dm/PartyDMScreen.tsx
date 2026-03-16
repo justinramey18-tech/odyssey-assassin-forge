@@ -781,9 +781,17 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     }
   }, [user?.id, pushState, refreshPushState]);
 
+  const prevMessageCount = useRef(0);
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    const el = scrollRef.current;
+    if (!el) return;
+    const currentCount = partyDm.messages.length + partyDm.currentPrompts.length;
+    const isNewMessage = currentCount > prevMessageCount.current;
+    prevMessageCount.current = currentCount;
+    // Only auto-scroll if user is near bottom or a new message arrived
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
+    if (isNewMessage || isNearBottom) {
+      el.scrollTop = el.scrollHeight;
     }
   }, [partyDm.messages, partyDm.currentPrompts]);
 
