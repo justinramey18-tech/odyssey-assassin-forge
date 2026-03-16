@@ -142,6 +142,7 @@ export function PartyDMSettings({
   members = [], coHostIds = [], currentUserId, onPromoteCoHost, onDemoteCoHost,
   whisperTrayEnabled, onWhisperTrayEnabledChange,
   onShowMemoryAnchors, memoryAnchorsCount = 0,
+  responseMode, onResponseModeChange,
 }: PartyDMSettingsProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   return (
