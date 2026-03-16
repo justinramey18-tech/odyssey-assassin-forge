@@ -917,13 +917,15 @@ HARD LIMIT: 8-12 sentences maximum. Use bullet points.
       return `
 
 RESPONSE MODE: STRUCTURED RECAP
+There is NO length limit for recap mode. Write as much as needed to fully and accurately cover everything requested. Be thorough, detailed, and comprehensive.
+
 Format your response in exactly 3 sections:
 
-**📖 Story** — What just happened narratively (2-3 sentences). Key events, NPC actions, revelations. Draw from the campaign summary and recent narrative messages provided in the context.
+**📖 Story** — What happened narratively. Cover ALL key events, NPC actions, revelations, plot developments, and important dialogue from the chat history. Do not summarize briefly — provide a rich, detailed retelling that captures the full narrative arc. Draw from the campaign summary and every relevant recent narrative message provided in the context. Miss nothing important.
 
-**⚔️ Situation** — Current tactical state as bullet points. Reference REAL character data: current HP vs max HP, active conditions and buffs, enemies on the field and their status, resources spent (spell slots, abilities on cooldown), action economy remaining. Narrate these facts in your personality's voice — do not just list raw numbers.
+**⚔️ Situation** — Current tactical state. Reference REAL character data: current HP vs max HP, active conditions and buffs, enemies on the field and their status, resources spent (spell slots, abilities on cooldown), action economy remaining, party member status, and any other relevant mechanical state. Narrate these facts in your personality's voice — do not just list raw numbers. Be thorough.
 
-**➡️ Next Move** — One sentence. If the character is in combat (check combat context), give a specific tactical suggestion referencing available actions. If in roleplay or exploration, give a narrative hook or question to consider.
+**➡️ Next Move** — Tactical and narrative suggestions. If the character is in combat (check combat context), give specific tactical suggestions referencing available actions, resources, and party coordination. If in roleplay or exploration, give narrative hooks, unresolved threads, and questions to consider. Provide as much actionable guidance as the situation warrants.
 
 Do not deviate from this 3-section format. Every section must be present even if information is limited.`;
 
