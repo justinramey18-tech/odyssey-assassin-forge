@@ -1044,6 +1044,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         const alphaMessages = messages.filter(m => m.team === 'alpha');
         const betaMessages = messages.filter(m => m.team === 'beta');
 
+        const splitResponseModePrompt = resolveResponseModePrompt(sessionConfig.responseMode);
+
         // --- Team Alpha ---
         if (alphaPrompts.length > 0) {
           const { guidesSection: alphaAfkGuides, promptSection: alphaAfkPrompts, consumedCascades: alphaConsumed } = buildAfkGuidesContext(alphaPrompts, splitState.alphaMembers);
@@ -1066,8 +1068,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           const alphaMembersSummary = buildPartyMembersGuide(splitState.alphaMembers);
           const alphaApiMsgs = alphaMessages.map(m => ({ role: m.role, content: m.content }));
           alphaApiMsgs.push({ role: 'user', content: alphaForAI });
-
-          const splitResponseModePrompt = resolveResponseModePrompt(sessionConfig.responseMode);
           const alphaGuides = [
             customGuidesContent || '',
             `\n\n## PARTY SPLIT — ${splitState.alphaName || 'Team Alpha'}\nThe party has split up. You are narrating ONLY for "${splitState.alphaName || 'Team Alpha'}".\n${alphaMembersSummary}\nDo NOT narrate what the other team ("${splitState.betaName || 'Team Beta'}") is doing. Focus solely on this group's adventure. Refer to this group as "${splitState.alphaName || 'Team Alpha'}" in your narration.`,
