@@ -2075,7 +2075,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               memoryAnchors: memoryAnchorsContent || undefined,
               recentNarrative: partyDm.messages
                 .filter(m => m.role === 'user' || m.role === 'assistant')
-                .slice(-10)
+                .slice(-35)
                 .map(m => ({
                   role: m.role,
                   name: m.sender_name,

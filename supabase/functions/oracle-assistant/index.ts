@@ -409,7 +409,7 @@ function buildContextSummary(ctx: CharacterContext): string {
     ctx.recentNarrative.forEach(msg => {
       const speaker = msg.role === 'assistant' ? 'DM' : (msg.name || 'Player');
       // Cap each message to prevent prompt bloat
-      const content = msg.content.length > 500 ? msg.content.slice(0, 500) + '...' : msg.content;
+      const content = msg.content.length > 800 ? msg.content.slice(0, 800) + '...' : msg.content;
       lines.push(`${speaker}: ${content}`);
     });
     lines.push(`[RECENT NARRATIVE END]`);
