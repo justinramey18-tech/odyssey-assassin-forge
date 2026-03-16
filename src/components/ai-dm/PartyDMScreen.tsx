@@ -1786,6 +1786,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             ref={playerInputRef}
             onSubmit={handleSubmit}
             onReady={partyDm.setReady}
+            onReadyAutopilot={handleReadyAutopilot}
+            hasAfkGuide={!!myAfkGuide}
             onPaste={handlePaste}
             hasPrompt={!!partyDm.myPrompt}
             currentUserId={currentUserId}
