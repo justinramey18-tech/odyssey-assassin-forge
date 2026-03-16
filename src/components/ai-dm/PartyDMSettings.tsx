@@ -304,6 +304,16 @@ export function PartyDMSettings({
         )}
       </SettingsSection>
 
+      {/* Response Style (creator-only) */}
+      {isCreator && onResponseModeChange && (
+        <SettingsSection title="Response Style" icon={<Palette className="w-4 h-4 text-amber-400" />}>
+          <ResponseModeSelector
+            selectedMode={responseMode}
+            onModeChange={onResponseModeChange}
+          />
+        </SettingsSection>
+      )}
+
       {/* Tools */}
       <SettingsSection title="Tools" icon={<Map className="w-4 h-4 text-emerald-400" />}>
         {onShowMap && (
