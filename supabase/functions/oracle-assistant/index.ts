@@ -1018,12 +1018,11 @@ serve(async (req) => {
     else if (mode === 'chat') maxTokens = 400;
     else if (mode === 'analyze') maxTokens = 800;
     else if (mode === 'recap') {
-      // Variable token budget based on quick-prompt keywords
+      // Recap mode gets generous token budgets — no truncation
       const lastUserMsg = messages[messages.length - 1]?.content?.toLowerCase() || '';
-      if (lastUserMsg.includes('quick catch-up')) maxTokens = 400;
-      else if (lastUserMsg.includes('full session recap')) maxTokens = 1200;
-      else if (lastUserMsg.includes('tactical briefing')) maxTokens = 500;
-      else maxTokens = 600; // default recap budget ("what happened this scene?" and freeform)
+      if (lastUserMsg.includes('quick catch-up')) maxTokens = 1500;
+      else if (lastUserMsg.includes('tactical briefing')) maxTokens = 2000;
+      else maxTokens = 8192; // full/detailed recap and freeform — no truncation
     }
 
     // Anthropic streaming path
