@@ -2064,7 +2064,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   return {
     messages: filteredMessages,
     allMessages: messages,
-    currentPrompts,
+    currentPrompts: (isSplitActive && myTeam)
+      ? currentPrompts.filter(p => !p.team || p.team === myTeam)
+      : currentPrompts,
     sessionConfig,
     isActive,
     isGenerating: isGenerating || (sessionConfig?.isGenerating ?? false),
