@@ -1805,12 +1805,17 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               <div className="flex items-center gap-2">
                 <div className="flex-1 bg-white/5 border border-amber-900/30 rounded-xl px-4 py-2.5">
                   <p className="text-[10px] text-white/40 mb-0.5">Your action:</p>
-                  <p className="text-sm text-white/70 truncate">{partyDm.myPrompt?.prompt || '(no action)'}</p>
+                  <p className="text-sm text-white/70 truncate">
+                    {partyDm.myPrompt?.prompt?.startsWith('<<') && partyDm.myPrompt?.prompt?.endsWith('>>')
+                      ? <span className="flex items-center gap-1"><Ghost className="w-3 h-3 text-purple-400 inline" /> Autopilot</span>
+                      : (partyDm.myPrompt?.prompt || '(no action)')}
+                  </p>
                 </div>
                 <button
                   onClick={() => {
                     const promptText = partyDm.myPrompt?.prompt || '';
-                    if (promptText) {
+                    // Don't restore autopilot prompts to the text input
+                    if (promptText && !promptText.startsWith('<<')) {
                       playerInputRef.current?.setText(promptText);
                     }
                     partyDm.retractPrompt();
