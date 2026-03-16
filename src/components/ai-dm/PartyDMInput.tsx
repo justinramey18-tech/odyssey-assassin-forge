@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useImperativeHandle, forwardRef, memo } from 'react';
-import { Send, Check, Paperclip, Loader2, Camera, Film, ImageIcon, BarChart3 } from 'lucide-react';
+import { Send, Check, Paperclip, Loader2, Camera, Film, ImageIcon, BarChart3, Ghost } from 'lucide-react';
 import { useDraftPersist } from '@/hooks/use-draft-persist';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -15,6 +15,8 @@ export interface PartyDMInputHandle {
 interface PartyDMInputProps {
   onSubmit: (text: string) => void;
   onReady: () => void;
+  onReadyAutopilot?: () => void;
+  hasAfkGuide?: boolean;
   onPaste: (e: React.ClipboardEvent) => void;
   disabled?: boolean;
   hasPrompt?: boolean;
@@ -29,7 +31,7 @@ interface PartyDMInputProps {
 }
 
 export const PartyDMInput = memo(forwardRef<PartyDMInputHandle, PartyDMInputProps>(function PartyDMInput(
-  { onSubmit, onReady, onPaste, disabled, hasPrompt, currentUserId, isUploadingPhoto, isUploadingVideo, onTakePhoto, onRecordVideo, onPickPhoto, onPickVideo, onCreatePoll },
+  { onSubmit, onReady, onReadyAutopilot, hasAfkGuide, onPaste, disabled, hasPrompt, currentUserId, isUploadingPhoto, isUploadingVideo, onTakePhoto, onRecordVideo, onPickPhoto, onPickVideo, onCreatePoll },
   ref
 ) {
   const [input, setInput, clearInput] = useDraftPersist('odyssey-party-dm-draft');
@@ -114,12 +116,22 @@ export const PartyDMInput = memo(forwardRef<PartyDMInputHandle, PartyDMInputProp
       <div className="flex items-center gap-2">
         <Button
           onClick={onReady}
-          className="flex-1 gap-1.5 bg-emerald-900/40 border border-emerald-500/30 hover:bg-emerald-900/60 text-emerald-300"
+          className={cn("gap-1.5 bg-emerald-900/40 border border-emerald-500/30 hover:bg-emerald-900/60 text-emerald-300", hasAfkGuide ? "flex-1" : "flex-1")}
           size="sm"
         >
           <Check className="w-4 h-4" />
-          Ready (No Action)
+          {hasAfkGuide ? 'No Action' : 'Ready (No Action)'}
         </Button>
+        {hasAfkGuide && (
+          <Button
+            onClick={onReadyAutopilot}
+            className="flex-1 gap-1.5 bg-purple-900/40 border border-purple-500/30 hover:bg-purple-900/60 text-purple-300"
+            size="sm"
+          >
+            <Ghost className="w-4 h-4" />
+            Autopilot
+          </Button>
+        )}
         {currentUserId && (
           <div className="flex gap-1 shrink-0">
             <div className="relative" data-attach-menu>
