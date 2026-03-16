@@ -190,14 +190,12 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   // Filter messages based on team membership + enrich with parsed whispers
   const filteredMessages = useMemo(() => {
-    const teamFiltered = isSplitActive && user
-      ? isCreator
-        ? messages // Host sees all
-        : messages.filter(m => !m.team || m.team === myTeam)
+    const teamFiltered = isSplitActive && user && myTeam
+      ? messages.filter(m => !m.team || m.team === myTeam)
       : messages;
     // Parse whispers from assistant messages and filter by character name
     return teamFiltered.map(m => enrichMessageWithWhispers(m, characterName));
-  }, [messages, isSplitActive, user, isCreator, myTeam, characterName]);
+  }, [messages, isSplitActive, user, myTeam, characterName]);
 
   // Load existing data when session becomes active
   useEffect(() => {
@@ -2066,7 +2064,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   return {
     messages: filteredMessages,
     allMessages: messages,
-    currentPrompts,
+    currentPrompts: (isSplitActive && myTeam)
+      ? currentPrompts.filter(p => !p.team || p.team === myTeam)
+      : currentPrompts,
     sessionConfig,
     isActive,
     isGenerating: isGenerating || (sessionConfig?.isGenerating ?? false),
