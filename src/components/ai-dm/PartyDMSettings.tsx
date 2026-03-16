@@ -123,6 +123,9 @@ export interface PartyDMSettingsProps {
   // Memory anchors
   onShowMemoryAnchors?: () => void;
   memoryAnchorsCount?: number;
+  // Response mode
+  responseMode?: string;
+  onResponseModeChange?: (modeId: string | null) => void;
 }
 
 export function PartyDMSettings({
