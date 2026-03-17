@@ -151,6 +151,7 @@ interface DMRequest {
 
 const MAX_CUSTOM_GUIDES_CHARS = 200000;
 const MAX_MESSAGES = 100;
+const MAX_TOTAL_MESSAGE_CHARS = 120000; // ~30K tokens — leave room for system prompt + output
 
 // Models routed through Lovable AI gateway
 const LOVABLE_MODELS = new Set([
@@ -690,10 +691,20 @@ serve(async (req) => {
 
     const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride } = (await req.json()) as DMRequest;
     
-    // Trim to last 100 messages
-    const trimmedMessages = messages.length > MAX_MESSAGES
+    // Trim to last 100 messages, then cap by total character count
+    let trimmedMessages = messages.length > MAX_MESSAGES
       ? [...messages.slice(0, 2), ...messages.slice(-(MAX_MESSAGES - 2))]
-      : messages;
+      : [...messages];
+    
+    // Character-based truncation: drop oldest messages (keeping first 2 for context)
+    // until total chars fit within budget
+    let totalChars = trimmedMessages.reduce((sum, m) => sum + (m.content?.length || 0), 0);
+    while (totalChars > MAX_TOTAL_MESSAGE_CHARS && trimmedMessages.length > 4) {
+      // Remove the 3rd message (index 2), preserving first 2 and latest messages
+      const removed = trimmedMessages.splice(2, 1);
+      totalChars -= removed[0]?.content?.length || 0;
+    }
+    console.log(`[ai-dm] Messages: ${trimmedMessages.length}, total chars: ${totalChars}`);
 
     // Use override if provided (e.g. whisper regeneration), otherwise build full DM prompt
     const systemPrompt = systemPromptOverride?.trim() || buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext);

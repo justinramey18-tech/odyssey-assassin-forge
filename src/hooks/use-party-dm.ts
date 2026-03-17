@@ -792,6 +792,21 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
   }, [partyId, isCreator, sessionConfig]);
 
+  // Helper: truncate messages by total character count to avoid exceeding AI context windows
+  const truncateMessagesByChars = useCallback((msgs: Array<{ role: string; content: string }>, maxChars: number) => {
+    const totalChars = msgs.reduce((sum, m) => sum + m.content.length, 0);
+    if (totalChars <= maxChars) return msgs;
+    // Keep first 2 messages (opening context) and trim from the middle
+    const result = [...msgs];
+    let chars = totalChars;
+    while (chars > maxChars && result.length > 4) {
+      const removed = result.splice(2, 1);
+      chars -= removed[0]?.content?.length || 0;
+    }
+    console.log(`[PartyDM] Truncated messages: ${msgs.length} → ${result.length}, chars: ${totalChars} → ${chars}`);
+    return result;
+  }, []);
+
   // Helper: merge consecutive same-role messages to avoid API rejections
   // Many AI APIs (OpenAI, Anthropic) require strictly alternating user/assistant roles
   const mergeConsecutiveRoles = useCallback((msgs: Array<{ role: string; content: string }>) => {
@@ -826,7 +841,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         Authorization: `Bearer ${authToken}`,
       },
       body: JSON.stringify({
-        messages: sanitizedMessages.slice(-100),
+        messages: truncateMessagesByChars(sanitizedMessages.slice(-100), 120000),
         characterContext,
         campaignSummary: sessionConfig?.campaignSummary || undefined,
         customGuides: extraGuides,
