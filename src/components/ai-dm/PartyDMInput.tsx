@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useImperativeHandle, forwardRef, memo } from 'react';
-import { Send, Check, Paperclip, Loader2, Camera, Film, ImageIcon, BarChart3, Ghost } from 'lucide-react';
+import { Send, Check, Paperclip, Loader2, Camera, Film, ImageIcon, BarChart3, Ghost, Music } from 'lucide-react';
 import { useDraftPersist } from '@/hooks/use-draft-persist';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -23,15 +23,17 @@ interface PartyDMInputProps {
   currentUserId?: string;
   isUploadingPhoto?: boolean;
   isUploadingVideo?: boolean;
+  isUploadingAudio?: boolean;
   onTakePhoto?: () => void;
   onRecordVideo?: () => void;
   onPickPhoto?: () => void;
   onPickVideo?: () => void;
+  onPickAudio?: () => void;
   onCreatePoll?: () => void;
 }
 
 export const PartyDMInput = memo(forwardRef<PartyDMInputHandle, PartyDMInputProps>(function PartyDMInput(
-  { onSubmit, onReady, onReadyAutopilot, hasAfkGuide, onPaste, disabled, hasPrompt, currentUserId, isUploadingPhoto, isUploadingVideo, onTakePhoto, onRecordVideo, onPickPhoto, onPickVideo, onCreatePoll },
+  { onSubmit, onReady, onReadyAutopilot, hasAfkGuide, onPaste, disabled, hasPrompt, currentUserId, isUploadingPhoto, isUploadingVideo, isUploadingAudio, onTakePhoto, onRecordVideo, onPickPhoto, onPickVideo, onPickAudio, onCreatePoll },
   ref
 ) {
   const [input, setInput, clearInput] = useDraftPersist('odyssey-party-dm-draft');
@@ -137,12 +139,12 @@ export const PartyDMInput = memo(forwardRef<PartyDMInputHandle, PartyDMInputProp
             <div className="relative" data-attach-menu>
               <button
                 onClick={() => setShowAttachMenu(prev => !prev)}
-                disabled={isUploadingPhoto || isUploadingVideo}
+                disabled={isUploadingPhoto || isUploadingVideo || isUploadingAudio}
                 className="p-2 rounded-xl border border-white/10 hover:border-amber-500/30 bg-white/5 hover:bg-amber-900/20 transition-colors"
                 style={{ touchAction: 'manipulation' }}
                 title="Attach media"
               >
-                {(isUploadingPhoto || isUploadingVideo) ? (
+                {(isUploadingPhoto || isUploadingVideo || isUploadingAudio) ? (
                   <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
                 ) : (
                   <Paperclip className="w-4 h-4 text-white/50" />
@@ -182,6 +184,14 @@ export const PartyDMInput = memo(forwardRef<PartyDMInputHandle, PartyDMInputProp
                   >
                     <Film className="w-4 h-4" />
                     Video from Gallery
+                  </button>
+                  <button
+                    onClick={() => { onPickAudio?.(); setShowAttachMenu(false); }}
+                    className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs"
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    <Music className="w-4 h-4" />
+                    Audio from Files
                   </button>
                   <div className="border-t border-white/5 my-0.5" />
                   <button

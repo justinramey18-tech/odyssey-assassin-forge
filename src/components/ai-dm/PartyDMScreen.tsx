@@ -5,7 +5,7 @@ import partyChatIcon from '@/assets/party-chat-icon.jpg';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3, PawPrint, Bookmark, BookmarkCheck } from 'lucide-react';
+import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3, PawPrint, Bookmark, BookmarkCheck, Music, Play, Pause } from 'lucide-react';
 import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
 import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer, PreSplitChatViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
@@ -107,6 +107,65 @@ function getMemberColor(userId: string, members: Array<{ user_id: string }>): st
 
 const PARTY_VIDEO_REGEX = /^\s*\[video:(https?:\/\/.+)\]\s*$/;
 const PARTY_IMAGE_REGEX = /^\s*\[image:(https?:\/\/.+)\]\s*$/;
+const PARTY_AUDIO_REGEX = /^\s*\[audio:(https?:\/\/.+)\]\s*$/;
+
+function AudioMessagePlayer({ src }: { src: string }) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const audioRef = React.useRef<HTMLAudioElement>(null);
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) audioRef.current.pause();
+    else audioRef.current.play();
+  };
+
+  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const formatTime = (s: number) => {
+    const mins = Math.floor(s / 60);
+    const secs = Math.floor(s % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div className="flex items-center gap-3 bg-black/30 border border-amber-900/20 rounded-xl px-3 py-2 max-w-[260px]">
+      <button
+        onClick={togglePlay}
+        className="w-9 h-9 rounded-full bg-amber-900/40 border border-amber-500/30 flex items-center justify-center shrink-0 hover:bg-amber-900/60 transition-colors"
+        style={{ touchAction: 'manipulation' }}
+      >
+        {isPlaying ? (
+          <Pause className="w-4 h-4 text-amber-400" />
+        ) : (
+          <Play className="w-4 h-4 text-amber-400 ml-0.5" />
+        )}
+      </button>
+      <div className="flex-1 min-w-0 space-y-1">
+        <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-amber-500/60 rounded-full transition-all duration-100"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+        <div className="flex justify-between text-[10px] text-white/50">
+          <span>{formatTime(currentTime)}</span>
+          <span>{duration > 0 ? formatTime(duration) : '--:--'}</span>
+        </div>
+      </div>
+      <audio
+        ref={audioRef}
+        src={src}
+        preload="metadata"
+        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+        onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onEnded={() => { setIsPlaying(false); setCurrentTime(0); }}
+      />
+    </div>
+  );
+}
 const AFK_LINE_REGEX = /^(\[.+?\]) (?:\(AFK(?:\s*—\s*Cascade Prompt)?\): .+|: Holds their action)$/;
 // Detect autopilot lines: [Name]: <<...  (may be single-line or start of multi-line)
 const AUTOPILOT_START_REGEX = /^\[(.+?)\]:\s*<</;
@@ -238,6 +297,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   const isMine = message.sender_user_id === currentUserId;
   const videoMatch = message.content.match(PARTY_VIDEO_REGEX);
   const imageMatch = !videoMatch ? message.content.match(PARTY_IMAGE_REGEX) : null;
+  const audioMatch = !videoMatch && !imageMatch ? message.content.match(PARTY_AUDIO_REGEX) : null;
 
   const afkCharNames = afkCharNamesProp ?? [];
 
@@ -354,6 +414,14 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                     <div className="rounded-xl overflow-hidden border border-amber-500/20 bg-black/40 max-w-[300px]">
                       <img src={imageMatch[1]} alt="Chat photo" className="w-full rounded-xl" loading="lazy" />
                     </div>
+                  </div>
+                ) : audioMatch ? (
+                  <div>
+                    <div className="flex items-center gap-1 mb-1.5">
+                      <Music className="w-3 h-3 text-amber-400" />
+                      <span className="text-[10px] text-amber-300/70 font-cinzel">Audio</span>
+                    </div>
+                    <AudioMessagePlayer src={audioMatch[1]} />
                   </div>
                 ) : (
                   <ReactMarkdown
@@ -529,6 +597,14 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                 <img src={imageMatch[1]} alt="Chat photo" className="w-full rounded-xl" loading="lazy" />
               </span>
             </span>
+          ) : audioMatch ? (
+            <span>
+              <span className="flex items-center gap-1 mb-1.5">
+                <Music className="w-3 h-3 text-amber-400" />
+                <span className="text-[10px] text-amber-300/70 font-cinzel">Audio</span>
+              </span>
+              <AudioMessagePlayer src={audioMatch[1]} />
+            </span>
           ) : (
             <AfkAnnotatedContent content={message.content} afkNames={extractAfkNames(message.content)} />
           )}
@@ -669,6 +745,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [selectedDmModel, setSelectedDmModel] = useState(() => loadSelectedModel());
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [isUploadingAudio, setIsUploadingAudio] = useState(false);
   const [showPollCreator, setShowPollCreator] = useState(false);
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState(['', '']);
@@ -681,6 +758,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   
   const videoInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
   const photoCameraRef = useRef<HTMLInputElement>(null);
   const videoCameraRef = useRef<HTMLInputElement>(null);
 
@@ -1857,6 +1935,28 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           finally { setIsUploadingVideo(false); if (videoCameraRef.current) videoCameraRef.current.value = ''; }
         }}
       />
+      <input
+        ref={audioInputRef}
+        type="file"
+        accept="audio/*"
+        className="hidden"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          if (file.size > 25 * 1024 * 1024) { toast.error('Audio too large (max 25MB)'); return; }
+          setIsUploadingAudio(true);
+          try {
+            const ext = file.name.split('.').pop() || 'mp3';
+            const path = `party-dm/${partyDm.sessionConfig?.currentRoundId || 'general'}/${crypto.randomUUID()}.${ext}`;
+            const { error } = await supabase.storage.from('party-chat-audio').upload(path, file);
+            if (error) throw error;
+            const { data: urlData } = supabase.storage.from('party-chat-audio').getPublicUrl(path);
+            const senderName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
+            await partyDm.addMediaMessage(`[audio:${urlData.publicUrl}]`, senderName);
+          } catch (err) { toast.error(err instanceof Error ? err.message : 'Audio upload failed'); }
+          finally { setIsUploadingAudio(false); if (audioInputRef.current) audioInputRef.current.value = ''; }
+        }}
+      />
 
       {/* Input Area */}
       {!isFullscreen && (
@@ -1902,10 +2002,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             currentUserId={currentUserId}
             isUploadingPhoto={isUploadingPhoto}
             isUploadingVideo={isUploadingVideo}
+            isUploadingAudio={isUploadingAudio}
             onTakePhoto={() => photoCameraRef.current?.click()}
             onRecordVideo={() => videoCameraRef.current?.click()}
             onPickPhoto={() => photoInputRef.current?.click()}
             onPickVideo={() => videoInputRef.current?.click()}
+            onPickAudio={() => audioInputRef.current?.click()}
             onCreatePoll={() => setShowPollCreator(true)}
           />
         ) : !isReady ? (
