@@ -535,6 +535,21 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
         </p>
         )}
 
+        {/* Bookmark button (all users) */}
+        {!isEditingMsg && onBookmark && (
+          <button
+            onClick={() => onBookmark(message.id)}
+            className={cn(
+              "p-1 rounded transition-colors opacity-0 group-hover/msg:opacity-100 mt-1",
+              isBookmarked ? "text-amber-400" : "text-white/20 hover:text-amber-400/70"
+            )}
+            style={{ touchAction: 'manipulation' }}
+            title={isBookmarked ? "Bookmarked" : "Bookmark here"}
+          >
+            {isBookmarked ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
+          </button>
+        )}
+
         {/* Host action buttons */}
         {isCreator && !isEditingMsg && (
           <div className="relative mt-1.5">
@@ -576,7 +591,6 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     </motion.div>
   );
 }, (prev, next) => {
-  // Custom comparator — skip re-render if nothing meaningful changed
   return prev.message.id === next.message.id
     && prev.message.content === next.message.content
     && prev.message.role === next.message.role
@@ -586,7 +600,8 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     && prev.isCreator === next.isCreator
     && prev.mode === next.mode
     && prev.showTeamTag === next.showTeamTag
-    && prev.currentUserId === next.currentUserId;
+    && prev.currentUserId === next.currentUserId
+    && prev.isBookmarked === next.isBookmarked;
 });
 
 export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, showBattleMap, battleMapContent, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid }: PartyDMScreenProps) {
