@@ -415,6 +415,14 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                       <img src={imageMatch[1]} alt="Chat photo" className="w-full rounded-xl" loading="lazy" />
                     </div>
                   </div>
+                ) : audioMatch ? (
+                  <div>
+                    <div className="flex items-center gap-1 mb-1.5">
+                      <Music className="w-3 h-3 text-amber-400" />
+                      <span className="text-[10px] text-amber-300/70 font-cinzel">Audio</span>
+                    </div>
+                    <AudioMessagePlayer src={audioMatch[1]} />
+                  </div>
                 ) : (
                   <ReactMarkdown
                     rehypePlugins={[rehypeRaw]}
