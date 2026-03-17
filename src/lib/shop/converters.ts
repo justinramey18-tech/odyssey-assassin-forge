@@ -152,24 +152,28 @@ export function convertShopItemToEquipment(shopItem: ShopItem): EquipmentItem {
   };
 }
 
-function inferSlotType(category?: string): EquipmentSlotType {
-  if (!category) return 'primary_weapon';
-  const lower = category.toLowerCase();
+function inferSlotType(category?: string, itemName?: string): EquipmentSlotType | null {
+  // Try category first, then fall back to item name
+  const sources = [category, itemName].filter(Boolean).map(s => s!.toLowerCase());
   
-  if (lower.includes('sword') || lower.includes('axe') || lower.includes('mace')) return 'primary_weapon';
-  if (lower.includes('dagger') || lower.includes('knife')) return 'secondary_weapon';
-  if (lower.includes('bow') || lower.includes('crossbow')) return 'ranged_weapon';
-  if (lower.includes('spear') || lower.includes('pike')) return 'secondary_weapon';
-  if (lower.includes('helm') || lower.includes('hood') || lower.includes('hat')) return 'head';
-  if (lower.includes('chest') || lower.includes('armor') || lower.includes('mail')) return 'chest';
-  if (lower.includes('glove') || lower.includes('bracer') || lower.includes('gauntlet')) return 'arms';
-  if (lower.includes('belt') || lower.includes('sash')) return 'waist';
-  if (lower.includes('boot') || lower.includes('greave') || lower.includes('leg')) return 'legs';
-  if (lower.includes('amulet') || lower.includes('necklace') || lower.includes('pendant')) return 'amulet';
-  if (lower.includes('ring')) return 'ring1';
-  if (lower.includes('cloak') || lower.includes('cape')) return 'chest';
+  for (const lower of sources) {
+    if (lower.includes('sword') || lower.includes('axe') || lower.includes('mace') || lower.includes('scimitar') || lower.includes('rapier') || lower.includes('flail') || lower.includes('maul') || lower.includes('glaive') || lower.includes('halberd')) return 'primary_weapon';
+    if (lower.includes('dagger') || lower.includes('knife')) return 'secondary_weapon';
+    if (lower.includes('bow') || lower.includes('crossbow') || lower.includes('sling') || lower.includes('blowgun')) return 'ranged_weapon';
+    if (lower.includes('spear') || lower.includes('pike') || lower.includes('trident') || lower.includes('whip')) return 'secondary_weapon';
+    if (lower.includes('helm') || lower.includes('hood') || lower.includes('hat') || lower.includes('circlet') || lower.includes('crown')) return 'head';
+    if (lower.includes('chest') || lower.includes('armor') || lower.includes('mail') || lower.includes('plate') || lower.includes('leather') || lower.includes('robe')) return 'chest';
+    if (lower.includes('glove') || lower.includes('bracer') || lower.includes('gauntlet') || lower.includes('vambrace')) return 'arms';
+    if (lower.includes('belt') || lower.includes('sash')) return 'waist';
+    if (lower.includes('boot') || lower.includes('greave') || lower.includes('leg')) return 'legs';
+    if (lower.includes('amulet') || lower.includes('necklace') || lower.includes('pendant') || lower.includes('periapt')) return 'amulet';
+    if (lower.includes('ring')) return 'ring1';
+    if (lower.includes('cloak') || lower.includes('cape') || lower.includes('mantle')) return 'chest';
+    if (lower.includes('staff') || lower.includes('wand')) return 'primary_weapon';
+    if (lower.includes('shield')) return 'secondary_weapon';
+  }
   
-  return 'primary_weapon'; // Default
+  return null; // No slot found — item should route to miscellaneous
 }
 
 function estimateLevelFromCost(cost: number): number {
