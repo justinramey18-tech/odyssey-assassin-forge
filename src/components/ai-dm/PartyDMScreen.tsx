@@ -40,6 +40,7 @@ import { ScheduledEventsSheet } from './ScheduledEventsSheet';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { CampaignSession } from '@/hooks/use-campaign-sessions';
 import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
+import { useBroadcastPlaylist } from '@/hooks/use-broadcast-playlist';
 import type { UseWildShapeReturn } from '@/hooks/use-wild-shape';
 import { WildShapeSection } from '@/components/drawers/QuickActionsDrawer';
 
