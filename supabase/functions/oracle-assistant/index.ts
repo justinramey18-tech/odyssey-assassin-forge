@@ -1021,11 +1021,10 @@ serve(async (req) => {
     else if (mode === 'chat') maxTokens = 400;
     else if (mode === 'analyze') maxTokens = 800;
     else if (mode === 'recap') {
-      // Recap mode gets generous token budgets — no truncation
       const lastUserMsg = messages[messages.length - 1]?.content?.toLowerCase() || '';
-      if (lastUserMsg.includes('quick catch-up')) maxTokens = 1500;
-      else if (lastUserMsg.includes('tactical briefing')) maxTokens = 2000;
-      else maxTokens = 8192; // full/detailed recap and freeform — no truncation
+      if (lastUserMsg.includes('quick catch-up')) maxTokens = 600;
+      else if (lastUserMsg.includes('tactical briefing')) maxTokens = 800;
+      else maxTokens = 1024;
     }
 
     // Anthropic streaming path
