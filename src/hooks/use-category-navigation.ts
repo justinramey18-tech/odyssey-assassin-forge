@@ -80,7 +80,7 @@ export function useCategoryNavigation(
     } catch {
       // Ignore parse errors
     }
-    return 'consumables';
+    return 'inventory';
   });
 
   const [utilitySubTab, setUtilitySubTab] = useState<string>(() => {
