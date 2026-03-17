@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useDmPolls } from '@/hooks/use-dm-polls';
 import { PartyDMInput, type PartyDMInputHandle } from './PartyDMInput';
+import { PartyDMAudioRecorder } from './PartyDMAudioRecorder';
 import partyChatIcon from '@/assets/party-chat-icon.jpg';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
@@ -746,15 +747,18 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isUploadingAudio, setIsUploadingAudio] = useState(false);
+  const [showAudioRecorder, setShowAudioRecorder] = useState(false);
   const [showPollCreator, setShowPollCreator] = useState(false);
 
   // Detect if the page was killed during a file picker operation (common on mobile)
   useEffect(() => {
     const pendingPicker = sessionStorage.getItem('pending-file-picker');
-    if (pendingPicker) {
-      sessionStorage.removeItem('pending-file-picker');
-      toast.error('File picker was interrupted — please try again', { duration: 4000 });
-    }
+    if (!pendingPicker) return;
+
+    sessionStorage.removeItem('pending-file-picker');
+    if (pendingPicker === 'audio') return;
+
+    toast.error('File picker was interrupted — please try again', { duration: 4000 });
   }, []);
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState(['', '']);
@@ -767,7 +771,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   
   const videoInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
-  const audioInputRef = useRef<HTMLInputElement>(null);
   const photoCameraRef = useRef<HTMLInputElement>(null);
   const videoCameraRef = useRef<HTMLInputElement>(null);
 
@@ -815,6 +818,31 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   });
   const [localTimerEnabled, setLocalTimerEnabled] = useState(partyDm.sessionConfig?.timerEnabled ?? false);
   const [localTimerDuration, setLocalTimerDuration] = useState(partyDm.sessionConfig?.timerDurationSeconds ?? 120);
+
+  const handleAudioUpload = useCallback(async (file: File) => {
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error('Audio too large (max 25MB)');
+      return;
+    }
+
+    setIsUploadingAudio(true);
+    try {
+      const fallbackExt = file.type.includes('mp4') ? 'm4a' : file.type.includes('mpeg') ? 'mp3' : 'webm';
+      const ext = file.name.split('.').pop() || fallbackExt;
+      const path = `party-dm/${partyDm.sessionConfig?.currentRoundId || 'general'}/${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from('party-chat-audio').upload(path, file);
+      if (error) throw error;
+      const { data: urlData } = supabase.storage.from('party-chat-audio').getPublicUrl(path);
+      const senderName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
+      await partyDm.addMediaMessage(`[audio:${urlData.publicUrl}]`, senderName);
+      setShowAudioRecorder(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Audio upload failed');
+      throw err;
+    } finally {
+      setIsUploadingAudio(false);
+    }
+  }, [currentUserId, members, partyDm]);
 
   // Sync local timer state when sessionConfig changes
   useEffect(() => {
@@ -1946,28 +1974,11 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           finally { setIsUploadingVideo(false); if (videoCameraRef.current) videoCameraRef.current.value = ''; }
         }}
       />
-      <input
-        ref={audioInputRef}
-        type="file"
-        accept="audio/*"
-        className="hidden"
-        onChange={async (e) => {
-          sessionStorage.removeItem('pending-file-picker');
-          const file = e.target.files?.[0];
-          if (!file) return;
-          if (file.size > 25 * 1024 * 1024) { toast.error('Audio too large (max 25MB)'); return; }
-          setIsUploadingAudio(true);
-          try {
-            const ext = file.name.split('.').pop() || 'mp3';
-            const path = `party-dm/${partyDm.sessionConfig?.currentRoundId || 'general'}/${crypto.randomUUID()}.${ext}`;
-            const { error } = await supabase.storage.from('party-chat-audio').upload(path, file);
-            if (error) throw error;
-            const { data: urlData } = supabase.storage.from('party-chat-audio').getPublicUrl(path);
-            const senderName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
-            await partyDm.addMediaMessage(`[audio:${urlData.publicUrl}]`, senderName);
-          } catch (err) { toast.error(err instanceof Error ? err.message : 'Audio upload failed'); }
-          finally { setIsUploadingAudio(false); if (audioInputRef.current) audioInputRef.current.value = ''; }
-        }}
+      <PartyDMAudioRecorder
+        open={showAudioRecorder}
+        onOpenChange={setShowAudioRecorder}
+        onSubmit={handleAudioUpload}
+        isUploading={isUploadingAudio}
       />
 
       {/* Input Area */}
@@ -2019,7 +2030,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             onRecordVideo={() => videoCameraRef.current?.click()}
             onPickPhoto={() => { sessionStorage.setItem('pending-file-picker', 'photo'); photoInputRef.current?.click(); }}
             onPickVideo={() => { sessionStorage.setItem('pending-file-picker', 'video'); videoInputRef.current?.click(); }}
-            onPickAudio={() => { sessionStorage.setItem('pending-file-picker', 'audio'); audioInputRef.current?.click(); }}
+            onPickAudio={() => setShowAudioRecorder(true)}
             onCreatePoll={() => setShowPollCreator(true)}
           />
         ) : !isReady ? (
