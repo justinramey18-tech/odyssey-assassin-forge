@@ -14,7 +14,7 @@ export function useOracle({ characterContext }: UseOracleOptions) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [personality, setPersonality] = useState<Personality>('deadpool');
-  const [mode, setMode] = useState<OracleMode>('quick');
+  const [mode, setMode] = useState<OracleMode>('recap');
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const sendMessage = useCallback(async (content: string) => {
