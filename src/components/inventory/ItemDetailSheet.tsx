@@ -23,6 +23,7 @@ interface ItemDetailSheetProps {
   onClose: () => void;
   onUnequip: () => void;
   onCompare: () => void;
+  onSell?: (item: EquipmentItem) => void;
 }
 
 export function ItemDetailSheet({
