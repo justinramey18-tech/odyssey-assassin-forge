@@ -745,6 +745,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [selectedDmModel, setSelectedDmModel] = useState(() => loadSelectedModel());
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [isUploadingAudio, setIsUploadingAudio] = useState(false);
   const [showPollCreator, setShowPollCreator] = useState(false);
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState(['', '']);
