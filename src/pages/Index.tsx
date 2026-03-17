@@ -100,6 +100,7 @@ import { useAbilityCustomization } from '@/hooks/use-ability-customization';
 import { useAbilityImages } from '@/hooks/use-ability-images';
 import { homebrewToAbility } from '@/lib/abilityCustomization/utils';
 import { useAuth } from '@/hooks/use-auth';
+import { useMiscItems } from '@/hooks/use-misc-items';
 import { useCloudSave } from '@/hooks/use-cloud-save';
 import { usePlayMode } from '@/hooks/use-play-mode';
 import { useAppMode } from '@/hooks/use-app-mode';
