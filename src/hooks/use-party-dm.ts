@@ -792,12 +792,32 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
   }, [partyId, isCreator, sessionConfig]);
 
+  // Helper: merge consecutive same-role messages to avoid API rejections
+  // Many AI APIs (OpenAI, Anthropic) require strictly alternating user/assistant roles
+  const mergeConsecutiveRoles = useCallback((msgs: Array<{ role: string; content: string }>) => {
+    if (msgs.length === 0) return msgs;
+    const merged: Array<{ role: string; content: string }> = [msgs[0]];
+    for (let i = 1; i < msgs.length; i++) {
+      const prev = merged[merged.length - 1];
+      if (msgs[i].role === prev.role) {
+        // Merge consecutive same-role messages
+        prev.content = prev.content + '\n\n' + msgs[i].content;
+      } else {
+        merged.push({ ...msgs[i] });
+      }
+    }
+    return merged;
+  }, []);
+
   // Helper: stream an AI response and return the content
   const streamAIResponse = useCallback(async (
     apiMessages: Array<{ role: string; content: string }>,
     extraGuides: string,
     signal: AbortSignal,
   ): Promise<string> => {
+    // Ensure strictly alternating roles before sending to AI
+    const sanitizedMessages = mergeConsecutiveRoles(apiMessages);
+
     const authToken = await getAuthToken();
     const response = await fetch(AI_DM_URL, {
       method: 'POST',
@@ -806,7 +826,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         Authorization: `Bearer ${authToken}`,
       },
       body: JSON.stringify({
-        messages: apiMessages.slice(-100),
+        messages: sanitizedMessages.slice(-100),
         characterContext,
         campaignSummary: sessionConfig?.campaignSummary || undefined,
         customGuides: extraGuides,
@@ -868,7 +888,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       }
     }
     return assistantContent;
-  }, [characterContext, sessionConfig?.campaignSummary]);
+  }, [characterContext, sessionConfig?.campaignSummary, mergeConsecutiveRoles]);
 
 
   // Build party members system prompt section
@@ -1214,14 +1234,16 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         const isApprovalMode = (sessionConfig.dmMode || 'ai') === 'ai-approval';
 
         // In approval mode, don't insert user message yet — defer to approveDraft
+        let insertedUserMsgId: string | null = null;
         if (!isApprovalMode) {
-          await insertPartyMessage({
+          const insertedMsg = await insertPartyMessageHelper(partyId, {
             party_id: partyId,
             role: 'user',
-            content: rawCombined, // Store raw prompts for readability
+            content: rawCombined,
             sender_user_id: user.id,
             sender_name: 'Party',
           });
+          insertedUserMsgId = insertedMsg?.id || null;
         }
 
         const partyMembersSummary = buildPartyMembersGuide();
@@ -1240,7 +1262,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
         if (assistantContent?.trim()) {
           if (isApprovalMode) {
-            // Store draft for host review instead of inserting
             setPendingDraft({
               content: assistantContent,
               userContent: combined,
@@ -1255,7 +1276,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
               sender_name: 'DM',
             });
 
-            // Trigger summary and auto-save
             const updatedMessages = [...messages,
               { id: '', party_id: partyId, role: 'user' as const, content: combined, sender_user_id: user.id, sender_name: 'Party', created_at: '' },
               { id: '', party_id: partyId, role: 'assistant' as const, content: assistantContent, sender_user_id: null, sender_name: 'DM', created_at: '' },
@@ -1263,6 +1283,15 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             triggerSummaryIfNeeded(updatedMessages);
             silentAutoSave(updatedMessages, sessionConfig.campaignSummary || null);
           }
+        } else if (insertedUserMsgId) {
+          // AI returned empty — roll back the orphaned user message to prevent
+          // consecutive same-role messages from snowballing future failures
+          console.warn('[PartyDM] AI returned empty response, rolling back user message', insertedUserMsgId);
+          await (supabase.from('party_dm_messages') as any)
+            .delete()
+            .eq('id', insertedUserMsgId);
+          setMessages(prev => prev.filter(m => m.id !== insertedUserMsgId));
+          toast.error('DM generation returned empty. Please try again.');
         }
 
         // Consume used cascade prompts for normal mode
