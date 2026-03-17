@@ -2014,9 +2014,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             isUploadingAudio={isUploadingAudio}
             onTakePhoto={() => photoCameraRef.current?.click()}
             onRecordVideo={() => videoCameraRef.current?.click()}
-            onPickPhoto={() => photoInputRef.current?.click()}
-            onPickVideo={() => videoInputRef.current?.click()}
-            onPickAudio={() => audioInputRef.current?.click()}
+            onPickPhoto={() => { sessionStorage.setItem('pending-file-picker', 'photo'); photoInputRef.current?.click(); }}
+            onPickVideo={() => { sessionStorage.setItem('pending-file-picker', 'video'); videoInputRef.current?.click(); }}
+            onPickAudio={() => { sessionStorage.setItem('pending-file-picker', 'audio'); audioInputRef.current?.click(); }}
             onCreatePoll={() => setShowPollCreator(true)}
           />
         ) : !isReady ? (
