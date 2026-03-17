@@ -41,6 +41,22 @@ export const PartyDMInput = memo(forwardRef<PartyDMInputHandle, PartyDMInputProp
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  const autoResizeTextarea = useCallback(() => {
+    requestAnimationFrame(() => {
+      if (inputRef.current) {
+        inputRef.current.style.height = 'auto';
+        inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 200) + 'px';
+      }
+    });
+  }, []);
+
+  const { isListening, isSupported, toggle: toggleSpeech } = useSpeechToText({
+    onTranscript: useCallback((text: string) => {
+      setInput(prev => prev ? prev + ' ' + text : text);
+      autoResizeTextarea();
+    }, [setInput, autoResizeTextarea]),
+  });
+
   useImperativeHandle(ref, () => ({
     setText: (text: string) => {
       setInput(text);
