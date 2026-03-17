@@ -747,6 +747,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isUploadingAudio, setIsUploadingAudio] = useState(false);
   const [showPollCreator, setShowPollCreator] = useState(false);
+
+  // Detect if the page was killed during a file picker operation (common on mobile)
+  useEffect(() => {
+    const pendingPicker = sessionStorage.getItem('pending-file-picker');
+    if (pendingPicker) {
+      sessionStorage.removeItem('pending-file-picker');
+      toast.error('File picker was interrupted — please try again', { duration: 4000 });
+    }
+  }, []);
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState(['', '']);
   const [expandedPillUserId, setExpandedPillUserId] = useState<string | null>(null);
