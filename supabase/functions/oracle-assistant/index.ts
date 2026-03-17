@@ -917,17 +917,20 @@ HARD LIMIT: 8-12 sentences maximum. Use bullet points.
       return `
 
 RESPONSE MODE: STRUCTURED RECAP
-There is NO length limit for recap mode. Write as much as needed to fully and accurately cover everything requested. Be thorough, detailed, and comprehensive.
+HARD LIMIT: ~400 words maximum. Be concise and itemized — no prose paragraphs.
 
-Format your response in exactly 3 sections:
+Format your response in exactly 2 sections:
 
-**📖 Story** — What happened narratively. Cover ALL key events, NPC actions, revelations, plot developments, and important dialogue from the chat history. Do not summarize briefly — provide a rich, detailed retelling that captures the full narrative arc. Draw from the campaign summary and every relevant recent narrative message provided in the context. Miss nothing important.
+**📖 What Happened** — A chronological bullet-point timeline of key events since the user's last bookmark (or the last 35 messages). Each bullet is ONE sentence covering a single event, decision, combat outcome, or revelation. Order from oldest to newest. Cap at 8-12 bullets — skip trivial moments, focus on events that matter.
 
-**⚔️ Situation** — Current tactical state. Reference REAL character data: current HP vs max HP, active conditions and buffs, enemies on the field and their status, resources spent (spell slots, abilities on cooldown), action economy remaining, party member status, and any other relevant mechanical state. Narrate these facts in your personality's voice — do not just list raw numbers. Be thorough.
+**⚔️ Current Situation** — 2-3 sentences summarizing the party's current state RIGHT NOW: where they are, what they're facing, health/resource status, and any immediate threats or opportunities.
 
-**➡️ Next Move** — Tactical and narrative suggestions. If the character is in combat (check combat context), give specific tactical suggestions referencing available actions, resources, and party coordination. If in roleplay or exploration, give narrative hooks, unresolved threads, and questions to consider. Provide as much actionable guidance as the situation warrants.
-
-Do not deviate from this 3-section format. Every section must be present even if information is limited.`;
+Rules:
+- Use bullet points (•) for the timeline, NOT numbered lists
+- Do NOT write flowing narrative paragraphs
+- Do NOT include a "Next Move" section
+- Every bullet must be a concrete event, not vague summary
+- If covering many messages, prioritize: combat outcomes > story beats > loot/rewards > NPC interactions > flavor`;
 
     default:
       return `
