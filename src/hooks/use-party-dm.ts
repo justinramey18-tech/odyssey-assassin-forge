@@ -1905,7 +1905,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     let promptTeam: string | null = null;
 
     // 1. Check for ready prompts and insert consolidated user message FIRST
-    const readyPrompts = currentPrompts.filter(p => p.is_ready);
+    const readyPrompts = currentPrompts.filter(p => p.is_ready && memberUserIds.has(p.user_id));
     if (readyPrompts.length > 0) {
       promptTeam = isSplitActive && splitState && readyPrompts.length > 0
         ? readyPrompts[0].team || null
