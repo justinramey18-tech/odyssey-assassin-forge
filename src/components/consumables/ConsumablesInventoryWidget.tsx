@@ -403,6 +403,7 @@ export function ConsumablesInventoryWidget({
                       characterName={characterName}
                       onUse={onUseItem}
                       onAdjustQuantity={onAdjustQuantity}
+                      onSell={onSellItem}
                       compact={compact}
                     />
                   ))}
