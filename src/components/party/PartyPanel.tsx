@@ -17,6 +17,7 @@ import { PartyBattleMap } from './PartyBattleMap';
 import { PartyCombatLog } from './PartyCombatLog';
 import { SendItemScreen } from './SendItemScreen';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import type { UsePartySyncReturn, PartyMember } from '@/hooks/use-party-sync';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import type { InventoryItem } from '@/lib/consumables/types';
@@ -55,6 +56,7 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
+  const [kickTarget, setKickTarget] = useState<PartyMember | null>(null);
   const [showRolls, setShowRolls] = useState(false);
   const [showLoot, setShowLoot] = useState(false);
   const [showChat, setShowChat] = useState(false);
@@ -244,28 +246,7 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
             isCreator={party.isCreator}
             onViewActions={(m) => setSelectedMember(m)}
             onSendItem={(m) => setSendToMember(m)}
-            onKick={(m) => {
-              toast(`Remove ${m.character_name} from the party?`, {
-                description: 'They will be kicked immediately.',
-                action: {
-                  label: 'Remove',
-                  onClick: async () => {
-                    try {
-                      const { data, error } = await supabase.functions.invoke('party-link', {
-                        body: { action: 'kick', partyId: party.partyId, targetUserId: m.user_id },
-                      });
-                      if (error) throw error;
-                      if (data?.error) throw new Error(data.error);
-                      toast.success(`${m.character_name} removed from party`);
-                    } catch (e: any) {
-                      toast.error(e?.message || 'Failed to kick member');
-                    }
-                  },
-                },
-                cancel: { label: 'Cancel', onClick: () => {} },
-                duration: 10000,
-              });
-            }}
+            onKick={(m) => setKickTarget(m)}
             onlineInfo={onlineStatusMap[member.user_id]}
             compact={party.members.length >= 5}
           />
@@ -521,6 +502,37 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
           onClose={() => setSendToMember(null)}
         />
       )}
+
+      <AlertDialog open={!!kickTarget} onOpenChange={(open) => { if (!open) setKickTarget(null); }}>
+        <AlertDialogContent className="bg-background border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {kickTarget?.character_name}?</AlertDialogTitle>
+            <AlertDialogDescription>They will be kicked from the party immediately.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!kickTarget) return;
+                try {
+                  const { data, error } = await supabase.functions.invoke('party-link', {
+                    body: { action: 'kick', partyId: party.partyId, targetUserId: kickTarget.user_id },
+                  });
+                  if (error) throw error;
+                  if (data?.error) throw new Error(data.error);
+                  toast.success(`${kickTarget.character_name} removed from party`);
+                } catch (e: any) {
+                  toast.error(e?.message || 'Failed to kick member');
+                }
+                setKickTarget(null);
+              }}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
