@@ -996,7 +996,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const generateResponse = useCallback(async () => {
     if (!partyId || !user || !sessionConfig || isGenerating) return;
 
-    const readyPrompts = currentPrompts.filter(p => p.is_ready);
+    const readyPrompts = currentPrompts.filter(p => p.is_ready && memberUserIds.has(p.user_id));
     if (readyPrompts.length === 0) {
       toast.error('No ready prompts to generate from');
       return;
