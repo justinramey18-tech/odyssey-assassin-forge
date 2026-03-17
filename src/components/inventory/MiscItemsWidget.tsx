@@ -312,6 +312,7 @@ export function MiscItemsWidget({
               onRemove={() => onRemoveItem(item.id)}
               onAdjustQuantity={(delta) => onAdjustQuantity(item.id, delta)}
               onUpdateNotes={(notes) => onUpdateNotes(item.id, notes)}
+              onSell={onSellItem ? (qty) => onSellItem(item.id, qty) : undefined}
             />
           ))}
         </div>
