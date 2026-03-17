@@ -23,10 +23,12 @@ interface PartyDMInputProps {
   currentUserId?: string;
   isUploadingPhoto?: boolean;
   isUploadingVideo?: boolean;
+  isUploadingAudio?: boolean;
   onTakePhoto?: () => void;
   onRecordVideo?: () => void;
   onPickPhoto?: () => void;
   onPickVideo?: () => void;
+  onPickAudio?: () => void;
   onCreatePoll?: () => void;
 }
 
