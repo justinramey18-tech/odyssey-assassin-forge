@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { getThistleBadges, getBadgeColorClasses } from '@/lib/easter-eggs';
-import { Heart, Shield, Sparkles, ChevronDown, ChevronUp, Eye, Clock, Gift } from 'lucide-react';
+import { Heart, Shield, Sparkles, ChevronDown, ChevronUp, Eye, Clock, Gift, UserMinus } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { formatTimeForTimezone, getTimezoneAbbr } from '@/lib/timezone-storage';
 import type { PartyMember } from '@/hooks/use-party-sync';

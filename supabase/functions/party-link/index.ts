@@ -191,6 +191,47 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (action === 'kick') {
+      // Only party creator can kick members
+      const { data: party } = await supabase
+        .from('parties')
+        .select('*')
+        .eq('id', body.partyId)
+        .eq('created_by', user.id)
+        .maybeSingle();
+
+      if (!party) {
+        return new Response(JSON.stringify({ error: 'Not your party' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (!body.targetUserId || body.targetUserId === user.id) {
+        return new Response(JSON.stringify({ error: 'Invalid target' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { error: kickError } = await supabase
+        .from('party_members')
+        .delete()
+        .eq('party_id', body.partyId)
+        .eq('user_id', body.targetUserId);
+
+      if (kickError) {
+        return new Response(JSON.stringify({ error: kickError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     if (action === 'disband') {
       // Only creator can disband
       const { data: party } = await supabase
@@ -207,10 +248,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Delete the party row entirely — ON DELETE CASCADE on all child tables
-      // (party_members, party_shared_state, party_messages, party_combat_log,
-      //  party_dice_rolls, party_loot_queue, party_pings, party_actions)
-      // ensures all related data is cleaned up automatically.
       await supabase
         .from('parties')
         .delete()
