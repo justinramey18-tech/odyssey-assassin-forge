@@ -36,6 +36,7 @@ interface MiscItemsWidgetProps {
   onRemoveItem: (id: string) => void;
   onAdjustQuantity: (id: string, delta: number) => void;
   onUpdateNotes: (id: string, notes: string) => void;
+  onSellItem?: (id: string, quantity: number) => void;
 }
 
 function AddMiscItemDrawer({ onAddItem }: { onAddItem: MiscItemsWidgetProps['onAddItem'] }) {
