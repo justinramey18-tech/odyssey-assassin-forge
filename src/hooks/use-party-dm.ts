@@ -1739,7 +1739,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       contextApiMsgs.push({ role: 'user', content: `[DM Note]: The party regroups. ${reunionPrompt}` });
 
       abortRef.current = new AbortController();
-      const unificationContent = await streamAIResponse(restoredApiMsgs, unificationGuides, abortRef.current.signal);
+      const unificationContent = await streamAIResponse(contextApiMsgs, unificationGuides, abortRef.current.signal);
 
       if (unificationContent) {
         await (supabase.from('party_dm_messages') as any).insert({
