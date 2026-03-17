@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { MiscItem } from '@/lib/miscItems/types';
-import { v4 as uuidv4 } from 'uuid';
 
 const STORAGE_KEY = 'odyssey-misc-items';
 
