@@ -125,6 +125,8 @@ export function OraclePanel({ characterContext, className, bookmarkActive, bookm
           mode={mode}
           onPromptClick={handlePromptClick}
           disabled={isLoading}
+          bookmarkActive={bookmarkActive}
+          bookmarkMessageCount={bookmarkMessageCount}
         />
       )}
 

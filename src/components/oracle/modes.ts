@@ -73,6 +73,7 @@ export const oracleModes: OracleModeConfig[] = [
     description: 'Structured scene recap',
     color: '#EC4899', // pink
     quickPrompts: [
+      '📖 Catch me up from my bookmark',
       'Quick catch-up',
       'What happened this scene?',
       'Full session recap',
