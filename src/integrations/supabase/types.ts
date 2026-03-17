@@ -898,7 +898,6 @@ export type Database = {
       }
       party_messages: {
         Row: {
-          audio_url: string | null
           created_at: string
           id: string
           image_url: string | null
@@ -911,7 +910,6 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          audio_url?: string | null
           created_at?: string
           id?: string
           image_url?: string | null
@@ -924,7 +922,6 @@ export type Database = {
           user_id: string
         }
         Update: {
-          audio_url?: string | null
           created_at?: string
           id?: string
           image_url?: string | null

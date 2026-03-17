@@ -175,7 +175,6 @@ export interface PartyMessage {
   updated_at?: string | null;
   reply_to_id?: string | null;
   image_url?: string | null;
-  audio_url?: string | null;
   is_pinned?: boolean;
 }
 
@@ -271,7 +270,7 @@ export interface UsePartySyncReturn {
   claimLoot: (lootId: string, claimerName: string) => Promise<void>;
   partyLoot: PartyLootItem[];
   // Party Chat
-  sendMessage: (message: string, senderName: string, options?: { replyToId?: string; imageUrl?: string; audioUrl?: string }) => Promise<void>;
+  sendMessage: (message: string, senderName: string, options?: { replyToId?: string; imageUrl?: string }) => Promise<void>;
   editMessage: (messageId: string, newText: string) => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;
   bulkDeleteMessages: (messageIds: string[]) => Promise<void>;
@@ -279,7 +278,6 @@ export interface UsePartySyncReturn {
   pinMessage: (messageId: string) => Promise<void>;
   unpinMessage: (messageId: string) => Promise<void>;
   uploadChatImage: (file: File) => Promise<string | null>;
-  uploadChatAudio: (blob: Blob) => Promise<string | null>;
   partyMessages: PartyMessage[];
   // Reactions
   messageReactions: MessageReaction[];
@@ -1366,7 +1364,7 @@ export function usePartySync(): UsePartySyncReturn {
 
   // --- New feature functions ---
 
-  const sendMessage = useCallback(async (message: string, senderName: string, options?: { replyToId?: string; imageUrl?: string; audioUrl?: string }) => {
+  const sendMessage = useCallback(async (message: string, senderName: string, options?: { replyToId?: string; imageUrl?: string }) => {
     if (!user || !party.partyId) {
       toast.error('Not connected to party');
       return;
@@ -1380,7 +1378,6 @@ export function usePartySync(): UsePartySyncReturn {
     };
     if (options?.replyToId) insertData.reply_to_id = options.replyToId;
     if (options?.imageUrl) insertData.image_url = options.imageUrl;
-    if (options?.audioUrl) insertData.audio_url = options.audioUrl;
 
     const { error } = await (supabase.from('party_messages') as any).insert(insertData);
     if (error) {
@@ -1457,22 +1454,6 @@ export function usePartySync(): UsePartySyncReturn {
     const { data: urlData } = supabase.storage
       .from('party-chat-images')
       .getPublicUrl(path);
-    return urlData.publicUrl;
-  }, [user, party.partyId]);
-
-  const uploadChatAudio = useCallback(async (blob: Blob): Promise<string | null> => {
-    if (!user || !party.partyId) return null;
-    const path = `${user.id}/${party.partyId}/${Date.now()}.webm`;
-    const { data, error } = await supabase.storage
-      .from('party-chat-audio')
-      .upload(path, blob, { contentType: 'audio/webm', cacheControl: '3600' });
-    if (error) {
-      toast.error('Failed to upload voice message');
-      return null;
-    }
-    const { data: urlData } = supabase.storage
-      .from('party-chat-audio')
-      .getPublicUrl(data.path);
     return urlData.publicUrl;
   }, [user, party.partyId]);
 
@@ -1766,7 +1747,6 @@ export function usePartySync(): UsePartySyncReturn {
     pinMessage,
     unpinMessage,
     uploadChatImage,
-    uploadChatAudio,
     partyMessages,
     messageReactions,
     addReaction,

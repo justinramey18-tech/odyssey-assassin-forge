@@ -1,12 +1,11 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Send, X, MessageSquare, Pencil, Trash2, CheckSquare, Square, XCircle, Pin, PinOff, ImagePlus, Reply, ChevronDown, ChevronUp, SmilePlus, Copy, Check, Mic, MicOff, Play, Pause } from 'lucide-react';
+import { Send, X, MessageSquare, Pencil, Trash2, CheckSquare, Square, XCircle, Pin, PinOff, ImagePlus, Reply, ChevronDown, ChevronUp, SmilePlus, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { PartyChatMessage } from './PartyChat';
 import type { MessageReaction } from '@/hooks/use-party-sync';
-import { useVoiceRecorder } from '@/hooks/use-voice-recorder';
 
 interface FullscreenPartyChatProps {
   open: boolean;
@@ -14,7 +13,7 @@ interface FullscreenPartyChatProps {
   messages: PartyChatMessage[];
   currentUserId?: string;
   isPartyCreator?: boolean;
-  onSend: (message: string, options?: { replyToId?: string; imageUrl?: string; audioUrl?: string }) => Promise<void>;
+  onSend: (message: string, options?: { replyToId?: string; imageUrl?: string }) => Promise<void>;
   onEdit?: (messageId: string, newText: string) => Promise<void>;
   onDelete?: (messageId: string) => Promise<void>;
   onBulkDelete?: (messageIds: string[]) => Promise<void>;
@@ -22,7 +21,6 @@ interface FullscreenPartyChatProps {
   onPin?: (messageId: string) => Promise<void>;
   onUnpin?: (messageId: string) => Promise<void>;
   onUploadImage?: (file: File) => Promise<string | null>;
-  onUploadAudio?: (blob: Blob) => Promise<string | null>;
   typingUsers?: { userId: string; name: string }[];
   onTyping?: () => void;
   reactions?: MessageReaction[];
@@ -51,7 +49,7 @@ function formatTimestamp(dateStr: string): string {
 export function FullscreenPartyChat({
   open, onClose, messages, currentUserId, isPartyCreator,
   onSend, onEdit, onDelete, onBulkDelete, onClearAll,
-  onPin, onUnpin, onUploadImage, onUploadAudio, typingUsers, onTyping,
+  onPin, onUnpin, onUploadImage, typingUsers, onTyping,
   reactions, onAddReaction, onRemoveReaction, onlineStatusMap,
 }: FullscreenPartyChatProps) {
   const [text, setText] = useState('');
@@ -83,10 +81,6 @@ export function FullscreenPartyChat({
 
   // Emoji picker
   const [emojiPickerMsgId, setEmojiPickerMsgId] = useState<string | null>(null);
-
-  // Voice recording
-  const voiceRecorder = useVoiceRecorder();
-  const [uploadingAudio, setUploadingAudio] = useState(false);
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
 
   // Build reactions map: messageId -> { emoji -> { count, userReacted, names[] } }
@@ -188,31 +182,7 @@ export function FullscreenPartyChat({
     }
   }, [onUploadImage]);
 
-  // Voice recording handlers
-  const handleMicDown = useCallback(async () => {
-    if (!onUploadAudio) return;
-    await voiceRecorder.startRecording();
-  }, [voiceRecorder, onUploadAudio]);
-
-  const handleMicUp = useCallback(async () => {
-    if (!onUploadAudio || !voiceRecorder.isRecording) return;
-    const audioBlob = await voiceRecorder.stopRecording();
-    if (!audioBlob || audioBlob.size < 1000) return; // too short
-    setUploadingAudio(true);
-    try {
-      const audioUrl = await onUploadAudio(audioBlob);
-      if (audioUrl) {
-        const opts: { replyToId?: string; audioUrl?: string } = { audioUrl };
-        if (replyTo) opts.replyToId = replyTo.id;
-        await onSend('🎤 Voice message', opts);
-        setReplyTo(null);
-      }
-    } finally {
-      setUploadingAudio(false);
-    }
-  }, [voiceRecorder, onUploadAudio, onSend, replyTo]);
-
-
+  // Long-press handlers
   const startLongPress = useCallback((msg: PartyChatMessage, e: React.PointerEvent) => {
     if (bulkMode) return;
     const x = e.clientX;
@@ -437,13 +407,7 @@ export function FullscreenPartyChat({
                                 </div>
                               )}
                               <div className="space-y-1">
-                                {/* Hide "🎤 Voice message" text if audio_url present */}
-                                {!(msg.audio_url && msg.message === '🎤 Voice message') && (
-                                  <p className="text-sm text-foreground/90 break-words">{msg.message}</p>
-                                )}
-                                {msg.audio_url && (
-                                  <VoiceMessagePlayer src={msg.audio_url} />
-                                )}
+                                <p className="text-sm text-foreground/90 break-words">{msg.message}</p>
                                 {msg.image_url && (
                                   <a href={msg.image_url} target="_blank" rel="noopener noreferrer" className="block mb-1">
                                     <img src={msg.image_url} alt="Message image" className="max-w-full max-h-32 rounded" />
@@ -608,19 +572,6 @@ export function FullscreenPartyChat({
 
           {/* Input area */}
           <div className="border-t border-border/40 bg-background/95 backdrop-blur-sm px-4 py-3 space-y-2">
-            {/* Recording indicator */}
-            {voiceRecorder.isRecording && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-destructive/10 rounded-lg border border-destructive/30 text-xs">
-                <div className="w-2.5 h-2.5 rounded-full bg-destructive animate-pulse shrink-0" />
-                <span className="text-destructive font-medium flex-1">Recording... {voiceRecorder.recordingDuration}s</span>
-                <button
-                  onClick={() => voiceRecorder.cancelRecording()}
-                  className="text-muted-foreground hover:text-foreground text-xs underline"
-                >
-                  Cancel
-                </button>
-              </div>
-            )}
             {replyTo && (
               <div className="flex items-start gap-2 px-3 py-2 bg-primary/10 rounded-lg border border-primary/20 text-xs">
                 <Reply className="w-4 h-4 text-primary shrink-0 rotate-180" />
@@ -653,29 +604,13 @@ export function FullscreenPartyChat({
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
                 placeholder="Say something in party chat..."
                 className="text-sm"
-                disabled={sending || uploadingImage || uploadingAudio || voiceRecorder.isRecording}
+                disabled={sending || uploadingImage}
               />
               <Button size="icon" variant="ghost" onClick={() => fileInputRef.current?.click()}
-                disabled={uploadingImage || voiceRecorder.isRecording} className="text-muted-foreground hover:text-foreground">
+                disabled={uploadingImage} className="text-muted-foreground hover:text-foreground">
                 <ImagePlus className="w-4 h-4" />
               </Button>
-              {onUploadAudio && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onPointerDown={handleMicDown}
-                  onPointerUp={handleMicUp}
-                  onPointerLeave={() => { if (voiceRecorder.isRecording) voiceRecorder.cancelRecording(); }}
-                  disabled={uploadingAudio || sending}
-                  className={cn(
-                    "text-muted-foreground hover:text-foreground",
-                    voiceRecorder.isRecording && "bg-destructive/20 text-destructive"
-                  )}
-                >
-                  {voiceRecorder.isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-                </Button>
-              )}
-              <Button size="icon" onClick={handleSend} disabled={(!text.trim() && !pendingImageUrl) || sending || uploadingImage || voiceRecorder.isRecording}>
+              <Button size="icon" onClick={handleSend} disabled={(!text.trim() && !pendingImageUrl) || sending || uploadingImage}>
                 <Send className="w-4 h-4" />
               </Button>
             </div>
@@ -684,61 +619,5 @@ export function FullscreenPartyChat({
         </motion.div>
       )}
     </AnimatePresence>
-  );
-}
-
-function VoiceMessagePlayer({ src }: { src: string }) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [duration, setDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const audioRef = useRef<HTMLAudioElement>(null);
-
-  const togglePlay = useCallback(() => {
-    if (!audioRef.current) return;
-    if (isPlaying) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play();
-    }
-  }, [isPlaying]);
-
-  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
-
-  const formatTime = (s: number) => {
-    const mins = Math.floor(s / 60);
-    const secs = Math.floor(s % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  return (
-    <div className="flex items-center gap-2 bg-muted/30 border border-border/30 rounded-lg px-2.5 py-1.5 max-w-[220px]">
-      <button
-        onClick={togglePlay}
-        className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0 hover:bg-primary/30 transition-colors"
-      >
-        {isPlaying ? <Pause className="w-3.5 h-3.5 text-primary" /> : <Play className="w-3.5 h-3.5 text-primary ml-0.5" />}
-      </button>
-      <div className="flex-1 min-w-0">
-        <div className="w-full h-1.5 bg-muted/50 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-primary/60 rounded-full transition-all duration-100"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-      </div>
-      <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
-        {formatTime(isPlaying || currentTime > 0 ? currentTime : duration)}
-      </span>
-      <audio
-        ref={audioRef}
-        src={src}
-        preload="metadata"
-        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
-        onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
-        onEnded={() => { setIsPlaying(false); setCurrentTime(0); }}
-      />
-    </div>
   );
 }
