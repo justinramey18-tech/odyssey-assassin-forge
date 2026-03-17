@@ -351,6 +351,14 @@ export function PartyDMSettings({
             onClick={onShowScheduledEvents}
           />
         )}
+        {hasBookmark && onClearBookmark && (
+          <ToolRow
+            icon={<BookmarkX className="w-4 h-4 text-amber-400" />}
+            label="Clear Reading Bookmark"
+            description="Remove your saved reading position"
+            onClick={onClearBookmark}
+          />
+        )}
       </SettingsSection>
 
       {/* Spotify Controls */}

@@ -2139,6 +2139,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               onResponseModeChange={(modeId) => {
                 partyDm.updateSessionConfig({ responseMode: modeId ?? undefined });
               }}
+              hasBookmark={!!bookmarkedMessageId}
+              onClearBookmark={() => {
+                if (bookmarkKey) {
+                  localStorage.removeItem(bookmarkKey);
+                  setBookmarkedMessageId(null);
+                  toast.success('Bookmark cleared');
+                }
+              }}
             />
           ) : undefined}
           oracleContent={activeNavTab === 'oracle' && characterContext ? (
