@@ -18,7 +18,7 @@ interface PartyMemberCardProps {
   compact?: boolean;
 }
 
-export function PartyMemberCard({ member, isSelf, onViewActions, onSendItem, onlineInfo, compact = false }: PartyMemberCardProps) {
+export function PartyMemberCard({ member, isSelf, onViewActions, onSendItem, onKick, isCreator = false, onlineInfo, compact = false }: PartyMemberCardProps) {
   const [showSlots, setShowSlots] = useState(false);
   const [playerTime, setPlayerTime] = useState('');
   const playerTz = member.character_status.timezone;
