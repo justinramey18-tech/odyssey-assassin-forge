@@ -139,12 +139,12 @@ export const PartyDMInput = memo(forwardRef<PartyDMInputHandle, PartyDMInputProp
             <div className="relative" data-attach-menu>
               <button
                 onClick={() => setShowAttachMenu(prev => !prev)}
-                disabled={isUploadingPhoto || isUploadingVideo}
+                disabled={isUploadingPhoto || isUploadingVideo || isUploadingAudio}
                 className="p-2 rounded-xl border border-white/10 hover:border-amber-500/30 bg-white/5 hover:bg-amber-900/20 transition-colors"
                 style={{ touchAction: 'manipulation' }}
                 title="Attach media"
               >
-                {(isUploadingPhoto || isUploadingVideo) ? (
+                {(isUploadingPhoto || isUploadingVideo || isUploadingAudio) ? (
                   <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
                 ) : (
                   <Paperclip className="w-4 h-4 text-white/50" />
