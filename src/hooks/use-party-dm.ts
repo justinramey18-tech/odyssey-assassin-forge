@@ -1234,14 +1234,16 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         const isApprovalMode = (sessionConfig.dmMode || 'ai') === 'ai-approval';
 
         // In approval mode, don't insert user message yet — defer to approveDraft
+        let insertedUserMsgId: string | null = null;
         if (!isApprovalMode) {
-          await insertPartyMessage({
+          const insertedMsg = await insertPartyMessageHelper(partyId, {
             party_id: partyId,
             role: 'user',
-            content: rawCombined, // Store raw prompts for readability
+            content: rawCombined,
             sender_user_id: user.id,
             sender_name: 'Party',
           });
+          insertedUserMsgId = insertedMsg?.id || null;
         }
 
         const partyMembersSummary = buildPartyMembersGuide();
@@ -1260,7 +1262,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
         if (assistantContent?.trim()) {
           if (isApprovalMode) {
-            // Store draft for host review instead of inserting
             setPendingDraft({
               content: assistantContent,
               userContent: combined,
@@ -1275,7 +1276,6 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
               sender_name: 'DM',
             });
 
-            // Trigger summary and auto-save
             const updatedMessages = [...messages,
               { id: '', party_id: partyId, role: 'user' as const, content: combined, sender_user_id: user.id, sender_name: 'Party', created_at: '' },
               { id: '', party_id: partyId, role: 'assistant' as const, content: assistantContent, sender_user_id: null, sender_name: 'DM', created_at: '' },
@@ -1283,6 +1283,15 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             triggerSummaryIfNeeded(updatedMessages);
             silentAutoSave(updatedMessages, sessionConfig.campaignSummary || null);
           }
+        } else if (insertedUserMsgId) {
+          // AI returned empty — roll back the orphaned user message to prevent
+          // consecutive same-role messages from snowballing future failures
+          console.warn('[PartyDM] AI returned empty response, rolling back user message', insertedUserMsgId);
+          await (supabase.from('party_dm_messages') as any)
+            .delete()
+            .eq('id', insertedUserMsgId);
+          setMessages(prev => prev.filter(m => m.id !== insertedUserMsgId));
+          toast.error('DM generation returned empty. Please try again.');
         }
 
         // Consume used cascade prompts for normal mode
