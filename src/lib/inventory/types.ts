@@ -8,6 +8,7 @@ export type EquipmentSlotType =
   | 'arms' 
   | 'waist' 
   | 'legs' 
+  | 'cloak'
   | 'primary_weapon' 
   | 'secondary_weapon' 
   | 'ranged_weapon' 
