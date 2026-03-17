@@ -50,7 +50,7 @@ export const PartyDMInput = memo(forwardRef<PartyDMInputHandle, PartyDMInputProp
     });
   }, []);
 
-  const { isListening, isSupported, toggle: toggleSpeech } = useSpeechToText({
+  const { isListening, isSupported, interimText, toggle: toggleSpeech } = useSpeechToText({
     onTranscript: useCallback((text: string) => {
       setInput(prev => prev ? prev + ' ' + text : text);
       autoResizeTextarea();
