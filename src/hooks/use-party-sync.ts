@@ -1366,7 +1366,7 @@ export function usePartySync(): UsePartySyncReturn {
 
   // --- New feature functions ---
 
-  const sendMessage = useCallback(async (message: string, senderName: string, options?: { replyToId?: string; imageUrl?: string }) => {
+  const sendMessage = useCallback(async (message: string, senderName: string, options?: { replyToId?: string; imageUrl?: string; audioUrl?: string }) => {
     if (!user || !party.partyId) {
       toast.error('Not connected to party');
       return;
@@ -1380,6 +1380,7 @@ export function usePartySync(): UsePartySyncReturn {
     };
     if (options?.replyToId) insertData.reply_to_id = options.replyToId;
     if (options?.imageUrl) insertData.image_url = options.imageUrl;
+    if (options?.audioUrl) insertData.audio_url = options.audioUrl;
 
     const { error } = await (supabase.from('party_messages') as any).insert(insertData);
     if (error) {
