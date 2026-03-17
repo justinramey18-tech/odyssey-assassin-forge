@@ -210,7 +210,7 @@ function AfkAnnotatedContent({ content, afkNames }: { content: string; afkNames?
   );
 }
 
-function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, allMessages, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true }: {
+const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true }: {
   message: PartyDmMessage;
   currentUserId?: string;
   members: Array<{ user_id: string; character_name: string }>;
@@ -222,7 +222,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
   onRegenerate?: (messageId: string) => void;
   onRegenerateWhispers?: (messageId: string) => void;
   showTeamTag?: boolean;
-  allMessages?: PartyDmMessage[];
+  afkCharNames?: string[];
   ttsSelectMode?: boolean;
   ttsSelected?: boolean;
   onTtsToggle?: (id: string) => void;
