@@ -604,6 +604,7 @@ const Index = () => {
     inventory: consumablesInventory, 
     useItem: useConsumableItem, 
     setItemQuantity: setConsumableQuantity,
+    removeItem: removeConsumableItem,
     getItemCount: getConsumableCount,
     addItem: addConsumableItem 
   } = useConsumables();
@@ -3047,6 +3048,9 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
               onAdjustGold={shop.addGold}
               onSetGold={shop.setGold}
               onClearShop={shop.clearShop}
+              onRemoveConsumable={removeConsumableItem}
+              onAdjustConsumableQuantitySet={setConsumableQuantity}
+              onAddGoldFromSale={shop.addGold}
               activeInternalTab={inventoryInternalTab}
               onInternalTabChange={(tab) => setInventoryInternalTab(tab)}
             />

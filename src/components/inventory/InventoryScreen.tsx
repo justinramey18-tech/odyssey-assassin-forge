@@ -53,6 +53,7 @@ interface InventoryScreenProps {
   equipment?: CharacterEquipment;
   onEquipmentChange?: (equipment: CharacterEquipment) => void;
   achievements?: Achievement[];
+  onSellGear?: (item: EquipmentItem) => void;
 }
 
 export function InventoryScreen({ 
@@ -61,6 +62,7 @@ export function InventoryScreen({
   equipment: externalEquipment,
   onEquipmentChange,
   achievements = achievementCategories,
+  onSellGear,
 }: InventoryScreenProps) {
   const [internalEquipment, setInternalEquipment] = useState<CharacterEquipment>(createInitialEquipment);
   const [viewMode, setViewMode] = useState<ViewMode>('compact');
@@ -532,6 +534,12 @@ export function InventoryScreen({
         onClose={() => setShowItemDetail(false)}
         onUnequip={() => selectedSlot && handleUnequip(selectedSlot)}
         onCompare={handleCompare}
+        onSell={onSellGear ? (item) => {
+          // Unequip first, then sell
+          if (selectedSlot) handleUnequip(selectedSlot);
+          setShowItemDetail(false);
+          onSellGear(item);
+        } : undefined}
       />
 
       {/* Comparison Sheet */}

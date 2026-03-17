@@ -1,7 +1,7 @@
 // Miscellaneous Items Widget - displays and manages misc inventory items
 
 import { useState } from 'react';
-import { Package, Plus, Minus, Trash2, StickyNote, ChevronDown, ChevronUp } from 'lucide-react';
+import { Package, Plus, Minus, Trash2, StickyNote, ChevronDown, ChevronUp, Coins } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +36,7 @@ interface MiscItemsWidgetProps {
   onRemoveItem: (id: string) => void;
   onAdjustQuantity: (id: string, delta: number) => void;
   onUpdateNotes: (id: string, notes: string) => void;
+  onSellItem?: (id: string, quantity: number) => void;
 }
 
 function AddMiscItemDrawer({ onAddItem }: { onAddItem: MiscItemsWidgetProps['onAddItem'] }) {
@@ -146,12 +147,14 @@ function MiscItemCard({
   item, 
   onRemove, 
   onAdjustQuantity, 
-  onUpdateNotes 
+  onUpdateNotes,
+  onSell,
 }: { 
   item: MiscItem; 
   onRemove: () => void; 
   onAdjustQuantity: (delta: number) => void;
   onUpdateNotes: (notes: string) => void;
+  onSell?: (quantity: number) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [editingNotes, setEditingNotes] = useState(false);
@@ -244,6 +247,17 @@ function MiscItemCard({
               </button>
             )}
           </div>
+          {onSell && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-500/20"
+              onClick={() => onSell(1)}
+            >
+              <Coins className="w-3 h-3 mr-1" />
+              Sell
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -265,6 +279,7 @@ export function MiscItemsWidget({
   onRemoveItem,
   onAdjustQuantity,
   onUpdateNotes,
+  onSellItem,
 }: MiscItemsWidgetProps) {
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
 
@@ -297,6 +312,7 @@ export function MiscItemsWidget({
               onRemove={() => onRemoveItem(item.id)}
               onAdjustQuantity={(delta) => onAdjustQuantity(item.id, delta)}
               onUpdateNotes={(notes) => onUpdateNotes(item.id, notes)}
+              onSell={onSellItem ? (qty) => onSellItem(item.id, qty) : undefined}
             />
           ))}
         </div>

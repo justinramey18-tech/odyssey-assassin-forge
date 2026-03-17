@@ -6,6 +6,7 @@ import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 import { Separator } from '@/components/ui/separator';
 import { InventoryScreen } from './InventoryScreen';
 import { MiscItemsWidget } from './MiscItemsWidget';
+import { SellItemDrawer, getConsumableSellPrice, getEquipmentSellPrice, getMiscSellPrice } from './SellItemDrawer';
 import { ConsumablesInventoryWidget, AddConsumableDrawer } from '@/components/consumables';
 import { LootScreen } from '@/components/loot/LootScreen';
 import { ShopScreen } from '@/components/shop/ShopScreen';
@@ -16,6 +17,7 @@ import { MiscItem } from '@/lib/miscItems/types';
 import { LootItem, SoldLootRecord } from '@/lib/loot/types';
 import { ShopItem, ParsedShopItem, PurchaseRecord } from '@/lib/shop/types';
 import { EquipmentItem as ShopEquipmentItem } from '@/lib/inventory/types';
+import { toast } from 'sonner';
 import builderBackground from '@/assets/builder-background.jpg';
 
 export type InventoryInternalTab = 'gear' | 'consumables' | 'loot' | 'shop';
@@ -48,6 +50,8 @@ interface UnifiedInventoryScreenProps {
   onRemoveMiscItem: (id: string) => void;
   onAdjustMiscQuantity: (id: string, delta: number) => void;
   onUpdateMiscNotes: (id: string, notes: string) => void;
+  onRemoveConsumable: (consumableId: string) => void;
+  onAdjustConsumableQuantitySet: (consumableId: string, quantity: number) => void;
   // Loot props
   lootItems: LootItem[];
   soldHistory: SoldLootRecord[];
@@ -76,6 +80,8 @@ interface UnifiedInventoryScreenProps {
   onAdjustGold: (amount: number) => void;
   onSetGold: (amount: number) => void;
   onClearShop: () => void;
+  // Sell callback — adds gold to shop balance
+  onAddGoldFromSale: (amount: number) => void;
   // Deep-linking
   activeInternalTab?: InventoryInternalTab;
   onInternalTabChange?: (tab: InventoryInternalTab) => void;
@@ -84,11 +90,12 @@ interface UnifiedInventoryScreenProps {
 export function UnifiedInventoryScreen({
   characterName, level, equipment, onEquipmentChange, achievements,
   consumablesInventory, onUseConsumable, onAddConsumable, onAdjustConsumableQuantity, getConsumableCount,
+  onRemoveConsumable, onAdjustConsumableQuantitySet,
   miscItems, onAddMiscItem, onRemoveMiscItem, onAdjustMiscQuantity, onUpdateMiscNotes,
   lootItems, soldHistory, onAddLoot, onDeleteLoot, onSellLoot, onAddGold,
   currentHP, maxHP, conditions, activeSetBonus, totalLootValue, onShareLootToParty,
   currentGold, shopItems, purchaseHistory, onPurchase, onRemoveShopItem, onAddShopItem,
-  onAdjustGold, onSetGold, onClearShop,
+  onAdjustGold, onSetGold, onClearShop, onAddGoldFromSale,
   activeInternalTab, onInternalTabChange,
 }: UnifiedInventoryScreenProps) {
   const [localTab, setLocalTab] = useState<InventoryInternalTab>(() => {
@@ -99,6 +106,17 @@ export function UnifiedInventoryScreen({
     } catch { /* ignore */ }
     return 'gear';
   });
+
+  // Sell drawer state
+  const [sellDrawerOpen, setSellDrawerOpen] = useState(false);
+  const [sellItemInfo, setSellItemInfo] = useState<{
+    name: string;
+    suggestedPrice: number;
+    quantity: number;
+    type: 'gear' | 'consumable' | 'misc';
+    id: string;
+    gearItem?: EquipmentItem;
+  } | null>(null);
 
   const currentTab = activeInternalTab ?? localTab;
 
@@ -114,6 +132,76 @@ export function UnifiedInventoryScreen({
       setLocalTab(activeInternalTab);
     }
   }, [activeInternalTab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sell handlers
+  const handleSellGear = useCallback((item: EquipmentItem) => {
+    setSellItemInfo({
+      name: item.name,
+      suggestedPrice: getEquipmentSellPrice(item.value),
+      quantity: 1,
+      type: 'gear',
+      id: item.id,
+      gearItem: item,
+    });
+    setSellDrawerOpen(true);
+  }, []);
+
+  const handleSellConsumable = useCallback((consumableId: string, quantity: number) => {
+    const item = consumablesInventory.find(i => i.consumable.id === consumableId);
+    if (!item) return;
+    setSellItemInfo({
+      name: item.consumable.name,
+      suggestedPrice: getConsumableSellPrice(item.consumable.rarity),
+      quantity: item.quantity,
+      type: 'consumable',
+      id: consumableId,
+    });
+    setSellDrawerOpen(true);
+  }, [consumablesInventory]);
+
+  const handleSellMisc = useCallback((id: string, quantity: number) => {
+    const item = miscItems.find(i => i.id === id);
+    if (!item) return;
+    setSellItemInfo({
+      name: item.name,
+      suggestedPrice: getMiscSellPrice(item.goldValue),
+      quantity: item.quantity,
+      type: 'misc',
+      id: id,
+    });
+    setSellDrawerOpen(true);
+  }, [miscItems]);
+
+  const handleConfirmSell = useCallback((sellPrice: number, qty: number) => {
+    if (!sellItemInfo) return;
+    const totalGold = sellPrice * qty;
+
+    if (sellItemInfo.type === 'gear') {
+      // Remove from inventory (already unequipped by InventoryScreen)
+      const newInventory = equipment.inventory.filter(i => i.id !== sellItemInfo.id);
+      onEquipmentChange({ ...equipment, inventory: newInventory });
+    } else if (sellItemInfo.type === 'consumable') {
+      if (qty >= (consumablesInventory.find(i => i.consumable.id === sellItemInfo.id)?.quantity ?? 0)) {
+        onRemoveConsumable(sellItemInfo.id);
+      } else {
+        const current = consumablesInventory.find(i => i.consumable.id === sellItemInfo.id);
+        if (current) {
+          onAdjustConsumableQuantitySet(sellItemInfo.id, current.quantity - qty);
+        }
+      }
+    } else if (sellItemInfo.type === 'misc') {
+      const item = miscItems.find(i => i.id === sellItemInfo.id);
+      if (item && qty >= item.quantity) {
+        onRemoveMiscItem(sellItemInfo.id);
+      } else {
+        onAdjustMiscQuantity(sellItemInfo.id, -qty);
+      }
+    }
+
+    onAddGoldFromSale(totalGold);
+    toast.success(`Sold ${sellItemInfo.name}${qty > 1 ? ` ×${qty}` : ''} for ${totalGold} GP`);
+    setSellItemInfo(null);
+  }, [sellItemInfo, equipment, onEquipmentChange, consumablesInventory, onRemoveConsumable, onAdjustConsumableQuantitySet, miscItems, onRemoveMiscItem, onAdjustMiscQuantity, onAddGoldFromSale]);
 
   const miscCount = miscItems.reduce((sum, i) => sum + i.quantity, 0);
   const consumableCount = consumablesInventory.reduce((sum, item) => sum + item.quantity, 0);
@@ -176,6 +264,7 @@ export function UnifiedInventoryScreen({
             equipment={equipment}
             onEquipmentChange={onEquipmentChange}
             achievements={achievements}
+            onSellGear={handleSellGear}
           />
         )}
 
@@ -203,6 +292,7 @@ export function UnifiedInventoryScreen({
                   characterName={characterName}
                   onUseItem={onUseConsumable}
                   onAdjustQuantity={(id, delta) => onAdjustConsumableQuantity(id, delta)}
+                  onSellItem={handleSellConsumable}
                 />
               </div>
 
@@ -214,6 +304,7 @@ export function UnifiedInventoryScreen({
                 onRemoveItem={onRemoveMiscItem}
                 onAdjustQuantity={onAdjustMiscQuantity}
                 onUpdateNotes={onUpdateMiscNotes}
+                onSellItem={handleSellMisc}
               />
             </div>
           </BackgroundWrapper>
@@ -251,6 +342,18 @@ export function UnifiedInventoryScreen({
           />
         )}
       </div>
+
+      {/* Sell Item Drawer */}
+      {sellItemInfo && (
+        <SellItemDrawer
+          open={sellDrawerOpen}
+          onOpenChange={setSellDrawerOpen}
+          itemName={sellItemInfo.name}
+          suggestedPrice={sellItemInfo.suggestedPrice}
+          quantity={sellItemInfo.quantity}
+          onConfirmSell={handleConfirmSell}
+        />
+      )}
     </div>
   );
 }

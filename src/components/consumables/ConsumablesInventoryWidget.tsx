@@ -10,7 +10,8 @@ import {
   ChevronDown,
   ChevronUp,
   Package,
-  Sparkles
+  Sparkles,
+  Coins
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -35,6 +36,7 @@ interface ConsumableCardProps {
   characterName: string;
   onUse: (id: string) => void;
   onAdjustQuantity: (id: string, delta: number) => void;
+  onSell?: (consumableId: string, quantity: number) => void;
   compact?: boolean;
 }
 
@@ -43,6 +45,7 @@ function ConsumableCard({
   characterName, 
   onUse, 
   onAdjustQuantity,
+  onSell,
   compact = false 
 }: ConsumableCardProps) {
   const [copied, setCopied] = useState(false);
@@ -275,6 +278,22 @@ function ConsumableCard({
                 <Sparkles className="w-3.5 h-3.5" />
                 Use
               </Button>
+
+              {/* Sell Button */}
+              {onSell && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 border-amber-500/50 text-amber-400 hover:bg-amber-500/20"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSell(consumable.id, 1);
+                  }}
+                >
+                  <Coins className="w-3.5 h-3.5" />
+                  Sell
+                </Button>
+              )}
             </div>
           </div>
         </CollapsibleContent>
@@ -288,6 +307,7 @@ interface ConsumablesInventoryWidgetProps {
   characterName: string;
   onUseItem: (id: string) => void;
   onAdjustQuantity: (id: string, delta: number) => void;
+  onSellItem?: (consumableId: string, quantity: number) => void;
   compact?: boolean;
 }
 
@@ -296,6 +316,7 @@ export function ConsumablesInventoryWidget({
   characterName,
   onUseItem,
   onAdjustQuantity,
+  onSellItem,
   compact = false,
 }: ConsumablesInventoryWidgetProps) {
   const [expandedType, setExpandedType] = useState<string | null>('potion');
@@ -382,6 +403,7 @@ export function ConsumablesInventoryWidget({
                       characterName={characterName}
                       onUse={onUseItem}
                       onAdjustQuantity={onAdjustQuantity}
+                      onSell={onSellItem}
                       compact={compact}
                     />
                   ))}

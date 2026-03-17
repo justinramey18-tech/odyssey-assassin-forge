@@ -23,6 +23,7 @@ interface ItemDetailSheetProps {
   onClose: () => void;
   onUnequip: () => void;
   onCompare: () => void;
+  onSell?: (item: EquipmentItem) => void;
 }
 
 export function ItemDetailSheet({
@@ -36,6 +37,7 @@ export function ItemDetailSheet({
   onClose,
   onUnequip,
   onCompare,
+  onSell,
 }: ItemDetailSheetProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [enchantmentsOpen, setEnchantmentsOpen] = useState(true);
@@ -393,11 +395,18 @@ ${item.setName ? `\n### Set\nPart of the **${item.setName}** set.` : ''}
               <Button variant="outline" className="flex-1" onClick={onUnequip}>
                 Unequip
               </Button>
+              {onSell && (
+                <Button 
+                  variant="outline" 
+                  className="flex-1 border-amber-500/50 text-amber-400 hover:bg-amber-500/20"
+                  onClick={() => onSell(item)}
+                >
+                  <Coins className="w-4 h-4 mr-1.5" />
+                  Sell
+                </Button>
+              )}
               <Button variant="outline" className="flex-1" onClick={onCompare}>
                 Compare
-              </Button>
-              <Button className="flex-1" onClick={onClose}>
-                Keep Equipped
               </Button>
             </div>
           </div>
