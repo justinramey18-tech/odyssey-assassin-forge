@@ -36,7 +36,12 @@ function guessItemType(name: string): 'equipment' | 'consumable' | 'miscellaneou
   if (/potion|scroll|vial|elixir|poison|bomb|oil|balm|salve|antidote|draught/i.test(lower)) {
     return 'consumable';
   }
-  if (/sword|shield|armor|armour|bow|axe|mace|staff|wand|ring|amulet|cloak|boots|gauntlet|helm|helmet|bracers?|belt|robe/i.test(lower)) {
+  // Non-wearable wondrous items → miscellaneous (check BEFORE equipment)
+  if (/bag of|decanter|portable hole|figurine|bead of|stone of|gem of|cube of|sphere of|mirror of|lantern of|candle of|carpet of|horn of|pipes of|crystal ball|deck of|immovable rod|chime of|eversmoking bottle|folding boat|instant fortress|iron flask|marble of|rope of|sovereign glue|universal solvent|wind fan|alchemy jug|apparatus|brazier of|censer of|cauldron of|quaal.s feather/i.test(lower)) {
+    return 'miscellaneous';
+  }
+  // Wearable equipment (weapons, armor, jewelry, clothing)
+  if (/sword|shield|armor|armour|bow|axe|mace|staff|wand|ring|amulet|cloak|boots|gauntlet|helm|helmet|bracers?|belt|robe|dagger|crossbow|spear|pike|cape|mantle|periapt|circlet|crown|necklace|pendant|greaves|vambraces|chain|plate|leather|studded|scimitar|rapier|flail|halberd|glaive|maul|trident|whip|sling|blowgun|hand wraps|knuckles/i.test(lower)) {
     return 'equipment';
   }
   return 'miscellaneous';

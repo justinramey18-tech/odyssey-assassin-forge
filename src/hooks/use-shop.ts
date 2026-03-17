@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { ShopItem, ShopState, PurchaseRecord, ParsedShopItem } from '@/lib/shop/types';
-import { convertShopItemToConsumable, convertShopItemToEquipment } from '@/lib/shop/converters';
+import { convertShopItemToConsumable, convertShopItemToEquipment, isWearableEquipment } from '@/lib/shop/converters';
 import { Consumable } from '@/lib/consumables/types';
 import { EquipmentItem } from '@/lib/inventory/types';
 import { getScopedItem, setScopedItem, removeScopedItem, migrateToScoped } from '@/lib/scoped-storage';
@@ -173,8 +173,14 @@ export function useShop() {
       convertedItem = convertShopItemToConsumable(item);
       destinationType = 'consumable';
     } else if (item.itemType === 'equipment') {
-      convertedItem = convertShopItemToEquipment(item);
-      destinationType = 'equipment';
+      // Only convert to equipment if it can be assigned a valid slot
+      if (isWearableEquipment(item)) {
+        convertedItem = convertShopItemToEquipment(item);
+        destinationType = 'equipment';
+      } else {
+        // Non-wearable "equipment" (e.g. Bag of Holding) → miscellaneous
+        destinationType = 'miscellaneous';
+      }
     }
     
     // Update state: deduct gold, remove item, add to history
