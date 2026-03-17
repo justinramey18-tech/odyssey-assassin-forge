@@ -1714,28 +1714,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       .eq('state_type', 'dm_session');
 
     try {
-      // Delete all split messages
-      await (supabase.from('party_dm_messages') as any)
-        .delete()
-        .eq('party_id', partyId);
+      // Delete pending prompts only — preserve all messages (split + pre-split)
       await (supabase.from('party_dm_prompts') as any)
         .delete()
         .eq('party_id', partyId);
 
-      // Restore snapshot messages
-      for (const msg of splitState.snapshotMessages) {
-        await (supabase.from('party_dm_messages') as any).insert({
-          party_id: partyId,
-          role: msg.role,
-          content: msg.content,
-          sender_user_id: msg.sender_user_id || null,
-          sender_name: msg.sender_name,
-          created_at: msg.created_at,
-        });
-      }
-
-      // Generate unification response
-      const restoredApiMsgs = splitState.snapshotMessages.map(m => ({
+      // Build AI context from existing messages (use snapshot for concise context)
+      const contextApiMsgs = splitState.snapshotMessages.map(m => ({
         role: m.role,
         content: m.content,
       }));
@@ -1751,7 +1736,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         `\n\nNarrate the reunion scene. Describe what each group experienced (briefly, using their team names "${splitState.alphaName || 'Team Alpha'}" and "${splitState.betaName || 'Team Beta'}") and how they come back together. Make it dramatic and engaging. Do NOT dump the full summary — weave key highlights into the reunion narrative.`,
       ].filter(Boolean).join('\n\n');
 
-      restoredApiMsgs.push({ role: 'user', content: `[DM Note]: The party regroups. ${reunionPrompt}` });
+      contextApiMsgs.push({ role: 'user', content: `[DM Note]: The party regroups. ${reunionPrompt}` });
 
       abortRef.current = new AbortController();
       const unificationContent = await streamAIResponse(restoredApiMsgs, unificationGuides, abortRef.current.signal);
