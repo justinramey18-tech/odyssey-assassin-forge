@@ -47,34 +47,36 @@ export function useSpeechToText({ onTranscript, lang = 'en-US' }: UseSpeechToTex
     }
 
     const recognition = new SpeechRecognitionAPI();
-    recognition.continuous = true;
+    recognition.continuous = false;
     recognition.interimResults = true;
     recognition.lang = lang;
     recognitionRef.current = recognition;
     wantListeningRef.current = true;
 
     recognition.onresult = (event: any) => {
-      let interim = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i];
-        if (result.isFinal) {
-          const text = result[0].transcript.trim();
-          if (text) {
-            onTranscriptRef.current(text);
-          }
-          setInterimText('');
-        } else {
-          interim += result[0].transcript;
+      // In single-shot mode there's typically one result at index 0
+      const result = event.results[0];
+      if (!result) return;
+
+      if (result.isFinal) {
+        const text = result[0].transcript.trim();
+        if (text) {
+          onTranscriptRef.current(text);
         }
-      }
-      if (interim) {
-        setInterimText(interim);
+        setInterimText('');
+      } else {
+        setInterimText(result[0].transcript);
       }
     };
 
     recognition.onend = () => {
       if (wantListeningRef.current) {
-        try { recognition.start(); } catch {}
+        // Small delay before restarting to avoid picking up the same audio
+        setTimeout(() => {
+          if (wantListeningRef.current && recognitionRef.current === recognition) {
+            try { recognition.start(); } catch {}
+          }
+        }, 100);
       } else {
         setIsListening(false);
         setInterimText('');
@@ -87,6 +89,7 @@ export function useSpeechToText({ onTranscript, lang = 'en-US' }: UseSpeechToTex
         setIsListening(false);
         setInterimText('');
       }
+      // For 'no-speech' or 'aborted', onend will handle restart
     };
 
     try {
