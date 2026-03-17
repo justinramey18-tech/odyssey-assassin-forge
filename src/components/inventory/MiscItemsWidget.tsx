@@ -279,6 +279,7 @@ export function MiscItemsWidget({
   onRemoveItem,
   onAdjustQuantity,
   onUpdateNotes,
+  onSellItem,
 }: MiscItemsWidgetProps) {
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
 
