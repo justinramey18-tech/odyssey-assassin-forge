@@ -3003,6 +3003,11 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
                 setConsumableQuantity(id, currentQty + delta);
               }}
               getConsumableCount={getConsumableCount}
+              miscItems={miscItems.miscItems}
+              onAddMiscItem={miscItems.addMiscItem}
+              onRemoveMiscItem={miscItems.removeMiscItem}
+              onAdjustMiscQuantity={miscItems.adjustMiscQuantity}
+              onUpdateMiscNotes={miscItems.updateMiscNotes}
               lootItems={loot.lootItems}
               soldHistory={loot.soldHistory}
               onAddLoot={loot.addLootItems}
