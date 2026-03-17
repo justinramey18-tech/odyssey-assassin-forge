@@ -15,6 +15,7 @@ export interface PartyChatMessage {
   updated_at?: string | null;
   reply_to_id?: string | null;
   image_url?: string | null;
+  audio_url?: string | null;
   is_pinned?: boolean;
 }
 
