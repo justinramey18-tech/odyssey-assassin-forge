@@ -219,7 +219,7 @@ export function RegroupDialog({ open, onClose, onRegroup, isGenerating }: Regrou
             <h3 className="text-base font-cinzel text-amber-200">Regroup Party</h3>
           </div>
           <p className="text-xs text-white/40 mb-3">
-            Describe the reunion scene. The original chat will be restored and a unification scene will be generated.
+            Describe the reunion scene. A reunion narrative will be generated and all messages will be visible to everyone.
           </p>
           <textarea
             value={prompt}
