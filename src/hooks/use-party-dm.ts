@@ -118,9 +118,10 @@ interface UsePartyDmOptions {
   characterContext: CharacterContext;
   partyMembers: Array<{ character_name: string; character_status: Record<string, unknown>; user_id: string }>;
   customGuidesContent?: string;
+  memoryAnchorsContent?: string;
 }
 
-export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent }: UsePartyDmOptions) {
+export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent }: UsePartyDmOptions) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<PartyDmMessage[]>([]);
   const [currentPrompts, setCurrentPrompts] = useState<PartyDmPrompt[]>([]);
@@ -824,6 +825,21 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     return merged;
   }, []);
 
+  // Helper: fetch last 5 party chat messages for context
+  const fetchRecentPartyChat = useCallback(async (): Promise<Array<{ sender: string; message: string }>> => {
+    if (!partyId) return [];
+    try {
+      const { data } = await supabase
+        .from('party_messages')
+        .select('sender_name, message')
+        .eq('party_id', partyId)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      if (!data || data.length === 0) return [];
+      return data.reverse().map(m => ({ sender: m.sender_name, message: m.message }));
+    } catch { return []; }
+  }, [partyId]);
+
   // Helper: stream an AI response and return the content
   const streamAIResponse = useCallback(async (
     apiMessages: Array<{ role: string; content: string }>,
@@ -832,6 +848,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   ): Promise<string> => {
     // Ensure strictly alternating roles before sending to AI
     const sanitizedMessages = mergeConsecutiveRoles(apiMessages);
+
+    // Fetch recent party chat for DM awareness
+    const recentPartyChat = await fetchRecentPartyChat();
 
     const authToken = await getAuthToken();
     const response = await fetch(AI_DM_URL, {
@@ -845,6 +864,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         characterContext,
         campaignSummary: sessionConfig?.campaignSummary || undefined,
         customGuides: extraGuides,
+        memoryAnchors: memoryAnchorsContent || undefined,
+        recentPartyChat: recentPartyChat.length > 0 ? recentPartyChat : undefined,
         model: loadSelectedModel(),
         ...(() => {
           const cs = loadCombatSettings();
@@ -903,7 +924,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       }
     }
     return assistantContent;
-  }, [characterContext, sessionConfig?.campaignSummary, mergeConsecutiveRoles]);
+  }, [characterContext, sessionConfig?.campaignSummary, memoryAnchorsContent, mergeConsecutiveRoles, fetchRecentPartyChat]);
 
 
   // Build party members system prompt section

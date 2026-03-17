@@ -173,6 +173,7 @@ export function StandalonePartyDMScreen({
     characterContext,
     partyMembers: stablePartyMembers,
     customGuidesContent: gmGuides.enabledContent,
+    memoryAnchorsContent: memoryAnchors.formattedForOracle,
   });
 
   // Auto-extract memory anchors from new DM responses (host-only to avoid duplicates)

@@ -145,6 +145,8 @@ interface DMRequest {
   combatFeats?: string[];
   alignmentContext?: { law: number; good: number; zone: string };
   systemPromptOverride?: string;
+  memoryAnchors?: string;
+  recentPartyChat?: Array<{ sender: string; message: string }>;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -370,7 +372,7 @@ function buildContextSummary(ctx: CharacterContext): string {
 
 // ── System Prompt Builder ──────────────────────────────────────────────────────
 
-function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string, encounterGuidance?: string, combatFeats?: string[], alignmentContext?: { law: number; good: number; zone: string }): string {
+function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string, encounterGuidance?: string, combatFeats?: string[], alignmentContext?: { law: number; good: number; zone: string }, memoryAnchors?: string, recentPartyChat?: Array<{ sender: string; message: string }>): string {
   const contextSummary = buildContextSummary(ctx);
   
   let prompt = `You are an expert Dungeon Master running a live D&D 5e session for a single player. You are immersive, adaptive, and mechanically precise.
@@ -537,6 +539,16 @@ RULES:
     prompt += `\n\n## CAMPAIGN SUMMARY\nThis is an auto-generated summary of the campaign so far. Use it to maintain narrative continuity and reference past events naturally:\n\n${trimmedSummary}`;
   }
 
+  if (memoryAnchors && memoryAnchors.trim()) {
+    const trimmedAnchors = memoryAnchors.slice(0, 8000);
+    prompt += `\n\n## MEMORY ANCHORS\nThese are persistent long-term facts about the campaign — NPCs, locations, quest flags, and world state. Reference them naturally in your narration and stay consistent with them:\n\n${trimmedAnchors}`;
+  }
+
+  if (recentPartyChat && recentPartyChat.length > 0) {
+    const chatLines = recentPartyChat.slice(0, 5).map(c => `${c.sender}: ${c.message.slice(0, 500)}`).join('\n');
+    prompt += `\n\n## RECENT PARTY CHAT\nThese are the most recent out-of-character messages from the party chat. Use them for situational awareness — players may be discussing plans, asking questions, or coordinating. Do NOT repeat or quote these messages directly; just factor them into your narrative awareness:\n\n${chatLines}`;
+  }
+
   if (customGuides && customGuides.trim()) {
     const trimmed = customGuides.slice(0, MAX_CUSTOM_GUIDES_CHARS);
     prompt += `\n\n## CUSTOM GM GUIDES\nThe following custom content has been provided by the player to guide your behavior. Treat it as authoritative campaign context:\n\n${trimmed}`;
@@ -689,7 +701,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride } = (await req.json()) as DMRequest;
+    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat } = (await req.json()) as DMRequest;
     
     // Trim to last 100 messages, then cap by total character count
     let trimmedMessages = messages.length > MAX_MESSAGES
@@ -707,7 +719,7 @@ serve(async (req) => {
     console.log(`[ai-dm] Messages: ${trimmedMessages.length}, total chars: ${totalChars}`);
 
     // Use override if provided (e.g. whisper regeneration), otherwise build full DM prompt
-    const systemPrompt = systemPromptOverride?.trim() || buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext);
+    const systemPrompt = systemPromptOverride?.trim() || buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat);
 
     // Determine which provider to use
     const requestedModel = model || DEFAULT_MODEL;
