@@ -107,6 +107,65 @@ function getMemberColor(userId: string, members: Array<{ user_id: string }>): st
 
 const PARTY_VIDEO_REGEX = /^\s*\[video:(https?:\/\/.+)\]\s*$/;
 const PARTY_IMAGE_REGEX = /^\s*\[image:(https?:\/\/.+)\]\s*$/;
+const PARTY_AUDIO_REGEX = /^\s*\[audio:(https?:\/\/.+)\]\s*$/;
+
+function AudioMessagePlayer({ src }: { src: string }) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const audioRef = React.useRef<HTMLAudioElement>(null);
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) audioRef.current.pause();
+    else audioRef.current.play();
+  };
+
+  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const formatTime = (s: number) => {
+    const mins = Math.floor(s / 60);
+    const secs = Math.floor(s % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div className="flex items-center gap-3 bg-black/30 border border-amber-900/20 rounded-xl px-3 py-2 max-w-[260px]">
+      <button
+        onClick={togglePlay}
+        className="w-9 h-9 rounded-full bg-amber-900/40 border border-amber-500/30 flex items-center justify-center shrink-0 hover:bg-amber-900/60 transition-colors"
+        style={{ touchAction: 'manipulation' }}
+      >
+        {isPlaying ? (
+          <Pause className="w-4 h-4 text-amber-400" />
+        ) : (
+          <Play className="w-4 h-4 text-amber-400 ml-0.5" />
+        )}
+      </button>
+      <div className="flex-1 min-w-0 space-y-1">
+        <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-amber-500/60 rounded-full transition-all duration-100"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+        <div className="flex justify-between text-[10px] text-white/50">
+          <span>{formatTime(currentTime)}</span>
+          <span>{duration > 0 ? formatTime(duration) : '--:--'}</span>
+        </div>
+      </div>
+      <audio
+        ref={audioRef}
+        src={src}
+        preload="metadata"
+        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+        onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onEnded={() => { setIsPlaying(false); setCurrentTime(0); }}
+      />
+    </div>
+  );
+}
 const AFK_LINE_REGEX = /^(\[.+?\]) (?:\(AFK(?:\s*—\s*Cascade Prompt)?\): .+|: Holds their action)$/;
 // Detect autopilot lines: [Name]: <<...  (may be single-line or start of multi-line)
 const AUTOPILOT_START_REGEX = /^\[(.+?)\]:\s*<</;
