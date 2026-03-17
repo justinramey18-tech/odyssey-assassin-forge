@@ -50,6 +50,8 @@ interface UnifiedInventoryScreenProps {
   onRemoveMiscItem: (id: string) => void;
   onAdjustMiscQuantity: (id: string, delta: number) => void;
   onUpdateMiscNotes: (id: string, notes: string) => void;
+  onRemoveConsumable: (consumableId: string) => void;
+  onAdjustConsumableQuantitySet: (consumableId: string, quantity: number) => void;
   // Loot props
   lootItems: LootItem[];
   soldHistory: SoldLootRecord[];
