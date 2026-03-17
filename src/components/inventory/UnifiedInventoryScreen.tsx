@@ -124,7 +124,7 @@ export function UnifiedInventoryScreen({
   const getBadge = (tabId: InventoryInternalTab): number | null => {
     switch (tabId) {
       case 'gear': return gearCount > 0 ? gearCount : null;
-      case 'consumables': return consumableCount > 0 ? consumableCount : null;
+      case 'consumables': { const total = consumableCount + miscCount; return total > 0 ? total : null; }
       case 'loot': return lootCount > 0 ? lootCount : null;
       case 'shop': return shopCount > 0 ? shopCount : null;
       default: return null;
