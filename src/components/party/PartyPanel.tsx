@@ -504,7 +504,7 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
       )}
 
       <AlertDialog open={!!kickTarget} onOpenChange={(open) => { if (!open) setKickTarget(null); }}>
-        <AlertDialogContent className="bg-background border-border">
+        <AlertDialogContent className="bg-background border-border z-[200]">
           <AlertDialogHeader>
             <AlertDialogTitle>Remove {kickTarget?.character_name}?</AlertDialogTitle>
             <AlertDialogDescription>They will be kicked from the party immediately.</AlertDialogDescription>
