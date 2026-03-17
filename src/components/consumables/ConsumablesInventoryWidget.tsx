@@ -307,6 +307,7 @@ interface ConsumablesInventoryWidgetProps {
   characterName: string;
   onUseItem: (id: string) => void;
   onAdjustQuantity: (id: string, delta: number) => void;
+  onSellItem?: (consumableId: string, quantity: number) => void;
   compact?: boolean;
 }
 
