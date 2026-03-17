@@ -850,20 +850,20 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   }, []);
 
   const handleEditMessage = useCallback((messageId: string, content: string) => {
-    partyDm.editMessage?.(messageId, content);
-  }, [partyDm]);
+    partyDmRef.current.editMessage?.(messageId, content);
+  }, []);
 
   const handleDeleteMessage = useCallback((messageId: string) => {
-    partyDm.deleteMessage?.(messageId);
-  }, [partyDm]);
+    partyDmRef.current.deleteMessage?.(messageId);
+  }, []);
 
   const handleRegenerateMessage = useCallback((messageId: string) => {
-    partyDm.regenerateMessage?.(messageId);
-  }, [partyDm]);
+    partyDmRef.current.regenerateMessage?.(messageId);
+  }, []);
 
   const handleRegenerateWhispers = useCallback((messageId: string) => {
-    partyDm.regenerateWhispers?.(messageId);
-  }, [partyDm]);
+    partyDmRef.current.regenerateWhispers?.(messageId);
+  }, []);
 
   const handleDiceRoll = useCallback((message: string) => {
     playerInputRef.current?.appendText(message);
