@@ -604,6 +604,7 @@ const Index = () => {
     inventory: consumablesInventory, 
     useItem: useConsumableItem, 
     setItemQuantity: setConsumableQuantity,
+    removeItem: removeConsumableItem,
     getItemCount: getConsumableCount,
     addItem: addConsumableItem 
   } = useConsumables();
