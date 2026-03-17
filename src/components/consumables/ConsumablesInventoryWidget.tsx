@@ -278,6 +278,22 @@ function ConsumableCard({
                 <Sparkles className="w-3.5 h-3.5" />
                 Use
               </Button>
+
+              {/* Sell Button */}
+              {onSell && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 border-amber-500/50 text-amber-400 hover:bg-amber-500/20"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSell(consumable.id, 1);
+                  }}
+                >
+                  <Coins className="w-3.5 h-3.5" />
+                  Sell
+                </Button>
+              )}
             </div>
           </div>
         </CollapsibleContent>
