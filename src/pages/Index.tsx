@@ -24,6 +24,7 @@ import { EquippedLoadout } from '@/components/character/EquippedLoadout';
 import { ActionWheelButton } from '@/components/character/ActionWheelButton';
 import { XPTracker } from '@/components/character/XPTracker';
 import { InventoryScreen } from '@/components/inventory/InventoryScreen';
+import { UnifiedInventoryScreen } from '@/components/inventory/UnifiedInventoryScreen';
 import { AchievementsScreen } from '@/components/achievements/AchievementsScreen';
 import { ConstellationScreen } from '@/components/constellation/ConstellationScreen';
 import { HomeScreen } from '@/components/home/HomeScreen';
@@ -272,11 +273,15 @@ const Index = () => {
   }, [pendingTab]); // eslint-disable-line react-hooks/exhaustive-deps
   
   // Derived active tab for backward compatibility
-  const activeTab = categoryNav.activeSubTab as 'skills' | 'abilities' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle' | 'legacy' | 'arcana' | 'shop' | 'loot';
+  const activeTab = categoryNav.activeSubTab as 'skills' | 'abilities' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle' | 'legacy' | 'arcana' | 'shop' | 'loot' | 'inventory';
+  
+  // Internal tab state for unified inventory deep-linking
+  const [inventoryInternalTab, setInventoryInternalTab] = useState<'gear' | 'consumables' | 'loot' | 'shop' | undefined>(undefined);
   
   // Handler to navigate to consumables tab from combat items
   const handleNavigateToConsumables = useCallback(() => {
-    categoryNav.navigateToSubTab('consumables', 'inventory');
+    setInventoryInternalTab('consumables');
+    categoryNav.navigateToSubTab('inventory', 'inventory');
   }, [categoryNav]);
   
   // Spellcasting system - moved after abilityScores for dependency
@@ -2979,69 +2984,35 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           )}
 
           {/* INVENTORY CATEGORY */}
-          {/* Consumables Sub-Tab */}
-          {activeTab === 'consumables' && (
-            <BackgroundWrapper 
-              imagePath={builderBackground} 
-              overlayOpacity={70} 
-              tintColor="green" 
-              tintOpacity={15}
-              className="min-h-[calc(100vh-10vh)]"
-            >
-              <div className="container max-w-4xl mx-auto px-4 py-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h1 className="font-cinzel text-2xl text-foreground">
-                    Consumables Inventory
-                  </h1>
-                  <AddConsumableDrawer 
-                    onAddItem={addConsumableItem}
-                    getItemCount={getConsumableCount}
-                  />
-                </div>
-                <ConsumablesInventoryWidget 
-                  inventory={consumablesInventory}
-                  characterName={character.name}
-                  onUseItem={(id) => useConsumableItem(id)}
-                  onAdjustQuantity={(id, delta) => {
-                    const currentQty = getConsumableCount(id);
-                    setConsumableQuantity(id, currentQty + delta);
-                  }}
-                />
-              </div>
-            </BackgroundWrapper>
-          )}
-
-          {/* Shop Sub-Tab */}
-          {activeTab === 'shop' && (
-            <ShopScreen
-              currentGold={shop.currentGold}
-              shopItems={shop.shopItems}
-              purchaseHistory={shop.purchaseHistory}
-              onPurchase={handleShopPurchase}
-              onRemoveItem={shop.removeShopItem}
-              onAddItem={(item) => shop.addShopItems([item])}
-              onAdjustGold={shop.addGold}
-              onSetGold={shop.setGold}
-              onClearShop={shop.clearShop}
-            />
-          )}
-
-          {/* Loot Sub-Tab */}
-          {activeTab === 'loot' && (
-            <LootScreen
+          {/* Unified Inventory Tab */}
+          {activeTab === 'inventory' && (
+            <UnifiedInventoryScreen
+              characterName={character.name}
+              level={character.level}
+              equipment={equipment}
+              onEquipmentChange={setEquipment}
+              achievements={achievements}
+              consumablesInventory={consumablesInventory}
+              onUseConsumable={(id) => useConsumableItem(id)}
+              onAddConsumable={addConsumableItem}
+              onAdjustConsumableQuantity={(id, delta) => {
+                const currentQty = getConsumableCount(id);
+                setConsumableQuantity(id, currentQty + delta);
+              }}
+              getConsumableCount={getConsumableCount}
               lootItems={loot.lootItems}
               soldHistory={loot.soldHistory}
               onAddLoot={loot.addLootItems}
               onDeleteLoot={loot.deleteLootItem}
               onSellLoot={loot.sellLootItem}
               onAddGold={shop.addGold}
-              characterName={character.name}
+              
               currentHP={hpState.current}
               maxHP={hpState.max}
               conditions={convertConditionsToPromptFormat(conditions.conditions)}
               activeSetBonus={convertSetBonusesToPromptFormat(aggregatedStats.activeSetBonuses)[0]}
               totalLootValue={loot.totalLootValue}
-              onShareToParty={partySync.party.partyId ? (item) => {
+              onShareLootToParty={partySync.party.partyId ? (item) => {
                 partySync.shareLoot({
                   added_by_name: character.name,
                   item_name: item.name,
@@ -3050,17 +3021,17 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
                   gold_value: item.goldValue,
                 });
               } : undefined}
-            />
-          )}
-
-          {/* Gear Sub-Tab */}
-          {activeTab === 'gear' && (
-            <InventoryScreen
-              characterName={character.name}
-              level={character.level}
-              equipment={equipment}
-              onEquipmentChange={setEquipment}
-              achievements={achievements}
+              currentGold={shop.currentGold}
+              shopItems={shop.shopItems}
+              purchaseHistory={shop.purchaseHistory}
+              onPurchase={handleShopPurchase}
+              onRemoveShopItem={shop.removeShopItem}
+              onAddShopItem={(item) => shop.addShopItems([item])}
+              onAdjustGold={shop.addGold}
+              onSetGold={shop.setGold}
+              onClearShop={shop.clearShop}
+              activeInternalTab={inventoryInternalTab}
+              onInternalTabChange={(tab) => setInventoryInternalTab(tab)}
             />
           )}
 
