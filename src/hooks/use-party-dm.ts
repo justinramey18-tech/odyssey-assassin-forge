@@ -792,12 +792,32 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
   }, [partyId, isCreator, sessionConfig]);
 
+  // Helper: merge consecutive same-role messages to avoid API rejections
+  // Many AI APIs (OpenAI, Anthropic) require strictly alternating user/assistant roles
+  const mergeConsecutiveRoles = useCallback((msgs: Array<{ role: string; content: string }>) => {
+    if (msgs.length === 0) return msgs;
+    const merged: Array<{ role: string; content: string }> = [msgs[0]];
+    for (let i = 1; i < msgs.length; i++) {
+      const prev = merged[merged.length - 1];
+      if (msgs[i].role === prev.role) {
+        // Merge consecutive same-role messages
+        prev.content = prev.content + '\n\n' + msgs[i].content;
+      } else {
+        merged.push({ ...msgs[i] });
+      }
+    }
+    return merged;
+  }, []);
+
   // Helper: stream an AI response and return the content
   const streamAIResponse = useCallback(async (
     apiMessages: Array<{ role: string; content: string }>,
     extraGuides: string,
     signal: AbortSignal,
   ): Promise<string> => {
+    // Ensure strictly alternating roles before sending to AI
+    const sanitizedMessages = mergeConsecutiveRoles(apiMessages);
+
     const authToken = await getAuthToken();
     const response = await fetch(AI_DM_URL, {
       method: 'POST',
@@ -806,7 +826,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         Authorization: `Bearer ${authToken}`,
       },
       body: JSON.stringify({
-        messages: apiMessages.slice(-100),
+        messages: sanitizedMessages.slice(-100),
         characterContext,
         campaignSummary: sessionConfig?.campaignSummary || undefined,
         customGuides: extraGuides,
@@ -868,7 +888,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       }
     }
     return assistantContent;
-  }, [characterContext, sessionConfig?.campaignSummary]);
+  }, [characterContext, sessionConfig?.campaignSummary, mergeConsecutiveRoles]);
 
 
   // Build party members system prompt section
