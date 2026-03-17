@@ -1766,6 +1766,7 @@ export function usePartySync(): UsePartySyncReturn {
     pinMessage,
     unpinMessage,
     uploadChatImage,
+    uploadChatAudio,
     partyMessages,
     messageReactions,
     addReaction,
