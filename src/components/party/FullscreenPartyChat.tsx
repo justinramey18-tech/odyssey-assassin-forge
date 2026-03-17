@@ -51,7 +51,7 @@ function formatTimestamp(dateStr: string): string {
 export function FullscreenPartyChat({
   open, onClose, messages, currentUserId, isPartyCreator,
   onSend, onEdit, onDelete, onBulkDelete, onClearAll,
-  onPin, onUnpin, onUploadImage, typingUsers, onTyping,
+  onPin, onUnpin, onUploadImage, onUploadAudio, typingUsers, onTyping,
   reactions, onAddReaction, onRemoveReaction, onlineStatusMap,
 }: FullscreenPartyChatProps) {
   const [text, setText] = useState('');
