@@ -686,3 +686,59 @@ export function FullscreenPartyChat({
     </AnimatePresence>
   );
 }
+
+function VoiceMessagePlayer({ src }: { src: string }) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  const togglePlay = useCallback(() => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+  }, [isPlaying]);
+
+  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+  const formatTime = (s: number) => {
+    const mins = Math.floor(s / 60);
+    const secs = Math.floor(s % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div className="flex items-center gap-2 bg-muted/30 border border-border/30 rounded-lg px-2.5 py-1.5 max-w-[220px]">
+      <button
+        onClick={togglePlay}
+        className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0 hover:bg-primary/30 transition-colors"
+      >
+        {isPlaying ? <Pause className="w-3.5 h-3.5 text-primary" /> : <Play className="w-3.5 h-3.5 text-primary ml-0.5" />}
+      </button>
+      <div className="flex-1 min-w-0">
+        <div className="w-full h-1.5 bg-muted/50 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-primary/60 rounded-full transition-all duration-100"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+      </div>
+      <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+        {formatTime(isPlaying || currentTime > 0 ? currentTime : duration)}
+      </span>
+      <audio
+        ref={audioRef}
+        src={src}
+        preload="metadata"
+        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+        onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onEnded={() => { setIsPlaying(false); setCurrentTime(0); }}
+      />
+    </div>
+  );
+}
