@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useImperativeHandle, forwardRef, memo } from 'react';
-import { Send, Check, Paperclip, Loader2, Camera, Film, ImageIcon, BarChart3, Ghost, Music } from 'lucide-react';
+import { Send, Check, Paperclip, Loader2, Camera, Film, ImageIcon, BarChart3, Ghost, Music, Mic, MicOff } from 'lucide-react';
 import { useDraftPersist } from '@/hooks/use-draft-persist';
+import { useSpeechToText } from '@/hooks/use-speech-to-text';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Image as LucideImage } from 'lucide-react';
@@ -39,6 +40,22 @@ export const PartyDMInput = memo(forwardRef<PartyDMInputHandle, PartyDMInputProp
   const [input, setInput, clearInput] = useDraftPersist('odyssey-party-dm-draft');
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const autoResizeTextarea = useCallback(() => {
+    requestAnimationFrame(() => {
+      if (inputRef.current) {
+        inputRef.current.style.height = 'auto';
+        inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 200) + 'px';
+      }
+    });
+  }, []);
+
+  const { isListening, isSupported, toggle: toggleSpeech } = useSpeechToText({
+    onTranscript: useCallback((text: string) => {
+      setInput(prev => prev ? prev + ' ' + text : text);
+      autoResizeTextarea();
+    }, [setInput, autoResizeTextarea]),
+  });
 
   useImperativeHandle(ref, () => ({
     setText: (text: string) => {
@@ -103,6 +120,25 @@ export const PartyDMInput = memo(forwardRef<PartyDMInputHandle, PartyDMInputProp
           rows={1}
           className="flex-1 bg-white/5 border border-amber-900/30 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-amber-500/40 resize-none min-h-[42px] max-h-[200px]"
         />
+        {isSupported && (
+          <button
+            onClick={toggleSpeech}
+            className={cn(
+              "p-2.5 rounded-xl border shrink-0 transition-all",
+              isListening
+                ? "bg-red-900/50 border-red-500/50 shadow-[0_0_12px_rgba(239,68,68,0.3)] animate-pulse"
+                : "bg-white/5 border-white/10 hover:border-amber-500/30 hover:bg-amber-900/20"
+            )}
+            style={{ touchAction: 'manipulation' }}
+            title={isListening ? 'Stop listening' : 'Voice input'}
+          >
+            {isListening ? (
+              <MicOff className="w-5 h-5 text-red-400" />
+            ) : (
+              <Mic className="w-5 h-5 text-white/50" />
+            )}
+          </button>
+        )}
         <button
           onClick={handleSubmit}
           disabled={!input.trim() || !!hasPrompt}
