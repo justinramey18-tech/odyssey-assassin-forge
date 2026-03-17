@@ -848,10 +848,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     if (text && /^https?:\/\/.+\.(gif|png|jpg|jpeg|webp)(\?.*)?$/i.test(text)) {
       e.preventDefault();
       const senderName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
-      await partyDm.addMediaMessage(`[image:${text}]`, senderName);
+      await partyDmRef.current.addMediaMessage(`[image:${text}]`, senderName);
       return;
     }
-  }, [partyDm, members, currentUserId]);
+  }, [members, currentUserId]);
 
   const handleCopyMessage = useCallback((content: string) => {
     navigator.clipboard.writeText(content).then(() => {
