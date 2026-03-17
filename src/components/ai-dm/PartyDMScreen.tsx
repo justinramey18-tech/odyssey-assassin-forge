@@ -1950,6 +1950,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         accept="audio/*"
         className="hidden"
         onChange={async (e) => {
+          sessionStorage.removeItem('pending-file-picker');
           const file = e.target.files?.[0];
           if (!file) return;
           if (file.size > 25 * 1024 * 1024) { toast.error('Audio too large (max 25MB)'); return; }
