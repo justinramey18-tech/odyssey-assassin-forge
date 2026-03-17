@@ -107,6 +107,17 @@ export function UnifiedInventoryScreen({
     return 'gear';
   });
 
+  // Sell drawer state
+  const [sellDrawerOpen, setSellDrawerOpen] = useState(false);
+  const [sellItemInfo, setSellItemInfo] = useState<{
+    name: string;
+    suggestedPrice: number;
+    quantity: number;
+    type: 'gear' | 'consumable' | 'misc';
+    id: string;
+    gearItem?: EquipmentItem;
+  } | null>(null);
+
   const currentTab = activeInternalTab ?? localTab;
 
   const handleTabChange = useCallback((tab: InventoryInternalTab) => {
@@ -121,6 +132,76 @@ export function UnifiedInventoryScreen({
       setLocalTab(activeInternalTab);
     }
   }, [activeInternalTab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sell handlers
+  const handleSellGear = useCallback((item: EquipmentItem) => {
+    setSellItemInfo({
+      name: item.name,
+      suggestedPrice: getEquipmentSellPrice(item.value),
+      quantity: 1,
+      type: 'gear',
+      id: item.id,
+      gearItem: item,
+    });
+    setSellDrawerOpen(true);
+  }, []);
+
+  const handleSellConsumable = useCallback((consumableId: string, quantity: number) => {
+    const item = consumablesInventory.find(i => i.consumable.id === consumableId);
+    if (!item) return;
+    setSellItemInfo({
+      name: item.consumable.name,
+      suggestedPrice: getConsumableSellPrice(item.consumable.rarity),
+      quantity: item.quantity,
+      type: 'consumable',
+      id: consumableId,
+    });
+    setSellDrawerOpen(true);
+  }, [consumablesInventory]);
+
+  const handleSellMisc = useCallback((id: string, quantity: number) => {
+    const item = miscItems.find(i => i.id === id);
+    if (!item) return;
+    setSellItemInfo({
+      name: item.name,
+      suggestedPrice: getMiscSellPrice(item.goldValue),
+      quantity: item.quantity,
+      type: 'misc',
+      id: id,
+    });
+    setSellDrawerOpen(true);
+  }, [miscItems]);
+
+  const handleConfirmSell = useCallback((sellPrice: number, qty: number) => {
+    if (!sellItemInfo) return;
+    const totalGold = sellPrice * qty;
+
+    if (sellItemInfo.type === 'gear') {
+      // Remove from inventory (already unequipped by InventoryScreen)
+      const newInventory = equipment.inventory.filter(i => i.id !== sellItemInfo.id);
+      onEquipmentChange({ ...equipment, inventory: newInventory });
+    } else if (sellItemInfo.type === 'consumable') {
+      if (qty >= (consumablesInventory.find(i => i.consumable.id === sellItemInfo.id)?.quantity ?? 0)) {
+        onRemoveConsumable(sellItemInfo.id);
+      } else {
+        const current = consumablesInventory.find(i => i.consumable.id === sellItemInfo.id);
+        if (current) {
+          onAdjustConsumableQuantitySet(sellItemInfo.id, current.quantity - qty);
+        }
+      }
+    } else if (sellItemInfo.type === 'misc') {
+      const item = miscItems.find(i => i.id === sellItemInfo.id);
+      if (item && qty >= item.quantity) {
+        onRemoveMiscItem(sellItemInfo.id);
+      } else {
+        onAdjustMiscQuantity(sellItemInfo.id, -qty);
+      }
+    }
+
+    onAddGoldFromSale(totalGold);
+    toast.success(`Sold ${sellItemInfo.name}${qty > 1 ? ` ×${qty}` : ''} for ${totalGold} GP`);
+    setSellItemInfo(null);
+  }, [sellItemInfo, equipment, onEquipmentChange, consumablesInventory, onRemoveConsumable, onAdjustConsumableQuantitySet, miscItems, onRemoveMiscItem, onAdjustMiscQuantity, onAddGoldFromSale]);
 
   const miscCount = miscItems.reduce((sum, i) => sum + i.quantity, 0);
   const consumableCount = consumablesInventory.reduce((sum, item) => sum + item.quantity, 0);
