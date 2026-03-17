@@ -44,6 +44,7 @@ const ALL_STORAGE_KEYS = [
   // Inventory & Equipment
   'odyssey-loot',
   'odyssey-shop',
+  'odyssey-misc-items',
   'odyssey-equipment-custom-images',
   'odyssey-gear-locks',
   

@@ -100,6 +100,7 @@ import { useAbilityCustomization } from '@/hooks/use-ability-customization';
 import { useAbilityImages } from '@/hooks/use-ability-images';
 import { homebrewToAbility } from '@/lib/abilityCustomization/utils';
 import { useAuth } from '@/hooks/use-auth';
+import { useMiscItems } from '@/hooks/use-misc-items';
 import { useCloudSave } from '@/hooks/use-cloud-save';
 import { usePlayMode } from '@/hooks/use-play-mode';
 import { useAppMode } from '@/hooks/use-app-mode';
@@ -126,7 +127,9 @@ const Index = () => {
       window.location.reload();
     }
   }, [searchParams, setSearchParams]);
-
+  
+  // Misc items system
+  const miscItems = useMiscItems();
 
   // Handle deep-link via ?tab= query param (e.g. from /features page)
   const pendingTab = searchParams.get('tab');
@@ -2233,15 +2236,24 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         className: "border-yellow-500 bg-yellow-500/10",
       });
     } else {
-      // Miscellaneous - just show success
+      // Miscellaneous - add to misc items inventory
+      const shopItem = shop.shopItems.find(i => i.id === itemId);
+      miscItems.addMiscItem({
+        name: result.itemName || shopItem?.name || 'Unknown Item',
+        category: shopItem?.category || 'Other',
+        description: shopItem?.description,
+        quantity: 1,
+        goldValue: shopItem?.costGold,
+      });
       toast({
         title: "Item Purchased!",
-        description: `Acquired item. Remaining: ${result.remainingGold} GP`,
+        description: `${result.itemName} added to Misc Items. Remaining: ${result.remainingGold} GP`,
+        className: "border-yellow-500 bg-yellow-500/10",
       });
     }
     
     return result;
-  }, [shop, addConsumableItem, setEquipment, toast]);
+  }, [shop, addConsumableItem, setEquipment, miscItems, toast]);
 
   // Manual level up trigger (for milestone mode or testing)
   const handleManualLevelUp = () => {
@@ -3000,6 +3012,11 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
                 setConsumableQuantity(id, currentQty + delta);
               }}
               getConsumableCount={getConsumableCount}
+              miscItems={miscItems.miscItems}
+              onAddMiscItem={miscItems.addMiscItem}
+              onRemoveMiscItem={miscItems.removeMiscItem}
+              onAdjustMiscQuantity={miscItems.adjustMiscQuantity}
+              onUpdateMiscNotes={miscItems.updateMiscNotes}
               lootItems={loot.lootItems}
               soldHistory={loot.soldHistory}
               onAddLoot={loot.addLootItems}

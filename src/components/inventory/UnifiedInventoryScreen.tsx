@@ -3,13 +3,16 @@ import { Shield, FlaskConical, Package, Store } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
+import { Separator } from '@/components/ui/separator';
 import { InventoryScreen } from './InventoryScreen';
+import { MiscItemsWidget } from './MiscItemsWidget';
 import { ConsumablesInventoryWidget, AddConsumableDrawer } from '@/components/consumables';
 import { LootScreen } from '@/components/loot/LootScreen';
 import { ShopScreen } from '@/components/shop/ShopScreen';
 import { CharacterEquipment, EquipmentItem } from '@/lib/inventory/types';
 import { Achievement } from '@/lib/achievements';
 import { InventoryItem, Consumable } from '@/lib/consumables/types';
+import { MiscItem } from '@/lib/miscItems/types';
 import { LootItem, SoldLootRecord } from '@/lib/loot/types';
 import { ShopItem, ParsedShopItem, PurchaseRecord } from '@/lib/shop/types';
 import { EquipmentItem as ShopEquipmentItem } from '@/lib/inventory/types';
@@ -39,6 +42,12 @@ interface UnifiedInventoryScreenProps {
   onAddConsumable: (consumable: Consumable) => void;
   onAdjustConsumableQuantity: (id: string, delta: number) => void;
   getConsumableCount: (id: string) => number;
+  // Misc items props
+  miscItems: MiscItem[];
+  onAddMiscItem: (item: Omit<MiscItem, 'id' | 'addedAt'>) => void;
+  onRemoveMiscItem: (id: string) => void;
+  onAdjustMiscQuantity: (id: string, delta: number) => void;
+  onUpdateMiscNotes: (id: string, notes: string) => void;
   // Loot props
   lootItems: LootItem[];
   soldHistory: SoldLootRecord[];
@@ -75,6 +84,7 @@ interface UnifiedInventoryScreenProps {
 export function UnifiedInventoryScreen({
   characterName, level, equipment, onEquipmentChange, achievements,
   consumablesInventory, onUseConsumable, onAddConsumable, onAdjustConsumableQuantity, getConsumableCount,
+  miscItems, onAddMiscItem, onRemoveMiscItem, onAdjustMiscQuantity, onUpdateMiscNotes,
   lootItems, soldHistory, onAddLoot, onDeleteLoot, onSellLoot, onAddGold,
   currentHP, maxHP, conditions, activeSetBonus, totalLootValue, onShareLootToParty,
   currentGold, shopItems, purchaseHistory, onPurchase, onRemoveShopItem, onAddShopItem,
@@ -105,6 +115,7 @@ export function UnifiedInventoryScreen({
     }
   }, [activeInternalTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const miscCount = miscItems.reduce((sum, i) => sum + i.quantity, 0);
   const consumableCount = consumablesInventory.reduce((sum, item) => sum + item.quantity, 0);
   const lootCount = lootItems.length;
   const shopCount = shopItems.length;
@@ -113,7 +124,7 @@ export function UnifiedInventoryScreen({
   const getBadge = (tabId: InventoryInternalTab): number | null => {
     switch (tabId) {
       case 'gear': return gearCount > 0 ? gearCount : null;
-      case 'consumables': return consumableCount > 0 ? consumableCount : null;
+      case 'consumables': { const total = consumableCount + miscCount; return total > 0 ? total : null; }
       case 'loot': return lootCount > 0 ? lootCount : null;
       case 'shop': return shopCount > 0 ? shopCount : null;
       default: return null;
@@ -176,21 +187,33 @@ export function UnifiedInventoryScreen({
             tintOpacity={15}
             className="min-h-[calc(100vh-14vh)]"
           >
-            <div className="container max-w-4xl mx-auto px-4 py-6">
-              <div className="flex items-center justify-between mb-6">
-                <h1 className="font-cinzel text-2xl text-foreground">
-                  Consumables Inventory
-                </h1>
-                <AddConsumableDrawer
-                  onAddItem={onAddConsumable}
-                  getItemCount={getConsumableCount}
+            <div className="container max-w-4xl mx-auto px-4 py-6 space-y-8">
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <h1 className="font-cinzel text-2xl text-foreground">
+                    Consumables
+                  </h1>
+                  <AddConsumableDrawer
+                    onAddItem={onAddConsumable}
+                    getItemCount={getConsumableCount}
+                  />
+                </div>
+                <ConsumablesInventoryWidget
+                  inventory={consumablesInventory}
+                  characterName={characterName}
+                  onUseItem={onUseConsumable}
+                  onAdjustQuantity={(id, delta) => onAdjustConsumableQuantity(id, delta)}
                 />
               </div>
-              <ConsumablesInventoryWidget
-                inventory={consumablesInventory}
-                characterName={characterName}
-                onUseItem={onUseConsumable}
-                onAdjustQuantity={(id, delta) => onAdjustConsumableQuantity(id, delta)}
+
+              <Separator className="opacity-30" />
+
+              <MiscItemsWidget
+                items={miscItems}
+                onAddItem={onAddMiscItem}
+                onRemoveItem={onRemoveMiscItem}
+                onAdjustQuantity={onAdjustMiscQuantity}
+                onUpdateNotes={onUpdateMiscNotes}
               />
             </div>
           </BackgroundWrapper>

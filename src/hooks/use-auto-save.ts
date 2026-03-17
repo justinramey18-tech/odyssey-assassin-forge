@@ -7,6 +7,7 @@ import { SpellcastingState } from '@/lib/magic/types';
 import { ActiveSpellEffect } from '@/lib/magic/durations';
 import { PrestigeTreeProgress } from '@/lib/prestigeTree/types';
 import { LootState } from '@/lib/loot/types';
+import { MiscItem } from '@/lib/miscItems/types';
 import { CombatSettings } from '@/lib/combat/combatSettings';
 import { ConditionsState } from '@/lib/conditions/types';
 import { CooldownSaveState } from '@/lib/cooldowns/types';
@@ -51,6 +52,7 @@ export interface SaveData {
   prestigeTree?: PrestigeTreeProgress;
   shopGold?: number;
   loot?: LootState;
+  miscItems?: MiscItem[];
   proficiencies?: {
     skills: string[];
     saves: string[];
