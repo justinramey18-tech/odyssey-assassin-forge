@@ -1460,7 +1460,23 @@ export function usePartySync(): UsePartySyncReturn {
     return urlData.publicUrl;
   }, [user, party.partyId]);
 
-  const startVote = useCallback(async (question: string, options: string[], creatorName: string) => {
+  const uploadChatAudio = useCallback(async (blob: Blob): Promise<string | null> => {
+    if (!user || !party.partyId) return null;
+    const path = `${user.id}/${party.partyId}/${Date.now()}.webm`;
+    const { data, error } = await supabase.storage
+      .from('party-chat-audio')
+      .upload(path, blob, { contentType: 'audio/webm', cacheControl: '3600' });
+    if (error) {
+      toast.error('Failed to upload voice message');
+      return null;
+    }
+    const { data: urlData } = supabase.storage
+      .from('party-chat-audio')
+      .getPublicUrl(data.path);
+    return urlData.publicUrl;
+  }, [user, party.partyId]);
+
+
     if (!user || !party.partyId) return;
 
     // Clean up any existing vote rows from any creator before starting a new one
