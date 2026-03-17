@@ -437,7 +437,13 @@ export function FullscreenPartyChat({
                                 </div>
                               )}
                               <div className="space-y-1">
-                                <p className="text-sm text-foreground/90 break-words">{msg.message}</p>
+                                {/* Hide "🎤 Voice message" text if audio_url present */}
+                                {!(msg.audio_url && msg.message === '🎤 Voice message') && (
+                                  <p className="text-sm text-foreground/90 break-words">{msg.message}</p>
+                                )}
+                                {msg.audio_url && (
+                                  <VoiceMessagePlayer src={msg.audio_url} />
+                                )}
                                 {msg.image_url && (
                                   <a href={msg.image_url} target="_blank" rel="noopener noreferrer" className="block mb-1">
                                     <img src={msg.image_url} alt="Message image" className="max-w-full max-h-32 rounded" />
