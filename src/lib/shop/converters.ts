@@ -201,6 +201,7 @@ function inferWeight(slotType: EquipmentSlotType): number {
     arms: 1,
     waist: 1,
     legs: 2,
+    cloak: 1,
     primary_weapon: 3,
     secondary_weapon: 1,
     ranged_weapon: 2,
