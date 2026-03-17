@@ -616,6 +616,38 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [ttsSelectedIds, setTtsSelectedIds] = useState<Set<string>>(new Set());
   const lastProcessedMsgIdRef = useRef<string | null>(null);
 
+  // Reading bookmark state (per user, per party, localStorage)
+  const bookmarkKey = partyId && currentUserId ? `party-bookmark-${partyId}-${currentUserId}` : null;
+  const [bookmarkedMessageId, setBookmarkedMessageId] = useState<string | null>(() => {
+    if (!bookmarkKey) return null;
+    try {
+      const saved = localStorage.getItem(bookmarkKey);
+      if (saved) return JSON.parse(saved).messageId ?? null;
+    } catch {}
+    return null;
+  });
+  const bookmarkRef = useRef<HTMLDivElement>(null);
+
+  const handleSetBookmark = useCallback((messageId: string) => {
+    if (!bookmarkKey) return;
+    const isRemoving = bookmarkedMessageId === messageId;
+    if (isRemoving) {
+      localStorage.removeItem(bookmarkKey);
+      setBookmarkedMessageId(null);
+      toast.success('Bookmark removed');
+    } else {
+      localStorage.setItem(bookmarkKey, JSON.stringify({ messageId, savedAt: new Date().toISOString() }));
+      setBookmarkedMessageId(messageId);
+      toast.success('Bookmark saved');
+    }
+  }, [bookmarkKey, bookmarkedMessageId]);
+
+  const handleJumpToBookmark = useCallback(() => {
+    if (bookmarkRef.current) {
+      bookmarkRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, []);
+
   // Auto-mood for party DM: detect new assistant messages and trigger mood detection
   useEffect(() => {
     if (!spotify.autoMoodEnabled || !spotify.connected) return;
