@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useImperativeHandle, forwardRef, memo } from 'react';
-import { Send, Check, Paperclip, Loader2, Camera, Film, ImageIcon, BarChart3, Ghost } from 'lucide-react';
+import { Send, Check, Paperclip, Loader2, Camera, Film, ImageIcon, BarChart3, Ghost, Music } from 'lucide-react';
 import { useDraftPersist } from '@/hooks/use-draft-persist';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
