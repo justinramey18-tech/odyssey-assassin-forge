@@ -115,6 +115,7 @@ export function UnifiedInventoryScreen({
     }
   }, [activeInternalTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const miscCount = miscItems.reduce((sum, i) => sum + i.quantity, 0);
   const consumableCount = consumablesInventory.reduce((sum, item) => sum + item.quantity, 0);
   const lootCount = lootItems.length;
   const shopCount = shopItems.length;
