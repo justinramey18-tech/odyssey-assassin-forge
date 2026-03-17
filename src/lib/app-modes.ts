@@ -141,7 +141,7 @@ export const APP_MODE_CONFIGS: Record<AppMode, AppModeConfig> = {
     color: 'emerald',
     visibleTabs: [
       'combat', 'skills', 'abilities', 'arcana', 'legacy',
-      'consumables', 'shop', 'loot', 'gear', 'stars', 'feats',
+      'inventory', 'stars', 'feats',
       'scribe', 'chronicle', 'cloud', 'settings',
     ],
     visibleHomeFeatures: [
