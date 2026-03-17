@@ -176,7 +176,7 @@ function inferSlotType(category?: string, itemName?: string): EquipmentSlotType 
     if (lower.includes('boot') || lower.includes('greave') || lower.includes('leg')) return 'legs';
     if (lower.includes('amulet') || lower.includes('necklace') || lower.includes('pendant') || lower.includes('periapt')) return 'amulet';
     if (lower.includes('ring')) return 'ring1';
-    if (lower.includes('cloak') || lower.includes('cape') || lower.includes('mantle')) return 'chest';
+    if (lower.includes('cloak') || lower.includes('cape') || lower.includes('mantle')) return 'cloak';
     if (lower.includes('staff') || lower.includes('wand')) return 'primary_weapon';
     if (lower.includes('shield')) return 'secondary_weapon';
   }
