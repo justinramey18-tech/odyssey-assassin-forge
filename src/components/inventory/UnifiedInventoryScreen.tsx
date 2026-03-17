@@ -187,21 +187,33 @@ export function UnifiedInventoryScreen({
             tintOpacity={15}
             className="min-h-[calc(100vh-14vh)]"
           >
-            <div className="container max-w-4xl mx-auto px-4 py-6">
-              <div className="flex items-center justify-between mb-6">
-                <h1 className="font-cinzel text-2xl text-foreground">
-                  Consumables Inventory
-                </h1>
-                <AddConsumableDrawer
-                  onAddItem={onAddConsumable}
-                  getItemCount={getConsumableCount}
+            <div className="container max-w-4xl mx-auto px-4 py-6 space-y-8">
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <h1 className="font-cinzel text-2xl text-foreground">
+                    Consumables
+                  </h1>
+                  <AddConsumableDrawer
+                    onAddItem={onAddConsumable}
+                    getItemCount={getConsumableCount}
+                  />
+                </div>
+                <ConsumablesInventoryWidget
+                  inventory={consumablesInventory}
+                  characterName={characterName}
+                  onUseItem={onUseConsumable}
+                  onAdjustQuantity={(id, delta) => onAdjustConsumableQuantity(id, delta)}
                 />
               </div>
-              <ConsumablesInventoryWidget
-                inventory={consumablesInventory}
-                characterName={characterName}
-                onUseItem={onUseConsumable}
-                onAdjustQuantity={(id, delta) => onAdjustConsumableQuantity(id, delta)}
+
+              <Separator className="opacity-30" />
+
+              <MiscItemsWidget
+                items={miscItems}
+                onAddItem={onAddMiscItem}
+                onRemoveItem={onRemoveMiscItem}
+                onAdjustQuantity={onAdjustMiscQuantity}
+                onUpdateNotes={onUpdateMiscNotes}
               />
             </div>
           </BackgroundWrapper>
