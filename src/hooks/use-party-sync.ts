@@ -271,7 +271,7 @@ export interface UsePartySyncReturn {
   claimLoot: (lootId: string, claimerName: string) => Promise<void>;
   partyLoot: PartyLootItem[];
   // Party Chat
-  sendMessage: (message: string, senderName: string, options?: { replyToId?: string; imageUrl?: string }) => Promise<void>;
+  sendMessage: (message: string, senderName: string, options?: { replyToId?: string; imageUrl?: string; audioUrl?: string }) => Promise<void>;
   editMessage: (messageId: string, newText: string) => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;
   bulkDeleteMessages: (messageIds: string[]) => Promise<void>;
@@ -279,6 +279,7 @@ export interface UsePartySyncReturn {
   pinMessage: (messageId: string) => Promise<void>;
   unpinMessage: (messageId: string) => Promise<void>;
   uploadChatImage: (file: File) => Promise<string | null>;
+  uploadChatAudio: (blob: Blob) => Promise<string | null>;
   partyMessages: PartyMessage[];
   // Reactions
   messageReactions: MessageReaction[];
