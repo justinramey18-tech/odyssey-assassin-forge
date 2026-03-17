@@ -5,7 +5,7 @@ import partyChatIcon from '@/assets/party-chat-icon.jpg';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3, PawPrint } from 'lucide-react';
+import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3, PawPrint, Bookmark, BookmarkCheck } from 'lucide-react';
 import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
 import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer, PreSplitChatViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
@@ -211,7 +211,7 @@ function AfkAnnotatedContent({ content, afkNames }: { content: string; afkNames?
   );
 }
 
-const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true }: {
+const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark }: {
   message: PartyDmMessage;
   currentUserId?: string;
   members: Array<{ user_id: string; character_name: string }>;
@@ -228,6 +228,8 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   ttsSelected?: boolean;
   onTtsToggle?: (id: string) => void;
   whisperTrayEnabled?: boolean;
+  isBookmarked?: boolean;
+  onBookmark?: (messageId: string) => void;
 }) {
   const [showActions, setShowActions] = useState(false);
   const [isEditingMsg, setIsEditingMsg] = useState(false);
@@ -377,6 +379,21 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
               </div>
             )}
 
+            {/* Bookmark button (all users) */}
+            {!isEditingMsg && onBookmark && (
+              <button
+                onClick={() => onBookmark(message.id)}
+                className={cn(
+                  "p-1 rounded transition-colors opacity-0 group-hover/msg:opacity-100",
+                  isBookmarked ? "text-amber-400" : "text-white/20 hover:text-amber-400/70"
+                )}
+                style={{ touchAction: 'manipulation' }}
+                title={isBookmarked ? "Bookmarked" : "Bookmark here"}
+              >
+                {isBookmarked ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
+              </button>
+            )}
+
             {/* Host action buttons */}
             {isCreator && !isEditingMsg && (
               <div className="relative mt-1.5">
@@ -518,6 +535,21 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
         </p>
         )}
 
+        {/* Bookmark button (all users) */}
+        {!isEditingMsg && onBookmark && (
+          <button
+            onClick={() => onBookmark(message.id)}
+            className={cn(
+              "p-1 rounded transition-colors opacity-0 group-hover/msg:opacity-100 mt-1",
+              isBookmarked ? "text-amber-400" : "text-white/20 hover:text-amber-400/70"
+            )}
+            style={{ touchAction: 'manipulation' }}
+            title={isBookmarked ? "Bookmarked" : "Bookmark here"}
+          >
+            {isBookmarked ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
+          </button>
+        )}
+
         {/* Host action buttons */}
         {isCreator && !isEditingMsg && (
           <div className="relative mt-1.5">
@@ -559,7 +591,6 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     </motion.div>
   );
 }, (prev, next) => {
-  // Custom comparator — skip re-render if nothing meaningful changed
   return prev.message.id === next.message.id
     && prev.message.content === next.message.content
     && prev.message.role === next.message.role
@@ -569,7 +600,8 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     && prev.isCreator === next.isCreator
     && prev.mode === next.mode
     && prev.showTeamTag === next.showTeamTag
-    && prev.currentUserId === next.currentUserId;
+    && prev.currentUserId === next.currentUserId
+    && prev.isBookmarked === next.isBookmarked;
 });
 
 export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, showBattleMap, battleMapContent, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid }: PartyDMScreenProps) {
@@ -583,6 +615,38 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [ttsSelectMode, setTtsSelectMode] = useState(false);
   const [ttsSelectedIds, setTtsSelectedIds] = useState<Set<string>>(new Set());
   const lastProcessedMsgIdRef = useRef<string | null>(null);
+
+  // Reading bookmark state (per user, per party, localStorage)
+  const bookmarkKey = partyId && currentUserId ? `party-bookmark-${partyId}-${currentUserId}` : null;
+  const [bookmarkedMessageId, setBookmarkedMessageId] = useState<string | null>(() => {
+    if (!bookmarkKey) return null;
+    try {
+      const saved = localStorage.getItem(bookmarkKey);
+      if (saved) return JSON.parse(saved).messageId ?? null;
+    } catch {}
+    return null;
+  });
+  const bookmarkRef = useRef<HTMLDivElement>(null);
+
+  const handleSetBookmark = useCallback((messageId: string) => {
+    if (!bookmarkKey) return;
+    const isRemoving = bookmarkedMessageId === messageId;
+    if (isRemoving) {
+      localStorage.removeItem(bookmarkKey);
+      setBookmarkedMessageId(null);
+      toast.success('Bookmark removed');
+    } else {
+      localStorage.setItem(bookmarkKey, JSON.stringify({ messageId, savedAt: new Date().toISOString() }));
+      setBookmarkedMessageId(messageId);
+      toast.success('Bookmark saved');
+    }
+  }, [bookmarkKey, bookmarkedMessageId]);
+
+  const handleJumpToBookmark = useCallback(() => {
+    if (bookmarkRef.current) {
+      bookmarkRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, []);
 
   // Auto-mood for party DM: detect new assistant messages and trigger mood detection
   useEffect(() => {
@@ -1088,25 +1152,39 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                   }
                 }
                 return (
-                <PartyDMMessage
-                  key={msg.id}
-                  message={msg}
-                  currentUserId={currentUserId}
-                  members={stableMembers}
-                  mode={partyDm.isSplitActive ? 'private' : 'shared'}
-                  isCreator={isCreator}
-                  onCopy={handleCopyMessage}
-                  onEdit={handleEditMessage}
-                  onDelete={handleDeleteMessage}
-                  onRegenerate={handleRegenerateMessage}
-                  onRegenerateWhispers={handleRegenerateWhispers}
-                  showTeamTag={isCreator && partyDm.isSplitActive}
-                  afkCharNames={afkNames}
-                  ttsSelectMode={ttsSelectMode}
-                  ttsSelected={ttsSelectedIds.has(msg.id)}
-                  onTtsToggle={handleTtsToggle}
-                  whisperTrayEnabled={whisperTrayEnabled}
-                />
+                <React.Fragment key={msg.id}>
+                  {/* Bookmark divider */}
+                  {msg.id === bookmarkedMessageId && (
+                    <div ref={bookmarkRef} className="flex items-center gap-2 py-1 px-2">
+                      <div className="flex-1 h-px bg-amber-500/30" />
+                      <span className="flex items-center gap-1.5 text-[11px] font-cinzel text-amber-400/80 whitespace-nowrap">
+                        <Bookmark className="w-3.5 h-3.5 text-amber-400 animate-[pulse_2s_ease-in-out_infinite]" style={{ filter: 'drop-shadow(0 0 4px rgba(245,158,11,0.5))' }} />
+                        You left off here
+                      </span>
+                      <div className="flex-1 h-px bg-amber-500/30" />
+                    </div>
+                  )}
+                  <PartyDMMessage
+                    message={msg}
+                    currentUserId={currentUserId}
+                    members={stableMembers}
+                    mode={partyDm.isSplitActive ? 'private' : 'shared'}
+                    isCreator={isCreator}
+                    onCopy={handleCopyMessage}
+                    onEdit={handleEditMessage}
+                    onDelete={handleDeleteMessage}
+                    onRegenerate={handleRegenerateMessage}
+                    onRegenerateWhispers={handleRegenerateWhispers}
+                    showTeamTag={isCreator && partyDm.isSplitActive}
+                    afkCharNames={afkNames}
+                    ttsSelectMode={ttsSelectMode}
+                    ttsSelected={ttsSelectedIds.has(msg.id)}
+                    onTtsToggle={handleTtsToggle}
+                    whisperTrayEnabled={whisperTrayEnabled}
+                    isBookmarked={msg.id === bookmarkedMessageId}
+                    onBookmark={handleSetBookmark}
+                  />
+                </React.Fragment>
                 );
               })}
             </AnimatePresence>
@@ -1275,6 +1353,17 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           </AnimatePresence>
         </div>
       )}
+        {/* Jump to Bookmark FAB */}
+        {bookmarkedMessageId && (
+          <button
+            onClick={handleJumpToBookmark}
+            className="absolute bottom-14 right-2 z-[5] w-9 h-9 rounded-full flex items-center justify-center bg-amber-900/60 hover:bg-amber-900/80 border border-amber-500/40 transition-all shadow-lg"
+            style={{ touchAction: 'manipulation' }}
+            title="Jump to bookmark"
+          >
+            <BookmarkCheck className="w-4 h-4 text-amber-400" />
+          </button>
+        )}
         {/* Chat FAB - bottom-left of chat area */}
         {onShowChat && (
           <button
