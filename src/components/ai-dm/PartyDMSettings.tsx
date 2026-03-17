@@ -126,6 +126,9 @@ export interface PartyDMSettingsProps {
   // Response mode
   responseMode?: string;
   onResponseModeChange?: (modeId: string | null) => void;
+  // Reading bookmark
+  hasBookmark?: boolean;
+  onClearBookmark?: () => void;
 }
 
 export function PartyDMSettings({
