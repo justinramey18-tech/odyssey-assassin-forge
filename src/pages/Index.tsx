@@ -272,11 +272,15 @@ const Index = () => {
   }, [pendingTab]); // eslint-disable-line react-hooks/exhaustive-deps
   
   // Derived active tab for backward compatibility
-  const activeTab = categoryNav.activeSubTab as 'skills' | 'abilities' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle' | 'legacy' | 'arcana' | 'shop' | 'loot';
+  const activeTab = categoryNav.activeSubTab as 'skills' | 'abilities' | 'gear' | 'feats' | 'stars' | 'scribe' | 'combat' | 'consumables' | 'chronicle' | 'legacy' | 'arcana' | 'shop' | 'loot' | 'inventory';
+  
+  // Internal tab state for unified inventory deep-linking
+  const [inventoryInternalTab, setInventoryInternalTab] = useState<'gear' | 'consumables' | 'loot' | 'shop' | undefined>(undefined);
   
   // Handler to navigate to consumables tab from combat items
   const handleNavigateToConsumables = useCallback(() => {
-    categoryNav.navigateToSubTab('consumables', 'inventory');
+    setInventoryInternalTab('consumables');
+    categoryNav.navigateToSubTab('inventory', 'inventory');
   }, [categoryNav]);
   
   // Spellcasting system - moved after abilityScores for dependency
