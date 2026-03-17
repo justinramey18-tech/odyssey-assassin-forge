@@ -113,6 +113,15 @@ export function PartyMemberCard({ member, isSelf, onViewActions, onSendItem, onK
               <Gift className="w-3 h-3 text-amber-400/70 hover:text-amber-400" />
             </button>
           )}
+          {!isSelf && isCreator && onKick && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onKick(member); }}
+              className="p-0.5 rounded hover:bg-destructive/10 transition-colors"
+              title="Remove from party"
+            >
+              <UserMinus className="w-3 h-3 text-destructive/70 hover:text-destructive" />
+            </button>
+          )}
           {isTappable && (
             <Eye className="w-3 h-3 text-muted-foreground/50" />
           )}
