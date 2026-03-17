@@ -819,6 +819,31 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [localTimerEnabled, setLocalTimerEnabled] = useState(partyDm.sessionConfig?.timerEnabled ?? false);
   const [localTimerDuration, setLocalTimerDuration] = useState(partyDm.sessionConfig?.timerDurationSeconds ?? 120);
 
+  const handleAudioUpload = useCallback(async (file: File) => {
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error('Audio too large (max 25MB)');
+      return;
+    }
+
+    setIsUploadingAudio(true);
+    try {
+      const fallbackExt = file.type.includes('mp4') ? 'm4a' : file.type.includes('mpeg') ? 'mp3' : 'webm';
+      const ext = file.name.split('.').pop() || fallbackExt;
+      const path = `party-dm/${partyDm.sessionConfig?.currentRoundId || 'general'}/${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from('party-chat-audio').upload(path, file);
+      if (error) throw error;
+      const { data: urlData } = supabase.storage.from('party-chat-audio').getPublicUrl(path);
+      const senderName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
+      await partyDm.addMediaMessage(`[audio:${urlData.publicUrl}]`, senderName);
+      setShowAudioRecorder(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Audio upload failed');
+      throw err;
+    } finally {
+      setIsUploadingAudio(false);
+    }
+  }, [currentUserId, members, partyDm]);
+
   // Sync local timer state when sessionConfig changes
   useEffect(() => {
     if (partyDm.sessionConfig) {
