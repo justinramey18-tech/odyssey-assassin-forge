@@ -83,6 +83,10 @@ export function FullscreenPartyChat({
 
   // Emoji picker
   const [emojiPickerMsgId, setEmojiPickerMsgId] = useState<string | null>(null);
+
+  // Voice recording
+  const voiceRecorder = useVoiceRecorder();
+  const [uploadingAudio, setUploadingAudio] = useState(false);
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
 
   // Build reactions map: messageId -> { emoji -> { count, userReacted, names[] } }
