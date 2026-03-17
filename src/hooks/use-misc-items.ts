@@ -49,7 +49,7 @@ export function useMiscItems() {
       }
       return [...prev, { 
         ...item, 
-        id: uuidv4(), 
+        id: crypto.randomUUID(), 
         quantity: item.quantity || 1,
         addedAt: new Date().toISOString() 
       }];
