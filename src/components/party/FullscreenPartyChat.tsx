@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Send, X, MessageSquare, Pencil, Trash2, CheckSquare, Square, XCircle, Pin, PinOff, ImagePlus, Reply, ChevronDown, ChevronUp, SmilePlus, Copy, Check } from 'lucide-react';
+import { Send, X, MessageSquare, Pencil, Trash2, CheckSquare, Square, XCircle, Pin, PinOff, ImagePlus, Reply, ChevronDown, ChevronUp, SmilePlus, Copy, Check, Mic, MicOff, Play, Pause } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { PartyChatMessage } from './PartyChat';
 import type { MessageReaction } from '@/hooks/use-party-sync';
+import { useVoiceRecorder } from '@/hooks/use-voice-recorder';
 
 interface FullscreenPartyChatProps {
   open: boolean;
@@ -13,7 +14,7 @@ interface FullscreenPartyChatProps {
   messages: PartyChatMessage[];
   currentUserId?: string;
   isPartyCreator?: boolean;
-  onSend: (message: string, options?: { replyToId?: string; imageUrl?: string }) => Promise<void>;
+  onSend: (message: string, options?: { replyToId?: string; imageUrl?: string; audioUrl?: string }) => Promise<void>;
   onEdit?: (messageId: string, newText: string) => Promise<void>;
   onDelete?: (messageId: string) => Promise<void>;
   onBulkDelete?: (messageIds: string[]) => Promise<void>;
@@ -21,6 +22,7 @@ interface FullscreenPartyChatProps {
   onPin?: (messageId: string) => Promise<void>;
   onUnpin?: (messageId: string) => Promise<void>;
   onUploadImage?: (file: File) => Promise<string | null>;
+  onUploadAudio?: (blob: Blob) => Promise<string | null>;
   typingUsers?: { userId: string; name: string }[];
   onTyping?: () => void;
   reactions?: MessageReaction[];
