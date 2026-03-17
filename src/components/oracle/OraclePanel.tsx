@@ -97,6 +97,20 @@ export function OraclePanel({ characterContext, className, bookmarkActive, bookm
         disabled={isLoading}
       />
 
+      {/* Recap Scope Banner */}
+      {mode === 'recap' && (
+        <div className={cn(
+          'mx-3 mb-1 px-3 py-1.5 rounded-full text-xs text-center border',
+          bookmarkActive
+            ? 'text-amber-400 border-amber-500/30 bg-amber-950/20'
+            : 'text-white/50 border-white/10 bg-white/5'
+        )}>
+          {bookmarkActive
+            ? `📖 Recapping from your bookmark · ${bookmarkMessageCount ?? 0} messages`
+            : '📜 Recapping last 35 messages'}
+        </div>
+      )}
+
       {/* Messages */}
       <MessageList
         messages={messages}
