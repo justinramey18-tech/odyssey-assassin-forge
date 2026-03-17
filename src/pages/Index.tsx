@@ -2236,15 +2236,24 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         className: "border-yellow-500 bg-yellow-500/10",
       });
     } else {
-      // Miscellaneous - just show success
+      // Miscellaneous - add to misc items inventory
+      const shopItem = shop.shopItems.find(i => i.id === itemId);
+      miscItems.addMiscItem({
+        name: result.itemName || shopItem?.name || 'Unknown Item',
+        category: shopItem?.category || 'Other',
+        description: shopItem?.description,
+        quantity: 1,
+        goldValue: shopItem?.costGold,
+      });
       toast({
         title: "Item Purchased!",
-        description: `Acquired item. Remaining: ${result.remainingGold} GP`,
+        description: `${result.itemName} added to Misc Items. Remaining: ${result.remainingGold} GP`,
+        className: "border-yellow-500 bg-yellow-500/10",
       });
     }
     
     return result;
-  }, [shop, addConsumableItem, setEquipment, toast]);
+  }, [shop, addConsumableItem, setEquipment, miscItems, toast]);
 
   // Manual level up trigger (for milestone mode or testing)
   const handleManualLevelUp = () => {
