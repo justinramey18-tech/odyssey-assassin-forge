@@ -316,6 +316,7 @@ export function ConsumablesInventoryWidget({
   characterName,
   onUseItem,
   onAdjustQuantity,
+  onSellItem,
   compact = false,
 }: ConsumablesInventoryWidgetProps) {
   const [expandedType, setExpandedType] = useState<string | null>('potion');
