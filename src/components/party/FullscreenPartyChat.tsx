@@ -608,6 +608,19 @@ export function FullscreenPartyChat({
 
           {/* Input area */}
           <div className="border-t border-border/40 bg-background/95 backdrop-blur-sm px-4 py-3 space-y-2">
+            {/* Recording indicator */}
+            {voiceRecorder.isRecording && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-destructive/10 rounded-lg border border-destructive/30 text-xs">
+                <div className="w-2.5 h-2.5 rounded-full bg-destructive animate-pulse shrink-0" />
+                <span className="text-destructive font-medium flex-1">Recording... {voiceRecorder.recordingDuration}s</span>
+                <button
+                  onClick={() => voiceRecorder.cancelRecording()}
+                  className="text-muted-foreground hover:text-foreground text-xs underline"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
             {replyTo && (
               <div className="flex items-start gap-2 px-3 py-2 bg-primary/10 rounded-lg border border-primary/20 text-xs">
                 <Reply className="w-4 h-4 text-primary shrink-0 rotate-180" />
@@ -640,13 +653,29 @@ export function FullscreenPartyChat({
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
                 placeholder="Say something in party chat..."
                 className="text-sm"
-                disabled={sending || uploadingImage}
+                disabled={sending || uploadingImage || uploadingAudio || voiceRecorder.isRecording}
               />
               <Button size="icon" variant="ghost" onClick={() => fileInputRef.current?.click()}
-                disabled={uploadingImage} className="text-muted-foreground hover:text-foreground">
+                disabled={uploadingImage || voiceRecorder.isRecording} className="text-muted-foreground hover:text-foreground">
                 <ImagePlus className="w-4 h-4" />
               </Button>
-              <Button size="icon" onClick={handleSend} disabled={(!text.trim() && !pendingImageUrl) || sending || uploadingImage}>
+              {onUploadAudio && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onPointerDown={handleMicDown}
+                  onPointerUp={handleMicUp}
+                  onPointerLeave={() => { if (voiceRecorder.isRecording) voiceRecorder.cancelRecording(); }}
+                  disabled={uploadingAudio || sending}
+                  className={cn(
+                    "text-muted-foreground hover:text-foreground",
+                    voiceRecorder.isRecording && "bg-destructive/20 text-destructive"
+                  )}
+                >
+                  {voiceRecorder.isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                </Button>
+              )}
+              <Button size="icon" onClick={handleSend} disabled={(!text.trim() && !pendingImageUrl) || sending || uploadingImage || voiceRecorder.isRecording}>
                 <Send className="w-4 h-4" />
               </Button>
             </div>
