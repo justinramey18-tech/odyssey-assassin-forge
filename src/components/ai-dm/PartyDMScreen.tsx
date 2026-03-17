@@ -2002,10 +2002,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             currentUserId={currentUserId}
             isUploadingPhoto={isUploadingPhoto}
             isUploadingVideo={isUploadingVideo}
+            isUploadingAudio={isUploadingAudio}
             onTakePhoto={() => photoCameraRef.current?.click()}
             onRecordVideo={() => videoCameraRef.current?.click()}
             onPickPhoto={() => photoInputRef.current?.click()}
             onPickVideo={() => videoInputRef.current?.click()}
+            onPickAudio={() => audioInputRef.current?.click()}
             onCreatePoll={() => setShowPollCreator(true)}
           />
         ) : !isReady ? (
