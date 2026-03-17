@@ -1152,25 +1152,39 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                   }
                 }
                 return (
-                <PartyDMMessage
-                  key={msg.id}
-                  message={msg}
-                  currentUserId={currentUserId}
-                  members={stableMembers}
-                  mode={partyDm.isSplitActive ? 'private' : 'shared'}
-                  isCreator={isCreator}
-                  onCopy={handleCopyMessage}
-                  onEdit={handleEditMessage}
-                  onDelete={handleDeleteMessage}
-                  onRegenerate={handleRegenerateMessage}
-                  onRegenerateWhispers={handleRegenerateWhispers}
-                  showTeamTag={isCreator && partyDm.isSplitActive}
-                  afkCharNames={afkNames}
-                  ttsSelectMode={ttsSelectMode}
-                  ttsSelected={ttsSelectedIds.has(msg.id)}
-                  onTtsToggle={handleTtsToggle}
-                  whisperTrayEnabled={whisperTrayEnabled}
-                />
+                <React.Fragment key={msg.id}>
+                  {/* Bookmark divider */}
+                  {msg.id === bookmarkedMessageId && (
+                    <div ref={bookmarkRef} className="flex items-center gap-2 py-1 px-2">
+                      <div className="flex-1 h-px bg-amber-500/30" />
+                      <span className="flex items-center gap-1.5 text-[11px] font-cinzel text-amber-400/80 whitespace-nowrap">
+                        <Bookmark className="w-3.5 h-3.5 text-amber-400 animate-[pulse_2s_ease-in-out_infinite]" style={{ filter: 'drop-shadow(0 0 4px rgba(245,158,11,0.5))' }} />
+                        You left off here
+                      </span>
+                      <div className="flex-1 h-px bg-amber-500/30" />
+                    </div>
+                  )}
+                  <PartyDMMessage
+                    message={msg}
+                    currentUserId={currentUserId}
+                    members={stableMembers}
+                    mode={partyDm.isSplitActive ? 'private' : 'shared'}
+                    isCreator={isCreator}
+                    onCopy={handleCopyMessage}
+                    onEdit={handleEditMessage}
+                    onDelete={handleDeleteMessage}
+                    onRegenerate={handleRegenerateMessage}
+                    onRegenerateWhispers={handleRegenerateWhispers}
+                    showTeamTag={isCreator && partyDm.isSplitActive}
+                    afkCharNames={afkNames}
+                    ttsSelectMode={ttsSelectMode}
+                    ttsSelected={ttsSelectedIds.has(msg.id)}
+                    onTtsToggle={handleTtsToggle}
+                    whisperTrayEnabled={whisperTrayEnabled}
+                    isBookmarked={msg.id === bookmarkedMessageId}
+                    onBookmark={handleSetBookmark}
+                  />
+                </React.Fragment>
                 );
               })}
             </AnimatePresence>
