@@ -826,7 +826,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         Authorization: `Bearer ${authToken}`,
       },
       body: JSON.stringify({
-        messages: sanitizedMessages.slice(-100),
+        messages: truncateMessagesByChars(sanitizedMessages.slice(-100), 120000),
         characterContext,
         campaignSummary: sessionConfig?.campaignSummary || undefined,
         customGuides: extraGuides,
