@@ -692,7 +692,19 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       )
     : members;
 
-  // Host broadcast playlist indicator
+  // Stable members reference for PartyDMMessage to avoid re-renders
+  const stableMembers = useMemo(() => members.map(m => ({ user_id: m.user_id, character_name: m.character_name })), [members]);
+
+  // Stable TTS toggle callback
+  const handleTtsToggle = useCallback((id: string) => {
+    setTtsSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+
   const [broadcastPlaylist, setBroadcastPlaylist] = useState<string | null>(null);
   useEffect(() => {
     if (!partyId) return;
