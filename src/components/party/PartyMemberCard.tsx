@@ -12,6 +12,8 @@ interface PartyMemberCardProps {
   isSelf: boolean;
   onViewActions?: (member: PartyMember) => void;
   onSendItem?: (member: PartyMember) => void;
+  onKick?: (member: PartyMember) => void;
+  isCreator?: boolean;
   onlineInfo?: OnlineInfo;
   compact?: boolean;
 }
