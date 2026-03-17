@@ -1126,6 +1126,11 @@ Always include the **numeric amount** and ideally the **damage type**:
 
 💡 Including damage type (fire, cold, slashing, etc.) enables automatic damage type tracking and resistance/vulnerability analysis.
 
+ABSOLUTE HP STATEMENTS (MOST RELIABLE):
+- "**Momo: 26/38 HP**" — the parser extracts current and max HP directly.
+- "**You are at 14/45 HP.**"
+- This format is the highest-confidence way to report HP. Use it after damage or healing for accurate tracking.
+
 ═══════════════════════════════════════════════════════════════════════════════
 DAMAGE (TO ENEMIES)
 ═══════════════════════════════════════════════════════════════════════════════
