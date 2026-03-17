@@ -74,6 +74,7 @@ export function createInitialEquipment(): CharacterEquipment {
     arms: sampleEquipment.find(e => e.slotType === 'arms') || null,
     waist: sampleEquipment.find(e => e.slotType === 'waist') || null,
     legs: sampleEquipment.find(e => e.slotType === 'legs') || null,
+    cloak: sampleEquipment.find(e => e.slotType === 'cloak') || null,
     primary_weapon: sampleEquipment.find(e => e.slotType === 'primary_weapon') || null,
     secondary_weapon: sampleEquipment.find(e => e.slotType === 'secondary_weapon') || null,
     ranged_weapon: sampleEquipment.find(e => e.slotType === 'ranged_weapon') || null,

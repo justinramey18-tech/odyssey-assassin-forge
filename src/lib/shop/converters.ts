@@ -219,6 +219,7 @@ function inferEquipmentIcon(slotType: EquipmentSlotType): string {
     arms: '🧤',
     waist: '🎗️',
     legs: '👢',
+    cloak: '🧣',
     primary_weapon: '⚔️',
     secondary_weapon: '🗡️',
     ranged_weapon: '🏹',

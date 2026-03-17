@@ -43,6 +43,7 @@ export const SLOT_ICONS: Record<EquipmentSlotType, string> = {
   arms: 'Hand',
   waist: 'CircleDot',
   legs: 'Footprints',
+  cloak: 'Wind',
   primary_weapon: 'Sword',
   secondary_weapon: 'Axe',
   ranged_weapon: 'Target',
