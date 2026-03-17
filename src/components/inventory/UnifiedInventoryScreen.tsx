@@ -80,6 +80,8 @@ interface UnifiedInventoryScreenProps {
   onAdjustGold: (amount: number) => void;
   onSetGold: (amount: number) => void;
   onClearShop: () => void;
+  // Sell callback — adds gold to shop balance
+  onAddGoldFromSale: (amount: number) => void;
   // Deep-linking
   activeInternalTab?: InventoryInternalTab;
   onInternalTabChange?: (tab: InventoryInternalTab) => void;
