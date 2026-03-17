@@ -2149,47 +2149,59 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               }}
             />
           ) : undefined}
-          oracleContent={activeNavTab === 'oracle' && characterContext ? (
-            <OraclePanel characterContext={{
-              ...characterContext,
-              campaignSummary: partyDm.sessionConfig?.campaignSummary || undefined,
-              gmGuidesContent: gmGuidesContent || undefined,
-              memoryAnchors: memoryAnchorsContent || undefined,
-              recentNarrative: partyDm.messages
-                .filter(m => m.role === 'user' || m.role === 'assistant')
-                .slice(-35)
-                .map(m => ({
-                  role: m.role,
-                  name: m.sender_name,
-                  content: m.content,
-                })),
-              partyMembers: members
-                .filter(m => m.user_id !== currentUserId && m.character_name)
-                .map(m => {
-                  const cs = m.character_status as any;
-                  const qa = cs?.quickActions;
-                  return {
-                    name: m.character_name,
-                    level: cs?.level,
-                    className: cs?.className,
-                    currentHP: cs?.currentHP,
-                    maxHP: cs?.maxHP,
-                    ac: cs?.ac,
-                    conditions: cs?.conditions,
-                    race: cs?.race,
-                    gender: cs?.gender,
-                    multiclassLevels: cs?.multiclassLevels,
-                    abilityScores: cs?.abilityScores,
-                    equippedAbilities: qa?.abilities?.map((a: any) => a.name)?.slice(0, 10),
-                    preparedSpells: qa?.spells?.map((s: any) => s.name)?.slice(0, 15),
-                    spellSlots: cs?.spellSlots
-                      ? Object.entries(cs.spellSlots)
-                          .filter(([, s]: any) => s?.max > 0)
-                          .map(([lvl, s]: any) => ({ level: Number(lvl), current: s.current, max: s.max }))
-                      : undefined,
-                  };
-                }),
-            }} />
+          oracleContent={activeNavTab === 'oracle' && characterContext ? (() => {
+            const bmIdx = bookmarkedMessageId
+              ? partyDm.messages.findIndex(m => m.id === bookmarkedMessageId)
+              : -1;
+            const narrativeSlice = bmIdx >= 0
+              ? partyDm.messages.slice(bmIdx)
+              : partyDm.messages.slice(-35);
+            const filteredNarrative = narrativeSlice
+              .filter(m => m.role === 'user' || m.role === 'assistant');
+            return (
+              <OraclePanel
+                characterContext={{
+                  ...characterContext,
+                  campaignSummary: partyDm.sessionConfig?.campaignSummary || undefined,
+                  gmGuidesContent: gmGuidesContent || undefined,
+                  memoryAnchors: memoryAnchorsContent || undefined,
+                  recentNarrative: filteredNarrative.map(m => ({
+                    role: m.role,
+                    name: m.sender_name,
+                    content: m.content,
+                  })),
+                  partyMembers: members
+                    .filter(m => m.user_id !== currentUserId && m.character_name)
+                    .map(m => {
+                      const cs = m.character_status as any;
+                      const qa = cs?.quickActions;
+                      return {
+                        name: m.character_name,
+                        level: cs?.level,
+                        className: cs?.className,
+                        currentHP: cs?.currentHP,
+                        maxHP: cs?.maxHP,
+                        ac: cs?.ac,
+                        conditions: cs?.conditions,
+                        race: cs?.race,
+                        gender: cs?.gender,
+                        multiclassLevels: cs?.multiclassLevels,
+                        abilityScores: cs?.abilityScores,
+                        equippedAbilities: qa?.abilities?.map((a: any) => a.name)?.slice(0, 10),
+                        preparedSpells: qa?.spells?.map((s: any) => s.name)?.slice(0, 15),
+                        spellSlots: cs?.spellSlots
+                          ? Object.entries(cs.spellSlots)
+                              .filter(([, s]: any) => s?.max > 0)
+                              .map(([lvl, s]: any) => ({ level: Number(lvl), current: s.current, max: s.max }))
+                          : undefined,
+                      };
+                    }),
+                }}
+                bookmarkActive={bmIdx >= 0}
+                bookmarkMessageCount={filteredNarrative.length}
+              />
+            );
+          })()
           ) : undefined}
           wildshapeContent={activeNavTab === 'wildshape' && wildShape && wildShape.config ? (
             <div className="px-3 py-3">

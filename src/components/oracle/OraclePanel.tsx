@@ -15,6 +15,8 @@ import { CharacterContext } from './types';
 interface OraclePanelProps {
   characterContext: CharacterContext;
   className?: string;
+  bookmarkActive?: boolean;
+  bookmarkMessageCount?: number;
 }
 
 export function OraclePanel({ characterContext, className }: OraclePanelProps) {
