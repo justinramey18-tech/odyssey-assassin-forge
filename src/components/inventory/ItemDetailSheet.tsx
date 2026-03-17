@@ -37,6 +37,7 @@ export function ItemDetailSheet({
   onClose,
   onUnequip,
   onCompare,
+  onSell,
 }: ItemDetailSheetProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [enchantmentsOpen, setEnchantmentsOpen] = useState(true);
