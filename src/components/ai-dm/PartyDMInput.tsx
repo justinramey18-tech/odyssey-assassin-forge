@@ -109,7 +109,12 @@ export const PartyDMInput = memo(forwardRef<PartyDMInputHandle, PartyDMInputProp
   }
 
   return (
-    <div className="space-y-2 max-w-2xl mx-auto">
+    <div className="space-y-1 max-w-2xl mx-auto">
+      {isListening && interimText && (
+        <div className="px-2 text-xs text-amber-400/50 italic truncate animate-pulse">
+          {interimText}…
+        </div>
+      )}
       <div className="flex items-end gap-2">
         <textarea
           ref={inputRef}
