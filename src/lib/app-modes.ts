@@ -61,7 +61,7 @@ export const APP_MODE_CONFIGS: Record<AppMode, AppModeConfig> = {
     icon: 'Wand2',
     color: 'cyan',
     visibleTabs: [
-      'combat', 'skills', 'arcana', 'consumables', 'settings',
+      'combat', 'skills', 'arcana', 'inventory', 'settings',
     ],
     visibleHomeFeatures: [
       'home.characterInfo', 'home.d20', 'home.clock',
@@ -119,7 +119,7 @@ export const APP_MODE_CONFIGS: Record<AppMode, AppModeConfig> = {
     color: 'blue',
     visibleTabs: [
       'combat', 'skills', 'abilities', 'arcana',
-      'gear', 'consumables', 'loot', 'shop', 'cloud', 'settings',
+      'inventory', 'cloud', 'settings',
     ],
     visibleHomeFeatures: [
       'home.characterInfo', 'home.d20', 'home.clock',
@@ -141,7 +141,7 @@ export const APP_MODE_CONFIGS: Record<AppMode, AppModeConfig> = {
     color: 'emerald',
     visibleTabs: [
       'combat', 'skills', 'abilities', 'arcana', 'legacy',
-      'consumables', 'shop', 'loot', 'gear', 'stars', 'feats',
+      'inventory', 'stars', 'feats',
       'scribe', 'chronicle', 'cloud', 'settings',
     ],
     visibleHomeFeatures: [
@@ -258,10 +258,7 @@ export function getAllFeatureIds(): Record<string, { id: string; label: string }
       { id: 'abilities', label: 'Abilities' },
       { id: 'arcana', label: 'Arcana' },
       { id: 'legacy', label: 'Legacy' },
-      { id: 'consumables', label: 'Consumables' },
-      { id: 'shop', label: 'Shop' },
-      { id: 'loot', label: 'Loot' },
-      { id: 'gear', label: 'Gear' },
+      { id: 'inventory', label: 'Inventory' },
       { id: 'stars', label: 'Stars' },
       { id: 'feats', label: 'Feats' },
       { id: 'scribe', label: 'Scribe' },
