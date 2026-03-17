@@ -247,6 +247,17 @@ function MiscItemCard({
               </button>
             )}
           </div>
+          {onSell && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-500/20"
+              onClick={() => onSell(1)}
+            >
+              <Coins className="w-3 h-3 mr-1" />
+              Sell
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
