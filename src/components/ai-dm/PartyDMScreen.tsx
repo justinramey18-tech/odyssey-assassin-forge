@@ -1099,31 +1099,37 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             </div>
           ) : (
             <AnimatePresence initial={false}>
-              {partyDm.messages.map(msg => (
+              {partyDm.messages.map((msg, idx) => {
+                // Pre-compute AFK names from preceding user message
+                let afkNames: string[] | undefined;
+                if (msg.role === 'assistant' && idx > 0) {
+                  const prev = partyDm.messages[idx - 1];
+                  if (prev.role === 'user') {
+                    afkNames = extractAfkNames(prev.content);
+                  }
+                }
+                return (
                 <PartyDMMessage
                   key={msg.id}
                   message={msg}
                   currentUserId={currentUserId}
-                  members={members.map(m => ({ user_id: m.user_id, character_name: m.character_name }))}
+                  members={stableMembers}
                   mode={partyDm.isSplitActive ? 'private' : 'shared'}
                   isCreator={isCreator}
-                  onCopy={(content) => { navigator.clipboard.writeText(content); }}
+                  onCopy={handleCopyMessage}
                   onEdit={handleEditMessage}
                   onDelete={handleDeleteMessage}
                   onRegenerate={handleRegenerateMessage}
                   onRegenerateWhispers={handleRegenerateWhispers}
                   showTeamTag={isCreator && partyDm.isSplitActive}
-                  allMessages={partyDm.messages}
+                  afkCharNames={afkNames}
                   ttsSelectMode={ttsSelectMode}
                   ttsSelected={ttsSelectedIds.has(msg.id)}
-                  onTtsToggle={(id) => setTtsSelectedIds(prev => {
-                    const next = new Set(prev);
-                    if (next.has(id)) next.delete(id); else next.add(id);
-                    return next;
-                  })}
+                  onTtsToggle={handleTtsToggle}
                   whisperTrayEnabled={whisperTrayEnabled}
                 />
-              ))}
+                );
+              })}
             </AnimatePresence>
           )}
 
