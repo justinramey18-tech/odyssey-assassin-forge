@@ -75,7 +75,7 @@ export function useCategoryNavigation(
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed: PersistedState = JSON.parse(stored);
-        return parsed.inventorySubTab || 'consumables';
+        return parsed.inventorySubTab || 'inventory';
       }
     } catch {
       // Ignore parse errors
