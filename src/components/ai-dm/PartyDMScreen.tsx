@@ -2201,8 +2201,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 bookmarkMessageCount={filteredNarrative.length}
               />
             );
-          })()
-          ) : undefined}
+          })() : undefined}
           wildshapeContent={activeNavTab === 'wildshape' && wildShape && wildShape.config ? (
             <div className="px-3 py-3">
               <WildShapeSection wildShape={wildShape} characterName={characterContext?.name || 'Adventurer'} />
