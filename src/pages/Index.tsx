@@ -24,6 +24,7 @@ import { EquippedLoadout } from '@/components/character/EquippedLoadout';
 import { ActionWheelButton } from '@/components/character/ActionWheelButton';
 import { XPTracker } from '@/components/character/XPTracker';
 import { InventoryScreen } from '@/components/inventory/InventoryScreen';
+import { UnifiedInventoryScreen } from '@/components/inventory/UnifiedInventoryScreen';
 import { AchievementsScreen } from '@/components/achievements/AchievementsScreen';
 import { ConstellationScreen } from '@/components/constellation/ConstellationScreen';
 import { HomeScreen } from '@/components/home/HomeScreen';
