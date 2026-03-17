@@ -247,6 +247,7 @@ export function InventoryScreen({
       arms: null,
       waist: null,
       legs: null,
+      cloak: null,
       primary_weapon: null,
       secondary_weapon: null,
       ranged_weapon: null,
