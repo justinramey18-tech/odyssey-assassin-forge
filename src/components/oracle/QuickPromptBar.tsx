@@ -19,7 +19,7 @@ export function QuickPromptBar({ personality, mode, onPromptClick, disabled, boo
 
   const handlePromptClick = (prompt: string) => {
     if (prompt.includes('Catch me up from my bookmark') && bookmarkActive) {
-      const enhancedPrompt = `Catch me up on everything that has happened since my bookmark. I have ${bookmarkMessageCount ?? 0} messages to review. Give me a complete recap of the story, key events, combat outcomes, and current situation since I last left off.`;
+      const enhancedPrompt = `Catch me up from my bookmark. I have ${bookmarkMessageCount ?? 0} messages to review. Use bullet points for key events and end with current situation — keep it tight and itemized, no prose.`;
       onPromptClick(enhancedPrompt);
     } else {
       onPromptClick(prompt);
