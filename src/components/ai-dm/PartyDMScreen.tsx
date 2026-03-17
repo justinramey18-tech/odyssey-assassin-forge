@@ -1935,6 +1935,28 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           finally { setIsUploadingVideo(false); if (videoCameraRef.current) videoCameraRef.current.value = ''; }
         }}
       />
+      <input
+        ref={audioInputRef}
+        type="file"
+        accept="audio/*"
+        className="hidden"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          if (file.size > 25 * 1024 * 1024) { toast.error('Audio too large (max 25MB)'); return; }
+          setIsUploadingAudio(true);
+          try {
+            const ext = file.name.split('.').pop() || 'mp3';
+            const path = `party-dm/${partyDm.sessionConfig?.currentRoundId || 'general'}/${crypto.randomUUID()}.${ext}`;
+            const { error } = await supabase.storage.from('party-chat-audio').upload(path, file);
+            if (error) throw error;
+            const { data: urlData } = supabase.storage.from('party-chat-audio').getPublicUrl(path);
+            const senderName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
+            await partyDm.addMediaMessage(`[audio:${urlData.publicUrl}]`, senderName);
+          } catch (err) { toast.error(err instanceof Error ? err.message : 'Audio upload failed'); }
+          finally { setIsUploadingAudio(false); if (audioInputRef.current) audioInputRef.current.value = ''; }
+        }}
+      />
 
       {/* Input Area */}
       {!isFullscreen && (
