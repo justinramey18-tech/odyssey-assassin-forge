@@ -1476,7 +1476,7 @@ export function usePartySync(): UsePartySyncReturn {
     return urlData.publicUrl;
   }, [user, party.partyId]);
 
-
+  const startVote = useCallback(async (question: string, options: string[], creatorName: string) => {
     if (!user || !party.partyId) return;
 
     // Clean up any existing vote rows from any creator before starting a new one
