@@ -264,6 +264,7 @@ export function UnifiedInventoryScreen({
             equipment={equipment}
             onEquipmentChange={onEquipmentChange}
             achievements={achievements}
+            onSellGear={handleSellGear}
           />
         )}
 
@@ -291,6 +292,7 @@ export function UnifiedInventoryScreen({
                   characterName={characterName}
                   onUseItem={onUseConsumable}
                   onAdjustQuantity={(id, delta) => onAdjustConsumableQuantity(id, delta)}
+                  onSellItem={handleSellConsumable}
                 />
               </div>
 
@@ -302,6 +304,7 @@ export function UnifiedInventoryScreen({
                 onRemoveItem={onRemoveMiscItem}
                 onAdjustQuantity={onAdjustMiscQuantity}
                 onUpdateNotes={onUpdateMiscNotes}
+                onSellItem={handleSellMisc}
               />
             </div>
           </BackgroundWrapper>
@@ -339,6 +342,18 @@ export function UnifiedInventoryScreen({
           />
         )}
       </div>
+
+      {/* Sell Item Drawer */}
+      {sellItemInfo && (
+        <SellItemDrawer
+          open={sellDrawerOpen}
+          onOpenChange={setSellDrawerOpen}
+          itemName={sellItemInfo.name}
+          suggestedPrice={sellItemInfo.suggestedPrice}
+          quantity={sellItemInfo.quantity}
+          onConfirmSell={handleConfirmSell}
+        />
+      )}
     </div>
   );
 }
