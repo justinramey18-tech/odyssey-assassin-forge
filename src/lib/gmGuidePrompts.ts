@@ -1501,14 +1501,35 @@ For best parsing, include the **natural roll + modifier = total**:
 SHOP & MERCHANT INVENTORY
 ═══════════════════════════════════════════════════════════════════════════════
 
-Present shop inventories in list format for automatic detection:
+Present shop inventories using any of these formats. Item names must start with a capital letter.
 
-✅ RECOGNIZED FORMATS:
-- "**Healing Potion — 50 gp**"
+MERCHANT DIALOGUE:
+- "The merchant **offers a Cloak of Protection for 500 gp**."
+- "She's **selling Boots of Speed for 200 gold**."
+- "You can **buy a Ring of Resistance for 300 gp**."
+- "He **offers a Wand of Fireballs for 1500 gold pieces**."
+
+LIST FORMATS (best for full inventories):
+- "**Healing Potion — 50 gp**" (dash-separated)
+- "**Potion of Healing: 50 gp**" (colon-separated)
+- "**Cloak of Protection (500 gp)**" (parenthetical)
 - "* **Longsword — 15 gp**" (bulleted list)
-- "1. **Potion of Healing - 50 gp**" (numbered)
+- "1. **Potion of Healing - 50 gp**" (numbered list)
+
+QUANTITY & SPECIAL PRICING:
 - "**3x Potion of Healing at 50 gp each**"
 - "**Arrows (20) — 1 gp**"
+- "**Cloak of Protection reduced to 400 gp**" (discount/haggle)
+
+REVERSED PRICE FORMAT:
+- "**500 gp for a Cloak of Protection**"
+
+MULTI-CURRENCY (auto-converted to gold):
+- "**Sells a Gem of Seeing for 5 pp**" (= 50 gp)
+- "**Rope — 100 sp**" (= 10 gp)
+- "**Candles — 10 cp**" (= ~1 gp)
+
+💡 Item names must be 3-60 characters and start with a capital letter. Supported currencies: gp, sp, cp, ep, pp (all auto-converted to gold equivalent).
 
 ═══════════════════════════════════════════════════════════════════════════════
 ABILITY SCORE INCREASES
