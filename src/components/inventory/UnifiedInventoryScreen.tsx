@@ -90,11 +90,12 @@ interface UnifiedInventoryScreenProps {
 export function UnifiedInventoryScreen({
   characterName, level, equipment, onEquipmentChange, achievements,
   consumablesInventory, onUseConsumable, onAddConsumable, onAdjustConsumableQuantity, getConsumableCount,
+  onRemoveConsumable, onAdjustConsumableQuantitySet,
   miscItems, onAddMiscItem, onRemoveMiscItem, onAdjustMiscQuantity, onUpdateMiscNotes,
   lootItems, soldHistory, onAddLoot, onDeleteLoot, onSellLoot, onAddGold,
   currentHP, maxHP, conditions, activeSetBonus, totalLootValue, onShareLootToParty,
   currentGold, shopItems, purchaseHistory, onPurchase, onRemoveShopItem, onAddShopItem,
-  onAdjustGold, onSetGold, onClearShop,
+  onAdjustGold, onSetGold, onClearShop, onAddGoldFromSale,
   activeInternalTab, onInternalTabChange,
 }: UnifiedInventoryScreenProps) {
   const [localTab, setLocalTab] = useState<InventoryInternalTab>(() => {
