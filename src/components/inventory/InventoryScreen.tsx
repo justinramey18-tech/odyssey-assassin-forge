@@ -62,6 +62,7 @@ export function InventoryScreen({
   equipment: externalEquipment,
   onEquipmentChange,
   achievements = achievementCategories,
+  onSellGear,
 }: InventoryScreenProps) {
   const [internalEquipment, setInternalEquipment] = useState<CharacterEquipment>(createInitialEquipment);
   const [viewMode, setViewMode] = useState<ViewMode>('compact');
