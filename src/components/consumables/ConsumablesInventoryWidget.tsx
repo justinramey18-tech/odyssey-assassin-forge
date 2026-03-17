@@ -36,6 +36,7 @@ interface ConsumableCardProps {
   characterName: string;
   onUse: (id: string) => void;
   onAdjustQuantity: (id: string, delta: number) => void;
+  onSell?: (consumableId: string, quantity: number) => void;
   compact?: boolean;
 }
 
