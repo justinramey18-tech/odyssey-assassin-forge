@@ -173,8 +173,14 @@ export function useShop() {
       convertedItem = convertShopItemToConsumable(item);
       destinationType = 'consumable';
     } else if (item.itemType === 'equipment') {
-      convertedItem = convertShopItemToEquipment(item);
-      destinationType = 'equipment';
+      // Only convert to equipment if it can be assigned a valid slot
+      if (isWearableEquipment(item)) {
+        convertedItem = convertShopItemToEquipment(item);
+        destinationType = 'equipment';
+      } else {
+        // Non-wearable "equipment" (e.g. Bag of Holding) → miscellaneous
+        destinationType = 'miscellaneous';
+      }
     }
     
     // Update state: deduct gold, remove item, add to history

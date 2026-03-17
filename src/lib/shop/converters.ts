@@ -110,9 +110,17 @@ function inferSpellLevel(shopItem: ShopItem): number | undefined {
  * Converts a ShopItem of type 'equipment' into a proper EquipmentItem
  * that can be added to equipment.inventory
  */
+/**
+ * Returns true if the item can be assigned a valid equipment slot.
+ * Used by the shop to decide equipment vs miscellaneous routing.
+ */
+export function isWearableEquipment(shopItem: ShopItem): boolean {
+  return inferSlotType(shopItem.category, shopItem.name) !== null;
+}
+
 export function convertShopItemToEquipment(shopItem: ShopItem): EquipmentItem {
-  // Determine slot type from category
-  const slotType = inferSlotType(shopItem.category);
+  // Determine slot type from category + name fallback
+  const slotType = inferSlotType(shopItem.category, shopItem.name) || 'primary_weapon';
   
   // Map shop rarity to equipment rarity
   const rarityMap: Record<string, EquipmentRarity> = {
