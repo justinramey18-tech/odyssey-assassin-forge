@@ -131,7 +131,7 @@ export function buildDataToWizardState(data: CharacterBuildData): WizardState {
       abilityId: a.abilityId,
       currentTier: a.currentTier as 0 | 1 | 2 | 3,
     })),
-    equipment: { slots: { head: null, chest: null, arms: null, waist: null, legs: null, primary_weapon: null, secondary_weapon: null, ranged_weapon: null, amulet: null, ring1: null, ring2: null }, inventory: [] },
+    equipment: { slots: { head: null, chest: null, arms: null, waist: null, legs: null, cloak: null, primary_weapon: null, secondary_weapon: null, ranged_weapon: null, amulet: null, ring1: null, ring2: null }, inventory: [] },
     selectedPresetId: data.selectedPresetId || 'street-runner',
   };
 }

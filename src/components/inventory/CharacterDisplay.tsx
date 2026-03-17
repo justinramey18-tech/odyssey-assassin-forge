@@ -65,6 +65,7 @@ export function CharacterDisplay({
     chest: { top: '22%', height: '20%' },
     arms: { top: '22%', height: '25%' },
     waist: { top: '42%', height: '10%' },
+    cloak: { top: '18%', height: '30%' },
     legs: { top: '52%', height: '35%' },
     primary_weapon: { top: '30%', height: '40%' },
     secondary_weapon: { top: '30%', height: '40%' },

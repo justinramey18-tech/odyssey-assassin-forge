@@ -8,6 +8,7 @@ export type EquipmentSlotType =
   | 'arms' 
   | 'waist' 
   | 'legs' 
+  | 'cloak'
   | 'primary_weapon' 
   | 'secondary_weapon' 
   | 'ranged_weapon' 
@@ -100,6 +101,7 @@ export const equipmentSlotDefinitions: { type: EquipmentSlotType; label: string;
   { type: 'arms', label: 'ARMS', icon: 'Hand', category: 'armor' },
   { type: 'waist', label: 'WAIST', icon: 'CircleDot', category: 'armor' },
   { type: 'legs', label: 'LEGS', icon: 'Footprints', category: 'armor' },
+  { type: 'cloak', label: 'CLOAK', icon: 'Wind', category: 'armor' },
   { type: 'primary_weapon', label: 'MAIN HAND', icon: 'Sword', category: 'weapons' },
   { type: 'secondary_weapon', label: 'OFFHAND', icon: 'Axe', category: 'weapons' },
   { type: 'ranged_weapon', label: 'RANGED WEAPON', icon: 'Target', category: 'weapons' },

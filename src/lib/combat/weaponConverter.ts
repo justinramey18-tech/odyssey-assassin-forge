@@ -32,6 +32,7 @@ const SLOT_WEAPON_DEFAULTS: Record<EquipmentSlotType, Partial<WeaponAttack>> = {
   arms: { isFinesse: false, isRanged: false, damageType: 'bludgeoning', properties: [] },
   waist: { isFinesse: false, isRanged: false, damageType: 'bludgeoning', properties: [] },
   legs: { isFinesse: false, isRanged: false, damageType: 'bludgeoning', properties: [] },
+  cloak: { isFinesse: false, isRanged: false, damageType: 'bludgeoning', properties: [] },
   amulet: { isFinesse: false, isRanged: false, damageType: 'bludgeoning', properties: [] },
   ring1: { isFinesse: false, isRanged: false, damageType: 'bludgeoning', properties: [] },
   ring2: { isFinesse: false, isRanged: false, damageType: 'bludgeoning', properties: [] },
