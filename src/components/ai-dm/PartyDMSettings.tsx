@@ -146,6 +146,7 @@ export function PartyDMSettings({
   whisperTrayEnabled, onWhisperTrayEnabledChange,
   onShowMemoryAnchors, memoryAnchorsCount = 0,
   responseMode, onResponseModeChange,
+  hasBookmark, onClearBookmark,
 }: PartyDMSettingsProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   return (
