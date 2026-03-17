@@ -1126,6 +1126,11 @@ Always include the **numeric amount** and ideally the **damage type**:
 
 💡 Including damage type (fire, cold, slashing, etc.) enables automatic damage type tracking and resistance/vulnerability analysis.
 
+ABSOLUTE HP STATEMENTS (MOST RELIABLE):
+- "**Momo: 26/38 HP**" — the parser extracts current and max HP directly.
+- "**You are at 14/45 HP.**"
+- This format is the highest-confidence way to report HP. Use it after damage or healing for accurate tracking.
+
 ═══════════════════════════════════════════════════════════════════════════════
 DAMAGE (TO ENEMIES)
 ═══════════════════════════════════════════════════════════════════════════════
@@ -1166,6 +1171,34 @@ The parser categorizes healing by source. For best results:
 - **Potion**: "drink a healing potion — regain 8 HP"
 - **Feature**: "Second Wind heals for 1d10+5 (11) HP"
 - **Rest**: "During the long rest, you regain all HP"
+
+═══════════════════════════════════════════════════════════════════════════════
+COMPANION & NPC HP TRACKING
+═══════════════════════════════════════════════════════════════════════════════
+
+The parser tracks companion/NPC HP separately from the player. Use the companion's **name** consistently:
+
+COMPANION DAMAGE:
+- "**Geralt takes 12 slashing damage** from the orc."
+- "**Shadowfax suffers 8 fire damage.**"
+- "The bolt **hits Elara for 14 piercing damage**."
+
+COMPANION HEALING:
+- "**Geralt regains 8 HP** from the potion."
+- "**Elara is healed for 12 HP** by the cleric."
+
+COMPANION ABSOLUTE HP (MOST RELIABLE):
+- "**Geralt: 53/59 HP**"
+- "**Shadowfax: 28/40 HP**"
+- This "Name: current/max HP" format is the most reliable way to report companion HP.
+
+COMPANION CONDITIONS:
+- "**Geralt is now poisoned.**"
+- "**Elara is stunned** until the end of the next turn."
+- "**Geralt is no longer poisoned.**"
+- "**Shadowfax recovers from** the frightened condition."
+
+💡 Use the companion's proper name consistently. The parser matches names to track each companion independently.
 
 ═══════════════════════════════════════════════════════════════════════════════
 GOLD & TREASURE
@@ -1421,6 +1454,26 @@ ENEMY STATE UPDATES:
 - "The **orc flees** from combat."
 
 ═══════════════════════════════════════════════════════════════════════════════
+MAP & BATTLEMAP TOKENS
+═══════════════════════════════════════════════════════════════════════════════
+
+Clear creature introductions and defeat/flee announcements auto-populate the battlemap:
+
+ADDING TOKENS (introduce creatures with count + name):
+- "**3 goblins** burst through the door."
+- "**A fire elemental** rises from the brazier."
+- "**2 dire wolves** flank the party."
+- Include type when possible: enemies appear as red tokens, allies as blue.
+
+REMOVING TOKENS (defeated/fled creatures are auto-removed):
+- "The **goblin is slain**."
+- "The **orc falls** to your blade."
+- "The **bandit flees** into the darkness."
+- "The **skeleton is destroyed**."
+
+💡 Use consistent names matching the Enemy Encounters section. The battlemap matches names to remove the correct tokens.
+
+═══════════════════════════════════════════════════════════════════════════════
 NPC INTRODUCTIONS
 ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1448,14 +1501,35 @@ For best parsing, include the **natural roll + modifier = total**:
 SHOP & MERCHANT INVENTORY
 ═══════════════════════════════════════════════════════════════════════════════
 
-Present shop inventories in list format for automatic detection:
+Present shop inventories using any of these formats. Item names must start with a capital letter.
 
-✅ RECOGNIZED FORMATS:
-- "**Healing Potion — 50 gp**"
+MERCHANT DIALOGUE:
+- "The merchant **offers a Cloak of Protection for 500 gp**."
+- "She's **selling Boots of Speed for 200 gold**."
+- "You can **buy a Ring of Resistance for 300 gp**."
+- "He **offers a Wand of Fireballs for 1500 gold pieces**."
+
+LIST FORMATS (best for full inventories):
+- "**Healing Potion — 50 gp**" (dash-separated)
+- "**Potion of Healing: 50 gp**" (colon-separated)
+- "**Cloak of Protection (500 gp)**" (parenthetical)
 - "* **Longsword — 15 gp**" (bulleted list)
-- "1. **Potion of Healing - 50 gp**" (numbered)
+- "1. **Potion of Healing - 50 gp**" (numbered list)
+
+QUANTITY & SPECIAL PRICING:
 - "**3x Potion of Healing at 50 gp each**"
 - "**Arrows (20) — 1 gp**"
+- "**Cloak of Protection reduced to 400 gp**" (discount/haggle)
+
+REVERSED PRICE FORMAT:
+- "**500 gp for a Cloak of Protection**"
+
+MULTI-CURRENCY (auto-converted to gold):
+- "**Sells a Gem of Seeing for 5 pp**" (= 50 gp)
+- "**Rope — 100 sp**" (= 10 gp)
+- "**Candles — 10 cp**" (= ~1 gp)
+
+💡 Item names must be 3-60 characters and start with a capital letter. Supported currencies: gp, sp, cp, ep, pp (all auto-converted to gold equivalent).
 
 ═══════════════════════════════════════════════════════════════════════════════
 ABILITY SCORE INCREASES
@@ -1539,14 +1613,20 @@ QUICK REFERENCE CHEAT SHEET
 | Damage (self) | "take/deal/suffer [NUMBER] [TYPE] damage" |
 | Damage (enemy) | "deal [NUMBER] damage to [ENEMY]" / "[ENEMY] takes [NUMBER] damage" |
 | Healing | "heal/restore/regain [NUMBER] HP" |
+| Absolute HP | "Name: [CURRENT]/[MAX] HP" (most reliable) |
+| Companion HP | "[COMPANION] takes/regains [NUMBER] HP" |
+| Companion Cond. | "[COMPANION] is [CONDITION]" / "no longer [CONDITION]" |
 | Gold Gain | "find/loot/receive [NUMBER] gold/gp" |
 | Gold Spend | "spend/pay [NUMBER] gold/gp" |
 | Item Get | "find/loot/acquire [ITEM NAME]" |
 | Item Use | "drink/consume/use/activate [ITEM NAME]" |
+| Shop Item | "[ITEM] — [PRICE] gp" / "offers [ITEM] for [PRICE]" |
 | Condition On | "[CONDITION NAME]" in apply context |
 | Condition Off | "no longer [CONDITION]" or "recovers from" |
 | Enemy Condition | "[ENEMY] is [CONDITION]" |
 | Kill | "kill/slay/defeat [ENEMY]" or "[ENEMY] falls/dies" |
+| Map Token Add | "[COUNT] [ENEMY NAME]" in encounter intro |
+| Map Token Remove | "[ENEMY] is slain/falls/flees" |
 | Initiative | "Initiative: [NUMBER]" or "rolls [NUMBER] for initiative" |
 | Spell | "casts [SPELL NAME]" or "expend [LEVEL] slot" |
 | Concentration | "maintain/lose concentration on [SPELL]" |
@@ -1587,6 +1667,14 @@ BEST PRACTICES FOR AI DMs
 9. **Differentiate bardic inspiration**: "Grants bardic inspiration" (giving) vs "Uses bardic inspiration" (spending on a roll).
 
 10. **Include ASI specifics**: "Increases Strength by 2" or "Wisdom is now 18" — both formats are recognized.
+
+11. **Report absolute HP after changes**: After damage or healing, add "Momo: 26/38 HP" — this is the most reliable format for the parser.
+
+12. **Name companions consistently**: "Geralt takes 12 damage" / "Geralt: 53/59 HP" — use the same name every time so companion tracking works.
+
+13. **Format shop items clearly**: Use "Item Name — Price gp" or "offers Item for Price gp". Item names must start with a capital letter. Avoid vague descriptions like "various potions".
+
+14. **Announce enemies by count + name**: "3 goblins emerge" auto-populates the battlemap. "The goblin is slain" auto-removes the token.
 
 **Remember**: You can narrate as creatively as you want! Just include these key phrases naturally within your prose and the parser handles the rest.`,
   },
