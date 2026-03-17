@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { getThistleBadges, getBadgeColorClasses } from '@/lib/easter-eggs';
-import { Heart, Shield, Sparkles, ChevronDown, ChevronUp, Eye, Clock, Gift } from 'lucide-react';
+import { Heart, Shield, Sparkles, ChevronDown, ChevronUp, Eye, Clock, Gift, UserMinus } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { formatTimeForTimezone, getTimezoneAbbr } from '@/lib/timezone-storage';
 import type { PartyMember } from '@/hooks/use-party-sync';
@@ -12,11 +12,13 @@ interface PartyMemberCardProps {
   isSelf: boolean;
   onViewActions?: (member: PartyMember) => void;
   onSendItem?: (member: PartyMember) => void;
+  onKick?: (member: PartyMember) => void;
+  isCreator?: boolean;
   onlineInfo?: OnlineInfo;
   compact?: boolean;
 }
 
-export function PartyMemberCard({ member, isSelf, onViewActions, onSendItem, onlineInfo, compact = false }: PartyMemberCardProps) {
+export function PartyMemberCard({ member, isSelf, onViewActions, onSendItem, onKick, isCreator = false, onlineInfo, compact = false }: PartyMemberCardProps) {
   const [showSlots, setShowSlots] = useState(false);
   const [playerTime, setPlayerTime] = useState('');
   const playerTz = member.character_status.timezone;
@@ -109,6 +111,15 @@ export function PartyMemberCard({ member, isSelf, onViewActions, onSendItem, onl
               title="Send item"
             >
               <Gift className="w-3 h-3 text-amber-400/70 hover:text-amber-400" />
+            </button>
+          )}
+          {!isSelf && isCreator && onKick && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onKick(member); }}
+              className="p-0.5 rounded hover:bg-destructive/10 transition-colors"
+              title="Remove from party"
+            >
+              <UserMinus className="w-3 h-3 text-destructive/70 hover:text-destructive" />
             </button>
           )}
           {isTappable && (
