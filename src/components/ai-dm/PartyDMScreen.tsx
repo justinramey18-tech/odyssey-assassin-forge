@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useDmPolls } from '@/hooks/use-dm-polls';
 import { PartyDMInput, type PartyDMInputHandle } from './PartyDMInput';
 import partyChatIcon from '@/assets/party-chat-icon.jpg';
