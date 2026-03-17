@@ -1173,6 +1173,34 @@ The parser categorizes healing by source. For best results:
 - **Rest**: "During the long rest, you regain all HP"
 
 ═══════════════════════════════════════════════════════════════════════════════
+COMPANION & NPC HP TRACKING
+═══════════════════════════════════════════════════════════════════════════════
+
+The parser tracks companion/NPC HP separately from the player. Use the companion's **name** consistently:
+
+COMPANION DAMAGE:
+- "**Geralt takes 12 slashing damage** from the orc."
+- "**Shadowfax suffers 8 fire damage.**"
+- "The bolt **hits Elara for 14 piercing damage**."
+
+COMPANION HEALING:
+- "**Geralt regains 8 HP** from the potion."
+- "**Elara is healed for 12 HP** by the cleric."
+
+COMPANION ABSOLUTE HP (MOST RELIABLE):
+- "**Geralt: 53/59 HP**"
+- "**Shadowfax: 28/40 HP**"
+- This "Name: current/max HP" format is the most reliable way to report companion HP.
+
+COMPANION CONDITIONS:
+- "**Geralt is now poisoned.**"
+- "**Elara is stunned** until the end of the next turn."
+- "**Geralt is no longer poisoned.**"
+- "**Shadowfax recovers from** the frightened condition."
+
+💡 Use the companion's proper name consistently. The parser matches names to track each companion independently.
+
+═══════════════════════════════════════════════════════════════════════════════
 GOLD & TREASURE
 ═══════════════════════════════════════════════════════════════════════════════
 
