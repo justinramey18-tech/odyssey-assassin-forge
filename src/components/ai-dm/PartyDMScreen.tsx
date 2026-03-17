@@ -1883,6 +1883,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         accept="image/*"
         className="hidden"
         onChange={async (e) => {
+          sessionStorage.removeItem('pending-file-picker');
           const file = e.target.files?.[0];
           if (!file) return;
           if (file.size > 10 * 1024 * 1024) { toast.error('Image too large (max 10MB)'); return; }
