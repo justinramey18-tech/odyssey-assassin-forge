@@ -1,21 +1,54 @@
 
 
-## Prompt Synthesizer — Host Approval Step
+# Speech-to-Text for Player Input
 
-After prompts are synthesized into a fused "director's note", the host sees a `SynthesisReviewPanel` with:
-- The selected presentation mode and focus character badges
-- The narrative spine (italic quote)
-- Raw player actions summary
-- The fused prompt text (editable)
-- Approve ("Send to DM"), Regenerate, and Skip buttons
+## Approach
 
-**Flow:**
-1. Prompts collected → synthesized → `pendingSynthesis` state set → generation lock released
-2. Host reviews/edits the fused prompt in `SynthesisReviewPanel`
-3. On approve: re-acquires generation lock, sends fused prompt to main DM
-4. On skip: clears `pendingSynthesis`, raw prompts remain for next round
-5. On regenerate: re-runs synthesis with same prompts
+Use the **Web Speech API** (`SpeechRecognition` / `webkitSpeechRecognition`) — it's built into mobile browsers (Chrome, Safari), requires zero API keys, zero backend changes, and runs entirely on-device. This is the right choice because:
 
-Non-host players see "Host is reviewing synthesized prompts..." indicator.
+- No credits consumed, no edge functions needed
+- Works offline on most mobile devices
+- Stays in-app (no backgrounding risk)
+- Instant — text appears as the player speaks
 
-Split mode bypasses this approval step (synthesis is applied directly).
+## What Gets Built
+
+**A microphone button** added to the input row in `PartyDMInput.tsx`, positioned between the textarea and the Send button. Tap to start listening, tap again (or auto-stop on silence) to finish. Transcribed text appends into the textarea in real-time as the player speaks.
+
+### Visual behavior:
+- **Idle**: Mic icon (`Mic` from lucide), subtle styling matching the send button's muted state
+- **Listening**: Pulsing red/amber dot + `MicOff` icon, amber border glow — clearly indicates recording is active
+- **Unsupported browser**: Button hidden entirely (graceful degradation)
+
+## Technical Details
+
+### New hook: `src/hooks/use-speech-to-text.ts`
+
+Encapsulates the Web Speech API:
+- Creates a `SpeechRecognition` instance with `continuous = true`, `interimResults = true`, `lang = 'en-US'`
+- Exposes `{ isListening, isSupported, transcript, start, stop, toggle }`
+- `onresult` callback accumulates final + interim results
+- `onend` auto-restarts if still in listening state (handles mobile auto-stop)
+- Accepts an `onTranscript(finalText: string)` callback for when speech finalizes
+
+### Changes to `PartyDMInput.tsx`
+
+1. Import the hook and `Mic` / `MicOff` icons
+2. Call `useSpeechToText` with an `onTranscript` callback that calls `setInput(prev => prev ? prev + ' ' + text : text)` and auto-resizes the textarea
+3. Add a mic toggle button in the input row, between textarea and Send button:
+
+```text
+[ textarea                        ] [🎤] [➤]
+```
+
+4. When listening, show interim transcript as a subtle overlay or just let it flow into the textarea live
+5. The mic button is only rendered if `isSupported` is true
+
+### Files to create:
+- `src/hooks/use-speech-to-text.ts`
+
+### Files to modify:
+- `src/components/ai-dm/PartyDMInput.tsx` — add mic button + hook integration
+
+No backend, database, or edge function changes needed.
+
