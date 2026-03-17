@@ -747,6 +747,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isUploadingAudio, setIsUploadingAudio] = useState(false);
   const [showPollCreator, setShowPollCreator] = useState(false);
+
+  // Detect if the page was killed during a file picker operation (common on mobile)
+  useEffect(() => {
+    const pendingPicker = sessionStorage.getItem('pending-file-picker');
+    if (pendingPicker) {
+      sessionStorage.removeItem('pending-file-picker');
+      toast.error('File picker was interrupted — please try again', { duration: 4000 });
+    }
+  }, []);
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState(['', '']);
   const [expandedPillUserId, setExpandedPillUserId] = useState<string | null>(null);
@@ -1851,6 +1860,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         accept="video/*"
         className="hidden"
         onChange={async (e) => {
+          sessionStorage.removeItem('pending-file-picker');
           const file = e.target.files?.[0];
           if (!file) return;
           if (file.size > 50 * 1024 * 1024) { toast.error('Video too large (max 50MB)'); return; }
@@ -1873,6 +1883,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         accept="image/*"
         className="hidden"
         onChange={async (e) => {
+          sessionStorage.removeItem('pending-file-picker');
           const file = e.target.files?.[0];
           if (!file) return;
           if (file.size > 10 * 1024 * 1024) { toast.error('Image too large (max 10MB)'); return; }
@@ -1941,6 +1952,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         accept="audio/*"
         className="hidden"
         onChange={async (e) => {
+          sessionStorage.removeItem('pending-file-picker');
           const file = e.target.files?.[0];
           if (!file) return;
           if (file.size > 25 * 1024 * 1024) { toast.error('Audio too large (max 25MB)'); return; }
@@ -2005,9 +2017,9 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             isUploadingAudio={isUploadingAudio}
             onTakePhoto={() => photoCameraRef.current?.click()}
             onRecordVideo={() => videoCameraRef.current?.click()}
-            onPickPhoto={() => photoInputRef.current?.click()}
-            onPickVideo={() => videoInputRef.current?.click()}
-            onPickAudio={() => audioInputRef.current?.click()}
+            onPickPhoto={() => { sessionStorage.setItem('pending-file-picker', 'photo'); photoInputRef.current?.click(); }}
+            onPickVideo={() => { sessionStorage.setItem('pending-file-picker', 'video'); videoInputRef.current?.click(); }}
+            onPickAudio={() => { sessionStorage.setItem('pending-file-picker', 'audio'); audioInputRef.current?.click(); }}
             onCreatePoll={() => setShowPollCreator(true)}
           />
         ) : !isReady ? (
