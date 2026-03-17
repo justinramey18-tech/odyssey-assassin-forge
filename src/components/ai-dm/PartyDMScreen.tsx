@@ -776,11 +776,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     }
   }, [user?.id, pushState, refreshPushState]);
 
+  // Scroll only when message count increases, not on prompt updates
+  const prevMsgCountRef = useRef(partyDm.messages.length);
   useEffect(() => {
-    if (scrollRef.current) {
+    if (partyDm.messages.length > prevMsgCountRef.current && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [partyDm.messages, partyDm.currentPrompts]);
+    prevMsgCountRef.current = partyDm.messages.length;
+  }, [partyDm.messages.length]);
 
   useEffect(() => {
     if (partyDm.isGenerating) {
@@ -789,18 +792,20 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     }
   }, [partyDm.isGenerating]);
 
+  // Use ref for partyDm to stabilize callbacks
+  const partyDmRef = useRef(partyDm);
+  useEffect(() => { partyDmRef.current = partyDm; });
+
   const handleSubmit = useCallback((text: string) => {
-    partyDm.submitPrompt(text);
-  }, [partyDm]);
+    partyDmRef.current.submitPrompt(text);
+  }, []);
 
   const handleReadyAutopilot = useCallback(() => {
     if (!myAfkGuide) return;
-    // Submit the AFK guide wrapped in <<...>> delimiters (renders as Autopilot in chat)
     const autopilotPrompt = `<<${myAfkGuide}>>`;
-    partyDm.submitPrompt(autopilotPrompt);
-    // Small delay to let the prompt insert, then mark as ready
-    setTimeout(() => partyDm.setReady(), 100);
-  }, [myAfkGuide, partyDm]);
+    partyDmRef.current.submitPrompt(autopilotPrompt);
+    setTimeout(() => partyDmRef.current.setReady(), 100);
+  }, [myAfkGuide]);
 
   const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
