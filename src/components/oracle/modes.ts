@@ -117,15 +117,21 @@ HARD LIMIT: 8-12 sentences maximum. Use bullet points.`;
     case 'recap':
       return `
 RESPONSE MODE: STRUCTURED RECAP
-Format your response in exactly 3 sections:
+HARD LIMIT: ~400 words maximum. Be concise and itemized — no prose paragraphs.
 
-**📖 Story** — What just happened narratively (2-3 sentences). Key events, NPC actions, revelations. Draw from the campaign summary and recent narrative messages.
+Format your response in exactly 2 sections:
 
-**⚔️ Situation** — Current tactical state as bullet points. Reference REAL data: party HP/conditions, enemies on the field, active effects, resources spent, spell slots remaining. Narrate these facts in your voice, do not just list raw numbers.
+**📖 What Happened** — A chronological bullet-point timeline of key events since the user's last bookmark (or the last 35 messages). Each bullet is ONE sentence covering a single event, decision, combat outcome, or revelation. Order from oldest to newest. Cap at 8-12 bullets — skip trivial moments, focus on events that matter.
 
-**➡️ Next Move** — One sentence. If in combat, give a tactical suggestion. If in roleplay/exploration, give a narrative hook or question to consider.
+**⚔️ Current Situation** — 2-3 sentences summarizing the party's current state RIGHT NOW: where they are, what they're facing, health/resource status, and any immediate threats or opportunities.
 
-Do not deviate from this 3-section format. Every section must be present.`;
+Rules:
+- Use bullet points (•) for the timeline, NOT numbered lists
+- Do NOT write flowing narrative paragraphs
+- Do NOT include a "Next Move" section
+- Every bullet must be a concrete event, not vague summary
+- If covering many messages, prioritize: combat outcomes > story beats > loot/rewards > NPC interactions > flavor`;
+
 
     default:
       return `
