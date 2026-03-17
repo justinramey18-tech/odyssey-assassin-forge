@@ -2063,13 +2063,15 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   }, []);
 
 
-  return {
+  const computedIsGenerating = isGenerating || (sessionConfig?.isGenerating ?? false);
+
+  return useMemo(() => ({
     messages: filteredMessages,
     allMessages: messages,
     currentPrompts,
     sessionConfig,
     isActive,
-    isGenerating: isGenerating || (sessionConfig?.isGenerating ?? false),
+    isGenerating: computedIsGenerating,
     isSummarizing,
     allReady,
     myPrompt,
@@ -2111,5 +2113,16 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     requestExtension,
     approveExtension,
     dismissExtensions,
-  };
+  }), [
+    filteredMessages, messages, currentPrompts, sessionConfig, isActive,
+    computedIsGenerating, isSummarizing, allReady, myPrompt, activeCampaignId,
+    lastAutoSaveTime, splitState, isSplitActive, myTeam, pendingDraft,
+    startSession, endSession, startNewCampaign, saveCampaign, loadCampaign,
+    submitPrompt, editPrompt, retractPrompt, setReady, unready,
+    generateResponse, sendManualDmMessage, approveDraft, discardDraft,
+    editMessage, deleteMessage, regenerateMessage, regenerateWhispers,
+    addMediaMessage, stopGeneration, initiateSplit, regroupParty,
+    updateSessionConfig, setTimerConfig, startTimer, pauseTimer, resumeTimer,
+    cancelTimer, requestExtension, approveExtension, dismissExtensions,
+  ]);
 }

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useDmPolls } from '@/hooks/use-dm-polls';
 import { PartyDMInput, type PartyDMInputHandle } from './PartyDMInput';
 import partyChatIcon from '@/assets/party-chat-icon.jpg';
@@ -210,7 +210,7 @@ function AfkAnnotatedContent({ content, afkNames }: { content: string; afkNames?
   );
 }
 
-function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, allMessages, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true }: {
+const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true }: {
   message: PartyDmMessage;
   currentUserId?: string;
   members: Array<{ user_id: string; character_name: string }>;
@@ -222,7 +222,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
   onRegenerate?: (messageId: string) => void;
   onRegenerateWhispers?: (messageId: string) => void;
   showTeamTag?: boolean;
-  allMessages?: PartyDmMessage[];
+  afkCharNames?: string[];
   ttsSelectMode?: boolean;
   ttsSelected?: boolean;
   onTtsToggle?: (id: string) => void;
@@ -236,24 +236,7 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
   const videoMatch = message.content.match(PARTY_VIDEO_REGEX);
   const imageMatch = !videoMatch ? message.content.match(PARTY_IMAGE_REGEX) : null;
 
-  // Extract AFK character names from the preceding user message
-  const afkCharNames = useMemo(() => {
-    if (!isAssistant || !allMessages) return [];
-    const idx = allMessages.findIndex(m => m.id === message.id);
-    if (idx <= 0) return [];
-    const prev = allMessages[idx - 1];
-    if (prev.role !== 'user') return [];
-    const names: string[] = [];
-    for (const line of prev.content.split('\n')) {
-      const match = line.match(AFK_LINE_REGEX);
-      if (match) {
-        // match[1] is like "[CharName]", extract the name
-        const name = match[1].replace(/^\[|\]$/g, '');
-        if (name) names.push(name);
-      }
-    }
-    return names;
-  }, [isAssistant, allMessages, message.id]);
+  const afkCharNames = afkCharNamesProp ?? [];
 
   // In private mode, hide other players' user messages content
   if (!isAssistant && !isMine && mode === 'private') {
@@ -574,7 +557,19 @@ function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCo
       </div>
     </motion.div>
   );
-}
+}, (prev, next) => {
+  // Custom comparator — skip re-render if nothing meaningful changed
+  return prev.message.id === next.message.id
+    && prev.message.content === next.message.content
+    && prev.message.role === next.message.role
+    && prev.ttsSelectMode === next.ttsSelectMode
+    && prev.ttsSelected === next.ttsSelected
+    && prev.whisperTrayEnabled === next.whisperTrayEnabled
+    && prev.isCreator === next.isCreator
+    && prev.mode === next.mode
+    && prev.showTeamTag === next.showTeamTag
+    && prev.currentUserId === next.currentUserId;
+});
 
 export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, showBattleMap, battleMapContent, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid }: PartyDMScreenProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
@@ -697,7 +692,19 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
       )
     : members;
 
-  // Host broadcast playlist indicator
+  // Stable members reference for PartyDMMessage to avoid re-renders
+  const stableMembers = useMemo(() => members.map(m => ({ user_id: m.user_id, character_name: m.character_name })), [members]);
+
+  // Stable TTS toggle callback
+  const handleTtsToggle = useCallback((id: string) => {
+    setTtsSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+
   const [broadcastPlaylist, setBroadcastPlaylist] = useState<string | null>(null);
   useEffect(() => {
     if (!partyId) return;
@@ -781,11 +788,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     }
   }, [user?.id, pushState, refreshPushState]);
 
+  // Scroll only when message count increases, not on prompt updates
+  const prevMsgCountRef = useRef(partyDm.messages.length);
   useEffect(() => {
-    if (scrollRef.current) {
+    if (partyDm.messages.length > prevMsgCountRef.current && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [partyDm.messages, partyDm.currentPrompts]);
+    prevMsgCountRef.current = partyDm.messages.length;
+  }, [partyDm.messages.length]);
 
   useEffect(() => {
     if (partyDm.isGenerating) {
@@ -794,18 +804,20 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     }
   }, [partyDm.isGenerating]);
 
+  // Use ref for partyDm to stabilize callbacks
+  const partyDmRef = useRef(partyDm);
+  useEffect(() => { partyDmRef.current = partyDm; });
+
   const handleSubmit = useCallback((text: string) => {
-    partyDm.submitPrompt(text);
-  }, [partyDm]);
+    partyDmRef.current.submitPrompt(text);
+  }, []);
 
   const handleReadyAutopilot = useCallback(() => {
     if (!myAfkGuide) return;
-    // Submit the AFK guide wrapped in <<...>> delimiters (renders as Autopilot in chat)
     const autopilotPrompt = `<<${myAfkGuide}>>`;
-    partyDm.submitPrompt(autopilotPrompt);
-    // Small delay to let the prompt insert, then mark as ready
-    setTimeout(() => partyDm.setReady(), 100);
-  }, [myAfkGuide, partyDm]);
+    partyDmRef.current.submitPrompt(autopilotPrompt);
+    setTimeout(() => partyDmRef.current.setReady(), 100);
+  }, [myAfkGuide]);
 
   const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
@@ -820,12 +832,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         setIsUploadingPhoto(true);
         try {
           const ext = file.type.includes('gif') ? 'gif' : file.type.split('/')[1] || 'png';
-          const path = `party-dm/${partyDm.sessionConfig?.currentRoundId || 'general'}/${crypto.randomUUID()}.${ext}`;
+          const path = `party-dm/${partyDmRef.current.sessionConfig?.currentRoundId || 'general'}/${crypto.randomUUID()}.${ext}`;
           const { error } = await supabase.storage.from('party-chat-images').upload(path, file);
           if (error) throw error;
           const { data: urlData } = supabase.storage.from('party-chat-images').getPublicUrl(path);
           const senderName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
-          await partyDm.addMediaMessage(`[image:${urlData.publicUrl}]`, senderName);
+          await partyDmRef.current.addMediaMessage(`[image:${urlData.publicUrl}]`, senderName);
         } catch (err) { toast.error(err instanceof Error ? err.message : 'Upload failed'); }
         finally { setIsUploadingPhoto(false); }
         return;
@@ -836,10 +848,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
     if (text && /^https?:\/\/.+\.(gif|png|jpg|jpeg|webp)(\?.*)?$/i.test(text)) {
       e.preventDefault();
       const senderName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
-      await partyDm.addMediaMessage(`[image:${text}]`, senderName);
+      await partyDmRef.current.addMediaMessage(`[image:${text}]`, senderName);
       return;
     }
-  }, [partyDm, members, currentUserId]);
+  }, [members, currentUserId]);
 
   const handleCopyMessage = useCallback((content: string) => {
     navigator.clipboard.writeText(content).then(() => {
@@ -850,20 +862,20 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   }, []);
 
   const handleEditMessage = useCallback((messageId: string, content: string) => {
-    partyDm.editMessage?.(messageId, content);
-  }, [partyDm]);
+    partyDmRef.current.editMessage?.(messageId, content);
+  }, []);
 
   const handleDeleteMessage = useCallback((messageId: string) => {
-    partyDm.deleteMessage?.(messageId);
-  }, [partyDm]);
+    partyDmRef.current.deleteMessage?.(messageId);
+  }, []);
 
   const handleRegenerateMessage = useCallback((messageId: string) => {
-    partyDm.regenerateMessage?.(messageId);
-  }, [partyDm]);
+    partyDmRef.current.regenerateMessage?.(messageId);
+  }, []);
 
   const handleRegenerateWhispers = useCallback((messageId: string) => {
-    partyDm.regenerateWhispers?.(messageId);
-  }, [partyDm]);
+    partyDmRef.current.regenerateWhispers?.(messageId);
+  }, []);
 
   const handleDiceRoll = useCallback((message: string) => {
     playerInputRef.current?.appendText(message);
@@ -1099,31 +1111,37 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             </div>
           ) : (
             <AnimatePresence initial={false}>
-              {partyDm.messages.map(msg => (
+              {partyDm.messages.map((msg, idx) => {
+                // Pre-compute AFK names from preceding user message
+                let afkNames: string[] | undefined;
+                if (msg.role === 'assistant' && idx > 0) {
+                  const prev = partyDm.messages[idx - 1];
+                  if (prev.role === 'user') {
+                    afkNames = extractAfkNames(prev.content);
+                  }
+                }
+                return (
                 <PartyDMMessage
                   key={msg.id}
                   message={msg}
                   currentUserId={currentUserId}
-                  members={members.map(m => ({ user_id: m.user_id, character_name: m.character_name }))}
+                  members={stableMembers}
                   mode={partyDm.isSplitActive ? 'private' : 'shared'}
                   isCreator={isCreator}
-                  onCopy={(content) => { navigator.clipboard.writeText(content); }}
+                  onCopy={handleCopyMessage}
                   onEdit={handleEditMessage}
                   onDelete={handleDeleteMessage}
                   onRegenerate={handleRegenerateMessage}
                   onRegenerateWhispers={handleRegenerateWhispers}
                   showTeamTag={isCreator && partyDm.isSplitActive}
-                  allMessages={partyDm.messages}
+                  afkCharNames={afkNames}
                   ttsSelectMode={ttsSelectMode}
                   ttsSelected={ttsSelectedIds.has(msg.id)}
-                  onTtsToggle={(id) => setTtsSelectedIds(prev => {
-                    const next = new Set(prev);
-                    if (next.has(id)) next.delete(id); else next.add(id);
-                    return next;
-                  })}
+                  onTtsToggle={handleTtsToggle}
                   whisperTrayEnabled={whisperTrayEnabled}
                 />
-              ))}
+                );
+              })}
             </AnimatePresence>
           )}
 
