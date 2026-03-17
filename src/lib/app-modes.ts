@@ -61,7 +61,7 @@ export const APP_MODE_CONFIGS: Record<AppMode, AppModeConfig> = {
     icon: 'Wand2',
     color: 'cyan',
     visibleTabs: [
-      'combat', 'skills', 'arcana', 'consumables', 'settings',
+      'combat', 'skills', 'arcana', 'inventory', 'settings',
     ],
     visibleHomeFeatures: [
       'home.characterInfo', 'home.d20', 'home.clock',
