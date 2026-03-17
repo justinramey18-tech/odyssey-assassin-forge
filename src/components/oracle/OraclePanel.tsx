@@ -15,9 +15,11 @@ import { CharacterContext } from './types';
 interface OraclePanelProps {
   characterContext: CharacterContext;
   className?: string;
+  bookmarkActive?: boolean;
+  bookmarkMessageCount?: number;
 }
 
-export function OraclePanel({ characterContext, className }: OraclePanelProps) {
+export function OraclePanel({ characterContext, className, bookmarkActive, bookmarkMessageCount }: OraclePanelProps) {
   const [inputValue, setInputValue] = useState('');
 
   const {
@@ -94,6 +96,20 @@ export function OraclePanel({ characterContext, className }: OraclePanelProps) {
         onChipClick={handlePromptClick}
         disabled={isLoading}
       />
+
+      {/* Recap Scope Banner */}
+      {mode === 'recap' && (
+        <div className={cn(
+          'mx-3 mb-1 px-3 py-1.5 rounded-full text-xs text-center border',
+          bookmarkActive
+            ? 'text-amber-400 border-amber-500/30 bg-amber-950/20'
+            : 'text-white/50 border-white/10 bg-white/5'
+        )}>
+          {bookmarkActive
+            ? `📖 Recapping from your bookmark · ${bookmarkMessageCount ?? 0} messages`
+            : '📜 Recapping last 35 messages'}
+        </div>
+      )}
 
       {/* Messages */}
       <MessageList
