@@ -1,7 +1,7 @@
 // Miscellaneous Items Widget - displays and manages misc inventory items
 
 import { useState } from 'react';
-import { Package, Plus, Minus, Trash2, StickyNote, ChevronDown, ChevronUp } from 'lucide-react';
+import { Package, Plus, Minus, Trash2, StickyNote, ChevronDown, ChevronUp, Coins } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
