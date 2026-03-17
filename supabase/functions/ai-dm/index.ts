@@ -539,6 +539,16 @@ RULES:
     prompt += `\n\n## CAMPAIGN SUMMARY\nThis is an auto-generated summary of the campaign so far. Use it to maintain narrative continuity and reference past events naturally:\n\n${trimmedSummary}`;
   }
 
+  if (memoryAnchors && memoryAnchors.trim()) {
+    const trimmedAnchors = memoryAnchors.slice(0, 8000);
+    prompt += `\n\n## MEMORY ANCHORS\nThese are persistent long-term facts about the campaign — NPCs, locations, quest flags, and world state. Reference them naturally in your narration and stay consistent with them:\n\n${trimmedAnchors}`;
+  }
+
+  if (recentPartyChat && recentPartyChat.length > 0) {
+    const chatLines = recentPartyChat.slice(0, 5).map(c => `${c.sender}: ${c.message.slice(0, 500)}`).join('\n');
+    prompt += `\n\n## RECENT PARTY CHAT\nThese are the most recent out-of-character messages from the party chat. Use them for situational awareness — players may be discussing plans, asking questions, or coordinating. Do NOT repeat or quote these messages directly; just factor them into your narrative awareness:\n\n${chatLines}`;
+  }
+
   if (customGuides && customGuides.trim()) {
     const trimmed = customGuides.slice(0, MAX_CUSTOM_GUIDES_CHARS);
     prompt += `\n\n## CUSTOM GM GUIDES\nThe following custom content has been provided by the player to guide your behavior. Treat it as authoritative campaign context:\n\n${trimmed}`;
