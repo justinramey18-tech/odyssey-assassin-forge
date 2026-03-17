@@ -19,7 +19,7 @@ interface OraclePanelProps {
   bookmarkMessageCount?: number;
 }
 
-export function OraclePanel({ characterContext, className }: OraclePanelProps) {
+export function OraclePanel({ characterContext, className, bookmarkActive, bookmarkMessageCount }: OraclePanelProps) {
   const [inputValue, setInputValue] = useState('');
 
   const {
