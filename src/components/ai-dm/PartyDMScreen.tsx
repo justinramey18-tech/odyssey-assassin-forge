@@ -1860,6 +1860,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         accept="video/*"
         className="hidden"
         onChange={async (e) => {
+          sessionStorage.removeItem('pending-file-picker');
           const file = e.target.files?.[0];
           if (!file) return;
           if (file.size > 50 * 1024 * 1024) { toast.error('Video too large (max 50MB)'); return; }
