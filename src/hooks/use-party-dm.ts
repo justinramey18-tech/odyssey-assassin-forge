@@ -175,14 +175,18 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     : memberCount;
 
   // In split mode, the host triggers generation when BOTH teams have all members ready
+  // Only consider prompts from current party members (kicked members' stale prompts are ignored)
+  const memberUserIds = useMemo(() => new Set(partyMembers.map(m => m.user_id)), [partyMembers]);
+  const activePrompts = useMemo(() => currentPrompts.filter(p => memberUserIds.has(p.user_id)), [currentPrompts, memberUserIds]);
+
   const allReady = (() => {
     if (!isSplitActive || !splitState) {
-      return currentPrompts.length > 0 &&
-        currentPrompts.length >= memberCount &&
-        currentPrompts.every(p => p.is_ready);
+      return activePrompts.length > 0 &&
+        activePrompts.length >= memberCount &&
+        activePrompts.every(p => p.is_ready);
     }
-    const alphaPrompts = currentPrompts.filter(p => splitState.alphaMembers.includes(p.user_id));
-    const betaPrompts = currentPrompts.filter(p => splitState.betaMembers.includes(p.user_id));
+    const alphaPrompts = activePrompts.filter(p => splitState.alphaMembers.includes(p.user_id));
+    const betaPrompts = activePrompts.filter(p => splitState.betaMembers.includes(p.user_id));
     const alphaReady = alphaPrompts.length >= splitState.alphaMembers.length && alphaPrompts.every(p => p.is_ready);
     const betaReady = betaPrompts.length >= splitState.betaMembers.length && betaPrompts.every(p => p.is_ready);
     return alphaReady || betaReady;
@@ -992,7 +996,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const generateResponse = useCallback(async () => {
     if (!partyId || !user || !sessionConfig || isGenerating) return;
 
-    const readyPrompts = currentPrompts.filter(p => p.is_ready);
+    const readyPrompts = currentPrompts.filter(p => p.is_ready && memberUserIds.has(p.user_id));
     if (readyPrompts.length === 0) {
       toast.error('No ready prompts to generate from');
       return;
@@ -1901,7 +1905,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     let promptTeam: string | null = null;
 
     // 1. Check for ready prompts and insert consolidated user message FIRST
-    const readyPrompts = currentPrompts.filter(p => p.is_ready);
+    const readyPrompts = currentPrompts.filter(p => p.is_ready && memberUserIds.has(p.user_id));
     if (readyPrompts.length > 0) {
       promptTeam = isSplitActive && splitState && readyPrompts.length > 0
         ? readyPrompts[0].team || null
