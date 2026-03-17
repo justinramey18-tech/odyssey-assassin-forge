@@ -297,6 +297,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   const isMine = message.sender_user_id === currentUserId;
   const videoMatch = message.content.match(PARTY_VIDEO_REGEX);
   const imageMatch = !videoMatch ? message.content.match(PARTY_IMAGE_REGEX) : null;
+  const audioMatch = !videoMatch && !imageMatch ? message.content.match(PARTY_AUDIO_REGEX) : null;
 
   const afkCharNames = afkCharNamesProp ?? [];
 
