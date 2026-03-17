@@ -3,7 +3,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
-import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Cpu, Brain, Palette } from 'lucide-react';
+import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Cpu, Brain, Palette, BookmarkX } from 'lucide-react';
 import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
 import { TimerSettings } from './RoundTimer';
 import { ResponseModeSelector } from './ResponseModeSelector';
@@ -126,6 +126,9 @@ export interface PartyDMSettingsProps {
   // Response mode
   responseMode?: string;
   onResponseModeChange?: (modeId: string | null) => void;
+  // Reading bookmark
+  hasBookmark?: boolean;
+  onClearBookmark?: () => void;
 }
 
 export function PartyDMSettings({
@@ -143,6 +146,7 @@ export function PartyDMSettings({
   whisperTrayEnabled, onWhisperTrayEnabledChange,
   onShowMemoryAnchors, memoryAnchorsCount = 0,
   responseMode, onResponseModeChange,
+  hasBookmark, onClearBookmark,
 }: PartyDMSettingsProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   return (
@@ -345,6 +349,14 @@ export function PartyDMSettings({
             description="Schedule narrative events for a specific date & time"
             badge={scheduledEventsCount}
             onClick={onShowScheduledEvents}
+          />
+        )}
+        {hasBookmark && onClearBookmark && (
+          <ToolRow
+            icon={<BookmarkX className="w-4 h-4 text-amber-400" />}
+            label="Clear Reading Bookmark"
+            description="Remove your saved reading position"
+            onClick={onClearBookmark}
           />
         )}
       </SettingsSection>
