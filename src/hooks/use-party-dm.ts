@@ -924,7 +924,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       }
     }
     return assistantContent;
-  }, [characterContext, sessionConfig?.campaignSummary, mergeConsecutiveRoles]);
+  }, [characterContext, sessionConfig?.campaignSummary, memoryAnchorsContent, mergeConsecutiveRoles, fetchRecentPartyChat]);
 
 
   // Build party members system prompt section
