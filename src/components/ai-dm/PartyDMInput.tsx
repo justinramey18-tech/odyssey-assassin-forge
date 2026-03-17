@@ -191,7 +191,7 @@ export const PartyDMInput = memo(forwardRef<PartyDMInputHandle, PartyDMInputProp
                     style={{ touchAction: 'manipulation' }}
                   >
                     <Music className="w-4 h-4" />
-                    Audio from Files
+                    Record Audio
                   </button>
                   <div className="border-t border-white/5 my-0.5" />
                   <button
