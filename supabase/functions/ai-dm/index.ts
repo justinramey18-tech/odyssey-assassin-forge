@@ -145,6 +145,8 @@ interface DMRequest {
   combatFeats?: string[];
   alignmentContext?: { law: number; good: number; zone: string };
   systemPromptOverride?: string;
+  memoryAnchors?: string;
+  recentPartyChat?: Array<{ sender: string; message: string }>;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
