@@ -832,12 +832,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         setIsUploadingPhoto(true);
         try {
           const ext = file.type.includes('gif') ? 'gif' : file.type.split('/')[1] || 'png';
-          const path = `party-dm/${partyDm.sessionConfig?.currentRoundId || 'general'}/${crypto.randomUUID()}.${ext}`;
+          const path = `party-dm/${partyDmRef.current.sessionConfig?.currentRoundId || 'general'}/${crypto.randomUUID()}.${ext}`;
           const { error } = await supabase.storage.from('party-chat-images').upload(path, file);
           if (error) throw error;
           const { data: urlData } = supabase.storage.from('party-chat-images').getPublicUrl(path);
           const senderName = members.find(m => m.user_id === currentUserId)?.character_name || 'Unknown';
-          await partyDm.addMediaMessage(`[image:${urlData.publicUrl}]`, senderName);
+          await partyDmRef.current.addMediaMessage(`[image:${urlData.publicUrl}]`, senderName);
         } catch (err) { toast.error(err instanceof Error ? err.message : 'Upload failed'); }
         finally { setIsUploadingPhoto(false); }
         return;
