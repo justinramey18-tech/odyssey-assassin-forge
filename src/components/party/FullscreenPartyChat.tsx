@@ -188,7 +188,31 @@ export function FullscreenPartyChat({
     }
   }, [onUploadImage]);
 
-  // Long-press handlers
+  // Voice recording handlers
+  const handleMicDown = useCallback(async () => {
+    if (!onUploadAudio) return;
+    await voiceRecorder.startRecording();
+  }, [voiceRecorder, onUploadAudio]);
+
+  const handleMicUp = useCallback(async () => {
+    if (!onUploadAudio || !voiceRecorder.isRecording) return;
+    const audioBlob = await voiceRecorder.stopRecording();
+    if (!audioBlob || audioBlob.size < 1000) return; // too short
+    setUploadingAudio(true);
+    try {
+      const audioUrl = await onUploadAudio(audioBlob);
+      if (audioUrl) {
+        const opts: { replyToId?: string; audioUrl?: string } = { audioUrl };
+        if (replyTo) opts.replyToId = replyTo.id;
+        await onSend('🎤 Voice message', opts);
+        setReplyTo(null);
+      }
+    } finally {
+      setUploadingAudio(false);
+    }
+  }, [voiceRecorder, onUploadAudio, onSend, replyTo]);
+
+
   const startLongPress = useCallback((msg: PartyChatMessage, e: React.PointerEvent) => {
     if (bulkMode) return;
     const x = e.clientX;
