@@ -116,7 +116,7 @@ HARD LIMIT: 8-12 sentences maximum. Use bullet points.`;
     case 'recap':
       return `
 RESPONSE MODE: STRUCTURED RECAP
-HARD LIMIT: ~400 words maximum. Be concise and itemized — no prose paragraphs.
+HARD LIMIT: 300 words or less. Be concise and itemized — no prose paragraphs.
 
 Format your response in exactly 2 sections:
 
