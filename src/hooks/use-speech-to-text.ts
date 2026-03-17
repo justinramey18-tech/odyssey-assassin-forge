@@ -12,6 +12,7 @@ const SpeechRecognitionAPI =
 
 export function useSpeechToText({ onTranscript, lang = 'en-US' }: UseSpeechToTextOptions) {
   const [isListening, setIsListening] = useState(false);
+  const [interimText, setInterimText] = useState('');
   const recognitionRef = useRef<any>(null);
   const wantListeningRef = useRef(false);
   const onTranscriptRef = useRef(onTranscript);
@@ -19,7 +20,6 @@ export function useSpeechToText({ onTranscript, lang = 'en-US' }: UseSpeechToTex
 
   const isSupported = !!SpeechRecognitionAPI;
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       wantListeningRef.current = false;
@@ -33,6 +33,7 @@ export function useSpeechToText({ onTranscript, lang = 'en-US' }: UseSpeechToTex
   const stop = useCallback(() => {
     wantListeningRef.current = false;
     setIsListening(false);
+    setInterimText('');
     if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch {}
     }
@@ -41,7 +42,6 @@ export function useSpeechToText({ onTranscript, lang = 'en-US' }: UseSpeechToTex
   const start = useCallback(() => {
     if (!SpeechRecognitionAPI) return;
 
-    // Tear down old instance
     if (recognitionRef.current) {
       try { recognitionRef.current.abort(); } catch {}
     }
@@ -53,8 +53,6 @@ export function useSpeechToText({ onTranscript, lang = 'en-US' }: UseSpeechToTex
     recognitionRef.current = recognition;
     wantListeningRef.current = true;
 
-    let finalTranscript = '';
-
     recognition.onresult = (event: any) => {
       let interim = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -62,21 +60,24 @@ export function useSpeechToText({ onTranscript, lang = 'en-US' }: UseSpeechToTex
         if (result.isFinal) {
           const text = result[0].transcript.trim();
           if (text) {
-            finalTranscript += (finalTranscript ? ' ' : '') + text;
             onTranscriptRef.current(text);
           }
+          setInterimText('');
         } else {
           interim += result[0].transcript;
         }
       }
+      if (interim) {
+        setInterimText(interim);
+      }
     };
 
     recognition.onend = () => {
-      // Auto-restart if we still want to listen (mobile kills it after silence)
       if (wantListeningRef.current) {
         try { recognition.start(); } catch {}
       } else {
         setIsListening(false);
+        setInterimText('');
       }
     };
 
@@ -84,8 +85,8 @@ export function useSpeechToText({ onTranscript, lang = 'en-US' }: UseSpeechToTex
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
         wantListeningRef.current = false;
         setIsListening(false);
+        setInterimText('');
       }
-      // 'no-speech' and 'aborted' are non-fatal — onend will handle restart
     };
 
     try {
@@ -105,5 +106,5 @@ export function useSpeechToText({ onTranscript, lang = 'en-US' }: UseSpeechToTex
     }
   }, [isListening, start, stop]);
 
-  return { isListening, isSupported, start, stop, toggle };
+  return { isListening, isSupported, interimText, start, stop, toggle };
 }
