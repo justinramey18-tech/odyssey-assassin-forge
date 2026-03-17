@@ -127,7 +127,9 @@ const Index = () => {
       window.location.reload();
     }
   }, [searchParams, setSearchParams]);
-
+  
+  // Misc items system
+  const miscItems = useMiscItems();
 
   // Handle deep-link via ?tab= query param (e.g. from /features page)
   const pendingTab = searchParams.get('tab');
