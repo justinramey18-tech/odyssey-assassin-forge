@@ -236,24 +236,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   const videoMatch = message.content.match(PARTY_VIDEO_REGEX);
   const imageMatch = !videoMatch ? message.content.match(PARTY_IMAGE_REGEX) : null;
 
-  // Extract AFK character names from the preceding user message
-  const afkCharNames = useMemo(() => {
-    if (!isAssistant || !allMessages) return [];
-    const idx = allMessages.findIndex(m => m.id === message.id);
-    if (idx <= 0) return [];
-    const prev = allMessages[idx - 1];
-    if (prev.role !== 'user') return [];
-    const names: string[] = [];
-    for (const line of prev.content.split('\n')) {
-      const match = line.match(AFK_LINE_REGEX);
-      if (match) {
-        // match[1] is like "[CharName]", extract the name
-        const name = match[1].replace(/^\[|\]$/g, '');
-        if (name) names.push(name);
-      }
-    }
-    return names;
-  }, [isAssistant, allMessages, message.id]);
+  const afkCharNames = afkCharNamesProp ?? [];
 
   // In private mode, hide other players' user messages content
   if (!isAssistant && !isMine && mode === 'private') {
