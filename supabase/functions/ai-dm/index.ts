@@ -151,6 +151,7 @@ interface DMRequest {
 
 const MAX_CUSTOM_GUIDES_CHARS = 200000;
 const MAX_MESSAGES = 100;
+const MAX_TOTAL_MESSAGE_CHARS = 120000; // ~30K tokens — leave room for system prompt + output
 
 // Models routed through Lovable AI gateway
 const LOVABLE_MODELS = new Set([
