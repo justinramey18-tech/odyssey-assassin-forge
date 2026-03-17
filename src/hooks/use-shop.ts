@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { ShopItem, ShopState, PurchaseRecord, ParsedShopItem } from '@/lib/shop/types';
-import { convertShopItemToConsumable, convertShopItemToEquipment } from '@/lib/shop/converters';
+import { convertShopItemToConsumable, convertShopItemToEquipment, isWearableEquipment } from '@/lib/shop/converters';
 import { Consumable } from '@/lib/consumables/types';
 import { EquipmentItem } from '@/lib/inventory/types';
 import { getScopedItem, setScopedItem, removeScopedItem, migrateToScoped } from '@/lib/scoped-storage';
