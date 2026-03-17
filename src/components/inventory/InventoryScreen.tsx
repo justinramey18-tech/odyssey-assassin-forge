@@ -534,6 +534,12 @@ export function InventoryScreen({
         onClose={() => setShowItemDetail(false)}
         onUnequip={() => selectedSlot && handleUnequip(selectedSlot)}
         onCompare={handleCompare}
+        onSell={onSellGear ? (item) => {
+          // Unequip first, then sell
+          if (selectedSlot) handleUnequip(selectedSlot);
+          setShowItemDetail(false);
+          onSellGear(item);
+        } : undefined}
       />
 
       {/* Comparison Sheet */}
