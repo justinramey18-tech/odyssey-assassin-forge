@@ -597,6 +597,14 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
                 <img src={imageMatch[1]} alt="Chat photo" className="w-full rounded-xl" loading="lazy" />
               </span>
             </span>
+          ) : audioMatch ? (
+            <span>
+              <span className="flex items-center gap-1 mb-1.5">
+                <Music className="w-3 h-3 text-amber-400" />
+                <span className="text-[10px] text-amber-300/70 font-cinzel">Audio</span>
+              </span>
+              <AudioMessagePlayer src={audioMatch[1]} />
+            </span>
           ) : (
             <AfkAnnotatedContent content={message.content} afkNames={extractAfkNames(message.content)} />
           )}
