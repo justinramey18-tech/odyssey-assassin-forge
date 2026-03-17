@@ -45,6 +45,7 @@ function ConsumableCard({
   characterName, 
   onUse, 
   onAdjustQuantity,
+  onSell,
   compact = false 
 }: ConsumableCardProps) {
   const [copied, setCopied] = useState(false);
