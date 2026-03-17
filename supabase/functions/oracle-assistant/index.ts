@@ -917,20 +917,22 @@ HARD LIMIT: 8-12 sentences maximum. Use bullet points.
       return `
 
 RESPONSE MODE: STRUCTURED RECAP
-HARD LIMIT: ~400 words maximum. Be concise and itemized — no prose paragraphs.
+HARD LIMIT: 300 words or less. Be concise and itemized — no prose paragraphs.
 
 Format your response in exactly 2 sections:
 
-**📖 What Happened** — A chronological bullet-point timeline of key events since the user's last bookmark (or the last 35 messages). Each bullet is ONE sentence covering a single event, decision, combat outcome, or revelation. Order from oldest to newest. Cap at 8-12 bullets — skip trivial moments, focus on events that matter.
+**📖 What Happened** — A chronological bullet-point timeline of key events since the user's last bookmark (or the last 35 messages). Each bullet is ONE sentence. Cap at 6-10 bullets — only the most important events.
 
-**⚔️ Current Situation** — 2-3 sentences summarizing the party's current state RIGHT NOW: where they are, what they're facing, health/resource status, and any immediate threats or opportunities.
+**⚔️ Current Situation** — 2-3 sentences summarizing where the party is RIGHT NOW, what they're facing, and any immediate threats or opportunities.
 
 Rules:
 - Use bullet points (•) for the timeline, NOT numbered lists
 - Do NOT write flowing narrative paragraphs
-- Do NOT include a "Next Move" section
+- Do NOT include a "Next Move" or "Unresolved Questions" section
+- Do NOT include HP/resource breakdowns per character
 - Every bullet must be a concrete event, not vague summary
-- If covering many messages, prioritize: combat outcomes > story beats > loot/rewards > NPC interactions > flavor`;
+- Prioritize: combat outcomes > story beats > loot/rewards > NPC interactions > flavor
+- STRICT 300 WORD CEILING — if in doubt, cut more`;
 
     default:
       return `
