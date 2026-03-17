@@ -557,7 +557,19 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
       </div>
     </motion.div>
   );
-}
+}, (prev, next) => {
+  // Custom comparator — skip re-render if nothing meaningful changed
+  return prev.message.id === next.message.id
+    && prev.message.content === next.message.content
+    && prev.message.role === next.message.role
+    && prev.ttsSelectMode === next.ttsSelectMode
+    && prev.ttsSelected === next.ttsSelected
+    && prev.whisperTrayEnabled === next.whisperTrayEnabled
+    && prev.isCreator === next.isCreator
+    && prev.mode === next.mode
+    && prev.showTeamTag === next.showTeamTag
+    && prev.currentUserId === next.currentUserId;
+});
 
 export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, showBattleMap, battleMapContent, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid }: PartyDMScreenProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
