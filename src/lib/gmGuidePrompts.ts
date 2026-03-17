@@ -1613,14 +1613,20 @@ QUICK REFERENCE CHEAT SHEET
 | Damage (self) | "take/deal/suffer [NUMBER] [TYPE] damage" |
 | Damage (enemy) | "deal [NUMBER] damage to [ENEMY]" / "[ENEMY] takes [NUMBER] damage" |
 | Healing | "heal/restore/regain [NUMBER] HP" |
+| Absolute HP | "Name: [CURRENT]/[MAX] HP" (most reliable) |
+| Companion HP | "[COMPANION] takes/regains [NUMBER] HP" |
+| Companion Cond. | "[COMPANION] is [CONDITION]" / "no longer [CONDITION]" |
 | Gold Gain | "find/loot/receive [NUMBER] gold/gp" |
 | Gold Spend | "spend/pay [NUMBER] gold/gp" |
 | Item Get | "find/loot/acquire [ITEM NAME]" |
 | Item Use | "drink/consume/use/activate [ITEM NAME]" |
+| Shop Item | "[ITEM] — [PRICE] gp" / "offers [ITEM] for [PRICE]" |
 | Condition On | "[CONDITION NAME]" in apply context |
 | Condition Off | "no longer [CONDITION]" or "recovers from" |
 | Enemy Condition | "[ENEMY] is [CONDITION]" |
 | Kill | "kill/slay/defeat [ENEMY]" or "[ENEMY] falls/dies" |
+| Map Token Add | "[COUNT] [ENEMY NAME]" in encounter intro |
+| Map Token Remove | "[ENEMY] is slain/falls/flees" |
 | Initiative | "Initiative: [NUMBER]" or "rolls [NUMBER] for initiative" |
 | Spell | "casts [SPELL NAME]" or "expend [LEVEL] slot" |
 | Concentration | "maintain/lose concentration on [SPELL]" |
