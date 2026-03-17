@@ -118,9 +118,10 @@ interface UsePartyDmOptions {
   characterContext: CharacterContext;
   partyMembers: Array<{ character_name: string; character_status: Record<string, unknown>; user_id: string }>;
   customGuidesContent?: string;
+  memoryAnchorsContent?: string;
 }
 
-export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent }: UsePartyDmOptions) {
+export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent }: UsePartyDmOptions) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<PartyDmMessage[]>([]);
   const [currentPrompts, setCurrentPrompts] = useState<PartyDmPrompt[]>([]);
