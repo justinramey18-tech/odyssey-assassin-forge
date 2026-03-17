@@ -17,6 +17,7 @@ import { PartyBattleMap } from './PartyBattleMap';
 import { PartyCombatLog } from './PartyCombatLog';
 import { SendItemScreen } from './SendItemScreen';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import type { UsePartySyncReturn, PartyMember } from '@/hooks/use-party-sync';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import type { InventoryItem } from '@/lib/consumables/types';
