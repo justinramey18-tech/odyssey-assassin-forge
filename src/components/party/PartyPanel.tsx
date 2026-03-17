@@ -246,28 +246,7 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
             isCreator={party.isCreator}
             onViewActions={(m) => setSelectedMember(m)}
             onSendItem={(m) => setSendToMember(m)}
-            onKick={(m) => {
-              toast(`Remove ${m.character_name} from the party?`, {
-                description: 'They will be kicked immediately.',
-                action: {
-                  label: 'Remove',
-                  onClick: async () => {
-                    try {
-                      const { data, error } = await supabase.functions.invoke('party-link', {
-                        body: { action: 'kick', partyId: party.partyId, targetUserId: m.user_id },
-                      });
-                      if (error) throw error;
-                      if (data?.error) throw new Error(data.error);
-                      toast.success(`${m.character_name} removed from party`);
-                    } catch (e: any) {
-                      toast.error(e?.message || 'Failed to kick member');
-                    }
-                  },
-                },
-                cancel: { label: 'Cancel', onClick: () => {} },
-                duration: 10000,
-              });
-            }}
+            onKick={(m) => setKickTarget(m)}
             onlineInfo={onlineStatusMap[member.user_id]}
             compact={party.members.length >= 5}
           />
