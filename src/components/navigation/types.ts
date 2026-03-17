@@ -53,10 +53,7 @@ export const FIGHTING_TABS: SubTabConfig[] = [
 ];
 
 export const INVENTORY_TABS: SubTabConfig[] = [
-  { id: 'consumables', label: 'Consumables', icon: FlaskConical, color: 'text-emerald-400', glowColor: 'bg-emerald-400' },
-  { id: 'shop', label: 'Shop', icon: Store, color: 'text-yellow-400', glowColor: 'bg-yellow-400' },
-  { id: 'loot', label: 'Loot', icon: Backpack, color: 'text-purple-400', glowColor: 'bg-purple-400' },
-  { id: 'gear', label: 'Gear', icon: Backpack, color: 'text-amber-400', glowColor: 'bg-amber-400' },
+  { id: 'inventory', label: 'Inventory', icon: Backpack, color: 'text-amber-400', glowColor: 'bg-amber-400' },
   { id: 'stars', label: 'Stars', icon: Sparkles, color: 'text-cyan-400', glowColor: 'bg-cyan-400' },
   { id: 'feats', label: 'Feats', icon: Trophy, color: 'text-purple-400', glowColor: 'bg-purple-400' },
 ];
