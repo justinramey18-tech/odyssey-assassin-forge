@@ -147,12 +147,14 @@ function MiscItemCard({
   item, 
   onRemove, 
   onAdjustQuantity, 
-  onUpdateNotes 
+  onUpdateNotes,
+  onSell,
 }: { 
   item: MiscItem; 
   onRemove: () => void; 
   onAdjustQuantity: (delta: number) => void;
   onUpdateNotes: (notes: string) => void;
+  onSell?: (quantity: number) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [editingNotes, setEditingNotes] = useState(false);
