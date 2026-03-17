@@ -3006,7 +3006,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
               onDeleteLoot={loot.deleteLootItem}
               onSellLoot={loot.sellLootItem}
               onAddGold={shop.addGold}
-              characterName2={character.name}
+              
               currentHP={hpState.current}
               maxHP={hpState.max}
               conditions={convertConditionsToPromptFormat(conditions.conditions)}
