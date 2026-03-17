@@ -53,6 +53,7 @@ interface InventoryScreenProps {
   equipment?: CharacterEquipment;
   onEquipmentChange?: (equipment: CharacterEquipment) => void;
   achievements?: Achievement[];
+  onSellGear?: (item: EquipmentItem) => void;
 }
 
 export function InventoryScreen({ 
