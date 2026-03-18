@@ -72,6 +72,11 @@ export function DMToolsDrawer({
   onChatThemeChange,
   whisperTrayEnabled,
   onWhisperTrayEnabledChange,
+  empyreanConfig,
+  dragonNotes,
+  onDragonNotesChange,
+  onReconfigureEmpyrean,
+  onResetBurnout,
 }: DMToolsDrawerProps) {
   const [showRetakeConfirm, setShowRetakeConfirm] = useState(false);
 
