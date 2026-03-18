@@ -57,6 +57,8 @@ interface UseAIDMOptions {
   worldStatePrompt?: string;
   dmPersonaPrompt?: string;
   onMessageComplete?: (content: string) => void;
+  /** Called when quests are extracted from AI narrative */
+  onQuestExtracted?: (quests: Array<{ key: string; status: 'active' | 'completed' | 'failed'; notes?: string }>) => void;
   /** Current active guide IDs to persist with the campaign */
   activeGuideIds?: string[];
   /** Called when a campaign is loaded so the parent can switch active guides */
