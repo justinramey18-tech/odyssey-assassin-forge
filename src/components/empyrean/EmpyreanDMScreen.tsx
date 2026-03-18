@@ -769,10 +769,10 @@ export function EmpyreanDMScreen({
         onGuides={() => setShowGuides(true)}
         onWorldState={() => setShowWorldState(prev => !prev)}
         onClearChat={clearMessages}
-        autoSyncEnabled={false}
-        onToggleAutoSync={() => {}}
-        isExtracting={false}
-        showAutoSync={false}
+        autoSyncEnabled={autoSync.autoSyncEnabled}
+        onToggleAutoSync={autoSync.toggleAutoSync}
+        isExtracting={autoSync.isExtracting}
+        showAutoSync={!!autoSyncCallbacks}
         guidesCount={gmGuides.guides.filter(g => g.enabled).length}
         anchorsCount={gameState.gameState.memory_anchors.length}
         onEmpyreanPrompts={() => setShowPrompts(true)}
