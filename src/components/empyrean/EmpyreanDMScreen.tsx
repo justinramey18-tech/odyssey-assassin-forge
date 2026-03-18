@@ -149,11 +149,15 @@ export function EmpyreanDMScreen({
     );
   }, [config, characterName]);
 
+  const gameState = useDMGameState(null);
+  const worldStatePrompt = useMemo(() => buildMemoryAnchorsPrompt(gameState.gameState), [gameState.gameState]);
+
   const {
     messages,
     isLoading,
     isSummarizing,
     campaignSummary,
+    updateCampaignSummary,
     sendMessage,
     clearMessages,
     cancelRequest,
@@ -169,6 +173,7 @@ export function EmpyreanDMScreen({
     customGuidesContent: enabledContent,
     dmPersonaPrompt,
     selectedModel,
+    worldStatePrompt,
     sessionStorageKey: EMPYREAN_SESSION_KEY,
     summarizeStorageKey: EMPYREAN_SUMMARY_KEY,
     onMessageComplete: autoSyncCallbacks ? (content) => {
