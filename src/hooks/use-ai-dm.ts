@@ -223,7 +223,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
 
       const data = await response.json();
       if (data.summary) {
-        saveCampaignSummary(data.summary);
+        saveCampaignSummary(data.summary, SUMMARY_KEY);
         setCampaignSummary(data.summary);
         toast.success('Campaign summary updated', { duration: 2000 });
       }
