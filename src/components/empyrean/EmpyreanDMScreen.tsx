@@ -437,10 +437,12 @@ export function EmpyreanDMScreen({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="z-[70] max-h-[300px]">
-                  {DM_MODELS.filter(m => m.provider === 'lovable').map(model => (
-                    <SelectItem key={model.id} value={model.id}>
-                      <span className="text-sm">{model.label}</span>
-                      <span className="text-xs text-muted-foreground ml-2">— {model.description}</span>
+                  {DM_MODELS.map(m => (
+                    <SelectItem key={m.id} value={m.id} className="text-xs text-white/80">
+                      <div>
+                        <span className="font-medium">{m.label}</span>
+                        <span className="text-white/40 ml-1.5">— {m.description}</span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
