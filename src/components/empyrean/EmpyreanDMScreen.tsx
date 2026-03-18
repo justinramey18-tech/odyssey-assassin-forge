@@ -730,8 +730,8 @@ export function EmpyreanDMScreen({
         ) : undefined}
       />
 
-      {/* Contextual Actions — visible when Actions tab is active */}
-      {activeNavTab === 'actions' && (
+      {/* Contextual Actions — always visible when messages exist */}
+      {messages.length > 0 && config && (
         <EmpyreanContextualActions
           situation={currentSituation}
           characterName={config?.characterName || characterName}
