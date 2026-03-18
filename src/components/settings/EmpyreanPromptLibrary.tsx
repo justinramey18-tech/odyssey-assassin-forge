@@ -268,6 +268,20 @@ export function EmpyreanPromptLibrary({ open, onOpenChange, characterName, onSen
                             >
                               {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                             </button>
+                            {onSendToDM && (
+                              <button
+                                onClick={() => {
+                                  const processed = applyTimePrefix(
+                                    p.prompt.replace(/\[Character Name\]/g, characterName || '[Character Name]'),
+                                  );
+                                  onSendToDM(processed);
+                                }}
+                                className="p-2 rounded-lg transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20"
+                                title="Send to Empyrean DM"
+                              >
+                                <Send className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         );
                       })}
