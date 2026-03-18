@@ -35,6 +35,24 @@ export function loadEmpyreanDMConfig(): EmpyreanDMConfig | null {
   return null;
 }
 
+const DRAGON_NOTES_KEY = 'empyrean-dragon-notes';
+
+export function saveDragonNotes(notes: string): void {
+  try {
+    setScopedItem(DRAGON_NOTES_KEY, notes);
+  } catch (e) {
+    console.error('[EmpyreanDM] Failed to save dragon notes:', e);
+  }
+}
+
+export function loadDragonNotes(): string {
+  try {
+    return getScopedItem(DRAGON_NOTES_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
 const CAMPAIGN_FOCUS_DESCRIPTIONS: Record<CampaignFocus, string> = {
   combat: `Weight sessions toward tactical aerial battles on dragonback, ward line skirmishes against Venin incursions, and desperate close-quarters combat in Basgiath's training grounds and beyond. Emphasize formation flying, dragon-fire coordination, terrain advantages at altitude, and the brutal cost of mistakes when gravity is the ultimate enemy. Every fight should feel lethal — healing is scarce and reinforcements are never guaranteed.`,
   political: `Weight sessions toward Empyrean council intrigue, information control between quadrants, and faction loyalty tests that force the character to choose between duty and conscience. Leadership jockeys for influence, professors have hidden agendas, and every friendship is a potential intelligence leak. The real battles happen in war rooms, briefing halls, and whispered conversations after curfew.`,
@@ -64,6 +82,7 @@ export function buildEmpyreanDMPersona(
   signetType: string = '',
   yearAtBasgiath: string = 'first-year',
   campaignFocus: CampaignFocus = 'balanced',
+  dragonNotes: string = '',
 ): string {
   const sections: string[] = [];
 
@@ -106,7 +125,7 @@ ${CAMPAIGN_FOCUS_DESCRIPTIONS[campaignFocus]}`);
 
   // 6. Dragon Bond Telepathy
   const dragonLabel = dragonName || 'Your Dragon';
-  sections.push(`## DRAGON BOND TELEPATHY
+  let dragonSection = `## DRAGON BOND TELEPATHY
 
 When the bonded dragon communicates with the rider, ALWAYS use whisper tags:
 <!--WHISPER:${dragonLabel}-->[dragon's telepathic message]<!--/WHISPER:${dragonLabel}-->
@@ -118,7 +137,12 @@ Dragon communication rules:
 - The dragon should comment on the rider's decisions — approval, disapproval, amusement, warning
 - The dragon has its own opinions about NPCs and situations
 - Include dragon telepathy in at least every other DM response during active scenes
-- During combat, the dragon's whispers should be tactical: warnings about flanking, approval of kills, urgency about threats`);
+- During combat, the dragon's whispers should be tactical: warnings about flanking, approval of kills, urgency about threats`;
+
+  if (dragonNotes.trim()) {
+    dragonSection += "\n\nAdditional dragon personality notes from the player:\n" + dragonNotes.trim();
+  }
+  sections.push(dragonSection);
 
   // 7. Signet Burnout Tracking
   sections.push(`## SIGNET BURNOUT TRACKING
