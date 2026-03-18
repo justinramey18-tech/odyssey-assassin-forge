@@ -271,6 +271,22 @@ export function EmpyreanDMScreen({
         const whisperContent = whisperMatch[2].trim();
         if (config?.dragonName && target === config.dragonName && whisperContent) {
           dragonBond.addDragonMessage(whisperContent);
+
+          // Send dragon bond Telegram notification (non-blocking)
+          try {
+            supabase.functions.invoke('telegram-notify-proxy', {
+              body: {
+                type: 'dragon_message',
+                title: `${config.dragonName} whispers...`,
+                body: whisperContent.length > 200
+                  ? whisperContent.substring(0, 200) + '…'
+                  : whisperContent,
+                dragonName: config.dragonName,
+              },
+            }).catch((e) => console.warn('[EmpyreanDM] Dragon bond telegram notify failed:', e));
+          } catch (tgErr) {
+            // Never break the game flow
+          }
         }
       }
 
