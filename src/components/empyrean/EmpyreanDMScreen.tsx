@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { parseWhispers } from '@/lib/whisper-parser';
 import { WhisperTray } from '@/components/ai-dm/WhisperTray';
-import { ArrowLeft, Settings, Send, BookOpen, Loader2, RotateCcw, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Settings, Send, BookOpen, Loader2, RotateCcw, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -9,6 +9,9 @@ import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import { CharacterContext } from '@/components/oracle/types';
 import { useAIDM } from '@/hooks/use-ai-dm';
+import { useCampaignSessions, CampaignSession } from '@/hooks/use-campaign-sessions';
+import { CampaignDropdown } from '@/components/ai-dm/CampaignDropdown';
+import { CampaignSessionsManager } from '@/components/ai-dm/CampaignSessionsManager';
 import { useGMGuides } from '@/hooks/use-gm-guides';
 import {
   loadEmpyreanDMConfig,
@@ -106,6 +109,7 @@ export function EmpyreanDMScreen({
   const [selectedModel, setSelectedModel] = useState(loadEmpyreanModel);
   const [showSettings, setShowSettings] = useState(false);
   const [showPrompts, setShowPrompts] = useState(false);
+  const [showSaves, setShowSaves] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
   const [burnoutLevel, setBurnoutLevel] = useState(0);
@@ -120,7 +124,7 @@ export function EmpyreanDMScreen({
     }
   }, [open]);
 
-  const { enabledContent } = useGMGuides();
+  const { enabledContent, activeGuideIds } = useGMGuides();
 
   const dmPersonaPrompt = useMemo(() => {
     if (!config) return undefined;
@@ -140,12 +144,17 @@ export function EmpyreanDMScreen({
     messages,
     isLoading,
     isSummarizing,
+    campaignSummary,
     sendMessage,
     clearMessages,
     cancelRequest,
     editMessage,
     deleteMessage,
     regenerateMessage,
+    loadCampaign,
+    activeCampaignId,
+    setActiveCampaignId,
+    newGame,
   } = useAIDM({
     characterContext,
     customGuidesContent: enabledContent,
@@ -157,6 +166,33 @@ export function EmpyreanDMScreen({
       // Could parse for gold/HP/XP changes
     } : undefined,
   });
+
+  // Campaign sessions — uses 'empyrean' mode to namespace separately from regular DM saves
+  const {
+    sessions: campaignSessions,
+    isLoading: sessionsLoading,
+    isSignedIn,
+    saveSession: saveCampaignSession,
+    deleteSession: deleteCampaignSession,
+    renameSession: renameCampaignSession,
+    refreshSessions,
+  } = useCampaignSessions('empyrean' as any);
+
+  const handleLoadCampaign = useCallback((session: CampaignSession) => {
+    loadCampaign(session.messages, session.campaign_summary, session.id, session.gm_guide_ids);
+    setShowSaves(false);
+    setShowSettings(false);
+    toast.success(`Loaded: ${session.name}`);
+  }, [loadCampaign]);
+
+  const handleSaveCampaign = useCallback(async (
+    name: string,
+    msgs: import('@/components/oracle/types').Message[],
+    summary: string | null,
+    existingId?: string,
+  ) => {
+    return saveCampaignSession(name, msgs, summary, existingId);
+  }, [saveCampaignSession]);
 
   // Message action states
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
@@ -250,12 +286,11 @@ export function EmpyreanDMScreen({
   }, []);
 
   const handleNewCampaign = useCallback(() => {
-    clearMessages();
+    newGame();
     setActiveTemplate(null);
     setBurnoutLevel(0);
     setShowSettings(false);
-    toast.success('Empyrean campaign session cleared.');
-  }, [clearMessages]);
+  }, [newGame]);
 
   const handleSessionTemplate = useCallback((template: typeof EMPYREAN_SESSION_GUIDES[0]) => {
     const msg = `Start a new session using this structure: ${template.name}. My character is ${characterName}. Set the scene and begin.`;
@@ -316,15 +351,24 @@ export function EmpyreanDMScreen({
           >
             <ArrowLeft className="w-5 h-5 text-purple-300" />
           </button>
-          <div>
-            <h2 className="text-base font-cinzel font-bold text-purple-300 flex items-center gap-1.5">
-              🐉 Empyrean DM
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-base font-cinzel font-bold text-purple-300">🐉</h2>
+              <CampaignDropdown
+                sessions={campaignSessions}
+                activeCampaignId={activeCampaignId}
+                isSignedIn={isSignedIn}
+                isLoading={sessionsLoading}
+                onNewGame={handleNewCampaign}
+                onLoadCampaign={handleLoadCampaign}
+                onRefresh={refreshSessions}
+              />
               {activeTemplate && (
-                <span className="ml-1.5 text-[10px] font-sans font-medium px-2 py-0.5 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300">
+                <span className="text-[10px] font-sans font-medium px-2 py-0.5 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300">
                   {activeTemplate.includes('Heist') ? '🎭' : activeTemplate.includes('Trial') ? '⚖️' : '🏕️'} {activeTemplate}
                 </span>
               )}
-            </h2>
+            </div>
             <p className="text-[11px] text-muted-foreground flex items-center gap-2">
               <span className="truncate max-w-[140px]">{characterName}{config.dragonName ? ` & ${config.dragonName}` : ''}</span>
               {config.signetType && <BurnoutIndicator level={burnoutLevel} />}
@@ -600,8 +644,23 @@ export function EmpyreanDMScreen({
               </Select>
             </div>
 
+            {/* Saved Campaigns */}
+            <Button
+              variant="outline"
+              onClick={() => { setShowSettings(false); setShowSaves(true); }}
+              className="w-full gap-2 border-purple-500/30 text-purple-300 hover:bg-purple-500/10"
+            >
+              <FolderOpen className="w-4 h-4" />
+              Saved Campaigns
+            </Button>
+
             {/* Campaign info */}
             <div className="rounded-lg border border-purple-500/20 bg-purple-500/5 p-3 space-y-1">
+              {activeCampaignId && (
+                <p className="text-xs text-muted-foreground">
+                  <span className="text-purple-300">Campaign:</span> {campaignSessions.find(s => s.id === activeCampaignId)?.name ?? 'Unnamed'}
+                </p>
+              )}
               <p className="text-xs text-muted-foreground">
                 <span className="text-purple-300">Focus:</span> {config.campaignFocus}
               </p>
@@ -632,6 +691,25 @@ export function EmpyreanDMScreen({
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Campaign Sessions Manager */}
+      {showSaves && (
+        <div className="fixed inset-0 z-[66] bg-background flex flex-col">
+          <CampaignSessionsManager
+            onBack={() => setShowSaves(false)}
+            sessions={campaignSessions}
+            isLoading={sessionsLoading}
+            isSignedIn={isSignedIn}
+            currentMessages={messages}
+            currentSummary={campaignSummary}
+            activeCampaignId={activeCampaignId}
+            onSave={handleSaveCampaign}
+            onLoad={handleLoadCampaign}
+            onDelete={deleteCampaignSession}
+            onRename={renameCampaignSession}
+          />
+        </div>
+      )}
 
       {/* Quick Prompts Sheet */}
       <Sheet open={showPrompts} onOpenChange={setShowPrompts}>
