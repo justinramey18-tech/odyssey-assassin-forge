@@ -54,6 +54,13 @@ const tabs: TabConfig[] = [
     description: 'Ambient music & playlists',
     color: 'text-green-400'
   },
+  {
+    id: 'telegram',
+    label: 'Telegram',
+    icon: Send,
+    description: 'Notifications & commands',
+    color: 'text-sky-400'
+  },
   { 
     id: 'appSystem',
     label: 'App & System', 
