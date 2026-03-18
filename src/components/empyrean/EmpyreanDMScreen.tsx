@@ -23,6 +23,10 @@ import { useGMGuides } from '@/hooks/use-gm-guides';
 import { useDMGameState, buildMemoryAnchorsPrompt } from '@/hooks/use-dm-game-state';
 import { useDMChatTheme } from '@/hooks/use-dm-chat-theme';
 import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
+import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
+import { AutoSyncBanner } from '@/components/ai-dm/AutoSyncBanner';
+import { useNarrator } from '@/hooks/use-narrator';
+import { NarrationSpeedPopover } from '@/components/ai-dm/NarrationSpeedPopover';
 import {
   loadEmpyreanDMConfig,
   buildEmpyreanDMPersona,
