@@ -17,7 +17,7 @@ import { DMBottomNav, DMNavTab } from '@/components/ai-dm/DMBottomNav';
 import { DMDiceRoller } from '@/components/ai-dm/DMDiceRoller';
 import { GMGuidesManager } from '@/components/ai-dm/GMGuidesManager';
 import { WorldStatePanel } from '@/components/ai-dm/WorldStatePanel';
-import { DMQuickActions } from '@/components/ai-dm/DMQuickActions';
+// DMQuickActions available but using Empyrean-specific prompts instead
 import { useGMGuides } from '@/hooks/use-gm-guides';
 import { useDMGameState, buildMemoryAnchorsPrompt } from '@/hooks/use-dm-game-state';
 import { useDMChatTheme } from '@/hooks/use-dm-chat-theme';
