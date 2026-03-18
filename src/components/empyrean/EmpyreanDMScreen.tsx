@@ -377,8 +377,17 @@ export function EmpyreanDMScreen({
       setShowCharacterActions(true);
       return;
     }
+    if (tab === 'settings') {
+      setShowToolsDrawer(true);
+      return;
+    }
     // Dice and other tabs toggle the full-screen content panel
     setActiveNavTab(prev => prev === tab ? null : tab);
+  }, []);
+
+  const handleDragonNotesChange = useCallback((notes: string) => {
+    setDragonNotes(notes);
+    saveDragonNotes(notes);
   }, []);
 
   const handleUsePrompt = useCallback((prompt: string) => {
