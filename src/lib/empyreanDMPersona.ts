@@ -204,6 +204,15 @@ At the end of every response, include exactly one situation tag indicating the c
 
 Always include exactly one tag per response. Place it at the very end, after all narrative content and after any BURNOUT tags.`);
 
+  // 7c. Bond Strain Events
+  sections.push(`## BOND STRAIN EVENTS
+
+When something happens in the narrative that would strain the dragon-rider bond — the rider ignoring the dragon's warning, ordering the dragon into danger the dragon resisted, prioritizing mission over dragon safety, or lying about something the dragon can sense through the bond — include a tag:
+
+<!--BOND_STRAIN:brief reason-->
+
+Only emit this when a genuine bond-straining event occurs, not for minor disagreements. This tag should appear at most once per response.`);
+
   // 8. Recurring NPC Cast
   sections.push(`## RECURRING NPC CAST
 
