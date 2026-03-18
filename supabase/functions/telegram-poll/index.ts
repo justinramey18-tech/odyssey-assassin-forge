@@ -374,9 +374,7 @@ async function processCommand(
     await supabase
       .from('character_saves')
       .update({ extended_data: ext })
-      .eq('user_id', userId)
-      .order('updated_at', { ascending: false })
-      .limit(1);
+      .eq('user_id', userId);
 
     const pct = Math.round((newCurrent / hp.max) * 100);
     let msg = `💥 Took <b>${amount}</b> damage!\n❤️ HP: <b>${newCurrent}</b>/${hp.max}`;
