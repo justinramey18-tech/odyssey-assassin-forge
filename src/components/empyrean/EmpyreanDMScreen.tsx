@@ -869,6 +869,14 @@ export function EmpyreanDMScreen({
         </div>
       )}
 
+      <PartyDMQuickActions
+        open={showCharacterActions}
+        onOpenChange={setShowCharacterActions}
+        characterContext={characterContext}
+        characterName={characterName}
+        onUsePrompt={handleUsePrompt}
+      />
+
       <Sheet open={showPrompts} onOpenChange={setShowPrompts}>
         <SheetContent side="bottom" className="z-[65] border-purple-500/20 bg-background max-h-[75vh]">
           <SheetHeader>
