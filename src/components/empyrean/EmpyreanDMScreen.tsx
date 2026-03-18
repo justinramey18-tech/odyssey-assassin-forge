@@ -283,8 +283,9 @@ export function EmpyreanDMScreen({
                 </span>
               )}
             </h2>
-            <p className="text-[11px] text-muted-foreground truncate max-w-[180px]">
-              {characterName}{config.dragonName ? ` & ${config.dragonName}` : ''}
+            <p className="text-[11px] text-muted-foreground flex items-center gap-2">
+              <span className="truncate max-w-[140px]">{characterName}{config.dragonName ? ` & ${config.dragonName}` : ''}</span>
+              {config.signetType && <BurnoutIndicator level={burnoutLevel} />}
             </p>
           </div>
         </div>
