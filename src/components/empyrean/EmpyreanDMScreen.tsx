@@ -843,6 +843,11 @@ export function EmpyreanDMScreen({
         onChatThemeChange={setChatTheme}
         whisperTrayEnabled={whisperTrayEnabled}
         onWhisperTrayEnabledChange={setWhisperTrayEnabled}
+        empyreanConfig={config ? { campaignFocus: config.campaignFocus, dragonName: config.dragonName, signetType: config.signetType, yearAtBasgiath: config.yearAtBasgiath } : null}
+        dragonNotes={dragonNotes}
+        onDragonNotesChange={handleDragonNotesChange}
+        onReconfigureEmpyrean={onClose}
+        onResetBurnout={() => { setBurnoutLevel(0); toast.success('Signet burnout reset.'); }}
       />
 
       {/* Campaign Sessions Manager */}
