@@ -29,3 +29,9 @@ verify_jwt = false
 
 [functions.homebrew-assistant]
 verify_jwt = false
+
+[functions.telegram-poll]
+verify_jwt = false
+
+[functions.telegram-notify]
+verify_jwt = false
