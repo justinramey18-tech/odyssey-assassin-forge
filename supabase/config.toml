@@ -35,3 +35,9 @@ verify_jwt = false
 
 [functions.telegram-notify]
 verify_jwt = false
+
+[functions.setup-telegram-cron]
+verify_jwt = false
+
+[functions.telegram-notify-proxy]
+verify_jwt = false
