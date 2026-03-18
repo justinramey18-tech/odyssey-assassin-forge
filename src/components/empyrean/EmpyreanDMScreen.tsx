@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { ArrowLeft, Settings, Send, BookOpen, Loader2, RotateCcw, X, Shuffle } from 'lucide-react';
+import { ArrowLeft, Settings, Send, BookOpen, Loader2, RotateCcw, X, Shuffle, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -66,6 +66,32 @@ function groupPromptsByCategory(prompts: typeof empyreanPrompts) {
   return groups;
 }
 
+// Strip burnout tags from displayed content
+function stripBurnoutTags(content: string): string {
+  return content.replace(/<!--BURNOUT:\d-->/g, '').trim();
+}
+
+const BURNOUT_LABELS = [
+  'Fresh — no strain',
+  'Mild strain',
+  'Moderate strain',
+  'Heavy strain',
+  'Critical strain',
+  'Overload',
+];
+
+function BurnoutIndicator({ level }: { level: number }) {
+  const color = level <= 1 ? 'text-emerald-400' : level <= 3 ? 'text-amber-400' : 'text-red-400';
+  const emptyColor = level <= 1 ? 'text-emerald-400/20' : level <= 3 ? 'text-amber-400/20' : 'text-red-400/20';
+  return (
+    <div className="flex items-center gap-0.5" title={`Signet Strain: ${BURNOUT_LABELS[level]}`}>
+      {Array.from({ length: 5 }, (_, i) => (
+        <Flame key={i} className={cn('w-3 h-3', i < level ? color : emptyColor)} />
+      ))}
+    </div>
+  );
+}
+
 export function EmpyreanDMScreen({
   open,
   onClose,
@@ -80,6 +106,7 @@ export function EmpyreanDMScreen({
   const [showPrompts, setShowPrompts] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
+  const [burnoutLevel, setBurnoutLevel] = useState(0);
   const [initialSent, setInitialSent] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -142,6 +169,18 @@ export function EmpyreanDMScreen({
     if (!open) setInitialSent(false);
   }, [open]);
 
+  // Parse burnout tags from assistant messages
+  useEffect(() => {
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg?.role === 'assistant' && lastMsg.content) {
+      const match = lastMsg.content.match(/<!--BURNOUT:(\d)-->/);
+      if (match) {
+        const level = Math.min(5, Math.max(0, parseInt(match[1], 10)));
+        setBurnoutLevel(level);
+      }
+    }
+  }, [messages]);
+
   // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -172,6 +211,7 @@ export function EmpyreanDMScreen({
   const handleNewCampaign = useCallback(() => {
     clearMessages();
     setActiveTemplate(null);
+    setBurnoutLevel(0);
     setShowSettings(false);
     toast.success('Empyrean campaign session cleared.');
   }, [clearMessages]);
@@ -244,8 +284,9 @@ export function EmpyreanDMScreen({
                 </span>
               )}
             </h2>
-            <p className="text-[11px] text-muted-foreground truncate max-w-[180px]">
-              {characterName}{config.dragonName ? ` & ${config.dragonName}` : ''}
+            <p className="text-[11px] text-muted-foreground flex items-center gap-2">
+              <span className="truncate max-w-[140px]">{characterName}{config.dragonName ? ` & ${config.dragonName}` : ''}</span>
+              {config.signetType && <BurnoutIndicator level={burnoutLevel} />}
             </p>
           </div>
         </div>
@@ -309,7 +350,7 @@ export function EmpyreanDMScreen({
                       ),
                     }}
                   >
-                    {message.content || '...'}
+                    {stripBurnoutTags(message.content || '...')}
                   </ReactMarkdown>
                 </div>
               ) : (
