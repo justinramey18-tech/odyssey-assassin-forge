@@ -1130,7 +1130,7 @@ export function HomeScreen({
         open={showEmpyreanScreen}
         onClose={() => setShowEmpyreanScreen(false)}
         characterName={character.name}
-        characterContext={drawerContext?.characterContext ?? { name: character.name, level: character.level, class: character.class, race: '' }}
+        characterContext={drawerContext?.characterContext ?? { name: character.name, level: character.level, currentHP: 10, maxHP: 10 }}
       />
 
       {/* FAQ Drawer */}
