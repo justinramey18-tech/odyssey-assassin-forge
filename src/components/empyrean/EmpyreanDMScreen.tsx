@@ -177,7 +177,9 @@ export function EmpyreanDMScreen({
     );
   }, [config, characterName]);
 
-  // gameState moved below useAIDM to access activeCampaignId
+  const [trackingCampaignId, setTrackingCampaignId] = useState<string | null>(null);
+  const gameState = useDMGameState(trackingCampaignId);
+  const worldStatePrompt = useMemo(() => buildMemoryAnchorsPrompt(gameState.gameState), [gameState.gameState]);
 
   const {
     messages,
@@ -210,8 +212,10 @@ export function EmpyreanDMScreen({
     },
   });
 
-  const gameState = useDMGameState(activeCampaignId);
-  const worldStatePrompt = useMemo(() => buildMemoryAnchorsPrompt(gameState.gameState), [gameState.gameState]);
+  // Sync tracking campaign id with active campaign id from useAIDM
+  useEffect(() => {
+    setTrackingCampaignId(activeCampaignId);
+  }, [activeCampaignId]);
 
   // Campaign sessions — uses 'empyrean' mode to namespace separately from regular DM saves
   const {
