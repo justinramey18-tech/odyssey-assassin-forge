@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Plus, Edit2, Trash2, BookOpen, Check, X, ScrollText, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -42,6 +42,20 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, o
   const [editorContent, setEditorContent] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const campaignSummaryChars = campaignSummary?.length ?? 0;
+  const wasFullSummarizingRef = useRef(false);
+
+  // Auto-open summary editor after full summarization completes
+  useEffect(() => {
+    if (isFullSummarizing) {
+      wasFullSummarizingRef.current = true;
+    } else if (wasFullSummarizingRef.current && campaignSummary) {
+      wasFullSummarizingRef.current = false;
+      setEditingSummary(true);
+      setIsNew(false);
+      setEditingGuide(null);
+      setEditorContent(campaignSummary);
+    }
+  }, [isFullSummarizing, campaignSummary]);
 
   const openNewEditor = useCallback(() => {
     setEditingGuide(null);
