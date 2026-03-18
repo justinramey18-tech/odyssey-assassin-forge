@@ -730,6 +730,23 @@ export function EmpyreanDMScreen({
         ) : undefined}
       />
 
+      {/* Contextual Actions — visible when Actions tab is active */}
+      {activeNavTab === 'actions' && (
+        <EmpyreanContextualActions
+          situation={currentSituation}
+          characterName={config?.characterName || characterName}
+          dragonName={config?.dragonName || ''}
+          signetType={config?.signetType || ''}
+          onAction={(prompt) => {
+            if (!isLoading) {
+              sendMessage(prompt);
+              setActiveNavTab(null);
+            }
+          }}
+          disabled={isLoading}
+        />
+      )}
+
       {/* Input bar — sits above the fixed DMBottomNav (~54px collapsed height) */}
       <div className="shrink-0 border-t border-purple-500/20 bg-background/90 backdrop-blur-sm px-3 pt-2.5 pb-[60px]">
         <div className="flex items-end gap-2">
