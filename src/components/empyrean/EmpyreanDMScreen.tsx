@@ -656,80 +656,46 @@ export function EmpyreanDMScreen({
         </div>
       </div>
 
-      {/* Settings Sheet */}
-      <Sheet open={showSettings} onOpenChange={setShowSettings}>
-        <SheetContent side="bottom" className="z-[65] border-purple-500/20 bg-background max-h-[70vh]">
-          <SheetHeader>
-            <SheetTitle className="font-cinzel text-purple-300">Empyrean DM Settings</SheetTitle>
-          </SheetHeader>
-          <div className="space-y-5 py-4">
-            {/* Model selector */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">AI Model</label>
-              <Select value={selectedModel} onValueChange={handleModelChange}>
-                <SelectTrigger className="bg-card/30 border-purple-500/30 z-[70]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="z-[70] max-h-[300px]">
-                  {DM_MODELS.map(m => (
-                    <SelectItem key={m.id} value={m.id} className="text-xs text-white/80">
-                      <div>
-                        <span className="font-medium">{m.label}</span>
-                        <span className="text-white/40 ml-1.5">— {m.description}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+      {/* Bottom Navigation */}
+      <DMBottomNav
+        activeTab={activeNavTab}
+        onTabChange={handleNavTabChange}
+        isExpanded={navExpanded}
+        onExpandedChange={setNavExpanded}
+        disabled={isLoading}
+        diceContent={activeNavTab === 'dice' ? (
+          <DMDiceRoller
+            characterContext={characterContext}
+            onRollResult={handleUsePrompt}
+            disabled={isLoading}
+          />
+        ) : undefined}
+      />
 
-            {/* Saved Campaigns */}
-            <Button
-              variant="outline"
-              onClick={() => { setShowSettings(false); setShowSaves(true); }}
-              className="w-full gap-2 border-purple-500/30 text-purple-300 hover:bg-purple-500/10"
-            >
-              <FolderOpen className="w-4 h-4" />
-              Saved Campaigns
-            </Button>
-
-            {/* Campaign info */}
-            <div className="rounded-lg border border-purple-500/20 bg-purple-500/5 p-3 space-y-1">
-              {activeCampaignId && (
-                <p className="text-xs text-muted-foreground">
-                  <span className="text-purple-300">Campaign:</span> {campaignSessions.find(s => s.id === activeCampaignId)?.name ?? 'Unnamed'}
-                </p>
-              )}
-              <p className="text-xs text-muted-foreground">
-                <span className="text-purple-300">Focus:</span> {config.campaignFocus}
-              </p>
-              {config.dragonName && (
-                <p className="text-xs text-muted-foreground">
-                  <span className="text-purple-300">Dragon:</span> {config.dragonName}
-                </p>
-              )}
-              {config.signetType && (
-                <p className="text-xs text-muted-foreground">
-                  <span className="text-purple-300">Signet:</span> {config.signetType}
-                </p>
-              )}
-              <p className="text-xs text-muted-foreground">
-                <span className="text-purple-300">Messages:</span> {messages.length}
-              </p>
-            </div>
-
-            {/* New Campaign */}
-            <Button
-              variant="outline"
-              onClick={handleNewCampaign}
-              className="w-full gap-2 border-red-500/30 text-red-400 hover:bg-red-500/10"
-            >
-              <RotateCcw className="w-4 h-4" />
-              New Campaign Session
-            </Button>
-          </div>
-        </SheetContent>
-      </Sheet>
+      {/* DMToolsDrawer */}
+      <DMToolsDrawer
+        open={showToolsDrawer}
+        onOpenChange={setShowToolsDrawer}
+        onNewCampaign={handleNewCampaign}
+        onBattleMap={() => {}}
+        onSaves={() => setShowSaves(true)}
+        onGuides={() => setShowGuides(true)}
+        onWorldState={() => setShowWorldState(prev => !prev)}
+        onClearChat={clearMessages}
+        autoSyncEnabled={false}
+        onToggleAutoSync={() => {}}
+        isExtracting={false}
+        showAutoSync={false}
+        guidesCount={gmGuides.guides.filter(g => g.enabled).length}
+        anchorsCount={gameState.gameState.memory_anchors.length}
+        onEmpyreanPrompts={() => setShowPrompts(true)}
+        selectedModel={selectedModel}
+        onModelChange={handleModelChange}
+        chatThemeId={chatThemeId}
+        onChatThemeChange={setChatTheme}
+        whisperTrayEnabled={whisperTrayEnabled}
+        onWhisperTrayEnabledChange={setWhisperTrayEnabled}
+      />
 
       {/* Campaign Sessions Manager */}
       {showSaves && (
