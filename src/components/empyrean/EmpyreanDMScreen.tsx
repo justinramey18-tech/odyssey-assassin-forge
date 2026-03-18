@@ -365,14 +365,6 @@ export function EmpyreanDMScreen({
 
 
 
-  const handleNewCampaign = useCallback(() => {
-    newGame();
-    setActiveTemplate(null);
-    setBurnoutLevel(0);
-    setCurrentSituation('exploration');
-    setShowToolsDrawer(false);
-    if (autopilot.isAutopilotActive) autopilot.takeControl();
-  }, [newGame, autopilot]);
 
   const handleNavTabChange = useCallback((tab: DMNavTab) => {
     if (tab === 'prompts') {
