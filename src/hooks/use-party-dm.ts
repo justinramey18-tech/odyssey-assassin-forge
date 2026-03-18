@@ -126,6 +126,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const [messages, setMessages] = useState<PartyDmMessage[]>([]);
   const [currentPrompts, setCurrentPrompts] = useState<PartyDmPrompt[]>([]);
   const [isSummarizing, setIsSummarizing] = useState(false);
+  const [isFullSummarizing, setIsFullSummarizing] = useState(false);
   const [sessionConfig, setSessionConfig] = useState<DmSessionConfig | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const PENDING_DRAFT_KEY = 'odyssey-pending-draft';
