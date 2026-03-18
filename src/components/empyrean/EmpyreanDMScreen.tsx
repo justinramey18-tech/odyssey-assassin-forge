@@ -147,6 +147,7 @@ export function EmpyreanDMScreen({
   const [initialSent, setInitialSent] = useState(false);
   const [activeNavTab, setActiveNavTab] = useState<DMNavTab | null>(null);
   const [navExpanded, setNavExpanded] = useState(false);
+  const [showAutopilotGuide, setShowAutopilotGuide] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
