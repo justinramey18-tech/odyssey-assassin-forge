@@ -308,11 +308,11 @@ export function EmpyreanDMScreen({
       const match = lastMsg.content.match(/<!--BURNOUT:(\d)-->/);
       if (match) {
         const level = Math.min(5, Math.max(0, parseInt(match[1], 10)));
+        setBurnoutLevel(level);
       }
       const situationMatch = lastMsg.content.match(/<!--SITUATION:(\w+)-->/);
       if (situationMatch) {
         setCurrentSituation(situationMatch[1]);
-        setBurnoutLevel(level);
       }
     }
   }, [messages]);
