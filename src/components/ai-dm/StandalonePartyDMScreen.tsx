@@ -298,8 +298,10 @@ export function StandalonePartyDMScreen({
           onBack={() => setShowGuides(false)}
           guides={gmGuides.guides}
           totalChars={gmGuides.totalChars}
-          campaignSummary={null}
-          onCampaignSummaryChange={() => {}}
+          campaignSummary={partyDm.sessionConfig?.campaignSummary ?? null}
+          onCampaignSummaryChange={(summary: string) => {
+            partyDm.updateSessionConfig({ campaignSummary: summary });
+          }}
           onAdd={gmGuides.addGuide}
           onUpdate={gmGuides.updateGuide}
           onDelete={gmGuides.deleteGuide}
