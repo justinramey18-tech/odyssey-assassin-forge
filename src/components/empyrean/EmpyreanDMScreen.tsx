@@ -19,6 +19,7 @@ import { DMDiceRoller } from '@/components/ai-dm/DMDiceRoller';
 import { GMGuidesManager } from '@/components/ai-dm/GMGuidesManager';
 import { WorldStatePanel } from '@/components/ai-dm/WorldStatePanel';
 // DMQuickActions available but using Empyrean-specific prompts instead
+import EmpyreanContextualActions from '@/components/empyrean/EmpyreanContextualActions';
 import { useGMGuides } from '@/hooks/use-gm-guides';
 import { useDMGameState, buildMemoryAnchorsPrompt } from '@/hooks/use-dm-game-state';
 import { useDMChatTheme } from '@/hooks/use-dm-chat-theme';
@@ -358,8 +359,7 @@ export function EmpyreanDMScreen({
       return;
     }
     if (tab === 'actions') {
-      // Actions tab also opens Empyrean prompts for now
-      setShowPrompts(true);
+      setActiveNavTab(prev => prev === 'actions' ? null : 'actions');
       return;
     }
     // Dice and other tabs toggle the full-screen content panel
@@ -729,6 +729,23 @@ export function EmpyreanDMScreen({
           />
         ) : undefined}
       />
+
+      {/* Contextual Actions — visible when Actions tab is active */}
+      {activeNavTab === 'actions' && (
+        <EmpyreanContextualActions
+          situation={currentSituation}
+          characterName={config?.characterName || characterName}
+          dragonName={config?.dragonName || ''}
+          signetType={config?.signetType || ''}
+          onAction={(prompt) => {
+            if (!isLoading) {
+              sendMessage(prompt);
+              setActiveNavTab(null);
+            }
+          }}
+          disabled={isLoading}
+        />
+      )}
 
       {/* Input bar — sits above the fixed DMBottomNav (~54px collapsed height) */}
       <div className="shrink-0 border-t border-purple-500/20 bg-background/90 backdrop-blur-sm px-3 pt-2.5 pb-[60px]">
