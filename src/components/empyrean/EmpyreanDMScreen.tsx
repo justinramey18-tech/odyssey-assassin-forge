@@ -358,57 +358,158 @@ export function EmpyreanDMScreen({
           </div>
         )}
 
-        {messages.map(message => (
-          <div
-            key={message.id}
-            className={cn(
-              'mb-3 flex',
-              message.role === 'user' ? 'justify-end' : 'justify-start',
-            )}
-          >
+        {messages.map(message => {
+          const isUser = message.role === 'user';
+          const isAssistant = message.role === 'assistant';
+          const showActions = activeActionId === message.id;
+          const isEditing = editingId === message.id;
+
+          return (
             <div
+              key={message.id}
               className={cn(
-                'max-w-[85%] rounded-2xl px-3.5 py-2.5',
-                message.role === 'user'
-                  ? 'bg-purple-600/30 border border-purple-500/30 text-foreground'
-                  : 'bg-card/60 border border-border/30 text-foreground',
+                'mb-3 flex',
+                isUser ? 'justify-end' : 'justify-start',
               )}
             >
-              {message.role === 'assistant' ? (() => {
-                const parsed = parseWhispers(message.content || '...');
-                const cleanNarrative = stripBurnoutTags(parsed.narrative);
-                return (
-                  <>
-                    <div className="text-sm prose prose-invert prose-sm max-w-none break-words overflow-wrap-anywhere">
-                      <ReactMarkdown
-                        rehypePlugins={[rehypeRaw]}
-                        components={{
-                          p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                          strong: ({ children }) => <strong className="text-purple-300 font-semibold">{children}</strong>,
-                          em: ({ children }) => <em className="text-amber-300/90">{children}</em>,
-                          ul: ({ children }) => <ul className="list-disc ml-4 mb-2">{children}</ul>,
-                          ol: ({ children }) => <ol className="list-decimal ml-4 mb-2">{children}</ol>,
-                          blockquote: ({ children }) => (
-                            <blockquote className="border-l-2 border-purple-500/40 pl-3 italic text-muted-foreground my-2">
-                              {children}
-                            </blockquote>
-                          ),
-                        }}
-                      >
-                        {cleanNarrative}
-                      </ReactMarkdown>
-                    </div>
-                    {parsed.whispers.length > 0 && (
-                      <WhisperTray whispers={parsed.whispers} />
+              <div className="max-w-[85%] group relative">
+                {/* Action toggle */}
+                {!isEditing && !isLoading && (
+                  <button
+                    onClick={() => setActiveActionId(showActions ? null : message.id)}
+                    className={cn(
+                      'absolute top-1.5 z-10 w-6 h-6 rounded-full flex items-center justify-center',
+                      'bg-purple-500/20 hover:bg-purple-500/40 text-purple-300/60 hover:text-purple-300 transition-all',
+                      'opacity-0 group-hover:opacity-100',
+                      showActions && 'opacity-100',
+                      isUser ? 'left-1.5' : 'right-1.5',
                     )}
-                  </>
-                );
-              })() : (
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-              )}
+                  >
+                    <MoreVertical className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
+                {/* Action bar */}
+                {showActions && (
+                  <div className={cn(
+                    'flex items-center gap-1 mb-1',
+                    isUser ? 'justify-end' : 'justify-start',
+                  )}>
+                    {isUser && (
+                      <>
+                        <button
+                          onClick={() => handleStartEdit(message.id, message.content)}
+                          className="px-2 py-1 rounded-lg text-xs flex items-center gap-1 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 transition-colors"
+                        >
+                          <Pencil className="w-3 h-3" /> Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(message.id)}
+                          className="px-2 py-1 rounded-lg text-xs flex items-center gap-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 transition-colors"
+                        >
+                          <Trash2 className="w-3 h-3" /> Delete
+                        </button>
+                      </>
+                    )}
+                    {isAssistant && (
+                      <>
+                        <button
+                          onClick={() => handleCopy(message.id, message.content)}
+                          className="px-2 py-1 rounded-lg text-xs flex items-center gap-1 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 transition-colors"
+                        >
+                          {copiedId === message.id ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                          {copiedId === message.id ? 'Copied' : 'Copy'}
+                        </button>
+                        <button
+                          onClick={() => handleRegenerate(message.id)}
+                          className="px-2 py-1 rounded-lg text-xs flex items-center gap-1 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 transition-colors"
+                        >
+                          <RefreshCw className="w-3 h-3" /> Regen
+                        </button>
+                        <button
+                          onClick={() => handleDelete(message.id)}
+                          className="px-2 py-1 rounded-lg text-xs flex items-center gap-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 transition-colors"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Message bubble */}
+                <div
+                  className={cn(
+                    'rounded-2xl px-3.5 py-2.5',
+                    isUser
+                      ? 'bg-purple-600/30 border border-purple-500/30 text-foreground'
+                      : 'bg-card/60 border border-border/30 text-foreground',
+                  )}
+                >
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      <textarea
+                        value={editContent}
+                        onChange={e => setEditContent(e.target.value)}
+                        className="w-full bg-background/50 border border-purple-500/30 rounded-lg p-2 text-sm text-foreground resize-none min-h-[60px]"
+                        rows={3}
+                        autoFocus
+                      />
+                      <div className="flex gap-2 justify-end">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => { setEditingId(null); setEditContent(''); }}
+                          className="h-7 text-xs text-muted-foreground"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => handleSaveEdit(message.id)}
+                          className="h-7 text-xs bg-purple-600 hover:bg-purple-700"
+                        >
+                          Save
+                        </Button>
+                      </div>
+                    </div>
+                  ) : isAssistant ? (() => {
+                    const parsed = parseWhispers(message.content || '...');
+                    const cleanNarrative = stripBurnoutTags(parsed.narrative);
+                    return (
+                      <>
+                        <div className="text-sm prose prose-invert prose-sm max-w-none break-words overflow-wrap-anywhere">
+                          <ReactMarkdown
+                            rehypePlugins={[rehypeRaw]}
+                            components={{
+                              p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                              strong: ({ children }) => <strong className="text-purple-300 font-semibold">{children}</strong>,
+                              em: ({ children }) => <em className="text-amber-300/90">{children}</em>,
+                              ul: ({ children }) => <ul className="list-disc ml-4 mb-2">{children}</ul>,
+                              ol: ({ children }) => <ol className="list-decimal ml-4 mb-2">{children}</ol>,
+                              blockquote: ({ children }) => (
+                                <blockquote className="border-l-2 border-purple-500/40 pl-3 italic text-muted-foreground my-2">
+                                  {children}
+                                </blockquote>
+                              ),
+                            }}
+                          >
+                            {cleanNarrative}
+                          </ReactMarkdown>
+                        </div>
+                        {parsed.whispers.length > 0 && (
+                          <WhisperTray whispers={parsed.whispers} />
+                        )}
+                      </>
+                    );
+                  })() : (
+                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {/* Streaming indicator */}
         {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
