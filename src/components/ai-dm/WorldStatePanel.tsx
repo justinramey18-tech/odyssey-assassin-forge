@@ -301,11 +301,40 @@ export function WorldStatePanel({ gameState, onAddAnchor, onRemoveAnchor, onSetQ
         {/* ── Quests ── */}
         {activeTab === 'quests' && (
           <>
+            {/* Add Quest Form */}
+            <div className="p-2.5 rounded-lg bg-amber-950/20 border border-amber-500/15 space-y-2">
+              <input
+                type="text"
+                placeholder="Quest name..."
+                value={newQuestName}
+                onChange={e => setNewQuestName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAddQuest()}
+                className="w-full text-xs bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-white placeholder-white/30 focus:outline-none focus:border-amber-500/40"
+              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Notes (optional)"
+                  value={newQuestNotes}
+                  onChange={e => setNewQuestNotes(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAddQuest()}
+                  className="flex-1 text-xs bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-white placeholder-white/30 focus:outline-none focus:border-amber-500/40"
+                />
+                <button
+                  onClick={handleAddQuest}
+                  disabled={!newQuestName.trim()}
+                  className="px-3 py-2 text-xs bg-amber-700/60 hover:bg-amber-700/80 text-amber-100 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
             {totalQuests === 0 && (
-              <div className="text-center py-8 text-white/30">
+              <div className="text-center py-6 text-white/30">
                 <ScrollText className="w-8 h-8 mx-auto mb-2 opacity-30" />
                 <p className="text-xs">No quests tracked yet.</p>
-                <p className="text-[10px] mt-1">Quest flags appear here as the DM narrates them.</p>
+                <p className="text-[10px] mt-1">Add manually above or let the AI auto-detect them.</p>
               </div>
             )}
 

@@ -488,19 +488,67 @@ async function processCommand(
       .order('updated_at', { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (!gameState || !gameState.quest_flags || Object.keys(gameState.quest_flags as any).length === 0) {
+    // Collect quests by mode
+    const questsByMode: Record<string, Array<{ key: string; status: string; notes?: string; campaign?: string }>> = {};
+
+    // Solo/Empyrean quests from dm_game_state
+    if (gameState && gameState.quest_flags && Object.keys(gameState.quest_flags as any).length > 0) {
+      const flags = gameState.quest_flags as Record<string, any>;
+      questsByMode['solo'] = [];
+      for (const [key, value] of Object.entries(flags)) {
+        const status = typeof value === 'object' && value?.status ? value.status : String(value);
+        const notes = typeof value === 'object' ? value?.notes : undefined;
+        questsByMode['solo'].push({ key, status, notes });
+      }
+    }
+
+    // Also check party quest flags
+    const { data: partyMemberships } = await supabase
+      .from('party_members')
+      .select('party_id')
+      .eq('user_id', userId);
+
+    if (partyMemberships && partyMemberships.length > 0) {
+      const partyIds = partyMemberships.map(m => m.party_id);
+      const { data: partyStates } = await supabase
+        .from('party_shared_state')
+        .select('state_data, party_id')
+        .in('party_id', partyIds)
+        .eq('state_type', 'quest_flags');
+
+      for (const ps of (partyStates || [])) {
+        const flags = ps.state_data as Record<string, any>;
+        if (!flags || Object.keys(flags).length === 0) continue;
+        if (!questsByMode['party']) questsByMode['party'] = [];
+        for (const [key, value] of Object.entries(flags)) {
+          const status = typeof value === 'object' && value?.status ? value.status : String(value);
+          const notes = typeof value === 'object' ? value?.notes : undefined;
+          if (!questsByMode['party'].some(q => q.key === key)) {
+            questsByMode['party'].push({ key, status, notes, campaign: 'Party' });
+          }
+        }
+      }
+    }
+
+    const allModes = Object.keys(questsByMode);
+    if (allModes.length === 0) {
       await sendTelegram(chatId, '📜 No active quests. Start an AI DM campaign to track quests!', lovableKey, telegramKey);
       return;
     }
-    const flags = gameState.quest_flags as Record<string, any>;
-    let msg = `📜 <b>Quest Flags</b>\n\n`;
-    const entries = Object.entries(flags).slice(0, 15);
-    for (const [key, value] of entries) {
-      const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-      const icon = value === true ? '✅' : value === false ? '❌' : '📌';
-      msg += `${icon} <b>${label}</b>: ${typeof value === 'boolean' ? (value ? 'Complete' : 'Incomplete') : value}\n`;
+
+    let msg = `📜 <b>Quest Log</b>\n`;
+    for (const [mode, quests] of Object.entries(questsByMode)) {
+      const modeLabel = mode === 'solo' ? 'Solo / Empyrean' : 'Party';
+      msg += `\n<b>${modeLabel}</b>\n`;
+      for (const q of quests.slice(0, 15)) {
+        const label = q.key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        const icon = q.status === 'completed' ? '✅' : q.status === 'failed' ? '❌' : '📌';
+        msg += `${icon} <b>${label}</b>`;
+        if (q.notes) msg += `: ${q.notes}`;
+        msg += ` <i>(${q.status})</i>\n`;
+      }
+      if (quests.length > 15) msg += `<i>+${quests.length - 15} more...</i>\n`;
     }
-    if (Object.keys(flags).length > 15) msg += `\n<i>+${Object.keys(flags).length - 15} more...</i>`;
     await sendTelegram(chatId, msg, lovableKey, telegramKey);
     return;
   }

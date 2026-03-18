@@ -431,6 +431,35 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
         }];
         triggerSummaryIfNeeded(updatedMessages);
         onMessageCompleteRef.current?.(narrative);
+
+        // Non-blocking quest extraction
+        if (narrative.length > 100 && onQuestExtractedRef.current) {
+          (async () => {
+            try {
+              const { data: { session } } = await supabase.auth.getSession();
+              const token = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+              const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                  model: 'google/gemini-2.5-flash-lite',
+                  messages: [
+                    { role: 'system', content: 'Extract any quests, missions, tasks, or objectives from this D&D narrative. Return ONLY a JSON array of objects with {key: string, status: "active"|"completed"|"failed", notes: string} where key is a snake_case identifier (e.g. "retrieve_the_dragons_eye"). If completing or failing an existing quest, set status accordingly. If no quests found, return []. Raw JSON only, no markdown.' },
+                    { role: 'user', content: narrative }
+                  ],
+                  max_tokens: 500,
+                  systemPromptOverride: 'Extract quests as JSON array only.'
+                })
+              });
+              const data = await res.json();
+              const text = data.choices?.[0]?.message?.content || '[]';
+              const quests = JSON.parse(text.replace(/```json|```/g, '').trim());
+              if (Array.isArray(quests) && quests.length > 0) {
+                onQuestExtractedRef.current?.(quests);
+              }
+            } catch { /* non-blocking */ }
+          })();
+        }
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
