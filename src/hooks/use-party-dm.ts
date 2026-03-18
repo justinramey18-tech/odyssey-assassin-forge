@@ -1905,7 +1905,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         return;
       }
 
-      const BATCH_SIZE = 20;
+      // Larger batches for more thorough coverage — 40 messages per batch
+      const BATCH_SIZE = 40;
       const batches: Array<Array<{ role: string; content: string }>> = [];
       for (let i = 0; i < allMsgs.length; i += BATCH_SIZE) {
         batches.push(allMsgs.slice(i, i + BATCH_SIZE));
