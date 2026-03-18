@@ -2214,6 +2214,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     isActive,
     isGenerating: computedIsGenerating,
     isSummarizing,
+    isFullSummarizing,
+    fullSummarize,
     allReady,
     myPrompt,
     activeCampaignId,
