@@ -1,7 +1,8 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { parseWhispers } from '@/lib/whisper-parser';
 import { WhisperTray } from '@/components/ai-dm/WhisperTray';
-import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, Volume2, VolumeX, Zap } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -22,6 +23,10 @@ import { useGMGuides } from '@/hooks/use-gm-guides';
 import { useDMGameState, buildMemoryAnchorsPrompt } from '@/hooks/use-dm-game-state';
 import { useDMChatTheme } from '@/hooks/use-dm-chat-theme';
 import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
+import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
+import { AutoSyncBanner } from '@/components/ai-dm/AutoSyncBanner';
+import { useNarrator } from '@/hooks/use-narrator';
+import { NarrationSpeedPopover } from '@/components/ai-dm/NarrationSpeedPopover';
 import {
   loadEmpyreanDMConfig,
   buildEmpyreanDMPersona,
@@ -40,11 +45,19 @@ interface EmpyreanDMScreenProps {
   characterName: string;
   initialMessage?: string | null;
   autoSyncCallbacks?: {
-    onGoldChange?: (gold: number) => void;
-    onHPChange?: (current: number, max: number) => void;
-    onXPGain?: (xp: number) => void;
+    onHPChange: (change: number, type: 'damage' | 'healing') => void;
+    onAddXP: (amount: number, source: string) => void;
+    onGoldChange: (netChange: number) => void;
+    onConditionChange: (toAdd: string[], toRemove: string[]) => void;
+    onRestOccurred: (type: 'short' | 'long') => void;
+    getCurrentHP: () => number;
+    getCurrentGold: () => number;
   };
 }
+
+const NOOP = () => {};
+const NOOP_TWO_ARG = () => {};
+const NOOP_RETURN_ZERO = () => 0;
 
 const EMPYREAN_SESSION_KEY = 'empyrean-dm-session';
 const EMPYREAN_SUMMARY_KEY = 'empyrean-dm-campaign-summary';
@@ -134,6 +147,21 @@ export function EmpyreanDMScreen({
   const { enabledContent, activeGuideIds } = gmGuides;
   const { themeId: chatThemeId, setTheme: setChatTheme } = useDMChatTheme();
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
+  const narrator = useNarrator();
+
+  // Auto-sync hook
+  const autoSync = useDmAutoSync({
+    onHPChange: autoSyncCallbacks?.onHPChange ?? NOOP_TWO_ARG,
+    onAddXP: autoSyncCallbacks?.onAddXP ?? NOOP_TWO_ARG,
+    onGoldChange: autoSyncCallbacks?.onGoldChange ?? NOOP,
+    onConditionChange: autoSyncCallbacks?.onConditionChange ?? NOOP_TWO_ARG,
+    onRestOccurred: autoSyncCallbacks?.onRestOccurred ?? NOOP,
+    onMapUpdate: NOOP_TWO_ARG,
+    getCurrentHP: autoSyncCallbacks?.getCurrentHP ?? NOOP_RETURN_ZERO,
+    getCurrentGold: autoSyncCallbacks?.getCurrentGold ?? NOOP_RETURN_ZERO,
+    getCurrentMarkers: useCallback(() => [], []),
+    getGridSize: useCallback(() => ({ cols: 10, rows: 10 } as any), []),
+  });
 
   const dmPersonaPrompt = useMemo(() => {
     if (!config) return undefined;
@@ -176,9 +204,11 @@ export function EmpyreanDMScreen({
     worldStatePrompt,
     sessionStorageKey: EMPYREAN_SESSION_KEY,
     summarizeStorageKey: EMPYREAN_SUMMARY_KEY,
-    onMessageComplete: autoSyncCallbacks ? (content) => {
-      // Could parse for gold/HP/XP changes
-    } : undefined,
+    onMessageComplete: (content: string) => {
+      if (autoSync.autoSyncEnabled) {
+        autoSync.extractAndApply(content, characterContext);
+      }
+    },
   });
 
   // Campaign sessions — uses 'empyrean' mode to namespace separately from regular DM saves
@@ -411,13 +441,70 @@ export function EmpyreanDMScreen({
             </p>
           </div>
         </div>
-        <button
-          onClick={() => setShowToolsDrawer(true)}
-          className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-        >
-          <BookOpen className="w-5 h-5 text-purple-400" />
-        </button>
+        <div className="flex items-center gap-1">
+          {/* Narrator controls */}
+          {narrator.hasTTSKey && (
+            <>
+              <button
+                onClick={() => {
+                  if (narrator.isPlaying) {
+                    narrator.stop();
+                  }
+                }}
+                className={cn(
+                  "p-2 rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center",
+                  narrator.isPlaying
+                    ? "bg-purple-900/40 hover:bg-purple-900/60"
+                    : "hover:bg-muted/50"
+                )}
+                title={narrator.isPlaying ? "Stop narration" : "Narrator available"}
+              >
+                {narrator.isLoading ? (
+                  <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
+                ) : narrator.isPlaying ? (
+                  <VolumeX className="w-5 h-5 text-purple-400" />
+                ) : (
+                  <Volume2 className="w-5 h-5 text-muted-foreground" />
+                )}
+              </button>
+              <NarrationSpeedPopover iconSize="w-5 h-5" />
+            </>
+          )}
+          <button
+            onClick={() => setShowToolsDrawer(true)}
+            className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+          >
+            <BookOpen className="w-5 h-5 text-purple-400" />
+          </button>
+        </div>
       </div>
+
+      {/* Auto-Sync Banner */}
+      <AutoSyncBanner
+        extraction={autoSync.lastExtraction}
+        onUndo={autoSync.undoLastExtraction}
+        onDismiss={() => {}}
+      />
+
+      {/* Auto-Sync Extracting Indicator */}
+      <AnimatePresence>
+        {autoSync.isExtracting && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="flex items-center justify-center gap-2 px-3 py-1.5 bg-purple-950/40 border-t border-purple-500/20"
+          >
+            <div className="flex gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+            <span className="text-[11px] text-purple-300/80 font-cinzel">Auto-Sync extracting changes...</span>
+            <Zap className="w-3 h-3 text-purple-400 animate-pulse" />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Summarizing indicator */}
       {isSummarizing && (
@@ -682,10 +769,10 @@ export function EmpyreanDMScreen({
         onGuides={() => setShowGuides(true)}
         onWorldState={() => setShowWorldState(prev => !prev)}
         onClearChat={clearMessages}
-        autoSyncEnabled={false}
-        onToggleAutoSync={() => {}}
-        isExtracting={false}
-        showAutoSync={false}
+        autoSyncEnabled={autoSync.autoSyncEnabled}
+        onToggleAutoSync={autoSync.toggleAutoSync}
+        isExtracting={autoSync.isExtracting}
+        showAutoSync={!!autoSyncCallbacks}
         guidesCount={gmGuides.guides.filter(g => g.enabled).length}
         anchorsCount={gameState.gameState.memory_anchors.length}
         onEmpyreanPrompts={() => setShowPrompts(true)}

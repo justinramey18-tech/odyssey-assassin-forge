@@ -17,6 +17,15 @@ interface EmpyreanScreenProps {
   onClose: () => void;
   characterName: string;
   characterContext: CharacterContext;
+  autoSyncCallbacks?: {
+    onHPChange: (change: number, type: 'damage' | 'healing') => void;
+    onAddXP: (amount: number, source: string) => void;
+    onGoldChange: (netChange: number) => void;
+    onConditionChange: (toAdd: string[], toRemove: string[]) => void;
+    onRestOccurred: (type: 'short' | 'long') => void;
+    getCurrentHP: () => number;
+    getCurrentGold: () => number;
+  };
 }
 
 interface SectionCardProps {
@@ -54,7 +63,7 @@ function SectionCard({ icon, title, description, color, borderColor, onClick }: 
   );
 }
 
-export function EmpyreanScreen({ open, onClose, characterName, characterContext }: EmpyreanScreenProps) {
+export function EmpyreanScreen({ open, onClose, characterName, characterContext, autoSyncCallbacks }: EmpyreanScreenProps) {
   const { guides, addGuide, deleteGuide, updateGuide } = useGMGuides();
   const [showPack, setShowPack] = useState(false);
   const [showPrompts, setShowPrompts] = useState(false);
@@ -256,6 +265,7 @@ export function EmpyreanScreen({ open, onClose, characterName, characterContext 
         characterContext={characterContext}
         characterName={characterName}
         initialMessage={pendingPrompt}
+        autoSyncCallbacks={autoSyncCallbacks}
       />
     </div>
   );

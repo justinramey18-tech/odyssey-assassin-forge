@@ -163,6 +163,15 @@ interface HomeScreenProps {
   onAutoOpenPartyDMHandled?: () => void;
   autoOpenSoloDM?: boolean;
   onAutoOpenSoloDMHandled?: () => void;
+  autoSyncCallbacks?: {
+    onHPChange: (change: number, type: 'damage' | 'healing') => void;
+    onAddXP: (amount: number, source: string) => void;
+    onGoldChange: (netChange: number) => void;
+    onConditionChange: (toAdd: string[], toRemove: string[]) => void;
+    onRestOccurred: (type: 'short' | 'long') => void;
+    getCurrentHP: () => number;
+    getCurrentGold: () => number;
+  };
 }
 
 /** Map dragon form names to element-appropriate tint colors */
@@ -264,6 +273,7 @@ export function HomeScreen({
   onAutoOpenPartyDMHandled,
   autoOpenSoloDM = false,
   onAutoOpenSoloDMHandled,
+  autoSyncCallbacks,
 }: HomeScreenProps) {
   // Default visibility: show everything if no filter provided
   const showFeature = isHomeFeatureVisible ?? (() => true);
@@ -1131,6 +1141,7 @@ export function HomeScreen({
         onClose={() => setShowEmpyreanScreen(false)}
         characterName={character.name}
         characterContext={drawerContext?.characterContext ?? { name: character.name, level: character.level, currentHP: 10, maxHP: 10, abilities: [], equippedAbilities: [], equipment: [], activeSetBonuses: [], consumables: [], cooldowns: { active: [], ready: [] }, prestigeLevel: 0, prestigeAbilities: [] } as any}
+        autoSyncCallbacks={autoSyncCallbacks}
       />
 
       {/* FAQ Drawer */}

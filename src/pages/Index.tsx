@@ -2626,6 +2626,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           onAutoOpenPartyDMHandled={() => setAutoOpenPartyDM(false)}
           autoOpenSoloDM={autoOpenSoloDM}
           onAutoOpenSoloDMHandled={() => setAutoOpenSoloDM(false)}
+          autoSyncCallbacks={autoSyncCallbacks}
         />
         
         {/* Settings Modal */}
