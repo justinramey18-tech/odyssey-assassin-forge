@@ -716,7 +716,35 @@ export function EmpyreanDMScreen({
         </div>
       )}
 
-      {/* Quick Prompts Sheet */}
+      {/* GM Guides Overlay */}
+      {showGuides && (
+        <GMGuidesManager
+          onBack={() => setShowGuides(false)}
+          guides={gmGuides.guides}
+          totalChars={gmGuides.totalChars}
+          campaignSummary={campaignSummary}
+          onCampaignSummaryChange={handleCampaignSummaryChange}
+          onAdd={gmGuides.addGuide}
+          onUpdate={gmGuides.updateGuide}
+          onDelete={gmGuides.deleteGuide}
+          onToggle={gmGuides.toggleGuide}
+          chatMessages={messages.slice(-20).map(m => ({ role: m.role, content: m.content }))}
+        />
+      )}
+
+      {/* World State Overlay */}
+      {showWorldState && (
+        <div className="fixed inset-0 z-[66] bg-background flex flex-col">
+          <WorldStatePanel
+            gameState={gameState.gameState}
+            onAddAnchor={gameState.addMemoryAnchor}
+            onRemoveAnchor={gameState.removeMemoryAnchor}
+            onSetQuestFlag={gameState.setQuestFlag}
+            onClose={() => setShowWorldState(false)}
+          />
+        </div>
+      )}
+
       <Sheet open={showPrompts} onOpenChange={setShowPrompts}>
         <SheetContent side="bottom" className="z-[65] border-purple-500/20 bg-background max-h-[75vh]">
           <SheetHeader>
