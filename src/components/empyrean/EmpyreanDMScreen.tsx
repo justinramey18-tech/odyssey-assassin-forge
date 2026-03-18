@@ -91,6 +91,10 @@ function stripBurnoutTags(content: string): string {
   return content.replace(/<!--BURNOUT:\d-->/g, '').trim();
 }
 
+function stripSituationTags(content: string): string {
+  return content.replace(/<!--SITUATION:\w+-->/g, '').trim();
+}
+
 const BURNOUT_LABELS = [
   'Fresh — no strain',
   'Mild strain',
