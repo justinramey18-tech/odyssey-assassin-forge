@@ -160,9 +160,12 @@ export function EmpyreanDMScreen({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Reload config when screen opens
+  const [showDragonChat, setShowDragonChat] = useState(false);
+
   useEffect(() => {
     if (open) {
       setConfig(loadEmpyreanDMConfig());
+      dragonBond.checkDecay();
     }
   }, [open]);
 
