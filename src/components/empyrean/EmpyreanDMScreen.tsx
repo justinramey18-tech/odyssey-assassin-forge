@@ -129,6 +129,7 @@ export function EmpyreanDMScreen({
   const [selectedModel, setSelectedModel] = useState(loadEmpyreanModel);
   const [showToolsDrawer, setShowToolsDrawer] = useState(false);
   const [showPrompts, setShowPrompts] = useState(false);
+  const [showCharacterActions, setShowCharacterActions] = useState(false);
   const [showSaves, setShowSaves] = useState(false);
   const [showGuides, setShowGuides] = useState(false);
   const [showWorldState, setShowWorldState] = useState(false);
