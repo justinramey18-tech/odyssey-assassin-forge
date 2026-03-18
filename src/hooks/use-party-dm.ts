@@ -1895,7 +1895,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           .range(from, from + PAGE_SIZE - 1);
         if (error) throw error;
         if (!data || data.length === 0) break;
-        allMsgs = allMsgs.concat(data.map((m: any) => ({ role: m.role, content: m.content })));
+        allMsgs = allMsgs.concat(data.map((m: any) => ({ role: m.role, content: `[${m.sender_name}]: ${m.content}` })));
         if (data.length < PAGE_SIZE) break;
         from += PAGE_SIZE;
       }
