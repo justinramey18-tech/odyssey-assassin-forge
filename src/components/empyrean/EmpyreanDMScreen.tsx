@@ -204,9 +204,11 @@ export function EmpyreanDMScreen({
     worldStatePrompt,
     sessionStorageKey: EMPYREAN_SESSION_KEY,
     summarizeStorageKey: EMPYREAN_SUMMARY_KEY,
-    onMessageComplete: autoSyncCallbacks ? (content) => {
-      // Could parse for gold/HP/XP changes
-    } : undefined,
+    onMessageComplete: (content: string) => {
+      if (autoSync.autoSyncEnabled) {
+        autoSync.extractAndApply(content, characterContext);
+      }
+    },
   });
 
   // Campaign sessions — uses 'empyrean' mode to namespace separately from regular DM saves
