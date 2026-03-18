@@ -10,7 +10,10 @@ export type DMChatThemeId =
   | 'astral-plane'
   | 'blood-ink'
   | 'elvish-grove'
-  | 'dragons-hoard';
+  | 'dragons-hoard'
+  | 'basgiath-stone'
+  | 'dragon-fire'
+  | 'ward-line';
 
 export interface DMChatTheme {
   id: DMChatThemeId;
