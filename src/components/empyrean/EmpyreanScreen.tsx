@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { X, Gem, BookOpen, Sparkles, ScrollText, Map, Target } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useGMGuides } from '@/hooks/use-gm-guides';
@@ -7,11 +7,16 @@ import { EmpyreanPromptLibrary } from '@/components/settings/EmpyreanPromptLibra
 import { SessionZeroWizard } from '@/components/empyrean/SessionZeroWizard';
 import { ArcPlannerWizard } from '@/components/empyrean/ArcPlannerWizard';
 import { SessionPlannerWizard } from '@/components/empyrean/SessionPlannerWizard';
+import { EmpyreanCampaignSetup } from '@/components/empyrean/EmpyreanCampaignSetup';
+import { EmpyreanDMScreen } from '@/components/empyrean/EmpyreanDMScreen';
+import { loadEmpyreanDMConfig, EmpyreanDMConfig } from '@/lib/empyreanDMPersona';
+import { CharacterContext } from '@/components/oracle/types';
 
 interface EmpyreanScreenProps {
   open: boolean;
   onClose: () => void;
   characterName: string;
+  characterContext: CharacterContext;
 }
 
 interface SectionCardProps {
