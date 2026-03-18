@@ -27,6 +27,12 @@ interface DMBottomNavProps {
   oracleCount?: number;
   /** Whether the character is currently in wild shape form */
   isWildShapeActive?: boolean;
+  /** Override the Oracle tab label (e.g. dragon name) */
+  oracleLabel?: string;
+  /** Override the Oracle tab color class */
+  oracleColor?: string;
+  /** Override the Oracle tab active bg class */
+  oracleActiveBg?: string;
 }
 
 const BASE_TABS = [
@@ -52,9 +58,15 @@ const activeIndicatorColors: Record<DMNavTab, string> = {
   settings: 'bg-white/50',
 };
 
-export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, wildshapeContent, showGeralt, showWildShape, oracleCount, isWildShapeActive }: DMBottomNavProps) {
+export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, wildshapeContent, showGeralt, showWildShape, oracleCount, isWildShapeActive, oracleLabel, oracleColor, oracleActiveBg }: DMBottomNavProps) {
   const afkOrWildShape = showWildShape ? WILDSHAPE_TAB : AFK_TAB;
-  const tabs = [...BASE_TABS, afkOrWildShape, ORACLE_TAB, ...(showGeralt ? [GERALT_TAB] : []), SETTINGS_TAB];
+  const oracleTab = {
+    ...ORACLE_TAB,
+    label: oracleLabel || ORACLE_TAB.label,
+    color: oracleColor || ORACLE_TAB.color,
+    activeBg: oracleActiveBg || ORACLE_TAB.activeBg,
+  };
+  const tabs = [...BASE_TABS, afkOrWildShape, oracleTab, ...(showGeralt ? [GERALT_TAB] : []), SETTINGS_TAB];
   const touchStartY = useRef(0);
   const touchStartTime = useRef(0);
 
@@ -199,7 +211,7 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
                           "text-[10px] font-mono tracking-tight transition-colors",
                           isActive ? "text-foreground" : "text-muted-foreground"
                         )}>
-                          {tab.label}
+                          {tab.id === 'oracle' && tab.label.length > 7 ? tab.label.slice(0, 6) + '…' : tab.label}
                         </span>
                         {isActive && (
                           <div className={cn(

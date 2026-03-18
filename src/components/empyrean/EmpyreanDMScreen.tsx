@@ -20,6 +20,7 @@ import { GMGuidesManager } from '@/components/ai-dm/GMGuidesManager';
 import { WorldStatePanel } from '@/components/ai-dm/WorldStatePanel';
 import { PartyDMQuickActions } from '@/components/ai-dm/PartyDMQuickActions';
 import EmpyreanContextualActions from '@/components/empyrean/EmpyreanContextualActions';
+import DragonBondChat from '@/components/empyrean/DragonBondChat';
 import { useGMGuides } from '@/hooks/use-gm-guides';
 import { useDMGameState, buildMemoryAnchorsPrompt } from '@/hooks/use-dm-game-state';
 import { useDMChatTheme } from '@/hooks/use-dm-chat-theme';
@@ -159,9 +160,12 @@ export function EmpyreanDMScreen({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Reload config when screen opens
+  const [showDragonChat, setShowDragonChat] = useState(false);
+
   useEffect(() => {
     if (open) {
       setConfig(loadEmpyreanDMConfig());
+      dragonBond.checkDecay();
     }
   }, [open]);
 
@@ -404,6 +408,11 @@ export function EmpyreanDMScreen({
   }, []);
 
   const handleNavTabChange = useCallback((tab: DMNavTab) => {
+    if (tab === 'oracle') {
+      dragonBond.markChatOpened();
+      setShowDragonChat(true);
+      return;
+    }
     if (tab === 'prompts') {
       setShowPrompts(true);
       return;
@@ -422,7 +431,7 @@ export function EmpyreanDMScreen({
     }
     // Dice and other tabs toggle the full-screen content panel
     setActiveNavTab(prev => prev === tab ? null : tab);
-  }, []);
+  }, [dragonBond]);
 
   const handleDragonNotesChange = useCallback((notes: string) => {
     setDragonNotes(notes);
@@ -832,6 +841,26 @@ export function EmpyreanDMScreen({
         isExpanded={navExpanded}
         onExpandedChange={setNavExpanded}
         disabled={isLoading}
+        oracleLabel={config?.dragonName ? config.dragonName.toUpperCase() : 'DRAGON'}
+        oracleColor={(() => {
+          const mood = dragonBond.bondState.mood;
+          if (mood === 'alert') return 'text-amber-400';
+          if (mood === 'protective') return 'text-blue-400';
+          if (mood === 'distant') return 'text-slate-500';
+          if (mood === 'ancestral') return 'text-purple-400';
+          if (mood === 'playful') return 'text-emerald-400';
+          return 'text-cyan-400';
+        })()}
+        oracleActiveBg={(() => {
+          const mood = dragonBond.bondState.mood;
+          if (mood === 'alert') return 'bg-amber-500/10';
+          if (mood === 'protective') return 'bg-blue-500/10';
+          if (mood === 'distant') return 'bg-slate-500/10';
+          if (mood === 'ancestral') return 'bg-purple-500/10';
+          if (mood === 'playful') return 'bg-emerald-500/10';
+          return 'bg-cyan-500/10';
+        })()}
+        oracleCount={dragonBond.bondState.unreadDragonMessages.length}
         diceContent={activeNavTab === 'dice' ? (
           <DMDiceRoller
             characterContext={characterContext}
@@ -1136,6 +1165,15 @@ export function EmpyreanDMScreen({
           </ScrollArea>
         </SheetContent>
       </Sheet>
+
+      <DragonBondChat
+        open={showDragonChat}
+        onClose={() => setShowDragonChat(false)}
+        characterName={characterName}
+        dragonName={config?.dragonName || 'Dragon'}
+        dragonNotes={dragonNotes}
+        characterContext={characterContext}
+      />
     </div>
   );
 }
