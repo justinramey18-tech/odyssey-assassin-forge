@@ -175,7 +175,7 @@ export function EmpyreanDMScreen({
     saveSession: saveCampaignSession,
     deleteSession: deleteCampaignSession,
     renameSession: renameCampaignSession,
-    loadSessions: refreshSessions,
+    refreshSessions,
   } = useCampaignSessions('empyrean' as any);
 
   const handleLoadCampaign = useCallback((session: CampaignSession) => {
