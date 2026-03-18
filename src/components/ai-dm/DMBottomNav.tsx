@@ -211,7 +211,7 @@ export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChan
                           "text-[10px] font-mono tracking-tight transition-colors",
                           isActive ? "text-foreground" : "text-muted-foreground"
                         )}>
-                          {tab.label}
+                          {tab.id === 'oracle' && tab.label.length > 7 ? tab.label.slice(0, 6) + '…' : tab.label}
                         </span>
                         {isActive && (
                           <div className={cn(
