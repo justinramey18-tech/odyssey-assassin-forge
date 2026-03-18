@@ -8,12 +8,15 @@ const corsHeaders = {
 };
 
 interface NotifyPayload {
-  type: 'ready_up' | 'timer_expired' | 'combat_start' | 'dragon_message' | 'custom';
+  type: 'ready_up' | 'timer_expired' | 'combat_start' | 'combat_turn' | 'dragon_message' | 'condition_alert' | 'custom';
   partyId?: string;
   userId?: string; // triggering user (excluded from notifications)
   targetUserIds?: string[]; // specific users to notify (optional)
   title: string;
   body: string;
+  dragonName?: string; // for dragon bond messages
+  conditionName?: string; // for condition alerts
+  conditionRounds?: number; // rounds remaining
 }
 
 Deno.serve(async (req) => {
@@ -80,8 +83,10 @@ Deno.serve(async (req) => {
     ready_up: 'notify_ready_up',
     timer_expired: 'notify_timer',
     combat_start: 'notify_combat',
+    combat_turn: 'notify_combat',
     dragon_message: 'notify_dragon',
-    custom: 'notify_ready_up', // custom always sends
+    condition_alert: 'notify_combat',
+    custom: 'notify_ready_up',
   };
 
   const col = notifyColumn[payload.type] || 'notify_ready_up';
@@ -99,19 +104,34 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Send messages
-  let sentCount = 0;
+  // Build message based on type
   const emoji: Record<string, string> = {
     ready_up: '⚔️',
     timer_expired: '⏰',
     combat_start: '🗡️',
+    combat_turn: '⚡',
     dragon_message: '🐉',
+    condition_alert: '⚠️',
     custom: '📢',
   };
 
   const icon = emoji[payload.type] || '📢';
-  const message = `${icon} <b>${payload.title}</b>\n\n${payload.body}`;
+  let message = `${icon} <b>${payload.title}</b>\n\n${payload.body}`;
 
+  // Enhanced formatting for specific types
+  if (payload.type === 'dragon_message' && payload.dragonName) {
+    message = `🐉 <b>${payload.dragonName}</b> <i>(Dragon Bond)</i>\n\n<i>"${payload.body}"</i>`;
+  } else if (payload.type === 'condition_alert' && payload.conditionName) {
+    message = `⚠️ <b>Condition: ${payload.conditionName}</b>\n\n${payload.body}`;
+    if (payload.conditionRounds !== undefined) {
+      message += `\n⏳ ${payload.conditionRounds} round${payload.conditionRounds === 1 ? '' : 's'} remaining`;
+    }
+  } else if (payload.type === 'combat_turn') {
+    message = `⚡ <b>Your Turn!</b>\n\n${payload.body}\n\n<i>Use /hp to check health, /slots for spell slots</i>`;
+  }
+
+  // Send messages
+  let sentCount = 0;
   const sendPromises = links.map(async (link) => {
     try {
       const res = await fetch(`${GATEWAY_URL}/sendMessage`, {
@@ -127,10 +147,8 @@ Deno.serve(async (req) => {
           parse_mode: 'HTML',
         }),
       });
-
-      if (res.ok) {
-        sentCount++;
-      } else {
+      if (res.ok) sentCount++;
+      else {
         const err = await res.text();
         console.error(`Failed to send to ${link.chat_id}:`, err);
       }
