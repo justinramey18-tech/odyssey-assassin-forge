@@ -408,6 +408,11 @@ export function EmpyreanDMScreen({
   }, []);
 
   const handleNavTabChange = useCallback((tab: DMNavTab) => {
+    if (tab === 'oracle') {
+      dragonBond.markChatOpened();
+      setShowDragonChat(true);
+      return;
+    }
     if (tab === 'prompts') {
       setShowPrompts(true);
       return;
@@ -426,7 +431,7 @@ export function EmpyreanDMScreen({
     }
     // Dice and other tabs toggle the full-screen content panel
     setActiveNavTab(prev => prev === tab ? null : tab);
-  }, []);
+  }, [dragonBond]);
 
   const handleDragonNotesChange = useCallback((notes: string) => {
     setDragonNotes(notes);
