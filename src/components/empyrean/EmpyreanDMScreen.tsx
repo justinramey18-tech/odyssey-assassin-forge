@@ -250,6 +250,29 @@ export function EmpyreanDMScreen({
         autoSync.extractAndApply(content, characterContext);
       }
       spotify.playMoodForText(content);
+
+      // Extract bond strain events
+      const strainMatch = content.match(/<!--BOND_STRAIN:(.+?)-->/);
+      if (strainMatch) {
+        dragonBond.processBondStrain(strainMatch[1]);
+        toast('Dragon bond strained: ' + strainMatch[1], { icon: '💔' });
+      }
+
+      // Extract dragon whispers and forward to bond chat as incoming messages
+      const whisperRegex = /<!--WHISPER:([^>]+?)-->([\s\S]*?)<!--\/WHISPER:\1-->/g;
+      let whisperMatch;
+      while ((whisperMatch = whisperRegex.exec(content)) !== null) {
+        const target = whisperMatch[1].trim();
+        const whisperContent = whisperMatch[2].trim();
+        if (config?.dragonName && target === config.dragonName && whisperContent) {
+          dragonBond.addDragonMessage(whisperContent);
+        }
+      }
+
+      // Track combat for bond building
+      if (content.toLowerCase().includes('initiative') || content.toLowerCase().includes('combat begins') || content.match(/<!--SITUATION:combat-->/)) {
+        dragonBond.processCombatBond();
+      }
     },
   });
 
