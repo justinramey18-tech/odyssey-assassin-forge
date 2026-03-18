@@ -363,13 +363,29 @@ export function EmpyreanDMScreen({
     toast.success(`Model: ${DM_MODELS.find(m => m.id === modelId)?.label ?? modelId}`);
   }, []);
 
+  const lastAssistantMsg = useMemo(() => {
+    const last = [...messages].reverse().find(m => m.role === 'assistant');
+    return last?.content ?? null;
+  }, [messages]);
+
+  const autopilot = useEmpyreanAutopilot({
+    enabled: false,
+    characterName,
+    dragonName: config?.dragonName || '',
+    delaySeconds: 8,
+    onSendAction: handleUsePrompt,
+    lastAssistantMessage: lastAssistantMsg,
+    isLoading,
+  });
+
   const handleNewCampaign = useCallback(() => {
     newGame();
     setActiveTemplate(null);
     setBurnoutLevel(0);
     setCurrentSituation('exploration');
     setShowToolsDrawer(false);
-  }, [newGame]);
+    if (autopilot.isAutopilotActive) autopilot.takeControl();
+  }, [newGame, autopilot]);
 
   const handleNavTabChange = useCallback((tab: DMNavTab) => {
     if (tab === 'prompts') {
