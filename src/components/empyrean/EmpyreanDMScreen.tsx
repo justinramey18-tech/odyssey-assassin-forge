@@ -32,6 +32,8 @@ import {
   loadEmpyreanDMConfig,
   buildEmpyreanDMPersona,
   EmpyreanDMConfig,
+  loadDragonNotes,
+  saveDragonNotes,
 } from '@/lib/empyreanDMPersona';
 import { empyreanPrompts } from '@/lib/empyreanPrompts';
 import { EMPYREAN_SESSION_GUIDES } from '@/lib/empyreanGMGuides';
