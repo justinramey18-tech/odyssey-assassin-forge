@@ -420,6 +420,7 @@ export function EmpyreanDMScreen({
     setCurrentSituation('exploration');
     setShowToolsDrawer(false);
     if (autopilot.isAutopilotActive) autopilot.takeControl();
+    setRecapExpanded(false);
   }, [newGame, autopilot]);
 
   const handleCampaignSummaryChange = useCallback((summary: string) => {
