@@ -225,6 +225,7 @@ export function EmpyreanDMScreen({
       if (autoSync.autoSyncEnabled) {
         autoSync.extractAndApply(content, characterContext);
       }
+      spotify.playMoodForText(content);
     },
   });
 
