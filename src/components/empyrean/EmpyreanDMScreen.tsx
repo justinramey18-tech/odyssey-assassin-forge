@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { parseWhispers } from '@/lib/whisper-parser';
 import { WhisperTray } from '@/components/ai-dm/WhisperTray';
-import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, Volume2, VolumeX, Zap } from 'lucide-react';
+import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, Volume2, VolumeX, Zap, ChevronDown } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -148,6 +148,7 @@ export function EmpyreanDMScreen({
   const [activeNavTab, setActiveNavTab] = useState<DMNavTab | null>(null);
   const [navExpanded, setNavExpanded] = useState(false);
   const [showAutopilotGuide, setShowAutopilotGuide] = useState(false);
+  const [recapExpanded, setRecapExpanded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -419,6 +420,7 @@ export function EmpyreanDMScreen({
     setCurrentSituation('exploration');
     setShowToolsDrawer(false);
     if (autopilot.isAutopilotActive) autopilot.takeControl();
+    setRecapExpanded(false);
   }, [newGame, autopilot]);
 
   const handleCampaignSummaryChange = useCallback((summary: string) => {
@@ -589,6 +591,29 @@ export function EmpyreanDMScreen({
             <p className="text-sm text-muted-foreground text-center max-w-xs">
               Your Empyrean campaign awaits. Send a message or pick a prompt to begin.
             </p>
+          </div>
+        )}
+
+        {messages.length > 0 && campaignSummary && (
+          <div className="mb-4">
+            <button
+              onClick={() => setRecapExpanded(prev => !prev)}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-purple-950/40 border border-purple-500/15 hover:border-purple-500/30 transition-all"
+            >
+              <span className="text-sm">📜</span>
+              <span className="text-xs font-cinzel text-purple-300/80 flex-1 text-left">Previously in your campaign...</span>
+              <ChevronDown className={cn(
+                "w-3.5 h-3.5 text-purple-400/50 transition-transform duration-200",
+                recapExpanded && "rotate-180"
+              )} />
+            </button>
+            {recapExpanded && (
+              <div className="mt-1.5 px-3 py-3 rounded-xl bg-purple-950/20 border border-purple-500/10">
+                <div className="text-xs text-purple-200/70 leading-relaxed whitespace-pre-wrap">
+                  {campaignSummary}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
