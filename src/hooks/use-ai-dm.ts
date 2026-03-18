@@ -73,8 +73,8 @@ interface VersionedSession {
   messages: any[];
 }
 
-// Module-level ref for dirty-checking across saves
-let lastSavedJson = '';
+// Module-level ref for dirty-checking across saves — keyed by storage key
+const lastSavedJsonMap: Record<string, string> = {};
 
 function isValidMessage(m: any): boolean {
   return (
@@ -87,7 +87,7 @@ function isValidMessage(m: any): boolean {
   );
 }
 
-function loadSession(): Message[] {
+function loadSession(storageKey: string): Message[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
