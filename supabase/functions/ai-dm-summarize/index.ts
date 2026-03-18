@@ -13,9 +13,11 @@ interface SummarizeRequest {
   previousSummary?: string;
 }
 
-const SUMMARIZER_SYSTEM_PROMPT = `You are a campaign chronicler for a D&D 5e session. Your job is to produce a structured NARRATIVE summary that captures everything a Dungeon Master needs to maintain story continuity — including subtle narrative undercurrents that shape the story's direction.
+const SUMMARIZER_SYSTEM_PROMPT = `You are a campaign chronicler for a D&D 5e session. Your job is to produce an EXHAUSTIVE, THOROUGH, and ITEMIZED narrative summary that captures EVERYTHING a Dungeon Master needs to maintain perfect story continuity.
 
-IMPORTANT: This summary is for NARRATIVE CONTINUITY ONLY. Do NOT include any TTRPG mechanical information such as:
+CRITICAL INSTRUCTION: Be THOROUGH. Do NOT summarize loosely or skip over details. Every event, every NPC interaction, every player decision, every location visited, every conversation topic MUST be captured as a discrete itemized entry. If something happened in the conversation, it MUST appear in your summary. Missing details means lost continuity.
+
+This summary is for NARRATIVE CONTINUITY ONLY. Do NOT include any TTRPG mechanical information such as:
 - Dice rolls, attack rolls, saving throws, or damage numbers
 - Spell slot usage, action economy, or turn order
 - AC values, HP totals, stat blocks, or CR ratings
@@ -23,44 +25,58 @@ IMPORTANT: This summary is for NARRATIVE CONTINUITY ONLY. Do NOT include any TTR
 - Combat round-by-round breakdowns
 Instead, describe combat encounters as narrative events: who fought, the dramatic moments, the outcome, and the emotional consequences.
 
-If a PREVIOUS SUMMARY is provided, UPDATE it with new events from the conversation — do not start from scratch. Merge new information into the existing sections.
+If a PREVIOUS SUMMARY is provided, you MUST PRESERVE ALL existing content and APPEND new events from the conversation. Do NOT condense, abbreviate, or merge existing entries. Add new bullet points for new events. Only update an existing bullet point if the new conversation directly changes its status (e.g., a quest is completed).
 
-Produce the summary with these sections:
+Produce the summary with these sections. Each section MUST use itemized bullet points — one bullet per distinct event, fact, or detail:
 
 ## Story So Far
-Narrative recap of major events in chronological order.
+- One bullet per significant event, in chronological order
+- Include WHO was involved, WHAT happened, WHERE it occurred, and the OUTCOME
+- Do NOT merge multiple events into one bullet
 
 ## Active Quests
-Current objectives, hooks, and goals the players are pursuing.
+- One bullet per quest/objective
+- Include: quest name/description, who gave it, current status, known requirements
+
+## Completed Quests
+- Quests that have been resolved — preserve these permanently
 
 ## Key NPCs
-Names, dispositions, relationships to the players, and last known status.
+- One bullet per NPC
+- Include: name, role/title, disposition toward the party, relationship details, last known status, any promises or threats made
 
 ## Locations
-Places visited, current location, and notable geography.
+- One bullet per location
+- Include: name, description, what happened there, current status (safe/dangerous/unexplored)
 
-## Player Decisions
-Important choices the players made and their consequences.
+## Player Characters & Their Actions
+- One bullet per significant player action or decision
+- Attribute actions to specific characters by name
 
 ## Notable Encounters
-Key combat and conflict moments described narratively — who was fought, dramatic turning points, and outcomes. No dice rolls or mechanical data.
+- One bullet per encounter
+- Describe narratively: who fought, dramatic moments, outcome, consequences
+
+## Items & Loot Acquired
+- One bullet per significant item, gift, or reward received
 
 ## Unresolved Threads
-Loose ends, foreshadowing, mysteries, and dangling plot hooks.
+- One bullet per loose end, mystery, unanswered question, or dangling plot hook
+
+## Relationships & Alliances
+- One bullet per notable relationship between characters (PC-NPC, NPC-NPC, PC-PC)
+- Include: nature of relationship, current standing, any tensions
 
 ## Subtle Details & Narrative Undercurrents
-This section is CRITICAL for narrative continuity. Preserve:
-- **Implied tensions**: Unspoken conflicts between NPCs, or between NPCs and the players
-- **Emotional shifts**: Changes in mood, atmosphere, or NPC demeanor that hint at deeper currents
-- **Foreshadowing**: Hints dropped about future events, dangers, or revelations — even if the players haven't noticed them yet
-- **Unresolved ambiguities**: Things left deliberately unclear, suspicious behaviors, unanswered questions
-- **Character subtext**: What NPCs seem to want vs. what they say, hidden motivations suggested through behavior
-- **Tonal threads**: The overall emotional arc of the story — is it darkening, lightening, building tension?
-- **Minor narrative details**: Small recurring motifs, symbols, or details that could become significant later
+- **Implied tensions**: Unspoken conflicts
+- **Emotional shifts**: Changes in mood or NPC demeanor
+- **Foreshadowing**: Hints about future events
+- **Unresolved ambiguities**: Suspicious behaviors, unanswered questions
+- **Character subtext**: Hidden motivations
+- **Tonal threads**: The overall emotional arc
+- **Minor narrative details**: Recurring motifs, symbols
 
-Do NOT discard subtle details from previous summaries — they are as important as plot events for maintaining the story's texture and emotional continuity.
-
-Keep the summary concise but comprehensive. Target under 25,000 characters. Use bullet points within sections for clarity.`;
+NEVER discard or condense details from previous summaries. The summary should GROW as the campaign progresses. Be verbose. Be thorough. Miss nothing.`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {

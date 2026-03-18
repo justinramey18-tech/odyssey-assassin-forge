@@ -1889,13 +1889,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       const PAGE_SIZE = 1000;
       while (true) {
         const { data, error } = await (supabase.from('party_dm_messages') as any)
-          .select('role, content, created_at')
+          .select('role, content, created_at, sender_name')
           .eq('party_id', partyId)
           .order('created_at', { ascending: true })
           .range(from, from + PAGE_SIZE - 1);
         if (error) throw error;
         if (!data || data.length === 0) break;
-        allMsgs = allMsgs.concat(data.map((m: any) => ({ role: m.role, content: m.content })));
+        allMsgs = allMsgs.concat(data.map((m: any) => ({ role: m.role, content: `[${m.sender_name}]: ${m.content}` })));
         if (data.length < PAGE_SIZE) break;
         from += PAGE_SIZE;
       }
@@ -1905,7 +1905,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         return;
       }
 
-      const BATCH_SIZE = 20;
+      // Larger batches for more thorough coverage — 40 messages per batch
+      const BATCH_SIZE = 40;
       const batches: Array<Array<{ role: string; content: string }>> = [];
       for (let i = 0; i < allMsgs.length; i += BATCH_SIZE) {
         batches.push(allMsgs.slice(i, i + BATCH_SIZE));
