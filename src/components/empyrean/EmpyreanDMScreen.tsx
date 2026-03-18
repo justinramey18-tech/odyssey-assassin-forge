@@ -144,12 +144,17 @@ export function EmpyreanDMScreen({
     messages,
     isLoading,
     isSummarizing,
+    campaignSummary,
     sendMessage,
     clearMessages,
     cancelRequest,
     editMessage,
     deleteMessage,
     regenerateMessage,
+    loadCampaign,
+    activeCampaignId,
+    setActiveCampaignId,
+    newGame,
   } = useAIDM({
     characterContext,
     customGuidesContent: enabledContent,
@@ -161,6 +166,33 @@ export function EmpyreanDMScreen({
       // Could parse for gold/HP/XP changes
     } : undefined,
   });
+
+  // Campaign sessions — uses 'empyrean' mode to namespace separately from regular DM saves
+  const {
+    sessions: campaignSessions,
+    isLoading: sessionsLoading,
+    isSignedIn,
+    saveSession: saveCampaignSession,
+    deleteSession: deleteCampaignSession,
+    renameSession: renameCampaignSession,
+    loadSessions: refreshSessions,
+  } = useCampaignSessions('empyrean' as any);
+
+  const handleLoadCampaign = useCallback((session: CampaignSession) => {
+    loadCampaign(session.messages, session.campaign_summary, session.id, session.gm_guide_ids);
+    setShowSaves(false);
+    setShowSettings(false);
+    toast.success(`Loaded: ${session.name}`);
+  }, [loadCampaign]);
+
+  const handleSaveCampaign = useCallback(async (
+    name: string,
+    msgs: import('@/components/oracle/types').Message[],
+    summary: string | null,
+    existingId?: string,
+  ) => {
+    return saveCampaignSession(name, msgs, summary, existingId);
+  }, [saveCampaignSession]);
 
   // Message action states
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
