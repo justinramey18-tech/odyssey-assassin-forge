@@ -625,7 +625,10 @@ export function EmpyreanDMScreen({
             rows={1}
             className="flex-1 bg-card/30 border border-purple-500/20 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-purple-400 max-h-[120px] min-h-[44px]"
             onKeyDown={e => {
-              // Enter inserts newline, no send shortcut
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
             }}
           />
 
