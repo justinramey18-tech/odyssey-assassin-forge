@@ -477,54 +477,70 @@ async function processCommand(
     return;
   }
 
-  // /quests
-  if (cmd === '/quests') {
+  // /quests [mode]
+  if (cmd === '/quests' || cmd.startsWith('/quests ')) {
     const userId = await getUserIdFromChat(chatId, supabase);
     if (!userId) { await sendTelegram(chatId, '🔗 Link your account first.', lovableKey, telegramKey); return; }
-    const { data: gameState } = await supabase
-      .from('dm_game_state')
-      .select('quest_flags')
-      .eq('user_id', userId)
-      .order('updated_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+
+    const modeFilter = parts[1]?.toLowerCase();
+    const validModes = ['solo', 'party', 'empyrean'];
+    if (modeFilter && !validModes.includes(modeFilter)) {
+      await sendTelegram(chatId, '❌ Usage: /quests or /quests solo|party|empyrean', lovableKey, telegramKey);
+      return;
+    }
+
     // Collect quests by mode
     const questsByMode: Record<string, Array<{ key: string; status: string; notes?: string; campaign?: string }>> = {};
 
-    // Solo/Empyrean quests from dm_game_state
-    if (gameState && gameState.quest_flags && Object.keys(gameState.quest_flags as any).length > 0) {
-      const flags = gameState.quest_flags as Record<string, any>;
-      questsByMode['solo'] = [];
-      for (const [key, value] of Object.entries(flags)) {
-        const status = typeof value === 'object' && value?.status ? value.status : String(value);
-        const notes = typeof value === 'object' ? value?.notes : undefined;
-        questsByMode['solo'].push({ key, status, notes });
+    // Solo/Empyrean quests from dm_game_state (skip if filtering to party only)
+    if (modeFilter !== 'party') {
+      const { data: gameStates } = await supabase
+        .from('dm_game_state')
+        .select('quest_flags')
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false })
+        .limit(5);
+
+      for (const gameState of (gameStates || [])) {
+        if (gameState.quest_flags && Object.keys(gameState.quest_flags as any).length > 0) {
+          const flags = gameState.quest_flags as Record<string, any>;
+          if (!questsByMode['solo']) questsByMode['solo'] = [];
+          for (const [key, value] of Object.entries(flags)) {
+            const status = typeof value === 'object' && value?.status ? value.status : String(value);
+            const notes = typeof value === 'object' ? value?.notes : undefined;
+            if (!questsByMode['solo'].some(q => q.key === key)) {
+              questsByMode['solo'].push({ key, status, notes });
+            }
+          }
+        }
       }
     }
 
-    // Also check party quest flags
-    const { data: partyMemberships } = await supabase
-      .from('party_members')
-      .select('party_id')
-      .eq('user_id', userId);
+    // Also check party quest flags (skip if filtering to solo or empyrean)
+    if (modeFilter !== 'solo' && modeFilter !== 'empyrean') {
+      const { data: partyMemberships } = await supabase
+        .from('party_members')
+        .select('party_id')
+        .eq('user_id', userId);
 
-    if (partyMemberships && partyMemberships.length > 0) {
-      const partyIds = partyMemberships.map(m => m.party_id);
-      const { data: partyStates } = await supabase
-        .from('party_shared_state')
-        .select('state_data, party_id')
-        .in('party_id', partyIds)
-        .eq('state_type', 'quest_flags');
+      if (partyMemberships && partyMemberships.length > 0) {
+        const partyIds = partyMemberships.map(m => m.party_id);
+        const { data: partyStates } = await supabase
+          .from('party_shared_state')
+          .select('state_data, party_id')
+          .in('party_id', partyIds)
+          .eq('state_type', 'quest_flags');
 
-      for (const ps of (partyStates || [])) {
-        const flags = ps.state_data as Record<string, any>;
-        if (!flags || Object.keys(flags).length === 0) continue;
-        if (!questsByMode['party']) questsByMode['party'] = [];
-        for (const [key, value] of Object.entries(flags)) {
-          const status = typeof value === 'object' && value?.status ? value.status : String(value);
-          const notes = typeof value === 'object' ? value?.notes : undefined;
-          if (!questsByMode['party'].some(q => q.key === key)) {
-            questsByMode['party'].push({ key, status, notes, campaign: 'Party' });
+        for (const ps of (partyStates || [])) {
+          const flags = ps.state_data as Record<string, any>;
+          if (!flags || Object.keys(flags).length === 0) continue;
+          if (!questsByMode['party']) questsByMode['party'] = [];
+          for (const [key, value] of Object.entries(flags)) {
+            const status = typeof value === 'object' && value?.status ? value.status : String(value);
+            const notes = typeof value === 'object' ? value?.notes : undefined;
+            if (!questsByMode['party'].some(q => q.key === key)) {
+              questsByMode['party'].push({ key, status, notes, campaign: 'Party' });
+            }
           }
         }
       }
