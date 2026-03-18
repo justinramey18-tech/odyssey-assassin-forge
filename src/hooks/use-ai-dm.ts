@@ -122,7 +122,7 @@ function loadSession(storageKey: string): Message[] {
   }
 }
 
-function saveSession(messages: Message[]): void {
+function saveSession(messages: Message[], storageKey: string): void {
   const payload: VersionedSession = {
     version: SESSION_VERSION,
     messages,
@@ -130,11 +130,11 @@ function saveSession(messages: Message[]): void {
   const serialized = JSON.stringify(payload);
 
   // Dirty-check: skip if nothing changed
-  if (serialized === lastSavedJson) return;
+  if (serialized === lastSavedJsonMap[storageKey]) return;
 
   try {
-    localStorage.setItem(STORAGE_KEY, serialized);
-    lastSavedJson = serialized;
+    localStorage.setItem(storageKey, serialized);
+    lastSavedJsonMap[storageKey] = serialized;
   } catch (error) {
     if (error instanceof DOMException && error.name === 'QuotaExceededError') {
       toast.error('Session too large to save locally');
@@ -144,7 +144,9 @@ function saveSession(messages: Message[]): void {
   }
 }
 
-export function useAIDM({ characterContext, customGuidesContent, worldStatePrompt, dmPersonaPrompt, onMessageComplete, activeGuideIds, onCampaignSwitch, selectedModel }: UseAIDMOptions) {
+export function useAIDM({ characterContext, customGuidesContent, worldStatePrompt, dmPersonaPrompt, onMessageComplete, activeGuideIds, onCampaignSwitch, selectedModel, sessionStorageKey, summarizeStorageKey }: UseAIDMOptions) {
+  const STORAGE_KEY = sessionStorageKey ?? DEFAULT_STORAGE_KEY;
+  const SUMMARY_KEY = summarizeStorageKey ?? DEFAULT_SUMMARY_KEY;
   // Store onMessageComplete in a ref so sendMessage always calls the latest version
   const onMessageCompleteRef = useRef(onMessageComplete);
   useEffect(() => { onMessageCompleteRef.current = onMessageComplete; }, [onMessageComplete]);
