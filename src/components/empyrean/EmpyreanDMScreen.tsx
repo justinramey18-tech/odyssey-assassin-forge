@@ -32,6 +32,8 @@ import {
   loadEmpyreanDMConfig,
   buildEmpyreanDMPersona,
   EmpyreanDMConfig,
+  loadDragonNotes,
+  saveDragonNotes,
 } from '@/lib/empyreanDMPersona';
 import { empyreanPrompts } from '@/lib/empyreanPrompts';
 import { EMPYREAN_SESSION_GUIDES } from '@/lib/empyreanGMGuides';
@@ -139,6 +141,7 @@ export function EmpyreanDMScreen({
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
   const [burnoutLevel, setBurnoutLevel] = useState(0);
   const [currentSituation, setCurrentSituation] = useState<string>('exploration');
+  const [dragonNotes, setDragonNotes] = useState(() => loadDragonNotes());
   const [initialSent, setInitialSent] = useState(false);
   const [activeNavTab, setActiveNavTab] = useState<DMNavTab | null>(null);
   const [navExpanded, setNavExpanded] = useState(false);
@@ -185,13 +188,14 @@ export function EmpyreanDMScreen({
       config.signetType,
       config.yearAtBasgiath,
       config.campaignFocus,
+      dragonNotes,
     );
     const responseModePrompt = resolveResponseModePrompt(responseMode);
     if (responseModePrompt) {
       persona += '\n\n' + responseModePrompt;
     }
     return persona;
-  }, [config, characterName, responseMode]);
+  }, [config, characterName, responseMode, dragonNotes]);
 
   const [trackingCampaignId, setTrackingCampaignId] = useState<string | null>(null);
   const gameState = useDMGameState(trackingCampaignId);
@@ -373,8 +377,17 @@ export function EmpyreanDMScreen({
       setShowCharacterActions(true);
       return;
     }
+    if (tab === 'settings') {
+      setShowToolsDrawer(true);
+      return;
+    }
     // Dice and other tabs toggle the full-screen content panel
     setActiveNavTab(prev => prev === tab ? null : tab);
+  }, []);
+
+  const handleDragonNotesChange = useCallback((notes: string) => {
+    setDragonNotes(notes);
+    saveDragonNotes(notes);
   }, []);
 
   const handleUsePrompt = useCallback((prompt: string) => {
@@ -830,6 +843,11 @@ export function EmpyreanDMScreen({
         onChatThemeChange={setChatTheme}
         whisperTrayEnabled={whisperTrayEnabled}
         onWhisperTrayEnabledChange={setWhisperTrayEnabled}
+        empyreanConfig={config ? { campaignFocus: config.campaignFocus, dragonName: config.dragonName, signetType: config.signetType, yearAtBasgiath: config.yearAtBasgiath } : null}
+        dragonNotes={dragonNotes}
+        onDragonNotesChange={handleDragonNotesChange}
+        onReconfigureEmpyrean={onClose}
+        onResetBurnout={() => { setBurnoutLevel(0); toast.success('Signet burnout reset.'); }}
       />
 
       {/* Campaign Sessions Manager */}
