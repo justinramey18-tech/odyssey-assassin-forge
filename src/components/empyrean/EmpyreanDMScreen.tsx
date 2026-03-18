@@ -30,6 +30,7 @@ interface EmpyreanDMScreenProps {
   onClose: () => void;
   characterContext: CharacterContext;
   characterName: string;
+  initialMessage?: string | null;
   autoSyncCallbacks?: {
     onGoldChange?: (gold: number) => void;
     onHPChange?: (current: number, max: number) => void;
