@@ -773,7 +773,7 @@ export function EmpyreanDMScreen({
                     </div>
                   ) : isAssistant ? (() => {
                     const parsed = parseWhispers(message.content || '...');
-                    const cleanNarrative = stripSituationTags(stripBurnoutTags(parsed.narrative));
+                    const cleanNarrative = stripBondStrainTags(stripSituationTags(stripBurnoutTags(parsed.narrative)));
                     return (
                       <>
                         <div className="text-sm prose prose-invert prose-sm max-w-none break-words overflow-wrap-anywhere">
