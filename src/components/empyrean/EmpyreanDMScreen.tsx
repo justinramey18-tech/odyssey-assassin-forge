@@ -36,6 +36,8 @@ import {
 import { empyreanPrompts } from '@/lib/empyreanPrompts';
 import { EMPYREAN_SESSION_GUIDES } from '@/lib/empyreanGMGuides';
 import { DM_MODELS } from '@/lib/dm-models';
+import { useSpotify } from '@/hooks/use-spotify';
+import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -155,6 +157,8 @@ export function EmpyreanDMScreen({
   const { themeId: chatThemeId, setTheme: setChatTheme } = useDMChatTheme();
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
   const narrator = useNarrator();
+  const spotify = useSpotify();
+  const [responseMode, setResponseMode] = useState<string | undefined>(undefined);
 
   // Auto-sync hook
   const autoSync = useDmAutoSync({
@@ -172,7 +176,7 @@ export function EmpyreanDMScreen({
 
   const dmPersonaPrompt = useMemo(() => {
     if (!config) return undefined;
-    return buildEmpyreanDMPersona(
+    let persona = buildEmpyreanDMPersona(
       config.selectedLoreGuides,
       config.selectedToneGuides,
       config.selectedSessionTemplate,
@@ -182,7 +186,12 @@ export function EmpyreanDMScreen({
       config.yearAtBasgiath,
       config.campaignFocus,
     );
-  }, [config, characterName]);
+    const responseModePrompt = resolveResponseModePrompt(responseMode);
+    if (responseModePrompt) {
+      persona += '\n\n' + responseModePrompt;
+    }
+    return persona;
+  }, [config, characterName, responseMode]);
 
   const [trackingCampaignId, setTrackingCampaignId] = useState<string | null>(null);
   const gameState = useDMGameState(trackingCampaignId);
@@ -216,6 +225,7 @@ export function EmpyreanDMScreen({
       if (autoSync.autoSyncEnabled) {
         autoSync.extractAndApply(content, characterContext);
       }
+      spotify.playMoodForText(content);
     },
   });
 
