@@ -720,8 +720,8 @@ export function EmpyreanDMScreen({
         ) : undefined}
       />
 
-      {/* Input bar */}
-      <div className="shrink-0 border-t border-purple-500/20 bg-background/90 backdrop-blur-sm px-3 py-2.5">
+      {/* Input bar — sits above the fixed DMBottomNav (~54px collapsed height) */}
+      <div className="shrink-0 border-t border-purple-500/20 bg-background/90 backdrop-blur-sm px-3 pt-2.5 pb-[60px]">
         <div className="flex items-end gap-2">
           <button
             onClick={() => setShowPrompts(true)}
