@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { ArrowLeft, Settings, Send, BookOpen, Loader2, RotateCcw, X } from 'lucide-react';
+import { ArrowLeft, Settings, Send, BookOpen, Loader2, RotateCcw, X, Shuffle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -14,6 +14,7 @@ import {
   EmpyreanDMConfig,
 } from '@/lib/empyreanDMPersona';
 import { empyreanPrompts } from '@/lib/empyreanPrompts';
+import { EMPYREAN_SESSION_GUIDES } from '@/lib/empyreanGMGuides';
 import { DM_MODELS, DMAIModel } from '@/lib/dm-models';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -78,6 +79,7 @@ export function EmpyreanDMScreen({
   const [showSettings, setShowSettings] = useState(false);
   const [showPrompts, setShowPrompts] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
   const [initialSent, setInitialSent] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -169,9 +171,24 @@ export function EmpyreanDMScreen({
 
   const handleNewCampaign = useCallback(() => {
     clearMessages();
+    setActiveTemplate(null);
     setShowSettings(false);
     toast.success('Empyrean campaign session cleared.');
   }, [clearMessages]);
+
+  const handleSessionTemplate = useCallback((template: typeof EMPYREAN_SESSION_GUIDES[0]) => {
+    const msg = `Start a new session using this structure: ${template.name}. My character is ${characterName}. Set the scene and begin.`;
+    sendMessage(msg);
+    setActiveTemplate(template.name);
+    setShowPrompts(false);
+  }, [characterName, sendMessage]);
+
+  const handleRandomPrompt = useCallback(() => {
+    const randomPrompt = empyreanPrompts[Math.floor(Math.random() * empyreanPrompts.length)];
+    const filled = randomPrompt.prompt.replace(/\[Character Name\]/g, characterName);
+    sendMessage(filled);
+    setShowPrompts(false);
+  }, [characterName, sendMessage]);
 
   // Auto-resize textarea
   const handleTextareaInput = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -221,6 +238,11 @@ export function EmpyreanDMScreen({
           <div>
             <h2 className="text-base font-cinzel font-bold text-purple-300 flex items-center gap-1.5">
               🐉 Empyrean DM
+              {activeTemplate && (
+                <span className="ml-1.5 text-[10px] font-sans font-medium px-2 py-0.5 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300">
+                  {activeTemplate.includes('Heist') ? '🎭' : activeTemplate.includes('Trial') ? '⚖️' : '🏕️'} {activeTemplate}
+                </span>
+              )}
             </h2>
             <p className="text-[11px] text-muted-foreground truncate max-w-[180px]">
               {characterName}{config.dragonName ? ` & ${config.dragonName}` : ''}
@@ -423,8 +445,48 @@ export function EmpyreanDMScreen({
           <SheetHeader>
             <SheetTitle className="font-cinzel text-purple-300">Empyrean Prompts</SheetTitle>
           </SheetHeader>
-          <ScrollArea className="h-[55vh] mt-3">
+           <ScrollArea className="h-[55vh] mt-3">
             <div className="space-y-5 pr-2 pb-4">
+              {/* Session Templates */}
+              <div className="space-y-2">
+                <h3 className="text-xs font-cinzel font-semibold text-amber-400 uppercase tracking-wider">
+                  Session Templates
+                </h3>
+                <div className="grid grid-cols-1 gap-2">
+                  {EMPYREAN_SESSION_GUIDES.map(t => {
+                    const emoji = t.name.includes('Heist') ? '🎭' : t.name.includes('Trial') ? '⚖️' : '🏕️';
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => handleSessionTemplate(t)}
+                        className="w-full text-left p-3 rounded-xl border border-amber-500/25 bg-amber-500/5 hover:bg-amber-500/10 transition-all"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-xl shrink-0">{emoji}</span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-cinzel font-semibold text-foreground">{t.name}</p>
+                            <p className="text-[11px] text-muted-foreground line-clamp-1">{t.description}</p>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Random Scene */}
+              <button
+                onClick={handleRandomPrompt}
+                className="w-full flex items-center gap-2.5 p-3 rounded-xl border border-purple-500/25 bg-purple-500/5 hover:bg-purple-500/10 transition-all"
+              >
+                <Shuffle className="w-5 h-5 text-purple-400 shrink-0" />
+                <div className="text-left">
+                  <p className="text-sm font-medium text-foreground">Random Empyrean Scene</p>
+                  <p className="text-[11px] text-muted-foreground">Pick a random prompt and start immediately</p>
+                </div>
+              </button>
+
+              {/* Existing category prompts */}
               {Object.entries(groupedPrompts).map(([category, prompts]) => (
                 <div key={category} className="space-y-2">
                   <h3 className="text-xs font-cinzel font-semibold text-purple-400 uppercase tracking-wider">
