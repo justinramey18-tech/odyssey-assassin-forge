@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Plus, Edit2, Trash2, BookOpen, Check, X, ScrollText } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, BookOpen, Check, X, ScrollText, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { GMGuide, MAX_GUIDE_CHARS, MAX_TOTAL_CHARS } from '@/lib/gm-guides-storage';
