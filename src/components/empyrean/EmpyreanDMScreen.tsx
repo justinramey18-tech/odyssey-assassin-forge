@@ -335,27 +335,36 @@ export function EmpyreanDMScreen({
                   : 'bg-card/60 border border-border/30 text-foreground',
               )}
             >
-              {message.role === 'assistant' ? (
-                <div className="text-sm prose prose-invert prose-sm max-w-none break-words overflow-wrap-anywhere">
-                  <ReactMarkdown
-                    rehypePlugins={[rehypeRaw]}
-                    components={{
-                      p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                      strong: ({ children }) => <strong className="text-purple-300 font-semibold">{children}</strong>,
-                      em: ({ children }) => <em className="text-amber-300/90">{children}</em>,
-                      ul: ({ children }) => <ul className="list-disc ml-4 mb-2">{children}</ul>,
-                      ol: ({ children }) => <ol className="list-decimal ml-4 mb-2">{children}</ol>,
-                      blockquote: ({ children }) => (
-                        <blockquote className="border-l-2 border-purple-500/40 pl-3 italic text-muted-foreground my-2">
-                          {children}
-                        </blockquote>
-                      ),
-                    }}
-                  >
-                    {stripBurnoutTags(message.content || '...')}
-                  </ReactMarkdown>
-                </div>
-              ) : (
+              {message.role === 'assistant' ? (() => {
+                const parsed = parseWhispers(message.content || '...');
+                const cleanNarrative = stripBurnoutTags(parsed.narrative);
+                return (
+                  <>
+                    <div className="text-sm prose prose-invert prose-sm max-w-none break-words overflow-wrap-anywhere">
+                      <ReactMarkdown
+                        rehypePlugins={[rehypeRaw]}
+                        components={{
+                          p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                          strong: ({ children }) => <strong className="text-purple-300 font-semibold">{children}</strong>,
+                          em: ({ children }) => <em className="text-amber-300/90">{children}</em>,
+                          ul: ({ children }) => <ul className="list-disc ml-4 mb-2">{children}</ul>,
+                          ol: ({ children }) => <ol className="list-decimal ml-4 mb-2">{children}</ol>,
+                          blockquote: ({ children }) => (
+                            <blockquote className="border-l-2 border-purple-500/40 pl-3 italic text-muted-foreground my-2">
+                              {children}
+                            </blockquote>
+                          ),
+                        }}
+                      >
+                        {cleanNarrative}
+                      </ReactMarkdown>
+                    </div>
+                    {parsed.whispers.length > 0 && (
+                      <WhisperTray whispers={parsed.whispers} />
+                    )}
+                  </>
+                );
+              })() : (
                 <p className="text-sm whitespace-pre-wrap">{message.content}</p>
               )}
             </div>
