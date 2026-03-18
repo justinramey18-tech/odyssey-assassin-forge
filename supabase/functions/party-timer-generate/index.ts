@@ -763,6 +763,26 @@ serve(async (req) => {
 
       console.log(`[timer-gen] Party ${partyId}: timer expired, generating response for ${prompts.length} prompts`);
 
+      // ── Send timer-expired Telegram notification ──
+      try {
+        const telegramUrl = `${SUPABASE_URL}/functions/v1/telegram-notify`;
+        await fetch(telegramUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Trigger-Secret': TRIGGER_SECRET,
+          },
+          body: JSON.stringify({
+            type: 'timer_expired',
+            partyId,
+            title: '⏰ Round Timer Expired',
+            body: `The round timer has run out! The DM is generating the next scene for ${prompts.length} player(s).`,
+          }),
+        });
+      } catch (tgErr) {
+        console.warn('[timer-gen] Telegram timer-expired notify failed (non-blocking):', tgErr);
+      }
+
       try {
         // 4. Fetch party members
         const { data: members } = await supabase
@@ -867,6 +887,35 @@ serve(async (req) => {
             sender_user_id: null,
             sender_name: "DM",
           });
+
+          // ── Detect combat in AI response and send Telegram notification ──
+          const lowerContent = assistantContent.toLowerCase();
+          const isCombat = lowerContent.includes('initiative') ||
+            lowerContent.includes('combat begins') ||
+            lowerContent.includes('roll for initiative') ||
+            lowerContent.includes('battle begins') ||
+            assistantContent.includes('<!--SITUATION:combat-->');
+
+          if (isCombat) {
+            try {
+              const telegramUrl = `${SUPABASE_URL}/functions/v1/telegram-notify`;
+              await fetch(telegramUrl, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-Trigger-Secret': TRIGGER_SECRET,
+                },
+                body: JSON.stringify({
+                  type: 'combat_start',
+                  partyId,
+                  title: '🗡️ Combat Has Begun!',
+                  body: 'The DM has initiated combat. Roll for initiative!',
+                }),
+              });
+            } catch (tgErr) {
+              console.warn('[timer-gen] Telegram combat notify failed (non-blocking):', tgErr);
+            }
+          }
         }
 
         // 11. Consume cascade prompts for AFK members

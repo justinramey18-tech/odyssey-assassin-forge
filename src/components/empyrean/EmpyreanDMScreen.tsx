@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { parseWhispers } from '@/lib/whisper-parser';
 import { WhisperTray } from '@/components/ai-dm/WhisperTray';
 import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, Volume2, VolumeX, Zap, ChevronDown } from 'lucide-react';
@@ -270,12 +271,41 @@ export function EmpyreanDMScreen({
         const whisperContent = whisperMatch[2].trim();
         if (config?.dragonName && target === config.dragonName && whisperContent) {
           dragonBond.addDragonMessage(whisperContent);
+
+          // Send dragon bond Telegram notification (non-blocking)
+          try {
+            supabase.functions.invoke('telegram-notify-proxy', {
+              body: {
+                type: 'dragon_message',
+                title: `${config.dragonName} whispers...`,
+                body: whisperContent.length > 200
+                  ? whisperContent.substring(0, 200) + '…'
+                  : whisperContent,
+                dragonName: config.dragonName,
+              },
+            }).catch((e) => console.warn('[EmpyreanDM] Dragon bond telegram notify failed:', e));
+          } catch (tgErr) {
+            // Never break the game flow
+          }
         }
       }
 
-      // Track combat for bond building
+      // Track combat for bond building + send Telegram combat alert
       if (content.toLowerCase().includes('initiative') || content.toLowerCase().includes('combat begins') || content.match(/<!--SITUATION:combat-->/)) {
         dragonBond.processCombatBond();
+
+        // Send combat Telegram notification (non-blocking)
+        try {
+          supabase.functions.invoke('telegram-notify-proxy', {
+            body: {
+              type: 'combat_start',
+              title: '🗡️ Combat Has Begun!',
+              body: 'Your DM has initiated combat. Roll for initiative!',
+            },
+          }).catch((e) => console.warn('[EmpyreanDM] Combat telegram notify failed:', e));
+        } catch (tgErr) {
+          // Never break the game flow
+        }
       }
     },
   });
