@@ -233,6 +233,23 @@ export function EmpyreanScreen({ open, onClose, characterName, characterContext 
         onClose={() => setShowSessionPlanner(false)}
         addGuide={addGuide}
       />
+      <EmpyreanCampaignSetup
+        open={showSetup}
+        onClose={() => setShowSetup(false)}
+        characterName={characterName}
+        addGuide={addGuide}
+        deleteGuide={deleteGuide}
+        onComplete={(config) => {
+          setEmpyreanConfig(config);
+          setShowSetup(false);
+        }}
+      />
+      <EmpyreanDMScreen
+        open={showDM}
+        onClose={() => setShowDM(false)}
+        characterContext={characterContext}
+        characterName={characterName}
+      />
     </div>
   );
 }
