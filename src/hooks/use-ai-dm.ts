@@ -458,20 +458,17 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
   }, [STORAGE_KEY, SUMMARY_KEY]);
 
   const newGame = useCallback(() => {
-    // Save current session locally before clearing
     if (messages.length > 0) {
-      saveSession(messages);
+      saveSession(messages, STORAGE_KEY);
     }
-    // Clear local state
     setMessages([]);
     localStorage.removeItem(STORAGE_KEY);
-    clearCampaignSummary();
+    clearCampaignSummary(SUMMARY_KEY);
     setCampaignSummary(null);
     setActiveCampaignId(null);
-    // Disable all guides for fresh campaign
     onCampaignSwitchRef.current?.(null);
     toast.success('New game started! The DM awaits your adventure.');
-  }, [messages]);
+  }, [messages, STORAGE_KEY, SUMMARY_KEY]);
 
   const updateCampaignSummary = useCallback((summary: string) => {
     saveCampaignSummary(summary);
