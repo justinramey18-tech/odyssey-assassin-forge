@@ -452,10 +452,10 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
   const clearMessages = useCallback(() => {
     setMessages([]);
     localStorage.removeItem(STORAGE_KEY);
-    clearCampaignSummary();
+    clearCampaignSummary(SUMMARY_KEY);
     setCampaignSummary(null);
     setActiveCampaignId(null);
-  }, []);
+  }, [STORAGE_KEY, SUMMARY_KEY]);
 
   const newGame = useCallback(() => {
     // Save current session locally before clearing
