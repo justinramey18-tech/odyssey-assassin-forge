@@ -70,6 +70,7 @@ export function EmpyreanDMScreen({
   onClose,
   characterContext,
   characterName,
+  initialMessage,
   autoSyncCallbacks,
 }: EmpyreanDMScreenProps) {
   const [config, setConfig] = useState<EmpyreanDMConfig | null>(() => loadEmpyreanDMConfig());
