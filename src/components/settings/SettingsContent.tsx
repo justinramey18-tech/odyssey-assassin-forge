@@ -44,7 +44,7 @@ import { CharacterRenameWidget } from './CharacterRenameWidget';
 import { DevToolsPanel } from './DevToolsPanel';
 import { SpotifySettingsTab } from './SpotifySettingsTab';
 import { CharacterIdentityEditor } from './CharacterIdentityEditor';
-
+import { TelegramSettingsTab } from './TelegramSettingsTab';
 interface SettingsContentProps {
   activeTab: SettingsTab;
   characterName: string;
