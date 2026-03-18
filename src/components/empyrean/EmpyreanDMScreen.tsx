@@ -124,6 +124,22 @@ export function EmpyreanDMScreen({
     } : undefined,
   });
 
+  // Auto-send initial message from prompt library
+  useEffect(() => {
+    if (open && initialMessage && !initialSent && messages.length === 0) {
+      const timer = setTimeout(() => {
+        sendMessage(initialMessage);
+        setInitialSent(true);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [open, initialMessage, initialSent, messages.length, sendMessage]);
+
+  // Reset initialSent when screen closes
+  useEffect(() => {
+    if (!open) setInitialSent(false);
+  }, [open]);
+
   // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
