@@ -176,7 +176,7 @@ export function EmpyreanDMScreen({
 
   const dmPersonaPrompt = useMemo(() => {
     if (!config) return undefined;
-    return buildEmpyreanDMPersona(
+    let persona = buildEmpyreanDMPersona(
       config.selectedLoreGuides,
       config.selectedToneGuides,
       config.selectedSessionTemplate,
@@ -186,7 +186,12 @@ export function EmpyreanDMScreen({
       config.yearAtBasgiath,
       config.campaignFocus,
     );
-  }, [config, characterName]);
+    const responseModePrompt = resolveResponseModePrompt(responseMode);
+    if (responseModePrompt) {
+      persona += '\n\n' + responseModePrompt;
+    }
+    return persona;
+  }, [config, characterName, responseMode]);
 
   const [trackingCampaignId, setTrackingCampaignId] = useState<string | null>(null);
   const gameState = useDMGameState(trackingCampaignId);
