@@ -63,7 +63,7 @@ function SectionCard({ icon, title, description, color, borderColor, onClick }: 
   );
 }
 
-export function EmpyreanScreen({ open, onClose, characterName, characterContext }: EmpyreanScreenProps) {
+export function EmpyreanScreen({ open, onClose, characterName, characterContext, autoSyncCallbacks }: EmpyreanScreenProps) {
   const { guides, addGuide, deleteGuide, updateGuide } = useGMGuides();
   const [showPack, setShowPack] = useState(false);
   const [showPrompts, setShowPrompts] = useState(false);
