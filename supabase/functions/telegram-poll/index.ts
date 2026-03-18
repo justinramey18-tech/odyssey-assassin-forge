@@ -120,7 +120,7 @@ async function processCommand(
       `/initiative — Roll initiative\n` +
       `/roll NdS+M — Roll dice\n\n` +
       `<b>📖 Campaign</b>\n` +
-      `/quests — Active quest flags\n` +
+      `/quests [mode] — Quest log (solo/party/empyrean)\n` +
       `/lore QUESTION — AI lore lookup\n` +
       `/recap — AI session recap`,
       lovableKey, telegramKey,
