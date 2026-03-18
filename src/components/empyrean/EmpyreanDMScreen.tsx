@@ -187,8 +187,14 @@ export function EmpyreanDMScreen({
     getGridSize: useCallback(() => ({ cols: 10, rows: 10 } as any), []),
   });
 
+  const dragonBond = useDragonBond({
+    dragonName: config?.dragonName || '',
+    characterName,
+  });
+
   const dmPersonaPrompt = useMemo(() => {
     if (!config) return undefined;
+    const bs = dragonBond.bondState;
     let persona = buildEmpyreanDMPersona(
       config.selectedLoreGuides,
       config.selectedToneGuides,
@@ -199,13 +205,17 @@ export function EmpyreanDMScreen({
       config.yearAtBasgiath,
       config.campaignFocus,
       dragonNotes,
+      getBondDescriptor(bs.bond),
+      getTrustDescriptor(bs.trust),
+      undefined, // recentDragonChatSummary — populated when dragon chat has a summary
+      bs.memories.map(m => m.text),
     );
     const responseModePrompt = resolveResponseModePrompt(responseMode);
     if (responseModePrompt) {
       persona += '\n\n' + responseModePrompt;
     }
     return persona;
-  }, [config, characterName, responseMode, dragonNotes]);
+  }, [config, characterName, responseMode, dragonNotes, dragonBond.bondState]);
 
   const [trackingCampaignId, setTrackingCampaignId] = useState<string | null>(null);
   const gameState = useDMGameState(trackingCampaignId);
