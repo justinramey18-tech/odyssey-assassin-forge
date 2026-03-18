@@ -147,6 +147,21 @@ export function EmpyreanDMScreen({
   const { enabledContent, activeGuideIds } = gmGuides;
   const { themeId: chatThemeId, setTheme: setChatTheme } = useDMChatTheme();
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
+  const narrator = useNarrator();
+
+  // Auto-sync hook
+  const autoSync = useDmAutoSync({
+    onHPChange: autoSyncCallbacks?.onHPChange ?? NOOP_TWO_ARG,
+    onAddXP: autoSyncCallbacks?.onAddXP ?? NOOP_TWO_ARG,
+    onGoldChange: autoSyncCallbacks?.onGoldChange ?? NOOP,
+    onConditionChange: autoSyncCallbacks?.onConditionChange ?? NOOP_TWO_ARG,
+    onRestOccurred: autoSyncCallbacks?.onRestOccurred ?? NOOP,
+    onMapUpdate: NOOP_TWO_ARG,
+    getCurrentHP: autoSyncCallbacks?.getCurrentHP ?? NOOP_RETURN_ZERO,
+    getCurrentGold: autoSyncCallbacks?.getCurrentGold ?? NOOP_RETURN_ZERO,
+    getCurrentMarkers: useCallback(() => [], []),
+    getGridSize: useCallback(() => ({ cols: 10, rows: 10 } as any), []),
+  });
 
   const dmPersonaPrompt = useMemo(() => {
     if (!config) return undefined;
