@@ -64,6 +64,7 @@ export function EmpyreanScreen({ open, onClose, characterName, characterContext 
   const [showSetup, setShowSetup] = useState(false);
   const [showDM, setShowDM] = useState(false);
   const [empyreanConfig, setEmpyreanConfig] = useState<EmpyreanDMConfig | null>(() => loadEmpyreanDMConfig());
+  const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
 
   // Reload config when screen opens
   useEffect(() => {
