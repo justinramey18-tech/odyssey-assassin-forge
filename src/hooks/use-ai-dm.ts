@@ -42,7 +42,8 @@ function loadAlignmentDrift(): { position: AlignmentScore; zone: string } | null
 
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
 const SUMMARIZE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm-summarize`;
-const STORAGE_KEY = 'dnd-ai-dm-session';
+const DEFAULT_STORAGE_KEY = 'dnd-ai-dm-session';
+const DEFAULT_SUMMARY_KEY = 'dnd-ai-dm-campaign-summary';
 const MAX_MESSAGES = 100;
 const SUMMARY_INTERVAL = 5;
 const SAVE_DEBOUNCE_MS = 1000;
@@ -61,6 +62,10 @@ interface UseAIDMOptions {
   onCampaignSwitch?: (guideIds: string[] | null) => void;
   /** AI model ID to use for DM responses */
   selectedModel?: string;
+  /** Override the localStorage key used for session storage (default: 'dnd-ai-dm-session') */
+  sessionStorageKey?: string;
+  /** Override the key used for campaign summary storage (default: 'dnd-ai-dm-campaign-summary') */
+  summarizeStorageKey?: string;
 }
 
 interface VersionedSession {

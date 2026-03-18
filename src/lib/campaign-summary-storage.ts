@@ -5,19 +5,21 @@ export const SUMMARY_STORAGE_KEY = 'dnd-ai-dm-campaign-summary';
 export const NOVEL_BUILDER_SUMMARY_KEY = 'dnd-novel-builder-campaign-summary';
 export const SUMMARY_MAX_CHARS = 50000;
 
-export function loadCampaignSummary(): string | null {
-  migrateToScoped(SUMMARY_STORAGE_KEY);
+export function loadCampaignSummary(keyOverride?: string): string | null {
+  const key = keyOverride ?? SUMMARY_STORAGE_KEY;
+  migrateToScoped(key);
   try {
-    return getScopedItem(SUMMARY_STORAGE_KEY);
+    return getScopedItem(key);
   } catch {
     return null;
   }
 }
 
-export function saveCampaignSummary(summary: string): void {
+export function saveCampaignSummary(summary: string, keyOverride?: string): void {
+  const key = keyOverride ?? SUMMARY_STORAGE_KEY;
   try {
     const trimmed = summary.slice(0, SUMMARY_MAX_CHARS);
-    setScopedItem(SUMMARY_STORAGE_KEY, trimmed);
+    setScopedItem(key, trimmed);
   } catch (error) {
     if (error instanceof DOMException && error.name === 'QuotaExceededError') {
       toast.error('Campaign summary too large to save locally');
@@ -27,9 +29,10 @@ export function saveCampaignSummary(summary: string): void {
   }
 }
 
-export function clearCampaignSummary(): void {
+export function clearCampaignSummary(keyOverride?: string): void {
+  const key = keyOverride ?? SUMMARY_STORAGE_KEY;
   try {
-    removeScopedItem(SUMMARY_STORAGE_KEY);
+    removeScopedItem(key);
   } catch {
     // ignore
   }
