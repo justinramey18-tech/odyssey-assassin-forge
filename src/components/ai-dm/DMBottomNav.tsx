@@ -27,6 +27,12 @@ interface DMBottomNavProps {
   oracleCount?: number;
   /** Whether the character is currently in wild shape form */
   isWildShapeActive?: boolean;
+  /** Override the Oracle tab label (e.g. dragon name) */
+  oracleLabel?: string;
+  /** Override the Oracle tab color class */
+  oracleColor?: string;
+  /** Override the Oracle tab active bg class */
+  oracleActiveBg?: string;
 }
 
 const BASE_TABS = [
