@@ -40,6 +40,8 @@ import { EMPYREAN_SESSION_GUIDES } from '@/lib/empyreanGMGuides';
 import { DM_MODELS } from '@/lib/dm-models';
 import { useSpotify } from '@/hooks/use-spotify';
 import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
+import { EmpyreanAutopilotGuide } from '@/components/empyrean/EmpyreanAutopilotGuide';
+import { useEmpyreanAutopilot } from '@/hooks/use-empyrean-autopilot';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -145,6 +147,7 @@ export function EmpyreanDMScreen({
   const [initialSent, setInitialSent] = useState(false);
   const [activeNavTab, setActiveNavTab] = useState<DMNavTab | null>(null);
   const [navExpanded, setNavExpanded] = useState(false);
+  const [showAutopilotGuide, setShowAutopilotGuide] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -360,14 +363,6 @@ export function EmpyreanDMScreen({
     toast.success(`Model: ${DM_MODELS.find(m => m.id === modelId)?.label ?? modelId}`);
   }, []);
 
-  const handleNewCampaign = useCallback(() => {
-    newGame();
-    setActiveTemplate(null);
-    setBurnoutLevel(0);
-    setCurrentSituation('exploration');
-    setShowToolsDrawer(false);
-  }, [newGame]);
-
   const handleNavTabChange = useCallback((tab: DMNavTab) => {
     if (tab === 'prompts') {
       setShowPrompts(true);
@@ -379,6 +374,10 @@ export function EmpyreanDMScreen({
     }
     if (tab === 'settings') {
       setShowToolsDrawer(true);
+      return;
+    }
+    if (tab === 'afk') {
+      setShowAutopilotGuide(true);
       return;
     }
     // Dice and other tabs toggle the full-screen content panel
@@ -397,6 +396,30 @@ export function EmpyreanDMScreen({
       setNavExpanded(false);
     }
   }, [isLoading, sendMessage]);
+
+  const lastAssistantMsg = useMemo(() => {
+    const last = [...messages].reverse().find(m => m.role === 'assistant');
+    return last?.content ?? null;
+  }, [messages]);
+
+  const autopilot = useEmpyreanAutopilot({
+    enabled: false,
+    characterName,
+    dragonName: config?.dragonName || '',
+    delaySeconds: 8,
+    onSendAction: handleUsePrompt,
+    lastAssistantMessage: lastAssistantMsg,
+    isLoading,
+  });
+
+  const handleNewCampaign = useCallback(() => {
+    newGame();
+    setActiveTemplate(null);
+    setBurnoutLevel(0);
+    setCurrentSituation('exploration');
+    setShowToolsDrawer(false);
+    if (autopilot.isAutopilotActive) autopilot.takeControl();
+  }, [newGame, autopilot]);
 
   const handleCampaignSummaryChange = useCallback((summary: string) => {
     updateCampaignSummary(summary);
@@ -754,6 +777,36 @@ export function EmpyreanDMScreen({
         ) : undefined}
       />
 
+      {/* Autopilot control bar */}
+      {autopilot.isAutopilotActive && (
+        <div className="shrink-0 px-3 py-2 bg-purple-950/60 border-t border-purple-500/30 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+            <span className="text-xs font-cinzel text-purple-300">Autopilot</span>
+            {autopilot.countdown > 0 && !autopilot.isPaused && (
+              <span className="text-xs text-purple-300/60">Acting in {autopilot.countdown}s</span>
+            )}
+            {autopilot.isPaused && (
+              <span className="text-xs text-amber-300/60">Paused</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={autopilot.isPaused ? autopilot.resumeAutopilot : autopilot.pauseAutopilot}
+              className="text-[11px] px-2.5 py-1 rounded-md bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 transition-colors"
+            >
+              {autopilot.isPaused ? 'Resume' : 'Pause'}
+            </button>
+            <button
+              onClick={autopilot.takeControl}
+              className="text-[11px] px-2.5 py-1 rounded-md bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 transition-colors"
+            >
+              Take Control
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Contextual Actions — always visible when messages exist */}
       {messages.length > 0 && config && (
         <EmpyreanContextualActions
@@ -904,6 +957,18 @@ export function EmpyreanDMScreen({
         characterContext={characterContext}
         characterName={characterName}
         onUsePrompt={handleUsePrompt}
+      />
+
+      <EmpyreanAutopilotGuide
+        open={showAutopilotGuide}
+        onOpenChange={setShowAutopilotGuide}
+        characterName={characterName}
+        dragonName={config?.dragonName || ''}
+        onEnableAutopilot={() => {
+          autopilot.toggleAutopilot();
+          setShowAutopilotGuide(false);
+          toast.success('Autopilot enabled! Watch your rider act.');
+        }}
       />
 
       <Sheet open={showPrompts} onOpenChange={setShowPrompts}>
