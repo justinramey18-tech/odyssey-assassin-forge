@@ -82,6 +82,7 @@ export function buildEmpyreanDMPersona(
   signetType: string = '',
   yearAtBasgiath: string = 'first-year',
   campaignFocus: CampaignFocus = 'balanced',
+  dragonNotes: string = '',
 ): string {
   const sections: string[] = [];
 
