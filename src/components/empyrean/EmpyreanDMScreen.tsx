@@ -644,8 +644,23 @@ export function EmpyreanDMScreen({
               </Select>
             </div>
 
+            {/* Saved Campaigns */}
+            <Button
+              variant="outline"
+              onClick={() => { setShowSettings(false); setShowSaves(true); }}
+              className="w-full gap-2 border-purple-500/30 text-purple-300 hover:bg-purple-500/10"
+            >
+              <FolderOpen className="w-4 h-4" />
+              Saved Campaigns
+            </Button>
+
             {/* Campaign info */}
             <div className="rounded-lg border border-purple-500/20 bg-purple-500/5 p-3 space-y-1">
+              {activeCampaignId && (
+                <p className="text-xs text-muted-foreground">
+                  <span className="text-purple-300">Campaign:</span> {campaignSessions.find(s => s.id === activeCampaignId)?.name ?? 'Unnamed'}
+                </p>
+              )}
               <p className="text-xs text-muted-foreground">
                 <span className="text-purple-300">Focus:</span> {config.campaignFocus}
               </p>
