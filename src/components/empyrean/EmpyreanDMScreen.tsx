@@ -124,7 +124,7 @@ export function EmpyreanDMScreen({
     }
   }, [open]);
 
-  const { enabledContent } = useGMGuides();
+  const { enabledContent, activeGuideIds } = useGMGuides();
 
   const dmPersonaPrompt = useMemo(() => {
     if (!config) return undefined;
