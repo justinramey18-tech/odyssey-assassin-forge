@@ -1165,6 +1165,15 @@ export function EmpyreanDMScreen({
           </ScrollArea>
         </SheetContent>
       </Sheet>
+
+      <DragonBondChat
+        open={showDragonChat}
+        onClose={() => setShowDragonChat(false)}
+        characterName={characterName}
+        dragonName={config?.dragonName || 'Dragon'}
+        dragonNotes={dragonNotes}
+        characterContext={characterContext}
+      />
     </div>
   );
 }
