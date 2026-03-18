@@ -171,9 +171,24 @@ export function EmpyreanDMScreen({
 
   const handleNewCampaign = useCallback(() => {
     clearMessages();
+    setActiveTemplate(null);
     setShowSettings(false);
     toast.success('Empyrean campaign session cleared.');
   }, [clearMessages]);
+
+  const handleSessionTemplate = useCallback((template: typeof EMPYREAN_SESSION_GUIDES[0]) => {
+    const msg = `Start a new session using this structure: ${template.name}. My character is ${characterName}. Set the scene and begin.`;
+    sendMessage(msg);
+    setActiveTemplate(template.name);
+    setShowPrompts(false);
+  }, [characterName, sendMessage]);
+
+  const handleRandomPrompt = useCallback(() => {
+    const randomPrompt = empyreanPrompts[Math.floor(Math.random() * empyreanPrompts.length)];
+    const filled = randomPrompt.prompt.replace(/\[Character Name\]/g, characterName);
+    sendMessage(filled);
+    setShowPrompts(false);
+  }, [characterName, sendMessage]);
 
   // Auto-resize textarea
   const handleTextareaInput = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
