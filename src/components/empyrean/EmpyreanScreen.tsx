@@ -210,6 +210,11 @@ export function EmpyreanScreen({ open, onClose, characterName, characterContext 
         open={showPrompts}
         onOpenChange={setShowPrompts}
         characterName={characterName}
+        onSendToDM={empyreanConfig ? (prompt) => {
+          setPendingPrompt(prompt);
+          setShowPrompts(false);
+          setShowDM(true);
+        } : undefined}
       />
       <EmpyreanCampaignPack
         open={showPack}
