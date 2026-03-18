@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Message, CharacterContext } from '@/components/oracle/types';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 import { parseWhispers } from '@/lib/whisper-parser';
 import { getAuthToken } from '@/lib/auth-token';
