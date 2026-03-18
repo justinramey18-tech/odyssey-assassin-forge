@@ -403,7 +403,7 @@ export function EmpyreanDMScreen({
   }, [messages]);
 
   const autopilot = useEmpyreanAutopilot({
-    enabled: false,
+    enabled: true,
     characterName,
     dragonName: config?.dragonName || '',
     delaySeconds: 8,
