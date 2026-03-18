@@ -206,7 +206,22 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, o
                     <h3 className="text-sm font-cinzel text-purple-200">Campaign Summary</h3>
                   </div>
                   <div className="flex items-center gap-1">
-                    {!campaignSummary && (
+                    {onFullSummarize && (
+                      <button
+                        onClick={onFullSummarize}
+                        disabled={isFullSummarizing}
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-900/30 border border-purple-500/20 text-purple-300 text-[10px] font-cinzel hover:bg-purple-900/50 transition-colors disabled:opacity-50"
+                        style={{ touchAction: 'manipulation' }}
+                      >
+                        {isFullSummarizing ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <ScrollText className="w-3 h-3" />
+                        )}
+                        {isFullSummarizing ? 'Summarizing...' : 'Summarize All'}
+                      </button>
+                    )}
+                    {!campaignSummary && !onFullSummarize && (
                       <button
                         onClick={openSummaryEditor}
                         className="flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-900/30 border border-purple-500/20 text-purple-300 text-[10px] font-cinzel hover:bg-purple-900/50 transition-colors"

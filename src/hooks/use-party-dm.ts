@@ -2258,7 +2258,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     dismissExtensions,
   }), [
     filteredMessages, messages, currentPrompts, sessionConfig, isActive,
-    computedIsGenerating, isSummarizing, allReady, myPrompt, activeCampaignId,
+    computedIsGenerating, isSummarizing, isFullSummarizing, fullSummarize, allReady, myPrompt, activeCampaignId,
     lastAutoSaveTime, splitState, isSplitActive, myTeam, pendingDraft,
     startSession, endSession, startNewCampaign, saveCampaign, loadCampaign,
     submitPrompt, editPrompt, retractPrompt, setReady, unready,
