@@ -71,6 +71,8 @@ interface PromptDrawerContextValue {
   };
   // Conditions system exposure
   conditions: UseConditionsReturn;
+  // Character context for AI DM (shared for Empyrean etc.)
+  characterContext: CharacterContext;
 }
 
 const PromptDrawerContext = createContext<PromptDrawerContextValue | null>(null);
