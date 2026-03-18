@@ -1356,6 +1356,10 @@ export type Database = {
         Args: { _party_id: string; _user_id: string }
         Returns: boolean
       }
+      setup_telegram_cron: {
+        Args: { base_url: string; service_key: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
