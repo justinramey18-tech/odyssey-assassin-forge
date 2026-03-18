@@ -210,6 +210,9 @@ export function EmpyreanDMScreen({
     },
   });
 
+  const gameState = useDMGameState(activeCampaignId);
+  const worldStatePrompt = useMemo(() => buildMemoryAnchorsPrompt(gameState.gameState), [gameState.gameState]);
+
   // Campaign sessions — uses 'empyrean' mode to namespace separately from regular DM saves
   const {
     sessions: campaignSessions,
