@@ -20,6 +20,7 @@ interface EmpyreanPromptLibraryProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   characterName: string;
+  onSendToDM?: (prompt: string) => void;
 }
 
 function loadFavorites(): Set<string> {
