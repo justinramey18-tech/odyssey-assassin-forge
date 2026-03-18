@@ -157,6 +157,8 @@ export function EmpyreanDMScreen({
   const { themeId: chatThemeId, setTheme: setChatTheme } = useDMChatTheme();
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
   const narrator = useNarrator();
+  const spotify = useSpotify();
+  const [responseMode, setResponseMode] = useState<string | undefined>(undefined);
 
   // Auto-sync hook
   const autoSync = useDmAutoSync({
