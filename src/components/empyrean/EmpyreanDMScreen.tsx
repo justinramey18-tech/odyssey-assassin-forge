@@ -188,13 +188,14 @@ export function EmpyreanDMScreen({
       config.signetType,
       config.yearAtBasgiath,
       config.campaignFocus,
+      dragonNotes,
     );
     const responseModePrompt = resolveResponseModePrompt(responseMode);
     if (responseModePrompt) {
       persona += '\n\n' + responseModePrompt;
     }
     return persona;
-  }, [config, characterName, responseMode]);
+  }, [config, characterName, responseMode, dragonNotes]);
 
   const [trackingCampaignId, setTrackingCampaignId] = useState<string | null>(null);
   const gameState = useDMGameState(trackingCampaignId);
