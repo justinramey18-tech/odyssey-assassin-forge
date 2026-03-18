@@ -1959,6 +1959,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   }, [partyId, user, messages, updateSessionConfig, silentAutoSave]);
 
 
+  const setTimerConfig = useCallback(async (enabled: boolean, durationSeconds: number) => {
     await updateSessionConfig({
       timerEnabled: enabled,
       timerDurationSeconds: durationSeconds,
