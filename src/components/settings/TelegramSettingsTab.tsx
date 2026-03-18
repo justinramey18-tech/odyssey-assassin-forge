@@ -223,19 +223,73 @@ export function TelegramSettingsTab() {
 
         {/* Commands Reference */}
         <SettingsSection title="Bot Commands">
-          <div className="space-y-2">
-            {[
-              ['/roll 2d20+5', 'Roll dice remotely'],
-              ['/status', 'Check link status'],
-              ['/notify on|off', 'Toggle all notifications'],
-              ['/unlink', 'Unlink account'],
-              ['/help', 'List all commands'],
-            ].map(([cmd, desc]) => (
-              <div key={cmd} className="flex items-start gap-2">
-                <code className="text-[11px] font-mono text-primary shrink-0 bg-primary/5 px-1.5 py-0.5 rounded">{cmd}</code>
-                <span className="text-[11px] text-muted-foreground">{desc}</span>
+          <div className="space-y-3">
+            <div>
+              <p className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider mb-1.5">Character</p>
+              <div className="space-y-1.5">
+                {[
+                  ['/character', 'Character summary'],
+                  ['/stats', 'Ability scores'],
+                  ['/hp', 'Current HP'],
+                  ['/slots', 'Spell slot usage'],
+                ].map(([cmd, desc]) => (
+                  <div key={cmd} className="flex items-start gap-2">
+                    <code className="text-[11px] font-mono text-primary shrink-0 bg-primary/5 px-1.5 py-0.5 rounded">{cmd}</code>
+                    <span className="text-[11px] text-muted-foreground">{desc}</span>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+            <Separator className="bg-border/20" />
+            <div>
+              <p className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider mb-1.5">Actions</p>
+              <div className="space-y-1.5">
+                {[
+                  ['/damage 15', 'Take damage'],
+                  ['/heal 10', 'Heal HP'],
+                  ['/cast 3', 'Use spell slot (level)'],
+                  ['/initiative', 'Roll initiative'],
+                  ['/roll 2d20+5', 'Roll dice'],
+                ].map(([cmd, desc]) => (
+                  <div key={cmd} className="flex items-start gap-2">
+                    <code className="text-[11px] font-mono text-primary shrink-0 bg-primary/5 px-1.5 py-0.5 rounded">{cmd}</code>
+                    <span className="text-[11px] text-muted-foreground">{desc}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <Separator className="bg-border/20" />
+            <div>
+              <p className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider mb-1.5">Campaign</p>
+              <div className="space-y-1.5">
+                {[
+                  ['/quests', 'Active quest flags'],
+                  ['/lore ...', 'AI lore lookup'],
+                  ['/recap', 'AI session recap'],
+                ].map(([cmd, desc]) => (
+                  <div key={cmd} className="flex items-start gap-2">
+                    <code className="text-[11px] font-mono text-primary shrink-0 bg-primary/5 px-1.5 py-0.5 rounded">{cmd}</code>
+                    <span className="text-[11px] text-muted-foreground">{desc}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <Separator className="bg-border/20" />
+            <div>
+              <p className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider mb-1.5">Account</p>
+              <div className="space-y-1.5">
+                {[
+                  ['/status', 'Check link status'],
+                  ['/notify on|off', 'Toggle notifications'],
+                  ['/unlink', 'Unlink account'],
+                ].map(([cmd, desc]) => (
+                  <div key={cmd} className="flex items-start gap-2">
+                    <code className="text-[11px] font-mono text-primary shrink-0 bg-primary/5 px-1.5 py-0.5 rounded">{cmd}</code>
+                    <span className="text-[11px] text-muted-foreground">{desc}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </SettingsSection>
       </div>
