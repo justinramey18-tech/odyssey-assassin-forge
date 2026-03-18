@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { parseWhispers } from '@/lib/whisper-parser';
 import { WhisperTray } from '@/components/ai-dm/WhisperTray';
-import { ArrowLeft, Settings, Send, BookOpen, Loader2, RotateCcw, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, FolderOpen } from 'lucide-react';
+import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -12,7 +12,16 @@ import { useAIDM } from '@/hooks/use-ai-dm';
 import { useCampaignSessions, CampaignSession } from '@/hooks/use-campaign-sessions';
 import { CampaignDropdown } from '@/components/ai-dm/CampaignDropdown';
 import { CampaignSessionsManager } from '@/components/ai-dm/CampaignSessionsManager';
+import { DMToolsDrawer } from '@/components/ai-dm/DMToolsDrawer';
+import { DMBottomNav, DMNavTab } from '@/components/ai-dm/DMBottomNav';
+import { DMDiceRoller } from '@/components/ai-dm/DMDiceRoller';
+import { GMGuidesManager } from '@/components/ai-dm/GMGuidesManager';
+import { WorldStatePanel } from '@/components/ai-dm/WorldStatePanel';
+import { DMQuickActions } from '@/components/ai-dm/DMQuickActions';
 import { useGMGuides } from '@/hooks/use-gm-guides';
+import { useDMGameState, buildMemoryAnchorsPrompt } from '@/hooks/use-dm-game-state';
+import { useDMChatTheme } from '@/hooks/use-dm-chat-theme';
+import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
 import {
   loadEmpyreanDMConfig,
   buildEmpyreanDMPersona,
@@ -20,16 +29,9 @@ import {
 } from '@/lib/empyreanDMPersona';
 import { empyreanPrompts } from '@/lib/empyreanPrompts';
 import { EMPYREAN_SESSION_GUIDES } from '@/lib/empyreanGMGuides';
-import { DM_MODELS, DMAIModel } from '@/lib/dm-models';
+import { DM_MODELS, DMAIModel, saveSelectedModel as saveGlobalModel } from '@/lib/dm-models';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 interface EmpyreanDMScreenProps {
   open: boolean;
