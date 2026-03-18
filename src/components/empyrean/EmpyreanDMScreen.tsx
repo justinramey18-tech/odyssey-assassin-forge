@@ -66,6 +66,32 @@ function groupPromptsByCategory(prompts: typeof empyreanPrompts) {
   return groups;
 }
 
+// Strip burnout tags from displayed content
+function stripBurnoutTags(content: string): string {
+  return content.replace(/<!--BURNOUT:\d-->/g, '').trim();
+}
+
+const BURNOUT_LABELS = [
+  'Fresh — no strain',
+  'Mild strain',
+  'Moderate strain',
+  'Heavy strain',
+  'Critical strain',
+  'Overload',
+];
+
+function BurnoutIndicator({ level }: { level: number }) {
+  const color = level <= 1 ? 'text-emerald-400' : level <= 3 ? 'text-amber-400' : 'text-red-400';
+  const emptyColor = level <= 1 ? 'text-emerald-400/20' : level <= 3 ? 'text-amber-400/20' : 'text-red-400/20';
+  return (
+    <div className="flex items-center gap-0.5" title={`Signet Strain: ${BURNOUT_LABELS[level]}`}>
+      {Array.from({ length: 5 }, (_, i) => (
+        <Flame key={i} className={cn('w-3 h-3', i < level ? color : emptyColor)} />
+      ))}
+    </div>
+  );
+}
+
 export function EmpyreanDMScreen({
   open,
   onClose,
