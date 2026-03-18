@@ -53,6 +53,36 @@ export function loadDragonNotes(): string {
   }
 }
 
+const AUTOPILOT_GUIDE_KEY = 'empyrean-autopilot-guide';
+const AUTOPILOT_BIASES_KEY = 'empyrean-autopilot-biases';
+
+export interface AutopilotBiases {
+  caution: number;     // -2 (reckless) to +2 (cautious)
+  obedience: number;   // -2 (rebellious) to +2 (obedient)
+  dragonFirst: number; // -2 (mission-first) to +2 (dragon-first)
+  trust: number;       // -2 (suspicious) to +2 (trusting)
+  violence: number;    // -2 (pacifist) to +2 (aggressive)
+}
+
+export const DEFAULT_BIASES: AutopilotBiases = { caution: 0, obedience: 0, dragonFirst: 0, trust: 0, violence: 0 };
+
+export function saveAutopilotGuide(guide: string): void {
+  try { setScopedItem(AUTOPILOT_GUIDE_KEY, guide); } catch { }
+}
+export function loadAutopilotGuide(): string {
+  try { return getScopedItem(AUTOPILOT_GUIDE_KEY) || ''; } catch { return ''; }
+}
+export function saveAutopilotBiases(biases: AutopilotBiases): void {
+  try { setScopedItem(AUTOPILOT_BIASES_KEY, JSON.stringify(biases)); } catch { }
+}
+export function loadAutopilotBiases(): AutopilotBiases {
+  try {
+    const raw = getScopedItem(AUTOPILOT_BIASES_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch { }
+  return DEFAULT_BIASES;
+}
+
 const CAMPAIGN_FOCUS_DESCRIPTIONS: Record<CampaignFocus, string> = {
   combat: `Weight sessions toward tactical aerial battles on dragonback, ward line skirmishes against Venin incursions, and desperate close-quarters combat in Basgiath's training grounds and beyond. Emphasize formation flying, dragon-fire coordination, terrain advantages at altitude, and the brutal cost of mistakes when gravity is the ultimate enemy. Every fight should feel lethal — healing is scarce and reinforcements are never guaranteed.`,
   political: `Weight sessions toward Empyrean council intrigue, information control between quadrants, and faction loyalty tests that force the character to choose between duty and conscience. Leadership jockeys for influence, professors have hidden agendas, and every friendship is a potential intelligence leak. The real battles happen in war rooms, briefing halls, and whispered conversations after curfew.`,
