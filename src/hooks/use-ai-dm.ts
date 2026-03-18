@@ -176,7 +176,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
 
   useEffect(() => {
     debounceTimerRef.current = setTimeout(() => {
-      saveSession(messages);
+      saveSession(messages, STORAGE_KEY);
     }, SAVE_DEBOUNCE_MS);
 
     return () => {
