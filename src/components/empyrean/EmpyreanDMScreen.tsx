@@ -91,6 +91,10 @@ function stripBurnoutTags(content: string): string {
   return content.replace(/<!--BURNOUT:\d-->/g, '').trim();
 }
 
+function stripSituationTags(content: string): string {
+  return content.replace(/<!--SITUATION:\w+-->/g, '').trim();
+}
+
 const BURNOUT_LABELS = [
   'Fresh — no strain',
   'Mild strain',
@@ -130,6 +134,7 @@ export function EmpyreanDMScreen({
   const [inputValue, setInputValue] = useState('');
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
   const [burnoutLevel, setBurnoutLevel] = useState(0);
+  const [currentSituation, setCurrentSituation] = useState<string>('exploration');
   const [initialSent, setInitialSent] = useState(false);
   const [activeNavTab, setActiveNavTab] = useState<DMNavTab | null>(null);
   const [navExpanded, setNavExpanded] = useState(false);
@@ -305,6 +310,10 @@ export function EmpyreanDMScreen({
         const level = Math.min(5, Math.max(0, parseInt(match[1], 10)));
         setBurnoutLevel(level);
       }
+      const situationMatch = lastMsg.content.match(/<!--SITUATION:(\w+)-->/);
+      if (situationMatch) {
+        setCurrentSituation(situationMatch[1]);
+      }
     }
   }, [messages]);
 
@@ -339,6 +348,7 @@ export function EmpyreanDMScreen({
     newGame();
     setActiveTemplate(null);
     setBurnoutLevel(0);
+    setCurrentSituation('exploration');
     setShowToolsDrawer(false);
   }, [newGame]);
 
@@ -652,7 +662,7 @@ export function EmpyreanDMScreen({
                     </div>
                   ) : isAssistant ? (() => {
                     const parsed = parseWhispers(message.content || '...');
-                    const cleanNarrative = stripBurnoutTags(parsed.narrative);
+                    const cleanNarrative = stripSituationTags(stripBurnoutTags(parsed.narrative));
                     return (
                       <>
                         <div className="text-sm prose prose-invert prose-sm max-w-none break-words overflow-wrap-anywhere">
