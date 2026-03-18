@@ -692,6 +692,25 @@ export function EmpyreanDMScreen({
         </SheetContent>
       </Sheet>
 
+      {/* Campaign Sessions Manager */}
+      {showSaves && (
+        <div className="fixed inset-0 z-[66] bg-background flex flex-col">
+          <CampaignSessionsManager
+            onBack={() => setShowSaves(false)}
+            sessions={campaignSessions}
+            isLoading={sessionsLoading}
+            isSignedIn={isSignedIn}
+            currentMessages={messages}
+            currentSummary={campaignSummary}
+            activeCampaignId={activeCampaignId}
+            onSave={handleSaveCampaign}
+            onLoad={handleLoadCampaign}
+            onDelete={deleteCampaignSession}
+            onRename={renameCampaignSession}
+          />
+        </div>
+      )}
+
       {/* Quick Prompts Sheet */}
       <Sheet open={showPrompts} onOpenChange={setShowPrompts}>
         <SheetContent side="bottom" className="z-[65] border-purple-500/20 bg-background max-h-[75vh]">
