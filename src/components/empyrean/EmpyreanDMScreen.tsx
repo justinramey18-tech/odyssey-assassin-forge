@@ -363,17 +363,6 @@ export function EmpyreanDMScreen({
     toast.success(`Model: ${DM_MODELS.find(m => m.id === modelId)?.label ?? modelId}`);
   }, []);
 
-
-
-  const handleNewCampaign = useCallback(() => {
-    newGame();
-    setActiveTemplate(null);
-    setBurnoutLevel(0);
-    setCurrentSituation('exploration');
-    setShowToolsDrawer(false);
-    if (autopilot.isAutopilotActive) autopilot.takeControl();
-  }, [newGame, autopilot]);
-
   const handleNavTabChange = useCallback((tab: DMNavTab) => {
     if (tab === 'prompts') {
       setShowPrompts(true);
@@ -422,6 +411,15 @@ export function EmpyreanDMScreen({
     lastAssistantMessage: lastAssistantMsg,
     isLoading,
   });
+
+  const handleNewCampaign = useCallback(() => {
+    newGame();
+    setActiveTemplate(null);
+    setBurnoutLevel(0);
+    setCurrentSituation('exploration');
+    setShowToolsDrawer(false);
+    if (autopilot.isAutopilotActive) autopilot.takeControl();
+  }, [newGame, autopilot]);
 
   const handleCampaignSummaryChange = useCallback((summary: string) => {
     updateCampaignSummary(summary);
