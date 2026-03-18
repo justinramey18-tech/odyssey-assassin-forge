@@ -704,6 +704,22 @@ export function EmpyreanDMScreen({
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Bottom Navigation */}
+      <DMBottomNav
+        activeTab={activeNavTab}
+        onTabChange={handleNavTabChange}
+        isExpanded={navExpanded}
+        onExpandedChange={setNavExpanded}
+        disabled={isLoading}
+        diceContent={activeNavTab === 'dice' ? (
+          <DMDiceRoller
+            characterContext={characterContext}
+            onRollResult={handleUsePrompt}
+            disabled={isLoading}
+          />
+        ) : undefined}
+      />
+
       {/* Input bar */}
       <div className="shrink-0 border-t border-purple-500/20 bg-background/90 backdrop-blur-sm px-3 py-2.5">
         <div className="flex items-end gap-2">
@@ -752,22 +768,6 @@ export function EmpyreanDMScreen({
           )}
         </div>
       </div>
-
-      {/* Bottom Navigation */}
-      <DMBottomNav
-        activeTab={activeNavTab}
-        onTabChange={handleNavTabChange}
-        isExpanded={navExpanded}
-        onExpandedChange={setNavExpanded}
-        disabled={isLoading}
-        diceContent={activeNavTab === 'dice' ? (
-          <DMDiceRoller
-            characterContext={characterContext}
-            onRollResult={handleUsePrompt}
-            disabled={isLoading}
-          />
-        ) : undefined}
-      />
 
       {/* DMToolsDrawer */}
       <DMToolsDrawer
