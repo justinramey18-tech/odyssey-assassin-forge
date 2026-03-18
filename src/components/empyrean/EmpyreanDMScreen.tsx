@@ -29,7 +29,7 @@ import {
 } from '@/lib/empyreanDMPersona';
 import { empyreanPrompts } from '@/lib/empyreanPrompts';
 import { EMPYREAN_SESSION_GUIDES } from '@/lib/empyreanGMGuides';
-import { DM_MODELS, DMAIModel, saveSelectedModel as saveGlobalModel } from '@/lib/dm-models';
+import { DM_MODELS } from '@/lib/dm-models';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
