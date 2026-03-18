@@ -400,6 +400,10 @@ export function EmpyreanDMScreen({
       setShowToolsDrawer(true);
       return;
     }
+    if (tab === 'afk') {
+      setShowAutopilotGuide(true);
+      return;
+    }
     // Dice and other tabs toggle the full-screen content panel
     setActiveNavTab(prev => prev === tab ? null : tab);
   }, []);
