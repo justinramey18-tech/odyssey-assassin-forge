@@ -477,12 +477,12 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
 
   const loadCampaign = useCallback((loadedMessages: Message[], summary: string | null, campaignId?: string, guideIds?: string[] | null) => {
     setMessages(loadedMessages);
-    saveSession(loadedMessages);
+    saveSession(loadedMessages, STORAGE_KEY);
     if (summary) {
-      saveCampaignSummary(summary);
+      saveCampaignSummary(summary, SUMMARY_KEY);
       setCampaignSummary(summary);
     } else {
-      clearCampaignSummary();
+      clearCampaignSummary(SUMMARY_KEY);
       setCampaignSummary(null);
     }
     setActiveCampaignId(campaignId ?? null);
