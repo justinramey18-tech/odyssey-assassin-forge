@@ -448,9 +448,7 @@ async function processCommand(
     await supabase
       .from('character_saves')
       .update({ extended_data: ext })
-      .eq('user_id', userId)
-      .order('updated_at', { ascending: false })
-      .limit(1);
+      .eq('user_id', userId);
 
     const remaining = total - used - 1;
     await sendTelegram(chatId,
