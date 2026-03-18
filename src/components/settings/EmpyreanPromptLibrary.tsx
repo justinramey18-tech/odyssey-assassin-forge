@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { AlignmentBadge } from '@/components/alignment/AlignmentBadge';
-import { Copy, Check, Star, Shuffle, Gem } from 'lucide-react';
+import { Copy, Check, Star, Shuffle, Gem, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
