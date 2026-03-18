@@ -348,6 +348,7 @@ export function EmpyreanDMScreen({
     newGame();
     setActiveTemplate(null);
     setBurnoutLevel(0);
+    setCurrentSituation('exploration');
     setShowToolsDrawer(false);
   }, [newGame]);
 
