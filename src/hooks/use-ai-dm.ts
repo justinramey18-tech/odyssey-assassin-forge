@@ -151,9 +151,9 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
   const onMessageCompleteRef = useRef(onMessageComplete);
   useEffect(() => { onMessageCompleteRef.current = onMessageComplete; }, [onMessageComplete]);
 
-  const [messages, setMessages] = useState<Message[]>(() => loadSession());
+  const [messages, setMessages] = useState<Message[]>(() => loadSession(STORAGE_KEY));
   const [isLoading, setIsLoading] = useState(false);
-  const [campaignSummary, setCampaignSummary] = useState<string | null>(() => loadCampaignSummary());
+  const [campaignSummary, setCampaignSummary] = useState<string | null>(() => loadCampaignSummary(SUMMARY_KEY));
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
   const [lastUsage, setLastUsage] = useState<{ input_tokens: number; output_tokens: number } | null>(null);
