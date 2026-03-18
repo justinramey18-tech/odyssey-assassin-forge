@@ -136,6 +136,20 @@ Where X is a number from 0 to 5:
 
 Burnout increases by 1-2 for each signet use depending on intensity. It decreases by 1 for each rest scene or downtime. Never let burnout drop below 0 or exceed 5. Describe burnout symptoms in the narrative — never state the number directly to the player.`);
 
+  // 7b. Scene Situation Tagging
+  sections.push(`## SCENE SITUATION TAGGING
+
+At the end of every response, include exactly one situation tag indicating the current scene type:
+
+<!--SITUATION:combat--> (active fighting, initiative, tactical decisions)
+<!--SITUATION:social--> (dialogue, negotiation, relationship scenes, political maneuvering)
+<!--SITUATION:exploration--> (investigating, traveling, discovering, scouting)
+<!--SITUATION:training--> (Basgiath classes, sparring, signet drills, flight exercises)
+<!--SITUATION:downtime--> (rest, recovery, personal time, studying)
+<!--SITUATION:crisis--> (ward breach, venin attack, emergency scramble, life-threatening non-combat danger)
+
+Always include exactly one tag per response. Place it at the very end, after all narrative content and after any BURNOUT tags.`);
+
   // 8. Recurring NPC Cast
   sections.push(`## RECURRING NPC CAST
 
