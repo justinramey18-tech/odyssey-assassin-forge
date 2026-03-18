@@ -777,6 +777,36 @@ export function EmpyreanDMScreen({
         ) : undefined}
       />
 
+      {/* Autopilot control bar */}
+      {autopilot.isAutopilotActive && (
+        <div className="shrink-0 px-3 py-2 bg-purple-950/60 border-t border-purple-500/30 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+            <span className="text-xs font-cinzel text-purple-300">Autopilot</span>
+            {autopilot.countdown > 0 && !autopilot.isPaused && (
+              <span className="text-xs text-purple-300/60">Acting in {autopilot.countdown}s</span>
+            )}
+            {autopilot.isPaused && (
+              <span className="text-xs text-amber-300/60">Paused</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={autopilot.isPaused ? autopilot.resumeAutopilot : autopilot.pauseAutopilot}
+              className="text-[11px] px-2.5 py-1 rounded-md bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 transition-colors"
+            >
+              {autopilot.isPaused ? 'Resume' : 'Pause'}
+            </button>
+            <button
+              onClick={autopilot.takeControl}
+              className="text-[11px] px-2.5 py-1 rounded-md bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 transition-colors"
+            >
+              Take Control
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Contextual Actions — always visible when messages exist */}
       {messages.length > 0 && config && (
         <EmpyreanContextualActions
