@@ -42,7 +42,8 @@ function loadAlignmentDrift(): { position: AlignmentScore; zone: string } | null
 
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
 const SUMMARIZE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm-summarize`;
-const STORAGE_KEY = 'dnd-ai-dm-session';
+const DEFAULT_STORAGE_KEY = 'dnd-ai-dm-session';
+const DEFAULT_SUMMARY_KEY = 'dnd-ai-dm-campaign-summary';
 const MAX_MESSAGES = 100;
 const SUMMARY_INTERVAL = 5;
 const SAVE_DEBOUNCE_MS = 1000;
@@ -61,6 +62,10 @@ interface UseAIDMOptions {
   onCampaignSwitch?: (guideIds: string[] | null) => void;
   /** AI model ID to use for DM responses */
   selectedModel?: string;
+  /** Override the localStorage key used for session storage (default: 'dnd-ai-dm-session') */
+  sessionStorageKey?: string;
+  /** Override the key used for campaign summary storage (default: 'dnd-ai-dm-campaign-summary') */
+  summarizeStorageKey?: string;
 }
 
 interface VersionedSession {
@@ -68,8 +73,8 @@ interface VersionedSession {
   messages: any[];
 }
 
-// Module-level ref for dirty-checking across saves
-let lastSavedJson = '';
+// Module-level ref for dirty-checking across saves — keyed by storage key
+const lastSavedJsonMap: Record<string, string> = {};
 
 function isValidMessage(m: any): boolean {
   return (
@@ -82,9 +87,9 @@ function isValidMessage(m: any): boolean {
   );
 }
 
-function loadSession(): Message[] {
+function loadSession(storageKey: string): Message[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
 
@@ -117,7 +122,7 @@ function loadSession(): Message[] {
   }
 }
 
-function saveSession(messages: Message[]): void {
+function saveSession(messages: Message[], storageKey: string): void {
   const payload: VersionedSession = {
     version: SESSION_VERSION,
     messages,
@@ -125,11 +130,11 @@ function saveSession(messages: Message[]): void {
   const serialized = JSON.stringify(payload);
 
   // Dirty-check: skip if nothing changed
-  if (serialized === lastSavedJson) return;
+  if (serialized === lastSavedJsonMap[storageKey]) return;
 
   try {
-    localStorage.setItem(STORAGE_KEY, serialized);
-    lastSavedJson = serialized;
+    localStorage.setItem(storageKey, serialized);
+    lastSavedJsonMap[storageKey] = serialized;
   } catch (error) {
     if (error instanceof DOMException && error.name === 'QuotaExceededError') {
       toast.error('Session too large to save locally');
@@ -139,14 +144,16 @@ function saveSession(messages: Message[]): void {
   }
 }
 
-export function useAIDM({ characterContext, customGuidesContent, worldStatePrompt, dmPersonaPrompt, onMessageComplete, activeGuideIds, onCampaignSwitch, selectedModel }: UseAIDMOptions) {
+export function useAIDM({ characterContext, customGuidesContent, worldStatePrompt, dmPersonaPrompt, onMessageComplete, activeGuideIds, onCampaignSwitch, selectedModel, sessionStorageKey, summarizeStorageKey }: UseAIDMOptions) {
+  const STORAGE_KEY = sessionStorageKey ?? DEFAULT_STORAGE_KEY;
+  const SUMMARY_KEY = summarizeStorageKey ?? DEFAULT_SUMMARY_KEY;
   // Store onMessageComplete in a ref so sendMessage always calls the latest version
   const onMessageCompleteRef = useRef(onMessageComplete);
   useEffect(() => { onMessageCompleteRef.current = onMessageComplete; }, [onMessageComplete]);
 
-  const [messages, setMessages] = useState<Message[]>(() => loadSession());
+  const [messages, setMessages] = useState<Message[]>(() => loadSession(STORAGE_KEY));
   const [isLoading, setIsLoading] = useState(false);
-  const [campaignSummary, setCampaignSummary] = useState<string | null>(() => loadCampaignSummary());
+  const [campaignSummary, setCampaignSummary] = useState<string | null>(() => loadCampaignSummary(SUMMARY_KEY));
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
   const [lastUsage, setLastUsage] = useState<{ input_tokens: number; output_tokens: number } | null>(null);
@@ -164,12 +171,12 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
       clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = null;
     }
-    saveSession(messages);
+    saveSession(messages, STORAGE_KEY);
   }, [messages]);
 
   useEffect(() => {
     debounceTimerRef.current = setTimeout(() => {
-      saveSession(messages);
+      saveSession(messages, STORAGE_KEY);
     }, SAVE_DEBOUNCE_MS);
 
     return () => {
@@ -216,7 +223,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
 
       const data = await response.json();
       if (data.summary) {
-        saveCampaignSummary(data.summary);
+        saveCampaignSummary(data.summary, SUMMARY_KEY);
         setCampaignSummary(data.summary);
         toast.success('Campaign summary updated', { duration: 2000 });
       }
@@ -445,40 +452,37 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
   const clearMessages = useCallback(() => {
     setMessages([]);
     localStorage.removeItem(STORAGE_KEY);
-    clearCampaignSummary();
+    clearCampaignSummary(SUMMARY_KEY);
     setCampaignSummary(null);
     setActiveCampaignId(null);
-  }, []);
+  }, [STORAGE_KEY, SUMMARY_KEY]);
 
   const newGame = useCallback(() => {
-    // Save current session locally before clearing
     if (messages.length > 0) {
-      saveSession(messages);
+      saveSession(messages, STORAGE_KEY);
     }
-    // Clear local state
     setMessages([]);
     localStorage.removeItem(STORAGE_KEY);
-    clearCampaignSummary();
+    clearCampaignSummary(SUMMARY_KEY);
     setCampaignSummary(null);
     setActiveCampaignId(null);
-    // Disable all guides for fresh campaign
     onCampaignSwitchRef.current?.(null);
     toast.success('New game started! The DM awaits your adventure.');
-  }, [messages]);
+  }, [messages, STORAGE_KEY, SUMMARY_KEY]);
 
   const updateCampaignSummary = useCallback((summary: string) => {
-    saveCampaignSummary(summary);
+    saveCampaignSummary(summary, SUMMARY_KEY);
     setCampaignSummary(summary || null);
-  }, []);
+  }, [SUMMARY_KEY]);
 
   const loadCampaign = useCallback((loadedMessages: Message[], summary: string | null, campaignId?: string, guideIds?: string[] | null) => {
     setMessages(loadedMessages);
-    saveSession(loadedMessages);
+    saveSession(loadedMessages, STORAGE_KEY);
     if (summary) {
-      saveCampaignSummary(summary);
+      saveCampaignSummary(summary, SUMMARY_KEY);
       setCampaignSummary(summary);
     } else {
-      clearCampaignSummary();
+      clearCampaignSummary(SUMMARY_KEY);
       setCampaignSummary(null);
     }
     setActiveCampaignId(campaignId ?? null);
