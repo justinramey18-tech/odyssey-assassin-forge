@@ -60,7 +60,7 @@ const STONE_MAP: StoneMapping[] = [
 
 type FilterMode = 'all' | 'favorites';
 
-export function EmpyreanPromptLibrary({ open, onOpenChange, characterName }: EmpyreanPromptLibraryProps) {
+export function EmpyreanPromptLibrary({ open, onOpenChange, characterName, onSendToDM }: EmpyreanPromptLibraryProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<Set<string>>(loadFavorites);
   const [activeFilter, setActiveFilter] = useState<FilterMode>('all');
