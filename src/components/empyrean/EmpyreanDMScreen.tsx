@@ -35,6 +35,8 @@ import {
   loadDragonNotes,
   saveDragonNotes,
 } from '@/lib/empyreanDMPersona';
+import { useDragonBond } from '@/hooks/use-dragon-bond';
+import { getBondDescriptor, getTrustDescriptor } from '@/lib/dragonBondState';
 import { empyreanPrompts } from '@/lib/empyreanPrompts';
 import { EMPYREAN_SESSION_GUIDES } from '@/lib/empyreanGMGuides';
 import { DM_MODELS } from '@/lib/dm-models';
@@ -100,6 +102,10 @@ function stripBurnoutTags(content: string): string {
 
 function stripSituationTags(content: string): string {
   return content.replace(/<!--SITUATION:\w+-->/g, '').trim();
+}
+
+function stripBondStrainTags(content: string): string {
+  return content.replace(/<!--BOND_STRAIN:.+?-->/g, '').trim();
 }
 
 const BURNOUT_LABELS = [
@@ -181,8 +187,14 @@ export function EmpyreanDMScreen({
     getGridSize: useCallback(() => ({ cols: 10, rows: 10 } as any), []),
   });
 
+  const dragonBond = useDragonBond({
+    dragonName: config?.dragonName || '',
+    characterName,
+  });
+
   const dmPersonaPrompt = useMemo(() => {
     if (!config) return undefined;
+    const bs = dragonBond.bondState;
     let persona = buildEmpyreanDMPersona(
       config.selectedLoreGuides,
       config.selectedToneGuides,
@@ -193,13 +205,17 @@ export function EmpyreanDMScreen({
       config.yearAtBasgiath,
       config.campaignFocus,
       dragonNotes,
+      getBondDescriptor(bs.bond),
+      getTrustDescriptor(bs.trust),
+      undefined, // recentDragonChatSummary — populated when dragon chat has a summary
+      bs.memories.map(m => m.text),
     );
     const responseModePrompt = resolveResponseModePrompt(responseMode);
     if (responseModePrompt) {
       persona += '\n\n' + responseModePrompt;
     }
     return persona;
-  }, [config, characterName, responseMode, dragonNotes]);
+  }, [config, characterName, responseMode, dragonNotes, dragonBond.bondState]);
 
   const [trackingCampaignId, setTrackingCampaignId] = useState<string | null>(null);
   const gameState = useDMGameState(trackingCampaignId);
@@ -234,6 +250,29 @@ export function EmpyreanDMScreen({
         autoSync.extractAndApply(content, characterContext);
       }
       spotify.playMoodForText(content);
+
+      // Extract bond strain events
+      const strainMatch = content.match(/<!--BOND_STRAIN:(.+?)-->/);
+      if (strainMatch) {
+        dragonBond.processBondStrain(strainMatch[1]);
+        toast('Dragon bond strained: ' + strainMatch[1], { icon: '💔' });
+      }
+
+      // Extract dragon whispers and forward to bond chat as incoming messages
+      const whisperRegex = /<!--WHISPER:([^>]+?)-->([\s\S]*?)<!--\/WHISPER:\1-->/g;
+      let whisperMatch;
+      while ((whisperMatch = whisperRegex.exec(content)) !== null) {
+        const target = whisperMatch[1].trim();
+        const whisperContent = whisperMatch[2].trim();
+        if (config?.dragonName && target === config.dragonName && whisperContent) {
+          dragonBond.addDragonMessage(whisperContent);
+        }
+      }
+
+      // Track combat for bond building
+      if (content.toLowerCase().includes('initiative') || content.toLowerCase().includes('combat begins') || content.match(/<!--SITUATION:combat-->/)) {
+        dragonBond.processCombatBond();
+      }
     },
   });
 
@@ -734,7 +773,7 @@ export function EmpyreanDMScreen({
                     </div>
                   ) : isAssistant ? (() => {
                     const parsed = parseWhispers(message.content || '...');
-                    const cleanNarrative = stripSituationTags(stripBurnoutTags(parsed.narrative));
+                    const cleanNarrative = stripBondStrainTags(stripSituationTags(stripBurnoutTags(parsed.narrative)));
                     return (
                       <>
                         <div className="text-sm prose prose-invert prose-sm max-w-none break-words overflow-wrap-anywhere">
