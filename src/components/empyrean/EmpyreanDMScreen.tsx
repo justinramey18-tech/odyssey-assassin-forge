@@ -337,14 +337,18 @@ export function EmpyreanDMScreen({
   }, [newGame]);
 
   const handleNavTabChange = useCallback((tab: DMNavTab) => {
-    if (tab === activeNavTab) {
-      setActiveNavTab(null);
-      setNavExpanded(false);
-    } else {
-      setActiveNavTab(tab);
-      setNavExpanded(true);
+    if (tab === 'prompts') {
+      setShowPrompts(true);
+      return;
     }
-  }, [activeNavTab]);
+    if (tab === 'actions') {
+      // Actions tab also opens Empyrean prompts for now
+      setShowPrompts(true);
+      return;
+    }
+    // Dice and other tabs toggle the full-screen content panel
+    setActiveNavTab(prev => prev === tab ? null : tab);
+  }, []);
 
   const handleUsePrompt = useCallback((prompt: string) => {
     if (!isLoading) {
