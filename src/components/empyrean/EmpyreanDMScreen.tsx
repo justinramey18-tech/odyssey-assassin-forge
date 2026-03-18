@@ -408,6 +408,21 @@ export function EmpyreanDMScreen({
     }
   }, [isLoading, sendMessage]);
 
+  const lastAssistantMsg = useMemo(() => {
+    const last = [...messages].reverse().find(m => m.role === 'assistant');
+    return last?.content ?? null;
+  }, [messages]);
+
+  const autopilot = useEmpyreanAutopilot({
+    enabled: false,
+    characterName,
+    dragonName: config?.dragonName || '',
+    delaySeconds: 8,
+    onSendAction: handleUsePrompt,
+    lastAssistantMessage: lastAssistantMsg,
+    isLoading,
+  });
+
   const handleCampaignSummaryChange = useCallback((summary: string) => {
     updateCampaignSummary(summary);
   }, [updateCampaignSummary]);
