@@ -177,7 +177,8 @@ export function EmpyreanDMScreen({
     );
   }, [config, characterName]);
 
-  const gameState = useDMGameState(null);
+  const [trackingCampaignId, setTrackingCampaignId] = useState<string | null>(null);
+  const gameState = useDMGameState(trackingCampaignId);
   const worldStatePrompt = useMemo(() => buildMemoryAnchorsPrompt(gameState.gameState), [gameState.gameState]);
 
   const {
@@ -210,6 +211,11 @@ export function EmpyreanDMScreen({
       }
     },
   });
+
+  // Sync tracking campaign id with active campaign id from useAIDM
+  useEffect(() => {
+    setTrackingCampaignId(activeCampaignId);
+  }, [activeCampaignId]);
 
   // Campaign sessions — uses 'empyrean' mode to namespace separately from regular DM saves
   const {
@@ -337,14 +343,18 @@ export function EmpyreanDMScreen({
   }, [newGame]);
 
   const handleNavTabChange = useCallback((tab: DMNavTab) => {
-    if (tab === activeNavTab) {
-      setActiveNavTab(null);
-      setNavExpanded(false);
-    } else {
-      setActiveNavTab(tab);
-      setNavExpanded(true);
+    if (tab === 'prompts') {
+      setShowPrompts(true);
+      return;
     }
-  }, [activeNavTab]);
+    if (tab === 'actions') {
+      // Actions tab also opens Empyrean prompts for now
+      setShowPrompts(true);
+      return;
+    }
+    // Dice and other tabs toggle the full-screen content panel
+    setActiveNavTab(prev => prev === tab ? null : tab);
+  }, []);
 
   const handleUsePrompt = useCallback((prompt: string) => {
     if (!isLoading) {
