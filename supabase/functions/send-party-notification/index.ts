@@ -210,7 +210,7 @@ Deno.serve(async (req) => {
         'X-Trigger-Secret': Deno.env.get('TRIGGER_SECRET') || '',
       },
       body: JSON.stringify({
-        type: allReady ? 'ready_up' : 'ready_up',
+        type: 'ready_up',
         partyId,
         userId,
         title: title,
