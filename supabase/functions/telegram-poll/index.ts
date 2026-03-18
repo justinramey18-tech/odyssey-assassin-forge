@@ -525,11 +525,11 @@ async function processCommand(
           messages: [
             {
               role: 'system',
-              content: 'You are a D&D 5e lore expert. Answer questions concisely (max 300 words). Use plain text only — no markdown. Focus on official D&D lore from published sourcebooks. If a question is not D&D-related, politely redirect.',
+              content: 'You are a fantasy lore expert with deep knowledge of D&D 5e sourcebooks, popular fantasy novel series (such as Fourth Wing and The Empyrean series by Rebecca Yarros, Lord of the Rings, The Witcher, Wheel of Time, A Song of Ice and Fire, Stormlight Archive, and others), mythology, and worldbuilding. Answer questions concisely (max 300 words). Use plain text only — no markdown, no asterisks, no bullet points. If the question is about a specific fictional universe, answer within that universe\'s canon. If unclear which universe, default to D&D 5e lore.',
             },
             { role: 'user', content: question },
           ],
-          max_tokens: 500,
+          max_tokens: 800,
         }),
       });
       const data = await response.json();
