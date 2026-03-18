@@ -103,6 +103,53 @@ export function DMToolsDrawer({
         </SheetHeader>
 
         <div className="flex flex-col py-2 overflow-y-auto max-h-[calc(100vh-80px)]">
+          {/* Empyrean Campaign Summary */}
+          {empyreanConfig && (
+            <>
+              <div className="px-4 py-3 border-b border-purple-500/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-base">🐉</span>
+                  <span className="text-sm font-cinzel text-purple-300">Empyrean Campaign</span>
+                </div>
+                <div className="space-y-1 text-[11px] text-white/50">
+                  <p><span className="text-purple-300/80">Focus:</span> {empyreanConfig.campaignFocus}</p>
+                  {empyreanConfig.dragonName && <p><span className="text-purple-300/80">Dragon:</span> {empyreanConfig.dragonName}</p>}
+                  {empyreanConfig.signetType && <p><span className="text-purple-300/80">Signet:</span> {empyreanConfig.signetType}</p>}
+                  <p><span className="text-purple-300/80">Year:</span> {empyreanConfig.yearAtBasgiath}</p>
+                </div>
+                <div className="flex gap-2 mt-2">
+                  {onReconfigureEmpyrean && (
+                    <button onClick={() => closeAndRun(onReconfigureEmpyrean)} className="text-[11px] text-purple-300/70 hover:text-purple-300 transition-colors">
+                      Reconfigure
+                    </button>
+                  )}
+                  {onResetBurnout && (
+                    <button onClick={() => { onResetBurnout(); onOpenChange(false); }} className="text-[11px] text-amber-300/70 hover:text-amber-300 transition-colors">
+                      Reset Burnout
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {empyreanConfig.dragonName && onDragonNotesChange && (
+                <div className="px-4 py-3 border-b border-purple-500/10">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-sm">🐉</span>
+                    <span className="text-xs font-cinzel text-white/70">Dragon Personality Notes</span>
+                  </div>
+                  <textarea
+                    value={dragonNotes || ''}
+                    onChange={(e) => onDragonNotesChange(e.target.value)}
+                    placeholder="e.g. Tairn is sarcastic and dislikes Commander Vane. Always growls when his name comes up..."
+                    className="w-full h-20 text-xs bg-black/30 border border-purple-500/20 rounded-lg px-2.5 py-2 text-white/80 placeholder:text-white/20 resize-none focus:outline-none focus:border-purple-400/50"
+                    maxLength={1000}
+                  />
+                  <p className="text-[10px] text-white/30 text-right mt-1">{(dragonNotes || '').length}/1000</p>
+                </div>
+              )}
+            </>
+          )}
+
           {/* New Campaign */}
           <ToolRow
             icon={<RotateCcw className="w-4 h-4" />}
