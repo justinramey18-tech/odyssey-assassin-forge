@@ -1889,7 +1889,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       const PAGE_SIZE = 1000;
       while (true) {
         const { data, error } = await (supabase.from('party_dm_messages') as any)
-          .select('role, content, created_at')
+          .select('role, content, created_at, sender_name')
           .eq('party_id', partyId)
           .order('created_at', { ascending: true })
           .range(from, from + PAGE_SIZE - 1);
