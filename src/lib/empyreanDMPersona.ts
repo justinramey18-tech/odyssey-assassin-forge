@@ -35,6 +35,24 @@ export function loadEmpyreanDMConfig(): EmpyreanDMConfig | null {
   return null;
 }
 
+const DRAGON_NOTES_KEY = 'empyrean-dragon-notes';
+
+export function saveDragonNotes(notes: string): void {
+  try {
+    setScopedItem(DRAGON_NOTES_KEY, notes);
+  } catch (e) {
+    console.error('[EmpyreanDM] Failed to save dragon notes:', e);
+  }
+}
+
+export function loadDragonNotes(): string {
+  try {
+    return getScopedItem(DRAGON_NOTES_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
 const CAMPAIGN_FOCUS_DESCRIPTIONS: Record<CampaignFocus, string> = {
   combat: `Weight sessions toward tactical aerial battles on dragonback, ward line skirmishes against Venin incursions, and desperate close-quarters combat in Basgiath's training grounds and beyond. Emphasize formation flying, dragon-fire coordination, terrain advantages at altitude, and the brutal cost of mistakes when gravity is the ultimate enemy. Every fight should feel lethal — healing is scarce and reinforcements are never guaranteed.`,
   political: `Weight sessions toward Empyrean council intrigue, information control between quadrants, and faction loyalty tests that force the character to choose between duty and conscience. Leadership jockeys for influence, professors have hidden agendas, and every friendship is a potential intelligence leak. The real battles happen in war rooms, briefing halls, and whispered conversations after curfew.`,
