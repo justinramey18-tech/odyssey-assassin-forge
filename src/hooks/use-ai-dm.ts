@@ -89,7 +89,7 @@ function isValidMessage(m: any): boolean {
 
 function loadSession(storageKey: string): Message[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
 
