@@ -959,6 +959,18 @@ export function EmpyreanDMScreen({
         onUsePrompt={handleUsePrompt}
       />
 
+      <EmpyreanAutopilotGuide
+        open={showAutopilotGuide}
+        onOpenChange={setShowAutopilotGuide}
+        characterName={characterName}
+        dragonName={config?.dragonName || ''}
+        onEnableAutopilot={() => {
+          autopilot.toggleAutopilot();
+          setShowAutopilotGuide(false);
+          toast.success('Autopilot enabled! Watch your rider act.');
+        }}
+      />
+
       <Sheet open={showPrompts} onOpenChange={setShowPrompts}>
         <SheetContent side="bottom" className="z-[65] border-purple-500/20 bg-background max-h-[75vh]">
           <SheetHeader>
