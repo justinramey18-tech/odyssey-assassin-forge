@@ -265,6 +265,7 @@ export function EmpyreanScreen({ open, onClose, characterName, characterContext,
         characterContext={characterContext}
         characterName={characterName}
         initialMessage={pendingPrompt}
+        autoSyncCallbacks={autoSyncCallbacks}
       />
     </div>
   );
