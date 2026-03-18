@@ -80,11 +80,6 @@ export function EmpyreanDMScreen({
   const [initialSent, setInitialSent] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showPrompts, setShowPrompts] = useState(false);
-  const [inputValue, setInputValue] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Reload config when screen opens
   useEffect(() => {
