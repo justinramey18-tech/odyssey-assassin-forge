@@ -18,7 +18,7 @@ import { DMBottomNav, DMNavTab } from '@/components/ai-dm/DMBottomNav';
 import { DMDiceRoller } from '@/components/ai-dm/DMDiceRoller';
 import { GMGuidesManager } from '@/components/ai-dm/GMGuidesManager';
 import { WorldStatePanel } from '@/components/ai-dm/WorldStatePanel';
-// DMQuickActions available but using Empyrean-specific prompts instead
+import { PartyDMQuickActions } from '@/components/ai-dm/PartyDMQuickActions';
 import EmpyreanContextualActions from '@/components/empyrean/EmpyreanContextualActions';
 import { useGMGuides } from '@/hooks/use-gm-guides';
 import { useDMGameState, buildMemoryAnchorsPrompt } from '@/hooks/use-dm-game-state';
@@ -129,6 +129,7 @@ export function EmpyreanDMScreen({
   const [selectedModel, setSelectedModel] = useState(loadEmpyreanModel);
   const [showToolsDrawer, setShowToolsDrawer] = useState(false);
   const [showPrompts, setShowPrompts] = useState(false);
+  const [showCharacterActions, setShowCharacterActions] = useState(false);
   const [showSaves, setShowSaves] = useState(false);
   const [showGuides, setShowGuides] = useState(false);
   const [showWorldState, setShowWorldState] = useState(false);
@@ -359,7 +360,7 @@ export function EmpyreanDMScreen({
       return;
     }
     if (tab === 'actions') {
-      setActiveNavTab(prev => prev === 'actions' ? null : 'actions');
+      setShowCharacterActions(true);
       return;
     }
     // Dice and other tabs toggle the full-screen content panel
@@ -730,8 +731,8 @@ export function EmpyreanDMScreen({
         ) : undefined}
       />
 
-      {/* Contextual Actions — visible when Actions tab is active */}
-      {activeNavTab === 'actions' && (
+      {/* Contextual Actions — always visible when messages exist */}
+      {messages.length > 0 && config && (
         <EmpyreanContextualActions
           situation={currentSituation}
           characterName={config?.characterName || characterName}
@@ -868,6 +869,14 @@ export function EmpyreanDMScreen({
           />
         </div>
       )}
+
+      <PartyDMQuickActions
+        open={showCharacterActions}
+        onOpenChange={setShowCharacterActions}
+        characterContext={characterContext}
+        characterName={characterName}
+        onUsePrompt={handleUsePrompt}
+      />
 
       <Sheet open={showPrompts} onOpenChange={setShowPrompts}>
         <SheetContent side="bottom" className="z-[65] border-purple-500/20 bg-background max-h-[75vh]">
