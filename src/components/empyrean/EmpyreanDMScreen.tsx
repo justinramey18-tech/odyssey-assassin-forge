@@ -9,6 +9,9 @@ import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import { CharacterContext } from '@/components/oracle/types';
 import { useAIDM } from '@/hooks/use-ai-dm';
+import { useCampaignSessions, CampaignSession } from '@/hooks/use-campaign-sessions';
+import { CampaignDropdown } from '@/components/ai-dm/CampaignDropdown';
+import { CampaignSessionsManager } from '@/components/ai-dm/CampaignSessionsManager';
 import { useGMGuides } from '@/hooks/use-gm-guides';
 import {
   loadEmpyreanDMConfig,
