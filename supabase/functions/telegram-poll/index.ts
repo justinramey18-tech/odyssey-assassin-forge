@@ -565,11 +565,29 @@ async function processCommand(
 
     const campaign = campaigns[0];
     const summary = campaign.campaign_summary!;
-    const truncated = summary.length > 2000 ? summary.substring(0, 2000) + '\n\n<i>...truncated</i>' : summary;
-    await sendTelegram(chatId,
-      `📖 <b>${campaign.name}</b>\n<i>Last updated: ${new Date(campaign.updated_at).toLocaleDateString()}</i>\n\n${truncated}`,
-      lovableKey, telegramKey,
-    );
+    const header = `📖 <b>${campaign.name}</b>\n<i>Last updated: ${new Date(campaign.updated_at).toLocaleDateString()}</i>\n\n`;
+
+    const maxChunk = 4000;
+    if (header.length + summary.length <= maxChunk) {
+      await sendTelegram(chatId, header + summary, lovableKey, telegramKey);
+    } else {
+      const chunks: string[] = [];
+      let remaining = summary;
+      while (remaining.length > 0) {
+        if (remaining.length <= maxChunk) {
+          chunks.push(remaining);
+          break;
+        }
+        let splitAt = remaining.lastIndexOf(' ', maxChunk);
+        if (splitAt === -1) splitAt = maxChunk;
+        chunks.push(remaining.substring(0, splitAt));
+        remaining = remaining.substring(splitAt).trimStart();
+      }
+      await sendTelegram(chatId, header + chunks[0], lovableKey, telegramKey);
+      for (let i = 1; i < chunks.length; i++) {
+        await sendTelegram(chatId, chunks[i], lovableKey, telegramKey);
+      }
+    }
     return;
   }
 
