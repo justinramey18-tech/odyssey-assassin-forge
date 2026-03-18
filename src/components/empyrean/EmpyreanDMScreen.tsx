@@ -238,6 +238,11 @@ export function EmpyreanDMScreen({
           <div>
             <h2 className="text-base font-cinzel font-bold text-purple-300 flex items-center gap-1.5">
               🐉 Empyrean DM
+              {activeTemplate && (
+                <span className="ml-1.5 text-[10px] font-sans font-medium px-2 py-0.5 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300">
+                  {activeTemplate.includes('Heist') ? '🎭' : activeTemplate.includes('Trial') ? '⚖️' : '🏕️'} {activeTemplate}
+                </span>
+              )}
             </h2>
             <p className="text-[11px] text-muted-foreground truncate max-w-[180px]">
               {characterName}{config.dragonName ? ` & ${config.dragonName}` : ''}
