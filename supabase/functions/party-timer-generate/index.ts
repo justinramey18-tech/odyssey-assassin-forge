@@ -763,6 +763,26 @@ serve(async (req) => {
 
       console.log(`[timer-gen] Party ${partyId}: timer expired, generating response for ${prompts.length} prompts`);
 
+      // ── Send timer-expired Telegram notification ──
+      try {
+        const telegramUrl = `${SUPABASE_URL}/functions/v1/telegram-notify`;
+        await fetch(telegramUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Trigger-Secret': TRIGGER_SECRET,
+          },
+          body: JSON.stringify({
+            type: 'timer_expired',
+            partyId,
+            title: '⏰ Round Timer Expired',
+            body: `The round timer has run out! The DM is generating the next scene for ${prompts.length} player(s).`,
+          }),
+        });
+      } catch (tgErr) {
+        console.warn('[timer-gen] Telegram timer-expired notify failed (non-blocking):', tgErr);
+      }
+
       try {
         // 4. Fetch party members
         const { data: members } = await supabase
