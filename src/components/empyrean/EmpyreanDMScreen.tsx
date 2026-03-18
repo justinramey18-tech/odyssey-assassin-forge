@@ -303,8 +303,30 @@ export function EmpyreanDMScreen({
     newGame();
     setActiveTemplate(null);
     setBurnoutLevel(0);
-    setShowSettings(false);
+    setShowToolsDrawer(false);
   }, [newGame]);
+
+  const handleNavTabChange = useCallback((tab: DMNavTab) => {
+    if (tab === activeNavTab) {
+      setActiveNavTab(null);
+      setNavExpanded(false);
+    } else {
+      setActiveNavTab(tab);
+      setNavExpanded(true);
+    }
+  }, [activeNavTab]);
+
+  const handleUsePrompt = useCallback((prompt: string) => {
+    if (!isLoading) {
+      sendMessage(prompt);
+      setActiveNavTab(null);
+      setNavExpanded(false);
+    }
+  }, [isLoading, sendMessage]);
+
+  const handleCampaignSummaryChange = useCallback((summary: string) => {
+    updateCampaignSummary(summary);
+  }, [updateCampaignSummary]);
 
   const handleSessionTemplate = useCallback((template: typeof EMPYREAN_SESSION_GUIDES[0]) => {
     const msg = `Start a new session using this structure: ${template.name}. My character is ${characterName}. Set the scene and begin.`;
