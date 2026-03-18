@@ -200,6 +200,27 @@ Deno.serve(async (req) => {
 
   await Promise.allSettled(sendPromises);
 
+  // ── Also send Telegram notifications ───────────────────────────────────────
+  try {
+    const telegramUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/telegram-notify`;
+    await fetch(telegramUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Trigger-Secret': Deno.env.get('TRIGGER_SECRET') || '',
+      },
+      body: JSON.stringify({
+        type: allReady ? 'ready_up' : 'ready_up',
+        partyId,
+        userId,
+        title: title,
+        body: body,
+      }),
+    });
+  } catch (tgErr) {
+    console.warn('Telegram notify failed (non-blocking):', tgErr);
+  }
+
   // Log notification
   await supabase.from('notifications_log').insert({
     party_id: partyId,
