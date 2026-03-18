@@ -1479,28 +1479,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             <BookmarkCheck className="w-4 h-4 text-amber-400" />
           </button>
         )}
-        {/* Chat FAB - bottom-left of chat area */}
-        {onShowChat && (
-          <button
-            onClick={() => {
-              // Mark messages as seen
-              if (partyId) {
-                try { localStorage.setItem(`odyssey_chat_lastSeen_${partyId}`, String(chatTotalCount)); } catch {}
-              }
-              onShowChat();
-            }}
-            className={`absolute bottom-2 left-2 z-[5] w-[4.5rem] h-[4.5rem] rounded-full overflow-hidden border-2 transition-all shadow-lg ${chatUnreadCount > 0 ? 'border-emerald-400 animate-pulse shadow-emerald-400/40 shadow-xl' : 'border-white/20 hover:border-white/50'}`}
-            style={{ touchAction: 'manipulation' }}
-            title="Party Chat"
-          >
-            <img src={partyChatIcon} alt="Party Chat" className="w-full h-full object-contain rounded-xl" />
-            {chatUnreadCount > 0 && (
-              <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 min-w-[24px] h-[24px] rounded-full bg-emerald-500 text-[11px] font-bold text-white flex items-center justify-center px-1 ring-2 ring-emerald-300 animate-badge-pulse shadow-lg">
-                {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
-              </span>
-            )}
-          </button>
-        )}
         {/* Fullscreen toggle - bottom-right of chat area */}
         <button
           onClick={() => {
