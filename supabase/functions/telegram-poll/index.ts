@@ -406,9 +406,7 @@ async function processCommand(
     await supabase
       .from('character_saves')
       .update({ extended_data: ext })
-      .eq('user_id', userId)
-      .order('updated_at', { ascending: false })
-      .limit(1);
+      .eq('user_id', userId);
 
     await sendTelegram(chatId,
       `💚 Healed <b>${healed}</b> HP!\n❤️ HP: <b>${newCurrent}</b>/${hp.max}`,
