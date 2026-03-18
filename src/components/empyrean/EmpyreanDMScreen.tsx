@@ -211,6 +211,7 @@ export function EmpyreanDMScreen({
   const handleNewCampaign = useCallback(() => {
     clearMessages();
     setActiveTemplate(null);
+    setBurnoutLevel(0);
     setShowSettings(false);
     toast.success('Empyrean campaign session cleared.');
   }, [clearMessages]);
