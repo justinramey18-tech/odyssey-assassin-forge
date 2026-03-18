@@ -445,8 +445,48 @@ export function EmpyreanDMScreen({
           <SheetHeader>
             <SheetTitle className="font-cinzel text-purple-300">Empyrean Prompts</SheetTitle>
           </SheetHeader>
-          <ScrollArea className="h-[55vh] mt-3">
+           <ScrollArea className="h-[55vh] mt-3">
             <div className="space-y-5 pr-2 pb-4">
+              {/* Session Templates */}
+              <div className="space-y-2">
+                <h3 className="text-xs font-cinzel font-semibold text-amber-400 uppercase tracking-wider">
+                  Session Templates
+                </h3>
+                <div className="grid grid-cols-1 gap-2">
+                  {EMPYREAN_SESSION_GUIDES.map(t => {
+                    const emoji = t.name.includes('Heist') ? '🎭' : t.name.includes('Trial') ? '⚖️' : '🏕️';
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => handleSessionTemplate(t)}
+                        className="w-full text-left p-3 rounded-xl border border-amber-500/25 bg-amber-500/5 hover:bg-amber-500/10 transition-all"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-xl shrink-0">{emoji}</span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-cinzel font-semibold text-foreground">{t.name}</p>
+                            <p className="text-[11px] text-muted-foreground line-clamp-1">{t.description}</p>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Random Scene */}
+              <button
+                onClick={handleRandomPrompt}
+                className="w-full flex items-center gap-2.5 p-3 rounded-xl border border-purple-500/25 bg-purple-500/5 hover:bg-purple-500/10 transition-all"
+              >
+                <Shuffle className="w-5 h-5 text-purple-400 shrink-0" />
+                <div className="text-left">
+                  <p className="text-sm font-medium text-foreground">Random Empyrean Scene</p>
+                  <p className="text-[11px] text-muted-foreground">Pick a random prompt and start immediately</p>
+                </div>
+              </button>
+
+              {/* Existing category prompts */}
               {Object.entries(groupedPrompts).map(([category, prompts]) => (
                 <div key={category} className="space-y-2">
                   <h3 className="text-xs font-cinzel font-semibold text-purple-400 uppercase tracking-wider">
