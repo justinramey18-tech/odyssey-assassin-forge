@@ -1,0 +1,148 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const GATEWAY_URL = 'https://connector-gateway.lovable.dev/telegram';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-trigger-secret',
+};
+
+interface NotifyPayload {
+  type: 'ready_up' | 'timer_expired' | 'combat_start' | 'dragon_message' | 'custom';
+  partyId?: string;
+  userId?: string; // triggering user (excluded from notifications)
+  targetUserIds?: string[]; // specific users to notify (optional)
+  title: string;
+  body: string;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  // Validate trigger
+  const triggerSecret = req.headers.get('X-Trigger-Secret');
+  if (!triggerSecret || triggerSecret !== Deno.env.get('TRIGGER_SECRET')) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+  if (!LOVABLE_API_KEY) return new Response(JSON.stringify({ error: 'LOVABLE_API_KEY not set' }), { status: 500 });
+
+  const TELEGRAM_API_KEY = Deno.env.get('TELEGRAM_API_KEY');
+  if (!TELEGRAM_API_KEY) return new Response(JSON.stringify({ error: 'TELEGRAM_API_KEY not set' }), { status: 500 });
+
+  let payload: NotifyPayload;
+  try {
+    payload = await req.json();
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  );
+
+  // Determine which users to notify
+  let userIds: string[] = [];
+
+  if (payload.targetUserIds && payload.targetUserIds.length > 0) {
+    userIds = payload.targetUserIds;
+  } else if (payload.partyId) {
+    const { data: members } = await supabase
+      .from('party_members')
+      .select('user_id')
+      .eq('party_id', payload.partyId);
+    userIds = (members || []).map((m) => m.user_id);
+  }
+
+  // Exclude the triggering user
+  if (payload.userId) {
+    userIds = userIds.filter((id) => id !== payload.userId);
+  }
+
+  if (userIds.length === 0) {
+    return new Response(JSON.stringify({ sent: 0, reason: 'no recipients' }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  // Map notification type to the notification preference column
+  const notifyColumn: Record<string, string> = {
+    ready_up: 'notify_ready_up',
+    timer_expired: 'notify_timer',
+    combat_start: 'notify_combat',
+    dragon_message: 'notify_dragon',
+    custom: 'notify_ready_up', // custom always sends
+  };
+
+  const col = notifyColumn[payload.type] || 'notify_ready_up';
+
+  // Get linked Telegram users who have this notification type enabled
+  const { data: links } = await supabase
+    .from('telegram_user_links')
+    .select('chat_id, user_id')
+    .in('user_id', userIds)
+    .eq(col, true);
+
+  if (!links || links.length === 0) {
+    return new Response(JSON.stringify({ sent: 0, reason: 'no telegram links' }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  // Send messages
+  let sentCount = 0;
+  const emoji: Record<string, string> = {
+    ready_up: '⚔️',
+    timer_expired: '⏰',
+    combat_start: '🗡️',
+    dragon_message: '🐉',
+    custom: '📢',
+  };
+
+  const icon = emoji[payload.type] || '📢';
+  const message = `${icon} <b>${payload.title}</b>\n\n${payload.body}`;
+
+  const sendPromises = links.map(async (link) => {
+    try {
+      const res = await fetch(`${GATEWAY_URL}/sendMessage`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'X-Connection-Api-Key': TELEGRAM_API_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          chat_id: link.chat_id,
+          text: message,
+          parse_mode: 'HTML',
+        }),
+      });
+
+      if (res.ok) {
+        sentCount++;
+      } else {
+        const err = await res.text();
+        console.error(`Failed to send to ${link.chat_id}:`, err);
+      }
+    } catch (err) {
+      console.error(`Error sending to ${link.chat_id}:`, err);
+    }
+  });
+
+  await Promise.allSettled(sendPromises);
+
+  return new Response(
+    JSON.stringify({ sent: sentCount, total: links.length }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+  );
+});

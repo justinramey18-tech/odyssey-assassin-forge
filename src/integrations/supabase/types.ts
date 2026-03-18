@@ -1208,6 +1208,111 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_bot_state: {
+        Row: {
+          id: number
+          update_offset: number
+          updated_at: string
+        }
+        Insert: {
+          id: number
+          update_offset?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          update_offset?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      telegram_link_codes: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      telegram_messages: {
+        Row: {
+          chat_id: number
+          created_at: string
+          raw_update: Json
+          text: string | null
+          update_id: number
+        }
+        Insert: {
+          chat_id: number
+          created_at?: string
+          raw_update: Json
+          text?: string | null
+          update_id: number
+        }
+        Update: {
+          chat_id?: number
+          created_at?: string
+          raw_update?: Json
+          text?: string | null
+          update_id?: number
+        }
+        Relationships: []
+      }
+      telegram_user_links: {
+        Row: {
+          chat_id: number
+          created_at: string
+          id: string
+          linked_at: string | null
+          notify_combat: boolean
+          notify_dragon: boolean
+          notify_ready_up: boolean
+          notify_timer: boolean
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          chat_id: number
+          created_at?: string
+          id?: string
+          linked_at?: string | null
+          notify_combat?: boolean
+          notify_dragon?: boolean
+          notify_ready_up?: boolean
+          notify_timer?: boolean
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          chat_id?: number
+          created_at?: string
+          id?: string
+          linked_at?: string | null
+          notify_combat?: boolean
+          notify_dragon?: boolean
+          notify_ready_up?: boolean
+          notify_timer?: boolean
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
       tutorials: {
         Row: {
           category: string
