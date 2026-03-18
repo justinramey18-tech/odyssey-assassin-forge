@@ -143,6 +143,18 @@ export function EmpyreanDMScreen({
     if (!open) setInitialSent(false);
   }, [open]);
 
+  // Parse burnout tags from assistant messages
+  useEffect(() => {
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg?.role === 'assistant' && lastMsg.content) {
+      const match = lastMsg.content.match(/<!--BURNOUT:(\d)-->/);
+      if (match) {
+        const level = Math.min(5, Math.max(0, parseInt(match[1], 10)));
+        setBurnoutLevel(level);
+      }
+    }
+  }, [messages]);
+
   // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
