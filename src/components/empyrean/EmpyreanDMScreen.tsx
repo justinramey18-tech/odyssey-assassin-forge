@@ -143,6 +143,9 @@ export function EmpyreanDMScreen({
     sendMessage,
     clearMessages,
     cancelRequest,
+    editMessage,
+    deleteMessage,
+    regenerateMessage,
   } = useAIDM({
     characterContext,
     customGuidesContent: enabledContent,
@@ -154,6 +157,42 @@ export function EmpyreanDMScreen({
       // Could parse for gold/HP/XP changes
     } : undefined,
   });
+
+  // Message action states
+  const [activeActionId, setActiveActionId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopy = useCallback((id: string, content: string) => {
+    navigator.clipboard.writeText(content);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 1500);
+  }, []);
+
+  const handleStartEdit = useCallback((id: string, content: string) => {
+    setEditingId(id);
+    setEditContent(content);
+    setActiveActionId(null);
+  }, []);
+
+  const handleSaveEdit = useCallback((id: string) => {
+    if (editContent.trim()) {
+      editMessage(id, editContent.trim());
+    }
+    setEditingId(null);
+    setEditContent('');
+  }, [editContent, editMessage]);
+
+  const handleDelete = useCallback((id: string) => {
+    deleteMessage(id);
+    setActiveActionId(null);
+  }, [deleteMessage]);
+
+  const handleRegenerate = useCallback((id: string) => {
+    regenerateMessage(id);
+    setActiveActionId(null);
+  }, [regenerateMessage]);
 
   // Auto-send initial message from prompt library
   useEffect(() => {
