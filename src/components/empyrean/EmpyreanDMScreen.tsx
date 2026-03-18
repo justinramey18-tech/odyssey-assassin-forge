@@ -177,7 +177,7 @@ export function EmpyreanDMScreen({
     );
   }, [config, characterName]);
 
-  const gameState = useDMGameState(null);
+  const gameState = useDMGameState(activeCampaignId);
   const worldStatePrompt = useMemo(() => buildMemoryAnchorsPrompt(gameState.gameState), [gameState.gameState]);
 
   const {
