@@ -109,13 +109,17 @@ export function EmpyreanDMScreen({
 }: EmpyreanDMScreenProps) {
   const [config, setConfig] = useState<EmpyreanDMConfig | null>(() => loadEmpyreanDMConfig());
   const [selectedModel, setSelectedModel] = useState(loadEmpyreanModel);
-  const [showSettings, setShowSettings] = useState(false);
+  const [showToolsDrawer, setShowToolsDrawer] = useState(false);
   const [showPrompts, setShowPrompts] = useState(false);
   const [showSaves, setShowSaves] = useState(false);
+  const [showGuides, setShowGuides] = useState(false);
+  const [showWorldState, setShowWorldState] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
   const [burnoutLevel, setBurnoutLevel] = useState(0);
   const [initialSent, setInitialSent] = useState(false);
+  const [activeNavTab, setActiveNavTab] = useState<DMNavTab | null>(null);
+  const [navExpanded, setNavExpanded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
