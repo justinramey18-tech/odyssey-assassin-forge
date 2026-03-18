@@ -351,15 +351,24 @@ export function EmpyreanDMScreen({
           >
             <ArrowLeft className="w-5 h-5 text-purple-300" />
           </button>
-          <div>
-            <h2 className="text-base font-cinzel font-bold text-purple-300 flex items-center gap-1.5">
-              🐉 Empyrean DM
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-base font-cinzel font-bold text-purple-300">🐉</h2>
+              <CampaignDropdown
+                sessions={campaignSessions}
+                activeCampaignId={activeCampaignId}
+                isSignedIn={isSignedIn}
+                isLoading={sessionsLoading}
+                onNewGame={handleNewCampaign}
+                onLoadCampaign={handleLoadCampaign}
+                onRefresh={refreshSessions}
+              />
               {activeTemplate && (
-                <span className="ml-1.5 text-[10px] font-sans font-medium px-2 py-0.5 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300">
+                <span className="text-[10px] font-sans font-medium px-2 py-0.5 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300">
                   {activeTemplate.includes('Heist') ? '🎭' : activeTemplate.includes('Trial') ? '⚖️' : '🏕️'} {activeTemplate}
                 </span>
               )}
-            </h2>
+            </div>
             <p className="text-[11px] text-muted-foreground flex items-center gap-2">
               <span className="truncate max-w-[140px]">{characterName}{config.dragonName ? ` & ${config.dragonName}` : ''}</span>
               {config.signetType && <BurnoutIndicator level={burnoutLevel} />}
