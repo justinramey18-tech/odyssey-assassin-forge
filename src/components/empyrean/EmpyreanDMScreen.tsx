@@ -45,11 +45,19 @@ interface EmpyreanDMScreenProps {
   characterName: string;
   initialMessage?: string | null;
   autoSyncCallbacks?: {
-    onGoldChange?: (gold: number) => void;
-    onHPChange?: (current: number, max: number) => void;
-    onXPGain?: (xp: number) => void;
+    onHPChange: (change: number, type: 'damage' | 'healing') => void;
+    onAddXP: (amount: number, source: string) => void;
+    onGoldChange: (netChange: number) => void;
+    onConditionChange: (toAdd: string[], toRemove: string[]) => void;
+    onRestOccurred: (type: 'short' | 'long') => void;
+    getCurrentHP: () => number;
+    getCurrentGold: () => number;
   };
 }
+
+const NOOP = () => {};
+const NOOP_TWO_ARG = () => {};
+const NOOP_RETURN_ZERO = () => 0;
 
 const EMPYREAN_SESSION_KEY = 'empyrean-dm-session';
 const EMPYREAN_SUMMARY_KEY = 'empyrean-dm-campaign-summary';
