@@ -359,8 +359,7 @@ export function EmpyreanDMScreen({
       return;
     }
     if (tab === 'actions') {
-      // Actions tab also opens Empyrean prompts for now
-      setShowPrompts(true);
+      setActiveNavTab(prev => prev === 'actions' ? null : 'actions');
       return;
     }
     // Dice and other tabs toggle the full-screen content panel
