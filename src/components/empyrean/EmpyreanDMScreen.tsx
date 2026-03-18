@@ -290,9 +290,22 @@ export function EmpyreanDMScreen({
         }
       }
 
-      // Track combat for bond building
+      // Track combat for bond building + send Telegram combat alert
       if (content.toLowerCase().includes('initiative') || content.toLowerCase().includes('combat begins') || content.match(/<!--SITUATION:combat-->/)) {
         dragonBond.processCombatBond();
+
+        // Send combat Telegram notification (non-blocking)
+        try {
+          supabase.functions.invoke('telegram-notify-proxy', {
+            body: {
+              type: 'combat_start',
+              title: '🗡️ Combat Has Begun!',
+              body: 'Your DM has initiated combat. Roll for initiative!',
+            },
+          }).catch((e) => console.warn('[EmpyreanDM] Combat telegram notify failed:', e));
+        } catch (tgErr) {
+          // Never break the game flow
+        }
       }
     },
   });
