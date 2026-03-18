@@ -273,6 +273,7 @@ export function HomeScreen({
   onAutoOpenPartyDMHandled,
   autoOpenSoloDM = false,
   onAutoOpenSoloDMHandled,
+  autoSyncCallbacks,
 }: HomeScreenProps) {
   // Default visibility: show everything if no filter provided
   const showFeature = isHomeFeatureVisible ?? (() => true);
