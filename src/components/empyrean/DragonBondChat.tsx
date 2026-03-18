@@ -110,7 +110,6 @@ export default function DragonBondChat({
     messages,
     isLoading,
     sendMessage,
-    clearHistory,
   } = useAIDM({
     characterContext,
     customGuidesContent: '',
