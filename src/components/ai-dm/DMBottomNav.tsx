@@ -58,9 +58,15 @@ const activeIndicatorColors: Record<DMNavTab, string> = {
   settings: 'bg-white/50',
 };
 
-export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, wildshapeContent, showGeralt, showWildShape, oracleCount, isWildShapeActive }: DMBottomNavProps) {
+export function DMBottomNav({ activeTab, onTabChange, isExpanded, onExpandedChange, disabled, diceContent, settingsContent, oracleContent, wildshapeContent, showGeralt, showWildShape, oracleCount, isWildShapeActive, oracleLabel, oracleColor, oracleActiveBg }: DMBottomNavProps) {
   const afkOrWildShape = showWildShape ? WILDSHAPE_TAB : AFK_TAB;
-  const tabs = [...BASE_TABS, afkOrWildShape, ORACLE_TAB, ...(showGeralt ? [GERALT_TAB] : []), SETTINGS_TAB];
+  const oracleTab = {
+    ...ORACLE_TAB,
+    label: oracleLabel || ORACLE_TAB.label,
+    color: oracleColor || ORACLE_TAB.color,
+    activeBg: oracleActiveBg || ORACLE_TAB.activeBg,
+  };
+  const tabs = [...BASE_TABS, afkOrWildShape, oracleTab, ...(showGeralt ? [GERALT_TAB] : []), SETTINGS_TAB];
   const touchStartY = useRef(0);
   const touchStartTime = useRef(0);
 
