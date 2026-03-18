@@ -195,7 +195,7 @@ export function EmpyreanDMScreen({
   const handleLoadCampaign = useCallback((session: CampaignSession) => {
     loadCampaign(session.messages, session.campaign_summary, session.id, session.gm_guide_ids);
     setShowSaves(false);
-    setShowSettings(false);
+    setShowToolsDrawer(false);
     toast.success(`Loaded: ${session.name}`);
   }, [loadCampaign]);
 
