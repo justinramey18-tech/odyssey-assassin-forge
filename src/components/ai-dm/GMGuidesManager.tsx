@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Plus, Edit2, Trash2, BookOpen, Check, X, ScrollText } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, BookOpen, Check, X, ScrollText, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { GMGuide, MAX_GUIDE_CHARS, MAX_TOTAL_CHARS } from '@/lib/gm-guides-storage';
@@ -17,6 +17,8 @@ interface GMGuidesManagerProps {
   onDelete: (id: string) => void;
   onToggle: (id: string) => void;
   chatMessages?: Array<{ role: string; content: string }>;
+  onFullSummarize?: () => Promise<void>;
+  isFullSummarizing?: boolean;
 }
 
 function CharCounter({ current, max, className }: { current: number; max: number; className?: string }) {
@@ -32,7 +34,7 @@ function CharCounter({ current, max, className }: { current: number; max: number
   );
 }
 
-export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, onCampaignSummaryChange, onAdd, onUpdate, onDelete, onToggle, chatMessages }: GMGuidesManagerProps) {
+export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, onCampaignSummaryChange, onAdd, onUpdate, onDelete, onToggle, chatMessages, onFullSummarize, isFullSummarizing }: GMGuidesManagerProps) {
   const [editingGuide, setEditingGuide] = useState<GMGuide | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [editingSummary, setEditingSummary] = useState(false);
@@ -204,7 +206,22 @@ export function GMGuidesManager({ onBack, guides, totalChars, campaignSummary, o
                     <h3 className="text-sm font-cinzel text-purple-200">Campaign Summary</h3>
                   </div>
                   <div className="flex items-center gap-1">
-                    {!campaignSummary && (
+                    {onFullSummarize && (
+                      <button
+                        onClick={onFullSummarize}
+                        disabled={isFullSummarizing}
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-900/30 border border-purple-500/20 text-purple-300 text-[10px] font-cinzel hover:bg-purple-900/50 transition-colors disabled:opacity-50"
+                        style={{ touchAction: 'manipulation' }}
+                      >
+                        {isFullSummarizing ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <ScrollText className="w-3 h-3" />
+                        )}
+                        {isFullSummarizing ? 'Summarizing...' : 'Summarize All'}
+                      </button>
+                    )}
+                    {!campaignSummary && !onFullSummarize && (
                       <button
                         onClick={openSummaryEditor}
                         className="flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-900/30 border border-purple-500/20 text-purple-300 text-[10px] font-cinzel hover:bg-purple-900/50 transition-colors"

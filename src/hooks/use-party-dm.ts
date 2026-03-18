@@ -126,6 +126,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const [messages, setMessages] = useState<PartyDmMessage[]>([]);
   const [currentPrompts, setCurrentPrompts] = useState<PartyDmPrompt[]>([]);
   const [isSummarizing, setIsSummarizing] = useState(false);
+  const [isFullSummarizing, setIsFullSummarizing] = useState(false);
   const [sessionConfig, setSessionConfig] = useState<DmSessionConfig | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const PENDING_DRAFT_KEY = 'odyssey-pending-draft';
@@ -792,6 +793,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       setIsSummarizing(false);
     }
   }, [partyId, isCreator, sessionConfig]);
+
+
 
   // Helper: truncate messages by total character count to avoid exceeding AI context windows
   const truncateMessagesByChars = useCallback((msgs: Array<{ role: string; content: string }>, maxChars: number) => {
@@ -1872,6 +1875,90 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     setSessionConfig(updated);
   }, [partyId, sessionConfig]);
 
+  // Full campaign summarization — processes entire chat history in batches
+  const fullSummarize = useCallback(async () => {
+    if (!partyId || !user) {
+      toast.error('Cannot summarize without an active party');
+      return;
+    }
+
+    setIsFullSummarizing(true);
+    try {
+      let allMsgs: Array<{ role: string; content: string }> = [];
+      let from = 0;
+      const PAGE_SIZE = 1000;
+      while (true) {
+        const { data, error } = await (supabase.from('party_dm_messages') as any)
+          .select('role, content, created_at')
+          .eq('party_id', partyId)
+          .order('created_at', { ascending: true })
+          .range(from, from + PAGE_SIZE - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        allMsgs = allMsgs.concat(data.map((m: any) => ({ role: m.role, content: m.content })));
+        if (data.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+      }
+
+      if (allMsgs.length === 0) {
+        toast.info('No messages to summarize');
+        return;
+      }
+
+      const BATCH_SIZE = 20;
+      const batches: Array<Array<{ role: string; content: string }>> = [];
+      for (let i = 0; i < allMsgs.length; i += BATCH_SIZE) {
+        batches.push(allMsgs.slice(i, i + BATCH_SIZE));
+      }
+
+      const authToken = await getAuthToken();
+      let runningSummary = '';
+
+      for (let i = 0; i < batches.length; i++) {
+        toast.info(`Summarizing batch ${i + 1}/${batches.length}...`, { duration: 2000 });
+
+        const response = await fetch(SUMMARIZE_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({
+            messages: batches[i],
+            previousSummary: runningSummary || undefined,
+          }),
+        });
+
+        if (!response.ok) {
+          const errText = await response.text().catch(() => '');
+          console.error(`[FullSummarize] Batch ${i + 1} failed:`, response.status, errText);
+          if (response.status === 429) {
+            toast.error('Rate limited. Try again in a moment.');
+            return;
+          }
+          throw new Error(`Batch ${i + 1} failed with status ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.summary) {
+          runningSummary = data.summary;
+        }
+      }
+
+      if (runningSummary) {
+        await updateSessionConfig({ campaignSummary: runningSummary });
+        await silentAutoSave(messages, runningSummary);
+        toast.success('Full campaign summary generated!');
+      }
+    } catch (error) {
+      console.error('[FullSummarize] Error:', error);
+      toast.error('Failed to generate full summary');
+    } finally {
+      setIsFullSummarizing(false);
+    }
+  }, [partyId, user, messages, updateSessionConfig, silentAutoSave]);
+
+
   const setTimerConfig = useCallback(async (enabled: boolean, durationSeconds: number) => {
     await updateSessionConfig({
       timerEnabled: enabled,
@@ -2127,6 +2214,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     isActive,
     isGenerating: computedIsGenerating,
     isSummarizing,
+    isFullSummarizing,
+    fullSummarize,
     allReady,
     myPrompt,
     activeCampaignId,
@@ -2169,7 +2258,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     dismissExtensions,
   }), [
     filteredMessages, messages, currentPrompts, sessionConfig, isActive,
-    computedIsGenerating, isSummarizing, allReady, myPrompt, activeCampaignId,
+    computedIsGenerating, isSummarizing, isFullSummarizing, fullSummarize, allReady, myPrompt, activeCampaignId,
     lastAutoSaveTime, splitState, isSplitActive, myTeam, pendingDraft,
     startSession, endSession, startNewCampaign, saveCampaign, loadCampaign,
     submitPrompt, editPrompt, retractPrompt, setReady, unready,

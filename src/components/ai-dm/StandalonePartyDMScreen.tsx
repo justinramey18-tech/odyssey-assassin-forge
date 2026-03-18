@@ -307,6 +307,8 @@ export function StandalonePartyDMScreen({
           onDelete={gmGuides.deleteGuide}
           onToggle={gmGuides.toggleGuide}
           chatMessages={partyDm.messages.slice(-20).map(m => ({ role: m.role, content: m.content }))}
+          onFullSummarize={partyDm.fullSummarize}
+          isFullSummarizing={partyDm.isFullSummarizing}
         />
       )}
 
