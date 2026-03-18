@@ -562,6 +562,8 @@ export function PromptDrawerProvider({
     cooldownSummary,
     // Conditions system exposure
     conditions: conditionsSystem,
+    // Character context
+    characterContext: aiDMCharacterContext,
   };
 
   return (

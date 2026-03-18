@@ -54,13 +54,21 @@ function SectionCard({ icon, title, description, color, borderColor, onClick }: 
   );
 }
 
-export function EmpyreanScreen({ open, onClose, characterName }: EmpyreanScreenProps) {
+export function EmpyreanScreen({ open, onClose, characterName, characterContext }: EmpyreanScreenProps) {
   const { guides, addGuide, deleteGuide, updateGuide } = useGMGuides();
   const [showPack, setShowPack] = useState(false);
   const [showPrompts, setShowPrompts] = useState(false);
   const [showSessionZero, setShowSessionZero] = useState(false);
   const [showArcPlanner, setShowArcPlanner] = useState(false);
   const [showSessionPlanner, setShowSessionPlanner] = useState(false);
+  const [showSetup, setShowSetup] = useState(false);
+  const [showDM, setShowDM] = useState(false);
+  const [empyreanConfig, setEmpyreanConfig] = useState<EmpyreanDMConfig | null>(() => loadEmpyreanDMConfig());
+
+  // Reload config when screen opens
+  useEffect(() => {
+    if (open) setEmpyreanConfig(loadEmpyreanDMConfig());
+  }, [open]);
 
   const handleClose = useCallback(() => {
     onClose();
