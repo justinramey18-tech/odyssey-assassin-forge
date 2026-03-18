@@ -585,6 +585,11 @@ export function SettingsContent({
     return <SpotifySettingsTab />;
   }
 
+  // ─── TELEGRAM ───
+  if (activeTab === 'telegram') {
+    return <TelegramSettingsTab />;
+  }
+
   // ─── APP & SYSTEM ───
   if (activeTab === 'appSystem') {
     return (
