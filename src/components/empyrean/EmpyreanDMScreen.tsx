@@ -441,13 +441,70 @@ export function EmpyreanDMScreen({
             </p>
           </div>
         </div>
-        <button
-          onClick={() => setShowToolsDrawer(true)}
-          className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-        >
-          <BookOpen className="w-5 h-5 text-purple-400" />
-        </button>
+        <div className="flex items-center gap-1">
+          {/* Narrator controls */}
+          {narrator.hasTTSKey && (
+            <>
+              <button
+                onClick={() => {
+                  if (narrator.isPlaying) {
+                    narrator.stop();
+                  }
+                }}
+                className={cn(
+                  "p-2 rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center",
+                  narrator.isPlaying
+                    ? "bg-purple-900/40 hover:bg-purple-900/60"
+                    : "hover:bg-muted/50"
+                )}
+                title={narrator.isPlaying ? "Stop narration" : "Narrator available"}
+              >
+                {narrator.isLoading ? (
+                  <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
+                ) : narrator.isPlaying ? (
+                  <VolumeX className="w-5 h-5 text-purple-400" />
+                ) : (
+                  <Volume2 className="w-5 h-5 text-muted-foreground" />
+                )}
+              </button>
+              <NarrationSpeedPopover iconSize="w-5 h-5" />
+            </>
+          )}
+          <button
+            onClick={() => setShowToolsDrawer(true)}
+            className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+          >
+            <BookOpen className="w-5 h-5 text-purple-400" />
+          </button>
+        </div>
       </div>
+
+      {/* Auto-Sync Banner */}
+      <AutoSyncBanner
+        extraction={autoSync.lastExtraction}
+        onUndo={autoSync.undoLastExtraction}
+        onDismiss={() => {}}
+      />
+
+      {/* Auto-Sync Extracting Indicator */}
+      <AnimatePresence>
+        {autoSync.isExtracting && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="flex items-center justify-center gap-2 px-3 py-1.5 bg-purple-950/40 border-t border-purple-500/20"
+          >
+            <div className="flex gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+            <span className="text-[11px] text-purple-300/80 font-cinzel">Auto-Sync extracting changes...</span>
+            <Zap className="w-3 h-3 text-purple-400 animate-pulse" />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Summarizing indicator */}
       {isSummarizing && (

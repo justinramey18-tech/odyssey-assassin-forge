@@ -17,6 +17,15 @@ interface EmpyreanScreenProps {
   onClose: () => void;
   characterName: string;
   characterContext: CharacterContext;
+  autoSyncCallbacks?: {
+    onHPChange: (change: number, type: 'damage' | 'healing') => void;
+    onAddXP: (amount: number, source: string) => void;
+    onGoldChange: (netChange: number) => void;
+    onConditionChange: (toAdd: string[], toRemove: string[]) => void;
+    onRestOccurred: (type: 'short' | 'long') => void;
+    getCurrentHP: () => number;
+    getCurrentGold: () => number;
+  };
 }
 
 interface SectionCardProps {
