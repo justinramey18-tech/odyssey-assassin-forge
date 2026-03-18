@@ -64,6 +64,7 @@ export function EmpyreanScreen({ open, onClose, characterName, characterContext 
   const [showSetup, setShowSetup] = useState(false);
   const [showDM, setShowDM] = useState(false);
   const [empyreanConfig, setEmpyreanConfig] = useState<EmpyreanDMConfig | null>(() => loadEmpyreanDMConfig());
+  const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
 
   // Reload config when screen opens
   useEffect(() => {
@@ -209,6 +210,11 @@ export function EmpyreanScreen({ open, onClose, characterName, characterContext 
         open={showPrompts}
         onOpenChange={setShowPrompts}
         characterName={characterName}
+        onSendToDM={empyreanConfig ? (prompt) => {
+          setPendingPrompt(prompt);
+          setShowPrompts(false);
+          setShowDM(true);
+        } : undefined}
       />
       <EmpyreanCampaignPack
         open={showPack}
@@ -246,9 +252,10 @@ export function EmpyreanScreen({ open, onClose, characterName, characterContext 
       />
       <EmpyreanDMScreen
         open={showDM}
-        onClose={() => setShowDM(false)}
+        onClose={() => { setShowDM(false); setPendingPrompt(null); }}
         characterContext={characterContext}
         characterName={characterName}
+        initialMessage={pendingPrompt}
       />
     </div>
   );

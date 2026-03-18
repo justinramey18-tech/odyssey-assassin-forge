@@ -30,6 +30,7 @@ interface EmpyreanDMScreenProps {
   onClose: () => void;
   characterContext: CharacterContext;
   characterName: string;
+  initialMessage?: string | null;
   autoSyncCallbacks?: {
     onGoldChange?: (gold: number) => void;
     onHPChange?: (current: number, max: number) => void;
@@ -69,6 +70,7 @@ export function EmpyreanDMScreen({
   onClose,
   characterContext,
   characterName,
+  initialMessage,
   autoSyncCallbacks,
 }: EmpyreanDMScreenProps) {
   const [config, setConfig] = useState<EmpyreanDMConfig | null>(() => loadEmpyreanDMConfig());
@@ -76,6 +78,7 @@ export function EmpyreanDMScreen({
   const [showSettings, setShowSettings] = useState(false);
   const [showPrompts, setShowPrompts] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [initialSent, setInitialSent] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -120,6 +123,22 @@ export function EmpyreanDMScreen({
       // Could parse for gold/HP/XP changes
     } : undefined,
   });
+
+  // Auto-send initial message from prompt library
+  useEffect(() => {
+    if (open && initialMessage && !initialSent && messages.length === 0) {
+      const timer = setTimeout(() => {
+        sendMessage(initialMessage);
+        setInitialSent(true);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [open, initialMessage, initialSent, messages.length, sendMessage]);
+
+  // Reset initialSent when screen closes
+  useEffect(() => {
+    if (!open) setInitialSent(false);
+  }, [open]);
 
   // Scroll to bottom on new messages
   useEffect(() => {

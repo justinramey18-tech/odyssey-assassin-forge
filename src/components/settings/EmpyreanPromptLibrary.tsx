@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { AlignmentBadge } from '@/components/alignment/AlignmentBadge';
-import { Copy, Check, Star, Shuffle, Gem } from 'lucide-react';
+import { Copy, Check, Star, Shuffle, Gem, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -20,6 +20,7 @@ interface EmpyreanPromptLibraryProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   characterName: string;
+  onSendToDM?: (prompt: string) => void;
 }
 
 function loadFavorites(): Set<string> {
@@ -59,7 +60,7 @@ const STONE_MAP: StoneMapping[] = [
 
 type FilterMode = 'all' | 'favorites';
 
-export function EmpyreanPromptLibrary({ open, onOpenChange, characterName }: EmpyreanPromptLibraryProps) {
+export function EmpyreanPromptLibrary({ open, onOpenChange, characterName, onSendToDM }: EmpyreanPromptLibraryProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<Set<string>>(loadFavorites);
   const [activeFilter, setActiveFilter] = useState<FilterMode>('all');
@@ -267,6 +268,20 @@ export function EmpyreanPromptLibrary({ open, onOpenChange, characterName }: Emp
                             >
                               {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                             </button>
+                            {onSendToDM && (
+                              <button
+                                onClick={() => {
+                                  const processed = applyTimePrefix(
+                                    p.prompt.replace(/\[Character Name\]/g, characterName || '[Character Name]'),
+                                  );
+                                  onSendToDM(processed);
+                                }}
+                                className="p-2 rounded-lg transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20"
+                                title="Send to Empyrean DM"
+                              >
+                                <Send className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         );
                       })}
