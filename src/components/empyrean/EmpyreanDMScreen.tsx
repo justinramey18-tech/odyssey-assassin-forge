@@ -79,6 +79,7 @@ export function EmpyreanDMScreen({
   const [showSettings, setShowSettings] = useState(false);
   const [showPrompts, setShowPrompts] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
   const [initialSent, setInitialSent] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
