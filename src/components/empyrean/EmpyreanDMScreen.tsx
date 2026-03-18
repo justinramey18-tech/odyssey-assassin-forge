@@ -777,6 +777,32 @@ export function EmpyreanDMScreen({
         ) : undefined}
       />
 
+      {/* Autopilot decision cards */}
+      {autopilot.isAutopilotActive && autopilot.currentChoices.length > 0 && (
+        <div className="shrink-0 px-3 py-2.5 bg-purple-950/40 border-t border-purple-500/15">
+          <p className="text-[10px] text-purple-300/50 font-cinzel mb-1.5">Your rider would...</p>
+          <div className="space-y-1.5">
+            {autopilot.currentChoices.map(choice => (
+              <button
+                key={choice.id}
+                onClick={() => autopilot.selectChoice(choice.id)}
+                className={cn(
+                  'w-full text-left px-3 py-2 rounded-lg text-xs transition-all border',
+                  autopilot.selectedChoiceId === choice.id
+                    ? 'border-purple-400/50 bg-purple-500/20 text-purple-200'
+                    : 'border-purple-500/10 bg-purple-500/5 text-purple-300/70 hover:border-purple-500/30',
+                )}
+              >
+                <span className="line-clamp-2">{choice.label}</span>
+                {autopilot.selectedChoiceId === choice.id && (
+                  <span className="text-[9px] text-purple-400/60 mt-0.5 block">← Auto-selected</span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Autopilot control bar */}
       {autopilot.isAutopilotActive && (
         <div className="shrink-0 px-3 py-2 bg-purple-950/60 border-t border-purple-500/30 flex items-center justify-between">
