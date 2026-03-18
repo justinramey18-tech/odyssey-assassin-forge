@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { X, Gem, BookOpen, Sparkles, ScrollText, Map, Target } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useGMGuides } from '@/hooks/use-gm-guides';
@@ -7,11 +7,16 @@ import { EmpyreanPromptLibrary } from '@/components/settings/EmpyreanPromptLibra
 import { SessionZeroWizard } from '@/components/empyrean/SessionZeroWizard';
 import { ArcPlannerWizard } from '@/components/empyrean/ArcPlannerWizard';
 import { SessionPlannerWizard } from '@/components/empyrean/SessionPlannerWizard';
+import { EmpyreanCampaignSetup } from '@/components/empyrean/EmpyreanCampaignSetup';
+import { EmpyreanDMScreen } from '@/components/empyrean/EmpyreanDMScreen';
+import { loadEmpyreanDMConfig, EmpyreanDMConfig } from '@/lib/empyreanDMPersona';
+import { CharacterContext } from '@/components/oracle/types';
 
 interface EmpyreanScreenProps {
   open: boolean;
   onClose: () => void;
   characterName: string;
+  characterContext: CharacterContext;
 }
 
 interface SectionCardProps {
@@ -49,13 +54,21 @@ function SectionCard({ icon, title, description, color, borderColor, onClick }: 
   );
 }
 
-export function EmpyreanScreen({ open, onClose, characterName }: EmpyreanScreenProps) {
+export function EmpyreanScreen({ open, onClose, characterName, characterContext }: EmpyreanScreenProps) {
   const { guides, addGuide, deleteGuide, updateGuide } = useGMGuides();
   const [showPack, setShowPack] = useState(false);
   const [showPrompts, setShowPrompts] = useState(false);
   const [showSessionZero, setShowSessionZero] = useState(false);
   const [showArcPlanner, setShowArcPlanner] = useState(false);
   const [showSessionPlanner, setShowSessionPlanner] = useState(false);
+  const [showSetup, setShowSetup] = useState(false);
+  const [showDM, setShowDM] = useState(false);
+  const [empyreanConfig, setEmpyreanConfig] = useState<EmpyreanDMConfig | null>(() => loadEmpyreanDMConfig());
+
+  // Reload config when screen opens
+  useEffect(() => {
+    if (open) setEmpyreanConfig(loadEmpyreanDMConfig());
+  }, [open]);
 
   const handleClose = useCallback(() => {
     onClose();
@@ -86,6 +99,50 @@ export function EmpyreanScreen({ open, onClose, characterName }: EmpyreanScreenP
           <p className="text-sm text-muted-foreground leading-relaxed">
             All Empyrean campaign tools in one place — prompts, guides, session builders, and arc planners.
           </p>
+
+          {/* Section: Empyrean DM */}
+          <div className="space-y-2">
+            <h3 className="text-xs font-cinzel font-bold uppercase tracking-wider text-purple-400/70 px-1">
+              Empyrean DM
+            </h3>
+            {!empyreanConfig ? (
+              <SectionCard
+                icon={<Sparkles className="w-6 h-6 text-purple-400" />}
+                title="Launch Empyrean Campaign"
+                description="Configure your dragon rider, choose your lore, and enter Navarre with a specialized AI DM."
+                color="bg-purple-500/15"
+                borderColor="border-purple-500/25"
+                onClick={() => setShowSetup(true)}
+              />
+            ) : (
+              <>
+                <button
+                  onClick={() => setShowDM(true)}
+                  className="w-full flex items-center gap-3 p-5 rounded-xl border-2 border-purple-500/40 bg-gradient-to-r from-purple-500/10 to-amber-500/5 backdrop-blur-sm hover:from-purple-500/20 hover:to-amber-500/10 active:scale-[0.98] transition-all duration-200"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <div className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0 bg-purple-500/20">
+                    <span className="text-3xl">🐉</span>
+                  </div>
+                  <div className="text-left min-w-0">
+                    <p className="text-base font-cinzel font-bold text-purple-300">Enter Empyrean DM</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {empyreanConfig.campaignFocus} campaign
+                      {empyreanConfig.dragonName ? ` · ${empyreanConfig.dragonName}` : ''}
+                    </p>
+                  </div>
+                </button>
+                <SectionCard
+                  icon={<Sparkles className="w-6 h-6 text-purple-300" />}
+                  title="Reconfigure Campaign"
+                  description="Change your rider, focus, lore guides, or tone settings."
+                  color="bg-muted/30"
+                  borderColor="border-border/40"
+                  onClick={() => setShowSetup(true)}
+                />
+              </>
+            )}
+          </div>
 
           {/* Section: Prompts */}
           <div className="space-y-2">
@@ -175,6 +232,23 @@ export function EmpyreanScreen({ open, onClose, characterName }: EmpyreanScreenP
         open={showSessionPlanner}
         onClose={() => setShowSessionPlanner(false)}
         addGuide={addGuide}
+      />
+      <EmpyreanCampaignSetup
+        open={showSetup}
+        onClose={() => setShowSetup(false)}
+        characterName={characterName}
+        addGuide={addGuide}
+        deleteGuide={deleteGuide}
+        onComplete={(config) => {
+          setEmpyreanConfig(config);
+          setShowSetup(false);
+        }}
+      />
+      <EmpyreanDMScreen
+        open={showDM}
+        onClose={() => setShowDM(false)}
+        characterContext={characterContext}
+        characterName={characterName}
       />
     </div>
   );

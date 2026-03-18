@@ -1130,6 +1130,7 @@ export function HomeScreen({
         open={showEmpyreanScreen}
         onClose={() => setShowEmpyreanScreen(false)}
         characterName={character.name}
+        characterContext={drawerContext?.characterContext ?? { name: character.name, level: character.level, currentHP: 10, maxHP: 10, abilities: [], equippedAbilities: [], equipment: [], activeSetBonuses: [], consumables: [], cooldowns: { active: [], ready: [] }, prestigeLevel: 0, prestigeAbilities: [] } as any}
       />
 
       {/* FAQ Drawer */}
