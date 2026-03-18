@@ -359,7 +359,7 @@ export function EmpyreanDMScreen({
       return;
     }
     if (tab === 'actions') {
-      setActiveNavTab(prev => prev === 'actions' ? null : 'actions');
+      setShowCharacterActions(true);
       return;
     }
     // Dice and other tabs toggle the full-screen content panel
