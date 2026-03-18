@@ -113,6 +113,10 @@ export function buildEmpyreanDMPersona(
   yearAtBasgiath: string = 'first-year',
   campaignFocus: CampaignFocus = 'balanced',
   dragonNotes: string = '',
+  bondDescriptor?: string,
+  trustDescriptor?: string,
+  recentDragonChatSummary?: string,
+  dragonMemories?: string[],
 ): string {
   const sections: string[] = [];
 
