@@ -130,7 +130,10 @@ export function EmpyreanDMScreen({
     }
   }, [open]);
 
-  const { enabledContent, activeGuideIds } = useGMGuides();
+  const gmGuides = useGMGuides();
+  const { enabledContent, activeGuideIds } = gmGuides;
+  const { chatThemeId, setChatThemeId } = useDMChatTheme();
+  const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
 
   const dmPersonaPrompt = useMemo(() => {
     if (!config) return undefined;
