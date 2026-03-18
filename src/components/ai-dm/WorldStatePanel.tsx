@@ -144,6 +144,16 @@ export function WorldStatePanel({ gameState, onAddAnchor, onRemoveAnchor, onSetQ
   const [expandedCat, setExpandedCat] = useState<MemoryAnchorCategory | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [activeTab, setActiveTab] = useState<'anchors' | 'quests' | 'inventory'>('anchors');
+  const [newQuestName, setNewQuestName] = useState('');
+  const [newQuestNotes, setNewQuestNotes] = useState('');
+
+  const handleAddQuest = useCallback(() => {
+    if (!newQuestName.trim()) return;
+    const key = newQuestName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    onSetQuestFlag(key, 'active', newQuestNotes.trim() || undefined);
+    setNewQuestName('');
+    setNewQuestNotes('');
+  }, [newQuestName, newQuestNotes, onSetQuestFlag]);
 
   const anchorsByCategory = gameState.memory_anchors.reduce<Partial<Record<MemoryAnchorCategory, MemoryAnchor[]>>>(
     (acc, a) => { (acc[a.category] = acc[a.category] || []).push(a); return acc; },
