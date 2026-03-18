@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { parseWhispers } from '@/lib/whisper-parser';
 import { WhisperTray } from '@/components/ai-dm/WhisperTray';
-import { ArrowLeft, Settings, Send, BookOpen, Loader2, RotateCcw, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, FolderOpen } from 'lucide-react';
+import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -12,7 +12,16 @@ import { useAIDM } from '@/hooks/use-ai-dm';
 import { useCampaignSessions, CampaignSession } from '@/hooks/use-campaign-sessions';
 import { CampaignDropdown } from '@/components/ai-dm/CampaignDropdown';
 import { CampaignSessionsManager } from '@/components/ai-dm/CampaignSessionsManager';
+import { DMToolsDrawer } from '@/components/ai-dm/DMToolsDrawer';
+import { DMBottomNav, DMNavTab } from '@/components/ai-dm/DMBottomNav';
+import { DMDiceRoller } from '@/components/ai-dm/DMDiceRoller';
+import { GMGuidesManager } from '@/components/ai-dm/GMGuidesManager';
+import { WorldStatePanel } from '@/components/ai-dm/WorldStatePanel';
+// DMQuickActions available but using Empyrean-specific prompts instead
 import { useGMGuides } from '@/hooks/use-gm-guides';
+import { useDMGameState, buildMemoryAnchorsPrompt } from '@/hooks/use-dm-game-state';
+import { useDMChatTheme } from '@/hooks/use-dm-chat-theme';
+import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
 import {
   loadEmpyreanDMConfig,
   buildEmpyreanDMPersona,
@@ -20,16 +29,9 @@ import {
 } from '@/lib/empyreanDMPersona';
 import { empyreanPrompts } from '@/lib/empyreanPrompts';
 import { EMPYREAN_SESSION_GUIDES } from '@/lib/empyreanGMGuides';
-import { DM_MODELS, DMAIModel } from '@/lib/dm-models';
+import { DM_MODELS } from '@/lib/dm-models';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 interface EmpyreanDMScreenProps {
   open: boolean;
@@ -107,13 +109,17 @@ export function EmpyreanDMScreen({
 }: EmpyreanDMScreenProps) {
   const [config, setConfig] = useState<EmpyreanDMConfig | null>(() => loadEmpyreanDMConfig());
   const [selectedModel, setSelectedModel] = useState(loadEmpyreanModel);
-  const [showSettings, setShowSettings] = useState(false);
+  const [showToolsDrawer, setShowToolsDrawer] = useState(false);
   const [showPrompts, setShowPrompts] = useState(false);
   const [showSaves, setShowSaves] = useState(false);
+  const [showGuides, setShowGuides] = useState(false);
+  const [showWorldState, setShowWorldState] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
   const [burnoutLevel, setBurnoutLevel] = useState(0);
   const [initialSent, setInitialSent] = useState(false);
+  const [activeNavTab, setActiveNavTab] = useState<DMNavTab | null>(null);
+  const [navExpanded, setNavExpanded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -124,7 +130,10 @@ export function EmpyreanDMScreen({
     }
   }, [open]);
 
-  const { enabledContent, activeGuideIds } = useGMGuides();
+  const gmGuides = useGMGuides();
+  const { enabledContent, activeGuideIds } = gmGuides;
+  const { themeId: chatThemeId, setTheme: setChatTheme } = useDMChatTheme();
+  const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
 
   const dmPersonaPrompt = useMemo(() => {
     if (!config) return undefined;
@@ -140,11 +149,15 @@ export function EmpyreanDMScreen({
     );
   }, [config, characterName]);
 
+  const gameState = useDMGameState(null);
+  const worldStatePrompt = useMemo(() => buildMemoryAnchorsPrompt(gameState.gameState), [gameState.gameState]);
+
   const {
     messages,
     isLoading,
     isSummarizing,
     campaignSummary,
+    updateCampaignSummary,
     sendMessage,
     clearMessages,
     cancelRequest,
@@ -160,6 +173,7 @@ export function EmpyreanDMScreen({
     customGuidesContent: enabledContent,
     dmPersonaPrompt,
     selectedModel,
+    worldStatePrompt,
     sessionStorageKey: EMPYREAN_SESSION_KEY,
     summarizeStorageKey: EMPYREAN_SUMMARY_KEY,
     onMessageComplete: autoSyncCallbacks ? (content) => {
@@ -181,7 +195,7 @@ export function EmpyreanDMScreen({
   const handleLoadCampaign = useCallback((session: CampaignSession) => {
     loadCampaign(session.messages, session.campaign_summary, session.id, session.gm_guide_ids);
     setShowSaves(false);
-    setShowSettings(false);
+    setShowToolsDrawer(false);
     toast.success(`Loaded: ${session.name}`);
   }, [loadCampaign]);
 
@@ -289,8 +303,30 @@ export function EmpyreanDMScreen({
     newGame();
     setActiveTemplate(null);
     setBurnoutLevel(0);
-    setShowSettings(false);
+    setShowToolsDrawer(false);
   }, [newGame]);
+
+  const handleNavTabChange = useCallback((tab: DMNavTab) => {
+    if (tab === activeNavTab) {
+      setActiveNavTab(null);
+      setNavExpanded(false);
+    } else {
+      setActiveNavTab(tab);
+      setNavExpanded(true);
+    }
+  }, [activeNavTab]);
+
+  const handleUsePrompt = useCallback((prompt: string) => {
+    if (!isLoading) {
+      sendMessage(prompt);
+      setActiveNavTab(null);
+      setNavExpanded(false);
+    }
+  }, [isLoading, sendMessage]);
+
+  const handleCampaignSummaryChange = useCallback((summary: string) => {
+    updateCampaignSummary(summary);
+  }, [updateCampaignSummary]);
 
   const handleSessionTemplate = useCallback((template: typeof EMPYREAN_SESSION_GUIDES[0]) => {
     const msg = `Start a new session using this structure: ${template.name}. My character is ${characterName}. Set the scene and begin.`;
@@ -376,10 +412,10 @@ export function EmpyreanDMScreen({
           </div>
         </div>
         <button
-          onClick={() => setShowSettings(true)}
+          onClick={() => setShowToolsDrawer(true)}
           className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
         >
-          <Settings className="w-5 h-5 text-purple-400" />
+          <BookOpen className="w-5 h-5 text-purple-400" />
         </button>
       </div>
 
@@ -589,7 +625,10 @@ export function EmpyreanDMScreen({
             rows={1}
             className="flex-1 bg-card/30 border border-purple-500/20 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-purple-400 max-h-[120px] min-h-[44px]"
             onKeyDown={e => {
-              // Enter inserts newline, no send shortcut
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
             }}
           />
 
@@ -617,80 +656,46 @@ export function EmpyreanDMScreen({
         </div>
       </div>
 
-      {/* Settings Sheet */}
-      <Sheet open={showSettings} onOpenChange={setShowSettings}>
-        <SheetContent side="bottom" className="z-[65] border-purple-500/20 bg-background max-h-[70vh]">
-          <SheetHeader>
-            <SheetTitle className="font-cinzel text-purple-300">Empyrean DM Settings</SheetTitle>
-          </SheetHeader>
-          <div className="space-y-5 py-4">
-            {/* Model selector */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">AI Model</label>
-              <Select value={selectedModel} onValueChange={handleModelChange}>
-                <SelectTrigger className="bg-card/30 border-purple-500/30 z-[70]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="z-[70] max-h-[300px]">
-                  {DM_MODELS.map(m => (
-                    <SelectItem key={m.id} value={m.id} className="text-xs text-white/80">
-                      <div>
-                        <span className="font-medium">{m.label}</span>
-                        <span className="text-white/40 ml-1.5">— {m.description}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+      {/* Bottom Navigation */}
+      <DMBottomNav
+        activeTab={activeNavTab}
+        onTabChange={handleNavTabChange}
+        isExpanded={navExpanded}
+        onExpandedChange={setNavExpanded}
+        disabled={isLoading}
+        diceContent={activeNavTab === 'dice' ? (
+          <DMDiceRoller
+            characterContext={characterContext}
+            onRollResult={handleUsePrompt}
+            disabled={isLoading}
+          />
+        ) : undefined}
+      />
 
-            {/* Saved Campaigns */}
-            <Button
-              variant="outline"
-              onClick={() => { setShowSettings(false); setShowSaves(true); }}
-              className="w-full gap-2 border-purple-500/30 text-purple-300 hover:bg-purple-500/10"
-            >
-              <FolderOpen className="w-4 h-4" />
-              Saved Campaigns
-            </Button>
-
-            {/* Campaign info */}
-            <div className="rounded-lg border border-purple-500/20 bg-purple-500/5 p-3 space-y-1">
-              {activeCampaignId && (
-                <p className="text-xs text-muted-foreground">
-                  <span className="text-purple-300">Campaign:</span> {campaignSessions.find(s => s.id === activeCampaignId)?.name ?? 'Unnamed'}
-                </p>
-              )}
-              <p className="text-xs text-muted-foreground">
-                <span className="text-purple-300">Focus:</span> {config.campaignFocus}
-              </p>
-              {config.dragonName && (
-                <p className="text-xs text-muted-foreground">
-                  <span className="text-purple-300">Dragon:</span> {config.dragonName}
-                </p>
-              )}
-              {config.signetType && (
-                <p className="text-xs text-muted-foreground">
-                  <span className="text-purple-300">Signet:</span> {config.signetType}
-                </p>
-              )}
-              <p className="text-xs text-muted-foreground">
-                <span className="text-purple-300">Messages:</span> {messages.length}
-              </p>
-            </div>
-
-            {/* New Campaign */}
-            <Button
-              variant="outline"
-              onClick={handleNewCampaign}
-              className="w-full gap-2 border-red-500/30 text-red-400 hover:bg-red-500/10"
-            >
-              <RotateCcw className="w-4 h-4" />
-              New Campaign Session
-            </Button>
-          </div>
-        </SheetContent>
-      </Sheet>
+      {/* DMToolsDrawer */}
+      <DMToolsDrawer
+        open={showToolsDrawer}
+        onOpenChange={setShowToolsDrawer}
+        onNewCampaign={handleNewCampaign}
+        onBattleMap={() => {}}
+        onSaves={() => setShowSaves(true)}
+        onGuides={() => setShowGuides(true)}
+        onWorldState={() => setShowWorldState(prev => !prev)}
+        onClearChat={clearMessages}
+        autoSyncEnabled={false}
+        onToggleAutoSync={() => {}}
+        isExtracting={false}
+        showAutoSync={false}
+        guidesCount={gmGuides.guides.filter(g => g.enabled).length}
+        anchorsCount={gameState.gameState.memory_anchors.length}
+        onEmpyreanPrompts={() => setShowPrompts(true)}
+        selectedModel={selectedModel}
+        onModelChange={handleModelChange}
+        chatThemeId={chatThemeId}
+        onChatThemeChange={setChatTheme}
+        whisperTrayEnabled={whisperTrayEnabled}
+        onWhisperTrayEnabledChange={setWhisperTrayEnabled}
+      />
 
       {/* Campaign Sessions Manager */}
       {showSaves && (
@@ -711,7 +716,35 @@ export function EmpyreanDMScreen({
         </div>
       )}
 
-      {/* Quick Prompts Sheet */}
+      {/* GM Guides Overlay */}
+      {showGuides && (
+        <GMGuidesManager
+          onBack={() => setShowGuides(false)}
+          guides={gmGuides.guides}
+          totalChars={gmGuides.totalChars}
+          campaignSummary={campaignSummary}
+          onCampaignSummaryChange={handleCampaignSummaryChange}
+          onAdd={gmGuides.addGuide}
+          onUpdate={gmGuides.updateGuide}
+          onDelete={gmGuides.deleteGuide}
+          onToggle={gmGuides.toggleGuide}
+          chatMessages={messages.slice(-20).map(m => ({ role: m.role, content: m.content }))}
+        />
+      )}
+
+      {/* World State Overlay */}
+      {showWorldState && (
+        <div className="fixed inset-0 z-[66] bg-background flex flex-col">
+          <WorldStatePanel
+            gameState={gameState.gameState}
+            onAddAnchor={gameState.addMemoryAnchor}
+            onRemoveAnchor={gameState.removeMemoryAnchor}
+            onSetQuestFlag={gameState.setQuestFlag}
+            onClose={() => setShowWorldState(false)}
+          />
+        </div>
+      )}
+
       <Sheet open={showPrompts} onOpenChange={setShowPrompts}>
         <SheetContent side="bottom" className="z-[65] border-purple-500/20 bg-background max-h-[75vh]">
           <SheetHeader>
