@@ -252,9 +252,10 @@ export function EmpyreanScreen({ open, onClose, characterName, characterContext 
       />
       <EmpyreanDMScreen
         open={showDM}
-        onClose={() => setShowDM(false)}
+        onClose={() => { setShowDM(false); setPendingPrompt(null); }}
         characterContext={characterContext}
         characterName={characterName}
+        initialMessage={pendingPrompt}
       />
     </div>
   );
