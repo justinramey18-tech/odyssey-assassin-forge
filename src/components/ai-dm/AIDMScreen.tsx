@@ -487,6 +487,11 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     worldStatePrompt,
     dmPersonaPrompt,
     onMessageComplete: handleMessageComplete,
+    onQuestExtracted: (quests) => {
+      for (const q of quests) {
+        setQuestFlag(q.key, q.status, q.notes);
+      }
+    },
     activeGuideIds: gmGuides.activeGuideIds,
     onCampaignSwitch: handleCampaignSwitch,
     selectedModel,

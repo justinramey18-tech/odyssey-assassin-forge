@@ -588,6 +588,60 @@ async function handleScheduledRound(
       });
     }
 
+    // ── Extract quests from AI response (non-blocking) ──
+    if (assistantContent.length > 100) {
+      try {
+        const questResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash-lite",
+            messages: [
+              { role: "system", content: "Extract any quests, missions, tasks, or objectives from this D&D narrative. Return ONLY a JSON array of objects with {key: string, status: \"active\"|\"completed\"|\"failed\", notes: string} where key is a snake_case identifier. If no quests found, return []. Raw JSON only, no markdown." },
+              { role: "user", content: assistantContent }
+            ],
+            max_tokens: 500,
+          }),
+        });
+        const questResult = await questResponse.json();
+        const questText = questResult.choices?.[0]?.message?.content || "[]";
+        const quests = JSON.parse(questText.replace(/```json|```/g, "").trim());
+
+        if (Array.isArray(quests) && quests.length > 0 && members) {
+          const { data: existingState } = await supabase
+            .from("party_shared_state")
+            .select("id, state_data")
+            .eq("party_id", partyId)
+            .eq("state_type", "quest_flags")
+            .maybeSingle();
+
+          const existingFlags = (existingState?.state_data as Record<string, any>) || {};
+          const updatedFlags = { ...existingFlags };
+          for (const q of quests) {
+            if (q.key && q.status) {
+              updatedFlags[q.key] = { status: q.status, notes: q.notes || "", updated_at: new Date().toISOString() };
+            }
+          }
+
+          if (existingState) {
+            await supabase.from("party_shared_state").update({ state_data: updatedFlags }).eq("id", existingState.id);
+          } else {
+            const { data: party } = await supabase.from("parties").select("created_by").eq("id", partyId).single();
+            if (party) {
+              await supabase.from("party_shared_state").insert({
+                party_id: partyId,
+                user_id: party.created_by,
+                state_type: "quest_flags",
+                state_data: updatedFlags,
+              });
+            }
+          }
+        }
+      } catch (questErr) {
+        console.warn("[party-timer] Quest extraction failed (non-blocking):", questErr);
+      }
+    }
+
     // 11. Consume cascade prompts for AFK members
     if (members) {
       const absentMembers = (members as Array<{ user_id: string; character_status: Record<string, unknown> }>)

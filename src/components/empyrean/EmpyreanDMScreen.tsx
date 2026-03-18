@@ -308,6 +308,11 @@ export function EmpyreanDMScreen({
         }
       }
     },
+    onQuestExtracted: (quests) => {
+      for (const q of quests) {
+        gameState.setQuestFlag(q.key, q.status, q.notes);
+      }
+    },
   });
 
   // Sync tracking campaign id with active campaign id from useAIDM

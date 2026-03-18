@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Message, CharacterContext } from '@/components/oracle/types';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 import { parseWhispers } from '@/lib/whisper-parser';
 import { getAuthToken } from '@/lib/auth-token';
@@ -56,6 +57,8 @@ interface UseAIDMOptions {
   worldStatePrompt?: string;
   dmPersonaPrompt?: string;
   onMessageComplete?: (content: string) => void;
+  /** Called when quests are extracted from AI narrative */
+  onQuestExtracted?: (quests: Array<{ key: string; status: 'active' | 'completed' | 'failed'; notes?: string }>) => void;
   /** Current active guide IDs to persist with the campaign */
   activeGuideIds?: string[];
   /** Called when a campaign is loaded so the parent can switch active guides */
@@ -144,12 +147,14 @@ function saveSession(messages: Message[], storageKey: string): void {
   }
 }
 
-export function useAIDM({ characterContext, customGuidesContent, worldStatePrompt, dmPersonaPrompt, onMessageComplete, activeGuideIds, onCampaignSwitch, selectedModel, sessionStorageKey, summarizeStorageKey }: UseAIDMOptions) {
+export function useAIDM({ characterContext, customGuidesContent, worldStatePrompt, dmPersonaPrompt, onMessageComplete, onQuestExtracted, activeGuideIds, onCampaignSwitch, selectedModel, sessionStorageKey, summarizeStorageKey }: UseAIDMOptions) {
   const STORAGE_KEY = sessionStorageKey ?? DEFAULT_STORAGE_KEY;
   const SUMMARY_KEY = summarizeStorageKey ?? DEFAULT_SUMMARY_KEY;
   // Store onMessageComplete in a ref so sendMessage always calls the latest version
   const onMessageCompleteRef = useRef(onMessageComplete);
   useEffect(() => { onMessageCompleteRef.current = onMessageComplete; }, [onMessageComplete]);
+  const onQuestExtractedRef = useRef(onQuestExtracted);
+  useEffect(() => { onQuestExtractedRef.current = onQuestExtracted; }, [onQuestExtracted]);
 
   const [messages, setMessages] = useState<Message[]>(() => loadSession(STORAGE_KEY));
   const [isLoading, setIsLoading] = useState(false);
@@ -426,6 +431,35 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
         }];
         triggerSummaryIfNeeded(updatedMessages);
         onMessageCompleteRef.current?.(narrative);
+
+        // Non-blocking quest extraction
+        if (narrative.length > 100 && onQuestExtractedRef.current) {
+          (async () => {
+            try {
+              const { data: { session } } = await supabase.auth.getSession();
+              const token = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+              const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                  model: 'google/gemini-2.5-flash-lite',
+                  messages: [
+                    { role: 'system', content: 'Extract any quests, missions, tasks, or objectives from this D&D narrative. Return ONLY a JSON array of objects with {key: string, status: "active"|"completed"|"failed", notes: string} where key is a snake_case identifier (e.g. "retrieve_the_dragons_eye"). If completing or failing an existing quest, set status accordingly. If no quests found, return []. Raw JSON only, no markdown.' },
+                    { role: 'user', content: narrative }
+                  ],
+                  max_tokens: 500,
+                  systemPromptOverride: 'Extract quests as JSON array only.'
+                })
+              });
+              const data = await res.json();
+              const text = data.choices?.[0]?.message?.content || '[]';
+              const quests = JSON.parse(text.replace(/```json|```/g, '').trim());
+              if (Array.isArray(quests) && quests.length > 0) {
+                onQuestExtractedRef.current?.(quests);
+              }
+            } catch { /* non-blocking */ }
+          })();
+        }
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
