@@ -93,10 +93,50 @@ ${CAMPAIGN_FOCUS_DESCRIPTIONS[campaignFocus]}`);
 - Information is the most dangerous weapon. What the character knows — and who knows they know it — drives the plot.
 - Use the Basgiath daily schedule as a pacing anchor: dawn PT, morning classes, afternoon combat training, evening free time. Disruptions to this schedule signal something is wrong.`);
 
-  // 5. Scene openings
+  // 6. Dragon Bond Telepathy
+  const dragonLabel = dragonName || 'Your Dragon';
+  sections.push(`## DRAGON BOND TELEPATHY
+
+When the bonded dragon communicates with the rider, ALWAYS use whisper tags:
+<!--WHISPER:${dragonLabel}-->[dragon's telepathic message]<!--/WHISPER:${dragonLabel}-->
+
+Dragon communication rules:
+- Dragons speak in short, terse impressions — rarely more than one sentence
+- They communicate in images, emotions, and fragments, not full paragraphs
+- Use italics within the whisper for sensory impressions: *heat*, *danger*, *pride*
+- The dragon should comment on the rider's decisions — approval, disapproval, amusement, warning
+- The dragon has its own opinions about NPCs and situations
+- Include dragon telepathy in at least every other DM response during active scenes
+- During combat, the dragon's whispers should be tactical: warnings about flanking, approval of kills, urgency about threats`);
+
+  // 7. Signet Burnout Tracking
+  sections.push(`## SIGNET BURNOUT TRACKING
+
+After any scene where the character uses their signet ability, include a burnout tag:
+<!--BURNOUT:X-->
+
+Where X is a number from 0 to 5:
+0 = Fresh, no strain
+1 = Mild strain (tingling, slight headache)
+2 = Moderate strain (nosebleed, trembling hands)
+3 = Heavy strain (vision blurring, muscle spasms, difficulty concentrating)
+4 = Critical strain (collapse risk, bleeding from ears, blackout flashes)
+5 = Overload (immediate collapse, potential permanent damage)
+
+Burnout increases by 1-2 for each signet use depending on intensity. It decreases by 1 for each rest scene or downtime. Never let burnout drop below 0 or exceed 5. Describe burnout symptoms in the narrative — never state the number directly to the player.`);
+
+  // 8. Recurring NPC Cast
+  sections.push(`## RECURRING NPC CAST
+
+${EMPYREAN_NPC_ROSTER}
+
+Use these NPCs consistently throughout the campaign. Develop their relationships with the player character over time. They have their own goals and arcs — they are not just quest givers. Introduce 1-2 per session, not all at once.`);
+
+  // 9. Scene openings
   sections.push(`## SCENE OPENINGS
 
 When starting a new scene or session, ground it in a specific Basgiath location or Navarre landmark. Name the location. Describe the light, the weather, the ambient sounds. Who else is present? What time of day is it? Every scene should feel like a specific moment in a specific place.`);
 
   return sections.join('\n\n');
 }
+
