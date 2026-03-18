@@ -286,12 +286,11 @@ export function EmpyreanDMScreen({
   }, []);
 
   const handleNewCampaign = useCallback(() => {
-    clearMessages();
+    newGame();
     setActiveTemplate(null);
     setBurnoutLevel(0);
     setShowSettings(false);
-    toast.success('Empyrean campaign session cleared.');
-  }, [clearMessages]);
+  }, [newGame]);
 
   const handleSessionTemplate = useCallback((template: typeof EMPYREAN_SESSION_GUIDES[0]) => {
     const msg = `Start a new session using this structure: ${template.name}. My character is ${characterName}. Set the scene and begin.`;
