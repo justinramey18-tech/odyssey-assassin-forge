@@ -17,6 +17,8 @@ interface GMGuidesManagerProps {
   onDelete: (id: string) => void;
   onToggle: (id: string) => void;
   chatMessages?: Array<{ role: string; content: string }>;
+  onFullSummarize?: () => Promise<void>;
+  isFullSummarizing?: boolean;
 }
 
 function CharCounter({ current, max, className }: { current: number; max: number; className?: string }) {
