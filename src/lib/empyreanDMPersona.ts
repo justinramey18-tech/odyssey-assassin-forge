@@ -229,6 +229,44 @@ Use these NPCs consistently throughout the campaign. Develop their relationships
 
 When starting a new scene or session, ground it in a specific Basgiath location or Navarre landmark. Name the location. Describe the light, the weather, the ambient sounds. Who else is present? What time of day is it? Every scene should feel like a specific moment in a specific place.`);
 
+  // 10. Dragon-rider bond status (from bond chat system)
+  if (bondDescriptor) {
+    let bondSection = `## DRAGON-RIDER BOND STATUS
+
+Bond Level: ${bondDescriptor}
+Trust Level: ${trustDescriptor || 'Unknown'}
+
+Narrate the dragon-rider dynamic based on these levels. `;
+
+    if (bondDescriptor.startsWith('Legendary')) {
+      bondSection += 'The dragon and rider move as one — describe perfect aerial coordination, wordless understanding, moments where the dragon acts before the rider thinks the command. Other characters should notice and comment on the extraordinary bond.';
+    } else if (bondDescriptor.startsWith('Deep')) {
+      bondSection += 'Describe fluid teamwork and mutual trust. The dragon volunteers actions in combat. Quiet moments between them carry warmth.';
+    } else if (bondDescriptor.startsWith('Strong')) {
+      bondSection += 'Reliable partnership with occasional miscommunication. Good coordination but not yet seamless.';
+    } else if (bondDescriptor.startsWith('Growing')) {
+      bondSection += 'The dragon cooperates but doesn\'t anticipate. Describe occasional friction, the rider having to earn each act of trust.';
+    } else {
+      bondSection += 'The dragon is still evaluating this rider. It may hesitate on commands, refuse risky maneuvers, or ignore requests it considers beneath it.';
+    }
+
+    sections.push(bondSection);
+  }
+
+  if (recentDragonChatSummary && recentDragonChatSummary.trim()) {
+    sections.push(`## RECENT DRAGON-RIDER PRIVATE COMMUNICATION
+The rider recently had this private telepathic exchange with their dragon (outside the main narrative). Use this context to inform dragon behavior in scenes — the dragon may reference these conversations through the bond, react to NPCs or situations based on what was discussed, or behave differently based on the emotional tone of recent private exchanges:
+
+${recentDragonChatSummary.trim()}`);
+  }
+
+  if (dragonMemories && dragonMemories.length > 0) {
+    sections.push(`## DRAGON'S PERSISTENT MEMORIES
+These are established facts about the dragon's personality, opinions, and experiences — formed through actual gameplay. Treat them as canon and reference them naturally:
+
+${dragonMemories.map(m => '- ' + m).join('\n')}`);
+  }
+
   return sections.join('\n\n');
 }
 
