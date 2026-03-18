@@ -44,6 +44,17 @@ const CAMPAIGN_FOCUS_DESCRIPTIONS: Record<CampaignFocus, string> = {
   balanced: `Mix all elements in shifting proportions — tactical combat one session, political maneuvering the next, with romance, mystery, and survival woven through as persistent threads. Let the character's choices determine which elements rise to the foreground. No single session should feel one-note; even combat encounters should carry political implications, and quiet moments should hint at lurking danger.`,
 };
 
+export const EMPYREAN_NPC_ROSTER = `- Commander Aldric Vane (Wingleader): Battle-hardened veteran who tests loyalty through impossible orders. Speech style: Clipped, military, never wastes a word.
+- Lira Ashwood (Scribe Archivist): Trades forbidden information for favors owed. Speech style: Whispered, precise, always sounds like she knows more than she's saying.
+- Cadet Kael Thorin (Rival): Ambitious, politically connected, publicly charming, privately ruthless. Speech style: Smooth and confident, with an edge of condescension.
+- Maren Sol (Healer): Genuinely kind but asks probing questions that feel like interrogation. Speech style: Warm but direct, always a follow-up question.
+- Professor Dain Wraith (Combat Instructor): Believes pain is the best teacher, but secretly protects students who show promise. Speech style: Loud, blunt, uses old military slang.
+- Eira Frost (Intelligence Operative): Appears and disappears without warning, always knows things she shouldn't. Speech style: Calm, measured, never raises her voice.
+- Rook (Underground Contact): Real name unknown, operates in Basgiath's shadow economy. Speech style: Casual, uses nicknames, never gives a straight answer on first ask.
+- Elder Dragon Syrathax (Ancient Dragon): Oldest dragon at Basgiath, communicates rarely but always meaningfully. Speech style: Through bond only — delivers single devastating sentences.
+- Novice Thea Brightmoor (Younger Cadet): Looks up to the player character, asks too many questions, is in over her head. Speech style: Eager, fast-talking, stumbles over words when nervous.
+- Vice Commandant Orin Dusk (Political Operator): Smiles too much, agrees too easily, always has a secondary agenda. Speech style: Warm, agreeable, uses the character's name too often.`;
+
 export function buildEmpyreanDMPersona(
   selectedLoreGuides: string[],
   selectedToneGuides: string[],
