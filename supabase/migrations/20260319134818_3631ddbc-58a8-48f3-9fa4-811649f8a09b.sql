@@ -1,0 +1,1 @@
+ALTER TABLE public.scheduled_telegram_jobs ADD COLUMN dm_context_mode text NOT NULL DEFAULT 'party';
