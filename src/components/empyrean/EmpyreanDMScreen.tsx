@@ -1227,6 +1227,20 @@ export function EmpyreanDMScreen({
         dragonNotes={dragonNotes}
         characterContext={characterContext}
       />
+
+      <AnimatePresence>
+        {showCampaignBuilder && (
+          <CampaignBuilderChat
+            characterName={characterName}
+            characterLevel={characterContext.level || 1}
+            onComplete={handleCampaignBuilderComplete}
+            onSkip={() => {
+              setShowCampaignBuilder(false);
+              handleNewCampaign();
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
