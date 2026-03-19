@@ -59,7 +59,7 @@ const JOB_TEMPLATES = [
 
 export function TelegramSettingsTab() {
   const { user } = useAuth();
-  const [link, setLink] = useState<TelegramLink | null>(null);
+  const [links, setLinks] = useState<TelegramLink[]>([]);
   const [linkCode, setLinkCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -79,20 +79,19 @@ export function TelegramSettingsTab() {
   const [newJobAiModel, setNewJobAiModel] = useState(DEFAULT_MODEL_ID);
   const [submittingJob, setSubmittingJob] = useState(false);
 
-  // Fetch existing link
-  const fetchLink = useCallback(async () => {
+  // Fetch existing links
+  const fetchLinks = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     const { data } = await supabase
       .from('telegram_user_links')
       .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle();
-    setLink(data as TelegramLink | null);
+      .eq('user_id', user.id);
+    setLinks((data as TelegramLink[] | null) ?? []);
     setLoading(false);
   }, [user]);
 
-  useEffect(() => { fetchLink(); }, [fetchLink]);
+  useEffect(() => { fetchLinks(); }, [fetchLinks]);
 
   // Fetch scheduled jobs
   const fetchJobs = useCallback(async () => {
@@ -108,13 +107,12 @@ export function TelegramSettingsTab() {
     setJobsLoading(false);
   }, [user]);
 
-  useEffect(() => { if (link) fetchJobs(); }, [link, fetchJobs]);
+  useEffect(() => { if (links.length > 0) fetchJobs(); }, [links, fetchJobs]);
 
-  // Generate link code
+  // Generate link code (does NOT delete existing codes/links)
   const generateCode = useCallback(async () => {
     if (!user) return;
     setGenerating(true);
-    await supabase.from('telegram_link_codes').delete().eq('user_id', user.id);
 
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
@@ -142,28 +140,28 @@ export function TelegramSettingsTab() {
     toast.success('Copied! Paste this to the bot in Telegram');
   }, [linkCode]);
 
-  // Unlink
-  const handleUnlink = useCallback(async () => {
+  // Unlink a specific chat
+  const handleUnlink = useCallback(async (linkId: string) => {
     if (!user) return;
-    await supabase.from('telegram_user_links').delete().eq('user_id', user.id);
-    setLink(null);
-    toast.success('Telegram unlinked');
+    await supabase.from('telegram_user_links').delete().eq('id', linkId);
+    setLinks(prev => prev.filter(l => l.id !== linkId));
+    toast.success('Telegram chat unlinked');
   }, [user]);
 
-  // Toggle notification preference
-  const toggleNotif = useCallback(async (field: string, value: boolean) => {
-    if (!user || !link) return;
+  // Toggle notification preference for a specific link
+  const toggleNotif = useCallback(async (linkId: string, field: string, value: boolean) => {
+    if (!user) return;
     const { error } = await supabase
       .from('telegram_user_links')
       .update({ [field]: value })
-      .eq('user_id', user.id);
+      .eq('id', linkId);
 
     if (!error) {
-      setLink(prev => prev ? { ...prev, [field]: value } : prev);
+      setLinks(prev => prev.map(l => l.id === linkId ? { ...l, [field]: value } : l));
     } else {
       toast.error('Failed to update preference');
     }
-  }, [user, link]);
+  }, [user]);
 
   // Cancel a scheduled job
   const cancelJob = useCallback(async (jobId: string) => {
@@ -290,143 +288,158 @@ export function TelegramSettingsTab() {
       <div className="space-y-3 pb-6">
         {/* Link Status */}
         <SettingsSection title="Connection" icon={<Send className="w-4 h-4 text-sky-400" />}>
-          {link ? (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="border-green-500/30 text-green-400 bg-green-500/5">
-                  <Link2 className="w-3 h-3 mr-1" />
-                  Linked
-                </Badge>
-                {link.username && (
-                  <span className="text-xs text-muted-foreground">@{link.username}</span>
-                )}
-              </div>
-              <p className="text-[10px] text-muted-foreground">
-                Linked {new Date(link.linked_at).toLocaleDateString()}. Notifications will be sent to this Telegram chat.
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  try {
-                    const { data, error } = await supabase.functions.invoke('telegram-notify-proxy', {
-                      body: {
-                        type: 'custom',
-                        targetUserIds: [user!.id],
-                        title: '🧪 Test Notification',
-                        body: 'If you see this in Telegram, push notifications are working!',
-                      },
-                    });
-                    if (error) throw error;
-                    toast.success(`Test sent! (${data?.sent ?? 0} delivered)`);
-                  } catch (e: any) {
-                    console.error(e);
-                    toast.error('Failed to send test notification');
-                  }
-                }}
-                className="w-full gap-2 h-10"
-              >
-                <Bell className="w-3.5 h-3.5" />
-                Send Test Notification
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleUnlink}
-                className="w-full gap-2 h-10 border-destructive/30 text-destructive hover:bg-destructive/10"
-              >
-                <Unlink className="w-3.5 h-3.5" />
-                Unlink Telegram
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Link your Telegram to receive party notifications and roll dice remotely.
-              </p>
+          <div className="space-y-3">
+            {/* Existing linked chats */}
+            {links.length > 0 && (
               <div className="space-y-2">
-                <p className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider">Step 1</p>
-                <p className="text-xs text-muted-foreground">
-                  Open your <b>TeleDnd</b> bot in Telegram and send <code>/start</code>.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <p className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider">Step 2</p>
-                <p className="text-xs text-muted-foreground">Generate a link code below.</p>
+                {links.map((lnk) => (
+                  <div key={lnk.id} className="flex items-center justify-between gap-2 rounded-lg border border-border/30 bg-muted/10 p-2.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Badge variant="outline" className="border-green-500/30 text-green-400 bg-green-500/5 shrink-0">
+                        <Link2 className="w-3 h-3 mr-1" />
+                        Linked
+                      </Badge>
+                      <span className="text-xs text-muted-foreground truncate">
+                        {lnk.username ? `@${lnk.username}` : `Chat ${lnk.chat_id}`}
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleUnlink(lnk.id)}
+                      className="shrink-0 h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                    >
+                      <Unlink className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                ))}
                 <Button
+                  variant="outline"
                   size="sm"
-                  onClick={generateCode}
-                  disabled={generating}
+                  onClick={async () => {
+                    try {
+                      const { data, error } = await supabase.functions.invoke('telegram-notify-proxy', {
+                        body: {
+                          type: 'custom',
+                          targetUserIds: [user!.id],
+                          title: '🧪 Test Notification',
+                          body: 'If you see this in Telegram, push notifications are working!',
+                        },
+                      });
+                      if (error) throw error;
+                      toast.success(`Test sent! (${data?.sent ?? 0} delivered)`);
+                    } catch (e: any) {
+                      console.error(e);
+                      toast.error('Failed to send test notification');
+                    }
+                  }}
                   className="w-full gap-2 h-10"
                 >
-                  {generating ? (
-                    <><RefreshCw className="w-3.5 h-3.5 animate-spin" />Generating...</>
-                  ) : (
-                    <><Link2 className="w-3.5 h-3.5" />Generate Link Code</>
-                  )}
+                  <Bell className="w-3.5 h-3.5" />
+                  Send Test to All Chats
                 </Button>
               </div>
-              {linkCode && (
-                <div className="space-y-2">
-                  <p className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider">Step 3</p>
-                  <p className="text-xs text-muted-foreground">Send this to your bot in Telegram:</p>
-                  <button
-                    onClick={copyCode}
-                    className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors"
-                  >
-                    <code className="text-sm font-mono text-primary font-bold">/link {linkCode}</code>
-                    <Copy className="w-4 h-4 text-muted-foreground shrink-0" />
-                  </button>
-                  <p className="text-[10px] text-muted-foreground text-center">
-                    Expires in 10 minutes. Tap to copy.
+            )}
+
+            {/* Link code generation — always available */}
+            <div className="space-y-2">
+              {links.length === 0 && (
+                <>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Link your Telegram to receive party notifications and roll dice remotely.
                   </p>
-                </div>
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider">Step 1</p>
+                    <p className="text-xs text-muted-foreground">
+                      Open your <b>TeleDnd</b> bot in Telegram and send <code>/start</code>.
+                    </p>
+                  </div>
+                  <p className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider">Step 2</p>
+                </>
               )}
+              {links.length > 0 && (
+                <p className="text-[10px] text-muted-foreground">
+                  Generate a new code to link another Telegram group or chat.
+                </p>
+              )}
+              <Button
+                size="sm"
+                onClick={generateCode}
+                disabled={generating}
+                className="w-full gap-2 h-10"
+                variant={links.length > 0 ? 'outline' : 'default'}
+              >
+                {generating ? (
+                  <><RefreshCw className="w-3.5 h-3.5 animate-spin" />Generating...</>
+                ) : links.length > 0 ? (
+                  <><Plus className="w-3.5 h-3.5" />Add Another Chat</>
+                ) : (
+                  <><Link2 className="w-3.5 h-3.5" />Generate Link Code</>
+                )}
+              </Button>
             </div>
-          )}
+            {linkCode && (
+              <div className="space-y-2">
+                {links.length === 0 && (
+                  <p className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider">Step 3</p>
+                )}
+                <p className="text-xs text-muted-foreground">Send this to your bot in Telegram:</p>
+                <button
+                  onClick={copyCode}
+                  className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors"
+                >
+                  <code className="text-sm font-mono text-primary font-bold">/link {linkCode}</code>
+                  <Copy className="w-4 h-4 text-muted-foreground shrink-0" />
+                </button>
+                <p className="text-[10px] text-muted-foreground text-center">
+                  Expires in 10 minutes. Tap to copy.
+                </p>
+              </div>
+            )}
+          </div>
         </SettingsSection>
 
         {/* Notification Preferences (only when linked) */}
-        {link && (
+        {links.length > 0 && (
           <SettingsSection title="Notifications" icon={<Bell className="w-4 h-4 text-amber-400" />}>
             <div className="space-y-3">
               <p className="text-[10px] text-muted-foreground">
-                Choose which events send a Telegram message.
+                {links.length === 1 ? 'Choose which events send a Telegram message.' : 'Notification preferences apply to all linked chats.'}
               </p>
 
               <NotifToggle
                 label="Ready-up alerts"
                 description="When a party member readies up"
-                checked={link.notify_ready_up}
-                onChange={(v) => toggleNotif('notify_ready_up', v)}
+                checked={links[0].notify_ready_up}
+                onChange={(v) => links.forEach(l => toggleNotif(l.id, 'notify_ready_up', v))}
               />
               <Separator className="bg-border/20" />
               <NotifToggle
                 label="Timer expiry"
                 description="When the round timer runs out"
-                checked={link.notify_timer}
-                onChange={(v) => toggleNotif('notify_timer', v)}
+                checked={links[0].notify_timer}
+                onChange={(v) => links.forEach(l => toggleNotif(l.id, 'notify_timer', v))}
               />
               <Separator className="bg-border/20" />
               <NotifToggle
                 label="Combat alerts"
                 description="When combat starts or your turn begins"
-                checked={link.notify_combat}
-                onChange={(v) => toggleNotif('notify_combat', v)}
+                checked={links[0].notify_combat}
+                onChange={(v) => links.forEach(l => toggleNotif(l.id, 'notify_combat', v))}
               />
               <Separator className="bg-border/20" />
               <NotifToggle
                 label="Dragon bond"
                 description="Messages from your bonded dragon"
-                checked={link.notify_dragon}
-                onChange={(v) => toggleNotif('notify_dragon', v)}
+                checked={links[0].notify_dragon}
+                onChange={(v) => links.forEach(l => toggleNotif(l.id, 'notify_dragon', v))}
               />
             </div>
           </SettingsSection>
         )}
 
         {/* Scheduled Jobs (only when linked) */}
-        {link && (
+        {links.length > 0 && (
           <SettingsSection title="Scheduled Jobs" icon={<Clock className="w-4 h-4 text-violet-400" />}>
             <div className="space-y-3">
               <p className="text-[10px] text-muted-foreground">

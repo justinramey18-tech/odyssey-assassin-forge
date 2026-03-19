@@ -1,0 +1,1 @@
+ALTER TABLE public.telegram_user_links DROP CONSTRAINT telegram_user_links_user_id_key;

@@ -145,14 +145,34 @@ async function processCommand(
       await sendTelegram(chatId, '❌ Invalid or expired code. Generate a new one in Settings → Telegram.', lovableKey, telegramKey);
       return;
     }
-    const { error: linkErr } = await supabase
+    // Check if this chat is already linked to this user
+    const { data: existingLink } = await supabase
       .from('telegram_user_links')
-      .upsert({
-        user_id: linkCode.user_id,
-        chat_id: chatId,
-        username: username || null,
-        linked_at: new Date().toISOString(),
-      }, { onConflict: 'user_id' });
+      .select('id')
+      .eq('user_id', linkCode.user_id)
+      .eq('chat_id', chatId)
+      .maybeSingle();
+
+    let linkErr;
+    if (existingLink) {
+      // Already linked — just update
+      const { error } = await supabase
+        .from('telegram_user_links')
+        .update({ username: username || null, linked_at: new Date().toISOString() })
+        .eq('id', existingLink.id);
+      linkErr = error;
+    } else {
+      // New link — insert
+      const { error } = await supabase
+        .from('telegram_user_links')
+        .insert({
+          user_id: linkCode.user_id,
+          chat_id: chatId,
+          username: username || null,
+          linked_at: new Date().toISOString(),
+        });
+      linkErr = error;
+    }
     if (linkErr) {
       console.error('Link upsert error:', linkErr);
       await sendTelegram(chatId, '❌ Failed to link account. Try again.', lovableKey, telegramKey);
