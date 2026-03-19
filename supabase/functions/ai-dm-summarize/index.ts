@@ -147,7 +147,7 @@ serve(async (req) => {
       const { callOpenAINonStreaming } = await import("../_shared/openai-helper.ts");
       const result = await callOpenAINonStreaming({
         userApiKey: user_openai_key.trim(),
-        systemPrompt: SUMMARIZER_SYSTEM_PROMPT,
+        systemPrompt: systemPrompt,
         messages: [{ role: "user", content: userPrompt }],
         maxTokens: 8000,
         model: 'gpt-5',
