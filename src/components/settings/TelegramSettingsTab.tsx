@@ -101,7 +101,7 @@ export function TelegramSettingsTab() {
     setJobsLoading(true);
     const { data } = await supabase
       .from('scheduled_telegram_jobs')
-      .select('id, job_name, ai_prompt, static_message, repeat_daily, run_at, run_time, timezone, status, last_result, dm_context_mode, ai_model')
+      .select('id, job_name, ai_prompt, static_message, repeat_daily, run_at, run_time, timezone, status, last_result, dm_context_mode, ai_model, target_chat_ids')
       .eq('user_id', user.id)
       .in('status', ['pending', 'running'])
       .order('run_at', { ascending: true });
