@@ -246,6 +246,8 @@ export function TelegramSettingsTab() {
       setNewJobPrompt('');
       setNewJobName('');
       setNewJobIncludeContext(true);
+      setNewJobDmContext('solo');
+      setNewJobAiModel(DEFAULT_MODEL_ID);
       setNewJobTime('08:00');
       setNewJobRepeatDaily(false);
       setNewJobDate(undefined);
