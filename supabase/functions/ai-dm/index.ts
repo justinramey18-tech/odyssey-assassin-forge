@@ -147,6 +147,7 @@ interface DMRequest {
   systemPromptOverride?: string;
   memoryAnchors?: string;
   recentPartyChat?: Array<{ sender: string; message: string }>;
+  responseModePrompt?: string;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
