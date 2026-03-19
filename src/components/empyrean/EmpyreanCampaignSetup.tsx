@@ -63,6 +63,30 @@ const DEFAULT_META_IDS = new Set(
   EMPYREAN_META_GUIDES.filter(g => g.name === 'Academy Life').map(g => g.id),
 );
 
+function generateOpeningScenePrompt(config: EmpyreanDMConfig): string {
+  const { characterName, dragonName, signetType, yearAtBasgiath, campaignFocus } = config;
+  
+  const focusHooks: Record<string, string> = {
+    combat: "There are rumors of Venin sightings near the northern frontier. The ward line flickered twice last night.",
+    political: "A closed-door Empyrean council session just ended. The Commandant's expression as she left was unreadable.",
+    romance: "The morning light catches someone's face across the mess hall — a moment of stillness in the chaos of Basgiath.",
+    mystery: "A page is missing from the archives. The librarian insists it was never there. But you saw it yesterday.",
+    survival: "Orders have come down: a reconnaissance mission beyond the ward line. Volunteers only. No one is volunteering.",
+    balanced: "It's dawn at Basgiath. The mountain air bites. Today feels different — charged, like the sky before a storm.",
+  };
+
+  const hook = focusHooks[campaignFocus] || focusHooks.balanced;
+  
+  let prompt = `Begin the Empyrean Campaign. Set the opening scene at Basgiath War College.\n\n`;
+  prompt += `My character is ${characterName}, a ${yearAtBasgiath} at Basgiath.`;
+  if (dragonName) prompt += ` My bonded dragon is ${dragonName}.`;
+  if (signetType) prompt += ` My signet ability is ${signetType}.`;
+  prompt += `\n\n${hook}`;
+  prompt += `\n\nDescribe my character waking up or arriving at a specific location in Basgiath. Set the atmosphere — the light, the weather, the sounds. Introduce the scene with rich detail and end with a moment that demands a choice or reaction. Do not control my character's actions or dialogue.`;
+  
+  return prompt;
+}
+
 function StepIndicator({ current, total }: { current: number; total: number }) {
   return (
     <div className="flex items-center justify-center gap-2 py-3">
