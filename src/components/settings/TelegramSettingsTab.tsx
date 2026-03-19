@@ -44,6 +44,8 @@ interface ScheduledJob {
   timezone: string;
   status: string;
   last_result: string | null;
+  dm_context_mode?: string;
+  ai_model?: string;
 }
 
 const JOB_TEMPLATES = [
