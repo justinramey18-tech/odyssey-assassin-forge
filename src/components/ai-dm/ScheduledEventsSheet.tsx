@@ -70,10 +70,10 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('party_scheduled_events')
+        .from('scheduled_telegram_jobs')
         .select('*')
         .eq('party_id', partyId)
-        .order('scheduled_at', { ascending: true });
+        .order('run_at', { ascending: true });
 
       if (error) {
         console.error('Failed to fetch scheduled events:', error.message);
