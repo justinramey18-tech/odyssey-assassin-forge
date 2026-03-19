@@ -479,6 +479,17 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   useEffect(() => { extractMemoryRef.current = extractMemory; }, [extractMemory]);
   useEffect(() => { memoryAnchorsRef.current = gameState.memory_anchors; }, [gameState.memory_anchors]);
 
+  // Register Oracle quest callback so OracleDrawer can save quests to game state
+  const drawerContext = usePromptDrawers();
+  useEffect(() => {
+    drawerContext?.registerOracleQuestCallback?.((quests) => {
+      for (const q of quests) {
+        setQuestFlag(q.key, q.status, q.notes);
+      }
+    });
+    return () => { drawerContext?.registerOracleQuestCallback?.(null); };
+  }, [setQuestFlag]);
+
   // Build world state prompt to inject into AI system prompt
   const worldStatePrompt = useMemo(() => buildMemoryAnchorsPrompt(gameState), [gameState]);
 
