@@ -148,7 +148,7 @@ function saveSession(messages: Message[], storageKey: string): void {
   }
 }
 
-export function useAIDM({ characterContext, customGuidesContent, worldStatePrompt, dmPersonaPrompt, onMessageComplete, onQuestExtracted, activeGuideIds, onCampaignSwitch, selectedModel, sessionStorageKey, summarizeStorageKey }: UseAIDMOptions) {
+export function useAIDM({ characterContext, customGuidesContent, worldStatePrompt, dmPersonaPrompt, responseModePrompt, onMessageComplete, onQuestExtracted, activeGuideIds, onCampaignSwitch, selectedModel, sessionStorageKey, summarizeStorageKey }: UseAIDMOptions) {
   const STORAGE_KEY = sessionStorageKey ?? DEFAULT_STORAGE_KEY;
   const SUMMARY_KEY = summarizeStorageKey ?? DEFAULT_SUMMARY_KEY;
   // Store onMessageComplete in a ref so sendMessage always calls the latest version
