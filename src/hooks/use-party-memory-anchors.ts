@@ -133,6 +133,10 @@ export function usePartyMemoryAnchors({ partyId }: UsePartyMemoryAnchorsOptions)
     });
   }, [scheduleSave]);
 
+  const clearAll = useCallback(() => {
+    setAnchors([]);
+  }, []);
+
   /** Formatted string for Oracle context injection */
   const formattedForOracle = anchors.length > 0
     ? anchors
@@ -146,6 +150,7 @@ export function usePartyMemoryAnchors({ partyId }: UsePartyMemoryAnchorsOptions)
     loaded,
     addMemoryAnchor,
     removeMemoryAnchor,
+    clearAll,
     formattedForOracle,
   };
 }
