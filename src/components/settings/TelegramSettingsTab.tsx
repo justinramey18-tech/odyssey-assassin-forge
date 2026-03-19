@@ -235,6 +235,7 @@ export function TelegramSettingsTab() {
           run_at: runAt.toISOString(),
           repeat_daily: newJobRepeatDaily,
           run_time: newJobRepeatDaily ? utcTimeStr : null,
+          target_chat_ids: newJobTargetChatIds.length > 0 ? newJobTargetChatIds : null,
         });
 
       if (error) throw error;
