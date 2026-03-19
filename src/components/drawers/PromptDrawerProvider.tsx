@@ -526,6 +526,8 @@ export function PromptDrawerProvider({
       getScoreBreakdown, identityGender, identityRace, identityBackstory, identityRelationships,
       wildShape?.state.isTransformed, wildShape?.state.currentForm, wildShape?.state.formHP, wildShape?.state.formMaxHP, wildShape?.state.usesRemaining, wildShape?.state.maxUses]);
 
+  const [oracleQuestCallback, setOracleQuestCallback] = useState<((quests: Array<{ key: string; status: 'active' | 'completed' | 'failed'; notes?: string }>) => void) | null>(null);
+
   const contextValue: PromptDrawerContextValue = {
     openInfinityDrawer: handleOpenInfinityDrawer,
     openAbilitiesDrawer: useCallback(() => { closeAllDrawers(); setAbilitiesOpen(true); }, [closeAllDrawers]),
@@ -566,6 +568,8 @@ export function PromptDrawerProvider({
     conditions: conditionsSystem,
     // Character context
     characterContext: aiDMCharacterContext,
+    // Oracle quest extraction callback registration
+    registerOracleQuestCallback: useCallback((cb: ((quests: Array<{ key: string; status: 'active' | 'completed' | 'failed'; notes?: string }>) => void) | null) => { setOracleQuestCallback(() => cb); }, []),
   };
 
   return (
