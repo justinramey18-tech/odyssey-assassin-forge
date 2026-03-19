@@ -879,6 +879,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     apiMessages: Array<{ role: string; content: string }>,
     extraGuides: string,
     signal: AbortSignal,
+    partyContext?: string,
     responseModePrompt?: string,
   ): Promise<string> => {
     // Ensure strictly alternating roles before sending to AI
@@ -899,6 +900,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         characterContext,
         campaignSummary: sessionConfig?.campaignSummary || undefined,
         customGuides: extraGuides,
+        partyContext: partyContext || undefined,
         memoryAnchors: memoryAnchorsContent || undefined,
         recentPartyChat: recentPartyChat.length > 0 ? recentPartyChat : undefined,
         responseModePrompt: responseModePrompt || undefined,
@@ -1334,13 +1336,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         apiMessages.push({ role: 'user', content: combined });
 
         const responseModePrompt = resolveResponseModePrompt(sessionConfig.responseMode);
-        const guides = [
-          customGuidesContent || '',
-          `\n\n## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
+        const partyContextStr = [
+          `## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
           afkGuidesSection,
+          responseModePrompt,
         ].filter(Boolean).join('\n\n');
 
-        const assistantContent = await streamAIResponse(apiMessages, guides, abortRef.current!.signal, responseModePrompt || undefined);
+        const assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, partyContextStr);
 
         if (assistantContent?.trim()) {
           if (isApprovalMode) {
