@@ -483,7 +483,7 @@ export function TelegramSettingsTab() {
                     <>
                       {idx > 0 && <Separator className="bg-border/30 my-1" />}
                       <p className="text-xs font-medium text-foreground/80">
-                        {lnk.username ? `@${lnk.username}` : `Chat ${lnk.chat_id}`}
+                        {chatDisplayName(lnk)}
                       </p>
                     </>
                   )}
