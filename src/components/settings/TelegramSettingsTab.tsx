@@ -89,6 +89,9 @@ export function TelegramSettingsTab() {
   const [submittingJob, setSubmittingJob] = useState(false);
   const [newJobTargetChatIds, setNewJobTargetChatIds] = useState<number[]>([]);
 
+  const [editingNicknameId, setEditingNicknameId] = useState<string | null>(null);
+  const [nicknameInput, setNicknameInput] = useState('');
+
   // Fetch existing links
   const fetchLinks = useCallback(async () => {
     if (!user) return;
