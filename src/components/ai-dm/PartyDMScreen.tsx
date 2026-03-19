@@ -2323,6 +2323,38 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 }}
                 bookmarkActive={bmIdx >= 0}
                 bookmarkMessageCount={filteredNarrative.length}
+                onQuestExtracted={async (quests) => {
+                  try {
+                    const { data: existingState } = await supabase
+                      .from('party_shared_state')
+                      .select('id, state_data')
+                      .eq('party_id', partyId!)
+                      .eq('state_type', 'quest_flags')
+                      .maybeSingle();
+
+                    const existingFlags = (existingState?.state_data as Record<string, any>) || {};
+                    const updatedFlags = { ...existingFlags };
+                    for (const q of quests) {
+                      if (q.key && q.status) {
+                        updatedFlags[q.key] = { status: q.status, notes: q.notes || '', updated_at: new Date().toISOString() };
+                      }
+                    }
+
+                    if (existingState) {
+                      await supabase.from('party_shared_state').update({ state_data: updatedFlags }).eq('id', existingState.id);
+                    } else {
+                      await supabase.from('party_shared_state').insert({
+                        party_id: partyId!,
+                        user_id: currentUserId,
+                        state_type: 'quest_flags',
+                        state_data: updatedFlags,
+                      });
+                    }
+                    toast.success(`📜 ${quests.length} quest(s) added to quest log`);
+                  } catch (err) {
+                    console.warn('[PartyDM] Oracle quest save failed:', err);
+                  }
+                }}
               />
             );
           })() : undefined}
