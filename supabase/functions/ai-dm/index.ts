@@ -542,9 +542,14 @@ RULES:
     prompt += `\n\n${worldStatePrompt}`;
   }
 
+  if (customGuides && customGuides.trim()) {
+    const trimmed = customGuides.slice(0, MAX_CUSTOM_GUIDES_CHARS);
+    prompt += `\n\n## CAMPAIGN WORLD BIBLE (HIGHEST AUTHORITY)\nThe following content was hand-crafted by the DM to define this campaign's world, lore, NPCs, tone, and rules. This is the AUTHORITATIVE source of truth for the campaign. If any auto-generated content below (Campaign Summary, Memory Anchors) contradicts something stated here, THIS section takes priority. Preserve secrets and unrevealed information — do not spoil them to players even if the summary doesn't mention them.\n\n${trimmed}`;
+  }
+
   if (campaignSummary && campaignSummary.trim()) {
     const trimmedSummary = campaignSummary.slice(0, 30000);
-    prompt += `\n\n## CAMPAIGN SUMMARY\nThis is an auto-generated summary of the campaign so far. Use it to maintain narrative continuity and reference past events naturally:\n\n${trimmedSummary}`;
+    prompt += `\n\n## CAMPAIGN SUMMARY (AUTO-GENERATED)\nThis is an auto-generated summary of events so far. Use it for continuity — but if it contradicts the Campaign World Bible above, defer to the Bible.\n\n${trimmedSummary}`;
   }
 
   if (memoryAnchors && memoryAnchors.trim()) {
@@ -555,11 +560,6 @@ RULES:
   if (recentPartyChat && recentPartyChat.length > 0) {
     const chatLines = recentPartyChat.slice(0, 5).map(c => `${c.sender}: ${c.message.slice(0, 500)}`).join('\n');
     prompt += `\n\n## RECENT PARTY CHAT\nThese are the most recent out-of-character messages from the party chat. Use them for situational awareness — players may be discussing plans, asking questions, or coordinating. Do NOT repeat or quote these messages directly; just factor them into your narrative awareness:\n\n${chatLines}`;
-  }
-
-  if (customGuides && customGuides.trim()) {
-    const trimmed = customGuides.slice(0, MAX_CUSTOM_GUIDES_CHARS);
-    prompt += `\n\n## CUSTOM GM GUIDES\nThe following custom content has been provided by the player to guide your behavior. Treat it as authoritative campaign context:\n\n${trimmed}`;
   }
 
   if (responseModePrompt && responseModePrompt.trim()) {
