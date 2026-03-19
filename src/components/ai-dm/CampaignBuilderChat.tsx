@@ -31,10 +31,17 @@ export default function CampaignBuilderChat({ partyMembers, characterName, chara
   useEffect(() => {
     if (!hasSentGreeting.current && messages.length === 0) {
       hasSentGreeting.current = true;
-      const levelInfo = partyMembers.some(m => (m.character_status as any)?.level)
-        ? ` Levels: ${partyMembers.map(m => `${m.character_name} (Lvl ${(m.character_status as any)?.level || '?'})`).join(', ')}.`
-        : '';
-      const greeting = `Hello! I'm setting up a new campaign for my party. We have ${partyMembers.length} players: ${partyMembers.map(m => m.character_name).join(', ')}.${levelInfo}`;
+      let greeting: string;
+      if (partyMembers && partyMembers.length > 0) {
+        const levelInfo = partyMembers.some(m => (m.character_status as any)?.level)
+          ? ` Levels: ${partyMembers.map(m => `${m.character_name} (Lvl ${(m.character_status as any)?.level || '?'})`).join(', ')}.`
+          : '';
+        greeting = `Hello! I'm setting up a new campaign for my party. We have ${partyMembers.length} players: ${partyMembers.map(m => m.character_name).join(', ')}.${levelInfo}`;
+      } else {
+        const name = characterName || 'Adventurer';
+        const lvl = characterLevel || 1;
+        greeting = `Hello! I'm setting up a new solo campaign for my character ${name} (Level ${lvl}).`;
+      }
       sendMessage(greeting);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

@@ -1267,21 +1267,24 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         onUsePrompt={handleUsePrompt}
       />
 
-      {/* World Builder Wizard */}
+      {/* Campaign Builder Chat */}
       <AnimatePresence>
         {showWorldBuilder && (
-          <WorldBuilderWizard
+          <CampaignBuilderChat
             characterName={characterContext.name || characterName}
             characterLevel={characterContext.level || 1}
-            onComplete={async (bible, worldName) => {
+            onComplete={async (data: CampaignBuildData) => {
               setShowWorldBuilder(false);
               await newGame();
               resetForNewCampaign(null);
-              // Small delay to let newGame flush before adding guide
               setTimeout(() => {
-                gmGuides.addGuide(`📖 ${worldName}`, bible);
+                updateCampaignSummary(data.campaignSummary);
+                gmGuides.addGuide(`📖 ${data.campaignName}`, data.gmGuide);
+                for (const anchor of data.memoryAnchors) {
+                  addMemoryAnchor({ category: anchor.category, key: anchor.key, value: anchor.value });
+                }
                 setTimeout(() => {
-                  sendMessage('Begin the adventure. Use the Campaign World guide to open with an immersive first scene based on our world.');
+                  sendMessage('Begin the adventure. Here is the opening scene to set the stage:\n\n' + data.openingScene);
                 }, 200);
               }, 100);
             }}
