@@ -716,11 +716,23 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
     // Send Telegram ready-up notification (non-blocking, includes self)
     const readyCount = currentPrompts.filter(p => p.is_ready).length + (currentPrompts.find(p => p.user_id === user.id)?.is_ready ? 0 : 1);
+    const promptText = myPrompt?.prompt ?? '';
+    const isAutopilot = promptText.startsWith('<<');
+
+    let notificationBody: string;
+    if (isAutopilot) {
+      notificationBody = `${characterName} got lazy. They're using their afk guide. The A.I. is now having to do all the heavy lifting. If it turns out bad, blame yourself and your afk guide. (${readyCount}/${memberCount} ready)`;
+    } else if (promptText.trim()) {
+      notificationBody = `${characterName} has readied up!\n\n📝 ${promptText.substring(0, 200)}${promptText.length > 200 ? '…' : ''}\n\n(${readyCount}/${memberCount} ready)`;
+    } else {
+      notificationBody = `${characterName} has readied up! (${readyCount}/${memberCount} ready)`;
+    }
+
     sendTelegramNotification({
       type: 'ready_up',
       partyId,
       title: '⚔️ Ready Up!',
-      body: `${characterName} has readied up! (${readyCount}/${memberCount} ready)`,
+      body: notificationBody,
     });
   }, [user, partyId, sessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
 
