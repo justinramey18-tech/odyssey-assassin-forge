@@ -61,6 +61,7 @@ export function StandalonePartyDMScreen({
   const [showGuides, setShowGuides] = useState(false);
   const [showSaves, setShowSaves] = useState(false);
   const [showBattleMap, setShowBattleMap] = useState(false);
+  const [showCampaignBuilder, setShowCampaignBuilder] = useState(false);
   const [pendingMapAdds, setPendingMapAdds] = useState<MapMarker[]>([]);
   const [pendingMapRemovals, setPendingMapRemovals] = useState<string[]>([]);
   const [partyCreatorId, setPartyCreatorId] = useState<string | null>(null);
