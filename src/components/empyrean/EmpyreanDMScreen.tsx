@@ -509,6 +509,21 @@ export function EmpyreanDMScreen({
     setRecapExpanded(false);
   }, [newGame, autopilot]);
 
+  const handleCampaignBuilderComplete = useCallback(async (data: CampaignBuildData) => {
+    setShowCampaignBuilder(false);
+    handleNewCampaign();
+    setTimeout(() => {
+      updateCampaignSummary(data.campaignSummary);
+      gmGuides.addGuide(`📖 ${data.campaignName}`, data.gmGuide);
+      for (const anchor of data.memoryAnchors) {
+        gameState.addMemoryAnchor({ category: anchor.category, key: anchor.key, value: anchor.value });
+      }
+      setTimeout(() => {
+        sendMessage('Begin the adventure. Here is the opening scene to set the stage:\n\n' + data.openingScene);
+      }, 200);
+    }, 100);
+  }, [handleNewCampaign, updateCampaignSummary, gmGuides, gameState, sendMessage]);
+
   const handleCampaignSummaryChange = useCallback((summary: string) => {
     updateCampaignSummary(summary);
   }, [updateCampaignSummary]);
