@@ -580,7 +580,7 @@ export function EmpyreanDMScreen({
                 activeCampaignId={activeCampaignId}
                 isSignedIn={isSignedIn}
                 isLoading={sessionsLoading}
-                onNewGame={handleNewCampaign}
+                onNewGame={() => setShowCampaignBuilder(true)}
                 onLoadCampaign={handleLoadCampaign}
                 onRefresh={refreshSessions}
               />
