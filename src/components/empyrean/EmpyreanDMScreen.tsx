@@ -217,10 +217,7 @@ export function EmpyreanDMScreen({
       undefined, // recentDragonChatSummary — populated when dragon chat has a summary
       bs.memories.map(m => m.text),
     );
-    const responseModePrompt = resolveResponseModePrompt(responseMode);
-    if (responseModePrompt) {
-      persona += '\n\n' + responseModePrompt;
-    }
+    return persona;
     return persona;
   }, [config, characterName, responseMode, dragonNotes, dragonBond.bondState]);
 
