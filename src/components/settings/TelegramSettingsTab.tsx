@@ -638,7 +638,7 @@ export function TelegramSettingsTab() {
                           {newJobDate ? format(newJobDate, 'PPP') : 'Pick a date'}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
+                      <PopoverContent className="w-auto p-0 z-[200] pointer-events-auto" align="start">
                         <Calendar
                           mode="single"
                           selected={newJobDate}
