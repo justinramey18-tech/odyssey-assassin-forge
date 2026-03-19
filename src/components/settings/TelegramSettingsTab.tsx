@@ -140,12 +140,12 @@ export function TelegramSettingsTab() {
     toast.success('Copied! Paste this to the bot in Telegram');
   }, [linkCode]);
 
-  // Unlink
-  const handleUnlink = useCallback(async () => {
+  // Unlink a specific chat
+  const handleUnlink = useCallback(async (linkId: string) => {
     if (!user) return;
-    await supabase.from('telegram_user_links').delete().eq('user_id', user.id);
-    setLink(null);
-    toast.success('Telegram unlinked');
+    await supabase.from('telegram_user_links').delete().eq('id', linkId);
+    setLinks(prev => prev.filter(l => l.id !== linkId));
+    toast.success('Telegram chat unlinked');
   }, [user]);
 
   // Toggle notification preference
