@@ -1212,6 +1212,7 @@ export type Database = {
         Row: {
           ai_prompt: string | null
           created_at: string
+          dm_context_mode: string
           error_message: string | null
           id: string
           include_campaign_context: boolean
@@ -1232,6 +1233,7 @@ export type Database = {
         Insert: {
           ai_prompt?: string | null
           created_at?: string
+          dm_context_mode?: string
           error_message?: string | null
           id?: string
           include_campaign_context?: boolean
@@ -1252,6 +1254,7 @@ export type Database = {
         Update: {
           ai_prompt?: string | null
           created_at?: string
+          dm_context_mode?: string
           error_message?: string | null
           id?: string
           include_campaign_context?: boolean
