@@ -2428,6 +2428,16 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           isCreator={isCreator}
         />
       )}
+
+      {/* Party Quests Panel */}
+      {showQuests && partyId && currentUserId && (
+        <PartyQuestsPanel
+          partyId={partyId}
+          userId={currentUserId}
+          isCreator={isCreator}
+          onBack={() => setShowQuests(false)}
+        />
+      )}
     </div>
   );
 }
