@@ -217,12 +217,9 @@ export function EmpyreanDMScreen({
       undefined, // recentDragonChatSummary — populated when dragon chat has a summary
       bs.memories.map(m => m.text),
     );
-    const responseModePrompt = resolveResponseModePrompt(responseMode);
-    if (responseModePrompt) {
-      persona += '\n\n' + responseModePrompt;
-    }
     return persona;
-  }, [config, characterName, responseMode, dragonNotes, dragonBond.bondState]);
+    return persona;
+  }, [config, characterName, dragonNotes, dragonBond.bondState]);
 
   const [trackingCampaignId, setTrackingCampaignId] = useState<string | null>(null);
   const gameState = useDMGameState(trackingCampaignId);
@@ -248,6 +245,7 @@ export function EmpyreanDMScreen({
     characterContext,
     customGuidesContent: enabledContent,
     dmPersonaPrompt,
+    responseModePrompt: resolveResponseModePrompt(responseMode),
     selectedModel,
     worldStatePrompt,
     sessionStorageKey: EMPYREAN_SESSION_KEY,

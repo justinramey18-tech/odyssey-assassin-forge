@@ -56,6 +56,7 @@ interface UseAIDMOptions {
   customGuidesContent?: string;
   worldStatePrompt?: string;
   dmPersonaPrompt?: string;
+  responseModePrompt?: string;
   onMessageComplete?: (content: string) => void;
   /** Called when quests are extracted from AI narrative */
   onQuestExtracted?: (quests: Array<{ key: string; status: 'active' | 'completed' | 'failed'; notes?: string }>) => void;
@@ -147,7 +148,7 @@ function saveSession(messages: Message[], storageKey: string): void {
   }
 }
 
-export function useAIDM({ characterContext, customGuidesContent, worldStatePrompt, dmPersonaPrompt, onMessageComplete, onQuestExtracted, activeGuideIds, onCampaignSwitch, selectedModel, sessionStorageKey, summarizeStorageKey }: UseAIDMOptions) {
+export function useAIDM({ characterContext, customGuidesContent, worldStatePrompt, dmPersonaPrompt, responseModePrompt, onMessageComplete, onQuestExtracted, activeGuideIds, onCampaignSwitch, selectedModel, sessionStorageKey, summarizeStorageKey }: UseAIDMOptions) {
   const STORAGE_KEY = sessionStorageKey ?? DEFAULT_STORAGE_KEY;
   const SUMMARY_KEY = summarizeStorageKey ?? DEFAULT_SUMMARY_KEY;
   // Store onMessageComplete in a ref so sendMessage always calls the latest version
@@ -283,6 +284,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
           campaignSummary: campaignSummary || undefined,
           worldStatePrompt: worldStatePrompt || undefined,
           dmPersonaPrompt: dmPersonaPrompt || undefined,
+          responseModePrompt: responseModePrompt || undefined,
           model: selectedModel || undefined,
           user_api_key: loadApiKey('anthropic') || undefined,
           user_openai_key: loadApiKey('openai') || undefined,
