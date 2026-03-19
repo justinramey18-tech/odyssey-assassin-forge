@@ -228,6 +228,8 @@ export function TelegramSettingsTab() {
           ai_prompt: newJobPrompt.trim(),
           static_message: null,
           include_campaign_context: newJobIncludeContext,
+          dm_context_mode: newJobDmContext,
+          ai_model: newJobAiModel,
           timezone: 'America/New_York',
           status: 'pending',
           run_at: runAt.toISOString(),
