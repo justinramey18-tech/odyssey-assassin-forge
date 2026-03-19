@@ -93,11 +93,18 @@ Deno.serve(async (req) => {
   const col = notifyColumn[payload.type] || 'notify_ready_up';
 
   // Get linked Telegram users who have this notification type enabled
-  const { data: links } = await supabase
+  const { data: allLinks } = await supabase
     .from('telegram_user_links')
     .select('chat_id, user_id')
     .in('user_id', userIds)
     .eq(col, true);
+
+  // Filter by target chat IDs if specified
+  let links = allLinks;
+  if (links && payload.targetChatIds && payload.targetChatIds.length > 0) {
+    const targetSet = new Set(payload.targetChatIds);
+    links = links.filter((l) => targetSet.has(l.chat_id));
+  }
 
   if (!links || links.length === 0) {
     return new Response(JSON.stringify({ sent: 0, reason: 'no telegram links' }), {
