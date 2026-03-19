@@ -8,6 +8,7 @@ import { SettingsSection } from './SettingsSection';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
+import { sendTelegramNotification } from '@/lib/telegram-notify';
 
 interface TelegramLink {
   id: string;

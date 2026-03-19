@@ -8,6 +8,7 @@ import type { CharacterContext, Whisper } from '@/components/oracle/types';
 import type { DmSplitState, SplitTeam } from '@/lib/party-split-types';
 import { sendReadyUpNotification } from '@/lib/party-notifications';
 import { parseWhispers } from '@/lib/whisper-parser';
+import { sendTelegramNotification } from '@/lib/telegram-notify';
 import { loadSelectedModel } from '@/lib/dm-models';
 import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
 import { loadCombatSettings } from '@/lib/combat/combatSettings';
@@ -714,14 +715,12 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
 
     // Send Telegram ready-up notification (non-blocking, includes self)
-    supabase.functions.invoke('telegram-notify-proxy', {
-      body: {
-        type: 'ready_up',
-        partyId,
-        title: '⚔️ Ready Up!',
-        body: `${characterName} has readied up!`,
-      },
-    }).catch((err: unknown) => console.warn('[setReady] Telegram notify failed:', err));
+    sendTelegramNotification({
+      type: 'ready_up',
+      partyId,
+      title: '⚔️ Ready Up!',
+      body: `${characterName} has readied up!`,
+    });
   }, [user, partyId, sessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
 
   const unready = useCallback(async () => {
