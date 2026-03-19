@@ -25,14 +25,17 @@ import { useAuth } from '@/hooks/use-auth';
 
 interface ScheduledEvent {
   id: string;
-  event_name: string;
-  event_prompt: string;
-  event_type: string;
-  recurrence: string | null;
-  scheduled_at: string;
+  job_name: string;
+  ai_prompt: string | null;
+  static_message: string | null;
+  party_id: string | null;
   status: string;
-  qstash_message_id: string | null;
+  run_at: string;
+  repeat_daily: boolean;
+  run_time: string | null;
   created_at: string;
+  dm_context_mode?: string;
+  ai_model?: string;
 }
 
 interface ScheduledEventsSheetProps {
@@ -67,10 +70,10 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('party_scheduled_events')
+        .from('scheduled_telegram_jobs')
         .select('*')
         .eq('party_id', partyId)
-        .order('scheduled_at', { ascending: true });
+        .order('run_at', { ascending: true });
 
       if (error) {
         console.error('Failed to fetch scheduled events:', error.message);
@@ -92,11 +95,11 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
   useEffect(() => {
     if (!partyId) return;
     const channel = supabase
-      .channel(`scheduled-events-${partyId}`)
+      .channel(`scheduled-jobs-${partyId}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
-        table: 'party_scheduled_events',
+        table: 'scheduled_telegram_jobs',
         filter: `party_id=eq.${partyId}`,
       }, () => {
         fetchEvents();
@@ -128,26 +131,6 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
 
     setScheduling(true);
     try {
-      // Insert into party_scheduled_events for UI tracking
-      const { data: event, error: insertErr } = await supabase
-        .from('party_scheduled_events')
-        .insert({
-          party_id: partyId,
-          created_by: user.id,
-          event_name: eventName.trim() || (eventType === 'scheduled_round' ? 'Scheduled Round' : 'Scheduled Event'),
-          event_prompt: eventType === 'scheduled_round' ? '' : eventPrompt.trim(),
-          event_type: eventType,
-          recurrence: repeatWeekly ? 'weekly' : null,
-          scheduled_at: scheduledDate.toISOString(),
-        })
-        .select('id')
-        .single();
-
-      if (insertErr || !event) {
-        throw new Error(insertErr?.message || 'Failed to create event');
-      }
-
-      // Schedule via scheduled_telegram_jobs instead of QStash
       const aiPrompt = eventType === 'narrative_event'
         ? eventPrompt.trim()
         : 'Auto-advance the party round. Generate a brief narrative transition summarizing what happens next.';
@@ -174,7 +157,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
         });
 
       if (jobErr) {
-        throw new Error(jobErr.message || 'Failed to schedule telegram job');
+        throw new Error(jobErr.message || 'Failed to schedule job');
       }
 
       const recLabel = repeatWeekly ? ' (repeats weekly)' : '';
@@ -196,8 +179,8 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
 
   async function handleCancel(eventId: string) {
     const { error } = await supabase
-      .from('party_scheduled_events')
-      .update({ status: 'cancelled' })
+      .from('scheduled_telegram_jobs')
+      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
       .eq('id', eventId);
 
     if (error) {
@@ -210,7 +193,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
 
   async function handleDelete(eventId: string) {
     const { error } = await supabase
-      .from('party_scheduled_events')
+      .from('scheduled_telegram_jobs')
       .delete()
       .eq('id', eventId);
 
@@ -221,8 +204,8 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
     }
   }
 
-  const pendingEvents = events.filter(e => e.status === 'pending');
-  const pastEvents = events.filter(e => e.status !== 'pending');
+  const pendingEvents = events.filter(e => e.status === 'pending' || e.status === 'running');
+  const pastEvents = events.filter(e => ['completed', 'failed', 'cancelled'].includes(e.status));
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -439,30 +422,32 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
           {pendingEvents.length > 0 && (
             <div className="space-y-2">
               <Label className="text-xs text-muted-foreground uppercase tracking-wider">Upcoming</Label>
-              {pendingEvents.map(event => (
+              {pendingEvents.map(event => {
+                const isRound = !event.ai_prompt || event.ai_prompt === 'Auto-advance the party round. Generate a brief narrative transition summarizing what happens next.';
+                return (
                 <div key={event.id} className="flex items-start gap-3 rounded-lg border border-border/50 bg-muted/10 p-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      {event.event_type === 'scheduled_round' ? (
+                      {isRound ? (
                         <Users className="w-3 h-3 text-primary shrink-0" />
                       ) : (
                         <BookOpen className="w-3 h-3 text-amber-400 shrink-0" />
                       )}
-                      <p className="text-sm font-medium text-foreground truncate">{event.event_name}</p>
+                      <p className="text-sm font-medium text-foreground truncate">{event.job_name}</p>
                     </div>
-                    {event.event_type === 'scheduled_round' ? (
+                    {isRound ? (
                       <p className="text-xs text-muted-foreground mt-0.5">Auto-advances round with AFK guides</p>
                     ) : (
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{event.event_prompt}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{event.ai_prompt}</p>
                     )}
                     <p className="text-xs text-amber-400 mt-1">
-                      ⏰ {format(new Date(event.scheduled_at), 'PPP p')}
-                      {event.recurrence === 'weekly' && (
-                        <span className="ml-1.5 text-primary">· 🔁 Weekly</span>
+                      ⏰ {format(new Date(event.run_at), 'PPP p')}
+                      {event.repeat_daily && (
+                        <span className="ml-1.5 text-primary">· 🔁 Repeats daily</span>
                       )}
                       <span className="ml-1.5 text-muted-foreground">
-                        · {(event as any).dm_context_mode === 'solo' ? 'Solo DM' : (event as any).dm_context_mode === 'empyrean' ? 'Empyrean DM' : 'Party DM'}
-                        {' · '}{getModelLabel((event as any).ai_model || 'google/gemini-2.5-flash-lite')}
+                        · {event.dm_context_mode === 'solo' ? 'Solo DM' : event.dm_context_mode === 'empyrean' ? 'Empyrean DM' : 'Party DM'}
+                        {' · '}{getModelLabel(event.ai_model || 'google/gemini-2.5-flash-lite')}
                       </span>
                     </p>
                   </div>
@@ -475,7 +460,8 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -483,20 +469,22 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
           {pastEvents.length > 0 && (
             <div className="space-y-2">
               <Label className="text-xs text-muted-foreground uppercase tracking-wider">Past Events</Label>
-              {pastEvents.map(event => (
+              {pastEvents.map(event => {
+                const isRound = !event.ai_prompt || event.ai_prompt === 'Auto-advance the party round. Generate a brief narrative transition summarizing what happens next.';
+                return (
                 <div key={event.id} className="flex items-start gap-3 rounded-lg border border-border/30 bg-muted/5 p-3 opacity-60">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      {event.event_type === 'scheduled_round' ? (
+                      {isRound ? (
                         <Users className="w-3 h-3 text-primary shrink-0" />
                       ) : (
                         <BookOpen className="w-3 h-3 text-amber-400 shrink-0" />
                       )}
-                      <p className="text-sm font-medium text-foreground truncate">{event.event_name}</p>
+                      <p className="text-sm font-medium text-foreground truncate">{event.job_name}</p>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {event.status === 'fired' ? '✅ Fired' : event.status === 'cancelled' ? '❌ Cancelled' : `⚠️ ${event.status}`}
-                      {' · '}{format(new Date(event.scheduled_at), 'PPP p')}
+                      {event.status === 'completed' ? '✅ Completed' : event.status === 'cancelled' ? '❌ Cancelled' : event.status === 'failed' ? '⚠️ Failed' : `⚠️ ${event.status}`}
+                      {' · '}{format(new Date(event.run_at), 'PPP p')}
                     </p>
                   </div>
                   <Button
@@ -508,7 +496,8 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
