@@ -80,6 +80,19 @@ export const oracleModes: OracleModeConfig[] = [
       'Tactical briefing',
     ],
   },
+  {
+    id: 'quest',
+    name: 'Quests',
+    icon: '📜',
+    description: 'Identify and track quests',
+    color: '#F59E0B',
+    quickPrompts: [
+      'What quests am I currently on?',
+      'Summarize my active objectives',
+      'What should I do next?',
+      'Any quests I might have missed?',
+    ],
+  },
 ];
 
 export function getModeConfig(id: string): OracleModeConfig {
