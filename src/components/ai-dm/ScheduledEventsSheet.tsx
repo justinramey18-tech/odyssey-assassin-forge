@@ -261,6 +261,55 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
               </button>
             </div>
 
+            {/* DM Context Mode toggle */}
+            <div className="flex gap-1.5 rounded-lg bg-muted/40 p-1">
+              <button
+                onClick={() => setDmContextMode('solo')}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors",
+                  dmContextMode === 'solo'
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                Solo DM
+              </button>
+              <button
+                onClick={() => setDmContextMode('party')}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors",
+                  dmContextMode === 'party'
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Users className="w-3.5 h-3.5" />
+                Party DM
+              </button>
+              <button
+                onClick={() => setDmContextMode('empyrean')}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors",
+                  dmContextMode === 'empyrean'
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Empyrean DM
+              </button>
+            </div>
+
+            {/* Context mode description */}
+            <p className="text-xs text-muted-foreground">
+              {dmContextMode === 'solo'
+                ? "Uses your solo campaign — character, campaign summary, and quest flags."
+                : dmContextMode === 'party'
+                ? "Uses this party's campaign — all party members, shared summary, and recent history."
+                : "Uses your Empyrean campaign — dragon bond, lore guides, and Empyrean persona."}
+            </p>
+
             {/* Description of selected type */}
             <p className="text-xs text-muted-foreground">
               {eventType === 'scheduled_round'
