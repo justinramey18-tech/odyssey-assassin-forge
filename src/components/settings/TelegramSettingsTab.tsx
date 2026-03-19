@@ -386,8 +386,6 @@ export function TelegramSettingsTab() {
                       </p>
                     )}
                   </div>
-                    </Button>
-                  </div>
                 ))}
                 <Button
                   variant="outline"
