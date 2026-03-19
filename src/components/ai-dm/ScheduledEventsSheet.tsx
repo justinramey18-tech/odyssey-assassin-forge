@@ -170,6 +170,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
           run_time: repeatWeekly ? utcTimeStr : null,
           timezone: 'America/New_York',
           dm_context_mode: dmContextMode,
+          ai_model: aiModel,
         });
 
       if (jobErr) {
