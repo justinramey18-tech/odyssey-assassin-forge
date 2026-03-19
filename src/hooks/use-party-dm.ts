@@ -1974,6 +1974,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           body: JSON.stringify({
             messages: batches[i],
             previousSummary: runningSummary || undefined,
+            worldContext: customGuidesContent ? customGuidesContent.slice(0, 4000) : undefined,
           }),
         });
 
