@@ -798,6 +798,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         body: JSON.stringify({
           messages: apiMessages,
           previousSummary: sessionConfig.campaignSummary || undefined,
+          worldContext: customGuidesContent ? customGuidesContent.slice(0, 4000) : undefined,
         }),
       });
 
