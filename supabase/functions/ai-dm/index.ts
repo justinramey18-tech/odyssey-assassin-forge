@@ -148,6 +148,7 @@ interface DMRequest {
   memoryAnchors?: string;
   recentPartyChat?: Array<{ sender: string; message: string }>;
   responseModePrompt?: string;
+  partyContext?: string;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
