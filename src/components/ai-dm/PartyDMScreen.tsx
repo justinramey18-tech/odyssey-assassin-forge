@@ -2257,6 +2257,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               onWhisperTrayEnabledChange={setWhisperTrayEnabled}
               onShowMemoryAnchors={onAddMemoryAnchor ? () => setShowMemoryAnchors(true) : undefined}
               memoryAnchorsCount={memoryAnchors?.length ?? 0}
+              onShowQuests={partyId ? () => setShowQuests(true) : undefined}
+              questsCount={questsCount}
               responseMode={partyDm.sessionConfig?.responseMode}
               onResponseModeChange={(modeId) => {
                 partyDm.updateSessionConfig({ responseMode: modeId ?? undefined });
