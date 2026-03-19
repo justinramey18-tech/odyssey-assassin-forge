@@ -219,7 +219,7 @@ export function EmpyreanDMScreen({
     );
     return persona;
     return persona;
-  }, [config, characterName, responseMode, dragonNotes, dragonBond.bondState]);
+  }, [config, characterName, dragonNotes, dragonBond.bondState]);
 
   const [trackingCampaignId, setTrackingCampaignId] = useState<string | null>(null);
   const gameState = useDMGameState(trackingCampaignId);
