@@ -538,6 +538,63 @@ export function TelegramSettingsTab() {
                     <Switch checked={newJobIncludeContext} onCheckedChange={setNewJobIncludeContext} />
                   </div>
 
+                  {/* DM Context Mode */}
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider">AI Context Mode</p>
+                    <div className="flex gap-1.5 rounded-lg bg-muted/40 p-1">
+                      {([
+                        { value: 'solo' as const, label: 'Solo DM', icon: BookOpen },
+                        { value: 'party' as const, label: 'Party DM', icon: Users },
+                        { value: 'empyrean' as const, label: 'Empyrean', icon: Sparkles },
+                      ]).map(({ value, label, icon: Icon }) => (
+                        <button
+                          key={value}
+                          onClick={() => setNewJobDmContext(value)}
+                          className={cn(
+                            "flex-1 flex items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-colors",
+                            newJobDmContext === value
+                              ? "bg-primary text-primary-foreground shadow-sm"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          <Icon className="w-3.5 h-3.5" />
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      {newJobDmContext === 'solo' && 'Uses your solo campaign — character, summary, and quest flags.'}
+                      {newJobDmContext === 'party' && "Uses your party's campaign — all members, shared summary, and history."}
+                      {newJobDmContext === 'empyrean' && 'Uses your Empyrean campaign — dragon bond, lore guides, and persona.'}
+                    </p>
+                  </div>
+
+                  {/* AI Model */}
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider">AI Model</p>
+                    <select
+                      value={newJobAiModel}
+                      onChange={e => setNewJobAiModel(e.target.value)}
+                      className="w-full rounded-md border border-border/50 bg-transparent text-sm text-foreground px-3 py-2"
+                    >
+                      <optgroup label="Gateway Models">
+                        {DM_MODELS.filter(m => m.provider === 'lovable').map(m => (
+                          <option key={m.id} value={m.id}>{m.label} — {m.description}</option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Anthropic (your API key)">
+                        {DM_MODELS.filter(m => m.provider === 'anthropic').map(m => (
+                          <option key={m.id} value={m.id}>{m.label} — {m.description}</option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="OpenAI (your API key)">
+                        {DM_MODELS.filter(m => m.provider === 'openai-direct').map(m => (
+                          <option key={m.id} value={m.id}>{m.label} — {m.description}</option>
+                        ))}
+                      </optgroup>
+                    </select>
+                  </div>
+
                   {/* Send at time */}
                   <div className="space-y-1.5">
                     <p className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider">Send at</p>
