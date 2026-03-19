@@ -1085,8 +1085,15 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       return;
     }
 
+    // ── OOC Override Detection ──
+    // Check if any ready prompt (especially the host's) contains an OOC directive
+    // to ignore AFK guides. If so, we strip all AFK guide content at the code level.
+    const OOC_IGNORE_AFK_PATTERN = /(?:ooc\s*:|^\s*\[ooc\]|\[.*?\])\s*ignore\s+(?:afk|autopilot)\s*(?:guides?|personality)?/im;
+    const suppressAfkGuides = readyPrompts.some(p => OOC_IGNORE_AFK_PATTERN.test(p.prompt));
+
     const formatPromptLine = (p: PartyDmPrompt) => {
       if (p.prompt.trim()) return `[${p.character_name}]: ${p.prompt.trim()}`;
+      if (suppressAfkGuides) return `[${p.character_name}]: (no action — AFK guides suppressed by host)`;
       // No prompt — check for AFK personality guide
       const member = partyMembers.find(m => m.user_id === p.user_id);
       const status = member?.character_status as Record<string, unknown> | undefined;
