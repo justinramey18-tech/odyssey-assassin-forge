@@ -252,6 +252,7 @@ export function TelegramSettingsTab() {
       setNewJobTime('08:00');
       setNewJobRepeatDaily(false);
       setNewJobDate(undefined);
+      setNewJobTargetChatIds([]);
       setShowNewJobForm(false);
       fetchJobs();
     } catch (err: any) {
