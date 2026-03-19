@@ -1001,7 +1001,7 @@ serve(async (req) => {
       );
     }
 
-    if (!['chat', 'plan', 'choice', 'analyze', 'quick', 'recap'].includes(mode)) {
+    if (!['chat', 'plan', 'choice', 'analyze', 'quick', 'recap', 'quest'].includes(mode)) {
       return new Response(
         JSON.stringify({ error: "Invalid mode" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
