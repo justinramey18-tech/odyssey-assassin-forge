@@ -56,76 +56,145 @@ Deno.serve(async (req) => {
       let finalMessage: string;
 
       if (job.ai_prompt && job.ai_prompt.trim()) {
-        // AI-powered message
-        const systemPrompt =
-          'You are an AI assistant for a D&D 5e companion app called Odyssey Assassin Forge. The user has scheduled an automated task. Execute their request and write the output as a Telegram message. Use HTML formatting that Telegram supports: <b>bold</b>, <i>italic</i>, <u>underline</u>, <code>code</code>. Do NOT use markdown asterisks. Keep the response under 3000 characters. Be creative, immersive, and engaging.';
+        // AI-powered message — mode-aware system prompt and context
+        const mode = job.dm_context_mode || 'party';
 
+        let systemPrompt: string;
         let userMessage = job.ai_prompt;
 
-        // Fetch campaign context if requested
-        if (job.include_campaign_context && job.party_id) {
+        if (mode === 'solo') {
+          systemPrompt =
+            'You are an expert Dungeon Master running a D&D 5e session. You are immersive, adaptive, and mechanically precise. The user has scheduled an automated task. Execute their request and write the output as a Telegram message. Use HTML formatting: <b>bold</b>, <i>italic</i>, <u>underline</u>. Do NOT use markdown. Keep the response under 3000 characters.';
+        } else if (mode === 'empyrean') {
+          systemPrompt =
+            'You are the Dungeon Master for an Empyrean campaign set at Basgiath War College — a dragon-rider fantasy inspired by Fourth Wing. You are immersive, dramatic, and deeply aware of dragon bonds, signet abilities, and war college politics. The user has scheduled an automated task. Execute their request and write the output as a Telegram message. Use HTML formatting: <b>bold</b>, <i>italic</i>, <u>underline</u>. Do NOT use markdown. Keep the response under 3000 characters.';
+        } else {
+          // party (default)
+          systemPrompt =
+            'You are an expert Dungeon Master running a multiplayer D&D 5e session for a party of adventurers. You are immersive, adaptive, and aware of all party members and their shared story. The user has scheduled an automated task. Execute their request and write the output as a Telegram message. Use HTML formatting: <b>bold</b>, <i>italic</i>, <u>underline</u>. Do NOT use markdown. Keep the response under 3000 characters.';
+        }
+
+        // Fetch context based on mode
+        if (job.include_campaign_context) {
           try {
-            const [campaignRes, gameStateRes, charRes] = await Promise.all([
-              supabase
-                .from('ai_dm_campaigns')
-                .select('name, campaign_summary')
-                .eq('user_id', job.user_id)
-                .order('updated_at', { ascending: false })
-                .limit(1)
-                .maybeSingle(),
-              supabase
-                .from('dm_game_state')
-                .select('quest_flags')
-                .eq('user_id', job.user_id)
-                .order('updated_at', { ascending: false })
-                .limit(1)
-                .maybeSingle(),
-              supabase
-                .from('character_saves')
-                .select('character_data, extended_data')
-                .eq('user_id', job.user_id)
-                .order('updated_at', { ascending: false })
-                .limit(1)
-                .maybeSingle(),
-            ]);
+            if (mode === 'party' && job.party_id) {
+              // Party mode: fetch party-specific context
+              const [summaryRes, membersRes, messagesRes] = await Promise.all([
+                supabase
+                  .from('party_shared_state')
+                  .select('state_data')
+                  .eq('party_id', job.party_id)
+                  .eq('state_type', 'dm_session')
+                  .order('updated_at', { ascending: false })
+                  .limit(1)
+                  .maybeSingle(),
+                supabase
+                  .from('party_members')
+                  .select('character_name, character_status')
+                  .eq('party_id', job.party_id),
+                supabase
+                  .from('party_dm_messages')
+                  .select('content, sender_name, role')
+                  .eq('party_id', job.party_id)
+                  .order('created_at', { ascending: false })
+                  .limit(10),
+              ]);
 
-            const campaign = campaignRes.data;
-            const gameState = gameStateRes.data;
-            const charSave = charRes.data;
+              const contextParts: string[] = ['PARTY CAMPAIGN CONTEXT:'];
 
-            if (campaign || gameState || charSave) {
-              let contextParts: string[] = ['CAMPAIGN CONTEXT:'];
+              // Campaign summary from shared state
+              const sessionState = summaryRes.data?.state_data as any;
+              if (sessionState?.campaignSummary) {
+                contextParts.push(`Campaign Summary: ${String(sessionState.campaignSummary).substring(0, 3000)}`);
+              }
 
-              if (campaign) {
-                contextParts.push(`Campaign: ${campaign.name || 'Unknown'}`);
-                if (campaign.campaign_summary) {
-                  contextParts.push(
-                    `Summary: ${campaign.campaign_summary.substring(0, 3000)}`
-                  );
+              // Party members
+              const members = membersRes.data;
+              if (members && members.length > 0) {
+                contextParts.push('Party Members:');
+                for (const m of members) {
+                  const cs = m.character_status as any;
+                  const cls = cs?.class || 'Unknown';
+                  const lvl = cs?.level || '?';
+                  contextParts.push(`  - ${m.character_name} (Level ${lvl} ${cls})`);
                 }
               }
 
-              if (charSave) {
-                const cd = charSave.character_data as any;
-                const ed = charSave.extended_data as any;
-                const charName = cd?.name || 'Unknown';
-                const charClass = cd?.class || 'Unknown';
-                const charLevel = cd?.level || '?';
-                const hpState = ed?.hpState;
-                const currentHP = hpState?.current ?? '?';
-                const maxHP = hpState?.max ?? '?';
-                contextParts.push(
-                  `Character: ${charName}, Level ${charLevel} ${charClass}, ${currentHP}/${maxHP} HP`
-                );
+              // Recent DM narrative
+              const msgs = messagesRes.data;
+              if (msgs && msgs.length > 0) {
+                contextParts.push('Recent Narrative (newest first):');
+                for (const msg of msgs.slice(0, 5)) {
+                  const preview = msg.content.substring(0, 300);
+                  contextParts.push(`  [${msg.sender_name}]: ${preview}`);
+                }
               }
 
-              if (gameState?.quest_flags) {
-                contextParts.push(
-                  `Active Quests: ${JSON.stringify(gameState.quest_flags)}`
-                );
+              if (contextParts.length > 1) {
+                userMessage = contextParts.join('\n') + `\n\nUSER REQUEST:\n${job.ai_prompt}`;
               }
 
-              userMessage = contextParts.join('\n') + `\n\nUSER REQUEST:\n${job.ai_prompt}`;
+            } else {
+              // Solo and Empyrean: fetch user's personal campaign data
+              const [campaignRes, gameStateRes, charRes] = await Promise.all([
+                supabase
+                  .from('ai_dm_campaigns')
+                  .select('name, campaign_summary')
+                  .eq('user_id', job.user_id)
+                  .order('updated_at', { ascending: false })
+                  .limit(1)
+                  .maybeSingle(),
+                supabase
+                  .from('dm_game_state')
+                  .select('quest_flags')
+                  .eq('user_id', job.user_id)
+                  .order('updated_at', { ascending: false })
+                  .limit(1)
+                  .maybeSingle(),
+                supabase
+                  .from('character_saves')
+                  .select('character_data, extended_data')
+                  .eq('user_id', job.user_id)
+                  .order('updated_at', { ascending: false })
+                  .limit(1)
+                  .maybeSingle(),
+              ]);
+
+              const campaign = campaignRes.data;
+              const gameState = gameStateRes.data;
+              const charSave = charRes.data;
+
+              if (campaign || gameState || charSave) {
+                const contextLabel = mode === 'empyrean'
+                  ? 'EMPYREAN CAMPAIGN CONTEXT (Dragon-rider campaign at Basgiath War College):'
+                  : 'CAMPAIGN CONTEXT:';
+                const contextParts: string[] = [contextLabel];
+
+                if (campaign) {
+                  contextParts.push(`Campaign: ${campaign.name || 'Unknown'}`);
+                  if (campaign.campaign_summary) {
+                    contextParts.push(`Summary: ${campaign.campaign_summary.substring(0, 3000)}`);
+                  }
+                }
+
+                if (charSave) {
+                  const cd = charSave.character_data as any;
+                  const ed = charSave.extended_data as any;
+                  const charName = cd?.name || 'Unknown';
+                  const charClass = cd?.class || 'Unknown';
+                  const charLevel = cd?.level || '?';
+                  const hpState = ed?.hpState;
+                  const currentHP = hpState?.current ?? '?';
+                  const maxHP = hpState?.max ?? '?';
+                  contextParts.push(`Character: ${charName}, Level ${charLevel} ${charClass}, ${currentHP}/${maxHP} HP`);
+                }
+
+                if (gameState?.quest_flags) {
+                  contextParts.push(`Active Quests: ${JSON.stringify(gameState.quest_flags)}`);
+                }
+
+                userMessage = contextParts.join('\n') + `\n\nUSER REQUEST:\n${job.ai_prompt}`;
+              }
             }
           } catch (ctxErr) {
             console.error(`Context fetch error for job ${job.id}:`, ctxErr);
