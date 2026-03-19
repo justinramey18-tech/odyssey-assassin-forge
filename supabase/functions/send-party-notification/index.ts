@@ -200,26 +200,8 @@ Deno.serve(async (req) => {
 
   await Promise.allSettled(sendPromises);
 
-  // ── Also send Telegram notifications ───────────────────────────────────────
-  try {
-    const telegramUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/telegram-notify`;
-    await fetch(telegramUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Trigger-Secret': Deno.env.get('TRIGGER_SECRET') || '',
-      },
-      body: JSON.stringify({
-        type: 'ready_up',
-        partyId,
-        userId,
-        title: title,
-        body: body,
-      }),
-    });
-  } catch (tgErr) {
-    console.warn('Telegram notify failed (non-blocking):', tgErr);
-  }
+  // NOTE: Telegram ready-up notifications are now sent client-side via telegram-notify-proxy
+  // in use-party-dm.ts setReady(). Removed server-side duplicate to avoid double notifications.
 
   // Log notification
   await supabase.from('notifications_log').insert({
