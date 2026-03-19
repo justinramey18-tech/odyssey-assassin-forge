@@ -1,6 +1,6 @@
 export type Personality = 'thunderhead' | 'jarvis' | 'deadpool' | 'gandalf' | 'jarlaxle' | 'investigator';
 
-export type OracleMode = 'chat' | 'plan' | 'choice' | 'analyze' | 'quick' | 'recap';
+export type OracleMode = 'chat' | 'plan' | 'choice' | 'analyze' | 'quick' | 'recap' | 'quest';
 
 export interface Whisper {
   type: 'action' | 'tactics' | 'whisper';
