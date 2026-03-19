@@ -105,7 +105,13 @@ serve(async (req) => {
       });
     }
 
-    const { messages, previousSummary, user_api_key, user_openai_key } = (await req.json()) as SummarizeRequest & { user_api_key?: string; user_openai_key?: string };
+    const { messages, previousSummary, worldContext, user_api_key, user_openai_key } = (await req.json()) as SummarizeRequest & { user_api_key?: string; user_openai_key?: string };
+
+    // Build system prompt with optional world context
+    let systemPrompt = SUMMARIZER_SYSTEM_PROMPT;
+    if (worldContext && worldContext.trim()) {
+      systemPrompt += `\n\nIMPORTANT — WORLD BIBLE CONTEXT:\nThe DM has established the following world facts as ground truth. Your summary must stay consistent with these facts. Do not contradict them. If events in the chat appear to conflict with these facts, the world bible takes precedence — the conflict may be a plot twist, unreliable narrator, or player misunderstanding that should be preserved as-is in the summary.\n\n${worldContext.trim()}`;
+    }
 
     // Build the user prompt
     let userPrompt = "";

@@ -2005,7 +2005,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     } finally {
       setIsFullSummarizing(false);
     }
-  }, [partyId, user, messages, updateSessionConfig, silentAutoSave]);
+  }, [partyId, user, messages, updateSessionConfig, silentAutoSave, customGuidesContent]);
 
 
   const setTimerConfig = useCallback(async (enabled: boolean, durationSeconds: number) => {
