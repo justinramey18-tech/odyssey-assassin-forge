@@ -128,6 +128,31 @@ export function TelegramSettingsTab() {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={async () => {
+                  try {
+                    const { data, error } = await supabase.functions.invoke('telegram-notify-proxy', {
+                      body: {
+                        type: 'custom',
+                        targetUserIds: [user!.id],
+                        title: '🧪 Test Notification',
+                        body: 'If you see this in Telegram, push notifications are working!',
+                      },
+                    });
+                    if (error) throw error;
+                    toast.success(`Test sent! (${data?.sent ?? 0} delivered)`);
+                  } catch (e: any) {
+                    console.error(e);
+                    toast.error('Failed to send test notification');
+                  }
+                }}
+                className="w-full gap-2 h-10"
+              >
+                <Bell className="w-3.5 h-3.5" />
+                Send Test Notification
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleUnlink}
                 className="w-full gap-2 h-10 border-destructive/30 text-destructive hover:bg-destructive/10"
               >
