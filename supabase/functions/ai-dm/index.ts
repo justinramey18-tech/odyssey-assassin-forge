@@ -548,6 +548,11 @@ RULES:
     prompt += `\n\n## CAMPAIGN WORLD BIBLE (HIGHEST AUTHORITY)\nThe following content was hand-crafted by the DM to define this campaign's world, lore, NPCs, tone, and rules. This is the AUTHORITATIVE source of truth for the campaign. If any auto-generated content below (Campaign Summary, Memory Anchors) contradicts something stated here, THIS section takes priority. Preserve secrets and unrevealed information — do not spoil them to players even if the summary doesn't mention them.\n\n${trimmed}`;
   }
 
+  if (partyContext && partyContext.trim()) {
+    const trimmed = partyContext.slice(0, 30000);
+    prompt += `\n\n## SESSION CONTEXT (AUTO-GENERATED)\nThe following is system-generated context about the current session — party composition, player status, and formatting preferences:\n\n${trimmed}`;
+  }
+
   if (campaignSummary && campaignSummary.trim()) {
     const trimmedSummary = campaignSummary.slice(0, 30000);
     prompt += `\n\n## CAMPAIGN SUMMARY (AUTO-GENERATED)\nThis is an auto-generated summary of events so far. Use it for continuity — but if it contradicts the Campaign World Bible above, defer to the Bible.\n\n${trimmedSummary}`;
