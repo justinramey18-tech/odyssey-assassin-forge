@@ -870,6 +870,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     apiMessages: Array<{ role: string; content: string }>,
     extraGuides: string,
     signal: AbortSignal,
+    responseModePrompt?: string,
   ): Promise<string> => {
     // Ensure strictly alternating roles before sending to AI
     const sanitizedMessages = mergeConsecutiveRoles(apiMessages);
@@ -891,6 +892,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         customGuides: extraGuides,
         memoryAnchors: memoryAnchorsContent || undefined,
         recentPartyChat: recentPartyChat.length > 0 ? recentPartyChat : undefined,
+        responseModePrompt: responseModePrompt || undefined,
         model: loadSelectedModel(),
         ...(() => {
           const cs = loadCombatSettings();
@@ -1159,10 +1161,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             splitState.betaSummary ? `\n\n## OTHER TEAM CONTEXT (hidden from players)\n"${splitState.betaName || 'Team Beta'}"'s adventure summary (for narrative coherence only — do NOT reveal to "${splitState.alphaName || 'Team Alpha'}"):\n${splitState.betaSummary}` : '',
             splitState.alphaSummary ? `\n\n## PREVIOUS "${splitState.alphaName || 'Team Alpha'}" SUMMARY\n${splitState.alphaSummary}` : '',
             alphaAfkGuides,
-            splitResponseModePrompt,
           ].filter(Boolean).join('\n\n');
 
-          const alphaContent = await streamAIResponse(alphaApiMsgs, alphaGuides, abortRef.current!.signal);
+          const alphaContent = await streamAIResponse(alphaApiMsgs, alphaGuides, abortRef.current!.signal, splitResponseModePrompt || undefined);
 
           if (alphaContent?.trim()) {
             await insertPartyMessage({
@@ -1205,10 +1206,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             splitState.alphaSummary ? `\n\n## OTHER TEAM CONTEXT (hidden from players)\n"${splitState.alphaName || 'Team Alpha'}"'s adventure summary (for narrative coherence only — do NOT reveal to "${splitState.betaName || 'Team Beta'}"):\n${splitState.alphaSummary}` : '',
             splitState.betaSummary ? `\n\n## PREVIOUS "${splitState.betaName || 'Team Beta'}" SUMMARY\n${splitState.betaSummary}` : '',
             betaAfkGuides,
-            splitResponseModePrompt,
           ].filter(Boolean).join('\n\n');
 
-          const betaContent = await streamAIResponse(betaApiMsgs, betaGuides, abortRef.current!.signal);
+          const betaContent = await streamAIResponse(betaApiMsgs, betaGuides, abortRef.current!.signal, splitResponseModePrompt || undefined);
 
           if (betaContent?.trim()) {
             await insertPartyMessage({
@@ -1316,10 +1316,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           customGuidesContent || '',
           `\n\n## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
           afkGuidesSection,
-          responseModePrompt,
         ].filter(Boolean).join('\n\n');
 
-        const assistantContent = await streamAIResponse(apiMessages, guides, abortRef.current!.signal);
+        const assistantContent = await streamAIResponse(apiMessages, guides, abortRef.current!.signal, responseModePrompt || undefined);
 
         if (assistantContent?.trim()) {
           if (isApprovalMode) {
