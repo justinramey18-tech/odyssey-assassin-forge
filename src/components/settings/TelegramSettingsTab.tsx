@@ -59,7 +59,7 @@ const JOB_TEMPLATES = [
 
 export function TelegramSettingsTab() {
   const { user } = useAuth();
-  const [link, setLink] = useState<TelegramLink | null>(null);
+  const [links, setLinks] = useState<TelegramLink[]>([]);
   const [linkCode, setLinkCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
