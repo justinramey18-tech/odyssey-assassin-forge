@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Send, Link2, Unlink, Copy, RefreshCw, Bell, BellOff, Clock, Trash2, Plus, ChevronDown, ChevronUp, Users, BookOpen, Sparkles } from 'lucide-react';
+import { Send, Link2, Unlink, Copy, RefreshCw, Bell, BellOff, Clock, Trash2, Plus, ChevronDown, ChevronUp, Users, BookOpen, Sparkles, Pencil, Check, X } from 'lucide-react';
 import { DM_MODELS, DEFAULT_MODEL_ID, getModelLabel } from '@/lib/dm-models';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -26,11 +26,19 @@ interface TelegramLink {
   id: string;
   chat_id: number;
   username: string | null;
+  nickname: string | null;
   linked_at: string;
   notify_ready_up: boolean;
   notify_timer: boolean;
   notify_combat: boolean;
   notify_dragon: boolean;
+}
+
+/** Display name for a linked chat: nickname > @username > Chat ID */
+function chatDisplayName(lnk: TelegramLink): string {
+  if (lnk.nickname) return lnk.nickname;
+  if (lnk.username) return `@${lnk.username}`;
+  return `Chat ${lnk.chat_id}`;
 }
 
 interface ScheduledJob {
@@ -80,6 +88,9 @@ export function TelegramSettingsTab() {
   const [newJobAiModel, setNewJobAiModel] = useState(DEFAULT_MODEL_ID);
   const [submittingJob, setSubmittingJob] = useState(false);
   const [newJobTargetChatIds, setNewJobTargetChatIds] = useState<number[]>([]);
+
+  const [editingNicknameId, setEditingNicknameId] = useState<string | null>(null);
+  const [nicknameInput, setNicknameInput] = useState('');
 
   // Fetch existing links
   const fetchLinks = useCallback(async () => {
@@ -164,6 +175,24 @@ export function TelegramSettingsTab() {
       toast.error('Failed to update preference');
     }
   }, [user]);
+
+  // Save nickname for a linked chat
+  const saveNickname = useCallback(async (linkId: string) => {
+    if (!user) return;
+    const trimmed = nicknameInput.trim() || null;
+    const { error } = await supabase
+      .from('telegram_user_links')
+      .update({ nickname: trimmed } as any)
+      .eq('id', linkId);
+
+    if (!error) {
+      setLinks(prev => prev.map(l => l.id === linkId ? { ...l, nickname: trimmed } : l));
+      toast.success(trimmed ? 'Nickname saved' : 'Nickname removed');
+    } else {
+      toast.error('Failed to save nickname');
+    }
+    setEditingNicknameId(null);
+  }, [user, nicknameInput]);
 
   // Cancel a scheduled job
   const cancelJob = useCallback(async (jobId: string) => {
@@ -297,24 +326,65 @@ export function TelegramSettingsTab() {
             {links.length > 0 && (
               <div className="space-y-2">
                 {links.map((lnk) => (
-                  <div key={lnk.id} className="flex items-center justify-between gap-2 rounded-lg border border-border/30 bg-muted/10 p-2.5">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Badge variant="outline" className="border-green-500/30 text-green-400 bg-green-500/5 shrink-0">
-                        <Link2 className="w-3 h-3 mr-1" />
-                        Linked
-                      </Badge>
-                      <span className="text-xs text-muted-foreground truncate">
-                        {lnk.username ? `@${lnk.username}` : `Chat ${lnk.chat_id}`}
-                      </span>
+                  <div key={lnk.id} className="rounded-lg border border-border/30 bg-muted/10 p-2.5 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Badge variant="outline" className="border-green-500/30 text-green-400 bg-green-500/5 shrink-0">
+                          <Link2 className="w-3 h-3 mr-1" />
+                          Linked
+                        </Badge>
+                        <span className="text-xs text-muted-foreground truncate">
+                          {chatDisplayName(lnk)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setEditingNicknameId(lnk.id);
+                            setNicknameInput(lnk.nickname || '');
+                          }}
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleUnlink(lnk.id)}
+                          className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                        >
+                          <Unlink className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleUnlink(lnk.id)}
-                      className="shrink-0 h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-                    >
-                      <Unlink className="w-3.5 h-3.5" />
-                    </Button>
+                    {editingNicknameId === lnk.id && (
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          value={nicknameInput}
+                          onChange={e => setNicknameInput(e.target.value)}
+                          placeholder={lnk.username ? `@${lnk.username}` : `Chat ${lnk.chat_id}`}
+                          className="text-sm h-8 flex-1"
+                          autoFocus
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') saveNickname(lnk.id);
+                            if (e.key === 'Escape') setEditingNicknameId(null);
+                          }}
+                        />
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-green-400" onClick={() => saveNickname(lnk.id)}>
+                          <Check className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground" onClick={() => setEditingNicknameId(null)}>
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    )}
+                    {lnk.nickname && !editingNicknameId && (
+                      <p className="text-[10px] text-muted-foreground/60 pl-1">
+                        {lnk.username ? `@${lnk.username}` : `ID: ${lnk.chat_id}`}
+                      </p>
+                    )}
                   </div>
                 ))}
                 <Button
@@ -413,7 +483,7 @@ export function TelegramSettingsTab() {
                     <>
                       {idx > 0 && <Separator className="bg-border/30 my-1" />}
                       <p className="text-xs font-medium text-foreground/80">
-                        {lnk.username ? `@${lnk.username}` : `Chat ${lnk.chat_id}`}
+                        {chatDisplayName(lnk)}
                       </p>
                     </>
                   )}
@@ -664,7 +734,7 @@ export function TelegramSettingsTab() {
                                 {isSelected && <span className="text-primary-foreground text-[10px]">✓</span>}
                               </div>
                               <span className="text-xs text-foreground truncate">
-                                {lnk.username ? `@${lnk.username}` : `Chat ${lnk.chat_id}`}
+                                {chatDisplayName(lnk)}
                               </span>
                             </button>
                           );

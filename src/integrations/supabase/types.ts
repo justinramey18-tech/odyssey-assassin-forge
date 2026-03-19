@@ -1352,6 +1352,7 @@ export type Database = {
           created_at: string
           id: string
           linked_at: string | null
+          nickname: string | null
           notify_combat: boolean
           notify_dragon: boolean
           notify_ready_up: boolean
@@ -1364,6 +1365,7 @@ export type Database = {
           created_at?: string
           id?: string
           linked_at?: string | null
+          nickname?: string | null
           notify_combat?: boolean
           notify_dragon?: boolean
           notify_ready_up?: boolean
@@ -1376,6 +1378,7 @@ export type Database = {
           created_at?: string
           id?: string
           linked_at?: string | null
+          nickname?: string | null
           notify_combat?: boolean
           notify_dragon?: boolean
           notify_ready_up?: boolean
