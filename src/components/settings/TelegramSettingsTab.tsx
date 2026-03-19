@@ -326,23 +326,66 @@ export function TelegramSettingsTab() {
             {links.length > 0 && (
               <div className="space-y-2">
                 {links.map((lnk) => (
-                  <div key={lnk.id} className="flex items-center justify-between gap-2 rounded-lg border border-border/30 bg-muted/10 p-2.5">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Badge variant="outline" className="border-green-500/30 text-green-400 bg-green-500/5 shrink-0">
-                        <Link2 className="w-3 h-3 mr-1" />
-                        Linked
-                      </Badge>
-                      <span className="text-xs text-muted-foreground truncate">
-                        {lnk.username ? `@${lnk.username}` : `Chat ${lnk.chat_id}`}
-                      </span>
+                  <div key={lnk.id} className="rounded-lg border border-border/30 bg-muted/10 p-2.5 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Badge variant="outline" className="border-green-500/30 text-green-400 bg-green-500/5 shrink-0">
+                          <Link2 className="w-3 h-3 mr-1" />
+                          Linked
+                        </Badge>
+                        <span className="text-xs text-muted-foreground truncate">
+                          {chatDisplayName(lnk)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setEditingNicknameId(lnk.id);
+                            setNicknameInput(lnk.nickname || '');
+                          }}
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleUnlink(lnk.id)}
+                          className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                        >
+                          <Unlink className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleUnlink(lnk.id)}
-                      className="shrink-0 h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-                    >
-                      <Unlink className="w-3.5 h-3.5" />
+                    {editingNicknameId === lnk.id && (
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          value={nicknameInput}
+                          onChange={e => setNicknameInput(e.target.value)}
+                          placeholder={lnk.username ? `@${lnk.username}` : `Chat ${lnk.chat_id}`}
+                          className="text-sm h-8 flex-1"
+                          autoFocus
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') saveNickname(lnk.id);
+                            if (e.key === 'Escape') setEditingNicknameId(null);
+                          }}
+                        />
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-green-400" onClick={() => saveNickname(lnk.id)}>
+                          <Check className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground" onClick={() => setEditingNicknameId(null)}>
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    )}
+                    {lnk.nickname && !editingNicknameId && (
+                      <p className="text-[10px] text-muted-foreground/60 pl-1">
+                        {lnk.username ? `@${lnk.username}` : `ID: ${lnk.chat_id}`}
+                      </p>
+                    )}
+                  </div>
                     </Button>
                   </div>
                 ))}
