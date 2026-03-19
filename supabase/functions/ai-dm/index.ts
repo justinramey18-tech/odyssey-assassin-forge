@@ -147,6 +147,7 @@ interface DMRequest {
   systemPromptOverride?: string;
   memoryAnchors?: string;
   recentPartyChat?: Array<{ sender: string; message: string }>;
+  responseModePrompt?: string;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -372,7 +373,7 @@ function buildContextSummary(ctx: CharacterContext): string {
 
 // ── System Prompt Builder ──────────────────────────────────────────────────────
 
-function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string, encounterGuidance?: string, combatFeats?: string[], alignmentContext?: { law: number; good: number; zone: string }, memoryAnchors?: string, recentPartyChat?: Array<{ sender: string; message: string }>): string {
+function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string, encounterGuidance?: string, combatFeats?: string[], alignmentContext?: { law: number; good: number; zone: string }, memoryAnchors?: string, recentPartyChat?: Array<{ sender: string; message: string }>, responseModePrompt?: string): string {
   const contextSummary = buildContextSummary(ctx);
   
   let prompt = `You are an expert Dungeon Master running a live D&D 5e session for a single player. You are immersive, adaptive, and mechanically precise.
@@ -428,7 +429,7 @@ Write RICH, NOVELISTIC prose. Each response should read like a passage from a fa
 - Start sessions with a compelling hook that draws the player in immediately
 - End scenes with forward momentum — a new clue, a looming threat, or a choice to make
 - Offer 2-3 clear options when the player seems unsure, but always allow creative solutions
-- Match response length to what the scene needs. Action and pivotal moments deserve rich detail. Simple exchanges and transitions can be brief. Include sensory detail, NPC dialogue, and atmosphere as the scene calls for it. If the player or GM Guides specify a preferred length (e.g. "keep it short", "give me a long detailed scene", "2-3 paragraphs"), follow that instruction. OOC comments in brackets like [shorter please] or [go all out] should also be respected.
+- Match response length to what the scene needs. Action and pivotal moments deserve rich detail. Simple exchanges and transitions can be brief. Include sensory detail, NPC dialogue, and atmosphere as the scene calls for it. If the player or GM Guides specify a preferred length (e.g. "keep it short", "give me a long detailed scene", "2-3 paragraphs"), follow that instruction. OOC comments in brackets like [shorter please] or [go all out] should also be respected. If a "## RESPONSE FORMAT" section appears later in this prompt, it takes absolute priority over all other length and style guidance. Follow its word count exactly.
 - Use markdown formatting: **bold** for important names/items, *italics* for sensory details, internal thoughts, and atmospheric descriptions
 - You may use HTML color spans for NPC dialogue and effects: <span style="color:purple">"dialogue"</span>. Choose distinct colors for different NPCs so players can quickly identify who is speaking. Good defaults: purple, blue, pink, green, orange, cyan, gold. Use grey for sound effects or ambient descriptions. Do NOT overuse — only for dialogue and key effects.
 
@@ -552,6 +553,10 @@ RULES:
   if (customGuides && customGuides.trim()) {
     const trimmed = customGuides.slice(0, MAX_CUSTOM_GUIDES_CHARS);
     prompt += `\n\n## CUSTOM GM GUIDES\nThe following custom content has been provided by the player to guide your behavior. Treat it as authoritative campaign context:\n\n${trimmed}`;
+  }
+
+  if (responseModePrompt && responseModePrompt.trim()) {
+    prompt += `\n\n${responseModePrompt.slice(0, 2000)}`;
   }
 
   return prompt;
@@ -701,7 +706,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat } = (await req.json()) as DMRequest;
+    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt } = (await req.json()) as DMRequest;
     
     // Trim to last 100 messages, then cap by total character count
     let trimmedMessages = messages.length > MAX_MESSAGES
@@ -719,7 +724,7 @@ serve(async (req) => {
     console.log(`[ai-dm] Messages: ${trimmedMessages.length}, total chars: ${totalChars}`);
 
     // Use override if provided (e.g. whisper regeneration), otherwise build full DM prompt
-    const systemPrompt = systemPromptOverride?.trim() || buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat);
+    const systemPrompt = systemPromptOverride?.trim() || buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat, responseModePrompt);
 
     // Determine which provider to use
     const requestedModel = model || DEFAULT_MODEL;
