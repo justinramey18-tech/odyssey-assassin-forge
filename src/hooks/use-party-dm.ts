@@ -798,6 +798,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         body: JSON.stringify({
           messages: apiMessages,
           previousSummary: sessionConfig.campaignSummary || undefined,
+          worldContext: customGuidesContent ? customGuidesContent.slice(0, 4000) : undefined,
         }),
       });
 
@@ -823,7 +824,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     } finally {
       setIsSummarizing(false);
     }
-  }, [partyId, isCreator, sessionConfig]);
+  }, [partyId, isCreator, sessionConfig, customGuidesContent]);
 
 
 
@@ -1973,6 +1974,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           body: JSON.stringify({
             messages: batches[i],
             previousSummary: runningSummary || undefined,
+            worldContext: customGuidesContent ? customGuidesContent.slice(0, 4000) : undefined,
           }),
         });
 
@@ -2003,7 +2005,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     } finally {
       setIsFullSummarizing(false);
     }
-  }, [partyId, user, messages, updateSessionConfig, silentAutoSave]);
+  }, [partyId, user, messages, updateSessionConfig, silentAutoSave, customGuidesContent]);
 
 
   const setTimerConfig = useCallback(async (enabled: boolean, durationSeconds: number) => {
