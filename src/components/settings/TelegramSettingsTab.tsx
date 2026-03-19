@@ -439,7 +439,7 @@ export function TelegramSettingsTab() {
         )}
 
         {/* Scheduled Jobs (only when linked) */}
-        {link && (
+        {links.length > 0 && (
           <SettingsSection title="Scheduled Jobs" icon={<Clock className="w-4 h-4 text-violet-400" />}>
             <div className="space-y-3">
               <p className="text-[10px] text-muted-foreground">
