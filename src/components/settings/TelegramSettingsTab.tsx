@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Send, Link2, Unlink, Copy, RefreshCw, Bell, BellOff, Clock, Trash2, Plus, ChevronDown, ChevronUp } from 'lucide-react';
+import { Send, Link2, Unlink, Copy, RefreshCw, Bell, BellOff, Clock, Trash2, Plus, ChevronDown, ChevronUp, Users, BookOpen, Sparkles } from 'lucide-react';
+import { DM_MODELS, DEFAULT_MODEL_ID, getModelLabel } from '@/lib/dm-models';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -43,6 +44,8 @@ interface ScheduledJob {
   timezone: string;
   status: string;
   last_result: string | null;
+  dm_context_mode?: string;
+  ai_model?: string;
 }
 
 const JOB_TEMPLATES = [
@@ -72,6 +75,8 @@ export function TelegramSettingsTab() {
   const [newJobRepeatDaily, setNewJobRepeatDaily] = useState(false);
   const [newJobDate, setNewJobDate] = useState<Date | undefined>();
   const [newJobCalendarOpen, setNewJobCalendarOpen] = useState(false);
+  const [newJobDmContext, setNewJobDmContext] = useState<'solo' | 'party' | 'empyrean'>('solo');
+  const [newJobAiModel, setNewJobAiModel] = useState(DEFAULT_MODEL_ID);
   const [submittingJob, setSubmittingJob] = useState(false);
 
   // Fetch existing link
@@ -95,7 +100,7 @@ export function TelegramSettingsTab() {
     setJobsLoading(true);
     const { data } = await supabase
       .from('scheduled_telegram_jobs')
-      .select('id, job_name, ai_prompt, static_message, repeat_daily, run_at, run_time, timezone, status, last_result')
+      .select('id, job_name, ai_prompt, static_message, repeat_daily, run_at, run_time, timezone, status, last_result, dm_context_mode, ai_model')
       .eq('user_id', user.id)
       .in('status', ['pending', 'running'])
       .order('run_at', { ascending: true });
@@ -223,6 +228,8 @@ export function TelegramSettingsTab() {
           ai_prompt: newJobPrompt.trim(),
           static_message: null,
           include_campaign_context: newJobIncludeContext,
+          dm_context_mode: newJobDmContext,
+          ai_model: newJobAiModel,
           timezone: 'America/New_York',
           status: 'pending',
           run_at: runAt.toISOString(),
@@ -239,6 +246,8 @@ export function TelegramSettingsTab() {
       setNewJobPrompt('');
       setNewJobName('');
       setNewJobIncludeContext(true);
+      setNewJobDmContext('solo');
+      setNewJobAiModel(DEFAULT_MODEL_ID);
       setNewJobTime('08:00');
       setNewJobRepeatDaily(false);
       setNewJobDate(undefined);
@@ -447,6 +456,9 @@ export function TelegramSettingsTab() {
                         <p className="text-[10px] text-muted-foreground">
                           ⏰ {formatJobTime(job)}
                         </p>
+                        <p className="text-[10px] text-muted-foreground/60">
+                          {job.dm_context_mode ? job.dm_context_mode.charAt(0).toUpperCase() + job.dm_context_mode.slice(1) : 'Solo'} DM · {getModelLabel(job.ai_model || DEFAULT_MODEL_ID)}
+                        </p>
                         {job.last_result && (
                           <p className="text-[10px] text-muted-foreground/60 truncate">
                             Last: {job.last_result.substring(0, 80)}{job.last_result.length > 80 ? '…' : ''}
@@ -527,6 +539,63 @@ export function TelegramSettingsTab() {
                       <p className="text-[10px] text-muted-foreground">Gives the AI access to your campaign, character, and quest data.</p>
                     </div>
                     <Switch checked={newJobIncludeContext} onCheckedChange={setNewJobIncludeContext} />
+                  </div>
+
+                  {/* DM Context Mode */}
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider">AI Context Mode</p>
+                    <div className="flex gap-1.5 rounded-lg bg-muted/40 p-1">
+                      {([
+                        { value: 'solo' as const, label: 'Solo DM', icon: BookOpen },
+                        { value: 'party' as const, label: 'Party DM', icon: Users },
+                        { value: 'empyrean' as const, label: 'Empyrean', icon: Sparkles },
+                      ]).map(({ value, label, icon: Icon }) => (
+                        <button
+                          key={value}
+                          onClick={() => setNewJobDmContext(value)}
+                          className={cn(
+                            "flex-1 flex items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-colors",
+                            newJobDmContext === value
+                              ? "bg-primary text-primary-foreground shadow-sm"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          <Icon className="w-3.5 h-3.5" />
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      {newJobDmContext === 'solo' && 'Uses your solo campaign — character, summary, and quest flags.'}
+                      {newJobDmContext === 'party' && "Uses your party's campaign — all members, shared summary, and history."}
+                      {newJobDmContext === 'empyrean' && 'Uses your Empyrean campaign — dragon bond, lore guides, and persona.'}
+                    </p>
+                  </div>
+
+                  {/* AI Model */}
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider">AI Model</p>
+                    <select
+                      value={newJobAiModel}
+                      onChange={e => setNewJobAiModel(e.target.value)}
+                      className="w-full rounded-md border border-border/50 bg-transparent text-sm text-foreground px-3 py-2"
+                    >
+                      <optgroup label="Gateway Models">
+                        {DM_MODELS.filter(m => m.provider === 'lovable').map(m => (
+                          <option key={m.id} value={m.id}>{m.label} — {m.description}</option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Anthropic (your API key)">
+                        {DM_MODELS.filter(m => m.provider === 'anthropic').map(m => (
+                          <option key={m.id} value={m.id}>{m.label} — {m.description}</option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="OpenAI (your API key)">
+                        {DM_MODELS.filter(m => m.provider === 'openai-direct').map(m => (
+                          <option key={m.id} value={m.id}>{m.label} — {m.description}</option>
+                        ))}
+                      </optgroup>
+                    </select>
                   </div>
 
                   {/* Send at time */}
