@@ -75,6 +75,8 @@ export function TelegramSettingsTab() {
   const [newJobRepeatDaily, setNewJobRepeatDaily] = useState(false);
   const [newJobDate, setNewJobDate] = useState<Date | undefined>();
   const [newJobCalendarOpen, setNewJobCalendarOpen] = useState(false);
+  const [newJobDmContext, setNewJobDmContext] = useState<'solo' | 'party' | 'empyrean'>('solo');
+  const [newJobAiModel, setNewJobAiModel] = useState(DEFAULT_MODEL_ID);
   const [submittingJob, setSubmittingJob] = useState(false);
 
   // Fetch existing link
