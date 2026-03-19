@@ -1188,7 +1188,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
         // --- Team Beta ---
         if (betaPrompts.length > 0) {
-          const { guidesSection: betaAfkGuides, promptSection: betaAfkPrompts, consumedCascades: betaConsumed } = buildAfkGuidesContext(betaPrompts, splitState.betaMembers);
+          const { guidesSection: betaAfkGuides, promptSection: betaAfkPrompts, consumedCascades: betaConsumed } = suppressAfkGuides
+            ? { guidesSection: '', promptSection: '', consumedCascades: [] }
+            : buildAfkGuidesContext(betaPrompts, splitState.betaMembers);
           allConsumedCascades = [...allConsumedCascades, ...betaConsumed];
           const betaRawCombined = betaPrompts
             .map(formatPromptLine)
