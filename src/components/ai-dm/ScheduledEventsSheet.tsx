@@ -469,20 +469,22 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
           {pastEvents.length > 0 && (
             <div className="space-y-2">
               <Label className="text-xs text-muted-foreground uppercase tracking-wider">Past Events</Label>
-              {pastEvents.map(event => (
+              {pastEvents.map(event => {
+                const isRound = !event.ai_prompt || event.ai_prompt === 'Auto-advance the party round. Generate a brief narrative transition summarizing what happens next.';
+                return (
                 <div key={event.id} className="flex items-start gap-3 rounded-lg border border-border/30 bg-muted/5 p-3 opacity-60">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      {event.event_type === 'scheduled_round' ? (
+                      {isRound ? (
                         <Users className="w-3 h-3 text-primary shrink-0" />
                       ) : (
                         <BookOpen className="w-3 h-3 text-amber-400 shrink-0" />
                       )}
-                      <p className="text-sm font-medium text-foreground truncate">{event.event_name}</p>
+                      <p className="text-sm font-medium text-foreground truncate">{event.job_name}</p>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {event.status === 'fired' ? '✅ Fired' : event.status === 'cancelled' ? '❌ Cancelled' : `⚠️ ${event.status}`}
-                      {' · '}{format(new Date(event.scheduled_at), 'PPP p')}
+                      {event.status === 'completed' ? '✅ Completed' : event.status === 'cancelled' ? '❌ Cancelled' : event.status === 'failed' ? '⚠️ Failed' : `⚠️ ${event.status}`}
+                      {' · '}{format(new Date(event.run_at), 'PPP p')}
                     </p>
                   </div>
                   <Button
@@ -494,7 +496,8 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
