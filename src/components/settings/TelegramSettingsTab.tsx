@@ -91,7 +91,7 @@ export function TelegramSettingsTab() {
     setLoading(false);
   }, [user]);
 
-  useEffect(() => { fetchLink(); }, [fetchLink]);
+  useEffect(() => { fetchLinks(); }, [fetchLinks]);
 
   // Fetch scheduled jobs
   const fetchJobs = useCallback(async () => {
