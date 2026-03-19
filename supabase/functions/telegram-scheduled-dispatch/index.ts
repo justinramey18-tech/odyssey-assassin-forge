@@ -224,34 +224,105 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Call AI gateway
-        const aiResponse = await fetch(
-          'https://ai.gateway.lovable.dev/v1/chat/completions',
-          {
+        // Call AI — route by provider
+        const selectedModel = job.ai_model || 'google/gemini-2.5-flash-lite';
+
+        if (ANTHROPIC_MODELS[selectedModel]) {
+          // Anthropic direct
+          const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
+          if (!anthropicKey) throw new Error('ANTHROPIC_API_KEY not configured for Anthropic model');
+
+          const aiResponse = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: {
-              Authorization: `Bearer ${lovableApiKey}`,
+              'x-api-key': anthropicKey,
+              'anthropic-version': '2023-06-01',
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              model: 'google/gemini-2.5-flash-lite',
+              model: ANTHROPIC_MODELS[selectedModel],
               max_tokens: 2000,
-              messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userMessage },
-              ],
+              system: systemPrompt,
+              messages: [{ role: 'user', content: userMessage }],
             }),
+          });
+
+          if (!aiResponse.ok) {
+            const errText = await aiResponse.text();
+            throw new Error(`Anthropic error [${aiResponse.status}]: ${errText}`);
           }
-        );
 
-        if (!aiResponse.ok) {
-          const errText = await aiResponse.text();
-          throw new Error(`AI gateway error [${aiResponse.status}]: ${errText}`);
+          const aiData = await aiResponse.json();
+          finalMessage = aiData.content?.[0]?.text || 'No response generated.';
+
+        } else if (OPENAI_DIRECT_MODELS[selectedModel]) {
+          // OpenAI direct — fetch user's key
+          let openaiKey: string | null = null;
+          try {
+            const { data: keyRow } = await supabase
+              .from('user_api_keys')
+              .select('openai_key')
+              .eq('user_id', job.user_id)
+              .maybeSingle();
+            openaiKey = keyRow?.openai_key || null;
+          } catch { /* ignore */ }
+
+          if (!openaiKey) {
+            // Fall back to Lovable gateway default
+            console.warn(`No OpenAI key for user ${job.user_id}, falling back to gateway`);
+            const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${lovableApiKey}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                model: 'google/gemini-2.5-flash-lite',
+                max_tokens: 2000,
+                messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
+              }),
+            });
+            if (!aiResponse.ok) {
+              const errText = await aiResponse.text();
+              throw new Error(`AI gateway error [${aiResponse.status}]: ${errText}`);
+            }
+            const aiData = await aiResponse.json();
+            finalMessage = aiData.choices?.[0]?.message?.content || 'No response generated.';
+          } else {
+            const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                model: OPENAI_DIRECT_MODELS[selectedModel],
+                max_tokens: 2000,
+                messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
+              }),
+            });
+            if (!aiResponse.ok) {
+              const errText = await aiResponse.text();
+              throw new Error(`OpenAI error [${aiResponse.status}]: ${errText}`);
+            }
+            const aiData = await aiResponse.json();
+            finalMessage = aiData.choices?.[0]?.message?.content || 'No response generated.';
+          }
+
+        } else {
+          // Lovable gateway
+          const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${lovableApiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: selectedModel,
+              max_tokens: 2000,
+              messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
+            }),
+          });
+
+          if (!aiResponse.ok) {
+            const errText = await aiResponse.text();
+            throw new Error(`AI gateway error [${aiResponse.status}]: ${errText}`);
+          }
+
+          const aiData = await aiResponse.json();
+          finalMessage = aiData.choices?.[0]?.message?.content || 'No response generated.';
         }
-
-        const aiData = await aiResponse.json();
-        finalMessage =
-          aiData.choices?.[0]?.message?.content || 'No response generated.';
       } else {
         // Static message
         finalMessage = job.static_message || 'No message configured.';
