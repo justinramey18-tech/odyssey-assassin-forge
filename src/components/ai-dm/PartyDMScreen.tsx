@@ -789,6 +789,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [showAfkGuide, setShowAfkGuide] = useState(false);
   const [showScheduledEvents, setShowScheduledEvents] = useState(false);
   const [showMemoryAnchors, setShowMemoryAnchors] = useState(false);
+  const [showQuests, setShowQuests] = useState(false);
+  const [questsCount, setQuestsCount] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Chat unread badge tracking
