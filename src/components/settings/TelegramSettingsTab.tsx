@@ -79,6 +79,7 @@ export function TelegramSettingsTab() {
   const [newJobDmContext, setNewJobDmContext] = useState<'solo' | 'party' | 'empyrean'>('solo');
   const [newJobAiModel, setNewJobAiModel] = useState(DEFAULT_MODEL_ID);
   const [submittingJob, setSubmittingJob] = useState(false);
+  const [newJobTargetChatIds, setNewJobTargetChatIds] = useState<number[]>([]);
 
   // Fetch existing links
   const fetchLinks = useCallback(async () => {
