@@ -109,11 +109,10 @@ export function TelegramSettingsTab() {
 
   useEffect(() => { if (links.length > 0) fetchJobs(); }, [links, fetchJobs]);
 
-  // Generate link code
+  // Generate link code (does NOT delete existing codes/links)
   const generateCode = useCallback(async () => {
     if (!user) return;
     setGenerating(true);
-    await supabase.from('telegram_link_codes').delete().eq('user_id', user.id);
 
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
