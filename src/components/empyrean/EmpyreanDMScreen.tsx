@@ -245,6 +245,7 @@ export function EmpyreanDMScreen({
     characterContext,
     customGuidesContent: enabledContent,
     dmPersonaPrompt,
+    responseModePrompt: resolveResponseModePrompt(responseMode),
     selectedModel,
     worldStatePrompt,
     sessionStorageKey: EMPYREAN_SESSION_KEY,

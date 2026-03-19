@@ -284,6 +284,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
           campaignSummary: campaignSummary || undefined,
           worldStatePrompt: worldStatePrompt || undefined,
           dmPersonaPrompt: dmPersonaPrompt || undefined,
+          responseModePrompt: responseModePrompt || undefined,
           model: selectedModel || undefined,
           user_api_key: loadApiKey('anthropic') || undefined,
           user_openai_key: loadApiKey('openai') || undefined,
