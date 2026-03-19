@@ -181,6 +181,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
       setSelectedDate(undefined);
       setTimeValue('17:00');
       setRepeatWeekly(false);
+      setDmContextMode('party');
       fetchEvents();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Scheduling failed');
