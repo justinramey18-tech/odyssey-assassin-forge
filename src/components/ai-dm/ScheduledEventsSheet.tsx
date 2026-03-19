@@ -59,6 +59,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
   const [timeValue, setTimeValue] = useState('17:00');
   const [repeatWeekly, setRepeatWeekly] = useState(false);
   const [dmContextMode, setDmContextMode] = useState<'solo' | 'party' | 'empyrean'>('party');
+  const [aiModel, setAiModel] = useState(DEFAULT_MODEL_ID);
 
   // Stable fetch function
   const fetchEvents = useCallback(async () => {
