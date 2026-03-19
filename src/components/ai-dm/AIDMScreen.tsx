@@ -381,7 +381,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   // Bottom nav state
   const [activeNavTab, setActiveNavTab] = useState<DMNavTab | null>(null);
   const [navExpanded, setNavExpanded] = useState(false);
-  const [responseMode, setResponseMode] = useState<string | undefined>(undefined);
+  const { responseMode, setResponseMode } = useResponseMode();
   const [showStoneDrawer, setShowStoneDrawer] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);

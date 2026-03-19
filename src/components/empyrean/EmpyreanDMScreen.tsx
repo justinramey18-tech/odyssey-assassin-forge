@@ -178,7 +178,7 @@ export function EmpyreanDMScreen({
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
   const narrator = useNarrator();
   const spotify = useSpotify();
-  const [responseMode, setResponseMode] = useState<string | undefined>(undefined);
+  const { responseMode, setResponseMode } = useResponseMode();
 
   // Auto-sync hook
   const autoSync = useDmAutoSync({
