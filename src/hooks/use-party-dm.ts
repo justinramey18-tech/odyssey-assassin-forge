@@ -1316,10 +1316,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           customGuidesContent || '',
           `\n\n## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
           afkGuidesSection,
-          responseModePrompt,
         ].filter(Boolean).join('\n\n');
 
-        const assistantContent = await streamAIResponse(apiMessages, guides, abortRef.current!.signal);
+        const assistantContent = await streamAIResponse(apiMessages, guides, abortRef.current!.signal, responseModePrompt || undefined);
 
         if (assistantContent?.trim()) {
           if (isApprovalMode) {
