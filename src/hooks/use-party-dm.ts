@@ -712,6 +712,16 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       setCurrentPrompts(prev => [...prev, optimisticPrompt]);
       await (supabase.from('party_dm_prompts') as any).insert(insertData);
     }
+
+    // Send Telegram ready-up notification (non-blocking, includes self)
+    supabase.functions.invoke('telegram-notify-proxy', {
+      body: {
+        type: 'ready_up',
+        partyId,
+        title: '⚔️ Ready Up!',
+        body: `${characterName} has readied up!`,
+      },
+    }).catch((err: unknown) => console.warn('[setReady] Telegram notify failed:', err));
   }, [user, partyId, sessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
 
   const unready = useCallback(async () => {
