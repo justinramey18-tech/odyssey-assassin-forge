@@ -462,6 +462,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
                       )}
                       <span className="ml-1.5 text-muted-foreground">
                         · {(event as any).dm_context_mode === 'solo' ? 'Solo DM' : (event as any).dm_context_mode === 'empyrean' ? 'Empyrean DM' : 'Party DM'}
+                        {' · '}{getModelLabel((event as any).ai_model || 'google/gemini-2.5-flash-lite')}
                       </span>
                     </p>
                   </div>
