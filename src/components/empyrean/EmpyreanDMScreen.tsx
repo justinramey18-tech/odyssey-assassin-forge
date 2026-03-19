@@ -24,6 +24,7 @@ import EmpyreanContextualActions from '@/components/empyrean/EmpyreanContextualA
 import DragonBondChat from '@/components/empyrean/DragonBondChat';
 import { useGMGuides } from '@/hooks/use-gm-guides';
 import { useDMGameState, buildMemoryAnchorsPrompt } from '@/hooks/use-dm-game-state';
+import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { useDMChatTheme } from '@/hooks/use-dm-chat-theme';
 import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
@@ -314,6 +315,17 @@ export function EmpyreanDMScreen({
       }
     },
   });
+
+  // Register Oracle quest callback so OracleDrawer can save quests to game state
+  const drawerContext = usePromptDrawers();
+  useEffect(() => {
+    drawerContext?.registerOracleQuestCallback?.((quests) => {
+      for (const q of quests) {
+        gameState.setQuestFlag(q.key, q.status, q.notes);
+      }
+    });
+    return () => { drawerContext?.registerOracleQuestCallback?.(null); };
+  }, [gameState.setQuestFlag]);
 
   // Sync tracking campaign id with active campaign id from useAIDM
   useEffect(() => {

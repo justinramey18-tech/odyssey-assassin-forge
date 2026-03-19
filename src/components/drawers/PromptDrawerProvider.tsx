@@ -73,6 +73,8 @@ interface PromptDrawerContextValue {
   conditions: UseConditionsReturn;
   // Character context for AI DM (shared for Empyrean etc.)
   characterContext: CharacterContext;
+  // Oracle quest extraction callback registration
+  registerOracleQuestCallback: (cb: ((quests: Array<{ key: string; status: 'active' | 'completed' | 'failed'; notes?: string }>) => void) | null) => void;
 }
 
 const PromptDrawerContext = createContext<PromptDrawerContextValue | null>(null);
@@ -524,6 +526,8 @@ export function PromptDrawerProvider({
       getScoreBreakdown, identityGender, identityRace, identityBackstory, identityRelationships,
       wildShape?.state.isTransformed, wildShape?.state.currentForm, wildShape?.state.formHP, wildShape?.state.formMaxHP, wildShape?.state.usesRemaining, wildShape?.state.maxUses]);
 
+  const [oracleQuestCallback, setOracleQuestCallback] = useState<((quests: Array<{ key: string; status: 'active' | 'completed' | 'failed'; notes?: string }>) => void) | null>(null);
+
   const contextValue: PromptDrawerContextValue = {
     openInfinityDrawer: handleOpenInfinityDrawer,
     openAbilitiesDrawer: useCallback(() => { closeAllDrawers(); setAbilitiesOpen(true); }, [closeAllDrawers]),
@@ -564,6 +568,8 @@ export function PromptDrawerProvider({
     conditions: conditionsSystem,
     // Character context
     characterContext: aiDMCharacterContext,
+    // Oracle quest extraction callback registration
+    registerOracleQuestCallback: useCallback((cb: ((quests: Array<{ key: string; status: 'active' | 'completed' | 'failed'; notes?: string }>) => void) | null) => { setOracleQuestCallback(() => cb); }, []),
   };
 
   return (
@@ -659,6 +665,7 @@ export function PromptDrawerProvider({
             combatContext={combatContext}
             partyMembers={partyMembers}
             subclass={subclass}
+            onQuestExtracted={oracleQuestCallback || undefined}
           />
 
           <ConditionDrawer
