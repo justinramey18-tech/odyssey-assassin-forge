@@ -1,0 +1,1 @@
+ALTER TABLE public.telegram_user_links ADD COLUMN nickname text DEFAULT NULL;
