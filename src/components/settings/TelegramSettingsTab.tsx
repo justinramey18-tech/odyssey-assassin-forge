@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Send, Link2, Unlink, Copy, RefreshCw, Bell, BellOff, Clock, Trash2, Plus, ChevronDown, ChevronUp, Users, BookOpen, Sparkles } from 'lucide-react';
+import { Send, Link2, Unlink, Copy, RefreshCw, Bell, BellOff, Clock, Trash2, Plus, ChevronDown, ChevronUp, Users, BookOpen, Sparkles, Pencil, Check, X } from 'lucide-react';
 import { DM_MODELS, DEFAULT_MODEL_ID, getModelLabel } from '@/lib/dm-models';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
