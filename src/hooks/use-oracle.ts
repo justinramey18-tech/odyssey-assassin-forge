@@ -1,21 +1,26 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Message, Personality, CharacterContext, OracleMode } from '@/components/oracle/types';
 import { toast } from 'sonner';
 import { getAuthToken } from '@/lib/auth-token';
 import { getEverywhereKey } from '@/lib/api-keys';
+import { supabase } from '@/integrations/supabase/client';
 
 const ORACLE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/oracle-assistant`;
 
 interface UseOracleOptions {
   characterContext: CharacterContext;
+  onQuestExtracted?: (quests: Array<{ key: string; status: 'active' | 'completed' | 'failed'; notes?: string }>) => void;
 }
 
-export function useOracle({ characterContext }: UseOracleOptions) {
+export function useOracle({ characterContext, onQuestExtracted }: UseOracleOptions) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [personality, setPersonality] = useState<Personality>('deadpool');
   const [mode, setMode] = useState<OracleMode>('recap');
   const abortControllerRef = useRef<AbortController | null>(null);
+  const onQuestExtractedRef = useRef(onQuestExtracted);
+
+  useEffect(() => { onQuestExtractedRef.current = onQuestExtracted; }, [onQuestExtracted]);
 
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim() || isLoading) return;
@@ -145,19 +150,62 @@ export function useOracle({ characterContext }: UseOracleOptions) {
             const deltaContent = parsed.choices?.[0]?.delta?.content as string | undefined;
             if (deltaContent) {
               assistantContent += deltaContent;
-              setMessages(prev =>
-                prev.map(m =>
-                  m.id === assistantMessageId
-                    ? { ...m, content: assistantContent }
-                    : m
-                )
-              );
             }
           } catch {
             // ignore
           }
         }
       }
+
+      // Quest extraction
+      if (assistantContent && onQuestExtractedRef.current) {
+        try {
+          const jsonMatch = assistantContent.match(/<!--QUESTS_JSON:([\s\S]*?):-->/);
+          if (jsonMatch) {
+            const quests = JSON.parse(jsonMatch[1].trim());
+            if (Array.isArray(quests) && quests.length > 0) {
+              onQuestExtractedRef.current(quests);
+            }
+          } else if (mode === 'quest' && assistantContent.length > 50) {
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+            if (token) {
+              fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                  model: 'google/gemini-2.5-flash-lite',
+                  messages: [
+                    { role: 'system', content: 'Extract quests from this text. Return ONLY a JSON array: [{key: "snake_case_id", status: "active"|"completed"|"failed", notes: "brief description"}]. No markdown.' },
+                    { role: 'user', content: assistantContent }
+                  ],
+                  max_tokens: 500,
+                  systemPromptOverride: 'Extract quests as JSON only.'
+                })
+              })
+              .then(r => r.json())
+              .then(data => {
+                const text = data.choices?.[0]?.message?.content || '[]';
+                const quests = JSON.parse(text.replace(/```json|```/g, '').trim());
+                if (Array.isArray(quests) && quests.length > 0) {
+                  onQuestExtractedRef.current?.(quests);
+                }
+              })
+              .catch(() => {});
+            }
+          }
+        } catch { /* never break oracle flow */ }
+      }
+
+      // Strip hidden JSON tag from displayed content
+      assistantContent = assistantContent.replace(/<!--QUESTS_JSON:[\s\S]*?:-->/g, '').trim();
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === assistantMessageId
+            ? { ...m, content: assistantContent }
+            : m
+        )
+      );
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         // Request was cancelled
