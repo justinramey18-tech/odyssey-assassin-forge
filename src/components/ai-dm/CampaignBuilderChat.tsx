@@ -5,12 +5,14 @@ import { useAICampaignChat, CampaignBuildData } from '@/hooks/use-ai-campaign-ch
 import ReactMarkdown from 'react-markdown';
 
 interface CampaignBuilderChatProps {
-  partyMembers: Array<{ character_name: string; character_status?: Record<string, unknown> }>;
+  partyMembers?: Array<{ character_name: string; character_status?: Record<string, unknown> }>;
+  characterName?: string;
+  characterLevel?: number;
   onComplete: (data: CampaignBuildData) => void;
   onSkip: () => void;
 }
 
-export default function CampaignBuilderChat({ partyMembers, onComplete, onSkip }: CampaignBuilderChatProps) {
+export default function CampaignBuilderChat({ partyMembers, characterName, characterLevel, onComplete, onSkip }: CampaignBuilderChatProps) {
   const { messages, isLoading, buildData, error, suggestions, sendMessage, reset } = useAICampaignChat();
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
