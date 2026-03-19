@@ -26,11 +26,19 @@ interface TelegramLink {
   id: string;
   chat_id: number;
   username: string | null;
+  nickname: string | null;
   linked_at: string;
   notify_ready_up: boolean;
   notify_timer: boolean;
   notify_combat: boolean;
   notify_dragon: boolean;
+}
+
+/** Display name for a linked chat: nickname > @username > Chat ID */
+function chatDisplayName(lnk: TelegramLink): string {
+  if (lnk.nickname) return lnk.nickname;
+  if (lnk.username) return `@${lnk.username}`;
+  return `Chat ${lnk.chat_id}`;
 }
 
 interface ScheduledJob {
