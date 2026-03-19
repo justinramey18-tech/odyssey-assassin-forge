@@ -1161,10 +1161,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             splitState.betaSummary ? `\n\n## OTHER TEAM CONTEXT (hidden from players)\n"${splitState.betaName || 'Team Beta'}"'s adventure summary (for narrative coherence only — do NOT reveal to "${splitState.alphaName || 'Team Alpha'}"):\n${splitState.betaSummary}` : '',
             splitState.alphaSummary ? `\n\n## PREVIOUS "${splitState.alphaName || 'Team Alpha'}" SUMMARY\n${splitState.alphaSummary}` : '',
             alphaAfkGuides,
-            splitResponseModePrompt,
           ].filter(Boolean).join('\n\n');
 
-          const alphaContent = await streamAIResponse(alphaApiMsgs, alphaGuides, abortRef.current!.signal);
+          const alphaContent = await streamAIResponse(alphaApiMsgs, alphaGuides, abortRef.current!.signal, splitResponseModePrompt || undefined);
 
           if (alphaContent?.trim()) {
             await insertPartyMessage({
