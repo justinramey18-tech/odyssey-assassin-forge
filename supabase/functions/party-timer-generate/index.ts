@@ -591,6 +591,7 @@ async function handleScheduledRound(
     // ── Extract quests from AI response (non-blocking) ──
     if (assistantContent.length > 100) {
       try {
+        console.log(`[timer-gen] Party ${partyId}: extracting quests from response (${assistantContent.length} chars)`);
         const questResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: { "Authorization": `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
