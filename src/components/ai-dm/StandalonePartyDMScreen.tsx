@@ -189,6 +189,39 @@ export function StandalonePartyDMScreen({
     enabled: isHost,
   });
 
+  // Campaign Builder completion handler
+  const handleCampaignBuilderComplete = useCallback(async (data: CampaignBuildData) => {
+    setShowCampaignBuilder(false);
+
+    // 1. Start fresh campaign with the generated name
+    await partyDm.startNewCampaign(data.campaignName);
+    memoryAnchors.clearAll();
+
+    // 2. Set the campaign summary, save GM guide, seed anchors, post opening scene
+    setTimeout(async () => {
+      partyDm.updateSessionConfig({ campaignSummary: data.campaignSummary });
+
+      // 3. Save the GM guide
+      gmGuides.addGuide(`📖 ${data.campaignName}`, data.gmGuide);
+
+      // 4. Seed memory anchors
+      for (const anchor of data.memoryAnchors) {
+        memoryAnchors.addMemoryAnchor({
+          category: anchor.category,
+          key: anchor.key,
+          value: anchor.value,
+        });
+      }
+
+      // 5. Post opening scene as first DM message
+      if (data.openingScene) {
+        setTimeout(() => {
+          partyDm.sendManualDmMessage(data.openingScene);
+        }, 300);
+      }
+    }, 300);
+  }, [partyDm, memoryAnchors, gmGuides]);
+
 
   const autoSync = useDmAutoSync({
     onHPChange: autoSyncCallbacks?.onHPChange ?? NOOP_TWO_ARG,
