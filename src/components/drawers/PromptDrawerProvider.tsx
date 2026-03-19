@@ -73,6 +73,8 @@ interface PromptDrawerContextValue {
   conditions: UseConditionsReturn;
   // Character context for AI DM (shared for Empyrean etc.)
   characterContext: CharacterContext;
+  // Oracle quest extraction callback registration
+  registerOracleQuestCallback: (cb: ((quests: Array<{ key: string; status: 'active' | 'completed' | 'failed'; notes?: string }>) => void) | null) => void;
 }
 
 const PromptDrawerContext = createContext<PromptDrawerContextValue | null>(null);
