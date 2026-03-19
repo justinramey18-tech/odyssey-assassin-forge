@@ -57,6 +57,7 @@ interface OracleDrawerProps {
   combatContext?: CombatContextInput;
   partyMembers?: PartyMember[];
   subclass?: string;
+  onQuestExtracted?: (quests: Array<{ key: string; status: 'active' | 'completed' | 'failed'; notes?: string }>) => void;
 }
 
 export function OracleDrawer({
@@ -79,6 +80,7 @@ export function OracleDrawer({
   combatContext,
   partyMembers = [],
   subclass,
+  onQuestExtracted,
 }: OracleDrawerProps) {
   // Build character context for the AI
   const characterContext = useMemo<CharacterContext>(() => {
