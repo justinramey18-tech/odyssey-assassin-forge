@@ -516,7 +516,13 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       .delete()
       .eq('party_id', partyId)
       .eq('state_type', 'dm_split');
+    // Clear other campaign state that would bleed into the new campaign
+    await (supabase.from('party_shared_state') as any)
+      .delete()
+      .eq('party_id', partyId)
+      .in('state_type', ['quest_flags', 'party_memory_anchors', 'dm_poll', 'initiative', 'focus_target', 'map_markers']);
     setSplitState(null);
+    setPendingDraft(null);
 
     const roundId = crypto.randomUUID();
     const currentMode = sessionConfig?.mode || 'shared';
@@ -526,6 +532,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       currentRoundId: roundId,
       campaignSummary: null,
       isGenerating: false,
+      timerStartedAt: null,
+      timerPausedRemaining: null,
+      extensionRequests: [],
     };
     await (supabase.from('party_shared_state') as any).upsert({
       party_id: partyId,
