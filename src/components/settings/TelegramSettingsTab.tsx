@@ -107,7 +107,7 @@ export function TelegramSettingsTab() {
     setJobsLoading(false);
   }, [user]);
 
-  useEffect(() => { if (link) fetchJobs(); }, [link, fetchJobs]);
+  useEffect(() => { if (links.length > 0) fetchJobs(); }, [links, fetchJobs]);
 
   // Generate link code
   const generateCode = useCallback(async () => {
