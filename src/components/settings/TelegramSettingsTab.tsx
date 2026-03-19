@@ -734,7 +734,7 @@ export function TelegramSettingsTab() {
                                 {isSelected && <span className="text-primary-foreground text-[10px]">✓</span>}
                               </div>
                               <span className="text-xs text-foreground truncate">
-                                {lnk.username ? `@${lnk.username}` : `Chat ${lnk.chat_id}`}
+                                {chatDisplayName(lnk)}
                               </span>
                             </button>
                           );
