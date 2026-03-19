@@ -715,11 +715,12 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
 
     // Send Telegram ready-up notification (non-blocking, includes self)
+    const readyCount = currentPrompts.filter(p => p.is_ready).length + (currentPrompts.find(p => p.user_id === user.id)?.is_ready ? 0 : 1);
     sendTelegramNotification({
       type: 'ready_up',
       partyId,
       title: '⚔️ Ready Up!',
-      body: `${characterName} has readied up!`,
+      body: `${characterName} has readied up! (${readyCount}/${memberCount} ready)`,
     });
   }, [user, partyId, sessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
 
