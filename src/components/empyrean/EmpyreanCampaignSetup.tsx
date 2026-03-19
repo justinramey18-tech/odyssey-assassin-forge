@@ -179,6 +179,12 @@ export function EmpyreanCampaignSetup({
     // Install selected lore guides
     const allGuides = [...EMPYREAN_LORE_GUIDES, ...EMPYREAN_META_GUIDES, ...EMPYREAN_SESSION_GUIDES];
     const selectedIds = new Set([...selectedLore, ...selectedTone]);
+
+    // Remove previously installed Empyrean guides to prevent duplicates on reconfigure
+    const allGuideIds = allGuides.map(g => g.id);
+    for (const id of allGuideIds) {
+      deleteGuide(id);
+    }
     for (const guide of allGuides) {
       if (selectedIds.has(guide.id)) {
         addGuide(guide.name, guide.content, guide.id);
