@@ -57,6 +57,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [timeValue, setTimeValue] = useState('17:00');
   const [repeatWeekly, setRepeatWeekly] = useState(false);
+  const [dmContextMode, setDmContextMode] = useState<'solo' | 'party' | 'empyrean'>('party');
 
   // Stable fetch function
   const fetchEvents = useCallback(async () => {
@@ -166,6 +167,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
           repeat_daily: repeatWeekly,
           run_time: repeatWeekly ? utcTimeStr : null,
           timezone: 'America/New_York',
+          dm_context_mode: dmContextMode,
         });
 
       if (jobErr) {
@@ -179,6 +181,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
       setSelectedDate(undefined);
       setTimeValue('17:00');
       setRepeatWeekly(false);
+      setDmContextMode('party');
       fetchEvents();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Scheduling failed');
@@ -259,6 +262,55 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
                 Narrative Event
               </button>
             </div>
+
+            {/* DM Context Mode toggle */}
+            <div className="flex gap-1.5 rounded-lg bg-muted/40 p-1">
+              <button
+                onClick={() => setDmContextMode('solo')}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors",
+                  dmContextMode === 'solo'
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                Solo DM
+              </button>
+              <button
+                onClick={() => setDmContextMode('party')}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors",
+                  dmContextMode === 'party'
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Users className="w-3.5 h-3.5" />
+                Party DM
+              </button>
+              <button
+                onClick={() => setDmContextMode('empyrean')}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors",
+                  dmContextMode === 'empyrean'
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Empyrean DM
+              </button>
+            </div>
+
+            {/* Context mode description */}
+            <p className="text-xs text-muted-foreground">
+              {dmContextMode === 'solo'
+                ? "Uses your solo campaign — character, campaign summary, and quest flags."
+                : dmContextMode === 'party'
+                ? "Uses this party's campaign — all party members, shared summary, and recent history."
+                : "Uses your Empyrean campaign — dragon bond, lore guides, and Empyrean persona."}
+            </p>
 
             {/* Description of selected type */}
             <p className="text-xs text-muted-foreground">
@@ -378,6 +430,9 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
                       {event.recurrence === 'weekly' && (
                         <span className="ml-1.5 text-primary">· 🔁 Weekly</span>
                       )}
+                      <span className="ml-1.5 text-muted-foreground">
+                        · {(event as any).dm_context_mode === 'solo' ? 'Solo DM' : (event as any).dm_context_mode === 'empyrean' ? 'Empyrean DM' : 'Party DM'}
+                      </span>
                     </p>
                   </div>
                   <Button
