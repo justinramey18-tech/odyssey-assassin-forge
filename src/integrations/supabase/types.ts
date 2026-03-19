@@ -1210,6 +1210,7 @@ export type Database = {
       }
       scheduled_telegram_jobs: {
         Row: {
+          ai_model: string
           ai_prompt: string | null
           created_at: string
           dm_context_mode: string
@@ -1231,6 +1232,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_model?: string
           ai_prompt?: string | null
           created_at?: string
           dm_context_mode?: string
@@ -1252,6 +1254,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_model?: string
           ai_prompt?: string | null
           created_at?: string
           dm_context_mode?: string

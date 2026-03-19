@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
 import { CalendarIcon, Clock, Sparkles, Trash2, Loader2, Users, BookOpen, Repeat } from 'lucide-react';
+import { DM_MODELS, DEFAULT_MODEL_ID, getModelLabel } from '@/lib/dm-models';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -58,6 +59,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
   const [timeValue, setTimeValue] = useState('17:00');
   const [repeatWeekly, setRepeatWeekly] = useState(false);
   const [dmContextMode, setDmContextMode] = useState<'solo' | 'party' | 'empyrean'>('party');
+  const [aiModel, setAiModel] = useState(DEFAULT_MODEL_ID);
 
   // Stable fetch function
   const fetchEvents = useCallback(async () => {
@@ -168,6 +170,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
           run_time: repeatWeekly ? utcTimeStr : null,
           timezone: 'America/New_York',
           dm_context_mode: dmContextMode,
+          ai_model: aiModel,
         });
 
       if (jobErr) {
@@ -182,6 +185,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
       setTimeValue('17:00');
       setRepeatWeekly(false);
       setDmContextMode('party');
+      setAiModel(DEFAULT_MODEL_ID);
       fetchEvents();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Scheduling failed');
@@ -319,6 +323,32 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
                 : "Triggers a custom AI narrative event using the prompt you write below."}
             </p>
 
+            {/* AI Model selector */}
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">AI Model</Label>
+              <select
+                value={aiModel}
+                onChange={e => setAiModel(e.target.value)}
+                className="w-full rounded-md border border-border/50 bg-transparent px-3 py-2 text-sm text-foreground"
+              >
+                <optgroup label="Gateway Models">
+                  {DM_MODELS.filter(m => m.provider === 'lovable').map(m => (
+                    <option key={m.id} value={m.id}>{m.label} — {m.description}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Anthropic (your API key)">
+                  {DM_MODELS.filter(m => m.provider === 'anthropic').map(m => (
+                    <option key={m.id} value={m.id}>{m.label} — {m.description}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="OpenAI (your API key)">
+                  {DM_MODELS.filter(m => m.provider === 'openai-direct').map(m => (
+                    <option key={m.id} value={m.id}>{m.label} — {m.description}</option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
+
             <Input
               placeholder={eventType === 'scheduled_round' ? "Name (e.g., 'Wednesday Session')" : "Event name (e.g., 'Ambush at Midnight')"}
               value={eventName}
@@ -432,6 +462,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
                       )}
                       <span className="ml-1.5 text-muted-foreground">
                         · {(event as any).dm_context_mode === 'solo' ? 'Solo DM' : (event as any).dm_context_mode === 'empyrean' ? 'Empyrean DM' : 'Party DM'}
+                        {' · '}{getModelLabel((event as any).ai_model || 'google/gemini-2.5-flash-lite')}
                       </span>
                     </p>
                   </div>
