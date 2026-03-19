@@ -1,0 +1,1 @@
+ALTER TABLE public.scheduled_telegram_jobs ADD COLUMN ai_model text NOT NULL DEFAULT 'google/gemini-2.5-flash-lite';
