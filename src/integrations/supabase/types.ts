@@ -1208,6 +1208,69 @@ export type Database = {
         }
         Relationships: []
       }
+      scheduled_telegram_jobs: {
+        Row: {
+          ai_prompt: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          include_campaign_context: boolean
+          job_name: string
+          last_result: string | null
+          last_run_at: string | null
+          party_id: string | null
+          repeat_daily: boolean
+          run_at: string
+          run_time: string | null
+          static_message: string | null
+          status: string
+          target_user_ids: string[] | null
+          timezone: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_prompt?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          include_campaign_context?: boolean
+          job_name: string
+          last_result?: string | null
+          last_run_at?: string | null
+          party_id?: string | null
+          repeat_daily?: boolean
+          run_at: string
+          run_time?: string | null
+          static_message?: string | null
+          status?: string
+          target_user_ids?: string[] | null
+          timezone?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_prompt?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          include_campaign_context?: boolean
+          job_name?: string
+          last_result?: string | null
+          last_run_at?: string | null
+          party_id?: string | null
+          repeat_daily?: boolean
+          run_at?: string
+          run_time?: string | null
+          static_message?: string | null
+          status?: string
+          target_user_ids?: string[] | null
+          timezone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       telegram_bot_state: {
         Row: {
           id: number
