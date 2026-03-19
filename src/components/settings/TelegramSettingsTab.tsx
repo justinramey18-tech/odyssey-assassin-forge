@@ -79,16 +79,15 @@ export function TelegramSettingsTab() {
   const [newJobAiModel, setNewJobAiModel] = useState(DEFAULT_MODEL_ID);
   const [submittingJob, setSubmittingJob] = useState(false);
 
-  // Fetch existing link
-  const fetchLink = useCallback(async () => {
+  // Fetch existing links
+  const fetchLinks = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     const { data } = await supabase
       .from('telegram_user_links')
       .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle();
-    setLink(data as TelegramLink | null);
+      .eq('user_id', user.id);
+    setLinks((data as TelegramLink[] | null) ?? []);
     setLoading(false);
   }, [user]);
 
