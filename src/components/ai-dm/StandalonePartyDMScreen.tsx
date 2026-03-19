@@ -289,7 +289,7 @@ export function StandalonePartyDMScreen({
         campaignSessions={campaignSessions.sessions}
         campaignSessionsLoading={campaignSessions.isLoading}
         campaignSessionsSignedIn={campaignSessions.isSignedIn}
-        onNewGame={partyDm.startNewCampaign}
+        onNewGame={() => setShowCampaignBuilder(true)}
         onLoadCampaign={handleLoadCampaign}
           onRefreshCampaigns={campaignSessions.refreshSessions}
           wildShape={wildShape}
