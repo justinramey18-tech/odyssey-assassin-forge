@@ -126,7 +126,7 @@ serve(async (req) => {
       const { callAnthropicNonStreaming } = await import("../_shared/anthropic-helper.ts");
       const result = await callAnthropicNonStreaming({
         userApiKey: user_api_key.trim(),
-        systemPrompt: SUMMARIZER_SYSTEM_PROMPT,
+        systemPrompt: systemPrompt,
         messages: [{ role: "user", content: userPrompt }],
         maxTokens: 8000,
       });
