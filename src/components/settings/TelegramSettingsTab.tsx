@@ -46,6 +46,7 @@ interface ScheduledJob {
   last_result: string | null;
   dm_context_mode?: string;
   ai_model?: string;
+  target_chat_ids?: number[] | null;
 }
 
 const JOB_TEMPLATES = [
@@ -78,6 +79,7 @@ export function TelegramSettingsTab() {
   const [newJobDmContext, setNewJobDmContext] = useState<'solo' | 'party' | 'empyrean'>('solo');
   const [newJobAiModel, setNewJobAiModel] = useState(DEFAULT_MODEL_ID);
   const [submittingJob, setSubmittingJob] = useState(false);
+  const [newJobTargetChatIds, setNewJobTargetChatIds] = useState<number[]>([]);
 
   // Fetch existing links
   const fetchLinks = useCallback(async () => {
@@ -99,7 +101,7 @@ export function TelegramSettingsTab() {
     setJobsLoading(true);
     const { data } = await supabase
       .from('scheduled_telegram_jobs')
-      .select('id, job_name, ai_prompt, static_message, repeat_daily, run_at, run_time, timezone, status, last_result, dm_context_mode, ai_model')
+      .select('id, job_name, ai_prompt, static_message, repeat_daily, run_at, run_time, timezone, status, last_result, dm_context_mode, ai_model, target_chat_ids')
       .eq('user_id', user.id)
       .in('status', ['pending', 'running'])
       .order('run_at', { ascending: true });
@@ -233,6 +235,7 @@ export function TelegramSettingsTab() {
           run_at: runAt.toISOString(),
           repeat_daily: newJobRepeatDaily,
           run_time: newJobRepeatDaily ? utcTimeStr : null,
+          target_chat_ids: newJobTargetChatIds.length > 0 ? newJobTargetChatIds : null,
         });
 
       if (error) throw error;
@@ -249,6 +252,7 @@ export function TelegramSettingsTab() {
       setNewJobTime('08:00');
       setNewJobRepeatDaily(false);
       setNewJobDate(undefined);
+      setNewJobTargetChatIds([]);
       setShowNewJobForm(false);
       fetchJobs();
     } catch (err: any) {
@@ -485,6 +489,9 @@ export function TelegramSettingsTab() {
                         </p>
                         <p className="text-[10px] text-muted-foreground/60">
                           {job.dm_context_mode ? job.dm_context_mode.charAt(0).toUpperCase() + job.dm_context_mode.slice(1) : 'Solo'} DM · {getModelLabel(job.ai_model || DEFAULT_MODEL_ID)}
+                          {job.target_chat_ids && job.target_chat_ids.length > 0 && (
+                            <> · {job.target_chat_ids.length} chat{job.target_chat_ids.length === 1 ? '' : 's'}</>
+                          )}
                         </p>
                         {job.last_result && (
                           <p className="text-[10px] text-muted-foreground/60 truncate">
@@ -625,6 +632,49 @@ export function TelegramSettingsTab() {
                     </select>
                   </div>
 
+                  {/* Target chats picker (only when multiple links) */}
+                  {links.length > 1 && (
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider">Send to chats</p>
+                      <div className="space-y-1.5">
+                        {links.map((lnk) => {
+                          const isSelected = newJobTargetChatIds.includes(lnk.chat_id);
+                          return (
+                            <button
+                              key={lnk.id}
+                              type="button"
+                              onClick={() => {
+                                setNewJobTargetChatIds(prev =>
+                                  isSelected
+                                    ? prev.filter(id => id !== lnk.chat_id)
+                                    : [...prev, lnk.chat_id]
+                                );
+                              }}
+                              className={cn(
+                                "w-full flex items-center gap-2 rounded-lg border p-2.5 text-left transition-colors",
+                                isSelected
+                                  ? "border-primary/40 bg-primary/5"
+                                  : "border-border/30 bg-muted/10 hover:border-border/50"
+                              )}
+                            >
+                              <div className={cn(
+                                "w-4 h-4 rounded border flex items-center justify-center shrink-0",
+                                isSelected ? "bg-primary border-primary" : "border-muted-foreground/40"
+                              )}>
+                                {isSelected && <span className="text-primary-foreground text-[10px]">✓</span>}
+                              </div>
+                              <span className="text-xs text-foreground truncate">
+                                {lnk.username ? `@${lnk.username}` : `Chat ${lnk.chat_id}`}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        {newJobTargetChatIds.length === 0 ? 'No selection = sends to all linked chats' : `${newJobTargetChatIds.length} chat${newJobTargetChatIds.length === 1 ? '' : 's'} selected`}
+                      </p>
+                    </div>
+                  )}
                   {/* Send at time */}
                   <div className="space-y-1.5">
                     <p className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider">Send at</p>

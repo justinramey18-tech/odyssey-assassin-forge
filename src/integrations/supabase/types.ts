@@ -1226,6 +1226,7 @@ export type Database = {
           run_time: string | null
           static_message: string | null
           status: string
+          target_chat_ids: number[] | null
           target_user_ids: string[] | null
           timezone: string
           updated_at: string
@@ -1248,6 +1249,7 @@ export type Database = {
           run_time?: string | null
           static_message?: string | null
           status?: string
+          target_chat_ids?: number[] | null
           target_user_ids?: string[] | null
           timezone?: string
           updated_at?: string
@@ -1270,6 +1272,7 @@ export type Database = {
           run_time?: string | null
           static_message?: string | null
           status?: string
+          target_chat_ids?: number[] | null
           target_user_ids?: string[] | null
           timezone?: string
           updated_at?: string
