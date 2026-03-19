@@ -148,6 +148,7 @@ interface DMRequest {
   memoryAnchors?: string;
   recentPartyChat?: Array<{ sender: string; message: string }>;
   responseModePrompt?: string;
+  partyContext?: string;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -373,7 +374,7 @@ function buildContextSummary(ctx: CharacterContext): string {
 
 // ── System Prompt Builder ──────────────────────────────────────────────────────
 
-function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string, encounterGuidance?: string, combatFeats?: string[], alignmentContext?: { law: number; good: number; zone: string }, memoryAnchors?: string, recentPartyChat?: Array<{ sender: string; message: string }>, responseModePrompt?: string): string {
+function buildDMSystemPrompt(ctx: CharacterContext, customGuides?: string, campaignSummary?: string, worldStatePrompt?: string, dmPersonaPrompt?: string, encounterGuidance?: string, combatFeats?: string[], alignmentContext?: { law: number; good: number; zone: string }, memoryAnchors?: string, recentPartyChat?: Array<{ sender: string; message: string }>, responseModePrompt?: string, partyContext?: string): string {
   const contextSummary = buildContextSummary(ctx);
   
   let prompt = `You are an expert Dungeon Master running a live D&D 5e session for a single player. You are immersive, adaptive, and mechanically precise.
@@ -547,6 +548,11 @@ RULES:
     prompt += `\n\n## CAMPAIGN WORLD BIBLE (HIGHEST AUTHORITY)\nThe following content was hand-crafted by the DM to define this campaign's world, lore, NPCs, tone, and rules. This is the AUTHORITATIVE source of truth for the campaign. If any auto-generated content below (Campaign Summary, Memory Anchors) contradicts something stated here, THIS section takes priority. Preserve secrets and unrevealed information — do not spoil them to players even if the summary doesn't mention them.\n\n${trimmed}`;
   }
 
+  if (partyContext && partyContext.trim()) {
+    const trimmed = partyContext.slice(0, 30000);
+    prompt += `\n\n## SESSION CONTEXT (AUTO-GENERATED)\nThe following is system-generated context about the current session — party composition, player status, and formatting preferences:\n\n${trimmed}`;
+  }
+
   if (campaignSummary && campaignSummary.trim()) {
     const trimmedSummary = campaignSummary.slice(0, 30000);
     prompt += `\n\n## CAMPAIGN SUMMARY (AUTO-GENERATED)\nThis is an auto-generated summary of events so far. Use it for continuity — but if it contradicts the Campaign World Bible above, defer to the Bible.\n\n${trimmedSummary}`;
@@ -713,7 +719,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt } = (await req.json()) as DMRequest;
+    const { messages, characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, model, user_api_key, user_openai_key, encounterGuidance, combatFeats, alignmentContext, systemPromptOverride, memoryAnchors, recentPartyChat, responseModePrompt, partyContext } = (await req.json()) as DMRequest;
     
     // Trim to last 100 messages, then cap by total character count
     let trimmedMessages = messages.length > MAX_MESSAGES
@@ -731,7 +737,7 @@ serve(async (req) => {
     console.log(`[ai-dm] Messages: ${trimmedMessages.length}, total chars: ${totalChars}`);
 
     // Use override if provided (e.g. whisper regeneration), otherwise build full DM prompt
-    const systemPrompt = systemPromptOverride?.trim() || buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat, responseModePrompt);
+    const systemPrompt = systemPromptOverride?.trim() || buildDMSystemPrompt(characterContext, customGuides, campaignSummary, worldStatePrompt, dmPersonaPrompt, encounterGuidance, combatFeats, alignmentContext, memoryAnchors, recentPartyChat, responseModePrompt, partyContext);
 
     // Determine which provider to use
     const requestedModel = model || DEFAULT_MODEL;
