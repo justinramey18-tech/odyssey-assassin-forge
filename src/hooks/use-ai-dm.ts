@@ -56,6 +56,7 @@ interface UseAIDMOptions {
   customGuidesContent?: string;
   worldStatePrompt?: string;
   dmPersonaPrompt?: string;
+  responseModePrompt?: string;
   onMessageComplete?: (content: string) => void;
   /** Called when quests are extracted from AI narrative */
   onQuestExtracted?: (quests: Array<{ key: string; status: 'active' | 'completed' | 'failed'; notes?: string }>) => void;
