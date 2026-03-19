@@ -8,6 +8,7 @@ import type { CharacterContext, Whisper } from '@/components/oracle/types';
 import type { DmSplitState, SplitTeam } from '@/lib/party-split-types';
 import { sendReadyUpNotification } from '@/lib/party-notifications';
 import { parseWhispers } from '@/lib/whisper-parser';
+import { sendTelegramNotification } from '@/lib/telegram-notify';
 import { loadSelectedModel } from '@/lib/dm-models';
 import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
 import { loadCombatSettings } from '@/lib/combat/combatSettings';
