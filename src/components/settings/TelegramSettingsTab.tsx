@@ -176,6 +176,24 @@ export function TelegramSettingsTab() {
     }
   }, [user]);
 
+  // Save nickname for a linked chat
+  const saveNickname = useCallback(async (linkId: string) => {
+    if (!user) return;
+    const trimmed = nicknameInput.trim() || null;
+    const { error } = await supabase
+      .from('telegram_user_links')
+      .update({ nickname: trimmed } as any)
+      .eq('id', linkId);
+
+    if (!error) {
+      setLinks(prev => prev.map(l => l.id === linkId ? { ...l, nickname: trimmed } : l));
+      toast.success(trimmed ? 'Nickname saved' : 'Nickname removed');
+    } else {
+      toast.error('Failed to save nickname');
+    }
+    setEditingNicknameId(null);
+  }, [user, nicknameInput]);
+
   // Cancel a scheduled job
   const cancelJob = useCallback(async (jobId: string) => {
     const { error } = await supabase
