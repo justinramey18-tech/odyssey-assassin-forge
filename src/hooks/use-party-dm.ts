@@ -900,6 +900,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         characterContext,
         campaignSummary: sessionConfig?.campaignSummary || undefined,
         customGuides: extraGuides,
+        partyContext: partyContext || undefined,
         memoryAnchors: memoryAnchorsContent || undefined,
         recentPartyChat: recentPartyChat.length > 0 ? recentPartyChat : undefined,
         responseModePrompt: responseModePrompt || undefined,
