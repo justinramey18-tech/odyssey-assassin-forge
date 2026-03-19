@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { CalendarIcon, Clock, Sparkles, Trash2, Loader2, Users, BookOpen, Repeat } from 'lucide-react';
 import { DM_MODELS, DEFAULT_MODEL_ID, getModelLabel } from '@/lib/dm-models';
@@ -45,7 +45,7 @@ type EventType = 'narrative_event' | 'scheduled_round';
 
 export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledEventsSheetProps) {
   const { user } = useAuth();
-  const sheetRef = useRef<HTMLDivElement>(null);
+  
   const [events, setEvents] = useState<ScheduledEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [scheduling, setScheduling] = useState(false);
@@ -226,7 +226,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent ref={sheetRef} side="bottom" className="h-[85vh] rounded-t-2xl p-0">
+      <SheetContent side="bottom" className="h-[85vh] rounded-t-2xl p-0">
         <SheetHeader className="px-4 pt-4 pb-2">
           <SheetTitle className="flex items-center gap-2 text-base">
             <Sparkles className="w-4 h-4 text-amber-400" />
@@ -380,7 +380,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
                     {selectedDate ? format(selectedDate, 'PPP') : 'Pick date'}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent container={sheetRef.current} className="w-auto p-0 pointer-events-auto z-[100]" align="start" side="top" avoidCollisions>
+                <PopoverContent className="w-auto p-0 pointer-events-auto z-[200]" align="start" side="top" avoidCollisions>
                   <Calendar
                     mode="single"
                     selected={selectedDate}
