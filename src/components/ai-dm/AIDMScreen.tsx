@@ -15,6 +15,7 @@ import { useSpotify } from '@/hooks/use-spotify';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
+import { ResponseModeSelector } from './ResponseModeSelector';
 import { CampaignDropdown } from './CampaignDropdown';
 import { cn } from '@/lib/utils';
 import { useAIDM } from '@/hooks/use-ai-dm';
