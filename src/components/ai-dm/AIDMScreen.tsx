@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
 import { useDraftPersist } from '@/hooks/use-draft-persist';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
@@ -14,6 +15,7 @@ import { useSpotify } from '@/hooks/use-spotify';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { PartyDMQuickActions } from './PartyDMQuickActions';
+import { ResponseModeSelector } from './ResponseModeSelector';
 import { CampaignDropdown } from './CampaignDropdown';
 import { cn } from '@/lib/utils';
 import { useAIDM } from '@/hooks/use-ai-dm';
@@ -378,6 +380,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   // Bottom nav state
   const [activeNavTab, setActiveNavTab] = useState<DMNavTab | null>(null);
   const [navExpanded, setNavExpanded] = useState(false);
+  const [responseMode, setResponseMode] = useState<string | undefined>(undefined);
   const [showStoneDrawer, setShowStoneDrawer] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -498,6 +501,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     customGuidesContent: gmGuides.enabledContent,
     worldStatePrompt,
     dmPersonaPrompt,
+    responseModePrompt: resolveResponseModePrompt(responseMode) || undefined,
     onMessageComplete: handleMessageComplete,
     onQuestExtracted: (quests) => {
       for (const q of quests) {
@@ -1157,6 +1161,10 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           settingsContent={activeNavTab === 'settings' ? (
             <div className="px-3 py-3 space-y-2.5 max-h-[50vh] overflow-y-auto overscroll-contain">
               <DMSpotifyControls />
+              <ResponseModeSelector
+                selectedMode={responseMode}
+                onModeChange={(modeId) => setResponseMode(modeId ?? undefined)}
+              />
             </div>
           ) : undefined}
           oracleContent={activeNavTab === 'oracle' ? (
