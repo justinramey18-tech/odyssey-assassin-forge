@@ -323,6 +323,32 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
                 : "Triggers a custom AI narrative event using the prompt you write below."}
             </p>
 
+            {/* AI Model selector */}
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">AI Model</Label>
+              <select
+                value={aiModel}
+                onChange={e => setAiModel(e.target.value)}
+                className="w-full rounded-md border border-border/50 bg-transparent px-3 py-2 text-sm text-foreground"
+              >
+                <optgroup label="Gateway Models">
+                  {DM_MODELS.filter(m => m.provider === 'lovable').map(m => (
+                    <option key={m.id} value={m.id}>{m.label} — {m.description}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Anthropic (your API key)">
+                  {DM_MODELS.filter(m => m.provider === 'anthropic').map(m => (
+                    <option key={m.id} value={m.id}>{m.label} — {m.description}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="OpenAI (your API key)">
+                  {DM_MODELS.filter(m => m.provider === 'openai-direct').map(m => (
+                    <option key={m.id} value={m.id}>{m.label} — {m.description}</option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
+
             <Input
               placeholder={eventType === 'scheduled_round' ? "Name (e.g., 'Wednesday Session')" : "Event name (e.g., 'Ambush at Midnight')"}
               value={eventName}
