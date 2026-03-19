@@ -665,6 +665,7 @@ export function PromptDrawerProvider({
             combatContext={combatContext}
             partyMembers={partyMembers}
             subclass={subclass}
+            onQuestExtracted={oracleQuestCallback || undefined}
           />
 
           <ConditionDrawer
