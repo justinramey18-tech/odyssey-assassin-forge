@@ -456,6 +456,9 @@ export function TelegramSettingsTab() {
                         <p className="text-[10px] text-muted-foreground">
                           ⏰ {formatJobTime(job)}
                         </p>
+                        <p className="text-[10px] text-muted-foreground/60">
+                          {job.dm_context_mode ? job.dm_context_mode.charAt(0).toUpperCase() + job.dm_context_mode.slice(1) : 'Solo'} DM · {getModelLabel(job.ai_model || DEFAULT_MODEL_ID)}
+                        </p>
                         {job.last_result && (
                           <p className="text-[10px] text-muted-foreground/60 truncate">
                             Last: {job.last_result.substring(0, 80)}{job.last_result.length > 80 ? '…' : ''}
