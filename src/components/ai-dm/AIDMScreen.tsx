@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
+import { useResponseMode } from '@/hooks/use-response-mode';
 import { useDraftPersist } from '@/hooks/use-draft-persist';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
@@ -380,7 +381,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   // Bottom nav state
   const [activeNavTab, setActiveNavTab] = useState<DMNavTab | null>(null);
   const [navExpanded, setNavExpanded] = useState(false);
-  const [responseMode, setResponseMode] = useState<string | undefined>(undefined);
+  const { responseMode, setResponseMode } = useResponseMode();
   const [showStoneDrawer, setShowStoneDrawer] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);

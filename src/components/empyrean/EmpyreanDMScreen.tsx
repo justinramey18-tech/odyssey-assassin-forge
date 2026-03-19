@@ -46,6 +46,7 @@ import { EMPYREAN_SESSION_GUIDES } from '@/lib/empyreanGMGuides';
 import { DM_MODELS } from '@/lib/dm-models';
 import { useSpotify } from '@/hooks/use-spotify';
 import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
+import { useResponseMode } from '@/hooks/use-response-mode';
 import { EmpyreanAutopilotGuide } from '@/components/empyrean/EmpyreanAutopilotGuide';
 import { useEmpyreanAutopilot } from '@/hooks/use-empyrean-autopilot';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -178,7 +179,7 @@ export function EmpyreanDMScreen({
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
   const narrator = useNarrator();
   const spotify = useSpotify();
-  const [responseMode, setResponseMode] = useState<string | undefined>(undefined);
+  const { responseMode, setResponseMode } = useResponseMode();
 
   // Auto-sync hook
   const autoSync = useDmAutoSync({

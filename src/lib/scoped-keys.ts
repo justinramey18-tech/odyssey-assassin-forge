@@ -82,4 +82,6 @@ export const SCOPED_KEYS = [
   'dnd-character-relationships',
   // Narrative synthesis
   'odyssey-synthesis-recent-modes',
+  // DM response mode
+  'odyssey-dm-response-mode',
 ] as const;

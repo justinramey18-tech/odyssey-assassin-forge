@@ -72,6 +72,7 @@ export interface SaveData {
   backgroundUrl?: string | null;
   dmChatTheme?: string | null;
   synthesisRecentModes?: string[];
+  dmResponseMode?: string | null;
   savedAt: string;
   version: number;
 }

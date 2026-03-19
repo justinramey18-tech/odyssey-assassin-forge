@@ -91,6 +91,9 @@ const ALL_STORAGE_KEYS = [
 
   // PWA
   'pwa-banner-dismissed',
+
+  // DM response mode
+  'odyssey-dm-response-mode',
 ] as const;
 
 /**
