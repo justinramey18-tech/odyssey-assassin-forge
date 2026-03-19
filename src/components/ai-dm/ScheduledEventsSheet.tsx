@@ -430,6 +430,9 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
                       {event.recurrence === 'weekly' && (
                         <span className="ml-1.5 text-primary">· 🔁 Weekly</span>
                       )}
+                      <span className="ml-1.5 text-muted-foreground">
+                        · {(event as any).dm_context_mode === 'solo' ? 'Solo DM' : (event as any).dm_context_mode === 'empyrean' ? 'Empyrean DM' : 'Party DM'}
+                      </span>
                     </p>
                   </div>
                   <Button
