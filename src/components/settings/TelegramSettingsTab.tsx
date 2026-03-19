@@ -148,20 +148,20 @@ export function TelegramSettingsTab() {
     toast.success('Telegram chat unlinked');
   }, [user]);
 
-  // Toggle notification preference
-  const toggleNotif = useCallback(async (field: string, value: boolean) => {
-    if (!user || !link) return;
+  // Toggle notification preference for a specific link
+  const toggleNotif = useCallback(async (linkId: string, field: string, value: boolean) => {
+    if (!user) return;
     const { error } = await supabase
       .from('telegram_user_links')
       .update({ [field]: value })
-      .eq('user_id', user.id);
+      .eq('id', linkId);
 
     if (!error) {
-      setLink(prev => prev ? { ...prev, [field]: value } : prev);
+      setLinks(prev => prev.map(l => l.id === linkId ? { ...l, [field]: value } : l));
     } else {
       toast.error('Failed to update preference');
     }
-  }, [user, link]);
+  }, [user]);
 
   // Cancel a scheduled job
   const cancelJob = useCallback(async (jobId: string) => {
