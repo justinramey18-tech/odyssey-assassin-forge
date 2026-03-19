@@ -218,7 +218,13 @@ export function EmpyreanCampaignSetup({
     }
 
     onComplete(config);
-    toast.success('Empyrean Campaign configured! Enter the DM to begin.');
+    
+    if (onLaunchWithScene) {
+      const openingPrompt = generateOpeningScenePrompt(config);
+      onLaunchWithScene(config, openingPrompt);
+    }
+    
+    toast.success('Empyrean Campaign configured!');
     onClose();
   }, [selectedLore, selectedTone, characterName, dragonName, signetType, yearAtBasgiath, campaignFocus, addGuide, onComplete, onClose]);
 

@@ -258,6 +258,12 @@ export function EmpyreanScreen({ open, onClose, characterName, characterContext,
           setEmpyreanConfig(config);
           setShowSetup(false);
         }}
+        onLaunchWithScene={(config, openingPrompt) => {
+          setEmpyreanConfig(config);
+          setPendingPrompt(openingPrompt);
+          setShowSetup(false);
+          setShowDM(true);
+        }}
       />
       <EmpyreanDMScreen
         open={showDM}
