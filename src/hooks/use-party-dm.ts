@@ -824,7 +824,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     } finally {
       setIsSummarizing(false);
     }
-  }, [partyId, isCreator, sessionConfig]);
+  }, [partyId, isCreator, sessionConfig, customGuidesContent]);
 
 
 
