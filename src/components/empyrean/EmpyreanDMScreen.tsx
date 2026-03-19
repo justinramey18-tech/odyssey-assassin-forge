@@ -316,6 +316,17 @@ export function EmpyreanDMScreen({
     },
   });
 
+  // Register Oracle quest callback so OracleDrawer can save quests to game state
+  const drawerContext = usePromptDrawers();
+  useEffect(() => {
+    drawerContext?.registerOracleQuestCallback?.((quests) => {
+      for (const q of quests) {
+        gameState.setQuestFlag(q.key, q.status, q.notes);
+      }
+    });
+    return () => { drawerContext?.registerOracleQuestCallback?.(null); };
+  }, [gameState.setQuestFlag]);
+
   // Sync tracking campaign id with active campaign id from useAIDM
   useEffect(() => {
     setTrackingCampaignId(activeCampaignId);
