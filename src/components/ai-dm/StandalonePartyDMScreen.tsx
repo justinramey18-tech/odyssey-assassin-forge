@@ -327,6 +327,21 @@ export function StandalonePartyDMScreen({
           isCreator={isHost}
         />
       )}
+
+      {/* Campaign Builder Chat Overlay */}
+      <AnimatePresence>
+        {showCampaignBuilder && (
+          <CampaignBuilderChat
+            partyMembers={partyMembers}
+            onComplete={handleCampaignBuilderComplete}
+            onSkip={() => {
+              setShowCampaignBuilder(false);
+              partyDm.startNewCampaign();
+              memoryAnchors.clearAll();
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
