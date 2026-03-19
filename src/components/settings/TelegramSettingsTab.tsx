@@ -46,6 +46,7 @@ interface ScheduledJob {
   last_result: string | null;
   dm_context_mode?: string;
   ai_model?: string;
+  target_chat_ids?: number[] | null;
 }
 
 const JOB_TEMPLATES = [
