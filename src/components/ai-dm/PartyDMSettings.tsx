@@ -3,7 +3,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DM_MODELS, getModelLabel } from '@/lib/dm-models';
-import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Cpu, Brain, Palette, BookmarkX } from 'lucide-react';
+import { Eye, EyeOff, Zap, Map, FolderOpen, BookOpen, MessageSquare, Ghost, Bell, BellOff, GitBranch, Users, Plus, X, ClipboardList, Timer, Music, CalendarClock, Crown, Bot, Pen, ShieldCheck, MessageCircle, Cpu, Brain, Palette, BookmarkX, ScrollText } from 'lucide-react';
 import { DMSpotifyControls } from '@/components/spotify/DMSpotifyControls';
 import { TimerSettings } from './RoundTimer';
 import { ResponseModeSelector } from './ResponseModeSelector';
@@ -123,6 +123,9 @@ export interface PartyDMSettingsProps {
   // Memory anchors
   onShowMemoryAnchors?: () => void;
   memoryAnchorsCount?: number;
+  // Quests
+  onShowQuests?: () => void;
+  questsCount?: number;
   // Response mode
   responseMode?: string;
   onResponseModeChange?: (modeId: string | null) => void;
@@ -145,6 +148,7 @@ export function PartyDMSettings({
   members = [], coHostIds = [], currentUserId, onPromoteCoHost, onDemoteCoHost,
   whisperTrayEnabled, onWhisperTrayEnabledChange,
   onShowMemoryAnchors, memoryAnchorsCount = 0,
+  onShowQuests, questsCount = 0,
   responseMode, onResponseModeChange,
   hasBookmark, onClearBookmark,
 }: PartyDMSettingsProps) {
@@ -331,6 +335,9 @@ export function PartyDMSettings({
         )}
         {onShowMemoryAnchors && (
           <ToolRow icon={<Brain className={cn("w-4 h-4", memoryAnchorsCount > 0 ? "text-purple-400" : "")} />} label="Memory Anchors" description="Long-term campaign facts for the Oracle" badge={memoryAnchorsCount} onClick={onShowMemoryAnchors} />
+        )}
+        {onShowQuests && (
+          <ToolRow icon={<ScrollText className={cn("w-4 h-4", questsCount > 0 ? "text-amber-400" : "")} />} label="Quest Log" description="Track party objectives" badge={questsCount} onClick={onShowQuests} />
         )}
         {onShowChat && (
           <ToolRow icon={<MessageSquare className="w-4 h-4" />} label="Party Chat" description="Out-of-character messaging" onClick={onShowChat} />

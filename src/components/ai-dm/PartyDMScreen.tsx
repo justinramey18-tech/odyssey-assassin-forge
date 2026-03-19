@@ -14,6 +14,7 @@ import { WhisperTray } from './WhisperTray';
 import { OraclePanel } from '@/components/oracle/OraclePanel';
 import { PartyDMSettings } from './PartyDMSettings';
 import { PartyMemoryAnchorsPanel } from './PartyMemoryAnchorsPanel';
+import { PartyQuestsPanel } from './PartyQuestsPanel';
 import { DMComposePanel } from './DMComposePanel';
 import { DraftReviewPanel } from './DraftReviewPanel';
 
@@ -789,7 +790,25 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [showAfkGuide, setShowAfkGuide] = useState(false);
   const [showScheduledEvents, setShowScheduledEvents] = useState(false);
   const [showMemoryAnchors, setShowMemoryAnchors] = useState(false);
+  const [showQuests, setShowQuests] = useState(false);
+  const [questsCount, setQuestsCount] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Load party quest count
+  useEffect(() => {
+    if (!partyId) return;
+    (supabase.from('party_shared_state') as any)
+      .select('state_data')
+      .eq('party_id', partyId)
+      .eq('state_type', 'quest_flags')
+      .maybeSingle()
+      .then(({ data }: any) => {
+        if (data?.state_data) {
+          const active = Object.values(data.state_data).filter((q: any) => q.status === 'active').length;
+          setQuestsCount(active);
+        }
+      });
+  }, [partyId, showQuests]);
 
   // Chat unread badge tracking
   const [chatTotalCount, setChatTotalCount] = useState(0);
@@ -2238,6 +2257,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               onWhisperTrayEnabledChange={setWhisperTrayEnabled}
               onShowMemoryAnchors={onAddMemoryAnchor ? () => setShowMemoryAnchors(true) : undefined}
               memoryAnchorsCount={memoryAnchors?.length ?? 0}
+              onShowQuests={partyId ? () => setShowQuests(true) : undefined}
+              questsCount={questsCount}
               responseMode={partyDm.sessionConfig?.responseMode}
               onResponseModeChange={(modeId) => {
                 partyDm.updateSessionConfig({ responseMode: modeId ?? undefined });
@@ -2405,6 +2426,16 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           onRemove={onRemoveMemoryAnchor}
           onBack={() => setShowMemoryAnchors(false)}
           isCreator={isCreator}
+        />
+      )}
+
+      {/* Party Quests Panel */}
+      {showQuests && partyId && currentUserId && (
+        <PartyQuestsPanel
+          partyId={partyId}
+          userId={currentUserId}
+          isCreator={isCreator}
+          onBack={() => setShowQuests(false)}
         />
       )}
     </div>
