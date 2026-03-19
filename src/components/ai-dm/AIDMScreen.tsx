@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
 import { useDraftPersist } from '@/hooks/use-draft-persist';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
