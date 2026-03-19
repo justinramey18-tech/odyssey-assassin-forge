@@ -48,6 +48,8 @@ import { useSpotify } from '@/hooks/use-spotify';
 import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
 import { useResponseMode } from '@/hooks/use-response-mode';
 import { EmpyreanAutopilotGuide } from '@/components/empyrean/EmpyreanAutopilotGuide';
+import CampaignBuilderChat from '@/components/ai-dm/CampaignBuilderChat';
+import type { CampaignBuildData } from '@/hooks/use-ai-campaign-chat';
 import { useEmpyreanAutopilot } from '@/hooks/use-empyrean-autopilot';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -160,6 +162,7 @@ export function EmpyreanDMScreen({
   const [navExpanded, setNavExpanded] = useState(false);
   const [showAutopilotGuide, setShowAutopilotGuide] = useState(false);
   const [recapExpanded, setRecapExpanded] = useState(false);
+  const [showCampaignBuilder, setShowCampaignBuilder] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -506,6 +509,21 @@ export function EmpyreanDMScreen({
     setRecapExpanded(false);
   }, [newGame, autopilot]);
 
+  const handleCampaignBuilderComplete = useCallback(async (data: CampaignBuildData) => {
+    setShowCampaignBuilder(false);
+    handleNewCampaign();
+    setTimeout(() => {
+      updateCampaignSummary(data.campaignSummary);
+      gmGuides.addGuide(`📖 ${data.campaignName}`, data.gmGuide);
+      for (const anchor of data.memoryAnchors) {
+        gameState.addMemoryAnchor({ category: anchor.category, key: anchor.key, value: anchor.value });
+      }
+      setTimeout(() => {
+        sendMessage('Begin the adventure. Here is the opening scene to set the stage:\n\n' + data.openingScene);
+      }, 200);
+    }, 100);
+  }, [handleNewCampaign, updateCampaignSummary, gmGuides, gameState, sendMessage]);
+
   const handleCampaignSummaryChange = useCallback((summary: string) => {
     updateCampaignSummary(summary);
   }, [updateCampaignSummary]);
@@ -577,7 +595,7 @@ export function EmpyreanDMScreen({
                 activeCampaignId={activeCampaignId}
                 isSignedIn={isSignedIn}
                 isLoading={sessionsLoading}
-                onNewGame={handleNewCampaign}
+                onNewGame={() => setShowCampaignBuilder(true)}
                 onLoadCampaign={handleLoadCampaign}
                 onRefresh={refreshSessions}
               />
@@ -1209,6 +1227,20 @@ export function EmpyreanDMScreen({
         dragonNotes={dragonNotes}
         characterContext={characterContext}
       />
+
+      <AnimatePresence>
+        {showCampaignBuilder && (
+          <CampaignBuilderChat
+            characterName={characterName}
+            characterLevel={characterContext.level || 1}
+            onComplete={handleCampaignBuilderComplete}
+            onSkip={() => {
+              setShowCampaignBuilder(false);
+              handleNewCampaign();
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
