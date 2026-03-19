@@ -629,6 +629,49 @@ export function TelegramSettingsTab() {
                     </select>
                   </div>
 
+                  {/* Target chats picker (only when multiple links) */}
+                  {links.length > 1 && (
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider">Send to chats</p>
+                      <div className="space-y-1.5">
+                        {links.map((lnk) => {
+                          const isSelected = newJobTargetChatIds.includes(lnk.chat_id);
+                          return (
+                            <button
+                              key={lnk.id}
+                              type="button"
+                              onClick={() => {
+                                setNewJobTargetChatIds(prev =>
+                                  isSelected
+                                    ? prev.filter(id => id !== lnk.chat_id)
+                                    : [...prev, lnk.chat_id]
+                                );
+                              }}
+                              className={cn(
+                                "w-full flex items-center gap-2 rounded-lg border p-2.5 text-left transition-colors",
+                                isSelected
+                                  ? "border-primary/40 bg-primary/5"
+                                  : "border-border/30 bg-muted/10 hover:border-border/50"
+                              )}
+                            >
+                              <div className={cn(
+                                "w-4 h-4 rounded border flex items-center justify-center shrink-0",
+                                isSelected ? "bg-primary border-primary" : "border-muted-foreground/40"
+                              )}>
+                                {isSelected && <span className="text-primary-foreground text-[10px]">✓</span>}
+                              </div>
+                              <span className="text-xs text-foreground truncate">
+                                {lnk.username ? `@${lnk.username}` : `Chat ${lnk.chat_id}`}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        {newJobTargetChatIds.length === 0 ? 'No selection = sends to all linked chats' : `${newJobTargetChatIds.length} chat${newJobTargetChatIds.length === 1 ? '' : 's'} selected`}
+                      </p>
+                    </div>
+                  )}
                   {/* Send at time */}
                   <div className="space-y-1.5">
                     <p className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider">Send at</p>
