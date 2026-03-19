@@ -5,12 +5,14 @@ import { useAICampaignChat, CampaignBuildData } from '@/hooks/use-ai-campaign-ch
 import ReactMarkdown from 'react-markdown';
 
 interface CampaignBuilderChatProps {
-  partyMembers: Array<{ character_name: string; character_status?: Record<string, unknown> }>;
+  partyMembers?: Array<{ character_name: string; character_status?: Record<string, unknown> }>;
+  characterName?: string;
+  characterLevel?: number;
   onComplete: (data: CampaignBuildData) => void;
   onSkip: () => void;
 }
 
-export default function CampaignBuilderChat({ partyMembers, onComplete, onSkip }: CampaignBuilderChatProps) {
+export default function CampaignBuilderChat({ partyMembers, characterName, characterLevel, onComplete, onSkip }: CampaignBuilderChatProps) {
   const { messages, isLoading, buildData, error, suggestions, sendMessage, reset } = useAICampaignChat();
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -29,10 +31,17 @@ export default function CampaignBuilderChat({ partyMembers, onComplete, onSkip }
   useEffect(() => {
     if (!hasSentGreeting.current && messages.length === 0) {
       hasSentGreeting.current = true;
-      const levelInfo = partyMembers.some(m => (m.character_status as any)?.level)
-        ? ` Levels: ${partyMembers.map(m => `${m.character_name} (Lvl ${(m.character_status as any)?.level || '?'})`).join(', ')}.`
-        : '';
-      const greeting = `Hello! I'm setting up a new campaign for my party. We have ${partyMembers.length} players: ${partyMembers.map(m => m.character_name).join(', ')}.${levelInfo}`;
+      let greeting: string;
+      if (partyMembers && partyMembers.length > 0) {
+        const levelInfo = partyMembers.some(m => (m.character_status as any)?.level)
+          ? ` Levels: ${partyMembers.map(m => `${m.character_name} (Lvl ${(m.character_status as any)?.level || '?'})`).join(', ')}.`
+          : '';
+        greeting = `Hello! I'm setting up a new campaign for my party. We have ${partyMembers.length} players: ${partyMembers.map(m => m.character_name).join(', ')}.${levelInfo}`;
+      } else {
+        const name = characterName || 'Adventurer';
+        const lvl = characterLevel || 1;
+        greeting = `Hello! I'm setting up a new solo campaign for my character ${name} (Level ${lvl}).`;
+      }
       sendMessage(greeting);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
