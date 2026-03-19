@@ -226,7 +226,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent ref={sheetRef} side="bottom" className="h-[85vh] rounded-t-2xl p-0">
+      <SheetContent side="bottom" className="h-[85vh] rounded-t-2xl p-0">
         <SheetHeader className="px-4 pt-4 pb-2">
           <SheetTitle className="flex items-center gap-2 text-base">
             <Sparkles className="w-4 h-4 text-amber-400" />
