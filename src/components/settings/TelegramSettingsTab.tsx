@@ -402,38 +402,49 @@ export function TelegramSettingsTab() {
         {/* Notification Preferences (only when linked) */}
         {links.length > 0 && (
           <SettingsSection title="Notifications" icon={<Bell className="w-4 h-4 text-amber-400" />}>
-            <div className="space-y-3">
-              <p className="text-[10px] text-muted-foreground">
-                {links.length === 1 ? 'Choose which events send a Telegram message.' : 'Notification preferences apply to all linked chats.'}
-              </p>
-
-              <NotifToggle
-                label="Ready-up alerts"
-                description="When a party member readies up"
-                checked={links[0].notify_ready_up}
-                onChange={(v) => links.forEach(l => toggleNotif(l.id, 'notify_ready_up', v))}
-              />
-              <Separator className="bg-border/20" />
-              <NotifToggle
-                label="Timer expiry"
-                description="When the round timer runs out"
-                checked={links[0].notify_timer}
-                onChange={(v) => links.forEach(l => toggleNotif(l.id, 'notify_timer', v))}
-              />
-              <Separator className="bg-border/20" />
-              <NotifToggle
-                label="Combat alerts"
-                description="When combat starts or your turn begins"
-                checked={links[0].notify_combat}
-                onChange={(v) => links.forEach(l => toggleNotif(l.id, 'notify_combat', v))}
-              />
-              <Separator className="bg-border/20" />
-              <NotifToggle
-                label="Dragon bond"
-                description="Messages from your bonded dragon"
-                checked={links[0].notify_dragon}
-                onChange={(v) => links.forEach(l => toggleNotif(l.id, 'notify_dragon', v))}
-              />
+            <div className="space-y-4">
+              {links.map((lnk, idx) => (
+                <div key={lnk.id} className="space-y-3">
+                  {links.length > 1 && (
+                    <>
+                      {idx > 0 && <Separator className="bg-border/30 my-1" />}
+                      <p className="text-xs font-medium text-foreground/80">
+                        {lnk.username ? `@${lnk.username}` : `Chat ${lnk.chat_id}`}
+                      </p>
+                    </>
+                  )}
+                  {links.length === 1 && (
+                    <p className="text-[10px] text-muted-foreground">Choose which events send a Telegram message.</p>
+                  )}
+                  <NotifToggle
+                    label="Ready-up alerts"
+                    description="When a party member readies up"
+                    checked={lnk.notify_ready_up}
+                    onChange={(v) => toggleNotif(lnk.id, 'notify_ready_up', v)}
+                  />
+                  <Separator className="bg-border/20" />
+                  <NotifToggle
+                    label="Timer expiry"
+                    description="When the round timer runs out"
+                    checked={lnk.notify_timer}
+                    onChange={(v) => toggleNotif(lnk.id, 'notify_timer', v)}
+                  />
+                  <Separator className="bg-border/20" />
+                  <NotifToggle
+                    label="Combat alerts"
+                    description="When combat starts or your turn begins"
+                    checked={lnk.notify_combat}
+                    onChange={(v) => toggleNotif(lnk.id, 'notify_combat', v)}
+                  />
+                  <Separator className="bg-border/20" />
+                  <NotifToggle
+                    label="Dragon bond"
+                    description="Messages from your bonded dragon"
+                    checked={lnk.notify_dragon}
+                    onChange={(v) => toggleNotif(lnk.id, 'notify_dragon', v)}
+                  />
+                </div>
+              ))}
             </div>
           </SettingsSection>
         )}
