@@ -10,6 +10,9 @@ import { PartyDMScreen } from './PartyDMScreen';
 import { GMGuidesManager } from './GMGuidesManager';
 import { InlineBattleMap } from './InlineBattleMap';
 import { PartyCampaignSaves } from './PartyCampaignSaves';
+import CampaignBuilderChat from './CampaignBuilderChat';
+import { AnimatePresence } from 'framer-motion';
+import type { CampaignBuildData } from '@/hooks/use-ai-campaign-chat';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { PartyMember } from '@/hooks/use-party-sync';
 import type { MapMarker } from '@/components/party/battlemap/types';
@@ -58,6 +61,7 @@ export function StandalonePartyDMScreen({
   const [showGuides, setShowGuides] = useState(false);
   const [showSaves, setShowSaves] = useState(false);
   const [showBattleMap, setShowBattleMap] = useState(false);
+  const [showCampaignBuilder, setShowCampaignBuilder] = useState(false);
   const [pendingMapAdds, setPendingMapAdds] = useState<MapMarker[]>([]);
   const [pendingMapRemovals, setPendingMapRemovals] = useState<string[]>([]);
   const [partyCreatorId, setPartyCreatorId] = useState<string | null>(null);
@@ -185,6 +189,39 @@ export function StandalonePartyDMScreen({
     enabled: isHost,
   });
 
+  // Campaign Builder completion handler
+  const handleCampaignBuilderComplete = useCallback(async (data: CampaignBuildData) => {
+    setShowCampaignBuilder(false);
+
+    // 1. Start fresh campaign with the generated name
+    await partyDm.startNewCampaign(data.campaignName);
+    memoryAnchors.clearAll();
+
+    // 2. Set the campaign summary, save GM guide, seed anchors, post opening scene
+    setTimeout(async () => {
+      partyDm.updateSessionConfig({ campaignSummary: data.campaignSummary });
+
+      // 3. Save the GM guide
+      gmGuides.addGuide(`📖 ${data.campaignName}`, data.gmGuide);
+
+      // 4. Seed memory anchors
+      for (const anchor of data.memoryAnchors) {
+        memoryAnchors.addMemoryAnchor({
+          category: anchor.category,
+          key: anchor.key,
+          value: anchor.value,
+        });
+      }
+
+      // 5. Post opening scene as first DM message
+      if (data.openingScene) {
+        setTimeout(() => {
+          partyDm.sendManualDmMessage(data.openingScene);
+        }, 300);
+      }
+    }, 300);
+  }, [partyDm, memoryAnchors, gmGuides]);
+
 
   const autoSync = useDmAutoSync({
     onHPChange: autoSyncCallbacks?.onHPChange ?? NOOP_TWO_ARG,
@@ -285,7 +322,7 @@ export function StandalonePartyDMScreen({
         campaignSessions={campaignSessions.sessions}
         campaignSessionsLoading={campaignSessions.isLoading}
         campaignSessionsSignedIn={campaignSessions.isSignedIn}
-        onNewGame={partyDm.startNewCampaign}
+        onNewGame={() => setShowCampaignBuilder(true)}
         onLoadCampaign={handleLoadCampaign}
           onRefreshCampaigns={campaignSessions.refreshSessions}
           wildShape={wildShape}
@@ -323,6 +360,21 @@ export function StandalonePartyDMScreen({
           isCreator={isHost}
         />
       )}
+
+      {/* Campaign Builder Chat Overlay */}
+      <AnimatePresence>
+        {showCampaignBuilder && (
+          <CampaignBuilderChat
+            partyMembers={partyMembers}
+            onComplete={handleCampaignBuilderComplete}
+            onSkip={() => {
+              setShowCampaignBuilder(false);
+              partyDm.startNewCampaign();
+              memoryAnchors.clearAll();
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
