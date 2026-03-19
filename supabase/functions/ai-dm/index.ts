@@ -555,6 +555,10 @@ RULES:
     prompt += `\n\n## CUSTOM GM GUIDES\nThe following custom content has been provided by the player to guide your behavior. Treat it as authoritative campaign context:\n\n${trimmed}`;
   }
 
+  if (responseModePrompt && responseModePrompt.trim()) {
+    prompt += `\n\n${responseModePrompt.slice(0, 2000)}`;
+  }
+
   return prompt;
 }
 
