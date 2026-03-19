@@ -1516,6 +1516,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
     try {
       let guides: string;
+      let regenPartyContext = '';
       let apiMessages: Array<{ role: string; content: string }>;
       let historyMessages: PartyDmMessage[];
 
@@ -1535,25 +1536,25 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         const thisSummary = msgTeam === 'alpha' ? splitState.alphaSummary : splitState.betaSummary;
 
         const membersSummary = buildPartyMembersGuide(teamMembers);
-        guides = [
-          customGuidesContent || '',
-          `\n\n## PARTY SPLIT — ${teamName}\nThe party has split up. You are narrating ONLY for "${teamName}".\n${membersSummary}\nDo NOT narrate what the other team ("${otherTeamName}") is doing. Focus solely on this group's adventure. Refer to this group as "${teamName}" in your narration.`,
+        regenPartyContext = [
+          `## PARTY SPLIT — ${teamName}\nThe party has split up. You are narrating ONLY for "${teamName}".\n${membersSummary}\nDo NOT narrate what the other team ("${otherTeamName}") is doing. Focus solely on this group's adventure. Refer to this group as "${teamName}" in your narration.`,
           otherSummary ? `\n\n## OTHER TEAM CONTEXT (hidden from players)\n"${otherTeamName}"'s adventure summary (for narrative coherence only — do NOT reveal to "${teamName}"):\n${otherSummary}` : '',
           thisSummary ? `\n\n## PREVIOUS "${teamName}" SUMMARY\n${thisSummary}` : '',
         ].filter(Boolean).join('\n\n');
+        guides = customGuidesContent || '';
       } else {
         // Normal mode
         historyMessages = messages.slice(0, msgIndex);
         apiMessages = historyMessages.map(m => ({ role: m.role, content: m.content }));
 
         const partyMembersSummary = buildPartyMembersGuide();
-        guides = [
-          customGuidesContent || '',
-          `\n\n## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
+        regenPartyContext = [
+          `## PARTY MEMBERS\nThis is a multiplayer session. Multiple players are acting simultaneously each round.\n${partyMembersSummary}\nResolve all player actions in order, describing the scene as a cohesive narrative. Address each player character by name.`,
         ].filter(Boolean).join('\n\n');
+        guides = customGuidesContent || '';
       }
 
-      const assistantContent = await streamAIResponse(apiMessages, guides, abortRef.current!.signal);
+      const assistantContent = await streamAIResponse(apiMessages, guides, abortRef.current!.signal, regenPartyContext);
 
       if (assistantContent) {
         const insertData: Record<string, unknown> = {
