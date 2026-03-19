@@ -27,6 +27,7 @@ import { GMGuidesManager } from './GMGuidesManager';
 import { CampaignSessionsManager } from './CampaignSessionsManager';
 import { WorldStatePanel } from './WorldStatePanel';
 import { useDMGameState, buildMemoryAnchorsPrompt } from '@/hooks/use-dm-game-state';
+import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { useDmMemoryExtraction } from '@/hooks/use-dm-memory-extraction';
 import { WorldBuilderWizard } from './WorldBuilderWizard';
 import { WhisperTray } from './WhisperTray';
