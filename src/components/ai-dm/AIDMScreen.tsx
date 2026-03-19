@@ -1160,6 +1160,10 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           settingsContent={activeNavTab === 'settings' ? (
             <div className="px-3 py-3 space-y-2.5 max-h-[50vh] overflow-y-auto overscroll-contain">
               <DMSpotifyControls />
+              <ResponseModeSelector
+                selectedMode={responseMode}
+                onModeChange={(modeId) => setResponseMode(modeId ?? undefined)}
+              />
             </div>
           ) : undefined}
           oracleContent={activeNavTab === 'oracle' ? (
