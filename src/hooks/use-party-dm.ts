@@ -1296,7 +1296,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
       } else {
         // === NORMAL MODE ===
-        const { guidesSection: afkGuidesSection, promptSection: afkPromptSection, consumedCascades: normalConsumed } = buildAfkGuidesContext(readyPrompts);
+        const { guidesSection: afkGuidesSection, promptSection: afkPromptSection, consumedCascades: normalConsumed } = suppressAfkGuides
+          ? { guidesSection: '', promptSection: '', consumedCascades: [] }
+          : buildAfkGuidesContext(readyPrompts);
         const rawCombined = readyPrompts
           .map(formatPromptLine)
           .join('\n') + afkPromptSection;
