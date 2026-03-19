@@ -199,26 +199,26 @@ export function TelegramSettingsTab() {
     setSubmittingJob(true);
     try {
       const [hours, minutes] = newJobTime.split(':').map(Number);
-      // EDT = UTC-4
-      const utcHours = (hours + 4) % 24;
-      const utcTimeStr = `${String(utcHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 
-      let runAt: Date;
+      const targetDate = newJobRepeatDaily ? new Date() : new Date(newJobDate!);
+      const yyyy = targetDate.getFullYear();
+      const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(targetDate.getDate()).padStart(2, '0');
+      const hh = String(hours).padStart(2, '0');
+      const min = String(minutes).padStart(2, '0');
 
-      if (newJobRepeatDaily) {
-        // Set run_at to today at that UTC time, or tomorrow if past
-        runAt = new Date();
-        runAt.setUTCHours(utcHours, minutes, 0, 0);
-        if (runAt.getTime() <= Date.now()) {
-          runAt.setUTCDate(runAt.getUTCDate() + 1);
-        }
-      } else {
-        // Combine selected date with time, convert to UTC
-        runAt = new Date(newJobDate!);
-        runAt.setHours(hours, minutes, 0, 0);
-        // Convert from EDT to UTC
-        runAt = new Date(runAt.getTime() + 4 * 60 * 60 * 1000);
+      // Find the UTC time that corresponds to this time in America/New_York
+      const naiveUtc = new Date(`${yyyy}-${mm}-${dd}T${hh}:${min}:00Z`);
+      const nyTimeAtNaive = new Date(naiveUtc.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+      const offsetMs = naiveUtc.getTime() - nyTimeAtNaive.getTime();
+      let runAt = new Date(naiveUtc.getTime() + offsetMs);
+
+      if (newJobRepeatDaily && runAt.getTime() <= Date.now()) {
+        runAt.setUTCDate(runAt.getUTCDate() + 1);
       }
+
+      const utcHours = runAt.getUTCHours();
+      const utcTimeStr = `${String(utcHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 
       const { error } = await supabase
         .from('scheduled_telegram_jobs')
@@ -263,15 +263,18 @@ export function TelegramSettingsTab() {
   // Format run time for display
   const formatJobTime = (job: ScheduledJob) => {
     const runDate = new Date(job.run_at);
+    const tzAbbr = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' })
+      .formatToParts(runDate)
+      .find(p => p.type === 'timeZoneName')?.value || 'ET';
     if (job.repeat_daily && job.run_time) {
-      // Convert UTC run_time to EDT
       const [utcH, utcM] = job.run_time.split(':').map(Number);
-      let edtH = (utcH - 4 + 24) % 24;
-      const ampm = edtH >= 12 ? 'PM' : 'AM';
-      edtH = edtH % 12 || 12;
-      return `Daily at ${edtH}:${String(utcM).padStart(2, '0')} ${ampm} EST`;
+      const tempDate = new Date();
+      tempDate.setUTCHours(utcH, utcM, 0, 0);
+      const nyTime = tempDate.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
+      return `Daily at ${nyTime} ${tzAbbr}`;
     }
-    return format(runDate, "MMM d 'at' h:mm a") + ' EST';
+    const nyTime = runDate.toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+    return `${nyTime} ${tzAbbr}`;
   };
 
   if (loading) {
@@ -612,7 +615,7 @@ export function TelegramSettingsTab() {
                         />
                       </div>
                     </div>
-                    <p className="text-[10px] text-muted-foreground">EDT (America/New_York)</p>
+                    <p className="text-[10px] text-muted-foreground">Eastern Time (America/New_York)</p>
                   </div>
 
                   {/* Repeat daily */}
