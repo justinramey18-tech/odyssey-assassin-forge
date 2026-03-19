@@ -179,8 +179,8 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
 
   async function handleCancel(eventId: string) {
     const { error } = await supabase
-      .from('party_scheduled_events')
-      .update({ status: 'cancelled' })
+      .from('scheduled_telegram_jobs')
+      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
       .eq('id', eventId);
 
     if (error) {
@@ -193,7 +193,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
 
   async function handleDelete(eventId: string) {
     const { error } = await supabase
-      .from('party_scheduled_events')
+      .from('scheduled_telegram_jobs')
       .delete()
       .eq('id', eventId);
 
