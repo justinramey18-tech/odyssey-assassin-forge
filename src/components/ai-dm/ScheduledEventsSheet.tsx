@@ -167,6 +167,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
           repeat_daily: repeatWeekly,
           run_time: repeatWeekly ? utcTimeStr : null,
           timezone: 'America/New_York',
+          dm_context_mode: dmContextMode,
         });
 
       if (jobErr) {
