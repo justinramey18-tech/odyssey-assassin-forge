@@ -25,14 +25,17 @@ import { useAuth } from '@/hooks/use-auth';
 
 interface ScheduledEvent {
   id: string;
-  event_name: string;
-  event_prompt: string;
-  event_type: string;
-  recurrence: string | null;
-  scheduled_at: string;
+  job_name: string;
+  ai_prompt: string | null;
+  static_message: string | null;
+  party_id: string | null;
   status: string;
-  qstash_message_id: string | null;
+  run_at: string;
+  repeat_daily: boolean;
+  run_time: string | null;
   created_at: string;
+  dm_context_mode?: string;
+  ai_model?: string;
 }
 
 interface ScheduledEventsSheetProps {
