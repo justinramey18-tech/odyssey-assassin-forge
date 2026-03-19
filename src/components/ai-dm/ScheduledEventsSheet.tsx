@@ -45,7 +45,7 @@ type EventType = 'narrative_event' | 'scheduled_round';
 
 export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledEventsSheetProps) {
   const { user } = useAuth();
-  const sheetRef = useRef<HTMLDivElement>(null);
+  
   const [events, setEvents] = useState<ScheduledEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [scheduling, setScheduling] = useState(false);
