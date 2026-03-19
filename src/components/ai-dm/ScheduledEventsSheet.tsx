@@ -422,30 +422,32 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
           {pendingEvents.length > 0 && (
             <div className="space-y-2">
               <Label className="text-xs text-muted-foreground uppercase tracking-wider">Upcoming</Label>
-              {pendingEvents.map(event => (
+              {pendingEvents.map(event => {
+                const isRound = !event.ai_prompt || event.ai_prompt === 'Auto-advance the party round. Generate a brief narrative transition summarizing what happens next.';
+                return (
                 <div key={event.id} className="flex items-start gap-3 rounded-lg border border-border/50 bg-muted/10 p-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      {event.event_type === 'scheduled_round' ? (
+                      {isRound ? (
                         <Users className="w-3 h-3 text-primary shrink-0" />
                       ) : (
                         <BookOpen className="w-3 h-3 text-amber-400 shrink-0" />
                       )}
-                      <p className="text-sm font-medium text-foreground truncate">{event.event_name}</p>
+                      <p className="text-sm font-medium text-foreground truncate">{event.job_name}</p>
                     </div>
-                    {event.event_type === 'scheduled_round' ? (
+                    {isRound ? (
                       <p className="text-xs text-muted-foreground mt-0.5">Auto-advances round with AFK guides</p>
                     ) : (
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{event.event_prompt}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{event.ai_prompt}</p>
                     )}
                     <p className="text-xs text-amber-400 mt-1">
-                      ⏰ {format(new Date(event.scheduled_at), 'PPP p')}
-                      {event.recurrence === 'weekly' && (
-                        <span className="ml-1.5 text-primary">· 🔁 Weekly</span>
+                      ⏰ {format(new Date(event.run_at), 'PPP p')}
+                      {event.repeat_daily && (
+                        <span className="ml-1.5 text-primary">· 🔁 Repeats daily</span>
                       )}
                       <span className="ml-1.5 text-muted-foreground">
-                        · {(event as any).dm_context_mode === 'solo' ? 'Solo DM' : (event as any).dm_context_mode === 'empyrean' ? 'Empyrean DM' : 'Party DM'}
-                        {' · '}{getModelLabel((event as any).ai_model || 'google/gemini-2.5-flash-lite')}
+                        · {event.dm_context_mode === 'solo' ? 'Solo DM' : event.dm_context_mode === 'empyrean' ? 'Empyrean DM' : 'Party DM'}
+                        {' · '}{getModelLabel(event.ai_model || 'google/gemini-2.5-flash-lite')}
                       </span>
                     </p>
                   </div>
@@ -458,7 +460,8 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
