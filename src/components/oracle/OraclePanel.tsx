@@ -17,9 +17,10 @@ interface OraclePanelProps {
   className?: string;
   bookmarkActive?: boolean;
   bookmarkMessageCount?: number;
+  onQuestExtracted?: (quests: Array<{ key: string; status: 'active' | 'completed' | 'failed'; notes?: string }>) => void;
 }
 
-export function OraclePanel({ characterContext, className, bookmarkActive, bookmarkMessageCount }: OraclePanelProps) {
+export function OraclePanel({ characterContext, className, bookmarkActive, bookmarkMessageCount, onQuestExtracted }: OraclePanelProps) {
   const [inputValue, setInputValue] = useState('');
 
   const {
@@ -32,7 +33,7 @@ export function OraclePanel({ characterContext, className, bookmarkActive, bookm
     clearMessages,
     switchPersonality,
     switchMode,
-  } = useOracle({ characterContext });
+  } = useOracle({ characterContext, onQuestExtracted });
 
   const config = getPersonalityConfig(personality);
 

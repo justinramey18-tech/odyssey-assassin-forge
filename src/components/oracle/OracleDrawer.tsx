@@ -316,7 +316,7 @@ export function OracleDrawer({
         <SheetHeader className="sr-only">
           <SheetTitle>The Oracle</SheetTitle>
         </SheetHeader>
-        <OraclePanel characterContext={characterContext} />
+        <OraclePanel characterContext={characterContext} onQuestExtracted={onQuestExtracted} />
       </SheetContent>
     </Sheet>
   );
