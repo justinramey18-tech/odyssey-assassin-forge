@@ -892,6 +892,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         customGuides: extraGuides,
         memoryAnchors: memoryAnchorsContent || undefined,
         recentPartyChat: recentPartyChat.length > 0 ? recentPartyChat : undefined,
+        responseModePrompt: responseModePrompt || undefined,
         model: loadSelectedModel(),
         ...(() => {
           const cs = loadCombatSettings();
