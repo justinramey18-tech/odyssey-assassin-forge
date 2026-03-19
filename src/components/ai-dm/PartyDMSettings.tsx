@@ -336,6 +336,9 @@ export function PartyDMSettings({
         {onShowMemoryAnchors && (
           <ToolRow icon={<Brain className={cn("w-4 h-4", memoryAnchorsCount > 0 ? "text-purple-400" : "")} />} label="Memory Anchors" description="Long-term campaign facts for the Oracle" badge={memoryAnchorsCount} onClick={onShowMemoryAnchors} />
         )}
+        {onShowQuests && (
+          <ToolRow icon={<ScrollText className={cn("w-4 h-4", questsCount > 0 ? "text-amber-400" : "")} />} label="Quest Log" description="Track party objectives" badge={questsCount} onClick={onShowQuests} />
+        )}
         {onShowChat && (
           <ToolRow icon={<MessageSquare className="w-4 h-4" />} label="Party Chat" description="Out-of-character messaging" onClick={onShowChat} />
         )}
