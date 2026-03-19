@@ -263,15 +263,18 @@ export function TelegramSettingsTab() {
   // Format run time for display
   const formatJobTime = (job: ScheduledJob) => {
     const runDate = new Date(job.run_at);
+    const tzAbbr = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' })
+      .formatToParts(runDate)
+      .find(p => p.type === 'timeZoneName')?.value || 'ET';
     if (job.repeat_daily && job.run_time) {
-      // Convert UTC run_time to EDT
       const [utcH, utcM] = job.run_time.split(':').map(Number);
-      let edtH = (utcH - 4 + 24) % 24;
-      const ampm = edtH >= 12 ? 'PM' : 'AM';
-      edtH = edtH % 12 || 12;
-      return `Daily at ${edtH}:${String(utcM).padStart(2, '0')} ${ampm} EST`;
+      const tempDate = new Date();
+      tempDate.setUTCHours(utcH, utcM, 0, 0);
+      const nyTime = tempDate.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
+      return `Daily at ${nyTime} ${tzAbbr}`;
     }
-    return format(runDate, "MMM d 'at' h:mm a") + ' EST';
+    const nyTime = runDate.toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+    return `${nyTime} ${tzAbbr}`;
   };
 
   if (loading) {
