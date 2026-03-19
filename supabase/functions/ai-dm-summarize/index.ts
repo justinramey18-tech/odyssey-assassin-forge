@@ -11,6 +11,7 @@ const SUMMARY_MAX_CHARS = 30000;
 interface SummarizeRequest {
   messages: Array<{ role: 'user' | 'assistant'; content: string }>;
   previousSummary?: string;
+  worldContext?: string;
 }
 
 const SUMMARIZER_SYSTEM_PROMPT = `You are a campaign chronicler for a D&D 5e session. Your job is to produce an EXHAUSTIVE, THOROUGH, and ITEMIZED narrative summary that captures EVERYTHING a Dungeon Master needs to maintain perfect story continuity.
