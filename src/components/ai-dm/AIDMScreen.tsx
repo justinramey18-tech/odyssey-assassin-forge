@@ -500,6 +500,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     customGuidesContent: gmGuides.enabledContent,
     worldStatePrompt,
     dmPersonaPrompt,
+    responseModePrompt: resolveResponseModePrompt(responseMode) || undefined,
     onMessageComplete: handleMessageComplete,
     onQuestExtracted: (quests) => {
       for (const q of quests) {
