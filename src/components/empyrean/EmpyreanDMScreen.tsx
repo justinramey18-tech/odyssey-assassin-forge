@@ -48,6 +48,8 @@ import { useSpotify } from '@/hooks/use-spotify';
 import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
 import { useResponseMode } from '@/hooks/use-response-mode';
 import { EmpyreanAutopilotGuide } from '@/components/empyrean/EmpyreanAutopilotGuide';
+import CampaignBuilderChat from '@/components/ai-dm/CampaignBuilderChat';
+import type { CampaignBuildData } from '@/hooks/use-ai-campaign-chat';
 import { useEmpyreanAutopilot } from '@/hooks/use-empyrean-autopilot';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
