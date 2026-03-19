@@ -204,8 +204,8 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
     }
   }
 
-  const pendingEvents = events.filter(e => e.status === 'pending');
-  const pastEvents = events.filter(e => e.status !== 'pending');
+  const pendingEvents = events.filter(e => e.status === 'pending' || e.status === 'running');
+  const pastEvents = events.filter(e => ['completed', 'failed', 'cancelled'].includes(e.status));
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
