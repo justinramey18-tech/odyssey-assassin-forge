@@ -95,11 +95,11 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
   useEffect(() => {
     if (!partyId) return;
     const channel = supabase
-      .channel(`scheduled-events-${partyId}`)
+      .channel(`scheduled-jobs-${partyId}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
-        table: 'party_scheduled_events',
+        table: 'scheduled_telegram_jobs',
         filter: `party_id=eq.${partyId}`,
       }, () => {
         fetchEvents();
