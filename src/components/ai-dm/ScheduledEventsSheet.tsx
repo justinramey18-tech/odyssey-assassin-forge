@@ -131,26 +131,6 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
 
     setScheduling(true);
     try {
-      // Insert into party_scheduled_events for UI tracking
-      const { data: event, error: insertErr } = await supabase
-        .from('party_scheduled_events')
-        .insert({
-          party_id: partyId,
-          created_by: user.id,
-          event_name: eventName.trim() || (eventType === 'scheduled_round' ? 'Scheduled Round' : 'Scheduled Event'),
-          event_prompt: eventType === 'scheduled_round' ? '' : eventPrompt.trim(),
-          event_type: eventType,
-          recurrence: repeatWeekly ? 'weekly' : null,
-          scheduled_at: scheduledDate.toISOString(),
-        })
-        .select('id')
-        .single();
-
-      if (insertErr || !event) {
-        throw new Error(insertErr?.message || 'Failed to create event');
-      }
-
-      // Schedule via scheduled_telegram_jobs instead of QStash
       const aiPrompt = eventType === 'narrative_event'
         ? eventPrompt.trim()
         : 'Auto-advance the party round. Generate a brief narrative transition summarizing what happens next.';
@@ -177,7 +157,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
         });
 
       if (jobErr) {
-        throw new Error(jobErr.message || 'Failed to schedule telegram job');
+        throw new Error(jobErr.message || 'Failed to schedule job');
       }
 
       const recLabel = repeatWeekly ? ' (repeats weekly)' : '';
