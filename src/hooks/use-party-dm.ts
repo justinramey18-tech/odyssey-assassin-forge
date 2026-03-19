@@ -1142,7 +1142,9 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
         // --- Team Alpha ---
         if (alphaPrompts.length > 0) {
-          const { guidesSection: alphaAfkGuides, promptSection: alphaAfkPrompts, consumedCascades: alphaConsumed } = buildAfkGuidesContext(alphaPrompts, splitState.alphaMembers);
+          const { guidesSection: alphaAfkGuides, promptSection: alphaAfkPrompts, consumedCascades: alphaConsumed } = suppressAfkGuides
+            ? { guidesSection: '', promptSection: '', consumedCascades: [] }
+            : buildAfkGuidesContext(alphaPrompts, splitState.alphaMembers);
           allConsumedCascades = [...allConsumedCascades, ...alphaConsumed];
           const alphaRawCombined = alphaPrompts
             .map(formatPromptLine)
