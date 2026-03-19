@@ -125,6 +125,7 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
 
     setScheduling(true);
     try {
+      // Insert into party_scheduled_events for UI tracking
       const { data: event, error: insertErr } = await supabase
         .from('party_scheduled_events')
         .insert({
@@ -143,23 +144,32 @@ export function ScheduledEventsSheet({ open, onOpenChange, partyId }: ScheduledE
         throw new Error(insertErr?.message || 'Failed to create event');
       }
 
-      const { data: result, error: scheduleErr } = await supabase.functions.invoke('schedule-timer-callback', {
-        body: {
-          partyId,
-          scheduledAt: scheduledDate.toISOString(),
-          eventId: event.id,
-        },
-      });
+      // Schedule via scheduled_telegram_jobs instead of QStash
+      const aiPrompt = eventType === 'narrative_event'
+        ? eventPrompt.trim()
+        : 'Auto-advance the party round. Generate a brief narrative transition summarizing what happens next.';
 
-      if (scheduleErr) {
-        throw new Error('Failed to schedule callback');
-      }
+      const utcHours = scheduledDate.getUTCHours();
+      const utcMinutes = scheduledDate.getUTCMinutes();
+      const utcTimeStr = `${String(utcHours).padStart(2, '0')}:${String(utcMinutes).padStart(2, '0')}`;
 
-      if (result?.messageId) {
-        await supabase
-          .from('party_scheduled_events')
-          .update({ qstash_message_id: result.messageId })
-          .eq('id', event.id);
+      const { error: jobErr } = await supabase
+        .from('scheduled_telegram_jobs')
+        .insert({
+          user_id: user.id,
+          job_name: eventName.trim() || (eventType === 'scheduled_round' ? 'Scheduled Round' : 'Scheduled Event'),
+          ai_prompt: aiPrompt,
+          static_message: null,
+          party_id: partyId,
+          include_campaign_context: true,
+          run_at: scheduledDate.toISOString(),
+          repeat_daily: repeatWeekly,
+          run_time: repeatWeekly ? utcTimeStr : null,
+          timezone: 'America/New_York',
+        });
+
+      if (jobErr) {
+        throw new Error(jobErr.message || 'Failed to schedule telegram job');
       }
 
       const recLabel = repeatWeekly ? ' (repeats weekly)' : '';

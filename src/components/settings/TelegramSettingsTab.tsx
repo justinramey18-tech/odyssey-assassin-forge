@@ -1,9 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Send, Link2, Unlink, Copy, RefreshCw, Bell, BellOff } from 'lucide-react';
+import { Send, Link2, Unlink, Copy, RefreshCw, Bell, BellOff, Clock, Trash2, Plus, ChevronDown, ChevronUp } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { CalendarIcon } from 'lucide-react';
 import { SettingsSection } from './SettingsSection';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,12 +32,47 @@ interface TelegramLink {
   notify_dragon: boolean;
 }
 
+interface ScheduledJob {
+  id: string;
+  job_name: string;
+  ai_prompt: string | null;
+  static_message: string | null;
+  repeat_daily: boolean;
+  run_at: string;
+  run_time: string | null;
+  timezone: string;
+  status: string;
+  last_result: string | null;
+}
+
+const JOB_TEMPLATES = [
+  { label: 'Campaign Recap', name: 'Campaign Recap', prompt: 'Generate an engaging recap of my current D&D campaign, highlighting recent events, unresolved plot threads, and upcoming dangers.' },
+  { label: 'Random Encounter', name: 'Random Encounter', prompt: 'Create a unique random encounter appropriate for my party, with vivid descriptions, NPC motivations, and possible outcomes.' },
+  { label: 'Dragon Message', name: 'Dragon Message', prompt: 'Write an in-character message from my bonded dragon companion, referencing recent campaign events and offering cryptic guidance.' },
+  { label: 'Quote of the Day', name: 'Quote of the Day', prompt: 'Generate an original inspirational fantasy quote in the style of a wise D&D sage or ancient tome.' },
+  { label: 'Session Prep', name: 'Session Prep', prompt: 'Based on my campaign so far, suggest 3 things I should prepare or think about before my next session.' },
+  { label: 'NPC Letter', name: 'NPC Letter', prompt: 'Write an in-character letter from a notable NPC in my campaign, reacting to recent events.' },
+];
+
 export function TelegramSettingsTab() {
   const { user } = useAuth();
   const [link, setLink] = useState<TelegramLink | null>(null);
   const [linkCode, setLinkCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+
+  // Scheduled jobs state
+  const [jobs, setJobs] = useState<ScheduledJob[]>([]);
+  const [jobsLoading, setJobsLoading] = useState(false);
+  const [showNewJobForm, setShowNewJobForm] = useState(false);
+  const [newJobPrompt, setNewJobPrompt] = useState('');
+  const [newJobName, setNewJobName] = useState('');
+  const [newJobIncludeContext, setNewJobIncludeContext] = useState(true);
+  const [newJobTime, setNewJobTime] = useState('08:00');
+  const [newJobRepeatDaily, setNewJobRepeatDaily] = useState(false);
+  const [newJobDate, setNewJobDate] = useState<Date | undefined>();
+  const [newJobCalendarOpen, setNewJobCalendarOpen] = useState(false);
+  const [submittingJob, setSubmittingJob] = useState(false);
 
   // Fetch existing link
   const fetchLink = useCallback(async () => {
@@ -43,15 +89,30 @@ export function TelegramSettingsTab() {
 
   useEffect(() => { fetchLink(); }, [fetchLink]);
 
+  // Fetch scheduled jobs
+  const fetchJobs = useCallback(async () => {
+    if (!user) return;
+    setJobsLoading(true);
+    const { data } = await supabase
+      .from('scheduled_telegram_jobs')
+      .select('id, job_name, ai_prompt, static_message, repeat_daily, run_at, run_time, timezone, status, last_result')
+      .eq('user_id', user.id)
+      .in('status', ['pending', 'running'])
+      .order('run_at', { ascending: true });
+    setJobs((data as ScheduledJob[] | null) ?? []);
+    setJobsLoading(false);
+  }, [user]);
+
+  useEffect(() => { if (link) fetchJobs(); }, [link, fetchJobs]);
+
   // Generate link code
   const generateCode = useCallback(async () => {
     if (!user) return;
     setGenerating(true);
-    // Delete any existing codes for this user
     await supabase.from('telegram_link_codes').delete().eq('user_id', user.id);
 
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 min
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
     const { error } = await supabase.from('telegram_link_codes').insert({
       user_id: user.id,
@@ -98,6 +159,111 @@ export function TelegramSettingsTab() {
       toast.error('Failed to update preference');
     }
   }, [user, link]);
+
+  // Cancel a scheduled job
+  const cancelJob = useCallback(async (jobId: string) => {
+    const { error } = await supabase
+      .from('scheduled_telegram_jobs')
+      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+      .eq('id', jobId);
+
+    if (error) {
+      toast.error('Failed to cancel job');
+    } else {
+      toast.success('Job cancelled');
+      fetchJobs();
+    }
+  }, [fetchJobs]);
+
+  // Submit new job
+  const handleSubmitJob = useCallback(async () => {
+    if (!user) return;
+    if (!newJobPrompt.trim()) {
+      toast.error('Enter a prompt for the AI');
+      return;
+    }
+    if (!newJobName.trim()) {
+      toast.error('Give this job a name');
+      return;
+    }
+    if (!newJobRepeatDaily && !newJobDate) {
+      toast.error('Pick a date for one-time jobs');
+      return;
+    }
+
+    setSubmittingJob(true);
+    try {
+      const [hours, minutes] = newJobTime.split(':').map(Number);
+      // EDT = UTC-4
+      const utcHours = (hours + 4) % 24;
+      const utcTimeStr = `${String(utcHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+
+      let runAt: Date;
+
+      if (newJobRepeatDaily) {
+        // Set run_at to today at that UTC time, or tomorrow if past
+        runAt = new Date();
+        runAt.setUTCHours(utcHours, minutes, 0, 0);
+        if (runAt.getTime() <= Date.now()) {
+          runAt.setUTCDate(runAt.getUTCDate() + 1);
+        }
+      } else {
+        // Combine selected date with time, convert to UTC
+        runAt = new Date(newJobDate!);
+        runAt.setHours(hours, minutes, 0, 0);
+        // Convert from EDT to UTC
+        runAt = new Date(runAt.getTime() + 4 * 60 * 60 * 1000);
+      }
+
+      const { error } = await supabase
+        .from('scheduled_telegram_jobs')
+        .insert({
+          user_id: user.id,
+          job_name: newJobName.trim(),
+          ai_prompt: newJobPrompt.trim(),
+          static_message: null,
+          include_campaign_context: newJobIncludeContext,
+          timezone: 'America/New_York',
+          status: 'pending',
+          run_at: runAt.toISOString(),
+          repeat_daily: newJobRepeatDaily,
+          run_time: newJobRepeatDaily ? utcTimeStr : null,
+        });
+
+      if (error) throw error;
+
+      const displayTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} EDT`;
+      toast.success(`Scheduled! The AI will message you at ${displayTime}.`);
+
+      // Reset form
+      setNewJobPrompt('');
+      setNewJobName('');
+      setNewJobIncludeContext(true);
+      setNewJobTime('08:00');
+      setNewJobRepeatDaily(false);
+      setNewJobDate(undefined);
+      setShowNewJobForm(false);
+      fetchJobs();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to schedule job');
+    } finally {
+      setSubmittingJob(false);
+    }
+  }, [user, newJobPrompt, newJobName, newJobIncludeContext, newJobTime, newJobRepeatDaily, newJobDate, fetchJobs]);
+
+  // Format run time for display
+  const formatJobTime = (job: ScheduledJob) => {
+    const runDate = new Date(job.run_at);
+    if (job.repeat_daily && job.run_time) {
+      // Convert UTC run_time to EDT
+      const [utcH, utcM] = job.run_time.split(':').map(Number);
+      let edtH = (utcH - 4 + 24) % 24;
+      const ampm = edtH >= 12 ? 'PM' : 'AM';
+      edtH = edtH % 12 || 12;
+      return `Daily at ${edtH}:${String(utcM).padStart(2, '0')} ${ampm} EST`;
+    }
+    return format(runDate, "MMM d 'at' h:mm a") + ' EST';
+  };
 
   if (loading) {
     return (
@@ -243,6 +409,197 @@ export function TelegramSettingsTab() {
                 checked={link.notify_dragon}
                 onChange={(v) => toggleNotif('notify_dragon', v)}
               />
+            </div>
+          </SettingsSection>
+        )}
+
+        {/* Scheduled Jobs (only when linked) */}
+        {link && (
+          <SettingsSection title="Scheduled Jobs" icon={<Clock className="w-4 h-4 text-violet-400" />}>
+            <div className="space-y-3">
+              <p className="text-[10px] text-muted-foreground">
+                Schedule the AI to send you anything on Telegram — recaps, encounter ideas, lore drops, reminders, or any custom prompt.
+              </p>
+
+              {/* Active jobs list */}
+              {jobsLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <RefreshCw className="w-4 h-4 animate-spin text-muted-foreground" />
+                </div>
+              ) : jobs.length > 0 ? (
+                <div className="space-y-2">
+                  {jobs.map(job => (
+                    <div key={job.id} className="flex items-start gap-2 rounded-lg border border-border/30 bg-muted/10 p-2.5">
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-sm font-medium text-foreground truncate">{job.job_name}</span>
+                          {job.ai_prompt ? (
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-violet-500/30 text-violet-400 bg-violet-500/5">AI</Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0">Static</Badge>
+                          )}
+                          {job.repeat_daily ? (
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-blue-500/30 text-blue-400 bg-blue-500/5">Daily</Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0">One-time</Badge>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                          ⏰ {formatJobTime(job)}
+                        </p>
+                        {job.last_result && (
+                          <p className="text-[10px] text-muted-foreground/60 truncate">
+                            Last: {job.last_result.substring(0, 80)}{job.last_result.length > 80 ? '…' : ''}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => cancelJob(job.id)}
+                        className="shrink-0 p-1.5 rounded-md text-destructive/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {/* New job button / form */}
+              {!showNewJobForm ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowNewJobForm(true)}
+                  className="w-full gap-2 h-10"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  New Scheduled Job
+                </Button>
+              ) : (
+                <div className="space-y-3 rounded-xl border border-border/50 bg-muted/20 p-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider">New Scheduled Job</p>
+                    <button
+                      onClick={() => setShowNewJobForm(false)}
+                      className="text-muted-foreground hover:text-foreground p-1"
+                    >
+                      <ChevronUp className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Prompt textarea */}
+                  <Textarea
+                    value={newJobPrompt}
+                    onChange={e => setNewJobPrompt(e.target.value)}
+                    rows={3}
+                    className="text-sm resize-none"
+                    placeholder={`Examples:\n• Generate a dramatic recap of my campaign\n• Create a random tavern encounter with NPC hooks\n• Write an in-character message from my bonded dragon\n• Generate a D&D quote of the day\n• Suggest 3 things to prep before my next session`}
+                  />
+
+                  {/* Template chips */}
+                  <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
+                    {JOB_TEMPLATES.map(tpl => (
+                      <button
+                        key={tpl.label}
+                        onClick={() => {
+                          setNewJobPrompt(tpl.prompt);
+                          setNewJobName(tpl.name);
+                        }}
+                        className="shrink-0 rounded-full border border-border/50 bg-muted/30 px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors whitespace-nowrap"
+                      >
+                        {tpl.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Job name */}
+                  <Input
+                    value={newJobName}
+                    onChange={e => setNewJobName(e.target.value)}
+                    placeholder="Name this job"
+                    className="text-sm"
+                  />
+
+                  {/* Include campaign context */}
+                  <div className="flex items-center justify-between gap-3 min-h-[44px]">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-foreground">Include campaign context</p>
+                      <p className="text-[10px] text-muted-foreground">Gives the AI access to your campaign, character, and quest data.</p>
+                    </div>
+                    <Switch checked={newJobIncludeContext} onCheckedChange={setNewJobIncludeContext} />
+                  </div>
+
+                  {/* Send at time */}
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider">Send at</p>
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <Clock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                        <Input
+                          type="time"
+                          value={newJobTime}
+                          onChange={e => setNewJobTime(e.target.value)}
+                          className="pl-8 text-sm"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">EDT (America/New_York)</p>
+                  </div>
+
+                  {/* Repeat daily */}
+                  <div className="flex items-center justify-between gap-3 min-h-[44px]">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-foreground">Repeat daily</p>
+                    </div>
+                    <Switch checked={newJobRepeatDaily} onCheckedChange={setNewJobRepeatDaily} />
+                  </div>
+
+                  {/* Date picker for one-time jobs */}
+                  {!newJobRepeatDaily && (
+                    <Popover open={newJobCalendarOpen} onOpenChange={setNewJobCalendarOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left text-sm font-normal",
+                            !newJobDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="w-3.5 h-3.5 mr-1.5" />
+                          {newJobDate ? format(newJobDate, 'PPP') : 'Pick a date'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={newJobDate}
+                          onSelect={(date) => {
+                            setNewJobDate(date);
+                            setNewJobCalendarOpen(false);
+                          }}
+                          disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  )}
+
+                  {/* Submit */}
+                  <Button
+                    onClick={handleSubmitJob}
+                    disabled={submittingJob}
+                    className="w-full"
+                    size="sm"
+                  >
+                    {submittingJob ? (
+                      <><RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Scheduling...</>
+                    ) : (
+                      'Schedule'
+                    )}
+                  </Button>
+                </div>
+              )}
             </div>
           </SettingsSection>
         )}
