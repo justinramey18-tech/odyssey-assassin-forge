@@ -1,0 +1,1 @@
+ALTER TABLE public.scheduled_telegram_jobs ADD COLUMN target_chat_ids bigint[] DEFAULT NULL;
