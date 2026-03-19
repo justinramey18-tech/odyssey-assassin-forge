@@ -329,6 +329,19 @@ Deno.serve(async (req) => {
       }
 
       // c. Send via telegram-notify
+      const notifyPayload: Record<string, unknown> = {
+        type: 'custom',
+        title: job.job_name,
+        body: finalMessage,
+        targetUserIds: job.target_user_ids || [job.user_id],
+        partyId: job.party_id || undefined,
+      };
+
+      // If specific chat IDs are targeted, pass them through
+      if (job.target_chat_ids && job.target_chat_ids.length > 0) {
+        notifyPayload.targetChatIds = job.target_chat_ids;
+      }
+
       const notifyRes = await fetch(
         `${supabaseUrl}/functions/v1/telegram-notify`,
         {
@@ -337,13 +350,7 @@ Deno.serve(async (req) => {
             'Content-Type': 'application/json',
             'X-Trigger-Secret': triggerSecret,
           },
-          body: JSON.stringify({
-            type: 'custom',
-            title: job.job_name,
-            body: finalMessage,
-            targetUserIds: job.target_user_ids || [job.user_id],
-            partyId: job.party_id || undefined,
-          }),
+          body: JSON.stringify(notifyPayload),
         }
       );
 

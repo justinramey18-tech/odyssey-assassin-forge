@@ -12,6 +12,7 @@ interface NotifyPayload {
   partyId?: string;
   userId?: string; // triggering user (excluded from notifications)
   targetUserIds?: string[]; // specific users to notify (optional)
+  targetChatIds?: number[]; // specific chat IDs to send to (optional, filters linked chats)
   title: string;
   body: string;
   dragonName?: string; // for dragon bond messages

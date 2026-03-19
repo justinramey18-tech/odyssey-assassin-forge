@@ -489,6 +489,9 @@ export function TelegramSettingsTab() {
                         </p>
                         <p className="text-[10px] text-muted-foreground/60">
                           {job.dm_context_mode ? job.dm_context_mode.charAt(0).toUpperCase() + job.dm_context_mode.slice(1) : 'Solo'} DM · {getModelLabel(job.ai_model || DEFAULT_MODEL_ID)}
+                          {job.target_chat_ids && job.target_chat_ids.length > 0 && (
+                            <> · {job.target_chat_ids.length} chat{job.target_chat_ids.length === 1 ? '' : 's'}</>
+                          )}
                         </p>
                         {job.last_result && (
                           <p className="text-[10px] text-muted-foreground/60 truncate">
