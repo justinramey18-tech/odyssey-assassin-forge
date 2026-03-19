@@ -1028,6 +1028,7 @@ serve(async (req) => {
       else if (lastUserMsg.includes('tactical briefing')) maxTokens = 800;
       else maxTokens = 1024;
     }
+    else if (mode === 'quest') maxTokens = 1000;
 
     // Anthropic streaming path
     if (user_api_key && typeof user_api_key === 'string' && user_api_key.trim()) {

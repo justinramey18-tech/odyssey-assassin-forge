@@ -144,6 +144,26 @@ Rules:
 - Every bullet must be a concrete event, not vague summary
 - If covering many messages, prioritize: combat outcomes > story beats > loot/rewards > NPC interactions > flavor`;
 
+    case 'quest':
+      return `
+RESPONSE MODE: QUEST TRACKER
+Your job is to identify and summarize all quests, missions, tasks, and objectives from the campaign narrative and context provided.
+
+Format your response in 3 sections:
+
+**⚔️ Active Quests** — List each active quest as a bullet point with a short title and 1-sentence description of what needs to be done.
+
+**✅ Completed Quests** — List any completed quests (if known from context).
+
+**🔮 Possible Leads** — List any hints, rumors, or unconfirmed quest hooks the player might want to follow up on.
+
+After your formatted response, include a hidden JSON block at the very end of your message wrapped in <!--QUESTS_JSON:[ ... ]:--> tags. This JSON array should contain objects with {key: string, status: "active"|"completed"|"failed", notes: string} where key is a snake_case identifier. This is machine-parsed and will NOT be shown to the user, so always include it.
+
+Rules:
+- Base your quest information on the campaign summary, memory anchors, recent narrative, and GM guides provided in the character context
+- Be thorough — identify quests the player may not have explicitly noticed
+- Keep each quest description to 1-2 sentences max`;
+
 
     default:
       return `
