@@ -784,6 +784,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
     updateCampaignSummary,
     loadCampaign,
     sendMessage,
+    voiceNPC,
     addMediaMessage,
     cancelRequest,
     clearMessages,
