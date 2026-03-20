@@ -1102,17 +1102,6 @@ export function HomeScreen({
         characterId={character.name?.toLowerCase().trim() || 'unknown'}
       />
 
-      {/* Dice Roller Overlay */}
-      {showDiceRoller && (
-        <div className="fixed inset-0 z-[60] bg-background">
-          <DiceRollerScreen
-            onBack={() => setShowDiceRoller(false)}
-            onShareToParty={playMode === 'party' && partySync?.party.partyId ? (label, expression, result, details) => {
-              partySync?.shareRoll(label, expression, result, details, character.name || 'Unknown');
-            } : undefined}
-          />
-        </div>
-      )}
 
       {/* Character Saves Drawer */}
       {onLoadSave && onCloudSyncClick && (
