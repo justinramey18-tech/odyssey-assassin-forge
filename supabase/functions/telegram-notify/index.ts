@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
   let links = allLinks;
   if (links && payload.mode) {
     links = links.filter((l: any) => {
-      const modes: string[] = l.notify_modes ?? ['party', 'solo', 'empyrean'];
+      const modes: string[] = l.notify_modes ?? [];
       return modes.includes(payload.mode!);
     });
   }
