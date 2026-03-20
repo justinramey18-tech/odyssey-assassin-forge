@@ -14,6 +14,7 @@ import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
 import { loadCombatSettings } from '@/lib/combat/combatSettings';
 import { formatPartyPowerForPrompt } from '@/lib/combat/encounterDifficulty';
 import { getAlignmentZone, type AlignmentScore } from '@/lib/alignmentSpectrum';
+import { buildEmpyreanDMPersona } from '@/lib/empyreanDMPersona';
 
 function loadAlignmentDrift(): { position: AlignmentScore; zone: string } | null {
   try {
@@ -160,6 +161,21 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const lastGeneratedRoundRef = useRef<string | null>(null);
   const autoGenTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastAutoInterveneMsgCountRef = useRef<number>(0);
+
+  // Empyrean persona prompt (built when campaignType is 'empyrean')
+  const empyreanPersonaPrompt = useMemo(() => {
+    if (!sessionConfig || sessionConfig.campaignType !== 'empyrean') return undefined;
+    return buildEmpyreanDMPersona(
+      ['empyrean-lore-navarre', 'empyrean-lore-basgiath', 'empyrean-lore-dragons', 'empyrean-lore-venin'],
+      ['empyrean-tone-tension'],
+      null,
+      'the party',
+      '',
+      '',
+      'first-year',
+      sessionConfig.empyreanFocus || 'balanced',
+    );
+  }, [sessionConfig?.campaignType, sessionConfig?.empyreanFocus]);
 
   // Split state
   const [splitState, setSplitState] = useState<DmSplitState | null>(null);
