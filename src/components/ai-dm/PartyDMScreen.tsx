@@ -2382,8 +2382,26 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               }}
               onShowScheduledEvents={() => setShowScheduledEvents(true)}
               dmMode={partyDm.sessionConfig?.dmMode || 'ai'}
-              onDmModeChange={(newMode) => {
+              onDmModeChange={async (newMode) => {
+                const wasDialogue = partyDm.sessionConfig?.dmMode === 'dialogue';
                 partyDm.updateSessionConfig({ dmMode: newMode });
+
+                if (wasDialogue && newMode !== 'dialogue') {
+                  try {
+                    const recap = await partyDm.generateDialogueRecap();
+                    if (recap) {
+                      await (supabase.from('party_dm_messages') as any).insert({
+                        party_id: partyId,
+                        role: 'assistant',
+                        content: `**Dialogue Recap**\n\n${recap}\n\n---\n*The DM resumes narration.*`,
+                        sender_user_id: null,
+                        sender_name: 'DM',
+                      });
+                    }
+                  } catch (err) {
+                    console.warn('Dialogue recap failed:', err);
+                  }
+                }
               }}
               members={members}
               coHostIds={coHostIds}
