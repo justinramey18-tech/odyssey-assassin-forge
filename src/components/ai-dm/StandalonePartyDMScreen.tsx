@@ -229,11 +229,6 @@ export function StandalonePartyDMScreen({
     getGridSize: useCallback(() => 25 as any, []),
   });
 
-  // Battle map callbacks
-  const handleCloseBattleMap = useCallback(() => setShowBattleMap(false), []);
-  const handlePendingProcessed = useCallback(() => { setPendingMapAdds([]); setPendingMapRemovals([]); }, []);
-  const handleMarkersChange = useCallback((markers: MapMarker[]) => { battleMapMarkersRef.current = markers; }, []);
-  const handleGridSizeChange = useCallback((size: any) => { battleMapGridSizeRef.current = size; }, []);
 
   // Campaign load handler for dropdown
   const handleLoadCampaign = useCallback((session: import('@/hooks/use-campaign-sessions').CampaignSession) => {
