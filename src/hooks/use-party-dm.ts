@@ -2389,6 +2389,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     discardDraft,
     editMessage,
     deleteMessage,
+    sendDialogueMessage,
+    callDM,
     regenerateMessage,
     regenerateWhispers,
     addMediaMessage,
