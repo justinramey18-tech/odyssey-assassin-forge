@@ -68,7 +68,7 @@ src/components/geralt/GeraltSubheader.tsx       — Geralt HP sub-header`,
     content: `src/components/party/PartyPanel.tsx          — Party management panel
 src/components/party/PartyChat.tsx           — Party text chat (OOC messaging)
 src/components/party/FullscreenPartyChat.tsx — Full-screen chat overlay
-src/components/party/PartyBattleMap.tsx      — Shared battle map viewer
+
 src/components/party/PartyVote.tsx           — Party voting system
 src/components/party/PartyMemberCard.tsx     — Player card with HP, class, status
 src/components/party/PartyLootQueue.tsx      — Shared loot claim queue
