@@ -586,13 +586,14 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
               <span className="text-[9px] italic text-purple-400/70">whisper</span>
             </>
           )}
-          {!isWhisper && isDialogueMessage && (
-            message.content.includes(']: *') ? (
-              <span className="text-[9px] italic text-amber-400/50">action</span>
-            ) : (
-              <span className="text-[9px] italic text-muted-foreground/50">dialogue</span>
-            )
-          )}
+          {!isWhisper && isDialogueMessage && (() => {
+            const afterPrefix = message.content.slice(message.content.indexOf(']: ') + 3);
+            const hasAction = /\*[^*]+\*/.test(afterPrefix);
+            const hasDialogue = /"[^"]+"/.test(afterPrefix);
+            if (hasAction && hasDialogue) return <span className="text-[9px] italic text-amber-400/50">mixed</span>;
+            if (hasAction) return <span className="text-[9px] italic text-amber-400/50">action</span>;
+            return <span className="text-[9px] italic text-muted-foreground/50">dialogue</span>;
+          })()}
         </div>
         {isEditingMsg ? (
           <div className="space-y-2">
@@ -657,6 +658,14 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
               </span>
               <AudioMessagePlayer src={audioMatch[1]} />
             </span>
+          ) : isDialogueMessage ? (
+            <ReactMarkdown
+              components={{
+                p: ({ children }) => <span>{children}</span>,
+              }}
+            >
+              {message.content.slice(message.content.indexOf(']: ') + 3)}
+            </ReactMarkdown>
           ) : (
             <AfkAnnotatedContent content={message.content} afkNames={extractAfkNames(message.content)} />
           )}
@@ -1367,7 +1376,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                     whisperTrayEnabled={whisperTrayEnabled}
                     isBookmarked={msg.id === bookmarkedMessageId}
                     onBookmark={handleSetBookmark}
-                    isDialogueMessage={msg.role === 'user' && msg.sender_name !== 'Party' && msg.sender_name !== 'System' && (msg.content.startsWith('[' + msg.sender_name + ']: "') || msg.content.startsWith('[' + msg.sender_name + ']: *'))}
+                    isDialogueMessage={msg.role === 'user' && msg.sender_name !== 'Party' && msg.sender_name !== 'System' && msg.content.startsWith('[' + msg.sender_name + ']: ')}
                   />
                 </React.Fragment>
                 );
