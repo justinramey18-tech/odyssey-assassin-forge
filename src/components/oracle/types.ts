@@ -16,6 +16,7 @@ export interface Message {
   personality?: Personality;
   mode?: OracleMode;
   whispers?: Whisper[];
+  senderName?: string; // NPC name when voicing an NPC, undefined for normal DM messages
 }
 
 export interface OracleModeConfig {
