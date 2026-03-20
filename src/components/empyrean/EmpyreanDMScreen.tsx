@@ -428,12 +428,17 @@ export function EmpyreanDMScreen({
 
   const handleSend = useCallback(() => {
     if (!inputValue.trim() || isLoading) return;
-    sendMessage(inputValue.trim());
+    const npcMatch = inputValue.trim().match(/^@(\S+)\s+(.+)$/s);
+    if (npcMatch && voiceNPC) {
+      voiceNPC(npcMatch[1], npcMatch[2]);
+    } else {
+      sendMessage(inputValue.trim());
+    }
     setInputValue('');
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
-  }, [inputValue, isLoading, sendMessage]);
+  }, [inputValue, isLoading, sendMessage, voiceNPC]);
 
   const handlePromptSelect = useCallback((prompt: string) => {
     const filled = prompt.replace(/\[Character Name\]/g, characterName);
