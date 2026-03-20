@@ -37,7 +37,7 @@ import { GeraltCompanionScreen } from '@/components/companion';
 import { CharacterNamePlaque } from './CharacterNamePlaque';
 import { DynamicHealthBar } from './DynamicHealthBar';
 import { WildShapeOverlay } from './WildShapeOverlay';
-import { EnlargedD20Section } from './EnlargedD20Section';
+
 
 
 import { CategoryQuickNav } from './CategoryQuickNav';
