@@ -39,7 +39,7 @@ import { OracleWhisperFeed } from './OracleWhisperFeed';
 import { AutoSyncBanner } from './AutoSyncBanner';
 
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
-import { InlineBattleMap } from './InlineBattleMap';
+
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import { useNarrator } from '@/hooks/use-narrator';
@@ -47,7 +47,7 @@ import { useDMChatTheme } from '@/hooks/use-dm-chat-theme';
 import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
 import type { DMChatTheme } from '@/lib/dm-chat-themes';
 
-import type { MapMarker } from '@/components/party/battlemap/types';
+
 import type { UseWildShapeReturn } from '@/hooks/use-wild-shape';
 import { WildShapeSection } from '@/components/drawers/QuickActionsDrawer';
 
@@ -360,14 +360,9 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const [showToolsDrawer, setShowToolsDrawer] = useState(false);
   const [showWorldBuilder, setShowWorldBuilder] = useState(false);
   const [selectedModel, setSelectedModel] = useState(() => loadSelectedModel());
-  const [showBattleMap, setShowBattleMap] = useState(false);
   const [showWorldState, setShowWorldState] = useState(false);
-  const [pendingMapAdds, setPendingMapAdds] = useState<MapMarker[]>([]);
-  const [pendingMapRemovals, setPendingMapRemovals] = useState<string[]>([]);
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
-  const battleMapMarkersRef = useRef<MapMarker[]>([]);
-  const battleMapGridSizeRef = useRef<number>(25);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const gmGuides = useGMGuides(undefined, 'solo');
@@ -426,17 +421,14 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     onGoldChange: autoSyncCallbacks?.onGoldChange ?? NOOP,
     onConditionChange: autoSyncCallbacks?.onConditionChange ?? NOOP_TWO_ARG,
     onRestOccurred: autoSyncCallbacks?.onRestOccurred ?? NOOP,
-    onMapUpdate: useCallback((markersToAdd: MapMarker[], namesToRemove: string[]) => {
-      if (markersToAdd.length > 0) setPendingMapAdds(markersToAdd);
-      if (namesToRemove.length > 0) setPendingMapRemovals(namesToRemove);
-    }, []),
+    onMapUpdate: useCallback(() => {}, []),
     onCompanionHPChange: isMomo ? handleCompanionHPChange : undefined,
     onCompanionHPSet: isMomo ? handleCompanionHPSet : undefined,
     onCompanionConditionChange: isMomo ? handleCompanionConditionChange : undefined,
     getCurrentHP: autoSyncCallbacks?.getCurrentHP ?? NOOP_RETURN_ZERO,
     getCurrentGold: autoSyncCallbacks?.getCurrentGold ?? NOOP_RETURN_ZERO,
-    getCurrentMarkers: useCallback(() => battleMapMarkersRef.current, []),
-    getGridSize: useCallback(() => battleMapGridSizeRef.current as any, []),
+    getCurrentMarkers: useCallback(() => [], []),
+    getGridSize: useCallback(() => 25 as any, []),
   });
 
   // Refs for memory extraction — lets handleMessageComplete (defined before hooks) access late-initialized values
@@ -576,10 +568,6 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     sendMessage(prompt);
   }, [sendMessage]);
 
-  const handleCloseBattleMap = useCallback(() => setShowBattleMap(false), []);
-  const handlePendingProcessed = useCallback(() => { setPendingMapAdds([]); setPendingMapRemovals([]); }, []);
-  const handleMarkersChange = useCallback((markers: MapMarker[]) => { battleMapMarkersRef.current = markers; }, []);
-  const handleGridSizeChange = useCallback((size: any) => { battleMapGridSizeRef.current = size; }, []);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
@@ -810,21 +798,9 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
       </>
       )}
 
-      {/* Messages / Battle Map + World State Panel side-by-side */}
+      {/* Messages + World State Panel side-by-side */}
       <div className="flex-1 min-h-0 relative flex overflow-hidden">
         <div className={cn("flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-200", showWorldState ? "mr-80" : "")}>
-      {showBattleMap ? (
-        <InlineBattleMap
-          characterName={characterName}
-          pendingMarkerAdds={pendingMapAdds}
-          pendingMarkerRemovals={pendingMapRemovals}
-          onPendingProcessed={handlePendingProcessed}
-          onMarkersChange={handleMarkersChange}
-          onGridSizeChange={handleGridSizeChange}
-          onClose={handleCloseBattleMap}
-        />
-      ) : (
-        <>
           <div
             ref={scrollRef}
             className={cn("flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain pb-[100px]", chatTheme.chatBg)}
@@ -943,8 +919,6 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
               </motion.div>
             )}
           </AnimatePresence>
-        </>
-      )}
         </div>{/* end inner flex column */}
 
         {/* World State Panel */}
@@ -1199,7 +1173,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         open={showToolsDrawer}
         onOpenChange={setShowToolsDrawer}
         onNewCampaign={() => setShowWorldBuilder(true)}
-        onBattleMap={() => setShowBattleMap(true)}
+        
         onSaves={() => setShowSessions(true)}
         onGuides={() => setShowGuides(true)}
         onWorldState={() => setShowWorldState(prev => !prev)}
