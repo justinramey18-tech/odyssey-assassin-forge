@@ -148,7 +148,7 @@ export const APP_MODE_CONFIGS: Record<AppMode, AppModeConfig> = {
       'home.characterInfo', 'home.d20', 'home.clock',
       'home.healthBar', 'home.restButtons', 'home.categoryNav',
       'home.playModeToggle', 'home.partyButton', 'home.partyChat',
-      'home.wildShape', 'home.battleMap', 'home.dmDrawer', 'home.empyrean',
+      'home.wildShape', 'home.dmDrawer', 'home.empyrean',
     ],
     visibleQuickAccess: [
       'quickAccess.prompts', 'quickAccess.quickActions', 'quickAccess.combat',
