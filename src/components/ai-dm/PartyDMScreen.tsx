@@ -270,7 +270,7 @@ function AfkAnnotatedContent({ content, afkNames }: { content: string; afkNames?
   );
 }
 
-const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark }: {
+const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUserId, members, mode, isCreator, onCopy, onEdit, onDelete, onRegenerate, onRegenerateWhispers, showTeamTag, afkCharNames: afkCharNamesProp, ttsSelectMode, ttsSelected, onTtsToggle, whisperTrayEnabled = true, isBookmarked, onBookmark, isDialogueMessage }: {
   message: PartyDmMessage;
   currentUserId?: string;
   members: Array<{ user_id: string; character_name: string }>;
@@ -289,6 +289,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   whisperTrayEnabled?: boolean;
   isBookmarked?: boolean;
   onBookmark?: (messageId: string) => void;
+  isDialogueMessage?: boolean;
 }) {
   const [showActions, setShowActions] = useState(false);
   const [isEditingMsg, setIsEditingMsg] = useState(false);
@@ -528,9 +529,16 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   // User message (combined prompts)
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-1.5 justify-start group/msg relative min-w-0">
-      <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-primary/20 border border-primary/30">
-        <Users className="w-3.5 h-3.5 text-primary" />
-      </div>
+      {isDialogueMessage ? (
+        <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
+          style={{ backgroundColor: getMemberColor(message.sender_user_id || '', members) + '25', border: `1px solid ${getMemberColor(message.sender_user_id || '', members)}40` }}>
+          <MessageCircle className="w-3.5 h-3.5" style={{ color: getMemberColor(message.sender_user_id || '', members) }} />
+        </div>
+      ) : (
+        <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-primary/20 border border-primary/30">
+          <Users className="w-3.5 h-3.5 text-primary" />
+        </div>
+      )}
       <div className="flex-1 min-w-0 rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-2.5 bg-white/5 border border-white/10 rounded-bl-sm overflow-hidden">
         {showTeamTag && message.team && (
           <span className={cn(
@@ -541,7 +549,12 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
             {message.team === 'alpha' ? 'Alpha' : 'Beta'}
           </span>
         )}
-        <p className="text-[11px] font-semibold text-primary mb-1">Party Actions</p>
+        <div className="flex items-center gap-1.5 mb-1">
+          <p className="text-[11px] font-semibold text-primary">{isDialogueMessage ? message.sender_name : 'Party Actions'}</p>
+          {isDialogueMessage && (
+            <span className="text-[9px] italic text-muted-foreground/50">dialogue</span>
+          )}
+        </div>
         {isEditingMsg ? (
           <div className="space-y-2">
             <textarea
@@ -1314,6 +1327,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                     whisperTrayEnabled={whisperTrayEnabled}
                     isBookmarked={msg.id === bookmarkedMessageId}
                     onBookmark={handleSetBookmark}
+                    isDialogueMessage={msg.role === 'user' && msg.sender_name !== 'Party' && msg.sender_name !== 'System' && isDialogueMode}
                   />
                 </React.Fragment>
                 );
