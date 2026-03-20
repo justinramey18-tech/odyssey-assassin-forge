@@ -24,7 +24,7 @@ import type { InventoryItem } from '@/lib/consumables/types';
 import type { CharacterEquipment } from '@/lib/inventory/types';
 import type { LootItem } from '@/lib/loot/types';
 import { supabase } from '@/integrations/supabase/client';
-import { MAX_BACKGROUND_SIZE_MB } from './battlemap/types';
+
 
 interface PartyPanelProps {
   partySync: UsePartySyncReturn;
