@@ -21,6 +21,7 @@ import { DraftReviewPanel } from './DraftReviewPanel';
 import { DMBottomNav, DMNavTab } from './DMBottomNav';
 import { CampaignDropdown } from './CampaignDropdown';
 import { cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -1154,6 +1155,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const isReady = partyDm.myPrompt?.is_ready ?? false;
   const isDialogueMode = partyDm.sessionConfig?.dmMode === 'dialogue';
   const [dialogueText, setDialogueText] = useState('');
+  const [whisperTarget, setWhisperTarget] = useState<{ user_id: string; character_name: string } | null>(null);
+  const [whisperPickerOpen, setWhisperPickerOpen] = useState(false);
   const dialogueInputRef = useRef<HTMLTextAreaElement>(null);
   const showDiceContent = activeNavTab === 'dice' && characterContext && !partyDm.isGenerating;
 
@@ -2058,7 +2061,51 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           />
         ) : isDialogueMode && !partyDm.isGenerating ? (
           <div className="space-y-2 max-w-2xl mx-auto">
+            {whisperTarget && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-900/20 border border-purple-500/30 text-purple-300 text-xs">
+                <Lock className="w-3 h-3" />
+                <span>Whispering to <strong>{whisperTarget.character_name}</strong></span>
+                <button onClick={() => setWhisperTarget(null)} className="ml-auto p-0.5 hover:bg-purple-500/20 rounded">
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
             <div className="flex items-center gap-2">
+              <Popover open={whisperPickerOpen} onOpenChange={setWhisperPickerOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    className={cn(
+                      "p-2.5 rounded-xl border transition-colors shrink-0",
+                      whisperTarget
+                        ? "bg-purple-900/30 border-purple-500/40 text-purple-400"
+                        : "bg-purple-900/20 border-purple-500/30 text-purple-400/60 hover:text-purple-400"
+                    )}
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    <EyeOff className="w-4 h-4" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent side="top" align="start" className="w-48 p-1">
+                  <div className="text-xs font-semibold text-muted-foreground px-2 py-1.5">Whisper to…</div>
+                  {members.filter(m => m.user_id !== currentUserId).map(m => (
+                    <button
+                      key={m.user_id}
+                      onClick={() => { setWhisperTarget({ user_id: m.user_id, character_name: m.character_name }); setWhisperPickerOpen(false); }}
+                      className="w-full text-left px-2 py-2 text-sm rounded hover:bg-purple-900/20 text-foreground transition-colors"
+                    >
+                      {m.character_name}
+                    </button>
+                  ))}
+                  {whisperTarget && (
+                    <button
+                      onClick={() => { setWhisperTarget(null); setWhisperPickerOpen(false); }}
+                      className="w-full text-left px-2 py-2 text-xs rounded hover:bg-muted/20 text-muted-foreground transition-colors border-t border-border/30 mt-1"
+                    >
+                      Clear whisper
+                    </button>
+                  )}
+                </PopoverContent>
+              </Popover>
               <textarea
                 ref={dialogueInputRef}
                 value={dialogueText}
@@ -2067,31 +2114,41 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                   e.target.style.height = 'auto';
                   e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
                 }}
-                placeholder="Speak in character... or *describe an action*"
+                placeholder={whisperTarget ? `Whisper to ${whisperTarget.character_name}...` : "Speak in character... or *describe an action*"}
                 rows={1}
-                className="flex-1 bg-white/5 border border-amber-900/30 rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-1 focus:ring-amber-500/30 max-h-[200px]"
+                className={cn(
+                  "flex-1 bg-white/5 rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-1 max-h-[200px]",
+                  whisperTarget
+                    ? "border border-purple-500/30 focus:ring-purple-500/30"
+                    : "border border-amber-900/30 focus:ring-amber-500/30"
+                )}
                 style={{ touchAction: 'manipulation' }}
               />
               <button
                 onClick={() => {
                   if (dialogueText.trim()) {
-                    const whisperMatch = dialogueText.trim().match(/^>(\S+)\s+(.+)$/s);
-                    const npcMatch = dialogueText.trim().match(/^@(\S+)\s+(.+)$/s);
-                    if (whisperMatch) {
-                      const targetMember = members.find(m => m.character_name.toLowerCase() === whisperMatch[1].toLowerCase());
-                      if (targetMember && targetMember.user_id !== currentUserId) {
-                        partyDm.sendWhisper(whisperMatch[2], targetMember.user_id, targetMember.character_name);
-                      } else if (!targetMember) {
-                        toast.error('Player "' + whisperMatch[1] + '" not found');
-                        return;
-                      } else {
-                        toast.error('You cannot whisper to yourself');
-                        return;
-                      }
-                    } else if (npcMatch) {
-                      partyDm.voiceNPC(npcMatch[1], npcMatch[2]);
+                    if (whisperTarget) {
+                      partyDm.sendWhisper(dialogueText.trim(), whisperTarget.user_id, whisperTarget.character_name);
+                      setWhisperTarget(null);
                     } else {
-                      partyDm.sendDialogueMessage(dialogueText.trim());
+                      const whisperMatch = dialogueText.trim().match(/^>(\S+)\s+(.+)$/s);
+                      const npcMatch = dialogueText.trim().match(/^@(\S+)\s+(.+)$/s);
+                      if (whisperMatch) {
+                        const targetMember = members.find(m => m.character_name.toLowerCase() === whisperMatch[1].toLowerCase());
+                        if (targetMember && targetMember.user_id !== currentUserId) {
+                          partyDm.sendWhisper(whisperMatch[2], targetMember.user_id, targetMember.character_name);
+                        } else if (!targetMember) {
+                          toast.error('Player "' + whisperMatch[1] + '" not found');
+                          return;
+                        } else {
+                          toast.error('You cannot whisper to yourself');
+                          return;
+                        }
+                      } else if (npcMatch) {
+                        partyDm.voiceNPC(npcMatch[1], npcMatch[2]);
+                      } else {
+                        partyDm.sendDialogueMessage(dialogueText.trim());
+                      }
                     }
                     setDialogueText('');
                     if (dialogueInputRef.current) dialogueInputRef.current.style.height = 'auto';
