@@ -553,7 +553,52 @@ export function TelegramSettingsTab() {
           </SettingsSection>
         )}
 
-        {/* Scheduled Jobs (only when linked) */}
+        {/* Game Modes (only when linked) */}
+        {links.length > 0 && (
+          <SettingsSection title="Game Modes" icon={<Gamepad2 className="w-4 h-4 text-emerald-400" />}>
+            <div className="space-y-4">
+              <p className="text-[10px] text-muted-foreground">
+                Choose which game modes send notifications to each chat.
+              </p>
+              {links.map((lnk, idx) => {
+                const modes = lnk.notify_modes ?? ['party', 'solo', 'empyrean'];
+                return (
+                  <div key={lnk.id} className="space-y-2">
+                    {links.length > 1 && (
+                      <>
+                        {idx > 0 && <Separator className="bg-border/30 my-1" />}
+                        <p className="text-xs font-medium text-foreground/80">
+                          {chatDisplayName(lnk)}
+                        </p>
+                      </>
+                    )}
+                    <NotifToggle
+                      label="Party DM"
+                      description="Multiplayer party sessions"
+                      checked={modes.includes('party')}
+                      onChange={(v) => toggleMode(lnk.id, 'party', v)}
+                    />
+                    <Separator className="bg-border/20" />
+                    <NotifToggle
+                      label="Solo AI DM"
+                      description="Single-player AI dungeon master"
+                      checked={modes.includes('solo')}
+                      onChange={(v) => toggleMode(lnk.id, 'solo', v)}
+                    />
+                    <Separator className="bg-border/20" />
+                    <NotifToggle
+                      label="Empyrean"
+                      description="Dragon rider campaign mode"
+                      checked={modes.includes('empyrean')}
+                      onChange={(v) => toggleMode(lnk.id, 'empyrean', v)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </SettingsSection>
+        )}
+
         {links.length > 0 && (
           <SettingsSection title="Scheduled Jobs" icon={<Clock className="w-4 h-4 text-violet-400" />}>
             <div className="space-y-3">
