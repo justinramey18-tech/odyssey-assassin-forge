@@ -7,7 +7,7 @@ import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { loadSelectedModel, saveSelectedModel, getModelLabel } from '@/lib/dm-models';
 import { formatUsage, formatCostShort } from '@/lib/token-usage';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Loader2, Zap, Map, Film, Image as ImageIcon, Copy, Check, Pencil, RefreshCw, X, MoreVertical, Globe, Settings, Volume2, VolumeX, Bird, Maximize2, Minimize2, PawPrint } from 'lucide-react';
+import { ArrowLeft, Send, Square, Trash2, RotateCcw, Crown, Heart, Shield, ChevronDown, ChevronUp, BookOpen, ScrollText, FolderOpen, Loader2, Zap, Map, Film, Image as ImageIcon, Copy, Check, Pencil, RefreshCw, X, MoreVertical, Globe, Settings, Volume2, VolumeX, Bird, Maximize2, Minimize2, PawPrint, MessageCircle } from 'lucide-react';
 import { loadState as loadGeraltState, saveState as saveGeraltState } from '@/components/companion/geralt-data';
 import { NarrationSpeedPopover } from './NarrationSpeedPopover';
 import { DMToolsDrawer } from './DMToolsDrawer';
@@ -160,7 +160,11 @@ function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, t
       {/* DM Avatar */}
       {!isUser && (
         <div className={cn("w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0", theme?.dmAvatar || "bg-amber-900/60 border border-amber-500/40")}>
-          <Crown className={cn("w-3.5 h-3.5 sm:w-4 sm:h-4", theme?.dmAvatarIconColor || "text-amber-400")} />
+          {message.senderName && message.senderName !== 'DM' ? (
+            <MessageCircle className={cn("w-3.5 h-3.5 sm:w-4 sm:h-4", "text-amber-500")} />
+          ) : (
+            <Crown className={cn("w-3.5 h-3.5 sm:w-4 sm:h-4", theme?.dmAvatarIconColor || "text-amber-400")} />
+          )}
         </div>
       )}
 
@@ -231,29 +235,37 @@ function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, t
           ) : isUser ? (
             <p className="text-sm whitespace-pre-wrap">{message.content}</p>
           ) : (
-            <div className="text-sm prose prose-invert prose-sm max-w-none break-words overflow-wrap-anywhere">
-              <ReactMarkdown
-                rehypePlugins={[rehypeRaw]}
-                components={{
-                  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                  strong: ({ children }) => <strong className={theme?.accentColor || 'text-amber-300'}>{children}</strong>,
-                  em: ({ children }) => <em className={theme?.emColor || 'text-white/70'}>{children}</em>,
-                  ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
-                  ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
-                  li: ({ children }) => <li className="mb-1">{children}</li>,
-                  code: ({ children }) => <code className={cn("px-1 rounded text-xs", theme?.codeBg || "bg-black/30")}>{children}</code>,
-                  h1: ({ children }) => <h1 className={cn("text-lg font-cinzel mb-2", theme?.headingColor || "text-amber-300")}>{children}</h1>,
-                  h2: ({ children }) => <h2 className={cn("text-base font-cinzel mb-2", theme?.headingColor || "text-amber-300")}>{children}</h2>,
-                  h3: ({ children }) => <h3 className={cn("text-sm font-cinzel mb-1", theme?.headingColor || "text-amber-300")}>{children}</h3>,
-                  blockquote: ({ children }) => (
-                    <blockquote className={cn("border-l-2 pl-3 italic text-white/60 my-2", theme?.blockquoteBorder || "border-amber-500/40")}>{children}</blockquote>
-                  ),
-                  hr: () => <hr className={cn("my-3", theme?.hrColor || "border-amber-500/20")} />,
-                }}
-              >
-                {message.content || '...'}
-              </ReactMarkdown>
-            </div>
+            <>
+              {message.senderName && message.senderName !== 'DM' && (
+                <div className="flex items-center gap-1.5 mb-1">
+                  <p className="text-[11px] font-semibold text-amber-300">{message.senderName}</p>
+                  <span className="text-[9px] italic text-amber-400/50">NPC</span>
+                </div>
+              )}
+              <div className="text-sm prose prose-invert prose-sm max-w-none break-words overflow-wrap-anywhere">
+                <ReactMarkdown
+                  rehypePlugins={[rehypeRaw]}
+                  components={{
+                    p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                    strong: ({ children }) => <strong className={theme?.accentColor || 'text-amber-300'}>{children}</strong>,
+                    em: ({ children }) => <em className={theme?.emColor || 'text-white/70'}>{children}</em>,
+                    ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
+                    ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
+                    li: ({ children }) => <li className="mb-1">{children}</li>,
+                    code: ({ children }) => <code className={cn("px-1 rounded text-xs", theme?.codeBg || "bg-black/30")}>{children}</code>,
+                    h1: ({ children }) => <h1 className={cn("text-lg font-cinzel mb-2", theme?.headingColor || "text-amber-300")}>{children}</h1>,
+                    h2: ({ children }) => <h2 className={cn("text-base font-cinzel mb-2", theme?.headingColor || "text-amber-300")}>{children}</h2>,
+                    h3: ({ children }) => <h3 className={cn("text-sm font-cinzel mb-1", theme?.headingColor || "text-amber-300")}>{children}</h3>,
+                    blockquote: ({ children }) => (
+                      <blockquote className={cn("border-l-2 pl-3 italic text-white/60 my-2", theme?.blockquoteBorder || "border-amber-500/40")}>{children}</blockquote>
+                    ),
+                    hr: () => <hr className={cn("my-3", theme?.hrColor || "border-amber-500/20")} />,
+                  }}
+                >
+                  {message.content || '...'}
+                </ReactMarkdown>
+              </div>
+            </>
           )}
         </div>
 
