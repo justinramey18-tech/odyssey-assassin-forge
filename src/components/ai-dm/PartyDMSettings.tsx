@@ -132,6 +132,9 @@ export interface PartyDMSettingsProps {
   // Reading bookmark
   hasBookmark?: boolean;
   onClearBookmark?: () => void;
+  // Dialogue auto-intervention
+  dialogueAutoIntervene?: boolean;
+  onDialogueAutoInterveneChange?: (enabled: boolean) => void;
 }
 
 export function PartyDMSettings({
@@ -151,6 +154,7 @@ export function PartyDMSettings({
   onShowQuests, questsCount = 0,
   responseMode, onResponseModeChange,
   hasBookmark, onClearBookmark,
+  dialogueAutoIntervene, onDialogueAutoInterveneChange,
 }: PartyDMSettingsProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   return (
@@ -199,6 +203,15 @@ export function PartyDMSettings({
               {dmMode === 'dialogue' && 'Players chat freely in-character. Tap "Call the DM" when you want AI narration.'}
             </p>
           </div>
+        )}
+        {dmMode === 'dialogue' && onDialogueAutoInterveneChange && (
+          <ToggleRow
+            icon={<Zap className="w-4 h-4" />}
+            label="Auto DM Intervention"
+            description="AI automatically steps in when the scene gets tense"
+            checked={dialogueAutoIntervene ?? false}
+            onCheckedChange={onDialogueAutoInterveneChange}
+          />
         )}
         {isCreator && selectedModel !== undefined && onModelChange && (
           <div className="px-3 py-2.5">
