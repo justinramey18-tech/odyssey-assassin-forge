@@ -2011,20 +2011,26 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           <div className="space-y-2 max-w-2xl mx-auto">
             <div className="flex items-center gap-2">
               <textarea
+                ref={dialogueInputRef}
                 value={dialogueText}
-                onChange={e => setDialogueText(e.target.value)}
+                onChange={e => {
+                  setDialogueText(e.target.value);
+                  e.target.style.height = 'auto';
+                  e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+                }}
                 onKeyDown={e => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     if (dialogueText.trim()) {
                       partyDm.sendDialogueMessage(dialogueText.trim());
                       setDialogueText('');
+                      if (dialogueInputRef.current) dialogueInputRef.current.style.height = 'auto';
                     }
                   }
                 }}
                 placeholder="Speak in character..."
                 rows={1}
-                className="flex-1 bg-white/5 border border-amber-900/30 rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-1 focus:ring-amber-500/30"
+                className="flex-1 bg-white/5 border border-amber-900/30 rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-1 focus:ring-amber-500/30 max-h-[200px]"
                 style={{ touchAction: 'manipulation' }}
               />
               <button
