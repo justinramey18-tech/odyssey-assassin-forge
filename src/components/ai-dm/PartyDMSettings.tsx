@@ -163,11 +163,12 @@ export function PartyDMSettings({
               <Bot className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm font-medium text-foreground">DM Mode</span>
             </div>
-            <div className="grid grid-cols-3 gap-1.5">
+            <div className="grid grid-cols-4 gap-1.5">
               {([
                 { value: 'ai' as DmMode, icon: <Bot className="w-3.5 h-3.5" />, label: 'AI DM', desc: 'AI generates responses' },
                 { value: 'human' as DmMode, icon: <Pen className="w-3.5 h-3.5" />, label: 'Human DM', desc: 'You write all responses' },
                 { value: 'ai-approval' as DmMode, icon: <ShieldCheck className="w-3.5 h-3.5" />, label: 'AI + Approval', desc: 'Review AI drafts first' },
+                { value: 'dialogue' as DmMode, icon: <MessageCircle className="w-3.5 h-3.5" />, label: 'Dialogue', desc: 'Free-flowing player chat' },
               ]).map(opt => (
                 <button
                   key={opt.value}
@@ -195,6 +196,7 @@ export function PartyDMSettings({
               {dmMode === 'ai' && 'AI generates and broadcasts responses automatically.'}
               {dmMode === 'human' && 'You write narrative responses manually. No AI involved.'}
               {dmMode === 'ai-approval' && 'AI drafts a response for you to review, edit, and approve before players see it.'}
+              {dmMode === 'dialogue' && 'Players chat freely in-character. Tap "Call the DM" when you want AI narration.'}
             </p>
           </div>
         )}
