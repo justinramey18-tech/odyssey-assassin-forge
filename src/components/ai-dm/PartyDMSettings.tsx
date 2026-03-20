@@ -154,6 +154,7 @@ export function PartyDMSettings({
   onShowQuests, questsCount = 0,
   responseMode, onResponseModeChange,
   hasBookmark, onClearBookmark,
+  dialogueAutoIntervene, onDialogueAutoInterveneChange,
 }: PartyDMSettingsProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   return (
