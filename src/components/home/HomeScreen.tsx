@@ -761,30 +761,6 @@ export function HomeScreen({
               </div>
             )}
 
-            {/* Party Chat Button - above D20 (only in party mode) */}
-            {showFeature('home.partyChat') && partySync?.party?.partyId && playMode === 'party' && (
-              <motion.button
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                onClick={() => {
-                  triggerHaptic('light');
-                  lastSeenMessageCount.current = partySync.partyMessages.length;
-                  if (lastSeenKey) try { localStorage.setItem(lastSeenKey, String(partySync.partyMessages.length)); } catch {}
-                  setShowPartyChatFullscreen(true);
-                }}
-                className="mx-4 flex items-center justify-center gap-2 py-2.5 rounded-lg border border-emerald-500/30 bg-emerald-900/20 hover:bg-emerald-900/30 transition-colors"
-                style={{ touchAction: 'manipulation' }}
-              >
-                <MessageCircle className="w-4 h-4 text-emerald-400" />
-                <span className="text-sm font-cinzel uppercase tracking-wider text-emerald-300">Party Chat</span>
-                {partySync.partyMessages.length > lastSeenMessageCount.current && (
-                  <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-bold rounded-full bg-emerald-500 text-white">
-                    {partySync.partyMessages.length - lastSeenMessageCount.current}
-                  </span>
-                )}
-              </motion.button>
-            )}
 
             {/* DM Launch Buttons */}
             <motion.div
