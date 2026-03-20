@@ -112,6 +112,9 @@ export interface DmSessionConfig {
   // Dialogue mode auto-intervention
   dialogueAutoIntervene?: boolean; // AI auto-intervenes during dialogue when triggered
   dialogueAutoInterveneThreshold?: number; // messages since last DM response before auto-check (default 6)
+  // Campaign world type
+  campaignType?: 'dnd' | 'empyrean'; // default: 'dnd'
+  empyreanFocus?: 'combat' | 'political' | 'romance' | 'mystery' | 'survival' | 'balanced';
 }
 
 interface UsePartyDmOptions {
