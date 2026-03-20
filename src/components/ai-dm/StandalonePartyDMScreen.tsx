@@ -264,7 +264,12 @@ export function StandalonePartyDMScreen({
       </div>
     );
   }
-
+  const empyreanGuidesContent = useMemo(() => {
+    if (partyDm.sessionConfig?.campaignType !== 'empyrean') return '';
+    return EMPYREAN_LORE_GUIDES
+      .map(g => g.content)
+      .join('\n\n');
+  }, [partyDm.sessionConfig?.campaignType]);
 
   return (
     <div className="fixed inset-0 z-[60]">
