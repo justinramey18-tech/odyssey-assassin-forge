@@ -2522,6 +2522,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     deleteMessage,
     sendDialogueMessage,
     callDM,
+    voiceNPC,
     regenerateMessage,
     regenerateWhispers,
     addMediaMessage,
