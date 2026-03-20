@@ -360,14 +360,9 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   const [showToolsDrawer, setShowToolsDrawer] = useState(false);
   const [showWorldBuilder, setShowWorldBuilder] = useState(false);
   const [selectedModel, setSelectedModel] = useState(() => loadSelectedModel());
-  const [showBattleMap, setShowBattleMap] = useState(false);
   const [showWorldState, setShowWorldState] = useState(false);
-  const [pendingMapAdds, setPendingMapAdds] = useState<MapMarker[]>([]);
-  const [pendingMapRemovals, setPendingMapRemovals] = useState<string[]>([]);
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
-  const battleMapMarkersRef = useRef<MapMarker[]>([]);
-  const battleMapGridSizeRef = useRef<number>(25);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const gmGuides = useGMGuides(undefined, 'solo');
