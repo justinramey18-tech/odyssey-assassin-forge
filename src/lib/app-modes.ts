@@ -103,7 +103,7 @@ export const APP_MODE_CONFIGS: Record<AppMode, AppModeConfig> = {
     visibleHomeFeatures: [
       'home.characterInfo', 'home.d20', 'home.clock',
       'home.healthBar', 'home.restButtons', 'home.categoryNav',
-      'home.wildShape', 'home.dmDrawer', 'home.empyrean',
+      'home.wildShape', 'home.empyrean',
     ],
     visibleQuickAccess: [
       'quickAccess.prompts', 'quickAccess.quickActions', 'quickAccess.abilities',
