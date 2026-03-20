@@ -14,6 +14,7 @@ import CampaignBuilderChat from './CampaignBuilderChat';
 import { AnimatePresence } from 'framer-motion';
 import type { CampaignBuildData } from '@/hooks/use-ai-campaign-chat';
 import type { CharacterContext } from '@/components/oracle/types';
+import { EMPYREAN_LORE_GUIDES } from '@/lib/empyreanGMGuides';
 import type { PartyMember } from '@/hooks/use-party-sync';
 
 import type { UseWildShapeReturn } from '@/hooks/use-wild-shape';
@@ -263,7 +264,12 @@ export function StandalonePartyDMScreen({
       </div>
     );
   }
-
+  const empyreanGuidesContent = useMemo(() => {
+    if (partyDm.sessionConfig?.campaignType !== 'empyrean') return '';
+    return EMPYREAN_LORE_GUIDES
+      .map(g => g.content)
+      .join('\n\n');
+  }, [partyDm.sessionConfig?.campaignType]);
 
   return (
     <div className="fixed inset-0 z-[60]">
@@ -287,7 +293,7 @@ export function StandalonePartyDMScreen({
         onToggleAutoSync={autoSync.toggleAutoSync}
         isExtracting={autoSync.isExtracting}
         guidesCount={gmGuides.guides.filter(g => g.enabled).length}
-        gmGuidesContent={gmGuides.enabledContent}
+        gmGuidesContent={(gmGuides.enabledContent || '') + (empyreanGuidesContent ? '\n\n' + empyreanGuidesContent : '')}
         memoryAnchorsContent={memoryAnchors.formattedForOracle}
         memoryAnchors={memoryAnchors.anchors}
         onAddMemoryAnchor={memoryAnchors.addMemoryAnchor}
