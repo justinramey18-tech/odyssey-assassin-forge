@@ -1992,6 +1992,51 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             partyMemberNames={members.map(m => m.character_name)}
             disabled={partyDm.isGenerating}
           />
+        ) : isDialogueMode && !partyDm.isGenerating ? (
+          <div className="space-y-2 max-w-2xl mx-auto">
+            <div className="flex items-center gap-2">
+              <textarea
+                value={dialogueText}
+                onChange={e => setDialogueText(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (dialogueText.trim()) {
+                      partyDm.sendDialogueMessage(dialogueText.trim());
+                      setDialogueText('');
+                    }
+                  }
+                }}
+                placeholder="Speak in character..."
+                rows={1}
+                className="flex-1 bg-white/5 border border-amber-900/30 rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-1 focus:ring-amber-500/30"
+                style={{ touchAction: 'manipulation' }}
+              />
+              <button
+                onClick={() => {
+                  if (dialogueText.trim()) {
+                    partyDm.sendDialogueMessage(dialogueText.trim());
+                    setDialogueText('');
+                  }
+                }}
+                disabled={!dialogueText.trim()}
+                className="p-2.5 rounded-xl bg-primary/20 border border-primary/30 text-primary hover:bg-primary/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+            {isCreator && (
+              <button
+                onClick={partyDm.callDM}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-amber-500/40 bg-amber-900/30 hover:bg-amber-900/50 text-amber-300 font-cinzel font-semibold text-sm transition-colors active:scale-[0.97]"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <Crown className="w-4 h-4" />
+                Call the DM
+              </button>
+            )}
+          </div>
         ) : partyDm.isGenerating ? (
           <div className="flex items-center justify-center gap-2 py-2">
             <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
