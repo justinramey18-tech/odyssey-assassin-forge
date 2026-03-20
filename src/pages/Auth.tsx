@@ -186,8 +186,10 @@ export default function Auth() {
               <button
               type="submit"
               disabled={loading}
-              className="w-[calc(100%-3rem)] mx-auto py-3.5 mt-[2.5rem] border-none text-transparent font-cinzel uppercase tracking-[0.2em] text-base disabled:opacity-50 transition-colors rounded-sm flex items-center justify-center gap-2 bg-transparent"
-              style={{}}>
+              className="w-full py-3.5 mt-4 bg-[#4a3c2e] border-2 border-[#8b7355] text-[#d4c4a0] font-cinzel uppercase tracking-[0.2em] text-base hover:bg-[#5a4a3a] hover:border-[#d4a030] disabled:opacity-50 transition-colors rounded-sm flex items-center justify-center gap-2"
+              style={{
+                boxShadow: 'inset 0 1px 0 rgba(212,160,48,0.15), 0 2px 8px rgba(0,0,0,0.5)'
+              }}>
 
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Summon your hero'}
               </button>
