@@ -2543,7 +2543,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               campaignType={partyDm.sessionConfig?.campaignType || 'dnd'}
               onCampaignTypeChange={(type) => partyDm.updateSessionConfig({ campaignType: type })}
               empyreanFocus={partyDm.sessionConfig?.empyreanFocus || 'balanced'}
-              onEmpyreanFocusChange={(focus) => partyDm.updateSessionConfig({ empyreanFocus: focus })}
+              onEmpyreanFocusChange={(focus) => partyDm.updateSessionConfig({ empyreanFocus: focus as 'combat' | 'political' | 'romance' | 'mystery' | 'survival' | 'balanced' })}
               hasBookmark={!!bookmarkedMessageId}
               onClearBookmark={() => {
                 if (bookmarkKey) {
