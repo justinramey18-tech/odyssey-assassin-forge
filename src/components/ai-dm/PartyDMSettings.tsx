@@ -132,6 +132,9 @@ export interface PartyDMSettingsProps {
   // Reading bookmark
   hasBookmark?: boolean;
   onClearBookmark?: () => void;
+  // Dialogue auto-intervention
+  dialogueAutoIntervene?: boolean;
+  onDialogueAutoInterveneChange?: (enabled: boolean) => void;
 }
 
 export function PartyDMSettings({
