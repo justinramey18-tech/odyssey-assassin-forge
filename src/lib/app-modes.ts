@@ -103,7 +103,7 @@ export const APP_MODE_CONFIGS: Record<AppMode, AppModeConfig> = {
     visibleHomeFeatures: [
       'home.characterInfo', 'home.d20', 'home.clock',
       'home.healthBar', 'home.restButtons', 'home.categoryNav',
-      'home.wildShape', 'home.dmDrawer', 'home.empyrean',
+      'home.wildShape', 'home.empyrean',
     ],
     visibleQuickAccess: [
       'quickAccess.prompts', 'quickAccess.quickActions', 'quickAccess.abilities',
@@ -125,7 +125,7 @@ export const APP_MODE_CONFIGS: Record<AppMode, AppModeConfig> = {
       'home.characterInfo', 'home.d20', 'home.clock',
       'home.healthBar', 'home.restButtons', 'home.categoryNav',
       'home.playModeToggle', 'home.partyButton', 'home.partyChat',
-      'home.wildShape', 'home.dmDrawer',
+      'home.wildShape',
     ],
     visibleQuickAccess: [
       'quickAccess.quickActions', 'quickAccess.combat', 'quickAccess.abilities',
@@ -148,7 +148,7 @@ export const APP_MODE_CONFIGS: Record<AppMode, AppModeConfig> = {
       'home.characterInfo', 'home.d20', 'home.clock',
       'home.healthBar', 'home.restButtons', 'home.categoryNav',
       'home.playModeToggle', 'home.partyButton', 'home.partyChat',
-      'home.wildShape', 'home.dmDrawer', 'home.empyrean',
+      'home.wildShape', 'home.empyrean',
     ],
     visibleQuickAccess: [
       'quickAccess.prompts', 'quickAccess.quickActions', 'quickAccess.combat',
@@ -275,7 +275,7 @@ export function getAllFeatureIds(): Record<string, { id: string; label: string }
       { id: 'home.partyChat', label: 'Party Chat' },
       
       { id: 'home.wildShape', label: 'Wild Shape' },
-      { id: 'home.dmDrawer', label: 'DM Drawer' },
+      
       { id: 'home.empyrean', label: 'Empyrean' },
       { id: 'home.empyreanCard', label: 'Empyrean Card' },
     ],

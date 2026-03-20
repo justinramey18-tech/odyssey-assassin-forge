@@ -29,7 +29,7 @@ import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 
 import { CharacterSavesDrawer, CharacterSavesTrigger } from './CharacterSavesDrawer';
 import { FAQDrawer } from './FAQDrawer';
-import { DMDrawer } from './DMDrawer';
+
 import { EmpyreanScreen } from '@/components/empyrean/EmpyreanScreen';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltCompanionScreen } from '@/components/companion';
@@ -1159,14 +1159,6 @@ export function HomeScreen({
         />
       )}
 
-      {/* DM Drawer - Right Edge Swipe Panel */}
-      <DMDrawer
-        onOpenSoloDM={() => drawerContext?.openAIDMScreen()}
-        onOpenPartyDM={() => drawerContext?.openPartyDMScreen()}
-        onOpenEmpyrean={() => setShowEmpyreanScreen(true)}
-        isPartyMode={playMode === 'party'}
-        isDMButtonVisible={_isDMButtonVisible}
-      />
 
       {/* Empyrean Campaign Screen */}
       <EmpyreanScreen
