@@ -236,6 +236,7 @@ export function EmpyreanDMScreen({
     campaignSummary,
     updateCampaignSummary,
     sendMessage,
+    voiceNPC,
     clearMessages,
     cancelRequest,
     editMessage,
