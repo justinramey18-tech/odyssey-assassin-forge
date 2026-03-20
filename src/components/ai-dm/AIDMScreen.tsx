@@ -160,7 +160,11 @@ function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, t
       {/* DM Avatar */}
       {!isUser && (
         <div className={cn("w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0", theme?.dmAvatar || "bg-amber-900/60 border border-amber-500/40")}>
-          <Crown className={cn("w-3.5 h-3.5 sm:w-4 sm:h-4", theme?.dmAvatarIconColor || "text-amber-400")} />
+          {message.senderName && message.senderName !== 'DM' ? (
+            <MessageCircle className={cn("w-3.5 h-3.5 sm:w-4 sm:h-4", "text-amber-500")} />
+          ) : (
+            <Crown className={cn("w-3.5 h-3.5 sm:w-4 sm:h-4", theme?.dmAvatarIconColor || "text-amber-400")} />
+          )}
         </div>
       )}
 
