@@ -1595,6 +1595,90 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
   }, [partyId, user, sessionConfig, isGenerating, messages, characterContext, customGuidesContent, streamAIResponse, buildPartyMembersGuide, triggerSummaryIfNeeded, silentAutoSave, insertPartyMessageHelper]);
 
+  // === DIALOGUE MODE: Voice an NPC in response to player dialogue ===
+  const voiceNPC = useCallback(async (npcName: string, playerMessage: string) => {
+    if (!partyId || !user || !sessionConfig || isGenerating) return;
+
+    setIsGenerating(true);
+
+    const formattedContent = `[${characterName}]: (to ${npcName}) "${playerMessage.trim()}"`;
+
+    // Insert user message
+    await insertPartyMessageHelper(partyId, {
+      party_id: partyId,
+      role: 'user',
+      content: formattedContent,
+      sender_user_id: user.id,
+      sender_name: characterName,
+    });
+
+    // Atomic database lock
+    const { data: lockData, error: stateErr } = await (supabase.from('party_shared_state') as any)
+      .update({ state_data: { ...sessionConfig, isGenerating: true } })
+      .eq('party_id', partyId)
+      .eq('state_type', 'dm_session')
+      .not('state_data->isGenerating', 'eq', true)
+      .select('id');
+    if (stateErr) console.error('[PartyDM] Failed to set isGenerating state:', stateErr);
+
+    if (!lockData || lockData.length === 0) {
+      console.log('[PartyDM] Generation already in progress on another client, skipping');
+      toast('The DM is already responding...', { duration: 2000, icon: '⏳' });
+      setIsGenerating(false);
+      return;
+    }
+
+    abortRef.current = new AbortController();
+    try {
+      const apiMessages = [...messages, {
+        role: 'user' as const,
+        content: formattedContent,
+      }].map(m => ({ role: m.role, content: m.content }));
+
+      const npcContext = `## NPC VOICING MODE\nYou are responding AS the NPC named ${npcName} ONLY.\nWrite 1-3 sentences of in-character dialogue from their perspective.\nDo NOT write scene narration, do NOT describe player character actions, do NOT include mechanical information.\nJust write what they say, prefixed with their name in bold.\nFormat: **${npcName}:** Their dialogue here.\nStay consistent with how this NPC has been portrayed in the campaign so far.`;
+
+      const assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, npcContext);
+
+      if (assistantContent?.trim()) {
+        await insertPartyMessageHelper(partyId, {
+          party_id: partyId,
+          role: 'assistant',
+          content: assistantContent,
+          sender_user_id: null,
+          sender_name: npcName,
+        });
+
+        const updatedMessages = [...messages,
+          { id: '', party_id: partyId, role: 'user' as const, content: formattedContent, sender_user_id: user.id, sender_name: characterName, created_at: '' },
+          { id: '', party_id: partyId, role: 'assistant' as const, content: assistantContent, sender_user_id: null, sender_name: npcName, created_at: '' },
+        ];
+        triggerSummaryIfNeeded(updatedMessages);
+        silentAutoSave(updatedMessages, sessionConfig.campaignSummary || null);
+      }
+
+      // Release generation lock
+      await (supabase.from('party_shared_state') as any)
+        .update({ state_data: { ...sessionConfig, isGenerating: false } })
+        .eq('party_id', partyId)
+        .eq('state_type', 'dm_session');
+
+    } catch (error) {
+      const isAbort = error instanceof Error && error.name === 'AbortError';
+      if (!isAbort) {
+        console.error('Party DM voiceNPC error:', error);
+        toast.error(error instanceof Error ? error.message : 'NPC voicing failed');
+      }
+
+      await (supabase.from('party_shared_state') as any)
+        .update({ state_data: { ...sessionConfig, isGenerating: false } })
+        .eq('party_id', partyId)
+        .eq('state_type', 'dm_session');
+    } finally {
+      setIsGenerating(false);
+      abortRef.current = null;
+    }
+  }, [partyId, user, sessionConfig, isGenerating, messages, characterName, customGuidesContent, streamAIResponse, triggerSummaryIfNeeded, silentAutoSave, insertPartyMessageHelper]);
+
   // === DIALOGUE MODE: Auto-intervention monitor ===
   const DIALOGUE_TRIGGER_PATTERN = /attack|strike|cast|stab|shoot|kill|fight|draw.*(sword|weapon|blade|bow)|initiative|persuade|deceive|intimidate|steal|sneak|investigate|search|perception|insight|roll|check|save|trap|danger|ambush/i;
 
