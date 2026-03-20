@@ -1178,7 +1178,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
         open={showToolsDrawer}
         onOpenChange={setShowToolsDrawer}
         onNewCampaign={() => setShowWorldBuilder(true)}
-        onBattleMap={() => setShowBattleMap(true)}
+        
         onSaves={() => setShowSessions(true)}
         onGuides={() => setShowGuides(true)}
         onWorldState={() => setShowWorldState(prev => !prev)}
