@@ -2057,33 +2057,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                   e.target.style.height = 'auto';
                   e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
                 }}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    if (dialogueText.trim()) {
-                      const whisperMatch = dialogueText.trim().match(/^>(\S+)\s+(.+)$/s);
-                      const npcMatch = dialogueText.trim().match(/^@(\S+)\s+(.+)$/s);
-                      if (whisperMatch) {
-                        const targetMember = members.find(m => m.character_name.toLowerCase() === whisperMatch[1].toLowerCase());
-                        if (targetMember && targetMember.user_id !== currentUserId) {
-                          partyDm.sendWhisper(whisperMatch[2], targetMember.user_id, targetMember.character_name);
-                        } else if (!targetMember) {
-                          toast.error('Player "' + whisperMatch[1] + '" not found');
-                          return;
-                        } else {
-                          toast.error('You cannot whisper to yourself');
-                          return;
-                        }
-                      } else if (npcMatch) {
-                        partyDm.voiceNPC(npcMatch[1], npcMatch[2]);
-                      } else {
-                        partyDm.sendDialogueMessage(dialogueText.trim());
-                      }
-                      setDialogueText('');
-                      if (dialogueInputRef.current) dialogueInputRef.current.style.height = 'auto';
-                    }
-                  }
-                }}
                 placeholder="Speak in character... or *describe an action*"
                 rows={1}
                 className="flex-1 bg-white/5 border border-amber-900/30 rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-1 focus:ring-amber-500/30 max-h-[200px]"
