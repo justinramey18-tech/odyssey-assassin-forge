@@ -1589,8 +1589,11 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       }].map(m => ({ role: m.role, content: m.content }));
 
       const responseModePrompt = resolveResponseModePrompt(sessionConfig.responseMode);
+      const campaignIntro = sessionConfig.campaignType === 'empyrean'
+        ? 'This is a multiplayer Empyrean campaign set at Basgiath War College. Players are dragon riders in training. '
+        : '';
       const partyContextStr = [
-        `## PARTY MEMBERS\nThis is a multiplayer session in dialogue mode. Players speak in-character directly. Respond to their dialogue naturally and advance the narrative.\n${partyMembersSummary}\nAddress each player character by name.`,
+        `## PARTY MEMBERS\n${campaignIntro}This is a multiplayer session in dialogue mode. Players speak in-character directly. Respond to their dialogue naturally and advance the narrative.\n${partyMembersSummary}\nAddress each player character by name.`,
         responseModePrompt,
       ].filter(Boolean).join('\n\n');
 
