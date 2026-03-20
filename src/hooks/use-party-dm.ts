@@ -156,7 +156,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const abortRef = useRef<AbortController | null>(null);
   const lastGeneratedRoundRef = useRef<string | null>(null);
   const autoGenTimerRef = useRef<NodeJS.Timeout | null>(null);
-  
+  const lastAutoInterveneMsgCountRef = useRef<number>(0);
 
   // Split state
   const [splitState, setSplitState] = useState<DmSplitState | null>(null);
@@ -1594,6 +1594,44 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       abortRef.current = null;
     }
   }, [partyId, user, sessionConfig, isGenerating, messages, characterContext, customGuidesContent, streamAIResponse, buildPartyMembersGuide, triggerSummaryIfNeeded, silentAutoSave, insertPartyMessageHelper]);
+
+  // === DIALOGUE MODE: Auto-intervention monitor ===
+  const DIALOGUE_TRIGGER_PATTERN = /attack|strike|cast|stab|shoot|kill|fight|draw.*(sword|weapon|blade|bow)|initiative|persuade|deceive|intimidate|steal|sneak|investigate|search|perception|insight|roll|check|save|trap|danger|ambush/i;
+
+  useEffect(() => {
+    if (sessionConfig?.dmMode !== 'dialogue' || !sessionConfig.dialogueAutoIntervene || isGenerating) return;
+
+    const threshold = sessionConfig.dialogueAutoInterveneThreshold || 6;
+
+    let userMsgsSinceLastDM = 0;
+    const recentUserMessages: string[] = [];
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'assistant') break;
+      if (messages[i].role === 'user') {
+        userMsgsSinceLastDM++;
+        recentUserMessages.push(messages[i].content);
+      }
+    }
+
+    if (userMsgsSinceLastDM <= lastAutoInterveneMsgCountRef.current) return;
+
+    if (userMsgsSinceLastDM >= threshold) {
+      const hasTriggered = recentUserMessages.some(content => DIALOGUE_TRIGGER_PATTERN.test(content));
+      if (hasTriggered) {
+        console.log(`[PartyDM] Auto-intervene triggered: ${userMsgsSinceLastDM} msgs since last DM, trigger pattern found`);
+        lastAutoInterveneMsgCountRef.current = userMsgsSinceLastDM;
+        callDM();
+      }
+    }
+  }, [messages, sessionConfig?.dmMode, sessionConfig?.dialogueAutoIntervene, sessionConfig?.dialogueAutoInterveneThreshold, isGenerating, callDM]);
+
+  // Reset auto-intervene counter when a new DM response arrives
+  useEffect(() => {
+    if (messages.length > 0 && messages[messages.length - 1].role === 'assistant') {
+      lastAutoInterveneMsgCountRef.current = 0;
+    }
+  }, [messages]);
+
 
   const regenerateMessage = useCallback(async (messageId: string) => {
     if (!partyId || !user || !sessionConfig || isGenerating) return;
