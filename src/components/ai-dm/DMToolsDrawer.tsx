@@ -21,7 +21,7 @@ interface DMToolsDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onNewCampaign: () => void;
-  onBattleMap: () => void;
+  onBattleMap?: () => void;
   onSaves: () => void;
   onGuides: () => void;
   onWorldState: () => void;
