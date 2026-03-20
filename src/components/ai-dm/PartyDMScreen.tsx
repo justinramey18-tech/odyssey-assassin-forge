@@ -542,7 +542,12 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
             {message.team === 'alpha' ? 'Alpha' : 'Beta'}
           </span>
         )}
-        <p className="text-[11px] font-semibold text-primary mb-1">Party Actions</p>
+        <div className="flex items-center gap-1.5 mb-1">
+          <p className="text-[11px] font-semibold text-primary">{isDialogueMessage ? message.sender_name : 'Party Actions'}</p>
+          {isDialogueMessage && (
+            <span className="text-[9px] italic text-muted-foreground/50">dialogue</span>
+          )}
+        </div>
         {isEditingMsg ? (
           <div className="space-y-2">
             <textarea
