@@ -1157,6 +1157,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [dialogueText, setDialogueText] = useState('');
   const [whisperTarget, setWhisperTarget] = useState<{ user_id: string; character_name: string } | null>(null);
   const [whisperPickerOpen, setWhisperPickerOpen] = useState(false);
+  const [dialogueAttachOpen, setDialogueAttachOpen] = useState(false);
   const dialogueInputRef = useRef<HTMLTextAreaElement>(null);
   const showDiceContent = activeNavTab === 'dice' && characterContext && !partyDm.isGenerating;
 
