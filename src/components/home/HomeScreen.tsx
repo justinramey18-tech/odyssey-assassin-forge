@@ -26,7 +26,7 @@ import {
 import { InstallBanner } from './InstallBanner';
 import { ClockWidget } from './ClockWidget';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
-import { DiceRollerScreen } from '@/components/diceRoller';
+
 import { CharacterSavesDrawer, CharacterSavesTrigger } from './CharacterSavesDrawer';
 import { FAQDrawer } from './FAQDrawer';
 import { DMDrawer } from './DMDrawer';
