@@ -13,7 +13,7 @@ import { PartyLootQueue } from './PartyLootQueue';
 import { PartyMemberQuickActionsViewer } from './PartyMemberQuickActionsViewer';
 import { PartyChat } from './PartyChat';
 import { PartyVote } from './PartyVote';
-import { PartyBattleMap } from './PartyBattleMap';
+
 import { PartyCombatLog } from './PartyCombatLog';
 import { SendItemScreen } from './SendItemScreen';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
