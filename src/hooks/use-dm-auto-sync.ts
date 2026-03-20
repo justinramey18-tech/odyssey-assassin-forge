@@ -46,8 +46,8 @@ interface AutoSyncCallbacks {
   // snapshot getters
   getCurrentHP: () => number;
   getCurrentGold: () => number;
-  getCurrentMarkers: () => MapMarker[];
-  getGridSize: () => GridSize;
+  getCurrentMarkers: () => any[];
+  getGridSize: () => any;
 }
 
 export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
