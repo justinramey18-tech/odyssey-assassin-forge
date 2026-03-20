@@ -536,10 +536,24 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     );
   }
 
+  // Detect whisper messages
+  const isWhisper = message.team?.startsWith('whisper:');
+  const whisperTargetName = (() => {
+    if (!isWhisper || !message.team) return '';
+    const parts = message.team.split(':');
+    const targetId = parts[2];
+    const target = members.find(m => m.user_id === targetId);
+    return target?.character_name || 'Unknown';
+  })();
+
   // User message (combined prompts)
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-1.5 justify-start group/msg relative min-w-0">
-      {isDialogueMessage ? (
+      {isWhisper ? (
+        <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-purple-900/30 border border-purple-500/30">
+          <Lock className="w-3.5 h-3.5 text-purple-400" />
+        </div>
+      ) : isDialogueMessage ? (
         <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
           style={{ backgroundColor: getMemberColor(message.sender_user_id || '', members) + '25', border: `1px solid ${getMemberColor(message.sender_user_id || '', members)}40` }}>
           <MessageCircle className="w-3.5 h-3.5" style={{ color: getMemberColor(message.sender_user_id || '', members) }} />
@@ -549,8 +563,11 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
           <Users className="w-3.5 h-3.5 text-primary" />
         </div>
       )}
-      <div className="flex-1 min-w-0 rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-2.5 bg-white/5 border border-white/10 rounded-bl-sm overflow-hidden">
-        {showTeamTag && message.team && (
+      <div className={cn(
+        "flex-1 min-w-0 rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-2.5 rounded-bl-sm overflow-hidden",
+        isWhisper ? "bg-purple-900/20 border border-purple-500/20" : "bg-white/5 border border-white/10"
+      )}>
+        {!isWhisper && showTeamTag && message.team && (
           <span className={cn(
             "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-cinzel mb-1",
             message.team === 'alpha' ? "bg-blue-900/30 text-blue-300 border border-blue-500/20" : "bg-purple-900/30 text-purple-300 border border-purple-500/20"
@@ -560,8 +577,16 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
           </span>
         )}
         <div className="flex items-center gap-1.5 mb-1">
-          <p className="text-[11px] font-semibold text-primary">{isDialogueMessage ? message.sender_name : 'Party Actions'}</p>
-        {isDialogueMessage && (
+          <p className={cn("text-[11px] font-semibold", isWhisper ? "text-purple-300" : "text-primary")}>
+            {isWhisper || isDialogueMessage ? message.sender_name : 'Party Actions'}
+          </p>
+          {isWhisper && (
+            <>
+              <span className="text-[10px] text-purple-300/50">to {whisperTargetName}</span>
+              <span className="text-[9px] italic text-purple-400/70">whisper</span>
+            </>
+          )}
+          {!isWhisper && isDialogueMessage && (
             message.content.includes(']: *') ? (
               <span className="text-[9px] italic text-amber-400/50">action</span>
             ) : (
