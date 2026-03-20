@@ -91,7 +91,7 @@ export interface PartyDmPrompt {
   team?: string | null;
 }
 
-export type DmMode = 'ai' | 'human' | 'ai-approval';
+export type DmMode = 'ai' | 'human' | 'ai-approval' | 'dialogue';
 
 export interface DmSessionConfig {
   active: boolean;
@@ -1456,7 +1456,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   useEffect(() => {
     if (!isCreator || !allReady || isGenerating) return;
     // Don't auto-generate in human mode — AI and AI-approval both auto-trigger
-    if (currentDmMode === 'human') return;
+    if (currentDmMode === 'human' || currentDmMode === 'dialogue') return;
     if (lastGeneratedRoundRef.current === sessionConfig?.currentRoundId) return;
     if (autoGenTimerRef.current) clearTimeout(autoGenTimerRef.current);
     autoGenTimerRef.current = setTimeout(() => {
@@ -1486,6 +1486,105 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     setMessages(prev => prev.filter(m => m.id !== messageId));
     toast.success('Message deleted');
   }, [partyId, isCreator]);
+
+  // === DIALOGUE MODE: Insert in-character message directly (no prompt queue) ===
+  const sendDialogueMessage = useCallback(async (content: string) => {
+    if (!partyId || !user || !content.trim()) return;
+    const formattedContent = `[${characterName}]: "${content.trim()}"`;
+    await insertPartyMessageHelper(partyId, {
+      party_id: partyId,
+      role: 'user',
+      content: formattedContent,
+      sender_user_id: user.id,
+      sender_name: characterName,
+    });
+  }, [partyId, user, characterName, insertPartyMessageHelper]);
+
+  // === DIALOGUE MODE: Call the DM to continue narrative without prompt queue ===
+  const callDM = useCallback(async () => {
+    if (!partyId || !user || !sessionConfig || isGenerating) return;
+
+    setIsGenerating(true);
+
+    // Atomic database lock
+    const { data: lockData, error: stateErr } = await (supabase.from('party_shared_state') as any)
+      .update({ state_data: { ...sessionConfig, isGenerating: true } })
+      .eq('party_id', partyId)
+      .eq('state_type', 'dm_session')
+      .not('state_data->isGenerating', 'eq', true)
+      .select('id');
+    if (stateErr) console.error('[PartyDM] Failed to set isGenerating state:', stateErr);
+
+    if (!lockData || lockData.length === 0) {
+      console.log('[PartyDM] Generation already in progress on another client, skipping');
+      setIsGenerating(false);
+      return;
+    }
+
+    abortRef.current = new AbortController();
+    try {
+      // Insert synthetic system message requesting DM continuation
+      await insertPartyMessageHelper(partyId, {
+        party_id: partyId,
+        role: 'user',
+        content: '[System]: The players request the DM continue the narrative based on the dialogue above.',
+        sender_user_id: user.id,
+        sender_name: 'System',
+      });
+
+      const partyMembersSummary = buildPartyMembersGuide();
+      const apiMessages = [...messages, {
+        role: 'user' as const,
+        content: '[System]: The players request the DM continue the narrative based on the dialogue above.',
+      }].map(m => ({ role: m.role, content: m.content }));
+
+      const responseModePrompt = resolveResponseModePrompt(sessionConfig.responseMode);
+      const partyContextStr = [
+        `## PARTY MEMBERS\nThis is a multiplayer session in dialogue mode. Players speak in-character directly. Respond to their dialogue naturally and advance the narrative.\n${partyMembersSummary}\nAddress each player character by name.`,
+        responseModePrompt,
+      ].filter(Boolean).join('\n\n');
+
+      const assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, partyContextStr);
+
+      if (assistantContent?.trim()) {
+        await insertPartyMessageHelper(partyId, {
+          party_id: partyId,
+          role: 'assistant',
+          content: assistantContent,
+          sender_user_id: null,
+          sender_name: 'DM',
+        });
+
+        const updatedMessages = [...messages,
+          { id: '', party_id: partyId, role: 'user' as const, content: '[System]: The players request the DM continue the narrative based on the dialogue above.', sender_user_id: user.id, sender_name: 'System', created_at: '' },
+          { id: '', party_id: partyId, role: 'assistant' as const, content: assistantContent, sender_user_id: null, sender_name: 'DM', created_at: '' },
+        ];
+        triggerSummaryIfNeeded(updatedMessages);
+        silentAutoSave(updatedMessages, sessionConfig.campaignSummary || null);
+      }
+
+      // Release generation lock (no round advancement)
+      await (supabase.from('party_shared_state') as any)
+        .update({ state_data: { ...sessionConfig, isGenerating: false } })
+        .eq('party_id', partyId)
+        .eq('state_type', 'dm_session');
+
+    } catch (error) {
+      const isAbort = error instanceof Error && error.name === 'AbortError';
+      if (!isAbort) {
+        console.error('Party DM callDM error:', error);
+        toast.error(error instanceof Error ? error.message : 'Generation failed');
+      }
+
+      await (supabase.from('party_shared_state') as any)
+        .update({ state_data: { ...sessionConfig, isGenerating: false } })
+        .eq('party_id', partyId)
+        .eq('state_type', 'dm_session');
+    } finally {
+      setIsGenerating(false);
+      abortRef.current = null;
+    }
+  }, [partyId, user, sessionConfig, isGenerating, messages, characterContext, customGuidesContent, streamAIResponse, buildPartyMembersGuide, triggerSummaryIfNeeded, silentAutoSave, insertPartyMessageHelper]);
 
   const regenerateMessage = useCallback(async (messageId: string) => {
     if (!partyId || !user || !sessionConfig || isGenerating) return;
@@ -2290,6 +2389,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     discardDraft,
     editMessage,
     deleteMessage,
+    sendDialogueMessage,
+    callDM,
     regenerateMessage,
     regenerateWhispers,
     addMediaMessage,
@@ -2313,7 +2414,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     startSession, endSession, startNewCampaign, saveCampaign, loadCampaign,
     submitPrompt, editPrompt, retractPrompt, setReady, unready,
     generateResponse, sendManualDmMessage, approveDraft, discardDraft,
-    editMessage, deleteMessage, regenerateMessage, regenerateWhispers,
+    editMessage, deleteMessage, sendDialogueMessage, callDM, regenerateMessage, regenerateWhispers,
     addMediaMessage, stopGeneration, initiateSplit, regroupParty,
     updateSessionConfig, setTimerConfig, startTimer, pauseTimer, resumeTimer,
     cancelTimer, requestExtension, approveExtension, dismissExtensions,
