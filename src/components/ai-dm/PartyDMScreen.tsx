@@ -27,6 +27,7 @@ import { supabase } from '@/integrations/supabase/client';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import { toast } from 'sonner';
+import { sendTelegramNotification } from '@/lib/telegram-notify';
 import { useNarrator } from '@/hooks/use-narrator';
 import { useSpotify } from '@/hooks/use-spotify';
 import { subscribeToPush, unsubscribeFromPush, getPushSubscriptionState, type PushSubscriptionState } from '@/lib/push-subscription';
@@ -2368,7 +2369,25 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 const wasDialogue = partyDm.sessionConfig?.dmMode === 'dialogue';
                 partyDm.updateSessionConfig({ dmMode: newMode });
 
+                if (newMode === 'dialogue') {
+                  sendTelegramNotification({
+                    type: 'custom',
+                    partyId,
+                    title: '💬 Dialogue Mode Activated',
+                    body: 'The DM has enabled dialogue mode. Speak freely in character — no ready-up needed. Use "Call the DM" when you want AI narration.',
+                    mode: 'party',
+                  });
+                }
+
                 if (wasDialogue && newMode !== 'dialogue') {
+                  sendTelegramNotification({
+                    type: 'custom',
+                    partyId,
+                    title: '🎭 Dialogue Mode Ended',
+                    body: 'The DM has switched back to ' + (newMode === 'ai' ? 'AI DM' : newMode === 'human' ? 'Human DM' : 'AI + Approval') + ' mode. Ready-up is required again.',
+                    mode: 'party',
+                  });
+
                   try {
                     const recap = await partyDm.generateDialogueRecap();
                     if (recap) {
