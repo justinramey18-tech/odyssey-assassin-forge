@@ -846,6 +846,13 @@ export function EmpyreanDMScreen({
                     const cleanNarrative = stripBondStrainTags(stripSituationTags(stripBurnoutTags(parsed.narrative)));
                     return (
                       <>
+                        {message.senderName && message.senderName !== 'DM' && (
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <MessageCircle className="w-3 h-3 text-amber-500" />
+                            <p className="text-[11px] font-semibold text-amber-300">{message.senderName}</p>
+                            <span className="text-[9px] italic text-amber-400/50">NPC</span>
+                          </div>
+                        )}
                         <div className="text-sm prose prose-invert prose-sm max-w-none break-words overflow-wrap-anywhere">
                           <ReactMarkdown
                             rehypePlugins={[rehypeRaw]}
