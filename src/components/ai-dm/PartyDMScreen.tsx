@@ -2026,7 +2026,12 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     if (dialogueText.trim()) {
-                      partyDm.sendDialogueMessage(dialogueText.trim());
+                      const npcMatch = dialogueText.trim().match(/^@(\S+)\s+(.+)$/s);
+                      if (npcMatch) {
+                        partyDm.voiceNPC(npcMatch[1], npcMatch[2]);
+                      } else {
+                        partyDm.sendDialogueMessage(dialogueText.trim());
+                      }
                       setDialogueText('');
                       if (dialogueInputRef.current) dialogueInputRef.current.style.height = 'auto';
                     }
