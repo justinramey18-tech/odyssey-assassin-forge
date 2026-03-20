@@ -2085,7 +2085,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                     <EyeOff className="w-4 h-4" />
                   </button>
                 </PopoverTrigger>
-                <PopoverContent side="top" align="start" className="w-48 p-1">
+                <PopoverContent side="top" align="start" className="w-48 p-1 z-[70]">
                   <div className="text-xs font-semibold text-muted-foreground px-2 py-1.5">Whisper to…</div>
                   {members.filter(m => m.user_id !== currentUserId).map(m => (
                     <button
