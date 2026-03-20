@@ -61,7 +61,7 @@ interface PartyDMScreenProps {
   memberCount: number;
   members: Array<{ user_id: string; character_name: string; character_status?: Record<string, unknown> }>;
   onShowGuides?: () => void;
-  onShowMap?: () => void;
+  
   onShowSaves?: () => void;
   onShowChat?: () => void;
   autoSyncEnabled?: boolean;
