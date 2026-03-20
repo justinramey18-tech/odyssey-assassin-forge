@@ -788,7 +788,7 @@ export function HomeScreen({
             {/* Enlarged D20 Section */}
             <EnlargedD20Section 
               onClick={() => setShowDiceRoller(true)}
-              onMapClick={isMomoEasterEgg(character.name) ? undefined : () => setShowBattleMap(true)}
+              onMapClick={undefined}
               onCompanionClick={isMomoEasterEgg(character.name) ? () => setShowCompanionScreen(true) : undefined}
               companionHpPct={geraltHpPct}
               onMenusClick={() => {
