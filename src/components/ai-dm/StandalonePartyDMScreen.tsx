@@ -15,7 +15,7 @@ import { AnimatePresence } from 'framer-motion';
 import type { CampaignBuildData } from '@/hooks/use-ai-campaign-chat';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { PartyMember } from '@/hooks/use-party-sync';
-import type { MapMarker } from '@/components/party/battlemap/types';
+
 import type { UseWildShapeReturn } from '@/hooks/use-wild-shape';
 
 // Stable no-op fallbacks (module-level for referential stability)
