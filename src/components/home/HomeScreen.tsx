@@ -42,7 +42,7 @@ import { EnlargedD20Section } from './EnlargedD20Section';
 import { CategoryQuickNav } from './CategoryQuickNav';
 import { BackgroundUploadButton } from './BackgroundUploadButton';
 import { PartyPanel } from '@/components/party/PartyPanel';
-import { StandaloneBattleMap } from './StandaloneBattleMap';
+
 import { FullscreenPartyChat } from '@/components/party/FullscreenPartyChat';
 import type { UsePartySyncReturn } from '@/hooks/use-party-sync';
 import { useOnlineStatus, useOnlineCount } from '@/hooks/use-online-status';
@@ -305,7 +305,7 @@ export function HomeScreen({
   const multiplier = XP_PRESETS[xpPreset].multiplier;
   const [showDrawersMenu, setShowDrawersMenu] = useState(false);
   const [showDiceRoller, setShowDiceRoller] = useState(false);
-  const [showBattleMap, setShowBattleMap] = useState(false);
+  
   const [showCharacterSaves, setShowCharacterSaves] = useState(false);
   const [showPartyDrawer, setShowPartyDrawer] = useState(false);
   const [showPartyChatFullscreen, setShowPartyChatFullscreen] = useState(false);
@@ -788,7 +788,7 @@ export function HomeScreen({
             {/* Enlarged D20 Section */}
             <EnlargedD20Section 
               onClick={() => setShowDiceRoller(true)}
-              onMapClick={isMomoEasterEgg(character.name) ? undefined : () => setShowBattleMap(true)}
+              onMapClick={undefined}
               onCompanionClick={isMomoEasterEgg(character.name) ? () => setShowCompanionScreen(true) : undefined}
               companionHpPct={geraltHpPct}
               onMenusClick={() => {
@@ -1020,12 +1020,6 @@ export function HomeScreen({
         </SheetContent>
       </Sheet>
 
-      {/* Standalone Battle Map */}
-      <StandaloneBattleMap
-        open={showBattleMap}
-        onClose={() => setShowBattleMap(false)}
-        characterName={character.name || 'Me'}
-      />
 
       {/* Geralt Companion Screen (momo easter egg) */}
       <GeraltCompanionScreen

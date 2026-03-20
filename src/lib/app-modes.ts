@@ -125,7 +125,7 @@ export const APP_MODE_CONFIGS: Record<AppMode, AppModeConfig> = {
       'home.characterInfo', 'home.d20', 'home.clock',
       'home.healthBar', 'home.restButtons', 'home.categoryNav',
       'home.playModeToggle', 'home.partyButton', 'home.partyChat',
-      'home.wildShape', 'home.battleMap', 'home.dmDrawer',
+      'home.wildShape', 'home.dmDrawer',
     ],
     visibleQuickAccess: [
       'quickAccess.quickActions', 'quickAccess.combat', 'quickAccess.abilities',
@@ -148,7 +148,7 @@ export const APP_MODE_CONFIGS: Record<AppMode, AppModeConfig> = {
       'home.characterInfo', 'home.d20', 'home.clock',
       'home.healthBar', 'home.restButtons', 'home.categoryNav',
       'home.playModeToggle', 'home.partyButton', 'home.partyChat',
-      'home.wildShape', 'home.battleMap', 'home.dmDrawer', 'home.empyrean',
+      'home.wildShape', 'home.dmDrawer', 'home.empyrean',
     ],
     visibleQuickAccess: [
       'quickAccess.prompts', 'quickAccess.quickActions', 'quickAccess.combat',
@@ -273,7 +273,7 @@ export function getAllFeatureIds(): Record<string, { id: string; label: string }
       { id: 'home.playModeToggle', label: 'Play Mode Toggle' },
       { id: 'home.partyButton', label: 'Party Button' },
       { id: 'home.partyChat', label: 'Party Chat' },
-      { id: 'home.battleMap', label: 'Battle Map' },
+      
       { id: 'home.wildShape', label: 'Wild Shape' },
       { id: 'home.dmDrawer', label: 'DM Drawer' },
       { id: 'home.empyrean', label: 'Empyrean' },
