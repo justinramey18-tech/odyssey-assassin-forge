@@ -478,6 +478,201 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
     }
   }, [messages, characterContext, customGuidesContent, campaignSummary, isLoading, triggerSummaryIfNeeded]);
 
+  const voiceNPC = useCallback(async (npcName: string, playerMessage: string) => {
+    if (!playerMessage.trim() || isLoading) return;
+
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: `(to ${npcName}) "${playerMessage.trim()}"`,
+      timestamp: new Date(),
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setIsLoading(true);
+
+    const baseMessages = messages;
+    const allMessages = [...baseMessages, userMessage];
+    const apiMessages = allMessages.length > MAX_MESSAGES
+      ? [...allMessages.slice(0, 2), ...allMessages.slice(-(MAX_MESSAGES - 2))]
+      : allMessages;
+
+    const apiPayload = apiMessages.map(m => ({
+      role: m.role,
+      content: m.content,
+    }));
+
+    abortControllerRef.current = new AbortController();
+    let assistantContent = '';
+    let usageAccum = { input_tokens: 0, output_tokens: 0 };
+    setLastUsage(null);
+
+    try {
+      const authToken = await getAuthToken();
+      const response = await fetch(AI_DM_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          messages: apiPayload,
+          characterContext,
+          customGuides: customGuidesContent || undefined,
+          campaignSummary: campaignSummary || undefined,
+          worldStatePrompt: worldStatePrompt || undefined,
+          dmPersonaPrompt: dmPersonaPrompt || undefined,
+          responseModePrompt: responseModePrompt || undefined,
+          model: selectedModel || undefined,
+          user_api_key: loadApiKey('anthropic') || undefined,
+          user_openai_key: loadApiKey('openai') || undefined,
+          npcVoicingContext: `## NPC VOICING MODE\nYou are responding AS the NPC named ${npcName} ONLY.\nWrite 1-3 sentences of in-character dialogue from their perspective.\nDo NOT write scene narration, do NOT describe player character actions, do NOT include mechanical information.\nJust write what they say, prefixed with their name in bold.\nFormat: **${npcName}:** Their dialogue here.\nStay consistent with how this NPC has been portrayed in the campaign so far.`,
+          ...(() => {
+            const cs = loadCombatSettings();
+            const feats: string[] = [];
+            if (cs.hasGreatWeaponMaster) feats.push('Great Weapon Master');
+            if (cs.hasSharpshooter) feats.push('Sharpshooter');
+            if (cs.hasSentinel) feats.push('Sentinel');
+            if (cs.hasPolearmMaster) feats.push('Polearm Master');
+            if (cs.hasDualWielderFeat) feats.push('Dual Wielder');
+            if (cs.hasTwoWeaponFightingStyle) feats.push('Two-Weapon Fighting Style');
+            if (cs.hasMonkMartialArts) feats.push('Monk Martial Arts');
+            const drift = loadAlignmentDrift();
+            return {
+              encounterGuidance: formatPartyPowerForPrompt([characterContext.level ?? 1], cs.difficultyPreference) || undefined,
+              combatFeats: feats.length > 0 ? feats : undefined,
+              alignmentContext: drift ? { law: drift.position.law, good: drift.position.good, zone: drift.zone } : undefined,
+            };
+          })(),
+        }),
+        signal: abortControllerRef.current.signal,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Request failed with status ${response.status}`);
+      }
+
+      if (!response.body) throw new Error('No response body');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let textBuffer = '';
+
+      const assistantMessageId = crypto.randomUUID();
+      setMessages(prev => [
+        ...prev,
+        {
+          id: assistantMessageId,
+          role: 'assistant',
+          content: '',
+          timestamp: new Date(),
+          senderName: npcName,
+        },
+      ]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        textBuffer += decoder.decode(value, { stream: true });
+
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (line.startsWith(':') || line.trim() === '') continue;
+          if (!line.startsWith('data: ')) continue;
+
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === '[DONE]') break;
+
+          try {
+            const parsed = JSON.parse(jsonStr);
+            if (parsed.__usage) {
+              usageAccum.input_tokens += parsed.__usage.input_tokens || 0;
+              usageAccum.output_tokens += parsed.__usage.output_tokens || 0;
+              continue;
+            }
+            const deltaContent = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (deltaContent) {
+              assistantContent += deltaContent;
+              setMessages(prev =>
+                prev.map(m =>
+                  m.id === assistantMessageId
+                    ? { ...m, content: assistantContent }
+                    : m
+                )
+              );
+            }
+          } catch {
+            textBuffer = line + '\n' + textBuffer;
+            break;
+          }
+        }
+      }
+
+      // Final flush
+      if (textBuffer.trim()) {
+        for (let raw of textBuffer.split('\n')) {
+          if (!raw) continue;
+          if (raw.endsWith('\r')) raw = raw.slice(0, -1);
+          if (raw.startsWith(':') || raw.trim() === '') continue;
+          if (!raw.startsWith('data: ')) continue;
+          const jsonStr = raw.slice(6).trim();
+          if (jsonStr === '[DONE]') continue;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const deltaContent = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (deltaContent) {
+              assistantContent += deltaContent;
+              setMessages(prev =>
+                prev.map(m =>
+                  m.id === assistantMessageId
+                    ? { ...m, content: assistantContent }
+                    : m
+                )
+              );
+            }
+          } catch { /* ignore */ }
+        }
+      }
+
+      if (usageAccum.input_tokens > 0 || usageAccum.output_tokens > 0) {
+        setLastUsage({ ...usageAccum });
+        setSessionUsage(prev => ({
+          input_tokens: prev.input_tokens + usageAccum.input_tokens,
+          output_tokens: prev.output_tokens + usageAccum.output_tokens,
+          requests: prev.requests + 1,
+        }));
+      }
+
+      if (assistantContent) {
+        const { narrative, whispers } = parseWhispers(assistantContent);
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === assistantMessageId
+              ? { ...m, content: narrative, whispers: whispers.length > 0 ? whispers : undefined }
+              : m
+          )
+        );
+        onMessageCompleteRef.current?.(narrative);
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
+      console.error('AI DM NPC voice error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to get NPC response');
+      if (!assistantContent) {
+        setMessages(prev => prev.filter(m => m.role !== 'assistant' || m.content));
+      }
+    } finally {
+      setIsLoading(false);
+      abortControllerRef.current = null;
+    }
+  }, [messages, characterContext, customGuidesContent, campaignSummary, isLoading]);
+
   const cancelRequest = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
