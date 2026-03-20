@@ -291,8 +291,6 @@ export function StandalonePartyDMScreen({
         onAddMemoryAnchor={memoryAnchors.addMemoryAnchor}
         onRemoveMemoryAnchor={memoryAnchors.removeMemoryAnchor}
         characterContext={characterContext}
-        showBattleMap={showBattleMap}
-        battleMapContent={battleMapContent}
         campaignSessions={campaignSessions.sessions}
         campaignSessionsLoading={campaignSessions.isLoading}
         campaignSessionsSignedIn={campaignSessions.isSignedIn}

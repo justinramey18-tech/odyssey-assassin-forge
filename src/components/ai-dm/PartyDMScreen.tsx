@@ -1258,11 +1258,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         />
       )}
 
-      {/* Messages OR Inline Battle Map */}
+      {/* Messages */}
       <div className="flex-1 min-h-0 relative flex flex-col overflow-hidden">
-      {showBattleMap && battleMapContent ? (
-        battleMapContent
-      ) : (
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain pb-[100px]">
           {partyDm.messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-6">
