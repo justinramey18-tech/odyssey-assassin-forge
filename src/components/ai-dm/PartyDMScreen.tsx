@@ -2048,16 +2048,15 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                 <Send className="w-4 h-4" />
               </button>
             </div>
-            {isCreator && (
-              <button
+            <button
                 onClick={partyDm.callDM}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-amber-500/40 bg-amber-900/30 hover:bg-amber-900/50 text-amber-300 font-cinzel font-semibold text-sm transition-colors active:scale-[0.97]"
+                disabled={partyDm.isGenerating}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-amber-500/40 bg-amber-900/30 hover:bg-amber-900/50 text-amber-300 font-cinzel font-semibold text-sm transition-colors active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ touchAction: 'manipulation' }}
               >
                 <Crown className="w-4 h-4" />
                 Call the DM
               </button>
-            )}
           </div>
         ) : partyDm.isGenerating ? (
           <div className="flex items-center justify-center gap-2 py-2">
