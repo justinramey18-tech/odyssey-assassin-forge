@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { parseWhispers } from '@/lib/whisper-parser';
 import { sendTelegramNotification } from '@/lib/telegram-notify';
 import { WhisperTray } from '@/components/ai-dm/WhisperTray';
-import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, Volume2, VolumeX, Zap, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Send, BookOpen, Loader2, X, Shuffle, Flame, MoreVertical, Pencil, Trash2, Copy, Check, RefreshCw, Volume2, VolumeX, Zap, ChevronDown, MessageCircle } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
