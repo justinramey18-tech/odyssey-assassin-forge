@@ -1090,6 +1090,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
   const hasSubmitted = !!partyDm.myPrompt;
   const isReady = partyDm.myPrompt?.is_ready ?? false;
+  const isDialogueMode = partyDm.sessionConfig?.dmMode === 'dialogue';
+  const [dialogueText, setDialogueText] = useState('');
   const showDiceContent = activeNavTab === 'dice' && characterContext && !partyDm.isGenerating;
 
   return (
