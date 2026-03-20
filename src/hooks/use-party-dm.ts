@@ -920,6 +920,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         memoryAnchors: memoryAnchorsContent || undefined,
         recentPartyChat: recentPartyChat.length > 0 ? recentPartyChat : undefined,
         responseModePrompt: responseModePrompt || undefined,
+        dmPersonaPrompt: dmPersonaPrompt || undefined,
         model: loadSelectedModel(),
         ...(() => {
           const cs = loadCombatSettings();
