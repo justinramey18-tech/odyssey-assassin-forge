@@ -14,6 +14,7 @@ import {
   Settings, Coffee, Moon, TrendingUp,
   MessageCircle, Gem, Zap, PanelLeft, HelpCircle, BookOpen,
   Swords, Wand2, ListChecks, ChevronUp, Users, User, Film,
+  Crown, ScrollText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
