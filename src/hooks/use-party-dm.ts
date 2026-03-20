@@ -210,7 +210,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     const teamFiltered = isSplitActive && user
       ? isCreator
         ? whisperFiltered // Host sees all (non-whisper)
-        : whisperFiltered.filter(m => !m.team || m.team === myTeam)
+        : whisperFiltered.filter(m => !m.team || m.team === myTeam || m.team.startsWith('whisper:'))
       : whisperFiltered;
     // Parse whispers from assistant messages and filter by character name
     return teamFiltered.map(m => enrichMessageWithWhispers(m, characterName));
