@@ -13,9 +13,11 @@ export async function checkForUpdate(force = false): Promise<boolean> {
     await registration.update();
 
     if (registration.waiting) {
-      // New version is ready — activate and reload
+      // New version is ready — wait for the new worker to take control, then reload
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
+      }, { once: true });
       registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-      window.location.reload();
       return true;
     }
   } catch (err) {
