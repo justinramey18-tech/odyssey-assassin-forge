@@ -490,7 +490,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   // Build world state prompt to inject into AI system prompt
   const worldStatePrompt = useMemo(() => buildMemoryAnchorsPrompt(gameState), [gameState]);
 
-  const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, loadCampaign, sendMessage, addMediaMessage, cancelRequest, clearMessages, newGame, activeCampaignId, setActiveCampaignId, editMessage, deleteMessage, regenerateMessage, lastUsage, sessionUsage } = useAIDM({
+  const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, loadCampaign, sendMessage, voiceNPC, addMediaMessage, cancelRequest, clearMessages, newGame, activeCampaignId, setActiveCampaignId, editMessage, deleteMessage, regenerateMessage, lastUsage, sessionUsage } = useAIDM({
     characterContext,
     customGuidesContent: gmGuides.enabledContent,
     worldStatePrompt,
@@ -552,12 +552,17 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
 
   const handleSend = useCallback(() => {
     if (!input.trim() || isLoading) return;
-    sendMessage(input.trim());
+    const npcMatch = input.trim().match(/^@(\S+)\s+(.+)$/s);
+    if (npcMatch && voiceNPC) {
+      voiceNPC(npcMatch[1], npcMatch[2]);
+    } else {
+      sendMessage(input.trim());
+    }
     clearInput();
     if (inputRef.current) {
       inputRef.current.style.height = 'auto';
     }
-  }, [input, isLoading, sendMessage]);
+  }, [input, isLoading, sendMessage, voiceNPC]);
 
   // Enter creates newline on mobile; no send-on-enter
   const handleKeyDown = useCallback((_e: React.KeyboardEvent) => {
