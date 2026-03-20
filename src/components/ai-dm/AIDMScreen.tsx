@@ -919,8 +919,6 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
               </motion.div>
             )}
           </AnimatePresence>
-        </>
-      )}
         </div>{/* end inner flex column */}
 
         {/* World State Panel */}
