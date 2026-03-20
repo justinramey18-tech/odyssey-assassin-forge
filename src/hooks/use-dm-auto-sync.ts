@@ -2,7 +2,6 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import { CharacterContext } from '@/components/oracle/types';
 import { getAuthToken } from '@/lib/auth-token';
-import { computeMapUpdates, type MapEntity } from '@/lib/battlemap-auto-populate';
 import type { MapMarker, GridSize } from '@/components/party/battlemap/types';
 
 const EXTRACT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm-extract`;
@@ -16,7 +15,7 @@ export interface ExtractionResult {
   conditions_removed: string[];
   items_acquired: { name: string; quantity: number }[];
   rest_occurred: 'short' | 'long' | null;
-  map_entities: MapEntity[];
+  map_entities: any[];
   map_entities_removed: string[];
   companion_hp_changes: { amount: number; type: 'damage' | 'healing'; source: string }[];
   companion_conditions_added: string[];
@@ -156,17 +155,6 @@ export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
         cb.onRestOccurred(result.rest_occurred);
       }
 
-      // Apply map updates
-      if ((result.map_entities?.length ?? 0) > 0 || (result.map_entities_removed?.length ?? 0) > 0) {
-        const { markersToAdd, namesToRemove } = computeMapUpdates(
-          result,
-          cb.getCurrentMarkers(),
-          cb.getGridSize()
-        );
-        if (markersToAdd.length > 0 || namesToRemove.length > 0) {
-          cb.onMapUpdate(markersToAdd, namesToRemove);
-        }
-      }
 
       // Apply companion HP — absolute takes priority over deltas
       if (typeof result.companion_hp_absolute === 'number' && cb.onCompanionHPSet) {
