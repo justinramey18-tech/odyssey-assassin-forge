@@ -128,7 +128,7 @@ export default function Auth() {
 
   // Icon box style (dark square with icon)
   const iconBoxClass = "absolute left-0 top-0 bottom-0 w-12 flex items-center justify-center bg-transparent border-none rounded-l-sm";
-  const iconClass = "w-5 h-5 text-transparent";
+  const iconClass = "w-5 h-5 text-[#8b7355]";
   const inputClass = "w-full pl-14 pr-4 py-3.5 bg-[#c4b196] border-0 border-none outline-none shadow-none text-[#2a1f14] placeholder:text-[#8a7a60] rounded-sm font-medium text-base focus:outline-none focus:ring-0 focus:border-0 focus:shadow-none appearance-none transition-colors ml-4";
 
   return (
