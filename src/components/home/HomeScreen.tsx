@@ -305,7 +305,7 @@ export function HomeScreen({
   const stats = useEquipmentStats(equipment);
   const multiplier = XP_PRESETS[xpPreset].multiplier;
   const [showDrawersMenu, setShowDrawersMenu] = useState(false);
-  const [showDiceRoller, setShowDiceRoller] = useState(false);
+  
   
   const [showCharacterSaves, setShowCharacterSaves] = useState(false);
   const [showPartyDrawer, setShowPartyDrawer] = useState(false);
