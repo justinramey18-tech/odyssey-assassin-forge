@@ -200,11 +200,18 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   // Filter messages based on team membership + enrich with parsed whispers
   const filteredMessages = useMemo(() => {
+    // First filter whisper visibility — only sender and recipient can see
+    const whisperFiltered = messages.filter(m => {
+      if (m.team?.startsWith('whisper:')) {
+        return m.team.includes(user?.id || '');
+      }
+      return true;
+    });
     const teamFiltered = isSplitActive && user
       ? isCreator
-        ? messages // Host sees all
-        : messages.filter(m => !m.team || m.team === myTeam)
-      : messages;
+        ? whisperFiltered // Host sees all (non-whisper)
+        : whisperFiltered.filter(m => !m.team || m.team === myTeam)
+      : whisperFiltered;
     // Parse whispers from assistant messages and filter by character name
     return teamFiltered.map(m => enrichMessageWithWhispers(m, characterName));
   }, [messages, isSplitActive, user, isCreator, myTeam, characterName]);
