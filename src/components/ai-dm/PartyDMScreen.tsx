@@ -551,8 +551,12 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
         )}
         <div className="flex items-center gap-1.5 mb-1">
           <p className="text-[11px] font-semibold text-primary">{isDialogueMessage ? message.sender_name : 'Party Actions'}</p>
-          {isDialogueMessage && (
-            <span className="text-[9px] italic text-muted-foreground/50">dialogue</span>
+        {isDialogueMessage && (
+            message.content.includes(']: *') ? (
+              <span className="text-[9px] italic text-amber-400/50">action</span>
+            ) : (
+              <span className="text-[9px] italic text-muted-foreground/50">dialogue</span>
+            )
           )}
         </div>
         {isEditingMsg ? (
@@ -1328,7 +1332,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                     whisperTrayEnabled={whisperTrayEnabled}
                     isBookmarked={msg.id === bookmarkedMessageId}
                     onBookmark={handleSetBookmark}
-                    isDialogueMessage={msg.role === 'user' && msg.sender_name !== 'Party' && msg.sender_name !== 'System' && msg.content.startsWith('[' + msg.sender_name + ']: "')}
+                    isDialogueMessage={msg.role === 'user' && msg.sender_name !== 'Party' && msg.sender_name !== 'System' && (msg.content.startsWith('[' + msg.sender_name + ']: "') || msg.content.startsWith('[' + msg.sender_name + ']: *'))}
                   />
                 </React.Fragment>
                 );
