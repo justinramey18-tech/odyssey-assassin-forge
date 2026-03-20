@@ -1675,7 +1675,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
       const npcContext = `## NPC VOICING MODE\nYou are responding AS the NPC named ${npcName} ONLY.\nWrite 1-3 sentences of in-character dialogue from their perspective.\nDo NOT write scene narration, do NOT describe player character actions, do NOT include mechanical information.\nJust write what they say, prefixed with their name in bold.\nFormat: **${npcName}:** Their dialogue here.\nStay consistent with how this NPC has been portrayed in the campaign so far.`;
 
-      const assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, npcContext);
+      const assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, npcContext, undefined, empyreanPersonaPrompt);
 
       if (assistantContent?.trim()) {
         await insertPartyMessageHelper(partyId, {
