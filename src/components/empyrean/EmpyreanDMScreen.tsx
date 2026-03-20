@@ -298,6 +298,7 @@ export function EmpyreanDMScreen({
           type: 'combat_start',
           title: '🗡️ Combat Has Begun!',
           body: 'Your DM has initiated combat. Roll for initiative!',
+          mode: 'empyrean',
         });
       }
     },
