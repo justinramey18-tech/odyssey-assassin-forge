@@ -235,6 +235,12 @@ function DMMessageBubble({ message, onEdit, onDelete, onRegenerate, isLoading, t
           ) : isUser ? (
             <p className="text-sm whitespace-pre-wrap">{message.content}</p>
           ) : (
+            {message.senderName && message.senderName !== 'DM' && (
+              <div className="flex items-center gap-1.5 mb-1">
+                <p className="text-[11px] font-semibold text-amber-300">{message.senderName}</p>
+                <span className="text-[9px] italic text-amber-400/50">NPC</span>
+              </div>
+            )}
             <div className="text-sm prose prose-invert prose-sm max-w-none break-words overflow-wrap-anywhere">
               <ReactMarkdown
                 rehypePlugins={[rehypeRaw]}
