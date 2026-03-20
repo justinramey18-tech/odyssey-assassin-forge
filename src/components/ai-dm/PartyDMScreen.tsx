@@ -529,9 +529,16 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
   // User message (combined prompts)
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-1.5 justify-start group/msg relative min-w-0">
-      <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-primary/20 border border-primary/30">
-        <Users className="w-3.5 h-3.5 text-primary" />
-      </div>
+      {isDialogueMessage ? (
+        <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
+          style={{ backgroundColor: getMemberColor(message.sender_user_id || '', members) + '25', border: `1px solid ${getMemberColor(message.sender_user_id || '', members)}40` }}>
+          <MessageCircle className="w-3.5 h-3.5" style={{ color: getMemberColor(message.sender_user_id || '', members) }} />
+        </div>
+      ) : (
+        <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-primary/20 border border-primary/30">
+          <Users className="w-3.5 h-3.5 text-primary" />
+        </div>
+      )}
       <div className="flex-1 min-w-0 rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-2.5 bg-white/5 border border-white/10 rounded-bl-sm overflow-hidden">
         {showTeamTag && message.team && (
           <span className={cn(
