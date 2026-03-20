@@ -1159,14 +1159,6 @@ export function HomeScreen({
         />
       )}
 
-      {/* DM Drawer - Right Edge Swipe Panel */}
-      <DMDrawer
-        onOpenSoloDM={() => drawerContext?.openAIDMScreen()}
-        onOpenPartyDM={() => drawerContext?.openPartyDMScreen()}
-        onOpenEmpyrean={() => setShowEmpyreanScreen(true)}
-        isPartyMode={playMode === 'party'}
-        isDMButtonVisible={_isDMButtonVisible}
-      />
 
       {/* Empyrean Campaign Screen */}
       <EmpyreanScreen

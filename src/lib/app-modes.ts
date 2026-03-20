@@ -275,7 +275,7 @@ export function getAllFeatureIds(): Record<string, { id: string; label: string }
       { id: 'home.partyChat', label: 'Party Chat' },
       
       { id: 'home.wildShape', label: 'Wild Shape' },
-      { id: 'home.dmDrawer', label: 'DM Drawer' },
+      
       { id: 'home.empyrean', label: 'Empyrean' },
       { id: 'home.empyreanCard', label: 'Empyrean Card' },
     ],
