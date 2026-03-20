@@ -1700,6 +1700,44 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
   }, [partyId, user, sessionConfig, isGenerating, messages, characterName, customGuidesContent, streamAIResponse, triggerSummaryIfNeeded, silentAutoSave, insertPartyMessageHelper]);
 
+  // === DIALOGUE MODE: Generate a recap of recent dialogue ===
+  const generateDialogueRecap = useCallback(async (): Promise<string | null> => {
+    if (!partyId || !user || !sessionConfig) return null;
+
+    // Find all messages since the last DM assistant message
+    const lastDMIndex = messages.length - 1 - [...messages].reverse().findIndex(m => m.role === 'assistant' && m.sender_name === 'DM');
+    const dialogueMessages = lastDMIndex >= 0 && lastDMIndex < messages.length
+      ? messages.slice(lastDMIndex + 1)
+      : messages.slice(-20);
+
+    if (dialogueMessages.length < 2) return null;
+
+    const dialogueText = dialogueMessages
+      .filter(m => m.role === 'user' && m.sender_name !== 'System')
+      .map(m => m.content)
+      .join('\n');
+
+    if (!dialogueText.trim()) return null;
+
+    try {
+      const authToken = await getAuthToken();
+      const response = await fetch(SUMMARIZE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: `Summarize this player dialogue in 2-3 sentences as a narrative bridge. Focus on what was decided, revealed, or emotionally significant. Write in past tense as if recapping for a DM who needs to continue the story:\n\n${dialogueText}` }],
+          campaignSummary: sessionConfig.campaignSummary || undefined,
+        }),
+      });
+
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data?.summary || data?.content || null;
+    } catch {
+      return null;
+    }
+  }, [partyId, user, sessionConfig, messages]);
+
   // === DIALOGUE MODE: Auto-intervention monitor ===
   const DIALOGUE_TRIGGER_PATTERN = /attack|strike|cast|stab|shoot|kill|fight|draw.*(sword|weapon|blade|bow)|initiative|persuade|deceive|intimidate|steal|sneak|investigate|search|perception|insight|roll|check|save|trap|danger|ambush/i;
 
