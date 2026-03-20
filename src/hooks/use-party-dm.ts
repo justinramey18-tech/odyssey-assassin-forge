@@ -1216,7 +1216,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             splitResponseModePrompt,
           ].filter(Boolean).join('\n\n');
 
-          const alphaContent = await streamAIResponse(alphaApiMsgs, customGuidesContent || '', abortRef.current!.signal, alphaPartyContext);
+          const alphaContent = await streamAIResponse(alphaApiMsgs, customGuidesContent || '', abortRef.current!.signal, alphaPartyContext, undefined, empyreanPersonaPrompt);
 
           if (alphaContent?.trim()) {
             await insertPartyMessage({
