@@ -1481,7 +1481,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             )}
           </AnimatePresence>
         </div>
-      )}
         {/* Jump to Bookmark FAB */}
         {bookmarkedMessageId && (
           <button
