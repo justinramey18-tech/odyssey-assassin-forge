@@ -2414,7 +2414,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     startSession, endSession, startNewCampaign, saveCampaign, loadCampaign,
     submitPrompt, editPrompt, retractPrompt, setReady, unready,
     generateResponse, sendManualDmMessage, approveDraft, discardDraft,
-    editMessage, deleteMessage, regenerateMessage, regenerateWhispers,
+    editMessage, deleteMessage, sendDialogueMessage, callDM, regenerateMessage, regenerateWhispers,
     addMediaMessage, stopGeneration, initiateSplit, regroupParty,
     updateSessionConfig, setTimerConfig, startTimer, pauseTimer, resumeTimer,
     cancelTimer, requestExtension, approveExtension, dismissExtensions,
