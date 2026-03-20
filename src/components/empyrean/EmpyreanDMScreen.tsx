@@ -284,6 +284,7 @@ export function EmpyreanDMScreen({
               ? whisperContent.substring(0, 200) + '…'
               : whisperContent,
             dragonName: config.dragonName,
+            mode: 'empyrean',
           });
         }
       }
