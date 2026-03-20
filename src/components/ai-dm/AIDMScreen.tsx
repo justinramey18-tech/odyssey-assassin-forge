@@ -571,10 +571,6 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     sendMessage(prompt);
   }, [sendMessage]);
 
-  const handleCloseBattleMap = useCallback(() => setShowBattleMap(false), []);
-  const handlePendingProcessed = useCallback(() => { setPendingMapAdds([]); setPendingMapRemovals([]); }, []);
-  const handleMarkersChange = useCallback((markers: MapMarker[]) => { battleMapMarkersRef.current = markers; }, []);
-  const handleGridSizeChange = useCallback((size: any) => { battleMapGridSizeRef.current = size; }, []);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
