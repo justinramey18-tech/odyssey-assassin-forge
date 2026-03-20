@@ -2194,7 +2194,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               isExtracting={isExtracting}
               pushState={pushState}
               onTogglePush={handleTogglePush}
-              onShowMap={onShowMap}
+              
               onShowSaves={onShowSaves}
               onShowGuides={onShowGuides}
               onShowChat={onShowChat}
