@@ -65,8 +65,6 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
   const [showCombatLog, setShowCombatLog] = useState(false);
   const [selectedMember, setSelectedMember] = useState<PartyMember | null>(null);
   const [sendToMember, setSendToMember] = useState<PartyMember | null>(null);
-  const [bgUploading, setBgUploading] = useState(false);
-  const [bgOpacity, setBgOpacity] = useState<number>(1);
   const { party } = partySync;
   const onlineStatusMap = useOnlineStatus(party.members);
 
