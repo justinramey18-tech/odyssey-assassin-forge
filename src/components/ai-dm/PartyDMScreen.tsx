@@ -2036,8 +2036,20 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     if (dialogueText.trim()) {
+                      const whisperMatch = dialogueText.trim().match(/^>(\S+)\s+(.+)$/s);
                       const npcMatch = dialogueText.trim().match(/^@(\S+)\s+(.+)$/s);
-                      if (npcMatch) {
+                      if (whisperMatch) {
+                        const targetMember = members.find(m => m.character_name.toLowerCase() === whisperMatch[1].toLowerCase());
+                        if (targetMember && targetMember.user_id !== currentUserId) {
+                          partyDm.sendWhisper(whisperMatch[2], targetMember.user_id, targetMember.character_name);
+                        } else if (!targetMember) {
+                          toast.error('Player "' + whisperMatch[1] + '" not found');
+                          return;
+                        } else {
+                          toast.error('You cannot whisper to yourself');
+                          return;
+                        }
+                      } else if (npcMatch) {
                         partyDm.voiceNPC(npcMatch[1], npcMatch[2]);
                       } else {
                         partyDm.sendDialogueMessage(dialogueText.trim());
