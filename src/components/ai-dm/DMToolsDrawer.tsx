@@ -52,7 +52,7 @@ export function DMToolsDrawer({
   open,
   onOpenChange,
   onNewCampaign,
-  onBattleMap,
+  
   onSaves,
   onGuides,
   onWorldState,
