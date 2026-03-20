@@ -801,21 +801,9 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
       </>
       )}
 
-      {/* Messages / Battle Map + World State Panel side-by-side */}
+      {/* Messages + World State Panel side-by-side */}
       <div className="flex-1 min-h-0 relative flex overflow-hidden">
         <div className={cn("flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-200", showWorldState ? "mr-80" : "")}>
-      {showBattleMap ? (
-        <InlineBattleMap
-          characterName={characterName}
-          pendingMarkerAdds={pendingMapAdds}
-          pendingMarkerRemovals={pendingMapRemovals}
-          onPendingProcessed={handlePendingProcessed}
-          onMarkersChange={handleMarkersChange}
-          onGridSizeChange={handleGridSizeChange}
-          onClose={handleCloseBattleMap}
-        />
-      ) : (
-        <>
           <div
             ref={scrollRef}
             className={cn("flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain pb-[100px]", chatTheme.chatBg)}
