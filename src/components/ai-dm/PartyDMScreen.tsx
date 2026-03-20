@@ -1320,6 +1320,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                     whisperTrayEnabled={whisperTrayEnabled}
                     isBookmarked={msg.id === bookmarkedMessageId}
                     onBookmark={handleSetBookmark}
+                    isDialogueMessage={msg.role === 'user' && msg.sender_name !== 'Party' && msg.sender_name !== 'System' && isDialogueMode}
                   />
                 </React.Fragment>
                 );
