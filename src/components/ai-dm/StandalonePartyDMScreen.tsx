@@ -14,6 +14,7 @@ import CampaignBuilderChat from './CampaignBuilderChat';
 import { AnimatePresence } from 'framer-motion';
 import type { CampaignBuildData } from '@/hooks/use-ai-campaign-chat';
 import type { CharacterContext } from '@/components/oracle/types';
+import { EMPYREAN_LORE_GUIDES } from '@/lib/empyreanGMGuides';
 import type { PartyMember } from '@/hooks/use-party-sync';
 
 import type { UseWildShapeReturn } from '@/hooks/use-wild-shape';
