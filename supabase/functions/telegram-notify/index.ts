@@ -18,6 +18,7 @@ interface NotifyPayload {
   dragonName?: string; // for dragon bond messages
   conditionName?: string; // for condition alerts
   conditionRounds?: number; // rounds remaining
+  mode?: 'party' | 'solo' | 'empyrean'; // game mode for routing
 }
 
 Deno.serve(async (req) => {
