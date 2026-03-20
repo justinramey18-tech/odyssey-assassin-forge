@@ -15,7 +15,7 @@ export interface ExtractionResult {
   conditions_removed: string[];
   items_acquired: { name: string; quantity: number }[];
   rest_occurred: 'short' | 'long' | null;
-  map_entities: MapEntity[];
+  map_entities: any[];
   map_entities_removed: string[];
   companion_hp_changes: { amount: number; type: 'damage' | 'healing'; source: string }[];
   companion_conditions_added: string[];
