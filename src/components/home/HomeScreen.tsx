@@ -42,7 +42,7 @@ import { EnlargedD20Section } from './EnlargedD20Section';
 import { CategoryQuickNav } from './CategoryQuickNav';
 import { BackgroundUploadButton } from './BackgroundUploadButton';
 import { PartyPanel } from '@/components/party/PartyPanel';
-import { StandaloneBattleMap } from './StandaloneBattleMap';
+
 import { FullscreenPartyChat } from '@/components/party/FullscreenPartyChat';
 import type { UsePartySyncReturn } from '@/hooks/use-party-sync';
 import { useOnlineStatus, useOnlineCount } from '@/hooks/use-online-status';
