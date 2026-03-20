@@ -335,6 +335,7 @@ Deno.serve(async (req) => {
         body: finalMessage,
         targetUserIds: job.target_user_ids || [job.user_id],
         partyId: job.party_id || undefined,
+        mode: job.dm_context_mode || undefined,
       };
 
       // If specific chat IDs are targeted, pass them through
