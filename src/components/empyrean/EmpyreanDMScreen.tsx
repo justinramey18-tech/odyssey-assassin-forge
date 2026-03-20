@@ -284,6 +284,7 @@ export function EmpyreanDMScreen({
               ? whisperContent.substring(0, 200) + '…'
               : whisperContent,
             dragonName: config.dragonName,
+            mode: 'empyrean',
           });
         }
       }
@@ -297,6 +298,7 @@ export function EmpyreanDMScreen({
           type: 'combat_start',
           title: '🗡️ Combat Has Begun!',
           body: 'Your DM has initiated combat. Roll for initiative!',
+          mode: 'empyrean',
         });
       }
     },

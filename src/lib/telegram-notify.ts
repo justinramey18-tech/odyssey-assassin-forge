@@ -9,6 +9,7 @@ export interface TelegramNotifyPayload {
   dragonName?: string;
   conditionName?: string;
   conditionRounds?: number;
+  mode?: 'party' | 'solo' | 'empyrean';
 }
 
 /**

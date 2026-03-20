@@ -1355,6 +1355,7 @@ export type Database = {
           nickname: string | null
           notify_combat: boolean
           notify_dragon: boolean
+          notify_modes: string[]
           notify_ready_up: boolean
           notify_timer: boolean
           user_id: string
@@ -1368,6 +1369,7 @@ export type Database = {
           nickname?: string | null
           notify_combat?: boolean
           notify_dragon?: boolean
+          notify_modes?: string[]
           notify_ready_up?: boolean
           notify_timer?: boolean
           user_id: string
@@ -1381,6 +1383,7 @@ export type Database = {
           nickname?: string | null
           notify_combat?: boolean
           notify_dragon?: boolean
+          notify_modes?: string[]
           notify_ready_up?: boolean
           notify_timer?: boolean
           user_id?: string

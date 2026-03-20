@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Send, Link2, Unlink, Copy, RefreshCw, Bell, BellOff, Clock, Trash2, Plus, ChevronDown, ChevronUp, Users, BookOpen, Sparkles, Pencil, Check, X } from 'lucide-react';
+import { Send, Link2, Unlink, Copy, RefreshCw, Bell, BellOff, Clock, Trash2, Plus, ChevronDown, ChevronUp, Users, BookOpen, Sparkles, Pencil, Check, X, Gamepad2 } from 'lucide-react';
 import { DM_MODELS, DEFAULT_MODEL_ID, getModelLabel } from '@/lib/dm-models';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -32,6 +32,7 @@ interface TelegramLink {
   notify_timer: boolean;
   notify_combat: boolean;
   notify_dragon: boolean;
+  notify_modes: string[];
 }
 
 /** Display name for a linked chat: nickname > @username > Chat ID */
@@ -175,6 +176,35 @@ export function TelegramSettingsTab() {
       toast.error('Failed to update preference');
     }
   }, [user]);
+
+  // Toggle a game mode for a specific link
+  const toggleMode = useCallback(async (linkId: string, mode: string, enabled: boolean) => {
+    if (!user) return;
+    const link = links.find(l => l.id === linkId);
+    if (!link) return;
+
+    const currentModes = link.notify_modes ?? ['party', 'solo', 'empyrean'];
+    const newModes = enabled
+      ? [...new Set([...currentModes, mode])]
+      : currentModes.filter(m => m !== mode);
+
+    // Don't allow disabling all modes
+    if (newModes.length === 0) {
+      toast.error('At least one game mode must be enabled');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('telegram_user_links')
+      .update({ notify_modes: newModes } as any)
+      .eq('id', linkId);
+
+    if (!error) {
+      setLinks(prev => prev.map(l => l.id === linkId ? { ...l, notify_modes: newModes } : l));
+    } else {
+      toast.error('Failed to update game modes');
+    }
+  }, [user, links]);
 
   // Save nickname for a linked chat
   const saveNickname = useCallback(async (linkId: string) => {
@@ -523,7 +553,52 @@ export function TelegramSettingsTab() {
           </SettingsSection>
         )}
 
-        {/* Scheduled Jobs (only when linked) */}
+        {/* Game Modes (only when linked) */}
+        {links.length > 0 && (
+          <SettingsSection title="Game Modes" icon={<Gamepad2 className="w-4 h-4 text-emerald-400" />}>
+            <div className="space-y-4">
+              <p className="text-[10px] text-muted-foreground">
+                Choose which game modes send notifications to each chat.
+              </p>
+              {links.map((lnk, idx) => {
+                const modes = lnk.notify_modes ?? ['party', 'solo', 'empyrean'];
+                return (
+                  <div key={lnk.id} className="space-y-2">
+                    {links.length > 1 && (
+                      <>
+                        {idx > 0 && <Separator className="bg-border/30 my-1" />}
+                        <p className="text-xs font-medium text-foreground/80">
+                          {chatDisplayName(lnk)}
+                        </p>
+                      </>
+                    )}
+                    <NotifToggle
+                      label="Party DM"
+                      description="Multiplayer party sessions"
+                      checked={modes.includes('party')}
+                      onChange={(v) => toggleMode(lnk.id, 'party', v)}
+                    />
+                    <Separator className="bg-border/20" />
+                    <NotifToggle
+                      label="Solo AI DM"
+                      description="Single-player AI dungeon master"
+                      checked={modes.includes('solo')}
+                      onChange={(v) => toggleMode(lnk.id, 'solo', v)}
+                    />
+                    <Separator className="bg-border/20" />
+                    <NotifToggle
+                      label="Empyrean"
+                      description="Dragon rider campaign mode"
+                      checked={modes.includes('empyrean')}
+                      onChange={(v) => toggleMode(lnk.id, 'empyrean', v)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </SettingsSection>
+        )}
+
         {links.length > 0 && (
           <SettingsSection title="Scheduled Jobs" icon={<Clock className="w-4 h-4 text-violet-400" />}>
             <div className="space-y-3">

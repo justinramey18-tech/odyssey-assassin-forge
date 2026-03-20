@@ -742,6 +742,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       partyId,
       title: '⚔️ Ready Up!',
       body: notificationBody,
+      mode: 'party',
     });
   }, [user, partyId, sessionConfig, characterName, currentPrompts, isSplitActive, myTeam]);
 

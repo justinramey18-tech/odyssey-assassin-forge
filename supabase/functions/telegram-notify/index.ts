@@ -18,6 +18,7 @@ interface NotifyPayload {
   dragonName?: string; // for dragon bond messages
   conditionName?: string; // for condition alerts
   conditionRounds?: number; // rounds remaining
+  mode?: 'party' | 'solo' | 'empyrean'; // game mode for routing
 }
 
 Deno.serve(async (req) => {
@@ -95,12 +96,20 @@ Deno.serve(async (req) => {
   // Get linked Telegram users who have this notification type enabled
   const { data: allLinks } = await supabase
     .from('telegram_user_links')
-    .select('chat_id, user_id')
+    .select('chat_id, user_id, notify_modes')
     .in('user_id', userIds)
     .eq(col, true);
 
-  // Filter by target chat IDs if specified
+  // Filter by game mode if specified
   let links = allLinks;
+  if (links && payload.mode) {
+    links = links.filter((l: any) => {
+      const modes: string[] = l.notify_modes ?? ['party', 'solo', 'empyrean'];
+      return modes.includes(payload.mode!);
+    });
+  }
+
+  // Filter by target chat IDs if specified
   if (links && payload.targetChatIds && payload.targetChatIds.length > 0) {
     const targetSet = new Set(payload.targetChatIds);
     links = links.filter((l) => targetSet.has(l.chat_id));
