@@ -421,17 +421,14 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
     onGoldChange: autoSyncCallbacks?.onGoldChange ?? NOOP,
     onConditionChange: autoSyncCallbacks?.onConditionChange ?? NOOP_TWO_ARG,
     onRestOccurred: autoSyncCallbacks?.onRestOccurred ?? NOOP,
-    onMapUpdate: useCallback((markersToAdd: MapMarker[], namesToRemove: string[]) => {
-      if (markersToAdd.length > 0) setPendingMapAdds(markersToAdd);
-      if (namesToRemove.length > 0) setPendingMapRemovals(namesToRemove);
-    }, []),
+    onMapUpdate: useCallback(() => {}, []),
     onCompanionHPChange: isMomo ? handleCompanionHPChange : undefined,
     onCompanionHPSet: isMomo ? handleCompanionHPSet : undefined,
     onCompanionConditionChange: isMomo ? handleCompanionConditionChange : undefined,
     getCurrentHP: autoSyncCallbacks?.getCurrentHP ?? NOOP_RETURN_ZERO,
     getCurrentGold: autoSyncCallbacks?.getCurrentGold ?? NOOP_RETURN_ZERO,
-    getCurrentMarkers: useCallback(() => battleMapMarkersRef.current, []),
-    getGridSize: useCallback(() => battleMapGridSizeRef.current as any, []),
+    getCurrentMarkers: useCallback(() => [], []),
+    getGridSize: useCallback(() => 25 as any, []),
   });
 
   // Refs for memory extraction — lets handleMessageComplete (defined before hooks) access late-initialized values
