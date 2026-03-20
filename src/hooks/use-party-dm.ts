@@ -1500,11 +1500,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   // === DIALOGUE MODE: Insert in-character message directly (no prompt queue) ===
   const sendDialogueMessage = useCallback(async (content: string) => {
     if (!partyId || !user || !content.trim()) return;
-    const trimmed = content.trim();
-    const isNarration = trimmed.startsWith('*') && trimmed.endsWith('*');
-    const formattedContent = isNarration
-      ? `[${characterName}]: ${trimmed}`
-      : `[${characterName}]: "${trimmed}"`;
+    const formattedContent = `[${characterName}]: ${content.trim()}`;
 
     await insertPartyMessageHelper(partyId, {
       party_id: partyId,
