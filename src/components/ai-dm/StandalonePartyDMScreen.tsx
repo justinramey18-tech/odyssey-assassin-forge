@@ -60,14 +60,7 @@ export function StandalonePartyDMScreen({
 }: StandalonePartyDMScreenProps) {
   const [showGuides, setShowGuides] = useState(false);
   const [showSaves, setShowSaves] = useState(false);
-  const [showBattleMap, setShowBattleMap] = useState(false);
   const [showCampaignBuilder, setShowCampaignBuilder] = useState(false);
-  const [pendingMapAdds, setPendingMapAdds] = useState<MapMarker[]>([]);
-  const [pendingMapRemovals, setPendingMapRemovals] = useState<string[]>([]);
-  const [partyCreatorId, setPartyCreatorId] = useState<string | null>(null);
-  const [coHostIds, setCoHostIds] = useState<string[]>([]);
-  const battleMapMarkersRef = useRef<MapMarker[]>([]);
-  const battleMapGridSizeRef = useRef<number>(25);
 
   // Fetch party creator ID (for non-creators)
   useEffect(() => {
