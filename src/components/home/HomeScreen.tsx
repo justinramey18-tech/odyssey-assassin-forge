@@ -786,17 +786,90 @@ export function HomeScreen({
               </motion.button>
             )}
 
-            {/* Enlarged D20 Section */}
-            <EnlargedD20Section 
-              onClick={() => setShowDiceRoller(true)}
-              onMapClick={undefined}
-              onCompanionClick={isMomoEasterEgg(character.name) ? () => setShowCompanionScreen(true) : undefined}
-              companionHpPct={geraltHpPct}
-              onMenusClick={() => {
-                triggerHaptic('light');
-                setShowDrawersMenu(true);
-              }}
-            />
+            {/* DM Launch Buttons */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              className="flex items-center justify-center gap-3 px-4 py-3"
+            >
+              {_isDMButtonVisible('dm.solo') && (
+                <motion.button
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6, duration: 0.4 }}
+                  onClick={() => { triggerHaptic('light'); drawerContext?.openAIDMScreen(); }}
+                  className={cn(
+                    "flex-1 flex flex-col items-center gap-2 py-4 rounded-xl",
+                    "border border-violet-500/30 bg-violet-950/20 backdrop-blur-sm",
+                    "hover:bg-violet-900/30 hover:border-violet-400/50",
+                    "active:scale-[0.97] transition-all duration-200"
+                  )}
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <Crown className="w-6 h-6 text-violet-400" />
+                  <span className="text-xs font-cinzel uppercase tracking-wider text-violet-300">Solo DM</span>
+                </motion.button>
+              )}
+              {_isDMButtonVisible('dm.empyrean') && (
+                <motion.button
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.7, duration: 0.4 }}
+                  onClick={() => { triggerHaptic('light'); setShowEmpyreanScreen(true); }}
+                  className={cn(
+                    "flex-1 flex flex-col items-center gap-2 py-4 rounded-xl",
+                    "border border-amber-500/30 bg-amber-950/20 backdrop-blur-sm",
+                    "hover:bg-amber-900/30 hover:border-amber-400/50",
+                    "active:scale-[0.97] transition-all duration-200"
+                  )}
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <ScrollText className="w-6 h-6 text-amber-400" />
+                  <span className="text-xs font-cinzel uppercase tracking-wider text-amber-300">Empyrean</span>
+                </motion.button>
+              )}
+              {_isDMButtonVisible('dm.party') && (
+                <motion.button
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.8, duration: 0.4 }}
+                  onClick={() => { triggerHaptic('light'); drawerContext?.openPartyDMScreen(); }}
+                  className={cn(
+                    "flex-1 flex flex-col items-center gap-2 py-4 rounded-xl",
+                    "border border-sky-500/30 bg-sky-950/20 backdrop-blur-sm",
+                    "hover:bg-sky-900/30 hover:border-sky-400/50",
+                    "active:scale-[0.97] transition-all duration-200"
+                  )}
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <Users className="w-6 h-6 text-sky-400" />
+                  <span className="text-xs font-cinzel uppercase tracking-wider text-sky-300">Party DM</span>
+                </motion.button>
+              )}
+            </motion.div>
+
+            {/* Menus Bar */}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.9, ease: [0.16, 1, 0.3, 1] }}
+              className="px-4"
+            >
+              <button
+                onClick={() => { triggerHaptic('light'); setShowDrawersMenu(true); }}
+                className={cn(
+                  "w-full flex items-center justify-center gap-2 py-2.5 rounded-lg",
+                  "border border-cyan-500/30 bg-cyan-950/15 backdrop-blur-sm",
+                  "hover:bg-cyan-900/25 hover:border-cyan-400/50",
+                  "active:scale-[0.98] transition-all duration-200"
+                )}
+                style={{ touchAction: 'manipulation' }}
+              >
+                <PanelLeft className="w-4 h-4 text-cyan-400" />
+                <span className="text-xs font-cinzel uppercase tracking-wider text-cyan-300">Menus</span>
+              </button>
+            </motion.div>
 
             {/* Dynamic Health Bar - below D20 */}
             {showFeature('home.healthBar') && (
