@@ -77,48 +77,6 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
     return colors;
   }, [party.members]);
 
-  const handleTierBackgroundUpload = useCallback(async (tierId: string, file: File) => {
-    if (file.size > MAX_BACKGROUND_SIZE_MB * 1024 * 1024) {
-      toast.error(`Image must be under ${MAX_BACKGROUND_SIZE_MB}MB`);
-      return;
-    }
-    setBgUploading(true);
-    try {
-      const ext = file.name.split('.').pop() || 'png';
-      const path = `battlemap-backgrounds/party-${party.partyId}-tier-${tierId}-${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from('gear-images').upload(path, file, { upsert: true });
-      if (error) throw error;
-      const { data: { publicUrl } } = supabase.storage.from('gear-images').getPublicUrl(path);
-      const updated = [...partySync.mapTierBackgrounds.filter(b => b.tierId !== tierId), { tierId, imageUrl: publicUrl }];
-      await partySync.updateMapTierBackgrounds(updated);
-      toast.success('Layer image set');
-    } catch (e: any) {
-      toast.error(e?.message || 'Upload failed');
-    } finally {
-      setBgUploading(false);
-    }
-  }, [party.partyId, partySync]);
-
-  const handleTierBackgroundRemove = useCallback(async (tierId: string) => {
-    const updated = partySync.mapTierBackgrounds.filter(b => b.tierId !== tierId);
-    await partySync.updateMapTierBackgrounds(updated);
-    toast.success('Layer image removed');
-  }, [partySync]);
-
-  const handleOpacityChange = useCallback(async (opacity: number) => {
-    setBgOpacity(opacity);
-    await partySync.updateMapBackgroundOpacity(opacity);
-  }, [partySync]);
-
-  const handleTierConfigChange = useCallback(async (tierId: string, updates: Partial<{ distancePerSquare: number; distanceUnit: string }>) => {
-    const current = partySync.mapCustomTiers || [];
-    const updated = current.map(t => t.id === tierId ? { ...t, ...updates } : t);
-    // If the tier isn't in the array yet, add it
-    if (!updated.find(t => t.id === tierId)) {
-      updated.push({ id: tierId, distancePerSquare: updates.distancePerSquare ?? 5, distanceUnit: updates.distanceUnit ?? 'ft' });
-    }
-    await partySync.updateMapCustomTiers(updated);
-  }, [partySync]);
 
   if (!isAuthenticated) {
     return (
