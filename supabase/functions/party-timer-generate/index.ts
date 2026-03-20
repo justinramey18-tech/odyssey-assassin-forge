@@ -803,6 +803,7 @@ serve(async (req) => {
             partyId,
             title: '⏰ Round Timer Expired',
             body: `The round timer has run out! The DM is preparing the next scene.`,
+            mode: 'party',
           }),
         });
       } catch (tgErr) {
@@ -964,6 +965,7 @@ serve(async (req) => {
                   partyId,
                   title: '🗡️ Combat Has Begun!',
                   body: 'The DM has initiated combat. Roll for initiative!',
+                  mode: 'party',
                 }),
               });
             } catch (tgErr) {
