@@ -1517,6 +1517,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
     if (!lockData || lockData.length === 0) {
       console.log('[PartyDM] Generation already in progress on another client, skipping');
+      toast('The DM is already responding...', { duration: 2000, icon: '⏳' });
       setIsGenerating(false);
       return;
     }
