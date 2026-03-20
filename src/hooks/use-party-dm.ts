@@ -564,6 +564,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       timerStartedAt: null,
       timerPausedRemaining: null,
       extensionRequests: [],
+      campaignType: sessionConfig?.campaignType,
+      empyreanFocus: sessionConfig?.empyreanFocus,
     };
     await (supabase.from('party_shared_state') as any).upsert({
       party_id: partyId,
