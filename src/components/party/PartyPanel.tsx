@@ -61,7 +61,7 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
   const [showLoot, setShowLoot] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showVotes, setShowVotes] = useState(false);
-  const [showMap, setShowMap] = useState(false);
+  
   const [showCombatLog, setShowCombatLog] = useState(false);
   const [selectedMember, setSelectedMember] = useState<PartyMember | null>(null);
   const [sendToMember, setSendToMember] = useState<PartyMember | null>(null);
