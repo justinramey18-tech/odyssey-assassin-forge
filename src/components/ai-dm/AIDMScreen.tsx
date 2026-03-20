@@ -39,7 +39,7 @@ import { OracleWhisperFeed } from './OracleWhisperFeed';
 import { AutoSyncBanner } from './AutoSyncBanner';
 
 import { useDmAutoSync } from '@/hooks/use-dm-auto-sync';
-import { InlineBattleMap } from './InlineBattleMap';
+
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import { useNarrator } from '@/hooks/use-narrator';
