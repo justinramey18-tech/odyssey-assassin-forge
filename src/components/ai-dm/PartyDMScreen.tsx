@@ -2540,6 +2540,10 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               }}
               dialogueAutoIntervene={partyDm.sessionConfig?.dialogueAutoIntervene ?? false}
               onDialogueAutoInterveneChange={(enabled) => partyDm.updateSessionConfig({ dialogueAutoIntervene: enabled })}
+              campaignType={partyDm.sessionConfig?.campaignType || 'dnd'}
+              onCampaignTypeChange={(type) => partyDm.updateSessionConfig({ campaignType: type })}
+              empyreanFocus={partyDm.sessionConfig?.empyreanFocus || 'balanced'}
+              onEmpyreanFocusChange={(focus) => partyDm.updateSessionConfig({ empyreanFocus: focus })}
               hasBookmark={!!bookmarkedMessageId}
               onClearBookmark={() => {
                 if (bookmarkKey) {
