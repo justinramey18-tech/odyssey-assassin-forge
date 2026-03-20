@@ -157,14 +157,6 @@ export function DMToolsDrawer({
             onClick={() => closeAndRun(onNewCampaign)}
           />
 
-          {/* Battle Map */}
-          {onBattleMap && (
-            <ToolRow
-              icon={<Map className="w-4 h-4" />}
-              label="Battle Map"
-              onClick={() => closeAndRun(onBattleMap)}
-            />
-          )}
 
           {/* Campaign Saves */}
           <ToolRow
