@@ -490,7 +490,7 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   // Build world state prompt to inject into AI system prompt
   const worldStatePrompt = useMemo(() => buildMemoryAnchorsPrompt(gameState), [gameState]);
 
-  const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, loadCampaign, sendMessage, addMediaMessage, cancelRequest, clearMessages, newGame, activeCampaignId, setActiveCampaignId, editMessage, deleteMessage, regenerateMessage, lastUsage, sessionUsage } = useAIDM({
+  const { messages, isLoading, isSummarizing, campaignSummary, updateCampaignSummary, loadCampaign, sendMessage, voiceNPC, addMediaMessage, cancelRequest, clearMessages, newGame, activeCampaignId, setActiveCampaignId, editMessage, deleteMessage, regenerateMessage, lastUsage, sessionUsage } = useAIDM({
     characterContext,
     customGuidesContent: gmGuides.enabledContent,
     worldStatePrompt,
