@@ -128,18 +128,17 @@ export default function Auth() {
 
   // Icon box style (dark square with icon)
   const iconBoxClass = "absolute left-0 top-0 bottom-0 w-12 flex items-center justify-center bg-transparent border-none rounded-l-sm";
-  const iconClass = "w-5 h-5 text-transparent";
+  const iconClass = "w-5 h-5 text-[#8b7355]";
   const inputClass = "w-full pl-14 pr-4 py-3.5 bg-[#c4b196] border-0 border-none outline-none shadow-none text-[#2a1f14] placeholder:text-[#8a7a60] rounded-sm font-medium text-base focus:outline-none focus:ring-0 focus:border-0 focus:shadow-none appearance-none transition-colors ml-4";
 
   return (
     <BackgroundWrapper
       imagePath={homeBackground}
-      videoSrc="/videos/auth-background.mp4"
-      overlayOpacity={0}>
+      overlayOpacity={70}>
 
       <div className="min-h-screen flex-col p-4 flex items-center justify-center">
         {/* Container */}
-        <div className="w-full max-w-[18.5rem] flex flex-col items-center scale-[0.64] origin-center mt-[11rem]">
+        <div className="w-full max-w-sm flex flex-col items-center">
           {/* Alerts */}
           {error &&
           <Alert variant="destructive" className="mb-4 w-full border-red-800/50 bg-red-900/30">
@@ -187,8 +186,10 @@ export default function Auth() {
               <button
               type="submit"
               disabled={loading}
-              className="w-[calc(100%-3rem)] mx-auto py-3.5 mt-[2.5rem] border-none text-transparent font-cinzel uppercase tracking-[0.2em] text-base disabled:opacity-50 transition-colors rounded-sm flex items-center justify-center gap-2 bg-transparent"
-              style={{}}>
+              className="w-full py-3.5 mt-4 bg-[#4a3c2e] border-2 border-[#8b7355] text-[#d4c4a0] font-cinzel uppercase tracking-[0.2em] text-base hover:bg-[#5a4a3a] hover:border-[#d4a030] disabled:opacity-50 transition-colors rounded-sm flex items-center justify-center gap-2"
+              style={{
+                boxShadow: 'inset 0 1px 0 rgba(212,160,48,0.15), 0 2px 8px rgba(0,0,0,0.5)'
+              }}>
 
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Summon your hero'}
               </button>
@@ -220,14 +221,14 @@ export default function Auth() {
                 <button
                 type="button"
                 onClick={() => {switchView('forgot');setResetEmail(email);}}
-                className="text-transparent text-sm font-cinzel transition-colors">
+                className="text-[#c4a96a]/70 hover:text-[#d4a030] text-sm font-cinzel transition-colors">
 
                   Forgot Password?
                 </button>
                 <button
                 type="button"
                 onClick={() => switchView('signup')}
-                className="text-transparent text-sm font-cinzel transition-colors">
+                className="text-[#c4a96a]/70 hover:text-[#d4a030] text-sm font-cinzel transition-colors">
 
                   Create Account
                 </button>
