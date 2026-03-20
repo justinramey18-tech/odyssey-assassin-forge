@@ -177,6 +177,35 @@ export function TelegramSettingsTab() {
     }
   }, [user]);
 
+  // Toggle a game mode for a specific link
+  const toggleMode = useCallback(async (linkId: string, mode: string, enabled: boolean) => {
+    if (!user) return;
+    const link = links.find(l => l.id === linkId);
+    if (!link) return;
+
+    const currentModes = link.notify_modes ?? ['party', 'solo', 'empyrean'];
+    const newModes = enabled
+      ? [...new Set([...currentModes, mode])]
+      : currentModes.filter(m => m !== mode);
+
+    // Don't allow disabling all modes
+    if (newModes.length === 0) {
+      toast.error('At least one game mode must be enabled');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('telegram_user_links')
+      .update({ notify_modes: newModes } as any)
+      .eq('id', linkId);
+
+    if (!error) {
+      setLinks(prev => prev.map(l => l.id === linkId ? { ...l, notify_modes: newModes } : l));
+    } else {
+      toast.error('Failed to update game modes');
+    }
+  }, [user, links]);
+
   // Save nickname for a linked chat
   const saveNickname = useCallback(async (linkId: string) => {
     if (!user) return;
