@@ -896,6 +896,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     signal: AbortSignal,
     partyContext?: string,
     responseModePrompt?: string,
+    dmPersonaPrompt?: string,
   ): Promise<string> => {
     // Ensure strictly alternating roles before sending to AI
     const sanitizedMessages = mergeConsecutiveRoles(apiMessages);
@@ -919,6 +920,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         memoryAnchors: memoryAnchorsContent || undefined,
         recentPartyChat: recentPartyChat.length > 0 ? recentPartyChat : undefined,
         responseModePrompt: responseModePrompt || undefined,
+        dmPersonaPrompt: dmPersonaPrompt || undefined,
         model: loadSelectedModel(),
         ...(() => {
           const cs = loadCombatSettings();
