@@ -149,6 +149,7 @@ interface DMRequest {
   recentPartyChat?: Array<{ sender: string; message: string }>;
   responseModePrompt?: string;
   partyContext?: string;
+  npcVoicingContext?: string;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
