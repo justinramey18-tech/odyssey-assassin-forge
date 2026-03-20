@@ -91,7 +91,7 @@ export interface PartyDmPrompt {
   team?: string | null;
 }
 
-export type DmMode = 'ai' | 'human' | 'ai-approval';
+export type DmMode = 'ai' | 'human' | 'ai-approval' | 'dialogue';
 
 export interface DmSessionConfig {
   active: boolean;
