@@ -1263,7 +1263,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             splitResponseModePrompt,
           ].filter(Boolean).join('\n\n');
 
-          const betaContent = await streamAIResponse(betaApiMsgs, customGuidesContent || '', abortRef.current!.signal, betaPartyContext);
+          const betaContent = await streamAIResponse(betaApiMsgs, customGuidesContent || '', abortRef.current!.signal, betaPartyContext, undefined, empyreanPersonaPrompt);
 
           if (betaContent?.trim()) {
             await insertPartyMessage({
