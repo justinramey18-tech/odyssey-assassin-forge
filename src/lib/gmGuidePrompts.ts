@@ -1490,25 +1490,6 @@ ENEMY STATE UPDATES:
 - "The **troll regenerates 10 HP** at the start of its turn."
 - "The **orc flees** from combat."
 
-═══════════════════════════════════════════════════════════════════════════════
-MAP & BATTLEMAP TOKENS
-═══════════════════════════════════════════════════════════════════════════════
-
-Clear creature introductions and defeat/flee announcements auto-populate the battlemap:
-
-ADDING TOKENS (introduce creatures with count + name):
-- "**3 goblins** burst through the door."
-- "**A fire elemental** rises from the brazier."
-- "**2 dire wolves** flank the party."
-- Include type when possible: enemies appear as red tokens, allies as blue.
-
-REMOVING TOKENS (defeated/fled creatures are auto-removed):
-- "The **goblin is slain**."
-- "The **orc falls** to your blade."
-- "The **bandit flees** into the darkness."
-- "The **skeleton is destroyed**."
-
-💡 Use consistent names matching the Enemy Encounters section. The battlemap matches names to remove the correct tokens.
 
 ═══════════════════════════════════════════════════════════════════════════════
 NPC INTRODUCTIONS
