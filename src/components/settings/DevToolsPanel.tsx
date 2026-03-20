@@ -64,7 +64,7 @@ src/components/geralt/GeraltSubheader.tsx       — Geralt HP sub-header`,
   },
   {
     title: 'Party System',
-    description: 'Multiplayer features — party chat, shared battle maps, and group voting.',
+    description: 'Multiplayer features — party chat and group voting.',
     content: `src/components/party/PartyPanel.tsx          — Party management panel
 src/components/party/PartyChat.tsx           — Party text chat (OOC messaging)
 src/components/party/FullscreenPartyChat.tsx — Full-screen chat overlay
