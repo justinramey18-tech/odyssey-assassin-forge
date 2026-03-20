@@ -6,7 +6,7 @@ import partyChatIcon from '@/assets/party-chat-icon.jpg';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3, PawPrint, Bookmark, BookmarkCheck, Music, Play, Pause } from 'lucide-react';
+import { Home, Crown, Send, Users, Check, CheckCheck, Zap, Eye, EyeOff, X, Shield, Loader2, Pencil, Trash2, Copy, RefreshCw, MoreVertical, Film, Image as ImageIcon, Plus, Save, Volume2, VolumeX, GitBranch, Heart, Bird, ChevronDown, Timer, Ghost, Lock, Maximize2, Minimize2, Radio, MessageSquare, Paperclip, Camera, BarChart3, PawPrint, Bookmark, BookmarkCheck, Music, Play, Pause, MessageCircle } from 'lucide-react';
 import { loadState as loadGeraltState } from '@/components/companion/geralt-data';
 import { SplitInitiator, SplitBanner, RegroupDialog, SplitSummariesViewer, PreSplitChatViewer } from './PartySplitUI';
 import { InfinityStoneDMDrawer } from './InfinityStoneDMDrawer';
@@ -1090,6 +1090,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
 
   const hasSubmitted = !!partyDm.myPrompt;
   const isReady = partyDm.myPrompt?.is_ready ?? false;
+  const isDialogueMode = partyDm.sessionConfig?.dmMode === 'dialogue';
+  const [dialogueText, setDialogueText] = useState('');
   const showDiceContent = activeNavTab === 'dice' && characterContext && !partyDm.isGenerating;
 
   return (
@@ -1432,7 +1434,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             </motion.div>
           )}
           {/* Human DM mode: waiting indicator for non-hosts when all ready */}
-          {!isCreator && !partyDm.isGenerating && !partyDm.pendingDraft && partyDm.allReady && (partyDm.sessionConfig?.dmMode === 'human') && (
+          {!isCreator && !partyDm.isGenerating && !partyDm.pendingDraft && partyDm.allReady && (partyDm.sessionConfig?.dmMode === 'human') && !isDialogueMode && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2 items-center">
               <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-amber-900/40 border border-amber-500/30">
                 <Pencil className="w-3.5 h-3.5 text-amber-400" />
@@ -1990,6 +1992,51 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             partyMemberNames={members.map(m => m.character_name)}
             disabled={partyDm.isGenerating}
           />
+        ) : isDialogueMode && !partyDm.isGenerating ? (
+          <div className="space-y-2 max-w-2xl mx-auto">
+            <div className="flex items-center gap-2">
+              <textarea
+                value={dialogueText}
+                onChange={e => setDialogueText(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (dialogueText.trim()) {
+                      partyDm.sendDialogueMessage(dialogueText.trim());
+                      setDialogueText('');
+                    }
+                  }
+                }}
+                placeholder="Speak in character..."
+                rows={1}
+                className="flex-1 bg-white/5 border border-amber-900/30 rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-1 focus:ring-amber-500/30"
+                style={{ touchAction: 'manipulation' }}
+              />
+              <button
+                onClick={() => {
+                  if (dialogueText.trim()) {
+                    partyDm.sendDialogueMessage(dialogueText.trim());
+                    setDialogueText('');
+                  }
+                }}
+                disabled={!dialogueText.trim()}
+                className="p-2.5 rounded-xl bg-primary/20 border border-primary/30 text-primary hover:bg-primary/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+            {isCreator && (
+              <button
+                onClick={partyDm.callDM}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-amber-500/40 bg-amber-900/30 hover:bg-amber-900/50 text-amber-300 font-cinzel font-semibold text-sm transition-colors active:scale-[0.97]"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <Crown className="w-4 h-4" />
+                Call the DM
+              </button>
+            )}
+          </div>
         ) : partyDm.isGenerating ? (
           <div className="flex items-center justify-center gap-2 py-2">
             <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
@@ -2066,11 +2113,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             <div className="flex items-center gap-2">
               <CheckCheck className="w-4 h-4 text-emerald-400" />
               <span className="text-sm text-emerald-300/70">
-                {(partyDm.sessionConfig?.dmMode === 'human')
-                  ? 'Ready! Waiting for the DM...'
-                  : (partyDm.sessionConfig?.dmMode === 'ai-approval')
-                    ? 'Ready! AI will draft a response for DM review...'
-                    : 'Ready! Waiting for others...'}
+                {isDialogueMode
+                  ? 'Dialogue mode — chat freely!'
+                  : (partyDm.sessionConfig?.dmMode === 'human')
+                    ? 'Ready! Waiting for the DM...'
+                    : (partyDm.sessionConfig?.dmMode === 'ai-approval')
+                      ? 'Ready! AI will draft a response for DM review...'
+                      : 'Ready! Waiting for others...'}
               </span>
               <button
                 onClick={() => {
