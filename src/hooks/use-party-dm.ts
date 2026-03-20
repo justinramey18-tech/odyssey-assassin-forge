@@ -14,6 +14,7 @@ import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
 import { loadCombatSettings } from '@/lib/combat/combatSettings';
 import { formatPartyPowerForPrompt } from '@/lib/combat/encounterDifficulty';
 import { getAlignmentZone, type AlignmentScore } from '@/lib/alignmentSpectrum';
+import { buildEmpyreanDMPersona } from '@/lib/empyreanDMPersona';
 
 function loadAlignmentDrift(): { position: AlignmentScore; zone: string } | null {
   try {
