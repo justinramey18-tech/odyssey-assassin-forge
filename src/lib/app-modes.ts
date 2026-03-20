@@ -273,7 +273,7 @@ export function getAllFeatureIds(): Record<string, { id: string; label: string }
       { id: 'home.playModeToggle', label: 'Play Mode Toggle' },
       { id: 'home.partyButton', label: 'Party Button' },
       { id: 'home.partyChat', label: 'Party Chat' },
-      { id: 'home.battleMap', label: 'Battle Map' },
+      
       { id: 'home.wildShape', label: 'Wild Shape' },
       { id: 'home.dmDrawer', label: 'DM Drawer' },
       { id: 'home.empyrean', label: 'Empyrean' },

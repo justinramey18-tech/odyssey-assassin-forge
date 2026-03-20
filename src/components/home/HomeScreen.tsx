@@ -1020,12 +1020,6 @@ export function HomeScreen({
         </SheetContent>
       </Sheet>
 
-      {/* Standalone Battle Map */}
-      <StandaloneBattleMap
-        open={showBattleMap}
-        onClose={() => setShowBattleMap(false)}
-        characterName={character.name || 'Me'}
-      />
 
       {/* Geralt Companion Screen (momo easter egg) */}
       <GeraltCompanionScreen
