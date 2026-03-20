@@ -262,17 +262,6 @@ export function StandalonePartyDMScreen({
     );
   }
 
-  const battleMapContent = (
-    <InlineBattleMap
-      characterName={characterName}
-      pendingMarkerAdds={pendingMapAdds}
-      pendingMarkerRemovals={pendingMapRemovals}
-      onPendingProcessed={handlePendingProcessed}
-      onMarkersChange={handleMarkersChange}
-      onGridSizeChange={handleGridSizeChange}
-      onClose={handleCloseBattleMap}
-    />
-  );
 
   return (
     <div className="fixed inset-0 z-[60]">
