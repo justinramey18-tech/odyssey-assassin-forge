@@ -12,39 +12,50 @@ const CRIT_QUIPS = [
   "Maximum effort!",
   "I'm touching myself tonight!",
   "Did you see that?! Somebody better be taking notes!",
-  "Chimichangas for everyone!",
-  "That's what peak performance looks like, folks.",
+  "Sword to the face! That's gonna hurt his Tinder profile.",
   "Insert slow-mo here. You're welcome, audience.",
+  "That's what peak performance looks like, folks. Screenshot it.",
+  "Healing factor activate! Form of: gross meat sounds!",
+  "Holy sh*tballs! That was BEAUTIFUL. I'm framing that d20.",
+  "And THAT is why I'm too profitable to kill. Mouse ears need boats, people!",
 ];
 
 const FUMBLE_QUIPS = [
   "Well, that's coming out of my budget.",
-  "Fourth wall? Meet the floor.",
-  "I've made a huge mistake.",
-  "This is fine. Everything is fine.",
+  "I've made a huge mistake. *narrator voice* He had.",
+  "This is fine. Everything is fine. *It was not fine.*",
   "Plot armor, don't fail me now!",
-  "I blame the writers for this one.",
+  "I blame the writers for this one. The dialogue was basically me talking to myself. Wait...",
+  "Fourth wall? Meet the floor. I'm joining you down there.",
+  "Oh no, I'm dying. Again. Spoiler alert: I'm not used to it. It still hurts like a—",
+  "The developers coded this outcome SPECIFICALLY to humiliate me. I can feel it.",
 ];
 
 const ASSASSINATE_QUIPS = [
   "Surprise, motherf—",
   "Nobody expects the Spanish Inquisition. Or me. Mostly me.",
-  "And THAT'S why they call me an assassin.",
   "Target eliminated. Time for tacos.",
+  "And THAT'S why they call me an assassin. Well, that and the whole... killing-for-money thing.",
+  "Daddy needs to express some rage! ...And he DID.",
+  "You know what's funnier than stabbing? Stabbing while making eye contact.",
 ];
 
 const OFFHAND_QUIPS = [
   "Left hand doesn't know what the right hand is doing... but both are stabbing!",
-  "Dual wielding: because one sword is for amateurs.",
-  "Two weapons, twice the pain!",
-  "Ambidextrous AND dangerous!",
+  "Dual wielding: because one sword is for amateurs and cowards.",
+  "Two weapons, twice the pain! It's basic math, people.",
+  "Ambidextrous AND dangerous! My therapist calls it 'overcompensating.' I call it PREPARED.",
+  "Stabbing, stabbing, quip, stabbing — I should mix up my routine.",
 ];
 
 const GENERIC_QUIPS = [
   "Maximum effort!",
   "Nailed it. Add it to my highlight reel.",
-  "Did you see that?!",
   "Chimichangas for everyone!",
+  "Good enough for government work. And significantly more violent.",
+  "Is that a grenade? Why yes, yes it is. Catch!",
+  "I've been stabbed, shot, blown up, and disintegrated. But THIS was special.",
+  "You came here for violence and wisecracks. Delivering on both. You're welcome.",
 ];
 
 function randomQuip(quips: string[]): string {

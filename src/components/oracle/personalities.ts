@@ -40,10 +40,10 @@ export const personalities: PersonalityConfig[] = [
     bgGradient: 'from-red-950/80 via-rose-900/60 to-slate-950/80',
     borderColor: 'border-red-500/50',
     quickPrompts: [
-      "What's the most fun thing I could do?",
-      'Roast my build choices',
-      'Give me three increasingly stupid options',
-      'What would YOU do in this situation?',
+      'Roast my build choices — maximum effort',
+      'Give me three options: smart, dumb, and chimichanga',
+      "Break down my odds, but make it fun",
+      'What would YOU do? And be honest for once.',
     ],
   },
   {
