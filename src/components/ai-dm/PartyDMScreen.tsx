@@ -1157,6 +1157,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const [dialogueText, setDialogueText] = useState('');
   const [whisperTarget, setWhisperTarget] = useState<{ user_id: string; character_name: string } | null>(null);
   const [whisperPickerOpen, setWhisperPickerOpen] = useState(false);
+  const [dialogueAttachOpen, setDialogueAttachOpen] = useState(false);
   const dialogueInputRef = useRef<HTMLTextAreaElement>(null);
   const showDiceContent = activeNavTab === 'dice' && characterContext && !partyDm.isGenerating;
 
@@ -2104,6 +2105,39 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                       Clear whisper
                     </button>
                   )}
+                </PopoverContent>
+              </Popover>
+              <Popover open={dialogueAttachOpen} onOpenChange={setDialogueAttachOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    className="p-2.5 rounded-xl border border-white/10 hover:border-amber-500/30 bg-white/5 hover:bg-amber-900/20 transition-colors shrink-0"
+                    disabled={isUploadingPhoto || isUploadingVideo || isUploadingAudio}
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    {(isUploadingPhoto || isUploadingVideo || isUploadingAudio) ? (
+                      <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
+                    ) : (
+                      <Paperclip className="w-4 h-4 text-white/50" />
+                    )}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent side="top" align="start" className="w-48 p-1.5 z-[70]">
+                  <button onClick={() => { photoCameraRef.current?.click(); setDialogueAttachOpen(false); }} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs" style={{ touchAction: 'manipulation' }}>
+                    <Camera className="w-4 h-4" /> Take Photo
+                  </button>
+                  <button onClick={() => { videoCameraRef.current?.click(); setDialogueAttachOpen(false); }} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs" style={{ touchAction: 'manipulation' }}>
+                    <Film className="w-4 h-4" /> Record Video
+                  </button>
+                  <div className="border-t border-white/5 my-0.5" />
+                  <button onClick={() => { sessionStorage.setItem('pending-file-picker', 'photo'); photoInputRef.current?.click(); setDialogueAttachOpen(false); }} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs" style={{ touchAction: 'manipulation' }}>
+                    <ImageIcon className="w-4 h-4" /> Photo from Gallery
+                  </button>
+                  <button onClick={() => { sessionStorage.setItem('pending-file-picker', 'video'); videoInputRef.current?.click(); setDialogueAttachOpen(false); }} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs" style={{ touchAction: 'manipulation' }}>
+                    <Film className="w-4 h-4" /> Video from Gallery
+                  </button>
+                  <button onClick={() => { setShowAudioRecorder(true); setDialogueAttachOpen(false); }} className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-amber-900/30 text-white/70 hover:text-amber-300 transition-colors text-xs" style={{ touchAction: 'manipulation' }}>
+                    <Music className="w-4 h-4" /> Record Audio
+                  </button>
                 </PopoverContent>
               </Popover>
               <textarea
