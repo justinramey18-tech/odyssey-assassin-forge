@@ -222,14 +222,11 @@ export function StandalonePartyDMScreen({
     onGoldChange: autoSyncCallbacks?.onGoldChange ?? NOOP,
     onConditionChange: autoSyncCallbacks?.onConditionChange ?? NOOP_TWO_ARG,
     onRestOccurred: autoSyncCallbacks?.onRestOccurred ?? NOOP,
-    onMapUpdate: useCallback((markersToAdd: MapMarker[], namesToRemove: string[]) => {
-      if (markersToAdd.length > 0) setPendingMapAdds(markersToAdd);
-      if (namesToRemove.length > 0) setPendingMapRemovals(namesToRemove);
-    }, []),
+    onMapUpdate: useCallback(() => {}, []),
     getCurrentHP: autoSyncCallbacks?.getCurrentHP ?? NOOP_RETURN_ZERO,
     getCurrentGold: autoSyncCallbacks?.getCurrentGold ?? NOOP_RETURN_ZERO,
-    getCurrentMarkers: useCallback(() => battleMapMarkersRef.current, []),
-    getGridSize: useCallback(() => battleMapGridSizeRef.current as any, []),
+    getCurrentMarkers: useCallback(() => [], []),
+    getGridSize: useCallback(() => 25 as any, []),
   });
 
   // Battle map callbacks
