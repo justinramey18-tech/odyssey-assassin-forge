@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
   // Get linked Telegram users who have this notification type enabled
   const { data: allLinks } = await supabase
     .from('telegram_user_links')
-    .select('chat_id, user_id')
+    .select('chat_id, user_id, notify_modes')
     .in('user_id', userIds)
     .eq(col, true);
 
