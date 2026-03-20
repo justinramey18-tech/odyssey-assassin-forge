@@ -155,17 +155,6 @@ export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
         cb.onRestOccurred(result.rest_occurred);
       }
 
-      // Apply map updates
-      if ((result.map_entities?.length ?? 0) > 0 || (result.map_entities_removed?.length ?? 0) > 0) {
-        const { markersToAdd, namesToRemove } = computeMapUpdates(
-          result,
-          cb.getCurrentMarkers(),
-          cb.getGridSize()
-        );
-        if (markersToAdd.length > 0 || namesToRemove.length > 0) {
-          cb.onMapUpdate(markersToAdd, namesToRemove);
-        }
-      }
 
       // Apply companion HP — absolute takes priority over deltas
       if (typeof result.companion_hp_absolute === 'number' && cb.onCompanionHPSet) {
