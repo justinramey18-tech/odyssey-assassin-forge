@@ -64,11 +64,11 @@ src/components/geralt/GeraltSubheader.tsx       — Geralt HP sub-header`,
   },
   {
     title: 'Party System',
-    description: 'Multiplayer features — party chat, shared battle maps, and group voting.',
+    description: 'Multiplayer features — party chat and group voting.',
     content: `src/components/party/PartyPanel.tsx          — Party management panel
 src/components/party/PartyChat.tsx           — Party text chat (OOC messaging)
 src/components/party/FullscreenPartyChat.tsx — Full-screen chat overlay
-src/components/party/PartyBattleMap.tsx      — Shared battle map viewer
+
 src/components/party/PartyVote.tsx           — Party voting system
 src/components/party/PartyMemberCard.tsx     — Player card with HP, class, status
 src/components/party/PartyLootQueue.tsx      — Shared loot claim queue
@@ -99,7 +99,7 @@ src/components/ai-dm/PartyCampaignSaves.tsx     — Campaign save/load for party
 src/components/ai-dm/AfkPersonalityGuide.tsx    — AFK personality guide editor (set how AI plays your character)
 src/components/ai-dm/WhisperTray.tsx            — Whisper message tray for private DM messages
 src/components/ai-dm/OracleWhisperFeed.tsx      — Oracle whisper feed overlay
-src/components/ai-dm/InlineBattleMap.tsx         — Inline battle map embedded in DM chat
+
 src/components/ai-dm/NarrationSpeedPopover.tsx   — Narration speed control popover
 src/components/ai-dm/AutoSyncBanner.tsx          — Banner shown when auto-sync is extracting changes
 src/components/ai-dm/InfinityStoneDMDrawer.tsx   — Infinity Stone stat reference in DM context

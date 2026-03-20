@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import { CharacterContext } from '@/components/oracle/types';
 import { getAuthToken } from '@/lib/auth-token';
-import type { MapMarker, GridSize } from '@/components/party/battlemap/types';
+
 
 const EXTRACT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm-extract`;
 const STORAGE_KEY = 'odyssey-dm-auto-sync';
@@ -28,7 +28,7 @@ interface AutoSyncSnapshot {
   hp: number;
   xp: number;
   gold: number;
-  markers: MapMarker[];
+  markers: any[];
   timestamp: number;
 }
 
@@ -38,7 +38,7 @@ interface AutoSyncCallbacks {
   onGoldChange: (netChange: number) => void;
   onConditionChange: (toAdd: string[], toRemove: string[]) => void;
   onRestOccurred: (type: 'short' | 'long') => void;
-  onMapUpdate: (markersToAdd: MapMarker[], namesToRemove: string[]) => void;
+  onMapUpdate: (markersToAdd: any[], namesToRemove: string[]) => void;
   onCompanionHPChange?: (change: number, type: 'damage' | 'healing') => void;
   onCompanionHPSet?: (hp: number) => void;
   onCompanionConditionChange?: (toAdd: string[], toRemove: string[]) => void;
@@ -46,8 +46,8 @@ interface AutoSyncCallbacks {
   // snapshot getters
   getCurrentHP: () => number;
   getCurrentGold: () => number;
-  getCurrentMarkers: () => MapMarker[];
-  getGridSize: () => GridSize;
+  getCurrentMarkers: () => any[];
+  getGridSize: () => any;
 }
 
 export function useDmAutoSync(callbacks: AutoSyncCallbacks) {

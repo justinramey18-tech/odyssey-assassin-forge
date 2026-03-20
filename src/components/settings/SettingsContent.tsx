@@ -656,7 +656,7 @@ export function SettingsContent({
                     'odyssey-active-cloud-save-id',
                     'odyssey-dm-game-state',
                     'dnd-ai-dm-guides',
-                    'dnd-battlemap-state',
+                    
                   ];
                   keysToRemove.forEach(k => localStorage.removeItem(k));
                   

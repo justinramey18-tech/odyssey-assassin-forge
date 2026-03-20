@@ -13,7 +13,7 @@ import { PartyLootQueue } from './PartyLootQueue';
 import { PartyMemberQuickActionsViewer } from './PartyMemberQuickActionsViewer';
 import { PartyChat } from './PartyChat';
 import { PartyVote } from './PartyVote';
-import { PartyBattleMap } from './PartyBattleMap';
+
 import { PartyCombatLog } from './PartyCombatLog';
 import { SendItemScreen } from './SendItemScreen';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
@@ -24,7 +24,7 @@ import type { InventoryItem } from '@/lib/consumables/types';
 import type { CharacterEquipment } from '@/lib/inventory/types';
 import type { LootItem } from '@/lib/loot/types';
 import { supabase } from '@/integrations/supabase/client';
-import { MAX_BACKGROUND_SIZE_MB } from './battlemap/types';
+
 
 interface PartyPanelProps {
   partySync: UsePartySyncReturn;
@@ -61,12 +61,10 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
   const [showLoot, setShowLoot] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showVotes, setShowVotes] = useState(false);
-  const [showMap, setShowMap] = useState(false);
+  
   const [showCombatLog, setShowCombatLog] = useState(false);
   const [selectedMember, setSelectedMember] = useState<PartyMember | null>(null);
   const [sendToMember, setSendToMember] = useState<PartyMember | null>(null);
-  const [bgUploading, setBgUploading] = useState(false);
-  const [bgOpacity, setBgOpacity] = useState<number>(1);
   const { party } = partySync;
   const onlineStatusMap = useOnlineStatus(party.members);
 
@@ -79,48 +77,6 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
     return colors;
   }, [party.members]);
 
-  const handleTierBackgroundUpload = useCallback(async (tierId: string, file: File) => {
-    if (file.size > MAX_BACKGROUND_SIZE_MB * 1024 * 1024) {
-      toast.error(`Image must be under ${MAX_BACKGROUND_SIZE_MB}MB`);
-      return;
-    }
-    setBgUploading(true);
-    try {
-      const ext = file.name.split('.').pop() || 'png';
-      const path = `battlemap-backgrounds/party-${party.partyId}-tier-${tierId}-${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from('gear-images').upload(path, file, { upsert: true });
-      if (error) throw error;
-      const { data: { publicUrl } } = supabase.storage.from('gear-images').getPublicUrl(path);
-      const updated = [...partySync.mapTierBackgrounds.filter(b => b.tierId !== tierId), { tierId, imageUrl: publicUrl }];
-      await partySync.updateMapTierBackgrounds(updated);
-      toast.success('Layer image set');
-    } catch (e: any) {
-      toast.error(e?.message || 'Upload failed');
-    } finally {
-      setBgUploading(false);
-    }
-  }, [party.partyId, partySync]);
-
-  const handleTierBackgroundRemove = useCallback(async (tierId: string) => {
-    const updated = partySync.mapTierBackgrounds.filter(b => b.tierId !== tierId);
-    await partySync.updateMapTierBackgrounds(updated);
-    toast.success('Layer image removed');
-  }, [partySync]);
-
-  const handleOpacityChange = useCallback(async (opacity: number) => {
-    setBgOpacity(opacity);
-    await partySync.updateMapBackgroundOpacity(opacity);
-  }, [partySync]);
-
-  const handleTierConfigChange = useCallback(async (tierId: string, updates: Partial<{ distancePerSquare: number; distanceUnit: string }>) => {
-    const current = partySync.mapCustomTiers || [];
-    const updated = current.map(t => t.id === tierId ? { ...t, ...updates } : t);
-    // If the tier isn't in the array yet, add it
-    if (!updated.find(t => t.id === tierId)) {
-      updated.push({ id: tierId, distancePerSquare: updates.distancePerSquare ?? 5, distanceUnit: updates.distanceUnit ?? 'ft' });
-    }
-    await partySync.updateMapCustomTiers(updated);
-  }, [partySync]);
 
   if (!isAuthenticated) {
     return (
@@ -356,51 +312,6 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
         </Collapsible>
       </div>
 
-      {/* Battle Map - Collapsible */}
-      <div className="pt-2 border-t border-border/30">
-        <Collapsible open={showMap} onOpenChange={setShowMap}>
-          <CollapsibleTrigger className="flex items-center gap-2 w-full py-1 hover:bg-muted/10 rounded px-1 transition-colors">
-            <Map className="w-3.5 h-3.5 text-primary" />
-            <span className="text-xs font-semibold">Battle Map</span>
-            {partySync.mapMarkers.length > 0 && (
-              <span className="text-[10px] text-muted-foreground ml-auto">
-                {partySync.mapMarkers.length}
-              </span>
-            )}
-          </CollapsibleTrigger>
-          <CollapsibleContent className="pt-2">
-            <PartyBattleMap
-              markers={partySync.mapMarkers}
-              currentUserId={userId}
-              characterName={characterName}
-              memberColors={memberColors}
-              onPlaceMarker={async (marker) => {
-                const newMarkers = [...partySync.mapMarkers.filter(m => !(m.ownerUserId === userId && !m.isEnemy && !marker.isEnemy)), { ...marker, ownerUserId: userId! }];
-                await partySync.updateMapMarkers(newMarkers);
-              }}
-              onRemoveMarker={async (x, y) => {
-                const newMarkers = partySync.mapMarkers.filter(m => !(m.x === x && m.y === y));
-                await partySync.updateMapMarkers(newMarkers);
-              }}
-              onMoveMarker={async (fromX, fromY, toX, toY) => {
-                const newMarkers = partySync.mapMarkers.map(m =>
-                  m.x === fromX && m.y === fromY ? { ...m, x: toX, y: toY } : m
-                );
-                await partySync.updateMapMarkers(newMarkers);
-              }}
-              backgroundUrl={partySync.mapBackgroundUrl}
-              backgroundUploading={bgUploading}
-              backgroundOpacity={partySync.mapBackgroundOpacity}
-              onBackgroundOpacityChange={handleOpacityChange}
-              tierBackgrounds={partySync.mapTierBackgrounds}
-              onTierBackgroundUpload={handleTierBackgroundUpload}
-              onTierBackgroundRemove={handleTierBackgroundRemove}
-              customTiers={partySync.mapCustomTiers}
-              onTierConfigChange={handleTierConfigChange}
-            />
-          </CollapsibleContent>
-        </Collapsible>
-      </div>
 
       {/* Party Combat Log - Collapsible */}
       <div className="pt-2 border-t border-border/30">
