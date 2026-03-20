@@ -28,7 +28,7 @@ interface AutoSyncSnapshot {
   hp: number;
   xp: number;
   gold: number;
-  markers: MapMarker[];
+  markers: any[];
   timestamp: number;
 }
 
