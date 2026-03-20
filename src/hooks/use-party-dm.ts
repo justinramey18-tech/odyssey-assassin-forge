@@ -2583,6 +2583,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     sendWhisper,
     callDM,
     voiceNPC,
+    generateDialogueRecap,
     regenerateMessage,
     regenerateWhispers,
     addMediaMessage,
