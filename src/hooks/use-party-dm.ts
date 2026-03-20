@@ -896,6 +896,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     signal: AbortSignal,
     partyContext?: string,
     responseModePrompt?: string,
+    dmPersonaPrompt?: string,
   ): Promise<string> => {
     // Ensure strictly alternating roles before sending to AI
     const sanitizedMessages = mergeConsecutiveRoles(apiMessages);
