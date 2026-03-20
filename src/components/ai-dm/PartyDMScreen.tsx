@@ -61,7 +61,7 @@ interface PartyDMScreenProps {
   memberCount: number;
   members: Array<{ user_id: string; character_name: string; character_status?: Record<string, unknown> }>;
   onShowGuides?: () => void;
-  onShowMap?: () => void;
+  
   onShowSaves?: () => void;
   onShowChat?: () => void;
   autoSyncEnabled?: boolean;
@@ -74,8 +74,6 @@ interface PartyDMScreenProps {
   onAddMemoryAnchor?: (anchor: Omit<import('@/hooks/use-dm-game-state').MemoryAnchor, 'id' | 'turn' | 'created_at'>) => void;
   onRemoveMemoryAnchor?: (id: string) => void;
   characterContext?: CharacterContext;
-  showBattleMap?: boolean;
-  battleMapContent?: React.ReactNode;
   // Campaign dropdown props (creator-only)
   campaignSessions?: CampaignSession[];
   campaignSessionsLoading?: boolean;
@@ -682,7 +680,7 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
     && prev.isBookmarked === next.isBookmarked;
 });
 
-export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowMap, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, showBattleMap, battleMapContent, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid }: PartyDMScreenProps) {
+export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalCreator: isOriginalCreatorProp, coHostIds, onPromoteCoHost, onDemoteCoHost, currentUserId, memberCount, members, onShowGuides, onShowSaves, onShowChat, autoSyncEnabled, onToggleAutoSync, isExtracting, guidesCount = 0, gmGuidesContent, memoryAnchorsContent, memoryAnchors, onAddMemoryAnchor, onRemoveMemoryAnchor, characterContext, campaignSessions, campaignSessionsLoading, campaignSessionsSignedIn, onNewGame, onLoadCampaign, onRefreshCampaigns, wildShape, isMomoMoonDruid }: PartyDMScreenProps) {
   const originalCreator = isOriginalCreatorProp ?? isCreator;
   const playerInputRef = useRef<PartyDMInputHandle>(null);
   const [, setTick] = useState(0);
@@ -1260,11 +1258,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         />
       )}
 
-      {/* Messages OR Inline Battle Map */}
+      {/* Messages */}
       <div className="flex-1 min-h-0 relative flex flex-col overflow-hidden">
-      {showBattleMap && battleMapContent ? (
-        battleMapContent
-      ) : (
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain pb-[100px]">
           {partyDm.messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-6">
@@ -1486,7 +1481,6 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             )}
           </AnimatePresence>
         </div>
-      )}
         {/* Jump to Bookmark FAB */}
         {bookmarkedMessageId && (
           <button
@@ -2200,7 +2194,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               isExtracting={isExtracting}
               pushState={pushState}
               onTogglePush={handleTogglePush}
-              onShowMap={onShowMap}
+              
               onShowSaves={onShowSaves}
               onShowGuides={onShowGuides}
               onShowChat={onShowChat}

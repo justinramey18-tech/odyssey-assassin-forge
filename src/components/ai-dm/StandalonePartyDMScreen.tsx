@@ -8,14 +8,14 @@ import { useCampaignSessions } from '@/hooks/use-campaign-sessions';
 import { supabase } from '@/integrations/supabase/client';
 import { PartyDMScreen } from './PartyDMScreen';
 import { GMGuidesManager } from './GMGuidesManager';
-import { InlineBattleMap } from './InlineBattleMap';
+
 import { PartyCampaignSaves } from './PartyCampaignSaves';
 import CampaignBuilderChat from './CampaignBuilderChat';
 import { AnimatePresence } from 'framer-motion';
 import type { CampaignBuildData } from '@/hooks/use-ai-campaign-chat';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { PartyMember } from '@/hooks/use-party-sync';
-import type { MapMarker } from '@/components/party/battlemap/types';
+
 import type { UseWildShapeReturn } from '@/hooks/use-wild-shape';
 
 // Stable no-op fallbacks (module-level for referential stability)
@@ -60,14 +60,9 @@ export function StandalonePartyDMScreen({
 }: StandalonePartyDMScreenProps) {
   const [showGuides, setShowGuides] = useState(false);
   const [showSaves, setShowSaves] = useState(false);
-  const [showBattleMap, setShowBattleMap] = useState(false);
   const [showCampaignBuilder, setShowCampaignBuilder] = useState(false);
-  const [pendingMapAdds, setPendingMapAdds] = useState<MapMarker[]>([]);
-  const [pendingMapRemovals, setPendingMapRemovals] = useState<string[]>([]);
   const [partyCreatorId, setPartyCreatorId] = useState<string | null>(null);
   const [coHostIds, setCoHostIds] = useState<string[]>([]);
-  const battleMapMarkersRef = useRef<MapMarker[]>([]);
-  const battleMapGridSizeRef = useRef<number>(25);
 
   // Fetch party creator ID (for non-creators)
   useEffect(() => {
@@ -229,21 +224,13 @@ export function StandalonePartyDMScreen({
     onGoldChange: autoSyncCallbacks?.onGoldChange ?? NOOP,
     onConditionChange: autoSyncCallbacks?.onConditionChange ?? NOOP_TWO_ARG,
     onRestOccurred: autoSyncCallbacks?.onRestOccurred ?? NOOP,
-    onMapUpdate: useCallback((markersToAdd: MapMarker[], namesToRemove: string[]) => {
-      if (markersToAdd.length > 0) setPendingMapAdds(markersToAdd);
-      if (namesToRemove.length > 0) setPendingMapRemovals(namesToRemove);
-    }, []),
+    onMapUpdate: useCallback(() => {}, []),
     getCurrentHP: autoSyncCallbacks?.getCurrentHP ?? NOOP_RETURN_ZERO,
     getCurrentGold: autoSyncCallbacks?.getCurrentGold ?? NOOP_RETURN_ZERO,
-    getCurrentMarkers: useCallback(() => battleMapMarkersRef.current, []),
-    getGridSize: useCallback(() => battleMapGridSizeRef.current as any, []),
+    getCurrentMarkers: useCallback(() => [], []),
+    getGridSize: useCallback(() => 25 as any, []),
   });
 
-  // Battle map callbacks
-  const handleCloseBattleMap = useCallback(() => setShowBattleMap(false), []);
-  const handlePendingProcessed = useCallback(() => { setPendingMapAdds([]); setPendingMapRemovals([]); }, []);
-  const handleMarkersChange = useCallback((markers: MapMarker[]) => { battleMapMarkersRef.current = markers; }, []);
-  const handleGridSizeChange = useCallback((size: any) => { battleMapGridSizeRef.current = size; }, []);
 
   // Campaign load handler for dropdown
   const handleLoadCampaign = useCallback((session: import('@/hooks/use-campaign-sessions').CampaignSession) => {
@@ -277,17 +264,6 @@ export function StandalonePartyDMScreen({
     );
   }
 
-  const battleMapContent = (
-    <InlineBattleMap
-      characterName={characterName}
-      pendingMarkerAdds={pendingMapAdds}
-      pendingMarkerRemovals={pendingMapRemovals}
-      onPendingProcessed={handlePendingProcessed}
-      onMarkersChange={handleMarkersChange}
-      onGridSizeChange={handleGridSizeChange}
-      onClose={handleCloseBattleMap}
-    />
-  );
 
   return (
     <div className="fixed inset-0 z-[60]">
@@ -304,7 +280,7 @@ export function StandalonePartyDMScreen({
         memberCount={partyMembers.length}
         members={partyMembers.map(m => ({ user_id: m.user_id, character_name: m.character_name, character_status: m.character_status as Record<string, unknown> }))}
         onShowGuides={() => setShowGuides(true)}
-        onShowMap={() => setShowBattleMap(true)}
+        
         onShowSaves={() => setShowSaves(true)}
         onShowChat={onShowChat}
         autoSyncEnabled={autoSync.autoSyncEnabled}
@@ -317,8 +293,6 @@ export function StandalonePartyDMScreen({
         onAddMemoryAnchor={memoryAnchors.addMemoryAnchor}
         onRemoveMemoryAnchor={memoryAnchors.removeMemoryAnchor}
         characterContext={characterContext}
-        showBattleMap={showBattleMap}
-        battleMapContent={battleMapContent}
         campaignSessions={campaignSessions.sessions}
         campaignSessionsLoading={campaignSessions.isLoading}
         campaignSessionsSignedIn={campaignSessions.isSignedIn}
