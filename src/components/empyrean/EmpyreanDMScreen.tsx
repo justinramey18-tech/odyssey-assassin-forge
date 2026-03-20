@@ -1052,7 +1052,7 @@ export function EmpyreanDMScreen({
         open={showToolsDrawer}
         onOpenChange={setShowToolsDrawer}
         onNewCampaign={handleNewCampaign}
-        onBattleMap={() => {}}
+        
         onSaves={() => setShowSaves(true)}
         onGuides={() => setShowGuides(true)}
         onWorldState={() => setShowWorldState(prev => !prev)}

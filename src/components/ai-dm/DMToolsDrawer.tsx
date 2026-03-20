@@ -21,7 +21,7 @@ interface DMToolsDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onNewCampaign: () => void;
-  onBattleMap?: () => void;
+  
   onSaves: () => void;
   onGuides: () => void;
   onWorldState: () => void;
@@ -52,7 +52,7 @@ export function DMToolsDrawer({
   open,
   onOpenChange,
   onNewCampaign,
-  onBattleMap,
+  
   onSaves,
   onGuides,
   onWorldState,
@@ -157,14 +157,6 @@ export function DMToolsDrawer({
             onClick={() => closeAndRun(onNewCampaign)}
           />
 
-          {/* Battle Map */}
-          {onBattleMap && (
-            <ToolRow
-              icon={<Map className="w-4 h-4" />}
-              label="Battle Map"
-              onClick={() => closeAndRun(onBattleMap)}
-            />
-          )}
 
           {/* Campaign Saves */}
           <ToolRow
