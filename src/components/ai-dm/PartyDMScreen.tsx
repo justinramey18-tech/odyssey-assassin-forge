@@ -2331,6 +2331,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
               onResponseModeChange={(modeId) => {
                 partyDm.updateSessionConfig({ responseMode: modeId ?? undefined });
               }}
+              dialogueAutoIntervene={partyDm.sessionConfig?.dialogueAutoIntervene ?? false}
+              onDialogueAutoInterveneChange={(enabled) => partyDm.updateSessionConfig({ dialogueAutoIntervene: enabled })}
               hasBookmark={!!bookmarkedMessageId}
               onClearBookmark={() => {
                 if (bookmarkKey) {

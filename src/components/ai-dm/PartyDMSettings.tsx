@@ -204,6 +204,15 @@ export function PartyDMSettings({
             </p>
           </div>
         )}
+        {dmMode === 'dialogue' && onDialogueAutoInterveneChange && (
+          <ToggleRow
+            icon={<Zap className="w-4 h-4" />}
+            label="Auto DM Intervention"
+            description="AI automatically steps in when the scene gets tense"
+            checked={dialogueAutoIntervene ?? false}
+            onCheckedChange={onDialogueAutoInterveneChange}
+          />
+        )}
         {isCreator && selectedModel !== undefined && onModelChange && (
           <div className="px-3 py-2.5">
             <div className="flex items-center gap-2 mb-1.5">
