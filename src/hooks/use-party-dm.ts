@@ -109,6 +109,9 @@ export interface DmSessionConfig {
   extensionRequests?: Array<{ userId: string; name: string }>;
   // Response mode
   responseMode?: string; // preset id or "custom:length:content"
+  // Dialogue mode auto-intervention
+  dialogueAutoIntervene?: boolean; // AI auto-intervenes during dialogue when triggered
+  dialogueAutoInterveneThreshold?: number; // messages since last DM response before auto-check (default 6)
 }
 
 interface UsePartyDmOptions {
