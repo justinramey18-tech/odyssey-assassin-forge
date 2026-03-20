@@ -1508,6 +1508,20 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     });
   }, [partyId, user, characterName, insertPartyMessageHelper]);
 
+  // === DIALOGUE MODE: Send a whisper to another player ===
+  const sendWhisper = useCallback(async (content: string, targetUserId: string, targetName: string) => {
+    if (!partyId || !user || !content.trim()) return;
+    const formattedContent = `[Whisper from ${characterName} to ${targetName}]: "${content.trim()}"`;
+    await insertPartyMessageHelper(partyId, {
+      party_id: partyId,
+      role: 'user',
+      content: formattedContent,
+      sender_user_id: user.id,
+      sender_name: characterName,
+      team: `whisper:${user.id}:${targetUserId}`,
+    });
+  }, [partyId, user, characterName, insertPartyMessageHelper]);
+
   // === DIALOGUE MODE: Call the DM to continue narrative without prompt queue ===
   const callDM = useCallback(async () => {
     if (!partyId || !user || !sessionConfig || isGenerating) return;
