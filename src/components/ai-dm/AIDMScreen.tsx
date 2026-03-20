@@ -47,7 +47,7 @@ import { useDMChatTheme } from '@/hooks/use-dm-chat-theme';
 import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
 import type { DMChatTheme } from '@/lib/dm-chat-themes';
 
-import type { MapMarker } from '@/components/party/battlemap/types';
+
 import type { UseWildShapeReturn } from '@/hooks/use-wild-shape';
 import { WildShapeSection } from '@/components/drawers/QuickActionsDrawer';
 
