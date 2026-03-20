@@ -32,6 +32,7 @@ interface TelegramLink {
   notify_timer: boolean;
   notify_combat: boolean;
   notify_dragon: boolean;
+  notify_modes: string[];
 }
 
 /** Display name for a linked chat: nickname > @username > Chat ID */
