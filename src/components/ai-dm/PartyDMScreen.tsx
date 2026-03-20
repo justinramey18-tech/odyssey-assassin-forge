@@ -658,6 +658,14 @@ const PartyDMMessage = React.memo(function PartyDMMessage({ message, currentUser
               </span>
               <AudioMessagePlayer src={audioMatch[1]} />
             </span>
+          ) : isDialogueMessage ? (
+            <ReactMarkdown
+              components={{
+                p: ({ children }) => <span>{children}</span>,
+              }}
+            >
+              {message.content.slice(message.content.indexOf(']: ') + 3)}
+            </ReactMarkdown>
           ) : (
             <AfkAnnotatedContent content={message.content} afkNames={extractAfkNames(message.content)} />
           )}
