@@ -1715,7 +1715,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       setIsGenerating(false);
       abortRef.current = null;
     }
-  }, [partyId, user, sessionConfig, isGenerating, messages, characterName, customGuidesContent, streamAIResponse, triggerSummaryIfNeeded, silentAutoSave, insertPartyMessageHelper]);
+  }, [partyId, user, sessionConfig, isGenerating, messages, characterName, customGuidesContent, streamAIResponse, triggerSummaryIfNeeded, silentAutoSave, insertPartyMessageHelper, empyreanPersonaPrompt]);
 
   // === DIALOGUE MODE: Generate a recap of recent dialogue ===
   const generateDialogueRecap = useCallback(async (): Promise<string | null> => {
