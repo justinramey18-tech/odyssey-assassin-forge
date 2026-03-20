@@ -1434,7 +1434,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             </motion.div>
           )}
           {/* Human DM mode: waiting indicator for non-hosts when all ready */}
-          {!isCreator && !partyDm.isGenerating && !partyDm.pendingDraft && partyDm.allReady && (partyDm.sessionConfig?.dmMode === 'human') && (
+          {!isCreator && !partyDm.isGenerating && !partyDm.pendingDraft && partyDm.allReady && (partyDm.sessionConfig?.dmMode === 'human') && !isDialogueMode && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2 items-center">
               <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-amber-900/40 border border-amber-500/30">
                 <Pencil className="w-3.5 h-3.5 text-amber-400" />
