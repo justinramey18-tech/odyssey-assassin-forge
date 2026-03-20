@@ -965,6 +965,7 @@ serve(async (req) => {
                   partyId,
                   title: '🗡️ Combat Has Begun!',
                   body: 'The DM has initiated combat. Roll for initiative!',
+                  mode: 'party',
                 }),
               });
             } catch (tgErr) {
