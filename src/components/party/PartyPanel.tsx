@@ -354,51 +354,6 @@ export function PartyPanel({ partySync, characterName, currentStatus, isAuthenti
         </Collapsible>
       </div>
 
-      {/* Battle Map - Collapsible */}
-      <div className="pt-2 border-t border-border/30">
-        <Collapsible open={showMap} onOpenChange={setShowMap}>
-          <CollapsibleTrigger className="flex items-center gap-2 w-full py-1 hover:bg-muted/10 rounded px-1 transition-colors">
-            <Map className="w-3.5 h-3.5 text-primary" />
-            <span className="text-xs font-semibold">Battle Map</span>
-            {partySync.mapMarkers.length > 0 && (
-              <span className="text-[10px] text-muted-foreground ml-auto">
-                {partySync.mapMarkers.length}
-              </span>
-            )}
-          </CollapsibleTrigger>
-          <CollapsibleContent className="pt-2">
-            <PartyBattleMap
-              markers={partySync.mapMarkers}
-              currentUserId={userId}
-              characterName={characterName}
-              memberColors={memberColors}
-              onPlaceMarker={async (marker) => {
-                const newMarkers = [...partySync.mapMarkers.filter(m => !(m.ownerUserId === userId && !m.isEnemy && !marker.isEnemy)), { ...marker, ownerUserId: userId! }];
-                await partySync.updateMapMarkers(newMarkers);
-              }}
-              onRemoveMarker={async (x, y) => {
-                const newMarkers = partySync.mapMarkers.filter(m => !(m.x === x && m.y === y));
-                await partySync.updateMapMarkers(newMarkers);
-              }}
-              onMoveMarker={async (fromX, fromY, toX, toY) => {
-                const newMarkers = partySync.mapMarkers.map(m =>
-                  m.x === fromX && m.y === fromY ? { ...m, x: toX, y: toY } : m
-                );
-                await partySync.updateMapMarkers(newMarkers);
-              }}
-              backgroundUrl={partySync.mapBackgroundUrl}
-              backgroundUploading={bgUploading}
-              backgroundOpacity={partySync.mapBackgroundOpacity}
-              onBackgroundOpacityChange={handleOpacityChange}
-              tierBackgrounds={partySync.mapTierBackgrounds}
-              onTierBackgroundUpload={handleTierBackgroundUpload}
-              onTierBackgroundRemove={handleTierBackgroundRemove}
-              customTiers={partySync.mapCustomTiers}
-              onTierConfigChange={handleTierConfigChange}
-            />
-          </CollapsibleContent>
-        </Collapsible>
-      </div>
 
       {/* Party Combat Log - Collapsible */}
       <div className="pt-2 border-t border-border/30">

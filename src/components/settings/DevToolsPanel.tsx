@@ -99,7 +99,7 @@ src/components/ai-dm/PartyCampaignSaves.tsx     — Campaign save/load for party
 src/components/ai-dm/AfkPersonalityGuide.tsx    — AFK personality guide editor (set how AI plays your character)
 src/components/ai-dm/WhisperTray.tsx            — Whisper message tray for private DM messages
 src/components/ai-dm/OracleWhisperFeed.tsx      — Oracle whisper feed overlay
-src/components/ai-dm/InlineBattleMap.tsx         — Inline battle map embedded in DM chat
+
 src/components/ai-dm/NarrationSpeedPopover.tsx   — Narration speed control popover
 src/components/ai-dm/AutoSyncBanner.tsx          — Banner shown when auto-sync is extracting changes
 src/components/ai-dm/InfinityStoneDMDrawer.tsx   — Infinity Stone stat reference in DM context

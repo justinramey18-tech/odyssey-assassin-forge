@@ -1692,7 +1692,7 @@ BEST PRACTICES FOR AI DMs
 
 13. **Format shop items clearly**: Use "Item Name — Price gp" or "offers Item for Price gp". Item names must start with a capital letter. Avoid vague descriptions like "various potions".
 
-14. **Announce enemies by count + name**: "3 goblins emerge" auto-populates the battlemap. "The goblin is slain" auto-removes the token.
+
 
 **Remember**: You can narrate as creatively as you want! Just include these key phrases naturally within your prose and the parser handles the rest.`,
   },
