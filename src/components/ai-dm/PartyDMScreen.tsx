@@ -2032,7 +2032,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
                     }
                   }
                 }}
-                placeholder="Speak in character..."
+                placeholder="Speak in character... or *describe an action*"
                 rows={1}
                 className="flex-1 bg-white/5 border border-amber-900/30 rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-1 focus:ring-amber-500/30 max-h-[200px]"
                 style={{ touchAction: 'manipulation' }}
