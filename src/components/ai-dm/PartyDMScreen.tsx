@@ -2113,11 +2113,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             <div className="flex items-center gap-2">
               <CheckCheck className="w-4 h-4 text-emerald-400" />
               <span className="text-sm text-emerald-300/70">
-                {(partyDm.sessionConfig?.dmMode === 'human')
-                  ? 'Ready! Waiting for the DM...'
-                  : (partyDm.sessionConfig?.dmMode === 'ai-approval')
-                    ? 'Ready! AI will draft a response for DM review...'
-                    : 'Ready! Waiting for others...'}
+                {isDialogueMode
+                  ? 'Dialogue mode — chat freely!'
+                  : (partyDm.sessionConfig?.dmMode === 'human')
+                    ? 'Ready! Waiting for the DM...'
+                    : (partyDm.sessionConfig?.dmMode === 'ai-approval')
+                      ? 'Ready! AI will draft a response for DM review...'
+                      : 'Ready! Waiting for others...'}
               </span>
               <button
                 onClick={() => {
