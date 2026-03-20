@@ -2,7 +2,6 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import { CharacterContext } from '@/components/oracle/types';
 import { getAuthToken } from '@/lib/auth-token';
-import { computeMapUpdates, type MapEntity } from '@/lib/battlemap-auto-populate';
 import type { MapMarker, GridSize } from '@/components/party/battlemap/types';
 
 const EXTRACT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm-extract`;
