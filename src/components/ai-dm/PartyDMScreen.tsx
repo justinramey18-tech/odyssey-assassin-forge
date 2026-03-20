@@ -74,8 +74,6 @@ interface PartyDMScreenProps {
   onAddMemoryAnchor?: (anchor: Omit<import('@/hooks/use-dm-game-state').MemoryAnchor, 'id' | 'turn' | 'created_at'>) => void;
   onRemoveMemoryAnchor?: (id: string) => void;
   characterContext?: CharacterContext;
-  showBattleMap?: boolean;
-  battleMapContent?: React.ReactNode;
   // Campaign dropdown props (creator-only)
   campaignSessions?: CampaignSession[];
   campaignSessionsLoading?: boolean;
