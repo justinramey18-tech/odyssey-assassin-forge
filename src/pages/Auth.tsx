@@ -228,7 +228,7 @@ export default function Auth() {
                 <button
                 type="button"
                 onClick={() => switchView('signup')}
-                className="text-transparent text-sm font-cinzel transition-colors">
+                className="text-[#c4a96a]/70 hover:text-[#d4a030] text-sm font-cinzel transition-colors">
 
                   Create Account
                 </button>
