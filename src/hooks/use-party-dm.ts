@@ -1216,7 +1216,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             splitResponseModePrompt,
           ].filter(Boolean).join('\n\n');
 
-          const alphaContent = await streamAIResponse(alphaApiMsgs, customGuidesContent || '', abortRef.current!.signal, alphaPartyContext);
+          const alphaContent = await streamAIResponse(alphaApiMsgs, customGuidesContent || '', abortRef.current!.signal, alphaPartyContext, undefined, empyreanPersonaPrompt);
 
           if (alphaContent?.trim()) {
             await insertPartyMessage({
@@ -1263,7 +1263,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
             splitResponseModePrompt,
           ].filter(Boolean).join('\n\n');
 
-          const betaContent = await streamAIResponse(betaApiMsgs, customGuidesContent || '', abortRef.current!.signal, betaPartyContext);
+          const betaContent = await streamAIResponse(betaApiMsgs, customGuidesContent || '', abortRef.current!.signal, betaPartyContext, undefined, empyreanPersonaPrompt);
 
           if (betaContent?.trim()) {
             await insertPartyMessage({
@@ -1375,7 +1375,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           responseModePrompt,
         ].filter(Boolean).join('\n\n');
 
-        const assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, partyContextStr);
+        const assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, partyContextStr, undefined, empyreanPersonaPrompt);
 
         if (assistantContent?.trim()) {
           if (isApprovalMode) {
@@ -1480,7 +1480,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       setIsGenerating(false);
       abortRef.current = null;
     }
-  }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, customGuidesContent, triggerSummaryIfNeeded, silentAutoSave, isSplitActive, splitState, streamAIResponse, buildPartyMembersGuide, generateSplitSummary, buildAfkGuidesContext, consumeCascadePrompts, insertPartyMessageHelper]);
+  }, [partyId, user, sessionConfig, isGenerating, currentPrompts, messages, characterContext, partyMembers, customGuidesContent, triggerSummaryIfNeeded, silentAutoSave, isSplitActive, splitState, streamAIResponse, buildPartyMembersGuide, generateSplitSummary, buildAfkGuidesContext, consumeCascadePrompts, insertPartyMessageHelper, empyreanPersonaPrompt]);
 
   // Auto-trigger generation when all ready (host only) — only in AI mode
   const currentDmMode = sessionConfig?.dmMode || 'ai';
@@ -1591,7 +1591,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         responseModePrompt,
       ].filter(Boolean).join('\n\n');
 
-      const assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, partyContextStr);
+      const assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, partyContextStr, undefined, empyreanPersonaPrompt);
 
       if (assistantContent?.trim()) {
         await insertPartyMessageHelper(partyId, {
@@ -1631,7 +1631,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       setIsGenerating(false);
       abortRef.current = null;
     }
-  }, [partyId, user, sessionConfig, isGenerating, messages, characterContext, customGuidesContent, streamAIResponse, buildPartyMembersGuide, triggerSummaryIfNeeded, silentAutoSave, insertPartyMessageHelper]);
+  }, [partyId, user, sessionConfig, isGenerating, messages, characterContext, customGuidesContent, streamAIResponse, buildPartyMembersGuide, triggerSummaryIfNeeded, silentAutoSave, insertPartyMessageHelper, empyreanPersonaPrompt]);
 
   // === DIALOGUE MODE: Voice an NPC in response to player dialogue ===
   const voiceNPC = useCallback(async (npcName: string, playerMessage: string) => {
@@ -1675,7 +1675,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
       const npcContext = `## NPC VOICING MODE\nYou are responding AS the NPC named ${npcName} ONLY.\nWrite 1-3 sentences of in-character dialogue from their perspective.\nDo NOT write scene narration, do NOT describe player character actions, do NOT include mechanical information.\nJust write what they say, prefixed with their name in bold.\nFormat: **${npcName}:** Their dialogue here.\nStay consistent with how this NPC has been portrayed in the campaign so far.`;
 
-      const assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, npcContext);
+      const assistantContent = await streamAIResponse(apiMessages, customGuidesContent || '', abortRef.current!.signal, npcContext, undefined, empyreanPersonaPrompt);
 
       if (assistantContent?.trim()) {
         await insertPartyMessageHelper(partyId, {
@@ -1715,7 +1715,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       setIsGenerating(false);
       abortRef.current = null;
     }
-  }, [partyId, user, sessionConfig, isGenerating, messages, characterName, customGuidesContent, streamAIResponse, triggerSummaryIfNeeded, silentAutoSave, insertPartyMessageHelper]);
+  }, [partyId, user, sessionConfig, isGenerating, messages, characterName, customGuidesContent, streamAIResponse, triggerSummaryIfNeeded, silentAutoSave, insertPartyMessageHelper, empyreanPersonaPrompt]);
 
   // === DIALOGUE MODE: Generate a recap of recent dialogue ===
   const generateDialogueRecap = useCallback(async (): Promise<string | null> => {
