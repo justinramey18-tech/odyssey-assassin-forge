@@ -38,7 +38,7 @@ interface AutoSyncCallbacks {
   onGoldChange: (netChange: number) => void;
   onConditionChange: (toAdd: string[], toRemove: string[]) => void;
   onRestOccurred: (type: 'short' | 'long') => void;
-  onMapUpdate: (markersToAdd: MapMarker[], namesToRemove: string[]) => void;
+  onMapUpdate: (markersToAdd: any[], namesToRemove: string[]) => void;
   onCompanionHPChange?: (change: number, type: 'damage' | 'healing') => void;
   onCompanionHPSet?: (hp: number) => void;
   onCompanionConditionChange?: (toAdd: string[], toRemove: string[]) => void;
