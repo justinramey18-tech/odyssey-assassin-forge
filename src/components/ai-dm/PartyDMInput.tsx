@@ -2,6 +2,8 @@ import { useState, useCallback, useRef, useImperativeHandle, forwardRef, memo } 
 import { Send, Check, Paperclip, Loader2, Camera, Film, ImageIcon, BarChart3, Ghost, Music, Mic, MicOff } from 'lucide-react';
 import { useDraftPersist } from '@/hooks/use-draft-persist';
 import { useSpeechToText } from '@/hooks/use-speech-to-text';
+import { getAtMentionQuery, filterNPCNames } from '@/hooks/use-npc-autocomplete';
+import { NPCAutocomplete } from './NPCAutocomplete';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Image as LucideImage } from 'lucide-react';
@@ -31,15 +33,45 @@ interface PartyDMInputProps {
   onPickVideo?: () => void;
   onPickAudio?: () => void;
   onCreatePoll?: () => void;
+  npcNames?: string[];
 }
 
 export const PartyDMInput = memo(forwardRef<PartyDMInputHandle, PartyDMInputProps>(function PartyDMInput(
-  { onSubmit, onReady, onReadyAutopilot, hasAfkGuide, onPaste, disabled, hasPrompt, currentUserId, isUploadingPhoto, isUploadingVideo, isUploadingAudio, onTakePhoto, onRecordVideo, onPickPhoto, onPickVideo, onPickAudio, onCreatePoll },
+  { onSubmit, onReady, onReadyAutopilot, hasAfkGuide, onPaste, disabled, hasPrompt, currentUserId, isUploadingPhoto, isUploadingVideo, isUploadingAudio, onTakePhoto, onRecordVideo, onPickPhoto, onPickVideo, onPickAudio, onCreatePoll, npcNames = [] },
   ref
 ) {
   const [input, setInput, clearInput] = useDraftPersist('odyssey-party-dm-draft');
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [acActiveIndex, setAcActiveIndex] = useState(0);
+  const [cursorPos, setCursorPos] = useState(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // NPC autocomplete
+  const mentionState = (() => {
+    return getAtMentionQuery(input, cursorPos);
+  })();
+  const acSuggestions = mentionState ? filterNPCNames(npcNames, mentionState.query) : [];
+  const showAc = acSuggestions.length > 0;
+
+  const selectNPC = useCallback((name: string) => {
+    if (!mentionState) return;
+    const before = input.slice(0, mentionState.startIndex);
+    const after = input.slice(cursorPos);
+    const newText = `${before}@${name} ${after}`;
+    setInput(newText);
+    setAcActiveIndex(0);
+    const newPos = mentionState.startIndex + name.length + 2;
+    requestAnimationFrame(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        inputRef.current.setSelectionRange(newPos, newPos);
+      }
+    });
+  }, [mentionState, input, cursorPos, setInput]);
+
+  const trackCursor = useCallback(() => {
+    if (inputRef.current) setCursorPos(inputRef.current.selectionStart ?? 0);
+  }, []);
 
   const autoResizeTextarea = useCallback(() => {
     requestAnimationFrame(() => {
@@ -84,6 +116,7 @@ export const PartyDMInput = memo(forwardRef<PartyDMInputHandle, PartyDMInputProp
     const ta = e.target;
     ta.style.height = 'auto';
     ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
+    setCursorPos(ta.selectionStart ?? 0);
   }, [setInput]);
 
   const handleSubmit = useCallback(() => {
@@ -115,11 +148,27 @@ export const PartyDMInput = memo(forwardRef<PartyDMInputHandle, PartyDMInputProp
           {interimText}…
         </div>
       )}
-      <div className="flex items-end gap-2">
+      <div className="relative flex items-end gap-2">
+        {showAc && (
+          <NPCAutocomplete
+            names={acSuggestions}
+            onSelect={selectNPC}
+            activeIndex={acActiveIndex}
+          />
+        )}
         <textarea
           ref={inputRef}
           value={input}
           onChange={handleInputChange}
+          onSelect={trackCursor}
+          onKeyDown={(e) => {
+            if (showAc) {
+              if (e.key === 'ArrowDown') { e.preventDefault(); setAcActiveIndex(i => (i + 1) % acSuggestions.length); return; }
+              if (e.key === 'ArrowUp') { e.preventDefault(); setAcActiveIndex(i => (i - 1 + acSuggestions.length) % acSuggestions.length); return; }
+              if (e.key === 'Tab' || (e.key === 'Enter' && showAc)) { e.preventDefault(); selectNPC(acSuggestions[acActiveIndex]); return; }
+              if (e.key === 'Escape') { e.preventDefault(); setCursorPos(0); return; }
+            }
+          }}
           onPaste={onPaste}
           placeholder="What does your character do?"
           rows={1}

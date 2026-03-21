@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useDmPolls } from '@/hooks/use-dm-polls';
+import { useNPCAutocomplete } from '@/hooks/use-npc-autocomplete';
 import { PartyDMInput, type PartyDMInputHandle } from './PartyDMInput';
 import { PartyDMAudioRecorder } from './PartyDMAudioRecorder';
 import partyChatIcon from '@/assets/party-chat-icon.jpg';
@@ -755,6 +756,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const spotify = useSpotify();
   const { whisperTrayEnabled, setWhisperTrayEnabled } = useWhisperTrayEnabled();
   const dmPolls = useDmPolls(partyId || null);
+  const partyNPCNames = useNPCAutocomplete(partyDm.messages as any);
   const isEmpyrean = partyDm.sessionConfig?.campaignType === 'empyrean';
   const dragonBonds = usePartyDragonBonds(isEmpyrean ? (partyId || null) : null, currentUserId || null);
   const [showDragonSetup, setShowDragonSetup] = useState(false);
@@ -2336,6 +2338,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             onPickVideo={() => { sessionStorage.setItem('pending-file-picker', 'video'); videoInputRef.current?.click(); }}
             onPickAudio={() => setShowAudioRecorder(true)}
             onCreatePoll={() => setShowPollCreator(true)}
+            npcNames={partyNPCNames}
           />
         ) : !isReady ? (
           <div className="space-y-2 max-w-2xl mx-auto">

@@ -25,6 +25,8 @@ import EmpyreanContextualActions from '@/components/empyrean/EmpyreanContextualA
 import DragonBondChat from '@/components/empyrean/DragonBondChat';
 import { useGMGuides } from '@/hooks/use-gm-guides';
 import { useDMGameState, buildMemoryAnchorsPrompt } from '@/hooks/use-dm-game-state';
+import { useNPCMentionState } from '@/hooks/use-npc-mention-state';
+import { NPCAutocomplete } from '@/components/ai-dm/NPCAutocomplete';
 import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { useDMChatTheme } from '@/hooks/use-dm-chat-theme';
 import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
@@ -556,13 +558,15 @@ export function EmpyreanDMScreen({
     sendMessage(filled);
     setShowPrompts(false);
   }, [characterName, sendMessage]);
+  const npcMention = useNPCMentionState(messages, textareaRef, setInputValue, inputValue);
 
   // Auto-resize textarea
   const handleTextareaInput = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputValue(e.target.value);
     e.target.style.height = 'auto';
     e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
-  }, []);
+    npcMention.trackCursor();
+  }, [npcMention.trackCursor]);
 
   const groupedPrompts = useMemo(() => groupPromptsByCategory(empyreanPrompts), []);
 
@@ -1020,7 +1024,14 @@ export function EmpyreanDMScreen({
 
       {/* Input bar — sits above the fixed DMBottomNav (~54px collapsed height) */}
       <div className="shrink-0 border-t border-purple-500/20 bg-background/90 backdrop-blur-sm px-3 pt-2.5 pb-[60px]">
-        <div className="flex items-end gap-2">
+        <div className="relative flex items-end gap-2">
+          {npcMention.showAutocomplete && (
+            <NPCAutocomplete
+              names={npcMention.suggestions}
+              onSelect={npcMention.selectNPC}
+              activeIndex={npcMention.activeIndex}
+            />
+          )}
           <button
             onClick={() => setShowPrompts(true)}
             className="p-2.5 rounded-lg hover:bg-purple-500/10 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0"
@@ -1032,10 +1043,12 @@ export function EmpyreanDMScreen({
             ref={textareaRef}
             value={inputValue}
             onChange={handleTextareaInput}
+            onSelect={npcMention.trackCursor}
             placeholder="What does your rider do... (@NPC to talk to an NPC)"
             rows={1}
             className="flex-1 bg-card/30 border border-purple-500/20 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-purple-400 max-h-[120px] min-h-[44px]"
             onKeyDown={e => {
+              if (npcMention.handleAutocompleteKeyDown(e)) return;
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSend();
