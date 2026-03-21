@@ -58,6 +58,7 @@ export default function DragonBondChat({
   const [bondState, setBondState] = useState<DragonBondState>(() => loadBondState());
   const [statsExpanded, setStatsExpanded] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [dragonOpening, setDragonOpening] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
