@@ -248,7 +248,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         : whisperFiltered.filter(m => !m.team || m.team === myTeam || m.team.startsWith('whisper:'))
       : whisperFiltered;
     // Parse whispers from assistant messages and filter by character name
-    return teamFiltered.map(m => enrichMessageWithWhispers(m, characterName));
+    return teamFiltered.map(m => enrichMessageWithWhispers(m, characterName, myDragonName));
   }, [messages, isSplitActive, user, isCreator, myTeam, characterName]);
 
   // Load existing data when session becomes active
