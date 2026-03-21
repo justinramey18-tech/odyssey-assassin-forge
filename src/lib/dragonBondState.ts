@@ -156,6 +156,25 @@ export function detectRiderDeclaration(text: string): string | null {
   return relevant ? relevant.slice(0, 120) : text.slice(0, 120);
 }
 
+// ── EMOTIONAL CLASSIFICATION ──
+
+export function classifyRiderEmotion(
+  text: string,
+  trustBreakResult: { broken: boolean; reason: string },
+  matchedPatterns: { question: boolean; gratitude: boolean; vulnerability: boolean; autonomy: boolean },
+): string {
+  if (trustBreakResult.broken) {
+    if (trustBreakResult.reason === 'disrespect') return 'hostile';
+    if (trustBreakResult.reason === 'domination') return 'controlling';
+    return 'dismissive';
+  }
+  if (matchedPatterns.vulnerability) return 'vulnerable';
+  if (matchedPatterns.gratitude) return 'grateful';
+  if (matchedPatterns.question) return 'curious';
+  if (matchedPatterns.autonomy) return 'respectful';
+  return 'neutral';
+}
+
 // ── DRAGON CHAT SYSTEM PROMPT BUILDER ──
 
 export function buildDragonChatPrompt(
