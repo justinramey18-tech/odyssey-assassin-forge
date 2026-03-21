@@ -49,6 +49,7 @@ import type { UseWildShapeReturn } from '@/hooks/use-wild-shape';
 import { WildShapeSection } from '@/components/drawers/QuickActionsDrawer';
 import { usePartyDragonBonds } from '@/hooks/use-party-dragon-bonds';
 import { DragonRiderSetupSheet } from './DragonRiderSetupSheet';
+import PartyDragonChat from './PartyDragonChat';
 import { Flame } from 'lucide-react';
 
 type PartyDmReturn = ReturnType<typeof usePartyDm>;
