@@ -174,7 +174,7 @@ export function PartyDMSettings({
           <div className="px-3 py-2 space-y-3">
             <div className="grid grid-cols-2 gap-2">
               <button
-                onClick={() => { onCampaignTypeChange('dnd'); toast.success('Switched to D&D 5e'); }}
+                onClick={() => onCampaignTypeChange('dnd')}
                 style={{ touchAction: 'manipulation' }}
                 className={cn(
                   "flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-all min-h-[48px]",
