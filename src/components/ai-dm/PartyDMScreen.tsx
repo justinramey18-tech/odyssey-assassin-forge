@@ -47,6 +47,9 @@ import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
 import { useBroadcastPlaylist } from '@/hooks/use-broadcast-playlist';
 import type { UseWildShapeReturn } from '@/hooks/use-wild-shape';
 import { WildShapeSection } from '@/components/drawers/QuickActionsDrawer';
+import { usePartyDragonBonds } from '@/hooks/use-party-dragon-bonds';
+import { DragonRiderSetupSheet } from './DragonRiderSetupSheet';
+import { Flame } from 'lucide-react';
 
 type PartyDmReturn = ReturnType<typeof usePartyDm>;
 
