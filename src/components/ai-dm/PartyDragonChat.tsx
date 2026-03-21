@@ -45,11 +45,30 @@ export default function PartyDragonChat({
   onSend,
   isLoading,
   bondState,
+  onRequestOpinion,
 }: PartyDragonChatProps) {
   const [inputValue, setInputValue] = useState('');
   const [statsExpanded, setStatsExpanded] = useState(false);
+  const [dragonOpening, setDragonOpening] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const opinionFiredRef = useRef(false);
+
+  // Request dragon opinion on open
+  useEffect(() => {
+    if (open) {
+      opinionFiredRef.current = false;
+      setDragonOpening(null);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || opinionFiredRef.current || !onRequestOpinion) return;
+    opinionFiredRef.current = true;
+    onRequestOpinion().then(opinion => {
+      if (opinion) setDragonOpening(opinion);
+    }).catch(() => {});
+  }, [open, onRequestOpinion]);
 
   // Auto-scroll on new messages
   useEffect(() => {
