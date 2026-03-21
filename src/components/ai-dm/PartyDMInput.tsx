@@ -42,7 +42,36 @@ export const PartyDMInput = memo(forwardRef<PartyDMInputHandle, PartyDMInputProp
 ) {
   const [input, setInput, clearInput] = useDraftPersist('odyssey-party-dm-draft');
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [acActiveIndex, setAcActiveIndex] = useState(0);
+  const [cursorPos, setCursorPos] = useState(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // NPC autocomplete
+  const mentionState = (() => {
+    return getAtMentionQuery(input, cursorPos);
+  })();
+  const acSuggestions = mentionState ? filterNPCNames(npcNames, mentionState.query) : [];
+  const showAc = acSuggestions.length > 0;
+
+  const selectNPC = useCallback((name: string) => {
+    if (!mentionState) return;
+    const before = input.slice(0, mentionState.startIndex);
+    const after = input.slice(cursorPos);
+    const newText = `${before}@${name} ${after}`;
+    setInput(newText);
+    setAcActiveIndex(0);
+    const newPos = mentionState.startIndex + name.length + 2;
+    requestAnimationFrame(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        inputRef.current.setSelectionRange(newPos, newPos);
+      }
+    });
+  }, [mentionState, input, cursorPos, setInput]);
+
+  const trackCursor = useCallback(() => {
+    if (inputRef.current) setCursorPos(inputRef.current.selectionStart ?? 0);
+  }, []);
 
   const autoResizeTextarea = useCallback(() => {
     requestAnimationFrame(() => {
