@@ -137,6 +137,23 @@ export function detectTrustBreak(text: string): { broken: boolean; severity: num
   return { broken: false, severity: 0, reason: '' };
 }
 
+// ── RIDER-SAID DETECTION ──
+
+const RIDER_DECLARATION_PATTERNS = [
+  'i will never', 'i promise', 'i swear', 'i believe',
+  'i trust', 'i dont trust', 'i hate', 'i love', 'i will always',
+];
+
+export function detectRiderDeclaration(text: string): string | null {
+  const lower = text.toLowerCase().replace(/['']/g, '');
+  const match = RIDER_DECLARATION_PATTERNS.find(p => lower.includes(p));
+  if (!match) return null;
+  // Extract the sentence containing the declaration
+  const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
+  const relevant = sentences.find(s => s.toLowerCase().replace(/['']/g, '').includes(match));
+  return relevant ? relevant.slice(0, 120) : text.slice(0, 120);
+}
+
 // ── DRAGON CHAT SYSTEM PROMPT BUILDER ──
 
 export function buildDragonChatPrompt(
