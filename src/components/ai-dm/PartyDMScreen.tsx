@@ -49,6 +49,7 @@ import type { UseWildShapeReturn } from '@/hooks/use-wild-shape';
 import { WildShapeSection } from '@/components/drawers/QuickActionsDrawer';
 import { usePartyDragonBonds } from '@/hooks/use-party-dragon-bonds';
 import { DragonRiderSetupSheet } from './DragonRiderSetupSheet';
+import PartyDragonChat from './PartyDragonChat';
 import { Flame } from 'lucide-react';
 
 type PartyDmReturn = ReturnType<typeof usePartyDm>;
@@ -757,6 +758,7 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
   const isEmpyrean = partyDm.sessionConfig?.campaignType === 'empyrean';
   const dragonBonds = usePartyDragonBonds(isEmpyrean ? (partyId || null) : null, currentUserId || null);
   const [showDragonSetup, setShowDragonSetup] = useState(false);
+  const [showDragonChat, setShowDragonChat] = useState(false);
   const [ttsSelectMode, setTtsSelectMode] = useState(false);
   const [ttsSelectedIds, setTtsSelectedIds] = useState<Set<string>>(new Set());
   const lastProcessedMsgIdRef = useRef<string | null>(null);
@@ -1257,7 +1259,14 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           </>
         )}
         {isEmpyrean && dragonBonds.myDragon?.dragonName && (
-          <>
+          <button
+            onClick={() => {
+              dragonBonds.loadDragonChat();
+              setShowDragonChat(true);
+            }}
+            className="flex items-center gap-1 hover:bg-white/5 rounded px-1 py-0.5 transition-colors"
+            style={{ touchAction: 'manipulation' }}
+          >
             <span className="text-[11px] text-white/20">•</span>
             <Flame className="w-3 h-3 text-amber-400 shrink-0" />
             <span className="text-[11px] text-amber-300/70 whitespace-nowrap truncate max-w-[80px]">
@@ -1272,7 +1281,8 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             )}>
               🔥{dragonBonds.myDragon.burnout}
             </span>
-          </>
+            <MessageCircle className="w-3 h-3 text-cyan-400/50 shrink-0" />
+          </button>
         )}
         {broadcastPlaylist && (
           <>
@@ -2824,6 +2834,24 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           });
         }}
       />
+
+      {/* Party Dragon Chat */}
+      {isEmpyrean && dragonBonds.isSetup && (
+        <PartyDragonChat
+          open={showDragonChat}
+          onClose={() => setShowDragonChat(false)}
+          dragonName={dragonBonds.myDragon?.dragonName || ''}
+          characterName={members.find(m => m.user_id === currentUserId)?.character_name || 'Rider'}
+          messages={dragonBonds.dragonChatMessages}
+          onSend={(text) => dragonBonds.sendDragonMessage(text, members.find(m => m.user_id === currentUserId)?.character_name || 'Rider')}
+          isLoading={dragonBonds.isSending}
+          bondState={{
+            bond: dragonBonds.myDragon?.bond ?? 15,
+            trust: dragonBonds.myDragon?.trust ?? 10,
+            mood: dragonBonds.myDragon?.mood ?? 'calm',
+          }}
+        />
+      )}
     </div>
   );
 }
