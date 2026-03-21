@@ -27,6 +27,7 @@ interface DragonBondChatProps {
   dragonNotes: string;
   characterContext: CharacterContext;
   recentNarrative?: string[];
+  onRequestOpinion?: () => Promise<string | null>;
 }
 
 function stripDragonTags(content: string): string {
@@ -52,10 +53,12 @@ export default function DragonBondChat({
   dragonNotes,
   characterContext,
   recentNarrative,
+  onRequestOpinion,
 }: DragonBondChatProps) {
   const [bondState, setBondState] = useState<DragonBondState>(() => loadBondState());
   const [statsExpanded, setStatsExpanded] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [dragonOpening, setDragonOpening] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -125,11 +128,27 @@ export default function DragonBondChat({
   });
 
   // Reload bond state when opened
+  const opinionFiredRef = useRef(false);
   useEffect(() => {
     if (open) {
       setBondState(loadBondState());
+      opinionFiredRef.current = false;
+      setDragonOpening(null);
     }
   }, [open]);
+
+  // Request dragon opinion on open when narrative exists
+  useEffect(() => {
+    if (!open || opinionFiredRef.current || !onRequestOpinion) return;
+    if (!recentNarrative || recentNarrative.length === 0) return;
+    
+    opinionFiredRef.current = true;
+    onRequestOpinion().then(opinion => {
+      if (opinion) {
+        setDragonOpening(opinion);
+      }
+    }).catch(() => {});
+  }, [open, onRequestOpinion, recentNarrative]);
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -233,7 +252,7 @@ export default function DragonBondChat({
 
       {/* ── MESSAGES AREA ── */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6">
-        {messages.length === 0 && !isLoading ? (
+        {messages.length === 0 && !dragonOpening && !isLoading ? (
           /* ── EMPTY STATE ── */
           <div className="flex flex-col items-center justify-center h-full text-center px-6">
             <p className="text-sm italic text-cyan-200/40 leading-relaxed">
@@ -248,6 +267,18 @@ export default function DragonBondChat({
           </div>
         ) : (
           <div className="space-y-0">
+            {/* Dragon opening opinion */}
+            {dragonOpening && (
+              <div className="mb-6 pr-12">
+                <div className="border-l-2 border-cyan-500/30 pl-3">
+                  <div className="text-cyan-200/80 italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1 prose-strong:text-cyan-100/90">
+                    <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+                      {renderVisionBlocks(stripDragonTags(dragonOpening))}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+              </div>
+            )}
             {messages.map(msg => {
               const isDragon = msg.role === 'assistant';
               const cleaned = stripDragonTags(msg.content);
