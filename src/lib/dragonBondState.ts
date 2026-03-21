@@ -21,6 +21,7 @@ export interface DragonBondState {
   ruptures: number;
   lastContactTimestamp: string | null;
   unreadDragonMessages: string[];
+  speechHabits?: string[];
 }
 
 // ── STORAGE ──
@@ -163,6 +164,7 @@ export function buildDragonChatPrompt(
   mood: DragonMood,
   memories: DragonMemory[],
   dragonNotes: string,
+  speechHabits?: string[],
   recentNarrative?: string[],
 ): string {
   const sections: string[] = [];
@@ -230,6 +232,11 @@ You and this rider share something rare. Your communication is almost seamless �
     sections.push(`## PERSONALITY NOTES FROM THE RIDER\n${dragonNotes.trim()}`);
   }
 
+  // Speech habits
+  if (speechHabits && speechHabits.length > 0) {
+    sections.push('## YOUR EVOLVED SPEECH HABITS\nThrough your conversations with this rider, you have developed these characteristic patterns. Use them naturally — they are part of who you have become with this specific rider:\n' + speechHabits.map(h => '- ' + h).join('\n'));
+  }
+
   // Dragon memories
   if (memories.length > 0) {
     const regularMemories = memories.filter(m => m.source !== 'rider-said').slice(-15);
@@ -260,7 +267,10 @@ After each response, include exactly one mood tag indicating your current emotio
 If you share something that should be remembered as a key fact or opinion, also include:
 <!--DRAGON_MEMORY:A short summary of the key fact or opinion-->
 
-You may include one mood tag and zero or more memory tags per response. Place them at the very end.`);
+If you notice yourself developing a new verbal habit, nickname for the rider, recurring metaphor, or catchphrase in this conversation, include:
+<!--DRAGON_HABIT:brief description of the habit-->
+
+You may include one mood tag and zero or more memory/habit tags per response. Place them at the very end.`);
 
   return sections.join('\n\n');
 }

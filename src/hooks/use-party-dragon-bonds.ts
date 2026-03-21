@@ -197,6 +197,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         myDragon.mood as DragonMood,
         (myDragon.memories || []) as DragonMemory[],
         myDragon.dragonNotes || '',
+        myDragon.speechHabits,
         recentNarrative,
       );
 
@@ -284,6 +285,16 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         memories = updated.memories;
       }
       updatedDragon = { ...updatedDragon, memories: memories as any };
+
+      // Parse habit tags
+      const habitMatches = [...assistantContent.matchAll(/<!--DRAGON_HABIT:(.+?)-->/g)];
+      if (habitMatches.length > 0) {
+        const currentHabits = [...(updatedDragon.speechHabits || [])];
+        for (const match of habitMatches) {
+          currentHabits.push(match[1]);
+        }
+        updatedDragon = { ...updatedDragon, speechHabits: currentHabits.slice(-5) };
+      }
 
       // Process trust from player message
       const newSessionCount = sessionChatCount + 1;

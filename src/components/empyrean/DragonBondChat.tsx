@@ -34,6 +34,7 @@ function stripDragonTags(content: string): string {
   return content
     .replace(/<!--DRAGON_MOOD:\w+-->/g, '')
     .replace(/<!--DRAGON_MEMORY:.+?-->/g, '')
+    .replace(/<!--DRAGON_HABIT:.+?-->/g, '')
     .trim();
 }
 
@@ -72,9 +73,10 @@ export default function DragonBondChat({
         bondState.mood,
         bondState.memories,
         dragonNotes,
+        bondState.speechHabits,
         recentNarrative,
       ),
-    [dragonName, characterName, bondState.trust, bondState.mood, bondState.memories, dragonNotes, recentNarrative],
+    [dragonName, characterName, bondState.trust, bondState.mood, bondState.memories, dragonNotes, bondState.speechHabits, recentNarrative],
   );
 
   // Parse tags from new assistant messages
@@ -96,6 +98,16 @@ export default function DragonBondChat({
       const memoryMatches = [...content.matchAll(/<!--DRAGON_MEMORY:(.+?)-->/g)];
       for (const match of memoryMatches) {
         updated = addMemory(updated, match[1], 'bond-chat');
+      }
+
+      // Parse habit tags
+      const habitMatches = [...content.matchAll(/<!--DRAGON_HABIT:(.+?)-->/g)];
+      if (habitMatches.length > 0) {
+        const currentHabits = [...(updated.speechHabits || [])];
+        for (const match of habitMatches) {
+          currentHabits.push(match[1]);
+        }
+        updated = { ...updated, speechHabits: currentHabits.slice(-5) };
       }
 
       // Increment chat counts

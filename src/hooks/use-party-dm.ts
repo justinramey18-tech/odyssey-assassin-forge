@@ -135,6 +135,7 @@ export interface PartyDragonConfig {
   mood: 'calm' | 'alert' | 'protective' | 'distant' | 'ancestral' | 'playful';
   burnout: number; // 0-5
   memories: Array<{ id: string; text: string; createdAt: string }>;
+  speechHabits?: string[];
 }
 
 interface UsePartyDmOptions {
