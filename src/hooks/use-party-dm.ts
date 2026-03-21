@@ -62,16 +62,17 @@ export interface PartyDmMessage {
  * Parse whispers from an assistant message, filter by character name,
  * and return the message with clean content + filtered whispers.
  */
-function enrichMessageWithWhispers(msg: PartyDmMessage, myCharacterName?: string): PartyDmMessage {
+function enrichMessageWithWhispers(msg: PartyDmMessage, myCharacterName?: string, myDragonName?: string): PartyDmMessage {
   if (msg.role !== 'assistant') return msg;
   const { narrative, whispers } = parseWhispers(msg.content);
   if (whispers.length === 0) return { ...msg, content: narrative };
 
-  // Filter: keep actions + tactics (shared), and whispers targeted at this player
+  // Filter: keep actions + tactics (shared), and whispers targeted at this player or their dragon
   const filtered = whispers.filter(w => {
     if (w.type !== 'whisper') return true; // actions & tactics visible to all
     if (!myCharacterName) return false; // no character name = hide targeted whispers
-    return w.target?.toLowerCase() === myCharacterName.toLowerCase();
+    const target = w.target?.toLowerCase();
+    return target === myCharacterName.toLowerCase() || (myDragonName && target === myDragonName.toLowerCase());
   });
 
   return {
