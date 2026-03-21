@@ -387,6 +387,34 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     });
   }, [myDragon, updateMyDragon]);
 
+  // Generate a one-off dragon opinion based on recent narrative
+  const generateDragonOpinion = useCallback(async (characterName: string, recentNarrative: string[]): Promise<string | null> => {
+    if (!myDragon?.dragonName || recentNarrative.length === 0) return null;
+    try {
+      const dragon = myDragon.dragonName;
+      const opinionPrompt = `You are ${dragon}. Based on recent events, share ONE unsolicited thought — a warning, an opinion about an NPC, or a feeling. Keep it under 2 sentences. Use your current mood and trust level to determine tone. Do not ask a question. Just state what is on your mind.\n\nRecent events:\n${recentNarrative.slice(-3).join('\n---\n')}`;
+      const token = await getAuthToken();
+      const resp = await fetch(AI_DM_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: 'What is on your mind right now?' }],
+          systemPromptOverride: opinionPrompt,
+          model: 'google/gemini-2.5-flash',
+        }),
+      });
+      if (!resp.ok) return null;
+      const data = await resp.json();
+      return data?.response || data?.content || null;
+    } catch {
+      return null;
+    }
+  }, [myDragon]);
+
   const isSetup = Boolean(myDragon && myDragon.dragonName);
 
   return useMemo(() => ({
@@ -402,5 +430,6 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
     isSending,
     sendDragonMessage,
     loadDragonChat,
-  }), [myDragon, isSetup, allDragonConfigs, saveMyDragon, updateMyDragon, updateBurnout, updateBondAndTrust, dragonChatMessages, isSending, sendDragonMessage, loadDragonChat]);
+    generateDragonOpinion,
+  }), [myDragon, isSetup, allDragonConfigs, saveMyDragon, updateMyDragon, updateBurnout, updateBondAndTrust, dragonChatMessages, isSending, sendDragonMessage, loadDragonChat, generateDragonOpinion]);
 }
