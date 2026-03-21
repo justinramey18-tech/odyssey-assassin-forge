@@ -1039,12 +1039,23 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
           }}
         />
         <div className="flex flex-col gap-2 max-w-2xl mx-auto">
-          <div className="flex items-end gap-2">
+          <div className="relative flex items-end gap-2">
+            {npcMention.showAutocomplete && (
+              <NPCAutocomplete
+                names={npcMention.suggestions}
+                onSelect={npcMention.selectNPC}
+                activeIndex={npcMention.activeIndex}
+              />
+            )}
             <textarea
               ref={inputRef}
               value={input}
               onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
+              onKeyDown={(e) => {
+                if (npcMention.handleAutocompleteKeyDown(e)) return;
+                handleKeyDown(e);
+              }}
+              onSelect={npcMention.trackCursor}
               onPaste={handlePaste}
               placeholder="What do you do? (@NPC to talk to an NPC)"
               rows={1}
