@@ -1351,6 +1351,22 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
         />
       )}
 
+      {/* Dragon Rider Setup Banner */}
+      {isEmpyrean && !dragonBonds.isSetup && (
+        <div className="mx-3 my-2 p-3 rounded-lg bg-amber-950/40 border border-amber-500/30 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <Flame className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="text-xs text-amber-200 font-cinzel">Set up your dragon rider</span>
+          </div>
+          <button
+            onClick={() => setShowDragonSetup(true)}
+            className="px-3 py-1.5 rounded-md bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium transition-colors whitespace-nowrap min-h-[36px]"
+          >
+            Configure
+          </button>
+        </div>
+      )}
+
       {/* Messages */}
       <div className="flex-1 min-h-0 relative flex flex-col overflow-hidden">
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[2px] py-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain pb-[100px]">
