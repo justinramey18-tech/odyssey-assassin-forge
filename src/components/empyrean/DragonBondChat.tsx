@@ -51,6 +51,7 @@ export default function DragonBondChat({
   dragonName,
   dragonNotes,
   characterContext,
+  recentNarrative,
 }: DragonBondChatProps) {
   const [bondState, setBondState] = useState<DragonBondState>(() => loadBondState());
   const [statsExpanded, setStatsExpanded] = useState(false);
