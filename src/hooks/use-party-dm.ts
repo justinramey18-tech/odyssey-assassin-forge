@@ -2531,7 +2531,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     setCurrentPrompts([]);
 
     // Auto-save
-    const allMsgs = [...messages, ...(data ? [enrichMessageWithWhispers(data as PartyDmMessage, characterName)] : [])];
+    const allMsgs = [...messages, ...(data ? [enrichMessageWithWhispers(data as PartyDmMessage, characterName, myDragonName)] : [])];
     silentAutoSave(allMsgs, sessionConfig.campaignSummary || null);
   }, [partyId, user, sessionConfig, isSplitActive, splitState, characterName, currentPrompts, updateSessionConfig, silentAutoSave, messages]);
 
