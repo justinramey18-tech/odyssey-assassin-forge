@@ -62,10 +62,15 @@ export interface PartyDmMessage {
  * Parse whispers from an assistant message, filter by character name,
  * and return the message with clean content + filtered whispers.
  */
+const BURNOUT_TAG_RE = /<!--BURNOUT:\d-->/g;
+const BOND_STRAIN_TAG_RE = /<!--BOND_STRAIN:.+?-->/g;
+
 function enrichMessageWithWhispers(msg: PartyDmMessage, myCharacterName?: string, myDragonName?: string): PartyDmMessage {
   if (msg.role !== 'assistant') return msg;
   const { narrative, whispers } = parseWhispers(msg.content);
-  if (whispers.length === 0) return { ...msg, content: narrative };
+  // Strip burnout and bond strain tags from narrative
+  const cleanNarrative = narrative.replace(BURNOUT_TAG_RE, '').replace(BOND_STRAIN_TAG_RE, '').trim();
+  if (whispers.length === 0) return { ...msg, content: cleanNarrative };
 
   // Filter: keep actions + tactics (shared), and whispers targeted at this player or their dragon
   const filtered = whispers.filter(w => {
@@ -77,7 +82,7 @@ function enrichMessageWithWhispers(msg: PartyDmMessage, myCharacterName?: string
 
   return {
     ...msg,
-    content: narrative,
+    content: cleanNarrative,
     whispers: filtered.length > 0 ? filtered : undefined,
   };
 }
