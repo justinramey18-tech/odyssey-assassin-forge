@@ -187,6 +187,7 @@ export function buildDragonChatPrompt(
   speechHabits?: string[],
   recentNarrative?: string[],
   bond?: number,
+  riderEmotionalLog?: Array<{ tag: string; timestamp: string }>,
 ): string {
   const sections: string[] = [];
 
