@@ -595,12 +595,15 @@ export function AIDMScreen({ onBack, characterContext, userId, characterName = '
   }, [sendMessage]);
 
 
+  const npcMention = useNPCMentionState(messages, inputRef, setInput, input);
+
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
     const textarea = e.target;
     textarea.style.height = 'auto';
     textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
-  }, []);
+    npcMention.trackCursor();
+  }, [npcMention.trackCursor]);
 
   const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
