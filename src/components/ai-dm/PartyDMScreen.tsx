@@ -2843,7 +2843,13 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
           dragonName={dragonBonds.myDragon?.dragonName || ''}
           characterName={members.find(m => m.user_id === currentUserId)?.character_name || 'Rider'}
           messages={dragonBonds.dragonChatMessages}
-          onSend={(text) => dragonBonds.sendDragonMessage(text, members.find(m => m.user_id === currentUserId)?.character_name || 'Rider')}
+          onSend={(text) => {
+            const narrative = partyDm.messages
+              .filter(m => m.role === 'assistant' && m.sender_name === 'DM')
+              .slice(-5)
+              .map(m => m.content.length > 500 ? m.content.slice(0, 500) + '…' : m.content);
+            dragonBonds.sendDragonMessage(text, members.find(m => m.user_id === currentUserId)?.character_name || 'Rider', narrative);
+          }}
           isLoading={dragonBonds.isSending}
           bondState={{
             bond: dragonBonds.myDragon?.bond ?? 15,
