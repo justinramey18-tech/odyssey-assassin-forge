@@ -15,6 +15,7 @@ import { loadCombatSettings } from '@/lib/combat/combatSettings';
 import { formatPartyPowerForPrompt } from '@/lib/combat/encounterDifficulty';
 import { getAlignmentZone, type AlignmentScore } from '@/lib/alignmentSpectrum';
 import { buildEmpyreanDMPersona } from '@/lib/empyreanDMPersona';
+import { getBondDescriptor } from '@/lib/dragonBondState';
 
 function loadAlignmentDrift(): { position: AlignmentScore; zone: string } | null {
   try {
