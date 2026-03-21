@@ -1629,8 +1629,10 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       const campaignIntro = sessionConfig.campaignType === 'empyrean'
         ? 'This is a multiplayer Empyrean campaign set at Basgiath War College. Players are dragon riders in training. '
         : '';
+      const dragonBondsSection = buildDragonBondsSection();
       const partyContextStr = [
         `## PARTY MEMBERS\n${campaignIntro}This is a multiplayer session in dialogue mode. Players speak in-character directly. Respond to their dialogue naturally and advance the narrative.\n${partyMembersSummary}\nAddress each player character by name.`,
+        dragonBondsSection,
         responseModePrompt,
       ].filter(Boolean).join('\n\n');
 
