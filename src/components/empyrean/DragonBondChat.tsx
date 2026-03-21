@@ -27,6 +27,7 @@ interface DragonBondChatProps {
   dragonNotes: string;
   characterContext: CharacterContext;
   recentNarrative?: string[];
+  onRequestOpinion?: () => Promise<string | null>;
 }
 
 function stripDragonTags(content: string): string {
