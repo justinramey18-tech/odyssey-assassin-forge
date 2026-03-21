@@ -121,6 +121,12 @@ export function useDragonBond({ dragonName, characterName, onTrustChange, onBond
         onTrustChangeRef.current?.(trustDelta, reason);
       }
 
+      // Detect rider declarations and save as rider-said memories
+      const declaration = detectRiderDeclaration(playerMessage);
+      if (declaration) {
+        state = addMemory(state, declaration, 'rider-said');
+      }
+
       saveBondState(state);
       return state;
     });

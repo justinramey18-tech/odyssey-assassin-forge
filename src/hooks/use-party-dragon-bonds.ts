@@ -309,6 +309,16 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         };
       }
 
+      // Detect rider declarations and save as rider-said memories
+      const declaration = detectRiderDeclaration(text);
+      if (declaration) {
+        let memories = [...(updatedDragon.memories || [])] as DragonMemory[];
+        const fakeState = { memories } as any;
+        const updated = addMemory(fakeState, declaration, 'rider-said');
+        memories = updated.memories;
+        updatedDragon = { ...updatedDragon, memories: memories as any };
+      }
+
       // Save updated dragon config
       if (JSON.stringify(updatedDragon) !== JSON.stringify(myDragon)) {
         setMyDragon(updatedDragon);
