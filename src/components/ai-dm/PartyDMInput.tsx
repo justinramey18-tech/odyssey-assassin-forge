@@ -33,6 +33,7 @@ interface PartyDMInputProps {
   onPickVideo?: () => void;
   onPickAudio?: () => void;
   onCreatePoll?: () => void;
+  npcNames?: string[];
 }
 
 export const PartyDMInput = memo(forwardRef<PartyDMInputHandle, PartyDMInputProps>(function PartyDMInput(
