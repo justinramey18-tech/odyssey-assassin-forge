@@ -197,6 +197,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         myDragon.mood as DragonMood,
         (myDragon.memories || []) as DragonMemory[],
         myDragon.dragonNotes || '',
+        myDragon.speechHabits,
         recentNarrative,
       );
 

@@ -73,9 +73,10 @@ export default function DragonBondChat({
         bondState.mood,
         bondState.memories,
         dragonNotes,
+        bondState.speechHabits,
         recentNarrative,
       ),
-    [dragonName, characterName, bondState.trust, bondState.mood, bondState.memories, dragonNotes, recentNarrative],
+    [dragonName, characterName, bondState.trust, bondState.mood, bondState.memories, dragonNotes, bondState.speechHabits, recentNarrative],
   );
 
   // Parse tags from new assistant messages
