@@ -267,7 +267,10 @@ After each response, include exactly one mood tag indicating your current emotio
 If you share something that should be remembered as a key fact or opinion, also include:
 <!--DRAGON_MEMORY:A short summary of the key fact or opinion-->
 
-You may include one mood tag and zero or more memory tags per response. Place them at the very end.`);
+If you notice yourself developing a new verbal habit, nickname for the rider, recurring metaphor, or catchphrase in this conversation, include:
+<!--DRAGON_HABIT:brief description of the habit-->
+
+You may include one mood tag and zero or more memory/habit tags per response. Place them at the very end.`);
 
   return sections.join('\n\n');
 }
