@@ -62,11 +62,8 @@ export default function CampaignBuilderChat({ partyMembers, characterName, chara
     sendMessage(text);
   }, [input, isLoading, sendMessage]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+  const handleKeyDown = (_e: React.KeyboardEvent) => {
+    // intentionally no-op: Enter naturally inserts a newline in textarea
   };
 
   return (

@@ -194,11 +194,8 @@ export default function DragonBondChat({
   }, [inputValue, isLoading, sendMessage]);
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        handleSend();
-      }
+    (_e: React.KeyboardEvent) => {
+      // intentionally no-op: Enter naturally inserts a newline in textarea
     },
     [handleSend],
   );
