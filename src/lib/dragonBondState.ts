@@ -98,7 +98,7 @@ export function addBond(state: DragonBondState, amount: number): DragonBondState
   return { ...state, bond: Math.min(100, Math.round(state.bond + amount)) };
 }
 
-export function addMemory(state: DragonBondState, text: string, source: 'campaign' | 'bond-chat'): DragonBondState {
+export function addMemory(state: DragonBondState, text: string, source: 'campaign' | 'bond-chat' | 'rider-said'): DragonBondState {
   const memory: DragonMemory = {
     id: crypto.randomUUID(),
     text,
