@@ -4,6 +4,7 @@ import {
   saveBondState,
   addTrust,
   reduceTrust,
+  detectTrustBreak,
   addBond,
   addMemory,
   type DragonBondState,
