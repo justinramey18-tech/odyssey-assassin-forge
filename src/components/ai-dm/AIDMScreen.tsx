@@ -2,6 +2,8 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
 import { useResponseMode } from '@/hooks/use-response-mode';
 import { useDraftPersist } from '@/hooks/use-draft-persist';
+import { useNPCMentionState } from '@/hooks/use-npc-mention-state';
+import { NPCAutocomplete } from './NPCAutocomplete';
 import { isMomoEasterEgg } from '@/lib/easter-eggs';
 import { GeraltGameplayWidget } from './GeraltGameplayWidget';
 import { loadSelectedModel, saveSelectedModel, getModelLabel } from '@/lib/dm-models';
