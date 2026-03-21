@@ -133,6 +133,7 @@ export default function DragonBondChat({
     if (open) {
       setBondState(loadBondState());
       opinionFiredRef.current = false;
+      setDragonOpening(null);
     }
   }, [open]);
 
@@ -140,15 +141,14 @@ export default function DragonBondChat({
   useEffect(() => {
     if (!open || opinionFiredRef.current || !onRequestOpinion) return;
     if (!recentNarrative || recentNarrative.length === 0) return;
-    if (messages.length > 0) return; // only on empty chat or fresh open
     
     opinionFiredRef.current = true;
     onRequestOpinion().then(opinion => {
       if (opinion) {
-        sendMessage('', opinion); // inject as assistant message via the hook — but we need a different approach
+        setDragonOpening(opinion);
       }
     }).catch(() => {});
-  }, [open, onRequestOpinion, recentNarrative, messages.length, sendMessage]);
+  }, [open, onRequestOpinion, recentNarrative]);
 
   // Auto-scroll on new messages
   useEffect(() => {
