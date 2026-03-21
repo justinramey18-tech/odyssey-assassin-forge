@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { type PartyDragonConfig } from '@/hooks/use-party-dm';
 import { getAuthToken } from '@/lib/auth-token';
-import { buildDragonChatPrompt, addMemory, detectTrustBreak, type DragonMood, type DragonMemory } from '@/lib/dragonBondState';
+import { buildDragonChatPrompt, addMemory, detectTrustBreak, detectRiderDeclaration, type DragonMood, type DragonMemory } from '@/lib/dragonBondState';
 import { loadSelectedModel } from '@/lib/dm-models';
 
 const AI_DM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
@@ -307,6 +307,16 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
           ...updatedDragon,
           trust: Math.max(0, Math.min(100, (updatedDragon.trust || 10) + trustDelta)),
         };
+      }
+
+      // Detect rider declarations and save as rider-said memories
+      const declaration = detectRiderDeclaration(text);
+      if (declaration) {
+        let memories = [...(updatedDragon.memories || [])] as DragonMemory[];
+        const fakeState = { memories } as any;
+        const updated = addMemory(fakeState, declaration, 'rider-said');
+        memories = updated.memories;
+        updatedDragon = { ...updatedDragon, memories: memories as any };
       }
 
       // Save updated dragon config

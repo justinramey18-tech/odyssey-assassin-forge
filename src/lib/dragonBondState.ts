@@ -5,7 +5,7 @@ import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 export interface DragonMemory {
   id: string;
   text: string;
-  source: 'campaign' | 'bond-chat';
+  source: 'campaign' | 'bond-chat' | 'rider-said';
   createdAt: string;
 }
 
@@ -98,7 +98,7 @@ export function addBond(state: DragonBondState, amount: number): DragonBondState
   return { ...state, bond: Math.min(100, Math.round(state.bond + amount)) };
 }
 
-export function addMemory(state: DragonBondState, text: string, source: 'campaign' | 'bond-chat'): DragonBondState {
+export function addMemory(state: DragonBondState, text: string, source: 'campaign' | 'bond-chat' | 'rider-said'): DragonBondState {
   const memory: DragonMemory = {
     id: crypto.randomUUID(),
     text,
@@ -135,6 +135,23 @@ export function detectTrustBreak(text: string): { broken: boolean; severity: num
   if (check(COMMAND_PATTERNS)) return { broken: true, severity: 2, reason: 'domination' };
   if (check(DISMISSAL_PATTERNS)) return { broken: true, severity: 1, reason: 'dismissal' };
   return { broken: false, severity: 0, reason: '' };
+}
+
+// ── RIDER-SAID DETECTION ──
+
+const RIDER_DECLARATION_PATTERNS = [
+  'i will never', 'i promise', 'i swear', 'i believe',
+  'i trust', 'i dont trust', 'i hate', 'i love', 'i will always',
+];
+
+export function detectRiderDeclaration(text: string): string | null {
+  const lower = text.toLowerCase().replace(/['']/g, '');
+  const match = RIDER_DECLARATION_PATTERNS.find(p => lower.includes(p));
+  if (!match) return null;
+  // Extract the sentence containing the declaration
+  const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
+  const relevant = sentences.find(s => s.toLowerCase().replace(/['']/g, '').includes(match));
+  return relevant ? relevant.slice(0, 120) : text.slice(0, 120);
 }
 
 // ── DRAGON CHAT SYSTEM PROMPT BUILDER ──
@@ -215,8 +232,18 @@ You and this rider share something rare. Your communication is almost seamless �
 
   // Dragon memories
   if (memories.length > 0) {
-    const memoryLines = memories.slice(-15).map(m => `- ${m.text} (${m.source}, ${new Date(m.createdAt).toLocaleDateString()})`).join('\n');
-    sections.push(`## YOUR MEMORIES\nThese are things you remember and care about. Reference them naturally when relevant:\n${memoryLines}`);
+    const regularMemories = memories.filter(m => m.source !== 'rider-said').slice(-15);
+    const riderSaidMemories = memories.filter(m => m.source === 'rider-said').slice(-10);
+
+    const memoryLines = regularMemories.map(m => `- ${m.text} (${m.source}, ${new Date(m.createdAt).toLocaleDateString()})`).join('\n');
+    let memorySection = `## YOUR MEMORIES\nThese are things you remember and care about. Reference them naturally when relevant:\n${memoryLines}`;
+
+    if (riderSaidMemories.length > 0) {
+      const riderLines = riderSaidMemories.map(m => `- "${m.text}" (${new Date(m.createdAt).toLocaleDateString()})`).join('\n');
+      memorySection += `\n\n### THINGS THE RIDER HAS SAID\n${riderLines}\n\nPay close attention to what the rider has SAID in past conversations (marked above). If recent campaign events contradict something the rider previously stated, CALL THEM ON IT. Ask them directly: why did they change their mind? Were they lying before? This is how dragons build trust — through honesty, not compliance.`;
+    }
+
+    sections.push(memorySection);
   }
 
   // Recent campaign narrative
