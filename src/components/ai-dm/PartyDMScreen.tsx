@@ -1256,6 +1256,25 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             </span>
           </>
         )}
+        )}
+        {isEmpyrean && dragonBonds.myDragon?.dragonName && (
+          <>
+            <span className="text-[11px] text-white/20">•</span>
+            <Flame className="w-3 h-3 text-amber-400 shrink-0" />
+            <span className="text-[11px] text-amber-300/70 whitespace-nowrap truncate max-w-[80px]">
+              {dragonBonds.myDragon.dragonName}
+            </span>
+            <span className={cn(
+              "text-[10px] font-mono whitespace-nowrap",
+              dragonBonds.myDragon.burnout === 0 ? "text-emerald-400"
+                : dragonBonds.myDragon.burnout <= 2 ? "text-yellow-400"
+                : dragonBonds.myDragon.burnout <= 4 ? "text-orange-400"
+                : "text-red-400"
+            )}>
+              🔥{dragonBonds.myDragon.burnout}
+            </span>
+          </>
+        )}
         {broadcastPlaylist && (
           <>
             <span className="text-[11px] text-white/20">•</span>
