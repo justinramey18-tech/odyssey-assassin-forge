@@ -179,6 +179,33 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     } catch {}
   }, [pendingDraft]);
 
+  // Detect BURNOUT and BOND_STRAIN tags from new assistant messages in Empyrean campaigns
+  const onBurnoutRef = useRef(onBurnoutDetected);
+  const onBondStrainRef = useRef(onBondStrainDetected);
+  useEffect(() => { onBurnoutRef.current = onBurnoutDetected; }, [onBurnoutDetected]);
+  useEffect(() => { onBondStrainRef.current = onBondStrainDetected; }, [onBondStrainDetected]);
+  const lastParsedMsgIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (sessionConfig?.campaignType !== 'empyrean') return;
+    if (messages.length === 0) return;
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg.role !== 'assistant') return;
+    if (lastMsg.id === lastParsedMsgIdRef.current) return;
+    lastParsedMsgIdRef.current = lastMsg.id;
+
+    const burnoutMatch = lastMsg.content.match(/<!--BURNOUT:(\d)-->/);
+    if (burnoutMatch) {
+      const level = parseInt(burnoutMatch[1], 10);
+      if (level >= 0 && level <= 5) onBurnoutRef.current?.(level);
+    }
+
+    const strainMatch = lastMsg.content.match(/<!--BOND_STRAIN:(.+?)-->/);
+    if (strainMatch) {
+      onBondStrainRef.current?.(strainMatch[1]);
+    }
+  }, [messages, sessionConfig?.campaignType]);
+
 
   const abortRef = useRef<AbortController | null>(null);
   const lastGeneratedRoundRef = useRef<string | null>(null);
