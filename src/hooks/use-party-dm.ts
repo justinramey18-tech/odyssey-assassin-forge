@@ -2573,7 +2573,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       .single();
 
     if (assistantData) {
-      const enriched = enrichMessageWithWhispers(assistantData as PartyDmMessage, characterName);
+      const enriched = enrichMessageWithWhispers(assistantData as PartyDmMessage, characterName, myDragonName);
       setMessages(prev => {
         if (prev.some(m => m.id === enriched.id)) return prev;
         return [...prev, enriched];
