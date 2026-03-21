@@ -302,10 +302,15 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
       setSessionChatCount(newSessionCount);
       let trustDelta = newSessionCount <= SESSION_CHAT_CAP ? 1 : 0;
 
-      if (matchesAny(text, QUESTION_PATTERNS)) trustDelta += 1;
-      if (matchesAny(text, GRATITUDE_PATTERNS)) trustDelta += 1;
-      if (matchesAny(text, VULNERABILITY_PATTERNS)) trustDelta += 2;
-      if (matchesAny(text, AUTONOMY_PATTERNS)) trustDelta += 1;
+      const questionMatch = matchesAny(text, QUESTION_PATTERNS);
+      const gratitudeMatch = matchesAny(text, GRATITUDE_PATTERNS);
+      const vulnerabilityMatch = matchesAny(text, VULNERABILITY_PATTERNS);
+      const autonomyMatch = matchesAny(text, AUTONOMY_PATTERNS);
+
+      if (questionMatch) trustDelta += 1;
+      if (gratitudeMatch) trustDelta += 1;
+      if (vulnerabilityMatch) trustDelta += 2;
+      if (autonomyMatch) trustDelta += 1;
       trustDelta = Math.min(trustDelta, MAX_TRUST_PER_EXCHANGE);
 
       const trustBreak = detectTrustBreak(text);
@@ -320,6 +325,15 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
           trust: Math.max(0, Math.min(100, (updatedDragon.trust || 10) + trustDelta)),
         };
       }
+
+      // Classify and log rider emotion
+      const emotionTag = classifyRiderEmotion(
+        text,
+        trustBreak,
+        { question: questionMatch, gratitude: gratitudeMatch, vulnerability: vulnerabilityMatch, autonomy: autonomyMatch },
+      );
+      const emotionalLog = [...(updatedDragon.riderEmotionalLog || []), { tag: emotionTag, timestamp: new Date().toISOString() }].slice(-15);
+      updatedDragon = { ...updatedDragon, riderEmotionalLog: emotionalLog };
 
       // Detect rider declarations and save as rider-said memories
       const declaration = detectRiderDeclaration(text);
