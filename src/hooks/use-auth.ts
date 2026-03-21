@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { SCOPED_KEYS } from '@/lib/scoped-keys';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -51,6 +52,23 @@ export function useAuth() {
   }, []);
 
   const signOut = useCallback(async () => {
+    // Clear all character-scoped localStorage to prevent data bleed between accounts
+    try {
+      const allKeys = Object.keys(localStorage);
+      for (const lsKey of allKeys) {
+        // Clear scoped keys (e.g., "odyssey-hp-state::saveId") and their unscoped versions
+        const isScoped = SCOPED_KEYS.some(sk => lsKey === sk || lsKey.startsWith(`${sk}::`));
+        if (isScoped) {
+          localStorage.removeItem(lsKey);
+        }
+      }
+      // Clear the active cloud save pointer
+      localStorage.removeItem('odyssey-active-cloud-save-id');
+      console.log('[Auth] Cleared all character data on sign-out');
+    } catch (e) {
+      console.error('[Auth] Failed to clear character data on sign-out:', e);
+    }
+
     const { error } = await supabase.auth.signOut();
     return { error };
   }, []);
