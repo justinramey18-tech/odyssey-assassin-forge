@@ -1,0 +1,127 @@
+import { useState, useEffect } from 'react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Flame } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { type PartyDragonConfig } from '@/hooks/use-party-dm';
+
+interface DragonRiderSetupSheetProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  initialConfig: PartyDragonConfig | null;
+  onSave: (config: { dragonName: string; signetType: string; yearAtBasgiath: string; dragonNotes: string }) => void;
+  characterName: string;
+}
+
+const YEARS = [
+  { value: 'first-year', label: '1st Year' },
+  { value: 'second-year', label: '2nd Year' },
+  { value: 'third-year', label: '3rd Year' },
+  { value: 'fourth-year', label: '4th Year' },
+] as const;
+
+export function DragonRiderSetupSheet({ open, onOpenChange, initialConfig, onSave, characterName }: DragonRiderSetupSheetProps) {
+  const [dragonName, setDragonName] = useState('');
+  const [signetType, setSignetType] = useState('');
+  const [yearAtBasgiath, setYearAtBasgiath] = useState('first-year');
+  const [dragonNotes, setDragonNotes] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      setDragonName(initialConfig?.dragonName || '');
+      setSignetType(initialConfig?.signetType || '');
+      setYearAtBasgiath(initialConfig?.yearAtBasgiath || 'first-year');
+      setDragonNotes(initialConfig?.dragonNotes || '');
+    }
+  }, [open, initialConfig]);
+
+  const handleSave = () => {
+    if (!dragonName.trim()) return;
+    onSave({ dragonName: dragonName.trim(), signetType: signetType.trim(), yearAtBasgiath, dragonNotes: dragonNotes.trim() });
+    onOpenChange(false);
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl border-amber-500/20">
+        <SheetHeader className="pb-2">
+          <SheetTitle className="font-cinzel text-amber-400 flex items-center gap-2">
+            <Flame className="w-5 h-5" />
+            Dragon Bond Setup
+          </SheetTitle>
+          <SheetDescription className="text-muted-foreground text-xs">
+            Configure {characterName}'s bonded dragon
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="space-y-4 pt-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-amber-400/80">Dragon Name *</Label>
+            <Input
+              value={dragonName}
+              onChange={e => setDragonName(e.target.value)}
+              placeholder="e.g. Tairn, Andarna, Sgaeyl"
+              className="bg-background/50 border-border/50 focus:border-amber-500/50"
+              maxLength={40}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-amber-400/80">Signet Ability</Label>
+            <Input
+              value={signetType}
+              onChange={e => setSignetType(e.target.value)}
+              placeholder="e.g. lightning manipulation, foresight"
+              className="bg-background/50 border-border/50 focus:border-amber-500/50"
+              maxLength={60}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-amber-400/80">Year at Basgiath</Label>
+            <div className="grid grid-cols-4 gap-1.5">
+              {YEARS.map(y => (
+                <button
+                  key={y.value}
+                  type="button"
+                  onClick={() => setYearAtBasgiath(y.value)}
+                  className={cn(
+                    'py-2 px-1 rounded-md text-xs font-medium transition-colors min-h-[44px]',
+                    yearAtBasgiath === y.value
+                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                      : 'bg-background/30 text-muted-foreground border border-border/30 hover:border-border/60'
+                  )}
+                >
+                  {y.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-amber-400/80">Dragon Personality Notes</Label>
+            <Textarea
+              value={dragonNotes}
+              onChange={e => setDragonNotes(e.target.value)}
+              placeholder="Describe your dragon's personality, quirks, preferences..."
+              className="bg-background/50 border-border/50 focus:border-amber-500/50 min-h-[80px] resize-none"
+              maxLength={500}
+            />
+            <p className="text-[10px] text-muted-foreground text-right">{dragonNotes.length}/500</p>
+          </div>
+
+          <Button
+            onClick={handleSave}
+            disabled={!dragonName.trim()}
+            className="w-full bg-amber-600 hover:bg-amber-700 text-white font-cinzel min-h-[48px]"
+          >
+            {initialConfig?.dragonName ? 'Update Dragon' : 'Bond Dragon'}
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
