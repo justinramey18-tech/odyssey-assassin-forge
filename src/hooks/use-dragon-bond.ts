@@ -6,6 +6,7 @@ import {
   reduceTrust,
   detectTrustBreak,
   detectRiderDeclaration,
+  classifyRiderEmotion,
   addBond,
   addMemory,
   type DragonBondState,
@@ -85,19 +86,24 @@ export function useDragonBond({ dragonName, characterName, onTrustChange, onBond
       let reason = 'conversation';
 
       // Bonus patterns
-      if (matchesAny(playerMessage, QUESTION_PATTERNS)) {
+      const questionMatch = matchesAny(playerMessage, QUESTION_PATTERNS);
+      const gratitudeMatch = matchesAny(playerMessage, GRATITUDE_PATTERNS);
+      const vulnerabilityMatch = matchesAny(playerMessage, VULNERABILITY_PATTERNS);
+      const autonomyMatch = matchesAny(playerMessage, AUTONOMY_PATTERNS);
+
+      if (questionMatch) {
         trustDelta += 1;
         reason = 'genuine curiosity';
       }
-      if (matchesAny(playerMessage, GRATITUDE_PATTERNS)) {
+      if (gratitudeMatch) {
         trustDelta += 1;
         reason = 'trust and gratitude';
       }
-      if (matchesAny(playerMessage, VULNERABILITY_PATTERNS)) {
+      if (vulnerabilityMatch) {
         trustDelta += 2;
         reason = 'shared vulnerability';
       }
-      if (matchesAny(playerMessage, AUTONOMY_PATTERNS)) {
+      if (autonomyMatch) {
         trustDelta += 1;
         reason = 'respecting autonomy';
       }
@@ -120,6 +126,15 @@ export function useDragonBond({ dragonName, characterName, onTrustChange, onBond
         state = reduceTrust(state, Math.abs(trustDelta));
         onTrustChangeRef.current?.(trustDelta, reason);
       }
+
+      // Classify and log rider emotion
+      const emotionTag = classifyRiderEmotion(
+        playerMessage,
+        trustBreak,
+        { question: questionMatch, gratitude: gratitudeMatch, vulnerability: vulnerabilityMatch, autonomy: autonomyMatch },
+      );
+      const emotionalLog = [...(state.riderEmotionalLog || []), { tag: emotionTag, timestamp: new Date().toISOString() }].slice(-15);
+      state = { ...state, riderEmotionalLog: emotionalLog };
 
       // Detect rider declarations and save as rider-said memories
       const declaration = detectRiderDeclaration(playerMessage);

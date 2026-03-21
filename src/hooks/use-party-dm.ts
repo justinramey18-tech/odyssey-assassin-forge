@@ -136,6 +136,7 @@ export interface PartyDragonConfig {
   burnout: number; // 0-5
   memories: Array<{ id: string; text: string; createdAt: string }>;
   speechHabits?: string[];
+  riderEmotionalLog?: Array<{ tag: string; timestamp: string }>;
 }
 
 interface UsePartyDmOptions {
