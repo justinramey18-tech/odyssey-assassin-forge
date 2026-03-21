@@ -215,8 +215,18 @@ You and this rider share something rare. Your communication is almost seamless â
 
   // Dragon memories
   if (memories.length > 0) {
-    const memoryLines = memories.slice(-15).map(m => `- ${m.text} (${m.source}, ${new Date(m.createdAt).toLocaleDateString()})`).join('\n');
-    sections.push(`## YOUR MEMORIES\nThese are things you remember and care about. Reference them naturally when relevant:\n${memoryLines}`);
+    const regularMemories = memories.filter(m => m.source !== 'rider-said').slice(-15);
+    const riderSaidMemories = memories.filter(m => m.source === 'rider-said').slice(-10);
+
+    const memoryLines = regularMemories.map(m => `- ${m.text} (${m.source}, ${new Date(m.createdAt).toLocaleDateString()})`).join('\n');
+    let memorySection = `## YOUR MEMORIES\nThese are things you remember and care about. Reference them naturally when relevant:\n${memoryLines}`;
+
+    if (riderSaidMemories.length > 0) {
+      const riderLines = riderSaidMemories.map(m => `- "${m.text}" (${new Date(m.createdAt).toLocaleDateString()})`).join('\n');
+      memorySection += `\n\n### THINGS THE RIDER HAS SAID\n${riderLines}\n\nPay close attention to what the rider has SAID in past conversations (marked above). If recent campaign events contradict something the rider previously stated, CALL THEM ON IT. Ask them directly: why did they change their mind? Were they lying before? This is how dragons build trust â€” through honesty, not compliance.`;
+    }
+
+    sections.push(memorySection);
   }
 
   // Recent campaign narrative
