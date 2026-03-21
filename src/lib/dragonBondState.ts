@@ -5,7 +5,7 @@ import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 export interface DragonMemory {
   id: string;
   text: string;
-  source: 'campaign' | 'bond-chat';
+  source: 'campaign' | 'bond-chat' | 'rider-said';
   createdAt: string;
 }
 
