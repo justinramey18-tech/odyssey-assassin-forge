@@ -116,6 +116,7 @@ export const PartyDMInput = memo(forwardRef<PartyDMInputHandle, PartyDMInputProp
     const ta = e.target;
     ta.style.height = 'auto';
     ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
+    setCursorPos(ta.selectionStart ?? 0);
   }, [setInput]);
 
   const handleSubmit = useCallback(() => {
