@@ -199,6 +199,7 @@ export function usePartyDragonBonds(partyId: string | null, userId: string | nul
         myDragon.dragonNotes || '',
         myDragon.speechHabits,
         recentNarrative,
+        myDragon.bond,
       );
 
       // Build API messages - only last 40 messages for context window
