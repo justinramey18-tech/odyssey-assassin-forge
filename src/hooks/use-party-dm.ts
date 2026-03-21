@@ -1019,12 +1019,20 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     const relevantMembers = memberIds
       ? partyMembers.filter(m => memberIds.includes(m.user_id))
       : partyMembers;
+    const isEmpyrean = sessionConfig?.campaignType === 'empyrean';
     const partyMembersSummary = relevantMembers.map(m => {
       const s = m.character_status as Record<string, unknown>;
-      return `- ${m.character_name} (Level ${s.level || '?'} ${s.className || 'Adventurer'}, ${s.currentHP || '?'}/${s.maxHP || '?'} HP)`;
+      let line = `- ${m.character_name} (Level ${s.level || '?'} ${s.className || 'Adventurer'}, ${s.currentHP || '?'}/${s.maxHP || '?'} HP)`;
+      if (isEmpyrean && partyDragonConfigs) {
+        const dc = partyDragonConfigs.find(d => d.userId === m.user_id);
+        if (dc) {
+          line += ` | Dragon: ${dc.config.dragonName}, Signet: ${dc.config.signetType || 'unknown'}, Bond: ${getBondDescriptor(dc.config.bond)}, Burnout: ${dc.config.burnout}/5`;
+        }
+      }
+      return line;
     }).join('\n');
     return partyMembersSummary;
-  }, [partyMembers]);
+  }, [partyMembers, sessionConfig?.campaignType, partyDragonConfigs]);
 
   // Generate split summary for a team
   const generateSplitSummary = useCallback(async (teamMessages: PartyDmMessage[], previousSummary: string | null): Promise<string | null> => {
