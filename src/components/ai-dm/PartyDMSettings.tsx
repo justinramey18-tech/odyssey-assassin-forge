@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
