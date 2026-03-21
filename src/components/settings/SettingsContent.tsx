@@ -652,20 +652,6 @@ export function SettingsContent({
                 variant="outline"
                 onClick={async () => {
                   // Clear user-specific localStorage keys so the next account starts clean
-                  const keysToRemove = [
-                    'odyssey-active-cloud-save-id',
-                    'odyssey-dm-game-state',
-                    'dnd-ai-dm-guides',
-                    
-                  ];
-                  keysToRemove.forEach(k => localStorage.removeItem(k));
-                  
-                  // Also remove any scoped storage keys (prefixed with character name)
-                  const allKeys = Object.keys(localStorage);
-                  allKeys.forEach(k => {
-                    if (k.startsWith('odyssey-scoped:')) localStorage.removeItem(k);
-                  });
-                  
                   await auth.signOut();
                   toast.success('Signed out — redirecting to login...');
                 }}
