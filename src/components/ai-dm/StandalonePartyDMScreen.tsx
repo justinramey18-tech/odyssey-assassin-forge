@@ -165,6 +165,27 @@ export function StandalonePartyDMScreen({
     [partyMembers]
   );
 
+  // Dragon bonds for Empyrean campaigns
+  const dragonBonds = usePartyDragonBonds(partyId || null, userId || null);
+  const partyDragonConfigs = useMemo(() => {
+    if (!dragonBonds.allDragonConfigs.length) return undefined;
+    return dragonBonds.allDragonConfigs.map(d => {
+      const member = partyMembers.find(m => m.user_id === d.userId);
+      return {
+        userId: d.userId,
+        characterName: member?.character_name || 'Unknown',
+        config: {
+          dragonName: d.config.dragonName,
+          signetType: d.config.signetType,
+          bond: d.config.bond,
+          trust: d.config.trust,
+          mood: d.config.mood,
+          burnout: d.config.burnout,
+        },
+      };
+    });
+  }, [dragonBonds.allDragonConfigs, partyMembers]);
+
   // Party DM hook — pass isHost as isCreator so co-hosts get host abilities
   const partyDm = usePartyDm({
     partyId: partyId || null,
@@ -175,6 +196,7 @@ export function StandalonePartyDMScreen({
     partyMembers: stablePartyMembers,
     customGuidesContent: gmGuides.enabledContent,
     memoryAnchorsContent: memoryAnchors.formattedForOracle,
+    partyDragonConfigs,
   });
 
   // Auto-extract memory anchors from new DM responses (host-only to avoid duplicates)
