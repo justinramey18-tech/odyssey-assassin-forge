@@ -33,6 +33,7 @@ interface PartyDragonChatProps {
     trust: number;
     mood: string;
   };
+  onRequestOpinion?: () => Promise<string | null>;
 }
 
 export default function PartyDragonChat({
