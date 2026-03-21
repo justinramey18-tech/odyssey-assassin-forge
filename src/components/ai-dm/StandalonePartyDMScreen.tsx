@@ -197,6 +197,7 @@ export function StandalonePartyDMScreen({
     customGuidesContent: gmGuides.enabledContent,
     memoryAnchorsContent: memoryAnchors.formattedForOracle,
     partyDragonConfigs,
+    myDragonName: dragonBonds.myDragon?.dragonName,
   });
 
   // Auto-extract memory anchors from new DM responses (host-only to avoid duplicates)

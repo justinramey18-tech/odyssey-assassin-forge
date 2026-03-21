@@ -62,16 +62,17 @@ export interface PartyDmMessage {
  * Parse whispers from an assistant message, filter by character name,
  * and return the message with clean content + filtered whispers.
  */
-function enrichMessageWithWhispers(msg: PartyDmMessage, myCharacterName?: string): PartyDmMessage {
+function enrichMessageWithWhispers(msg: PartyDmMessage, myCharacterName?: string, myDragonName?: string): PartyDmMessage {
   if (msg.role !== 'assistant') return msg;
   const { narrative, whispers } = parseWhispers(msg.content);
   if (whispers.length === 0) return { ...msg, content: narrative };
 
-  // Filter: keep actions + tactics (shared), and whispers targeted at this player
+  // Filter: keep actions + tactics (shared), and whispers targeted at this player or their dragon
   const filtered = whispers.filter(w => {
     if (w.type !== 'whisper') return true; // actions & tactics visible to all
     if (!myCharacterName) return false; // no character name = hide targeted whispers
-    return w.target?.toLowerCase() === myCharacterName.toLowerCase();
+    const target = w.target?.toLowerCase();
+    return target === myCharacterName.toLowerCase() || (myDragonName && target === myDragonName.toLowerCase());
   });
 
   return {
@@ -141,9 +142,10 @@ interface UsePartyDmOptions {
   customGuidesContent?: string;
   memoryAnchorsContent?: string;
   partyDragonConfigs?: Array<{ userId: string; characterName: string; config: { dragonName: string; signetType: string; bond: number; trust: number; mood: string; burnout: number } }>;
+  myDragonName?: string;
 }
 
-export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, partyDragonConfigs }: UsePartyDmOptions) {
+export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, partyDragonConfigs, myDragonName }: UsePartyDmOptions) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<PartyDmMessage[]>([]);
   const [currentPrompts, setCurrentPrompts] = useState<PartyDmPrompt[]>([]);
@@ -246,8 +248,8 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
         : whisperFiltered.filter(m => !m.team || m.team === myTeam || m.team.startsWith('whisper:'))
       : whisperFiltered;
     // Parse whispers from assistant messages and filter by character name
-    return teamFiltered.map(m => enrichMessageWithWhispers(m, characterName));
-  }, [messages, isSplitActive, user, isCreator, myTeam, characterName]);
+    return teamFiltered.map(m => enrichMessageWithWhispers(m, characterName, myDragonName));
+  }, [messages, isSplitActive, user, isCreator, myTeam, characterName, myDragonName]);
 
   // Load existing data when session becomes active
   useEffect(() => {
@@ -2030,7 +2032,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
           .update({ content: newContent })
           .eq('id', messageId)
           .eq('party_id', partyId);
-        setMessages(prev => prev.map(m => m.id === messageId ? enrichMessageWithWhispers({ ...m, content: newContent }, characterName) : m));
+        setMessages(prev => prev.map(m => m.id === messageId ? enrichMessageWithWhispers({ ...m, content: newContent }, characterName, myDragonName) : m));
         toast.success('Whisper tray regenerated');
       } else {
         toast.error('No content returned from AI');
@@ -2516,7 +2518,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     }
 
     if (data) {
-      const enriched = enrichMessageWithWhispers(data as PartyDmMessage, characterName);
+      const enriched = enrichMessageWithWhispers(data as PartyDmMessage, characterName, myDragonName);
       setMessages(prev => {
         if (prev.some(m => m.id === enriched.id)) return prev;
         return [...prev, enriched];
@@ -2529,7 +2531,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
     setCurrentPrompts([]);
 
     // Auto-save
-    const allMsgs = [...messages, ...(data ? [enrichMessageWithWhispers(data as PartyDmMessage, characterName)] : [])];
+    const allMsgs = [...messages, ...(data ? [enrichMessageWithWhispers(data as PartyDmMessage, characterName, myDragonName)] : [])];
     silentAutoSave(allMsgs, sessionConfig.campaignSummary || null);
   }, [partyId, user, sessionConfig, isSplitActive, splitState, characterName, currentPrompts, updateSessionConfig, silentAutoSave, messages]);
 
@@ -2571,7 +2573,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
       .single();
 
     if (assistantData) {
-      const enriched = enrichMessageWithWhispers(assistantData as PartyDmMessage, characterName);
+      const enriched = enrichMessageWithWhispers(assistantData as PartyDmMessage, characterName, myDragonName);
       setMessages(prev => {
         if (prev.some(m => m.id === enriched.id)) return prev;
         return [...prev, enriched];
