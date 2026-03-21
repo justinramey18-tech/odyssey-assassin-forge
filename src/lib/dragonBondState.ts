@@ -21,6 +21,7 @@ export interface DragonBondState {
   ruptures: number;
   lastContactTimestamp: string | null;
   unreadDragonMessages: string[];
+  speechHabits?: string[];
 }
 
 // ── STORAGE ──
