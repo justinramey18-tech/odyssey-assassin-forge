@@ -232,6 +232,11 @@ You and this rider share something rare. Your communication is almost seamless â
     sections.push(`## PERSONALITY NOTES FROM THE RIDER\n${dragonNotes.trim()}`);
   }
 
+  // Speech habits
+  if (speechHabits && speechHabits.length > 0) {
+    sections.push('## YOUR EVOLVED SPEECH HABITS\nThrough your conversations with this rider, you have developed these characteristic patterns. Use them naturally â€” they are part of who you have become with this specific rider:\n' + speechHabits.map(h => '- ' + h).join('\n'));
+  }
+
   // Dragon memories
   if (memories.length > 0) {
     const regularMemories = memories.filter(m => m.source !== 'rider-said').slice(-15);
