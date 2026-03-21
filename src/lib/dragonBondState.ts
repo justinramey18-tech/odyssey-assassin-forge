@@ -166,6 +166,7 @@ export function buildDragonChatPrompt(
   dragonNotes: string,
   speechHabits?: string[],
   recentNarrative?: string[],
+  bond?: number,
 ): string {
   const sections: string[] = [];
 
