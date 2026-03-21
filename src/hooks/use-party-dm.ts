@@ -142,6 +142,7 @@ interface UsePartyDmOptions {
   customGuidesContent?: string;
   memoryAnchorsContent?: string;
   partyDragonConfigs?: Array<{ userId: string; characterName: string; config: { dragonName: string; signetType: string; bond: number; trust: number; mood: string; burnout: number } }>;
+  myDragonName?: string;
 }
 
 export function usePartyDm({ partyId, isCreator, memberCount, characterName, characterContext, partyMembers, customGuidesContent, memoryAnchorsContent, partyDragonConfigs }: UsePartyDmOptions) {
