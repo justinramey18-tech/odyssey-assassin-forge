@@ -25,6 +25,8 @@ import EmpyreanContextualActions from '@/components/empyrean/EmpyreanContextualA
 import DragonBondChat from '@/components/empyrean/DragonBondChat';
 import { useGMGuides } from '@/hooks/use-gm-guides';
 import { useDMGameState, buildMemoryAnchorsPrompt } from '@/hooks/use-dm-game-state';
+import { useNPCMentionState } from '@/hooks/use-npc-mention-state';
+import { NPCAutocomplete } from '@/components/ai-dm/NPCAutocomplete';
 import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { useDMChatTheme } from '@/hooks/use-dm-chat-theme';
 import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
