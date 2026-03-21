@@ -2856,6 +2856,17 @@ export function PartyDMScreen({ onBack, partyId, partyDm, isCreator, isOriginalC
             trust: dragonBonds.myDragon?.trust ?? 10,
             mood: dragonBonds.myDragon?.mood ?? 'calm',
           }}
+          onRequestOpinion={async () => {
+            const narrative = partyDm.messages
+              .filter(m => m.role === 'assistant' && m.sender_name === 'DM')
+              .slice(-3)
+              .map(m => m.content.length > 500 ? m.content.slice(0, 500) + '…' : m.content);
+            if (narrative.length === 0) return null;
+            return dragonBonds.generateDragonOpinion(
+              members.find(m => m.user_id === currentUserId)?.character_name || 'Rider',
+              narrative,
+            );
+          }}
         />
       )}
     </div>
