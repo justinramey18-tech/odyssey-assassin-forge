@@ -2308,8 +2308,25 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
 
   // ── Timer Controls ──────────────────────────────────────────────────────
   const updateSessionConfig = useCallback(async (patch: Partial<DmSessionConfig>) => {
-    if (!partyId || !sessionConfig) return;
-    const updated: DmSessionConfig = { ...sessionConfig, ...patch };
+    if (!partyId) return;
+
+    // If we don't have sessionConfig in memory, try fetching from DB first
+    let base = sessionConfig;
+    if (!base) {
+      const { data } = await (supabase.from('party_shared_state') as any)
+        .select('state_data')
+        .eq('party_id', partyId)
+        .eq('state_type', 'dm_session')
+        .maybeSingle();
+      if (data?.state_data) {
+        base = data.state_data as DmSessionConfig;
+      } else {
+        console.warn('[PartyDM] updateSessionConfig: no session config found, cannot update');
+        return;
+      }
+    }
+
+    const updated: DmSessionConfig = { ...base, ...patch };
     await (supabase.from('party_shared_state') as any)
       .update({ state_data: updated })
       .eq('party_id', partyId)
